@@ -1,29 +1,27 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/websockets/websocket_deflater.h"
 
 #include <string.h>
+
 #include <algorithm>
 #include <vector>
 
+#include "base/check_op.h"
 #include "base/containers/circular_deque.h"
-#include "base/logging.h"
 #include "net/base/io_buffer.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "third_party/zlib/zlib.h"
 
 namespace net {
 
-WebSocketDeflater::WebSocketDeflater(ContextTakeOverMode mode)
-    : mode_(mode), are_bytes_added_(false) {}
+WebSocketDeflater::WebSocketDeflater(ContextTakeOverMode mode) : mode_(mode) {}
 
 WebSocketDeflater::~WebSocketDeflater() {
   if (stream_) {
     deflateEnd(stream_.get());
-    stream_.reset(NULL);
+    stream_.reset(nullptr);
   }
 }
 
@@ -94,7 +92,7 @@ bool WebSocketDeflater::Finish() {
     ResetContext();
     return true;
   }
-  stream_->next_in = NULL;
+  stream_->next_in = nullptr;
   stream_->avail_in = 0;
 
   int result = Deflate(Z_SYNC_FLUSH);
@@ -140,11 +138,12 @@ void WebSocketDeflater::ResetContext() {
 int WebSocketDeflater::Deflate(int flush) {
   int result = Z_OK;
   do {
-    stream_->next_out = reinterpret_cast<Bytef*>(&fixed_buffer_[0]);
+    stream_->next_out = reinterpret_cast<Bytef*>(fixed_buffer_.data());
     stream_->avail_out = fixed_buffer_.size();
     result = deflate(stream_.get(), flush);
     size_t size = fixed_buffer_.size() - stream_->avail_out;
-    buffer_.insert(buffer_.end(), &fixed_buffer_[0], &fixed_buffer_[0] + size);
+    buffer_.insert(buffer_.end(), fixed_buffer_.data(),
+                   fixed_buffer_.data() + size);
   } while (result == Z_OK);
   return result;
 }

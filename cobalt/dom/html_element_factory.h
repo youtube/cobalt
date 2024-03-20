@@ -35,12 +35,12 @@ class HTMLElementFactory {
   ~HTMLElementFactory();
 
   scoped_refptr<HTMLElement> CreateHTMLElement(Document* document,
-                                               base::Token tag_name);
+                                               base_token::Token tag_name);
 
  private:
   typedef base::Callback<scoped_refptr<HTMLElement>(Document* document)>
       CreateHTMLElementTCallback;
-  typedef base::hash_map<base::Token, CreateHTMLElementTCallback>
+  typedef base::hash_map<base_token::Token, CreateHTMLElementTCallback>
       TagNameToCreateHTMLElementTCallbackMap;
 
   // Helper function templates for adding entries to the map below.

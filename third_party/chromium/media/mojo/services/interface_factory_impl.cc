@@ -25,7 +25,7 @@
 
 #if BUILDFLAG(ENABLE_MOJO_RENDERER) || BUILDFLAG(ENABLE_CAST_RENDERER) || \
     defined(OS_WIN)
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "media/base/renderer.h"
 #include "media/mojo/services/mojo_renderer_service.h"
 #endif

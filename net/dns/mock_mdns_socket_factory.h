@@ -1,9 +1,11 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DNS_MOCK_MDNS_SOCKET_FACTORY_H_
 #define NET_DNS_MOCK_MDNS_SOCKET_FACTORY_H_
+
+#include <stdint.h>
 
 #include <memory>
 #include <string>
@@ -13,7 +15,6 @@
 #include "net/base/completion_repeating_callback.h"
 #include "net/dns/mdns_client_impl.h"
 #include "net/log/net_log_with_source.h"
-#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace net {
@@ -28,18 +29,11 @@ class MockMDnsDatagramServerSocket : public DatagramServerSocket {
   // DatagramServerSocket implementation:
   MOCK_METHOD1(Listen, int(const IPEndPoint& address));
 
-  // GMock cannot handle move-only types like CompletionOnceCallback, so it
-  // needs to be converted into the copyable type CompletionRepeatingCallback.
-  int RecvFrom(IOBuffer* buffer,
-               int size,
-               IPEndPoint* address,
-               CompletionOnceCallback callback) override;
-
-  MOCK_METHOD4(RecvFromInternal,
+  MOCK_METHOD4(RecvFrom,
                int(IOBuffer* buffer,
                    int size,
                    IPEndPoint* address,
-                   CompletionRepeatingCallback callback));
+                   CompletionOnceCallback callback));
 
   int SendTo(IOBuffer* buf,
              int buf_len,
@@ -49,7 +43,7 @@ class MockMDnsDatagramServerSocket : public DatagramServerSocket {
   MOCK_METHOD3(SendToInternal,
                int(const std::string& packet,
                    const std::string address,
-                   CompletionRepeatingCallback callback));
+                   CompletionOnceCallback callback));
 
   MOCK_METHOD1(SetReceiveBufferSize, int(int32_t size));
   MOCK_METHOD1(SetSendBufferSize, int(int32_t size));
@@ -61,13 +55,11 @@ class MockMDnsDatagramServerSocket : public DatagramServerSocket {
   MOCK_CONST_METHOD1(GetPeerAddress, int(IPEndPoint* address));
   int GetLocalAddress(IPEndPoint* address) const override;
   MOCK_METHOD0(UseNonBlockingIO, void());
-  MOCK_METHOD0(UseWriteBatching, void());
-  MOCK_METHOD0(UseMultiCore, void());
-  MOCK_METHOD0(UseSendmmsg, void());
   MOCK_CONST_METHOD0(NetLog, const NetLogWithSource&());
 
   MOCK_METHOD0(AllowAddressReuse, void());
   MOCK_METHOD0(AllowBroadcast, void());
+  MOCK_METHOD0(AllowAddressSharingForMulticast, void());
 
   MOCK_CONST_METHOD1(JoinGroup, int(const IPAddress& group_address));
   MOCK_CONST_METHOD1(LeaveGroup, int(const IPAddress& address));
@@ -85,12 +77,12 @@ class MockMDnsDatagramServerSocket : public DatagramServerSocket {
   int HandleRecvNow(IOBuffer* buffer,
                     int size,
                     IPEndPoint* address,
-                    CompletionRepeatingCallback callback);
+                    CompletionOnceCallback callback);
 
   int HandleRecvLater(IOBuffer* buffer,
                       int size,
                       IPEndPoint* address,
-                      CompletionRepeatingCallback callback);
+                      CompletionOnceCallback callback);
 
  private:
   std::string response_packet_;
@@ -119,7 +111,7 @@ class MockMDnsSocketFactory : public MDnsSocketFactory {
   int RecvFromInternal(IOBuffer* buffer,
                        int size,
                        IPEndPoint* address,
-                       CompletionRepeatingCallback callback);
+                       CompletionOnceCallback callback);
 
   void CreateSocket(
       AddressFamily address_family,
@@ -127,7 +119,7 @@ class MockMDnsSocketFactory : public MDnsSocketFactory {
 
   scoped_refptr<IOBuffer> recv_buffer_;
   int recv_buffer_size_;
-  CompletionRepeatingCallback recv_callback_;
+  CompletionOnceCallback recv_callback_;
 };
 
 }  // namespace net

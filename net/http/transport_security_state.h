@@ -1,37 +1,50 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_TRANSPORT_SECURITY_STATE_H_
 #define NET_HTTP_TRANSPORT_SECURITY_STATE_H_
 
+#include <stdint.h>
+
+#include <array>
 #include <map>
+#include <set>
 #include <string>
 
-#include "base/callback.h"
 #include "base/feature_list.h"
+#include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "base/values.h"
+#include "crypto/sha2.h"
 #include "net/base/expiring_cache.h"
 #include "net/base/hash_value.h"
 #include "net/base/net_export.h"
+#include "net/base/network_anonymization_key.h"
 #include "net/cert/signed_certificate_timestamp_and_status.h"
 #include "net/http/transport_security_state_source.h"
-#include "starboard/types.h"
+#include "net/log/net_log_with_source.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace net {
 
 namespace ct {
 enum class CTPolicyCompliance;
-};
+}
 
 class HostPortPair;
-class SSLInfo;
+class NetworkAnonymizationKey;
 class X509Certificate;
+
+// Feature that controls whether Certificate Transparency is enforced. This
+// feature is default enabled and meant only as an emergency killswitch. It
+// will not enable enforcement in platforms that otherwise have it disabled.
+NET_EXPORT BASE_DECLARE_FEATURE(kCertificateTransparencyEnforcement);
 
 void NET_EXPORT_PRIVATE SetTransportSecurityStateSourceForTesting(
     const TransportSecurityStateSource* source);
@@ -43,19 +56,23 @@ void NET_EXPORT_PRIVATE SetTransportSecurityStateSourceForTesting(
 // |SetDelegate| to persist the state to disk.
 //
 // HTTP strict transport security (HSTS) is defined in
-// http://tools.ietf.org/html/ietf-websec-strict-transport-sec, and
-// HTTP-based dynamic public key pinning (HPKP) is defined in
-// http://tools.ietf.org/html/ietf-websec-key-pinning.
+// http://tools.ietf.org/html/ietf-websec-strict-transport-sec.
 class NET_EXPORT TransportSecurityState {
  public:
+  using HashedHost = std::array<uint8_t, crypto::kSHA256Length>;
+
   class NET_EXPORT Delegate {
    public:
     // This function may not block and may be called with internal locks held.
     // Thus it must not reenter the TransportSecurityState object.
     virtual void StateIsDirty(TransportSecurityState* state) = 0;
+    // Same as StateIsDirty but instructs the Delegate to persist the data
+    // immediately and call |callback| when done.
+    virtual void WriteNow(TransportSecurityState* state,
+                          base::OnceClosure callback) = 0;
 
    protected:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
   };
 
   class NET_EXPORT RequireCTDelegate {
@@ -117,10 +134,10 @@ class NET_EXPORT TransportSecurityState {
     // expires.
     base::Time expiry;
 
-    UpgradeMode upgrade_mode;
+    UpgradeMode upgrade_mode = MODE_DEFAULT;
 
     // Are subdomains subject to this policy state?
-    bool include_subdomains;
+    bool include_subdomains = false;
 
     // The domain which matched during a search for this STSState entry.
     // Updated by |GetDynamicSTSState| and |GetStaticDomainState|.
@@ -138,12 +155,12 @@ class NET_EXPORT TransportSecurityState {
 
     bool HasNext() const { return iterator_ != end_; }
     void Advance() { ++iterator_; }
-    const std::string& hostname() const { return iterator_->first; }
+    const HashedHost& hostname() const { return iterator_->first; }
     const STSState& domain_state() const { return iterator_->second; }
 
    private:
-    std::map<std::string, STSState>::const_iterator iterator_;
-    std::map<std::string, STSState>::const_iterator end_;
+    std::map<HashedHost, STSState>::const_iterator iterator_;
+    std::map<HashedHost, STSState>::const_iterator end_;
   };
 
   // PKPStatus describes the result of a pinning check.
@@ -183,7 +200,7 @@ class NET_EXPORT TransportSecurityState {
     HashValueVector bad_spki_hashes;
 
     // Are subdomains subject to this policy state?
-    bool include_subdomains;
+    bool include_subdomains = false;
 
     // The domain which matched during a search for this DomainState entry.
     // Updated by |GetDynamicPKPState| and |GetStaticDomainState|.
@@ -218,58 +235,6 @@ class NET_EXPORT TransportSecurityState {
     bool HasPublicKeyPins() const;
   };
 
-  class NET_EXPORT PKPStateIterator {
-   public:
-    explicit PKPStateIterator(const TransportSecurityState& state);
-    ~PKPStateIterator();
-
-    bool HasNext() const { return iterator_ != end_; }
-    void Advance() { ++iterator_; }
-    const std::string& hostname() const { return iterator_->first; }
-    const PKPState& domain_state() const { return iterator_->second; }
-
-   private:
-    std::map<std::string, PKPState>::const_iterator iterator_;
-    std::map<std::string, PKPState>::const_iterator end_;
-  };
-
-  // An ExpectCTState describes a site that expects valid Certificate
-  // Transparency information to be supplied on every connection to it.
-  class NET_EXPORT ExpectCTState {
-   public:
-    ExpectCTState();
-    ~ExpectCTState();
-
-    // The domain which matched during a search for this DomainState entry.
-    std::string domain;
-    // The URI to which reports should be sent if valid CT info is not
-    // provided.
-    GURL report_uri;
-    // True if connections should be closed if they do not comply with the CT
-    // policy. If false, noncompliant connections will be allowed but reports
-    // will be sent about the violation.
-    bool enforce;
-    // The absolute time (UTC) when the Expect-CT state was last observed.
-    base::Time last_observed;
-    // The absolute time (UTC) when the Expect-CT state expires.
-    base::Time expiry;
-  };
-
-  class NET_EXPORT ExpectCTStateIterator {
-   public:
-    explicit ExpectCTStateIterator(const TransportSecurityState& state);
-    ~ExpectCTStateIterator();
-
-    bool HasNext() const { return iterator_ != end_; }
-    void Advance() { ++iterator_; }
-    const std::string& hostname() const { return iterator_->first; }
-    const ExpectCTState& domain_state() const { return iterator_->second; }
-
-   private:
-    std::map<std::string, ExpectCTState>::const_iterator iterator_;
-    std::map<std::string, ExpectCTState>::const_iterator end_;
-  };
-
   // An interface for asynchronously sending HPKP violation reports.
   class NET_EXPORT ReportSenderInterface {
    public:
@@ -284,47 +249,55 @@ class NET_EXPORT TransportSecurityState {
     virtual void Send(const GURL& report_uri,
                       base::StringPiece content_type,
                       base::StringPiece report,
-                      const base::Callback<void()>& success_callback,
-                      const base::Callback<void(const GURL&,
-                                                int /* net_error */,
-                                                int /* http_response_code */)>&
+                      const NetworkAnonymizationKey& network_anonymization_key,
+                      base::OnceCallback<void()> success_callback,
+                      base::OnceCallback<void(const GURL&,
+                                              int /* net_error */,
+                                              int /* http_response_code */)>
                           error_callback) = 0;
 
    protected:
-    virtual ~ReportSenderInterface() {}
+    virtual ~ReportSenderInterface() = default;
   };
 
-  // An interface for building and asynchronously sending reports when a
-  // site expects valid Certificate Transparency information but it
-  // wasn't supplied.
-  class NET_EXPORT ExpectCTReporter {
+  class NET_EXPORT PinSet {
    public:
-    // Called when the host in |host_port_pair| has opted in to have
-    // reports about Expect CT policy violations sent to |report_uri|,
-    // and such a violation has occurred.
-    virtual void OnExpectCTFailed(
-        const net::HostPortPair& host_port_pair,
-        const GURL& report_uri,
-        base::Time expiration,
-        const X509Certificate* validated_certificate_chain,
-        const X509Certificate* served_certificate_chain,
-        const SignedCertificateTimestampAndStatusList&
-            signed_certificate_timestamps) = 0;
+    PinSet(std::string name,
+           std::vector<std::vector<uint8_t>> static_spki_hashes,
+           std::vector<std::vector<uint8_t>> bad_static_spki_hashes,
+           std::string report_uri);
+    PinSet(const PinSet& other);
+    ~PinSet();
 
-   protected:
-    virtual ~ExpectCTReporter() {}
+    const std::string& name() const { return name_; }
+    const std::vector<std::vector<uint8_t>>& static_spki_hashes() const {
+      return static_spki_hashes_;
+    }
+    const std::vector<std::vector<uint8_t>>& bad_static_spki_hashes() const {
+      return bad_static_spki_hashes_;
+    }
+    const std::string& report_uri() const { return report_uri_; }
+
+   private:
+    std::string name_;
+    std::vector<std::vector<uint8_t>> static_spki_hashes_;
+    std::vector<std::vector<uint8_t>> bad_static_spki_hashes_;
+    std::string report_uri_;
+  };
+
+  struct NET_EXPORT PinSetInfo {
+    std::string hostname_;
+    std::string pinset_name_;
+    bool include_subdomains_;
+
+    PinSetInfo(std::string hostname,
+               std::string pinset_name,
+               bool include_subdomains);
   };
 
   // Indicates whether or not a public key pin check should send a
   // report if a violation is detected.
   enum PublicKeyPinReportStatus { ENABLE_PIN_REPORTS, DISABLE_PIN_REPORTS };
-
-  // Indicates whether or not an Expect-CT check should send a report if a
-  // violation is detected.
-  enum ExpectCTReportStatus {
-    ENABLE_EXPECT_CT_REPORTS,
-    DISABLE_EXPECT_CT_REPORTS
-  };
 
   // Indicates whether a connection met CT requirements.
   enum CTRequirementsStatus {
@@ -337,11 +310,17 @@ class NET_EXPORT TransportSecurityState {
     CT_REQUIREMENTS_NOT_MET,
   };
 
-  // Feature that controls whether Expect-CT HTTP headers are parsed, processed,
-  // and stored.
-  static const base::Feature kDynamicExpectCTFeature;
-
   TransportSecurityState();
+
+  // Creates a TransportSecurityState object that will skip the check to force
+  // HTTPS from static entries for the given set of hosts. All hostnames in the
+  // bypass list must consist of a single label, i.e. they must be a TLD.
+  explicit TransportSecurityState(
+      std::vector<std::string> hsts_host_bypass_list);
+
+  TransportSecurityState(const TransportSecurityState&) = delete;
+  TransportSecurityState& operator=(const TransportSecurityState&) = delete;
+
   ~TransportSecurityState();
 
   // These functions search for static and dynamic STS and PKP states, and
@@ -350,7 +329,8 @@ class NET_EXPORT TransportSecurityState {
   // left to tests. The caller needs to handle the optional pinning override
   // when is_issued_by_known_root is false.
   bool ShouldSSLErrorsBeFatal(const std::string& host);
-  bool ShouldUpgradeToSSL(const std::string& host);
+  bool ShouldUpgradeToSSL(const std::string& host,
+                          const NetLogWithSource& net_log = NetLogWithSource());
   PKPStatus CheckPublicKeyPins(
       const HostPortPair& host_port_pair,
       bool is_issued_by_known_root,
@@ -358,6 +338,7 @@ class NET_EXPORT TransportSecurityState {
       const X509Certificate* served_certificate_chain,
       const X509Certificate* validated_certificate_chain,
       const PublicKeyPinReportStatus report_status,
+      const NetworkAnonymizationKey& network_anonymization_key,
       std::string* failure_log);
   bool HasPublicKeyPins(const std::string& host);
 
@@ -370,11 +351,6 @@ class NET_EXPORT TransportSecurityState {
   //
   // The behavior may be further be altered by setting a RequireCTDelegate
   // via |SetRequireCTDelegate()|.
-  //
-  // This method checks Expect-CT state for |host| if |issued_by_known_root| is
-  // true. If Expect-CT is configured for |host| and the connection is not
-  // compliant and |report_status| is ENABLE_EXPECT_CT_REPORTS, then a report
-  // will be sent.
   CTRequirementsStatus CheckCTRequirements(
       const net::HostPortPair& host_port_pair,
       bool is_issued_by_known_root,
@@ -383,7 +359,6 @@ class NET_EXPORT TransportSecurityState {
       const X509Certificate* served_certificate_chain,
       const SignedCertificateTimestampAndStatusList&
           signed_certificate_timestamps,
-      const ExpectCTReportStatus report_status,
       ct::CTPolicyCompliance policy_compliance);
 
   // Assign a |Delegate| for persisting the transport security state. If
@@ -395,8 +370,6 @@ class NET_EXPORT TransportSecurityState {
 
   void SetReportSender(ReportSenderInterface* report_sender);
 
-  void SetExpectCTReporter(ExpectCTReporter* expect_ct_reporter);
-
   // Assigns a delegate responsible for determining whether or not a
   // connection to a given host should require Certificate Transparency
   // information that complies with the CT policy provided by a
@@ -406,6 +379,24 @@ class NET_EXPORT TransportSecurityState {
   // the lifetime of this object or until called with nullptr, whichever
   // occurs first.
   void SetRequireCTDelegate(RequireCTDelegate* delegate);
+
+  // If |emergency_disable| is set to true, will stop requiring CT
+  // compliance on any further requests regardless of host or certificate
+  // status.
+  void SetCTEmergencyDisabled(bool emergency_disable) {
+    ct_emergency_disable_ = emergency_disable;
+  }
+
+  bool is_ct_emergency_disabled_for_testing() const {
+    return ct_emergency_disable_;
+  }
+
+  // |pinsets| should include all known pinsets, |host_pins| the information
+  // related to each hostname's pin, and |update_time| the time at which this
+  // list was known to be up to date.
+  void UpdatePinList(const std::vector<PinSet>& pinsets,
+                     const std::vector<PinSetInfo>& host_pins,
+                     base::Time update_time);
 
   // Clears all dynamic data (e.g. HSTS and HPKP data).
   //
@@ -419,29 +410,17 @@ class NET_EXPORT TransportSecurityState {
   // |hashed_host| is already in the internal representation.
   // Note: This is only used for serializing/deserializing the
   // TransportSecurityState.
-  void AddOrUpdateEnabledSTSHosts(const std::string& hashed_host,
+  void AddOrUpdateEnabledSTSHosts(const HashedHost& hashed_host,
                                   const STSState& state);
 
-  // Inserts |state| into |enabled_pkp_hosts_| under the key |hashed_host|.
-  // |hashed_host| is already in the internal representation.
-  // Note: This is only used for serializing/deserializing the
-  // TransportSecurityState.
-  void AddOrUpdateEnabledPKPHosts(const std::string& hashed_host,
-                                  const PKPState& state);
-
-  // Inserts |state| into |enabled_expect_ct_hosts_| under the key
-  // |hashed_host|. |hashed_host| is already in the internal representation.
-  // Note: This is only used for serializing/deserializing the
-  // TransportSecurityState.
-  void AddOrUpdateEnabledExpectCTHosts(const std::string& hashed_host,
-                                       const ExpectCTState& state);
-
-  // Deletes all dynamic data (e.g. HSTS or HPKP data) created since a given
-  // time.
+  // Deletes all dynamic data (e.g. HSTS or HPKP data) created between a time
+  // period  [|start_time|, |end_time|).
   //
   // If any entries are deleted, the new state will be persisted through
-  // the Delegate (if any).
-  void DeleteAllDynamicDataSince(const base::Time& time);
+  // the Delegate (if any). Calls |callback| when data is persisted to disk.
+  void DeleteAllDynamicDataBetween(base::Time start_time,
+                                   base::Time end_time,
+                                   base::OnceClosure callback);
 
   // Deletes any dynamic data stored for |host| (e.g. HSTS or HPKP data).
   // If |host| doesn't have an exact entry then no action is taken. Does
@@ -460,35 +439,27 @@ class NET_EXPORT TransportSecurityState {
   //
   // Note that these methods are not const because they opportunistically remove
   // entries that have expired.
-  bool GetSTSState(const std::string& host, STSState* result);
-  bool GetPKPState(const std::string& host, PKPState* result);
+  bool GetSTSState(const std::string& host, STSState* sts_result);
+  bool GetPKPState(const std::string& host, PKPState* pkp_result);
 
-  // Returns true and updates |*sts_result| and/or |*pkp_result| if there is
-  // static (built-in) state for |host|. If multiple entries match |host|,
-  // the most specific match determines the return value.
-  bool GetStaticDomainState(const std::string& host,
-                            STSState* sts_result,
-                            PKPState* pkp_result) const;
+  // Returns true and updates |*result| iff |host| has static HSTS/HPKP
+  // (respectively) state. If multiple entries match |host|, the most specific
+  // match determines the return value.
+  bool GetStaticSTSState(const std::string& host, STSState* sts_result) const;
+  bool GetStaticPKPState(const std::string& host, PKPState* pkp_result) const;
 
   // Returns true and updates |*result| iff |host| has dynamic
-  // HSTS/HPKP/Expect-CT (respectively) state. If multiple entries match |host|,
+  // HSTS/HPKP (respectively) state. If multiple entries match |host|,
   // the most specific match determines the return value.
   //
   // Note that these methods are not const because they opportunistically remove
   // entries that have expired.
   bool GetDynamicSTSState(const std::string& host, STSState* result);
   bool GetDynamicPKPState(const std::string& host, PKPState* result);
-  bool GetDynamicExpectCTState(const std::string& host, ExpectCTState* result);
 
   // Processes an HSTS header value from the host, adding entries to
   // dynamic state if necessary.
   bool AddHSTSHeader(const std::string& host, const std::string& value);
-
-  // Processes an HPKP header value from the host, adding entries to
-  // dynamic state if necessary.  ssl_info is used to check that
-  // the specified pins overlap with the certificate chain.
-  bool AddHPKPHeader(const std::string& host, const std::string& value,
-                     const SSLInfo& ssl_info);
 
   // Adds explicitly-specified data as if it was processed from an
   // HSTS header (used for net-internals and unit tests).
@@ -497,24 +468,12 @@ class NET_EXPORT TransportSecurityState {
                bool include_subdomains);
 
   // Adds explicitly-specified data as if it was processed from an HPKP header.
-  // Note: This method will persist the HPKP if a Delegate is present. Make sure
-  //       that the delegate is nullptr if the persistence is not desired.
-  //       See |SetDelegate| method for more details.
+  // Note: dynamic PKP data is not persisted.
   void AddHPKP(const std::string& host,
                const base::Time& expiry,
                bool include_subdomains,
                const HashValueVector& hashes,
                const GURL& report_uri);
-
-  // Adds explicitly-specified data as if it was processed from an Expect-CT
-  // header.
-  // Note: This method will persist the Expect-CT data if a Delegate is present.
-  //       Make sure that the delegate is nullptr if the persistence is not
-  //       desired. See |SetDelegate| method for more details.
-  void AddExpectCT(const std::string& host,
-                   const base::Time& expiry,
-                   bool enforce,
-                   const GURL& report_uri);
 
   // Enables or disables public key pinning bypass for local trust anchors.
   // Disabling the bypass for local trust anchors is highly discouraged.
@@ -524,64 +483,41 @@ class NET_EXPORT TransportSecurityState {
   // https://www.chromium.org/Home/chromium-security/security-faq
   void SetEnablePublicKeyPinningBypassForLocalTrustAnchors(bool value);
 
-  // Parses |value| as a Public-Key-Pins-Report-Only header value and
-  // sends a HPKP report for |host_port_pair| if |ssl_info| violates the
-  // pin. Returns true if |value| parses and includes a valid
-  // report-uri, and false otherwise.
-  bool ProcessHPKPReportOnlyHeader(const std::string& value,
-                                   const HostPortPair& host_port_pair,
-                                   const SSLInfo& ssl_info);
-
-  // Parses |value| as a Expect CT header value. If valid and served on a
-  // CT-compliant connection, adds an entry to the dynamic state. If valid but
-  // not served on a CT-compliant connection, a report is sent to alert the site
-  // owner of the misconfiguration (provided that a reporter has been set via
-  // SetExpectCTReporter).
-  //
-  // The header can also have the value "preload", indicating that the site
-  // wants to opt-in to the static report-only version of Expect-CT. If the
-  // given host is present on the preload list and the build is timely and the
-  // connection is not CT-compliant, then a report will be sent.
-  void ProcessExpectCTHeader(const std::string& value,
-                             const HostPortPair& host_port_pair,
-                             const SSLInfo& ssl_info);
-
   void AssertCalledOnValidThread() const {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   }
 
-  // For unit tests only. Causes CheckCTRequirements() to return
-  // CT_REQUIREMENTS_NOT_MET (if |*required| is true) or CT_REQUIREMENTS_MET (if
-  // |*required| is false) for non-compliant connections by default (that is,
-  // unless a RequireCTDelegate overrides). Set to nullptr to reset.
-  static void SetShouldRequireCTForTesting(bool* required);
+  // For unit tests only. Forces CheckCTRequirements() to unconditionally
+  // check compliance.
+  static void SetRequireCTForTesting(bool required);
 
-  // For unit tests only. Clears the caches that deduplicate sent HPKP and
-  // Expect-CT reports.
+  // For unit tests only. Clears the caches that deduplicate sent PKP reports.
   void ClearReportCachesForTesting();
 
-#if defined(COBALT_QUIC46)
   // For unit tests only.
   void EnableStaticPinsForTesting() { enable_static_pins_ = true; }
   bool has_dynamic_pkp_state() const { return !enabled_pkp_hosts_.empty(); }
-#endif
+
+  // Sets whether pinning list timestamp freshness should be ignored for
+  // testing.
+  void SetPinningListAlwaysTimelyForTesting(bool always_timely) {
+    pins_list_always_timely_for_testing_ = always_timely;
+  }
+
+  // The number of cached STSState entries.
+  size_t num_sts_entries() const;
 
  private:
   friend class TransportSecurityStateTest;
   friend class TransportSecurityStateStaticFuzzer;
-  FRIEND_TEST_ALL_PREFIXES(HttpSecurityHeadersTest, UpdateDynamicPKPOnly);
-  FRIEND_TEST_ALL_PREFIXES(HttpSecurityHeadersTest, UpdateDynamicPKPMaxAge0);
   FRIEND_TEST_ALL_PREFIXES(HttpSecurityHeadersTest, NoClobberPins);
-  FRIEND_TEST_ALL_PREFIXES(URLRequestTestHTTP, PreloadExpectCTHeader);
 
-  typedef std::map<std::string, STSState> STSStateMap;
-  typedef std::map<std::string, PKPState> PKPStateMap;
-  typedef std::map<std::string, ExpectCTState> ExpectCTStateMap;
-  typedef ExpiringCache<std::string,
-                        bool,
-                        base::TimeTicks,
-                        std::less<base::TimeTicks>>
+  typedef std::map<HashedHost, STSState> STSStateMap;
+  typedef std::map<HashedHost, PKPState> PKPStateMap;
+  typedef ExpiringCache<std::string, bool, base::TimeTicks, std::less<>>
       ReportCache;
+
+  base::Value::Dict NetLogUpgradeToSSLParam(const std::string& host);
 
   // IsBuildTimely returns true if the current build is new enough ensure that
   // built in security information (i.e. HSTS preloading and pinning
@@ -596,40 +532,27 @@ class NET_EXPORT TransportSecurityState {
       const X509Certificate* served_certificate_chain,
       const X509Certificate* validated_certificate_chain,
       const PublicKeyPinReportStatus report_status,
+      const NetworkAnonymizationKey& network_anonymization_key,
       std::string* failure_log);
 
   // If a Delegate is present, notify it that the internal state has
   // changed.
   void DirtyNotify();
 
-  // Adds HSTS state to |host|.
+  // Adds HSTS and HPKP state for |host|. The new state supercedes
+  // any previous state for the |host|, including static entries.
+  //
+  // The new state for |host| is persisted using the Delegate (if any).
   void AddHSTSInternal(const std::string& host,
                        STSState::UpgradeMode upgrade_mode,
                        const base::Time& expiry,
                        bool include_subdomains);
-
-  // Adds HPKP state to |host|.
   void AddHPKPInternal(const std::string& host,
                        const base::Time& last_observed,
                        const base::Time& expiry,
                        bool include_subdomains,
                        const HashValueVector& hashes,
                        const GURL& report_uri);
-
-  // Adds Expect-CT state to |host|.
-  void AddExpectCTInternal(const std::string& host,
-                           const base::Time& last_observed,
-                           const base::Time& expiry,
-                           bool enforce,
-                           const GURL& report_uri);
-
-  // Enable TransportSecurity for |host|. |state| supercedes any previous
-  // state for the |host|, including static entries.
-  //
-  // The new state for |host| is persisted using the Delegate (if any).
-  void EnableSTSHost(const std::string& host, const STSState& state);
-  void EnablePKPHost(const std::string& host, const PKPState& state);
-  void EnableExpectCTHost(const std::string& host, const ExpectCTState& state);
 
   // Returns true if a request to |host_port_pair| with the given
   // SubjectPublicKeyInfo |hashes| satisfies the pins in |pkp_state|,
@@ -646,56 +569,51 @@ class NET_EXPORT TransportSecurityState {
       const X509Certificate* served_certificate_chain,
       const X509Certificate* validated_certificate_chain,
       const TransportSecurityState::PublicKeyPinReportStatus report_status,
+      const net::NetworkAnonymizationKey& network_anonymization_key,
       std::string* failure_log);
 
-  // Returns true and updates |*expect_ct_result| iff there is a static
-  // (built-in) state for |host| with expect_ct=true.
-  bool GetStaticExpectCTState(const std::string& host,
-                              ExpectCTState* expect_ct_result) const;
-
-  void MaybeNotifyExpectCTFailed(
-      const HostPortPair& host_port_pair,
-      const GURL& report_uri,
-      base::Time expiration,
-      const X509Certificate* validated_certificate_chain,
-      const X509Certificate* served_certificate_chain,
-      const SignedCertificateTimestampAndStatusList&
-          signed_certificate_timestamps);
+  // Returns true if the static key pinning list has been updated in the last 10
+  // weeks.
+  bool IsStaticPKPListTimely() const;
 
   // The sets of hosts that have enabled TransportSecurity. |domain| will always
-  // be empty for a STSState, PKPState, or ExpectCTState in these maps; the
-  // domain comes from the map keys instead. In addition, |upgrade_mode| in the
-  // STSState is never MODE_DEFAULT and |HasPublicKeyPins| in the PKPState
-  // always returns true.
+  // be empty for a STSState or PKPState in these maps; the domain comes from
+  // the map keys instead. In addition, |upgrade_mode| in the STSState is never
+  // MODE_DEFAULT and |HasPublicKeyPins| in the PKPState always returns true.
   STSStateMap enabled_sts_hosts_;
   PKPStateMap enabled_pkp_hosts_;
-  ExpectCTStateMap enabled_expect_ct_hosts_;
 
-  Delegate* delegate_ = nullptr;
+  raw_ptr<Delegate> delegate_ = nullptr;
 
-  ReportSenderInterface* report_sender_ = nullptr;
+  raw_ptr<ReportSenderInterface> report_sender_ = nullptr;
 
   // True if static pins should be used.
-  bool enable_static_pins_;
-
-  // True if static expect-CT state should be used.
-  bool enable_static_expect_ct_;
+  bool enable_static_pins_ = true;
 
   // True if public key pinning bypass is enabled for local trust anchors.
-  bool enable_pkp_bypass_for_local_trust_anchors_;
+  bool enable_pkp_bypass_for_local_trust_anchors_ = true;
 
-  ExpectCTReporter* expect_ct_reporter_ = nullptr;
-
-  RequireCTDelegate* require_ct_delegate_ = nullptr;
+  raw_ptr<RequireCTDelegate> require_ct_delegate_ = nullptr;
 
   // Keeps track of reports that have been sent recently for
   // rate-limiting.
   ReportCache sent_hpkp_reports_cache_;
-  ReportCache sent_expect_ct_reports_cache_;
+
+  std::set<std::string> hsts_host_bypass_list_;
+
+  bool ct_emergency_disable_ = false;
+
+  // The values in host_pins_ maps are references to PinSet objects in the
+  // pinsets_ vector.
+  absl::optional<
+      std::map<std::string, std::pair<const PinSet*, bool>, std::less<>>>
+      host_pins_;
+  base::Time key_pins_list_last_update_time_;
+  std::vector<PinSet> pinsets_;
+
+  bool pins_list_always_timely_for_testing_ = false;
 
   THREAD_CHECKER(thread_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(TransportSecurityState);
 };
 
 }  // namespace net

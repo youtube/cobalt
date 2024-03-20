@@ -169,6 +169,15 @@ OPENSSL_EXPORT DSA *EVP_PKEY_get1_DSA(const EVP_PKEY *pkey);
 OPENSSL_EXPORT int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key);
 OPENSSL_EXPORT int EVP_PKEY_assign_EC_KEY(EVP_PKEY *pkey, EC_KEY *key);
 OPENSSL_EXPORT EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey);
+// EVP_PKEY_new_ed25519_public returns a newly allocated |EVP_PKEY| wrapping an
+// Ed25519 public key, or NULL on allocation error.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_ed25519_public(
+    const uint8_t public_key[32]);
+
+// EVP_PKEY_new_ed25519_private returns a newly allocated |EVP_PKEY| wrapping an
+// Ed25519 private key, or NULL on allocation error.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_ed25519_private(
+    const uint8_t private_key[64]);
 OPENSSL_EXPORT EC_KEY *EVP_PKEY_get1_EC_KEY(const EVP_PKEY *pkey);
 
 #define EVP_PKEY_NONE NID_undef
@@ -817,7 +826,6 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_get0_rsa_oaep_label(EVP_PKEY_CTX *ctx,
 // on success and zero on error.
 OPENSSL_EXPORT int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx,
                                                           int nid);
-
 
 // Deprecated functions.
 

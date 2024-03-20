@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/macros.h"
 #include "starboard/media.h"
 
 namespace cobalt {

@@ -167,7 +167,7 @@ bool DebugConsole::ShouldInjectInputEvents() {
   }
 }
 
-bool DebugConsole::FilterKeyEvent(base::Token type,
+bool DebugConsole::FilterKeyEvent(base_token::Token type,
                                   const dom::KeyboardEventInit& event) {
   // Return true to indicate the event should still be handled.
   if (!ShouldInjectInputEvents()) return true;
@@ -176,7 +176,7 @@ bool DebugConsole::FilterKeyEvent(base::Token type,
   return false;
 }
 
-bool DebugConsole::FilterWheelEvent(base::Token type,
+bool DebugConsole::FilterWheelEvent(base_token::Token type,
                                     const dom::WheelEventInit& event) {
   // Return true to indicate the event should still be handled.
   if (!ShouldInjectInputEvents()) return true;
@@ -185,7 +185,7 @@ bool DebugConsole::FilterWheelEvent(base::Token type,
   return false;
 }
 
-bool DebugConsole::FilterPointerEvent(base::Token type,
+bool DebugConsole::FilterPointerEvent(base_token::Token type,
                                       const dom::PointerEventInit& event) {
   // Return true to indicate the event should still be handled.
   if (!ShouldInjectInputEvents()) return true;
@@ -195,7 +195,7 @@ bool DebugConsole::FilterPointerEvent(base::Token type,
 }
 
 bool DebugConsole::FilterOnScreenKeyboardInputEvent(
-    base::Token type, const dom::InputEventInit& event) {
+    base_token::Token type, const dom::InputEventInit& event) {
   // Return true to indicate the event should still be handled.
   if (!ShouldInjectInputEvents()) return true;
 

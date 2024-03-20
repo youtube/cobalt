@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -58,8 +58,8 @@ void ScopedHardwareBufferHandle::reset() {
 }
 
 AHardwareBuffer* ScopedHardwareBufferHandle::Take() {
-  AHardwareBuffer* buffer = nullptr;
-  std::swap(buffer, buffer_);
+  AHardwareBuffer* buffer = buffer_;
+  buffer_ = nullptr;
   return buffer;
 }
 

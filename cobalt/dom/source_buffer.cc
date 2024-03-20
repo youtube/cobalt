@@ -50,7 +50,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -138,13 +138,13 @@ SourceBuffer::OnInitSegmentReceivedHelper::OnInitSegmentReceivedHelper(
 }
 
 void SourceBuffer::OnInitSegmentReceivedHelper::Detach() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   source_buffer_ = nullptr;
 }
 
 void SourceBuffer::OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived(
     std::unique_ptr<MediaTracks> tracks) {
-  if (!task_runner_->BelongsToCurrentThread()) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived,
@@ -564,7 +564,7 @@ void SourceBuffer::OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
   // TODO: Implement track support.
 }
 
-void SourceBuffer::ScheduleEvent(base::Token event_name) {
+void SourceBuffer::ScheduleEvent(base_token::Token event_name) {
   scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_->Enqueue(event);

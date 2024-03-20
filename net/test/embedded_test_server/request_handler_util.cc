@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,24 +11,24 @@
 #include <utility>
 
 #include "base/base64.h"
+#include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "net/base/escape.h"
 #include "net/base/url_util.h"
 #include "net/http/http_byte_range.h"
 #include "net/http/http_util.h"
 #include "net/test/embedded_test_server/http_request.h"
-#include "starboard/types.h"
 #include "url/gurl.h"
 
-namespace net {
-namespace test_server {
-const char kMockHttpHeadersExtension[] = "mock-http-headers";
+namespace net::test_server {
+constexpr base::FilePath::CharType kMockHttpHeadersExtension[] =
+    FILE_PATH_LITERAL("mock-http-headers");
 
 std::string GetContentType(const base::FilePath& path) {
   if (path.MatchesExtension(FILE_PATH_LITERAL(".crx")))
@@ -53,10 +53,18 @@ std::string GetContentType(const base::FilePath& path) {
     return "application/json";
   if (path.MatchesExtension(FILE_PATH_LITERAL(".pdf")))
     return "application/pdf";
+  if (path.MatchesExtension(FILE_PATH_LITERAL(".svg")))
+    return "image/svg+xml";
   if (path.MatchesExtension(FILE_PATH_LITERAL(".txt")))
     return "text/plain";
   if (path.MatchesExtension(FILE_PATH_LITERAL(".wav")))
     return "audio/wav";
+  if (path.MatchesExtension(FILE_PATH_LITERAL(".webp")))
+    return "image/webp";
+  if (path.MatchesExtension(FILE_PATH_LITERAL(".mp4")))
+    return "video/mp4";
+  if (path.MatchesExtension(FILE_PATH_LITERAL(".webm")))
+    return "video/webm";
   if (path.MatchesExtension(FILE_PATH_LITERAL(".xml")))
     return "text/xml";
   if (path.MatchesExtension(FILE_PATH_LITERAL(".mhtml")))
@@ -71,6 +79,10 @@ std::string GetContentType(const base::FilePath& path) {
 }
 
 bool ShouldHandle(const HttpRequest& request, const std::string& path_prefix) {
+  if (request.method == METHOD_CONNECT) {
+    return false;
+  }
+
   GURL url = request.GetURL();
   return url.path() == path_prefix ||
          base::StartsWith(url.path(), path_prefix + "/",
@@ -89,17 +101,16 @@ std::unique_ptr<HttpResponse> HandlePrefixedRequest(
 RequestQuery ParseQuery(const GURL& url) {
   RequestQuery queries;
   for (QueryIterator it(url); !it.IsAtEnd(); it.Advance()) {
-    std::string unescaped_query;
-    UnescapeBinaryURLComponent(
-        it.GetKey(), UnescapeRule::REPLACE_PLUS_WITH_SPACE, &unescaped_query);
+    std::string unescaped_query = base::UnescapeBinaryURLComponent(
+        it.GetKey(), base::UnescapeRule::REPLACE_PLUS_WITH_SPACE);
     queries[unescaped_query].push_back(it.GetUnescapedValue());
   }
   return queries;
 }
 
-void GetFilePathWithReplacements(const std::string& original_file_path,
-                                 const base::StringPairs& text_to_replace,
-                                 std::string* replacement_path) {
+std::string GetFilePathWithReplacements(
+    const std::string& original_file_path,
+    const base::StringPairs& text_to_replace) {
   std::string new_file_path = original_file_path;
   for (const auto& replacement : text_to_replace) {
     const std::string& old_text = replacement.first;
@@ -118,7 +129,26 @@ void GetFilePathWithReplacements(const std::string& original_file_path,
     new_file_path += base64_new;
   }
 
-  *replacement_path = new_file_path;
+  return new_file_path;
+}
+
+// Returns false if there were errors, otherwise true.
+bool UpdateReplacedText(const RequestQuery& query, std::string* data) {
+  auto replace_text = query.find("replace_text");
+  if (replace_text == query.end())
+    return true;
+
+  for (const auto& replacement : replace_text->second) {
+    if (replacement.find(":") == std::string::npos)
+      return false;
+    std::string find;
+    std::string with;
+    base::Base64Decode(replacement.substr(0, replacement.find(":")), &find);
+    base::Base64Decode(replacement.substr(replacement.find(":") + 1), &with);
+    base::ReplaceSubstringsAfterOffset(data, 0, find, with);
+  }
+
+  return true;
 }
 
 // Handles |request| by serving a file from under |server_root|.
@@ -128,6 +158,10 @@ std::unique_ptr<HttpResponse> HandleFileRequest(
   // This is a test-only server. Ignore I/O thread restrictions.
   // TODO(svaldez): Figure out why thread is I/O restricted in the first place.
   base::ScopedAllowBlockingForTesting allow_blocking;
+
+  if (request.method == METHOD_CONNECT) {
+    return nullptr;
+  }
 
   // A proxy request will have an absolute path. Simulate the proxy by stripping
   // the scheme, host, and port.
@@ -144,25 +178,25 @@ std::unique_ptr<HttpResponse> HandleFileRequest(
 
   RequestQuery query = ParseQuery(request_url);
 
-  std::unique_ptr<BasicHttpResponse> failed_response(new BasicHttpResponse);
+  auto failed_response = std::make_unique<BasicHttpResponse>();
   failed_response->set_code(HTTP_NOT_FOUND);
 
   if (query.find("expected_body") != query.end()) {
     if (request.content.find(query["expected_body"].front()) ==
         std::string::npos) {
-      return std::move(failed_response);
+      return failed_response;
     }
   }
 
   if (query.find("expected_headers") != query.end()) {
     for (const auto& header : query["expected_headers"]) {
       if (header.find(":") == std::string::npos)
-        return std::move(failed_response);
+        return failed_response;
       std::string key = header.substr(0, header.find(":"));
       std::string value = header.substr(header.find(":") + 1);
       if (request.headers.find(key) == request.headers.end() ||
           request.headers.at(key) != value) {
-        return std::move(failed_response);
+        return failed_response;
       }
     }
   }
@@ -181,38 +215,24 @@ std::unique_ptr<HttpResponse> HandleFileRequest(
   if (request.method == METHOD_HEAD)
     file_contents = "";
 
-  if (query.find("replace_text") != query.end()) {
-    for (const auto& replacement : query["replace_text"]) {
-      if (replacement.find(":") == std::string::npos)
-        return std::move(failed_response);
-      std::string find;
-      std::string with;
-      base::Base64Decode(replacement.substr(0, replacement.find(":")), &find);
-      base::Base64Decode(replacement.substr(replacement.find(":") + 1), &with);
-      base::ReplaceSubstringsAfterOffset(&file_contents, 0, find, with);
-    }
-  }
+  if (!UpdateReplacedText(query, &file_contents))
+    return failed_response;
 
-  base::FilePath::StringPieceType mock_headers_extension;
-#if defined(OS_WIN)
-  base::string16 temp = base::ASCIIToUTF16(kMockHttpHeadersExtension);
-  mock_headers_extension = temp;
-#else
-  mock_headers_extension = kMockHttpHeadersExtension;
-#endif
-
-  base::FilePath headers_path(file_path.AddExtension(mock_headers_extension));
+  base::FilePath headers_path(
+      file_path.AddExtension(kMockHttpHeadersExtension));
 
   if (base::PathExists(headers_path)) {
     std::string headers_contents;
 
-    if (!base::ReadFileToString(headers_path, &headers_contents))
+    if (!base::ReadFileToString(headers_path, &headers_contents) ||
+        !UpdateReplacedText(query, &headers_contents)) {
       return nullptr;
+    }
 
     return std::make_unique<RawHttpResponse>(headers_contents, file_contents);
   }
 
-  std::unique_ptr<BasicHttpResponse> http_response(new BasicHttpResponse);
+  auto http_response = std::make_unique<BasicHttpResponse>();
   http_response->set_code(HTTP_OK);
 
   if (request.headers.find("Range") != request.headers.end()) {
@@ -238,8 +258,7 @@ std::unique_ptr<HttpResponse> HandleFileRequest(
   http_response->AddCustomHeader("Accept-Ranges", "bytes");
   http_response->AddCustomHeader("ETag", "'" + file_path.MaybeAsASCII() + "'");
   http_response->set_content(file_contents);
-  return std::move(http_response);
+  return http_response;
 }
 
-}  // namespace test_server
-}  // namespace net
+}  // namespace net::test_server

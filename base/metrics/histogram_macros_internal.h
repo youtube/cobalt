@@ -1,19 +1,21 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_METRICS_HISTOGRAM_MACROS_INTERNAL_H_
 #define BASE_METRICS_HISTOGRAM_MACROS_INTERNAL_H_
 
+#include <stdint.h>
+
+#include <atomic>
 #include <limits>
+#include <memory>
 #include <type_traits>
 
-#include "base/atomicops.h"
-#include "base/logging.h"
+#include "base/dcheck_is_on.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/time/time.h"
-#include "starboard/types.h"
 
 // This is for macros and helpers internal to base/metrics. They should not be
 // used outside of this directory. For writing to UMA histograms, see
@@ -39,9 +41,13 @@ template <typename Enum>
 struct EnumSizeTraits<
     Enum,
     std::enable_if_t<std::is_enum<decltype(Enum::kMaxValue)>::value>> {
-  using underlying_type = typename std::underlying_type<Enum>::type;
   static constexpr Enum Count() {
-    return static_cast<Enum>(static_cast<underlying_type>(Enum::kMaxValue) + 1);
+    // If you're getting
+    //   note: integer value X is outside the valid range of values [0, X] for
+    //         this enumeration type
+    // Then you need to give your enum a fixed underlying type.
+    return static_cast<Enum>(
+        static_cast<std::underlying_type_t<Enum>>(Enum::kMaxValue) + 1);
   }
 };
 
@@ -64,60 +70,51 @@ struct EnumSizeTraits<
 // define HISTOGRAM_POINTER_USE, which uses an |atomic_histogram_pointer|, and
 // STATIC_HISTOGRAM_POINTER_BLOCK, which defines an |atomic_histogram_pointer|
 // and forwards to HISTOGRAM_POINTER_USE.
-#define HISTOGRAM_POINTER_USE(atomic_histogram_pointer,                        \
-                              constant_histogram_name,                         \
-                              histogram_add_method_invocation,                 \
-                              histogram_factory_get_invocation)                \
-  do {                                                                         \
-    /*                                                                         \
-     * Acquire_Load() ensures that we acquire visibility to the                \
-     * pointed-to data in the histogram.                                       \
-     */                                                                        \
-    base::HistogramBase* histogram_pointer(                                    \
-        reinterpret_cast<base::HistogramBase*>(                                \
-            base::subtle::Acquire_Load(atomic_histogram_pointer)));            \
-    if (!histogram_pointer) {                                                  \
-      /*                                                                       \
-       * This is the slow path, which will construct OR find the               \
-       * matching histogram.  histogram_factory_get_invocation includes        \
-       * locks on a global histogram name map and is completely thread         \
-       * safe.                                                                 \
-       */                                                                      \
-      histogram_pointer = histogram_factory_get_invocation;                    \
-                                                                               \
-      /*                                                                       \
-       * Use Release_Store to ensure that the histogram data is made           \
-       * available globally before we make the pointer visible. Several        \
-       * threads may perform this store, but the same value will be            \
-       * stored in all cases (for a given named/spec'ed histogram).            \
-       * We could do this without any barrier, since FactoryGet entered        \
-       * and exited a lock after construction, but this barrier makes          \
-       * things clear.                                                         \
-       */                                                                      \
-      base::subtle::Release_Store(                                             \
-          atomic_histogram_pointer,                                            \
-          reinterpret_cast<base::subtle::AtomicWord>(histogram_pointer));      \
-    }                                                                          \
-    if (DCHECK_IS_ON())                                                        \
-      histogram_pointer->CheckName(constant_histogram_name);                   \
-    histogram_pointer->histogram_add_method_invocation;                        \
+#define HISTOGRAM_POINTER_USE(                                           \
+    atomic_histogram_pointer, constant_histogram_name,                   \
+    histogram_add_method_invocation, histogram_factory_get_invocation)   \
+  do {                                                                   \
+    base::HistogramBase* histogram_pointer(                              \
+        reinterpret_cast<base::HistogramBase*>(                          \
+            atomic_histogram_pointer->load(std::memory_order_acquire))); \
+    if (!histogram_pointer) {                                            \
+      /*                                                                 \
+       * This is the slow path, which will construct OR find the         \
+       * matching histogram. |histogram_factory_get_invocation| includes \
+       * locks on a global histogram name map and is completely thread   \
+       * safe.                                                           \
+       */                                                                \
+      histogram_pointer = histogram_factory_get_invocation;              \
+                                                                         \
+      /*                                                                 \
+       * We could do this without any barrier, since FactoryGet()        \
+       * entered and exited a lock after construction, but this barrier  \
+       * makes things clear.                                             \
+       */                                                                \
+      atomic_histogram_pointer->store(                                   \
+          reinterpret_cast<uintptr_t>(histogram_pointer),                \
+          std::memory_order_release);                                    \
+    }                                                                    \
+    if (DCHECK_IS_ON())                                                  \
+      histogram_pointer->CheckName(constant_histogram_name);             \
+    histogram_pointer->histogram_add_method_invocation;                  \
   } while (0)
 
 // This is a helper macro used by other macros and shouldn't be used directly.
 // Defines the static |atomic_histogram_pointer| and forwards to
 // HISTOGRAM_POINTER_USE.
-#define STATIC_HISTOGRAM_POINTER_BLOCK(constant_histogram_name,                \
-                                       histogram_add_method_invocation,        \
-                                       histogram_factory_get_invocation)       \
-  do {                                                                         \
-    /*                                                                         \
-     * The pointer's presence indicates that the initialization is complete.   \
-     * Initialization is idempotent, so it can safely be atomically repeated.  \
-     */                                                                        \
-    static base::subtle::AtomicWord atomic_histogram_pointer = 0;              \
-    HISTOGRAM_POINTER_USE(&atomic_histogram_pointer, constant_histogram_name,  \
-                          histogram_add_method_invocation,                     \
-                          histogram_factory_get_invocation);                   \
+#define STATIC_HISTOGRAM_POINTER_BLOCK(constant_histogram_name,               \
+                                       histogram_add_method_invocation,       \
+                                       histogram_factory_get_invocation)      \
+  do {                                                                        \
+    /*                                                                        \
+     * The pointer's presence indicates that the initialization is complete.  \
+     * Initialization is idempotent, so it can safely be atomically repeated. \
+     */                                                                       \
+    static std::atomic_uintptr_t atomic_histogram_pointer;                    \
+    HISTOGRAM_POINTER_USE(                                                    \
+        std::addressof(atomic_histogram_pointer), constant_histogram_name,    \
+        histogram_add_method_invocation, histogram_factory_get_invocation);   \
   } while (0)
 
 // This is a helper macro used by other macros and shouldn't be used directly.
@@ -144,9 +141,9 @@ struct EnumSizeTraits<
 #define INTERNAL_HISTOGRAM_EXACT_LINEAR_WITH_FLAG(name, sample, boundary,  \
                                                   flag)                    \
   do {                                                                     \
-    static_assert(!std::is_enum<decltype(sample)>::value,                  \
+    static_assert(!std::is_enum<std::decay_t<decltype(sample)>>::value,    \
                   "|sample| should not be an enum type!");                 \
-    static_assert(!std::is_enum<decltype(boundary)>::value,                \
+    static_assert(!std::is_enum<std::decay_t<decltype(boundary)>>::value,  \
                   "|boundary| should not be an enum type!");               \
     STATIC_HISTOGRAM_POINTER_BLOCK(                                        \
         name, Add(sample),                                                 \
@@ -160,9 +157,9 @@ struct EnumSizeTraits<
 #define INTERNAL_HISTOGRAM_SCALED_EXACT_LINEAR_WITH_FLAG(                      \
     name, sample, count, boundary, scale, flag)                                \
   do {                                                                         \
-    static_assert(!std::is_enum<decltype(sample)>::value,                      \
+    static_assert(!std::is_enum<std::decay_t<decltype(sample)>>::value,        \
                   "|sample| should not be an enum type!");                     \
-    static_assert(!std::is_enum<decltype(boundary)>::value,                    \
+    static_assert(!std::is_enum<std::decay_t<decltype(boundary)>>::value,      \
                   "|boundary| should not be an enum type!");                   \
     class ScaledLinearHistogramInstance : public base::ScaledLinearHistogram { \
      public:                                                                   \
@@ -185,7 +182,8 @@ struct EnumSizeTraits<
 #define INTERNAL_UMA_HISTOGRAM_ENUMERATION_DEDUCE_BOUNDARY(name, sample,       \
                                                            flags)              \
   INTERNAL_HISTOGRAM_ENUMERATION_WITH_FLAG(                                    \
-      name, sample, base::internal::EnumSizeTraits<decltype(sample)>::Count(), \
+      name, sample,                                                            \
+      base::internal::EnumSizeTraits<std::decay_t<decltype(sample)>>::Count(), \
       flags)
 
 // Note: The value in |sample| must be strictly less than |enum_size|.
@@ -230,8 +228,8 @@ struct EnumSizeTraits<
     using decayed_sample = std::decay<decltype(sample)>::type;               \
     static_assert(std::is_enum<decayed_sample>::value,                       \
                   "Unexpected: |sample| is not at enum.");                   \
-    constexpr auto boundary =                                                \
-        base::internal::EnumSizeTraits<decltype(sample)>::Count();           \
+    constexpr auto boundary = base::internal::EnumSizeTraits<                \
+        std::decay_t<decltype(sample)>>::Count();                            \
     static_assert(                                                           \
         static_cast<uintmax_t>(boundary) <                                   \
             static_cast<uintmax_t>(                                          \
@@ -244,24 +242,32 @@ struct EnumSizeTraits<
 
 // This is a helper macro used by other macros and shouldn't be used directly.
 // This is necessary to expand __COUNTER__ to an actual value.
-#define INTERNAL_SCOPED_UMA_HISTOGRAM_TIMER_EXPANDER(name, is_long, key)       \
-  INTERNAL_SCOPED_UMA_HISTOGRAM_TIMER_UNIQUE(name, is_long, key)
+#define INTERNAL_SCOPED_UMA_HISTOGRAM_TIMER_EXPANDER(name, timing, key) \
+  INTERNAL_SCOPED_UMA_HISTOGRAM_TIMER_UNIQUE(name, timing, key)
 
 // This is a helper macro used by other macros and shouldn't be used directly.
-#define INTERNAL_SCOPED_UMA_HISTOGRAM_TIMER_UNIQUE(name, is_long, key)         \
-  class ScopedHistogramTimer##key {                                            \
-   public:                                                                     \
-    ScopedHistogramTimer##key() : constructed_(base::TimeTicks::Now()) {}      \
-    ~ScopedHistogramTimer##key() {                                             \
-      base::TimeDelta elapsed = base::TimeTicks::Now() - constructed_;         \
-      if (is_long) {                                                           \
-        UMA_HISTOGRAM_LONG_TIMES_100(name, elapsed);                           \
-      } else {                                                                 \
-        UMA_HISTOGRAM_TIMES(name, elapsed);                                    \
-      }                                                                        \
-    }                                                                          \
-   private:                                                                    \
-    base::TimeTicks constructed_;                                              \
+#define INTERNAL_SCOPED_UMA_HISTOGRAM_TIMER_UNIQUE(name, timing, key)      \
+  class ScopedHistogramTimer##key {                                        \
+   public:                                                                 \
+    ScopedHistogramTimer##key() : constructed_(base::TimeTicks::Now()) {}  \
+    ~ScopedHistogramTimer##key() {                                         \
+      base::TimeDelta elapsed = base::TimeTicks::Now() - constructed_;     \
+      switch (timing) {                                                    \
+        case ScopedHistogramTiming::kMicrosecondTimes:                     \
+          UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(                         \
+              name, elapsed, base::Microseconds(1), base::Seconds(1), 50); \
+          break;                                                           \
+        case ScopedHistogramTiming::kMediumTimes:                          \
+          UMA_HISTOGRAM_TIMES(name, elapsed);                              \
+          break;                                                           \
+        case ScopedHistogramTiming::kLongTimes:                            \
+          UMA_HISTOGRAM_LONG_TIMES_100(name, elapsed);                     \
+          break;                                                           \
+      }                                                                    \
+    }                                                                      \
+                                                                           \
+   private:                                                                \
+    base::TimeTicks constructed_;                                          \
   } scoped_histogram_timer_##key
 
 #endif  // BASE_METRICS_HISTOGRAM_MACROS_INTERNAL_H_

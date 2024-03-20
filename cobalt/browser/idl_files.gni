@@ -71,6 +71,7 @@ source_idl_files = [
   "//cobalt/dom/focus_event.idl",
   "//cobalt/dom/history.idl",
   "//cobalt/dom/html_anchor_element.idl",
+
   "//cobalt/dom/html_audio_element.idl",
   "//cobalt/dom/html_body_element.idl",
   "//cobalt/dom/html_br_element.idl",
@@ -156,7 +157,6 @@ source_idl_files = [
   "//cobalt/h5vcc/dial/dial_server.idl",
   "//cobalt/h5vcc/h5vcc.idl",
   "//cobalt/h5vcc/h5vcc_accessibility.idl",
-  "//cobalt/h5vcc/h5vcc_account_manager_internal.idl",
   "//cobalt/h5vcc/h5vcc_audio_config.idl",
   "//cobalt/h5vcc/h5vcc_audio_config_array.idl",
   "//cobalt/h5vcc/h5vcc_crash_log.idl",

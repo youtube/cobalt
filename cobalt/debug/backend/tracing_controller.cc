@@ -80,7 +80,7 @@ void TraceEventAgent::StopAgentTracing(
   //  will call OutputTraceData(), possibly multiple times.  We have to do this
   //  on a thread as there will be tasks posted to the current thread for data
   //  writing.
-  thread.message_loop()->task_runner()->PostTask(
+  thread.task_runner()->PostTask(
       FROM_HERE, base::BindRepeating(&base::trace_event::TraceLog::Flush,
                                      base::Unretained(trace_log),
                                      collect_data_callback, false));
@@ -159,10 +159,13 @@ void TracingController::Thaw(JSONObject agent_state) {
 
   // Restore state
   categories_.clear();
-  for (const auto& category : agent_state->FindKey(kCategories)->GetList()) {
-    categories_.emplace_back(category.GetString());
+  const base::Value::List* categories = agent_state->FindList(kCategories);
+  if (categories) {
+    for (const auto& category : *categories) {
+      categories_.emplace_back(category.GetString());
+    }
   }
-  tracing_started_ = agent_state->FindKey(kStarted)->GetBool();
+  tracing_started_ = agent_state->FindBool(kStarted).value_or(false);
   if (tracing_started_) {
     agents_responded_ = 0;
     auto config = base::trace_event::TraceConfig();

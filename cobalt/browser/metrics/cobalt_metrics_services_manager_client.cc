@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "base/callback_forward.h"
 #include "base/command_line.h"
+#include "base/functional/callback_forward.h"
 #include "base/metrics/field_trial.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "components/metrics/client_info.h"
@@ -98,7 +98,7 @@ void CobaltMetricsServicesManagerClient::
     ::metrics::MetricsService::RegisterPrefs(pref_registry.get());
 
     metrics_state_manager_ = ::metrics::MetricsStateManager::Create(
-        local_state_.get(), enabled_state_provider_.get(), base::string16(),
+        local_state_.get(), enabled_state_provider_.get(), std::wstring(),
         base::BindRepeating(&StoreMetricsClientInfo),
         base::BindRepeating(&LoadMetricsClientInfo));
   }

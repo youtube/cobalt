@@ -19,10 +19,10 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/message_loop/message_loop.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/loader/embedded_resources.h"  // Generated.
 

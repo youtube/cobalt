@@ -18,7 +18,9 @@
 #define NET_SOCKET_UDP_SOCKET_STARBOARD_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
+#include "base/message_loop/message_pump_io_starboard.h"
+#include "base/message_loop/message_pump_for_io.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/datagram_buffer.h"
@@ -34,6 +36,7 @@
 #include "net/socket/diff_serv_code_point.h"
 #include "net/socket/socket_descriptor.h"
 #include "net/socket/socket_tag.h"
+#include "net/socket/udp_socket_global_limits.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "starboard/common/socket.h"
 
@@ -58,7 +61,7 @@ struct NET_EXPORT SendResult {
 
 // Don't delay writes more than this.
 const base::TimeDelta kWriteAsyncMsThreshold =
-    base::TimeDelta::FromMilliseconds(1);
+    base::Milliseconds(1);
 // Prefer local if number of writes is not more than this.
 const int kWriteAsyncMinBuffersThreshold = 2;
 // Don't allow more than this many outstanding async writes.
@@ -99,7 +102,7 @@ class NET_EXPORT UDPSocketStarboardSender
 };
 
 class NET_EXPORT UDPSocketStarboard
-    : public base::MessageLoopCurrentForIO::Watcher {
+    : public base::MessagePumpIOStarboard::Watcher {
  public:
   UDPSocketStarboard(DatagramSocket::BindType bind_type,
                      net::NetLog* net_log,
@@ -115,7 +118,7 @@ class NET_EXPORT UDPSocketStarboard
   // fail if |network| has disconnected. Communication using this socket will
   // fail if |network| disconnects.
   // Returns a net error code.
-  int BindToNetwork(NetworkChangeNotifier::NetworkHandle network);
+  int BindToNetwork(handles::NetworkHandle network);
 
   // Connect the socket to the host at |address|.
   // Should be called after Open().
@@ -227,6 +230,19 @@ class NET_EXPORT UDPSocketStarboard
   // Returns a net error code.
   int SetBroadcast(bool broadcast);
 
+  // Sets socket options to allow the socket to share the local address to which
+  // the socket will be bound with other processes and attempt to allow all such
+  // sockets to receive the same multicast messages. Returns a net error code.
+  //
+  // Ability and requirements for different sockets to receive the same messages
+  // varies between POSIX platforms.  For best results in allowing the messages
+  // to be shared, all sockets sharing the same address should join the same
+  // multicast group and interface. Also, the socket should listen to the
+  // specific multicast address rather than a wildcard address (e.g. 0.0.0.0).
+  //
+  // Should be called between Open() and Bind().
+  int AllowAddressSharingForMulticast();
+
   // Joins the multicast group.
   // |group_address| is the group address to join, could be either
   // an IPv4 or IPv6 address.
@@ -305,17 +321,22 @@ class NET_EXPORT UDPSocketStarboard
     experimental_recv_optimization_enabled_ = true;
   };
 
+  // Takes ownership of `socket`, which should be a socket descriptor opened
+  // with the specified address family. The socket should only be created but
+  // not bound or connected to an address.
+  int AdoptOpenedSocket(AddressFamily address_family, const SbSocket& socket);
+
  protected:
   // Watcher for WriteAsync paths.
-  class WriteAsyncWatcher : public base::MessageLoopCurrentForIO::Watcher {
+  class WriteAsyncWatcher : public base::MessagePumpIOStarboard::Watcher {
    public:
     explicit WriteAsyncWatcher(UDPSocketStarboard* socket)
         : socket_(socket), watching_(false) {}
 
-    // MessageLoopCurrentForIO::Watcher methods
+    // MessagePumpIOStarboard::Watcher methods
 
-    void OnSocketReadyToRead(SbSocket socket) override{};
-    void OnSocketReadyToWrite(SbSocket socket) override;
+    void OnSocketReadyToRead(SbSocket socket){};
+    void OnSocketReadyToWrite(SbSocket socket);
 
     void set_watching(bool watching) { watching_ = watching; }
 
@@ -325,7 +346,7 @@ class NET_EXPORT UDPSocketStarboard
     UDPSocketStarboard* const socket_;
     bool watching_;
 
-    DISALLOW_COPY_AND_ASSIGN(WriteAsyncWatcher);
+    // DISALLOW_COPY_AND_ASSIGN(WriteAsyncWatcher);
   };
 
   void IncreaseWriteAsyncOutstanding(int increment) {
@@ -350,7 +371,7 @@ class NET_EXPORT UDPSocketStarboard
   DatagramBuffers pending_writes_;
 
  private:
-  // MessageLoopCurrentForIO::Watcher implementation.
+  // MessagePumpIOStarboard::Watcher implementation.
   void OnSocketReadyToRead(SbSocket socket) override;
   void OnSocketReadyToWrite(SbSocket socket) override;
 
@@ -417,7 +438,7 @@ class NET_EXPORT UDPSocketStarboard
   mutable std::unique_ptr<IPEndPoint> remote_address_;
 
   // The socket's SbSocketWaiter wrappers
-  base::MessageLoopCurrentForIO::SocketWatcher socket_watcher_;
+  base::MessagePumpIOStarboard::SocketWatcher socket_watcher_;
 
   // Various bits to support |WriteAsync()|.
   bool write_async_enabled_ = false;
@@ -458,12 +479,16 @@ class NET_EXPORT UDPSocketStarboard
   // enable_experimental_recv_optimization() method.
   bool experimental_recv_optimization_enabled_ = false;
 
+  // Manages decrementing the global open UDP socket counter when this
+  // UDPSocket is destroyed.
+  OwnedUDPSocketCount owned_socket_count_;
+
   THREAD_CHECKER(thread_checker_);
 
   // Used for alternate writes that are posted for concurrent execution.
   base::WeakPtrFactory<UDPSocketStarboard> weak_factory_;
 
-  DISALLOW_COPY_AND_ASSIGN(UDPSocketStarboard);
+  // DISALLOW_COPY_AND_ASSIGN(UDPSocketStarboard);
 };
 
 }  // namespace net

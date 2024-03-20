@@ -36,7 +36,7 @@ class ClassSelector : public SimpleSelector {
  public:
   explicit ClassSelector(const std::string& class_name)
       : SimpleSelector(kClassSelector, base::Tokens::class_selector_prefix(),
-                       base::Token(class_name)) {}
+                       base_token::Token(class_name)) {}
   ~ClassSelector() override {}
 
   // From Selector.
@@ -49,7 +49,7 @@ class ClassSelector : public SimpleSelector {
                              CombinatorType combinator) override;
 
   // Rest of public methods.
-  base::Token class_name() const { return text(); }
+  base_token::Token class_name() const { return text(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ClassSelector);

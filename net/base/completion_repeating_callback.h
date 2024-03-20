@@ -1,13 +1,14 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_COMPLETION_REPEATING_CALLBACK_H_
 #define NET_BASE_COMPLETION_REPEATING_CALLBACK_H_
 
-#include "base/callback.h"
+#include <stdint.h>
+
 #include "base/cancelable_callback.h"
-#include "starboard/types.h"
+#include "base/functional/callback.h"
 
 namespace net {
 

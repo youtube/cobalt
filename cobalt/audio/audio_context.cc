@@ -43,12 +43,12 @@ AudioContext::AudioContext(script::EnvironmentSettings* settings)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           destination_(new AudioDestinationNode(settings, this))),
       next_callback_id_(0),
-      main_message_loop_(base::ThreadTaskRunnerHandle::Get()) {
-  DCHECK(main_message_loop_);
+      main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
+  DCHECK(main_task_runner_);
 }
 
 AudioContext::~AudioContext() {
-  DCHECK(main_message_loop_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_->RunsTasksInCurrentSequence());
 
   // Before releasing any |pending_decode_callbacks_|, stop audio decoder
   // explicitly to ensure that all the decoding works are done.
@@ -65,7 +65,7 @@ AudioContext::~AudioContext() {
 scoped_refptr<AudioBuffer> AudioContext::CreateBuffer(uint32 num_of_channels,
                                                       uint32 length,
                                                       float sample_rate) {
-  DCHECK(main_message_loop_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_->RunsTasksInCurrentSequence());
 
   return scoped_refptr<AudioBuffer>(new AudioBuffer(
       sample_rate, std::unique_ptr<AudioBus>(new AudioBus(
@@ -75,7 +75,7 @@ scoped_refptr<AudioBuffer> AudioContext::CreateBuffer(uint32 num_of_channels,
 
 scoped_refptr<AudioBufferSourceNode> AudioContext::CreateBufferSource(
     script::EnvironmentSettings* settings) {
-  DCHECK(main_message_loop_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_->RunsTasksInCurrentSequence());
 
   return scoped_refptr<AudioBufferSourceNode>(
       new AudioBufferSourceNode(settings, this));
@@ -115,7 +115,7 @@ void AudioContext::TraceMembers(script::Tracer* tracer) {
 void AudioContext::DecodeAudioData(
     const script::Handle<script::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler) {
-  DCHECK(main_message_loop_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_->RunsTasksInCurrentSequence());
 
   std::unique_ptr<DecodeCallbackInfo> info(
       new DecodeCallbackInfo(audio_data, this, success_handler));
@@ -126,7 +126,7 @@ void AudioContext::DecodeAudioData(
     const script::Handle<script::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler,
     const DecodeErrorCallbackArg& error_handler) {
-  DCHECK(main_message_loop_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_->RunsTasksInCurrentSequence());
 
   std::unique_ptr<DecodeCallbackInfo> info(
       new DecodeCallbackInfo(audio_data, this, success_handler, error_handler));
@@ -135,7 +135,7 @@ void AudioContext::DecodeAudioData(
 
 void AudioContext::DecodeAudioDataInternal(
     std::unique_ptr<DecodeCallbackInfo> info) {
-  DCHECK(main_message_loop_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_->RunsTasksInCurrentSequence());
 
   const int callback_id = next_callback_id_++;
   CHECK(pending_decode_callbacks_.find(callback_id) ==
@@ -153,8 +153,8 @@ void AudioContext::DecodeAudioDataInternal(
 // thread's event loop.
 void AudioContext::DecodeFinish(int callback_id, float sample_rate,
                                 std::unique_ptr<AudioBus> audio_bus) {
-  if (!main_message_loop_->BelongsToCurrentThread()) {
-    main_message_loop_->PostTask(
+  if (!main_task_runner_->RunsTasksInCurrentSequence()) {
+    main_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&AudioContext::DecodeFinish, weak_this_, callback_id,
                    sample_rate, base::Passed(&audio_bus)));

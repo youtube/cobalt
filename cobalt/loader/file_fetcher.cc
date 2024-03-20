@@ -20,6 +20,7 @@
 #include "base/path_service.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/base/task_runner_util.h"
 
 namespace cobalt {
 namespace loader {
@@ -81,7 +82,7 @@ FileFetcher::FileFetcher(const base::FilePath& file_path, Handler* handler,
       file_(base::kInvalidPlatformFile),
       file_offset_(options.start_offset),
       bytes_left_to_read_(options.bytes_to_read),
-      task_runner_(options.message_loop_proxy),
+      task_runner_(options.task_runner_proxy),
       file_path_(file_path),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       file_proxy_(task_runner_.get()) {
@@ -106,7 +107,7 @@ FileFetcher::FileFetcher(const base::FilePath& file_path, Handler* handler,
 FileFetcher::~FileFetcher() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (task_runner_ != base::SequencedTaskRunner::GetCurrentDefault()) {
     // In case we are currently in the middle of a fetch (in which case it will
     // be aborted), invalidate the weak pointers to this FileFetcher object to
     // ensure that we do not process any responses from pending file I/O, which
@@ -115,7 +116,7 @@ FileFetcher::~FileFetcher() {
     weak_ptr_factory_.InvalidateWeakPtrs();
     // Then wait for any currently active file I/O to complete, after which
     // everything will be quiet and we can shutdown safely.
-    task_runner_->WaitForFence();
+    base::task_runner_util::WaitForFence(task_runner_, FROM_HERE);
   }
 }
 

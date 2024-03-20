@@ -109,8 +109,8 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
   def GetTestTargets(self):
     return [
         'audio_test',
-        'base_test',
         'base_unittests',
+        'base_test',
         'bindings_test',
         'browser_test',
         'components_metrics_tests',
@@ -122,12 +122,12 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'cwrappers_test',
         'dom_parser_test',
         'dom_test',
-        'extension_test',
         # TODO(b/292127297): This target is not built for all platforms.
         # 'ffmpeg_demuxer_test',
+        'extension_test',
         'graphics_system_test',
+        'js_profiler_test',
         'layout_test',
-        'layout_tests',
         'loader_test',
         'math_test',
         'media_capture_test',
@@ -136,14 +136,10 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'media_test',
         'memory_store_test',
         'metrics_test',
-        'net_unittests',
-        'network_test',
         'overlay_info_test',
-        'persistent_settings_test',
         'png_utils_test',
-        'js_profiler_test',
-        'renderer_test',
         'render_tree_test',
+        'renderer_test',
         'scroll_engine_tests',
         'speech_test',
         'storage_test',
@@ -151,12 +147,18 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'watchdog_test',
         'web_animations_test',
         'webdriver_test',
-        'websocket_test',
         'web_test',
+        'websocket_test',
         'worker_test',
         'xhr_test',
         'zip_unittests',
     ]
+    # return [
+    #     'layout_tests',
+    #     'network_test',
+    #     'net_unittests',
+    #     'persistent_settings_test',
+    # ]
 
   def GetTestBlackBoxTargets(self):
     return [

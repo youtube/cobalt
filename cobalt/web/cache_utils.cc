@@ -78,14 +78,14 @@ std::string Stringify(v8::Isolate* isolate, v8::Local<v8::Value> value) {
   return FromV8String(isolate, result.value());
 }
 
-base::Optional<base::Value> Deserialize(const std::string& json) {
+absl::optional<base::Value> Deserialize(const std::string& json) {
   if (json.empty()) {
     return base::nullopt;
   }
-  return base::Value::FromUniquePtrValue(base::JSONReader::Read(json));
+  return base::JSONReader::Read(json);
 }
 
-base::Optional<base::Value> V8ToBase(v8::Isolate* isolate,
+absl::optional<base::Value> V8ToBase(v8::Isolate* isolate,
                                      v8::Local<v8::Value> value) {
   return Deserialize(Stringify(isolate, value));
 }
@@ -123,9 +123,10 @@ base::Optional<v8::Local<v8::Value>> GetInternal(v8::Local<v8::Value> object,
       return base::nullopt;
     }
     std::string part = parts[i];
-    if (base::ContainsOnlyChars(part, "0123456789")) {
-      uint32_t index;
-      if (!base::StringToUint32(part, &index)) {
+    if (part.find_first_not_of("0123456789") == std::string::npos) {
+      size_t idx;
+      uint32_t index = std::stoi(part, &idx);
+      if (part.size() != idx) {
         return base::nullopt;
       }
       curr = ToOptional(curr->As<v8::Object>()->Get(context, index));
@@ -154,8 +155,9 @@ const base::Value* Get(const base::Value& value, const std::string& path,
   for (int i = 0; i < parts.size() + offset; i++) {
     std::string part = parts[i];
     if (curr->is_list()) {
-      uint32_t index;
-      if (!base::StringToUint32(part, &index)) {
+      size_t idx;
+      uint32_t index = std::stoi(part, &idx);
+      if (part.size() != idx) {
         return nullptr;
       }
       if (index > curr->GetList().size() - 1) {
@@ -163,7 +165,7 @@ const base::Value* Get(const base::Value& value, const std::string& path,
       }
       curr = &curr->GetList()[index];
     } else if (curr->is_dict()) {
-      curr = curr->FindKey(part);
+      curr = curr->GetDict().Find(part);
     } else {
       return nullptr;
     }
@@ -414,11 +416,11 @@ base::Optional<v8::Local<v8::Value>> CreateRequest(v8::Isolate* isolate,
                                                    const std::string& url,
                                                    const base::Value& options) {
   auto v8_options = v8::Object::New(isolate);
-  auto mode = options.FindKey("mode");
+  auto mode = options.GetDict().Find("mode");
   if (mode) {
     Set(v8_options, "mode", V8String(isolate, mode->GetString()));
   }
-  auto headers = options.FindKey("headers");
+  auto headers = options.GetDict().Find("headers");
   if (headers) {
     auto v8_headers = v8::Object::New(isolate);
     for (const auto& header : headers->GetList()) {
@@ -437,9 +439,9 @@ base::Optional<v8::Local<v8::Value>> CreateRequest(v8::Isolate* isolate,
 base::Optional<v8::Local<v8::Value>> CreateResponse(
     v8::Isolate* isolate, const std::vector<uint8_t>& body,
     const base::Value& options) {
-  auto status = options.FindKey("status");
-  auto status_text = options.FindKey("statusText");
-  auto headers = options.FindKey("headers");
+  auto status = options.GetDict().Find("status");
+  auto status_text = options.GetDict().Find("statusText");
+  auto headers = options.GetDict().Find("headers");
   if (body.size() == 0 || !status || !status_text || !headers) {
     return base::nullopt;
   }
@@ -460,7 +462,7 @@ base::Optional<v8::Local<v8::Value>> CreateResponse(
   return CreateInstance(isolate, "Response", {v8_body, v8_options});
 }
 
-base::Optional<base::Value> ExtractResponseOptions(
+absl::optional<base::Value> ExtractResponseOptions(
     v8::Local<v8::Value> response) {
   if (!response->IsObject()) {
     return base::nullopt;

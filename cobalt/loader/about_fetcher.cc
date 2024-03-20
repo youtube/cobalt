@@ -15,7 +15,7 @@
 #include "cobalt/loader/about_fetcher.h"
 
 #include "base/bind.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 
 namespace cobalt {
@@ -24,7 +24,7 @@ namespace loader {
 AboutFetcher::AboutFetcher(Handler* handler)
     : Fetcher(handler),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::Bind(&AboutFetcher::Fetch, weak_ptr_factory_.GetWeakPtr()));
 }

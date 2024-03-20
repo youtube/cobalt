@@ -136,9 +136,6 @@ declare_args() {
   # Sub-directory to copy license file to.
   cobalt_licenses_platform = "default"
 
-  # Set to true to enable H5vccAccountManager.
-  enable_account_manager = false
-
   # TODO(b/173248397): Migrate to CobaltExtensions or PlatformServices.
   # List of platform-specific targets that get compiled into cobalt.
   cobalt_platform_dependencies = []

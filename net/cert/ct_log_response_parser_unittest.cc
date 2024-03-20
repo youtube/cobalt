@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,25 +14,15 @@
 #include "net/cert/ct_serialization.h"
 #include "net/cert/signed_tree_head.h"
 #include "net/test/ct_test_util.h"
-#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
-
-namespace ct {
-
-namespace {
-std::unique_ptr<base::Value> ParseJson(const std::string& json) {
-  base::JSONReader json_reader;
-  return json_reader.Read(json);
-}
-}
+namespace net::ct {
 
 TEST(CTLogResponseParserTest, ParsesValidJsonSTH) {
-  std::unique_ptr<base::Value> sample_sth_json =
-      ParseJson(GetSampleSTHAsJson());
+  absl::optional<base::Value> sample_sth_json =
+      base::JSONReader::Read(GetSampleSTHAsJson());
   SignedTreeHead tree_head;
-  EXPECT_TRUE(FillSignedTreeHead(*sample_sth_json.get(), &tree_head));
+  EXPECT_TRUE(FillSignedTreeHead(*sample_sth_json, &tree_head));
 
   SignedTreeHead sample_sth;
   ASSERT_TRUE(GetSampleSignedTreeHead(&sample_sth));
@@ -60,17 +50,17 @@ TEST(CTLogResponseParserTest, ParsesValidJsonSTH) {
 }
 
 TEST(CTLogResponseParserTest, FailsToParseMissingFields) {
-  std::unique_ptr<base::Value> missing_signature_sth = ParseJson(
+  absl::optional<base::Value> missing_signature_sth = base::JSONReader::Read(
       CreateSignedTreeHeadJsonString(1 /* tree_size */, 123456u /* timestamp */,
                                      GetSampleSTHSHA256RootHash(), ""));
 
   SignedTreeHead tree_head;
-  ASSERT_FALSE(FillSignedTreeHead(*missing_signature_sth.get(), &tree_head));
+  ASSERT_FALSE(FillSignedTreeHead(*missing_signature_sth, &tree_head));
 
-  std::unique_ptr<base::Value> missing_root_hash_sth = ParseJson(
+  absl::optional<base::Value> missing_root_hash_sth = base::JSONReader::Read(
       CreateSignedTreeHeadJsonString(1 /* tree_size */, 123456u /* timestamp */,
                                      "", GetSampleSTHTreeHeadSignature()));
-  ASSERT_FALSE(FillSignedTreeHead(*missing_root_hash_sth.get(), &tree_head));
+  ASSERT_FALSE(FillSignedTreeHead(*missing_root_hash_sth, &tree_head));
 }
 
 TEST(CTLogResponseParserTest, FailsToParseIncorrectLengthRootHash) {
@@ -80,36 +70,35 @@ TEST(CTLogResponseParserTest, FailsToParseIncorrectLengthRootHash) {
   base::Base64Decode(
       base::StringPiece("/WHFMgXtI/umKKuACJIN0Bb73TcILm9WkeU6qszvoArK\n"),
       &too_long_hash);
-  std::unique_ptr<base::Value> too_long_hash_json =
-      ParseJson(CreateSignedTreeHeadJsonString(
+  absl::optional<base::Value> too_long_hash_json =
+      base::JSONReader::Read(CreateSignedTreeHeadJsonString(
           1 /* tree_size */, 123456u /* timestamp */,
           GetSampleSTHSHA256RootHash(), too_long_hash));
-  ASSERT_FALSE(FillSignedTreeHead(*too_long_hash_json.get(), &tree_head));
+  ASSERT_FALSE(FillSignedTreeHead(*too_long_hash_json, &tree_head));
 
   std::string too_short_hash;
   base::Base64Decode(
       base::StringPiece("/WHFMgXtI/umKKuACJIN0Bb73TcILm9WkeU6qszvoA==\n"),
       &too_short_hash);
-  std::unique_ptr<base::Value> too_short_hash_json =
-      ParseJson(CreateSignedTreeHeadJsonString(
+  absl::optional<base::Value> too_short_hash_json =
+      base::JSONReader::Read(CreateSignedTreeHeadJsonString(
           1 /* tree_size */, 123456u /* timestamp */,
           GetSampleSTHSHA256RootHash(), too_short_hash));
-  ASSERT_FALSE(FillSignedTreeHead(*too_short_hash_json.get(), &tree_head));
+  ASSERT_FALSE(FillSignedTreeHead(*too_short_hash_json, &tree_head));
 }
 
 TEST(CTLogResponseParserTest, ParsesJsonSTHWithLargeTimestamp) {
   SignedTreeHead tree_head;
 
-  std::unique_ptr<base::Value> large_timestamp_json =
-      ParseJson(CreateSignedTreeHeadJsonString(
+  absl::optional<base::Value> large_timestamp_json =
+      base::JSONReader::Read(CreateSignedTreeHeadJsonString(
           100, INT64_C(1) << 34, GetSampleSTHSHA256RootHash(),
           GetSampleSTHTreeHeadSignature()));
 
-  ASSERT_TRUE(FillSignedTreeHead(*large_timestamp_json.get(), &tree_head));
+  ASSERT_TRUE(FillSignedTreeHead(*large_timestamp_json, &tree_head));
 
   base::Time expected_time =
-      base::Time::UnixEpoch() +
-      base::TimeDelta::FromMilliseconds(INT64_C(1) << 34);
+      base::Time::UnixEpoch() + base::Milliseconds(INT64_C(1) << 34);
 
   EXPECT_EQ(tree_head.timestamp, expected_time);
 }
@@ -123,12 +112,12 @@ TEST(CTLogResponseParserTest, ParsesConsistencyProofSuccessfully) {
   raw_nodes.push_back(first);
   raw_nodes.push_back(second);
   raw_nodes.push_back(third);
-  std::unique_ptr<base::Value> sample_consistency_proof =
-      ParseJson(CreateConsistencyProofJsonString(raw_nodes));
+  absl::optional<base::Value> sample_consistency_proof =
+      base::JSONReader::Read(CreateConsistencyProofJsonString(raw_nodes));
 
   std::vector<std::string> output;
 
-  ASSERT_TRUE(FillConsistencyProof(*sample_consistency_proof.get(), &output));
+  ASSERT_TRUE(FillConsistencyProof(*sample_consistency_proof, &output));
 
   EXPECT_EQ(output[0], first);
   EXPECT_EQ(output[1], second);
@@ -138,30 +127,29 @@ TEST(CTLogResponseParserTest, ParsesConsistencyProofSuccessfully) {
 TEST(CTLogResponseParserTest, FailsOnInvalidProofJson) {
   std::vector<std::string> output;
 
-  std::unique_ptr<base::Value> badly_encoded =
-      ParseJson(std::string("{\"consistency\": [\"notbase64\"]}"));
-  EXPECT_FALSE(FillConsistencyProof(*badly_encoded.get(), &output));
+  absl::optional<base::Value> badly_encoded =
+      base::JSONReader::Read(std::string("{\"consistency\": [\"notbase64\"]}"));
+  EXPECT_FALSE(FillConsistencyProof(*badly_encoded, &output));
 
-  std::unique_ptr<base::Value> not_a_string =
-      ParseJson(std::string("{\"consistency\": [42, 16]}"));
-  EXPECT_FALSE(FillConsistencyProof(*badly_encoded.get(), &output));
+  absl::optional<base::Value> not_a_string =
+      base::JSONReader::Read(std::string("{\"consistency\": [42, 16]}"));
+  EXPECT_FALSE(FillConsistencyProof(*badly_encoded, &output));
 
-  std::unique_ptr<base::Value> missing_consistency =
-      ParseJson(std::string("{}"));
-  EXPECT_FALSE(FillConsistencyProof(*missing_consistency.get(), &output));
+  absl::optional<base::Value> missing_consistency =
+      base::JSONReader::Read(std::string("{}"));
+  EXPECT_FALSE(FillConsistencyProof(*missing_consistency, &output));
 
-  std::unique_ptr<base::Value> not_a_dict = ParseJson(std::string("[]"));
-  EXPECT_FALSE(FillConsistencyProof(*not_a_dict.get(), &output));
+  absl::optional<base::Value> not_a_dict =
+      base::JSONReader::Read(std::string("[]"));
+  EXPECT_FALSE(FillConsistencyProof(*not_a_dict, &output));
 }
 
 TEST(CTLogResponseParserTest, ParsesProofJsonWithExtraFields) {
   std::vector<std::string> output;
 
-  std::unique_ptr<base::Value> badly_encoded =
-      ParseJson(std::string("{\"consistency\": [], \"somethingelse\": 3}"));
-  EXPECT_TRUE(FillConsistencyProof(*badly_encoded.get(), &output));
+  absl::optional<base::Value> badly_encoded = base::JSONReader::Read(
+      std::string("{\"consistency\": [], \"somethingelse\": 3}"));
+  EXPECT_TRUE(FillConsistencyProof(*badly_encoded, &output));
 }
 
-}  // namespace ct
-
-}  // namespace net
+}  // namespace net::ct

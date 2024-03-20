@@ -40,7 +40,7 @@ constexpr char kUnicodeReplacementCharacterUtf8[] = u8"\uFFFD";
 
 Serializer::Serializer(std::string* output) : output_(output) {}
 
-void Serializer::SerializeIdentifier(base::Token identifier) {
+void Serializer::SerializeIdentifier(base_token::Token identifier) {
   // https://www.w3.org/TR/cssom/#serialize-an-identifier
   //
   // To serialize an identifier means to create a string represented by the

@@ -60,10 +60,10 @@ v8::Local<v8::Value> Await(base::Optional<v8::Local<v8::Value>> promise_value) {
 }
 
 base::Value MakeHeader(const std::string& name, const std::string& value) {
-  base::ListValue header;
-  header.GetList().emplace_back(name);
-  header.GetList().emplace_back(value);
-  return std::move(header);
+  base::Value::List header;
+  header.Append(name);
+  header.Append(value);
+  return base::Value(std::move(header));
 }
 
 std::vector<uint8_t> ToVector(const std::string& data) {
@@ -90,16 +90,17 @@ TEST_F(CacheStorageTest, Work) {
 
   std::string url = "https://www.example.com/1";
   auto request = cache_utils::CreateRequest(isolate, url).value();
-  base::DictionaryValue options;
-  options.SetKey("status", base::Value(200));
-  options.SetKey("statusText", base::Value("OK"));
-  base::ListValue headers;
-  headers.GetList().push_back(MakeHeader("a", "1"));
-  options.SetKey("headers", std::move(headers));
+  base::Value::Dict options;
+  options.Set("status", base::Value(200));
+  options.Set("statusText", base::Value("OK"));
+  base::Value::List headers;
+  headers.Append(MakeHeader("a", "1"));
+  options.Set("headers", std::move(headers));
 
   std::string body = "abcde";
-  auto response =
-      cache_utils::CreateResponse(isolate, ToVector(body), options).value();
+  auto response = cache_utils::CreateResponse(isolate, ToVector(body),
+                                              base::Value(std::move(options)))
+                      .value();
   auto v8_put_result =
       Await(cache_utils::Call(v8_cache, "put", {request, response}));
   EXPECT_TRUE(v8_put_result->IsUndefined());
@@ -118,7 +119,7 @@ TEST_F(CacheStorageTest, Work) {
   EXPECT_EQ(200, cache_utils::Get(match_result_options, "status")->GetInt());
   EXPECT_EQ("OK",
             cache_utils::Get(match_result_options, "statusText")->GetString());
-  EXPECT_EQ(1, match_result_options.FindKey("headers")->GetList().size());
+  EXPECT_EQ(1, (*match_result_options.GetDict().FindList("headers")).size());
   EXPECT_EQ("a",
             cache_utils::Get(match_result_options, "headers.0.0")->GetString());
   EXPECT_EQ("1",

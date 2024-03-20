@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,20 +23,22 @@
 #define BASE_WIN_WIN_UTIL_H_
 
 #include <stdint.h>
-#include "base/win/windows_types.h"
 
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/macros.h"
-#include "base/strings/string16.h"
+#include "base/strings/string_piece.h"
+#include "base/win/windows_types.h"
 
 struct IPropertyStore;
 struct _tagpropertykey;
-typedef _tagpropertykey PROPERTYKEY;
+using PROPERTYKEY = _tagpropertykey;
 
 namespace base {
+
+struct NativeLibraryLoadError;
+
 namespace win {
 
 inline uint32_t HandleToUint32(HANDLE h) {
@@ -81,25 +83,26 @@ BASE_EXPORT bool SetClsidForPropertyStore(IPropertyStore* property_store,
                                           const PROPERTYKEY& property_key,
                                           const CLSID& property_clsid_value);
 
-// Sets the application id in given IPropertyStore. The function is intended
-// for tagging application/chromium shortcut, browser window and jump list for
-// Win7.
+// Sets the application id in given IPropertyStore. The function is used to tag
+// application/Chrome shortcuts, and set app details for Chrome windows.
 BASE_EXPORT bool SetAppIdForPropertyStore(IPropertyStore* property_store,
                                           const wchar_t* app_id);
 
 // Adds the specified |command| using the specified |name| to the AutoRun key.
 // |root_key| could be HKCU or HKLM or the root of any user hive.
-BASE_EXPORT bool AddCommandToAutoRun(HKEY root_key, const string16& name,
-                                     const string16& command);
+BASE_EXPORT bool AddCommandToAutoRun(HKEY root_key,
+                                     const std::wstring& name,
+                                     const std::wstring& command);
 // Removes the command specified by |name| from the AutoRun key. |root_key|
 // could be HKCU or HKLM or the root of any user hive.
-BASE_EXPORT bool RemoveCommandFromAutoRun(HKEY root_key, const string16& name);
+BASE_EXPORT bool RemoveCommandFromAutoRun(HKEY root_key,
+                                          const std::wstring& name);
 
 // Reads the command specified by |name| from the AutoRun key. |root_key|
 // could be HKCU or HKLM or the root of any user hive. Used for unit-tests.
 BASE_EXPORT bool ReadCommandFromAutoRun(HKEY root_key,
-                                        const string16& name,
-                                        string16* command);
+                                        const std::wstring& name,
+                                        std::wstring* command);
 
 // Sets whether to crash the process during exit. This is inspected by DLLMain
 // and used to intercept unexpected terminations of the process (via calls to
@@ -115,7 +118,9 @@ BASE_EXPORT void SetAbortBehaviorForCrashReporting();
 
 // Checks whether the supplied |hwnd| is in Windows 10 tablet mode. Will return
 // false on versions below 10.
-BASE_EXPORT bool IsWindows10TabletMode(HWND hwnd);
+// While tablet mode isn't officially supported in Windows 11, the function will
+// make an attempt to inspect other signals for tablet mode.
+BASE_EXPORT bool IsWindows10OrGreaterTabletMode(HWND hwnd);
 
 // A tablet is a device that is touch enabled and also is being used
 // "like a tablet". This is used by the following:
@@ -143,31 +148,39 @@ BASE_EXPORT bool IsDeviceUsedAsATablet(std::string* reason);
 // A slate is a touch device that may have a keyboard attached. This function
 // returns true if a keyboard is attached and optionally will set the |reason|
 // parameter to the detection method that was used to detect the keyboard.
-BASE_EXPORT bool IsKeyboardPresentOnSlate(std::string* reason, HWND hwnd);
+BASE_EXPORT bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason);
 
 // Get the size of a struct up to and including the specified member.
 // This is necessary to set compatible struct sizes for different versions
 // of certain Windows APIs (e.g. SystemParametersInfo).
 #define SIZEOF_STRUCT_WITH_SPECIFIED_LAST_MEMBER(struct_name, member) \
-    offsetof(struct_name, member) + \
-    (sizeof static_cast<struct_name*>(NULL)->member)
+  offsetof(struct_name, member) +                                     \
+      (sizeof static_cast<struct_name*>(NULL)->member)
 
 // Returns true if the machine is enrolled to a domain.
 BASE_EXPORT bool IsEnrolledToDomain();
 
+// Returns true if either the device is joined to Azure Active Directory (AD) or
+// one or more Azure AD work accounts have been added on the device. This call
+// trigger some I/O when loading netapi32.dll to determine the management state.
+BASE_EXPORT bool IsJoinedToAzureAD();
+
 // Returns true if the machine is being managed by an MDM system.
 BASE_EXPORT bool IsDeviceRegisteredWithManagement();
 
-// Returns true if the current machine is considered enterprise managed in some
-// fashion.  A machine is considered managed if it is either domain enrolled
-// or registered with an MDM.
-BASE_EXPORT bool IsEnterpriseManaged();
-
 // Returns true if the current process can make USER32 or GDI32 calls such as
 // CreateWindow and CreateDC. Windows 8 and above allow the kernel component
-// of these calls to be disabled which can cause undefined behaviour such as
-// crashes. This function can be used to guard areas of code using these calls
-// and provide a fallback path if necessary.
+// of these calls to be disabled (also known as win32k lockdown) which can
+// cause undefined behaviour such as crashes. This function can be used to
+// guard areas of code using these calls and provide a fallback path if
+// necessary.
+// Because they are not always needed (and not needed at all in processes that
+// have the win32k lockdown), USER32 and GDI32 are delayloaded. Attempts to
+// load them in those processes will cause a crash. Any code which uses USER32
+// or GDI32 and may run in a locked-down process MUST be guarded using this
+// method. Before the dlls were delayloaded, method calls into USER32 and GDI32
+// did not work, so adding calls to this method to guard them simply avoids
+// unnecessary method calls.
 BASE_EXPORT bool IsUser32AndGdi32Available();
 
 // Takes a snapshot of the modules loaded in the |process|. The returned
@@ -183,34 +196,95 @@ BASE_EXPORT bool GetLoadedModulesSnapshot(HANDLE process,
 BASE_EXPORT void EnableFlicks(HWND hwnd);
 BASE_EXPORT void DisableFlicks(HWND hwnd);
 
-// Returns true if the process is per monitor DPI aware.
-BASE_EXPORT bool IsProcessPerMonitorDpiAware();
-
 // Enable high-DPI support for the current process.
 BASE_EXPORT void EnableHighDPISupport();
+
+// Returns a string representation of |rguid|.
+BASE_EXPORT std::wstring WStringFromGUID(const ::GUID& rguid);
+
+// Attempts to pin user32.dll to ensure it remains loaded. If it isn't loaded
+// yet, the module will first be loaded and then the pin will be attempted. If
+// pinning is successful, returns true. If the module cannot be loaded and/or
+// pinned, |error| is set and the method returns false.
+BASE_EXPORT bool PinUser32(NativeLibraryLoadError* error = nullptr);
+
+// Gets a pointer to a function within user32.dll, if available. If user32.dll
+// cannot be loaded or the function cannot be found, this function returns
+// nullptr and sets |error|. Once loaded, user32.dll is pinned, and therefore
+// the function pointer returned by this function will never change and can be
+// cached.
+BASE_EXPORT void* GetUser32FunctionPointer(
+    const char* function_name,
+    NativeLibraryLoadError* error = nullptr);
+
+// Returns the name of a desktop or a window station.
+BASE_EXPORT std::wstring GetWindowObjectName(HANDLE handle);
+
+// Checks if the calling thread is running under a desktop with the name
+// given by |desktop_name|. |desktop_name| is ASCII case insensitive (non-ASCII
+// characters will be compared with exact matches).
+BASE_EXPORT bool IsRunningUnderDesktopName(WStringPiece desktop_name);
+
+// Returns true if current session is a remote session.
+BASE_EXPORT bool IsCurrentSessionRemote();
+
+#if !defined(OFFICIAL_BUILD)
+// IsAppVerifierEnabled() indicates whether a newly created process will get
+// Application Verifier or pageheap injected into it. Only available in
+// unofficial builds to prevent abuse.
+BASE_EXPORT bool IsAppVerifierEnabled(const std::wstring& process_name);
+#endif  // !defined(OFFICIAL_BUILD)
+
+// IsAppVerifierLoaded() indicates whether Application Verifier is *already*
+// loaded into the current process.
+BASE_EXPORT bool IsAppVerifierLoaded();
 
 // Allows changing the domain enrolled state for the life time of the object.
 // The original state is restored upon destruction.
 class BASE_EXPORT ScopedDomainStateForTesting {
  public:
-  ScopedDomainStateForTesting(bool state);
+  explicit ScopedDomainStateForTesting(bool state);
+
+  ScopedDomainStateForTesting(const ScopedDomainStateForTesting&) = delete;
+  ScopedDomainStateForTesting& operator=(const ScopedDomainStateForTesting&) =
+      delete;
+
   ~ScopedDomainStateForTesting();
 
  private:
   bool initial_state_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedDomainStateForTesting);
 };
 
 // Allows changing the management registration state for the life time of the
 // object.  The original state is restored upon destruction.
 class BASE_EXPORT ScopedDeviceRegisteredWithManagementForTesting {
  public:
-  ScopedDeviceRegisteredWithManagementForTesting(bool state);
+  explicit ScopedDeviceRegisteredWithManagementForTesting(bool state);
+
+  ScopedDeviceRegisteredWithManagementForTesting(
+      const ScopedDeviceRegisteredWithManagementForTesting&) = delete;
+  ScopedDeviceRegisteredWithManagementForTesting& operator=(
+      const ScopedDeviceRegisteredWithManagementForTesting&) = delete;
+
   ~ScopedDeviceRegisteredWithManagementForTesting();
 
  private:
   bool initial_state_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedDeviceRegisteredWithManagementForTesting);
+};
+
+// Allows changing the Azure Active Directory join state for the lifetime of the
+// object. The original state is restored upon destruction.
+class BASE_EXPORT ScopedAzureADJoinStateForTesting {
+ public:
+  explicit ScopedAzureADJoinStateForTesting(bool state);
+  ScopedAzureADJoinStateForTesting(const ScopedAzureADJoinStateForTesting&) =
+      delete;
+  ScopedAzureADJoinStateForTesting& operator=(
+      const ScopedAzureADJoinStateForTesting&) = delete;
+  ~ScopedAzureADJoinStateForTesting();
+
+ private:
+  const bool initial_state_;
 };
 
 }  // namespace win

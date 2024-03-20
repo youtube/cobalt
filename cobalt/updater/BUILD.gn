@@ -45,6 +45,7 @@ static_library("updater") {
     "//components/update_client",
     "//crypto",
     "//net",
+    "//net/third_party/quiche",
     "//starboard:starboard_headers_only",
     "//starboard/common",
     "//starboard/loader_app:app_key_files",
@@ -116,6 +117,7 @@ target(gtest_target_type, "updater_test") {
     ":updater",
     "//base",
     "//components/update_client",
+    "//net/third_party/quiche",
     "//testing/gmock",
     "//testing/gtest",
   ]

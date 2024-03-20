@@ -20,6 +20,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/strings/string_util.h"
+#include "cobalt/base/task_runner_util.h"
 
 namespace {
 
@@ -54,8 +55,8 @@ FlacAudioEncoder::FlacAudioEncoder() : thread_("FlacEncodingThd") {
 }
 
 FlacAudioEncoder::~FlacAudioEncoder() {
-  thread_.task_runner()->PostBlockingTask(
-      FROM_HERE,
+  base::task_runner_util::PostBlockingTask(
+      thread_.task_runner(), FROM_HERE,
       base::Bind(&FlacAudioEncoder::DestroyEncoder, base::Unretained(this)));
 }
 
@@ -74,9 +75,10 @@ void FlacAudioEncoder::Encode(const AudioBus& audio_bus,
 }
 
 void FlacAudioEncoder::Finish(base::TimeTicks reference_time) {
-  thread_.task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&FlacAudioEncoder::DoFinish, base::Unretained(this),
-                            reference_time));
+  base::task_runner_util::PostBlockingTask(
+      thread_.task_runner(), FROM_HERE,
+      base::Bind(&FlacAudioEncoder::DoFinish, base::Unretained(this),
+                 reference_time));
 }
 
 std::string FlacAudioEncoder::GetMimeType() const {

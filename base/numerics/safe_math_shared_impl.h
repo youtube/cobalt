@@ -1,9 +1,12 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_NUMERICS_SAFE_MATH_SHARED_IMPL_H_
 #define BASE_NUMERICS_SAFE_MATH_SHARED_IMPL_H_
+
+#include <stddef.h>
+#include <stdint.h>
 
 #include <cassert>
 #include <climits>
@@ -13,17 +16,18 @@
 #include <type_traits>
 
 #include "base/numerics/safe_conversions.h"
+#include "build/build_config.h"
 
+#if BUILDFLAG(IS_ASMJS)
+// Optimized safe math instructions are incompatible with asmjs.
+#define BASE_HAS_OPTIMIZED_SAFE_MATH (0)
 // Where available use builtin math overflow support on Clang and GCC.
-#if !defined(__native_client__) &&                         \
+#elif !defined(__native_client__) &&                       \
     ((defined(__clang__) &&                                \
       ((__clang_major__ > 3) ||                            \
        (__clang_major__ == 3 && __clang_minor__ >= 4))) || \
-     (defined(__GNUC__) && __GNUC__ >= 5)) &&              \
-    !defined(STARBOARD) || (__clang_major__ > 3)
-    // Cobalt clang 3.6 compiler does not have safe math support.
+     (defined(__GNUC__) && __GNUC__ >= 5))
 #include "base/numerics/safe_math_clang_gcc_impl.h"
-#include "starboard/types.h"
 #define BASE_HAS_OPTIMIZED_SAFE_MATH (1)
 #else
 #define BASE_HAS_OPTIMIZED_SAFE_MATH (0)
@@ -128,7 +132,7 @@ struct UnsignedOrFloatForSize<Numeric, false, true> {
 // Wrap the unary operations to allow SFINAE when instantiating integrals versus
 // floating points. These don't perform any overflow checking. Rather, they
 // exhibit well-defined overflow semantics and rely on the caller to detect
-// if an overflow occured.
+// if an overflow occurred.
 
 template <typename T,
           typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
@@ -174,38 +178,13 @@ struct MathWrapper {
   using type = typename math::result_type;
 };
 
-// These variadic templates work out the return types.
-// TODO(jschuh): Rip all this out once we have C++14 non-trailing auto support.
-template <template <typename, typename, typename> class M,
-          typename L,
-          typename R,
-          typename... Args>
-struct ResultType;
-
-template <template <typename, typename, typename> class M,
-          typename L,
-          typename R>
-struct ResultType<M, L, R> {
-  using type = typename MathWrapper<M, L, R>::type;
-};
-
-template <template <typename, typename, typename> class M,
-          typename L,
-          typename R,
-          typename... Args>
-struct ResultType {
-  using type =
-      typename ResultType<M, typename ResultType<M, L, R>::type, Args...>::type;
-};
-
 // The following macros are just boilerplate for the standard arithmetic
 // operator overloads and variadic function templates. A macro isn't the nicest
 // solution, but it beats rewriting these over and over again.
 #define BASE_NUMERIC_ARITHMETIC_VARIADIC(CLASS, CL_ABBR, OP_NAME)       \
   template <typename L, typename R, typename... Args>                   \
-  constexpr CLASS##Numeric<                                             \
-      typename ResultType<CLASS##OP_NAME##Op, L, R, Args...>::type>     \
-      CL_ABBR##OP_NAME(const L lhs, const R rhs, const Args... args) {  \
+  constexpr auto CL_ABBR##OP_NAME(const L lhs, const R rhs,             \
+                                  const Args... args) {                 \
     return CL_ABBR##MathOp<CLASS##OP_NAME##Op, L, R, Args...>(lhs, rhs, \
                                                               args...); \
   }

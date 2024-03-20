@@ -33,15 +33,13 @@ struct SecWebSocketKey {
   SecWebSocketKey() {
     memset(&key_bytes[0], 0, kKeySizeInBytes);
     base::StringPiece key_stringpiece(key_bytes, sizeof(key_bytes));
-    bool success = base::Base64Encode(key_stringpiece, &key_base64_encoded);
-    DCHECK(success);
+    base::Base64Encode(key_stringpiece, &key_base64_encoded);
   }
 
   explicit SecWebSocketKey(const SecWebSocketKeyBytes& key) {
     memcpy(&key_bytes[0], &key[0], sizeof(key_bytes));
     base::StringPiece key_stringpiece(key_bytes, sizeof(key_bytes));
-    bool success = base::Base64Encode(key_stringpiece, &key_base64_encoded);
-    DCHECK(success);
+    base::Base64Encode(key_stringpiece, &key_base64_encoded);
   }
 
   const std::string& GetKeyEncodedInBase64() const {

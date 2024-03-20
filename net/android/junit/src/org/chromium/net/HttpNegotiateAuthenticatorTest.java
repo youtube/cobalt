@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,20 +9,14 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.mockito.AdditionalMatchers.or;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.accounts.Account;
@@ -39,9 +33,9 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -55,10 +49,10 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.shadows.ShadowAccountManager;
 import org.robolectric.shadows.ShadowApplication;
-import org.robolectric.shadows.multidex.ShadowMultiDex;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.JniMocker;
 import org.chromium.net.HttpNegotiateAuthenticator.GetAccountsCallback;
 import org.chromium.net.HttpNegotiateAuthenticator.RequestData;
 
@@ -70,8 +64,7 @@ import java.util.List;
  */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE,
-        shadows = {HttpNegotiateAuthenticatorTest.ExtendedShadowAccountManager.class,
-                ShadowMultiDex.class})
+        shadows = {HttpNegotiateAuthenticatorTest.ExtendedShadowAccountManager.class})
 public class HttpNegotiateAuthenticatorTest {
     /**
      * User the AccountManager to inject a mock instance.
@@ -85,8 +78,12 @@ public class HttpNegotiateAuthenticatorTest {
         }
     }
 
+    @Rule
+    public JniMocker mocker = new JniMocker();
     @Mock
     private static AccountManager sMockAccountManager;
+    @Mock
+    private HttpNegotiateAuthenticator.Natives mAuthenticatorJniMock;
     @Captor
     private ArgumentCaptor<AccountManagerCallback<Bundle>> mBundleCallbackCaptor;
     @Captor
@@ -97,12 +94,7 @@ public class HttpNegotiateAuthenticatorTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        ApplicationStatus.initialize(RuntimeEnvironment.application);
-    }
-
-    @After
-    public void tearDown() {
-        ApplicationStatus.destroyForJUnitTests();
+        mocker.mock(HttpNegotiateAuthenticatorJni.TEST_HOOKS, mAuthenticatorJniMock);
     }
 
     /**
@@ -111,7 +103,7 @@ public class HttpNegotiateAuthenticatorTest {
     @Test
     public void testGetNextAuthToken() {
         final String accountType = "Dummy_Account";
-        HttpNegotiateAuthenticator authenticator = createWithoutNative(accountType);
+        HttpNegotiateAuthenticator authenticator = createAuthenticator(accountType);
         Robolectric.buildActivity(Activity.class).create().start().resume().visible();
 
         authenticator.getNextAuthToken(0, "test_principal", "", true);
@@ -145,7 +137,7 @@ public class HttpNegotiateAuthenticatorTest {
     public void testGetNextAuthTokenWithoutActivity() {
         final String accountType = "Dummy_Account";
         final Account[] returnedAccount = {new Account("name", accountType)};
-        HttpNegotiateAuthenticator authenticator = createWithoutNative(accountType);
+        HttpNegotiateAuthenticator authenticator = createAuthenticator(accountType);
 
         authenticator.getNextAuthToken(1234, "test_principal", "", true);
 
@@ -181,7 +173,7 @@ public class HttpNegotiateAuthenticatorTest {
     @Test
     public void testGetAccountCallback() {
         String type = "Dummy_Account";
-        HttpNegotiateAuthenticator authenticator = createWithoutNative(type);
+        HttpNegotiateAuthenticator authenticator = createAuthenticator(type);
         RequestData requestData = new RequestData();
         requestData.nativeResultObject = 42;
         requestData.accountManager = sMockAccountManager;
@@ -189,9 +181,9 @@ public class HttpNegotiateAuthenticatorTest {
 
         // Should fail because there are no accounts
         callback.run(makeFuture(new Account[]{}));
-        verify(authenticator)
-                .nativeSetResult(
-                        eq(42L), eq(NetError.ERR_MISSING_AUTH_CREDENTIALS), (String) isNull());
+        verify(mAuthenticatorJniMock)
+                .setResult(eq(42L), eq(authenticator), eq(NetError.ERR_MISSING_AUTH_CREDENTIALS),
+                        (String) isNull());
 
         // Should succeed, for a single account we use it for the AccountManager#getAuthToken call.
         Account testAccount = new Account("a", type);
@@ -202,9 +194,9 @@ public class HttpNegotiateAuthenticatorTest {
 
         // Should fail because there is more than one account
         callback.run(makeFuture(new Account[]{new Account("a", type), new Account("b", type)}));
-        verify(authenticator, times(2))
-                .nativeSetResult(
-                        eq(42L), eq(NetError.ERR_MISSING_AUTH_CREDENTIALS), (String) isNull());
+        verify(mAuthenticatorJniMock, times(2))
+                .setResult(eq(42L), eq(authenticator), eq(NetError.ERR_MISSING_AUTH_CREDENTIALS),
+                        (String) isNull());
     }
 
     /**
@@ -214,7 +206,7 @@ public class HttpNegotiateAuthenticatorTest {
     @Test
     public void testGetTokenCallbackWithIntent() {
         String type = "Dummy_Account";
-        HttpNegotiateAuthenticator authenticator = createWithoutNative(type);
+        HttpNegotiateAuthenticator authenticator = createAuthenticator(type);
         RequestData requestData = new RequestData();
         requestData.nativeResultObject = 42;
         requestData.authTokenType = "foo";
@@ -224,7 +216,7 @@ public class HttpNegotiateAuthenticatorTest {
         b.putParcelable(AccountManager.KEY_INTENT, new Intent());
 
         authenticator.new GetTokenCallback(requestData).run(makeFuture(b));
-        verifyZeroInteractions(sMockAccountManager);
+        verifyNoMoreInteractions(sMockAccountManager);
 
         // Verify that the broadcast receiver is registered
         Intent intent = new Intent(AccountManager.LOGIN_ACCOUNTS_CHANGED_ACTION);
@@ -234,7 +226,7 @@ public class HttpNegotiateAuthenticatorTest {
 
         // Send the intent to the receiver.
         BroadcastReceiver receiver = receivers.get(0);
-        receiver.onReceive(ShadowApplication.getInstance().getApplicationContext(), intent);
+        receiver.onReceive(RuntimeEnvironment.application.getApplicationContext(), intent);
 
         // Verify that the auth token is properly requested from the account manager.
         verify(sMockAccountManager)
@@ -247,7 +239,7 @@ public class HttpNegotiateAuthenticatorTest {
      */
     @Test
     public void testAccountManagerCallbackRun() {
-        HttpNegotiateAuthenticator authenticator = createWithoutNative("Dummy_Account");
+        HttpNegotiateAuthenticator authenticator = createAuthenticator("Dummy_Account");
 
         Robolectric.buildActivity(Activity.class).create().start().resume().visible();
 
@@ -265,7 +257,7 @@ public class HttpNegotiateAuthenticatorTest {
         resultBundle.putBundle(HttpNegotiateConstants.KEY_SPNEGO_CONTEXT, context);
         resultBundle.putString(AccountManager.KEY_AUTHTOKEN, "output_token");
         mBundleCallbackCaptor.getValue().run(makeFuture(resultBundle));
-        verify(authenticator).nativeSetResult(1234, 0, "output_token");
+        verify(mAuthenticatorJniMock).setResult(1234, authenticator, 0, "output_token");
 
         // Check that the next call to getNextAuthToken uses the correct context
         authenticator.getNextAuthToken(5678, "test_principal", "", true);
@@ -281,22 +273,18 @@ public class HttpNegotiateAuthenticatorTest {
         // Test exception path
         mBundleCallbackCaptor.getValue().run(
                 this.<Bundle>makeFuture(new OperationCanceledException()));
-        verify(authenticator).nativeSetResult(5678, NetError.ERR_UNEXPECTED, null);
+        verify(mAuthenticatorJniMock).setResult(5678, authenticator, NetError.ERR_UNEXPECTED, null);
     }
 
     @Test
     public void testPermissionDenied() {
         Robolectric.buildActivity(Activity.class).create().start().resume().visible();
-        HttpNegotiateAuthenticator authenticator = createWithoutNative("Dummy_Account");
-
-        doReturn(true)
-                .when(authenticator)
-                .lacksPermission(any(Context.class), any(String.class), anyBoolean());
+        HttpNegotiateAuthenticator authenticator = createAuthenticator("Dummy_Account", true);
 
         authenticator.getNextAuthToken(1234, "test_principal", "", true);
-        verify(authenticator)
-                .nativeSetResult(anyLong(), eq(NetError.ERR_MISCONFIGURED_AUTH_ENVIRONMENT),
-                        (String) isNull());
+        verify(mAuthenticatorJniMock)
+                .setResult(anyLong(), eq(authenticator),
+                        eq(NetError.ERR_MISCONFIGURED_AUTH_ENVIRONMENT), (String) isNull());
     }
 
     @Test
@@ -374,7 +362,7 @@ public class HttpNegotiateAuthenticatorTest {
     }
 
     private void checkErrorReturn(Integer spnegoError, int expectedError) {
-        HttpNegotiateAuthenticator authenticator = createWithoutNative("Dummy_Account");
+        HttpNegotiateAuthenticator authenticator = createAuthenticator("Dummy_Account");
 
         // Call getNextAuthToken to get the callback
         authenticator.getNextAuthToken(1234, "test_principal", "", true);
@@ -388,7 +376,8 @@ public class HttpNegotiateAuthenticatorTest {
             resultBundle.putInt(HttpNegotiateConstants.KEY_SPNEGO_RESULT, spnegoError);
         }
         mBundleCallbackCaptor.getValue().run(makeFuture(resultBundle));
-        verify(authenticator).nativeSetResult(anyLong(), eq(expectedError), (String) isNull());
+        verify(mAuthenticatorJniMock)
+                .setResult(anyLong(), eq(authenticator), eq(expectedError), (String) isNull());
     }
 
     /**
@@ -428,18 +417,19 @@ public class HttpNegotiateAuthenticatorTest {
     }
 
     /**
-     * Returns a new authenticator as a spy so that we can override and intercept the native method
-     * calls.
+     * Returns a new authenticator with an overridden lacksPermission method.
      */
-    private HttpNegotiateAuthenticator createWithoutNative(String accountType) {
-        HttpNegotiateAuthenticator authenticator =
-                spy(HttpNegotiateAuthenticator.create(accountType));
-        doNothing()
-                .when(authenticator)
-                .nativeSetResult(anyLong(), anyInt(), or(any(String.class), (String) isNull()));
-        doReturn(false)
-                .when(authenticator)
-                .lacksPermission(any(Context.class), any(String.class), anyBoolean());
-        return authenticator;
+    private HttpNegotiateAuthenticator createAuthenticator(
+            String accountType, boolean lacksPermission) {
+        return new HttpNegotiateAuthenticator(accountType) {
+            @Override
+            boolean lacksPermission(Context context, String permission, boolean onlyPreM) {
+                return lacksPermission;
+            }
+        };
+    }
+
+    private HttpNegotiateAuthenticator createAuthenticator(String accountType) {
+        return createAuthenticator(accountType, false);
     }
 }

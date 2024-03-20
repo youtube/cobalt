@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,14 +8,13 @@
 #include <map>
 #include <string>
 
-#include "base/memory/shared_memory.h"
+#include "base/base_export.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/synchronization/lock.h"
-#include "base/trace_event/memory_dump_provider.h"
+#include "base/trace_event/base_tracing.h"
 
 namespace base {
 
-#if !defined(STARBOARD)
 namespace trace_event {
 class MemoryAllocatorDump;
 class MemoryAllocatorDumpGuid;
@@ -28,6 +27,9 @@ class BASE_EXPORT SharedMemoryTracker : public trace_event::MemoryDumpProvider {
   // Returns a singleton instance.
   static SharedMemoryTracker* GetInstance();
 
+  SharedMemoryTracker(const SharedMemoryTracker&) = delete;
+  SharedMemoryTracker& operator=(const SharedMemoryTracker&) = delete;
+
   static std::string GetDumpNameForTracing(const UnguessableToken& id);
 
   static trace_event::MemoryAllocatorDumpGuid GetGlobalDumpIdForTracing(
@@ -37,20 +39,13 @@ class BASE_EXPORT SharedMemoryTracker : public trace_event::MemoryDumpProvider {
   // inside the given |pmd|. Also adds the necessary edges for the dump when
   // creating the dump.
   static const trace_event::MemoryAllocatorDump* GetOrCreateSharedMemoryDump(
-      const SharedMemory* shared_memory,
-      trace_event::ProcessMemoryDump* pmd);
-  // We're in the middle of a refactor https://crbug.com/795291. Eventually, the
-  // first call will go away.
-  static const trace_event::MemoryAllocatorDump* GetOrCreateSharedMemoryDump(
       const SharedMemoryMapping& shared_memory,
       trace_event::ProcessMemoryDump* pmd);
 
   // Records shared memory usage on valid mapping.
-  void IncrementMemoryUsage(const SharedMemory& shared_memory);
   void IncrementMemoryUsage(const SharedMemoryMapping& mapping);
 
   // Records shared memory usage on unmapping.
-  void DecrementMemoryUsage(const SharedMemory& shared_memory);
   void DecrementMemoryUsage(const SharedMemoryMapping& mapping);
 
   // Root dump name for all shared memory dumps.
@@ -79,14 +74,10 @@ class BASE_EXPORT SharedMemoryTracker : public trace_event::MemoryDumpProvider {
     UnguessableToken mapped_id;
   };
 
-  // Used to lock when |usages_| is modified or read.
   Lock usages_lock_;
-  std::map<void*, UsageInfo> usages_;
-
-  DISALLOW_COPY_AND_ASSIGN(SharedMemoryTracker);
+  std::map<void*, UsageInfo> usages_ GUARDED_BY(usages_lock_);
 };
 
-#endif
 }  // namespace base
 
 #endif  // BASE_MEMORY_SHARED_MEMORY_TRACKER_H_

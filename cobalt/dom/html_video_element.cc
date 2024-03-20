@@ -41,21 +41,23 @@ const MediaSettings& GetMediaSettings(web::EnvironmentSettings* settings) {
 }
 
 HTMLVideoElement::HTMLVideoElement(Document* document)
-    : HTMLMediaElement(document, base::Token(kTagName)) {}
+    : HTMLMediaElement(document, base_token::Token(kTagName)) {}
 
 uint32 HTMLVideoElement::width() const {
-  uint32 result = 0;
+  size_t idx;
   std::string value_in_string = GetAttribute("width").value_or("0");
-  if (!base::StringToUint32(value_in_string, &result)) {
+  uint32 result = std::stoi(value_in_string, &idx);
+  if (value_in_string.size() != idx) {
     LOG(WARNING) << "Invalid width attribute: \'" << value_in_string << "\'";
   }
   return result;
 }
 
 uint32 HTMLVideoElement::height() const {
-  uint32 result = 0;
   std::string value_in_string = GetAttribute("height").value_or("0");
-  if (!base::StringToUint32(value_in_string, &result)) {
+  size_t idx;
+  uint32 result = std::stoi(value_in_string, &idx);
+  if (value_in_string.size() != idx) {
     LOG(WARNING) << "Invalid height attribute: \'" << value_in_string << "\'";
   }
   return result;

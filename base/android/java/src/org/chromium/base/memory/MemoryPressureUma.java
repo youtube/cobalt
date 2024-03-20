@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,8 @@ package org.chromium.base.memory;
 
 import android.content.ComponentCallbacks2;
 import android.content.res.Configuration;
-import android.support.annotation.IntDef;
+
+import androidx.annotation.IntDef;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
@@ -19,13 +20,11 @@ import java.lang.annotation.RetentionPolicy;
  * Centralizes UMA data collection for Android-specific memory conditions.
  */
 public class MemoryPressureUma implements ComponentCallbacks2 {
-    @IntDef({
-            Notification.UNKNOWN_TRIM_LEVEL, Notification.TRIM_MEMORY_COMPLETE,
+    @IntDef({Notification.UNKNOWN_TRIM_LEVEL, Notification.TRIM_MEMORY_COMPLETE,
             Notification.TRIM_MEMORY_MODERATE, Notification.TRIM_MEMORY_BACKGROUND,
             Notification.TRIM_MEMORY_UI_HIDDEN, Notification.TRIM_MEMORY_RUNNING_CRITICAL,
             Notification.TRIM_MEMORY_RUNNING_LOW, Notification.TRIM_MEMORY_RUNNING_MODERATE,
-            Notification.ON_LOW_MEMORY, Notification.NOTIFICATION_MAX,
-    })
+            Notification.ON_LOW_MEMORY})
     @Retention(RetentionPolicy.SOURCE)
     private @interface Notification {
         // WARNING: These values are persisted to logs. Entries should not be
@@ -42,7 +41,7 @@ public class MemoryPressureUma implements ComponentCallbacks2 {
         int ON_LOW_MEMORY = 8;
 
         // Must be the last one.
-        int NOTIFICATION_MAX = 9;
+        int NUM_ENTRIES = 9;
     }
 
     private final String mHistogramName;
@@ -108,6 +107,6 @@ public class MemoryPressureUma implements ComponentCallbacks2 {
 
     private void record(@Notification int notification) {
         RecordHistogram.recordEnumeratedHistogram(
-                mHistogramName, notification, Notification.NOTIFICATION_MAX);
+                mHistogramName, notification, Notification.NUM_ENTRIES);
     }
 }

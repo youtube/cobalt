@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -14,7 +14,6 @@
 #include "base/trace_event/category_registry.h"
 #include "base/trace_event/trace_category.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -46,7 +45,7 @@ class TraceCategoryTest : public testing::Test {
           name, [](TraceCategory*) {}, cat);
     }
     return is_new_cat;
-  };
+  }
 
   static CategoryRegistry::Range GetAllCategories() {
     return CategoryRegistry::GetAllCategories();
@@ -57,6 +56,11 @@ class TraceCategoryTest : public testing::Test {
     event->Wait();
     GetOrCreateCategoryByName("__test_race", &cat);
     EXPECT_NE(nullptr, cat);
+  }
+
+  static constexpr TraceCategory* GetBuiltinCategoryByName(
+      const char* category_group) {
+    return CategoryRegistry::GetBuiltinCategoryByName(category_group);
   }
 };
 
@@ -108,10 +112,10 @@ TEST_F(TraceCategoryTest, Basic) {
   int num_test_categories_seen = 0;
   for (const TraceCategory& cat : GetAllCategories()) {
     if (strcmp(cat.name(), kMetadataName) == 0)
-      ASSERT_TRUE(CategoryRegistry::IsBuiltinCategory(&cat));
+      ASSERT_TRUE(CategoryRegistry::IsMetaCategory(&cat));
 
     if (strncmp(cat.name(), "__test_basic_", 13) == 0) {
-      ASSERT_FALSE(CategoryRegistry::IsBuiltinCategory(&cat));
+      ASSERT_FALSE(CategoryRegistry::IsMetaCategory(&cat));
       num_test_categories_seen++;
     }
   }
@@ -121,17 +125,11 @@ TEST_F(TraceCategoryTest, Basic) {
 
 // Tries to cover the case of multiple threads creating the same category
 // simultaneously. Should never end up with distinct entries with the same name.
-#if defined(OS_FUCHSIA)
-// TODO(crbug.com/738275): This is flaky on Fuchsia.
-#define MAYBE_ThreadRaces DISABLED_ThreadRaces
-#else
-#define MAYBE_ThreadRaces ThreadRaces
-#endif
-TEST_F(TraceCategoryTest, MAYBE_ThreadRaces) {
+TEST_F(TraceCategoryTest, ThreadRaces) {
   const int kNumThreads = 32;
   std::unique_ptr<Thread> threads[kNumThreads];
   for (int i = 0; i < kNumThreads; i++) {
-    threads[i].reset(new Thread("test thread"));
+    threads[i] = std::make_unique<Thread>("test thread");
     threads[i]->Start();
   }
   WaitableEvent sync_event(WaitableEvent::ResetPolicy::MANUAL,
@@ -150,6 +148,19 @@ TEST_F(TraceCategoryTest, MAYBE_ThreadRaces) {
       num_times_seen++;
   }
   ASSERT_EQ(1, num_times_seen);
+}
+
+// Tests getting trace categories by name at compile-time.
+TEST_F(TraceCategoryTest, GetCategoryAtCompileTime) {
+  static_assert(GetBuiltinCategoryByName("nonexistent") == nullptr,
+                "nonexistent found");
+#if BUILDFLAG(IS_WIN) && defined(COMPONENT_BUILD)
+  static_assert(GetBuiltinCategoryByName("toplevel") == nullptr,
+                "toplevel found");
+#else
+  static_assert(GetBuiltinCategoryByName("toplevel") != nullptr,
+                "toplevel not found");
+#endif
 }
 
 }  // namespace trace_event

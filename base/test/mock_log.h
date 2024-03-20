@@ -1,16 +1,16 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TEST_MOCK_LOG_H_
 #define BASE_TEST_MOCK_LOG_H_
 
+#include <stddef.h>
+
 #include <string>
 
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/synchronization/lock.h"
-#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace base {
@@ -47,6 +47,9 @@ class MockLog {
   // this object yet (calling a mock method before setting the expectation is
   // UNDEFINED behavior).
   MockLog();
+
+  MockLog(const MockLog&) = delete;
+  MockLog& operator=(const MockLog&) = delete;
 
   // When the object is destructed, it stops intercepting logs.
   ~MockLog();
@@ -89,8 +92,6 @@ class MockLog {
 
   // The previous handler to restore when the MockLog is destroyed.
   logging::LogMessageHandlerFunction previous_handler_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockLog);
 };
 
 }  // namespace test

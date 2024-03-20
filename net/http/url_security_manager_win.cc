@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,12 @@
 #include <urlmon.h>
 #include <wrl/client.h>
 
-#include "base/macros.h"
+#include "base/logging.h"
+#include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "net/http/http_auth_filter.h"
-#include "starboard/types.h"
-#include "url/gurl.h"
+#include "url/scheme_host_port.h"
 
 // The Windows implementation of URLSecurityManager uses WinINet/IE's
 // URL security zone manager.  See the MSDN page "URL Security Zones" at
@@ -27,40 +27,43 @@
 
 namespace net {
 
-class URLSecurityManagerWin : public URLSecurityManagerWhitelist {
+class URLSecurityManagerWin : public URLSecurityManagerAllowlist {
  public:
   URLSecurityManagerWin();
+
+  URLSecurityManagerWin(const URLSecurityManagerWin&) = delete;
+  URLSecurityManagerWin& operator=(const URLSecurityManagerWin&) = delete;
+
   ~URLSecurityManagerWin() override;
 
   // URLSecurityManager methods:
-  bool CanUseDefaultCredentials(const GURL& auth_origin) const override;
+  bool CanUseDefaultCredentials(
+      const url::SchemeHostPort& auth_scheme_host_port) const override;
 
  private:
   bool EnsureSystemSecurityManager();
 
   Microsoft::WRL::ComPtr<IInternetSecurityManager> security_manager_;
-
-  DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerWin);
 };
 
-URLSecurityManagerWin::URLSecurityManagerWin() {}
-URLSecurityManagerWin::~URLSecurityManagerWin() {}
+URLSecurityManagerWin::URLSecurityManagerWin() = default;
+URLSecurityManagerWin::~URLSecurityManagerWin() = default;
 
 bool URLSecurityManagerWin::CanUseDefaultCredentials(
-    const GURL& auth_origin) const {
-  if (HasDefaultWhitelist())
-    return URLSecurityManagerWhitelist::CanUseDefaultCredentials(auth_origin);
+    const url::SchemeHostPort& auth_scheme_host_port) const {
+  if (HasDefaultAllowlist())
+    return URLSecurityManagerAllowlist::CanUseDefaultCredentials(
+        auth_scheme_host_port);
   if (!const_cast<URLSecurityManagerWin*>(this)->EnsureSystemSecurityManager())
     return false;
 
-  base::string16 url16 = base::ASCIIToUTF16(auth_origin.spec());
+  std::u16string url16 = base::ASCIIToUTF16(auth_scheme_host_port.Serialize());
   DWORD policy = 0;
   HRESULT hr;
-  hr = security_manager_->ProcessUrlAction(url16.c_str(),
-                                           URLACTION_CREDENTIALS_USE,
-                                           reinterpret_cast<BYTE*>(&policy),
-                                           sizeof(policy), NULL, 0,
-                                           PUAF_NOUI, 0);
+  hr = security_manager_->ProcessUrlAction(
+      base::as_wcstr(url16), URLACTION_CREDENTIALS_USE,
+      reinterpret_cast<BYTE*>(&policy), sizeof(policy), nullptr, 0, PUAF_NOUI,
+      0);
   if (FAILED(hr)) {
     LOG(ERROR) << "IInternetSecurityManager::ProcessUrlAction failed: " << hr;
     return false;
@@ -84,7 +87,7 @@ bool URLSecurityManagerWin::CanUseDefaultCredentials(
       // URLZONE_INTERNET      3
       // URLZONE_UNTRUSTED     4
       DWORD zone = 0;
-      hr = security_manager_->MapUrlToZone(url16.c_str(), &zone, 0);
+      hr = security_manager_->MapUrlToZone(base::as_wcstr(url16), &zone, 0);
       if (FAILED(hr)) {
         LOG(ERROR) << "IInternetSecurityManager::MapUrlToZone failed: " << hr;
         return false;
@@ -105,8 +108,8 @@ bool URLSecurityManagerWin::CanUseDefaultCredentials(
 
 bool URLSecurityManagerWin::EnsureSystemSecurityManager() {
   if (!security_manager_.Get()) {
-    HRESULT hr = CoInternetCreateSecurityManager(
-        NULL, security_manager_.GetAddressOf(), NULL);
+    HRESULT hr =
+        CoInternetCreateSecurityManager(nullptr, &security_manager_, 0);
     if (FAILED(hr) || !security_manager_.Get()) {
       LOG(ERROR) << "Unable to create the Windows Security Manager instance";
       return false;

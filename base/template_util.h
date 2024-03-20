@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,70 +6,22 @@
 #define BASE_TEMPLATE_UTIL_H_
 
 #include <stddef.h>
+
 #include <iosfwd>
 #include <iterator>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
-#include "build/build_config.h"
-
-// Some versions of libstdc++ have partial support for type_traits, but misses
-// a smaller subset while removing some of the older non-standard stuff. Assume
-// that all versions below 5.0 fall in this category, along with one 5.0
-// experimental release. Test for this by consulting compiler major version,
-// the only reliable option available, so theoretically this could fail should
-// you attempt to mix an earlier version of libstdc++ with >= GCC5. But
-// that's unlikely to work out, especially as GCC5 changed ABI.
-#define CR_GLIBCXX_5_0_0 20150123
-#if (defined(__GNUC__) && __GNUC__ < 5) || \
-    (defined(__GLIBCXX__) && __GLIBCXX__ == CR_GLIBCXX_5_0_0)
-#define CR_USE_FALLBACKS_FOR_OLD_EXPERIMENTAL_GLIBCXX
-#endif
-
-// This hacks around using gcc with libc++ which has some incompatibilies.
-// - is_trivially_* doesn't work: https://llvm.org/bugs/show_bug.cgi?id=27538
-// TODO(danakj): Remove this when android builders are all using a newer version
-// of gcc, or the android ndk is updated to a newer libc++ that works with older
-// gcc versions.
-#if !defined(__clang__) && defined(_LIBCPP_VERSION)
-#define CR_USE_FALLBACKS_FOR_GCC_WITH_LIBCXX
-#endif
+#include "base/compiler_specific.h"
 
 namespace base {
 
-template <class T> struct is_non_const_reference : std::false_type {};
-template <class T> struct is_non_const_reference<T&> : std::true_type {};
-template <class T> struct is_non_const_reference<const T&> : std::false_type {};
-
 namespace internal {
 
-// Implementation detail of base::void_t below.
-template <typename...>
-struct make_void {
-  using type = void;
-};
-
-}  // namespace internal
-
-// base::void_t is an implementation of std::void_t from C++17.
-//
-// We use |base::internal::make_void| as a helper struct to avoid a C++14
-// defect:
-//   http://en.cppreference.com/w/cpp/types/void_t
-//   http://open-std.org/JTC1/SC22/WG21/docs/cwg_defects.html#1558
-template <typename... Ts>
-using void_t = typename ::base::internal::make_void<Ts...>::type;
-
-namespace internal {
-
-// Uses expression SFINAE to detect whether using operator<< would work.
 template <typename T, typename = void>
-struct SupportsOstreamOperator : std::false_type {};
+struct SupportsToString : std::false_type {};
 template <typename T>
-struct SupportsOstreamOperator<T,
-                               decltype(void(std::declval<std::ostream&>()
-                                             << std::declval<T>()))>
+struct SupportsToString<T, decltype(void(std::declval<T>().ToString()))>
     : std::true_type {};
 
 // Used to detech whether the given type is an iterator.  This is normally used
@@ -79,80 +31,122 @@ template <typename T, typename = void>
 struct is_iterator : std::false_type {};
 
 template <typename T>
-struct is_iterator<T,
-                   void_t<typename std::iterator_traits<T>::iterator_category>>
+struct is_iterator<
+    T,
+    std::void_t<typename std::iterator_traits<T>::iterator_category>>
     : std::true_type {};
+
+// Helper to express preferences in an overload set. If more than one overload
+// are available for a given set of parameters the overload with the higher
+// priority will be chosen.
+template <size_t I>
+struct priority_tag : priority_tag<I - 1> {};
+
+template <>
+struct priority_tag<0> {};
 
 }  // namespace internal
 
-// is_trivially_copyable is especially hard to get right.
-// - Older versions of libstdc++ will fail to have it like they do for other
-//   type traits. This has become a subset of the second point, but used to be
-//   handled independently.
-// - An experimental release of gcc includes most of type_traits but misses
-//   is_trivially_copyable, so we still have to avoid using libstdc++ in this
-//   case, which is covered by CR_USE_FALLBACKS_FOR_OLD_EXPERIMENTAL_GLIBCXX.
-// - When compiling libc++ from before r239653, with a gcc compiler, the
-//   std::is_trivially_copyable can fail. So we need to work around that by not
-//   using the one in libc++ in this case. This is covered by the
-//   CR_USE_FALLBACKS_FOR_GCC_WITH_LIBCXX define, and is discussed in
-//   https://llvm.org/bugs/show_bug.cgi?id=27538#c1 where they point out that
-//   in libc++'s commit r239653 this is fixed by libc++ checking for gcc 5.1.
-// - In both of the above cases we are using the gcc compiler. When defining
-//   this ourselves on compiler intrinsics, the __is_trivially_copyable()
-//   intrinsic is not available on gcc before version 5.1 (see the discussion in
-//   https://llvm.org/bugs/show_bug.cgi?id=27538#c1 again), so we must check for
-//   that version.
-// - When __is_trivially_copyable() is not available because we are on gcc older
-//   than 5.1, we need to fall back to something, so we use __has_trivial_copy()
-//   instead based on what was done one-off in bit_cast() previously.
+namespace internal {
 
-// TODO(crbug.com/554293): Remove this when all platforms have this in the std
-// namespace and it works with gcc as needed.
-#if defined(CR_USE_FALLBACKS_FOR_OLD_EXPERIMENTAL_GLIBCXX) || \
-    defined(CR_USE_FALLBACKS_FOR_GCC_WITH_LIBCXX)
+// The indirection with std::is_enum<T> is required, because instantiating
+// std::underlying_type_t<T> when T is not an enum is UB prior to C++20.
+template <typename T, bool = std::is_enum<T>::value>
+struct IsScopedEnumImpl : std::false_type {};
+
 template <typename T>
-struct is_trivially_copyable {
-// TODO(danakj): Remove this when android builders are all using a newer version
-// of gcc, or the android ndk is updated to a newer libc++ that does this for
-// us.
-#if _GNUC_VER >= 501
-  static constexpr bool value = __is_trivially_copyable(T);
-#else
-  static constexpr bool value =
-      __has_trivial_copy(T) && __has_trivial_destructor(T);
-#endif
+struct IsScopedEnumImpl<T, /*std::is_enum<T>::value=*/true>
+    : std::negation<std::is_convertible<T, std::underlying_type_t<T>>> {};
+
+}  // namespace internal
+
+// Implementation of C++23's std::is_scoped_enum
+//
+// Reference: https://en.cppreference.com/w/cpp/types/is_scoped_enum
+template <typename T>
+struct is_scoped_enum : internal::IsScopedEnumImpl<T> {};
+
+// Implementation of C++20's std::remove_cvref.
+//
+// References:
+// - https://en.cppreference.com/w/cpp/types/remove_cvref
+// - https://wg21.link/meta.trans.other#lib:remove_cvref
+template <typename T>
+struct remove_cvref {
+  using type = std::remove_cv_t<std::remove_reference_t<T>>;
 };
-#else
-template <class T>
-using is_trivially_copyable = std::is_trivially_copyable<T>;
-#endif
 
-#ifdef STARBOARD
+// Implementation of C++20's std::remove_cvref_t.
+//
+// References:
+// - https://en.cppreference.com/w/cpp/types/remove_cvref
+// - https://wg21.link/meta.type.synop#lib:remove_cvref_t
 template <typename T>
-struct is_trivially_copy_constructible : std::is_trivially_destructible<T> {};
-#else
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ <= 7
-// Workaround for g++7 and earlier family.
-// Due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80654, without this
-// Optional<std::vector<T>> where T is non-copyable causes a compile error.
-// As we know it is not trivially copy constructible, explicitly declare so.
-template <typename T>
-struct is_trivially_copy_constructible
-    : std::is_trivially_copy_constructible<T> {};
+using remove_cvref_t = typename remove_cvref<T>::type;
 
-template <typename... T>
-struct is_trivially_copy_constructible<std::vector<T...>> : std::false_type {};
-#else
-// Otherwise use std::is_trivially_copy_constructible as is.
+// Simplified implementation of C++20's std::iter_value_t.
+// As opposed to std::iter_value_t, this implementation does not restrict
+// the type of `Iter` and does not consider specializations of
+// `indirectly_readable_traits`.
+//
+// Reference: https://wg21.link/readable.traits#2
+template <typename Iter>
+struct IterValueImpl {
+  using value_type = typename std::iterator_traits<Iter>::value_type;
+};
+
+template <typename T, bool Cond = false>
+struct IterValuePointerImpl {
+  // The `iterator_traits<T*>::value_type` member is not defined if T is not an
+  // object in C++20.
+};
 template <typename T>
-using is_trivially_copy_constructible = std::is_trivially_copy_constructible<T>;
-#endif
-#endif  // STARBOARD
+struct IterValuePointerImpl<T*, true> {
+  using value_type = typename std::iterator_traits<T*>::value_type;
+};
+
+template <typename T>
+struct IterValueImpl<T*> {
+  using value_type =
+      typename IterValuePointerImpl<T*, std::is_object_v<T>>::value_type;
+};
+
+template <typename Iter>
+using iter_value_t = typename IterValueImpl<remove_cvref_t<Iter>>::value_type;
+
+// Simplified implementation of C++20's std::iter_reference_t.
+// As opposed to std::iter_reference_t, this implementation does not restrict
+// the type of `Iter`.
+//
+// Reference: https://wg21.link/iterator.synopsis#:~:text=iter_reference_t
+template <typename Iter>
+using iter_reference_t = decltype(*std::declval<Iter&>());
+
+// Simplified implementation of C++20's std::indirect_result_t. As opposed to
+// std::indirect_result_t, this implementation does not restrict the type of
+// `Func` and `Iters`.
+//
+// Reference: https://wg21.link/iterator.synopsis#:~:text=indirect_result_t
+template <typename Func, typename... Iters>
+using indirect_result_t =
+    std::invoke_result_t<Func, iter_reference_t<Iters>...>;
+
+// Simplified implementation of C++20's std::projected. As opposed to
+// std::projected, this implementation does not explicitly restrict the type of
+// `Iter` and `Proj`, but rather does so implicitly by requiring
+// `indirect_result_t<Proj, Iter>` is a valid type. This is required for SFINAE
+// friendliness.
+//
+// Reference: https://wg21.link/projected
+template <typename Iter,
+          typename Proj,
+          typename IndirectResultT = indirect_result_t<Proj, Iter>>
+struct projected {
+  using value_type = remove_cvref_t<IndirectResultT>;
+
+  IndirectResultT operator*() const;  // not defined
+};
 
 }  // namespace base
-
-#undef CR_USE_FALLBACKS_FOR_GCC_WITH_LIBCXX
-#undef CR_USE_FALLBACKS_FOR_OLD_EXPERIMENTAL_GLIBCXX
 
 #endif  // BASE_TEMPLATE_UTIL_H_

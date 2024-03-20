@@ -25,20 +25,20 @@ class COMPONENTS_PREFS_EXPORT ValueMapPrefStore : public WriteablePrefStore {
   // PrefStore overrides:
   bool GetValue(const std::string& key,
                 const base::Value** value) const override;
-  std::unique_ptr<base::DictionaryValue> GetValues() const override;
+  base::Value::Dict GetValues() const override;
   void AddObserver(PrefStore::Observer* observer) override;
   void RemoveObserver(PrefStore::Observer* observer) override;
   bool HasObservers() const override;
 
   // WriteablePrefStore overrides:
   void SetValue(const std::string& key,
-                std::unique_ptr<base::Value> value,
+                base::Value value,
                 uint32_t flags) override;
   void RemoveValue(const std::string& key, uint32_t flags) override;
   bool GetMutableValue(const std::string& key, base::Value** value) override;
   void ReportValueChanged(const std::string& key, uint32_t flags) override;
   void SetValueSilently(const std::string& key,
-                        std::unique_ptr<base::Value> value,
+                        base::Value value,
                         uint32_t flags) override;
 
  protected:

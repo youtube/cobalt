@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,21 +7,26 @@
 #ifndef NET_DISK_CACHE_MEMORY_MEM_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_MEMORY_MEM_BACKEND_IMPL_H_
 
+#include <stdint.h>
+
 #include <string>
 #include <unordered_map>
 
-#include "base/callback_forward.h"
 #include "base/compiler_specific.h"
 #include "base/containers/linked_list.h"
-#include "base/macros.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/memory_pressure_listener.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_split.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/memory/mem_entry_impl.h"
-#include "starboard/types.h"
+
+namespace base {
+class Clock;
+}
 
 namespace net {
 class NetLog;
@@ -34,6 +39,10 @@ namespace disk_cache {
 class NET_EXPORT_PRIVATE MemBackendImpl final : public Backend {
  public:
   explicit MemBackendImpl(net::NetLog* net_log);
+
+  MemBackendImpl(const MemBackendImpl&) = delete;
+  MemBackendImpl& operator=(const MemBackendImpl&) = delete;
+
   ~MemBackendImpl() override;
 
   // Returns an instance of a Backend implemented only in memory. The returned
@@ -51,7 +60,7 @@ class NET_EXPORT_PRIVATE MemBackendImpl final : public Backend {
   bool SetMaxSize(int64_t max_bytes);
 
   // Returns the maximum size for a file to reside on the cache.
-  int MaxFileSize() const;
+  int64_t MaxFileSize() const override;
 
   // These next methods (before the implementation of the Backend interface) are
   // called by MemEntryImpl to update the state of the backend during the entry
@@ -71,7 +80,7 @@ class NET_EXPORT_PRIVATE MemBackendImpl final : public Backend {
   void OnEntryDoomed(MemEntryImpl* entry);
 
   // Adjust the current size of this backend by |delta|. This is used to
-  // determine if eviction is neccessary and when eviction is finished.
+  // determine if eviction is necessary and when eviction is finished.
   void ModifyStorageSize(int32_t delta);
 
   // Returns true if the cache's size is greater than the maximum allowed
@@ -82,17 +91,20 @@ class NET_EXPORT_PRIVATE MemBackendImpl final : public Backend {
   // most once.
   void SetPostCleanupCallback(base::OnceClosure cb);
 
+  static base::Time Now(const base::WeakPtr<MemBackendImpl>& self);
+  void SetClockForTesting(base::Clock* clock);  // doesn't take ownership.
+
   // Backend interface.
-  net::CacheType GetCacheType() const override;
   int32_t GetEntryCount() const override;
-  net::Error OpenEntry(const std::string& key,
-                       net::RequestPriority request_priority,
-                       Entry** entry,
-                       CompletionOnceCallback callback) override;
-  net::Error CreateEntry(const std::string& key,
-                         net::RequestPriority request_priority,
-                         Entry** entry,
-                         CompletionOnceCallback callback) override;
+  EntryResult OpenOrCreateEntry(const std::string& key,
+                                net::RequestPriority request_priority,
+                                EntryResultCallback callback) override;
+  EntryResult OpenEntry(const std::string& key,
+                        net::RequestPriority request_priority,
+                        EntryResultCallback callback) override;
+  EntryResult CreateEntry(const std::string& key,
+                          net::RequestPriority request_priority,
+                          EntryResultCallback callback) override;
   net::Error DoomEntry(const std::string& key,
                        net::RequestPriority priority,
                        CompletionOnceCallback callback) override;
@@ -111,9 +123,6 @@ class NET_EXPORT_PRIVATE MemBackendImpl final : public Backend {
   std::unique_ptr<Iterator> CreateIterator() override;
   void GetStats(base::StringPairs* stats) override {}
   void OnExternalCacheHit(const std::string& key) override;
-  size_t DumpMemoryStats(
-      base::trace_event::ProcessMemoryDump* pmd,
-      const std::string& parent_absolute_name) const override;
 
  private:
   class MemIterator;
@@ -131,23 +140,23 @@ class NET_EXPORT_PRIVATE MemBackendImpl final : public Backend {
   void OnMemoryPressure(
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
 
+  raw_ptr<base::Clock> custom_clock_for_testing_ = nullptr;  // usually nullptr.
+
   EntryMap entries_;
 
   // Stored in increasing order of last use time, from least recently used to
   // most recently used.
   base::LinkedList<MemEntryImpl> lru_list_;
 
-  int32_t max_size_;      // Maximum data size for this instance.
-  int32_t current_size_;
+  int32_t max_size_ = 0;  // Maximum data size for this instance.
+  int32_t current_size_ = 0;
 
-  net::NetLog* net_log_;
+  raw_ptr<net::NetLog> net_log_;
   base::OnceClosure post_cleanup_callback_;
 
   base::MemoryPressureListener memory_pressure_listener_;
 
-  base::WeakPtrFactory<MemBackendImpl> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(MemBackendImpl);
+  base::WeakPtrFactory<MemBackendImpl> weak_factory_{this};
 };
 
 }  // namespace disk_cache

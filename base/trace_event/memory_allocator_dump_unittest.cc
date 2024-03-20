@@ -1,18 +1,18 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/trace_event/memory_allocator_dump.h"
 
+#include <stdint.h>
+
 #include "base/format_macros.h"
-#include "base/strings/stringprintf.h"
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "base/trace_event/process_memory_dump.h"
-#include "base/trace_event/trace_event_argument.h"
+#include "base/trace_event/traced_value.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -20,7 +20,6 @@ using testing::ElementsAre;
 using testing::Eq;
 using testing::ByRef;
 using testing::IsEmpty;
-using testing::Contains;
 
 namespace base {
 namespace trace_event {
@@ -61,7 +60,7 @@ void CheckString(const MemoryAllocatorDump* dump,
                  const char* expected_units,
                  const std::string& expected_value) {
   MemoryAllocatorDump::Entry expected(name, expected_units, expected_value);
-  EXPECT_THAT(dump->entries(), Contains(Eq(ByRef(expected))));
+  EXPECT_THAT(dump->entries(), testing::Contains(Eq(ByRef(expected))));
 }
 
 void CheckScalar(const MemoryAllocatorDump* dump,
@@ -69,7 +68,7 @@ void CheckScalar(const MemoryAllocatorDump* dump,
                  const char* expected_units,
                  uint64_t expected_value) {
   MemoryAllocatorDump::Entry expected(name, expected_units, expected_value);
-  EXPECT_THAT(dump->entries(), Contains(Eq(ByRef(expected))));
+  EXPECT_THAT(dump->entries(), testing::Contains(Eq(ByRef(expected))));
 }
 
 }  // namespace
@@ -151,8 +150,8 @@ TEST(MemoryAllocatorDumpTest, MovingAnEntry) {
 }
 
 // DEATH tests are not supported in Android/iOS/Fuchsia.
-#if !defined(NDEBUG) && !defined(OS_ANDROID) && !defined(OS_IOS) && \
-    !defined(OS_FUCHSIA)
+#if !defined(NDEBUG) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && \
+    !BUILDFLAG(IS_FUCHSIA)
 TEST(MemoryAllocatorDumpTest, ForbidDuplicatesDeathTest) {
   FakeMemoryAllocatorDumpProvider fmadp;
   MemoryDumpArgs dump_args = {MemoryDumpLevelOfDetail::DETAILED};

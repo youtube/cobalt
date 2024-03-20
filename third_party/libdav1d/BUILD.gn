@@ -192,7 +192,7 @@ static_library("dav1d_10bit") {
     # instrumentation about which version of the library is being run.
     # dav1d_10 bit was selected for this, as it's less used than dav1d_8bit,
     # which still has coverage enabled. See crbug.com/1030350.
-    "//build/config/coverage:default_coverage",
+    # "//build/config/coverage:default_coverage",
   ]
   configs += [ ":dav1d_config" ]
 

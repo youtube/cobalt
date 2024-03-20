@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,139 +12,43 @@
 #include <string>
 #include <utility>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "net/base/net_export.h"
+#include "net/base/proxy_server.h"
 #include "net/log/net_log_with_source.h"
 #include "net/socket/client_socket_pool.h"
-#include "net/socket/client_socket_pool_base.h"
-#include "net/socket/transport_client_socket_pool.h"
-
-namespace base {
-class DictionaryValue;
-}
+#include "net/socket/connect_job.h"
+#include "net/socket/ssl_client_socket.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
-class ClientSocketFactory;
-class HostResolver;
-class NetLog;
-class WebSocketEndpointLockManager;
-class WebSocketTransportConnectSubJob;
+struct CommonConnectJobParams;
+struct NetworkTrafficAnnotationTag;
 
-// WebSocketTransportConnectJob handles the host resolution necessary for socket
-// creation and the TCP connect. WebSocketTransportConnectJob also has fallback
-// logic for IPv6 connect() timeouts (which may happen due to networks / routers
-// with broken IPv6 support). Those timeouts take 20s, so rather than make the
-// user wait 20s for the timeout to fire, we use a fallback timer
-// (kIPv6FallbackTimerInMs) and start a connect() to an IPv4 address if the
-// timer fires. Then we race the IPv4 connect(s) against the IPv6 connect(s) and
-// use the socket that completes successfully first or fails last.
-class NET_EXPORT_PRIVATE WebSocketTransportConnectJob : public ConnectJob {
- public:
-  WebSocketTransportConnectJob(
-      const std::string& group_name,
-      RequestPriority priority,
-      ClientSocketPool::RespectLimits respect_limits,
-      const scoped_refptr<TransportSocketParams>& params,
-      base::TimeDelta timeout_duration,
-      CompletionOnceCallback callback,
-      ClientSocketFactory* client_socket_factory,
-      HostResolver* host_resolver,
-      ClientSocketHandle* handle,
-      Delegate* delegate,
-      WebSocketEndpointLockManager* websocket_endpoint_lock_manager,
-      NetLog* pool_net_log,
-      const NetLogWithSource& request_net_log);
-  ~WebSocketTransportConnectJob() override;
-
-  // Unlike normal socket pools, the WebSocketTransportClientPool uses
-  // early-binding of sockets.
-  ClientSocketHandle* handle() const { return handle_; }
-
-  // Stash the callback from RequestSocket() here for convenience.
-  CompletionOnceCallback release_callback() { return std::move(callback_); }
-
-  const NetLogWithSource& request_net_log() const { return request_net_log_; }
-
-  // ConnectJob methods.
-  LoadState GetLoadState() const override;
-
- private:
-  friend class WebSocketTransportConnectSubJob;
-
-  enum State {
-    STATE_RESOLVE_HOST,
-    STATE_RESOLVE_HOST_COMPLETE,
-    STATE_TRANSPORT_CONNECT,
-    STATE_TRANSPORT_CONNECT_COMPLETE,
-    STATE_NONE,
-  };
-
-  // Although it is not strictly necessary, it makes the code simpler if each
-  // subjob knows what type it is.
-  enum SubJobType { SUB_JOB_IPV4, SUB_JOB_IPV6 };
-
-  void OnIOComplete(int result);
-  int DoLoop(int result);
-
-  int DoResolveHost();
-  int DoResolveHostComplete(int result);
-  int DoTransportConnect();
-  int DoTransportConnectComplete(int result);
-
-  // Called back from a SubJob when it completes.
-  void OnSubJobComplete(int result, WebSocketTransportConnectSubJob* job);
-
-  // Called from |fallback_timer_|.
-  void StartIPv4JobAsync();
-
-  // Begins the host resolution and the TCP connect.  Returns OK on success
-  // and ERR_IO_PENDING if it cannot immediately service the request.
-  // Otherwise, it returns a net error code.
-  int ConnectInternal() override;
-
-  scoped_refptr<TransportSocketParams> params_;
-  HostResolver* resolver_;
-  std::unique_ptr<HostResolver::Request> request_;
-  ClientSocketFactory* const client_socket_factory_;
-
-  State next_state_;
-
-  AddressList addresses_;
-  // The addresses are divided into IPv4 and IPv6, which are performed partially
-  // in parallel. If the list of IPv6 addresses is non-empty, then the IPv6 jobs
-  // go first, followed after |kIPv6FallbackTimerInMs| by the IPv4
-  // addresses. First sub-job to establish a connection wins.
-  std::unique_ptr<WebSocketTransportConnectSubJob> ipv4_job_;
-  std::unique_ptr<WebSocketTransportConnectSubJob> ipv6_job_;
-
-  base::OneShotTimer fallback_timer_;
-  TransportConnectJob::RaceResult race_result_;
-  ClientSocketHandle* const handle_;
-  WebSocketEndpointLockManager* const websocket_endpoint_lock_manager_;
-  CompletionOnceCallback callback_;
-  NetLogWithSource request_net_log_;
-
-  bool had_ipv4_;
-  bool had_ipv6_;
-
-  DISALLOW_COPY_AND_ASSIGN(WebSocketTransportConnectJob);
-};
+// Identifier for a ClientSocketHandle to scope the lifetime of references.
+// ClientSocketHandleID are derived from ClientSocketHandle*, used in
+// comparison only, and are never dereferenced. We use an std::uintptr_t here to
+// match the size of a pointer, and to prevent dereferencing. Also, our
+// tooling complains about dangling pointers if we pass around a raw ptr.
+using ClientSocketHandleID = std::uintptr_t;
 
 class NET_EXPORT_PRIVATE WebSocketTransportClientSocketPool
-    : public TransportClientSocketPool {
+    : public ClientSocketPool {
  public:
   WebSocketTransportClientSocketPool(
       int max_sockets,
       int max_sockets_per_group,
-      HostResolver* host_resolver,
-      ClientSocketFactory* client_socket_factory,
-      WebSocketEndpointLockManager* websocket_endpoint_lock_manager,
-      NetLog* net_log);
+      const ProxyServer& proxy_server,
+      const CommonConnectJobParams* common_connect_job_params);
+
+  WebSocketTransportClientSocketPool(
+      const WebSocketTransportClientSocketPool&) = delete;
+  WebSocketTransportClientSocketPool& operator=(
+      const WebSocketTransportClientSocketPool&) = delete;
 
   ~WebSocketTransportClientSocketPool() override;
 
@@ -158,78 +62,117 @@ class NET_EXPORT_PRIVATE WebSocketTransportClientSocketPool
       WebSocketEndpointLockManager* websocket_endpoint_lock_manager);
 
   // ClientSocketPool implementation.
-  int RequestSocket(const std::string& group_name,
-                    const void* resolve_info,
-                    RequestPriority priority,
-                    const SocketTag& socket_tag,
-                    RespectLimits respect_limits,
-                    ClientSocketHandle* handle,
-                    CompletionOnceCallback callback,
-                    const NetLogWithSource& net_log) override;
-  void RequestSockets(const std::string& group_name,
-                      const void* params,
-                      int num_sockets,
-                      const NetLogWithSource& net_log) override;
-  void SetPriority(const std::string& group_name,
+  int RequestSocket(
+      const GroupId& group_id,
+      scoped_refptr<SocketParams> params,
+      const absl::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
+      RequestPriority priority,
+      const SocketTag& socket_tag,
+      RespectLimits respect_limits,
+      ClientSocketHandle* handle,
+      CompletionOnceCallback callback,
+      const ProxyAuthCallback& proxy_auth_callback,
+      const NetLogWithSource& net_log) override;
+  int RequestSockets(
+      const GroupId& group_id,
+      scoped_refptr<SocketParams> params,
+      const absl::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
+      int num_sockets,
+      CompletionOnceCallback callback,
+      const NetLogWithSource& net_log) override;
+  void SetPriority(const GroupId& group_id,
                    ClientSocketHandle* handle,
                    RequestPriority priority) override;
-  void CancelRequest(const std::string& group_name,
-                     ClientSocketHandle* handle) override;
-  void ReleaseSocket(const std::string& group_name,
+  void CancelRequest(const GroupId& group_id,
+                     ClientSocketHandle* handle,
+                     bool cancel_connect_job) override;
+  void ReleaseSocket(const GroupId& group_id,
                      std::unique_ptr<StreamSocket> socket,
-                     int id) override;
-  void FlushWithError(int error) override;
-  void CloseIdleSockets() override;
-  void CloseIdleSocketsInGroup(const std::string& group_name) override;
+                     int64_t generation) override;
+  void FlushWithError(int error, const char* net_log_reason_utf8) override;
+  void CloseIdleSockets(const char* net_log_reason_utf8) override;
+  void CloseIdleSocketsInGroup(const GroupId& group_id,
+                               const char* net_log_reason_utf8) override;
   int IdleSocketCount() const override;
-  int IdleSocketCountInGroup(const std::string& group_name) const override;
-  LoadState GetLoadState(const std::string& group_name,
+  size_t IdleSocketCountInGroup(const GroupId& group_id) const override;
+  LoadState GetLoadState(const GroupId& group_id,
                          const ClientSocketHandle* handle) const override;
-  std::unique_ptr<base::DictionaryValue> GetInfoAsValue(
-      const std::string& name,
-      const std::string& type,
-      bool include_nested_pools) const override;
-  base::TimeDelta ConnectionTimeout() const override;
+  base::Value GetInfoAsValue(const std::string& name,
+                             const std::string& type) const override;
+  bool HasActiveSocket(const GroupId& group_id) const override;
 
   // HigherLayeredPool implementation.
   bool IsStalled() const override;
+  void AddHigherLayeredPool(HigherLayeredPool* higher_pool) override;
+  void RemoveHigherLayeredPool(HigherLayeredPool* higher_pool) override;
 
  private:
   class ConnectJobDelegate : public ConnectJob::Delegate {
    public:
-    explicit ConnectJobDelegate(WebSocketTransportClientSocketPool* owner);
+    ConnectJobDelegate(WebSocketTransportClientSocketPool* owner,
+                       CompletionOnceCallback callback,
+                       ClientSocketHandle* socket_handle,
+                       const NetLogWithSource& request_net_log);
+
+    ConnectJobDelegate(const ConnectJobDelegate&) = delete;
+    ConnectJobDelegate& operator=(const ConnectJobDelegate&) = delete;
+
     ~ConnectJobDelegate() override;
 
+    // ConnectJob::Delegate implementation
     void OnConnectJobComplete(int result, ConnectJob* job) override;
+    void OnNeedsProxyAuth(const HttpResponseInfo& response,
+                          HttpAuthController* auth_controller,
+                          base::OnceClosure restart_with_auth_callback,
+                          ConnectJob* job) override;
+
+    // Calls Connect() on |connect_job|, and takes ownership. Returns Connect's
+    // return value.
+    int Connect(std::unique_ptr<ConnectJob> connect_job);
+
+    CompletionOnceCallback release_callback() { return std::move(callback_); }
+    ConnectJob* connect_job() { return connect_job_.get(); }
+    ClientSocketHandle* socket_handle() { return socket_handle_; }
+
+    const NetLogWithSource& request_net_log() { return request_net_log_; }
+    const NetLogWithSource& connect_job_net_log();
 
    private:
-    WebSocketTransportClientSocketPool* owner_;
+    raw_ptr<WebSocketTransportClientSocketPool> owner_;
 
-    DISALLOW_COPY_AND_ASSIGN(ConnectJobDelegate);
+    CompletionOnceCallback callback_;
+    std::unique_ptr<ConnectJob> connect_job_;
+    const raw_ptr<ClientSocketHandle> socket_handle_;
+    const NetLogWithSource request_net_log_;
   };
 
   // Store the arguments from a call to RequestSocket() that has stalled so we
   // can replay it when there are available socket slots.
   struct StalledRequest {
-    StalledRequest(const scoped_refptr<TransportSocketParams>& params,
-                   RequestPriority priority,
-                   ClientSocketHandle* handle,
-                   CompletionOnceCallback callback,
-                   const NetLogWithSource& net_log);
+    StalledRequest(
+        const GroupId& group_id,
+        const scoped_refptr<SocketParams>& params,
+        const absl::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
+        RequestPriority priority,
+        ClientSocketHandle* handle,
+        CompletionOnceCallback callback,
+        const ProxyAuthCallback& proxy_auth_callback,
+        const NetLogWithSource& net_log);
     StalledRequest(StalledRequest&& other);
     ~StalledRequest();
 
-    const scoped_refptr<TransportSocketParams> params;
+    const GroupId group_id;
+    const scoped_refptr<SocketParams> params;
+    const absl::optional<NetworkTrafficAnnotationTag> proxy_annotation_tag;
     const RequestPriority priority;
-    ClientSocketHandle* const handle;
+    const raw_ptr<ClientSocketHandle> handle;
     CompletionOnceCallback callback;
+    ProxyAuthCallback proxy_auth_callback;
     const NetLogWithSource net_log;
   };
 
-  friend class ConnectJobDelegate;
-
   typedef std::map<const ClientSocketHandle*,
-                   std::unique_ptr<WebSocketTransportConnectJob>>
+                   std::unique_ptr<ConnectJobDelegate>>
       PendingConnectsMap;
   // This is a list so that we can remove requests from the middle, and also
   // so that iterators are not invalidated unless the corresponding request is
@@ -239,14 +182,15 @@ class NET_EXPORT_PRIVATE WebSocketTransportClientSocketPool
       StalledRequestMap;
 
   // Tries to hand out the socket connected by |job|. |result| must be (async)
-  // result of WebSocketTransportConnectJob::Connect(). Returns true iff it has
-  // handed out a socket.
-  bool TryHandOutSocket(int result, WebSocketTransportConnectJob* job);
-  void OnConnectJobComplete(int result, WebSocketTransportConnectJob* job);
+  // result of TransportConnectJob::Connect(). Returns true iff it has handed
+  // out a socket.
+  bool TryHandOutSocket(int result, ConnectJobDelegate* connect_job_delegate);
+  void OnConnectJobComplete(int result,
+                            ConnectJobDelegate* connect_job_delegate);
   void InvokeUserCallbackLater(ClientSocketHandle* handle,
                                CompletionOnceCallback callback,
                                int rv);
-  void InvokeUserCallback(ClientSocketHandle* handle,
+  void InvokeUserCallback(ClientSocketHandleID handle_id,
                           CompletionOnceCallback callback,
                           int rv);
   bool ReachedMaxSocketsLimit() const;
@@ -255,29 +199,22 @@ class NET_EXPORT_PRIVATE WebSocketTransportClientSocketPool
                      ClientSocketHandle* handle,
                      const NetLogWithSource& net_log);
   void AddJob(ClientSocketHandle* handle,
-              std::unique_ptr<WebSocketTransportConnectJob> connect_job);
+              std::unique_ptr<ConnectJobDelegate> delegate);
   bool DeleteJob(ClientSocketHandle* handle);
-  const WebSocketTransportConnectJob* LookupConnectJob(
-      const ClientSocketHandle* handle) const;
+  const ConnectJob* LookupConnectJob(const ClientSocketHandle* handle) const;
   void ActivateStalledRequest();
   bool DeleteStalledRequest(ClientSocketHandle* handle);
 
-  ConnectJobDelegate connect_job_delegate_;
-  std::set<const ClientSocketHandle*> pending_callbacks_;
+  const ProxyServer proxy_server_;
+  std::set<ClientSocketHandleID> pending_callbacks_;
   PendingConnectsMap pending_connects_;
   StalledRequestQueue stalled_request_queue_;
   StalledRequestMap stalled_request_map_;
-  NetLog* const pool_net_log_;
-  ClientSocketFactory* const client_socket_factory_;
-  HostResolver* const host_resolver_;
-  WebSocketEndpointLockManager* websocket_endpoint_lock_manager_;
   const int max_sockets_;
-  int handed_out_socket_count_;
-  bool flushing_;
+  int handed_out_socket_count_ = 0;
+  bool flushing_ = false;
 
-  base::WeakPtrFactory<WebSocketTransportClientSocketPool> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(WebSocketTransportClientSocketPool);
+  base::WeakPtrFactory<WebSocketTransportClientSocketPool> weak_factory_{this};
 };
 
 }  // namespace net

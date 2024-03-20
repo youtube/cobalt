@@ -18,11 +18,11 @@
 #include <memory>
 #include <string>
 
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/loader/origin.h"
 #include "url/gurl.h"
-
 namespace cobalt {
 namespace script {
 
@@ -50,7 +50,7 @@ class EnvironmentSettings {
   // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
   // TODO(b/244368134): Replace with url::Origin.
   virtual loader::Origin GetOrigin() const {
-    return loader::Origin(base_url().GetOrigin());
+    return loader::Origin(base_url().DeprecatedGetOriginAsURL());
   }
 
   const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }

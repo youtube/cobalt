@@ -24,9 +24,7 @@ namespace {
 // (e.g. detached threads, non-joinable threads) do not allow Singleton
 // access, which means we cannot access our |LogMessageHandler| instance,
 // nor even call |base::MessageLoop::current|.
-bool DoesThreadAllowSingletons() {
-  return ThreadRestrictions::GetSingletonAllowed();
-}
+bool DoesThreadAllowSingletons() { return base::GetSingletonAllowed(); }
 }  // namespace
 
 LogMessageHandler* LogMessageHandler::GetInstance() {

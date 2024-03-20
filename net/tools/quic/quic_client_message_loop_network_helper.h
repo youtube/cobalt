@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,21 +8,19 @@
 #ifndef NET_TOOLS_QUIC_QUIC_CLIENT_MESSAGE_LOOP_NETWORK_HELPER_H_
 #define NET_TOOLS_QUIC_QUIC_CLIENT_MESSAGE_LOOP_NETWORK_HELPER_H_
 
+#include <stddef.h>
+
 #include <memory>
-#include <string>
 
 #include "base/command_line.h"
-#include "base/macros.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/http/http_response_headers.h"
-#include "net/log/net_log.h"
+#include "net/quic/platform/impl/quic_chromium_clock.h"
 #include "net/quic/quic_chromium_packet_reader.h"
-#include "net/third_party/quic/core/http/quic_spdy_stream.h"
-#include "net/third_party/quic/core/quic_config.h"
-#include "net/third_party/quic/platform/impl/quic_chromium_clock.h"
-#include "net/third_party/quic/tools/quic_spdy_client_base.h"
-#include "starboard/types.h"
+#include "net/third_party/quiche/src/quiche/quic/core/http/quic_spdy_stream.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_config.h"
+#include "net/third_party/quiche/src/quiche/quic/tools/quic_spdy_client_base.h"
 
 namespace net {
 
@@ -39,10 +37,15 @@ class QuicClientMessageLooplNetworkHelper
   QuicClientMessageLooplNetworkHelper(quic::QuicChromiumClock* clock,
                                       quic::QuicClientBase* client);
 
+  QuicClientMessageLooplNetworkHelper(
+      const QuicClientMessageLooplNetworkHelper&) = delete;
+  QuicClientMessageLooplNetworkHelper& operator=(
+      const QuicClientMessageLooplNetworkHelper&) = delete;
+
   ~QuicClientMessageLooplNetworkHelper() override;
 
   // QuicChromiumPacketReader::Visitor
-  void OnReadError(int result, const DatagramClientSocket* socket) override;
+  bool OnReadError(int result, const DatagramClientSocket* socket) override;
   bool OnPacket(const quic::QuicReceivedPacket& packet,
                 const quic::QuicSocketAddress& local_address,
                 const quic::QuicSocketAddress& peer_address) override;
@@ -65,17 +68,12 @@ class QuicClientMessageLooplNetworkHelper
   // UDP socket connected to the server.
   std::unique_ptr<UDPClientSocket> socket_;
 
-  // The log used for the sockets.
-  NetLog net_log_;
-
   std::unique_ptr<QuicChromiumPacketReader> packet_reader_;
 
-  bool packet_reader_started_;
+  bool packet_reader_started_ = false;
 
   quic::QuicChromiumClock* clock_;
   quic::QuicClientBase* client_;
-
-  DISALLOW_COPY_AND_ASSIGN(QuicClientMessageLooplNetworkHelper);
 };
 
 }  // namespace net

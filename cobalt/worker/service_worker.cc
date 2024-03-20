@@ -59,7 +59,7 @@ void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
   ServiceWorkerContext* worker_context =
       incumbent_settings->context()->service_worker_context();
   DCHECK(worker_context);
-  worker_context->message_loop()->task_runner()->PostTask(
+  worker_context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContext::ServiceWorkerPostMessageSubSteps,
                      base::Unretained(worker_context),

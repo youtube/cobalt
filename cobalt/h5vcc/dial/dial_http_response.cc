@@ -40,7 +40,9 @@ DialHttpResponse::ToHttpServerResponseInfo() {
   if (!info_) {
     info_.reset(new net::HttpServerResponseInfo());
   }
-  info_->SetStatusCode(net::HttpStatusCode(response_code_));
+#ifndef USE_HACKY_COBALT_CHANGES
+  info_->status_code() = net::HttpStatusCode(response_code_);
+#endif
   info_->SetBody(body_, mime_type_);
   return std::move(info_);
 }

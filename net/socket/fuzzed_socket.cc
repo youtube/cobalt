@@ -1,16 +1,17 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/fuzzed_socket.h"
 
-#include <algorithm>
+#include <fuzzer/FuzzedDataProvider.h>
 
-#include "base/bind.h"
+#include "base/check_op.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/logging.h"
-#include "base/test/fuzzed_data_provider.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/notreached.h"
+#include "base/ranges/algorithm.h"
+#include "base/task/single_thread_task_runner.h"
 #include "net/base/io_buffer.h"
 #include "net/log/net_log_source_type.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -36,12 +37,11 @@ const Error kReadWriteErrors[] = {ERR_CONNECTION_CLOSED, ERR_FAILED,
 
 }  // namespace
 
-FuzzedSocket::FuzzedSocket(base::FuzzedDataProvider* data_provider,
+FuzzedSocket::FuzzedSocket(FuzzedDataProvider* data_provider,
                            net::NetLog* net_log)
     : data_provider_(data_provider),
       net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::SOCKET)),
-      remote_address_(IPEndPoint(IPAddress::IPv4Localhost(), 80)),
-      weak_factory_(this) {}
+      remote_address_(IPEndPoint(IPAddress::IPv4Localhost(), 80)) {}
 
 FuzzedSocket::~FuzzedSocket() = default;
 
@@ -68,8 +68,8 @@ int FuzzedSocket::Read(IOBuffer* buf,
     std::string data = data_provider_->ConsumeRandomLengthString(buf_len);
     result = data.size();
 
-    if (result > 0) {
-      std::copy(data.data(), data.data() + result, buf->data());
+    if (!data.empty()) {
+      base::ranges::copy(data, buf->data());
     } else {
       result = ConsumeReadWriteErrorFromData();
       net_error_ = result;
@@ -90,7 +90,7 @@ int FuzzedSocket::Read(IOBuffer* buf,
   }
 
   read_pending_ = true;
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&FuzzedSocket::OnReadComplete, weak_factory_.GetWeakPtr(),
                      std::move(callback), result));
@@ -119,7 +119,8 @@ int FuzzedSocket::Write(
 
     num_async_reads_and_writes_ += static_cast<int>(!sync);
 
-    result = data_provider_->ConsumeUint8();
+    // Intentionally using smaller |result| size here.
+    result = data_provider_->ConsumeIntegralInRange<int>(0, 0xFF);
     if (result > buf_len)
       result = buf_len;
     if (result == 0) {
@@ -137,7 +138,7 @@ int FuzzedSocket::Write(
   }
 
   write_pending_ = true;
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&FuzzedSocket::OnWriteComplete, weak_factory_.GetWeakPtr(),
                      std::move(callback), result));
@@ -185,7 +186,7 @@ int FuzzedSocket::Connect(CompletionOnceCallback callback) {
   connect_pending_ = true;
   if (result != OK)
     error_pending_ = true;
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&FuzzedSocket::OnConnectComplete,
                      weak_factory_.GetWeakPtr(), std::move(callback), result));
@@ -231,8 +232,6 @@ bool FuzzedSocket::WasEverUsed() const {
   return total_bytes_written_ != 0 || total_bytes_read_ != 0;
 }
 
-void FuzzedSocket::EnableTCPFastOpenIfSupported() {}
-
 bool FuzzedSocket::WasAlpnNegotiated() const {
   return false;
 }
@@ -244,14 +243,6 @@ NextProto FuzzedSocket::GetNegotiatedProtocol() const {
 bool FuzzedSocket::GetSSLInfo(SSLInfo* ssl_info) {
   return false;
 }
-
-void FuzzedSocket::GetConnectionAttempts(ConnectionAttempts* out) const {
-  out->clear();
-}
-
-void FuzzedSocket::ClearConnectionAttempts() {}
-
-void FuzzedSocket::AddConnectionAttempts(const ConnectionAttempts& attempts) {}
 
 int64_t FuzzedSocket::GetTotalReceivedBytes() const {
   return total_bytes_read_;

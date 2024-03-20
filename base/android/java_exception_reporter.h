@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,9 @@
 
 #include <jni.h>
 
+#include "base/android/scoped_java_ref.h"
 #include "base/base_export.h"
-#include "starboard/types.h"
+#include "base/functional/callback_forward.h"
 
 namespace base {
 namespace android {
@@ -27,6 +28,13 @@ BASE_EXPORT void SetJavaExceptionCallback(void (*)(const char* exception));
 
 // Calls the Java exception callback, if any, with exception.
 void SetJavaException(const char* exception);
+
+// Sets a filter that determines whether a java exception should cause a crash
+// report. |java_exception_filter| should return true if a crash report should
+// be generated.
+BASE_EXPORT void SetJavaExceptionFilter(
+    base::RepeatingCallback<bool(const JavaRef<jthrowable>&)>
+        java_exception_filter);
 
 }  // namespace android
 }  // namespace base

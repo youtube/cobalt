@@ -152,11 +152,12 @@ TEST_F(XhrTest, Open) {
   xhr_->xhr_impl_ = std::unique_ptr<FakeXmlHttpRequestImpl>(
       new FakeXmlHttpRequestImpl(xhr_, settings(), NULL));
   xhr_->set_onreadystatechange(script_object);
-  EXPECT_CALL(*listener,
-              HandleEvent(Eq(xhr_),
-                          Pointee(Property(&web::Event::type,
-                                           base::Token("readystatechange"))),
-                          _))
+  EXPECT_CALL(
+      *listener,
+      HandleEvent(Eq(xhr_),
+                  Pointee(Property(&web::Event::type,
+                                   base_token::Token("readystatechange"))),
+                  _))
       .Times(1);
   xhr_->Open("GET", "https://www.google.com", &exception_state_);
 

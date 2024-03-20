@@ -1,77 +1,85 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_NETWORK_CHANGE_NOTIFIER_FUCHSIA_H_
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_FUCHSIA_H_
 
-#include <fuchsia/netstack/cpp/fidl.h>
-#include <lib/fidl/cpp/binding.h>
+#include <fuchsia/net/interfaces/cpp/fidl.h>
 
-#include "base/atomicops.h"
-#include "base/containers/flat_set.h"
-#include "base/gtest_prod_util.h"
+#include <vector>
+
 #include "base/threading/thread_checker.h"
+#include "base/types/expected.h"
+#include "net/base/fuchsia/network_interface_cache.h"
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
-#include "net/base/network_interfaces.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
+
+class SystemDnsConfigChangeNotifier;
 
 class NET_EXPORT_PRIVATE NetworkChangeNotifierFuchsia
     : public NetworkChangeNotifier {
  public:
-  // Blocks execution until an initial interface list is received from
-  // |netstack_|.
-  NetworkChangeNotifierFuchsia();
+  // Registers for asynchronous notifications of changes to network interfaces.
+  // Only WLAN interfaces are observed if |require_wlan| is requested.
+  explicit NetworkChangeNotifierFuchsia(bool require_wlan);
+  NetworkChangeNotifierFuchsia(const NetworkChangeNotifierFuchsia&) = delete;
+  NetworkChangeNotifierFuchsia& operator=(const NetworkChangeNotifierFuchsia&) =
+      delete;
   ~NetworkChangeNotifierFuchsia() override;
-
- private:
-  friend class NetworkChangeNotifierFuchsiaTest;
-  FRIEND_TEST_ALL_PREFIXES(NetworkChangeNotifierFuchsiaTest, FoundWiFi);
-  FRIEND_TEST_ALL_PREFIXES(NetworkChangeNotifierFuchsiaTest,
-                           FoundWiFiNonDefault);
-
-  // For testing purposes.
-  explicit NetworkChangeNotifierFuchsia(
-      fuchsia::netstack::NetstackPtr netstack);
-
-  // Forwards the network interface list along with the result of
-  // GetRouteTable() to OnRouteTableReceived().
-  void ProcessInterfaceList(
-      base::OnceClosure on_initialized_cb,
-      fidl::VectorPtr<fuchsia::netstack::NetInterface> interfaces);
-
-  // Computes network change notification state change from the list of
-  // interfaces and routing table data, sending observer events if IP or
-  // connection type changes are detected.
-  // |on_initialized_cb| will be bound when the network state is populated for
-  // the first time. In that case, change observer events will not be
-  // published, and |on_initialized_cb| will be invoked once the function has
-  // finished executing.
-  void OnRouteTableReceived(
-      base::OnceClosure on_initialized_cb,
-      fidl::VectorPtr<fuchsia::netstack::NetInterface> interfaces,
-      fidl::VectorPtr<fuchsia::netstack::RouteTableEntry> table);
 
   // NetworkChangeNotifier implementation.
   ConnectionType GetCurrentConnectionType() const override;
 
-  // The ConnectionType of the default network interface, stored as an atomic
-  // 32-bit int for safe concurrent access.
-  base::subtle::Atomic32 cached_connection_type_ = CONNECTION_NONE;
+ private:
+  friend class NetworkChangeNotifierFuchsiaTest;
 
-  fuchsia::netstack::NetstackPtr netstack_;
+  const internal::NetworkInterfaceCache* GetNetworkInterfaceCacheInternal()
+      const override;
 
-  // Set of addresses from the previous query/update for the default interface.
-  base::flat_set<IPAddress> cached_addresses_;
+  NetworkChangeNotifierFuchsia(
+      fuchsia::net::interfaces::WatcherHandle watcher,
+      bool require_wlan,
+      SystemDnsConfigChangeNotifier* system_dns_config_notifier);
+
+  // Processes events from the watcher for interface addition, change, or
+  // removal. Listeners are notified of changes that affect them. `watcher_` is
+  // unbound if an event is malformed in some way.
+  void OnInterfacesEvent(fuchsia::net::interfaces::Event event);
+
+  // Notifies observers of changes. Unbinds `watcher_` if there was an error.
+  void HandleCacheStatus(
+      absl::optional<internal::NetworkInterfaceCache::ChangeBits> change_bits);
+
+  fuchsia::net::interfaces::WatcherPtr watcher_;
+
+  // Keeps an updated cache of network interfaces and connection type.
+  internal::NetworkInterfaceCache cache_;
 
   THREAD_CHECKER(thread_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierFuchsia);
 };
 
+namespace internal {
+
+// Connects to the service via the process' ComponentContext, and connects the
+// Watcher to the service.
+fuchsia::net::interfaces::WatcherHandle ConnectInterfacesWatcher();
+
+// Reads existing network interfaces from `watcher_handle`, appending them to
+// `interfaces`. If successful, returns an unbound WatcherHandle that can be
+// used to watch for subsequent changes.
+//
+// `watcher_handle` must be a newly created fuchsia.net.interfaces.Watcher. Can
+// be used as the first part of the hanging-get pattern.
+base::expected<fuchsia::net::interfaces::WatcherHandle, zx_status_t>
+ReadExistingNetworkInterfacesFromNewWatcher(
+    fuchsia::net::interfaces::WatcherHandle watcher_handle,
+    std::vector<fuchsia::net::interfaces::Properties>& interfaces);
+
+}  // namespace internal
 }  // namespace net
 
 #endif  // NET_BASE_NETWORK_CHANGE_NOTIFIER_FUCHSIA_H_

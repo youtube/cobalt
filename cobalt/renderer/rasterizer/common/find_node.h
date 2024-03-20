@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_RASTERIZER_COMMON_FIND_NODE_H_
 
 #include "base/bind.h"
+#include "base/optional.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"

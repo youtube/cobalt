@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,7 +82,7 @@ TEST(CRLSetTest, Parse) {
                       sizeof(kGIACRLSet));
   scoped_refptr<CRLSet> set;
   EXPECT_TRUE(CRLSet::Parse(s, &set));
-  ASSERT_TRUE(set.get() != NULL);
+  ASSERT_TRUE(set.get() != nullptr);
 
   const CRLSet::CRLList& crls = set->CrlsForTesting();
   ASSERT_EQ(1u, crls.size());
@@ -113,7 +113,7 @@ TEST(CRLSetTest, BlockedSPKIs) {
                       sizeof(kBlockedSPKICRLSet));
   scoped_refptr<CRLSet> set;
   EXPECT_TRUE(CRLSet::Parse(s, &set));
-  ASSERT_TRUE(set.get() != NULL);
+  ASSERT_TRUE(set.get() != nullptr);
 
   const uint8_t spki_hash[] = {
     227, 176, 196, 66, 152, 252, 28, 20, 154, 251, 244, 200, 153, 111, 185, 36,
@@ -126,6 +126,43 @@ TEST(CRLSetTest, BlockedSPKIs) {
             set->CheckSPKI(reinterpret_cast<const char*>(spki_hash)));
 }
 
+TEST(CertVerifyProcTest, CRLSetIncorporatesStaticBlocklist) {
+  // Test both the builtin CRLSet and a parsed CRLSet to be sure that both
+  // include the block list.
+  scoped_refptr<CRLSet> set1 = CRLSet::BuiltinCRLSet();
+  ASSERT_TRUE(set1);
+  base::StringPiece s(reinterpret_cast<const char*>(kGIACRLSet),
+                      sizeof(kGIACRLSet));
+  scoped_refptr<CRLSet> set2;
+  EXPECT_TRUE(CRLSet::Parse(s, &set2));
+  ASSERT_TRUE(set2);
+
+  static const char* const kDigiNotarFilenames[] = {
+      "diginotar_root_ca.pem",          "diginotar_cyber_ca.pem",
+      "diginotar_services_1024_ca.pem", "diginotar_pkioverheid.pem",
+      "diginotar_pkioverheid_g2.pem",   nullptr,
+  };
+
+  base::FilePath certs_dir = GetTestCertsDirectory();
+
+  for (size_t i = 0; kDigiNotarFilenames[i]; i++) {
+    scoped_refptr<X509Certificate> diginotar_cert =
+        ImportCertFromFile(certs_dir, kDigiNotarFilenames[i]);
+    ASSERT_TRUE(diginotar_cert);
+    base::StringPiece spki;
+    ASSERT_TRUE(asn1::ExtractSPKIFromDERCert(
+        x509_util::CryptoBufferAsStringPiece(diginotar_cert->cert_buffer()),
+        &spki));
+
+    std::string spki_sha256 = crypto::SHA256HashString(spki);
+
+    EXPECT_EQ(CRLSet::REVOKED, set1->CheckSPKI(spki_sha256))
+        << "Public key not blocked for " << kDigiNotarFilenames[i];
+    EXPECT_EQ(CRLSet::REVOKED, set2->CheckSPKI(spki_sha256))
+        << "Public key not blocked for " << kDigiNotarFilenames[i];
+  }
+}
+
 TEST(CRLSetTest, BlockedSubjects) {
   std::string crl_set_bytes;
   EXPECT_TRUE(base::ReadFileToString(
@@ -133,7 +170,7 @@ TEST(CRLSetTest, BlockedSubjects) {
       &crl_set_bytes));
   scoped_refptr<CRLSet> set;
   EXPECT_TRUE(CRLSet::Parse(crl_set_bytes, &set));
-  ASSERT_TRUE(set.get() != NULL);
+  ASSERT_TRUE(set.get() != nullptr);
 
   scoped_refptr<X509Certificate> root = CreateCertificateChainFromFile(
       GetTestCertsDirectory(), "root_ca_cert.pem",
@@ -175,7 +212,7 @@ TEST(CRLSetTest, Expired) {
                       sizeof(kExpiredCRLSet));
   scoped_refptr<CRLSet> set;
   EXPECT_TRUE(CRLSet::Parse(s, &set));
-  ASSERT_TRUE(set.get() != NULL);
+  ASSERT_TRUE(set.get() != nullptr);
 
   EXPECT_TRUE(set->IsExpired());
 }

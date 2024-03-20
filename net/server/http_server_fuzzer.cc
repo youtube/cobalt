@@ -1,12 +1,14 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/logging.h"
-#include "base/macros.h"
+#include <fuzzer/FuzzedDataProvider.h>
+
+#include "base/check_op.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
-#include "base/test/fuzzed_data_provider.h"
 #include "net/base/net_errors.h"
+#include "net/log/net_log.h"
 #include "net/log/test_net_log.h"
 #include "net/server/http_server.h"
 #include "net/socket/fuzzed_server_socket.h"
@@ -16,12 +18,15 @@ namespace {
 
 class WaitTillHttpCloseDelegate : public net::HttpServer::Delegate {
  public:
-  WaitTillHttpCloseDelegate(base::FuzzedDataProvider* data_provider,
-                            const base::Closure& done_closure)
-      : server_(nullptr),
-        data_provider_(data_provider),
-        done_closure_(done_closure),
-        action_flags_(data_provider_->ConsumeUint8()) {}
+  WaitTillHttpCloseDelegate(FuzzedDataProvider* data_provider,
+                            base::OnceClosure done_closure)
+      : data_provider_(data_provider),
+        done_closure_(std::move(done_closure)),
+        action_flags_(data_provider_->ConsumeIntegral<uint8_t>()) {}
+
+  WaitTillHttpCloseDelegate(const WaitTillHttpCloseDelegate&) = delete;
+  WaitTillHttpCloseDelegate& operator=(const WaitTillHttpCloseDelegate&) =
+      delete;
 
   void set_server(net::HttpServer* server) { server_ = server; }
 
@@ -56,7 +61,7 @@ class WaitTillHttpCloseDelegate : public net::HttpServer::Delegate {
                                TRAFFIC_ANNOTATION_FOR_TESTS);
   }
 
-  void OnWebSocketMessage(int connection_id, const std::string& data) override {
+  void OnWebSocketMessage(int connection_id, std::string data) override {
     if (!(action_flags_ & ACCEPT_MESSAGE)) {
       server_->Close(connection_id);
       return;
@@ -69,7 +74,11 @@ class WaitTillHttpCloseDelegate : public net::HttpServer::Delegate {
     }
   }
 
-  void OnClose(int connection_id) override { done_closure_.Run(); }
+  void OnClose(int connection_id) override {
+    // In general, OnClose can be called more than once, but FuzzedServerSocket
+    // only makes one connection, and it is the only socket of interest here.
+    std::move(done_closure_).Run();
+  }
 
  private:
   enum {
@@ -80,12 +89,10 @@ class WaitTillHttpCloseDelegate : public net::HttpServer::Delegate {
     CLOSE_WEBSOCKET_RATHER_THAN_ACCEPT = 16
   };
 
-  net::HttpServer* server_;
-  base::FuzzedDataProvider* const data_provider_;
-  base::Closure done_closure_;
+  raw_ptr<net::HttpServer> server_ = nullptr;
+  const raw_ptr<FuzzedDataProvider> data_provider_;
+  base::OnceClosure done_closure_;
   const uint8_t action_flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(WaitTillHttpCloseDelegate);
 };
 
 }  // namespace
@@ -94,11 +101,14 @@ class WaitTillHttpCloseDelegate : public net::HttpServer::Delegate {
 //
 // |data| is used to create a FuzzedServerSocket.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  net::TestNetLog test_net_log;
-  base::FuzzedDataProvider data_provider(data, size);
+  // Including an observer; even though the recorded results aren't currently
+  // used, it'll ensure the netlogging code is fuzzed as well.
+  net::RecordingNetLogObserver net_log_observer;
+  FuzzedDataProvider data_provider(data, size);
 
   std::unique_ptr<net::ServerSocket> server_socket(
-      std::make_unique<net::FuzzedServerSocket>(&data_provider, &test_net_log));
+      std::make_unique<net::FuzzedServerSocket>(&data_provider,
+                                                net::NetLog::Get()));
   CHECK_EQ(net::OK,
            server_socket->ListenWithAddressAndPort("127.0.0.1", 80, 5));
 

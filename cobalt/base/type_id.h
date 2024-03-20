@@ -26,6 +26,13 @@
 
 // Some of this code is copied from gtest-internal.h.
 
+// #define BASE_HASH_USE_HASH_STRUCT
+namespace BASE_HASH_NAMESPACE {
+// Forward declaration in case <xhash> is not #include'd.
+template <typename Key, typename Predicate>
+class hash_compare;
+}  // namespace BASE_HASH_NAMESPACE
+
 namespace base {
 
 namespace internal {
@@ -63,7 +70,7 @@ class TypeId {
   template <typename T>
   friend TypeId GetTypeId();
 #if defined(BASE_HASH_USE_HASH_STRUCT)
-  friend struct BASE_HASH_NAMESPACE::hash<TypeId>;
+  friend struct std::hash<TypeId>;
 #else
   template <typename T, typename Predicate>
   friend class BASE_HASH_NAMESPACE::hash_compare;
@@ -83,13 +90,12 @@ TypeId GetTypeId() {
 
 // Make TypeId usable as key in base::hash_map.
 
-namespace BASE_HASH_NAMESPACE {
-
 //
 // GCC-flavored hash functor.
 //
 #if defined(BASE_HASH_USE_HASH_STRUCT)
 
+namespace std {
 // Forward declaration in case <hash_fun.h> is not #include'd.
 template <>
 struct hash<base::TypeId>;
@@ -102,21 +108,18 @@ struct hash<base::TypeId> {
 
   hash<intptr_t> base_hash;
 };
+}  // namespace std
 
 // TODO(Starboard) Migrate all platforms to use std::hash and deprecate these.
 //
 // Dinkumware-flavored hash functor.
 //
 #else
-
-// Forward declaration in case <xhash> is not #include'd.
-template <typename Key, typename Predicate>
-class hash_compare;
-
+namespace BASE_HASH_NAMESPACE {
 template <typename Predicate>
 class hash_compare<base::TypeId, Predicate> {
  public:
-  typedef hash_compare<intptr_t> BaseHashCompare;
+  typedef hash_compare<intptr_t, Predicate> BaseHashCompare;
 
   enum {
     bucket_size = BaseHashCompare::bucket_size,
@@ -138,8 +141,7 @@ class hash_compare<base::TypeId, Predicate> {
  private:
   BaseHashCompare base_hash_compare_;
 };
-
-#endif
 }  // namespace BASE_HASH_NAMESPACE
+#endif
 
 #endif  // COBALT_BASE_TYPE_ID_H_

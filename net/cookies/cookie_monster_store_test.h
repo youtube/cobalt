@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,17 +10,17 @@
 #ifndef NET_COOKIES_COOKIE_MONSTER_STORE_TEST_H_
 #define NET_COOKIES_COOKIE_MONSTER_STORE_TEST_H_
 
+#include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/log/net_log_with_source.h"
-#include "starboard/types.h"
 
 class GURL;
 
@@ -44,16 +44,14 @@ struct CookieStoreCommand {
 
   // Constructor for LOAD and LOAD_COOKIES_FOR_KEY calls.  |key| should be empty
   // for LOAD_COOKIES_FOR_KEY.
-  CookieStoreCommand(Type type,
-                     const CookieMonster::PersistentCookieStore::LoadedCallback&
-                         loaded_callback,
-                     const std::string& key);
+  CookieStoreCommand(
+      Type type,
+      CookieMonster::PersistentCookieStore::LoadedCallback loaded_callback,
+      const std::string& key);
 
   // Constructor for ADD, UPDATE_ACCESS_TIME, and REMOVE calls.
   CookieStoreCommand(Type type, const CanonicalCookie& cookie);
-
-  CookieStoreCommand(const CookieStoreCommand& other);
-
+  CookieStoreCommand(CookieStoreCommand&& other);
   ~CookieStoreCommand();
 
   Type type;
@@ -77,6 +75,10 @@ class MockPersistentCookieStore : public CookieMonster::PersistentCookieStore {
 
   MockPersistentCookieStore();
 
+  MockPersistentCookieStore(const MockPersistentCookieStore&) = delete;
+  MockPersistentCookieStore& operator=(const MockPersistentCookieStore&) =
+      delete;
+
   // When set, Load() and LoadCookiesForKey() calls are store in the command
   // list, rather than being automatically executed. Defaults to false.
   void set_store_load_commands(bool store_load_commands) {
@@ -87,12 +89,17 @@ class MockPersistentCookieStore : public CookieMonster::PersistentCookieStore {
                           std::vector<std::unique_ptr<CanonicalCookie>> result);
 
   const CommandList& commands() const { return commands_; }
+  CommandList TakeCommands() { return std::move(commands_); }
+  CookieMonster::PersistentCookieStore::LoadedCallback TakeCallbackAt(
+      size_t i) {
+    return std::move(commands_[i].loaded_callback);
+  }
 
-  void Load(const LoadedCallback& loaded_callback,
+  void Load(LoadedCallback loaded_callback,
             const NetLogWithSource& net_log) override;
 
   void LoadCookiesForKey(const std::string& key,
-                         const LoadedCallback& loaded_callback) override;
+                         LoadedCallback loaded_callback) override;
 
   void AddCookie(const CanonicalCookie& cookie) override;
 
@@ -102,7 +109,7 @@ class MockPersistentCookieStore : public CookieMonster::PersistentCookieStore {
 
   void SetForceKeepSessionState() override;
 
-  void SetBeforeFlushCallback(base::RepeatingClosure callback) override;
+  void SetBeforeCommitCallback(base::RepeatingClosure callback) override;
 
   void Flush(base::OnceClosure callback) override;
 
@@ -112,16 +119,14 @@ class MockPersistentCookieStore : public CookieMonster::PersistentCookieStore {
  private:
   CommandList commands_;
 
-  bool store_load_commands_;
+  bool store_load_commands_ = false;
 
   // Deferred result to use when Load() is called.
-  bool load_return_value_;
+  bool load_return_value_ = true;
   std::vector<std::unique_ptr<CanonicalCookie>> load_result_;
   // Indicates if the store has been fully loaded to avoid returning duplicate
   // cookies.
-  bool loaded_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockPersistentCookieStore);
+  bool loaded_ = false;
 };
 
 // Helper to build a single CanonicalCookie.
@@ -138,17 +143,16 @@ void AddCookieToList(const GURL& url,
 
 // Just act like a backing database.  Keep cookie information from
 // Add/Update/Delete and regurgitate it when Load is called.
-// TODO(morlovich): This still assumes that creation times are unique.
 class MockSimplePersistentCookieStore
     : public CookieMonster::PersistentCookieStore {
  public:
   MockSimplePersistentCookieStore();
 
-  void Load(const LoadedCallback& loaded_callback,
+  void Load(LoadedCallback loaded_callback,
             const NetLogWithSource& net_log) override;
 
   void LoadCookiesForKey(const std::string& key,
-                         const LoadedCallback& loaded_callback) override;
+                         LoadedCallback loaded_callback) override;
 
   void AddCookie(const CanonicalCookie& cookie) override;
 
@@ -158,7 +162,7 @@ class MockSimplePersistentCookieStore
 
   void SetForceKeepSessionState() override;
 
-  void SetBeforeFlushCallback(base::RepeatingClosure callback) override;
+  void SetBeforeCommitCallback(base::RepeatingClosure callback) override;
 
   void Flush(base::OnceClosure callback) override;
 
@@ -166,13 +170,14 @@ class MockSimplePersistentCookieStore
   ~MockSimplePersistentCookieStore() override;
 
  private:
-  typedef std::map<int64_t, CanonicalCookie> CanonicalCookieMap;
+  typedef std::map<CanonicalCookie::UniqueCookieKey, CanonicalCookie>
+      CanonicalCookieMap;
 
   CanonicalCookieMap cookies_;
 
   // Indicates if the store has been fully loaded to avoid return duplicate
   // cookies in subsequent load requests
-  bool loaded_;
+  bool loaded_ = false;
 };
 
 // Helper function for creating a CookieMonster backed by a

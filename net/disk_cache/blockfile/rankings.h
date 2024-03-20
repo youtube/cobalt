@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,8 @@
 #include <list>
 #include <memory>
 
-#include "base/macros.h"
+#include <array>
+#include "base/memory/raw_ptr.h"
 #include "net/disk_cache/blockfile/addr.h"
 #include "net/disk_cache/blockfile/mapped_file.h"
 #include "net/disk_cache/blockfile/storage_block.h"
@@ -72,6 +73,9 @@ class Rankings {
     explicit ScopedRankingsBlock(Rankings* rankings);
     ScopedRankingsBlock(Rankings* rankings, CacheRankingsBlock* node);
 
+    ScopedRankingsBlock(const ScopedRankingsBlock&) = delete;
+    ScopedRankingsBlock& operator=(const ScopedRankingsBlock&) = delete;
+
     ~ScopedRankingsBlock() {
       rankings_->FreeRankingsBlock(get());
     }
@@ -81,29 +85,36 @@ class Rankings {
     }
 
     // scoped_ptr::reset will delete the object.
-    void reset(CacheRankingsBlock* p = NULL) {
+    void reset(CacheRankingsBlock* p = nullptr) {
       if (p != get())
         rankings_->FreeRankingsBlock(get());
       std::unique_ptr<CacheRankingsBlock>::reset(p);
     }
 
    private:
-    Rankings* rankings_;
-    DISALLOW_COPY_AND_ASSIGN(ScopedRankingsBlock);
+    raw_ptr<Rankings> rankings_;
   };
 
   // If we have multiple lists, we have to iterate through all at the same time.
   // This structure keeps track of where we are on the iteration.
+  // TODO(https://crbug.com/1409814) refactor this struct to make it clearer
+  // this owns the `nodes`.
   struct Iterator {
     Iterator();
     void Reset();
 
-    List list;                     // Which entry was returned to the user.
-    CacheRankingsBlock* nodes[3];  // Nodes on the first three lists.
-    Rankings* my_rankings;
+    // Which entry was returned to the user.
+    List list = List::NO_USE;
+    // Nodes on the first three lists.
+    std::array<CacheRankingsBlock*, 3> nodes = {nullptr, nullptr, nullptr};
+    raw_ptr<Rankings> my_rankings = nullptr;
   };
 
   Rankings();
+
+  Rankings(const Rankings&) = delete;
+  Rankings& operator=(const Rankings&) = delete;
+
   ~Rankings();
 
   bool Init(BackendImpl* backend, bool count_lists);
@@ -192,22 +203,25 @@ class Rankings {
   // Updates the iterators whenever node is being changed.
   void UpdateIterators(CacheRankingsBlock* node);
 
-  // Invalidates the iterators pointing to this node.
-  void InvalidateIterators(CacheRankingsBlock* node);
+  // Updates the iterators when node at address |addr| is being removed to point
+  // to |next| instead.
+  void UpdateIteratorsForRemoved(CacheAddr addr, CacheRankingsBlock* next);
 
   // Keeps track of the number of entries on a list.
   void IncrementCounter(List list);
   void DecrementCounter(List list);
 
-  bool init_;
+  bool init_ = false;
   bool count_lists_;
   Addr heads_[LAST_ELEMENT];
   Addr tails_[LAST_ELEMENT];
-  BackendImpl* backend_;
-  LruData* control_data_;  // Data related to the LRU lists.
-  IteratorList iterators_;
+  raw_ptr<BackendImpl> backend_;
 
-  DISALLOW_COPY_AND_ASSIGN(Rankings);
+  // Data related to the LRU lists.
+  // May point to a mapped file's unmapped memory at destruction time.
+  raw_ptr<LruData, DisableDanglingPtrDetection> control_data_;
+
+  IteratorList iterators_;
 };
 
 }  // namespace disk_cache

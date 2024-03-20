@@ -35,15 +35,15 @@ TEST(PosixSocketAcceptTest, RainyDayInvalidSocket) {
 }
 
 TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
-  // set up a socket to listen.
+  // Set up a socket to listen.
   int socket_listen_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   int result = -1;
   ASSERT_TRUE(socket_listen_fd >= 0);
 
-  // set socket reuseable
-  const int on = 1;
-  result =
-      setsockopt(socket_listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+<<<<<<< HEAD
+  struct sockaddr_in address = {0};
+  EXPECT_TRUE(result =
+                  bind(socket_listen_fd, reinterpret_cast<sockaddr*>(&address),
   EXPECT_TRUE(result == 0);
   if (result != 0) {
     close(socket_listen_fd);
@@ -64,10 +64,10 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
   result = bind(socket_listen_fd, reinterpret_cast<sockaddr*>(&address),
                 sizeof(sockaddr));
   EXPECT_TRUE(result == 0);
+>>>>>>> main
   if (result != 0) {
     close(socket_listen_fd);
     return;
-  }
 
   EXPECT_TRUE(result = listen(socket_listen_fd, kMaxConn) == 0);
   if (result != 0) {

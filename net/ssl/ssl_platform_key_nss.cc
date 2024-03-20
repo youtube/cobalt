@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,12 +8,13 @@
 #include <keyhi.h>
 #include <pk11pub.h>
 #include <prerror.h>
+#include <secmodt.h>
 
 #include <memory>
 #include <utility>
 
 #include "base/logging.h"
-#include "base/macros.h"
+#include "base/strings/stringprintf.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "crypto/nss_crypto_module_delegate.h"
 #include "crypto/scoped_nss_types.h"
@@ -21,7 +22,6 @@
 #include "net/ssl/ssl_platform_key_util.h"
 #include "net/ssl/ssl_private_key.h"
 #include "net/ssl/threaded_ssl_private_key.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
@@ -53,12 +53,24 @@ class SSLPlatformKeyNSS : public ThreadedSSLPrivateKey::Delegate {
                     crypto::ScopedSECKEYPrivateKey key)
       : type_(type),
         password_delegate_(std::move(password_delegate)),
-        key_(std::move(key)) {}
+        key_(std::move(key)),
+        supports_pss_(PK11_DoesMechanism(key_->pkcs11Slot, CKM_RSA_PKCS_PSS)) {}
+
+  SSLPlatformKeyNSS(const SSLPlatformKeyNSS&) = delete;
+  SSLPlatformKeyNSS& operator=(const SSLPlatformKeyNSS&) = delete;
+
   ~SSLPlatformKeyNSS() override = default;
 
+  std::string GetProviderName() override {
+    // This logic accesses fields directly on the struct, so it may run on any
+    // thread without caching.
+    return base::StringPrintf("%s, %s",
+                              PK11_GetModule(key_->pkcs11Slot)->commonName,
+                              PK11_GetSlotName(key_->pkcs11Slot));
+  }
+
   std::vector<uint16_t> GetAlgorithmPreferences() override {
-    return SSLPrivateKey::DefaultAlgorithmPreferences(type_,
-                                                      true /* supports PSS */);
+    return SSLPrivateKey::DefaultAlgorithmPreferences(type_, supports_pss_);
   }
 
   Error Sign(uint16_t algorithm,
@@ -118,23 +130,25 @@ class SSLPlatformKeyNSS : public ThreadedSSLPrivateKey::Delegate {
         free_digest_info.reset(digest_item.data);
     }
 
-    int len = PK11_SignatureLen(key_.get());
-    if (len <= 0) {
-      LogPRError("PK11_SignatureLen failed");
-      return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
-    }
-    signature->resize(len);
-    SECItem signature_item;
-    signature_item.data = signature->data();
-    signature_item.len = signature->size();
+    {
+      const int len = PK11_SignatureLen(key_.get());
+      if (len <= 0) {
+        LogPRError("PK11_SignatureLen failed");
+        return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
+      }
+      signature->resize(len);
+      SECItem signature_item;
+      signature_item.data = signature->data();
+      signature_item.len = signature->size();
 
-    SECStatus rv = PK11_SignWithMechanism(key_.get(), mechanism, &param,
-                                          &signature_item, &digest_item);
-    if (rv != SECSuccess) {
-      LogPRError("PK11_SignWithMechanism failed");
-      return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
+      SECStatus rv = PK11_SignWithMechanism(key_.get(), mechanism, &param,
+                                            &signature_item, &digest_item);
+      if (rv != SECSuccess) {
+        LogPRError("PK11_SignWithMechanism failed");
+        return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
+      }
+      signature->resize(signature_item.len);
     }
-    signature->resize(signature_item.len);
 
     // NSS emits raw ECDSA signatures, but BoringSSL expects a DER-encoded
     // ECDSA-Sig-Value.
@@ -152,15 +166,20 @@ class SSLPlatformKeyNSS : public ThreadedSSLPrivateKey::Delegate {
         return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
       }
 
-      int len = i2d_ECDSA_SIG(sig.get(), nullptr);
-      if (len <= 0)
-        return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
-      signature->resize(len);
-      uint8_t* ptr = signature->data();
-      len = i2d_ECDSA_SIG(sig.get(), &ptr);
-      if (len <= 0)
-        return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
-      signature->resize(len);
+      {
+        const int len = i2d_ECDSA_SIG(sig.get(), nullptr);
+        if (len <= 0)
+          return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
+        signature->resize(len);
+      }
+
+      {
+        uint8_t* ptr = signature->data();
+        const int len = i2d_ECDSA_SIG(sig.get(), &ptr);
+        if (len <= 0)
+          return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
+        signature->resize(len);
+      }
     }
 
     return OK;
@@ -173,8 +192,7 @@ class SSLPlatformKeyNSS : public ThreadedSSLPrivateKey::Delegate {
   scoped_refptr<crypto::CryptoModuleBlockingPasswordDelegate>
       password_delegate_;
   crypto::ScopedSECKEYPrivateKey key_;
-
-  DISALLOW_COPY_AND_ASSIGN(SSLPlatformKeyNSS);
+  bool supports_pss_;
 };
 
 }  // namespace
@@ -188,7 +206,8 @@ scoped_refptr<SSLPrivateKey> FetchClientCertPrivateKey(
   // hooks (such as smart card UI). To ensure threads are not starved or
   // deadlocked, the base::ScopedBlockingCall below increments the thread pool
   // capacity if this method takes too much time to run.
-  base::ScopedBlockingCall scoped_blocking_call(base::BlockingType::MAY_BLOCK);
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::MAY_BLOCK);
 
   void* wincx = password_delegate ? password_delegate->wincx() : nullptr;
   crypto::ScopedSECKEYPrivateKey key(

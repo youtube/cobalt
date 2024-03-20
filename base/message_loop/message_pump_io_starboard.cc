@@ -173,9 +173,13 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
   AutoReset<bool> auto_reset_in_run(&in_run_, true);
 
   for (;;) {
-    bool did_work = delegate->DoWork();
+    Delegate::NextWorkInfo next_work_info = delegate->DoWork();
+    bool has_more_immediate_work = next_work_info.is_immediate();
     if (!keep_running_)
       break;
+
+    if (has_more_immediate_work)
+      continue;
 
     // NOTE: We need to have a wake-up pending any time there is work queued,
     // and the MessageLoop only wakes up the pump when the work queue goes from
@@ -187,29 +191,27 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
     // items are added to the queue. To resolve this, if this wait consumes a
     // wake-up, we set did_work to true so we will jump back to the top of the
     // loop and call delegate->DoWork() before we decide to block.
-
     SbSocketWaiterResult result = SbSocketWaiterWaitTimed(waiter_, 0);
     DCHECK_NE(kSbSocketWaiterResultInvalid, result);
-    did_work |=
+    has_more_immediate_work |=
         (result == kSbSocketWaiterResultWokenUp) || processed_io_events_;
     processed_io_events_ = false;
     if (!keep_running_)
       break;
 
-    did_work |= delegate->DoDelayedWork(&delayed_work_time_);
+    if (has_more_immediate_work)
+      continue;
+
+    has_more_immediate_work = delegate->DoIdleWork();
     if (!keep_running_)
       break;
 
-    if (did_work)
+    if (has_more_immediate_work)
       continue;
 
-    did_work = delegate->DoIdleWork();
-    if (!keep_running_)
-      break;
-
-    if (did_work)
-      continue;
-
+    if (!next_work_info.delayed_run_time.is_null()) {
+      delayed_work_time_ = next_work_info.delayed_run_time;
+    }
     if (delayed_work_time_.is_null()) {
       SbSocketWaiterWait(waiter_);
     } else {
@@ -240,11 +242,11 @@ void MessagePumpIOStarboard::ScheduleWork() {
 }
 
 void MessagePumpIOStarboard::ScheduleDelayedWork(
-    const TimeTicks& delayed_work_time) {
+    const Delegate::NextWorkInfo& next_work_info) {
   // We know that we can't be blocked on Wait right now since this method can
   // only be called on the same thread as Run, so we only need to update our
   // record of how long to sleep when we do sleep.
-  delayed_work_time_ = delayed_work_time;
+  delayed_work_time_ = next_work_info.delayed_run_time;
   ScheduleWork();
 }
 

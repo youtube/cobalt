@@ -39,7 +39,7 @@ class KeyboardEvent : public UIEventWithKeyState {
   };
   explicit KeyboardEvent(const std::string& type);
   KeyboardEvent(const std::string& type, const KeyboardEventInit& init_dict);
-  KeyboardEvent(base::Token type, const scoped_refptr<Window>& view,
+  KeyboardEvent(base_token::Token type, const scoped_refptr<Window>& view,
                 const KeyboardEventInit& init_dict);
 
   // Creates an event with its "initialized flag" unset.

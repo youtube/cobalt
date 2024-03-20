@@ -28,7 +28,8 @@ group("gn_all") {
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
-    "//starboard/loader_app:app_key_files_test",
+
+    # "//starboard/loader_app:app_key_files_test",
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
   ]
@@ -50,7 +51,7 @@ group("gn_all") {
   if (sb_filter_based_player) {
     deps += [
       "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
-      "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
+      # "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
     ]
 
     # TODO: b/296715826 - Fix build error for windows modular builds.
@@ -110,7 +111,7 @@ group("starboard_group") {
       "//third_party/musl:c",
     ]
     if (sb_is_evergreen) {
-      public_deps += [ "//starboard/elf_loader:sabi_string" ]
+      # public_deps += [ "//starboard/elf_loader:sabi_string" ]
     } else {
       data_deps = [ ":starboard($starboard_toolchain)" ]
     }

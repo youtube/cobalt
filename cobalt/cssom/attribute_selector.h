@@ -64,7 +64,7 @@ class AttributeSelector : public SimpleSelector {
                              CombinatorType combinator) override;
 
   // Rest of public methods.
-  base::Token attribute_name() const { return text(); }
+  base_token::Token attribute_name() const { return text(); }
   ValueMatchType value_match_type() const { return value_match_type_; }
   const std::string& attribute_value() const { return value_; }
 

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,19 +8,21 @@
 #include <jni.h>
 
 #include "base/android/scoped_java_ref.h"
-#include "starboard/types.h"
 
 namespace base {
 
 namespace android {
 
+// Gets a ClassLoader instance which can load Java classes from the specified
+// split.
+jobject GetSplitClassLoader(JNIEnv* env, const char* split_name);
+
 // Gets a ClassLoader instance capable of loading Chromium java classes.
 // This should be called either from JNI_OnLoad or from within a method called
 // via JNI from Java.
-BASE_EXPORT ScopedJavaLocalRef<jobject> GetClassLoader(JNIEnv* env);
-
-// Returns true if the current process permits selective JNI registration.
-BASE_EXPORT bool IsSelectiveJniRegistrationEnabled(JNIEnv* env);
+inline jobject GetClassLoader(JNIEnv* env) {
+  return GetSplitClassLoader(env, "");
+}
 
 }  // namespace android
 }  // namespace base

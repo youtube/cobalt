@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,18 +6,17 @@
 
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "net/http/bidirectional_stream_request_info.h"
 #include "net/spdy/spdy_buffer.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_stream.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
-#include "starboard/memory.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 
 namespace net {
 
@@ -33,21 +32,7 @@ const int kBufferTimeMs = 1;
 BidirectionalStreamSpdyImpl::BidirectionalStreamSpdyImpl(
     const base::WeakPtr<SpdySession>& spdy_session,
     NetLogSource source_dependency)
-    : spdy_session_(spdy_session),
-      request_info_(nullptr),
-      delegate_(nullptr),
-      source_dependency_(source_dependency),
-      negotiated_protocol_(kProtoUnknown),
-      more_read_data_pending_(false),
-      read_buffer_len_(0),
-      written_end_of_stream_(false),
-      write_pending_(false),
-      stream_closed_(false),
-      closed_stream_status_(ERR_FAILED),
-      closed_stream_received_bytes_(0),
-      closed_stream_sent_bytes_(0),
-      closed_has_load_timing_info_(false),
-      weak_factory_(this) {}
+    : spdy_session_(spdy_session), source_dependency_(source_dependency) {}
 
 BidirectionalStreamSpdyImpl::~BidirectionalStreamSpdyImpl() {
   // Sends a RST to the remote if the stream is destroyed before it completes.
@@ -68,10 +53,10 @@ void BidirectionalStreamSpdyImpl::Start(
   timer_ = std::move(timer);
 
   if (!spdy_session_) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
-        base::Bind(&BidirectionalStreamSpdyImpl::NotifyError,
-                   weak_factory_.GetWeakPtr(), ERR_CONNECTION_CLOSED));
+        base::BindOnce(&BidirectionalStreamSpdyImpl::NotifyError,
+                       weak_factory_.GetWeakPtr(), ERR_CONNECTION_CLOSED));
     return;
   }
 
@@ -79,10 +64,12 @@ void BidirectionalStreamSpdyImpl::Start(
 
   int rv = stream_request_.StartRequest(
       SPDY_BIDIRECTIONAL_STREAM, spdy_session_, request_info_->url,
-      request_info_->priority, request_info_->socket_tag, net_log,
-      base::Bind(&BidirectionalStreamSpdyImpl::OnStreamInitialized,
-                 weak_factory_.GetWeakPtr()),
-      traffic_annotation);
+      false /* no early data */, request_info_->priority,
+      request_info_->socket_tag, net_log,
+      base::BindOnce(&BidirectionalStreamSpdyImpl::OnStreamInitialized,
+                     weak_factory_.GetWeakPtr()),
+      traffic_annotation, request_info_->detect_broken_connection,
+      request_info_->heartbeat_interval);
   if (rv != ERR_IO_PENDING)
     OnStreamInitialized(rv);
 }
@@ -122,9 +109,9 @@ void BidirectionalStreamSpdyImpl::SendvData(
 
   if (written_end_of_stream_) {
     LOG(ERROR) << "Writing after end of stream is written.";
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE, base::Bind(&BidirectionalStreamSpdyImpl::NotifyError,
-                              weak_factory_.GetWeakPtr(), ERR_UNEXPECTED));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&BidirectionalStreamSpdyImpl::NotifyError,
+                                  weak_factory_.GetWeakPtr(), ERR_UNEXPECTED));
     return;
   }
 
@@ -147,7 +134,7 @@ void BidirectionalStreamSpdyImpl::SendvData(
     // TODO(xunjieli): Get rid of extra copy. Coalesce headers and data frames.
     for (size_t i = 0; i < buffers.size(); ++i) {
       memcpy(pending_combined_buffer_->data() + len, buffers[i]->data(),
-                   lengths[i]);
+             lengths[i]);
       len += lengths[i];
     }
   }
@@ -207,9 +194,15 @@ void BidirectionalStreamSpdyImpl::OnHeadersSent() {
     delegate_->OnStreamReady(/*request_headers_sent=*/true);
 }
 
+void BidirectionalStreamSpdyImpl::OnEarlyHintsReceived(
+    const spdy::Http2HeaderBlock& headers) {
+  DCHECK(stream_);
+  // TODO(crbug.com/671310): Plumb Early Hints to `delegate_` if needed.
+}
+
 void BidirectionalStreamSpdyImpl::OnHeadersReceived(
-    const spdy::SpdyHeaderBlock& response_headers,
-    const spdy::SpdyHeaderBlock* pushed_request_headers) {
+    const spdy::Http2HeaderBlock& response_headers,
+    const spdy::Http2HeaderBlock* pushed_request_headers) {
   DCHECK(stream_);
 
   if (delegate_)
@@ -247,7 +240,7 @@ void BidirectionalStreamSpdyImpl::OnDataSent() {
 }
 
 void BidirectionalStreamSpdyImpl::OnTrailers(
-    const spdy::SpdyHeaderBlock& trailers) {
+    const spdy::Http2HeaderBlock& trailers) {
   DCHECK(stream_);
   DCHECK(!stream_closed_);
 
@@ -283,12 +276,16 @@ void BidirectionalStreamSpdyImpl::OnClose(int status) {
     OnDataSent();
 }
 
+bool BidirectionalStreamSpdyImpl::CanGreaseFrameType() const {
+  return false;
+}
+
 NetLogSource BidirectionalStreamSpdyImpl::source_dependency() const {
   return source_dependency_;
 }
 
 int BidirectionalStreamSpdyImpl::SendRequestHeadersHelper() {
-  spdy::SpdyHeaderBlock headers;
+  spdy::Http2HeaderBlock headers;
   HttpRequestInfo http_request_info;
   http_request_info.url = request_info_->url;
   http_request_info.method = request_info_->method;
@@ -354,9 +351,9 @@ void BidirectionalStreamSpdyImpl::ScheduleBufferedRead() {
   }
 
   more_read_data_pending_ = false;
-  timer_->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(kBufferTimeMs),
-                base::Bind(&BidirectionalStreamSpdyImpl::DoBufferedRead,
-                           weak_factory_.GetWeakPtr()));
+  timer_->Start(FROM_HERE, base::Milliseconds(kBufferTimeMs),
+                base::BindOnce(&BidirectionalStreamSpdyImpl::DoBufferedRead,
+                               weak_factory_.GetWeakPtr()));
 }
 
 void BidirectionalStreamSpdyImpl::DoBufferedRead() {
@@ -397,15 +394,15 @@ bool BidirectionalStreamSpdyImpl::MaybeHandleStreamClosedInSendData() {
   // If |stream_| is closed without an error before client half closes,
   // blackhole any pending write data. crbug.com/650438.
   if (stream_closed_ && closed_stream_status_ == OK) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE, base::Bind(&BidirectionalStreamSpdyImpl::OnDataSent,
-                              weak_factory_.GetWeakPtr()));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&BidirectionalStreamSpdyImpl::OnDataSent,
+                                  weak_factory_.GetWeakPtr()));
     return true;
   }
   LOG(ERROR) << "Trying to send data after stream has been destroyed.";
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE, base::Bind(&BidirectionalStreamSpdyImpl::NotifyError,
-                            weak_factory_.GetWeakPtr(), ERR_UNEXPECTED));
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&BidirectionalStreamSpdyImpl::NotifyError,
+                                weak_factory_.GetWeakPtr(), ERR_UNEXPECTED));
   return true;
 }
 

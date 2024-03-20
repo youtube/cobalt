@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/sys_info.h"
+#include "base/system/sys_info.h"
 
-#include "base/logging.h"
+#include "base/notreached.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"
 
@@ -24,6 +24,17 @@ namespace base {
 // static
 int SysInfo::NumberOfProcessors() {
   return SbSystemGetNumberOfProcessors();
+}
+
+int SysInfo::NumberOfEfficientProcessorsImpl() {
+  return NumberOfProcessors();
+}
+
+size_t SysInfo::VMAllocationGranularity() {
+  // This is referred to ONLY by persistent memory allocator and shared
+  // memory feature; not used in Cobalt production.
+  NOTIMPLEMENTED();
+  return 4096U;
 }
 
 // static
@@ -37,24 +48,23 @@ int64_t SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
 }
 
 // static
-int64_t SysInfo::AmountOfPhysicalMemoryImpl() {
+uint64_t SysInfo::AmountOfPhysicalMemoryImpl() {
   return SbSystemGetTotalCPUMemory();
 }
 
 // static
-int64_t SysInfo::AmountOfAvailablePhysicalMemoryImpl() {
+uint64_t SysInfo::AmountOfAvailablePhysicalMemoryImpl() {
   return SbSystemGetTotalCPUMemory() - SbSystemGetUsedCPUMemory();
 }
 
 // static
-int64_t SysInfo::AmountOfTotalDiskSpace(const FilePath& path) {
-  ALLOW_UNUSED_LOCAL(path);
+int64_t SysInfo::AmountOfTotalDiskSpace(const FilePath& /* path */) {
   NOTIMPLEMENTED();
   return SB_INT64_C(1) * 1024 * 1024 * 1024;
 }
 
 // static
-int64_t SysInfo::AmountOfVirtualMemory() {
+uint64_t SysInfo::AmountOfVirtualMemory() {
   return AmountOfPhysicalMemoryImpl();
 }
 
@@ -69,6 +79,19 @@ std::string SysInfo::OperatingSystemName() {
 // static
 std::string SysInfo::OperatingSystemVersion() {
   return SysInfo::OperatingSystemName();
+}
+
+// static
+void SysInfo::OperatingSystemVersionNumbers(int32_t* major_version,
+                                            int32_t* minor_version,
+                                            int32_t* bugfix_version) {
+  NOTIMPLEMENTED();
+}
+
+SysInfo::HardwareInfo SysInfo::GetHardwareInfoSync() {
+  NOTIMPLEMENTED();
+  HardwareInfo info;
+  return info;
 }
 
 }  // namespace base

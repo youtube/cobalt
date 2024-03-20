@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,9 +10,8 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 
 namespace base {
 
@@ -24,14 +23,13 @@ class Foo {
 
 class FooListener {
  public:
-  FooListener() {}
+  FooListener() = default;
+  FooListener(const FooListener&) = delete;
+  FooListener& operator=(const FooListener&) = delete;
 
   void GotAScopedFoo(std::unique_ptr<Foo> f) { foo_ = std::move(f); }
 
   std::unique_ptr<Foo> foo_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(FooListener);
 };
 
 
@@ -45,9 +43,9 @@ class FooListener {
 // first callback has been run.
 void WontCompile() {
   FooListener f;
-  CallbackList<void(std::unique_ptr<Foo>)> c1;
-  std::unique_ptr<CallbackList<void(std::unique_ptr<Foo>)>::Subscription> sub =
-      c1.Add(Bind(&FooListener::GotAScopedFoo, Unretained(&f)));
+  RepeatingCallbackList<void(std::unique_ptr<Foo>)> c1;
+  CallbackListSubscription sub =
+      c1.Add(BindRepeating(&FooListener::GotAScopedFoo, Unretained(&f)));
   c1.Notify(std::unique_ptr<Foo>(new Foo()));
 }
 

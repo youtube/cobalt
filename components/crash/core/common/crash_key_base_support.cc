@@ -34,6 +34,9 @@ struct BaseCrashKeyString : public base::debug::CrashKeyString {
     case base::debug::CrashKeySize::Size256:                                 \
       operation_prefix BaseCrashKeyString<256> operation_suffix;             \
       break;                                                                 \
+    case base::debug::CrashKeySize::Size1024:                                \
+      operation_prefix BaseCrashKeyString<1024> operation_suffix;            \
+      break;                                                                       \
   }
 
 class CrashKeyBaseSupport : public base::debug::CrashKeyImplementation {
@@ -58,6 +61,34 @@ class CrashKeyBaseSupport : public base::debug::CrashKeyImplementation {
   void Clear(base::debug::CrashKeyString* crash_key) override {
     SIZE_CLASS_OPERATION(crash_key->size,
                          reinterpret_cast<, *>(crash_key)->impl.Clear());
+  }
+
+  void OutputCrashKeysToStream(std::ostream& out) override {
+#if !defined(STARBOARD)
+    // TODO(lukasza): If phasing out breakpad takes a long time, then consider
+    // a better way to abstract away difference between crashpad and breakpad.
+    // For example, maybe the code below should be moved into
+    // third_party/crashpad/crashpad/client and exposed (in an abstract,
+    // implementation-agnostic way) via CrashKeyString.  This would allow
+    // avoiding using the BUILDFLAG(...) macros here.
+
+    auto* annotations = crashpad::AnnotationList::Get();
+    if (!annotations || annotations->begin() == annotations->end())
+      return;
+
+    out << "Crash keys:\n";
+    for (const crashpad::Annotation* annotation : *annotations) {
+      if (!annotation->is_set())
+        continue;
+
+      if (annotation->type() != crashpad::Annotation::Type::kString)
+        continue;
+      base::StringPiece value(static_cast<const char*>(annotation->value()),
+                              annotation->size());
+
+      out << "  \"" << annotation->name() << "\" = \"" << value << "\"\n";
+    }
+#endif
   }
 
  private:

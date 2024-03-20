@@ -225,7 +225,7 @@ class MetricsService : public base::HistogramFlattener {
   // state should be INIT_TASK_SCHEDULED.
   void FinishedInitTask();
 
-  void OnUserAction(const std::string& action);
+  void OnUserAction(const std::string& action, base::TimeTicks);
 
   // Get the amount of uptime since this process started and since the last
   // call to this function.  Also updates the cumulative uptime metric (stored

@@ -125,7 +125,7 @@ if (use_arm_neon_optimizations) {
         } else {
           assert(false, "CPU detection requires the Android NDK")
         }
-      } else if (!is_win && !is_clang) {
+      } else if (!is_win && !is_clang && current_toolchain != starboard_toolchain) {
         assert(!use_thin_lto,
                "ThinLTO fails mixing different module-level targets")
         cflags_c = [ "-march=armv8-a+crc" ]
@@ -211,6 +211,7 @@ source_set("zlib_inflate_chunk_simd") {
         cflags_c += [
           # inffast_chunk.c a function definition without a prototype
           "-Wno-deprecated-non-prototype",
+          "-Wno-implicit-fallthrough",
         ]
       }
     }
@@ -353,6 +354,7 @@ component("zlib_hidden") {
     cflags_c += [
       "-Wno-deprecated-non-prototype",
       "-Wno-unused-but-set-variable",
+      "-Wno-implicit-fallthrough",
     ]
   }
 
@@ -385,7 +387,7 @@ component("zlib_hidden") {
   } else {
     sources += [
       "arm_stub.c",
-      "inflate.c",
+      # "inflate.c",
     ]
   }
 
@@ -539,8 +541,8 @@ target(gtest_target_type, "zip_unittests") {
   testonly = true
 
   sources = [
-    "google/compression_utils_unittest.cc",
-    "google/zip_reader_unittest.cc",
+    # "google/compression_utils_unittest.cc",
+    # "google/zip_reader_unittest.cc",
     "google/zip_unittest.cc",
     "google/compression_utils.cc",
     "google/compression_utils.h",

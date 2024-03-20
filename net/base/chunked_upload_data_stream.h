@@ -1,20 +1,20 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_CHUNKED_UPLOAD_DATA_STREAM_H_
 #define NET_BASE_CHUNKED_UPLOAD_DATA_STREAM_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_data_stream.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -35,6 +35,8 @@ class NET_EXPORT ChunkedUploadDataStream : public UploadDataStream {
   // The writer may only be used on the ChunkedUploadDataStream's thread.
   class NET_EXPORT Writer {
    public:
+    Writer(const Writer&) = delete;
+    Writer& operator=(const Writer&) = delete;
     ~Writer();
 
     // Adds data to the stream. |is_done| should be true if this is the last
@@ -52,12 +54,13 @@ class NET_EXPORT ChunkedUploadDataStream : public UploadDataStream {
     explicit Writer(base::WeakPtr<ChunkedUploadDataStream> upload_data_stream);
 
     const base::WeakPtr<ChunkedUploadDataStream> upload_data_stream_;
-
-    DISALLOW_COPY_AND_ASSIGN(Writer);
   };
 
-  explicit ChunkedUploadDataStream(int64_t identifier);
+  explicit ChunkedUploadDataStream(int64_t identifier,
+                                   bool has_null_source = false);
 
+  ChunkedUploadDataStream(const ChunkedUploadDataStream&) = delete;
+  ChunkedUploadDataStream& operator=(const ChunkedUploadDataStream&) = delete;
   ~ChunkedUploadDataStream() override;
 
   // Creates a Writer for appending data to |this|.  It's generally expected
@@ -84,22 +87,20 @@ class NET_EXPORT ChunkedUploadDataStream : public UploadDataStream {
   int ReadChunk(IOBuffer* buf, int buf_len);
 
   // Index and offset of next element of |upload_data_| to be read.
-  size_t read_index_;
-  size_t read_offset_;
+  size_t read_index_ = 0;
+  size_t read_offset_ = 0;
 
   // True once all data has been appended to the stream.
-  bool all_data_appended_;
+  bool all_data_appended_ = false;
 
   std::vector<std::unique_ptr<std::vector<char>>> upload_data_;
 
   // Buffer to write the next read's data to. Only set when a call to
   // ReadInternal reads no data.
   scoped_refptr<IOBuffer> read_buffer_;
-  int read_buffer_len_;
+  int read_buffer_len_ = 0;
 
-  base::WeakPtrFactory<ChunkedUploadDataStream> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(ChunkedUploadDataStream);
+  base::WeakPtrFactory<ChunkedUploadDataStream> weak_factory_{this};
 };
 
 }  // namespace net

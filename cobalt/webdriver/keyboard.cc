@@ -346,7 +346,7 @@ class KeyTranslator {
   // press events.
   // https://www.w3.org/TR/webdriver/#sendkeys
   void Translate(const std::string& utf8_keys) {
-    base::i18n::UTF8CharIterator utf8_iterator(&utf8_keys);
+    base::i18n::UTF8CharIterator utf8_iterator(utf8_keys);
     while (!utf8_iterator.end()) {
       int32 webdriver_key = utf8_iterator.get();
       utf8_iterator.Advance();
@@ -465,7 +465,7 @@ class KeyTranslator {
     AddKeyEvent(base::Tokens::keyup(), key_code, char_code, location);
   }
 
-  void AddKeyEvent(base::Token type, int key_code, int char_code,
+  void AddKeyEvent(base_token::Token type, int key_code, int char_code,
                    KeyLocationCode location) {
     dom::KeyboardEventInit event;
     event.set_location(location);

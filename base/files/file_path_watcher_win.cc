@@ -1,24 +1,23 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/files/file_path_watcher.h"
 
-#include "base/bind.h"
+#include <windows.h>
+
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/strings/string_util.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/time/time.h"
 #include "base/win/object_watcher.h"
-
-#include <windows.h>
-
-#include "starboard/types.h"
 
 namespace base {
 
@@ -27,14 +26,14 @@ namespace {
 class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
                             public base::win::ObjectWatcher::Delegate {
  public:
-  FilePathWatcherImpl()
-      : handle_(INVALID_HANDLE_VALUE),
-        recursive_watch_(false) {}
+  FilePathWatcherImpl() = default;
+  FilePathWatcherImpl(const FilePathWatcherImpl&) = delete;
+  FilePathWatcherImpl& operator=(const FilePathWatcherImpl&) = delete;
   ~FilePathWatcherImpl() override;
 
   // FilePathWatcher::PlatformDelegate:
   bool Watch(const FilePath& path,
-             bool recursive,
+             Type type,
              const FilePathWatcher::Callback& callback) override;
   void Cancel() override;
 
@@ -46,12 +45,12 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   // the directory sub trees. Returns true if no fatal error occurs. |handle|
   // will receive the handle value if |dir| is watchable, otherwise
   // INVALID_HANDLE_VALUE.
-  static bool SetupWatchHandle(const FilePath& dir,
-                               bool recursive,
-                               HANDLE* handle) WARN_UNUSED_RESULT;
+  [[nodiscard]] static bool SetupWatchHandle(const FilePath& dir,
+                                             bool recursive,
+                                             HANDLE* handle);
 
   // (Re-)Initialize the watch handle.
-  bool UpdateWatch() WARN_UNUSED_RESULT;
+  [[nodiscard]] bool UpdateWatch();
 
   // Destroy the watch handle.
   void DestroyWatch();
@@ -63,16 +62,16 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   FilePath target_;
 
   // Set to true in the destructor.
-  bool* was_deleted_ptr_ = nullptr;
+  raw_ptr<bool> was_deleted_ptr_ = nullptr;
 
   // Handle for FindFirstChangeNotification.
-  HANDLE handle_;
+  HANDLE handle_ = INVALID_HANDLE_VALUE;
 
   // ObjectWatcher to watch handle_ for events.
   base::win::ObjectWatcher watcher_;
 
-  // Set to true to watch the sub trees of the specified directory file path.
-  bool recursive_watch_;
+  // The type of watch requested.
+  Type type_ = Type::kNonRecursive;
 
   // Keep track of the last modified time of the file.  We use nulltime
   // to represent the file not existing.
@@ -81,8 +80,6 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   // The time at which we processed the first notification with the
   // |last_modified_| time stamp.
   Time first_notification_;
-
-  DISALLOW_COPY_AND_ASSIGN(FilePathWatcherImpl);
 };
 
 FilePathWatcherImpl::~FilePathWatcherImpl() {
@@ -92,17 +89,17 @@ FilePathWatcherImpl::~FilePathWatcherImpl() {
 }
 
 bool FilePathWatcherImpl::Watch(const FilePath& path,
-                                bool recursive,
+                                Type type,
                                 const FilePathWatcher::Callback& callback) {
   DCHECK(target_.value().empty());  // Can only watch one path.
 
-  set_task_runner(SequencedTaskRunnerHandle::Get());
+  set_task_runner(SequencedTaskRunner::GetCurrentDefault());
   callback_ = callback;
   target_ = path;
-  recursive_watch_ = recursive;
+  type_ = type;
 
   File::Info file_info;
-  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   if (GetFileInfo(target_, &file_info)) {
     last_modified_ = file_info.last_modified;
     first_notification_ = Time::Now();
@@ -149,10 +146,10 @@ void FilePathWatcherImpl::OnObjectSignaled(HANDLE object) {
   File::Info file_info;
   bool file_exists = false;
   {
-    ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+    ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
     file_exists = GetFileInfo(target_, &file_info);
   }
-  if (recursive_watch_) {
+  if (type_ == Type::kRecursive) {
     // Only the mtime of |target_| is tracked but in a recursive watch,
     // some other file or directory may have changed so all notifications
     // are passed through. It is possible to figure out which file changed
@@ -161,7 +158,7 @@ void FilePathWatcherImpl::OnObjectSignaled(HANDLE object) {
     // http://qualapps.blogspot.com/2010/05/understanding-readdirectorychangesw.html
     callback_.Run(target_, false);
   } else if (file_exists && (last_modified_.is_null() ||
-             last_modified_ != file_info.last_modified)) {
+                             last_modified_ != file_info.last_modified)) {
     last_modified_ = file_info.last_modified;
     first_notification_ = Time::Now();
     callback_.Run(target_, false);
@@ -181,7 +178,7 @@ void FilePathWatcherImpl::OnObjectSignaled(HANDLE object) {
     // clock has advanced one second from the initial notification. After that
     // interval, client code is guaranteed to having seen the current revision
     // of the file.
-    if (Time::Now() - first_notification_ > TimeDelta::FromSeconds(1)) {
+    if (Time::Now() - first_notification_ > Seconds(1)) {
       // Stop further notifications for this |last_modification_| time stamp.
       first_notification_ = Time();
     }
@@ -202,13 +199,12 @@ void FilePathWatcherImpl::OnObjectSignaled(HANDLE object) {
 bool FilePathWatcherImpl::SetupWatchHandle(const FilePath& dir,
                                            bool recursive,
                                            HANDLE* handle) {
-  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   *handle = FindFirstChangeNotification(
-      dir.value().c_str(),
-      recursive,
+      dir.value().c_str(), recursive,
       FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_SIZE |
-      FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_DIR_NAME |
-      FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SECURITY);
+          FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_DIR_NAME |
+          FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SECURITY);
   if (*handle != INVALID_HANDLE_VALUE) {
     // Make sure the handle we got points to an existing directory. It seems
     // that windows sometimes hands out watches to directories that are
@@ -242,7 +238,7 @@ bool FilePathWatcherImpl::UpdateWatch() {
   if (handle_ != INVALID_HANDLE_VALUE)
     DestroyWatch();
 
-  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
 
   // Start at the target and walk up the directory chain until we succesfully
   // create a watch handle in |handle_|. |child_dirs| keeps a stack of child
@@ -250,7 +246,7 @@ bool FilePathWatcherImpl::UpdateWatch() {
   std::vector<FilePath> child_dirs;
   FilePath watched_path(target_);
   while (true) {
-    if (!SetupWatchHandle(watched_path, recursive_watch_, &handle_))
+    if (!SetupWatchHandle(watched_path, type_ == Type::kRecursive, &handle_))
       return false;
 
     // Break if a valid handle is returned. Try the parent directory otherwise.
@@ -274,8 +270,10 @@ bool FilePathWatcherImpl::UpdateWatch() {
     watched_path = watched_path.Append(child_dirs.back());
     child_dirs.pop_back();
     HANDLE temp_handle = INVALID_HANDLE_VALUE;
-    if (!SetupWatchHandle(watched_path, recursive_watch_, &temp_handle))
+    if (!SetupWatchHandle(watched_path, type_ == Type::kRecursive,
+                          &temp_handle)) {
       return false;
+    }
     if (temp_handle == INVALID_HANDLE_VALUE)
       break;
     FindCloseChangeNotification(handle_);
@@ -288,7 +286,7 @@ bool FilePathWatcherImpl::UpdateWatch() {
 void FilePathWatcherImpl::DestroyWatch() {
   watcher_.StopWatching();
 
-  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   FindCloseChangeNotification(handle_);
   handle_ = INVALID_HANDLE_VALUE;
 }
@@ -296,7 +294,7 @@ void FilePathWatcherImpl::DestroyWatch() {
 }  // namespace
 
 FilePathWatcher::FilePathWatcher() {
-  sequence_checker_.DetachFromSequence();
+  DETACH_FROM_SEQUENCE(sequence_checker_);
   impl_ = std::make_unique<FilePathWatcherImpl>();
 }
 

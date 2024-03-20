@@ -54,21 +54,21 @@ ScreencastModule::ScreencastModule(
       base::Bind(&ScreencastModule::PutRequestInQueue, base::Unretained(this)));
   // Start the thread and create the HTTP server on that thread.
   screenshot_thread_.StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
-  screenshot_thread_.message_loop()->task_runner()->PostTask(
+      base::Thread::Options(base::MessagePumpType::IO, 0));
+  screenshot_thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&ScreencastModule::StartServer,
                             base::Unretained(this), server_port, listen_ip));
 }
 
 ScreencastModule::~ScreencastModule() {
   TRACE_EVENT0("cobalt::Screencast", "ScreencastModule::~ScreencastModule()");
-  screenshot_thread_.message_loop()->task_runner()->PostTask(
+  screenshot_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&ScreencastModule::StopTimer, base::Unretained(this)));
 
   no_screenshots_pending_.Wait();
 
-  screenshot_thread_.message_loop()->task_runner()->PostTask(
+  screenshot_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&ScreencastModule::StopServer, base::Unretained(this)));
   screenshot_thread_.Stop();
@@ -144,8 +144,9 @@ void ScreencastModule::SendScreenshotToNextInQueue(
   TRACE_EVENT0("cobalt::Screencast",
                "ScreencastModule::SendScreenshotToNextInQueue()");
 
-  if (base::MessageLoop::current() != screenshot_thread_.message_loop()) {
-    screenshot_thread_.message_loop()->task_runner()->PostTask(
+  if (base::SequencedTaskRunner::GetCurrentDefault() !=
+      screenshot_thread_.task_runner()) {
+    screenshot_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&ScreencastModule::SendScreenshotToNextInQueue,
                               base::Unretained(this), screenshot));
     return;

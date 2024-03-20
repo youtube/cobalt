@@ -1,18 +1,26 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TRACE_EVENT_CATEGORY_REGISTRY_H_
 #define BASE_TRACE_EVENT_CATEGORY_REGISTRY_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
+#include <atomic>
+
 #include "base/base_export.h"
-#include "base/logging.h"
-#include "starboard/types.h"
+#include "base/check_op.h"
+#include "base/memory/raw_ptr.h"
+#include "base/trace_event/builtin_categories.h"
+#include "base/trace_event/common/trace_event_common.h"
+#include "base/trace_event/trace_category.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace trace_event {
 
-struct TraceCategory;
 class TraceCategoryTest;
 class TraceLog;
 
@@ -34,8 +42,8 @@ class BASE_EXPORT CategoryRegistry {
     TraceCategory* end() const { return end_; }
 
    private:
-    TraceCategory* const begin_;
-    TraceCategory* const end_;
+    const raw_ptr<TraceCategory, DanglingUntriaged> begin_;
+    const raw_ptr<TraceCategory, DanglingUntriaged> end_;
   };
 
   // Known categories.
@@ -58,12 +66,39 @@ class BASE_EXPORT CategoryRegistry {
   // pointer and use it for checks in their fast-paths.
   static TraceCategory* GetCategoryByName(const char* category_name);
 
-  static bool IsBuiltinCategory(const TraceCategory*);
+  // Returns a built-in category from its name or nullptr if not found at
+  // compile-time. The return value is an undefinitely lived pointer to the
+  // TraceCategory owned by the registry.
+  static constexpr TraceCategory* GetBuiltinCategoryByName(
+      const char* category_group) {
+#if BUILDFLAG(IS_WIN) && defined(COMPONENT_BUILD)
+    // The address cannot be evaluated at compile-time in Windows component
+    // builds.
+    return nullptr;
+#else
+    for (size_t i = 0; i < BuiltinCategories::Size(); ++i) {
+      if (StrEqConstexpr(category_group, BuiltinCategories::At(i)))
+        return &categories_[i];
+    }
+    return nullptr;
+#endif
+  }
+
+  // Returns whether |category| points at one of the meta categories that
+  // shouldn't be displayed in the tracing UI.
+  static bool IsMetaCategory(const TraceCategory* category);
 
  private:
   friend class TraceCategoryTest;
   friend class TraceLog;
   using CategoryInitializerFn = void (*)(TraceCategory*);
+
+  // The max number of trace categories that can be recorded.
+  static constexpr size_t kMaxCategories = 350;
+
+  // Checks that there is enough space for all builtin categories.
+  static_assert(BuiltinCategories::Size() <= kMaxCategories,
+                "kMaxCategories must be greater than kNumBuiltinCategories");
 
   // Only for debugging/testing purposes, is a no-op on release builds.
   static void Initialize();
@@ -83,6 +118,15 @@ class BASE_EXPORT CategoryRegistry {
   // Allows to iterate over the valid categories in a for-each loop.
   // This includes builtin categories such as __metadata.
   static Range GetAllCategories();
+
+  // Returns whether |category| correctly points at |categories_| array entry.
+  static bool IsValidCategoryPtr(const TraceCategory* category);
+
+  // The static array of trace categories.
+  static TraceCategory categories_[kMaxCategories];
+
+  // Contains the number of created categories.
+  static std::atomic<size_t> category_index_;
 };
 
 }  // namespace trace_event

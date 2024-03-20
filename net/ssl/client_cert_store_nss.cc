@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,22 +12,23 @@
 #include <utility>
 #include <vector>
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/strings/string_piece.h"
-#include "base/task/post_task.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "crypto/nss_crypto_module_delegate.h"
 #include "crypto/nss_util.h"
+#include "crypto/scoped_nss_types.h"
 #include "net/cert/scoped_nss_types.h"
+#include "net/cert/x509_util.h"
 #include "net/cert/x509_util_nss.h"
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_platform_key_nss.h"
 #include "net/ssl/threaded_ssl_private_key.h"
 #include "net/third_party/nss/ssl/cmpcert.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 
 namespace net {
@@ -46,17 +47,17 @@ class ClientCertIdentityNSS : public ClientCertIdentity {
         password_delegate_(std::move(password_delegate)) {}
   ~ClientCertIdentityNSS() override = default;
 
-  void AcquirePrivateKey(
-      const base::Callback<void(scoped_refptr<SSLPrivateKey>)>&
-          private_key_callback) override {
+  void AcquirePrivateKey(base::OnceCallback<void(scoped_refptr<SSLPrivateKey>)>
+                             private_key_callback) override {
     // Caller is responsible for keeping the ClientCertIdentity alive until
     // the |private_key_callback| is run, so it's safe to use Unretained here.
-    base::PostTaskWithTraitsAndReplyWithResult(
+    base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE,
         {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-        base::Bind(&FetchClientCertPrivateKey, base::Unretained(certificate()),
-                   cert_certificate_.get(), password_delegate_),
-        private_key_callback);
+        base::BindOnce(&FetchClientCertPrivateKey,
+                       base::Unretained(certificate()), cert_certificate_.get(),
+                       password_delegate_),
+        std::move(private_key_callback));
   }
 
  private:
@@ -73,21 +74,20 @@ ClientCertStoreNSS::ClientCertStoreNSS(
 
 ClientCertStoreNSS::~ClientCertStoreNSS() = default;
 
-void ClientCertStoreNSS::GetClientCerts(
-    const SSLCertRequestInfo& request,
-    const ClientCertListCallback& callback) {
+void ClientCertStoreNSS::GetClientCerts(const SSLCertRequestInfo& request,
+                                        ClientCertListCallback callback) {
   scoped_refptr<crypto::CryptoModuleBlockingPasswordDelegate> password_delegate;
   if (!password_delegate_factory_.is_null())
     password_delegate = password_delegate_factory_.Run(request.host_and_port);
-  base::PostTaskWithTraitsAndReplyWithResult(
+  base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE,
       {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::Bind(&ClientCertStoreNSS::GetAndFilterCertsOnWorkerThread,
-                 // Caller is responsible for keeping the ClientCertStore
-                 // alive until the callback is run.
-                 base::Unretained(this), std::move(password_delegate),
-                 base::Unretained(&request)),
-      callback);
+      base::BindOnce(&ClientCertStoreNSS::GetAndFilterCertsOnWorkerThread,
+                     // Caller is responsible for keeping the ClientCertStore
+                     // alive until the callback is run.
+                     base::Unretained(this), std::move(password_delegate),
+                     base::Unretained(&request)),
+      std::move(callback));
 }
 
 // static
@@ -120,13 +120,8 @@ void ClientCertStoreNSS::FilterCertsOnWorkerThread(
     std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates;
     intermediates.reserve(nss_intermediates.size());
     for (const ScopedCERTCertificate& nss_intermediate : nss_intermediates) {
-      bssl::UniquePtr<CRYPTO_BUFFER> intermediate_cert_handle(
-          X509Certificate::CreateCertBufferFromBytes(
-              reinterpret_cast<const char*>(nss_intermediate->derCert.data),
-              nss_intermediate->derCert.len));
-      if (!intermediate_cert_handle)
-        break;
-      intermediates.push_back(std::move(intermediate_cert_handle));
+      intermediates.push_back(x509_util::CreateCryptoBuffer(base::make_span(
+          nss_intermediate->derCert.data, nss_intermediate->derCert.len)));
     }
 
     // Retain a copy of the intermediates. Some deployments expect the client to
@@ -154,7 +149,8 @@ ClientCertIdentityList ClientCertStoreNSS::GetAndFilterCertsOnWorkerThread(
   // hooks (such as smart card UI). To ensure threads are not starved or
   // deadlocked, the base::ScopedBlockingCall below increments the thread pool
   // capacity if this method takes too much time to run.
-  base::ScopedBlockingCall scoped_blocking_call(base::BlockingType::MAY_BLOCK);
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::MAY_BLOCK);
   ClientCertIdentityList selected_identities;
   GetPlatformCertsOnWorkerThread(std::move(password_delegate), CertFilter(),
                                  &selected_identities);
@@ -170,9 +166,9 @@ void ClientCertStoreNSS::GetPlatformCertsOnWorkerThread(
     ClientCertIdentityList* identities) {
   crypto::EnsureNSSInit();
 
-  CERTCertList* found_certs =
-      CERT_FindUserCertsByUsage(CERT_GetDefaultCertDB(), certUsageSSLClient,
-                                PR_FALSE, PR_FALSE, password_delegate.get());
+  crypto::ScopedCERTCertList found_certs(CERT_FindUserCertsByUsage(
+      CERT_GetDefaultCertDB(), certUsageSSLClient, PR_FALSE, PR_FALSE,
+      password_delegate ? password_delegate->wincx() : nullptr));
   if (!found_certs) {
     DVLOG(2) << "No client certs found.";
     return;
@@ -195,7 +191,6 @@ void ClientCertStoreNSS::GetPlatformCertsOnWorkerThread(
     identities->push_back(std::make_unique<ClientCertIdentityNSS>(
         cert, x509_util::DupCERTCertificate(node->cert), password_delegate));
   }
-  CERT_DestroyCertList(found_certs);
 }
 
 }  // namespace net

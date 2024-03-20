@@ -109,7 +109,7 @@ NodeDispatchEventTest::~NodeDispatchEventTest() {
 
 TEST_F(NodeDispatchEventTest, NonBubblingEventPropagation) {
   scoped_refptr<web::Event> event =
-      new web::Event(base::Token("fired"), web::Event::kNotBubbles,
+      new web::Event(base_token::Token("fired"), web::Event::kNotBubbles,
                      web::Event::kNotCancelable);
 
   InSequence in_sequence;
@@ -126,8 +126,9 @@ TEST_F(NodeDispatchEventTest, NonBubblingEventPropagation) {
 }
 
 TEST_F(NodeDispatchEventTest, BubblingEventPropagation) {
-  scoped_refptr<web::Event> event = new web::Event(
-      base::Token("fired"), web::Event::kBubbles, web::Event::kNotCancelable);
+  scoped_refptr<web::Event> event =
+      new web::Event(base_token::Token("fired"), web::Event::kBubbles,
+                     web::Event::kNotCancelable);
 
   InSequence in_sequence;
   event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
@@ -147,8 +148,9 @@ TEST_F(NodeDispatchEventTest, BubblingEventPropagation) {
 }
 
 TEST_F(NodeDispatchEventTest, StopPropagationAtCapturePhase) {
-  scoped_refptr<web::Event> event = new web::Event(
-      base::Token("fired"), web::Event::kBubbles, web::Event::kNotCancelable);
+  scoped_refptr<web::Event> event =
+      new web::Event(base_token::Token("fired"), web::Event::kBubbles,
+                     web::Event::kNotCancelable);
 
   InSequence in_sequence;
   event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
@@ -160,8 +162,9 @@ TEST_F(NodeDispatchEventTest, StopPropagationAtCapturePhase) {
 }
 
 TEST_F(NodeDispatchEventTest, StopPropagationAtAtTargetPhase) {
-  scoped_refptr<web::Event> event = new web::Event(
-      base::Token("fired"), web::Event::kBubbles, web::Event::kNotCancelable);
+  scoped_refptr<web::Event> event =
+      new web::Event(base_token::Token("fired"), web::Event::kBubbles,
+                     web::Event::kNotCancelable);
 
   InSequence in_sequence;
   event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
@@ -177,8 +180,9 @@ TEST_F(NodeDispatchEventTest, StopPropagationAtAtTargetPhase) {
 }
 
 TEST_F(NodeDispatchEventTest, StopPropagationAtBubblingPhase) {
-  scoped_refptr<web::Event> event = new web::Event(
-      base::Token("fired"), web::Event::kBubbles, web::Event::kNotCancelable);
+  scoped_refptr<web::Event> event =
+      new web::Event(base_token::Token("fired"), web::Event::kBubbles,
+                     web::Event::kNotCancelable);
 
   InSequence in_sequence;
   event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
@@ -197,8 +201,9 @@ TEST_F(NodeDispatchEventTest, StopPropagationAtBubblingPhase) {
 }
 
 TEST_F(NodeDispatchEventTest, StopImmediatePropagation) {
-  scoped_refptr<web::Event> event = new web::Event(
-      base::Token("fired"), web::Event::kBubbles, web::Event::kNotCancelable);
+  scoped_refptr<web::Event> event =
+      new web::Event(base_token::Token("fired"), web::Event::kBubbles,
+                     web::Event::kNotCancelable);
 
   InSequence in_sequence;
   event_listener_capture_->ExpectHandleEventCall(event, child_, grand_parent_,
@@ -212,8 +217,9 @@ TEST_F(NodeDispatchEventTest, StopImmediatePropagation) {
 }
 
 TEST_F(NodeDispatchEventTest, PreventDefaultOnNonCancelableEvent) {
-  scoped_refptr<web::Event> event = new web::Event(
-      base::Token("fired"), web::Event::kBubbles, web::Event::kNotCancelable);
+  scoped_refptr<web::Event> event =
+      new web::Event(base_token::Token("fired"), web::Event::kBubbles,
+                     web::Event::kNotCancelable);
 
   InSequence in_sequence;
   event_listener_capture_->ExpectHandleEventCall(
@@ -226,8 +232,9 @@ TEST_F(NodeDispatchEventTest, PreventDefaultOnNonCancelableEvent) {
 }
 
 TEST_F(NodeDispatchEventTest, PreventDefaultOnCancelableEvent) {
-  scoped_refptr<web::Event> event = new web::Event(
-      base::Token("fired"), web::Event::kBubbles, web::Event::kCancelable);
+  scoped_refptr<web::Event> event =
+      new web::Event(base_token::Token("fired"), web::Event::kBubbles,
+                     web::Event::kCancelable);
 
   InSequence in_sequence;
   event_listener_capture_->ExpectHandleEventCall(

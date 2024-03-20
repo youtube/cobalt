@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "base/test/gtest_util.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -173,16 +174,7 @@ class CheckRefptrNull : public base::RefCounted<CheckRefptrNull> {
  private:
   friend class base::RefCounted<CheckRefptrNull>;
 
-  scoped_refptr<CheckRefptrNull>* ptr_ = nullptr;
-};
-
-class Overflow : public base::RefCounted<Overflow> {
- public:
-  Overflow() = default;
-
- private:
-  friend class base::RefCounted<Overflow>;
-  ~Overflow() = default;
+  raw_ptr<scoped_refptr<CheckRefptrNull>> ptr_ = nullptr;
 };
 
 }  // namespace
@@ -655,6 +647,15 @@ TEST(RefCountedUnitTest, TestResetAlreadyNull) {
   EXPECT_EQ(obj.get(), nullptr);
 }
 
+TEST(RefCountedUnitTest, TestResetByNullptrAssignment) {
+  // Check that assigning nullptr resets the object.
+  auto obj = base::MakeRefCounted<ScopedRefPtrCountBase>();
+  EXPECT_NE(obj.get(), nullptr);
+
+  obj = nullptr;
+  EXPECT_EQ(obj.get(), nullptr);
+}
+
 TEST(RefCountedUnitTest, CheckScopedRefptrNullBeforeObjectDestruction) {
   scoped_refptr<CheckRefptrNull> obj = base::MakeRefCounted<CheckRefptrNull>();
   obj->set_scoped_refptr(&obj);
@@ -683,12 +684,88 @@ TEST(RefCountedDeathTest, TestAdoptRef) {
 }
 
 #if defined(ARCH_CPU_64_BITS)
-TEST(RefCountedDeathTest, TestOverflowCheck) {
-  EXPECT_DCHECK_DEATH({
-    auto p = base::MakeRefCounted<Overflow>();
-    p->ref_count_ = std::numeric_limits<uint32_t>::max();
-    p->AddRef();
-  });
+class RefCountedOverflowTest : public ::testing::Test {
+ public:
+  static uint32_t& GetMutableRefCount(RefCountedBase* ref_counted) {
+    return ref_counted->ref_count_;
+  }
+
+  static std::atomic_int& GetMutableRefCount(
+      RefCountedThreadSafeBase* ref_counted) {
+    return ref_counted->ref_count_.ref_count_;
+  }
+};
+
+TEST_F(RefCountedOverflowTest, NonThreadSafeStartFromZero) {
+  class Overflow : public base::RefCounted<Overflow> {
+   public:
+    Overflow() { EXPECT_FALSE(HasOneRef()); }
+
+   private:
+    friend class base::RefCounted<Overflow>;
+    ~Overflow() = default;
+  };
+
+  auto p = base::MakeRefCounted<Overflow>();
+  GetMutableRefCount(p.get()) = std::numeric_limits<uint32_t>::max();
+  EXPECT_CHECK_DEATH(p->AddRef());
+  // Ensure `p` doesn't leak and fail lsan builds.
+  GetMutableRefCount(p.get()) = 1;
+}
+
+TEST_F(RefCountedOverflowTest, NonThreadSafeStartFromOne) {
+  class Overflow : public base::RefCounted<Overflow> {
+   public:
+    REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
+    Overflow() { EXPECT_TRUE(HasOneRef()); }
+
+   private:
+    friend class base::RefCounted<Overflow>;
+    ~Overflow() = default;
+  };
+
+  auto p = base::MakeRefCounted<Overflow>();
+  GetMutableRefCount(p.get()) = std::numeric_limits<uint32_t>::max();
+  EXPECT_CHECK_DEATH(p->AddRef());
+  // Ensure `p` doesn't leak and fail lsan builds.
+  GetMutableRefCount(p.get()) = 1;
+}
+
+TEST_F(RefCountedOverflowTest, ThreadSafeStartFromZero) {
+  class Overflow : public base::RefCountedThreadSafe<Overflow> {
+   public:
+    Overflow() { EXPECT_FALSE(HasOneRef()); }
+
+   private:
+    friend class base::RefCountedThreadSafe<Overflow>;
+    ~Overflow() = default;
+  };
+
+  auto p = base::MakeRefCounted<Overflow>();
+  GetMutableRefCount(p.get()) = std::numeric_limits<int>::max();
+  EXPECT_CHECK_DEATH(p->AddRef());
+  // Ensure `p` doesn't leak and fail lsan builds.
+  GetMutableRefCount(p.get()) = 1;
+}
+
+TEST_F(RefCountedOverflowTest, ThreadSafeStartFromOne) {
+  class Overflow : public base::RefCountedThreadSafe<Overflow> {
+   public:
+    REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
+    Overflow() { EXPECT_TRUE(HasOneRef()); }
+
+   private:
+    friend class base::RefCountedThreadSafe<Overflow>;
+    ~Overflow() = default;
+  };
+
+  auto p = base::MakeRefCounted<Overflow>();
+  GetMutableRefCount(p.get()) = std::numeric_limits<int>::max();
+  EXPECT_CHECK_DEATH(p->AddRef());
+  // Ensure `p` doesn't leak and fail lsan builds.
+  GetMutableRefCount(p.get()) = 1;
 }
 #endif
 

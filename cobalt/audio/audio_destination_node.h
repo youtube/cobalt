@@ -18,7 +18,7 @@
 #include <memory>
 #include <vector>
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/audio/audio_device.h"
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/audio/audio_node.h"
@@ -70,7 +70,7 @@ class AudioDestinationNode : public AudioNode,
  private:
   void DestroyAudioDevice();
 
-  base::MessageLoop* message_loop_;
+  base::SequencedTaskRunner* task_runner_;
   uint32 max_channel_count_;
 
   std::unique_ptr<AudioDevice> audio_device_;

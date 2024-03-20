@@ -1,16 +1,18 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_VERSION_H_
 #define BASE_VERSION_H_
 
+#include <stdint.h>
+
 #include <iosfwd>
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
-#include "starboard/types.h"
+#include "base/strings/string_piece.h"
 
 namespace base {
 
@@ -27,7 +29,7 @@ class BASE_EXPORT Version {
   // Initializes from a decimal dotted version number, like "0.1.1".
   // Each component is limited to a uint16_t. Call IsValid() to learn
   // the outcome.
-  explicit Version(const std::string& version_str);
+  explicit Version(StringPiece version_str);
 
   // Initializes from a vector of components, like {1, 2, 3, 4}. Call IsValid()
   // to learn the outcome.
@@ -42,19 +44,19 @@ class BASE_EXPORT Version {
   // string may end with ".*" (e.g. 1.2.*, 1.*). Any other arrangement with "*"
   // is invalid (e.g. 1.*.3 or 1.2.3*). This functions defaults to standard
   // Version behavior (IsValid) if no wildcard is present.
-  static bool IsValidWildcardString(const std::string& wildcard_string);
+  static bool IsValidWildcardString(StringPiece wildcard_string);
 
-  // Returns -1, 0, 1 for <, ==, >.
+  // Returns -1, 0, 1 for <, ==, >. `this` and `other` must both be valid.
   int CompareTo(const Version& other) const;
 
   // Given a valid version object, compare if a |wildcard_string| results in a
   // newer version. This function will default to CompareTo if the string does
   // not end in wildcard sequence ".*". IsValidWildcard(wildcard_string) must be
   // true before using this function.
-  int CompareToWildcardString(const std::string& wildcard_string) const;
+  int CompareToWildcardString(StringPiece wildcard_string) const;
 
   // Return the string representation of this version.
-  const std::string GetString() const;
+  std::string GetString() const;
 
   const std::vector<uint32_t>& components() const { return components_; }
 

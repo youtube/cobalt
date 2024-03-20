@@ -89,7 +89,8 @@ class SelectorTree {
   // selectors. However, they occasionally can number in the hundreds. Using
   // a SmallMap with an array size of 4, allows both cases to be handled
   // quickly.
-  typedef base::small_map<base::hash_map<base::Token, SimpleSelectorNodes>, 4>
+  typedef base::small_map<
+      base::hash_map<base_token::Token, SimpleSelectorNodes>, 4>
       SelectorTextToNodesMap;
 
   class Node {
@@ -130,7 +131,7 @@ class SelectorTree {
       return (selector_mask_ & (1u << (simple_selector_type * kCombinatorCount +
                                        combinator_type))) != 0;
     }
-    void AppendSimpleSelector(base::Token name,
+    void AppendSimpleSelector(base_token::Token name,
                               SimpleSelectorType simple_selector_type,
                               CombinatorType combinator_type, Node* node) {
       // Create the SelectorTextToNodesMap if this is the first simple selector

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,12 @@
 #define BASE_AT_EXIT_H_
 
 #include "base/base_export.h"
-#include "base/callback.h"
 #include "base/containers/stack.h"
-#include "base/macros.h"
+#include "base/dcheck_is_on.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 
 namespace base {
 
@@ -32,6 +34,8 @@ class BASE_EXPORT AtExitManager {
   typedef void (*AtExitCallbackType)(void*);
 
   AtExitManager();
+  AtExitManager(const AtExitManager&) = delete;
+  AtExitManager& operator=(const AtExitManager&) = delete;
 
   // The dtor calls all the registered callbacks. Do not try to register more
   // callbacks after this point.
@@ -42,7 +46,7 @@ class BASE_EXPORT AtExitManager {
   static void RegisterCallback(AtExitCallbackType func, void* param);
 
   // Registers the specified task to be called at exit.
-  static void RegisterTask(base::Closure task);
+  static void RegisterTask(base::OnceClosure task);
 
   // Calls the functions registered with RegisterCallback in LIFO order. It
   // is possible to register new callbacks after calling this function.
@@ -61,11 +65,15 @@ class BASE_EXPORT AtExitManager {
 
  private:
   base::Lock lock_;
-  base::stack<base::Closure> stack_;
-  bool processing_callbacks_;
-  AtExitManager* next_manager_;  // Stack of managers to allow shadowing.
 
-  DISALLOW_COPY_AND_ASSIGN(AtExitManager);
+  base::stack<base::OnceClosure> stack_ GUARDED_BY(lock_);
+
+#if DCHECK_IS_ON()
+  bool processing_callbacks_ GUARDED_BY(lock_) = false;
+#endif
+
+  // Stack of managers to allow shadowing.
+  const raw_ptr<AtExitManager, DanglingUntriaged> next_manager_;
 };
 
 #if defined(UNIT_TEST)

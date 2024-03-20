@@ -24,8 +24,8 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/loader/loader.h"
-#include "net/base/linked_hash_map.h"
 #include "net/http/http_response_headers.h"
+#include "net/third_party/quiche/src/quiche/common/quiche_linked_hash_map.h"
 #include "starboard/thread.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -71,7 +71,7 @@ class FetcherCache : public base::RefCountedThreadSafe<FetcherCache> {
   const size_t capacity_;
   size_t total_size_ = 0;
 
-  net::linked_hash_map<std::string, CacheEntry*> cache_entries_;
+  quiche::QuicheLinkedHashMap<std::string, CacheEntry*> cache_entries_;
 
   base::CVal<base::cval::SizeInBytes, base::CValPublic> memory_size_in_bytes_;
   base::CVal<int, base::CValPublic> count_resources_cached_;

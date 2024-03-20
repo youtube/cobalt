@@ -1,17 +1,17 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/win/patch_util.h"
 
-#include "base/logging.h"
+#include "base/notreached.h"
 
 namespace base {
 namespace win {
 namespace internal {
 
-DWORD ModifyCode(void* destination, const void* source, int length) {
-  if ((NULL == destination) || (NULL == source) || (0 == length)) {
+DWORD ModifyCode(void* destination, const void* source, size_t length) {
+  if ((nullptr == destination) || (nullptr == source) || (0 == length)) {
     NOTREACHED();
     return ERROR_INVALID_PARAMETER;
   }
@@ -49,4 +49,4 @@ DWORD ModifyCode(void* destination, const void* source, int length) {
 
 }  // namespace internal
 }  // namespace win
-}  // namespace bsae
+}  // namespace base

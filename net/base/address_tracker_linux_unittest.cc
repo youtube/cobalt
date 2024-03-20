@@ -1,31 +1,49 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/address_tracker_linux.h"
 
 #include <linux/if.h>
+#include <linux/rtnetlink.h>
+#include <sched.h>
 
 #include <memory>
 #include <unordered_set>
 #include <vector>
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
-#include "base/synchronization/spin_wait.h"
+#include "base/command_line.h"
+#include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/bind.h"
+#include "base/test/multiprocess_test.h"
+#include "base/test/spin_wait.h"
+#include "base/test/task_environment.h"
+#include "base/test/test_simple_task_runner.h"
 #include "base/threading/simple_thread.h"
+#include "build/build_config.h"
+#include "net/base/address_map_cache_linux.h"
+#include "net/base/address_map_linux.h"
+#include "net/base/address_tracker_linux_test_util.h"
 #include "net/base/ip_address.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "testing/multiprocess_func_list.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/build_info.h"
+#endif
 
 #ifndef IFA_F_HOMEADDRESS
 #define IFA_F_HOMEADDRESS 0x10
 #endif
 
-namespace net {
-namespace internal {
+using net::internal::AddressTrackerLinux;
+
+namespace net::test {
 namespace {
 
 const int kTestInterfaceEth = 1;
@@ -50,53 +68,62 @@ char* TestGetInterfaceName(int interface_index, char* buf) {
 
 }  // namespace
 
-typedef std::vector<char> Buffer;
-
 class AddressTrackerLinuxTest : public testing::Test {
  protected:
   AddressTrackerLinuxTest() = default;
 
   void InitializeAddressTracker(bool tracking) {
+    tracking_ = tracking;
     if (tracking) {
-      tracker_.reset(
-          new AddressTrackerLinux(base::DoNothing(), base::DoNothing(),
-                                  base::DoNothing(), ignored_interfaces_));
+      tracker_ = std::make_unique<AddressTrackerLinux>(
+          base::DoNothing(), base::DoNothing(), base::DoNothing(),
+          ignored_interfaces_);
+#if BUILDFLAG(IS_LINUX)
+      const auto& [address_map, online_links] =
+          tracker_->GetInitialDataAndStartRecordingDiffs();
+      address_map_cache_.SetCachedInfo(address_map, online_links);
+#endif  // BUILDFLAG(IS_LINUX)
     } else {
-      tracker_.reset(new AddressTrackerLinux());
+      tracker_ = std::make_unique<AddressTrackerLinux>();
     }
     original_get_interface_name_ = tracker_->get_interface_name_;
     tracker_->get_interface_name_ = TestGetInterfaceName;
   }
 
-  bool HandleAddressMessage(const Buffer& buf) {
-    Buffer writable_buf = buf;
+  bool HandleAddressMessage(const NetlinkBuffer& buf) {
+    NetlinkBuffer writable_buf = buf;
     bool address_changed = false;
     bool link_changed = false;
     bool tunnel_changed = false;
-    tracker_->HandleMessage(&writable_buf[0], buf.size(),
-                           &address_changed, &link_changed, &tunnel_changed);
+    tracker_->HandleMessage(&writable_buf[0], buf.size(), &address_changed,
+                            &link_changed, &tunnel_changed);
+    UpdateCache();
     EXPECT_FALSE(link_changed);
     return address_changed;
   }
 
-  bool HandleLinkMessage(const Buffer& buf) {
-    Buffer writable_buf = buf;
+  bool HandleLinkMessage(const NetlinkBuffer& buf) {
+    NetlinkBuffer writable_buf = buf;
     bool address_changed = false;
     bool link_changed = false;
     bool tunnel_changed = false;
-    tracker_->HandleMessage(&writable_buf[0], buf.size(),
-                           &address_changed, &link_changed, &tunnel_changed);
+    tracker_->HandleMessage(&writable_buf[0], buf.size(), &address_changed,
+                            &link_changed, &tunnel_changed);
+    UpdateCache();
     EXPECT_FALSE(address_changed);
     return link_changed;
   }
 
-  bool HandleTunnelMessage(const Buffer& buf) {
-    Buffer writable_buf = buf;
+  bool HandleTunnelMessage(const NetlinkBuffer& buf) {
+    NetlinkBuffer writable_buf = buf;
     bool address_changed = false;
     bool link_changed = false;
     bool tunnel_changed = false;
-    tracker_->HandleMessage(&writable_buf[0], buf.size(),
-                           &address_changed, &link_changed, &tunnel_changed);
+    AddressMapOwnerLinux::AddressMapDiff address_map_diff_;
+    AddressMapOwnerLinux::OnlineLinksDiff online_links_diff_;
+    tracker_->HandleMessage(&writable_buf[0], buf.size(), &address_changed,
+                            &link_changed, &tunnel_changed);
+    UpdateCache();
     EXPECT_FALSE(address_changed);
     return tunnel_changed;
   }
@@ -120,128 +147,31 @@ class AddressTrackerLinuxTest : public testing::Test {
   std::unordered_set<std::string> ignored_interfaces_;
   std::unique_ptr<AddressTrackerLinux> tracker_;
   AddressTrackerLinux::GetInterfaceNameFunction original_get_interface_name_;
+
+ private:
+  // Checks that applying the generated diff to `address_map_cache_` results in
+  // the same AddressMap and set of online links that `tracker_` maintains.
+  void UpdateCache() {
+    if (!tracking_) {
+      return;
+    }
+#if BUILDFLAG(IS_LINUX)
+    address_map_cache_.ApplyDiffs(tracker_->address_map_diff_for_testing(),
+                                  tracker_->online_links_diff_for_testing());
+    EXPECT_EQ(address_map_cache_.GetAddressMap(), tracker_->GetAddressMap());
+    EXPECT_EQ(address_map_cache_.GetOnlineLinks(), tracker_->GetOnlineLinks());
+    tracker_->address_map_diff_for_testing().clear();
+    tracker_->online_links_diff_for_testing().clear();
+#endif  // BUILDFLAG(IS_LINUX)
+  }
+
+#if BUILDFLAG(IS_LINUX)
+  AddressMapCacheLinux address_map_cache_;
+#endif
+  bool tracking_;
 };
 
 namespace {
-
-class NetlinkMessage {
- public:
-  explicit NetlinkMessage(uint16_t type) : buffer_(NLMSG_HDRLEN) {
-    header()->nlmsg_type = type;
-    Align();
-  }
-
-  void AddPayload(const void* data, size_t length) {
-    CHECK_EQ(static_cast<size_t>(NLMSG_HDRLEN),
-             buffer_.size()) << "Payload must be added first";
-    Append(data, length);
-    Align();
-  }
-
-  void AddAttribute(uint16_t type, const void* data, size_t length) {
-    struct nlattr attr;
-    attr.nla_len = NLA_HDRLEN + length;
-    attr.nla_type = type;
-    Append(&attr, sizeof(attr));
-    Align();
-    Append(data, length);
-    Align();
-  }
-
-  void AppendTo(Buffer* output) const {
-    CHECK_EQ(NLMSG_ALIGN(output->size()), output->size());
-    output->reserve(output->size() + NLMSG_LENGTH(buffer_.size()));
-    output->insert(output->end(), buffer_.begin(), buffer_.end());
-  }
-
- private:
-  void Append(const void* data, size_t length) {
-    const char* chardata = reinterpret_cast<const char*>(data);
-    buffer_.insert(buffer_.end(), chardata, chardata + length);
-  }
-
-  void Align() {
-    header()->nlmsg_len = buffer_.size();
-    buffer_.insert(buffer_.end(), NLMSG_ALIGN(buffer_.size()) - buffer_.size(),
-                   0);
-    CHECK(NLMSG_OK(header(), buffer_.size()));
-  }
-
-  struct nlmsghdr* header() {
-    return reinterpret_cast<struct nlmsghdr*>(&buffer_[0]);
-  }
-
-  Buffer buffer_;
-};
-
-#define INFINITY_LIFE_TIME 0xFFFFFFFF
-
-void MakeAddrMessageWithCacheInfo(uint16_t type,
-                                  uint8_t flags,
-                                  uint8_t family,
-                                  int index,
-                                  const IPAddress& address,
-                                  const IPAddress& local,
-                                  uint32_t preferred_lifetime,
-                                  Buffer* output) {
-  NetlinkMessage nlmsg(type);
-  struct ifaddrmsg msg = {};
-  msg.ifa_family = family;
-  msg.ifa_flags = flags;
-  msg.ifa_index = index;
-  nlmsg.AddPayload(&msg, sizeof(msg));
-  if (address.size())
-    nlmsg.AddAttribute(IFA_ADDRESS, address.bytes().data(), address.size());
-  if (local.size())
-    nlmsg.AddAttribute(IFA_LOCAL, local.bytes().data(), local.size());
-  struct ifa_cacheinfo cache_info = {};
-  cache_info.ifa_prefered = preferred_lifetime;
-  cache_info.ifa_valid = INFINITY_LIFE_TIME;
-  nlmsg.AddAttribute(IFA_CACHEINFO, &cache_info, sizeof(cache_info));
-  nlmsg.AppendTo(output);
-}
-
-void MakeAddrMessage(uint16_t type,
-                     uint8_t flags,
-                     uint8_t family,
-                     int index,
-                     const IPAddress& address,
-                     const IPAddress& local,
-                     Buffer* output) {
-  MakeAddrMessageWithCacheInfo(type, flags, family, index, address, local,
-                               INFINITY_LIFE_TIME, output);
-}
-
-void MakeLinkMessage(uint16_t type,
-                     uint32_t flags,
-                     uint32_t index,
-                     Buffer* output) {
-  NetlinkMessage nlmsg(type);
-  struct ifinfomsg msg = {};
-  msg.ifi_index = index;
-  msg.ifi_flags = flags;
-  nlmsg.AddPayload(&msg, sizeof(msg));
-  output->clear();
-  nlmsg.AppendTo(output);
-}
-
-// Creates a netlink message generated by wireless_send_event. These events
-// should be ignored.
-void MakeWirelessLinkMessage(uint16_t type,
-                             uint32_t flags,
-                             uint32_t index,
-                             Buffer* output) {
-  NetlinkMessage nlmsg(type);
-  struct ifinfomsg msg = {};
-  msg.ifi_index = index;
-  msg.ifi_flags = flags;
-  msg.ifi_change = 0;
-  nlmsg.AddPayload(&msg, sizeof(msg));
-  char data[8] = {0};
-  nlmsg.AddAttribute(IFLA_WIRELESS, data, sizeof(data));
-  output->clear();
-  nlmsg.AppendTo(output);
-}
 
 const unsigned char kAddress0[] = { 127, 0, 0, 1 };
 const unsigned char kAddress1[] = { 10, 0, 0, 1 };
@@ -258,7 +188,7 @@ TEST_F(AddressTrackerLinuxTest, NewAddress) {
   const IPAddress kAddr2(kAddress2);
   const IPAddress kAddr3(kAddress3);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
   MakeAddrMessage(RTM_NEWADDR, IFA_F_TEMPORARY, AF_INET, kTestInterfaceEth,
                   kAddr0, kEmpty, &buffer);
   EXPECT_TRUE(HandleAddressMessage(buffer));
@@ -292,7 +222,7 @@ TEST_F(AddressTrackerLinuxTest, NewAddressChange) {
   const IPAddress kEmpty;
   const IPAddress kAddr0(kAddress0);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
   MakeAddrMessage(RTM_NEWADDR, IFA_F_TEMPORARY, AF_INET, kTestInterfaceEth,
                   kAddr0, kEmpty, &buffer);
   EXPECT_TRUE(HandleAddressMessage(buffer));
@@ -327,7 +257,7 @@ TEST_F(AddressTrackerLinuxTest, NewAddressDuplicate) {
 
   const IPAddress kAddr0(kAddress0);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
   MakeAddrMessage(RTM_NEWADDR, IFA_F_TEMPORARY, AF_INET, kTestInterfaceEth,
                   kAddr0, kAddr0, &buffer);
   EXPECT_TRUE(HandleAddressMessage(buffer));
@@ -350,7 +280,7 @@ TEST_F(AddressTrackerLinuxTest, DeleteAddress) {
   const IPAddress kAddr1(kAddress1);
   const IPAddress kAddr2(kAddress2);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
   MakeAddrMessage(RTM_NEWADDR, 0, AF_INET, kTestInterfaceEth, kAddr0, kEmpty,
                   &buffer);
   MakeAddrMessage(RTM_NEWADDR, 0, AF_INET, kTestInterfaceEth, kAddr1, kAddr2,
@@ -390,7 +320,7 @@ TEST_F(AddressTrackerLinuxTest, DeprecatedLifetime) {
   const IPAddress kEmpty;
   const IPAddress kAddr3(kAddress3);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
   MakeAddrMessage(RTM_NEWADDR, 0, AF_INET6, kTestInterfaceEth, kEmpty, kAddr3,
                   &buffer);
   EXPECT_TRUE(HandleAddressMessage(buffer));
@@ -434,7 +364,7 @@ TEST_F(AddressTrackerLinuxTest, IgnoredMessage) {
   const IPAddress kAddr0(kAddress0);
   const IPAddress kAddr3(kAddress3);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
   // Ignored family.
   MakeAddrMessage(RTM_NEWADDR, 0, AF_UNSPEC, kTestInterfaceEth, kAddr3, kAddr0,
                   &buffer);
@@ -451,7 +381,7 @@ TEST_F(AddressTrackerLinuxTest, IgnoredMessage) {
   NetlinkMessage nlmsg(RTM_NEWADDR);
   struct ifaddrmsg msg = {};
   msg.ifa_family = AF_INET;
-  nlmsg.AddPayload(&msg, sizeof(msg));
+  nlmsg.AddPayload(msg);
   // Ignored attribute.
   struct ifa_cacheinfo cache_info = {};
   nlmsg.AddAttribute(IFA_CACHEINFO, &cache_info, sizeof(cache_info));
@@ -465,7 +395,7 @@ TEST_F(AddressTrackerLinuxTest, IgnoredMessage) {
 TEST_F(AddressTrackerLinuxTest, AddInterface) {
   InitializeAddressTracker(true);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
 
   // Ignores loopback.
   MakeLinkMessage(RTM_NEWLINK,
@@ -518,7 +448,7 @@ TEST_F(AddressTrackerLinuxTest, AddInterface) {
 TEST_F(AddressTrackerLinuxTest, RemoveInterface) {
   InitializeAddressTracker(true);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
 
   // Should disappear when not IFF_LOWER_UP.
   MakeLinkMessage(RTM_NEWLINK, IFF_UP | IFF_LOWER_UP | IFF_RUNNING,
@@ -571,7 +501,7 @@ TEST_F(AddressTrackerLinuxTest, IgnoreInterface) {
   IgnoreInterface(kIgnoredInterfaceName);
   InitializeAddressTracker(true);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
   const IPAddress kEmpty;
   const IPAddress kAddr0(kAddress0);
 
@@ -593,7 +523,7 @@ TEST_F(AddressTrackerLinuxTest, IgnoreInterface_NonIgnoredInterface) {
   IgnoreInterface(kIgnoredInterfaceName);
   InitializeAddressTracker(true);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
   const IPAddress kEmpty;
   const IPAddress kAddr0(kAddress0);
 
@@ -614,7 +544,7 @@ TEST_F(AddressTrackerLinuxTest, IgnoreInterface_NonIgnoredInterface) {
 TEST_F(AddressTrackerLinuxTest, TunnelInterface) {
   InitializeAddressTracker(true);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
 
   // Ignores without "tun" prefixed name.
   MakeLinkMessage(RTM_NEWLINK,
@@ -660,7 +590,7 @@ TEST_F(AddressTrackerLinuxTest, GetInterfaceName) {
 
   for (int i = 0; i < 10; i++) {
     char buf[IFNAMSIZ] = {0};
-    EXPECT_NE((const char*)NULL, original_get_interface_name_(i, buf));
+    EXPECT_NE((const char*)nullptr, original_get_interface_name_(i, buf));
   }
 }
 
@@ -670,7 +600,7 @@ TEST_F(AddressTrackerLinuxTest, NonTrackingMode) {
   const IPAddress kEmpty;
   const IPAddress kAddr0(kAddress0);
 
-  Buffer buffer;
+  NetlinkBuffer buffer;
   MakeAddrMessage(RTM_NEWADDR, IFA_F_TEMPORARY, AF_INET, kTestInterfaceEth,
                   kAddr0, kEmpty, &buffer);
   EXPECT_TRUE(HandleAddressMessage(buffer));
@@ -686,6 +616,12 @@ TEST_F(AddressTrackerLinuxTest, NonTrackingMode) {
 }
 
 TEST_F(AddressTrackerLinuxTest, NonTrackingModeInit) {
+#if BUILDFLAG(IS_ANDROID)
+  // Calling Init() on Android P+ isn't supported.
+  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
+      base::android::SDK_VERSION_P)
+    return;
+#endif
   AddressTrackerLinux tracker;
   tracker.Init();
 }
@@ -711,19 +647,25 @@ class GetCurrentConnectionTypeRunner
   }
 
   void VerifyCompletes() {
-    EXPECT_TRUE(done_.TimedWait(base::TimeDelta::FromSeconds(5)));
+    EXPECT_TRUE(done_.TimedWait(base::Seconds(5)));
     thread_.Join();
   }
 
  private:
-  AddressTrackerLinux* const tracker_;
+  const raw_ptr<AddressTrackerLinux> tracker_;
   base::WaitableEvent done_;
   base::DelegateSimpleThread thread_;
 };
 
 TEST_F(AddressTrackerLinuxTest, BroadcastInit) {
-  base::test::ScopedTaskEnvironment scoped_task_environment(
-      base::test::ScopedTaskEnvironment::MainThreadType::IO);
+#if BUILDFLAG(IS_ANDROID)
+  // Calling Init() on Android P+ isn't supported.
+  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
+      base::android::SDK_VERSION_P)
+    return;
+#endif
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::MainThreadType::IO);
   InitializeAddressTracker(true);
 
   GetCurrentConnectionTypeRunner runner1(tracker_.get(), "waiter_thread_1");
@@ -747,6 +689,175 @@ TEST_F(AddressTrackerLinuxTest, TunnelInterfaceName) {
 }
 
 }  // namespace
+}  // namespace net::test
 
-}  // namespace internal
-}  // namespace net
+namespace net::internal {
+
+// This is a regression test for https://crbug.com/1224428.
+//
+// This test initializes two instances of `AddressTrackerLinux` in the same
+// process. The test will fail if the implementation reuses the value of
+// `sockaddr_nl::nl_pid`.
+//
+// Note: consumers generally should not need to create two tracking instances of
+// `AddressTrackerLinux` in the same process.
+TEST(AddressTrackerLinuxNetlinkTest, TestInitializeTwoTrackers) {
+#if BUILDFLAG(IS_ANDROID)
+  // Calling Init() on Android P+ isn't supported.
+  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
+      base::android::SDK_VERSION_P)
+    return;
+#endif
+  base::test::TaskEnvironment task_env(
+      base::test::TaskEnvironment::MainThreadType::IO);
+  AddressTrackerLinux tracker1(base::DoNothing(), base::DoNothing(),
+                               base::DoNothing(), {});
+  AddressTrackerLinux tracker2(base::DoNothing(), base::DoNothing(),
+                               base::DoNothing(), {});
+  tracker1.Init();
+  tracker2.Init();
+  EXPECT_TRUE(tracker1.DidTrackingInitSucceedForTesting());
+  EXPECT_TRUE(tracker2.DidTrackingInitSucceedForTesting());
+}
+
+// These tests use `base::LaunchOptions::clone_flags` for fine-grained control
+// over the clone syscall, but the field is only defined on Linux and ChromeOS.
+// Unfortunately, this means these tests do not have coverage on Android.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+// These tests require specific flag values defined in <sched.h>.
+#if defined(CLONE_NEWUSER) && defined(CLONE_NEWPID)
+
+namespace {
+const char* const kSwitchParentWriteFd = "addresstrackerlinux_parent_write_fd";
+const char* const kSwitchReadFd = "addresstrackerlinux_read_fd";
+
+enum IPCMessage {
+  // Sent from child to parent once the child has initialized its tracker.
+  kChildInitializedAndWaiting,
+  // Sent from child to parent when it was unable to initialize its tracker.
+  kChildFailed,
+  // Sent from parent to child when all children are permitted to exit.
+  kChildMayExit,
+};
+
+base::File GetSwitchValueFile(const base::CommandLine* command_line,
+                              base::StringPiece name) {
+  std::string value = command_line->GetSwitchValueASCII(name);
+  int fd;
+  CHECK(base::StringToInt(value, &fd));
+  return base::File(fd);
+}
+}  // namespace
+
+// This is a regression test for https://crbug.com/1224428.
+//
+// This test creates multiple concurrent `AddressTrackerLinux` instances in
+// separate processes, each in their own PID namespaces.
+TEST(AddressTrackerLinuxNetlinkTest, TestInitializeTwoTrackersInPidNamespaces) {
+  // This test initializes `kNumChildren` instances of `AddressTrackerLinux` in
+  // tracking mode, each in their own child process running in a PID namespace.
+  // The test will fail if the implementation reuses the value of
+  // `sockaddr_nl::nl_pid`.
+  //
+  // The child processes use pipes to synchronize. Each child initializes a
+  // tracker, sends a message to the parent, and waits for the parent to
+  // respond, indicating that all children are done setting up. This ensures
+  // that the tracker objects have overlapping lifetimes, and thus that the
+  // underlying netlink sockets have overlapping lifetimes. This coexistence is
+  // necessary, but not sufficient, for a `sockaddr_nl::nl_pid` value collision.
+  constexpr size_t kNumChildren = 2;
+
+  base::ScopedFD parent_read_fd, parent_write_fd;
+  ASSERT_TRUE(base::CreatePipe(&parent_read_fd, &parent_write_fd));
+
+  struct Child {
+    base::ScopedFD read_fd;
+    base::ScopedFD write_fd;
+    base::Process process;
+  } children[kNumChildren];
+
+  for (Child& child : children) {
+    ASSERT_TRUE(base::CreatePipe(&child.read_fd, &child.write_fd));
+
+    // Since the child process will wipe its address space by calling execvp, we
+    // must share the file descriptors via its command line.
+    base::CommandLine command_line(
+        base::GetMultiProcessTestChildBaseCommandLine());
+    command_line.AppendSwitchASCII(kSwitchParentWriteFd,
+                                   base::NumberToString(parent_write_fd.get()));
+    command_line.AppendSwitchASCII(kSwitchReadFd,
+                                   base::NumberToString(child.read_fd.get()));
+
+    base::LaunchOptions options;
+    // Indicate that the child process requires these file descriptors.
+    // Otherwise, they will be closed. See `base::CloseSuperfluousFds`.
+    options.fds_to_remap = {{child.read_fd.get(), child.read_fd.get()},
+                            {parent_write_fd.get(), parent_write_fd.get()}};
+    // Clone into a new PID namespace. Making it a new user namespace as well to
+    // skirt the CAP_SYS_ADMIN requirement.
+    options.clone_flags = CLONE_NEWPID | CLONE_NEWUSER;
+
+    child.process = base::SpawnMultiProcessTestChild(
+        "ChildProcessInitializeTrackerForTesting", command_line, options);
+  }
+
+  // Wait for all children to finish initializing their tracking
+  // AddressTrackerLinuxes.
+  base::File parent_reader(std::move(parent_read_fd));
+  for (const Child& child : children) {
+    ASSERT_TRUE(child.process.IsValid());
+
+    uint8_t message[] = {0};
+    ASSERT_TRUE(parent_reader.ReadAtCurrentPosAndCheck(message));
+    ASSERT_EQ(message[0], kChildInitializedAndWaiting);
+  }
+
+  // Tell children to exit and wait for them to exit.
+  for (Child& child : children) {
+    base::File child_writer(std::move(child.write_fd));
+    const uint8_t kMessage[] = {kChildMayExit};
+    ASSERT_TRUE(child_writer.WriteAtCurrentPosAndCheck(kMessage));
+
+    int exit_code = 0;
+    ASSERT_TRUE(child.process.WaitForExit(&exit_code));
+    ASSERT_EQ(exit_code, 0);
+  }
+}
+
+MULTIPROCESS_TEST_MAIN(ChildProcessInitializeTrackerForTesting) {
+  base::test::TaskEnvironment task_env(
+      base::test::TaskEnvironment::MainThreadType::IO);
+
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+  base::File reader = GetSwitchValueFile(command_line, kSwitchReadFd);
+  base::File parent_writer =
+      GetSwitchValueFile(command_line, kSwitchParentWriteFd);
+
+  // Initialize an `AddressTrackerLinux` in tracking mode and ensure that it
+  // created a netlink socket.
+  AddressTrackerLinux tracker(base::DoNothing(), base::DoNothing(),
+                              base::DoNothing(), {});
+  tracker.Init();
+  if (!tracker.DidTrackingInitSucceedForTesting()) {
+    const uint8_t kMessage[] = {kChildFailed};
+    parent_writer.WriteAtCurrentPosAndCheck(kMessage);
+    return 1;
+  }
+
+  // Signal to the parent that we have initialized the tracker.
+  const uint8_t kMessage[] = {kChildInitializedAndWaiting};
+  if (!parent_writer.WriteAtCurrentPosAndCheck(kMessage))
+    return 1;
+
+  // Block until the parent says all children have initialized their trackers.
+  uint8_t message[] = {0};
+  if (!reader.ReadAtCurrentPosAndCheck(message) || message[0] != kChildMayExit)
+    return 1;
+  return 0;
+}
+
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // defined(CLONE_NEWUSER) && defined(CLONE_NEWPID)
+
+}  // namespace net::internal

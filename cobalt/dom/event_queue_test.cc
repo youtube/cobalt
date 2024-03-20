@@ -16,7 +16,8 @@
 
 #include <memory>
 
-#include "base/message_loop/message_loop.h"
+#include "base/run_loop.h"
+#include "base/test/task_environment.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/web/event.h"
@@ -49,14 +50,16 @@ class EventQueueTest : public ::testing::Test {
                     _))
         .RetiresOnSaturation();
   }
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::SingleThreadTaskEnvironment::MainThreadType::IO,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   testing::StubEnvironmentSettings environment_settings_;
-  base::MessageLoop message_loop_;
 };
 
 TEST_F(EventQueueTest, EventWithoutTargetTest) {
   scoped_refptr<web::EventTarget> event_target =
       new web::EventTarget(&environment_settings_);
-  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
+  scoped_refptr<web::Event> event = new web::Event(base_token::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   EventQueue event_queue(event_target.get());
@@ -68,13 +71,13 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
                                           event_target);
 
   event_queue.Enqueue(event);
-  base::RunLoop().RunUntilIdle();
+  task_environment_.RunUntilIdle();
 }
 
 TEST_F(EventQueueTest, EventWithTargetTest) {
   scoped_refptr<web::EventTarget> event_target =
       new web::EventTarget(&environment_settings_);
-  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
+  scoped_refptr<web::Event> event = new web::Event(base_token::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   EventQueue event_queue(event_target.get());
@@ -87,13 +90,13 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
                                           event_target);
 
   event_queue.Enqueue(event);
-  base::RunLoop().RunUntilIdle();
+  task_environment_.RunUntilIdle();
 }
 
 TEST_F(EventQueueTest, CancelAllEventsTest) {
   scoped_refptr<web::EventTarget> event_target =
       new web::EventTarget(&environment_settings_);
-  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
+  scoped_refptr<web::Event> event = new web::Event(base_token::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   EventQueue event_queue(event_target.get());
@@ -106,7 +109,7 @@ TEST_F(EventQueueTest, CancelAllEventsTest) {
 
   event_queue.Enqueue(event);
   event_queue.CancelAllEvents();
-  base::RunLoop().RunUntilIdle();
+  task_environment_.RunUntilIdle();
 }
 
 // We only test if the EventQueue doesn't mess up the target we set. The
@@ -117,7 +120,7 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
       new web::EventTarget(&environment_settings_);
   scoped_refptr<web::EventTarget> event_target_2 =
       new web::EventTarget(&environment_settings_);
-  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
+  scoped_refptr<web::Event> event = new web::Event(base_token::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
@@ -131,7 +134,7 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
                                           event_target_2);
 
   event_queue.Enqueue(event);
-  base::RunLoop().RunUntilIdle();
+  task_environment_.RunUntilIdle();
 }
 
 }  // namespace dom

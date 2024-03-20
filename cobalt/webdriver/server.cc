@@ -40,11 +40,11 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("webdriver_server", "WebDriver Server");
 
 WebDriverServer::HttpMethod StringToHttpMethod(const std::string& method) {
-  if (base::LowerCaseEqualsASCII(method, "get")) {
+  if (base::EqualsCaseInsensitiveASCII(method, "get")) {
     return WebDriverServer::kGet;
-  } else if (base::LowerCaseEqualsASCII(method, "post")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "post")) {
     return WebDriverServer::kPost;
-  } else if (base::LowerCaseEqualsASCII(method, "delete")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "delete")) {
     return WebDriverServer::kDelete;
   }
   return WebDriverServer::kUnknownMethod;
@@ -74,7 +74,7 @@ std::string HttpMethodToString(WebDriverServer::HttpMethod method) {
 class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
  public:
   ResponseHandlerImpl(net::HttpServer* server, int connection_id)
-      : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
         server_(server),
         connection_id_(connection_id) {}
 
@@ -172,7 +172,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
                     const std::string& content_type,
                     base::Optional<net::HttpServerResponseInfo> response_info =
                         base::Optional<net::HttpServerResponseInfo>()) {
-    if (base::ThreadTaskRunnerHandle::Get() == task_runner_) {
+    if (base::SequencedTaskRunner::GetCurrentDefault() == task_runner_) {
       SendToServer(server_, connection_id_, status, message, content_type,
                    response_info);
     } else {
@@ -183,7 +183,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
     }
   }
 
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   net::HttpServer* server_;
   int connection_id_;
 };
@@ -233,11 +233,14 @@ void WebDriverServer::OnHttpRequest(int connection_id,
   std::unique_ptr<base::Value> parameters;
   HttpMethod method = StringToHttpMethod(info.method);
   if (method == kPost) {
-    base::JSONReader reader;
-    parameters = std::move(reader.ReadToValue(info.data));
-    if (!parameters) {
+    base::JSONReader::Result result =
+        base::JSONReader::ReadAndReturnValueWithError(info.data);
+    if (result.has_value()) {
+      parameters = base::Value::ToUniquePtrValue(std::move(result.value()));
+    } else {
       // Failed to parse request body as JSON.
-      response_handler->MissingCommandParameters(reader.GetErrorMessage());
+      response_handler->MissingCommandParameters(
+          std::move(result.error().message));
       return;
     }
   }

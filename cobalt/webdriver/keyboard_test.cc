@@ -32,13 +32,15 @@ namespace cobalt {
 namespace webdriver {
 namespace {
 
-int32 GetKeyCode(std::pair<base::Token, const dom::KeyboardEventInit&> event) {
+int32 GetKeyCode(
+    std::pair<base_token::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event.first.c_str(), event.second));
   return keyboard_event->key_code();
 }
 
-int32 GetCharCode(std::pair<base::Token, const dom::KeyboardEventInit&> event) {
+int32 GetCharCode(
+    std::pair<base_token::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event.first.c_str(), event.second));
   return keyboard_event->char_code();
@@ -51,7 +53,7 @@ const uint32 kOtherModifier = 4;
 const uint32 kAltAndShift = kAlt | kShift;
 
 uint32 GetModifierBitfield(
-    std::pair<base::Token, const dom::KeyboardEventInit&> event) {
+    std::pair<base_token::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event.first.c_str(), event.second));
   uint32 modifiers = kNoModifier;
@@ -68,13 +70,14 @@ uint32 GetModifierBitfield(
 }
 
 std::string GetType(
-    std::pair<base::Token, const dom::KeyboardEventInit&> event) {
+    std::pair<base_token::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event.first.c_str(), event.second));
   return keyboard_event->type().c_str();
 }
 
-int GetLocation(std::pair<base::Token, const dom::KeyboardEventInit&> event) {
+int GetLocation(
+    std::pair<base_token::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event.first.c_str(), event.second));
   return keyboard_event->location();

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,20 +6,25 @@
 
 #include <objc/runtime.h>
 #include <stddef.h>
-#include <algorithm>
+
 #include <vector>
 
-#include "base/logging.h"
-#include "base/mac/scoped_nsobject.h"
-#include "base/stl_util.h"
+#include "base/check.h"
+#include "base/containers/contains.h"
+#include "base/notreached.h"
+#include "base/ranges/algorithm.h"
+
+#if !defined(__has_feature) || !__has_feature(objc_arc)
+#error "This file requires ARC support."
+#endif
 
 @interface CRBProtocolObservers () {
-  base::scoped_nsobject<Protocol> _protocol;
+  Protocol* _protocol;
   // ivars declared here are private to the implementation but must be
   // public for allowing the C++ |Iterator| class access to those ivars.
  @public
   // vector of weak pointers to observers.
-  std::vector<__unsafe_unretained id> _observers;
+  std::vector<__weak id> _observers;
   // The nested level of observer iteration.
   // A depth of 0 means nobody is currently iterating on the list of observers.
   int _invocationDepth;
@@ -73,14 +78,14 @@ id Iterator::GetNext() {
 @interface CRBProtocolObservers ()
 
 // Designated initializer.
-- (id)initWithProtocol:(Protocol*)protocol;
+- (instancetype)initWithProtocol:(Protocol*)protocol;
 
 @end
 
 @implementation CRBProtocolObservers
 
 + (instancetype)observersWithProtocol:(Protocol*)protocol {
-  return [[[self alloc] initWithProtocol:protocol] autorelease];
+  return [[self alloc] initWithProtocol:protocol];
 }
 
 - (id)init {
@@ -91,20 +96,20 @@ id Iterator::GetNext() {
 - (id)initWithProtocol:(Protocol*)protocol {
   self = [super init];
   if (self) {
-    _protocol.reset([protocol retain]);
+    _protocol = protocol;
   }
   return self;
 }
 
 - (Protocol*)protocol {
-  return _protocol.get();
+  return _protocol;
 }
 
 - (void)addObserver:(id)observer {
   DCHECK(observer);
   DCHECK([observer conformsToProtocol:self.protocol]);
 
-  if (base::ContainsValue(_observers, observer))
+  if (base::Contains(_observers, observer))
     return;
 
   _observers.push_back(observer);
@@ -112,7 +117,7 @@ id Iterator::GetNext() {
 
 - (void)removeObserver:(id)observer {
   DCHECK(observer);
-  auto it = std::find(_observers.begin(), _observers.end(), observer);
+  auto it = base::ranges::find(_observers, observer);
   if (it != _observers.end()) {
     if (_invocationDepth)
       *it = nil;

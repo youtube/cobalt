@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,9 @@ import org.junit.runners.model.FrameworkMethod;
 
 import org.chromium.base.Log;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Checks for conditional disables.
@@ -18,14 +20,15 @@ import java.util.Arrays;
  * Currently, this only includes checks against a few {@link android.os.Build} values.
  */
 public class DisableIfSkipCheck extends SkipCheck {
-
-    private static final String TAG = "cr_base_test";
+    private static final String TAG = "base_test";
 
     @Override
     public boolean shouldSkip(FrameworkMethod method) {
         if (method == null) return true;
-        for (DisableIf.Build v : AnnotationProcessingUtils.getAnnotations(
-                     method.getMethod(), DisableIf.Build.class)) {
+
+        List<DisableIf.Build> buildAnnotationList = gatherBuildAnnotations(method);
+
+        for (DisableIf.Build v : buildAnnotationList) {
             if (abi(v) && hardware(v) && product(v) && sdk(v)) {
                 if (!v.message().isEmpty()) {
                     Log.i(TAG, "%s is disabled: %s", method.getName(), v.message());
@@ -80,5 +83,22 @@ public class DisableIfSkipCheck extends SkipCheck {
         return false;
     }
 
+    private List<DisableIf.Build> gatherBuildAnnotations(FrameworkMethod method) {
+        List<DisableIf.Build> buildAnnotationList = new ArrayList<>();
+
+        // {@link DisableIf.Build} annotations will be wrapped in a {@link DisableIf.Builds} if
+        // there is more than one present on the method.
+        for (DisableIf.Builds buildsAnnotation : AnnotationProcessingUtils.getAnnotations(
+                     method.getMethod(), DisableIf.Builds.class)) {
+            buildAnnotationList.addAll(Arrays.asList(buildsAnnotation.value()));
+        }
+
+        // This will find the {@link DisableIf.Build} annotation when there's exactly one present on
+        // the method.
+        buildAnnotationList.addAll(AnnotationProcessingUtils.getAnnotations(
+                method.getMethod(), DisableIf.Build.class));
+
+        return buildAnnotationList;
+    }
 }
 

@@ -1,14 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SSL_SSL_CIPHER_SUITE_NAMES_H_
 #define NET_SSL_SSL_CIPHER_SUITE_NAMES_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -56,12 +57,12 @@ enum ObsoleteSSLMask {
   OBSOLETE_SSL_MASK_PROTOCOL = 1 << 0,
   OBSOLETE_SSL_MASK_KEY_EXCHANGE = 1 << 1,
   OBSOLETE_SSL_MASK_CIPHER = 1 << 2,
+  OBSOLETE_SSL_MASK_SIGNATURE = 1 << 3,
 };
 
-// Takes the given |connection_status| and returns a bitmask indicating which of
-// the protocol, key exchange, and cipher suite do not meet modern best-practice
-// security standards (when backwards compatibility can be ignored) - that is,
-// which ones are "obsolete".
+// Takes the given |connection_status| and |signature_algorithm| and returns a
+// bitmask indicating which settings do not meet modern best-practice security
+// standards - that is, which ones are "obsolete".
 //
 // Currently, this function uses the following criteria to determine what is
 // obsolete:
@@ -70,7 +71,9 @@ enum ObsoleteSSLMask {
 // - Key exchange: Does not use ECDHE-based key exchanges authenticated by a
 //   certificate
 // - Cipher: not an AEAD cipher
-NET_EXPORT int ObsoleteSSLStatus(int connection_status);
+// - Signature algorithm: MD5 or SHA-1
+NET_EXPORT int ObsoleteSSLStatus(int connection_status,
+                                 uint16_t signature_algorithm);
 
 // Returns true if |cipher_suite| is suitable for use with HTTP/2. See
 // https://http2.github.io/http2-spec/#rfc.section.9.2.2.

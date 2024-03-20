@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/test/task_environment.h"
 #include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_helpers.h"
@@ -100,7 +101,7 @@ class AudioNodeInputOutputTest : public ::testing::Test {
     web_context_->SetupFinished();
   }
 
-  ~AudioNodeInputOutputTest() {}
+  ~AudioNodeInputOutputTest() { web_context_.reset(); }
 
   script::GlobalEnvironment* global_environment() const {
     return web_context_->global_environment();
@@ -111,12 +112,11 @@ class AudioNodeInputOutputTest : public ::testing::Test {
     return web_context_->environment_settings();
   }
 
- protected:
-  base::MessageLoop message_loop_;
-
  private:
   // The Web Instance includes the Script Realm.
   std::unique_ptr<web::Context> web_context_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::DEFAULT};
 };
 
 TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {

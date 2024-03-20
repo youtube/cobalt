@@ -33,7 +33,7 @@ void EventDispatcher::RemoveEventCallback(TypeId type,
   std::vector<EventCallback>& v = event_callbacks_[type];
   for (std::vector<EventCallback>::iterator it = v.begin(); it != v.end();
        ++it) {
-    if (it->Equals(cb)) {
+    if (*it == cb) {
       v.erase(it);
       break;
     }

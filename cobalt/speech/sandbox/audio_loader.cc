@@ -17,6 +17,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/memory/ptr_util.h"
 
 namespace cobalt {

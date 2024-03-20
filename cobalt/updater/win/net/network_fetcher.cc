@@ -9,7 +9,7 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/win/windows_version.h"
 #include "chrome/updater/win/net/network.h"
@@ -20,7 +20,8 @@ namespace updater {
 NetworkFetcher::NetworkFetcher(const HINTERNET& session_handle)
     : network_fetcher_(
           base::MakeRefCounted<NetworkFetcherWinHTTP>(session_handle)),
-      main_thread_task_runner_(base::ThreadTaskRunnerHandle::Get()) {}
+      main_thread_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
+}
 
 NetworkFetcher::~NetworkFetcher() {
   network_fetcher_->Close();

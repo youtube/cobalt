@@ -1,15 +1,16 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/cert/ct_log_verifier.h"
 
+#include <stdint.h>
+
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
-#include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "crypto/secure_hash.h"
@@ -20,8 +21,6 @@
 #include "net/cert/signed_certificate_timestamp.h"
 #include "net/cert/signed_tree_head.h"
 #include "net/test/ct_test_util.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -155,10 +154,9 @@ const AuditProofTestVector kAuditProofs[] = {
 
 // Decodes a hexadecimal string into the binary data it represents.
 std::string HexToBytes(const std::string& hex_data) {
-  std::vector<uint8_t> output;
   std::string result;
-  if (base::HexStringToBytes(hex_data, &output))
-    result.assign(output.begin(), output.end());
+  if (!base::HexStringToString(hex_data, &result))
+    result.clear();
   return result;
 }
 
@@ -204,12 +202,10 @@ bool VerifyAuditProof(const CTLogVerifier& log,
 class CTLogVerifierTest : public ::testing::Test {
  public:
   void SetUp() override {
-    log_ = CTLogVerifier::Create(ct::GetTestPublicKey(), "testlog",
-                                 "ct.example.com");
+    log_ = CTLogVerifier::Create(ct::GetTestPublicKey(), "testlog");
 
     ASSERT_TRUE(log_);
     EXPECT_EQ(ct::GetTestPublicKeyId(), log_->key_id());
-    EXPECT_EQ("ct.example.com", log_->dns_domain());
   }
 
  protected:
@@ -261,7 +257,7 @@ void CheckVerifyAuditProof(const CTLogVerifier& log,
   }
 
   wrong_proof = proof;
-  wrong_proof.push_back(std::string());
+  wrong_proof.emplace_back();
   EXPECT_FALSE(
       VerifyAuditProof(log, leaf, tree_size, wrong_proof, root_hash, leaf_hash))
       << "proof passed verification with an empty node appended";
@@ -280,7 +276,7 @@ void CheckVerifyAuditProof(const CTLogVerifier& log,
   }
 
   wrong_proof.clear();
-  wrong_proof.push_back(std::string());
+  wrong_proof.emplace_back();
   wrong_proof.insert(wrong_proof.end(), proof.begin(), proof.end());
   EXPECT_FALSE(
       VerifyAuditProof(log, leaf, tree_size, wrong_proof, root_hash, leaf_hash))
@@ -360,7 +356,7 @@ void CheckVerifyConsistencyProof(const CTLogVerifier& log,
   }
 
   wrong_proof = proof;
-  wrong_proof.push_back(std::string());
+  wrong_proof.emplace_back();
   EXPECT_FALSE(VerifyConsistencyProof(log, old_tree_size, old_root,
                                       new_tree_size, new_root, wrong_proof))
       << "proof passed verification with empty node appended";
@@ -377,7 +373,7 @@ void CheckVerifyConsistencyProof(const CTLogVerifier& log,
       << "proof passed verification with last node missing";
 
   wrong_proof.clear();
-  wrong_proof.push_back(std::string());
+  wrong_proof.emplace_back();
   wrong_proof.insert(wrong_proof.end(), proof.begin(), proof.end());
   EXPECT_FALSE(VerifyConsistencyProof(log, old_tree_size, old_root,
                                       new_tree_size, new_root, wrong_proof))
@@ -467,7 +463,7 @@ TEST_F(CTLogVerifierTest, ExcessDataInPublicKey) {
   key += "extra";
 
   scoped_refptr<const CTLogVerifier> log =
-      CTLogVerifier::Create(key, "testlog", "ct.example.com");
+      CTLogVerifier::Create(key, "testlog");
   EXPECT_FALSE(log);
 }
 
@@ -543,10 +539,10 @@ TEST_P(CTLogVerifierConsistencyProofTest, VerifiesValidConsistencyProof) {
                               HexToBytes(new_root), proof);
 }
 
-INSTANTIATE_TEST_CASE_P(KnownGoodProofs,
-                        CTLogVerifierConsistencyProofTest,
-                        ::testing::Range(size_t(0),
-                                         base::size(kConsistencyProofs)));
+INSTANTIATE_TEST_SUITE_P(KnownGoodProofs,
+                         CTLogVerifierConsistencyProofTest,
+                         ::testing::Range(size_t(0),
+                                          std::size(kConsistencyProofs)));
 
 class CTLogVerifierAuditProofTest
     : public CTLogVerifierTest,
@@ -563,9 +559,9 @@ TEST_P(CTLogVerifierAuditProofTest, VerifiesValidAuditProofs) {
                         HexToBytes(kLeafHashes[test_vector.leaf]));
 }
 
-INSTANTIATE_TEST_CASE_P(KnownGoodProofs,
-                        CTLogVerifierAuditProofTest,
-                        ::testing::Range(size_t(0), base::size(kAuditProofs)));
+INSTANTIATE_TEST_SUITE_P(KnownGoodProofs,
+                         CTLogVerifierAuditProofTest,
+                         ::testing::Range(size_t(0), std::size(kAuditProofs)));
 
 TEST_F(CTLogVerifierTest, VerifiesAuditProofEdgeCases_InvalidLeafIndex) {
   std::vector<std::string> proof;
@@ -753,9 +749,9 @@ TEST_P(CTLogVerifierTestUsingGenerator, VerifiesValidAuditProofs) {
 
 // Test verification of consistency proofs and audit proofs for all tree sizes
 // from 0 to 128.
-INSTANTIATE_TEST_CASE_P(RangeOfTreeSizes,
-                        CTLogVerifierTestUsingGenerator,
-                        testing::Range(size_t(0), size_t(129)));
+INSTANTIATE_TEST_SUITE_P(RangeOfTreeSizes,
+                         CTLogVerifierTestUsingGenerator,
+                         testing::Range(size_t(0), size_t(129)));
 
 }  // namespace
 

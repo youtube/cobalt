@@ -225,7 +225,7 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState* out_liveness,
     int target_offset = accessor.GetJumpTargetOffset();
     out_liveness->Union(*liveness_map.GetInLiveness(target_offset));
   } else if (Bytecodes::IsSwitch(bytecode)) {
-    for (const auto& entry : accessor.GetJumpTableTargetOffsets()) {
+    for (auto entry : accessor.GetJumpTableTargetOffsets()) {
       out_liveness->Union(*liveness_map.GetInLiveness(entry.target_offset));
     }
   }
@@ -521,7 +521,7 @@ void BytecodeAnalysis::Analyze() {
         liveness_map_.GetLiveness(current_offset);
 
     bool any_changed = false;
-    for (const auto& entry : iterator.GetJumpTableTargetOffsets()) {
+    for (auto entry : iterator.GetJumpTableTargetOffsets()) {
       if (switch_liveness.out->UnionIsChanged(
               *liveness_map_.GetInLiveness(entry.target_offset))) {
         any_changed = true;

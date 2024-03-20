@@ -176,7 +176,7 @@ The characteristics of the DoLoop pattern are:
     `HttpStreamParser`, abridged for clarity): 
 
              int HttpStreamParser::ReadResponseHeaders(
-                 const CompletionCallback& callback) {
+                 CompletionOnceCallback callback) {
                DCHECK(io_state_ == STATE_NONE || io_state_ == STATE_DONE);
                DCHECK(callback_.is_null());
                DCHECK(!callback.is_null());
@@ -187,7 +187,7 @@ The characteristics of the DoLoop pattern are:
                result = DoLoop(result);
 
                if (result == ERR_IO_PENDING)
-                 callback_ = callback;
+                 callback_ = std::move(callback);
 
                return result > 0 ? OK : result;
              }
@@ -210,7 +210,7 @@ The characteristics of the DoLoop pattern are:
                result = DoLoop(result);
 
                if (result != ERR_IO_PENDING && !callback_.is_null())
-                 base::ResetAndReturn(&callback_).Run(result);
+                 std::move(callback_).Run(result);
              }
     
 *   The DoLoop pattern has no concept of different events arriving for
@@ -234,7 +234,7 @@ handling functions) in the order it's executed.
 
 For examples of this idiom, see
 
-* [HttpStreamParser::DoLoop](https://code.google.com/p/chromium/codesearch#chromium/src/net/http/http_stream_parser.cc&q=HttpStreamParser::DoLoop&sq=package:chromium).
-* [HttpNetworkTransaction::DoLoop](https://code.google.com/p/chromium/codesearch#chromium/src/net/http/http_network_transaction.cc&q=HttpNetworkTransaction::DoLoop&sq=package:chromium)
+* [HttpStreamParser::DoLoop](https://source.chromium.org/chromium/chromium/src/+/HEAD:net/http/http_stream_parser.cc).
+* [HttpNetworkTransaction::DoLoop](https://source.chromium.org/chromium/chromium/src/+/HEAD:net/http/http_network_transaction.cc)
 
-[net_error_list.h]: https://chromium.googlesource.com/chromium/src/+/master/net/base/net_error_list.h#1
+[net_error_list.h]: https://chromium.googlesource.com/chromium/src/+/main/net/base/net_error_list.h#1

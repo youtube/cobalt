@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,110 +9,99 @@
 
 namespace net {
 
-std::unique_ptr<base::Value> NetLogCookieMonsterConstructorCallback(
-    bool persistent_store,
-    bool channel_id_service,
-    NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::Value> dict =
-      std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
-  dict->SetKey("persistent_store", base::Value(persistent_store));
-  dict->SetKey("channel_id_service", base::Value(channel_id_service));
+base::Value::Dict NetLogCookieMonsterConstructorParams(bool persistent_store) {
+  base::Value::Dict dict;
+  dict.Set("persistent_store", persistent_store);
   return dict;
 }
 
-std::unique_ptr<base::Value> NetLogCookieMonsterCookieAdded(
+base::Value::Dict NetLogCookieMonsterCookieAdded(
     const CanonicalCookie* cookie,
     bool sync_requested,
     NetLogCaptureMode capture_mode) {
-  if (!capture_mode.include_cookies_and_credentials())
-    return nullptr;
+  if (!NetLogCaptureIncludesSensitive(capture_mode))
+    return base::Value::Dict();
 
-  std::unique_ptr<base::Value> dict =
-      std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
-  dict->SetKey("name", base::Value(cookie->Name()));
-  dict->SetKey("value", base::Value(cookie->Value()));
-  dict->SetKey("domain", base::Value(cookie->Domain()));
-  dict->SetKey("path", base::Value(cookie->Path()));
-  dict->SetKey("httponly", base::Value(cookie->IsHttpOnly()));
-  dict->SetKey("secure", base::Value(cookie->IsSecure()));
-  dict->SetKey("priority",
-               base::Value(CookiePriorityToString(cookie->Priority())));
-  dict->SetKey("same_site",
-               base::Value(CookieSameSiteToString(cookie->SameSite())));
-  dict->SetKey("is_persistent", base::Value(cookie->IsPersistent()));
-  dict->SetKey("sync_requested", base::Value(sync_requested));
+  base::Value::Dict dict;
+  dict.Set("name", cookie->Name());
+  dict.Set("value", cookie->Value());
+  dict.Set("domain", cookie->Domain());
+  dict.Set("path", cookie->Path());
+  dict.Set("httponly", cookie->IsHttpOnly());
+  dict.Set("secure", cookie->IsSecure());
+  dict.Set("priority", CookiePriorityToString(cookie->Priority()));
+  dict.Set("same_site", CookieSameSiteToString(cookie->SameSite()));
+  dict.Set("is_persistent", cookie->IsPersistent());
+  dict.Set("sync_requested", sync_requested);
+  dict.Set("same_party", cookie->IsSameParty());
   return dict;
 }
 
-std::unique_ptr<base::Value> NetLogCookieMonsterCookieDeleted(
+base::Value::Dict NetLogCookieMonsterCookieDeleted(
     const CanonicalCookie* cookie,
     CookieChangeCause cause,
     bool sync_requested,
     NetLogCaptureMode capture_mode) {
-  if (!capture_mode.include_cookies_and_credentials())
-    return nullptr;
+  if (!NetLogCaptureIncludesSensitive(capture_mode))
+    return base::Value::Dict();
 
-  std::unique_ptr<base::Value> dict =
-      std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
-  dict->SetKey("name", base::Value(cookie->Name()));
-  dict->SetKey("value", base::Value(cookie->Value()));
-  dict->SetKey("domain", base::Value(cookie->Domain()));
-  dict->SetKey("path", base::Value(cookie->Path()));
-  dict->SetKey("is_persistent", base::Value(cookie->IsPersistent()));
-  dict->SetKey("deletion_cause", base::Value(CookieChangeCauseToString(cause)));
-  dict->SetKey("sync_requested", base::Value(sync_requested));
+  base::Value::Dict dict;
+  dict.Set("name", cookie->Name());
+  dict.Set("value", cookie->Value());
+  dict.Set("domain", cookie->Domain());
+  dict.Set("path", cookie->Path());
+  dict.Set("is_persistent", cookie->IsPersistent());
+  dict.Set("deletion_cause", CookieChangeCauseToString(cause));
+  dict.Set("sync_requested", sync_requested);
   return dict;
 }
 
-std::unique_ptr<base::Value> NetLogCookieMonsterCookieRejectedSecure(
+base::Value::Dict NetLogCookieMonsterCookieRejectedSecure(
     const CanonicalCookie* old_cookie,
     const CanonicalCookie* new_cookie,
     NetLogCaptureMode capture_mode) {
-  if (!capture_mode.include_cookies_and_credentials())
-    return nullptr;
-  std::unique_ptr<base::Value> dict =
-      std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
-  dict->SetKey("name", base::Value(old_cookie->Name()));
-  dict->SetKey("domain", base::Value(old_cookie->Domain()));
-  dict->SetKey("oldpath", base::Value(old_cookie->Path()));
-  dict->SetKey("newpath", base::Value(new_cookie->Path()));
-  dict->SetKey("oldvalue", base::Value(old_cookie->Value()));
-  dict->SetKey("newvalue", base::Value(new_cookie->Value()));
+  if (!NetLogCaptureIncludesSensitive(capture_mode))
+    return base::Value::Dict();
+  base::Value::Dict dict;
+  dict.Set("name", old_cookie->Name());
+  dict.Set("domain", old_cookie->Domain());
+  dict.Set("oldpath", old_cookie->Path());
+  dict.Set("newpath", new_cookie->Path());
+  dict.Set("oldvalue", old_cookie->Value());
+  dict.Set("newvalue", new_cookie->Value());
   return dict;
 }
 
-std::unique_ptr<base::Value> NetLogCookieMonsterCookieRejectedHttponly(
+base::Value::Dict NetLogCookieMonsterCookieRejectedHttponly(
     const CanonicalCookie* old_cookie,
     const CanonicalCookie* new_cookie,
     NetLogCaptureMode capture_mode) {
-  if (!capture_mode.include_cookies_and_credentials())
-    return nullptr;
-  std::unique_ptr<base::Value> dict =
-      std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
-  dict->SetKey("name", base::Value(old_cookie->Name()));
-  dict->SetKey("domain", base::Value(old_cookie->Domain()));
-  dict->SetKey("path", base::Value(old_cookie->Path()));
-  dict->SetKey("oldvalue", base::Value(old_cookie->Value()));
-  dict->SetKey("newvalue", base::Value(new_cookie->Value()));
+  if (!NetLogCaptureIncludesSensitive(capture_mode))
+    return base::Value::Dict();
+  base::Value::Dict dict;
+  dict.Set("name", old_cookie->Name());
+  dict.Set("domain", old_cookie->Domain());
+  dict.Set("path", old_cookie->Path());
+  dict.Set("oldvalue", old_cookie->Value());
+  dict.Set("newvalue", new_cookie->Value());
   return dict;
 }
 
-std::unique_ptr<base::Value> NetLogCookieMonsterCookiePreservedSkippedSecure(
+base::Value::Dict NetLogCookieMonsterCookiePreservedSkippedSecure(
     const CanonicalCookie* skipped_secure,
     const CanonicalCookie* preserved,
     const CanonicalCookie* new_cookie,
     NetLogCaptureMode capture_mode) {
-  if (!capture_mode.include_cookies_and_credentials())
-    return nullptr;
-  std::unique_ptr<base::Value> dict =
-      std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
-  dict->SetKey("name", base::Value(preserved->Name()));
-  dict->SetKey("domain", base::Value(preserved->Domain()));
-  dict->SetKey("path", base::Value(preserved->Path()));
-  dict->SetKey("securecookiedomain", base::Value(skipped_secure->Domain()));
-  dict->SetKey("securecookiepath", base::Value(skipped_secure->Path()));
-  dict->SetKey("preservedvalue", base::Value(preserved->Value()));
-  dict->SetKey("discardedvalue", base::Value(new_cookie->Value()));
+  if (!NetLogCaptureIncludesSensitive(capture_mode))
+    return base::Value::Dict();
+  base::Value::Dict dict;
+  dict.Set("name", preserved->Name());
+  dict.Set("domain", preserved->Domain());
+  dict.Set("path", preserved->Path());
+  dict.Set("securecookiedomain", skipped_secure->Domain());
+  dict.Set("securecookiepath", skipped_secure->Path());
+  dict.Set("preservedvalue", preserved->Value());
+  dict.Set("discardedvalue", new_cookie->Value());
   return dict;
 }
 

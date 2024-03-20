@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# Copyright 2016 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python3
+# Copyright 2016 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -8,9 +8,6 @@ import sys
 sys.path += ['..']
 
 import gencerts
-
-gencerts.set_default_validity_range(gencerts.JANUARY_1_2015_UTC,
-                                    gencerts.JANUARY_1_2021_UTC)
 
 # Generate the keys -- the same key is used for all intermediates and end entity
 # certificates.

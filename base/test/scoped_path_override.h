@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 #define BASE_TEST_SCOPED_PATH_OVERRIDE_H_
 
 #include "base/files/scoped_temp_dir.h"
-#include "base/macros.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
@@ -29,13 +29,19 @@ class ScopedPathOverride {
                      const FilePath& path,
                      bool is_absolute,
                      bool create);
+
+  ScopedPathOverride(const ScopedPathOverride&) = delete;
+  ScopedPathOverride& operator=(const ScopedPathOverride&) = delete;
+
   ~ScopedPathOverride();
 
  private:
+  // Used for saving original_override_ when an override already exists.
+  void SaveOriginal();
+
   int key_;
   ScopedTempDir temp_dir_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedPathOverride);
+  absl::optional<FilePath> original_override_;
 };
 
 }  // namespace base

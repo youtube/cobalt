@@ -46,8 +46,9 @@ class DemuxerFuzzer : DemuxerHost {
  public:
   explicit DemuxerFuzzer(const std::vector<uint8>& content)
       : error_occurred_(false), eos_count_(0), stopped_(false) {
-    demuxer_ = new ProgressiveDemuxer(base::ThreadTaskRunnerHandle::Get(),
-                                      new InMemoryDataSource(content));
+    demuxer_ =
+        new ProgressiveDemuxer(base::SequencedTaskRunner::GetCurrentDefault(),
+                               new InMemoryDataSource(content));
   }
 
   void Fuzz() {

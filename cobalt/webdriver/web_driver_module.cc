@@ -25,6 +25,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/webdriver/dispatcher.h"
 #include "cobalt/webdriver/protocol/capabilities.h"
 #include "cobalt/webdriver/protocol/window_id.h"
@@ -469,22 +470,24 @@ WebDriverModule::WebDriverModule(
 
   // Start the thread and create the HTTP server on that thread.
   webdriver_thread_.StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
-  webdriver_thread_.message_loop()->task_runner()->PostTask(
+      base::Thread::Options(base::MessagePumpType::IO, 0));
+  webdriver_thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebDriverModule::StartServer,
                             base::Unretained(this), server_port, listen_ip));
 }  // NOLINT(readability/fn_size)
 
 WebDriverModule::~WebDriverModule() {
-  webdriver_thread_.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebDriverModule::StopServerAndSession,
-                            base::Unretained(this)));
+  base::task_runner_util::PostBlockingTask(
+      webdriver_thread_.task_runner(), FROM_HERE,
+      base::Bind(&WebDriverModule::StopServerAndSession,
+                 base::Unretained(this)));
   webdriver_thread_.Stop();
 }  // NOLINT(readability/fn_size)
 
 void WebDriverModule::OnWindowRecreated() {
-  if (base::MessageLoop::current() != webdriver_thread_.message_loop()) {
-    webdriver_thread_.message_loop()->task_runner()->PostTask(
+  if (base::SequencedTaskRunner::GetCurrentDefault() !=
+      webdriver_thread_.task_runner()) {
+    webdriver_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&WebDriverModule::OnWindowRecreated,
                               base::Unretained(this)));
     return;

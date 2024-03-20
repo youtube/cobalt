@@ -1,11 +1,12 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // This file intentionally does not have header guards, it's included
-// inside a macro to generate values. The following line silences a
-// presubmit warning that would otherwise be triggered by this:
+// inside a macro to generate enum values. The following line silences a
+// presubmit and Tricium warning that would otherwise be triggered by this:
 // no-include-guard-because-multiply-included
+// NOLINT(build/header_guard)
 
 // This is the list of load states and their values. For the enum values,
 // include the file "net/base/load_states.h".
@@ -45,11 +46,9 @@ LOAD_STATE(WAITING_FOR_DELEGATE, 3)
 // the first completes.  This may be done to optimize for cache reuse.
 LOAD_STATE(WAITING_FOR_CACHE, 4)
 
-// This state corresponds to a resource load that is blocked waiting for
-// access to a resource in the AppCache.
-// Note: This is a layering violation, but being the only one it's not that
-// bad. TODO(rvargas): Reconsider what to do if we need to add more.
-LOAD_STATE(WAITING_FOR_APPCACHE, 5)
+// This state was used to wait for access to a resource in the AppCache but
+// AppCache is no longer supported.
+LOAD_STATE(OBSOLETE_WAITING_FOR_APPCACHE, 5)
 
 // This state corresponds to a resource being blocked waiting for the
 // PAC script to be downloaded.

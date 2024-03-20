@@ -58,7 +58,8 @@ class ServiceWorkerContainer : public web::EventTarget {
     SetAttributeEventListener(base::Tokens::controllerchange(), event_listener);
   }
 
-  void MaybeResolveReadyPromise(ServiceWorkerRegistrationObject* registration);
+  void MaybeResolveReadyPromise(
+      scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   DEFINE_WRAPPABLE_TYPE(ServiceWorkerContainer);
 

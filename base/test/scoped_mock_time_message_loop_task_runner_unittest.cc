@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,14 @@
 
 #include <memory>
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
-#include "base/callback_forward.h"
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
-#include "base/message_loop/message_loop_current.h"
+#include "base/task/current_thread.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/test/task_environment.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/test/test_pending_task.h"
 #include "base/time/time.h"
@@ -24,7 +23,7 @@ namespace base {
 namespace {
 
 TaskRunner* GetCurrentTaskRunner() {
-  return MessageLoopCurrent::Get()->task_runner().get();
+  return SingleThreadTaskRunner::GetCurrentDefault().get();
 }
 
 void AssignTrue(bool* out) {
@@ -42,8 +41,13 @@ class ScopedMockTimeMessageLoopTaskRunnerTest : public testing::Test {
  public:
   ScopedMockTimeMessageLoopTaskRunnerTest()
       : original_task_runner_(new TestMockTimeTaskRunner()) {
-    MessageLoopCurrent::Get()->SetTaskRunner(original_task_runner_);
+    CurrentThread::Get()->SetTaskRunner(original_task_runner_);
   }
+
+  ScopedMockTimeMessageLoopTaskRunnerTest(
+      const ScopedMockTimeMessageLoopTaskRunnerTest&) = delete;
+  ScopedMockTimeMessageLoopTaskRunnerTest& operator=(
+      const ScopedMockTimeMessageLoopTaskRunnerTest&) = delete;
 
  protected:
   TestMockTimeTaskRunner* original_task_runner() {
@@ -53,9 +57,7 @@ class ScopedMockTimeMessageLoopTaskRunnerTest : public testing::Test {
  private:
   scoped_refptr<TestMockTimeTaskRunner> original_task_runner_;
 
-  MessageLoop message_loop_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedMockTimeMessageLoopTaskRunnerTest);
+  test::SingleThreadTaskEnvironment task_environment_;
 };
 
 // Verifies a new TaskRunner is installed while a
@@ -77,22 +79,26 @@ TEST_F(ScopedMockTimeMessageLoopTaskRunnerTest,
   bool task_10_has_run = false;
   bool task_11_has_run = false;
 
-  Closure task_1 = DoNothing();
-  Closure task_2 = DoNothing();
-  Closure task_10 = Bind(&AssignTrue, &task_10_has_run);
-  Closure task_11 = Bind(&AssignTrue, &task_11_has_run);
+  OnceClosure task_1 = DoNothing();
+  OnceClosure task_2 = DoNothing();
+  OnceClosure task_10 = BindOnce(&AssignTrue, &task_10_has_run);
+  OnceClosure task_11 = BindOnce(&AssignTrue, &task_11_has_run);
 
-  constexpr TimeDelta task_1_delay = TimeDelta::FromSeconds(1);
-  constexpr TimeDelta task_2_delay = TimeDelta::FromSeconds(2);
-  constexpr TimeDelta task_10_delay = TimeDelta::FromSeconds(10);
-  constexpr TimeDelta task_11_delay = TimeDelta::FromSeconds(11);
+  constexpr TimeDelta task_1_delay = Seconds(1);
+  constexpr TimeDelta task_2_delay = Seconds(2);
+  constexpr TimeDelta task_10_delay = Seconds(10);
+  constexpr TimeDelta task_11_delay = Seconds(11);
 
-  constexpr TimeDelta step_time_by = TimeDelta::FromSeconds(5);
+  constexpr TimeDelta step_time_by = Seconds(5);
 
-  GetCurrentTaskRunner()->PostDelayedTask(FROM_HERE, task_1, task_1_delay);
-  GetCurrentTaskRunner()->PostDelayedTask(FROM_HERE, task_2, task_2_delay);
-  GetCurrentTaskRunner()->PostDelayedTask(FROM_HERE, task_10, task_10_delay);
-  GetCurrentTaskRunner()->PostDelayedTask(FROM_HERE, task_11, task_11_delay);
+  GetCurrentTaskRunner()->PostDelayedTask(FROM_HERE, std::move(task_1),
+                                          task_1_delay);
+  GetCurrentTaskRunner()->PostDelayedTask(FROM_HERE, std::move(task_2),
+                                          task_2_delay);
+  GetCurrentTaskRunner()->PostDelayedTask(FROM_HERE, std::move(task_10),
+                                          task_10_delay);
+  GetCurrentTaskRunner()->PostDelayedTask(FROM_HERE, std::move(task_11),
+                                          task_11_delay);
 
   scoped_task_runner_->task_runner()->FastForwardBy(step_time_by);
 

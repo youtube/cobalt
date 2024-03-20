@@ -45,7 +45,7 @@ class ScriptDebuggerAgent {
   bool IsSupportedDomain(const std::string& domain) {
     return supported_domains_.count(domain) != 0;
   }
-  base::Optional<Command> RunCommand(Command command);
+  absl::optional<Command> RunCommand(Command command);
   void SendCommandResponse(const std::string& json_response);
   void SendEvent(const std::string& json_event);
 

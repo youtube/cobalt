@@ -1,18 +1,20 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_IO_BUFFER_H_
 #define NET_BASE_IO_BUFFER_H_
 
+#include <stddef.h>
+
 #include <memory>
 #include <string>
 
 #include "base/memory/free_deleter.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/pickle.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -76,8 +78,6 @@ class NET_EXPORT IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
  public:
   IOBuffer();
 
-  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
-  explicit IOBuffer(int buffer_size);
   explicit IOBuffer(size_t buffer_size);
 
   char* data() const { return data_; }
@@ -85,13 +85,16 @@ class NET_EXPORT IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
  protected:
   friend class base::RefCountedThreadSafe<IOBuffer>;
 
+  static void AssertValidBufferSize(size_t size);
+  static void AssertValidBufferSize(int size);
+
   // Only allow derived classes to specify data_.
   // In all other cases, we own data_, and must delete it at destruction time.
   explicit IOBuffer(char* data);
 
   virtual ~IOBuffer();
 
-  char* data_;
+  raw_ptr<char, DanglingUntriaged | AllowPtrArithmetic> data_;
 };
 
 // This version stores the size of the buffer so that the creator of the object
@@ -100,16 +103,11 @@ class NET_EXPORT IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
 // argument to IO functions. Please keep using IOBuffer* for API declarations.
 class NET_EXPORT IOBufferWithSize : public IOBuffer {
  public:
-  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
-  explicit IOBufferWithSize(int size);
   explicit IOBufferWithSize(size_t size);
 
   int size() const { return size_; }
 
  protected:
-  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
-  IOBufferWithSize(char* data, int size);
-
   // Purpose of this constructor is to give a subclass access to the base class
   // constructor IOBuffer(char*) thus allowing subclass to use underlying
   // memory it does not own.
@@ -178,7 +176,7 @@ class NET_EXPORT DrainableIOBuffer : public IOBuffer {
 
   scoped_refptr<IOBuffer> base_;
   int size_;
-  int used_;
+  int used_ = 0;
 };
 
 // This version provides a resizable buffer and a changeable offset.
@@ -217,8 +215,8 @@ class NET_EXPORT GrowableIOBuffer : public IOBuffer {
   ~GrowableIOBuffer() override;
 
   std::unique_ptr<char, base::FreeDeleter> real_data_;
-  int capacity_;
-  int offset_;
+  int capacity_ = 0;
+  int offset_ = 0;
 };
 
 // This versions allows a pickle to be used as the storage for a write-style

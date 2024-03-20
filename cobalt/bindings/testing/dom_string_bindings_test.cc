@@ -81,7 +81,7 @@ TEST_F(DOMStringBindingsTest, SetReadOnlyProperty) {
 
 TEST_F(DOMStringBindingsTest, GetReadOnlyTokenProperty) {
   EXPECT_CALL(test_mock(), read_only_token_property())
-      .WillOnce(Return(base::Token("mock_value")));
+      .WillOnce(Return(base_token::Token("mock_value")));
 
   std::string result;
   EXPECT_TRUE(EvaluateScript("test.readOnlyTokenProperty;", &result));

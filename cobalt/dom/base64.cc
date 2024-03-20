@@ -135,20 +135,18 @@ base::Optional<std::string> ForgivingBase64Encode(
   return output;
 }
 
-base::Optional<std::vector<uint8_t>> ForgivingBase64Decode(
+absl::optional<std::vector<uint8_t>> ForgivingBase64Decode(
     const std::string& encoded_string) {
   // https://infra.spec.whatwg.org/#forgiving-base64-decode
   // Step 1-4:
   auto maybe_encoded_string_no_whitespace = GetAtobAllowedStr(encoded_string);
   // Step 5-10:
-  std::vector<uint8_t> output;
   // If input string format is not allowed or base64 encoding failed, return
   // nullopt to signal failure.
-  if (!maybe_encoded_string_no_whitespace ||
-      !base::Base64Decode(*maybe_encoded_string_no_whitespace, &output)) {
+  if (!maybe_encoded_string_no_whitespace) {
     return base::nullopt;
   }
-  return output;
+  return base::Base64Decode(*maybe_encoded_string_no_whitespace);
 }
 
 }  // namespace dom

@@ -19,6 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"

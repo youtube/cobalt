@@ -22,44 +22,64 @@ _FILTERED_TESTS = {
     # Tracked by b/185820828
     'net_unittests': ['SpdyNetworkTransactionTest.SpdyBasicAuth',],
     'base_unittests': [
-        # Fails when run in a sharded configuration: b/233108722, b/216774170
-        'TaskQueueSelectorTest.TestHighestPriority',
-        'TaskQueueSelectorTest.TestHighPriority',
-        'TaskQueueSelectorTest.TestLowPriority',
-        'TaskQueueSelectorTest.TestBestEffortPriority',
-        'TaskQueueSelectorTest.TestControlPriority',
-        'TaskQueueSelectorTest.TestObserverWithEnabledQueue',
-        'TaskQueueSelectorTest.TestObserverWithSetQueuePriorityAndQueueAlreadyEnabled',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.TestDisableEnable',
-        'TaskQueueSelectorTest.TestDisableChangePriorityThenEnable',
-        'TaskQueueSelectorTest.TestEmptyQueues',
-        'TaskQueueSelectorTest.TestAge',
-        'TaskQueueSelectorTest.TestControlStarvesOthers',
-        'TaskQueueSelectorTest.TestHighestPriorityDoesNotStarveHigh',
-        'TaskQueueSelectorTest.TestHighestPriorityDoesNotStarveHighOrNormal',
-        'TaskQueueSelectorTest.TestHighestPriorityDoesNotStarveHighOrNormalOrLow',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.TestHighPriorityDoesNotStarveNormal',
-        'TaskQueueSelectorTest.TestHighPriorityDoesNotStarveNormalOrLow',
-        'TaskQueueSelectorTest.TestNormalPriorityDoesNotStarveLow',
-        'TaskQueueSelectorTest.TestBestEffortGetsStarved',
-        'TaskQueueSelectorTest.TestHighPriorityStarvationScoreIncreasedOnlyWhenTasksArePresent',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.TestNormalPriorityStarvationScoreIncreasedOnllWhenTasksArePresent',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.TestLowPriorityTaskStarvationOnlyIncreasedWhenTasksArePresent',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.AllEnabledWorkQueuesAreEmpty',
-        'TaskQueueSelectorTest.AllEnabledWorkQueuesAreEmpty_ControlPriority',
-        'TaskQueueSelectorTest.ChooseOldestWithPriority_Empty',
-        'TaskQueueSelectorTest.ChooseOldestWithPriority_OnlyDelayed',
-        'TaskQueueSelectorTest.ChooseOldestWithPriority_OnlyImmediate',
-        'TaskQueueSelectorTest.TestObserverWithOneBlockedQueue',
-        'TaskQueueSelectorTest.TestObserverWithTwoBlockedQueues',
-        'HistogramTesterTest.GetHistogramSamplesSinceCreationNotNull',
-        'HistogramTesterTest.TestUniqueSample',
-        'HistogramTesterTest.TestBucketsSample',
-        'HistogramTesterTest.TestBucketsSampleWithScope',
-        'HistogramTesterTest.TestGetAllSamples',
-        'HistogramTesterTest.TestGetAllSamples_NoSamples',
-        'HistogramTesterTest.TestGetTotalCountsForPrefix',
-        'HistogramTesterTest.TestGetAllChangedHistograms',
+        # TODO: b/329269559 These have flaky ASAN heap-use-after-free
+        # during metrics collection.
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
+    ],
+    'renderer_test': [
+        # TODO: b/329899074 These test are disabled because they fail.
+        'PixelTest.SimpleTextIn20PtFont',
+        'PixelTest.SimpleTextIn40PtFont',
+        'PixelTest.SimpleTextIn80PtFont',
+        'PixelTest.SimpleTextIn500PtFont',
+        'PixelTest.RedTextIn500PtFont',
+        'PixelTest.TooManyGlyphs',
+        'PixelTest.ShearedText',
+        'PixelTest.SimpleText40PtFontWithCharacterLowerThanBaseline',
+        'PixelTest.SimpleTextInEthiopic',
+        'PixelTest.SimpleTextInEthiopicBold',
+        'PixelTest.SimpleTextInRed40PtFont',
+        'PixelTest.SimpleTextInRed40PtChineseFont',
+        'PixelTest.RotatedTextInScaledRoundedCorners',
+        'PixelTest.RedTextOnBlueIn40PtFont',
+        'PixelTest.WhiteTextOnBlackIn40PtFont',
+        'PixelTest.TransparentBlackTextOnRedIn40PtFont',
+        'PixelTest.ViewportFilterOnTextNodeTest',
+        'PixelTest.ViewportFilterWithTransformOnTextNodeTest',
+        'PixelTest.ViewportFilterAndOpacityFilterOnTextNodeTest',
+        'PixelTest.ScalingUpAnOpacityFilterTextDoesNotPixellate',
+        'PixelTest.TextNodesScaleDownSmoothly',
+        'PixelTest.DropShadowText',
+        'PixelTest.DropShadowBlurred0Point1PxText',
+        'PixelTest.DropShadowBlurred1PxText',
+        'PixelTest.DropShadowBlurred2PxText',
+        'PixelTest.DropShadowBlurred3PxText',
+        'PixelTest.DropShadowBlurred4PxText',
+        'PixelTest.DropShadowBlurred5PxText',
+        'PixelTest.DropShadowBlurred6PxText',
+        'PixelTest.DropShadowBlurred8PxText',
+        'PixelTest.DropShadowBlurred20PxText',
+        'PixelTest.ColoredDropShadowText',
+        'PixelTest.ColoredDropShadowBlurredText',
+        'PixelTest.MultipleColoredDropShadowText',
+        'PixelTest.MultipleColoredDropShadowBlurredText',
+        'PixelTest.FilterBlurred0Point1PxText',
+        'PixelTest.FilterBlurred1PxText',
+        'PixelTest.FilterBlurred2PxText',
+        'PixelTest.FilterBlurred3PxText',
+        'PixelTest.FilterBlurred4PxText',
+        'PixelTest.FilterBlurred5PxText',
+        'PixelTest.FilterBlurred6PxText',
+        'PixelTest.FilterBlurred8PxText',
+        'PixelTest.FilterBlurred20PxText',
     ],
 }
 

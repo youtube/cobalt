@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,24 +14,27 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
+#include "base/containers/flat_set.h"
 #include "base/strings/string_piece.h"
+#include "base/values.h"
 #include "net/base/net_export.h"
-
-namespace base {
-class Value;
-}
+#include "net/filter/source_stream.h"
+#include "net/log/net_log_capture_mode.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "url/gurl.h"
 
 namespace net {
-
-class NetLogCaptureMode;
 
 class NET_EXPORT HttpRequestHeaders {
  public:
   struct NET_EXPORT HeaderKeyValuePair {
     HeaderKeyValuePair();
-    HeaderKeyValuePair(const base::StringPiece& key,
-                       const base::StringPiece& value);
+    HeaderKeyValuePair(base::StringPiece key, base::StringPiece value);
+    HeaderKeyValuePair(base::StringPiece key, std::string&& value);
+    // Inline to take advantage of the base::StringPiece constructor being
+    // constexpr.
+    HeaderKeyValuePair(base::StringPiece key, const char* value)
+        : HeaderKeyValuePair(key, base::StringPiece(value)) {}
 
     std::string key;
     std::string value;
@@ -42,6 +45,10 @@ class NET_EXPORT HttpRequestHeaders {
   class NET_EXPORT Iterator {
    public:
     explicit Iterator(const HttpRequestHeaders& headers);
+
+    Iterator(const Iterator&) = delete;
+    Iterator& operator=(const Iterator&) = delete;
+
     ~Iterator();
 
     // Advances the iterator to the next header, if any.  Returns true if there
@@ -54,15 +61,23 @@ class NET_EXPORT HttpRequestHeaders {
     const std::string& value() const { return curr_->value; }
 
    private:
-    bool started_;
+    bool started_ = false;
     HttpRequestHeaders::HeaderVector::const_iterator curr_;
     const HttpRequestHeaders::HeaderVector::const_iterator end_;
-
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
+  static const char kConnectMethod[];
+  static const char kDeleteMethod[];
   static const char kGetMethod[];
+  static const char kHeadMethod[];
+  static const char kOptionsMethod[];
+  static const char kPatchMethod[];
+  static const char kPostMethod[];
+  static const char kPutMethod[];
+  static const char kTraceMethod[];
+  static const char kTrackMethod[];
 
+  static const char kAccept[];
   static const char kAcceptCharset[];
   static const char kAcceptEncoding[];
   static const char kAcceptLanguage[];
@@ -84,10 +99,6 @@ class NET_EXPORT HttpRequestHeaders {
   static const char kProxyConnection[];
   static const char kRange[];
   static const char kReferer[];
-  #if defined(STARBOARD)
-  static const char kResourceType[];
-  #endif
-  static const char kSecOriginPolicy[];
   static const char kTransferEncoding[];
   static const char kUserAgent[];
 
@@ -101,13 +112,13 @@ class NET_EXPORT HttpRequestHeaders {
 
   bool IsEmpty() const { return headers_.empty(); }
 
-  bool HasHeader(const base::StringPiece& key) const {
+  bool HasHeader(base::StringPiece key) const {
     return FindHeader(key) != headers_.end();
   }
 
   // Gets the first header that matches |key|.  If found, returns true and
   // writes the value to |out|.
-  bool GetHeader(const base::StringPiece& key, std::string* out) const;
+  bool GetHeader(base::StringPiece key, std::string* out) const;
 
   // Clears all the headers.
   void Clear();
@@ -117,22 +128,28 @@ class NET_EXPORT HttpRequestHeaders {
   // in the vector remains the same.  When comparing |key|, case is ignored.
   // The caller must ensure that |key| passes HttpUtil::IsValidHeaderName() and
   // |value| passes HttpUtil::IsValidHeaderValue().
-  void SetHeader(const base::StringPiece& key, const base::StringPiece& value);
+  void SetHeader(base::StringPiece key, base::StringPiece value);
+  void SetHeader(base::StringPiece key, std::string&& value);
+  // Inline to take advantage of the base::StringPiece constructor being
+  // constexpr.
+  void SetHeader(base::StringPiece key, const char* value) {
+    SetHeader(key, base::StringPiece(value));
+  }
 
   // Does the same as above but without internal DCHECKs for validations.
-  void SetHeaderWithoutCheckForTesting(const base::StringPiece& key,
-                                       const base::StringPiece& value) {
-    SetHeaderInternal(key, value);
-  }
+  void SetHeaderWithoutCheckForTesting(base::StringPiece key,
+                                       base::StringPiece value);
 
   // Sets the header value pair for |key| and |value|, if |key| does not exist.
   // If |key| already exists, the call is a no-op.
   // When comparing |key|, case is ignored.
-  void SetHeaderIfMissing(const base::StringPiece& key,
-                          const base::StringPiece& value);
+  //
+  // The caller must ensure that |key| passes HttpUtil::IsValidHeaderName() and
+  // |value| passes HttpUtil::IsValidHeaderValue().
+  void SetHeaderIfMissing(base::StringPiece key, base::StringPiece value);
 
   // Removes the first header that matches (case insensitive) |key|.
-  void RemoveHeader(const base::StringPiece& key);
+  void RemoveHeader(base::StringPiece key);
 
   // Parses the header from a string and calls SetHeader() with it.  This string
   // should not contain any CRLF.  As per RFC7230 Section 3.2, the format is:
@@ -150,24 +167,20 @@ class NET_EXPORT HttpRequestHeaders {
   //
   // AddHeaderFromString() will trim any LWS surrounding the
   // field-content.
-  void AddHeaderFromString(const base::StringPiece& header_line);
+  void AddHeaderFromString(base::StringPiece header_line);
 
   // Same thing as AddHeaderFromString() except that |headers| is a "\r\n"
   // delimited string of header lines.  It will split up the string by "\r\n"
   // and call AddHeaderFromString() on each.
-  void AddHeadersFromString(const base::StringPiece& headers);
+  void AddHeadersFromString(base::StringPiece headers);
 
   // Calls SetHeader() on each header from |other|, maintaining order.
   void MergeFrom(const HttpRequestHeaders& other);
 
   // Copies from |other| to |this|.
-  void CopyFrom(const HttpRequestHeaders& other) {
-    *this = other;
-  }
+  void CopyFrom(const HttpRequestHeaders& other) { *this = other; }
 
-  void Swap(HttpRequestHeaders* other) {
-    headers_.swap(other->headers_);
-  }
+  void Swap(HttpRequestHeaders* other) { headers_.swap(other->headers_); }
 
   // Serializes HttpRequestHeaders to a string representation.  Joins all the
   // header keys and values with ": ", and inserts "\r\n" between each header
@@ -176,18 +189,24 @@ class NET_EXPORT HttpRequestHeaders {
 
   // Takes in the request line and returns a Value for use with the NetLog
   // containing both the request line and all headers fields.
-  std::unique_ptr<base::Value> NetLogCallback(
-      const std::string* request_line,
-      NetLogCaptureMode capture_mode) const;
+  base::Value::Dict NetLogParams(const std::string& request_line,
+                                 NetLogCaptureMode capture_mode) const;
 
   const HeaderVector& GetHeaderVector() const { return headers_; }
 
- private:
-  HeaderVector::iterator FindHeader(const base::StringPiece& key);
-  HeaderVector::const_iterator FindHeader(const base::StringPiece& key) const;
+  // Sets Accept-Encoding header based on `url` and `accepted_stream_types`, if
+  // it does not exist. "br" is appended only when `enable_brotli` is true.
+  void SetAcceptEncodingIfMissing(
+      const GURL& url,
+      const absl::optional<base::flat_set<SourceStream::SourceType>>&
+          accepted_stream_types,
+      bool enable_brotli);
 
-  void SetHeaderInternal(const base::StringPiece& key,
-                         const base::StringPiece& value);
+ private:
+  HeaderVector::iterator FindHeader(base::StringPiece key);
+  HeaderVector::const_iterator FindHeader(base::StringPiece key) const;
+
+  void SetHeaderInternal(base::StringPiece key, std::string&& value);
 
   HeaderVector headers_;
 

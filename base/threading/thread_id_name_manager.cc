@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "base/logging.h"
+#include "base/check.h"
+#include "base/containers/contains.h"
+#include "base/containers/cxx20_erase.h"
 #include "base/memory/singleton.h"
-#include "base/no_destructor.h"
 #include "base/strings/string_util.h"
-#include "base/threading/thread_local.h"
-#include "base/trace_event/heap_profiler_allocation_context_tracker.h"
-#include "starboard/types.h"
+#include "base/trace_event/heap_profiler_allocation_context_tracker.h"  // no-presubmit-check
+#include "third_party/abseil-cpp/absl/base/attributes.h"
+
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
 
 namespace base {
 namespace {
@@ -21,11 +27,31 @@ namespace {
 static const char kDefaultName[] = "";
 static std::string* g_default_name;
 
-ThreadLocalStorage::Slot& GetThreadNameTLS() {
-  static base::NoDestructor<base::ThreadLocalStorage::Slot> thread_name_tls;
-  return *thread_name_tls;
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+  s_thread_local_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
+
+void EnsureThreadLocalKeyInited() {
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
+
+const char* GetThreadName() {
+  const char* thread_name = static_cast<const char*>(
+      SbThreadGetLocalValue(s_thread_local_key));
+  return !!thread_name ? thread_name : kDefaultName;
+}
+#else
+ABSL_CONST_INIT thread_local const char* thread_name = kDefaultName;
+#endif
+}
+
+ThreadIdNameManager::Observer::~Observer() = default;
 
 ThreadIdNameManager::ThreadIdNameManager()
     : main_process_name_(nullptr), main_process_id_(kInvalidThreadId) {
@@ -54,9 +80,16 @@ void ThreadIdNameManager::RegisterThread(PlatformThreadHandle::Handle handle,
       name_to_interned_name_[kDefaultName];
 }
 
-void ThreadIdNameManager::InstallSetNameCallback(SetNameCallback callback) {
+void ThreadIdNameManager::AddObserver(Observer* obs) {
   AutoLock locked(lock_);
-  set_name_callback_ = std::move(callback);
+  DCHECK(!base::Contains(observers_, obs));
+  observers_.push_back(obs);
+}
+
+void ThreadIdNameManager::RemoveObserver(Observer* obs) {
+  AutoLock locked(lock_);
+  DCHECK(base::Contains(observers_, obs));
+  base::Erase(observers_, obs);
 }
 
 void ThreadIdNameManager::SetName(const std::string& name) {
@@ -74,10 +107,14 @@ void ThreadIdNameManager::SetName(const std::string& name) {
 
     auto id_to_handle_iter = thread_id_to_handle_.find(id);
 
-    GetThreadNameTLS().Set(const_cast<char*>(leaked_str->c_str()));
-    if (set_name_callback_) {
-      set_name_callback_.Run(leaked_str->c_str());
-    }
+#if defined(STARBOARD)
+    EnsureThreadLocalKeyInited();
+    SbThreadSetLocalValue(s_thread_local_key, const_cast<char*>(leaked_str->c_str()));
+#else
+    thread_name = leaked_str->c_str();
+#endif
+    for (Observer* obs : observers_)
+      obs->OnThreadNameChanged(leaked_str->c_str());
 
     // The main thread of a process will not be created as a Thread object which
     // means there is no PlatformThreadHandler registered.
@@ -114,8 +151,11 @@ const char* ThreadIdNameManager::GetName(PlatformThreadId id) {
 }
 
 const char* ThreadIdNameManager::GetNameForCurrentThread() {
-  const char* name = reinterpret_cast<const char*>(GetThreadNameTLS().Get());
-  return name ? name : kDefaultName;
+#if defined(STARBOARD)
+  return GetThreadName();
+#else
+  return thread_name;
+#endif
 }
 
 void ThreadIdNameManager::RemoveName(PlatformThreadHandle::Handle handle,
@@ -134,6 +174,17 @@ void ThreadIdNameManager::RemoveName(PlatformThreadHandle::Handle handle,
     return;
 
   thread_id_to_handle_.erase(id_to_handle_iter);
+}
+
+std::vector<PlatformThreadId> ThreadIdNameManager::GetIds() {
+  AutoLock locked(lock_);
+
+  std::vector<PlatformThreadId> ids;
+  ids.reserve(thread_id_to_handle_.size());
+  for (const auto& iter : thread_id_to_handle_)
+    ids.push_back(iter.first);
+
+  return ids;
 }
 
 }  // namespace base

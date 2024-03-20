@@ -19,7 +19,9 @@
 #include <utility>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/threading/thread_task_runner_handle.h"
+#include "cobalt/network/custom/url_request_status.h"
 #include "cobalt/network/network_module.h"
 #include "net/base/net_errors.h"
 
@@ -33,7 +35,8 @@ NetPoster::~NetPoster() {}
 
 void NetPoster::Send(const GURL& url, const std::string& content_type,
                      const std::string& data) {
-  if (network_module_->task_runner() != base::ThreadTaskRunnerHandle::Get()) {
+  if (network_module_->task_runner() !=
+      base::SequencedTaskRunner::GetCurrentDefault()) {
     network_module_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&NetPoster::Send, base::Unretained(this), url,
                               content_type, data));
@@ -58,12 +61,14 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
   fetchers_.push_back(std::move(url_fetcher));
 }
 
+void NetPoster::OnReadCompleted(net::URLRequest* request, int bytes_read) {}
+
 void NetPoster::OnURLFetchComplete(const net::URLFetcher* source) {
   // Make sure the thread that created the fetcher is the same one that deletes
   // it. Otherwise we have unsafe access to the fetchers_ list.
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(),
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
             network_module_->task_runner());
-  net::URLRequestStatus status = source->GetStatus();
+  auto status = net::URLRequestStatus::FromError(source->GetStatus());
   if (!status.is_success()) {
     DLOG(WARNING) << "NetPoster failed to POST to " << source->GetURL()
                   << " with error " << net::ErrorToString(status.error());

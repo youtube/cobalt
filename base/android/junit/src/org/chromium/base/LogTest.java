@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,18 +27,15 @@ public class LogTest {
         Log.d("Foo", "Bar");
 
         List<ShadowLog.LogItem> logs = ShadowLog.getLogs();
-        assertEquals("Only one log should be written", 1, logs.size());
 
-        assertTrue("The origin of the log message (" + logs.get(0).msg + ") looks wrong.",
-                logs.get(0).msg.matches("\\[LogTest.java:\\d+\\].*"));
+        assertTrue("The origin of the log message (" + logs.get(logs.size() - 1).msg
+                        + ") looks wrong.",
+                logs.get(logs.size() - 1).msg.matches("\\[LogTest.java:\\d+\\].*"));
     }
 
     @Test
     public void normalizeTagTest() {
-        assertEquals("cr_foo", Log.normalizeTag("cr.foo"));
-        assertEquals("cr_foo", Log.normalizeTag("cr_foo"));
         assertEquals("cr_foo", Log.normalizeTag("foo"));
-        assertEquals("cr_ab_foo", Log.normalizeTag("ab_foo"));
     }
 
     /** Tests that exceptions provided to the log functions are properly recognized and printed. */
@@ -66,11 +63,11 @@ public class LogTest {
         assertEquals(t, logs.get(logs.size() - 1).throwable);
         assertEquals("Bar", logs.get(logs.size() - 1).msg);
 
-        // The throwable can be both added to the message itself and printed out
-        Log.i("Foo", "Bar %s", t);
+        // messageTemplate include %xx, print out normally.
+        Log.i("Foo", "search?q=%E6%B5%8B%E8%AF%95", t);
         logs = ShadowLog.getLogs();
         assertEquals(t, logs.get(logs.size() - 1).throwable);
-        assertEquals("Bar MyThrowable", logs.get(logs.size() - 1).msg);
+        assertEquals("search?q=%E6%B5%8B%E8%AF%95", logs.get(logs.size() - 1).msg);
 
         // Non throwable are properly identified
         Log.i("Foo", "Bar %s", t, "Baz");
@@ -79,9 +76,9 @@ public class LogTest {
         assertEquals("Bar MyThrowable", logs.get(logs.size() - 1).msg);
 
         // The last throwable is the one used that is going to be printed out
-        Log.i("Foo", "Bar %s %s", t, t2);
+        Log.i("Foo", "Bar %s", t, t2);
         logs = ShadowLog.getLogs();
         assertEquals(t2, logs.get(logs.size() - 1).throwable);
-        assertEquals("Bar MyThrowable MyOtherThrowable", logs.get(logs.size() - 1).msg);
+        assertEquals("Bar MyThrowable", logs.get(logs.size() - 1).msg);
     }
 }

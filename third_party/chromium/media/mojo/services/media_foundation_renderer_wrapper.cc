@@ -4,7 +4,7 @@
 
 #include "media/mojo/services/media_foundation_renderer_wrapper.h"
 
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "media/base/win/mf_helpers.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/mojo/services/mojo_media_log.h"

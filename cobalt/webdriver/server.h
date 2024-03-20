@@ -21,6 +21,7 @@
 
 #include "base/containers/hash_tables.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_checker.h"
 #include "base/values.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/webdriver/protocol/server_status.h"
@@ -96,7 +97,7 @@ class WebDriverServer : public net::HttpServer::Delegate {
 
   void OnWebSocketRequest(int, const net::HttpServerRequestInfo&) override {}
 
-  void OnWebSocketMessage(int, const std::string&) override {}
+  void OnWebSocketMessage(int, std::string) override {}
 
   void OnClose(int) override {}  // NOLINT(readability/casting)
 

@@ -14,6 +14,8 @@ is broad applicability.
 
 ### Design and naming
 
+Fundamental [//base principles](../README.md#design-and-naming) apply, i.e.:
+
 Containers should adhere as closely to STL as possible. Functions and behaviors
 not present in STL should only be added when they are related to the specific
 data structure implemented by the container.
@@ -27,30 +29,40 @@ Google naming. Be sure to use the base namespace.
 
 ### Usage advice
 
-  * Generally avoid `std::unordered_set` and `std::unordered_map`. In the
-    common case, query performance is unlikely to be sufficiently higher than
-    `std::map` to make a difference, insert performance is slightly worse, and
-    the memory overhead is high. This makes sense mostly for large tables where
-    you expect a lot of lookups.
+*   Do not use `base::flat_map` or `base::flat_set` if the number of items will
+    be large or unbounded and elements will be inserted/deleted outside of the
+    containers constructor/destructor - they have O(n) performance on inserts
+    and deletes of individual items.
 
-  * Most maps and sets in Chrome are small and contain objects that can be
-    moved efficiently. In this case, consider `base::flat_map` and
-    `base::flat_set`. You need to be aware of the maximum expected size of
-    the container since individual inserts and deletes are O(n), giving O(n^2)
-    construction time for the entire map. But because it avoids mallocs in most
-    cases, inserts are better or comparable to other containers even for
-    several dozen items, and efficiently-moved types are unlikely to have
-    performance problems for most cases until you have hundreds of items. If
-    your container can be constructed in one shot, the constructor from vector
-    gives O(n log n) construction times and it should be strictly better than
-    a `std::map`.
+*   Do not default to using `std::unordered_set` and `std::unordered_map`. In
+    the common case, query performance is unlikely to be sufficiently higher
+    than `std::map` to make a difference, insert performance is slightly worse,
+    and the memory overhead is high. This makes sense mostly for large tables
+    where you expect a lot of lookups.
 
-  * `base::small_map` has better runtime memory usage without the poor
-    mutation performance of large containers that `base::flat_map` has. But this
-    advantage is partially offset by additional code size. Prefer in cases
-    where you make many objects so that the code/heap tradeoff is good.
+*   Most maps and sets in Chrome are small and contain objects that can be moved
+    efficiently. In this case, consider `base::flat_map` and `base::flat_set`.
+    You need to be aware of the maximum expected size of the container since
+    individual inserts and deletes are O(n), giving O(n^2) construction time for
+    the entire map. But because it avoids mallocs in most cases, inserts are
+    better or comparable to other containers even for several dozen items, and
+    efficiently-moved types are unlikely to have performance problems for most
+    cases until you have hundreds of items. If your container can be constructed
+    in one shot, the constructor from vector gives O(n log n) construction times
+    and it should be strictly better than a `std::map`.
 
-  * Use `std::map` and `std::set` if you can't decide. Even if they're not
+    Conceptually inserting a range of n elements into a `base::flat_map` or
+    `base::flat_set` behaves as if insert() was called for each individually
+    element. Thus in case the input range contains repeated elements, only the
+    first one of these duplicates will be inserted into the container. This
+    behaviour applies to construction from a range as well.
+
+*   `base::small_map` has better runtime memory usage without the poor mutation
+    performance of large containers that `base::flat_map` has. But this
+    advantage is partially offset by additional code size. Prefer in cases where
+    you make many objects so that the code/heap tradeoff is good.
+
+*   Use `std::map` and `std::set` if you can't decide. Even if they're not
     great, they're unlikely to be bad or surprising.
 
 ### Map and set details
@@ -58,12 +70,12 @@ Google naming. Be sure to use the base namespace.
 Sizes are on 64-bit platforms. Stable iterators aren't invalidated when the
 container is mutated.
 
-| Container                                  | Empty size            | Per-item overhead | Stable iterators? |
-|:------------------------------------------ |:--------------------- |:----------------- |:----------------- |
-| `std::map`, `std::set`                     | 16 bytes              | 32 bytes          | Yes               |
-| `std::unordered_map`, `std::unordered_set` | 128 bytes             | 16 - 24 bytes     | No                |
-| `base::flat_map`, `base::flat_set`         | 24 bytes              | 0 (see notes)     | No                |
-| `base::small_map`                          | 24 bytes (see notes)  | 32 bytes          | No                |
+| Container                                  | Empty size            | Per-item overhead | Stable iterators? | Insert/delete complexity     |
+|:------------------------------------------ |:--------------------- |:----------------- |:----------------- |:-----------------------------|
+| `std::map`, `std::set`                     | 16 bytes              | 32 bytes          | Yes               | O(log n)                     |
+| `std::unordered_map`, `std::unordered_set` | 128 bytes             | 16 - 24 bytes     | No                | O(1)                         |
+| `base::flat_map`, `base::flat_set`         | 24 bytes              | 0 (see notes)     | No                | O(n)                         |
+| `base::small_map`                          | 24 bytes (see notes)  | 32 bytes          | No                | depends on fallback map type |
 
 **Takeaways:** `std::unordered_map` and `std::unordered_set` have high
 overhead for small container sizes, so prefer these only for larger workloads.
@@ -153,7 +165,7 @@ std::generate_n(std::back_inserter(ptr_vec), 5, []{
 });
 
 // Construct a set.
-UniquePtrSet<int> ptr_set(std::move(ptr_vec), base::KEEP_FIRST_OF_DUPES);
+UniquePtrSet<int> ptr_set(std::move(ptr_vec));
 
 // Use raw pointers to lookup keys.
 int* ptr = ptr_set.begin()->get();
@@ -163,8 +175,7 @@ EXPECT_TRUE(ptr_set.find(ptr) == ptr_set.begin());
 Example `flat_map<std::string, int>`:
 
 ```cpp
-base::flat_map<std::string, int> str_to_int({{"a", 1}, {"c", 2},{"b", 2}},
-                                            base::KEEP_FIRST_OF_DUPES);
+base::flat_map<std::string, int> str_to_int({{"a", 1}, {"c", 2},{"b", 2}});
 
 // Does not construct temporary strings.
 str_to_int.find("c")->second = 3;
@@ -176,6 +187,34 @@ EXPECT_EQ(str_to_int.end(), str_to_int.find("c")->second);
 // something that transparent comparators don't have to guarantee.
 str_to_int["c"] = 3;
 ```
+
+### base::fixed\_flat\_map and base::fixed\_flat\_set
+
+These are specializations of `base::flat_map` and `base::flat_set` that operate
+on a sorted `std::array` instead of a sorted `std::vector`. These containers
+have immutable keys, and don't support adding or removing elements once they are
+constructed. However, these containers are constructed on the stack and don't
+have any space overhead compared to a plain array. Furthermore, these containers
+are constexpr friendly (assuming the key and mapped types are), and thus can be
+used as compile time lookup tables.
+
+To aid their constructions type deduction helpers in the form of
+`base::MakeFixedFlatMap` and `base::MakeFixedFlatSet` are provided. While these
+helpers can deal with unordered data, they require that keys are not repeated.
+This precondition is CHECKed, failing compilation if this precondition is
+violated in a constexpr context.
+
+Example:
+
+```cpp
+constexpr auto kSet = base::MakeFixedFlatSet<int>(1, 2, 3);
+
+constexpr auto kMap = base::MakeFixedFlatMap<base::StringPiece, int>(
+    {{"foo", 1}, {"bar", 2}, {"baz", 3}});
+```
+
+Both `MakeFixedFlatSet` and `MakeFixedFlatMap` require callers to explicitly
+specify the key (and mapped) type.
 
 ### base::small\_map
 
@@ -204,7 +243,7 @@ The `base::circular_deque` implementation (and the `base::queue` which uses it)
 provide performance consistent across platforms that better matches most
 programmer's expectations on performance (it doesn't waste as much space as
 libc++ and doesn't do as many heap allocations as MSVC). It also generates less
-code tham `std::queue`: using it across the code base saves several hundred
+code than `std::queue`: using it across the code base saves several hundred
 kilobytes.
 
 Since `base::deque` does not have stable iterators and it will move the objects
@@ -285,7 +324,7 @@ As of 8 August 2018, we have added checks to the following classes:
 
 - `base::StringPiece`
 - `base::span`
-- `base::Optional`
+- `base::optional`
 - `base::RingBuffer`
 - `base::small_map`
 

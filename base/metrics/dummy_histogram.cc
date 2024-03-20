@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,11 @@
 
 #include <memory>
 
-#include "base/logging.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/metrics_hashes.h"
+#include "base/no_destructor.h"
+#include "base/notreached.h"
+#include "base/values.h"
 
 namespace base {
 
@@ -17,28 +19,27 @@ namespace {
 // Helper classes for DummyHistogram.
 class DummySampleCountIterator : public SampleCountIterator {
  public:
-  DummySampleCountIterator() {}
-  ~DummySampleCountIterator() override {}
+  DummySampleCountIterator() = default;
+  DummySampleCountIterator(const DummySampleCountIterator&) = delete;
+  DummySampleCountIterator& operator=(const DummySampleCountIterator&) = delete;
+  ~DummySampleCountIterator() override = default;
 
   // SampleCountIterator:
   bool Done() const override { return true; }
   void Next() override { NOTREACHED(); }
   void Get(HistogramBase::Sample* min,
            int64_t* max,
-           HistogramBase::Count* count) const override {
+           HistogramBase::Count* count) override {
     NOTREACHED();
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(DummySampleCountIterator);
 };
 
 class DummyHistogramSamples : public HistogramSamples {
  public:
-  explicit DummyHistogramSamples() : HistogramSamples(0, new LocalMetadata()) {}
-  ~DummyHistogramSamples() override {
-    delete static_cast<LocalMetadata*>(meta());
-  }
+  DummyHistogramSamples()
+      : HistogramSamples(0, std::make_unique<LocalMetadata>()) {}
+  DummyHistogramSamples(const DummyHistogramSamples&) = delete;
+  DummyHistogramSamples& operator=(const DummyHistogramSamples&) = delete;
 
   // HistogramSamples:
   void Accumulate(HistogramBase::Sample value,
@@ -52,12 +53,12 @@ class DummyHistogramSamples : public HistogramSamples {
   std::unique_ptr<SampleCountIterator> Iterator() const override {
     return std::make_unique<DummySampleCountIterator>();
   }
+  std::unique_ptr<SampleCountIterator> ExtractingIterator() override {
+    return std::make_unique<DummySampleCountIterator>();
+  }
   bool AddSubtractImpl(SampleCountIterator* iter, Operator op) override {
     return true;
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(DummyHistogramSamples);
 };
 
 }  // namespace
@@ -79,7 +80,7 @@ HistogramType DummyHistogram::GetHistogramType() const {
 bool DummyHistogram::HasConstructionArguments(
     Sample expected_minimum,
     Sample expected_maximum,
-    uint32_t expected_bucket_count) const {
+    size_t expected_bucket_count) const {
   return true;
 }
 
@@ -91,12 +92,25 @@ std::unique_ptr<HistogramSamples> DummyHistogram::SnapshotSamples() const {
   return std::make_unique<DummyHistogramSamples>();
 }
 
+std::unique_ptr<HistogramSamples> DummyHistogram::SnapshotUnloggedSamples()
+    const {
+  return std::make_unique<DummyHistogramSamples>();
+}
+
 std::unique_ptr<HistogramSamples> DummyHistogram::SnapshotDelta() {
   return std::make_unique<DummyHistogramSamples>();
 }
 
 std::unique_ptr<HistogramSamples> DummyHistogram::SnapshotFinalDelta() const {
   return std::make_unique<DummyHistogramSamples>();
+}
+
+Value::Dict DummyHistogram::ToGraphDict() const {
+  return Value::Dict();
+}
+
+Value::Dict DummyHistogram::GetParameters() const {
+  return Value::Dict();
 }
 
 }  // namespace base

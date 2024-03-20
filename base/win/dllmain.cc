@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -86,7 +86,7 @@ PIMAGE_TLS_CALLBACK p_thread_callback_dllmain_typical_entry = on_callback;
 
 // Custom crash code to get a unique entry in crash reports.
 NOINLINE static void CrashOnProcessDetach() {
-  *static_cast<volatile int*>(0) = 0x356;
+  *static_cast<volatile int*>(nullptr) = 0x356;
 }
 
 // Make DllMain call the listed callbacks.  This way any third parties that are
@@ -102,7 +102,7 @@ BOOL WINAPI DllMain(PVOID h, DWORD reason, PVOID reserved) {
     return true;  // Some other service is doing this work.
 
   for (PIMAGE_TLS_CALLBACK* it = &__xl_a; it < &__xl_z; ++it) {
-    if (*it == NULL || *it == on_callback)
+    if (*it == nullptr || *it == on_callback)
       continue;  // Don't bother to call our own callback.
     (*it)(h, reason, reserved);
   }

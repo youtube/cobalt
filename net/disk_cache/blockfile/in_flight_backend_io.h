@@ -1,22 +1,23 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DISK_CACHE_BLOCKFILE_IN_FLIGHT_BACKEND_IO_H_
 #define NET_DISK_CACHE_BLOCKFILE_IN_FLIGHT_BACKEND_IO_H_
 
-#include <list>
+#include <stdint.h>
+
 #include <string>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
-#include "base/single_thread_task_runner.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/disk_cache/blockfile/in_flight_io.h"
 #include "net/disk_cache/blockfile/rankings.h"
-#include "starboard/types.h"
+#include "net/disk_cache/disk_cache.h"
 
 namespace base {
 class Location;
@@ -25,16 +26,27 @@ class Location;
 namespace disk_cache {
 
 class BackendImpl;
-class Entry;
 class EntryImpl;
+class InFlightBackendIO;
 
 // This class represents a single asynchronous disk cache IO operation while it
 // is being bounced between threads.
 class BackendIO : public BackgroundIO {
  public:
-  BackendIO(InFlightIO* controller,
+  BackendIO(InFlightBackendIO* controller,
             BackendImpl* backend,
             net::CompletionOnceCallback callback);
+
+  BackendIO(InFlightBackendIO* controller,
+            BackendImpl* backend,
+            EntryResultCallback callback);
+
+  BackendIO(InFlightBackendIO* controller,
+            BackendImpl* backend,
+            RangeResultCallback callback);
+
+  BackendIO(const BackendIO&) = delete;
+  BackendIO& operator=(const BackendIO&) = delete;
 
   // Runs the actual operation on the background thread.
   void ExecuteOperation();
@@ -52,17 +64,28 @@ class BackendIO : public BackgroundIO {
   bool has_callback() const { return !callback_.is_null(); }
   void RunCallback(int result);
 
+  bool has_entry_result_callback() const {
+    return !entry_result_callback_.is_null();
+  }
+  void RunEntryResultCallback();
+
+  bool has_range_result_callback() const {
+    return !range_result_callback_.is_null();
+  }
+  void RunRangeResultCallback();
+
   // The operations we proxy:
   void Init();
-  void OpenEntry(const std::string& key, Entry** entry);
-  void CreateEntry(const std::string& key, Entry** entry);
+  void OpenOrCreateEntry(const std::string& key);
+  void OpenEntry(const std::string& key);
+  void CreateEntry(const std::string& key);
   void DoomEntry(const std::string& key);
   void DoomAllEntries();
   void DoomEntriesBetween(const base::Time initial_time,
                           const base::Time end_time);
   void DoomEntriesSince(const base::Time initial_time);
   void CalculateSizeOfAllEntries();
-  void OpenNextEntry(Rankings::Iterator* iterator, Entry** next_entry);
+  void OpenNextEntry(Rankings::Iterator* iterator);
   void EndEnumeration(std::unique_ptr<Rankings::Iterator> iterator);
   void OnExternalCacheHit(const std::string& key);
   void CloseEntryImpl(EntryImpl* entry);
@@ -81,14 +104,13 @@ class BackendIO : public BackgroundIO {
                        int64_t offset,
                        net::IOBuffer* buf,
                        int buf_len);
-  void GetAvailableRange(EntryImpl* entry,
-                         int64_t offset,
-                         int len,
-                         int64_t* start);
+  void GetAvailableRange(EntryImpl* entry, int64_t offset, int len);
   void CancelSparseIO(EntryImpl* entry);
   void ReadyForSparseIO(EntryImpl* entry);
 
  private:
+  BackendIO(InFlightBackendIO* controller, BackendImpl* backend);
+
   // There are two types of operations to proxy: regular backend operations are
   // executed sequentially (queued by the message loop). On the other hand,
   // operations targeted to a given entry can be long lived and support multiple
@@ -97,6 +119,7 @@ class BackendIO : public BackgroundIO {
   enum Operation {
     OP_NONE = 0,
     OP_INIT,
+    OP_OPEN_OR_CREATE,
     OP_OPEN,
     OP_CREATE,
     OP_DOOM,
@@ -132,29 +155,37 @@ class BackendIO : public BackgroundIO {
   void ExecuteBackendOperation();
   void ExecuteEntryOperation();
 
-  BackendImpl* backend_;
+  raw_ptr<BackendImpl, DanglingUntriaged> backend_;
   net::CompletionOnceCallback callback_;
-  Operation operation_;
+  Operation operation_ = OP_NONE;
+
+  // Used for ops that open or create entries.
+  EntryResultCallback entry_result_callback_;
+  // if set, already has the user's ref added.
+  raw_ptr<EntryImpl, DanglingUntriaged> out_entry_ = nullptr;
+  bool out_entry_opened_ = false;
+
+  // For GetAvailableRange
+  RangeResultCallback range_result_callback_;
+  RangeResult range_result_;
 
   // The arguments of all the operations we proxy:
   std::string key_;
-  Entry** entry_ptr_;
   base::Time initial_time_;
   base::Time end_time_;
-  Rankings::Iterator* iterator_;
+  raw_ptr<Rankings::Iterator> iterator_ = nullptr;
   std::unique_ptr<Rankings::Iterator> scoped_iterator_;
-  EntryImpl* entry_;
-  int index_;
-  int offset_;
+  raw_ptr<EntryImpl, DanglingUntriaged> entry_ = nullptr;
+  int index_ = 0;
+  int offset_ = 0;
   scoped_refptr<net::IOBuffer> buf_;
-  int buf_len_;
-  bool truncate_;
-  int64_t offset64_;
-  int64_t* start_;
+  int buf_len_ = 0;
+  bool truncate_ = false;
+  int64_t offset64_ = 0;
   base::TimeTicks start_time_;
   base::OnceClosure task_;
 
-  DISALLOW_COPY_AND_ASSIGN(BackendIO);
+  scoped_refptr<base::SingleThreadTaskRunner> background_task_runner_;
 };
 
 // The specialized controller that keeps track of current operations.
@@ -163,16 +194,17 @@ class InFlightBackendIO : public InFlightIO {
   InFlightBackendIO(
       BackendImpl* backend,
       const scoped_refptr<base::SingleThreadTaskRunner>& background_thread);
+
+  InFlightBackendIO(const InFlightBackendIO&) = delete;
+  InFlightBackendIO& operator=(const InFlightBackendIO&) = delete;
+
   ~InFlightBackendIO() override;
 
   // Proxied operations.
   void Init(net::CompletionOnceCallback callback);
-  void OpenEntry(const std::string& key,
-                 Entry** entry,
-                 net::CompletionOnceCallback callback);
-  void CreateEntry(const std::string& key,
-                   Entry** entry,
-                   net::CompletionOnceCallback callback);
+  void OpenOrCreateEntry(const std::string& key, EntryResultCallback callback);
+  void OpenEntry(const std::string& key, EntryResultCallback callback);
+  void CreateEntry(const std::string& key, EntryResultCallback callback);
   void DoomEntry(const std::string& key, net::CompletionOnceCallback callback);
   void DoomAllEntries(net::CompletionOnceCallback callback);
   void DoomEntriesBetween(const base::Time initial_time,
@@ -182,8 +214,7 @@ class InFlightBackendIO : public InFlightIO {
                         net::CompletionOnceCallback callback);
   void CalculateSizeOfAllEntries(net::CompletionOnceCallback callback);
   void OpenNextEntry(Rankings::Iterator* iterator,
-                     Entry** next_entry,
-                     net::CompletionOnceCallback callback);
+                     EntryResultCallback callback);
   void EndEnumeration(std::unique_ptr<Rankings::Iterator> iterator);
   void OnExternalCacheHit(const std::string& key);
   void CloseEntryImpl(EntryImpl* entry);
@@ -216,8 +247,7 @@ class InFlightBackendIO : public InFlightIO {
   void GetAvailableRange(EntryImpl* entry,
                          int64_t offset,
                          int len,
-                         int64_t* start,
-                         net::CompletionOnceCallback callback);
+                         RangeResultCallback callback);
   void CancelSparseIO(EntryImpl* entry);
   void ReadyForSparseIO(EntryImpl* entry, net::CompletionOnceCallback callback);
 
@@ -240,11 +270,9 @@ class InFlightBackendIO : public InFlightIO {
 
  private:
   void PostOperation(const base::Location& from_here, BackendIO* operation);
-  BackendImpl* backend_;
+  raw_ptr<BackendImpl> backend_;
   scoped_refptr<base::SingleThreadTaskRunner> background_thread_;
-  base::WeakPtrFactory<InFlightBackendIO> ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(InFlightBackendIO);
+  base::WeakPtrFactory<InFlightBackendIO> ptr_factory_{this};
 };
 
 }  // namespace disk_cache

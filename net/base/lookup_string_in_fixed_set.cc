@@ -1,10 +1,10 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/lookup_string_in_fixed_set.h"
 
-#include "base/logging.h"
+#include "base/check.h"
 
 namespace net {
 
@@ -71,7 +71,7 @@ bool GetReturnValue(const unsigned char* offset, int* return_value) {
 
 FixedSetIncrementalLookup::FixedSetIncrementalLookup(const unsigned char* graph,
                                                      size_t length)
-    : pos_(graph), end_(graph + length), pos_is_label_character_(false) {}
+    : pos_(graph), end_(graph + length) {}
 
 FixedSetIncrementalLookup::FixedSetIncrementalLookup(
     const FixedSetIncrementalLookup& other) = default;
@@ -193,6 +193,40 @@ int LookupStringInFixedSet(const unsigned char* graph,
   // The entire input was consumed without reaching the end of the graph. Return
   // the result code (if present) for the current position, or kDafsaNotFound.
   return lookup.GetResultForCurrentSequence();
+}
+
+// This function is only used by GetRegistryLengthInStrippedHost(), but is
+// implemented here to allow inlining of
+// LookupStringInFixedSet::GetResultForCurrentSequence() and
+// LookupStringInFixedSet::Advance() at compile time. Tests on x86_64 linux
+// indicated about 10% increased runtime cost for GetRegistryLength() in average
+// if the implementation of this function was separated from the lookup methods.
+int LookupSuffixInReversedSet(const unsigned char* graph,
+                              size_t length,
+                              bool include_private,
+                              base::StringPiece host,
+                              size_t* suffix_length) {
+  FixedSetIncrementalLookup lookup(graph, length);
+  *suffix_length = 0;
+  int result = kDafsaNotFound;
+  base::StringPiece::const_iterator pos = host.end();
+  // Look up host from right to left.
+  while (pos != host.begin() && lookup.Advance(*--pos)) {
+    // Only host itself or a part that follows a dot can match.
+    if (pos == host.begin() || *(pos - 1) == '.') {
+      int value = lookup.GetResultForCurrentSequence();
+      if (value != kDafsaNotFound) {
+        // Break if private and private rules should be excluded.
+        if ((value & kDafsaPrivateRule) && !include_private)
+          break;
+        // Save length and return value. Since hosts are looked up from right to
+        // left, the last saved values will be from the longest match.
+        *suffix_length = host.end() - pos;
+        result = value;
+      }
+    }
+  }
+  return result;
 }
 
 }  // namespace net

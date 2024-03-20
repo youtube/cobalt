@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@ import android.accounts.Account;
 import android.accounts.AccountAuthenticatorResponse;
 import android.accounts.AccountManager;
 import android.accounts.AuthenticatorException;
-import android.accounts.NetworkErrorException;
 import android.accounts.OperationCanceledException;
 import android.app.Activity;
 import android.content.Context;
@@ -19,6 +18,7 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeClassQualifiedName;
+import org.chromium.base.annotations.NativeMethods;
 import org.chromium.net.HttpNegotiateConstants;
 
 import java.io.IOException;
@@ -48,7 +48,7 @@ public class DummySpnegoAuthenticator extends AbstractAccountAuthenticator {
 
     @Override
     public Bundle addAccount(AccountAuthenticatorResponse arg0, String accountType, String arg2,
-            String[] arg3, Bundle arg4) throws NetworkErrorException {
+            String[] arg3, Bundle arg4) {
         Bundle result = new Bundle();
         result.putInt(AccountManager.KEY_ERROR_CODE, AccountManager.ERROR_CODE_BAD_REQUEST);
         result.putString(AccountManager.KEY_ERROR_MESSAGE, "Can't add new SPNEGO accounts");
@@ -56,8 +56,7 @@ public class DummySpnegoAuthenticator extends AbstractAccountAuthenticator {
     }
 
     @Override
-    public Bundle confirmCredentials(AccountAuthenticatorResponse arg0, Account arg1, Bundle arg2)
-            throws NetworkErrorException {
+    public Bundle confirmCredentials(AccountAuthenticatorResponse arg0, Account arg1, Bundle arg2) {
         Bundle result = new Bundle();
         result.putBoolean(AccountManager.KEY_BOOLEAN_RESULT, true);
         return result;
@@ -70,21 +69,23 @@ public class DummySpnegoAuthenticator extends AbstractAccountAuthenticator {
 
     @Override
     public Bundle getAuthToken(AccountAuthenticatorResponse response, Account account,
-            String authTokenType, Bundle options) throws NetworkErrorException {
-        long nativeQuery = nativeGetNextQuery(sNativeDummySpnegoAuthenticator);
+            String authTokenType, Bundle options) {
+        long nativeQuery =
+                DummySpnegoAuthenticatorJni.get().getNextQuery(sNativeDummySpnegoAuthenticator);
         String incomingToken = options.getString(HttpNegotiateConstants.KEY_INCOMING_AUTH_TOKEN);
-        nativeCheckGetTokenArguments(nativeQuery, incomingToken);
+        DummySpnegoAuthenticatorJni.get().checkGetTokenArguments(nativeQuery, incomingToken);
         Bundle result = new Bundle();
         result.putString(AccountManager.KEY_ACCOUNT_NAME, account.name);
         result.putString(AccountManager.KEY_ACCOUNT_TYPE, account.type);
-        result.putString(AccountManager.KEY_AUTHTOKEN, nativeGetTokenToReturn(nativeQuery));
+        result.putString(AccountManager.KEY_AUTHTOKEN,
+                DummySpnegoAuthenticatorJni.get().getTokenToReturn(nativeQuery));
         result.putInt(HttpNegotiateConstants.KEY_SPNEGO_RESULT,
-                decodeResult(nativeGetResult(nativeQuery)));
+                decodeResult(DummySpnegoAuthenticatorJni.get().getResult(nativeQuery)));
         return result;
     }
 
     /**
-     * @param nativeGetResult
+     * @param DummySpnegoAuthenticatorJni.get().getResult
      * @return
      */
     private int decodeResult(int gssApiResult) {
@@ -106,8 +107,7 @@ public class DummySpnegoAuthenticator extends AbstractAccountAuthenticator {
     }
 
     @Override
-    public Bundle hasFeatures(AccountAuthenticatorResponse arg0, Account arg1, String[] features)
-            throws NetworkErrorException {
+    public Bundle hasFeatures(AccountAuthenticatorResponse arg0, Account arg1, String[] features) {
         Bundle result = new Bundle();
         for (String feature : features) {
             if (!feature.equals(HttpNegotiateConstants.SPNEGO_FEATURE)) {
@@ -120,8 +120,8 @@ public class DummySpnegoAuthenticator extends AbstractAccountAuthenticator {
     }
 
     @Override
-    public Bundle updateCredentials(AccountAuthenticatorResponse arg0, Account arg1, String arg2,
-            Bundle arg3) throws NetworkErrorException {
+    public Bundle updateCredentials(
+            AccountAuthenticatorResponse arg0, Account arg1, String arg2, Bundle arg3) {
         Bundle result = new Bundle();
         result.putInt(AccountManager.KEY_ERROR_CODE, AccountManager.ERROR_CODE_BAD_REQUEST);
         result.putString(AccountManager.KEY_ERROR_MESSAGE, "Can't add new SPNEGO accounts");
@@ -165,22 +165,25 @@ public class DummySpnegoAuthenticator extends AbstractAccountAuthenticator {
         sNativeDummySpnegoAuthenticator = nativeDummySpnegoAuthenticator;
     }
 
-    /**
-     * Send the relevant decoded arguments of getAuthToken to C++ for checking by googletest checks
-     * If the checks fail then the C++ unit test using this authenticator will fail.
-     *
-     * @param authTokenType
-     * @param spn
-     * @param incomingToken
-     */
-    @NativeClassQualifiedName("DummySpnegoAuthenticator::SecurityContextQuery")
-    private native void nativeCheckGetTokenArguments(long nativeQuery, String incomingToken);
+    @NativeMethods
+    interface Natives {
+        /**
+         * Send the relevant decoded arguments of getAuthToken to C++ for checking by googletest
+         * checks If the checks fail then the C++ unit test using this authenticator will fail.
+         *
+         * @param authTokenType
+         * @param spn
+         * @param incomingToken
+         */
+        @NativeClassQualifiedName("DummySpnegoAuthenticator::SecurityContextQuery")
+        void checkGetTokenArguments(long nativeQuery, String incomingToken);
 
-    @NativeClassQualifiedName("DummySpnegoAuthenticator::SecurityContextQuery")
-    private native String nativeGetTokenToReturn(long nativeQuery);
+        @NativeClassQualifiedName("DummySpnegoAuthenticator::SecurityContextQuery")
+        String getTokenToReturn(long nativeQuery);
 
-    @NativeClassQualifiedName("DummySpnegoAuthenticator::SecurityContextQuery")
-    private native int nativeGetResult(long nativeQuery);
+        @NativeClassQualifiedName("DummySpnegoAuthenticator::SecurityContextQuery")
+        int getResult(long nativeQuery);
 
-    private native long nativeGetNextQuery(long nativeDummySpnegoAuthenticator);
+        long getNextQuery(long nativeDummySpnegoAuthenticator);
+    }
 }

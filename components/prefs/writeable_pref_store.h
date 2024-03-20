@@ -38,7 +38,7 @@ class COMPONENTS_PREFS_EXPORT WriteablePrefStore : public PrefStore {
   // Sets a |value| for |key| in the store. |value| must be non-NULL. |flags| is
   // a bitmask of PrefWriteFlags.
   virtual void SetValue(const std::string& key,
-                        std::unique_ptr<base::Value> value,
+                        base::Value value,
                         uint32_t flags) = 0;
 
   // Removes the value for |key|.
@@ -73,7 +73,7 @@ class COMPONENTS_PREFS_EXPORT WriteablePrefStore : public PrefStore {
   // tests rely on the number of notifications generated. |flags| is a bitmask
   // of PrefWriteFlags.
   virtual void SetValueSilently(const std::string& key,
-                                std::unique_ptr<base::Value> value,
+                                base::Value value,
                                 uint32_t flags) = 0;
 
  protected:

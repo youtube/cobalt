@@ -1,27 +1,28 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/upload_file_element_reader.h"
+
+#include <stdint.h>
 
 #include <limits>
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/run_loop.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/test/gtest_util.h"
-#include "net/test/test_with_scoped_task_environment.h"
+#include "net/test/test_with_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
 #include "base/mac/scoped_nsautorelease_pool.h"
-#include "starboard/types.h"
 #endif
 
 using net::test::IsError;
@@ -33,7 +34,7 @@ namespace net {
 // FilePath and needs to open the file itself. When it's true, it's passed an
 // already open base::File.
 class UploadFileElementReaderTest : public testing::TestWithParam<bool>,
-                                    public WithScopedTaskEnvironment {
+                                    public WithTaskEnvironment {
  protected:
   void SetUp() override {
     // Some tests (*.ReadPartially) rely on bytes_.size() being even.
@@ -44,9 +45,8 @@ class UploadFileElementReaderTest : public testing::TestWithParam<bool>,
 
     ASSERT_TRUE(
         base::CreateTemporaryFileInDir(temp_dir_.GetPath(), &temp_file_path_));
-    ASSERT_EQ(
-        static_cast<int>(bytes_.size()),
-        base::WriteFile(temp_file_path_, &bytes_[0], bytes_.size()));
+    ASSERT_TRUE(base::WriteFile(
+        temp_file_path_, base::StringPiece(bytes_.data(), bytes_.size())));
 
     reader_ =
         CreateReader(0, std::numeric_limits<uint64_t>::max(), base::Time());
@@ -71,29 +71,30 @@ class UploadFileElementReaderTest : public testing::TestWithParam<bool>,
       base::Time expected_modification_time) {
     if (GetParam()) {
       return std::make_unique<UploadFileElementReader>(
-          base::ThreadTaskRunnerHandle::Get().get(), temp_file_path_, offset,
-          length, expected_modification_time);
+          base::SingleThreadTaskRunner::GetCurrentDefault().get(),
+          temp_file_path_, offset, length, expected_modification_time);
     }
 
-    // The base::File::FLAG_SHARE_DELETE lets the file be deleted without the
-    // test fixture waiting on it to be closed.
+    // The base::File::FLAG_WIN_SHARE_DELETE lets the file be deleted without
+    // the test fixture waiting on it to be closed.
     int open_flags = base::File::FLAG_OPEN | base::File::FLAG_READ |
-                     base::File::FLAG_SHARE_DELETE;
-#if defined(OS_WIN)
+                     base::File::FLAG_WIN_SHARE_DELETE;
+#if BUILDFLAG(IS_WIN)
     // On Windows, file must be opened for asynchronous operation.
     open_flags |= base::File::FLAG_ASYNC;
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
     base::File file(temp_file_path_, open_flags);
     EXPECT_TRUE(file.IsValid());
     return std::make_unique<UploadFileElementReader>(
-        base::ThreadTaskRunnerHandle::Get().get(), std::move(file),
+        base::SingleThreadTaskRunner::GetCurrentDefault().get(),
+        std::move(file),
         // Use an incorrect path, to make sure that the file is never re-opened.
         base::FilePath(FILE_PATH_LITERAL("this_should_be_ignored")), offset,
         length, expected_modification_time);
   }
 
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
   // May be needed to avoid leaks on OSX.
   base::mac::ScopedNSAutoreleasePool scoped_pool_;
 #endif
@@ -295,7 +296,7 @@ TEST_P(UploadFileElementReaderTest, FileChanged) {
 
   // Expect one second before the actual modification time to simulate change.
   const base::Time expected_modification_time =
-      info.last_modified - base::TimeDelta::FromSeconds(1);
+      info.last_modified - base::Seconds(1);
   reader_ = CreateReader(0, std::numeric_limits<uint64_t>::max(),
                          expected_modification_time);
   TestCompletionCallback init_callback;
@@ -308,7 +309,7 @@ TEST_P(UploadFileElementReaderTest, InexactExpectedTimeStamp) {
   ASSERT_TRUE(base::GetFileInfo(temp_file_path_, &info));
 
   const base::Time expected_modification_time =
-      info.last_modified - base::TimeDelta::FromMilliseconds(900);
+      info.last_modified - base::Milliseconds(900);
   reader_ = CreateReader(0, std::numeric_limits<uint64_t>::max(),
                          expected_modification_time);
   TestCompletionCallback init_callback;
@@ -319,29 +320,15 @@ TEST_P(UploadFileElementReaderTest, InexactExpectedTimeStamp) {
 TEST_P(UploadFileElementReaderTest, WrongPath) {
   const base::FilePath wrong_path(FILE_PATH_LITERAL("wrong_path"));
   reader_ = std::make_unique<UploadFileElementReader>(
-      base::ThreadTaskRunnerHandle::Get().get(), wrong_path, 0,
+      base::SingleThreadTaskRunner::GetCurrentDefault().get(), wrong_path, 0,
       std::numeric_limits<uint64_t>::max(), base::Time());
   TestCompletionCallback init_callback;
   ASSERT_THAT(reader_->Init(init_callback.callback()), IsError(ERR_IO_PENDING));
-#if defined(STARBOARD)
-  // Starboard does not guarantee that all platforms will return specific
-  // error code. Some can only gurantee the general ERR_FAILED.
-  auto result = init_callback.WaitForResult();
-  EXPECT_TRUE(result == ERR_FILE_NOT_FOUND || result == ERR_FAILED);
-#else
   EXPECT_THAT(init_callback.WaitForResult(), IsError(ERR_FILE_NOT_FOUND));
-#endif
 }
 
-#ifdef STARBOARD
-bool values[] = {false, true};
-INSTANTIATE_TEST_CASE_P(,
-                        UploadFileElementReaderTest,
-                        testing::ValuesIn(values));
-#else
-INSTANTIATE_TEST_CASE_P(,
-                        UploadFileElementReaderTest,
-                        testing::ValuesIn({false, true}));
-#endif
+INSTANTIATE_TEST_SUITE_P(All,
+                         UploadFileElementReaderTest,
+                         testing::ValuesIn({false, true}));
 
 }  // namespace net

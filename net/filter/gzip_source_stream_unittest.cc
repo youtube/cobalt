@@ -1,19 +1,18 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <string>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/bit_cast.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "net/base/io_buffer.h"
 #include "net/base/test_completion_callback.h"
 #include "net/filter/filter_source_stream_test_util.h"
 #include "net/filter/gzip_source_stream.h"
 #include "net/filter/mock_source_stream.h"
-#include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/zlib/zlib.h"
 
@@ -73,7 +72,7 @@ class GzipSourceStreamTest : public ::testing::TestWithParam<GzipTestParam> {
                  &encoded_data_len_, type != SourceStream::TYPE_DEFLATE);
 
     output_buffer_ = base::MakeRefCounted<IOBuffer>(output_buffer_size_);
-    std::unique_ptr<MockSourceStream> source(new MockSourceStream());
+    auto source = std::make_unique<MockSourceStream>();
     if (GetParam().read_result_type == ReadResultType::ONE_BYTE_AT_A_TIME)
       source->set_read_one_byte_at_a_time(true);
     source_ = source.get();
@@ -141,11 +140,11 @@ class GzipSourceStreamTest : public ::testing::TestWithParam<GzipTestParam> {
   scoped_refptr<IOBuffer> output_buffer_;
   const int output_buffer_size_;
 
-  MockSourceStream* source_;
+  raw_ptr<MockSourceStream> source_;
   std::unique_ptr<GzipSourceStream> stream_;
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     GzipSourceStreamTests,
     GzipSourceStreamTest,
     ::testing::Values(GzipTestParam(kBigBufferSize,

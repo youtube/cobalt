@@ -29,7 +29,8 @@ SpeechRecognitionManager::SpeechRecognitionManager(
     const Microphone::Options& microphone_options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()),
-      main_message_loop_task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      main_task_runner_task_runner_(
+          base::SequencedTaskRunner::GetCurrentDefault()),
       event_callback_(event_callback),
       state_(kStopped) {
   if (GoogleSpeechService::GetSpeechAPIKey()) {
@@ -44,7 +45,7 @@ SpeechRecognitionManager::~SpeechRecognitionManager() { Abort(); }
 
 void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
                                      script::ExceptionState* exception_state) {
-  DCHECK(main_message_loop_task_runner_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_task_runner_->RunsTasksInCurrentSequence());
 
   // If the start method is called on an already started object, the user agent
   // MUST throw an InvalidStateError exception and ignore the call.
@@ -68,7 +69,7 @@ void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
 }
 
 void SpeechRecognitionManager::Stop() {
-  DCHECK(main_message_loop_task_runner_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_task_runner_->RunsTasksInCurrentSequence());
 
   // If the stop method is called on an object which is already stopped or being
   // stopped, the user agent MUST ignore the call.
@@ -81,7 +82,7 @@ void SpeechRecognitionManager::Stop() {
 }
 
 void SpeechRecognitionManager::Abort() {
-  DCHECK(main_message_loop_task_runner_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_task_runner_->RunsTasksInCurrentSequence());
 
   // If the abort method is called on an object which is already stopped or
   // aborting, the user agent MUST ignore the call.
@@ -95,10 +96,10 @@ void SpeechRecognitionManager::Abort() {
 
 void SpeechRecognitionManager::OnEventAvailable(
     const scoped_refptr<web::Event>& event) {
-  if (!main_message_loop_task_runner_->BelongsToCurrentThread()) {
+  if (!main_task_runner_task_runner_->RunsTasksInCurrentSequence()) {
     // Called from recognizer. |event_callback_| is required to be run on
-    // the |main_message_loop_task_runner_|.
-    main_message_loop_task_runner_->PostTask(
+    // the |main_task_runner_task_runner_|.
+    main_task_runner_task_runner_->PostTask(
         FROM_HERE, base::Bind(&SpeechRecognitionManager::OnEventAvailable,
                               weak_this_, event));
     return;

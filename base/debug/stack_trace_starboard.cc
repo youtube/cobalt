@@ -44,7 +44,8 @@ class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
   }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(PrintBacktraceOutputHandler);
+  PrintBacktraceOutputHandler(const PrintBacktraceOutputHandler&) = delete;
+  PrintBacktraceOutputHandler& operator=(const PrintBacktraceOutputHandler&) = delete;
 };
 
 class StreamBacktraceOutputHandler : public BacktraceOutputHandler {
@@ -56,11 +57,49 @@ class StreamBacktraceOutputHandler : public BacktraceOutputHandler {
  private:
   std::ostream* os_;
 
-  DISALLOW_COPY_AND_ASSIGN(StreamBacktraceOutputHandler);
+  StreamBacktraceOutputHandler(const StreamBacktraceOutputHandler&) = delete;
+  StreamBacktraceOutputHandler& operator=(const StreamBacktraceOutputHandler&) = delete;
 };
 
+void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
+  char buf[1024] = {'\0'};
+  handler->HandleOutput(" [0x");
+  internal::itoa_r(reinterpret_cast<intptr_t>(pointer), buf, sizeof(buf), 16, 0);
+  handler->HandleOutput(buf);
+  handler->HandleOutput("]");
+}
+
+void ProcessBacktrace(void* const* trace,
+                      int size,
+                      const char* prefix_string,
+                      BacktraceOutputHandler* handler) {
+  for (int i = 0; i < size; ++i) {
+    if (prefix_string)
+      handler->HandleOutput(prefix_string);
+    handler->HandleOutput("\t");
+
+    char buf[1024] = {'\0'};
+
+    // Subtract by one as return address of function may be in the next
+    // function when a function is annotated as noreturn.
+    void* address = static_cast<char*>(trace[i]) - 1;
+    if (SbSystemSymbolize(address, buf, sizeof(buf))) {
+      handler->HandleOutput(buf);
+    } else {
+      handler->HandleOutput("<unknown>");
+    }
+
+    OutputPointer(trace[i], handler);
+    handler->HandleOutput("\n");
+  }
+}
+
+}  // namespace
+
+namespace internal {
+
 // NOTE: code from sandbox/linux/seccomp-bpf/demo.cc.
-char* itoa_r(intptr_t i, char* buf, size_t sz, int base) {
+char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
   // Make sure we can write at least one NUL byte.
   size_t n = 1;
   if (n > sz)
@@ -94,13 +133,16 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base) {
     // Make sure there is still enough space left in our output buffer.
     if (++n > sz) {
       buf[0] = '\000';
-      return NULL;
+      return nullptr;
     }
 
     // Output the next digit.
-    *ptr++ = "0123456789abcdef"[j % base];
-    j /= base;
-  } while (j);
+    *ptr++ = "0123456789abcdef"[j % static_cast<uintptr_t>(base)];
+    j /= static_cast<uintptr_t>(base);
+
+    if (padding > 0)
+      padding--;
+  } while (j > 0 || padding > 0);
 
   // Terminate the output with a NUL character.
   *ptr = '\000';
@@ -117,57 +159,22 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base) {
   return buf;
 }
 
-void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
-  char buf[1024] = {'\0'};
-  handler->HandleOutput(" [0x");
-  itoa_r(reinterpret_cast<intptr_t>(pointer), buf, sizeof(buf), 16);
-  handler->HandleOutput(buf);
-  handler->HandleOutput("]");
-}
+}  // namespace internal
 
-void ProcessBacktrace(void* const* trace,
-                      int size,
-                      const char* prefix_string,
-                      BacktraceOutputHandler* handler) {
-  for (int i = 0; i < size; ++i) {
-    if (prefix_string)
-      handler->HandleOutput(prefix_string);
-    handler->HandleOutput("\t");
-
-    char buf[1024] = {'\0'};
-
-    // Subtract by one as return address of function may be in the next
-    // function when a function is annotated as noreturn.
-    void* address = static_cast<char*>(trace[i]) - 1;
-    if (SbSystemSymbolize(address, buf, sizeof(buf))) {
-      handler->HandleOutput(buf);
-    } else {
-      handler->HandleOutput("<unknown>");
-    }
-
-    OutputPointer(trace[i], handler);
-    handler->HandleOutput("\n");
-  }
-}
-
-}  // namespace
-
-StackTrace::StackTrace(size_t count) {
+size_t CollectStackTrace(void** trace, size_t count) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
   // Though the SbSystemGetStack API documentation does not specify any possible
   // negative return values, we take no chance.
-  count_ = std::max(SbSystemGetStack(trace_, count), 0);
-  if (count_ < 1) {
-    return;
-  }
+  count = std::max(SbSystemGetStack(trace, count), 0);
 
   // We can remove this call from the stack trace, since we know it is always
   // going to be in it.
-  for (int i = 1; i < count_; ++i) {
-    trace_[i - 1] = trace_[i];
+  for (size_t i = 1; i < count; ++i) {
+    trace[i - 1] = trace[i];
   }
+  return count;
 }
 
 void StackTrace::PrintWithPrefix(const char* prefix_string) const {

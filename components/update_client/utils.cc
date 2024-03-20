@@ -41,14 +41,14 @@ bool IsHttpServerError(int status_code) {
 }
 
 bool DeleteFileAndEmptyParentDirectory(const base::FilePath& filepath) {
-  if (!base::DeleteFile(filepath, false))
+  if (!base::DeleteFile(filepath))
     return false;
 
   const base::FilePath dirname(filepath.DirName());
   if (!base::IsDirectoryEmpty(dirname))
     return true;
 
-  return base::DeleteFile(dirname, false);
+  return base::DeleteFile(dirname);
 }
 
 std::string GetCrxComponentID(const CrxComponent& component) {
@@ -212,21 +212,20 @@ CrxInstaller::Result InstallFunctionWrapper(
 // TODO(cpu): add a specific attribute check to a component json that the
 // extension unpacker will reject, so that a component cannot be installed
 // as an extension.
-std::unique_ptr<base::DictionaryValue> ReadManifest(
+base::Value::Dict ReadManifest(
     const base::FilePath& unpack_path) {
   base::FilePath manifest =
       unpack_path.Append(FILE_PATH_LITERAL("manifest.json"));
   if (!base::PathExists(manifest))
-    return std::unique_ptr<base::DictionaryValue>();
+    return base::Value::Dict();
   JSONFileValueDeserializer deserializer(manifest);
   std::string error;
   std::unique_ptr<base::Value> root = deserializer.Deserialize(nullptr, &error);
   if (!root)
-    return std::unique_ptr<base::DictionaryValue>();
+    return base::Value::Dict();
   if (!root->is_dict())
-    return std::unique_ptr<base::DictionaryValue>();
-  return std::unique_ptr<base::DictionaryValue>(
-      static_cast<base::DictionaryValue*>(root.release()));
+    return base::Value::Dict();
+  return std::move(root->GetDict());
 }
 
 }  // namespace update_client

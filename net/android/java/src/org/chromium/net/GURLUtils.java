@@ -1,10 +1,13 @@
-// Copyright 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.net;
 
+import androidx.annotation.VisibleForTesting;
+
 import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /**
  * Class to access the GURL library from java.
@@ -20,19 +23,12 @@ public final class GURLUtils {
      * @return The origin of the url
      */
     public static String getOrigin(String url) {
-        return nativeGetOrigin(url);
+        return GURLUtilsJni.get().getOrigin(url);
     }
 
-    /**
-     * Get the scheme of the url (e.g. http, https, file). The returned string
-     * contains everything before the "://".
-     *
-     * @return The scheme of the url.
-     */
-    public static String getScheme(String url) {
-        return nativeGetScheme(url);
+    @VisibleForTesting
+    @NativeMethods
+    public interface Natives {
+        String getOrigin(String url);
     }
-
-    private static native String nativeGetOrigin(String url);
-    private static native String nativeGetScheme(String url);
 }

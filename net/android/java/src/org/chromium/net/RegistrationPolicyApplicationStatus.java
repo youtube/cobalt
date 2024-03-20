@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@ package org.chromium.net;
 
 import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
-import org.chromium.base.VisibleForTesting;
 
 /**
  * Regsitration policy which depends on the ApplicationState.
@@ -20,7 +19,7 @@ public class RegistrationPolicyApplicationStatus
     protected void init(NetworkChangeNotifierAutoDetect notifier) {
         super.init(notifier);
         ApplicationStatus.registerApplicationStateListener(this);
-        onApplicationStateChange(getApplicationState());
+        onApplicationStateChange(ApplicationState.UNKNOWN /* unused */);
     }
 
     @Override
@@ -33,19 +32,13 @@ public class RegistrationPolicyApplicationStatus
     // ApplicationStatus.ApplicationStateListener
     @Override
     public void onApplicationStateChange(int newState) {
-        if (newState == ApplicationState.HAS_RUNNING_ACTIVITIES) {
+        // Use hasVisibleActivities() to determine if one of Chrome's activities
+        // is visible. Using |newState| causes spurious unregister then register
+        // events when flipping between Chrome's Activities, crbug.com/1030229.
+        if (ApplicationStatus.hasVisibleActivities()) {
             register();
-        } else if (newState == ApplicationState.HAS_PAUSED_ACTIVITIES) {
+        } else {
             unregister();
         }
-    }
-
-    /**
-     * Returns the activity's status.
-     * @return an {@code int} that is one of {@code ApplicationState.HAS_*_ACTIVITIES}.
-     */
-    @VisibleForTesting
-    int getApplicationState() {
-        return ApplicationStatus.getStateForApplication();
     }
 }

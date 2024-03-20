@@ -2154,7 +2154,6 @@ inline void Flush() { SbLogFlush(); }
 inline void *Malloc(size_t n) { return malloc(n); }
 inline void Free(void *p) { return free(p); }
 
-
 #else // GTEST_OS_STARBOARD
 
 // Functions with a different name on Windows.

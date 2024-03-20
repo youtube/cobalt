@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,8 @@
 
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/histogram_samples.h"
-#include "base/metrics/persistent_histogram_allocator.h"
-#include "base/metrics/statistics_recorder.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest-spi.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::ElementsAre;
@@ -30,12 +29,7 @@ const char kHistogram6[] = "Test6";
 
 namespace base {
 
-class HistogramTesterTest : public testing::Test {
-  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
-public:
-  HistogramTesterTest()
-    : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {}
-};
+typedef testing::Test HistogramTesterTest;
 
 TEST_F(HistogramTesterTest, Scope) {
   // Record a histogram before the creation of the recorder.
@@ -73,18 +67,57 @@ TEST_F(HistogramTesterTest, GetHistogramSamplesSinceCreationNotNull) {
 TEST_F(HistogramTesterTest, TestUniqueSample) {
   HistogramTester tester;
 
-  // Record into a sample thrice
+  // Emit '2' three times.
   UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
   UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
   UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
 
   tester.ExpectUniqueSample(kHistogram2, 2, 3);
+  tester.ExpectUniqueTimeSample(kHistogram2, base::Milliseconds(2), 3);
+}
+
+// Verify that the expectation is violated if the bucket contains an incorrect
+// number of samples.
+TEST_F(HistogramTesterTest, TestUniqueSample_TooManySamplesInActualBucket) {
+  auto failing_code = [] {
+    HistogramTester tester;
+
+    // Emit '2' four times.
+    UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
+    UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
+    UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
+    UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
+
+    // Expect exactly three samples in bucket 2. This is supposed to fail.
+    tester.ExpectUniqueSample(kHistogram2, 2, 3);
+  };
+  EXPECT_NONFATAL_FAILURE(failing_code(),
+                          "Histogram \"Test2\" did not meet its expectations.");
+}
+
+// Verify that the expectation is violated if the bucket contains the correct
+// number of samples but another bucket contains extra samples.
+TEST_F(HistogramTesterTest, TestUniqueSample_OneExtraSampleInWrongBucket) {
+  auto failing_code = [] {
+    HistogramTester tester;
+
+    // Emit '2' three times.
+    UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
+    UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
+    UMA_HISTOGRAM_COUNTS_100(kHistogram2, 2);
+    // Emit one unexpected '3'.
+    UMA_HISTOGRAM_COUNTS_100(kHistogram2, 3);
+
+    // Expect exactly three samples in bucket 2. This is supposed to fail.
+    tester.ExpectUniqueSample(kHistogram2, 2, 3);
+  };
+  EXPECT_NONFATAL_FAILURE(failing_code(),
+                          "Histogram \"Test2\" did not meet its expectations.");
 }
 
 TEST_F(HistogramTesterTest, TestBucketsSample) {
   HistogramTester tester;
 
-  // Record into a sample twice
   UMA_HISTOGRAM_COUNTS_100(kHistogram3, 2);
   UMA_HISTOGRAM_COUNTS_100(kHistogram3, 2);
   UMA_HISTOGRAM_COUNTS_100(kHistogram3, 2);
@@ -98,7 +131,7 @@ TEST_F(HistogramTesterTest, TestBucketsSample) {
 }
 
 TEST_F(HistogramTesterTest, TestBucketsSampleWithScope) {
-  // Record into a sample twice, once before the tester creation and once after.
+  // Emit values twice, once before the tester creation and once after.
   UMA_HISTOGRAM_COUNTS_100(kHistogram4, 2);
 
   HistogramTester tester;
@@ -126,6 +159,17 @@ TEST_F(HistogramTesterTest, TestGetAllSamples_NoSamples) {
   EXPECT_THAT(tester.GetAllSamples(kHistogram5), IsEmpty());
 }
 
+TEST_F(HistogramTesterTest, TestGetTotalSum) {
+  // Emit values twice, once before the tester creation and once after.
+  UMA_HISTOGRAM_COUNTS_100(kHistogram4, 2);
+
+  HistogramTester tester;
+  UMA_HISTOGRAM_COUNTS_100(kHistogram4, 3);
+  UMA_HISTOGRAM_COUNTS_100(kHistogram4, 4);
+
+  EXPECT_EQ(7, tester.GetTotalSum(kHistogram4));
+}
+
 TEST_F(HistogramTesterTest, TestGetTotalCountsForPrefix) {
   HistogramTester tester;
   UMA_HISTOGRAM_ENUMERATION("Test1.Test2.Test3", 2, 5);
@@ -137,7 +181,7 @@ TEST_F(HistogramTesterTest, TestGetTotalCountsForPrefix) {
 }
 
 TEST_F(HistogramTesterTest, TestGetAllChangedHistograms) {
-  // Record into a sample twice, once before the tester creation.
+  // Emit multiple values, some before tester creation.
   UMA_HISTOGRAM_COUNTS_100(kHistogram6, true);
   UMA_HISTOGRAM_COUNTS_100(kHistogram4, 4);
 
@@ -160,6 +204,99 @@ TEST_F(HistogramTesterTest, TestGetAllChangedHistograms) {
   EXPECT_NE(
       std::string::npos,
       results.find("Histogram: Test1.Test2.Test3 recorded 1 new samples"));
+}
+
+TEST_F(HistogramTesterTest, MissingHistogramMeansEmptyBuckets) {
+  // When a histogram hasn't been instantiated, expecting counts of zero should
+  // still succeed.
+  static const char kHistogram[] = "MissingHistogramMeansEmptyBucketsHistogram";
+  HistogramTester tester;
+
+  tester.ExpectBucketCount(kHistogram, 42, 0);
+  tester.ExpectTotalCount(kHistogram, 0);
+  EXPECT_TRUE(tester.GetAllSamples(kHistogram).empty());
+  EXPECT_EQ(0, tester.GetTotalSum(kHistogram));
+  EXPECT_EQ(0, tester.GetBucketCount(kHistogram, 42));
+  EXPECT_EQ(0,
+            tester.GetHistogramSamplesSinceCreation(kHistogram)->TotalCount());
+}
+
+TEST_F(HistogramTesterTest, BucketsAre) {
+  // Auxiliary functions for keeping the lines short.
+  auto a = [](std::vector<Bucket> b) { return b; };
+  auto b = [](base::Histogram::Sample min, base::Histogram::Count count) {
+    return Bucket(min, count);
+  };
+  using ::testing::Not;
+
+  EXPECT_THAT(a({}), BucketsAre());
+  EXPECT_THAT(a({}), BucketsAre(b(0, 0)));
+  EXPECT_THAT(a({}), BucketsAre(b(1, 0)));
+  EXPECT_THAT(a({}), BucketsAre(b(0, 0), b(1, 0)));
+  EXPECT_THAT(a({}), Not(BucketsAre(b(1, 1))));
+
+  EXPECT_THAT(a({b(1, 1)}), BucketsAre(b(1, 1)));
+  EXPECT_THAT(a({b(1, 1)}), BucketsAre(b(0, 0), b(1, 1)));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsAre()));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsAre(b(0, 0))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsAre(b(1, 0))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsAre(b(2, 1))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsAre(b(2, 2))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsAre(b(0, 0), b(1, 0))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsAre(b(0, 0), b(1, 1), b(2, 2))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsAre(b(0, 0), b(1, 0), b(2, 0))));
+
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), BucketsAre(b(1, 1), b(2, 2)));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), BucketsAre(b(0, 0), b(1, 1), b(2, 2)));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsAre()));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsAre(b(0, 0))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsAre(b(1, 1))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsAre(b(2, 2))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsAre(b(0, 0), b(1, 1))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsAre(b(1, 0))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsAre(b(2, 1))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsAre(b(0, 0), b(1, 0))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}),
+              Not(BucketsAre(b(0, 0), b(1, 0), b(2, 0))));
+}
+
+TEST_F(HistogramTesterTest, BucketsInclude) {
+  // Auxiliary function for the "actual" values to shorten lines.
+  auto a = [](std::vector<Bucket> b) { return b; };
+  auto b = [](base::Histogram::Sample min, base::Histogram::Count count) {
+    return Bucket(min, count);
+  };
+  using ::testing::Not;
+
+  EXPECT_THAT(a({}), BucketsInclude());
+  EXPECT_THAT(a({}), BucketsInclude(b(0, 0)));
+  EXPECT_THAT(a({}), BucketsInclude(b(1, 0)));
+  EXPECT_THAT(a({}), BucketsInclude(b(0, 0), b(1, 0)));
+  EXPECT_THAT(a({}), Not(BucketsInclude(b(1, 1))));
+
+  EXPECT_THAT(a({b(1, 1)}), BucketsInclude());
+  EXPECT_THAT(a({b(1, 1)}), BucketsInclude(b(0, 0)));
+  EXPECT_THAT(a({b(1, 1)}), BucketsInclude(b(1, 1)));
+  EXPECT_THAT(a({b(1, 1)}), BucketsInclude(b(0, 0), b(1, 1)));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsInclude(b(1, 0))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsInclude(b(2, 1))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsInclude(b(2, 2))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsInclude(b(0, 0), b(1, 0))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsInclude(b(0, 0), b(1, 1), b(2, 2))));
+  EXPECT_THAT(a({b(1, 1)}), Not(BucketsInclude(b(0, 0), b(1, 0), b(2, 0))));
+
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), BucketsInclude());
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), BucketsInclude(b(0, 0)));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), BucketsInclude(b(1, 1)));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), BucketsInclude(b(2, 2)));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), BucketsInclude(b(0, 0), b(1, 1)));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), BucketsInclude(b(1, 1), b(2, 2)));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), BucketsInclude(b(0, 0), b(1, 1), b(2, 2)));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsInclude(b(1, 0))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsInclude(b(2, 1))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}), Not(BucketsInclude(b(0, 0), b(1, 0))));
+  EXPECT_THAT(a({b(1, 1), b(2, 2)}),
+              Not(BucketsInclude(b(0, 0), b(1, 0), b(2, 0))));
 }
 
 }  // namespace base

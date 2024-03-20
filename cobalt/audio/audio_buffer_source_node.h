@@ -18,7 +18,6 @@
 #include <memory>
 #include <vector>
 
-#include "base/message_loop/message_loop.h"
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_node.h"
 #include "cobalt/base/tokens.h"
@@ -96,7 +95,7 @@ class AudioBufferSourceNode : public AudioNode {
 
   scoped_refptr<AudioBuffer> buffer_;
 
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   State state_;
 

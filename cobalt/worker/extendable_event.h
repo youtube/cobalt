@@ -54,8 +54,8 @@ class ExtendableEvent : public web::Event,
   }
   ExtendableEvent(script::EnvironmentSettings* settings,
                   const std::string& type, const ExtendableEventInit& init_dict)
-      : ExtendableEvent(settings, base::Token(type), init_dict) {}
-  ExtendableEvent(script::EnvironmentSettings* settings, base::Token type,
+      : ExtendableEvent(settings, base_token::Token(type), init_dict) {}
+  ExtendableEvent(script::EnvironmentSettings* settings, base_token::Token type,
                   base::OnceCallback<void(bool)> done_callback =
                       base::OnceCallback<void(bool)>())
       : Event(type),
@@ -63,7 +63,7 @@ class ExtendableEvent : public web::Event,
         isolate_(web::get_isolate(settings)) {
     InitializeEnvironmentSettingsChangeObserver(settings);
   }
-  ExtendableEvent(script::EnvironmentSettings* settings, base::Token type,
+  ExtendableEvent(script::EnvironmentSettings* settings, base_token::Token type,
                   const ExtendableEventInit& init_dict)
       : Event(type, init_dict), isolate_(web::get_isolate(settings)) {
     InitializeEnvironmentSettingsChangeObserver(settings);

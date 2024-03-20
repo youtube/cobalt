@@ -15,12 +15,12 @@
 #include "cobalt/dom/html_element.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <utility>
 
 #include "base/lazy_instance.h"
-#include "base/message_loop/message_loop_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/console_log.h"
@@ -91,9 +91,8 @@ const char kUiNavFocusDurationAttribute[] = "data-cobalt-ui-nav-focus-duration";
 // https://www.w3.org/TR/resource-timing-1/#dom-performanceresourcetiming-initiatortype
 const char* kPerformanceResourceTimingInitiatorType = "img";
 
-void UiNavCallbackHelper(
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    base::Callback<void(int64_t)> callback) {
+void UiNavCallbackHelper(scoped_refptr<base::SequencedTaskRunner> task_runner,
+                         base::Callback<void(int64_t)> callback) {
   task_runner->PostTask(
       FROM_HERE, base::Bind(callback, starboard::CurrentMonotonicTime()));
 }
@@ -237,14 +236,13 @@ int32 HTMLElement::tab_index() const {
   if (tabindex_) {
     return *tabindex_;
   }
-  LOG(WARNING) << "Element's tabindex is not valid.";
   // The default value is 0 for focusable elements.
   // https://html.spec.whatwg.org/multipage/interaction.html#attr-tabindex
   return 0;
 }
 
 void HTMLElement::set_tab_index(int32 tab_index) {
-  SetAttribute("tabindex", base::Int32ToString(tab_index));
+  SetAttribute("tabindex", std::to_string(tab_index));
 }
 
 // Algorithm for Focus:
@@ -1258,7 +1256,7 @@ void HTMLElement::OnUiNavScroll(int64_t /* monotonic_time */) {
                             web::Event::kNotCancelable, window));
 }
 
-HTMLElement::HTMLElement(Document* document, base::Token local_name)
+HTMLElement::HTMLElement(Document* document, base_token::Token local_name)
     : Element(document, local_name),
       dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()),
       locked_for_focus_(false),
@@ -1558,8 +1556,9 @@ void HTMLElement::SetDir(const std::string& value) {
 }
 
 void HTMLElement::SetTabIndex(const std::string& value) {
-  int32 tabindex;
-  if (base::StringToInt32(value, &tabindex)) {
+  char* endptr = nullptr;
+  int32 tabindex = strtol(value.c_str(), &endptr, 10);
+  if (!value.empty() && (endptr != value.c_str())) {
     tabindex_ = tabindex;
   } else {
     tabindex_ = base::nullopt;
@@ -2260,13 +2259,16 @@ void HTMLElement::UpdateUiNavigation() {
     ui_nav_item_ = new ui_navigation::NavItem(
         *ui_nav_item_type,
         base::Bind(
-            &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
+            &UiNavCallbackHelper,
+            base::SequencedTaskRunner::GetCurrentDefault(),
             base::Bind(&HTMLElement::OnUiNavBlur, base::AsWeakPtr(this))),
         base::Bind(
-            &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
+            &UiNavCallbackHelper,
+            base::SequencedTaskRunner::GetCurrentDefault(),
             base::Bind(&HTMLElement::OnUiNavFocus, base::AsWeakPtr(this))),
         base::Bind(
-            &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
+            &UiNavCallbackHelper,
+            base::SequencedTaskRunner::GetCurrentDefault(),
             base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
     ui_nav_item_->SetDir(ui_nav_item_dir);
     if (ui_nav_focus_duration_) {

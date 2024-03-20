@@ -52,6 +52,11 @@ void TextDecoder::Cleanup() {
 void TextDecoder::Setup(std::string label,
                         script::ExceptionState* exception_state,
                         const TextDecoderOptions& options) {
+  // "utf-16" is a label for UTF-16LE to deal with deployed content.
+  //  https://encoding.spec.whatwg.org/#utf-16le
+  if (label == "utf-16") {
+    label = "utf-16le";
+  }
   UErrorCode error_code = U_ZERO_ERROR;
   converter_ = ucnv_open(label.c_str(), &error_code);
   if (U_FAILURE(error_code)) {

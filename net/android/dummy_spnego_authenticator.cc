@@ -1,12 +1,11 @@
-// Copyright (c) 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #include "net/android/dummy_spnego_authenticator.h"
 
 #include "base/android/jni_string.h"
 #include "base/base64.h"
-#include "base/stl_util.h"
-#include "net/test/jni/DummySpnegoAuthenticator_jni.h"
+#include "net/net_test_jni_headers/DummySpnegoAuthenticator_jni.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::android::JavaParamRef;
@@ -17,7 +16,7 @@ namespace net {
 // From RFC 4178, which uses SNEGO not SPNEGO.
 static const unsigned char kSpnegoOid[] = {0x2b, 0x06, 0x01, 0x05, 0x05, 0x02};
 gss_OID_desc CHROME_GSS_SPNEGO_MECH_OID_DESC_VAL = {
-    base::size(kSpnegoOid), const_cast<unsigned char*>(kSpnegoOid)};
+    std::size(kSpnegoOid), const_cast<unsigned char*>(kSpnegoOid)};
 
 gss_OID CHROME_GSS_SPNEGO_MECH_OID_DESC = &CHROME_GSS_SPNEGO_MECH_OID_DESC_VAL;
 
@@ -29,7 +28,7 @@ void ClearOid(gss_OID dest) {
   if (!dest)
     return;
   dest->length = 0;
-  dest->elements = NULL;
+  dest->elements = nullptr;
 }
 
 void SetOid(gss_OID dest, const void* src, size_t length) {
@@ -134,24 +133,19 @@ DummySpnegoAuthenticator::SecurityContextQuery::SecurityContextQuery()
 DummySpnegoAuthenticator::SecurityContextQuery::SecurityContextQuery(
     const SecurityContextQuery& other) = default;
 
-DummySpnegoAuthenticator::SecurityContextQuery::~SecurityContextQuery() {
-}
+DummySpnegoAuthenticator::SecurityContextQuery::~SecurityContextQuery() =
+    default;
 
 base::android::ScopedJavaLocalRef<jstring>
-DummySpnegoAuthenticator::SecurityContextQuery::GetTokenToReturn(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& /*obj*/) {
+DummySpnegoAuthenticator::SecurityContextQuery::GetTokenToReturn(JNIEnv* env) {
   return base::android::ConvertUTF8ToJavaString(env, output_token.c_str());
 }
-int DummySpnegoAuthenticator::SecurityContextQuery::GetResult(
-    JNIEnv* /*env*/,
-    const JavaParamRef<jobject>& /*obj*/) {
+int DummySpnegoAuthenticator::SecurityContextQuery::GetResult(JNIEnv* /*env*/) {
   return response_code;
 }
 
 void DummySpnegoAuthenticator::SecurityContextQuery::CheckGetTokenArguments(
     JNIEnv* env,
-    const JavaParamRef<jobject>& /*obj*/,
     const JavaParamRef<jstring>& j_incoming_token) {
   std::string incoming_token =
       base::android::ConvertJavaStringToUTF8(env, j_incoming_token);
@@ -159,11 +153,9 @@ void DummySpnegoAuthenticator::SecurityContextQuery::CheckGetTokenArguments(
 }
 
 // Needed to satisfy "complex class" clang requirements.
-DummySpnegoAuthenticator::DummySpnegoAuthenticator() {
-}
+DummySpnegoAuthenticator::DummySpnegoAuthenticator() = default;
 
-DummySpnegoAuthenticator::~DummySpnegoAuthenticator() {
-}
+DummySpnegoAuthenticator::~DummySpnegoAuthenticator() = default;
 
 void DummySpnegoAuthenticator::EnsureTestAccountExists() {
   Java_DummySpnegoAuthenticator_ensureTestAccountExists(
@@ -190,9 +182,7 @@ void DummySpnegoAuthenticator::ExpectSecurityContext(
       base::android::AttachCurrentThread(), reinterpret_cast<intptr_t>(this));
 }
 
-long DummySpnegoAuthenticator::GetNextQuery(
-    JNIEnv* /*env*/,
-    const JavaParamRef<jobject>& /* obj */) {
+long DummySpnegoAuthenticator::GetNextQuery(JNIEnv* /*env*/) {
   CheckQueueNotEmpty();
   current_query_ = expected_security_queries_.front();
   expected_security_queries_.pop_front();

@@ -1,18 +1,18 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_WEBSOCKETS_WEBSOCKET_DEFLATER_H_
 #define NET_WEBSOCKETS_WEBSOCKET_DEFLATER_H_
 
+#include <stddef.h>
+
 #include <memory>
 #include <vector>
 
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 extern "C" struct z_stream_s;
 
@@ -22,8 +22,6 @@ class IOBufferWithSize;
 
 class NET_EXPORT_PRIVATE WebSocketDeflater {
  public:
-  // Do not reorder or remove entries of this enum. The values of them are used
-  // in UMA.
   enum ContextTakeOverMode {
     DO_NOT_TAKE_OVER_CONTEXT,
     TAKE_OVER_CONTEXT,
@@ -31,6 +29,10 @@ class NET_EXPORT_PRIVATE WebSocketDeflater {
   };
 
   explicit WebSocketDeflater(ContextTakeOverMode mode);
+
+  WebSocketDeflater(const WebSocketDeflater&) = delete;
+  WebSocketDeflater& operator=(const WebSocketDeflater&) = delete;
+
   ~WebSocketDeflater();
 
   // Returns true if there is no error and false otherwise.
@@ -69,9 +71,7 @@ class NET_EXPORT_PRIVATE WebSocketDeflater {
   base::circular_deque<char> buffer_;
   std::vector<char> fixed_buffer_;
   // true if bytes were added after last Finish().
-  bool are_bytes_added_;
-
-  DISALLOW_COPY_AND_ASSIGN(WebSocketDeflater);
+  bool are_bytes_added_ = false;
 };
 
 }  // namespace net

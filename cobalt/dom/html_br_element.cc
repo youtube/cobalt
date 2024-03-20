@@ -23,7 +23,7 @@ namespace dom {
 const char HTMLBRElement::kTagName[] = "br";
 
 HTMLBRElement::HTMLBRElement(Document* document)
-    : HTMLElement(document, base::Token(kTagName)) {}
+    : HTMLElement(document, base_token::Token(kTagName)) {}
 
 }  // namespace dom
 }  // namespace cobalt

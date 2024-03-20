@@ -1,87 +1,28 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-
-// This is a legacy file from old Chromium base, some repos still depend on it.
-
 #ifndef BASE_BASICTYPES_H_
 #define BASE_BASICTYPES_H_
+
+#ifndef USE_HACKY_COBALT_CHANGES
+#error "TODO: Remove these"
+#endif
 
 #include <limits.h>  // So we can set the bounds of our types
 #include <stddef.h>  // For size_t
 #include <string.h>  // for memcpy
 
 #include "base/macros.h"
-
-#if defined(STARBOARD)
 #include "starboard/types.h"
-#endif  // defined(STARBOARD)
-
-#ifndef COMPILER_MSVC
-// stdint.h is part of C99 but MSVC doesn't have it.
-#include <stdint.h>  // For intptr_t.
-#endif
 
 typedef signed char schar;
 typedef signed char int8;
 typedef short int16;
-#if defined(STARBOARD)
 typedef int32_t int32;
-#else
-typedef int int32;
-#endif  // defined(STARBOARD)
-
-#if defined(STARBOARD)
 typedef int64_t int64;
-#else
-// The NSPR system headers define 64-bit as |long| when possible, except on
-// Mac OS X.  In order to not have typedef mismatches, we do the same on LP64.
-//
-// On Mac OS X, |long long| is used for 64-bit types for compatibility with
-// <inttypes.h> format macros even in the LP64 model.
-#if defined(__LP64__) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-typedef long int64;
-#else
-typedef long long int64;
-#endif
-#endif  // defined(STARBOARD)
-
-// NOTE: unsigned types are DANGEROUS in loops and other arithmetical
-// places.  Use the signed types unless your variable represents a bit
-// pattern (eg a hash value) or you really need the extra bit.  Do NOT
-// use 'unsigned' to express "this value should always be positive";
-// use assertions for this.
-
-#if defined(STARBOARD)
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
-#else
-typedef unsigned char uint8;
-typedef unsigned short uint16;
-typedef unsigned int uint32;
-#endif  // defined(STARBOARD)
-
-#if defined(STARBOARD)
 typedef uint64_t uint64;
-#else
-// See the comment above about NSPR and 64-bit.
-#if defined(__LP64__) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-typedef unsigned long uint64;
-#else
-typedef unsigned long long uint64;
-#endif
-#endif  // defined(STARBOARD)
-
-// A type to represent a Unicode code-point value. As of Unicode 4.0,
-// such values require up to 21 bits.
-// (For type-checking on pointers, make this explicitly signed,
-// and it should always be the signed version of whatever int32 is.)
-#if defined(STARBOARD)
+typedef int16_t char16;
 typedef int32_t char32;
-#else
-typedef signed int char32;
-#endif  // defined(STARBOARD)
 
 #if defined(COBALT_WIN)
 #pragma warning(push)
@@ -104,13 +45,6 @@ const int32 kint32max = ((int32)0x7FFFFFFF);
 #if defined(COBALT_WIN)
 #pragma warning(pop)
 #endif
-
-// An older, deprecated, politically incorrect name for the above.
-// NOTE: The usage of this macro was baned from our code base, but some
-// third_party libraries are yet using it.
-// TODO(tfarina): Figure out how to fix the usage of this macro in the
-// third_party libraries and get rid of it.
-#define DISALLOW_EVIL_CONSTRUCTORS(TypeName) DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be

@@ -1,14 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_BYTE_RANGE_H_
 #define NET_HTTP_HTTP_BYTE_RANGE_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -63,7 +64,7 @@ class NET_EXPORT HttpByteRange {
   int64_t first_byte_position_;
   int64_t last_byte_position_;
   int64_t suffix_length_;
-  bool has_computed_bounds_;
+  bool has_computed_bounds_ = false;
 };
 
 }  // namespace net

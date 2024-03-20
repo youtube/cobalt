@@ -19,7 +19,8 @@
 #include <string>
 
 #include "base/bind.h"
-#include "base/sequenced_task_runner.h"
+#include "base/macros.h"
+#include "base/task/sequenced_task_runner.h"
 #include "net/base/load_timing_info.h"
 #include "net/http/http_request_headers.h"
 #include "url/gurl.h"

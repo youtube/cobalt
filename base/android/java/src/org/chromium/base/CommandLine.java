@@ -1,14 +1,16 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
-import android.support.annotation.Nullable;
 import android.text.TextUtils;
-import android.util.Log;
 
-import org.chromium.base.annotations.MainDex;
+import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
+
+import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.MainDex;
 
 import java.io.File;
 import java.io.FileReader;
@@ -16,6 +18,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -32,7 +35,6 @@ public abstract class CommandLine {
      *  Returns true if this command line contains the given switch.
      *  (Switch names ARE case-sensitive).
      */
-    @VisibleForTesting
     public abstract boolean hasSwitch(String switchString);
 
     /**
@@ -55,11 +57,15 @@ public abstract class CommandLine {
     }
 
     /**
+     * Return a copy of all switches, along with their values.
+     */
+    public abstract Map getSwitches();
+
+    /**
      * Append a switch to the command line.  There is no guarantee
      * this action happens before the switch is needed.
      * @param switchString the switch to add.  It should NOT start with '--' !
      */
-    @VisibleForTesting
     public abstract void appendSwitch(String switchString);
 
     /**
@@ -79,6 +85,12 @@ public abstract class CommandLine {
      *   Unlike init(), this does not include the program name in array[0].
      */
     public abstract void appendSwitchesAndArguments(String[] array);
+
+    /**
+     * Remove the switch from the command line.  If no such switch is present, this has no effect.
+     * @param switchString The switch key to lookup. It should NOT start with '--' !
+     */
+    public abstract void removeSwitch(String switchString);
 
     /**
      * Determine if the command line is bound to the native (JNI) implementation.
@@ -111,7 +123,6 @@ public abstract class CommandLine {
     }
 
     // Equivalent to CommandLine::ForCurrentProcess in C++.
-    @VisibleForTesting
     public static CommandLine getInstance() {
         CommandLine commandLine = sCommandLine.get();
         assert commandLine != null;
@@ -134,7 +145,13 @@ public abstract class CommandLine {
      */
     public static void initFromFile(String file) {
         char[] buffer = readFileAsUtf8(file);
-        init(buffer == null ? null : tokenizeQuotedArguments(buffer));
+        String[] tokenized = buffer == null ? null : tokenizeQuotedArguments(buffer);
+        init(tokenized);
+        // The file existed, which should never be the case under normal operation.
+        // Use a log message to help with debugging if it's the flags that are causing issues.
+        if (tokenized != null) {
+            Log.i(TAG, "COMMAND-LINE FLAGS: %s (from %s)", Arrays.toString(tokenized), file);
+        }
     }
 
     /**
@@ -190,7 +207,7 @@ public abstract class CommandLine {
         }
         if (arg != null) {
             if (currentQuote != noQuote) {
-                Log.w(TAG, "Unterminated quoted string: " + arg);
+                Log.w(TAG, "Unterminated quoted string: %s", arg);
             }
             args.add(arg.toString());
         }
@@ -223,6 +240,15 @@ public abstract class CommandLine {
         if (oldCommandLine != null) {
             oldCommandLine.destroy();
         }
+    }
+
+    /**
+     * Set {@link CommandLine} for testing.
+     * @param commandLine The {@link CommandLine} to use.
+     */
+    @VisibleForTesting
+    public static void setInstanceForTesting(CommandLine commandLine) {
+        setInstance(commandLine);
     }
 
     /**
@@ -280,6 +306,11 @@ public abstract class CommandLine {
         }
 
         @Override
+        public Map<String, String> getSwitches() {
+            return new HashMap<>(mSwitches);
+        }
+
+        @Override
         public void appendSwitch(String switchString) {
             appendSwitchWithValue(switchString, null);
         }
@@ -329,36 +360,74 @@ public abstract class CommandLine {
                 }
             }
         }
+
+        @Override
+        public void removeSwitch(String switchString) {
+            mSwitches.remove(switchString);
+            String combinedSwitchString = SWITCH_PREFIX + switchString;
+
+            // Since we permit a switch to be added multiple times, we need to remove all instances
+            // from mArgs.
+            for (int i = mArgsBegin - 1; i > 0; i--) {
+                if (mArgs.get(i).equals(combinedSwitchString)
+                        || mArgs.get(i).startsWith(combinedSwitchString + SWITCH_VALUE_SEPARATOR)) {
+                    --mArgsBegin;
+                    mArgs.remove(i);
+                }
+            }
+        }
     }
 
     private static class NativeCommandLine extends CommandLine {
         public NativeCommandLine(@Nullable String[] args) {
-            nativeInit(args);
+            CommandLineJni.get().init(args);
         }
 
         @Override
         public boolean hasSwitch(String switchString) {
-            return nativeHasSwitch(switchString);
+            return CommandLineJni.get().hasSwitch(switchString);
         }
 
         @Override
         public String getSwitchValue(String switchString) {
-            return nativeGetSwitchValue(switchString);
+            return CommandLineJni.get().getSwitchValue(switchString);
+        }
+
+        @Override
+        public Map<String, String> getSwitches() {
+            HashMap<String, String> switches = new HashMap<String, String>();
+
+            // Iterate 2 array members at a time. JNI doesn't support returning Maps, but because
+            // key & value are both Strings, we can join them into a flattened String array:
+            // [ key1, value1, key2, value2, ... ]
+            String[] keysAndValues = CommandLineJni.get().getSwitchesFlattened();
+            assert keysAndValues.length % 2 == 0 : "must have same number of keys and values";
+            for (int i = 0; i < keysAndValues.length; i += 2) {
+                String key = keysAndValues[i];
+                String value = keysAndValues[i + 1];
+                switches.put(key, value);
+            }
+            return switches;
         }
 
         @Override
         public void appendSwitch(String switchString) {
-            nativeAppendSwitch(switchString);
+            CommandLineJni.get().appendSwitch(switchString);
         }
 
         @Override
         public void appendSwitchWithValue(String switchString, String value) {
-            nativeAppendSwitchWithValue(switchString, value);
+            CommandLineJni.get().appendSwitchWithValue(switchString, value == null ? "" : value);
         }
 
         @Override
         public void appendSwitchesAndArguments(String[] array) {
-            nativeAppendSwitchesAndArguments(array);
+            CommandLineJni.get().appendSwitchesAndArguments(array);
+        }
+
+        @Override
+        public void removeSwitch(String switchString) {
+            CommandLineJni.get().removeSwitch(switchString);
         }
 
         @Override
@@ -380,10 +449,15 @@ public abstract class CommandLine {
         }
     }
 
-    private static native void nativeInit(String[] args);
-    private static native boolean nativeHasSwitch(String switchString);
-    private static native String nativeGetSwitchValue(String switchString);
-    private static native void nativeAppendSwitch(String switchString);
-    private static native void nativeAppendSwitchWithValue(String switchString, String value);
-    private static native void nativeAppendSwitchesAndArguments(String[] array);
+    @NativeMethods
+    interface Natives {
+        void init(String[] args);
+        boolean hasSwitch(String switchString);
+        String getSwitchValue(String switchString);
+        String[] getSwitchesFlattened();
+        void appendSwitch(String switchString);
+        void appendSwitchWithValue(String switchString, String value);
+        void appendSwitchesAndArguments(String[] array);
+        void removeSwitch(String switchString);
+    }
 }

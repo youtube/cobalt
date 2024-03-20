@@ -9,7 +9,7 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/check.h"
 #include "media/base/video_frame.h"
 #if BUILDFLAG(ENABLE_LIBAOM)

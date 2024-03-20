@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,33 +15,47 @@
 #include "base/mac/foundation_util.h"
 #include "base/mac/mac_logging.h"
 #include "base/mac/scoped_authorizationref.h"
-#include "base/macros.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/threading/hang_watcher.h"
 
-namespace base {
-namespace mac {
+namespace base::mac {
 
-AuthorizationRef GetAuthorizationRightsWithPrompt(
-    AuthorizationRights* rights,
-    CFStringRef prompt,
-    AuthorizationFlags extraFlags) {
-  // Create an empty AuthorizationRef.
+ScopedAuthorizationRef CreateAuthorization() {
   ScopedAuthorizationRef authorization;
-  OSStatus status = AuthorizationCreate(NULL, kAuthorizationEmptyEnvironment,
-                                        kAuthorizationFlagDefaults,
-                                        authorization.get_pointer());
+  OSStatus status = AuthorizationCreate(
+      /*rights=*/nullptr, kAuthorizationEmptyEnvironment,
+      kAuthorizationFlagDefaults, authorization.InitializeInto());
   if (status != errAuthorizationSuccess) {
     OSSTATUS_LOG(ERROR, status) << "AuthorizationCreate";
-    return NULL;
+    return ScopedAuthorizationRef();
   }
+
+  return authorization;
+}
+
+ScopedAuthorizationRef GetAuthorizationRightsWithPrompt(
+    AuthorizationRights* rights,
+    CFStringRef prompt,
+    AuthorizationFlags extra_flags) {
+  ScopedAuthorizationRef authorization = CreateAuthorization();
+  if (!authorization) {
+    return authorization;
+  }
+
+  // Never consider the current WatchHangsInScope as hung. There was most likely
+  // one created in ThreadControllerWithMessagePumpImpl::DoWork(). The current
+  // hang watching deadline is not valid since the user can take unbounded time
+  // to answer the password prompt. HangWatching will resume when the next task
+  // or event is pumped in MessagePumpCFRunLoop so there is not need to
+  // reactivate it. You can see the function comments for more details.
+  base::HangWatcher::InvalidateActiveExpectations();
 
   AuthorizationFlags flags = kAuthorizationFlagDefaults |
                              kAuthorizationFlagInteractionAllowed |
                              kAuthorizationFlagExtendRights |
-                             kAuthorizationFlagPreAuthorize |
-                             extraFlags;
+                             kAuthorizationFlagPreAuthorize | extra_flags;
 
   // product_logo_32.png is used instead of app.icns because Authorization
   // Services can't deal with .icns files.
@@ -62,34 +76,30 @@ AuthorizationRef GetAuthorizationRightsWithPrompt(
     {kAuthorizationEnvironmentPrompt, prompt_length, (void*)prompt_c, 0}
   };
 
-  AuthorizationEnvironment environment = {arraysize(environment_items),
+  AuthorizationEnvironment environment = {std::size(environment_items),
                                           environment_items};
 
-  status = AuthorizationCopyRights(authorization,
-                                   rights,
-                                   &environment,
-                                   flags,
-                                   NULL);
+  OSStatus status = AuthorizationCopyRights(authorization, rights, &environment,
+                                            flags, nullptr);
 
   if (status != errAuthorizationSuccess) {
     if (status != errAuthorizationCanceled) {
       OSSTATUS_LOG(ERROR, status) << "AuthorizationCopyRights";
     }
-    return NULL;
+    return ScopedAuthorizationRef();
   }
 
-  return authorization.release();
+  return authorization;
 }
 
-AuthorizationRef AuthorizationCreateToRunAsRoot(CFStringRef prompt) {
+ScopedAuthorizationRef AuthorizationCreateToRunAsRoot(CFStringRef prompt) {
   // Specify the "system.privilege.admin" right, which allows
   // AuthorizationExecuteWithPrivileges to run commands as root.
   AuthorizationItem right_items[] = {
-    {kAuthorizationRightExecute, 0, NULL, 0}
-  };
-  AuthorizationRights rights = {arraysize(right_items), right_items};
+      {kAuthorizationRightExecute, 0, nullptr, 0}};
+  AuthorizationRights rights = {std::size(right_items), right_items};
 
-  return GetAuthorizationRightsWithPrompt(&rights, prompt, 0);
+  return GetAuthorizationRightsWithPrompt(&rights, prompt, /*extra_flags=*/0);
 }
 
 OSStatus ExecuteWithPrivilegesAndGetPID(AuthorizationRef authorization,
@@ -197,5 +207,4 @@ OSStatus ExecuteWithPrivilegesAndWait(AuthorizationRef authorization,
   return status;
 }
 
-}  // namespace mac
-}  // namespace base
+}  // namespace base::mac

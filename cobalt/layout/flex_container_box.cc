@@ -204,7 +204,7 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
+    Box* child_box = child_box_iterator->get();
     if (!child_box->IsAbsolutelyPositioned()) {
       flex_formatting_context.UpdateRect(child_box);
 
@@ -523,7 +523,7 @@ FlexContainerBox::UpdateRectOfInFlowChildBoxes(
                                 DirectionIsReversed()));
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
+    Box* child_box = child_box_iterator->get();
     if (!child_box->IsAbsolutelyPositioned()) {
       flex_formatting_context->UpdateRect(child_box);
     }

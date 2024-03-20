@@ -75,7 +75,9 @@ class MEDIA_EXPORT AudioTimestampHelper {
   // Number of frames accumulated by AddFrames() calls.
   int64_t frame_count_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AudioTimestampHelper);
+  AudioTimestampHelper() = delete;
+  AudioTimestampHelper(const AudioTimestampHelper&) = delete;
+  AudioTimestampHelper& operator=(const AudioTimestampHelper&) = delete;
 };
 
 }  // namespace media

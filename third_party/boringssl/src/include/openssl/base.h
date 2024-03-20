@@ -326,6 +326,8 @@ enum ssl_verify_result_t BORINGSSL_ENUM_INT;
 #define BORINGSSL_ENUM_INT
 #endif
 
+typedef uint32_t CBS_ASN1_TAG;
+
 // CRYPTO_THREADID is a dummy value.
 typedef int CRYPTO_THREADID;
 

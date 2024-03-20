@@ -1,31 +1,39 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_FUCHSIA_FILE_UTILS_H_
 #define BASE_FUCHSIA_FILE_UTILS_H_
 
-#include <lib/zx/handle.h>
+#include <fuchsia/io/cpp/fidl.h>
 
 #include "base/base_export.h"
-#include "starboard/types.h"
+#include "base/files/file_path.h"
 
 namespace base {
 
-class File;
+// Persisted data directory, i.e. /data .
+BASE_EXPORT extern const char kPersistedDataDirectoryPath[];
 
-namespace fuchsia {
+// Persisted cache directory, i.e. /cache .
+BASE_EXPORT extern const char kPersistedCacheDirectoryPath[];
 
-// Gets a Zircon handle from a file or directory |path| in the process'
-// namespace.
-BASE_EXPORT zx::handle GetHandleFromFile(base::File file);
+// Services directory, i.e. /svc .
+BASE_EXPORT extern const char kServiceDirectoryPath[];
 
-// Makes a File object from a Zircon handle.
-// Returns an empty File if |handle| is invalid or not a valid PA_FDIO_REMOTE
-// descriptor.
-BASE_EXPORT base::File GetFileFromHandle(zx::handle handle);
+// Package root directory, i.e. /pkg .
+BASE_EXPORT extern const char kPackageRootDirectoryPath[];
 
-}  // namespace fuchsia
+// Returns a read-only fuchsia.io.Directory for the specified |path|, or an
+// invalid InterfaceHandle if the path doesn't exist or it's not a directory.
+BASE_EXPORT fidl::InterfaceHandle<::fuchsia::io::Directory> OpenDirectoryHandle(
+    const base::FilePath& path);
+
+// Returns a write-capable fuchsia.io.Directory for the specified |path| or
+// an invalid InterfaceHandle if the path doesn't exist or it's not a directory.
+BASE_EXPORT fidl::InterfaceHandle<::fuchsia::io::Directory>
+OpenWritableDirectoryHandle(const base::FilePath& path);
+
 }  // namespace base
 
 #endif  // BASE_FUCHSIA_FILE_UTILS_H_

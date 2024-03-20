@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,11 @@
 
 #include <limits>
 
+#include "base/check_op.h"
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
-#include "base/logging.h"
+#include "base/hash/sha1.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/sha1.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
@@ -25,9 +25,7 @@ const size_t kEntryHashKeyAsHexStringSize = 2 * sizeof(uint64_t);
 
 }  // namespace
 
-namespace disk_cache {
-
-namespace simple_util {
+namespace disk_cache::simple_util {
 
 std::string ConvertEntryHashKeyToHexString(uint64_t hash_key) {
   const std::string hash_key_str = base::StringPrintf("%016" PRIx64, hash_key);
@@ -42,7 +40,7 @@ std::string GetEntryHashKeyAsHexString(const std::string& key) {
   return hash_key_str;
 }
 
-bool GetEntryHashKeyFromHexString(const base::StringPiece& hash_key,
+bool GetEntryHashKeyFromHexString(base::StringPiece hash_key,
                                   uint64_t* hash_key_out) {
   if (hash_key.size() != kEntryHashKeyAsHexStringSize) {
     return false;
@@ -63,30 +61,20 @@ uint64_t GetEntryHashKey(const std::string& key) {
 std::string GetFilenameFromEntryFileKeyAndFileIndex(
     const SimpleFileTracker::EntryFileKey& key,
     int file_index) {
-#if defined(STARBOARD)
-  return base::StringPrintf("%016" PRIx64 "_%1d", key.entry_hash, file_index);
-#else
-  // Files are not renamed on Starboard.
   if (key.doom_generation == 0)
     return base::StringPrintf("%016" PRIx64 "_%1d", key.entry_hash, file_index);
   else
     return base::StringPrintf("todelete_%016" PRIx64 "_%1d_%" PRIu64,
                               key.entry_hash, file_index, key.doom_generation);
-#endif
 }
 
 std::string GetSparseFilenameFromEntryFileKey(
     const SimpleFileTracker::EntryFileKey& key) {
-#if defined(STARBOARD)
-  return base::StringPrintf("%016" PRIx64 "_s", key.entry_hash);
-#else
-  // Files are not renamed on Starboard.
   if (key.doom_generation == 0)
     return base::StringPrintf("%016" PRIx64 "_s", key.entry_hash);
   else
     return base::StringPrintf("todelete_%016" PRIx64 "_s_%" PRIu64,
                               key.entry_hash, key.doom_generation);
-#endif
 }
 
 std::string GetFilenameFromKeyAndFileIndex(const std::string& key,
@@ -114,15 +102,6 @@ int GetFileIndexFromStreamIndex(int stream_index) {
   return (stream_index == 2) ? 1 : 0;
 }
 
-bool GetMTime(const base::FilePath& path, base::Time* out_mtime) {
-  DCHECK(out_mtime);
-  base::File::Info file_info;
-  if (!base::GetFileInfo(path, &file_info))
-    return false;
-  *out_mtime = file_info.last_modified;
-  return true;
-}
-
 uint32_t Crc32(const char* data, int length) {
   uint32_t empty_crc = crc32(0, Z_NULL, 0);
   if (length == 0)
@@ -134,6 +113,4 @@ uint32_t IncrementalCrc32(uint32_t previous_crc, const char* data, int length) {
   return crc32(previous_crc, reinterpret_cast<const Bytef*>(data), length);
 }
 
-}  // namespace simple_util
-
-}  // namespace disk_cache
+}  // namespace disk_cache::simple_util

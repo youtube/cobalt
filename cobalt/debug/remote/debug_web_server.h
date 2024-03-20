@@ -21,6 +21,7 @@
 #include "base/files/file_path.h"
 #include "base/optional.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_checker.h"
 #include "base/values.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/debug/debug_client.h"
@@ -51,7 +52,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
   void OnWebSocketRequest(int connection_id,
                           const net::HttpServerRequestInfo& info) override;
 
-  void OnWebSocketMessage(int connection_id, const std::string& json) override;
+  void OnWebSocketMessage(int connection_id, std::string json) override;
 
   void OnClose(int connection_id) override;
 

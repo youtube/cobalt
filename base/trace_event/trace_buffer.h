@@ -1,14 +1,17 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TRACE_EVENT_TRACE_BUFFER_H_
 #define BASE_TRACE_EVENT_TRACE_BUFFER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "base/base_export.h"
+#include "base/check.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_event_impl.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -37,9 +40,7 @@ class BASE_EXPORT TraceBufferChunk {
     return &chunk_[index];
   }
 
-#if !defined(STARBOARD)
   void EstimateTraceMemoryOverhead(TraceEventMemoryOverhead* overhead);
-#endif
 
   // These values must be kept consistent with the numbers of bits of
   // chunk_index and event_index fields in TraceEventHandle
@@ -49,9 +50,7 @@ class BASE_EXPORT TraceBufferChunk {
 
  private:
   size_t next_free_;
-#if !defined(STARBOARD)
   std::unique_ptr<TraceEventMemoryOverhead> cached_overhead_estimate_;
-#endif
   TraceEvent chunk_[kTraceBufferChunkSize];
   uint32_t seq_;
 };
@@ -74,12 +73,10 @@ class BASE_EXPORT TraceBuffer {
   virtual const TraceBufferChunk* NextChunk() = 0;
 
 
-#if !defined(STARBOARD)
   // Computes an estimate of the size of the buffer, including all the retained
   // objects.
   virtual void EstimateTraceMemoryOverhead(
       TraceEventMemoryOverhead* overhead) = 0;
-#endif
 
   static TraceBuffer* CreateTraceBufferRingBuffer(size_t max_chunks);
   static TraceBuffer* CreateTraceBufferVectorOfSize(size_t max_chunks);
@@ -89,7 +86,7 @@ class BASE_EXPORT TraceBuffer {
 // to JSON output.
 class BASE_EXPORT TraceResultBuffer {
  public:
-  typedef base::Callback<void(const std::string&)> OutputCallback;
+  using OutputCallback = base::RepeatingCallback<void(const std::string&)>;
 
   // If you don't need to stream JSON chunks out efficiently, and just want to
   // get a complete JSON string after calling Finish, use this struct to collect
@@ -110,7 +107,7 @@ class BASE_EXPORT TraceResultBuffer {
   // JSON output and during AddFragment and Finish with following JSON output
   // chunks. The callback target must live past the last calls to
   // TraceResultBuffer::Start/AddFragment/Finish.
-  void SetOutputCallback(const OutputCallback& json_chunk_callback);
+  void SetOutputCallback(OutputCallback json_chunk_callback);
 
   // Start JSON output. This resets all internal state, so you can reuse
   // the TraceResultBuffer by calling Start.

@@ -1,19 +1,19 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/disk_cache/blockfile/stats.h"
 
+#include "base/check.h"
 #include "base/format_macros.h"
-#include "base/logging.h"
 #include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/sample_vector.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "starboard/memory.h"
 
 namespace {
 
@@ -68,7 +68,7 @@ const char* const kCounterNames[] = {
   "Doom recent entries",
   "unused"
 };
-static_assert(arraysize(kCounterNames) == disk_cache::Stats::MAX_COUNTER,
+static_assert(std::size(kCounterNames) == disk_cache::Stats::MAX_COUNTER,
               "update the names");
 
 }  // namespace
@@ -139,26 +139,12 @@ void Stats::InitSizeHistogram() {
     return;
 
   first_time = false;
-  int min = 1;
-  int max = 64 * 1024;
-  int num_buckets = 75;
-  base::BucketRanges ranges(num_buckets + 1);
-  base::Histogram::InitializeBucketRanges(min, max, &ranges);
-
-  base::HistogramBase* stats_histogram = base::Histogram::FactoryGet(
-      "DiskCache.SizeStats2", min, max, num_buckets,
-      base::HistogramBase::kUmaTargetedHistogramFlag);
-
-  base::SampleVector samples(&ranges);
-  for (int i = 0; i < kDataSizesLength; i++) {
+  for (int& data_size : data_sizes_) {
     // This is a good time to fix any inconsistent data. The count should be
     // always positive, but if it's not, reset the value now.
-    if (data_sizes_[i] < 0)
-      data_sizes_[i] = 0;
-
-    samples.Accumulate(GetBucketRange(i) / 1024, data_sizes_[i]);
+    if (data_size < 0)
+      data_size = 0;
   }
-  stats_histogram->AddSamples(samples);
 }
 
 int Stats::StorageSize() {

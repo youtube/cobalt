@@ -22,10 +22,12 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "base/hash.h"
+#include "base/hash/hash.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/threading/thread.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/network/dial/dial_system_config.h"
 #include "cobalt/network/dial/dial_udp_socket_factory.h"
 #include "net/base/ip_endpoint.h"
@@ -72,15 +74,14 @@ DialUdpServer::DialUdpServer(const std::string& location_url,
       read_buf_(new net::IOBuffer(kReadBufferSize)) {
   DCHECK(!location_url_.empty());
   DETACH_FROM_THREAD(thread_checker_);
-  thread_.StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
+  thread_.StartWithOptions(base::Thread::Options(base::MessagePumpType::IO, 0));
   Start();
 }
 
 DialUdpServer::~DialUdpServer() { Stop(); }
 
 void DialUdpServer::CreateAndBind() {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK(thread_.task_runner()->RunsTasksInCurrentSequence());
   // The thread_checker_ will bind to thread_ from this point on.
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   socket_ = factory_->CreateAndBind(GetAddressForAllInterfaces(1900));
@@ -103,15 +104,16 @@ void DialUdpServer::Shutdown() {
 void DialUdpServer::Start() {
   DCHECK(!is_running_);
   is_running_ = true;
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&DialUdpServer::CreateAndBind, base::Unretained(this)));
 }
 
 void DialUdpServer::Stop() {
   DCHECK(is_running_);
-  thread_.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&DialUdpServer::Shutdown, base::Unretained(this)));
+  base::task_runner_util::PostBlockingTask(
+      thread_.task_runner(), FROM_HERE,
+      base::Bind(&DialUdpServer::Shutdown, base::Unretained(this)));
   thread_.Stop();
 }
 
@@ -168,7 +170,7 @@ void DialUdpServer::DidRead(int bytes_read) {
     }
   }
 
-  // Register a watcher on the message loop and wait for the next dial message.
+  // Register a watcher on the task runner and wait for the next dial message.
   // If we call AcceptAndProcessConnection directly, the function could call
   // DidRead and quickly increase stack size or even loop infinitely if the
   // socket can always provide messages through RecvFrom.
@@ -202,7 +204,8 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) {
   // TODO[Starboard]: verify that this st header is present in dial search
   // request. The header name used to be "ST".
   std::string st_request = info.GetHeaderValue("st");
-  ignore_result(TrimWhitespaceASCII(st_request, base::TRIM_ALL, &st_request));
+  base::IgnoreResult(
+      TrimWhitespaceASCII(st_request, base::TRIM_ALL, &st_request));
 
   if (st_request != kDialStRequest) {
     DVLOG(1) << "Received incorrect ST headers: " << st_request;
@@ -259,7 +262,7 @@ std::string DialUdpServer::ConstructSearchResponse() const {
                                 DialSystemConfig::GetInstance()->model_uuid(),
                                 kDialStRequest));
   ret.append("\r\n");
-  LOG_ONCE(INFO) << "In-App DIAL Discovery response : " << ret;
+  LOG(INFO) << "In-App DIAL Discovery response : " << ret;
   return std::move(ret);
 }
 

@@ -19,8 +19,8 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -72,7 +72,7 @@ void EndTimedTrace(std::unique_ptr<ScopedTraceToFile> trace) {
 
 void TraceToFileForDuration(const base::FilePath& output_path_relative_to_logs,
                             const base::TimeDelta& duration) {
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&EndTimedTrace,
                  base::Passed(base::WrapUnique(

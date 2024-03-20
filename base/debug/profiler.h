@@ -1,14 +1,16 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_DEBUG_PROFILER_H_
 #define BASE_DEBUG_PROFILER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
 #include "base/base_export.h"
-#include "starboard/types.h"
 
 // The Profiler functions allow usage of the underlying sampling based
 // profiler. If the application has not been built with the necessary
@@ -55,20 +57,6 @@ BASE_EXPORT bool IsProfilingSupported();
 typedef uintptr_t (*ReturnAddressLocationResolver)(
     uintptr_t return_addr_location);
 
-// This type declaration must match V8's FunctionEntryHook.
-typedef void (*DynamicFunctionEntryHook)(uintptr_t function,
-                                         uintptr_t return_addr_location);
-
-// The functions below here are to support profiling V8-generated code.
-// V8 has provisions for generating a call to an entry hook for newly generated
-// JIT code, and it can push symbol information on code generation and advise
-// when the garbage collector moves code. The functions declarations below here
-// make glue between V8's facilities and a profiler.
-
-// This type declaration must match V8's FunctionEntryHook.
-typedef void (*DynamicFunctionEntryHook)(uintptr_t function,
-                                         uintptr_t return_addr_location);
-
 typedef void (*AddDynamicSymbol)(const void* address,
                                  size_t length,
                                  const char* name,
@@ -80,7 +68,6 @@ typedef void (*MoveDynamicSymbol)(const void* address, const void* new_address);
 // for each of those purposes, find and return the function in question.
 // Otherwise returns NULL.
 BASE_EXPORT ReturnAddressLocationResolver GetProfilerReturnAddrResolutionFunc();
-BASE_EXPORT DynamicFunctionEntryHook GetProfilerDynamicFunctionEntryHookFunc();
 BASE_EXPORT AddDynamicSymbol GetProfilerAddDynamicSymbolFunc();
 BASE_EXPORT MoveDynamicSymbol GetProfilerMoveDynamicSymbolFunc();
 

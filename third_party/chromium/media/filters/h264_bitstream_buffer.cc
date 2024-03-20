@@ -4,6 +4,8 @@
 
 #include "media/filters/h264_bitstream_buffer.h"
 
+#include <cstring>
+
 #include "base/bits.h"
 #include "base/sys_byteorder.h"
 

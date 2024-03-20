@@ -25,11 +25,11 @@ const char kHeightKey[] = "height";
 }  // namespace
 
 std::unique_ptr<base::Value> Size::ToValue(const Size& size) {
-  std::unique_ptr<base::DictionaryValue> size_value(
-      new base::DictionaryValue());
-  size_value->SetDouble(kWidthKey, size.width_);
-  size_value->SetDouble(kHeightKey, size.height_);
-  return std::unique_ptr<base::Value>(size_value.release());
+  base::Value ret(base::Value::Type::DICT);
+  base::Value::Dict* size_value = ret.GetIfDict();
+  size_value->Set(kWidthKey, size.width_);
+  size_value->Set(kHeightKey, size.height_);
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 }  // namespace protocol

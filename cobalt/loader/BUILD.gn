@@ -183,6 +183,7 @@ target(gtest_target_type, "loader_test") {
     "image/image_decoder_unit_test.cc",
     "loader_test.cc",
     "mesh/mesh_decoder_test.cc",
+    "net_fetcher_test.cc",
     "text_decoder_test.cc",
   ]
 

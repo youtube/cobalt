@@ -53,7 +53,7 @@ const char kStyleAttributeName[] = "style";
 Element::Element(Document* document)
     : Node(document), animations_(new web_animations::AnimationSet()) {}
 
-Element::Element(Document* document, base::Token local_name)
+Element::Element(Document* document, base_token::Token local_name)
     : Node(document),
       local_name_(local_name),
       animations_(new web_animations::AnimationSet()) {}
@@ -245,7 +245,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   switch (attr_name.size()) {
     case 2:
       if (attr_name == "id") {
-        id_attribute_ = base::Token(value);
+        id_attribute_ = base_token::Token(value);
       }
       break;
     case 5:
@@ -306,7 +306,7 @@ void Element::RemoveAttribute(const std::string& name) {
   switch (attr_name.size()) {
     case 2:
       if (attr_name == "id") {
-        id_attribute_ = base::Token("");
+        id_attribute_ = base_token::Token("");
       }
       break;
     case 5:
@@ -328,7 +328,7 @@ void Element::RemoveAttribute(const std::string& name) {
 
 // Algorithm for tag_name:
 //   https://www.w3.org/TR/dom/#dom-element-tagname
-base::Token Element::tag_name() const {
+base_token::Token Element::tag_name() const {
   // 1. If context object's namespace prefix is not null, let qualified name be
   // its namespace prefix, followed by a ":" (U+003A), followed by its local
   // name. Otherwise, let qualified name be its local name.
@@ -342,7 +342,7 @@ base::Token Element::tag_name() const {
   }
 
   // 3. Return qualified name.
-  return base::Token(qualified_name);
+  return base_token::Token(qualified_name);
 }
 
 // Algorithm for HasAttribute:

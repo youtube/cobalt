@@ -1,17 +1,17 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SOCKET_SSL_SERVER_SOCKET_IMPL_H_
 #define NET_SOCKET_SSL_SERVER_SOCKET_IMPL_H_
 
+#include <stdint.h>
+
 #include <memory>
 
-#include "base/macros.h"
 #include "net/base/io_buffer.h"
 #include "net/socket/ssl_server_socket.h"
 #include "net/ssl/ssl_server_config.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace net {
@@ -19,7 +19,7 @@ namespace net {
 class SSLServerContextImpl : public SSLServerContext {
  public:
   SSLServerContextImpl(X509Certificate* certificate,
-                       const crypto::RSAPrivateKey& key,
+                       EVP_PKEY* pkey,
                        const SSLServerConfig& ssl_server_config);
   SSLServerContextImpl(X509Certificate* certificate,
                        scoped_refptr<SSLPrivateKey> key,
@@ -44,7 +44,7 @@ class SSLServerContextImpl : public SSLServerContext {
 
   // Private key used by the server.
   // Only one representation should be set at any time.
-  std::unique_ptr<crypto::RSAPrivateKey> key_;
+  bssl::UniquePtr<EVP_PKEY> pkey_;
   const scoped_refptr<SSLPrivateKey> private_key_;
 };
 

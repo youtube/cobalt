@@ -17,7 +17,7 @@
 #include <va/va_str.h>
 
 #include "base/bits.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/containers/contains.h"
 #include "base/cpu.h"
 #include "base/files/file.h"

@@ -26,12 +26,13 @@
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/fetch_interceptor_coordinator.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
+#include "cobalt/network/custom/url_fetcher.h"
 #include "cobalt/network/disk_cache/cobalt_backend_impl.h"
 #include "cobalt/network/network_module.h"
 #include "net/base/mime_util.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_transaction_factory.h"
-#include "net/url_request/url_fetcher.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
 #endif  // defined(STARBOARD)
@@ -78,9 +79,9 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
       origin_(origin),
       request_script_(options.resource_type ==
                       network::disk_cache::kUncompiledScript),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       skip_fetch_intercept_(options.skip_fetch_intercept),
-      will_destroy_current_message_loop_(false),
+      will_destroy_current_task_runner_(false),
       main_resource_(main_resource) {
   url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
   if (!options.headers.IsEmpty()) {
@@ -97,6 +98,7 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
     url_fetcher_->AddExtraRequestHeader("Origin:" + origin.SerializedOrigin());
   }
 
+#ifndef USE_HACKY_COBALT_CHANGES
   if (url.SchemeIsHTTPOrHTTPS()) {
     auto url_request_context = network_module->url_request_context();
     std::string key = net::HttpUtil::SpecForRequest(url);
@@ -112,18 +114,20 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
         net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
     url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
   }
+#endif
+
   network_module->AddClientHintHeaders(*url_fetcher_, network::kCallTypeLoader);
 
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()
   // while a loader is still being constructed.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                start_callback_.callback());
-  base::MessageLoop::current()->AddDestructionObserver(this);
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, start_callback_.callback());
+  base::CurrentThread::Get()->AddDestructionObserver(this);
 }
 
 void NetFetcher::WillDestroyCurrentMessageLoop() {
-  will_destroy_current_message_loop_.store(true);
+  will_destroy_current_task_runner_.store(true);
 }
 
 void NetFetcher::Start() {
@@ -154,10 +158,10 @@ void NetFetcher::Start() {
 void NetFetcher::InterceptFallback() { url_fetcher_->Start(); }
 
 void NetFetcher::OnFetchIntercepted(std::unique_ptr<std::string> body) {
-  if (will_destroy_current_message_loop_.load()) {
+  if (will_destroy_current_task_runner_.load()) {
     return;
   }
-  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (task_runner_ != base::SequencedTaskRunner::GetCurrentDefault()) {
     task_runner_->PostTask(
         FROM_HERE, base::BindOnce(&NetFetcher::OnFetchIntercepted,
                                   base::Unretained(this), std::move(body)));
@@ -229,9 +233,9 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT1("cobalt::loader", "NetFetcher::OnURLFetchComplete", "url",
                url_fetcher_->GetOriginalURL().spec());
-  const net::URLRequestStatus& status = source->GetStatus();
+  const net::Error status = source->GetStatus();
   const int response_code = source->GetResponseCode();
-  if (status.is_success() && IsResponseCodeSuccess(response_code)) {
+  if (status == net::Error::OK && IsResponseCodeSuccess(response_code)) {
     auto* download_data_writer =
         base::polymorphic_downcast<URLFetcherStringWriter*>(
             source->GetResponseWriter());
@@ -248,20 +252,19 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
     // Check for response codes and errors that are considered transient. These
     // are the ones that net::URLFetcherCore is willing to attempt retries on,
     // along with ERR_NAME_RESOLUTION_FAILED, which indicates a socket error.
-    if (response_code >= 500 ||
-        status.error() == net::ERR_TEMPORARILY_THROTTLED ||
-        status.error() == net::ERR_NETWORK_CHANGED ||
-        status.error() == net::ERR_NAME_RESOLUTION_FAILED ||
-        status.error() == net::ERR_CONNECTION_RESET ||
-        status.error() == net::ERR_CONNECTION_CLOSED ||
-        status.error() == net::ERR_CONNECTION_ABORTED) {
+    if (response_code >= 500 || status == net::ERR_TEMPORARILY_THROTTLED ||
+        status == net::ERR_NETWORK_CHANGED ||
+        status == net::ERR_NAME_RESOLUTION_FAILED ||
+        status == net::ERR_CONNECTION_RESET ||
+        status == net::ERR_CONNECTION_CLOSED ||
+        status == net::ERR_CONNECTION_ABORTED) {
       did_fail_from_transient_error_ = true;
     }
 
-    std::string msg(base::StringPrintf(
-        "NetFetcher error on %s: %s, response code %d",
-        source->GetURL().spec().c_str(),
-        net::ErrorToString(status.error()).c_str(), response_code));
+    std::string msg(
+        base::StringPrintf("NetFetcher error on %s: %s, response code %d",
+                           source->GetURL().spec().c_str(),
+                           net::ErrorToString(status).c_str(), response_code));
     return HandleError(msg).InvalidateThis();
   }
 }
@@ -290,8 +293,8 @@ void NetFetcher::ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) {
 NetFetcher::~NetFetcher() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   start_callback_.Cancel();
-  if (!will_destroy_current_message_loop_.load()) {
-    base::MessageLoop::current()->RemoveDestructionObserver(this);
+  if (!will_destroy_current_task_runner_.load()) {
+    base::CurrentThread::Get()->RemoveDestructionObserver(this);
   }
 }
 

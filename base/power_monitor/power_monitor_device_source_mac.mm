@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,137 +19,100 @@
 
 namespace base {
 
-void ProcessPowerEventHelper(PowerMonitorSource::PowerEvent event) {
-  PowerMonitorSource::ProcessPowerEvent(event);
+PowerThermalObserver::DeviceThermalState
+PowerMonitorDeviceSource::GetCurrentThermalState() {
+  return thermal_state_observer_->GetCurrentThermalState();
 }
 
-bool PowerMonitorDeviceSource::IsOnBatteryPowerImpl() {
-  base::ScopedCFTypeRef<CFTypeRef> info(IOPSCopyPowerSourcesInfo());
-  base::ScopedCFTypeRef<CFArrayRef> power_sources_list(
-      IOPSCopyPowerSourcesList(info));
-
-  const CFIndex count = CFArrayGetCount(power_sources_list);
-  for (CFIndex i = 0; i < count; ++i) {
-    const CFDictionaryRef description = IOPSGetPowerSourceDescription(
-        info, CFArrayGetValueAtIndex(power_sources_list, i));
-    if (!description)
-      continue;
-
-    CFStringRef current_state = base::mac::GetValueFromDictionary<CFStringRef>(
-        description, CFSTR(kIOPSPowerSourceStateKey));
-
-    if (!current_state)
-      continue;
-
-    // We only report "on battery power" if no source is on AC power.
-    if (CFStringCompare(current_state, CFSTR(kIOPSBatteryPowerValue), 0) !=
-        kCFCompareEqualTo) {
-      return false;
-    }
-  }
-
-  return true;
+int PowerMonitorDeviceSource::GetInitialSpeedLimit() {
+  return thermal_state_observer_->GetCurrentSpeedLimit();
 }
 
-namespace {
-
-io_connect_t g_system_power_io_port = 0;
-IONotificationPortRef g_notification_port_ref = 0;
-io_object_t g_notifier_object = 0;
-CFRunLoopSourceRef g_battery_status_ref = 0;
-
-void BatteryEventCallback(void*) {
-  ProcessPowerEventHelper(PowerMonitorSource::POWER_STATE_EVENT);
+void PowerMonitorDeviceSource::GetBatteryState() {
+  DCHECK(battery_level_provider_);
+  // base::Unretained is safe because the callback is immediately invoked
+  // inside `BatteryLevelProvider::GetBatteryState()`.
+  battery_level_provider_->GetBatteryState(
+      base::BindOnce(&PowerMonitorDeviceSource::OnBatteryStateReceived,
+                     base::Unretained(this)));
 }
 
-void SystemPowerEventCallback(void*,
-                              io_service_t service,
-                              natural_t message_type,
-                              void* message_argument) {
-  switch (message_type) {
-    // If this message is not handled the system may delay sleep for 30 seconds.
-    case kIOMessageCanSystemSleep:
-      IOAllowPowerChange(g_system_power_io_port,
-          reinterpret_cast<intptr_t>(message_argument));
-      break;
-    case kIOMessageSystemWillSleep:
-      ProcessPowerEventHelper(base::PowerMonitorSource::SUSPEND_EVENT);
-      IOAllowPowerChange(g_system_power_io_port,
-          reinterpret_cast<intptr_t>(message_argument));
-      break;
-
-    case kIOMessageSystemWillPowerOn:
-      ProcessPowerEventHelper(PowerMonitorSource::RESUME_EVENT);
-      break;
-  }
-}
-
-}  // namespace
-
-// The reason we can't include this code in the constructor is because
-// PlatformInit() requires an active runloop and the IO port needs to be
-// allocated at sandbox initialization time, before there's a runloop.
-// See crbug.com/83783 .
-
-// static
-void PowerMonitorDeviceSource::AllocateSystemIOPorts() {
-  DCHECK_EQ(g_system_power_io_port, 0u);
-
-  // Notification port allocated by IORegisterForSystemPower.
-  g_system_power_io_port = IORegisterForSystemPower(
-      NULL, &g_notification_port_ref, SystemPowerEventCallback,
-      &g_notifier_object);
-
-  DCHECK_NE(g_system_power_io_port, 0u);
+void PowerMonitorDeviceSource::OnBatteryStateReceived(
+    const absl::optional<BatteryLevelProvider::BatteryState>& battery_state) {
+  is_on_battery_ =
+      battery_state.has_value() && !battery_state->is_external_power_connected;
+  PowerMonitorSource::ProcessPowerEvent(PowerMonitorSource::POWER_STATE_EVENT);
 }
 
 void PowerMonitorDeviceSource::PlatformInit() {
-  // Need to call AllocateSystemIOPorts() before creating a PowerMonitor
-  // object.
-  DCHECK_NE(g_system_power_io_port, 0u);
-  if (g_system_power_io_port == 0)
-    return;
+  power_manager_port_ = IORegisterForSystemPower(
+      this,
+      mac::ScopedIONotificationPortRef::Receiver(notification_port_).get(),
+      &SystemPowerEventCallback, &notifier_);
+  DCHECK_NE(power_manager_port_, IO_OBJECT_NULL);
 
-  // Add the notification port and battery monitor to the application runloop
-  CFRunLoopAddSource(CFRunLoopGetCurrent(), IONotificationPortGetRunLoopSource(
-                                                g_notification_port_ref),
-                     kCFRunLoopCommonModes);
+  // Add the sleep/wake notification event source to the runloop.
+  CFRunLoopAddSource(
+      CFRunLoopGetCurrent(),
+      IONotificationPortGetRunLoopSource(notification_port_.get()),
+      kCFRunLoopCommonModes);
 
-  base::ScopedCFTypeRef<CFRunLoopSourceRef> battery_status_ref(
-      IOPSNotificationCreateRunLoopSource(BatteryEventCallback, nullptr));
-  CFRunLoopAddSource(CFRunLoopGetCurrent(), battery_status_ref,
-                     kCFRunLoopDefaultMode);
-  g_battery_status_ref = battery_status_ref.release();
+  battery_level_provider_ = BatteryLevelProvider::Create();
+  // Get the initial state for `is_on_battery_` and register for all future
+  // power-source-change events.
+  GetBatteryState();
+  // base::Unretained is safe because `this` owns `power_source_event_source_`,
+  // which exclusively owns the callback.
+  power_source_event_source_.Start(base::BindRepeating(
+      &PowerMonitorDeviceSource::GetBatteryState, base::Unretained(this)));
+
+  thermal_state_observer_ = std::make_unique<ThermalStateObserverMac>(
+      BindRepeating(&PowerMonitorSource::ProcessThermalEvent),
+      BindRepeating(&PowerMonitorSource::ProcessSpeedLimitEvent));
 }
 
 void PowerMonitorDeviceSource::PlatformDestroy() {
-  DCHECK_NE(g_system_power_io_port, 0u);
-  if (g_system_power_io_port == 0)
-    return;
-
-  // Remove the sleep notification port from the application runloop
   CFRunLoopRemoveSource(
       CFRunLoopGetCurrent(),
-      IONotificationPortGetRunLoopSource(g_notification_port_ref),
+      IONotificationPortGetRunLoopSource(notification_port_.get()),
       kCFRunLoopCommonModes);
 
-  base::ScopedCFTypeRef<CFRunLoopSourceRef> battery_status_ref(
-      g_battery_status_ref);
-  CFRunLoopRemoveSource(CFRunLoopGetCurrent(), g_battery_status_ref,
-                        kCFRunLoopDefaultMode);
-  g_battery_status_ref = 0;
+  // Deregister for system power notifications.
+  IODeregisterForSystemPower(&notifier_);
 
-  // Deregister for system sleep notifications
-  IODeregisterForSystemPower(&g_notifier_object);
+  // Close the connection to the IOPMrootDomain that was opened in
+  // PlatformInit().
+  IOServiceClose(power_manager_port_);
+  power_manager_port_ = IO_OBJECT_NULL;
+}
 
-  // IORegisterForSystemPower implicitly opens the Root Power Domain IOService,
-  // so we close it here.
-  IOServiceClose(g_system_power_io_port);
+bool PowerMonitorDeviceSource::IsOnBatteryPower() {
+  return is_on_battery_;
+}
 
-  g_system_power_io_port = 0;
+void PowerMonitorDeviceSource::SystemPowerEventCallback(
+    void* refcon,
+    io_service_t service,
+    natural_t message_type,
+    void* message_argument) {
+  auto* thiz = static_cast<PowerMonitorDeviceSource*>(refcon);
 
-  // Destroy the notification port allocated by IORegisterForSystemPower.
-  IONotificationPortDestroy(g_notification_port_ref);
+  switch (message_type) {
+    // If this message is not handled the system may delay sleep for 30 seconds.
+    case kIOMessageCanSystemSleep:
+      IOAllowPowerChange(thiz->power_manager_port_,
+                         reinterpret_cast<intptr_t>(message_argument));
+      break;
+    case kIOMessageSystemWillSleep:
+      PowerMonitorSource::ProcessPowerEvent(PowerMonitorSource::SUSPEND_EVENT);
+      IOAllowPowerChange(thiz->power_manager_port_,
+                         reinterpret_cast<intptr_t>(message_argument));
+      break;
+
+    case kIOMessageSystemWillPowerOn:
+      PowerMonitorSource::ProcessPowerEvent(PowerMonitorSource::RESUME_EVENT);
+      break;
+  }
 }
 
 }  // namespace base

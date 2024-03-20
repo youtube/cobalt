@@ -48,7 +48,7 @@ SpeechSynthesis::~SpeechSynthesis() {}
 
 void SpeechSynthesis::set_onvoiceschanged(
     const EventListenerScriptValue& event_listener) {
-  base::Token event_name = base::Tokens::voiceschanged();
+  base_token::Token event_name = base::Tokens::voiceschanged();
   SetAttributeEventListener(event_name, event_listener);
   DispatchEvent(new web::Event(event_name));
 }

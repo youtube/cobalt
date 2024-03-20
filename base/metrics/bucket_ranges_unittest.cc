@@ -1,10 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/metrics/bucket_ranges.h"
 
-#include "starboard/types.h"
+#include <stdint.h>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -71,22 +72,6 @@ TEST(BucketRangesTest, Checksum) {
   ranges.ResetChecksum();
   EXPECT_EQ(2843835776u, ranges.checksum());
   EXPECT_TRUE(ranges.HasValidChecksum());
-}
-
-// Table was generated similarly to sample code for CRC-32 given on:
-// http://www.w3.org/TR/PNG/#D-CRCAppendix.
-TEST(BucketRangesTest, Crc32TableTest) {
-  for (int i = 0; i < 256; ++i) {
-    uint32_t checksum = i;
-    for (int j = 0; j < 8; ++j) {
-      const uint32_t kReversedPolynomial = 0xedb88320L;
-      if (checksum & 1)
-        checksum = kReversedPolynomial ^ (checksum >> 1);
-      else
-        checksum >>= 1;
-    }
-    EXPECT_EQ(kCrcTable[i], checksum);
-  }
 }
 
 }  // namespace

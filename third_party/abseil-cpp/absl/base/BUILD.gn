@@ -168,8 +168,6 @@ absl_source_set("base") {
       "internal/sysinfo.cc",
       # ThreadIdentity leaks pthread calls.
       "internal/thread_identity.cc",
-      # UnscaledCycleClock leaks NominalCPUFrequency.
-      "internal/unscaledcycleclock.cc",
     ]
     public -= [
       "internal/sysinfo.h",

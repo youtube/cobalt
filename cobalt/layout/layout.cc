@@ -166,7 +166,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
       LayoutBoxes* layout_boxes = base::polymorphic_downcast<LayoutBoxes*>(
           html_element->layout_boxes());
       if (layout_boxes) {
-        for (Box* box : layout_boxes->boxes()) {
+        for (scoped_refptr<Box> box : layout_boxes->boxes()) {
           box->UpdateUiNavigationItem();
         }
       }

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/strings/string_piece.h"
+#include "base/macros.h"
 
 namespace base {
 class CommandLine;

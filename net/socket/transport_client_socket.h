@@ -1,13 +1,13 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SOCKET_TRANSPORT_CLIENT_SOCKET_H_
 #define NET_SOCKET_TRANSPORT_CLIENT_SOCKET_H_
 
-#include "base/macros.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
+#include "net/socket/connection_attempts.h"
 #include "net/socket/stream_socket.h"
 
 namespace net {
@@ -17,6 +17,10 @@ namespace net {
 class NET_EXPORT TransportClientSocket : public StreamSocket {
  public:
   TransportClientSocket();
+
+  TransportClientSocket(const TransportClientSocket&) = delete;
+  TransportClientSocket& operator=(const TransportClientSocket&) = delete;
+
   ~TransportClientSocket() override;
 
   // Binds the socket to a local address, |local_addr|. Returns OK on success,
@@ -30,15 +34,22 @@ class NET_EXPORT TransportClientSocket : public StreamSocket {
   // governed by RFC 896. SetTCPNoDelay() sets the TCP_NODELAY option. Use
   // |no_delay| to enable or disable it. Returns true on success, and false on
   // failure.
+  //
+  // Should not be called and will always fail until there is not an underlying
+  // platform socket ready to receive options. The underlying platform socket
+  // should always be ready after successful connection or slightly earlier
+  // during BeforeConnect handlers.
   virtual bool SetNoDelay(bool no_delay);
 
   // Enables or disables TCP Keep-Alive (which is the SO_KEEPALIVE option on the
   // socket). The unit for the delay is in seconds. Returns true on success, and
   // false on failure.
+  //
+  // Should not be called and will always fail until there is not an underlying
+  // platform socket ready to receive options. The underlying platform socket
+  // should always be ready after successful connection or slightly earlier
+  // during BeforeConnect handlers.
   virtual bool SetKeepAlive(bool enable, int delay_secs);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(TransportClientSocket);
 };
 
 }  // namespace net

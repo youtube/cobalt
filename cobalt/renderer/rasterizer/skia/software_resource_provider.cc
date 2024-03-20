@@ -231,7 +231,7 @@ SoftwareResourceProvider::CreateTypefaceFromRawData(
 
 scoped_refptr<render_tree::GlyphBuffer>
 SoftwareResourceProvider::CreateGlyphBuffer(
-    const base::char16* text_buffer, size_t text_length,
+    const char16_t* text_buffer, size_t text_length,
     const std::string& language, bool is_rtl,
     render_tree::FontProvider* font_provider) {
   return text_shaper_.CreateGlyphBuffer(text_buffer, text_length, language,
@@ -246,7 +246,7 @@ SoftwareResourceProvider::CreateGlyphBuffer(
 }
 
 float SoftwareResourceProvider::GetTextWidth(
-    const base::char16* text_buffer, size_t text_length,
+    const char16_t* text_buffer, size_t text_length,
     const std::string& language, bool is_rtl,
     render_tree::FontProvider* font_provider,
     render_tree::FontVector* maybe_used_fonts) {

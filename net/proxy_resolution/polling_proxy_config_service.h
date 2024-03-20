@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,8 +6,7 @@
 #define NET_PROXY_RESOLUTION_POLLING_PROXY_CONFIG_SERVICE_H_
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/proxy_resolution/proxy_config_service.h"
@@ -22,12 +21,17 @@ namespace net {
 // thread, and notifies registered observers when the value changes.
 class NET_EXPORT_PRIVATE PollingProxyConfigService : public ProxyConfigService {
  public:
+  PollingProxyConfigService(const PollingProxyConfigService&) = delete;
+  PollingProxyConfigService& operator=(const PollingProxyConfigService&) =
+      delete;
+
   // ProxyConfigService implementation:
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
   ConfigAvailability GetLatestProxyConfig(
       ProxyConfigWithAnnotation* config) override;
   void OnLazyPoll() override;
+  bool UsesPolling() override;
 
  protected:
   // Function for retrieving the current proxy configuration.
@@ -52,8 +56,6 @@ class NET_EXPORT_PRIVATE PollingProxyConfigService : public ProxyConfigService {
  private:
   class Core;
   scoped_refptr<Core> core_;
-
-  DISALLOW_COPY_AND_ASSIGN(PollingProxyConfigService);
 };
 
 }  // namespace net

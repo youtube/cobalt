@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,13 +12,13 @@
 #include "base/logging.h"
 #include "base/posix/safe_strerror.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 
 namespace net {
 
 Error MapSystemError(logging::SystemErrorCode os_error) {
   if (os_error != 0)
-    DVLOG(2) << "Error " << os_error;
+    DVLOG(2) << "Error " << os_error << ": "
+             << logging::SystemErrorCodeToString(os_error);
 
   // There are numerous posix error codes, but these are the ones we thus far
   // find interesting.
@@ -111,13 +111,15 @@ Error MapSystemError(logging::SystemErrorCode os_error) {
       return ERR_INSUFFICIENT_RESOURCES;
     case EMFILE:  // Too many open files.
       return ERR_INSUFFICIENT_RESOURCES;
-#if defined(OS_FUCHSIA)
+    case ENOPROTOOPT:  // Protocol option not supported.
+      return ERR_NOT_IMPLEMENTED;
+#if BUILDFLAG(IS_FUCHSIA)
     case EIO:
       // FDIO maps all unrecognized errors to EIO. If you see this message then
       // consider adding custom error in FDIO for the corresponding error.
       DLOG(FATAL) << "EIO was returned by FDIO.";
       return ERR_FAILED;
-#endif  // OS_FUCHSIA
+#endif  // BUILDFLAG(IS_FUCHSIA)
 
     case 0:
       return OK;

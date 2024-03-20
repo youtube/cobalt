@@ -141,6 +141,6 @@ static_library("unwind_starboard") {
 
   public_deps = [
     "//starboard/common",
-    "//starboard/elf_loader:evergreen_info",
+    # "//starboard/elf_loader:evergreen_info",
   ]
 }

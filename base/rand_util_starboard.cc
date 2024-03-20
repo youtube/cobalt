@@ -25,4 +25,6 @@ void RandBytes(void* output, size_t output_length) {
   }
 }
 
+void internal::ConfigureBoringSSLBackedRandBytesFieldTrial() {}
+
 }  // namespace base

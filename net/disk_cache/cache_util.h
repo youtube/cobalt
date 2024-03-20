@@ -1,14 +1,16 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DISK_CACHE_CACHE_UTIL_H_
 #define NET_DISK_CACHE_CACHE_UTIL_H_
 
+#include <stdint.h>
+
 #include "base/feature_list.h"
+#include "base/functional/callback_forward.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/disk_cache.h"
-#include "starboard/types.h"
 
 namespace base {
 class FilePath;
@@ -16,9 +18,10 @@ class FilePath;
 
 namespace disk_cache {
 
-NET_EXPORT_PRIVATE extern const base::Feature kChangeDiskCacheSizeExperiment;
+// Experiment to increase the cache size to see the impact on various
+// performance metrics.
+NET_EXPORT_PRIVATE BASE_DECLARE_FEATURE(kChangeDiskCacheSizeExperiment);
 
-#if !defined(STARBOARD)
 // Moves the cache files from the given path to another location.
 // Fails if the destination exists already, or if it doesn't have
 // permission for the operation.  This is basically a rename operation
@@ -27,22 +30,31 @@ NET_EXPORT_PRIVATE extern const base::Feature kChangeDiskCacheSizeExperiment;
 // directory.
 NET_EXPORT_PRIVATE bool MoveCache(const base::FilePath& from_path,
                                   const base::FilePath& to_path);
-#endif
 
 // Deletes the cache files stored on |path|, and optionally also attempts to
 // delete the folder itself.
 NET_EXPORT_PRIVATE void DeleteCache(const base::FilePath& path,
                                     bool remove_folder);
 
-// Deletes a cache file.
-NET_EXPORT_PRIVATE bool DeleteCacheFile(const base::FilePath& name);
+// Deletes the given directory recursively, asynchronously. `callback` will
+// called with whether the operation succeeded.
+// This is done by:
+//  1. Renaming the directory to another directory,
+//  2. Calling `callback` with the result, and
+//  3. Deleting the directory.
+// This means the caller won't know the result of 3.
+NET_EXPORT_PRIVATE void CleanupDirectory(
+    const base::FilePath& path,
+    base::OnceCallback<void(bool)> callback);
 
-// Renames cache directory synchronously and fires off a background cleanup
-// task. Used by cache creator itself or by backends for self-restart on error.
-bool DelayedCacheCleanup(const base::FilePath& full_path);
+// This runs 1. (see the above comments) synchronously.
+bool CleanupDirectorySync(const base::FilePath& path);
 
-// Returns the preferred max cache size given the available disk space.
-NET_EXPORT_PRIVATE int PreferredCacheSize(int64_t available);
+// Returns the preferred max cache size given the available disk space and
+// cache type.
+NET_EXPORT_PRIVATE int PreferredCacheSize(
+    int64_t available,
+    net::CacheType type = net::DISK_CACHE);
 
 // The default cache size should not ideally be exposed, but the blockfile
 // backend uses it for reasons that include testing.

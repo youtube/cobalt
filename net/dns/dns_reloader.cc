@@ -1,22 +1,51 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/dns/dns_reloader.h"
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && \
-    !defined(OS_ANDROID) && !defined(OS_FUCHSIA)
+#include "build/build_config.h"
+
+// If we're not on a POSIX system, it's not even safe to try to include resolv.h
+// - there's not guarantee it exists at all. :(
+#if BUILDFLAG(IS_POSIX)
 
 #include <resolv.h>
 
+// This code only works on systems where the C library provides res_ninit(3) and
+// res_nclose(3), which requires __RES >= 19991006 (most libcs at this point,
+// but not all).
+//
+// This code is also not used on either macOS or iOS, even though both platforms
+// have res_ninit(3). On iOS, /etc/hosts is immutable so there's no reason for
+// us to watch it; on macOS, there is a system mechanism for listening to DNS
+// changes which does not require use to do this kind of reloading. See
+// //net/dns/dns_config_watcher_mac.cc.
+//
+// It *also* is not used on Android, because Android handles nameserver changes
+// for us and has no /etc/resolv.conf. Despite that, Bionic does export these
+// interfaces, so we need to not use them.
+//
+// It is also also not used on Fuchsia. Regrettably, Fuchsia's resolv.h has
+// __RES set to 19991006, but does not actually provide res_ninit(3). This was
+// an old musl bug that was fixed by musl c8fdcfe5, but Fuchsia's SDK doesn't
+// have that change.
+#if defined(__RES) && __RES >= 19991006 && !BUILDFLAG(IS_APPLE) && \
+    !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA)
+// We define this so we don't need to restate the complex condition here twice
+// below - it would be easy for the copies below to get out of sync.
+#define USE_RES_NINIT
+#endif  // defined(_RES) && ...
+#endif  // BUILDFLAG(IS_POSIX)
+
+#if defined(USE_RES_NINIT)
+
 #include "base/lazy_instance.h"
-#include "base/logging.h"
-#include "base/macros.h"
-#include "base/message_loop/message_loop.h"
+#include "base/notreached.h"
 #include "base/synchronization/lock.h"
-#include "base/threading/thread_local_storage.h"
+#include "base/task/current_thread.h"
+#include "base/threading/thread_local.h"
 #include "net/base/network_change_notifier.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -34,36 +63,33 @@ namespace {
 // NetworkChangeNotifier::DNSObserver to monitor /etc/resolv.conf to
 // enable us to respond to DNS changes and reload the resolver state.
 //
-// OpenBSD does not have thread-safe res_ninit/res_nclose so we can't do
-// the same trick there and most *BSD's don't yet have support for
-// FilePathWatcher (but perhaps the new kqueue mac code just needs to be
-// ported to *BSD to support that).
-//
 // Android does not have /etc/resolv.conf. The system takes care of nameserver
 // changes, so none of this is needed.
+//
+// TODO(crbug.com/971411): Convert to SystemDnsConfigChangeNotifier because this
+// really only cares about system DNS config changes, not Chrome effective
+// config changes.
 
 class DnsReloader : public NetworkChangeNotifier::DNSObserver {
  public:
-  struct ReloadState {
-    int resolver_generation;
-  };
+  DnsReloader(const DnsReloader&) = delete;
+  DnsReloader& operator=(const DnsReloader&) = delete;
 
   // NetworkChangeNotifier::DNSObserver:
   void OnDNSChanged() override {
-    DCHECK(base::MessageLoopForIO::IsCurrent());
     base::AutoLock lock(lock_);
     resolver_generation_++;
   }
 
   void MaybeReload() {
-    ReloadState* reload_state = static_cast<ReloadState*>(tls_index_.Get());
+    ReloadState* reload_state = tls_reload_state_.Get();
     base::AutoLock lock(lock_);
 
     if (!reload_state) {
-      reload_state = new ReloadState();
-      reload_state->resolver_generation = resolver_generation_;
+      auto new_reload_state = std::make_unique<ReloadState>();
+      new_reload_state->resolver_generation = resolver_generation_;
       res_ninit(&_res);
-      tls_index_.Set(reload_state);
+      tls_reload_state_.Set(std::move(new_reload_state));
     } else if (reload_state->resolver_generation != resolver_generation_) {
       reload_state->resolver_generation = resolver_generation_;
       // It is safe to call res_nclose here since we know res_ninit will have
@@ -73,15 +99,13 @@ class DnsReloader : public NetworkChangeNotifier::DNSObserver {
     }
   }
 
-  // Free the allocated state.
-  static void SlotReturnFunction(void* data) {
-    ReloadState* reload_state = static_cast<ReloadState*>(data);
-    if (reload_state)
-      res_nclose(&_res);
-    delete reload_state;
-  }
-
  private:
+  struct ReloadState {
+    ~ReloadState() { res_nclose(&_res); }
+
+    int resolver_generation;
+  };
+
   DnsReloader() { NetworkChangeNotifier::AddDNSObserver(this); }
 
   ~DnsReloader() override {
@@ -93,9 +117,7 @@ class DnsReloader : public NetworkChangeNotifier::DNSObserver {
   friend struct base::LazyInstanceTraitsBase<DnsReloader>;
 
   // We use thread local storage to identify which ReloadState to interact with.
-  base::ThreadLocalStorage::Slot tls_index_{&SlotReturnFunction};
-
-  DISALLOW_COPY_AND_ASSIGN(DnsReloader);
+  base::ThreadLocalOwnedPointer<ReloadState> tls_reload_state_;
 };
 
 base::LazyInstance<DnsReloader>::Leaky
@@ -115,5 +137,14 @@ void DnsReloaderMaybeReload() {
 
 }  // namespace net
 
-#endif  // defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) &&
-        // !defined(OS_ANDROID)
+#else  // !USE_RES_NINIT
+
+namespace net {
+
+void EnsureDnsReloaderInit() {}
+
+void DnsReloaderMaybeReload() {}
+
+}  // namespace net
+
+#endif  // defined(USE_RES_NINIT)

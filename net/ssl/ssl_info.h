@@ -1,23 +1,22 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SSL_SSL_INFO_H_
 #define NET_SSL_SSL_INFO_H_
 
+#include <stdint.h>
+
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+#include "net/base/hash_value.h"
 #include "net/base/net_export.h"
 #include "net/cert/cert_status_flags.h"
 #include "net/cert/ct_policy_status.h"
-#include "net/cert/ct_verify_result.h"
 #include "net/cert/ocsp_verify_result.h"
 #include "net/cert/sct_status_flags.h"
 #include "net/cert/signed_certificate_timestamp_and_status.h"
-#include "net/cert/x509_cert_types.h"
-#include "net/ssl/ssl_config.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -42,20 +41,7 @@ class NET_EXPORT SSLInfo {
 
   void Reset();
 
-  bool is_valid() const { return cert.get() != NULL; }
-
-  // Adds the specified |error| to the cert status.
-  void SetCertError(int error);
-
-  // Adds the SignedCertificateTimestamps and policy compliance details
-  // from ct_verify_result to |signed_certificate_timestamps| and
-  // |ct_policy_compliance_details|. SCTs are held in three separate
-  // vectors in ct_verify_result, each vetor representing a particular
-  // verification state, this method associates each of the SCTs with
-  // the corresponding SCTVerifyStatus as it adds it to the
-  // |signed_certificate_timestamps| list.
-  void UpdateCertificateTransparencyInfo(
-      const ct::CTVerifyResult& ct_verify_result);
+  bool is_valid() const { return cert.get() != nullptr; }
 
   // The SSL certificate.
   scoped_refptr<X509Certificate> cert;
@@ -70,23 +56,16 @@ class NET_EXPORT SSLInfo {
   // See cert_status_flags.h for values.
   CertStatus cert_status = 0;
 
-  // The security strength, in bits, of the SSL cipher suite.
-  // 0 means the connection is not encrypted.
-  // -1 means the security strength is unknown.
-  int security_bits = -1;
-
   // The ID of the (EC)DH group used by the key exchange or zero if unknown
   // (older cache entries may not store the value) or not applicable.
   uint16_t key_exchange_group = 0;
 
-#if defined(COBALT_QUIC46)
   // The signature algorithm used by the peer in the TLS handshake, as defined
   // by the TLS SignatureScheme registry
   // (https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-signaturescheme).
   // These correspond to |SSL_SIGN_*| constants in BoringSSL. The value is zero
   // if unknown (older cache entries may not store the value) or not applicable.
   uint16_t peer_signature_algorithm = 0;
-#endif
 
   // Information about the SSL connection itself. See
   // ssl_connection_status_flags.h for values. The protocol version,
@@ -104,12 +83,12 @@ class NET_EXPORT SSLInfo {
   // a Certificate message with no client certificate in it does not count.
   bool client_cert_sent = false;
 
-  // True if a channel ID was sent to the server.
-  bool channel_id_sent = false;
-
   // True if data was received over early data on the server. This field is only
   // set for server sockets.
   bool early_data_received = false;
+
+  // True if the connection negotiated the Encrypted ClientHello extension.
+  bool encrypted_client_hello = false;
 
   HandshakeType handshake_type = HANDSHAKE_UNKNOWN;
 
@@ -130,11 +109,6 @@ class NET_EXPORT SSLInfo {
   // not, why not.
   ct::CTPolicyCompliance ct_policy_compliance =
       ct::CTPolicyCompliance::CT_POLICY_COMPLIANCE_DETAILS_NOT_AVAILABLE;
-
-  // True if the connection was required to comply with the CT cert policy. Only
-  // meaningful if |ct_policy_compliance| is not
-  // COMPLIANCE_DETAILS_NOT_AVAILABLE.
-  bool ct_policy_compliance_required = false;
 
   // OCSP stapling details.
   OCSPVerifyResult ocsp_result;

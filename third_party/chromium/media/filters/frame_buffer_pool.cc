@@ -5,7 +5,7 @@
 #include "media/filters/frame_buffer_pool.h"
 
 #include "base/bind.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/check_op.h"
 #include "base/containers/cxx20_erase.h"
 #include "base/location.h"

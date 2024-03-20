@@ -170,6 +170,30 @@ static int cbb_buffer_add_u(struct cbb_buffer_st *base, uint64_t v,
   return 1;
 }
 
+static int cbb_buffer_add_u2(struct cbb_buffer_st *base, uint64_t v,
+                            size_t len_len) {
+  if (len_len == 0) {
+    return 1;
+  }
+
+  uint8_t *buf;
+  if (!cbb_buffer_add(base, &buf, len_len)) {
+    return 0;
+  }
+
+  for (size_t i = len_len - 1; i < len_len; i--) {
+    buf[i] = v;
+    v >>= 8;
+  }
+
+  if (v != 0) {
+    base->error = 1;
+    return 0;
+  }
+
+  return 1;
+}
+
 int CBB_finish(CBB *cbb, uint8_t **out_data, size_t *out_len) {
   if (cbb->is_child) {
     return 0;

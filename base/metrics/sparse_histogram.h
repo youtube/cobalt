@@ -1,20 +1,22 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_METRICS_SPARSE_HISTOGRAM_H_
 #define BASE_METRICS_SPARSE_HISTOGRAM_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <string>
 
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/synchronization/lock.h"
-#include "starboard/types.h"
+#include "base/values.h"
 
 namespace base {
 
@@ -37,6 +39,9 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
       HistogramSamples::Metadata* meta,
       HistogramSamples::Metadata* logged_meta);
 
+  SparseHistogram(const SparseHistogram&) = delete;
+  SparseHistogram& operator=(const SparseHistogram&) = delete;
+
   ~SparseHistogram() override;
 
   // HistogramBase implementation:
@@ -44,16 +49,17 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
   HistogramType GetHistogramType() const override;
   bool HasConstructionArguments(Sample expected_minimum,
                                 Sample expected_maximum,
-                                uint32_t expected_bucket_count) const override;
+                                size_t expected_bucket_count) const override;
   void Add(Sample value) override;
   void AddCount(Sample value, int count) override;
   void AddSamples(const HistogramSamples& samples) override;
   bool AddSamplesFromPickle(base::PickleIterator* iter) override;
   std::unique_ptr<HistogramSamples> SnapshotSamples() const override;
+  std::unique_ptr<HistogramSamples> SnapshotUnloggedSamples() const override;
+  void MarkSamplesAsLogged(const HistogramSamples& samples) override;
   std::unique_ptr<HistogramSamples> SnapshotDelta() override;
   std::unique_ptr<HistogramSamples> SnapshotFinalDelta() const override;
-  void WriteHTMLGraph(std::string* output) const override;
-  void WriteAscii(std::string* output) const override;
+  base::Value::Dict ToGraphDict() const override;
 
  protected:
   // HistogramBase implementation:
@@ -72,22 +78,12 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
       base::PickleIterator* iter);
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
 
-  void GetParameters(DictionaryValue* params) const override;
-  void GetCountAndBucketData(Count* count,
-                             int64_t* sum,
-                             ListValue* buckets) const override;
+  // Writes the type of the sparse histogram in the |params|.
+  Value::Dict GetParameters() const override;
 
-  // Helpers for emitting Ascii graphic.  Each method appends data to output.
-  void WriteAsciiImpl(bool graph_it,
-                      const std::string& newline,
-                      std::string* output) const;
-
-  // Write a common header message describing this histogram.
-  void WriteAsciiHeader(const Count total_count,
-                        std::string* output) const;
-
-  // For constuctor calling.
+  // For constructor calling.
   friend class SparseHistogramTest;
+  friend class HistogramThreadsafeTest;
 
   // Protects access to |samples_|.
   mutable base::Lock lock_;
@@ -97,8 +93,6 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
 
   std::unique_ptr<HistogramSamples> unlogged_samples_;
   std::unique_ptr<HistogramSamples> logged_samples_;
-
-  DISALLOW_COPY_AND_ASSIGN(SparseHistogram);
 };
 
 }  // namespace base

@@ -83,7 +83,7 @@ class Loader {
       fetcher_handler_to_decoder_adaptor_;
   std::unique_ptr<Fetcher> fetcher_;
 
-  base::CancelableClosure fetcher_creator_error_closure_;
+  base::CancelableRepeatingClosure fetcher_creator_error_closure_;
   THREAD_CHECKER(thread_checker_);
 
   const OnCompleteFunction on_load_complete_;

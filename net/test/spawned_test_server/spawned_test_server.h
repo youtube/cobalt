@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,6 @@
 #include "net/test/spawned_test_server/local_test_server.h"
 #endif
 
-#if !defined(STARBOARD)
 namespace net {
 
 #if defined(USE_REMOTE_TEST_SERVER)
@@ -23,6 +22,5 @@ typedef LocalTestServer SpawnedTestServer;
 #endif
 
 }  // namespace net
-#endif
 
 #endif  // NET_TEST_SPAWNED_TEST_SERVER_SPAWNED_TEST_SERVER_H_

@@ -21,7 +21,7 @@
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 
-namespace base {
+namespace base_token {
 
 namespace {
 
@@ -55,7 +55,7 @@ class TokenStorage {
 #if defined(BASE_HASH_USE_HASH_STRUCT)
 
 uint32 hash(const char* str) {
-  return BASE_HASH_NAMESPACE::hash<std::string>()(std::string(str));
+  return std::hash<std::string>()(std::string(str));
 }
 
 #else
@@ -129,4 +129,4 @@ const char* TokenStorage::GetStorage(const char* str) {
   return collision_table_.insert(str).first->c_str();
 }
 
-}  // namespace base
+}  // namespace base_token

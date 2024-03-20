@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,10 @@
 
 #include <string>
 
-#include "base/macros.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
 #include "build/build_config.h"
 #include "testing/platform_test.h"
-
-#if !defined(STARBOARD)
 
 namespace base {
 
@@ -48,7 +45,7 @@ class CommandLine;
 //   }
 //
 //   // Note: |MULTIPROCESS_TEST_MAIN()| is defined in
-//   // testing/multi_process_function_list.h.
+//   // testing/multiprocess_func_list.h.
 //   MULTIPROCESS_TEST_MAIN(a_test_func) {
 //     // Code here runs in a child process....
 //     return 0;
@@ -83,6 +80,11 @@ bool TerminateMultiProcessTestChild(const Process& process,
                                     int exit_code,
                                     bool wait);
 
+#if BUILDFLAG(IS_ANDROID)
+// Returns whether the child process exited cleanly from the main runloop.
+bool MultiProcessTestChildHasCleanExit(const Process& process);
+#endif
+
 // MultiProcessTest ------------------------------------------------------------
 
 // A MultiProcessTest is a test class which makes it easier to
@@ -109,6 +111,9 @@ bool TerminateMultiProcessTestChild(const Process& process,
 class MultiProcessTest : public PlatformTest {
  public:
   MultiProcessTest();
+
+  MultiProcessTest(const MultiProcessTest&) = delete;
+  MultiProcessTest& operator=(const MultiProcessTest&) = delete;
 
  protected:
   // Run a child process.
@@ -138,13 +143,8 @@ class MultiProcessTest : public PlatformTest {
   // TODO(viettrungluu): Remove this and add a virtual
   // |ModifyChildCommandLine()|; make the two divergent uses more sane.
   virtual CommandLine MakeCmdLine(const std::string& procname);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MultiProcessTest);
 };
 
 }  // namespace base
-
-#endif  // !defined(STARBOARD)
 
 #endif  // BASE_TEST_MULTIPROCESS_TEST_H_

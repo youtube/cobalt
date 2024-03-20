@@ -26,14 +26,13 @@ class DocumentTypeTest : public ::testing::Test {
   DocumentTypeTest() : document_(new Document(&html_element_context_)) {}
   ~DocumentTypeTest() override {}
 
-  base::MessageLoop message_loop_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };
 
 TEST_F(DocumentTypeTest, Duplicate) {
   scoped_refptr<DocumentType> doctype = new DocumentType(
-      document_, base::Token("name"), "public_id", "system_id");
+      document_, base_token::Token("name"), "public_id", "system_id");
   scoped_refptr<DocumentType> new_doctype =
       doctype->Duplicate()->AsDocumentType();
   ASSERT_TRUE(new_doctype);

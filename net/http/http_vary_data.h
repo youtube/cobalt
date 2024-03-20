@@ -1,11 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_VARY_DATA_H_
 #define NET_HTTP_HTTP_VARY_DATA_H_
 
-#include "base/md5.h"
+#include "base/hash/md5.h"
 #include "net/base/net_export.h"
 
 namespace base {
@@ -79,7 +79,7 @@ class NET_EXPORT_PRIVATE HttpVaryData {
   base::MD5Digest request_digest_;
 
   // True when request_digest_ contains meaningful data.
-  bool is_valid_;
+  bool is_valid_ = false;
 };
 
 }  // namespace net

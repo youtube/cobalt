@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/values.h"
 #include "base/callback.h"
 #include "base/files/file_path.h"
 #include "base/gtest_prod_util.h"
@@ -127,10 +128,10 @@ class Component {
 
   std::string session_id() const;
 
-  const std::vector<base::Value>& events() const { return events_; }
+  const std::vector<base::Value::Dict>& events() const { return events_; }
 
   // Returns a clone of the component events.
-  std::vector<base::Value> GetEvents() const;
+  std::vector<base::Value::Dict> GetEvents() const;
 
  private:
 #if defined(STARBOARD)
@@ -422,7 +423,7 @@ class Component {
   // by a downloader which can do bandwidth throttling on the client side.
   bool CanDoBackgroundDownload() const;
 
-  void AppendEvent(base::Value event);
+  void AppendEvent(base::Value::Dict event);
 
   // Changes the component state and notifies the caller of the |Handle|
   // function that the handling of this component state is complete.
@@ -435,11 +436,11 @@ class Component {
 
   // These functions return a specific event. Each data member of the event is
   // represented as a key-value pair in a dictionary value.
-  base::Value MakeEventUpdateComplete() const;
-  base::Value MakeEventDownloadMetrics(
+  base::Value::Dict MakeEventUpdateComplete() const;
+  base::Value::Dict MakeEventDownloadMetrics(
       const CrxDownloader::DownloadMetrics& download_metrics) const;
-  base::Value MakeEventUninstalled() const;
-  base::Value MakeEventActionRun(bool succeeded,
+  base::Value::Dict MakeEventUninstalled() const;
+  base::Value::Dict MakeEventActionRun(bool succeeded,
                                  int error_code,
                                  int extra_code1) const;
 
@@ -513,7 +514,7 @@ class Component {
   int diff_extra_code1_ = 0;
 
   // Contains the events which are therefore serialized in the requests.
-  std::vector<base::Value> events_;
+  std::vector<base::Value::Dict> events_;
 
   CallbackHandleComplete callback_handle_complete_;
   std::unique_ptr<State> state_;

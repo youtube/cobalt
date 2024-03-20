@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include "build/build_config.h"
 #include "net/base/address_list.h"
 #include "net/base/host_port_pair.h"
-#include "net/log/test_net_log.h"
+#include "net/base/proxy_server.h"
 #include "net/socket/next_proto.h"
 #include "net/socket/socket_tag.h"
 #include "net/socket/socket_test_util.h"
@@ -20,25 +20,24 @@ namespace {
 
 TEST(HttpProxyClientSocketTest, Tag) {
   StaticSocketDataProvider data;
-  TestNetLog log;
-  MockTaggingStreamSocket* tagging_sock =
-      new MockTaggingStreamSocket(std::unique_ptr<StreamSocket>(
-          new MockTCPClientSocket(AddressList(), &log, &data)));
+  auto tagging_sock = std::make_unique<MockTaggingStreamSocket>(
+      std::make_unique<MockTCPClientSocket>(AddressList(),
+                                            nullptr /* net_log */, &data));
+  auto* tagging_sock_ptr = tagging_sock.get();
 
-  std::unique_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  // |connection| takes ownership of |tagging_sock|, but keep a
-  // non-owning pointer to it.
-  connection->SetSocket(std::unique_ptr<StreamSocket>(tagging_sock));
-  HttpProxyClientSocket socket(std::move(connection), "", HostPortPair(),
-                               nullptr, false, false, NextProto(), false,
-                               TRAFFIC_ANNOTATION_FOR_TESTS);
+  // |socket| takes ownership of |tagging_sock|, but the test keeps a non-owning
+  // pointer to it.
+  HttpProxyClientSocket socket(
+      std::move(tagging_sock), /*user_agent=*/"", HostPortPair(), ProxyServer(),
+      /*http_auth_controller=*/nullptr,
+      /*proxy_delegate=*/nullptr, TRAFFIC_ANNOTATION_FOR_TESTS);
 
-  EXPECT_EQ(tagging_sock->tag(), SocketTag());
-#if defined(OS_ANDROID)
+  EXPECT_EQ(tagging_sock_ptr->tag(), SocketTag());
+#if BUILDFLAG(IS_ANDROID)
   SocketTag tag(0x12345678, 0x87654321);
   socket.ApplySocketTag(tag);
-  EXPECT_EQ(tagging_sock->tag(), tag);
-#endif  // OS_ANDROID
+  EXPECT_EQ(tagging_sock_ptr->tag(), tag);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace

@@ -1,17 +1,16 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/process/process_iterator.h"
-#include "starboard/memory.h"
+
+#include "base/strings/string_util.h"
 
 namespace base {
 
 ProcessIterator::ProcessIterator(const ProcessFilter* filter)
-    : started_iteration_(false),
-      filter_(filter) {
-  snapshot_ = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-}
+    : snapshot_(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)),
+      filter_(filter) {}
 
 ProcessIterator::~ProcessIterator() {
   CloseHandle(snapshot_);
@@ -35,7 +34,7 @@ void ProcessIterator::InitProcessEntry(ProcessEntry* entry) {
 
 bool NamedProcessIterator::IncludeEntry() {
   // Case insensitive.
-  return _wcsicmp(executable_name_.c_str(), entry().exe_file()) == 0 &&
+  return !_wcsicmp(executable_name_.c_str(), entry().exe_file()) &&
          ProcessIterator::IncludeEntry();
 }
 

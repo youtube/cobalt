@@ -1,14 +1,15 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
-import android.support.annotation.UiThread;
+import androidx.annotation.UiThread;
 
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.MainDex;
+import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.MainDex;
 
 /**
  * This UncaughtExceptionHandler will create a breakpad minidump when there is an uncaught
@@ -34,7 +35,7 @@ public class JavaExceptionReporter implements Thread.UncaughtExceptionHandler {
     public void uncaughtException(Thread t, Throwable e) {
         if (!mHandlingException) {
             mHandlingException = true;
-            nativeReportJavaException(mCrashAfterReport, e);
+            JavaExceptionReporterJni.get().reportJavaException(mCrashAfterReport, e);
         }
         if (mParent != null) {
             mParent.uncaughtException(t, e);
@@ -51,7 +52,21 @@ public class JavaExceptionReporter implements Thread.UncaughtExceptionHandler {
     @UiThread
     public static void reportStackTrace(String stackTrace) {
         assert ThreadUtils.runningOnUiThread();
-        nativeReportJavaStackTrace(stackTrace);
+        JavaExceptionReporterJni.get().reportJavaStackTrace(
+                PiiElider.sanitizeStacktrace(stackTrace));
+    }
+
+    /**
+     * Report and upload the stack trace as if it was a crash. This is very expensive and should
+     * be called rarely and only on the UI thread to avoid corrupting other crash uploads. Ideally
+     * only called in idle handlers.
+     *
+     * @param exception The exception to report.
+     */
+    @UiThread
+    public static void reportException(Throwable exception) {
+        assert ThreadUtils.runningOnUiThread();
+        JavaExceptionReporterJni.get().reportJavaException(false, exception);
     }
 
     @CalledByNative
@@ -60,6 +75,9 @@ public class JavaExceptionReporter implements Thread.UncaughtExceptionHandler {
                 Thread.getDefaultUncaughtExceptionHandler(), crashAfterReport));
     }
 
-    private static native void nativeReportJavaException(boolean crashAfterReport, Throwable e);
-    private static native void nativeReportJavaStackTrace(String stackTrace);
+    @NativeMethods
+    interface Natives {
+        void reportJavaException(boolean crashAfterReport, Throwable e);
+        void reportJavaStackTrace(String stackTrace);
+    }
 }

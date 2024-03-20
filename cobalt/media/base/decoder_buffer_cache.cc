@@ -18,6 +18,8 @@
 #include <cstring>
 #include <utility>
 
+#include "base/logging.h"
+
 namespace cobalt {
 namespace media {
 namespace {

@@ -18,18 +18,19 @@ namespace variations {
 namespace {
 
 const char kVariationPrefix[] = "CrVar";
+constexpr base::WStringPiece kLabelSeparator = L";";
 
 }  // namespace
 
-base::string16 ExtractNonVariationLabels(const base::string16& labels) {
+base::WStringPiece ExtractNonVariationLabels(base::WStringPiece labels) {
   // First, split everything by the label separator.
-  std::vector<base::StringPiece16> entries = base::SplitStringPiece(
-      labels, base::StringPiece16(&kExperimentLabelSeparator, 1),
+  std::vector<base::WStringPiece> entries = base::SplitStringPiece(
+      labels, kLabelSeparator,
       base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   // For each label, keep the ones that do not look like a Variations label.
-  base::string16 non_variation_labels;
-  for (const base::StringPiece16& entry : entries) {
+  base::WStringPiece non_variation_labels;
+  for (const auto& entry : entries) {
     if (entry.empty() ||
         base::StartsWith(entry,
                          base::ASCIIToUTF16(kVariationPrefix),

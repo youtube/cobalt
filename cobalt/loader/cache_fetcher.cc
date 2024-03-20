@@ -19,8 +19,8 @@
 #include <vector>
 
 #include "base/callback.h"
-#include "base/message_loop/message_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 
 namespace cobalt {

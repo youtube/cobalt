@@ -59,6 +59,10 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // https://tools.ietf.org/html/rfc6716#page-14
   static const uint16_t kOpusFrameDurationsMu[];
 
+  WebMClusterParser() = delete;
+  WebMClusterParser(const WebMClusterParser&) = delete;
+  WebMClusterParser& operator=(const WebMClusterParser&) = delete;
+
  private:
   typedef StreamParserBuffer::Type TrackType;
 
@@ -333,8 +337,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   DecodeTimestamp ready_buffer_upper_bound_;
 
   MediaLog* media_log_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WebMClusterParser);
 };
 
 }  // namespace media

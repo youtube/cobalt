@@ -36,8 +36,8 @@ class NetPoster {
   virtual void Send(const GURL& url, const std::string& content_type,
                     const std::string& data) = 0;
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(NetPoster);
+  //  private:
+  // DISALLOW_COPY_AND_ASSIGN(NetPoster);
 };
 
 typedef base::Callback<void(const GURL& url, const std::string& content_type,

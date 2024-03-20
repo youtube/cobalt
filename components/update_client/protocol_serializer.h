@@ -47,7 +47,7 @@ protocol_request::Request MakeProtocolRequest(
 protocol_request::App MakeProtocolApp(
     const std::string& app_id,
     const base::Version& version,
-    base::Optional<std::vector<base::Value>> events);
+    absl::optional<std::vector<base::Value::Dict>> events);
 
 protocol_request::App MakeProtocolApp(
     const std::string& app_id,

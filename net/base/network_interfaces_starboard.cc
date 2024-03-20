@@ -26,8 +26,4 @@ std::string GetWifiSSID() {
   return std::string();
 }
 
-WifiPHYLayerProtocol GetWifiPHYLayerProtocol() {
-  return WIFI_PHY_LAYER_PROTOCOL_UNKNOWN;
-}
-
 }  // namespace net

@@ -1,13 +1,15 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
 import android.annotation.SuppressLint;
+import android.content.res.Configuration;
 import android.os.Build;
 import android.os.LocaleList;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -258,5 +260,136 @@ public class LocaleUtilsTest {
         languageTag = "en-notValidCountry";
         locale = new Locale("en");
         Assert.assertEquals(locale, LocaleUtils.forLanguageTagCompat(languageTag));
+    }
+
+    // Test for toLanguage.
+    @Test
+    @SmallTest
+    public void testToLanguage() {
+        Assert.assertEquals("en", LocaleUtils.toBaseLanguage("en-US"));
+        Assert.assertEquals("en", LocaleUtils.toBaseLanguage("en"));
+        Assert.assertEquals("", LocaleUtils.toBaseLanguage("-"));
+        Assert.assertEquals("", LocaleUtils.toBaseLanguage("-US"));
+        Assert.assertEquals("", LocaleUtils.toBaseLanguage(""));
+        Assert.assertEquals("fil", LocaleUtils.toBaseLanguage("fil"));
+    }
+
+    // Test for isBaseLanguageEqual
+    @Test
+    @SmallTest
+    public void testIsBaseLanguageEqual() {
+        Assert.assertTrue(LocaleUtils.isBaseLanguageEqual("pt-PT", "pt-PT"));
+        Assert.assertTrue(LocaleUtils.isBaseLanguageEqual("pt-PT", "pt"));
+        Assert.assertTrue(LocaleUtils.isBaseLanguageEqual("pt", "pt-PT-xx"));
+        Assert.assertTrue(LocaleUtils.isBaseLanguageEqual("zh-Hans-CN", "zh-HK"));
+        Assert.assertTrue(LocaleUtils.isBaseLanguageEqual("", ""));
+
+        Assert.assertFalse(LocaleUtils.isBaseLanguageEqual("en-US", "es-US"));
+        Assert.assertFalse(LocaleUtils.isBaseLanguageEqual("af", "zu"));
+        Assert.assertFalse(LocaleUtils.isBaseLanguageEqual("af", ""));
+        Assert.assertFalse(LocaleUtils.isBaseLanguageEqual("", "zu"));
+    }
+
+    // Test for getConfigurationLocale < N
+    @Test
+    @SmallTest
+    public void testGetConfigurationLocale() {
+        Configuration config = new Configuration();
+        Assert.assertEquals("", LocaleUtils.getConfigurationLanguage(config));
+
+        config.setLocale(Locale.forLanguageTag("hi-IN"));
+        Assert.assertEquals("hi-IN", LocaleUtils.getConfigurationLanguage(config));
+
+        config.setLocale(new Locale("ar"));
+        Assert.assertEquals("ar", LocaleUtils.getConfigurationLanguage(config));
+    }
+
+    // Test for getConfigurationLocale N+ (with LocaleList)
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.N)
+    public void testGetConfigurationN() {
+        Configuration config = new Configuration();
+
+        Locale locale1 = new Locale("hi", "IN");
+        Locale locale2 = new Locale("tl", "PH");
+        LocaleList localeList = new LocaleList(locale1, locale2);
+        config.setLocales(localeList);
+        Assert.assertEquals("hi-IN", LocaleUtils.getConfigurationLanguage(config));
+
+        locale1 = new Locale("ceb");
+        locale2 = new Locale("tl", "PH");
+        localeList = new LocaleList(locale1, locale2);
+        config.setLocales(localeList);
+        Assert.assertEquals("ceb", LocaleUtils.getConfigurationLanguage(config));
+    }
+
+    // Test for setDefaultLocalesFromConfiguration
+    @Test
+    @SmallTest
+    public void testSetDefaultLocalesFromConfiguration() {
+        Configuration config = new Configuration();
+        config.setLocale(new Locale("tl", "PH"));
+        LocaleUtils.setDefaultLocalesFromConfiguration(config);
+        Assert.assertEquals("tl-PH", Locale.getDefault().toLanguageTag());
+
+        config.setLocale(new Locale("es", "AR"));
+        LocaleUtils.setDefaultLocalesFromConfiguration(config);
+        Assert.assertEquals("es-AR", Locale.getDefault().toLanguageTag());
+    }
+
+    // Test for setDefaultLocalesFromConfiguration N+ (with LocaleList)
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.N)
+    public void testSetDefaultLocalesFromConfigurationN() {
+        Configuration config = new Configuration();
+        String tags = "tl-PH,es-AR,en";
+        config.setLocales(LocaleList.forLanguageTags(tags));
+        LocaleUtils.setDefaultLocalesFromConfiguration(config);
+        Assert.assertEquals("tl-PH", Locale.getDefault().toLanguageTag());
+        Assert.assertEquals(tags, LocaleList.getDefault().toLanguageTags());
+
+        tags = "en,en-US,en-GB";
+        config.setLocales(LocaleList.forLanguageTags(tags));
+        LocaleUtils.setDefaultLocalesFromConfiguration(config);
+        Assert.assertEquals("en", Locale.getDefault().toLanguageTag());
+        Assert.assertEquals(tags, LocaleList.getDefault().toLanguageTags());
+    }
+
+    // Test for prependToLocaleList
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.N)
+    public void testPrependToLocaleList() {
+        // Prepend to empty list
+        LocaleList resultList = LocaleUtils.ApisN.prependToLocaleList("ceb-PH", new LocaleList());
+        Assert.assertEquals("ceb-PH", resultList.toLanguageTags());
+
+        // Prepend and not in list
+        LocaleList baseList = LocaleList.forLanguageTags("en,es-ES,fr");
+        resultList = LocaleUtils.ApisN.prependToLocaleList("zu", baseList);
+        Assert.assertEquals("zu,en,es-ES,fr", resultList.toLanguageTags());
+
+        // Prepend and in middle of list
+        resultList = LocaleUtils.ApisN.prependToLocaleList("es-ES", baseList);
+        Assert.assertEquals("es-ES,en,fr", resultList.toLanguageTags());
+
+        // Prepend and at end of list
+        resultList = LocaleUtils.ApisN.prependToLocaleList("fr", baseList);
+        Assert.assertEquals("fr,en,es-ES", resultList.toLanguageTags());
+
+        // Prepend and at front of list
+        resultList = LocaleUtils.ApisN.prependToLocaleList("en", baseList);
+        Assert.assertEquals("en,es-ES,fr", resultList.toLanguageTags());
+
+        // Prepend to list of one
+        baseList = LocaleList.forLanguageTags("fr");
+        resultList = LocaleUtils.ApisN.prependToLocaleList("en", baseList);
+        Assert.assertEquals("en,fr", resultList.toLanguageTags());
+
+        // Prepend to list of one (self)
+        resultList = LocaleUtils.ApisN.prependToLocaleList("fr", baseList);
+        Assert.assertEquals("fr", resultList.toLanguageTags());
     }
 }

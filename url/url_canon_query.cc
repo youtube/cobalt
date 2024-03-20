@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,18 +39,6 @@ namespace url {
 
 namespace {
 
-// Returns true if the characters starting at |begin| and going until |end|
-// (non-inclusive) are all representable in 7-bits.
-template<typename CHAR, typename UCHAR>
-bool IsAllASCII(const CHAR* spec, const Component& query) {
-  int end = query.end();
-  for (int i = query.begin; i < end; i++) {
-    if (static_cast<UCHAR>(spec[i]) >= 0x80)
-      return false;
-  }
-  return true;
-}
-
 // Appends the given string to the output, escaping characters that do not
 // match the given |type| in SharedCharTypes. This version will accept 8 or 16
 // bit characters, but assumes that they have only 7-bit values. It also assumes
@@ -72,45 +60,43 @@ void RunConverter(const char* spec,
                   const Component& query,
                   CharsetConverter* converter,
                   CanonOutput* output) {
+  DCHECK(query.is_valid());
   // This function will replace any misencoded values with the invalid
   // character. This is what we want so we don't have to check for error.
   RawCanonOutputW<1024> utf16;
-  ConvertUTF8ToUTF16(&spec[query.begin], query.len, &utf16);
+  ConvertUTF8ToUTF16(&spec[query.begin], static_cast<size_t>(query.len),
+                     &utf16);
   converter->ConvertFromUTF16(utf16.data(), utf16.length(), output);
 }
 
 // Runs the converter with the given UTF-16 input. We don't have to do
 // anything, but this overridden function allows us to use the same code
 // for both UTF-8 and UTF-16 input.
-void RunConverter(const base::char16* spec,
+void RunConverter(const char16_t* spec,
                   const Component& query,
                   CharsetConverter* converter,
                   CanonOutput* output) {
-  converter->ConvertFromUTF16(&spec[query.begin], query.len, output);
+  DCHECK(query.is_valid());
+  converter->ConvertFromUTF16(&spec[query.begin],
+                              static_cast<size_t>(query.len), output);
 }
 
-template<typename CHAR, typename UCHAR>
+template <typename CHAR, typename UCHAR>
 void DoConvertToQueryEncoding(const CHAR* spec,
                               const Component& query,
                               CharsetConverter* converter,
                               CanonOutput* output) {
-  if (IsAllASCII<CHAR, UCHAR>(spec, query)) {
-    // Easy: the input can just appended with no character set conversions.
-    AppendRaw8BitQueryString(&spec[query.begin], query.len, output);
+  if (converter) {
+    // Run the converter to get an 8-bit string, then append it, escaping
+    // necessary values.
+    RawCanonOutput<1024> eight_bit;
+    RunConverter(spec, query, converter, &eight_bit);
+    AppendRaw8BitQueryString(eight_bit.data(), eight_bit.length(), output);
 
   } else {
-    // Harder: convert to the proper encoding first.
-    if (converter) {
-      // Run the converter to get an 8-bit string, then append it, escaping
-      // necessary values.
-      RawCanonOutput<1024> eight_bit;
-      RunConverter(spec, query, converter, &eight_bit);
-      AppendRaw8BitQueryString(eight_bit.data(), eight_bit.length(), output);
-
-    } else {
-      // No converter, do our own UTF-8 conversion.
-      AppendStringOfType(&spec[query.begin], query.len, CHAR_QUERY, output);
-    }
+    // No converter, do our own UTF-8 conversion.
+    AppendStringOfType(&spec[query.begin], static_cast<size_t>(query.len),
+                       CHAR_QUERY, output);
   }
 }
 
@@ -120,7 +106,7 @@ void DoCanonicalizeQuery(const CHAR* spec,
                          CharsetConverter* converter,
                          CanonOutput* output,
                          Component* out_query) {
-  if (query.len < 0) {
+  if (!query.is_valid()) {
     *out_query = Component();
     return;
   }
@@ -144,21 +130,20 @@ void CanonicalizeQuery(const char* spec,
                                            output, out_query);
 }
 
-void CanonicalizeQuery(const base::char16* spec,
+void CanonicalizeQuery(const char16_t* spec,
                        const Component& query,
                        CharsetConverter* converter,
                        CanonOutput* output,
                        Component* out_query) {
-  DoCanonicalizeQuery<base::char16, base::char16>(spec, query, converter,
-                                                  output, out_query);
+  DoCanonicalizeQuery<char16_t, char16_t>(spec, query, converter, output,
+                                          out_query);
 }
 
-void ConvertUTF16ToQueryEncoding(const base::char16* input,
+void ConvertUTF16ToQueryEncoding(const char16_t* input,
                                  const Component& query,
                                  CharsetConverter* converter,
                                  CanonOutput* output) {
-  DoConvertToQueryEncoding<base::char16, base::char16>(input, query,
-                                                       converter, output);
+  DoConvertToQueryEncoding<char16_t, char16_t>(input, query, converter, output);
 }
 
 }  // namespace url

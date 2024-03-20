@@ -138,9 +138,8 @@
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/statistics_recorder.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/strings/string_piece.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/metrics/environment_recorder.h"
@@ -278,7 +277,7 @@ void MetricsService::StartRecordingForTests() {
 }
 
 void MetricsService::StartUpdatingLastLiveTimestamp() {
-  base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&MetricsService::UpdateLastLiveTimestampTask,
                      self_ptr_factory_.GetWeakPtr()),
@@ -558,7 +557,7 @@ void MetricsService::InitializeMetricsState() {
   IncrementLongPrefsValue(prefs::kUninstallLaunchCount);
 }
 
-void MetricsService::OnUserAction(const std::string& action) {
+void MetricsService::OnUserAction(const std::string& action, base::TimeTicks) {
   log_manager_.current_log()->RecordUserAction(action);
   HandleIdleSinceLastTransmission(false);
 }
@@ -622,25 +621,25 @@ void MetricsService::OpenNewLog() {
                   << initialization_delay_secs;
       }
     }
-    base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&MetricsService::StartInitTask,
                        self_ptr_factory_.GetWeakPtr()),
         base::TimeDelta::FromSeconds(initialization_delay_secs));
 
-    base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&MetricsService::PrepareProviderMetricsTask,
                        self_ptr_factory_.GetWeakPtr()),
         base::TimeDelta::FromSeconds(2 * initialization_delay_secs));
 #else
-    base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&MetricsService::StartInitTask,
                        self_ptr_factory_.GetWeakPtr()),
         base::TimeDelta::FromSeconds(kInitializationDelaySeconds));
 
-    base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&MetricsService::PrepareProviderMetricsTask,
                        self_ptr_factory_.GetWeakPtr()),
@@ -923,7 +922,7 @@ void MetricsService::PrepareProviderMetricsTask() {
   bool found = PrepareProviderMetricsLog();
   base::TimeDelta next_check = found ? base::TimeDelta::FromSeconds(5)
                                      : base::TimeDelta::FromMinutes(15);
-  base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&MetricsService::PrepareProviderMetricsTask,
                      self_ptr_factory_.GetWeakPtr()),

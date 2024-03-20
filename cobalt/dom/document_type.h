@@ -27,9 +27,9 @@ namespace dom {
 //   https://www.w3.org/TR/2015/WD-dom-20150618/#documenttype
 class DocumentType : public Node {
  public:
-  DocumentType(Document* document, base::Token name)
+  DocumentType(Document* document, base_token::Token name)
       : Node(document), name_(name) {}
-  DocumentType(Document* document, base::Token name,
+  DocumentType(Document* document, base_token::Token name,
                const std::string& public_id, const std::string& system_id)
       : Node(document),
         name_(name),
@@ -38,10 +38,10 @@ class DocumentType : public Node {
 
   // WebAPI: Node
   NodeType node_type() const override { return Node::kDocumentTypeNode; }
-  base::Token node_name() const override { return name_; }
+  base_token::Token node_name() const override { return name_; }
 
   // WebAPI: DocumentType
-  base::Token name() const { return name_; }
+  base_token::Token name() const { return name_; }
   const std::string& public_id() const { return public_id_; }
   const std::string& system_id() const { return system_id_; }
 
@@ -61,7 +61,7 @@ class DocumentType : public Node {
  private:
   ~DocumentType() override {}
 
-  base::Token name_;
+  base_token::Token name_;
   std::string public_id_;
   std::string system_id_;
 };

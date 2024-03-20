@@ -33,7 +33,9 @@ Text::Text(script::EnvironmentSettings* env_settings,
 Text::Text(Document* document, const base::StringPiece& text)
     : CharacterData(document, text) {}
 
-base::Token Text::node_name() const { return base::Tokens::text_node_name(); }
+base_token::Token Text::node_name() const {
+  return base::Tokens::text_node_name();
+}
 
 void Text::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 

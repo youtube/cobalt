@@ -29,7 +29,7 @@ KeypressGeneratorFilter::KeypressGeneratorFilter(KeyEventHandler* filter)
     : KeyEventHandler(filter) {}
 
 void KeypressGeneratorFilter::HandleKeyboardEvent(
-    base::Token type, const dom::KeyboardEventInit& keyboard_event) {
+    base_token::Token type, const dom::KeyboardEventInit& keyboard_event) {
   // Handle the original event
   DispatchKeyboardEvent(type, keyboard_event);
 
@@ -38,7 +38,7 @@ void KeypressGeneratorFilter::HandleKeyboardEvent(
 }
 
 bool KeypressGeneratorFilter::ConditionallyGenerateKeypressEvent(
-    base::Token type, const dom::KeyboardEventInit& orig_event) {
+    base_token::Token type, const dom::KeyboardEventInit& orig_event) {
   // Ignore everything but keydown events.
   if (type != base::Tokens::keydown()) {
     return false;

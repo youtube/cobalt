@@ -337,7 +337,7 @@ void PersistentSystemProfile::AddFieldTrial(base::StringPiece trial,
   pickler.WriteString(group);
 
   WriteToAll(kFieldTrialInfo,
-             base::StringPiece(static_cast<const char*>(pickler.data()),
+             base::StringPiece(pickler.data_as_char(),
                                pickler.size()));
 }
 

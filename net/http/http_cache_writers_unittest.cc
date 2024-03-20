@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,10 @@
 #include <utility>
 #include <vector>
 
+#include "base/functional/bind.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/run_loop.h"
+#include "crypto/secure_hash.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_cache_transaction.h"
 #include "net/http/http_response_info.h"
@@ -19,7 +22,7 @@
 #include "net/http/mock_http_cache.h"
 #include "net/http/partial_data.h"
 #include "net/test/gtest_util.h"
-#include "net/test/test_with_scoped_task_environment.h"
+#include "net/test/test_with_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,6 +30,14 @@ using net::test::IsError;
 using net::test::IsOk;
 
 namespace net {
+
+namespace {
+// Helper function, generating valid HTTP cache key from `url`.
+// See also: HttpCache::GenerateCacheKey(..)
+std::string GenerateCacheKey(const std::string& url) {
+  return "1/0/" + url;
+}
+}  // namespace
 
 class WritersTest;
 
@@ -45,8 +56,7 @@ class TestHttpCache : public HttpCache {
  public:
   TestHttpCache(std::unique_ptr<HttpTransactionFactory> network_layer,
                 std::unique_ptr<BackendFactory> backend_factory)
-      : HttpCache(std::move(network_layer), std::move(backend_factory), false) {
-  }
+      : HttpCache(std::move(network_layer), std::move(backend_factory)) {}
 
   void WritersDoneWritingToEntry(ActiveEntry* entry,
                                  bool success,
@@ -69,12 +79,11 @@ class TestHttpCache : public HttpCache {
   size_t make_readers_size_ = 0u;
 };
 
-class WritersTest : public TestWithScopedTaskEnvironment {
+class WritersTest : public TestWithTaskEnvironment {
  public:
   enum class DeleteTransactionType { NONE, ACTIVE, WAITING, IDLE };
   WritersTest()
       : scoped_transaction_(kSimpleGET_Transaction),
-        disk_entry_(nullptr),
         test_cache_(std::make_unique<MockNetworkLayer>(),
                     std::make_unique<MockBackendFactory>()),
         request_(kSimpleGET_Transaction) {
@@ -90,10 +99,10 @@ class WritersTest : public TestWithScopedTaskEnvironment {
       disk_entry_->Close();
   }
 
-  void CreateWriters(const std::string& url) {
-    cache_.CreateBackendEntry(kSimpleGET_Transaction.url, &disk_entry_,
-                              nullptr);
-    entry_ = std::make_unique<HttpCache::ActiveEntry>(disk_entry_);
+  void CreateWriters() {
+    cache_.CreateBackendEntry(GenerateCacheKey(kSimpleGET_Transaction.url),
+                              &disk_entry_, nullptr);
+    entry_ = std::make_unique<HttpCache::ActiveEntry>(disk_entry_, false);
     (static_cast<MockDiskEntry*>(disk_entry_))->AddRef();
     writers_ = std::make_unique<HttpCache::Writers>(&test_cache_, entry_.get());
   }
@@ -119,14 +128,14 @@ class WritersTest : public TestWithScopedTaskEnvironment {
     base::RunLoop().RunUntilIdle();
     response_info_ = *(network_transaction->GetResponseInfo());
     if (content_encoding_present)
-      response_info_.headers->AddHeader("Content-Encoding: gzip");
+      response_info_.headers->AddHeader("Content-Encoding", "gzip");
 
     // Create a mock cache transaction.
     std::unique_ptr<TestHttpCacheTransaction> transaction =
         std::make_unique<TestHttpCacheTransaction>(DEFAULT_PRIORITY,
                                                    cache_.http_cache());
 
-    CreateWriters(kSimpleGET_Transaction.url);
+    CreateWriters();
     EXPECT_TRUE(writers_->IsEmpty());
     HttpCache::Writers::TransactionInfo info(
         transaction->partial(), transaction->is_truncated(), response_info_);
@@ -134,7 +143,7 @@ class WritersTest : public TestWithScopedTaskEnvironment {
     writers_->AddTransaction(transaction.get(), parallel_writing_pattern_,
                              transaction->priority(), info);
     writers_->SetNetworkTransaction(transaction.get(),
-                                    std::move(network_transaction));
+                                    std::move(network_transaction), nullptr);
     EXPECT_TRUE(writers_->HasTransaction(transaction.get()));
     transactions_.push_back(std::move(transaction));
   }
@@ -368,7 +377,7 @@ class WritersTest : public TestWithScopedTaskEnvironment {
 
     // Start reading a few more bytes and return.
     buf = base::MakeRefCounted<IOBuffer>(5);
-    rv = writers_->Read(buf.get(), 5, base::BindRepeating([](int rv) {}),
+    rv = writers_->Read(buf.get(), 5, base::BindOnce([](int rv) {}),
                         transaction);
     EXPECT_EQ(ERR_IO_PENDING, rv);
   }
@@ -384,11 +393,12 @@ class WritersTest : public TestWithScopedTaskEnvironment {
       std::vector<TestCompletionCallback> callbacks(results->size());
 
       // Fail the request.
-      cache_.disk_cache()->set_soft_failures(true);
+      cache_.disk_cache()->set_soft_failures_mask(MockDiskEntry::FAIL_ALL);
 
       // We have to open the entry again to propagate the failure flag.
       disk_cache::Entry* en;
-      cache_.OpenBackendEntry(kSimpleGET_Transaction.url, &en);
+      cache_.OpenBackendEntry(GenerateCacheKey(kSimpleGET_Transaction.url),
+                              &en);
       en->Close();
 
       for (size_t i = 0; i < transactions_.size(); i++) {
@@ -488,7 +498,9 @@ class WritersTest : public TestWithScopedTaskEnvironment {
   ScopedMockTransaction scoped_transaction_;
   MockHttpCache cache_;
   std::unique_ptr<HttpCache::Writers> writers_;
-  disk_cache::Entry* disk_entry_;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #addr-of
+  RAW_PTR_EXCLUSION disk_cache::Entry* disk_entry_ = nullptr;
   std::unique_ptr<HttpCache::ActiveEntry> entry_;
   TestHttpCache test_cache_;
 

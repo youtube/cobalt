@@ -21,8 +21,8 @@
 #include "base/bind_helpers.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/message_loop/message_loop.h"
 #include "base/strings/string_util.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/token.h"
@@ -157,7 +157,7 @@ Document::Document(HTMLElementContext* html_element_context,
   OnInsertedIntoDocument();
 }
 
-base::Token Document::node_name() const {
+base_token::Token Document::node_name() const {
   return base::Tokens::document_name();
 }
 
@@ -206,12 +206,12 @@ scoped_refptr<HTMLCollection> Document::GetElementsByClassName(
 
 scoped_refptr<Element> Document::CreateElement(const std::string& local_name) {
   if (IsXMLDocument()) {
-    return new Element(this, base::Token(local_name));
+    return new Element(this, base_token::Token(local_name));
   } else {
     std::string lower_local_name = base::ToLowerASCII(local_name);
     DCHECK(html_element_context_->html_element_factory());
     return html_element_context_->html_element_factory()->CreateHTMLElement(
-        this, base::Token(lower_local_name));
+        this, base_token::Token(lower_local_name));
   }
 }
 
@@ -602,10 +602,10 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent() {
   DCHECK_GT(loading_counter_, 0);
   loading_counter_--;
   if (loading_counter_ == 0 && should_dispatch_load_event_) {
-    DCHECK(base::MessageLoop::current());
+    DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
     should_dispatch_load_event_ = false;
 
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::Bind(&Document::DispatchOnLoadEvent,
                               base::AsWeakPtr<Document>(this)));
 

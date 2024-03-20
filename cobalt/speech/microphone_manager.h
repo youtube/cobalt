@@ -38,7 +38,7 @@ class MicrophoneManager {
     kAudioCapture,
     kAborted,
   };
-  typedef media::AudioBus AudioBus;
+  typedef ::cobalt::media::AudioBus AudioBus;
   typedef base::Callback<void(std::unique_ptr<AudioBus>)> DataReceivedCallback;
   typedef base::Closure CompletionCallback;
   typedef base::Closure SuccessfulOpenCallback;

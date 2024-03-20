@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,39 +9,20 @@
 // transport_security_state_static.json.
 
 {
-  "pinsets": [
-    {
-      "name": "withoutRejectedPins",
-      "static_spki_hashes": [
-        "TestSPKI1",
-        "GoodPin1"
-      ]
-    }, {
-      "name": "withRejectedPins",
-      "static_spki_hashes": [
-        "GoodPin1"
-      ],
-      "bad_static_spki_hashes": [
-        "TestSPKI1"
-      ]
-    }, {
-      "name": "withReportUri",
-      "static_spki_hashes": [
-        "GoodPin1"
-      ],
-      "report_uri": "http://report-uri.preloaded.test/pkp"
-    }
-  ],
-
   "entries": [
     { "name": "hsts-preloaded.test", "policy": "test", "mode": "force-https" },
     { "name": "include-subdomains-hsts-preloaded.test", "policy": "test", "mode": "force-https", "include_subdomains": true },
+    { "name": "example", "policy": "test", "mode": "force-https", "include_subdomains": true },
 
-    { "name": "no-rejected-pins-pkp.preloaded.test", "policy": "test", "pins": "withoutRejectedPins" },
-    { "name": "with-report-uri-pkp.preloaded.test", "policy": "test", "pins": "withReportUri" },
+    { "name": "no-rejected-pins-pkp.preloaded.test", "policy": "test" },
+    { "name": "with-report-uri-pkp.preloaded.test", "policy": "test" },
 
-    { "name": "hsts-hpkp-preloaded.test", "policy": "test", "mode": "force-https", "pins": "withoutRejectedPins" },
+    { "name": "hsts-hpkp-preloaded.test", "policy": "test", "mode": "force-https" },
 
-    { "name": "expect-ct.preloaded.test", "policy": "test", "expect_ct": true, "expect_ct_report_uri": "http://report-uri.preloaded.test/expect-ct" }
+    { "name": "www.example.org", "policy": "test" },
+    { "name": "test.example.org", "policy": "test" },
+    { "name": "mail.example.org", "policy": "test" },
+    { "name": "mail.example.com", "policy": "test" },
+    { "name": "example.test", "policy": "test" }
   ]
 }

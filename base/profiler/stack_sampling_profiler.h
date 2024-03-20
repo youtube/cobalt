@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,16 +9,19 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/macros.h"
-#include "base/sampling_heap_profiler/module_cache.h"
+#include "base/functional/callback.h"
+#include "base/profiler/profile_builder.h"
+#include "base/profiler/sampling_profiler_thread_token.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
-class NativeStackSampler;
-class NativeStackSamplerTestDelegate;
+class Unwinder;
+class StackSampler;
+class StackSamplerTestDelegate;
 
 // StackSamplingProfiler periodically stops a thread to sample its stack, for
 // the purpose of collecting information about which code paths are
@@ -30,18 +33,31 @@ class NativeStackSamplerTestDelegate;
 //   // Create and customize params as desired.
 //   base::StackStackSamplingProfiler::SamplingParams params;
 //
-//   // To process the profiles, use a custom ProfileBuilder subclass:
-//   class SubProfileBuilder :
-//       public base::StackSamplingProfiler::ProfileBuilder{...}
+//   // Create a ProfileBuilder subclass to process the profiles.
+//   class ProfileBuilder : public base::ProfileBuilder {...}
 //
-//   // On Android the |sampler| is not implemented in base. So, client can pass
-//   // in |sampler| to use while profiling.
-//   base::StackSamplingProfiler profiler(base::PlatformThread::CurrentId()),
-//       params, std::make_unique<SubProfileBuilder>(...), <optional> sampler);
+//   // Then create the profiler:
+//   base::StackSamplingProfiler profiler(
+//       GetSamplingProfilerCurrentThreadToken(),
+//       params,
+//       std::make_unique<ProfileBuilder>(...));
 //
+//   // On Android the caller also must provide a factory function for creating
+//   // its core stack unwinders. See the ThreadProfiler implementation for an
+//   // example of how to do this.
+//   base::StackSamplingProfiler profiler(
+//       GetSamplingProfilerCurrentThreadToken(),
+//       params,
+//       std::make_unique<ProfileBuilder>(...),
+//       core_unwinders_factory);
+//
+//   // Then start the profiling.
 //   profiler.Start();
+//
 //   // ... work being done on the target thread here ...
-//   profiler.Stop();  // optional, stops collection before complete per params
+//
+//   // Optionally stop collection before complete per params.
+//   profiler.Stop();
 //
 // The default SamplingParams causes stacks to be recorded in a single profile
 // at a 10Hz interval for a total of 30 seconds. All of these parameters may be
@@ -52,100 +68,49 @@ class NativeStackSamplerTestDelegate;
 // by the profiler.
 class BASE_EXPORT StackSamplingProfiler {
  public:
-  // Frame represents an individual sampled stack frame with full module
-  // information.
-  //
-  // This struct is only used for sampling data transfer from NativeStackSampler
-  // to ProfileBuilder.
-  struct BASE_EXPORT Frame {
-    Frame(uintptr_t instruction_pointer, ModuleCache::Module module);
-    ~Frame();
-
-    // The sampled instruction pointer within the function.
-    uintptr_t instruction_pointer;
-
-    // The module information.
-    ModuleCache::Module module;
-  };
+  // Factory for generating a set of Unwinders for use by the profiler. More
+  // general unwinders should appear before more specific unwinders in the
+  // generated vector, e.g. a system unwinder should appear before a Chrome
+  // unwinder. The callback will be invoked on the profiler thread.
+  using UnwindersFactory =
+      OnceCallback<std::vector<std::unique_ptr<Unwinder>>()>;
 
   // Represents parameters that configure the sampling.
   struct BASE_EXPORT SamplingParams {
     // Time to delay before first samples are taken.
-    TimeDelta initial_delay = TimeDelta::FromMilliseconds(0);
+    TimeDelta initial_delay = Milliseconds(0);
 
     // Number of samples to record per profile.
     int samples_per_profile = 300;
 
     // Interval between samples during a sampling profile. This is the desired
     // duration from the start of one sample to the start of the next sample.
-    TimeDelta sampling_interval = TimeDelta::FromMilliseconds(100);
-
-    // When true, keeps the average sampling interval = |sampling_interval|,
-    // irrespective of how long each sample takes. If a sample takes too long,
-    // keeping the interval constant will lock out the sampled thread. When
-    // false, sample is created with an interval of |sampling_interval|,
-    // excluding the time taken by a sample. The metrics collected will not be
-    // accurate, since sampling could take arbitrary amount of time, but makes
-    // sure that the sampled thread gets at least the interval amount of time to
-    // run between samples.
-    bool keep_consistent_sampling_interval = true;
+    TimeDelta sampling_interval = Milliseconds(100);
   };
 
-  // The ProfileBuilder interface allows the user to record profile information
-  // on the fly in whatever format is desired. Functions are invoked by the
-  // profiler on its own thread so must not block or perform expensive
-  // operations.
-  class BASE_EXPORT ProfileBuilder {
-   public:
-    ProfileBuilder() = default;
-    virtual ~ProfileBuilder() = default;
+  // Returns true if the profiler is supported on the current platform
+  // configuration.
+  static bool IsSupportedForCurrentPlatform();
 
-    // Metadata associated with the sample to be saved off.
-    // The code implementing this method must not do anything that could acquire
-    // a mutex, including allocating memory (which includes LOG messages)
-    // because that mutex could be held by a stopped thread, thus resulting in
-    // deadlock.
-    virtual void RecordAnnotations();
-
-    // Records a new set of frames. Invoked when sampling a sample completes.
-    virtual void OnSampleCompleted(std::vector<Frame> frames) = 0;
-
-    // Finishes the profile construction with |profile_duration| and
-    // |sampling_period|. Invoked when sampling a profile completes.
-    virtual void OnProfileCompleted(TimeDelta profile_duration,
-                                    TimeDelta sampling_period) = 0;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(ProfileBuilder);
-  };
-
-  // Creates a profiler for the CURRENT thread. An optional |test_delegate| can
-  // be supplied by tests. The caller must ensure that this object gets
-  // destroyed before the current thread exits.
-  StackSamplingProfiler(
-      const SamplingParams& params,
-      std::unique_ptr<ProfileBuilder> profile_builder,
-      NativeStackSamplerTestDelegate* test_delegate = nullptr);
-
-  // Creates a profiler for ANOTHER thread. An optional |test_delegate| can be
-  // supplied by tests.
+  // Creates a profiler for the the thread associated with |thread_token|,
+  // generated by GetSamplingProfilerCurrentThreadToken().
+  // |core_unwinders_factory| is required on Android since the unwinders are
+  // provided outside StackSamplingProfiler, but must be null other platforms.
+  // |record_sample_callback| is called for each sample right before recording
+  // the stack sample. An optional |test_delegate| can be supplied by tests.
   //
-  // IMPORTANT: The caller must ensure that the thread being sampled does not
-  // exit before this object gets destructed or Bad Things(tm) may occur.
+  // The caller must ensure that this object gets destroyed before the thread
+  // exits.
   StackSamplingProfiler(
-      PlatformThreadId thread_id,
+      SamplingProfilerThreadToken thread_token,
       const SamplingParams& params,
       std::unique_ptr<ProfileBuilder> profile_builder,
-      NativeStackSamplerTestDelegate* test_delegate = nullptr);
+      UnwindersFactory core_unwinders_factory = UnwindersFactory(),
+      RepeatingClosure record_sample_callback = RepeatingClosure(),
+      StackSamplerTestDelegate* test_delegate = nullptr);
 
-  // Same as above function, with custom |sampler| implementation. The sampler
-  // on Android is not implemented in base.
-  StackSamplingProfiler(
-      PlatformThreadId thread_id,
-      const SamplingParams& params,
-      std::unique_ptr<ProfileBuilder> profile_builder,
-      std::unique_ptr<NativeStackSampler> sampler,
-      NativeStackSamplerTestDelegate* test_delegate = nullptr);
+  StackSamplingProfiler(const StackSamplingProfiler&) = delete;
+  StackSamplingProfiler& operator=(const StackSamplingProfiler&) = delete;
 
   // Stops any profiling currently taking place before destroying the profiler.
   // This will block until profile_builder_'s OnProfileCompleted function has
@@ -164,6 +129,10 @@ class BASE_EXPORT StackSamplingProfiler {
   // terminates when all the profiling samples specified in the SamplingParams
   // are completed or the profiler object is destroyed, whichever occurs first.
   void Stop();
+
+  // Adds an auxiliary unwinder to handle additional, non-native-code unwind
+  // scenarios.
+  void AddAuxUnwinder(std::unique_ptr<Unwinder> unwinder);
 
   // Test peer class. These functions are purely for internal testing of
   // StackSamplingProfiler; DO NOT USE within tests outside of this directory.
@@ -193,6 +162,11 @@ class BASE_EXPORT StackSamplingProfiler {
     // runs.
     static void PerformSamplingThreadIdleShutdown(
         bool simulate_intervening_start);
+
+    // Provides access to the method computing the next sample time.
+    static TimeTicks GetNextSampleTime(TimeTicks scheduled_current_sample_time,
+                                       TimeDelta sampling_interval,
+                                       TimeTicks now);
   };
 
  private:
@@ -200,8 +174,39 @@ class BASE_EXPORT StackSamplingProfiler {
   // the target thread.
   class SamplingThread;
 
+  // Friend the global functions from sample_metadata.cc so that it can call
+  // into the function below.
+  friend void ApplyMetadataToPastSamplesImpl(
+      TimeTicks period_start,
+      TimeTicks period_end,
+      uint64_t name_hash,
+      absl::optional<int64_t> key,
+      int64_t value,
+      absl::optional<PlatformThreadId> thread_id);
+  friend void AddProfileMetadataImpl(
+      uint64_t name_hash,
+      int64_t key,
+      int64_t value,
+      absl::optional<PlatformThreadId> thread_id);
+
+  // Apply metadata to already recorded samples. See the
+  // ApplyMetadataToPastSamples() docs in sample_metadata.h.
+  static void ApplyMetadataToPastSamples(
+      TimeTicks period_start,
+      TimeTicks period_end,
+      uint64_t name_hash,
+      absl::optional<int64_t> key,
+      int64_t value,
+      absl::optional<PlatformThreadId> thread_id);
+
+  // Adds metadata as metadata global to the sampling profile.
+  static void AddProfileMetadata(uint64_t name_hash,
+                                 int64_t key,
+                                 int64_t value,
+                                 absl::optional<PlatformThreadId> thread_id);
+
   // The thread whose stack will be sampled.
-  PlatformThreadId thread_id_;
+  SamplingProfilerThreadToken thread_token_;
 
   const SamplingParams params_;
 
@@ -213,7 +218,7 @@ class BASE_EXPORT StackSamplingProfiler {
   // Stack sampler which stops the thread and collects stack frames. The
   // ownership of this object will be transferred to the sampling thread when
   // thread sampling starts.
-  std::unique_ptr<NativeStackSampler> native_sampler_;
+  std::unique_ptr<StackSampler> sampler_;
 
   // This starts "signaled", is reset when sampling begins, and is signaled
   // when that sampling is complete and the profile_builder_'s
@@ -223,11 +228,6 @@ class BASE_EXPORT StackSamplingProfiler {
   // An ID uniquely identifying this profiler to the sampling thread. This
   // will be an internal "null" value when no collection has been started.
   int profiler_id_;
-
-  // Stored until it can be passed to the NativeStackSampler created in Start().
-  NativeStackSamplerTestDelegate* const test_delegate_;
-
-  DISALLOW_COPY_AND_ASSIGN(StackSamplingProfiler);
 };
 
 }  // namespace base

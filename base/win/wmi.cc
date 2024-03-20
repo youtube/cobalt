@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright 2010 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,11 @@
 #include <stdint.h>
 #include <utility>
 
+#include "base/location.h"
+#include "base/no_destructor.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/threading/scoped_thread_priority.h"
 #include "base/win/scoped_bstr.h"
 #include "base/win/scoped_variant.h"
 
@@ -18,37 +23,117 @@ using Microsoft::WRL::ComPtr;
 namespace base {
 namespace win {
 
-bool CreateLocalWmiConnection(bool set_blanket,
-                              ComPtr<IWbemServices>* wmi_services) {
+const wchar_t kCimV2ServerName[] = L"ROOT\\CIMV2";
+
+const wchar_t kSecurityCenter2ServerName[] = L"ROOT\\SecurityCenter2";
+
+namespace {
+
+constexpr wchar_t kSerialNumberQuery[] = L"SELECT SerialNumber FROM Win32_Bios";
+
+// Instantiates `wmi_services` with a connection to `server_name` in WMI. Will
+// set a security blanket if `set_blanket` is true.
+absl::optional<WmiError> CreateLocalWmiConnection(
+    bool set_blanket,
+    const std::wstring& server_name,
+    ComPtr<IWbemServices>* wmi_services) {
+  DCHECK(wmi_services);
   ComPtr<IWbemLocator> wmi_locator;
   HRESULT hr =
       ::CoCreateInstance(CLSID_WbemLocator, nullptr, CLSCTX_INPROC_SERVER,
                          IID_PPV_ARGS(&wmi_locator));
   if (FAILED(hr))
-    return false;
+    return WmiError::kFailedToCreateInstance;
 
   ComPtr<IWbemServices> wmi_services_r;
-  hr = wmi_locator->ConnectServer(ScopedBstr(L"ROOT\\CIMV2"), nullptr, nullptr,
-                                  nullptr, 0, nullptr, nullptr,
-                                  wmi_services_r.GetAddressOf());
+  hr = wmi_locator->ConnectServer(base::win::ScopedBstr(server_name).Get(),
+                                  nullptr, nullptr, nullptr, 0, nullptr,
+                                  nullptr, &wmi_services_r);
   if (FAILED(hr))
-    return false;
+    return WmiError::kFailedToConnectToWMI;
 
   if (set_blanket) {
     hr = ::CoSetProxyBlanket(wmi_services_r.Get(), RPC_C_AUTHN_WINNT,
                              RPC_C_AUTHZ_NONE, nullptr, RPC_C_AUTHN_LEVEL_CALL,
                              RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE);
     if (FAILED(hr))
-      return false;
+      return WmiError::kFailedToSetSecurityBlanket;
   }
 
   *wmi_services = std::move(wmi_services_r);
+  return absl::nullopt;
+}
+
+// Runs `query` through `wmi_services` and sets the results' `enumerator`.
+bool TryRunQuery(const std::wstring& query,
+                 const ComPtr<IWbemServices>& wmi_services,
+                 ComPtr<IEnumWbemClassObject>* enumerator) {
+  DCHECK(enumerator);
+  base::win::ScopedBstr query_language(L"WQL");
+  base::win::ScopedBstr query_bstr(query);
+
+  ComPtr<IEnumWbemClassObject> enumerator_r;
+  HRESULT hr = wmi_services->ExecQuery(
+      query_language.Get(), query_bstr.Get(),
+      WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, nullptr,
+      &enumerator_r);
+
+  if (FAILED(hr))
+    return false;
+
+  *enumerator = std::move(enumerator_r);
   return true;
 }
 
+}  // namespace
+
+absl::optional<WmiError> RunWmiQuery(const std::wstring& server_name,
+                                     const std::wstring& query,
+                                     ComPtr<IEnumWbemClassObject>* enumerator) {
+  SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
+
+  DCHECK(enumerator);
+
+  ComPtr<IWbemServices> wmi_services;
+  auto error = CreateLocalWmiConnection(/*set_blanket=*/true, server_name,
+                                        &wmi_services);
+
+  if (error.has_value())
+    return error;
+
+  if (!TryRunQuery(query, wmi_services, enumerator))
+    return WmiError::kFailedToExecWMIQuery;
+
+  return absl::nullopt;
+}
+
+bool CreateLocalWmiConnection(bool set_blanket,
+                              ComPtr<IWbemServices>* wmi_services) {
+  // Mitigate the issues caused by loading DLLs on a background thread
+  // (http://crbug/973868).
+  SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
+
+  auto error =
+      CreateLocalWmiConnection(set_blanket, kCimV2ServerName, wmi_services);
+  return !error.has_value();
+}
+
+ComPtr<IWbemServices> CreateWmiConnection(bool set_blanket,
+                                          const std::wstring& resource) {
+  // Mitigate the issues caused by loading DLLs on a background thread
+  // (http://crbug/973868).
+  SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
+
+  ComPtr<IWbemServices> wmi_services = nullptr;
+  auto error = CreateLocalWmiConnection(set_blanket, resource, &wmi_services);
+  if (error.has_value())
+    return nullptr;
+  return wmi_services;
+}
+
 bool CreateWmiClassMethodObject(IWbemServices* wmi_services,
-                                const StringPiece16& class_name,
-                                const StringPiece16& method_name,
+                                WStringPiece class_name,
+                                WStringPiece method_name,
                                 ComPtr<IWbemClassObject>* class_instance) {
   // We attempt to instantiate a COM object that represents a WMI object plus
   // a method rolled into one entity.
@@ -56,14 +141,13 @@ bool CreateWmiClassMethodObject(IWbemServices* wmi_services,
   ScopedBstr b_method_name(method_name);
   ComPtr<IWbemClassObject> class_object;
   HRESULT hr;
-  hr = wmi_services->GetObject(b_class_name, 0, nullptr,
-                               class_object.GetAddressOf(), nullptr);
+  hr = wmi_services->GetObject(b_class_name.Get(), 0, nullptr, &class_object,
+                               nullptr);
   if (FAILED(hr))
     return false;
 
   ComPtr<IWbemClassObject> params_def;
-  hr = class_object->GetMethod(b_method_name, 0, params_def.GetAddressOf(),
-                               nullptr);
+  hr = class_object->GetMethod(b_method_name.Get(), 0, &params_def, nullptr);
   if (FAILED(hr))
     return false;
 
@@ -73,14 +157,7 @@ bool CreateWmiClassMethodObject(IWbemServices* wmi_services,
     return false;
   }
 
-  hr = params_def->SpawnInstance(0, class_instance->GetAddressOf());
-  return SUCCEEDED(hr);
-}
-
-bool SetWmiClassMethodParameter(IWbemClassObject* class_method,
-                                const StringPiece16& parameter_name,
-                                VARIANT* parameter) {
-  HRESULT hr = class_method->Put(parameter_name.data(), 0, parameter, 0);
+  hr = params_def->SpawnInstance(0, &(*class_instance));
   return SUCCEEDED(hr);
 }
 
@@ -90,7 +167,7 @@ bool SetWmiClassMethodParameter(IWbemClassObject* class_method,
 // NOTE: The documentation for the Create method suggests that the ProcessId
 // parameter and return value are of type uint32_t, but when we call the method
 // the values in the returned out_params, are VT_I4, which is int32_t.
-bool WmiLaunchProcess(const string16& command_line, int* process_id) {
+bool WmiLaunchProcess(const std::wstring& command_line, int* process_id) {
   ComPtr<IWbemServices> wmi_local;
   if (!CreateLocalWmiConnection(true, &wmi_local))
     return false;
@@ -105,27 +182,27 @@ bool WmiLaunchProcess(const string16& command_line, int* process_id) {
 
   ScopedVariant b_command_line(command_line.c_str());
 
-  if (!SetWmiClassMethodParameter(process_create.Get(), L"CommandLine",
-                                  b_command_line.AsInput())) {
+  if (FAILED(process_create->Put(L"CommandLine", 0, b_command_line.AsInput(),
+                                 0))) {
     return false;
   }
 
   ComPtr<IWbemClassObject> out_params;
   HRESULT hr = wmi_local->ExecMethod(
-      ScopedBstr(class_name), ScopedBstr(method_name), 0, nullptr,
-      process_create.Get(), out_params.GetAddressOf(), nullptr);
+      ScopedBstr(class_name).Get(), ScopedBstr(method_name).Get(), 0, nullptr,
+      process_create.Get(), &out_params, nullptr);
   if (FAILED(hr))
     return false;
 
   // We're only expecting int32_t or uint32_t values, so no need for
   // ScopedVariant.
   VARIANT ret_value = {{{VT_EMPTY}}};
-  hr = out_params->Get(L"ReturnValue", 0, &ret_value, nullptr, 0);
+  hr = out_params->Get(L"ReturnValue", 0, &ret_value, nullptr, nullptr);
   if (FAILED(hr) || V_I4(&ret_value) != 0)
     return false;
 
   VARIANT pid = {{{VT_EMPTY}}};
-  hr = out_params->Get(L"ProcessId", 0, &pid, nullptr, 0);
+  hr = out_params->Get(L"ProcessId", 0, &pid, nullptr, nullptr);
   if (FAILED(hr) || V_I4(&pid) == 0)
     return false;
 
@@ -135,41 +212,36 @@ bool WmiLaunchProcess(const string16& command_line, int* process_id) {
   return true;
 }
 
+// static
 WmiComputerSystemInfo WmiComputerSystemInfo::Get() {
-  ComPtr<IWbemServices> services;
-  if (!CreateLocalWmiConnection(true, &services))
-    return WmiComputerSystemInfo();
+  static const base::NoDestructor<WmiComputerSystemInfo> static_info([] {
+    WmiComputerSystemInfo info;
+    ComPtr<IEnumWbemClassObject> enumerator_bios;
+    auto error =
+        RunWmiQuery(kCimV2ServerName, kSerialNumberQuery, &enumerator_bios);
+    if (!error.has_value())
+      info.PopulateSerialNumber(enumerator_bios);
+    return info;
+  }());
+  return *static_info;
+}
 
-  ScopedBstr query_language(L"WQL");
-  ScopedBstr query(L"SELECT * FROM Win32_ComputerSystem");
-  ComPtr<IEnumWbemClassObject> enumerator;
-  HRESULT hr =
-      services->ExecQuery(query_language, query,
-                          WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-                          nullptr, enumerator.GetAddressOf());
-  if (FAILED(hr) || !enumerator.Get())
-    return WmiComputerSystemInfo();
-
-  ComPtr<IWbemClassObject> class_object;
+void WmiComputerSystemInfo::PopulateSerialNumber(
+    const ComPtr<IEnumWbemClassObject>& enumerator_bios) {
+  ComPtr<IWbemClassObject> class_obj;
   ULONG items_returned = 0;
-  hr = enumerator->Next(WBEM_INFINITE, 1, class_object.GetAddressOf(),
-                        &items_returned);
-  if (!items_returned)
-    return WmiComputerSystemInfo();
+  HRESULT hr =
+      enumerator_bios->Next(WBEM_INFINITE, 1, &class_obj, &items_returned);
+  if (FAILED(hr) || !items_returned)
+    return;
 
-  ScopedVariant manufacturer;
-  class_object->Get(L"Manufacturer", 0, manufacturer.Receive(), 0, 0);
-  ScopedVariant model;
-  class_object->Get(L"Model", 0, model.Receive(), 0, 0);
-
-  WmiComputerSystemInfo info;
-  if (manufacturer.type() == VT_BSTR)
-    info.manufacturer_ = V_BSTR(manufacturer.ptr());
-
-  if (model.type() == VT_BSTR)
-    info.model_ = V_BSTR(model.ptr());
-
-  return info;
+  ScopedVariant serial_number;
+  hr = class_obj->Get(L"SerialNumber", 0, serial_number.Receive(), nullptr,
+                      nullptr);
+  if (SUCCEEDED(hr) && serial_number.type() == VT_BSTR) {
+    serial_number_.assign(V_BSTR(serial_number.ptr()),
+                          ::SysStringLen(V_BSTR(serial_number.ptr())));
+  }
 }
 
 }  // namespace win

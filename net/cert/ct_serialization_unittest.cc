@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -113,8 +113,8 @@ TEST_F(CtSerializationTest, EncodesSignedEntryForPrecert) {
 }
 
 TEST_F(CtSerializationTest, EncodesV1SCTSignedData) {
-  base::Time timestamp = base::Time::UnixEpoch() +
-      base::TimeDelta::FromMilliseconds(1348589665525);
+  base::Time timestamp =
+      base::Time::UnixEpoch() + base::Milliseconds(1348589665525);
   std::string dummy_entry("abc");
   std::string empty_extensions;
   // For now, no known failure cases.
@@ -161,7 +161,7 @@ TEST_F(CtSerializationTest, EncodeSignedCertificateTimestamp) {
   ASSERT_TRUE(ct::DecodeSignedCertificateTimestamp(&encoded_sct, &sct));
 
   std::string serialized;
-  ct::EncodeSignedCertificateTimestamp(sct, &serialized);
+  ASSERT_TRUE(ct::EncodeSignedCertificateTimestamp(sct, &serialized));
   EXPECT_EQ(serialized, encoded_test_sct);
 }
 
@@ -173,8 +173,8 @@ TEST_F(CtSerializationTest, DecodesSignedCertificateTimestamp) {
   ASSERT_TRUE(ct::DecodeSignedCertificateTimestamp(&encoded_sct, &sct));
   EXPECT_EQ(0, sct->version);
   EXPECT_EQ(ct::GetTestPublicKeyId(), sct->log_id);
-  base::Time expected_time = base::Time::UnixEpoch() +
-      base::TimeDelta::FromMilliseconds(1365181456089);
+  base::Time expected_time =
+      base::Time::UnixEpoch() + base::Milliseconds(1365181456089);
   EXPECT_EQ(expected_time, sct->timestamp);
   // Subtracting 4 bytes for signature data (hash & sig algs),
   // actual signature data should be 71 bytes.
@@ -256,7 +256,7 @@ TEST_F(CtSerializationTest, EncodesValidSignedTreeHead) {
   ASSERT_TRUE(GetSampleSignedTreeHead(&signed_tree_head));
 
   std::string encoded;
-  ct::EncodeTreeHeadSignature(signed_tree_head, &encoded);
+  ASSERT_TRUE(ct::EncodeTreeHeadSignature(signed_tree_head, &encoded));
   // Expected size is 50 bytes:
   // Byte 0 is version, byte 1 is signature type
   // Bytes 2-9 are timestamp

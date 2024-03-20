@@ -1,4 +1,4 @@
-// Copyright (c) 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
-#include "net/base/proxy_server.h"
+#include "base/memory/raw_ptr.h"
 #include "net/http/http_stream.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_stream_factory_job.h"
@@ -17,6 +17,7 @@
 #include "net/proxy_resolution/proxy_info.h"
 #include "net/socket/next_proto.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "url/scheme_host_port.h"
 
 using testing::_;
 using testing::Invoke;
@@ -27,8 +28,8 @@ class HttpStreamFactoryPeer {
  public:
   static void AddJobController(
       HttpStreamFactory* factory,
-      HttpStreamFactory::JobController* job_controller) {
-    factory->job_controller_set_.insert(base::WrapUnique(job_controller));
+      std::unique_ptr<HttpStreamFactory::JobController> job_controller) {
+    factory->job_controller_set_.insert(std::move(job_controller));
   }
 
   static bool IsJobControllerDeleted(HttpStreamFactory* factory) {
@@ -45,6 +46,10 @@ class HttpStreamFactoryPeer {
 class MockHttpStreamRequestDelegate : public HttpStreamRequest::Delegate {
  public:
   MockHttpStreamRequestDelegate();
+
+  MockHttpStreamRequestDelegate(const MockHttpStreamRequestDelegate&) = delete;
+  MockHttpStreamRequestDelegate& operator=(
+      const MockHttpStreamRequestDelegate&) = delete;
 
   ~MockHttpStreamRequestDelegate() override;
 
@@ -72,10 +77,12 @@ class MockHttpStreamRequestDelegate : public HttpStreamRequest::Delegate {
       const ProxyInfo& used_proxy_info,
       std::unique_ptr<WebSocketHandshakeStreamBase> stream) override {}
 
-  MOCK_METHOD3(OnStreamFailed,
+  MOCK_METHOD5(OnStreamFailed,
                void(int status,
                     const NetErrorDetails& net_error_details,
-                    const SSLConfig& used_ssl_config));
+                    const SSLConfig& used_ssl_config,
+                    const ProxyInfo& used_proxy_info,
+                    ResolveErrorInfo resolve_error_info));
 
   MOCK_METHOD3(OnCertificateError,
                void(int status,
@@ -92,17 +99,7 @@ class MockHttpStreamRequestDelegate : public HttpStreamRequest::Delegate {
                void(const SSLConfig& used_ssl_config,
                     SSLCertRequestInfo* cert_info));
 
-  // std::unique_ptr is not copyable and therefore cannot be mocked.
-  void OnHttpsProxyTunnelResponse(const HttpResponseInfo& response_info,
-                                  const SSLConfig& used_ssl_config,
-                                  const ProxyInfo& used_proxy_info,
-                                  std::unique_ptr<HttpStream> stream) override {
-  }
-
   MOCK_METHOD0(OnQuicBroken, void());
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MockHttpStreamRequestDelegate);
 };
 
 class MockHttpStreamFactoryJob : public HttpStreamFactory::Job {
@@ -115,11 +112,10 @@ class MockHttpStreamFactoryJob : public HttpStreamFactory::Job {
                            ProxyInfo proxy_info,
                            const SSLConfig& server_ssl_config,
                            const SSLConfig& proxy_ssl_config,
-                           HostPortPair destination,
+                           url::SchemeHostPort destination,
                            GURL origin_url,
                            NextProto alternative_protocol,
-                           quic::QuicTransportVersion quic_version,
-                           const ProxyServer& alternative_proxy_server,
+                           quic::ParsedQuicVersion quic_version,
                            bool is_websocket,
                            bool enable_ip_based_pooling,
                            NetLog* net_log);
@@ -129,6 +125,8 @@ class MockHttpStreamFactoryJob : public HttpStreamFactory::Job {
   MOCK_METHOD0(Resume, void());
 
   MOCK_METHOD0(Orphan, void());
+
+  void DoResume();
 };
 
 // JobFactory for creating MockHttpStreamFactoryJobs.
@@ -137,7 +135,7 @@ class TestJobFactory : public HttpStreamFactory::JobFactory {
   TestJobFactory();
   ~TestJobFactory() override;
 
-  std::unique_ptr<HttpStreamFactory::Job> CreateMainJob(
+  std::unique_ptr<HttpStreamFactory::Job> CreateJob(
       HttpStreamFactory::Job::Delegate* delegate,
       HttpStreamFactory::JobType job_type,
       HttpNetworkSession* session,
@@ -146,58 +144,22 @@ class TestJobFactory : public HttpStreamFactory::JobFactory {
       const ProxyInfo& proxy_info,
       const SSLConfig& server_ssl_config,
       const SSLConfig& proxy_ssl_config,
-      HostPortPair destination,
+      url::SchemeHostPort destination,
       GURL origin_url,
       bool is_websocket,
       bool enable_ip_based_pooling,
-      NetLog* net_log) override;
-
-  std::unique_ptr<HttpStreamFactory::Job> CreateAltSvcJob(
-      HttpStreamFactory::Job::Delegate* delegate,
-      HttpStreamFactory::JobType job_type,
-      HttpNetworkSession* session,
-      const HttpRequestInfo& request_info,
-      RequestPriority priority,
-      const ProxyInfo& proxy_info,
-      const SSLConfig& server_ssl_config,
-      const SSLConfig& proxy_ssl_config,
-      HostPortPair destination,
-      GURL origin_url,
+      NetLog* net_log,
       NextProto alternative_protocol,
-      quic::QuicTransportVersion quic_version,
-      bool is_websocket,
-      bool enable_ip_based_pooling,
-      NetLog* net_log) override;
-
-  std::unique_ptr<HttpStreamFactory::Job> CreateAltProxyJob(
-      HttpStreamFactory::Job::Delegate* delegate,
-      HttpStreamFactory::JobType job_type,
-      HttpNetworkSession* session,
-      const HttpRequestInfo& request_info,
-      RequestPriority priority,
-      const ProxyInfo& proxy_info,
-      const SSLConfig& server_ssl_config,
-      const SSLConfig& proxy_ssl_config,
-      HostPortPair destination,
-      GURL origin_url,
-      const ProxyServer& alternative_proxy_server,
-      bool is_websocket,
-      bool enable_ip_based_pooling,
-      NetLog* net_log) override;
+      quic::ParsedQuicVersion quic_version) override;
 
   MockHttpStreamFactoryJob* main_job() const { return main_job_; }
   MockHttpStreamFactoryJob* alternative_job() const { return alternative_job_; }
-
-  void UseDifferentURLForMainJob(GURL url) {
-    override_main_job_url_ = true;
-    main_job_alternative_url_ = url;
-  }
+  MockHttpStreamFactoryJob* dns_alpn_h3_job() const { return dns_alpn_h3_job_; }
 
  private:
-  MockHttpStreamFactoryJob* main_job_;
-  MockHttpStreamFactoryJob* alternative_job_;
-  bool override_main_job_url_;
-  GURL main_job_alternative_url_;
+  raw_ptr<MockHttpStreamFactoryJob> main_job_ = nullptr;
+  raw_ptr<MockHttpStreamFactoryJob> alternative_job_ = nullptr;
+  raw_ptr<MockHttpStreamFactoryJob> dns_alpn_h3_job_ = nullptr;
 };
 
 }  // namespace net

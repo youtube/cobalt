@@ -1,28 +1,31 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_NETWORK_DELEGATE_H_
 #define NET_BASE_NETWORK_DELEGATE_H_
 
+#include <stdint.h>
+
 #include <set>
 #include <string>
 
-#include "base/callback.h"
-#include "base/strings/string16.h"
+#include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/threading/thread_checker.h"
 #include "net/base/auth.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/cookies/canonical_cookie.h"
+#include "net/cookies/cookie_inclusion_status.h"
+#include "net/cookies/cookie_setting_override.h"
+#include "net/cookies/site_for_cookies.h"
+#include "net/first_party_sets/first_party_set_metadata.h"
+#include "net/first_party_sets/first_party_sets_cache_filter.h"
 #include "net/proxy_resolution/proxy_retry_info.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
-
-namespace base {
-class FilePath;
-}
 
 namespace url {
 class Origin;
@@ -43,22 +46,12 @@ namespace net {
 class CookieOptions;
 class HttpRequestHeaders;
 class HttpResponseHeaders;
-class ProxyInfo;
+class IPEndPoint;
+class SchemefulSite;
 class URLRequest;
 
 class NET_EXPORT NetworkDelegate {
  public:
-  // AuthRequiredResponse indicates how a NetworkDelegate handles an
-  // OnAuthRequired call. It's placed in this file to prevent url_request.h
-  // from having to include network_delegate.h.
-  enum AuthRequiredResponse {
-    AUTH_REQUIRED_RESPONSE_NO_ACTION,
-    AUTH_REQUIRED_RESPONSE_SET_AUTH,
-    AUTH_REQUIRED_RESPONSE_CANCEL_AUTH,
-    AUTH_REQUIRED_RESPONSE_IO_PENDING,
-  };
-  using AuthCallback = base::OnceCallback<void(AuthRequiredResponse)>;
-
   virtual ~NetworkDelegate();
 
   // Notification interface called by the network stack. Note that these
@@ -68,47 +61,49 @@ class NET_EXPORT NetworkDelegate {
   int NotifyBeforeURLRequest(URLRequest* request,
                              CompletionOnceCallback callback,
                              GURL* new_url);
+  using OnBeforeStartTransactionCallback =
+      base::OnceCallback<void(int, const absl::optional<HttpRequestHeaders>&)>;
   int NotifyBeforeStartTransaction(URLRequest* request,
-                                   CompletionOnceCallback callback,
-                                   HttpRequestHeaders* headers);
-  void NotifyBeforeSendHeaders(URLRequest* request,
-                               const ProxyInfo& proxy_info,
-                               const ProxyRetryInfoMap& proxy_retry_info,
-                               HttpRequestHeaders* headers);
-  void NotifyStartTransaction(URLRequest* request,
-                              const HttpRequestHeaders& headers);
+                                   const HttpRequestHeaders& headers,
+                                   OnBeforeStartTransactionCallback callback);
   int NotifyHeadersReceived(
       URLRequest* request,
       CompletionOnceCallback callback,
       const HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers,
-      GURL* allowed_unsafe_redirect_url);
+      const IPEndPoint& remote_endpoint,
+      absl::optional<GURL>* preserve_fragment_on_redirect_url);
   void NotifyBeforeRedirect(URLRequest* request,
                             const GURL& new_location);
   void NotifyResponseStarted(URLRequest* request, int net_error);
-  void NotifyNetworkBytesReceived(URLRequest* request, int64_t bytes_received);
-  void NotifyNetworkBytesSent(URLRequest* request, int64_t bytes_sent);
   void NotifyCompleted(URLRequest* request, bool started, int net_error);
   void NotifyURLRequestDestroyed(URLRequest* request);
-  void NotifyPACScriptError(int line_number, const base::string16& error);
-  AuthRequiredResponse NotifyAuthRequired(URLRequest* request,
-                                          const AuthChallengeInfo& auth_info,
-                                          AuthCallback callback,
-                                          AuthCredentials* credentials);
-  bool CanGetCookies(const URLRequest& request,
-                     const CookieList& cookie_list,
-                     bool allowed_from_caller);
+  void NotifyPACScriptError(int line_number, const std::u16string& error);
+  bool AnnotateAndMoveUserBlockedCookies(
+      const URLRequest& request,
+      const net::FirstPartySetMetadata& first_party_set_metadata,
+      CookieAccessResultList& maybe_included_cookies,
+      CookieAccessResultList& excluded_cookies);
   bool CanSetCookie(const URLRequest& request,
                     const net::CanonicalCookie& cookie,
-                    CookieOptions* options,
-                    bool allowed_from_caller);
-  bool CanAccessFile(const URLRequest& request,
-                     const base::FilePath& original_path,
-                     const base::FilePath& absolute_path) const;
-  bool CanEnablePrivacyMode(const GURL& url,
-                            const GURL& site_for_cookies) const;
+                    CookieOptions* options);
 
-  bool AreExperimentalCookieFeaturesEnabled() const;
+  // PrivacySetting is kStateDisallowed iff the given |url| has to be
+  // requested over connection that is not tracked by the server.
+  //
+  // Usually PrivacySetting is kStateAllowed, unless user privacy settings
+  // block cookies from being get or set.
+  //
+  // It may be set to kPartitionedStateAllowedOnly if the request allows
+  // partitioned state to be sent over the connection, but unpartitioned
+  // state should be blocked.
+  enum class PrivacySetting {
+    kStateAllowed,
+    kStateDisallowed,
+    // First-party requests will never have this setting.
+    kPartitionedStateAllowedOnly,
+  };
+  PrivacySetting ForcePrivacyMode(const URLRequest& request) const;
 
   bool CancelURLRequestWithPolicyViolatingReferrerHeader(
       const URLRequest& request,
@@ -124,10 +119,40 @@ class NET_EXPORT NetworkDelegate {
   bool CanUseReportingClient(const url::Origin& origin,
                              const GURL& endpoint) const;
 
+  // Gets the First-Party Sets cache filter info, which is used to mark the
+  // cache and determine if the previously stored cache of `request_site` can be
+  // accessed.
+  //
+  // The result may be returned synchronously, or `callback` may be invoked
+  // asynchronously with the result. The callback will be invoked iff the return
+  // value is nullopt; i.e. a result will be provided via return value or
+  // callback, but not both, and not neither.
+  absl::optional<FirstPartySetsCacheFilter::MatchInfo>
+  GetFirstPartySetsCacheFilterMatchInfoMaybeAsync(
+      const SchemefulSite& request_site,
+      base::OnceCallback<void(FirstPartySetsCacheFilter::MatchInfo)> callback)
+      const;
+
  protected:
+  // Adds the given ExclusionReason to all cookies in
+  // `mayble_included_cookies`, and moves the contents of
+  // `maybe_included_cookies` to `excluded_cookies`.
+  static void ExcludeAllCookies(
+      net::CookieInclusionStatus::ExclusionReason reason,
+      net::CookieAccessResultList& maybe_included_cookies,
+      net::CookieAccessResultList& excluded_cookies);
+
+  // Moves any cookie in `maybe_included_cookies` that has an ExclusionReason
+  // into `excluded_cookies`.
+  static void MoveExcludedCookies(
+      net::CookieAccessResultList& maybe_included_cookies,
+      net::CookieAccessResultList& excluded_cookies);
+
   THREAD_CHECKER(thread_checker_);
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(NetworkDelegateTest, ExcludeAllCookies);
+  FRIEND_TEST_ALL_PREFIXES(NetworkDelegateTest, MoveExcludedCookies);
   // This is the interface for subclasses of NetworkDelegate to implement. These
   // member functions will be called by the respective public notification
   // member function, which will perform basic sanity checking.
@@ -160,7 +185,8 @@ class NET_EXPORT NetworkDelegate {
                                  GURL* new_url) = 0;
 
   // Called right before the network transaction starts. Allows the delegate to
-  // read/write |headers| before they get sent out.
+  // read |headers| and modify them by passing a new copy to |callback| before
+  // they get sent out.
   //
   // Returns OK to continue with the request, ERR_IO_PENDING if the result is
   // not ready yet, and any other status code to cancel the request. If
@@ -169,27 +195,11 @@ class NET_EXPORT NetworkDelegate {
   // or OnCompleted. Once cancelled, |request| and |headers| become invalid and
   // |callback| may not be called.
   //
-  // The default implementation returns OK (continue with request) without
-  // modifying |headers|.
-  virtual int OnBeforeStartTransaction(URLRequest* request,
-                                       CompletionOnceCallback callback,
-                                       HttpRequestHeaders* headers) = 0;
-
-  // Called after a connection is established , and just before headers are sent
-  // to the destination server (i.e., not called for HTTP CONNECT requests). For
-  // non-tunneled requests using HTTP proxies, |headers| will include any
-  // proxy-specific headers as well. Allows the delegate to read/write |headers|
-  // before they get sent out. |headers| is valid only for the duration of the
-  // call.
-  virtual void OnBeforeSendHeaders(URLRequest* request,
-                                   const ProxyInfo& proxy_info,
-                                   const ProxyRetryInfoMap& proxy_retry_info,
-                                   HttpRequestHeaders* headers) = 0;
-
-  // Called right before the HTTP request(s) are being sent to the network.
-  // |headers| is only valid only for the duration of the call.
-  virtual void OnStartTransaction(URLRequest* request,
-                                  const HttpRequestHeaders& headers) = 0;
+  // The default implementation returns OK (continue with request).
+  virtual int OnBeforeStartTransaction(
+      URLRequest* request,
+      const HttpRequestHeaders& headers,
+      OnBeforeStartTransactionCallback callback) = 0;
 
   // Called for HTTP requests when the headers have been received.
   // |original_response_headers| contains the headers as received over the
@@ -197,9 +207,9 @@ class NET_EXPORT NetworkDelegate {
   // to new values, that should be considered as overriding
   // |original_response_headers|.
   // If the response is a redirect, and the Location response header value is
-  // identical to |allowed_unsafe_redirect_url|, then the redirect is never
-  // blocked and the reference fragment is not copied from the original URL
-  // to the redirection target.
+  // identical to |preserve_fragment_on_redirect_url|, then the redirect is
+  // never blocked and the reference fragment is not copied from the original
+  // URL to the redirection target.
   //
   // Returns OK to continue with the request, ERR_IO_PENDING if the result is
   // not ready yet, and any other status code to cancel the request. If
@@ -207,14 +217,15 @@ class NET_EXPORT NetworkDelegate {
   // however, that a pending operation may be cancelled by
   // OnURLRequestDestroyed. Once cancelled, |request|,
   // |original_response_headers|, |override_response_headers|, and
-  // |allowed_unsafe_redirect_url| become invalid and |callback| may not be
-  // called.
+  // |preserve_fragment_on_redirect_url| become invalid and |callback| may not
+  // be called.
   virtual int OnHeadersReceived(
       URLRequest* request,
       CompletionOnceCallback callback,
       const HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers,
-      GURL* allowed_unsafe_redirect_url) = 0;
+      const IPEndPoint& remote_endpoint,
+      absl::optional<GURL>* preserve_fragment_on_redirect_url) = 0;
 
   // Called right after a redirect response code was received. |new_location| is
   // only valid for the duration of the call.
@@ -223,26 +234,6 @@ class NET_EXPORT NetworkDelegate {
 
   // This corresponds to URLRequestDelegate::OnResponseStarted.
   virtual void OnResponseStarted(URLRequest* request, int net_error) = 0;
-
-  // Called when bytes are received from the network, such as after receiving
-  // headers or reading raw response bytes. This includes localhost requests.
-  // |bytes_received| is the number of bytes measured at the application layer
-  // that have been received over the network for this request since the last
-  // time OnNetworkBytesReceived was called. |bytes_received| will always be
-  // greater than 0.
-  // Currently, this is only implemented for HTTP transactions, and
-  // |bytes_received| does not include TLS overhead or TCP retransmits.
-  virtual void OnNetworkBytesReceived(URLRequest* request,
-                                      int64_t bytes_received) = 0;
-
-  // Called when bytes are sent over the network, such as when sending request
-  // headers or uploading request body bytes. This includes localhost requests.
-  // |bytes_sent| is the number of bytes measured at the application layer that
-  // have been sent over the network for this request since the last time
-  // OnNetworkBytesSent was called. |bytes_sent| will always be greater than 0.
-  // Currently, this is only implemented for HTTP transactions, and |bytes_sent|
-  // does not include TLS overhead or TCP retransmits.
-  virtual void OnNetworkBytesSent(URLRequest* request, int64_t bytes_sent) = 0;
 
   // Indicates that the URL request has been completed or failed.
   // |started| indicates whether the request has been started. If false,
@@ -258,72 +249,30 @@ class NET_EXPORT NetworkDelegate {
 
   // Corresponds to ProxyResolverJSBindings::OnError.
   virtual void OnPACScriptError(int line_number,
-                                const base::string16& error) = 0;
-
-  // Called when a request receives an authentication challenge
-  // specified by |auth_info|, and is unable to respond using cached
-  // credentials. |callback| and |credentials| must be non-NULL.
-  //
-  // The following return values are allowed:
-  //  - AUTH_REQUIRED_RESPONSE_NO_ACTION: |auth_info| is observed, but
-  //    no action is being taken on it.
-  //  - AUTH_REQUIRED_RESPONSE_SET_AUTH: |credentials| is filled in with
-  //    a username and password, which should be used in a response to
-  //    |auth_info|.
-  //  - AUTH_REQUIRED_RESPONSE_CANCEL_AUTH: The authentication challenge
-  //    should not be attempted.
-  //  - AUTH_REQUIRED_RESPONSE_IO_PENDING: The action will be decided
-  //    asynchronously. |callback| will be invoked when the decision is made,
-  //    and one of the other AuthRequiredResponse values will be passed in with
-  //    the same semantics as described above. Note, however, that a pending
-  //    operation may be cancelled by OnURLRequestDestroyed. Once cancelled,
-  //    |request|, |auth_info|, and |credentials| become invalid and |callback|
-  //    may not be called.
-  virtual AuthRequiredResponse OnAuthRequired(
-      URLRequest* request,
-      const AuthChallengeInfo& auth_info,
-      AuthCallback callback,
-      AuthCredentials* credentials) = 0;
+                                const std::u16string& error) = 0;
 
   // Called when reading cookies to allow the network delegate to block access
-  // to the cookie. This method will never be invoked when
-  // LOAD_DO_NOT_SEND_COOKIES is specified.
-  // The |allowed_from_caller| param is used to pass whether this operation is
-  // allowed from any higher level delegates (for example, in a
-  // LayeredNetworkDelegate). Any custom logic should be ANDed with this bool.
-  virtual bool OnCanGetCookies(const URLRequest& request,
-                               const CookieList& cookie_list,
-                               bool allowed_from_caller) = 0;
+  // to individual cookies, by adding the appropriate ExclusionReason and moving
+  // them to the `excluded_cookies` list.  This method will never be invoked
+  // when LOAD_DO_NOT_SEND_COOKIES is specified.
+  //
+  // Returns false if the delegate has blocked access to all cookies; true
+  // otherwise.
+  virtual bool OnAnnotateAndMoveUserBlockedCookies(
+      const URLRequest& request,
+      const net::FirstPartySetMetadata& first_party_set_metadata,
+      net::CookieAccessResultList& maybe_included_cookies,
+      net::CookieAccessResultList& excluded_cookies) = 0;
 
   // Called when a cookie is set to allow the network delegate to block access
   // to the cookie. This method will never be invoked when
   // LOAD_DO_NOT_SAVE_COOKIES is specified.
-  // The |allowed_from_caller| param is used to pass whether this operation is
-  // allowed from any higher level delegates (for example, in a
-  // LayeredNetworkDelegate). Any custom logic should be ANDed with this bool.
   virtual bool OnCanSetCookie(const URLRequest& request,
                               const CanonicalCookie& cookie,
-                              CookieOptions* options,
-                              bool allowed_from_caller) = 0;
+                              CookieOptions* options) = 0;
 
-  // Called when a file access is attempted to allow the network delegate to
-  // allow or block access to the given file path, provided in the original
-  // and absolute forms (i.e. symbolic link is resolved). It's up to
-  // subclasses of NetworkDelegate to decide which path to use for
-  // checking. Returns true if access is allowed.
-  virtual bool OnCanAccessFile(const URLRequest& request,
-                               const base::FilePath& original_path,
-                               const base::FilePath& absolute_path) const = 0;
-
-  // Returns true if the given |url| has to be requested over connection that
-  // is not tracked by the server. Usually is false, unless user privacy
-  // settings block cookies from being get or set.
-  virtual bool OnCanEnablePrivacyMode(const GURL& url,
-                                      const GURL& site_for_cookies) const = 0;
-
-  // Returns true if the embedder has enabled the experimental features, and
-  // false otherwise.
-  virtual bool OnAreExperimentalCookieFeaturesEnabled() const = 0;
+  virtual PrivacySetting OnForcePrivacyMode(
+      const URLRequest& request) const = 0;
 
   // Called when the |referrer_url| for requesting |target_url| during handling
   // of the |request| is does not comply with the referrer policy (e.g. a
@@ -347,6 +296,12 @@ class NET_EXPORT NetworkDelegate {
 
   virtual bool OnCanUseReportingClient(const url::Origin& origin,
                                        const GURL& endpoint) const = 0;
+
+  virtual absl::optional<FirstPartySetsCacheFilter::MatchInfo>
+  OnGetFirstPartySetsCacheFilterMatchInfoMaybeAsync(
+      const SchemefulSite& request_site,
+      base::OnceCallback<void(FirstPartySetsCacheFilter::MatchInfo)> callback)
+      const = 0;
 };
 
 }  // namespace net

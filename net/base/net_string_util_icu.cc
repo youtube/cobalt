@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/i18n/case_conversion.h"
 #include "base/i18n/i18n_constants.h"
 #include "base/i18n/icu_string_conversions.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
 
@@ -14,7 +15,8 @@ namespace net {
 
 const char* const kCharsetLatin1 = base::kCodepageLatin1;
 
-bool ConvertToUtf8(const std::string& text, const char* charset,
+bool ConvertToUtf8(base::StringPiece text,
+                   const char* charset,
                    std::string* output) {
   output->clear();
 
@@ -41,26 +43,27 @@ bool ConvertToUtf8(const std::string& text, const char* charset,
   return true;
 }
 
-bool ConvertToUtf8AndNormalize(const std::string& text, const char* charset,
+bool ConvertToUtf8AndNormalize(base::StringPiece text,
+                               const char* charset,
                                std::string* output) {
-  return base::ConvertToUtf8AndNormalize(text,  charset, output);
+  return base::ConvertToUtf8AndNormalize(text, charset, output);
 }
 
-bool ConvertToUTF16(const std::string& text, const char* charset,
-                    base::string16* output) {
+bool ConvertToUTF16(base::StringPiece text,
+                    const char* charset,
+                    std::u16string* output) {
   return base::CodepageToUTF16(text, charset,
                                base::OnStringConversionError::FAIL, output);
 }
 
-bool ConvertToUTF16WithSubstitutions(const std::string& text,
+bool ConvertToUTF16WithSubstitutions(base::StringPiece text,
                                      const char* charset,
-                                     base::string16* output) {
-  return base::CodepageToUTF16(text, charset,
-                               base::OnStringConversionError::SUBSTITUTE,
-                               output);
+                                     std::u16string* output) {
+  return base::CodepageToUTF16(
+      text, charset, base::OnStringConversionError::SUBSTITUTE, output);
 }
 
-bool ToUpper(const base::string16& str, base::string16* output) {
+bool ToUpper(base::StringPiece16 str, std::u16string* output) {
   *output = base::i18n::ToUpper(str);
   return true;
 }

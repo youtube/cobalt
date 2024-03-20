@@ -35,7 +35,7 @@ class HTMLImageElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLImageElement(Document* document)
-      : HTMLElement(document, base::Token(kTagName)) {}
+      : HTMLElement(document, base_token::Token(kTagName)) {}
 
   explicit HTMLImageElement(script::EnvironmentSettings* env_settings);
 
@@ -67,9 +67,10 @@ class HTMLImageElement : public HTMLElement {
   void OnLoadingSuccess();
   void OnLoadingError();
 
-  void PreventGarbageCollectionUntilEventIsDispatched(base::Token event_name);
+  void PreventGarbageCollectionUntilEventIsDispatched(
+      base_token::Token event_name);
   void AllowGarbageCollectionAfterEventIsDispatched(
-      base::Token event_name,
+      base_token::Token event_name,
       std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
   void DestroyScopedPreventGC(

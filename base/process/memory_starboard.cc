@@ -14,6 +14,8 @@
 
 #include "base/process/memory.h"
 
+#include <cstdlib>
+
 #include "starboard/memory.h"
 
 namespace base {

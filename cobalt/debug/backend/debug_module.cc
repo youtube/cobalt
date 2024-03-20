@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/debug/backend/render_layer.h"
 
 namespace cobalt {
@@ -36,18 +37,18 @@ constexpr char kTracingController[] = "TracingController";
 // state for all agents. Returns a NULL JSONObject if either |agents_state| is
 // NULL or it doesn't hold a state for the agent.
 JSONObject RemoveAgentState(const std::string& agent_name,
-                            base::DictionaryValue* state_dict) {
+                            base::Value::Dict* state_dict) {
   if (state_dict == nullptr) {
     return JSONObject();
   }
 
-  std::unique_ptr<base::Value> value;
-  if (!state_dict->Remove(agent_name, &value)) {
+  absl::optional<base::Value> value = state_dict->Extract(agent_name);
+  if (!value) {
     return JSONObject();
   }
 
-  std::unique_ptr<base::DictionaryValue> dictionary_value =
-      base::DictionaryValue::From(std::move(value));
+  std::unique_ptr<base::Value::Dict> dictionary_value =
+      std::make_unique<base::Value::Dict>(std::move(value->GetDict()));
   if (!dictionary_value) {
     DLOG(ERROR) << "Unexpected state type for " << agent_name;
     return JSONObject();
@@ -56,11 +57,10 @@ JSONObject RemoveAgentState(const std::string& agent_name,
   return dictionary_value;
 }
 
-void StoreAgentState(base::DictionaryValue* state_dict,
+void StoreAgentState(base::Value::Dict* state_dict,
                      const std::string& agent_name, JSONObject agent_state) {
   if (agent_state) {
-    state_dict->Set(agent_name,
-                    std::unique_ptr<base::Value>(agent_state.release()));
+    state_dict->Set(agent_name, std::move(*agent_state.release()));
   }
 }
 
@@ -72,8 +72,9 @@ DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state) {
   ConstructionData data(debugger_hooks, global_environment,
-                        base::MessageLoop::current(), render_overlay,
-                        resource_provider, window, debugger_state);
+                        base::SequencedTaskRunner::GetCurrentDefault(),
+                        render_overlay, resource_provider, window,
+                        debugger_state);
   Build(data);
 }
 
@@ -82,8 +83,8 @@ DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state,
-                         base::MessageLoop* message_loop) {
-  ConstructionData data(debugger_hooks, global_environment, message_loop,
+                         base::SequencedTaskRunner* task_runner) {
+  ConstructionData data(debugger_hooks, global_environment, task_runner,
                         render_overlay, resource_provider, window,
                         debugger_state);
   Build(data);
@@ -102,13 +103,13 @@ DebugModule::~DebugModule() {
 }
 
 void DebugModule::Build(const ConstructionData& data) {
-  DCHECK(data.message_loop);
+  DCHECK(data.task_runner);
 
-  if (base::MessageLoop::current() == data.message_loop) {
+  if (data.task_runner->RunsTasksInCurrentSequence()) {
     BuildInternal(data);
   } else {
-    data.message_loop->task_runner()->PostBlockingTask(
-        FROM_HERE,
+    base::task_runner_util::PostBlockingTask(
+        data.task_runner, FROM_HERE,
         base::Bind(&DebugModule::BuildInternal, base::Unretained(this), data));
   }
 
@@ -116,7 +117,7 @@ void DebugModule::Build(const ConstructionData& data) {
 }
 
 void DebugModule::BuildInternal(const ConstructionData& data) {
-  DCHECK(base::MessageLoop::current() == data.message_loop);
+  DCHECK(data.task_runner->RunsTasksInCurrentSequence());
   DCHECK(data.global_environment);
 
   // Create the backend objects supporting the debugger agents.
@@ -177,7 +178,7 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   // Restore the agents with their state from before navigation. Do this
   // unconditionally to give the agents a place to initialize themselves whether
   // or not state is being restored.
-  base::DictionaryValue* agents_state =
+  base::Value::Dict* agents_state =
       data.debugger_state == nullptr ? nullptr
                                      : data.debugger_state->agents_state.get();
   cobalt_agent_->Thaw(RemoveAgentState(kCobaltAgent, agents_state));
@@ -201,8 +202,8 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
 
   std::unique_ptr<DebuggerState> debugger_state(new DebuggerState());
 
-  debugger_state->agents_state.reset(new base::DictionaryValue());
-  base::DictionaryValue* agents_state = debugger_state->agents_state.get();
+  debugger_state->agents_state.reset(new base::Value::Dict());
+  base::Value::Dict* agents_state = debugger_state->agents_state.get();
   StoreAgentState(agents_state, kCobaltAgent, cobalt_agent_->Freeze());
   StoreAgentState(agents_state, kScriptDebuggerAgent,
                   script_debugger_agent_->Freeze());

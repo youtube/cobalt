@@ -14,7 +14,7 @@
 #include "base/logging.h"
 #include "base/single_thread_task_runner.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/task/post_task.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "components/update_client/action_runner.h"
@@ -84,7 +84,7 @@ void InstallComplete(
 #if defined(STARBOARD)
     LOG(INFO) << "InstallComplete";
 #endif
-  base::PostTaskWithTraits(
+  base::ThreadPool::PostTask(
       FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
       base::BindOnce(
           [](scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
@@ -247,7 +247,7 @@ void UnpackCompleteOnBlockingTaskRunner(
     return;
   }
 
-  base::PostTaskWithTraits(
+  base::ThreadPool::PostTask(
       FROM_HERE, kTaskTraits,
                  base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
                                 result.unpack_path, result.public_key,
@@ -473,7 +473,7 @@ bool Component::CanDoBackgroundDownload() const {
          update_context_.config->EnabledBackgroundDownloader();
 }
 
-void Component::AppendEvent(base::Value event) {
+void Component::AppendEvent(base::Value::Dict event) {
   events_.push_back(std::move(event));
 }
 
@@ -504,98 +504,98 @@ base::TimeDelta Component::GetUpdateDuration() const {
   return std::min(update_cost, max_update_delay);
 }
 
-base::Value Component::MakeEventUpdateComplete() const {
-  base::Value event(base::Value::Type::DICTIONARY);
-  event.SetKey("eventtype", base::Value(3));
-  event.SetKey(
+base::Value::Dict Component::MakeEventUpdateComplete() const {
+  base::Value::Dict event;
+  event.Set("eventtype", base::Value(3));
+  event.Set(
       "eventresult",
       base::Value(static_cast<int>(state() == ComponentState::kUpdated)));
   if (error_category() != ErrorCategory::kNone)
-    event.SetKey("errorcat", base::Value(static_cast<int>(error_category())));
+    event.Set("errorcat", base::Value(static_cast<int>(error_category())));
   if (error_code())
-    event.SetKey("errorcode", base::Value(error_code()));
+    event.Set("errorcode", base::Value(error_code()));
   if (extra_code1())
-    event.SetKey("extracode1", base::Value(extra_code1()));
+    event.Set("extracode1", base::Value(extra_code1()));
   if (HasDiffUpdate(*this)) {
     const int diffresult = static_cast<int>(!diff_update_failed());
-    event.SetKey("diffresult", base::Value(diffresult));
+    event.Set("diffresult", base::Value(diffresult));
   }
   if (diff_error_category() != ErrorCategory::kNone) {
     const int differrorcat = static_cast<int>(diff_error_category());
-    event.SetKey("differrorcat", base::Value(differrorcat));
+    event.Set("differrorcat", base::Value(differrorcat));
   }
   if (diff_error_code())
-    event.SetKey("differrorcode", base::Value(diff_error_code()));
+    event.Set("differrorcode", base::Value(diff_error_code()));
   if (diff_extra_code1())
-    event.SetKey("diffextracode1", base::Value(diff_extra_code1()));
+    event.Set("diffextracode1", base::Value(diff_extra_code1()));
   if (!previous_fp().empty())
-    event.SetKey("previousfp", base::Value(previous_fp()));
+    event.Set("previousfp", base::Value(previous_fp()));
   if (!next_fp().empty())
-    event.SetKey("nextfp", base::Value(next_fp()));
+    event.Set("nextfp", base::Value(next_fp()));
   DCHECK(previous_version().IsValid());
-  event.SetKey("previousversion", base::Value(previous_version().GetString()));
+  event.Set("previousversion", base::Value(previous_version().GetString()));
   if (next_version().IsValid())
-    event.SetKey("nextversion", base::Value(next_version().GetString()));
+    event.Set("nextversion", base::Value(next_version().GetString()));
   return event;
 }
 
-base::Value Component::MakeEventDownloadMetrics(
+base::Value::Dict Component::MakeEventDownloadMetrics(
     const CrxDownloader::DownloadMetrics& dm) const {
-  base::Value event(base::Value::Type::DICTIONARY);
-  event.SetKey("eventtype", base::Value(14));
-  event.SetKey("eventresult", base::Value(static_cast<int>(dm.error == 0)));
-  event.SetKey("downloader", base::Value(DownloaderToString(dm.downloader)));
+  base::Value::Dict event;
+  event.Set("eventtype", base::Value(14));
+  event.Set("eventresult", base::Value(static_cast<int>(dm.error == 0)));
+  event.Set("downloader", base::Value(DownloaderToString(dm.downloader)));
   if (dm.error)
-    event.SetKey("errorcode", base::Value(dm.error));
-  event.SetKey("url", base::Value(dm.url.spec()));
+    event.Set("errorcode", base::Value(dm.error));
+  event.Set("url", base::Value(dm.url.spec()));
 
   // -1 means that the  byte counts are not known.
   if (dm.total_bytes != -1 && dm.total_bytes < kProtocolMaxInt)
-    event.SetKey("total", base::Value(static_cast<double>(dm.total_bytes)));
+    event.Set("total", base::Value(static_cast<double>(dm.total_bytes)));
   if (dm.downloaded_bytes != -1 && dm.total_bytes < kProtocolMaxInt) {
-    event.SetKey("downloaded",
+    event.Set("downloaded",
                  base::Value(static_cast<double>(dm.downloaded_bytes)));
   }
   if (dm.download_time_ms && dm.total_bytes < kProtocolMaxInt) {
-    event.SetKey("download_time_ms",
+    event.Set("download_time_ms",
                  base::Value(static_cast<double>(dm.download_time_ms)));
   }
   DCHECK(previous_version().IsValid());
-  event.SetKey("previousversion", base::Value(previous_version().GetString()));
+  event.Set("previousversion", base::Value(previous_version().GetString()));
   if (next_version().IsValid())
-    event.SetKey("nextversion", base::Value(next_version().GetString()));
+    event.Set("nextversion", base::Value(next_version().GetString()));
   return event;
 }
 
-base::Value Component::MakeEventUninstalled() const {
+base::Value::Dict Component::MakeEventUninstalled() const {
   DCHECK(state() == ComponentState::kUninstalled);
-  base::Value event(base::Value::Type::DICTIONARY);
-  event.SetKey("eventtype", base::Value(4));
-  event.SetKey("eventresult", base::Value(1));
+  base::Value::Dict event;
+  event.Set("eventtype", base::Value(4));
+  event.Set("eventresult", base::Value(1));
   if (extra_code1())
-    event.SetKey("extracode1", base::Value(extra_code1()));
+    event.Set("extracode1", base::Value(extra_code1()));
   DCHECK(previous_version().IsValid());
-  event.SetKey("previousversion", base::Value(previous_version().GetString()));
+  event.Set("previousversion", base::Value(previous_version().GetString()));
   DCHECK(next_version().IsValid());
-  event.SetKey("nextversion", base::Value(next_version().GetString()));
+  event.Set("nextversion", base::Value(next_version().GetString()));
   return event;
 }
 
-base::Value Component::MakeEventActionRun(bool succeeded,
+base::Value::Dict Component::MakeEventActionRun(bool succeeded,
                                           int error_code,
                                           int extra_code1) const {
-  base::Value event(base::Value::Type::DICTIONARY);
-  event.SetKey("eventtype", base::Value(42));
-  event.SetKey("eventresult", base::Value(static_cast<int>(succeeded)));
+  base::Value::Dict event;
+  event.Set("eventtype", base::Value(42));
+  event.Set("eventresult", base::Value(static_cast<int>(succeeded)));
   if (error_code)
-    event.SetKey("errorcode", base::Value(error_code));
+    event.Set("errorcode", base::Value(error_code));
   if (extra_code1)
-    event.SetKey("extracode1", base::Value(extra_code1));
+    event.Set("extracode1", base::Value(extra_code1));
   return event;
 }
 
-std::vector<base::Value> Component::GetEvents() const {
-  std::vector<base::Value> events;
+std::vector<base::Value::Dict> Component::GetEvents() const {
+  std::vector<base::Value::Dict> events;
   for (const auto& event : events_)
     events.push_back(event.Clone());
   return events;
@@ -1037,7 +1037,7 @@ void Component::StateUpdatingDiff::DoHandle() {
 
   component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
 
-  base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
+  base::ThreadPool::CreateSequencedTaskRunner(kTaskTraits)
       ->PostTask(
           FROM_HERE,
           base::BindOnce(
@@ -1117,7 +1117,7 @@ void Component::StateUpdating::DoHandle() {
 
   component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
 
-  base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
+  base::ThreadPool::CreateSequencedTaskRunner(kTaskTraits)
       ->PostTask(FROM_HERE,
                  base::BindOnce(
                      &update_client::StartInstallOnBlockingTaskRunner,

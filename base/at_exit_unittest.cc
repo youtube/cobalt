@@ -1,9 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/at_exit.h"
-#include "base/bind.h"
+#include "base/functional/bind.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -81,7 +81,7 @@ TEST_F(AtExitTest, Param) {
 
 TEST_F(AtExitTest, Task) {
   ZeroTestCounters();
-  base::AtExitManager::RegisterTask(base::Bind(&ExpectParamIsCounter,
-                                               &g_test_counter_1));
+  base::AtExitManager::RegisterTask(
+      base::BindOnce(&ExpectParamIsCounter, &g_test_counter_1));
   base::AtExitManager::ProcessCallbacksNow();
 }

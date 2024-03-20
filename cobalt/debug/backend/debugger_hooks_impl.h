@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/debugger_hooks.h"
 
@@ -52,7 +52,7 @@ class DebuggerHooksImpl : public base::DebuggerHooks {
   void DetachDebugger();
 
   // Message loop of the web module these hooks were created on.
-  base::MessageLoop* message_loop_;
+  base::SequencedTaskRunner* task_runner_;
   THREAD_CHECKER(thread_checker_);
 
   script::ScriptDebugger* script_debugger_ = nullptr;

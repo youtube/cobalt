@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_AUTH_HANDLER_BASIC_H_
 #define NET_HTTP_HTTP_AUTH_HANDLER_BASIC_H_
 
+#include <memory>
 #include <string>
 
 #include "net/base/completion_once_callback.h"
@@ -22,30 +23,32 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerBasic : public HttpAuthHandler {
     Factory();
     ~Factory() override;
 
-    int CreateAuthHandler(HttpAuthChallengeTokenizer* challenge,
-                          HttpAuth::Target target,
-                          const SSLInfo& ssl_info,
-                          const GURL& origin,
-                          CreateReason reason,
-                          int digest_nonce_count,
-                          const NetLogWithSource& net_log,
-                          std::unique_ptr<HttpAuthHandler>* handler) override;
+    int CreateAuthHandler(
+        HttpAuthChallengeTokenizer* challenge,
+        HttpAuth::Target target,
+        const SSLInfo& ssl_info,
+        const NetworkAnonymizationKey& network_anonymization_key,
+        const url::SchemeHostPort& scheme_host_port,
+        CreateReason reason,
+        int digest_nonce_count,
+        const NetLogWithSource& net_log,
+        HostResolver* host_resolver,
+        std::unique_ptr<HttpAuthHandler>* handler) override;
   };
 
-  HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuthChallengeTokenizer* challenge) override;
+  ~HttpAuthHandlerBasic() override = default;
 
- protected:
+ private:
+  // HttpAuthHandler
   bool Init(HttpAuthChallengeTokenizer* challenge,
-            const SSLInfo& ssl_info) override;
-
+            const SSLInfo& ssl_info,
+            const NetworkAnonymizationKey& network_anonymization_key) override;
   int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                             const HttpRequestInfo* request,
                             CompletionOnceCallback callback,
                             std::string* auth_token) override;
-
- private:
-  ~HttpAuthHandlerBasic() override {}
+  HttpAuth::AuthorizationResult HandleAnotherChallengeImpl(
+      HttpAuthChallengeTokenizer* challenge) override;
 
   bool ParseChallenge(HttpAuthChallengeTokenizer* challenge);
 };

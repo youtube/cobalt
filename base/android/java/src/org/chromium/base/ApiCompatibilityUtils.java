@@ -1,79 +1,127 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
-import android.app.PendingIntent;
+import android.app.Application;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.ColorStateList;
-import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.Resources.NotFoundException;
 import android.graphics.Bitmap;
-import android.graphics.Color;
-import android.graphics.ColorFilter;
-import android.graphics.PorterDuff;
-import android.graphics.Rect;
+import android.graphics.ImageDecoder;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.LayerDrawable;
-import android.graphics.drawable.TransitionDrawable;
-import android.graphics.drawable.VectorDrawable;
+import android.hardware.display.DisplayManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PowerManager;
-import android.os.Process;
-import android.os.StatFs;
 import android.os.StrictMode;
 import android.os.UserManager;
+import android.provider.MediaStore;
 import android.provider.Settings;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.widget.ImageViewCompat;
-import android.text.Html;
-import android.text.Spanned;
+import android.view.Display;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.view.inputmethod.InputMethodSubtype;
 import android.view.textclassifier.TextClassifier;
-import android.widget.ImageView;
-import android.widget.PopupWindow;
 import android.widget.TextView;
 
-import java.io.File;
-import java.io.UnsupportedEncodingException;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
+import androidx.annotation.RequiresApi;
+import androidx.core.os.BuildCompat;
+
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Utility class to use new APIs that were added after ICS (API level 14).
+ * Utility class to use APIs not in all supported Android versions.
+ *
+ * Do not inline because we use many new APIs, and if they are inlined, they could cause dex
+ * validation errors on low Android versions.
  */
-@TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class ApiCompatibilityUtils {
+    private static final String TAG = "ApiCompatUtil";
+
     private ApiCompatibilityUtils() {
     }
 
-    /**
-     * Compares two long values numerically. The value returned is identical to what would be
-     * returned by {@link Long#compare(long, long)} which is available since API level 19.
-     */
-    public static int compareLong(long lhs, long rhs) {
-        return lhs < rhs ? -1 : (lhs == rhs ? 0 : 1);
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private static class ApisQ {
+        static boolean isRunningInUserTestHarness() {
+            return ActivityManager.isRunningInUserTestHarness();
+        }
+
+        static List<Integer> getTargetableDisplayIds(@Nullable Activity activity) {
+            List<Integer> displayList = new ArrayList<>();
+            if (activity == null) return displayList;
+            DisplayManager displayManager =
+                    (DisplayManager) activity.getSystemService(Context.DISPLAY_SERVICE);
+            if (displayManager == null) return displayList;
+            Display[] displays = displayManager.getDisplays();
+            ActivityManager am =
+                    (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
+            for (Display display : displays) {
+                if (display.getState() == Display.STATE_ON
+                        && am.isActivityStartAllowedOnDisplay(activity, display.getDisplayId(),
+                                new Intent(activity, activity.getClass()))) {
+                    displayList.add(display.getDisplayId());
+                }
+            }
+            return displayList;
+        }
     }
 
-    /**
-     * Compares two boolean values. The value returned is identical to what would be returned by
-     * {@link Boolean#compare(boolean, boolean)} which is available since API level 19.
-     */
-    public static int compareBoolean(boolean lhs, boolean rhs) {
-        return lhs == rhs ? 0 : lhs ? 1 : -1;
+    @RequiresApi(Build.VERSION_CODES.P)
+    private static class ApisP {
+        static String getProcessName() {
+            return Application.getProcessName();
+        }
+
+        static Bitmap getBitmapByUri(ContentResolver cr, Uri uri) throws IOException {
+            return ImageDecoder.decodeBitmap(ImageDecoder.createSource(cr, uri));
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private static class ApisO {
+        static void initNotificationSettingsIntent(Intent intent, String packageName) {
+            intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+            intent.putExtra(Settings.EXTRA_APP_PACKAGE, packageName);
+        }
+
+        static void disableSmartSelectionTextClassifier(TextView textView) {
+            textView.setTextClassifier(TextClassifier.NO_OP);
+        }
+
+        static Bundle createLaunchDisplayIdActivityOptions(int displayId) {
+            ActivityOptions options = ActivityOptions.makeBasic();
+            options.setLaunchDisplayId(displayId);
+            return options.toBundle();
+        }
+    }
+
+    // This class is sufficiently small that it's fine if it doesn't verify for N devices.
+    @RequiresApi(Build.VERSION_CODES.N_MR1)
+    private static class ApisNMR1 {
+        static boolean isDemoUser() {
+            UserManager userManager =
+                    (UserManager) ContextUtils.getApplicationContext().getSystemService(
+                            Context.USER_SERVICE);
+            return userManager.isDemoUser();
+        }
     }
 
     /**
@@ -104,348 +152,32 @@ public class ApiCompatibilityUtils {
      * UnsupportedEncodingException.
      */
     public static byte[] getBytesUtf8(String str) {
-        try {
-            return str.getBytes("UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("UTF-8 encoding not available.", e);
-        }
-    }
-
-    /**
-     * Returns true if view's layout direction is right-to-left.
-     *
-     * @param view the View whose layout is being considered
-     */
-    public static boolean isLayoutRtl(View view) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return view.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
-        } else {
-            // All layouts are LTR before JB MR1.
-            return false;
-        }
-    }
-
-    /**
-     * @see Configuration#getLayoutDirection()
-     */
-    public static int getLayoutDirection(Configuration configuration) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return configuration.getLayoutDirection();
-        } else {
-            // All layouts are LTR before JB MR1.
-            return View.LAYOUT_DIRECTION_LTR;
-        }
-    }
-
-    /**
-     * @return True if the running version of the Android supports printing.
-     */
-    public static boolean isPrintingSupported() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
-    }
-
-    /**
-     * @return True if the running version of the Android supports elevation. Elevation of a view
-     * determines the visual appearance of its shadow.
-     */
-    public static boolean isElevationSupported() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP;
-    }
-
-    /**
-     * @see android.view.View#setLayoutDirection(int)
-     */
-    public static void setLayoutDirection(View view, int layoutDirection) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            view.setLayoutDirection(layoutDirection);
-        } else {
-            // Do nothing. RTL layouts aren't supported before JB MR1.
-        }
-    }
-
-    /**
-     * @see android.view.View#setTextAlignment(int)
-     */
-    public static void setTextAlignment(View view, int textAlignment) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            view.setTextAlignment(textAlignment);
-        } else {
-            // Do nothing. RTL text isn't supported before JB MR1.
-        }
-    }
-
-    /**
-     * @see android.view.View#setTextDirection(int)
-     */
-    public static void setTextDirection(View view, int textDirection) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            view.setTextDirection(textDirection);
-        } else {
-            // Do nothing. RTL text isn't supported before JB MR1.
-        }
-    }
-
-    /**
-     * See {@link android.view.View#setLabelFor(int)}.
-     */
-    public static void setLabelFor(View labelView, int id) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            labelView.setLabelFor(id);
-        } else {
-            // Do nothing. #setLabelFor() isn't supported before JB MR1.
-        }
-    }
-
-    /**
-     * @see android.widget.TextView#getCompoundDrawablesRelative()
-     */
-    public static Drawable[] getCompoundDrawablesRelative(TextView textView) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return textView.getCompoundDrawablesRelative();
-        } else {
-            return textView.getCompoundDrawables();
-        }
-    }
-
-    /**
-     * @see android.widget.TextView#setCompoundDrawablesRelative(Drawable, Drawable, Drawable,
-     *      Drawable)
-     */
-    public static void setCompoundDrawablesRelative(TextView textView, Drawable start, Drawable top,
-            Drawable end, Drawable bottom) {
-        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            // On JB MR1, due to a platform bug, setCompoundDrawablesRelative() is a no-op if the
-            // view has ever been measured. As a workaround, use setCompoundDrawables() directly.
-            // See: http://crbug.com/368196 and http://crbug.com/361709
-            boolean isRtl = isLayoutRtl(textView);
-            textView.setCompoundDrawables(isRtl ? end : start, top, isRtl ? start : end, bottom);
-        } else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            textView.setCompoundDrawablesRelative(start, top, end, bottom);
-        } else {
-            textView.setCompoundDrawables(start, top, end, bottom);
-        }
-    }
-
-    /**
-     * @see android.widget.TextView#setCompoundDrawablesRelativeWithIntrinsicBounds(Drawable,
-     *      Drawable, Drawable, Drawable)
-     */
-    public static void setCompoundDrawablesRelativeWithIntrinsicBounds(TextView textView,
-            Drawable start, Drawable top, Drawable end, Drawable bottom) {
-        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            // Work around the platform bug described in setCompoundDrawablesRelative() above.
-            boolean isRtl = isLayoutRtl(textView);
-            textView.setCompoundDrawablesWithIntrinsicBounds(isRtl ? end : start, top,
-                    isRtl ? start : end, bottom);
-        } else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            textView.setCompoundDrawablesRelativeWithIntrinsicBounds(start, top, end, bottom);
-        } else {
-            textView.setCompoundDrawablesWithIntrinsicBounds(start, top, end, bottom);
-        }
-    }
-
-    /**
-     * @see android.widget.TextView#setCompoundDrawablesRelativeWithIntrinsicBounds(int, int, int,
-     *      int)
-     */
-    public static void setCompoundDrawablesRelativeWithIntrinsicBounds(TextView textView,
-            int start, int top, int end, int bottom) {
-        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            // Work around the platform bug described in setCompoundDrawablesRelative() above.
-            boolean isRtl = isLayoutRtl(textView);
-            textView.setCompoundDrawablesWithIntrinsicBounds(isRtl ? end : start, top,
-                    isRtl ? start : end, bottom);
-        } else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            textView.setCompoundDrawablesRelativeWithIntrinsicBounds(start, top, end, bottom);
-        } else {
-            textView.setCompoundDrawablesWithIntrinsicBounds(start, top, end, bottom);
-        }
-    }
-
-    /**
-     * @see android.text.Html#toHtml(Spanned, int)
-     * @param option is ignored on below N
-     */
-    @SuppressWarnings("deprecation")
-    public static String toHtml(Spanned spanned, int option) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            return Html.toHtml(spanned, option);
-        } else {
-            return Html.toHtml(spanned);
-        }
-    }
-
-    // These methods have a new name, and the old name is deprecated.
-
-    /**
-     * @see android.app.PendingIntent#getCreatorPackage()
-     */
-    @SuppressWarnings("deprecation")
-    public static String getCreatorPackage(PendingIntent intent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return intent.getCreatorPackage();
-        } else {
-            return intent.getTargetPackage();
-        }
-    }
-
-    /**
-     * @see android.provider.Settings.Global#DEVICE_PROVISIONED
-     */
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-    public static boolean isDeviceProvisioned(Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) return true;
-        if (context == null) return true;
-        if (context.getContentResolver() == null) return true;
-        return Settings.Global.getInt(
-                context.getContentResolver(), Settings.Global.DEVICE_PROVISIONED, 0) != 0;
-    }
-
-    /**
-     * @see android.app.Activity#finishAndRemoveTask()
-     */
-    public static void finishAndRemoveTask(Activity activity) {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
-            activity.finishAndRemoveTask();
-        } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP) {
-            // crbug.com/395772 : Fallback for Activity.finishAndRemoveTask() failing.
-            new FinishAndRemoveTaskWithRetry(activity).run();
-        } else {
-            activity.finish();
-        }
-    }
-
-    /**
-     * Set elevation if supported.
-     */
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    public static boolean setElevation(View view, float elevationValue) {
-        if (!isElevationSupported()) return false;
-
-        view.setElevation(elevationValue);
-        return true;
-    }
-
-    /**
-     * Set elevation if supported.
-     */
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    public static boolean setElevation(PopupWindow window, float elevationValue) {
-        if (!isElevationSupported()) return false;
-
-        window.setElevation(elevationValue);
-        return true;
+        return str.getBytes(StandardCharsets.UTF_8);
     }
 
     /**
      *  Gets an intent to start the Android system notification settings activity for an app.
      *
-     *  @param context Context of the app whose settings intent should be returned.
      */
-    public static Intent getNotificationSettingsIntent(Context context) {
+    public static Intent getNotificationSettingsIntent() {
         Intent intent = new Intent();
+        String packageName = ContextUtils.getApplicationContext().getPackageName();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
-            intent.putExtra(Settings.EXTRA_APP_PACKAGE, context.getPackageName());
+            ApisO.initNotificationSettingsIntent(intent, packageName);
         } else {
             intent.setAction("android.settings.ACTION_APP_NOTIFICATION_SETTINGS");
-            intent.putExtra("app_package", context.getPackageName());
-            intent.putExtra("app_uid", context.getApplicationInfo().uid);
+            intent.putExtra("app_package", packageName);
+            intent.putExtra(
+                    "app_uid", ContextUtils.getApplicationContext().getApplicationInfo().uid);
         }
         return intent;
-    }
-
-    private static class FinishAndRemoveTaskWithRetry implements Runnable {
-        private static final long RETRY_DELAY_MS = 500;
-        private static final long MAX_TRY_COUNT = 3;
-        private final Activity mActivity;
-        private int mTryCount;
-
-        FinishAndRemoveTaskWithRetry(Activity activity) {
-            mActivity = activity;
-        }
-
-        @Override
-        public void run() {
-            mActivity.finishAndRemoveTask();
-            mTryCount++;
-            if (!mActivity.isFinishing()) {
-                if (mTryCount < MAX_TRY_COUNT) {
-                    ThreadUtils.postOnUiThreadDelayed(this, RETRY_DELAY_MS);
-                } else {
-                    mActivity.finish();
-                }
-            }
-        }
-    }
-
-    /**
-     * @return Whether the screen of the device is interactive.
-     */
-    @SuppressWarnings("deprecation")
-    public static boolean isInteractive(Context context) {
-        PowerManager manager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
-            return manager.isInteractive();
-        } else {
-            return manager.isScreenOn();
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    public static int getActivityNewDocumentFlag() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            return Intent.FLAG_ACTIVITY_NEW_DOCUMENT;
-        } else {
-            return Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET;
-        }
-    }
-
-    /**
-     * @see android.provider.Settings.Secure#SKIP_FIRST_USE_HINTS
-     */
-    public static boolean shouldSkipFirstUseHints(ContentResolver contentResolver) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            return Settings.Secure.getInt(
-                    contentResolver, Settings.Secure.SKIP_FIRST_USE_HINTS, 0) != 0;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * @param activity Activity that should get the task description update.
-     * @param title Title of the activity.
-     * @param icon Icon of the activity.
-     * @param color Color of the activity. It must be a fully opaque color.
-     */
-    public static void setTaskDescription(Activity activity, String title, Bitmap icon, int color) {
-        // TaskDescription requires an opaque color.
-        assert Color.alpha(color) == 255;
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            ActivityManager.TaskDescription description =
-                    new ActivityManager.TaskDescription(title, icon, color);
-            activity.setTaskDescription(description);
-        }
     }
 
     /**
      * @see android.view.Window#setStatusBarColor(int color).
      */
     public static void setStatusBarColor(Window window, int statusBarColor) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return;
-
-        // If both system bars are black, we can remove these from our layout,
-        // removing or shrinking the SurfaceFlinger overlay required for our views.
-        // This benefits battery usage on L and M.  However, this no longer provides a battery
-        // benefit as of N and starts to cause flicker bugs on O, so don't bother on O and up.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O && statusBarColor == Color.BLACK
-                && window.getNavigationBarColor() == Color.BLACK) {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-        } else {
-            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         window.setStatusBarColor(statusBarColor);
     }
 
@@ -457,8 +189,6 @@ public class ApiCompatibilityUtils {
      * @param useDarkIcons Whether the status bar icons should be dark.
      */
     public static void setStatusBarIconColor(View rootView, boolean useDarkIcons) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
-
         int systemUiVisibility = rootView.getSystemUiVisibility();
         if (useDarkIcons) {
             systemUiVisibility |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
@@ -473,29 +203,8 @@ public class ApiCompatibilityUtils {
      * TODO(ltian): use {@link AppCompatResources} to parse drawable to prevent fail on
      * {@link VectorDrawable}. (http://crbug.com/792129)
      */
-    @SuppressWarnings("deprecation")
     public static Drawable getDrawable(Resources res, int id) throws NotFoundException {
-        StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskReads();
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                return res.getDrawable(id, null);
-            } else {
-                return res.getDrawable(id);
-            }
-        } finally {
-            StrictMode.setThreadPolicy(oldPolicy);
-        }
-    }
-
-    public static void setImageTintList(
-            @NonNull ImageView view, @Nullable ColorStateList tintList) {
-        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP) {
-            // Work around broken workaround in ImageViewCompat, see https://crbug.com/891609#c3.
-            if (tintList != null && view.getImageTintMode() == null) {
-                view.setImageTintMode(PorterDuff.Mode.SRC_IN);
-            }
-        }
-        ImageViewCompat.setImageTintList(view, tintList);
+        return getDrawableForDensity(res, id, 0);
     }
 
     /**
@@ -503,48 +212,18 @@ public class ApiCompatibilityUtils {
      */
     @SuppressWarnings("deprecation")
     public static Drawable getDrawableForDensity(Resources res, int id, int density) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskReads();
+        try {
+            // For Android Oreo+, Resources.getDrawable(id, null) delegates to
+            // Resources.getDrawableForDensity(id, 0, null), but before that the two functions are
+            // independent. This check can be removed after Oreo becomes the minimum supported API.
+            if (density == 0) {
+                return res.getDrawable(id, null);
+            }
             return res.getDrawableForDensity(id, density, null);
-        } else {
-            return res.getDrawableForDensity(id, density);
+        } finally {
+            StrictMode.setThreadPolicy(oldPolicy);
         }
-    }
-
-    /**
-     * @see android.app.Activity#finishAfterTransition().
-     */
-    public static void finishAfterTransition(Activity activity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            activity.finishAfterTransition();
-        } else {
-            activity.finish();
-        }
-    }
-
-    /**
-     * @see android.content.pm.PackageManager#getUserBadgedIcon(Drawable, android.os.UserHandle).
-     */
-    public static Drawable getUserBadgedIcon(Context context, int id) {
-        Drawable drawable = getDrawable(context.getResources(), id);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            PackageManager packageManager = context.getPackageManager();
-            drawable = packageManager.getUserBadgedIcon(drawable, Process.myUserHandle());
-        }
-        return drawable;
-    }
-
-    /**
-     * @see android.content.pm.PackageManager#getUserBadgedDrawableForDensity(Drawable drawable,
-     * UserHandle user, Rect badgeLocation, int badgeDensity).
-     */
-    public static Drawable getUserBadgedDrawableForDensity(
-            Context context, Drawable drawable, Rect badgeLocation, int density) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            PackageManager packageManager = context.getPackageManager();
-            return packageManager.getUserBadgedDrawableForDensity(
-                    drawable, Process.myUserHandle(), badgeLocation, density);
-        }
-        return drawable;
     }
 
     /**
@@ -552,23 +231,7 @@ public class ApiCompatibilityUtils {
      */
     @SuppressWarnings("deprecation")
     public static int getColor(Resources res, int id) throws NotFoundException {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return res.getColor(id, null);
-        } else {
-            return res.getColor(id);
-        }
-    }
-
-    /**
-     * @see android.graphics.drawable.Drawable#getColorFilter().
-     */
-    @SuppressWarnings("NewApi")
-    public static ColorFilter getColorFilter(Drawable drawable) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            return drawable.getColorFilter();
-        } else {
-            return null;
-        }
+        return res.getColor(id);
     }
 
     /**
@@ -576,60 +239,17 @@ public class ApiCompatibilityUtils {
      */
     @SuppressWarnings("deprecation")
     public static void setTextAppearance(TextView view, int id) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            view.setTextAppearance(id);
-        } else {
-            view.setTextAppearance(view.getContext(), id);
-        }
+        // setTextAppearance(id) is the undeprecated version of this, but it just calls the
+        // deprecated one, so there is no benefit to using the non-deprecated one until we can
+        // drop support for it entirely (new one was added in M).
+        view.setTextAppearance(view.getContext(), id);
     }
 
     /**
-     * See {@link android.os.StatFs#getAvailableBlocksLong}.
-     */
-    @SuppressWarnings("deprecation")
-    public static long getAvailableBlocks(StatFs statFs) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            return statFs.getAvailableBlocksLong();
-        } else {
-            return statFs.getAvailableBlocks();
-        }
-    }
-
-    /**
-     * See {@link android.os.StatFs#getBlockCount}.
-     */
-    @SuppressWarnings("deprecation")
-    public static long getBlockCount(StatFs statFs) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            return statFs.getBlockCountLong();
-        } else {
-            return statFs.getBlockCount();
-        }
-    }
-
-    /**
-     * See {@link android.os.StatFs#getBlockSize}.
-     */
-    @SuppressWarnings("deprecation")
-    public static long getBlockSize(StatFs statFs) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            return statFs.getBlockSizeLong();
-        } else {
-            return statFs.getBlockSize();
-        }
-    }
-
-    /**
-     * @param context The Android context, used to retrieve the UserManager system service.
      * @return Whether the device is running in demo mode.
      */
-    @SuppressWarnings("NewApi")
-    public static boolean isDemoUser(Context context) {
-        // UserManager#isDemoUser() is only available in Android NMR1+.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return false;
-
-        UserManager userManager = (UserManager) context.getSystemService(Context.USER_SERVICE);
-        return userManager.isDemoUser();
+    public static boolean isDemoUser() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1 && ApisNMR1.isDemoUser();
     }
 
     /**
@@ -647,77 +267,37 @@ public class ApiCompatibilityUtils {
     }
 
     /**
-     * @see android.view.inputmethod.InputMethodSubType#getLocate()
-     */
-    @SuppressWarnings("deprecation")
-    public static String getLocale(InputMethodSubtype inputMethodSubType) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            return inputMethodSubType.getLanguageTag();
-        } else {
-            return inputMethodSubType.getLocale();
-        }
-    }
-
-    /**
-     * Get a URI for |file| which has the image capture. This function assumes that path of |file|
-     * is based on the result of UiUtils.getDirectoryForImageCapture().
-     *
-     * @param file image capture file.
-     * @return URI for |file|.
-     */
-    public static Uri getUriForImageCaptureFile(File file) {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2
-                ? ContentUriUtils.getContentUriFromFile(file)
-                : Uri.fromFile(file);
-    }
-
-    /**
-     * Get the URI for a downloaded file.
-     *
-     * @param file A downloaded file.
-     * @return URI for |file|.
-     */
-    public static Uri getUriForDownloadedFile(File file) {
-        return Build.VERSION.SDK_INT > Build.VERSION_CODES.M
-                ? FileUtils.getUriForFile(file)
-                : Uri.fromFile(file);
-    }
-
-    /**
-     * @see android.view.Window#FEATURE_INDETERMINATE_PROGRESS
-     */
-    public static void setWindowIndeterminateProgress(Window window) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-            @SuppressWarnings("deprecation")
-            int featureNumber = Window.FEATURE_INDETERMINATE_PROGRESS;
-
-            @SuppressWarnings("deprecation")
-            int featureValue = Window.PROGRESS_VISIBILITY_OFF;
-
-            window.setFeatureInt(featureNumber, featureValue);
-        }
-    }
-
-    /**
      * @param activity The {@link Activity} to check.
      * @return Whether or not {@code activity} is currently in Android N+ multi-window mode.
      */
     public static boolean isInMultiWindowMode(Activity activity) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            return false;
-        }
         return activity.isInMultiWindowMode();
+    }
+
+    /**
+     * Get a list of ids of targetable displays, including the default display for the
+     * current activity. A set of targetable displays can only be determined on Q+. An empty list
+     * is returned if called on prior Q.
+     * @param activity The {@link Activity} to check.
+     * @return A list of display ids. Empty if there is none or version is less than Q, or
+     *         windowAndroid does not contain an activity.
+     */
+    @NonNull
+    public static List<Integer> getTargetableDisplayIds(Activity activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return ApisQ.getTargetableDisplayIds(activity);
+        }
+        return new ArrayList<>();
     }
 
     /**
      * Disables the Smart Select {@link TextClassifier} for the given {@link TextView} instance.
      * @param textView The {@link TextView} that should have its classifier disabled.
      */
-    @TargetApi(Build.VERSION_CODES.O)
     public static void disableSmartSelectionTextClassifier(TextView textView) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-
-        textView.setTextClassifier(TextClassifier.NO_OP);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ApisO.disableSmartSelectionTextClassifier(textView);
+        }
     }
 
     /**
@@ -726,119 +306,101 @@ public class ApiCompatibilityUtils {
      * @return The created bundle, or null if unsupported.
      */
     public static Bundle createLaunchDisplayIdActivityOptions(int displayId) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null;
-
-        ActivityOptions options = ActivityOptions.makeBasic();
-        options.setLaunchDisplayId(displayId);
-        return options.toBundle();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return ApisO.createLaunchDisplayIdActivityOptions(displayId);
+        }
+        return null;
     }
 
     /**
-     * @see View#setAccessibilityTraversalBefore(int)
+     * Sets the mode {@link ActivityOptions#MODE_BACKGROUND_ACTIVITY_START_ALLOWED} to the
+     * given {@link ActivityOptions}. The options can be used to send {@link PendingIntent}
+     * passed to Chrome from a backgrounded app.
+     * @param options {@ActivityOptions} to set the required mode to.
      */
-    public static void setAccessibilityTraversalBefore(View view, int viewFocusedAfter) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-            view.setAccessibilityTraversalBefore(viewFocusedAfter);
-        }
-    }
+    @OptIn(markerClass = androidx.core.os.BuildCompat.PrereleaseSdkCheck.class)
+    public static void setActivityOptionsBackgroundActivityStartMode(
+            @NonNull ActivityOptions options) {
+        if (!BuildCompat.isAtLeastU()) return;
 
-    /**
-     * Creates regular LayerDrawable on Android L+. On older versions creates a helper class that
-     * fixes issues around {@link LayerDrawable#mutate()}. See https://crbug.com/890317 for details.
-     * See also {@link #createTransitionDrawable}.
-     * @param layers A list of drawables to use as layers in this new drawable.
-     */
-    public static LayerDrawable createLayerDrawable(@NonNull Drawable[] layers) {
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT) {
-            return new LayerDrawableCompat(layers);
-        }
-        return new LayerDrawable(layers);
-    }
-
-    /**
-     * Creates regular TransitionDrawable on Android L+. On older versions creates a helper class
-     * that fixes issues around {@link TransitionDrawable#mutate()}. See https://crbug.com/892061
-     * for details. See also {@link #createLayerDrawable}.
-     * @param layers A list of drawables to use as layers in this new drawable.
-     */
-    public static TransitionDrawable createTransitionDrawable(@NonNull Drawable[] layers) {
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT) {
-            return new TransitionDrawableCompat(layers);
-        }
-        return new TransitionDrawable(layers);
-    }
-
-    private static class LayerDrawableCompat extends LayerDrawable {
-        private boolean mMutated;
-
-        LayerDrawableCompat(@NonNull Drawable[] layers) {
-            super(layers);
-        }
-
-        @NonNull
-        @Override
-        public Drawable mutate() {
-            // LayerDrawable in Android K loses bounds of layers, so this method works around that.
-            if (mMutated) {
-                // This object has already been mutated and shouldn't have any shared state.
-                return this;
-            }
-
-            Rect[] oldBounds = getLayersBounds(this);
-            Drawable superResult = super.mutate();
-            // LayerDrawable.mutate() always returns this, bail out if this isn't the case.
-            if (superResult != this) return superResult;
-            restoreLayersBounds(this, oldBounds);
-            mMutated = true;
-            return this;
-        }
-    }
-
-    private static class TransitionDrawableCompat extends TransitionDrawable {
-        private boolean mMutated;
-
-        TransitionDrawableCompat(@NonNull Drawable[] layers) {
-            super(layers);
-        }
-
-        @NonNull
-        @Override
-        public Drawable mutate() {
-            // LayerDrawable in Android K loses bounds of layers, so this method works around that.
-            if (mMutated) {
-                // This object has already been mutated and shouldn't have any shared state.
-                return this;
-            }
-            Rect[] oldBounds = getLayersBounds(this);
-            Drawable superResult = super.mutate();
-            // TransitionDrawable.mutate() always returns this, bail out if this isn't the case.
-            if (superResult != this) return superResult;
-            restoreLayersBounds(this, oldBounds);
-            mMutated = true;
-            return this;
+        // options.setPendingIntentBackgroundActivityStartMode(
+        //     ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
+        // TODO(crbug.com/1423489): Replace the reflection with the normal API.
+        try {
+            Method method = ActivityOptions.class.getMethod(
+                    "setPendingIntentBackgroundActivityStartMode", int.class);
+            Field field = ActivityOptions.class.getField("MODE_BACKGROUND_ACTIVITY_START_ALLOWED");
+            int mode = field.getInt(null);
+            method.invoke(options, mode);
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchFieldException
+                | NoSuchMethodException e) {
+            Log.e(TAG, "Reflection failure: " + e);
+            assert false : "PendingIntent from background activity may fail to run.";
         }
     }
 
     /**
-     * Helper for {@link LayerDrawableCompat#mutate} and {@link TransitionDrawableCompat#mutate}.
-     * Obtains the bounds of layers so they can be restored after a mutation.
+     * Sets the bottom handwriting bounds offset of the given view to 0.
+     * See https://crbug.com/1427112
+     * @param view The view on which to set the handwriting bounds.
      */
-    private static Rect[] getLayersBounds(LayerDrawable layerDrawable) {
-        Rect[] result = new Rect[layerDrawable.getNumberOfLayers()];
-        for (int i = 0; i < layerDrawable.getNumberOfLayers(); i++) {
-            result[i] = layerDrawable.getDrawable(i).getBounds();
+    @OptIn(markerClass = androidx.core.os.BuildCompat.PrereleaseSdkCheck.class)
+    public static void clearHandwritingBoundsOffsetBottom(View view) {
+        // TODO(crbug.com/1427112): Replace uses of this method with direct calls once the API is
+        // available.
+        if (!BuildCompat.isAtLeastU()) return;
+        // Set the bottom handwriting bounds offset to 0 so that the view doesn't intercept
+        // stylus events meant for the web contents.
+        try {
+            // float offsetTop = this.getHandwritingBoundsOffsetTop();
+            float offsetTop =
+                    (float) View.class.getMethod("getHandwritingBoundsOffsetTop").invoke(view);
+            // float offsetLeft = this.getHandwritingBoundsOffsetLeft();
+            float offsetLeft =
+                    (float) View.class.getMethod("getHandwritingBoundsOffsetLeft").invoke(view);
+            // float offsetRight = this.getHandwritingBoundsOffsetRight();
+            float offsetRight =
+                    (float) View.class.getMethod("getHandwritingBoundsOffsetRight").invoke(view);
+            // this.setHandwritingBoundsOffsets(offsetLeft, offsetTop, offsetRight, 0);
+            Method setHandwritingBoundsOffsets = View.class.getMethod("setHandwritingBoundsOffsets",
+                    float.class, float.class, float.class, float.class);
+            setHandwritingBoundsOffsets.invoke(view, offsetLeft, offsetTop, offsetRight, 0);
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException
+                | NullPointerException e) {
+            // Do nothing.
         }
-        return result;
+    }
+
+    // Access this via ContextUtils.getProcessName().
+    @SuppressWarnings("PrivateApi")
+    static String getProcessName() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return ApisP.getProcessName();
+        }
+        try {
+            Class<?> activityThreadClazz = Class.forName("android.app.ActivityThread");
+            return (String) activityThreadClazz.getMethod("currentProcessName").invoke(null);
+        } catch (Exception e) {
+            // If fallback logic is ever needed, refer to:
+            // https://chromium-review.googlesource.com/c/chromium/src/+/905563/1
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static boolean isRunningInUserTestHarness() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return ApisQ.isRunningInUserTestHarness();
+        }
+        return false;
     }
 
     /**
-     * Helper for {@link LayerDrawableCompat#mutate} and {@link TransitionDrawableCompat#mutate}.
-     * Restores the bounds of layers after a mutation.
+     * Retrieves an image for the given uri as a Bitmap.
      */
-    private static void restoreLayersBounds(LayerDrawable layerDrawable, Rect[] oldBounds) {
-        assert layerDrawable.getNumberOfLayers() == oldBounds.length;
-        for (int i = 0; i < layerDrawable.getNumberOfLayers(); i++) {
-            layerDrawable.getDrawable(i).setBounds(oldBounds[i]);
+    public static Bitmap getBitmapByUri(ContentResolver cr, Uri uri) throws IOException {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return ApisP.getBitmapByUri(cr, uri);
         }
+        return MediaStore.Images.Media.getBitmap(cr, uri);
     }
 }

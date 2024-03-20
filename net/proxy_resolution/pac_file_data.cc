@@ -1,35 +1,39 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/proxy_resolution/pac_file_data.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/strings/utf_string_conversions.h"
 
 namespace net {
 
 // static
 scoped_refptr<PacFileData> PacFileData::FromUTF8(const std::string& utf8) {
-  return new PacFileData(TYPE_SCRIPT_CONTENTS, GURL(), base::UTF8ToUTF16(utf8));
+  return base::WrapRefCounted(
+      new PacFileData(TYPE_SCRIPT_CONTENTS, GURL(), base::UTF8ToUTF16(utf8)));
 }
 
 // static
-scoped_refptr<PacFileData> PacFileData::FromUTF16(const base::string16& utf16) {
-  return new PacFileData(TYPE_SCRIPT_CONTENTS, GURL(), utf16);
+scoped_refptr<PacFileData> PacFileData::FromUTF16(const std::u16string& utf16) {
+  return base::WrapRefCounted(
+      new PacFileData(TYPE_SCRIPT_CONTENTS, GURL(), utf16));
 }
 
 // static
 scoped_refptr<PacFileData> PacFileData::FromURL(const GURL& url) {
-  return new PacFileData(TYPE_SCRIPT_URL, url, base::string16());
+  return base::WrapRefCounted(
+      new PacFileData(TYPE_SCRIPT_URL, url, std::u16string()));
 }
 
 // static
 scoped_refptr<PacFileData> PacFileData::ForAutoDetect() {
-  return new PacFileData(TYPE_AUTO_DETECT, GURL(), base::string16());
+  return base::WrapRefCounted(
+      new PacFileData(TYPE_AUTO_DETECT, GURL(), std::u16string()));
 }
 
-const base::string16& PacFileData::utf16() const {
+const std::u16string& PacFileData::utf16() const {
   DCHECK_EQ(TYPE_SCRIPT_CONTENTS, type_);
   return utf16_;
 }
@@ -57,7 +61,7 @@ bool PacFileData::Equals(const PacFileData* other) const {
 
 PacFileData::PacFileData(Type type,
                          const GURL& url,
-                         const base::string16& utf16)
+                         const std::u16string& utf16)
     : type_(type), url_(url), utf16_(utf16) {}
 
 PacFileData::~PacFileData() = default;

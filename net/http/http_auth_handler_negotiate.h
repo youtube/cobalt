@@ -1,33 +1,35 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_
 #define NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_
 
-#if !defined(STARBOARD)
-// Cobalt does not support Kerberos yet.
-
+#include <memory>
 #include <string>
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "net/base/address_list.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
+#include "net/base/network_isolation_key.h"
 #include "net/dns/host_resolver.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "net/http/http_auth_mechanism.h"
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include "net/android/http_auth_negotiate_android.h"
-#elif defined(OS_WIN)
+#elif BUILDFLAG(IS_WIN)
 #include "net/http/http_auth_sspi_win.h"
-#elif defined(OS_POSIX)
+#elif BUILDFLAG(IS_POSIX)
 #include "net/http/http_auth_gssapi_posix.h"
-#elif defined(STARBOARD)
-#include "net/http/http_auth_gssapi_starboard.h"
 #endif
+
+namespace url {
+class SchemeHostPort;
+}
 
 namespace net {
 
@@ -40,97 +42,74 @@ class HttpAuthPreferences;
 
 class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
  public:
-#if defined(OS_ANDROID)
-  typedef net::android::HttpAuthNegotiateAndroid AuthSystem;
-#elif defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   typedef SSPILibrary AuthLibrary;
-  typedef HttpAuthSSPI AuthSystem;
-#elif defined(OS_POSIX) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
   typedef GSSAPILibrary AuthLibrary;
-  typedef HttpAuthGSSAPI AuthSystem;
 #endif
 
   class NET_EXPORT_PRIVATE Factory : public HttpAuthHandlerFactory {
    public:
-    Factory();
+    explicit Factory(HttpAuthMechanismFactory negotiate_auth_system_factory);
     ~Factory() override;
 
-    void set_host_resolver(HostResolver* host_resolver);
-
-#if !defined(OS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
     // Sets the system library to use, thereby assuming ownership of
     // |auth_library|.
     void set_library(std::unique_ptr<AuthLibrary> auth_provider) {
       auth_library_ = std::move(auth_provider);
     }
 
-#if defined(OS_POSIX)
+#if BUILDFLAG(IS_POSIX)
     const std::string& GetLibraryNameForTesting() const;
-
-    void set_allow_gssapi_library_load(bool allow_gssapi_library_load) {
-      allow_gssapi_library_load_ = allow_gssapi_library_load;
-    }
-    bool allow_gssapi_library_load_for_testing() const {
-      return allow_gssapi_library_load_;
-    }
-#endif  // defined(OS_POSIX)
-#endif  // !defined(OS_ANDROID)
+#endif  // BUILDFLAG(IS_POSIX)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
     // HttpAuthHandlerFactory overrides
-    int CreateAuthHandler(HttpAuthChallengeTokenizer* challenge,
-                          HttpAuth::Target target,
-                          const SSLInfo& ssl_info,
-                          const GURL& origin,
-                          CreateReason reason,
-                          int digest_nonce_count,
-                          const NetLogWithSource& net_log,
-                          std::unique_ptr<HttpAuthHandler>* handler) override;
+    int CreateAuthHandler(
+        HttpAuthChallengeTokenizer* challenge,
+        HttpAuth::Target target,
+        const SSLInfo& ssl_info,
+        const NetworkAnonymizationKey& network_anonymization_key,
+        const url::SchemeHostPort& scheme_host_port,
+        CreateReason reason,
+        int digest_nonce_count,
+        const NetLogWithSource& net_log,
+        HostResolver* host_resolver,
+        std::unique_ptr<HttpAuthHandler>* handler) override;
 
    private:
-    HostResolver* resolver_ = nullptr;
-#if defined(OS_WIN)
-    ULONG max_token_length_ = 0;
-#endif
+    HttpAuthMechanismFactory negotiate_auth_system_factory_;
     bool is_unsupported_ = false;
-#if !defined(OS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
     std::unique_ptr<AuthLibrary> auth_library_;
-#if defined(OS_POSIX) || defined(STARBOARD)
-    bool allow_gssapi_library_load_ = true;
-#endif  // defined(OS_POSIX)
-#endif  // !defined(OS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
   };
 
-  HttpAuthHandlerNegotiate(
-#if !defined(OS_ANDROID)
-      AuthLibrary* auth_library,
-#endif
-#if defined(OS_WIN)
-      ULONG max_token_length,
-#endif
-      const HttpAuthPreferences* prefs,
-      HostResolver* host_resolver);
+  HttpAuthHandlerNegotiate(std::unique_ptr<HttpAuthMechanism> auth_system,
+                           const HttpAuthPreferences* prefs,
+                           HostResolver* host_resolver);
 
   ~HttpAuthHandlerNegotiate() override;
 
-  // These are public for unit tests
-  std::string CreateSPN(const AddressList& address_list, const GURL& orign);
-  const std::string& spn() const { return spn_; }
-
-  // HttpAuthHandler:
-  HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuthChallengeTokenizer* challenge) override;
+  // HttpAuthHandler
   bool NeedsIdentity() override;
   bool AllowsDefaultCredentials() override;
   bool AllowsExplicitCredentials() override;
 
- protected:
-  bool Init(HttpAuthChallengeTokenizer* challenge,
-            const SSLInfo& ssl_info) override;
+  const std::string& spn_for_testing() const { return spn_; }
 
+ protected:
+  // HttpAuthHandler
+  bool Init(HttpAuthChallengeTokenizer* challenge,
+            const SSLInfo& ssl_info,
+            const NetworkAnonymizationKey& network_anonymization_key) override;
   int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                             const HttpRequestInfo* request,
                             CompletionOnceCallback callback,
                             std::string* auth_token) override;
+  HttpAuth::AuthorizationResult HandleAnotherChallengeImpl(
+      HttpAuthChallengeTokenizer* challenge) override;
 
  private:
   enum State {
@@ -141,6 +120,9 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
     STATE_NONE,
   };
 
+  std::string CreateSPN(const std::string& server,
+                        const url::SchemeHostPort& scheme_host_port);
+
   void OnIOComplete(int result);
   void DoCallback(int result);
   int DoLoop(int result);
@@ -149,33 +131,32 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
   int DoResolveCanonicalNameComplete(int rv);
   int DoGenerateAuthToken();
   int DoGenerateAuthTokenComplete(int rv);
-  bool CanDelegate() const;
+  HttpAuth::DelegationType GetDelegationType() const;
 
-  AuthSystem auth_system_;
-  HostResolver* const resolver_;
+  std::unique_ptr<HttpAuthMechanism> auth_system_;
+  const raw_ptr<HostResolver> resolver_;
+
+  NetworkAnonymizationKey network_anonymization_key_;
 
   // Members which are needed for DNS lookup + SPN.
-  AddressList address_list_;
-  std::unique_ptr<net::HostResolver::Request> request_;
+  std::unique_ptr<HostResolver::ResolveHostRequest> resolve_host_request_;
 
   // Things which should be consistent after first call to GenerateAuthToken.
-  bool already_called_;
-  bool has_credentials_;
+  bool already_called_ = false;
+  bool has_credentials_ = false;
   AuthCredentials credentials_;
   std::string spn_;
   std::string channel_bindings_;
 
   // Things which vary each round.
   CompletionOnceCallback callback_;
-  std::string* auth_token_;
+  raw_ptr<std::string> auth_token_ = nullptr;
 
-  State next_state_;
+  State next_state_ = STATE_NONE;
 
-  const HttpAuthPreferences* http_auth_preferences_;
+  raw_ptr<const HttpAuthPreferences> http_auth_preferences_;
 };
 
 }  // namespace net
-
-#endif  // !defined(STARBOARD)
 
 #endif  // NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_

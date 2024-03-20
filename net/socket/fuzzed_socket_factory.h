@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,12 @@
 #define NET_SOCKET_FUZZED_SOCKET_FACTORY_H_
 
 #include <memory>
+#include <string>
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "net/socket/client_socket_factory.h"
 
-namespace base {
 class FuzzedDataProvider;
-}
 
 namespace net {
 
@@ -32,7 +31,11 @@ class FuzzedSocketFactory : public ClientSocketFactory {
   // creates. Other objects can also continue to consume |data_provider|, as
   // long as their calls into it are made on the CLientSocketFactory's thread
   // and the calls are deterministic.
-  explicit FuzzedSocketFactory(base::FuzzedDataProvider* data_provider);
+  explicit FuzzedSocketFactory(FuzzedDataProvider* data_provider);
+
+  FuzzedSocketFactory(const FuzzedSocketFactory&) = delete;
+  FuzzedSocketFactory& operator=(const FuzzedSocketFactory&) = delete;
+
   ~FuzzedSocketFactory() override;
 
   std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
@@ -43,37 +46,23 @@ class FuzzedSocketFactory : public ClientSocketFactory {
   std::unique_ptr<TransportClientSocket> CreateTransportClientSocket(
       const AddressList& addresses,
       std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
+      NetworkQualityEstimator* network_quality_estimator,
       NetLog* net_log,
       const NetLogSource& source) override;
 
   std::unique_ptr<SSLClientSocket> CreateSSLClientSocket(
-      std::unique_ptr<ClientSocketHandle> transport_socket,
+      SSLClientContext* context,
+      std::unique_ptr<StreamSocket> stream_socket,
       const HostPortPair& host_and_port,
-      const SSLConfig& ssl_config,
-      const SSLClientSocketContext& context) override;
-
-  std::unique_ptr<ProxyClientSocket> CreateProxyClientSocket(
-      std::unique_ptr<ClientSocketHandle> transport_socket,
-      const std::string& user_agent,
-      const HostPortPair& endpoint,
-      HttpAuthController* http_auth_controller,
-      bool tunnel,
-      bool using_spdy,
-      NextProto negotiated_protocol,
-      bool is_https_proxy,
-      const NetworkTrafficAnnotationTag& traffic_annotation) override;
-
-  void ClearSSLSessionCache() override;
+      const SSLConfig& ssl_config) override;
 
   // Sets whether Connect()ions on returned sockets can be asynchronously
   // delayed or outright fail. Defaults to true.
   void set_fuzz_connect_result(bool v) { fuzz_connect_result_ = v; }
 
  private:
-  base::FuzzedDataProvider* data_provider_;
-  bool fuzz_connect_result_;
-
-  DISALLOW_COPY_AND_ASSIGN(FuzzedSocketFactory);
+  raw_ptr<FuzzedDataProvider> data_provider_;
+  bool fuzz_connect_result_ = true;
 };
 
 }  // namespace net

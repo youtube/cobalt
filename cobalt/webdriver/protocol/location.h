@@ -26,7 +26,7 @@ namespace protocol {
 // A pair of numbers representing the location of an entity.
 class Location {
  public:
-  static std::unique_ptr<base::Value> ToValue(const Location& location);
+  static std::unique_ptr<base::Value::Dict> ToValue(const Location& location);
 
   Location() : x_(0.f), y_(0.f) {}
   Location(float x, float y) : x_(x), y_(y) {}

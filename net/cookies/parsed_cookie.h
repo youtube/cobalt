@@ -1,32 +1,47 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_COOKIES_PARSED_COOKIE_H_
 #define NET_COOKIES_PARSED_COOKIE_H_
 
+#include <stddef.h>
+
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/cookies/cookie_constants.h"
-#include "starboard/types.h"
 
 namespace net {
+
+class CookieInclusionStatus;
 
 class NET_EXPORT ParsedCookie {
  public:
   typedef std::pair<std::string, std::string> TokenValuePair;
   typedef std::vector<TokenValuePair> PairList;
 
-  // The maximum length of a cookie string we will try to parse
-  static const size_t kMaxCookieSize = 4096;
+  // The maximum length allowed for a cookie string's name/value pair.
+  static const size_t kMaxCookieNamePlusValueSize = 4096;
+
+  // The maximum length allowed for each attribute value in a cookie string.
+  static const size_t kMaxCookieAttributeValueSize = 1024;
 
   // Construct from a cookie string like "BLAH=1; path=/; domain=.google.com"
-  // Format is according to RFC 6265. Cookies with both name and value empty
+  // Format is according to RFC6265bis. Cookies with both name and value empty
   // will be considered invalid.
-  ParsedCookie(const std::string& cookie_line);
+  // `status_out` is a nullable output param which will be populated with
+  // informative exclusion reasons if the resulting ParsedCookie is invalid.
+  // The CookieInclusionStatus will not be altered if the resulting ParsedCookie
+  // is valid.
+  explicit ParsedCookie(const std::string& cookie_line,
+                        CookieInclusionStatus* status_out = nullptr);
+
+  ParsedCookie(const ParsedCookie&) = delete;
+  ParsedCookie& operator=(const ParsedCookie&) = delete;
+
   ~ParsedCookie();
 
   // You should not call any other methods except for SetName/SetValue on the
@@ -38,18 +53,42 @@ class NET_EXPORT ParsedCookie {
   const std::string& Value() const { return pairs_[0].second; }
 
   bool HasPath() const { return path_index_ != 0; }
-  const std::string& Path() const { return pairs_[path_index_].second; }
+  const std::string& Path() const {
+    DCHECK(HasPath());
+    return pairs_[path_index_].second;
+  }
+  // Note that Domain() may return the empty string; in the case of cookie_line
+  // "domain=", HasDomain() will return true (as the empty string is an
+  // acceptable domain value), so Domain() will return std::string().
   bool HasDomain() const { return domain_index_ != 0; }
-  const std::string& Domain() const { return pairs_[domain_index_].second; }
+  const std::string& Domain() const {
+    DCHECK(HasDomain());
+    return pairs_[domain_index_].second;
+  }
   bool HasExpires() const { return expires_index_ != 0; }
-  const std::string& Expires() const { return pairs_[expires_index_].second; }
+  const std::string& Expires() const {
+    DCHECK(HasExpires());
+    return pairs_[expires_index_].second;
+  }
   bool HasMaxAge() const { return maxage_index_ != 0; }
-  const std::string& MaxAge() const { return pairs_[maxage_index_].second; }
+  const std::string& MaxAge() const {
+    DCHECK(HasMaxAge());
+    return pairs_[maxage_index_].second;
+  }
   bool IsSecure() const { return secure_index_ != 0; }
   bool IsHttpOnly() const { return httponly_index_ != 0; }
-  CookieSameSite SameSite() const;
+  // Also spits out an enum value representing the string given as the SameSite
+  // attribute value, if |samesite_string| is non-null.
+  CookieSameSite SameSite(
+      CookieSameSiteString* samesite_string = nullptr) const;
   CookiePriority Priority() const;
-
+  bool IsSameParty() const { return same_party_index_ != 0; }
+  bool IsPartitioned() const { return partitioned_index_ != 0; }
+  bool HasInternalHtab() const { return internal_htab_; }
+  TruncatingCharacterInCookieStringType
+  GetTruncatingCharacterInCookieStringType() const {
+    return truncating_char_in_cookie_string_type_;
+  }
   // Returns the number of attributes, for example, returning 2 for:
   //   "BLAH=hah; path=/; domain=.google.com"
   size_t NumberOfAttributes() const { return pairs_.size() - 1; }
@@ -59,6 +98,11 @@ class NET_EXPORT ParsedCookie {
   // The functions return false in case an error occurred.
   // The cookie needs to be assigned a name/value before setting the other
   // attributes.
+  //
+  // These functions should only be used if you need to modify a response's
+  // Set-Cookie string. The resulting ParsedCookie and its Set-Cookie string
+  // should still go through the regular cookie parsing process before entering
+  // the cookie jar.
   bool SetName(const std::string& name);
   bool SetValue(const std::string& value);
   bool SetPath(const std::string& path);
@@ -69,6 +113,8 @@ class NET_EXPORT ParsedCookie {
   bool SetIsHttpOnly(bool is_http_only);
   bool SetSameSite(const std::string& same_site);
   bool SetPriority(const std::string& priority);
+  bool SetIsSameParty(bool is_same_party);
+  bool SetIsPartitioned(bool is_partitioned);
 
   // Returns the cookie description as it appears in a HTML response header.
   std::string ToCookieLine() const;
@@ -102,11 +148,33 @@ class NET_EXPORT ParsedCookie {
   static std::string ParseTokenString(const std::string& token);
   static std::string ParseValueString(const std::string& value);
 
-  // Is the string valid as the value of a cookie attribute?
-  static bool IsValidCookieAttributeValue(const std::string& value);
+  // Returns |true| if the parsed version of |value| matches |value|.
+  static bool ValueMatchesParsedValue(const std::string& value);
+
+  // Is the string valid as the name of the cookie or as an attribute name?
+  static bool IsValidCookieName(const std::string& name);
+
+  // Is the string valid as the value of the cookie?
+  static bool IsValidCookieValue(const std::string& value);
+
+  // Is the string free of any characters not allowed in attribute values?
+  static bool CookieAttributeValueHasValidCharSet(const std::string& value);
+
+  // Is the string less than the size limits set for attribute values?
+  static bool CookieAttributeValueHasValidSize(const std::string& value);
+
+  // Returns `true` if the name and value combination are valid. Calls
+  // IsValidCookieName() and IsValidCookieValue() on `name` and `value`
+  // respectively, in addition to checking that the sum of the two doesn't
+  // exceed size limits specified in RFC6265bis.
+  static bool IsValidCookieNameValuePair(
+      const std::string& name,
+      const std::string& value,
+      CookieInclusionStatus* status_out = nullptr);
 
  private:
-  void ParseTokenValuePairs(const std::string& cookie_line);
+  void ParseTokenValuePairs(const std::string& cookie_line,
+                            CookieInclusionStatus& status_out);
   void SetupAttributes();
 
   // Sets a key/value pair for a cookie. |index| has to point to one of the
@@ -132,19 +200,21 @@ class NET_EXPORT ParsedCookie {
 
   PairList pairs_;
   // These will default to 0, but that should never be valid since the
-  // 0th index is the user supplied token/value, not an attribute.
-  // We're really never going to have more than like 8 attributes, so we
-  // could fit these into 3 bits each if we're worried about size...
-  size_t path_index_;
-  size_t domain_index_;
-  size_t expires_index_;
-  size_t maxage_index_;
-  size_t secure_index_;
-  size_t httponly_index_;
-  size_t same_site_index_;
-  size_t priority_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(ParsedCookie);
+  // 0th index is the user supplied cookie name/value, not an attribute.
+  size_t path_index_ = 0;
+  size_t domain_index_ = 0;
+  size_t expires_index_ = 0;
+  size_t maxage_index_ = 0;
+  size_t secure_index_ = 0;
+  size_t httponly_index_ = 0;
+  size_t same_site_index_ = 0;
+  size_t priority_index_ = 0;
+  size_t same_party_index_ = 0;
+  size_t partitioned_index_ = 0;
+  TruncatingCharacterInCookieStringType truncating_char_in_cookie_string_type_ =
+      TruncatingCharacterInCookieStringType::kTruncatingCharNone;
+  // For metrics on cookie name/value internal HTABS
+  bool internal_htab_ = false;
 };
 
 }  // namespace net

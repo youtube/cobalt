@@ -1,20 +1,21 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/ssl/ssl_private_key_test_util.h"
 
+#include <stdint.h>
+
 #include <vector>
 
-#include "base/bind.h"
 #include "base/containers/span.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/run_loop.h"
 #include "crypto/openssl_util.h"
 #include "net/base/net_errors.h"
 #include "net/ssl/ssl_private_key.h"
 #include "net/test/gtest_util.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
@@ -87,10 +88,6 @@ void TestSSLPrivateKeyMatches(SSLPrivateKey* key, const std::string& pkcs8) {
   // Test all supported algorithms.
   std::vector<uint16_t> preferences = key->GetAlgorithmPreferences();
 
-  // To support TLS 1.1 and earlier, RSA keys must implicitly support MD5-SHA1,
-  // despite not being advertised.
-  preferences.push_back(SSL_SIGN_RSA_PKCS1_MD5_SHA1);
-
   for (uint16_t algorithm : preferences) {
     SCOPED_TRACE(
         SSL_get_signature_algorithm_name(algorithm, 0 /* exclude curve */));
@@ -113,21 +110,10 @@ void TestSSLPrivateKeyMatches(SSLPrivateKey* key, const std::string& pkcs8) {
     // Test the key generates valid signatures.
     std::vector<uint8_t> input(100, 'a');
     std::vector<uint8_t> signature;
-#ifdef STARBOARD
-    base::span<const uint8_t> input_span(input.data(), input.size());
-    base::span<const uint8_t> signature_span(signature.data(),
-                                             signature.size());
-    Error error =
-        DoKeySigningWithWrapper(key, algorithm, input_span, &signature);
-    EXPECT_THAT(error, IsOk());
-    EXPECT_TRUE(VerifyWithOpenSSL(algorithm, input_span, openssl_key.get(),
-                                  signature_span));
-#else
     Error error = DoKeySigningWithWrapper(key, algorithm, input, &signature);
     EXPECT_THAT(error, IsOk());
     EXPECT_TRUE(
         VerifyWithOpenSSL(algorithm, input, openssl_key.get(), signature));
-#endif
   }
 }
 

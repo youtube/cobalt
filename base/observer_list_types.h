@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 #define BASE_OBSERVER_LIST_TYPES_H_
 
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 
 namespace base {
@@ -27,8 +26,9 @@ class CheckedObserverAdapter;
 class BASE_EXPORT CheckedObserver {
  public:
   CheckedObserver();
+  CheckedObserver(const CheckedObserver&) = delete;
+  CheckedObserver& operator=(const CheckedObserver&) = delete;
 
- protected:
   virtual ~CheckedObserver();
 
   // Returns whether |this| is in any ObserverList. Subclasses can CHECK() this
@@ -39,9 +39,7 @@ class BASE_EXPORT CheckedObserver {
   friend class internal::CheckedObserverAdapter;
 
   // Must be mutable to allow ObserverList<const Foo>.
-  mutable WeakPtrFactory<CheckedObserver> factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(CheckedObserver);
+  mutable WeakPtrFactory<CheckedObserver> factory_{this};
 };
 
 }  // namespace base

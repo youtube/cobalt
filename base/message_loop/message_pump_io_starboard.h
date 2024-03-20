@@ -97,7 +97,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     Watcher* watcher_;
     base::WeakPtrFactory<SocketWatcher> weak_factory_;
 
-    DISALLOW_COPY_AND_ASSIGN(SocketWatcher);
+    // DISALLOW_COPY_AND_ASSIGN(SocketWatcher);
   };
 
   enum Mode {
@@ -133,9 +133,9 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
   virtual void Run(Delegate* delegate) override;
   virtual void Quit() override;
   virtual void ScheduleWork() override;
-  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) override;
+  virtual void ScheduleDelayedWork(const Delegate::NextWorkInfo& next_work_info) override;
 
- protected:
+//  protected:
   virtual ~MessagePumpIOStarboard();
 
  private:
@@ -169,7 +169,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
   ObserverList<IOObserver> io_observers_;
   THREAD_CHECKER(watch_socket_caller_checker_);
-  DISALLOW_COPY_AND_ASSIGN(MessagePumpIOStarboard);
+  // DISALLOW_COPY_AND_ASSIGN(MessagePumpIOStarboard);
 };
 
 using MessagePumpForIO = MessagePumpIOStarboard;

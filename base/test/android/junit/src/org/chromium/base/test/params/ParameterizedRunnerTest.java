@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -84,6 +84,16 @@ public class ParameterizedRunnerTest {
         paramList.add(new ParameterSet().value(null));
         paramList.add(new ParameterSet().value(1, 2));
         ParameterizedRunner.validateWidth(paramList);
+    }
+
+    // This test ensures the class ParameterSet throws IllegalArgumentException
+    // when passed an unacceptable data type.
+    @Test(expected = IllegalArgumentException.class)
+    @SuppressWarnings("ModifiedButNotUsed")
+    public void testUnsupportedParameterType() throws Throwable {
+        class MyPair {};
+        List<ParameterSet> paramList = new ArrayList<>();
+        paramList.add(new ParameterSet().value(new MyPair()));
     }
 
     @Test(expected = IllegalArgumentException.class)

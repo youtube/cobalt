@@ -127,7 +127,7 @@ void BoxGenerator::Visit(dom::Element* element) {
       boxes_ = layout_boxes->boxes();
       for (Boxes::const_iterator box_iterator = boxes_.begin();
            box_iterator != boxes_.end(); ++box_iterator) {
-        Box* box = *box_iterator;
+        Box* box = box_iterator->get();
         do {
           box->SetUiNavItem(html_element->GetUiNavItem());
           box->InvalidateParent();

@@ -24,7 +24,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "base/sequence_checker.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/websocket/buffered_amount_tracker.h"
 #include "cobalt/websocket/cobalt_web_socket_event_handler.h"

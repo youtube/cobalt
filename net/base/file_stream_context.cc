@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,20 +7,16 @@
 #include <utility>
 
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/task_runner.h"
-#include "base/task_runner_util.h"
+#include "base/logging.h"
+#include "base/task/task_runner.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/net_errors.h"
 
-#ifdef STARBOARD
-#include "base/message_loop/message_loop.h"
-#include "base/single_thread_task_runner.h"
-#endif
-
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include "base/android/content_uri_utils.h"
 #endif
 
@@ -90,7 +86,7 @@ void FileStream::Context::Orphan() {
   if (!async_in_progress_) {
     CloseAndDelete();
   } else if (file_.IsValid()) {
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     CancelIo(file_.GetPlatformFile());
 #endif
   }
@@ -101,8 +97,8 @@ void FileStream::Context::Open(const base::FilePath& path,
                                CompletionOnceCallback callback) {
   DCHECK(!async_in_progress_);
 
-  bool posted = base::PostTaskAndReplyWithResult(
-      task_runner_.get(), FROM_HERE,
+  bool posted = task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&Context::OpenFileImpl, base::Unretained(this), path,
                      open_flags),
       base::BindOnce(&Context::OnOpenCompleted, base::Unretained(this),
@@ -115,8 +111,8 @@ void FileStream::Context::Open(const base::FilePath& path,
 void FileStream::Context::Close(CompletionOnceCallback callback) {
   DCHECK(!async_in_progress_);
 
-  bool posted = base::PostTaskAndReplyWithResult(
-      task_runner_.get(), FROM_HERE,
+  bool posted = task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&Context::CloseFileImpl, base::Unretained(this)),
       base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
                      IntToInt64(std::move(callback))));
@@ -129,8 +125,13 @@ void FileStream::Context::Seek(int64_t offset,
                                Int64CompletionOnceCallback callback) {
   DCHECK(!async_in_progress_);
 
-  bool posted = base::PostTaskAndReplyWithResult(
-      task_runner_.get(), FROM_HERE,
+  if (offset < 0) {
+    std::move(callback).Run(net::ERR_INVALID_ARGUMENT);
+    return;
+  }
+
+  bool posted = task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&Context::SeekFileImpl, base::Unretained(this), offset),
       base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
                      std::move(callback)));
@@ -141,8 +142,8 @@ void FileStream::Context::Seek(int64_t offset,
 
 void FileStream::Context::GetFileInfo(base::File::Info* file_info,
                                       CompletionOnceCallback callback) {
-  base::PostTaskAndReplyWithResult(
-      task_runner_.get(), FROM_HERE,
+  task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&Context::GetFileInfoImpl, base::Unretained(this),
                      base::Unretained(file_info)),
       base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
@@ -154,8 +155,8 @@ void FileStream::Context::GetFileInfo(base::File::Info* file_info,
 void FileStream::Context::Flush(CompletionOnceCallback callback) {
   DCHECK(!async_in_progress_);
 
-  bool posted = base::PostTaskAndReplyWithResult(
-      task_runner_.get(), FROM_HERE,
+  bool posted = task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&Context::FlushFileImpl, base::Unretained(this)),
       base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
                      IntToInt64(std::move(callback))));
@@ -170,30 +171,30 @@ bool FileStream::Context::IsOpen() const {
 
 FileStream::Context::OpenResult FileStream::Context::OpenFileImpl(
     const base::FilePath& path, int open_flags) {
-#if defined(OS_POSIX) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX) || defined(STARBOARD)
   // Always use blocking IO.
   open_flags &= ~base::File::FLAG_ASYNC;
 #endif
   base::File file;
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   if (path.IsContentUri()) {
     // Check that only Read flags are set.
     DCHECK_EQ(open_flags & ~base::File::FLAG_ASYNC,
               base::File::FLAG_OPEN | base::File::FLAG_READ);
     file = base::OpenContentUriForRead(path);
   } else {
-#endif  // defined(OS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
     // FileStream::Context actually closes the file asynchronously,
     // independently from FileStream's destructor. It can cause problems for
     // users wanting to delete the file right after FileStream deletion. Thus
     // we are always adding SHARE_DELETE flag to accommodate such use case.
     // TODO(rvargas): This sounds like a bug, as deleting the file would
     // presumably happen on the wrong thread. There should be an async delete.
-    open_flags |= base::File::FLAG_SHARE_DELETE;
+    open_flags |= base::File::FLAG_WIN_SHARE_DELETE;
     file.Initialize(path, open_flags);
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   }
-#endif  // defined(OS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
   if (!file.IsValid()) {
 #if defined(STARBOARD)
     return OpenResult(
@@ -241,15 +242,6 @@ void FileStream::Context::CloseAndDelete() {
   DCHECK(!async_in_progress_);
 
   if (file_.IsValid()) {
-#ifdef STARBOARD
-    // On Windows, holding file_ will prevent re-creation immediately after
-    // CloseAndDelete is called, failing some tests.
-    if (base::ThreadTaskRunnerHandle::Get() == task_runner_.get()) {
-      file_.Close();
-      delete this;
-      return;
-    }
-#endif
     bool posted = task_runner_.get()->PostTask(
         FROM_HERE, base::BindOnce(base::IgnoreResult(&Context::CloseFileImpl),
                                   base::Owned(this)));

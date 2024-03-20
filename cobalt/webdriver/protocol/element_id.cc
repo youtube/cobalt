@@ -23,22 +23,21 @@ namespace protocol {
 const char ElementId::kElementKey[] = "ELEMENT";
 
 std::unique_ptr<base::Value> ElementId::ToValue(const ElementId& element_id) {
-  std::unique_ptr<base::DictionaryValue> element_object(
-      new base::DictionaryValue());
-  element_object->SetString(kElementKey, element_id.id_);
-  return std::unique_ptr<base::Value>(element_object.release());
+  base::Value element_object(base::Value::Type::DICT);
+  element_object.GetDict().Set(kElementKey, element_id.id_);
+  return base::Value::ToUniquePtrValue(std::move(element_object));
 }
 
 base::Optional<ElementId> ElementId::FromValue(const base::Value* value) {
-  const base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value)) {
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
     return base::nullopt;
   }
-  std::string element_id;
-  if (!dictionary_value->GetString(kElementKey, &element_id)) {
+  const std::string* element_id = dictionary_value->FindString(kElementKey);
+  if (!element_id) {
     return base::nullopt;
   }
-  return ElementId(element_id);
+  return ElementId(*element_id);
 }
 
 }  // namespace protocol

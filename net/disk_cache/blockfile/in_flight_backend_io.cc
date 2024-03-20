@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,13 @@
 
 #include <utility>
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
+#include "base/check_op.h"
 #include "base/compiler_specific.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
-#include "base/logging.h"
-#include "base/single_thread_task_runner.h"
+#include "base/notreached.h"
+#include "base/task/single_thread_task_runner.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/blockfile/backend_impl.h"
 #include "net/disk_cache/blockfile/entry_impl.h"
@@ -34,22 +35,32 @@ EntryImpl* LeakEntryImpl(scoped_refptr<EntryImpl> entry) {
 
 }  // namespace
 
-BackendIO::BackendIO(InFlightIO* controller,
+BackendIO::BackendIO(InFlightBackendIO* controller,
                      BackendImpl* backend,
                      net::CompletionOnceCallback callback)
+    : BackendIO(controller, backend) {
+  callback_ = std::move(callback);
+}
+
+BackendIO::BackendIO(InFlightBackendIO* controller,
+                     BackendImpl* backend,
+                     EntryResultCallback callback)
+    : BackendIO(controller, backend) {
+  entry_result_callback_ = std::move(callback);
+}
+
+BackendIO::BackendIO(InFlightBackendIO* controller,
+                     BackendImpl* backend,
+                     RangeResultCallback callback)
+    : BackendIO(controller, backend) {
+  range_result_callback_ = std::move(callback);
+}
+
+BackendIO::BackendIO(InFlightBackendIO* controller, BackendImpl* backend)
     : BackgroundIO(controller),
       backend_(backend),
-      callback_(std::move(callback)),
-      operation_(OP_NONE),
-      entry_ptr_(NULL),
-      iterator_(NULL),
-      entry_(NULL),
-      index_(0),
-      offset_(0),
-      buf_len_(0),
-      truncate_(false),
-      offset64_(0),
-      start_(NULL) {
+      background_task_runner_(controller->background_thread()) {
+  DCHECK(background_task_runner_);
   start_time_ = base::TimeTicks::Now();
 }
 
@@ -73,16 +84,19 @@ void BackendIO::OnIOComplete(int result) {
 void BackendIO::OnDone(bool cancel) {
   if (IsEntryOperation()) {
     CACHE_UMA(TIMES, "TotalIOTime", 0, ElapsedTime());
+    if (operation_ == OP_READ) {
+      CACHE_UMA(TIMES, "TotalIOTimeRead", 0, ElapsedTime());
+    } else if (operation_ == OP_WRITE) {
+      CACHE_UMA(TIMES, "TotalIOTimeWrite", 0, ElapsedTime());
+    }
   }
 
-  if (!ReturnsEntry())
-    return;
-
-  if (result() == net::OK) {
-    static_cast<EntryImpl*>(*entry_ptr_)->OnEntryCreated(backend_);
+  if (ReturnsEntry() && result_ == net::OK) {
+    static_cast<EntryImpl*>(out_entry_)->OnEntryCreated(backend_);
     if (cancel)
-      (*entry_ptr_)->Close();
+      out_entry_.ExtractAsDangling()->Close();
   }
+  ClearController();
 }
 
 bool BackendIO::IsEntryOperation() {
@@ -93,20 +107,39 @@ void BackendIO::RunCallback(int result) {
   std::move(callback_).Run(result);
 }
 
+void BackendIO::RunEntryResultCallback() {
+  EntryResult entry_result;
+  if (result_ != net::OK) {
+    entry_result = EntryResult::MakeError(static_cast<net::Error>(result()));
+  } else if (out_entry_opened_) {
+    entry_result = EntryResult::MakeOpened(out_entry_);
+  } else {
+    entry_result = EntryResult::MakeCreated(out_entry_);
+  }
+  std::move(entry_result_callback_).Run(std::move(entry_result));
+}
+
+void BackendIO::RunRangeResultCallback() {
+  std::move(range_result_callback_).Run(range_result_);
+}
+
 void BackendIO::Init() {
   operation_ = OP_INIT;
 }
 
-void BackendIO::OpenEntry(const std::string& key, Entry** entry) {
-  operation_ = OP_OPEN;
+void BackendIO::OpenOrCreateEntry(const std::string& key) {
+  operation_ = OP_OPEN_OR_CREATE;
   key_ = key;
-  entry_ptr_ = entry;
 }
 
-void BackendIO::CreateEntry(const std::string& key, Entry** entry) {
+void BackendIO::OpenEntry(const std::string& key) {
+  operation_ = OP_OPEN;
+  key_ = key;
+}
+
+void BackendIO::CreateEntry(const std::string& key) {
   operation_ = OP_CREATE;
   key_ = key;
-  entry_ptr_ = entry;
 }
 
 void BackendIO::DoomEntry(const std::string& key) {
@@ -134,11 +167,9 @@ void BackendIO::CalculateSizeOfAllEntries() {
   operation_ = OP_SIZE_ALL;
 }
 
-void BackendIO::OpenNextEntry(Rankings::Iterator* iterator,
-                              Entry** next_entry) {
+void BackendIO::OpenNextEntry(Rankings::Iterator* iterator) {
   operation_ = OP_OPEN_NEXT;
   iterator_ = iterator;
-  entry_ptr_ = next_entry;
 }
 
 void BackendIO::EndEnumeration(std::unique_ptr<Rankings::Iterator> iterator) {
@@ -213,15 +244,11 @@ void BackendIO::WriteSparseData(EntryImpl* entry,
   buf_len_ = buf_len;
 }
 
-void BackendIO::GetAvailableRange(EntryImpl* entry,
-                                  int64_t offset,
-                                  int len,
-                                  int64_t* start) {
+void BackendIO::GetAvailableRange(EntryImpl* entry, int64_t offset, int len) {
   operation_ = OP_GET_RANGE;
   entry_ = entry;
   offset64_ = offset;
   buf_len_ = len;
-  start_ = start;
 }
 
 void BackendIO::CancelSparseIO(EntryImpl* entry) {
@@ -234,11 +261,26 @@ void BackendIO::ReadyForSparseIO(EntryImpl* entry) {
   entry_ = entry;
 }
 
-BackendIO::~BackendIO() = default;
+BackendIO::~BackendIO() {
+  if (!did_notify_controller_io_signalled() && out_entry_) {
+    // At this point it's very likely the Entry does not have a
+    // `background_queue_` so that Close() would do nothing. Post an empty
+    // task to the background task runner, which should effectively destroy
+    // the entry as there are no more references. Destruction has to happen
+    // on the background task runner.
+    scoped_refptr<EntryImpl> entry(out_entry_.ExtractAsDangling());
+    // This balances the ref taken in LeakEntryImpl().
+    entry->Release();
+    // This should be the last ref.
+    DCHECK(entry->HasOneRef());
+    background_task_runner_->PostTask(
+        FROM_HERE, base::DoNothingWithBoundArgs(std::move(entry)));
+  }
+}
 
 bool BackendIO::ReturnsEntry() {
   return operation_ == OP_OPEN || operation_ == OP_CREATE ||
-      operation_ == OP_OPEN_NEXT;
+         operation_ == OP_OPEN_NEXT || operation_ == OP_OPEN_OR_CREATE;
 }
 
 base::TimeDelta BackendIO::ElapsedTime() const {
@@ -251,16 +293,34 @@ void BackendIO::ExecuteBackendOperation() {
     case OP_INIT:
       result_ = backend_->SyncInit();
       break;
+    case OP_OPEN_OR_CREATE: {
+      scoped_refptr<EntryImpl> entry;
+      result_ = backend_->SyncOpenEntry(key_, &entry);
+
+      if (result_ == net::OK) {
+        out_entry_ = LeakEntryImpl(std::move(entry));
+        out_entry_opened_ = true;
+        break;
+      }
+
+      // Opening failed, create an entry instead.
+      result_ = backend_->SyncCreateEntry(key_, &entry);
+      out_entry_ = LeakEntryImpl(std::move(entry));
+      out_entry_opened_ = false;
+      break;
+    }
     case OP_OPEN: {
       scoped_refptr<EntryImpl> entry;
       result_ = backend_->SyncOpenEntry(key_, &entry);
-      *entry_ptr_ = LeakEntryImpl(std::move(entry));
+      out_entry_ = LeakEntryImpl(std::move(entry));
+      out_entry_opened_ = true;
       break;
     }
     case OP_CREATE: {
       scoped_refptr<EntryImpl> entry;
       result_ = backend_->SyncCreateEntry(key_, &entry);
-      *entry_ptr_ = LeakEntryImpl(std::move(entry));
+      out_entry_ = LeakEntryImpl(std::move(entry));
+      out_entry_opened_ = false;
       break;
     }
     case OP_DOOM:
@@ -281,7 +341,11 @@ void BackendIO::ExecuteBackendOperation() {
     case OP_OPEN_NEXT: {
       scoped_refptr<EntryImpl> entry;
       result_ = backend_->SyncOpenNextEntry(iterator_, &entry);
-      *entry_ptr_ = LeakEntryImpl(std::move(entry));
+      out_entry_ = LeakEntryImpl(std::move(entry));
+      out_entry_opened_ = true;
+      // `iterator_` is a proxied argument and not needed beyond this point. Set
+      // it to nullptr so as to not leave a dangling pointer around.
+      iterator_ = nullptr;
       break;
     }
     case OP_END_ENUMERATION:
@@ -295,7 +359,7 @@ void BackendIO::ExecuteBackendOperation() {
     case OP_CLOSE_ENTRY:
       // Collect the reference to |entry_| to balance with the AddRef() in
       // LeakEntryImpl.
-      entry_->Release();
+      entry_.ExtractAsDangling()->Release();
       result_ = net::OK;
       break;
     case OP_DOOM_ENTRY:
@@ -324,26 +388,26 @@ void BackendIO::ExecuteEntryOperation() {
     case OP_READ:
       result_ =
           entry_->ReadDataImpl(index_, offset_, buf_.get(), buf_len_,
-                               base::Bind(&BackendIO::OnIOComplete, this));
+                               base::BindOnce(&BackendIO::OnIOComplete, this));
       break;
     case OP_WRITE:
-      result_ =
-          entry_->WriteDataImpl(index_, offset_, buf_.get(), buf_len_,
-                                base::Bind(&BackendIO::OnIOComplete, this),
-                                truncate_);
+      result_ = entry_->WriteDataImpl(
+          index_, offset_, buf_.get(), buf_len_,
+          base::BindOnce(&BackendIO::OnIOComplete, this), truncate_);
       break;
     case OP_READ_SPARSE:
       result_ = entry_->ReadSparseDataImpl(
-                    offset64_, buf_.get(), buf_len_,
-                    base::Bind(&BackendIO::OnIOComplete, this));
+          offset64_, buf_.get(), buf_len_,
+          base::BindOnce(&BackendIO::OnIOComplete, this));
       break;
     case OP_WRITE_SPARSE:
       result_ = entry_->WriteSparseDataImpl(
-                    offset64_, buf_.get(), buf_len_,
-                    base::Bind(&BackendIO::OnIOComplete, this));
+          offset64_, buf_.get(), buf_len_,
+          base::BindOnce(&BackendIO::OnIOComplete, this));
       break;
     case OP_GET_RANGE:
-      result_ = entry_->GetAvailableRangeImpl(offset64_, buf_len_, start_);
+      range_result_ = entry_->GetAvailableRangeImpl(offset64_, buf_len_);
+      result_ = range_result_.net_error;
       break;
     case OP_CANCEL_IO:
       entry_->CancelSparseIOImpl();
@@ -351,13 +415,13 @@ void BackendIO::ExecuteEntryOperation() {
       break;
     case OP_IS_READY:
       result_ = entry_->ReadyForSparseIOImpl(
-                    base::Bind(&BackendIO::OnIOComplete, this));
+          base::BindOnce(&BackendIO::OnIOComplete, this));
       break;
     default:
       NOTREACHED() << "Invalid Operation";
       result_ = net::ERR_UNEXPECTED;
   }
-  buf_ = NULL;
+  buf_ = nullptr;
   if (result_ != net::ERR_IO_PENDING)
     NotifyController();
 }
@@ -365,49 +429,52 @@ void BackendIO::ExecuteEntryOperation() {
 InFlightBackendIO::InFlightBackendIO(
     BackendImpl* backend,
     const scoped_refptr<base::SingleThreadTaskRunner>& background_thread)
-    : backend_(backend),
-      background_thread_(background_thread),
-      ptr_factory_(this) {
-}
+    : backend_(backend), background_thread_(background_thread) {}
 
 InFlightBackendIO::~InFlightBackendIO() = default;
 
 void InFlightBackendIO::Init(net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->Init();
   PostOperation(FROM_HERE, operation.get());
 }
 
+void InFlightBackendIO::OpenOrCreateEntry(const std::string& key,
+                                          EntryResultCallback callback) {
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
+  operation->OpenOrCreateEntry(key);
+  PostOperation(FROM_HERE, operation.get());
+}
+
 void InFlightBackendIO::OpenEntry(const std::string& key,
-                                  Entry** entry,
-                                  net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
-  operation->OpenEntry(key, entry);
+                                  EntryResultCallback callback) {
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
+  operation->OpenEntry(key);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::CreateEntry(const std::string& key,
-                                    Entry** entry,
-                                    net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
-  operation->CreateEntry(key, entry);
+                                    EntryResultCallback callback) {
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
+  operation->CreateEntry(key);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::DoomEntry(const std::string& key,
                                   net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->DoomEntry(key);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::DoomAllEntries(net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->DoomAllEntries();
   PostOperation(FROM_HERE, operation.get());
 }
@@ -416,77 +483,76 @@ void InFlightBackendIO::DoomEntriesBetween(
     const base::Time initial_time,
     const base::Time end_time,
     net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->DoomEntriesBetween(initial_time, end_time);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::CalculateSizeOfAllEntries(
     net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->CalculateSizeOfAllEntries();
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::DoomEntriesSince(const base::Time initial_time,
                                          net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->DoomEntriesSince(initial_time);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::OpenNextEntry(Rankings::Iterator* iterator,
-                                      Entry** next_entry,
-                                      net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
-  operation->OpenNextEntry(iterator, next_entry);
+                                      EntryResultCallback callback) {
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
+  operation->OpenNextEntry(iterator);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::EndEnumeration(
     std::unique_ptr<Rankings::Iterator> iterator) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, net::CompletionOnceCallback()));
+  auto operation = base::MakeRefCounted<BackendIO>(
+      this, backend_, net::CompletionOnceCallback());
   operation->EndEnumeration(std::move(iterator));
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::OnExternalCacheHit(const std::string& key) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, net::CompletionOnceCallback()));
+  auto operation = base::MakeRefCounted<BackendIO>(
+      this, backend_, net::CompletionOnceCallback());
   operation->OnExternalCacheHit(key);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::CloseEntryImpl(EntryImpl* entry) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, net::CompletionOnceCallback()));
+  auto operation = base::MakeRefCounted<BackendIO>(
+      this, backend_, net::CompletionOnceCallback());
   operation->CloseEntryImpl(entry);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::DoomEntryImpl(EntryImpl* entry) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, net::CompletionOnceCallback()));
+  auto operation = base::MakeRefCounted<BackendIO>(
+      this, backend_, net::CompletionOnceCallback());
   operation->DoomEntryImpl(entry);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::FlushQueue(net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->FlushQueue();
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::RunTask(base::OnceClosure task,
                                 net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->RunTask(std::move(task));
   PostOperation(FROM_HERE, operation.get());
 }
@@ -497,8 +563,8 @@ void InFlightBackendIO::ReadData(EntryImpl* entry,
                                  net::IOBuffer* buf,
                                  int buf_len,
                                  net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->ReadData(entry, index, offset, buf, buf_len);
   PostOperation(FROM_HERE, operation.get());
 }
@@ -510,8 +576,8 @@ void InFlightBackendIO::WriteData(EntryImpl* entry,
                                   int buf_len,
                                   bool truncate,
                                   net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->WriteData(entry, index, offset, buf, buf_len, truncate);
   PostOperation(FROM_HERE, operation.get());
 }
@@ -521,8 +587,8 @@ void InFlightBackendIO::ReadSparseData(EntryImpl* entry,
                                        net::IOBuffer* buf,
                                        int buf_len,
                                        net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->ReadSparseData(entry, offset, buf, buf_len);
   PostOperation(FROM_HERE, operation.get());
 }
@@ -532,35 +598,33 @@ void InFlightBackendIO::WriteSparseData(EntryImpl* entry,
                                         net::IOBuffer* buf,
                                         int buf_len,
                                         net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->WriteSparseData(entry, offset, buf, buf_len);
   PostOperation(FROM_HERE, operation.get());
 }
 
-void InFlightBackendIO::GetAvailableRange(
-    EntryImpl* entry,
-    int64_t offset,
-    int len,
-    int64_t* start,
-    net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
-  operation->GetAvailableRange(entry, offset, len, start);
+void InFlightBackendIO::GetAvailableRange(EntryImpl* entry,
+                                          int64_t offset,
+                                          int len,
+                                          RangeResultCallback callback) {
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
+  operation->GetAvailableRange(entry, offset, len);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::CancelSparseIO(EntryImpl* entry) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, net::CompletionOnceCallback()));
+  auto operation = base::MakeRefCounted<BackendIO>(
+      this, backend_, net::CompletionOnceCallback());
   operation->CancelSparseIO(entry);
   PostOperation(FROM_HERE, operation.get());
 }
 
 void InFlightBackendIO::ReadyForSparseIO(EntryImpl* entry,
                                          net::CompletionOnceCallback callback) {
-  scoped_refptr<BackendIO> operation(
-      new BackendIO(this, backend_, std::move(callback)));
+  auto operation =
+      base::MakeRefCounted<BackendIO>(this, backend_, std::move(callback));
   operation->ReadyForSparseIO(entry);
   PostOperation(FROM_HERE, operation.get());
 }
@@ -576,12 +640,22 @@ void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
 
   if (op->has_callback() && (!cancel || op->IsEntryOperation()))
     op->RunCallback(op->result());
+
+  if (op->has_range_result_callback()) {
+    DCHECK(op->IsEntryOperation());
+    op->RunRangeResultCallback();
+  }
+
+  if (op->has_entry_result_callback() && !cancel) {
+    DCHECK(!op->IsEntryOperation());
+    op->RunEntryResultCallback();
+  }
 }
 
 void InFlightBackendIO::PostOperation(const base::Location& from_here,
                                       BackendIO* operation) {
   background_thread_->PostTask(
-      from_here, base::Bind(&BackendIO::ExecuteOperation, operation));
+      from_here, base::BindOnce(&BackendIO::ExecuteOperation, operation));
   OnOperationPosted(operation);
 }
 

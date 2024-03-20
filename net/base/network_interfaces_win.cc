@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,14 +9,14 @@
 
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
-#include "base/stl_util.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/threading/thread_restrictions.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "base/threading/scoped_thread_priority.h"
 #include "base/win/scoped_handle.h"
-#include "net/base/escape.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "url/gurl.h"
@@ -55,16 +55,16 @@ GetConnectionAttributes() {
   if (result != ERROR_SUCCESS)
     return wlan_connection_attributes;
 
-  WLAN_INTERFACE_INFO_LIST* interface_list_ptr = NULL;
+  WLAN_INTERFACE_INFO_LIST* interface_list_ptr = nullptr;
   result =
-      wlanapi.enum_interfaces_func(client.Get(), NULL, &interface_list_ptr);
+      wlanapi.enum_interfaces_func(client.Get(), nullptr, &interface_list_ptr);
   if (result != ERROR_SUCCESS)
     return wlan_connection_attributes;
   std::unique_ptr<WLAN_INTERFACE_INFO_LIST, internal::WlanApiDeleter>
       interface_list(interface_list_ptr);
 
   // Assume at most one connected wifi interface.
-  WLAN_INTERFACE_INFO* info = NULL;
+  WLAN_INTERFACE_INFO* info = nullptr;
   for (unsigned i = 0; i < interface_list->dwNumberOfItems; ++i) {
     if (interface_list->InterfaceInfo[i].isState ==
         wlan_interface_state_connected) {
@@ -73,7 +73,7 @@ GetConnectionAttributes() {
     }
   }
 
-  if (info == NULL)
+  if (info == nullptr)
     return wlan_connection_attributes;
 
   WLAN_CONNECTION_ATTRIBUTES* conn_info_ptr = nullptr;
@@ -81,7 +81,7 @@ GetConnectionAttributes() {
   WLAN_OPCODE_VALUE_TYPE op_code;
   result = wlanapi.query_interface_func(
       client.Get(), &info->InterfaceGuid, wlan_intf_opcode_current_connection,
-      NULL, &conn_info_size, reinterpret_cast<VOID**>(&conn_info_ptr),
+      nullptr, &conn_info_size, reinterpret_cast<VOID**>(&conn_info_ptr),
       &op_code);
   wlan_connection_attributes.reset(conn_info_ptr);
   if (result == ERROR_SUCCESS)
@@ -103,11 +103,12 @@ WlanApi& WlanApi::GetInstance() {
 }
 
 WlanApi::WlanApi() : initialized(false) {
-  // Use an absolute path to load the DLL to avoid DLL preloading attacks.
-  static const wchar_t* const kDLL = L"%WINDIR%\\system32\\wlanapi.dll";
-  wchar_t path[MAX_PATH] = {0};
-  ExpandEnvironmentStrings(kDLL, path, base::size(path));
-  module = ::LoadLibraryEx(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+  // Mitigate the issues caused by loading DLLs on a background thread
+  // (http://crbug/973868).
+  SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
+
+  HMODULE module =
+      ::LoadLibraryEx(L"wlanapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
   if (!module)
     return;
 
@@ -131,7 +132,7 @@ WlanApi::WlanApi() : initialized(false) {
 bool GetNetworkListImpl(NetworkInterfaceList* networks,
                         int policy,
                         const IP_ADAPTER_ADDRESSES* adapters) {
-  for (const IP_ADAPTER_ADDRESSES* adapter = adapters; adapter != NULL;
+  for (const IP_ADAPTER_ADDRESSES* adapter = adapters; adapter != nullptr;
        adapter = adapter->Next) {
     // Ignore the loopback device.
     if (adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK) {
@@ -147,8 +148,17 @@ bool GetNetworkListImpl(NetworkInterfaceList* networks,
     // but don't ignore any GUEST side adapters with a description like:
     // VMware Accelerated AMD PCNet Adapter #2
     if ((policy & EXCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES) &&
-        strstr(adapter->AdapterName, "VMnet") != NULL) {
+        strstr(adapter->AdapterName, "VMnet") != nullptr) {
       continue;
+    }
+
+    absl::optional<Eui48MacAddress> mac_address;
+    mac_address.emplace();
+    if (adapter->PhysicalAddressLength == mac_address->size()) {
+      std::copy_n(reinterpret_cast<const uint8_t*>(adapter->PhysicalAddress),
+                  mac_address->size(), mac_address->begin());
+    } else {
+      mac_address.reset();
     }
 
     for (IP_ADAPTER_UNICAST_ADDRESS* address = adapter->FirstUnicastAddress;
@@ -187,7 +197,7 @@ bool GetNetworkListImpl(NetworkInterfaceList* networks,
               adapter->AdapterName,
               base::SysWideToNativeMB(adapter->FriendlyName), index,
               GetNetworkInterfaceType(adapter->IfType), endpoint.address(),
-              prefix_length, ip_address_attributes));
+              prefix_length, ip_address_attributes, mac_address));
         }
       }
     }
@@ -213,31 +223,34 @@ bool GetNetworkList(NetworkInterfaceList* networks, int policy) {
   // Dynamic buffer in case initial buffer isn't large enough.
   std::unique_ptr<char[]> buf;
 
-  // GetAdaptersAddresses() may require IO operations.
-  base::AssertBlockingAllowed();
+  IP_ADAPTER_ADDRESSES* adapters = nullptr;
+  {
+    // GetAdaptersAddresses() may require IO operations.
+    base::ScopedBlockingCall scoped_blocking_call(
+        FROM_HERE, base::BlockingType::MAY_BLOCK);
 
-  IP_ADAPTER_ADDRESSES* adapters =
-      reinterpret_cast<IP_ADAPTER_ADDRESSES*>(&initial_buf);
-  ULONG result =
-      GetAdaptersAddresses(AF_UNSPEC, flags, nullptr, adapters, &len);
+    adapters = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(&initial_buf);
+    ULONG result =
+        GetAdaptersAddresses(AF_UNSPEC, flags, nullptr, adapters, &len);
 
-  // If we get ERROR_BUFFER_OVERFLOW, call GetAdaptersAddresses in a loop,
-  // because the required size may increase between successive calls, resulting
-  // in ERROR_BUFFER_OVERFLOW multiple times.
-  for (int tries = 1; result == ERROR_BUFFER_OVERFLOW &&
-                      tries < MAX_GETADAPTERSADDRESSES_TRIES;
-       ++tries) {
-    buf.reset(new char[len]);
-    adapters = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buf.get());
-    result = GetAdaptersAddresses(AF_UNSPEC, flags, nullptr, adapters, &len);
-  }
+    // If we get ERROR_BUFFER_OVERFLOW, call GetAdaptersAddresses in a loop,
+    // because the required size may increase between successive calls,
+    // resulting in ERROR_BUFFER_OVERFLOW multiple times.
+    for (int tries = 1; result == ERROR_BUFFER_OVERFLOW &&
+                        tries < MAX_GETADAPTERSADDRESSES_TRIES;
+         ++tries) {
+      buf = std::make_unique<char[]>(len);
+      adapters = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buf.get());
+      result = GetAdaptersAddresses(AF_UNSPEC, flags, nullptr, adapters, &len);
+    }
 
-  if (result == ERROR_NO_DATA) {
-    // There are 0 networks.
-    return true;
-  } else if (result != NO_ERROR) {
-    LOG(ERROR) << "GetAdaptersAddresses failed: " << result;
-    return false;
+    if (result == ERROR_NO_DATA) {
+      // There are 0 networks.
+      return true;
+    } else if (result != NO_ERROR) {
+      LOG(ERROR) << "GetAdaptersAddresses failed: " << result;
+      return false;
+    }
   }
 
   return internal::GetNetworkListImpl(networks, policy, adapters);
@@ -264,6 +277,12 @@ WifiPHYLayerProtocol GetWifiPHYLayerProtocol() {
       return WIFI_PHY_LAYER_PROTOCOL_G;
     case dot11_phy_type_ht:
       return WIFI_PHY_LAYER_PROTOCOL_N;
+    case dot11_phy_type_vht:
+      return WIFI_PHY_LAYER_PROTOCOL_AC;
+    case dot11_phy_type_dmg:
+      return WIFI_PHY_LAYER_PROTOCOL_AD;
+    case dot11_phy_type_he:
+      return WIFI_PHY_LAYER_PROTOCOL_AX;
     default:
       return WIFI_PHY_LAYER_PROTOCOL_UNKNOWN;
   }
@@ -286,8 +305,8 @@ class WifiOptionSetter : public ScopedWifiOptions {
     if (result != ERROR_SUCCESS)
       return;
 
-    WLAN_INTERFACE_INFO_LIST* interface_list_ptr = NULL;
-    result = wlanapi.enum_interfaces_func(client_.Get(), NULL,
+    WLAN_INTERFACE_INFO_LIST* interface_list_ptr = nullptr;
+    result = wlanapi.enum_interfaces_func(client_.Get(), nullptr,
                                           &interface_list_ptr);
     if (result != ERROR_SUCCESS)
       return;
@@ -298,21 +317,15 @@ class WifiOptionSetter : public ScopedWifiOptions {
       WLAN_INTERFACE_INFO* info = &interface_list->InterfaceInfo[i];
       if (options & WIFI_OPTIONS_DISABLE_SCAN) {
         BOOL data = false;
-        wlanapi.set_interface_func(client_.Get(),
-                                   &info->InterfaceGuid,
+        wlanapi.set_interface_func(client_.Get(), &info->InterfaceGuid,
                                    wlan_intf_opcode_background_scan_enabled,
-                                   sizeof(data),
-                                   &data,
-                                   NULL);
+                                   sizeof(data), &data, nullptr);
       }
       if (options & WIFI_OPTIONS_MEDIA_STREAMING_MODE) {
         BOOL data = true;
-        wlanapi.set_interface_func(client_.Get(),
-                                   &info->InterfaceGuid,
+        wlanapi.set_interface_func(client_.Get(), &info->InterfaceGuid,
                                    wlan_intf_opcode_media_streaming_mode,
-                                   sizeof(data),
-                                   &data,
-                                   NULL);
+                                   sizeof(data), &data, nullptr);
       }
     }
   }
@@ -322,7 +335,7 @@ class WifiOptionSetter : public ScopedWifiOptions {
 };
 
 std::unique_ptr<ScopedWifiOptions> SetWifiOptions(int options) {
-  return std::unique_ptr<ScopedWifiOptions>(new WifiOptionSetter(options));
+  return std::make_unique<WifiOptionSetter>(options);
 }
 
 std::string GetWifiSSID() {

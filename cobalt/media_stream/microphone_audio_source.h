@@ -20,7 +20,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/media_stream/media_stream_audio_source.h"
 #include "cobalt/speech/microphone_manager.h"
@@ -77,7 +77,7 @@ class MicrophoneAudioSource : public MediaStreamAudioSource {
   void OnMicrophoneError(speech::MicrophoneManager::MicrophoneError error,
                          std::string error_message);
 
-  scoped_refptr<base::SingleThreadTaskRunner> javascript_thread_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> javascript_thread_task_runner_;
 
   base::WeakPtrFactory<MicrophoneAudioSource> weak_ptr_factory_;
 

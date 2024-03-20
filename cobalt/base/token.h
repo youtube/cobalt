@@ -23,7 +23,9 @@
 #include "base/logging.h"
 #include "starboard/common/string.h"
 
-namespace base {
+#define BASE_HASH_USE_HASH_STRUCT
+
+namespace base_token {
 
 // Token is a class used to represent a string constant.  It will never be
 // destroyed once created.  Multiple instances that have the same values share
@@ -113,31 +115,32 @@ inline bool operator>(const Token& lhs, const Token& rhs) {
   return lhs.c_str() > rhs.c_str();
 }
 
-inline std::ostream& operator<<(std::ostream& os, base::Token token) {
+inline std::ostream& operator<<(std::ostream& os, base_token::Token token) {
   os << token.c_str();
   return os;
 }
 
-}  // namespace base
+}  // namespace base_token
 
-namespace BASE_HASH_NAMESPACE {
 #if defined(BASE_HASH_USE_HASH_STRUCT)
 
+namespace std {
 template <>
-struct hash<base::Token> {
-  std::size_t operator()(const base::Token& token) const {
+struct hash<base_token::Token> {
+  std::size_t operator()(const base_token::Token& token) const {
     return reinterpret_cast<size_t>(token.c_str());
   }
 };
+}  // namespace std
 
 #else
-
+namespace BASE_HASH_NAMESPACE {
 template <>
-inline size_t hash_value<base::Token>(const base::Token& token) {
+inline size_t hash_value<base_token::Token>(const base_token::Token& token) {
   return reinterpret_cast<size_t>(token.c_str());
 }
+}  // namespace BASE_HASH_NAMESPACE
 
 #endif  // BASE_HASH_USE_STRUCT
-}  // namespace BASE_HASH_NAMESPACE
 
 #endif  // COBALT_BASE_TOKEN_H_

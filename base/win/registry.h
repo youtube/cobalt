@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,14 +6,17 @@
 #define BASE_WIN_REGISTRY_H_
 
 #include <stdint.h>
+
+#include <memory>
 #include <string>
 #include <vector>
-#include "base/win/windows_types.h"
 
 #include "base/base_export.h"
-#include "base/macros.h"
-#include "base/win/object_watcher.h"
-#include "base/win/scoped_handle.h"
+#include "base/functional/callback_forward.h"
+#include "base/gtest_prod_util.h"
+#include "base/win/windows_types.h"
+
+class ShellUtil;
 
 namespace base {
 namespace win {
@@ -27,20 +30,38 @@ namespace win {
 //    is not touched in case of failure.
 //  * Functions returning LONG indicate success as ERROR_SUCCESS or an
 //    error as a (non-zero) win32 error code.
-class BASE_EXPORT RegKey {
+//
+// Most developers should use base::win::RegKey subclass below.
+namespace internal {
+
+class Standard;
+class ExportDerived;
+template <typename T>
+class RegTestTraits;
+
+template <typename Reg>
+class GenericRegKey {
  public:
   // Called from the MessageLoop when the key changes.
-  typedef base::Callback<void()> ChangeCallback;
+  using ChangeCallback = OnceCallback<void()>;
 
-  RegKey();
-  explicit RegKey(HKEY key);
-  RegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
-  ~RegKey();
+  GenericRegKey();
+  explicit GenericRegKey(HKEY key);
+  GenericRegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
+  GenericRegKey(GenericRegKey&& other) noexcept;
+  GenericRegKey& operator=(GenericRegKey&& other);
+
+  GenericRegKey(const GenericRegKey&) = delete;
+  GenericRegKey& operator=(const GenericRegKey&) = delete;
+
+  virtual ~GenericRegKey();
 
   LONG Create(HKEY rootkey, const wchar_t* subkey, REGSAM access);
 
-  LONG CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
-                             DWORD* disposition, REGSAM access);
+  LONG CreateWithDisposition(HKEY rootkey,
+                             const wchar_t* subkey,
+                             DWORD* disposition,
+                             REGSAM access);
 
   // Creates a subkey or open it if it already exists.
   LONG CreateKey(const wchar_t* name, REGSAM access);
@@ -68,11 +89,14 @@ class BASE_EXPORT RegKey {
   // determined.
   DWORD GetValueCount() const;
 
+  // Returns the last write time or 0 on failure.
+  FILETIME GetLastWriteTime() const;
+
   // Determines the nth value's name.
-  LONG GetValueNameAt(int index, std::wstring* name) const;
+  LONG GetValueNameAt(DWORD index, std::wstring* name) const;
 
   // True while the key is valid.
-  bool Valid() const { return key_ != NULL; }
+  bool Valid() const { return key_ != nullptr; }
 
   // Kills a key and everything that lives below it; please be careful when
   // using it.
@@ -128,32 +152,62 @@ class BASE_EXPORT RegKey {
   // Starts watching the key to see if any of its values have changed.
   // The key must have been opened with the KEY_NOTIFY access privilege.
   // Returns true on success.
-  // To stop watching, delete this RegKey object. To continue watching the
-  // object after the callback is invoked, call StartWatching again.
-  bool StartWatching(const ChangeCallback& callback);
+  // To stop watching, delete this GenericRegKey object. To continue watching
+  // the object after the callback is invoked, call StartWatching again.
+  bool StartWatching(ChangeCallback callback);
 
   HKEY Handle() const { return key_; }
 
  private:
   class Watcher;
 
-  // Calls RegDeleteKeyEx on supported platforms, alternatively falls back to
-  // RegDeleteKey.
-  static LONG RegDeleteKeyExWrapper(HKEY hKey,
-                                    const wchar_t* lpSubKey,
-                                    REGSAM samDesired,
-                                    DWORD Reserved);
-
   // Recursively deletes a key and all of its subkeys.
-  static LONG RegDelRecurse(HKEY root_key,
-                            const std::wstring& name,
-                            REGSAM access);
+  static LONG RegDelRecurse(HKEY root_key, const wchar_t* name, REGSAM access);
 
-  HKEY key_;  // The registry key being iterated.
-  REGSAM wow64access_;
+  HKEY key_ = nullptr;  // The registry key being iterated.
+  REGSAM wow64access_ = 0;
   std::unique_ptr<Watcher> key_watcher_;
+};
 
-  DISALLOW_COPY_AND_ASSIGN(RegKey);
+}  // namespace internal
+
+// The Windows registry utility class most developers should use.
+class BASE_EXPORT RegKey : public internal::GenericRegKey<internal::Standard> {
+ public:
+  RegKey();
+  explicit RegKey(HKEY key);
+  RegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
+  RegKey(RegKey&& other) noexcept;
+  RegKey& operator=(RegKey&& other);
+
+  RegKey(const RegKey&) = delete;
+  RegKey& operator=(const RegKey&) = delete;
+
+  ~RegKey() override;
+};
+
+// A Windows registry class that derives its calls directly from advapi32.dll.
+// Generally, you should use RegKey above. Note that use of this API will pin
+// advapi32.dll. If you need to use this class, please reach out to the
+// base/win/OWNERS first.
+class BASE_EXPORT ExportDerivedRegKey
+    : public internal::GenericRegKey<internal::ExportDerived> {
+ public:
+  ExportDerivedRegKey(ExportDerivedRegKey&& other) noexcept;
+  ExportDerivedRegKey& operator=(ExportDerivedRegKey&& other);
+
+  ExportDerivedRegKey(const ExportDerivedRegKey&) = delete;
+  ExportDerivedRegKey& operator=(const ExportDerivedRegKey&) = delete;
+
+  ~ExportDerivedRegKey() override;
+
+ private:
+  friend class ::ShellUtil;
+  friend class internal::RegTestTraits<ExportDerivedRegKey>;
+
+  ExportDerivedRegKey();
+  explicit ExportDerivedRegKey(HKEY key);
+  ExportDerivedRegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
 };
 
 // Iterates the entries found in a particular folder on the registry.
@@ -171,6 +225,9 @@ class BASE_EXPORT RegistryValueIterator {
                         const wchar_t* folder_key,
                         REGSAM wow64access);
 
+  RegistryValueIterator(const RegistryValueIterator&) = delete;
+  RegistryValueIterator& operator=(const RegistryValueIterator&) = delete;
+
   ~RegistryValueIterator();
 
   DWORD ValueCount() const;
@@ -187,7 +244,7 @@ class BASE_EXPORT RegistryValueIterator {
   DWORD ValueSize() const { return value_size_; }
   DWORD Type() const { return type_; }
 
-  int Index() const { return index_; }
+  DWORD Index() const { return index_; }
 
  private:
   // Reads in the current values.
@@ -199,15 +256,13 @@ class BASE_EXPORT RegistryValueIterator {
   HKEY key_;
 
   // Current index of the iteration.
-  int index_;
+  DWORD index_;
 
   // Current values.
   std::wstring name_;
   std::vector<wchar_t> value_;
   DWORD value_size_;
   DWORD type_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegistryValueIterator);
 };
 
 class BASE_EXPORT RegistryKeyIterator {
@@ -224,6 +279,9 @@ class BASE_EXPORT RegistryKeyIterator {
                       const wchar_t* folder_key,
                       REGSAM wow64access);
 
+  RegistryKeyIterator(const RegistryKeyIterator&) = delete;
+  RegistryKeyIterator& operator=(const RegistryKeyIterator&) = delete;
+
   ~RegistryKeyIterator();
 
   DWORD SubkeyCount() const;
@@ -236,7 +294,7 @@ class BASE_EXPORT RegistryKeyIterator {
 
   const wchar_t* Name() const { return name_; }
 
-  int Index() const { return index_; }
+  DWORD Index() const { return index_; }
 
  private:
   // Reads in the current values.
@@ -248,11 +306,9 @@ class BASE_EXPORT RegistryKeyIterator {
   HKEY key_;
 
   // Current index of the iteration.
-  int index_;
+  DWORD index_;
 
   wchar_t name_[MAX_PATH];
-
-  DISALLOW_COPY_AND_ASSIGN(RegistryKeyIterator);
 };
 
 }  // namespace win

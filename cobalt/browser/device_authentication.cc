@@ -20,9 +20,9 @@
 #include "base/base64.h"
 #include "base/base64url.h"
 #include "base/logging.h"
+#include "base/strings/escape.h"
 #include "base/time/time.h"
 #include "crypto/hmac.h"
-#include "net/base/escape.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -140,9 +140,9 @@ std::string GetDeviceAuthenticationSignedURLQueryStringFromComponents(
     const std::string& value = query_component.second;
 
     if (!query.empty()) query += "&";
-    query += net::EscapeQueryParamValue(key, true);
+    query += base::EscapeQueryParamValue(key, true);
     if (!value.empty()) {
-      query += "=" + net::EscapeQueryParamValue(value, true);
+      query += "=" + base::EscapeQueryParamValue(value, true);
     }
   }
 

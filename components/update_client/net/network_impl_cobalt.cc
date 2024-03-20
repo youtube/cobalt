@@ -19,11 +19,12 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
 #include "components/update_client/net/network_cobalt.h"
+#include "net/base/net_errors.h"
 
 namespace {
 
@@ -183,7 +184,7 @@ void NetworkFetcherCobaltImpl::OnURLFetchResponseStarted(
 void NetworkFetcherCobaltImpl::OnURLFetchComplete(
     const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  const net::URLRequestStatus& status = source->GetStatus();
+  const net::Error status = source->GetStatus();
   const int response_code = source->GetResponseCode();
   if (url_fetcher_type_ == kUrlFetcherTypePostRequest) {
     OnPostRequestComplete(source, status.error());

@@ -45,16 +45,16 @@ LogEntry::LogEntry(const base::Time& log_time, LogLevel level,
       message_(message) {}
 
 std::unique_ptr<base::Value> LogEntry::ToValue(const LogEntry& log_entry) {
-  std::unique_ptr<base::DictionaryValue> log_entry_value(
-      new base::DictionaryValue());
+  base::Value log_entry_value(base::Value::Type::DICT);
+  base::Value::Dict* log_entry_value_dict = log_entry_value.GetIfDict();
   // Format of the Log Entry object can be found here:
   // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#log-entry-json-object
   // timestamp is in milliseconds since the Unix Epoch.
-  log_entry_value->SetInteger("timestamp",
-                              log_entry.timestamp_.InMilliseconds());
-  log_entry_value->SetString("level", LevelToString(log_entry.level_));
-  log_entry_value->SetString("message", log_entry.message_);
-  return std::unique_ptr<base::Value>(log_entry_value.release());
+  log_entry_value_dict->Set(
+      "timestamp", static_cast<int>(log_entry.timestamp_.InMilliseconds()));
+  log_entry_value_dict->Set("level", LevelToString(log_entry.level_));
+  log_entry_value_dict->Set("message", log_entry.message_);
+  return base::Value::ToUniquePtrValue(std::move(log_entry_value));
 }
 
 }  // namespace protocol

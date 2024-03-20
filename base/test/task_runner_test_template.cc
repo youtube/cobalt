@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,11 +12,11 @@ TaskTracker::TaskTracker() : task_runs_(0), task_runs_cv_(&lock_) {}
 
 TaskTracker::~TaskTracker() = default;
 
-Closure TaskTracker::WrapTask(const Closure& task, int i) {
-  return Bind(&TaskTracker::RunTask, this, task, i);
+RepeatingClosure TaskTracker::WrapTask(RepeatingClosure task, int i) {
+  return BindRepeating(&TaskTracker::RunTask, this, std::move(task), i);
 }
 
-void TaskTracker::RunTask(const Closure& task, int i) {
+void TaskTracker::RunTask(RepeatingClosure task, int i) {
   AutoLock lock(lock_);
   if (!task.is_null()) {
     task.Run();
@@ -37,11 +37,9 @@ void TaskTracker::WaitForCompletedTasks(int count) {
     task_runs_cv_.Wait();
 }
 
-void ExpectRunsTasksInCurrentSequence(bool expected_value,
-                                      TaskRunner* task_runner) {
-  EXPECT_EQ(expected_value, task_runner->RunsTasksInCurrentSequence());
-}
-
 }  // namespace test
+
+// This suite is instantiated in binaries that use //base:test_support.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TaskRunnerTest);
 
 }  // namespace base

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,16 @@
 #include <iomanip>
 #include <string>
 
-#include "starboard/types.h"
-
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 
-#if !defined(OS_IOS)
+#if BUILDFLAG(USE_BLINK)
+#if BUILDFLAG(IS_IOS)
+#include "base/ios/sim_header_shims.h"
+#else
 #include <servers/bootstrap.h>
-#endif  // !OS_IOS
+#endif  // BUILDFLAG(IS_IOS)
+#endif  // BUILDFLAG(USE_BLINK)
 
 namespace {
 
@@ -46,7 +48,7 @@ MachLogMessage::~MachLogMessage() {
            << FormatMachErrorNumber(mach_err_);
 }
 
-#if !defined(OS_IOS)
+#if BUILDFLAG(USE_BLINK)
 
 BootstrapLogMessage::BootstrapLogMessage(const char* file_path,
                                          int line,
@@ -85,6 +87,6 @@ BootstrapLogMessage::~BootstrapLogMessage() {
   }
 }
 
-#endif  // !OS_IOS
+#endif  // BUILDFLAG(USE_BLINK)
 
 }  // namespace logging

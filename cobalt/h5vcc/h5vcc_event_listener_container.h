@@ -20,8 +20,8 @@
 
 #include "base/callback.h"
 #include "base/location.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
@@ -44,23 +44,23 @@ class H5vccEventListenerContainer {
   typedef base::Callback<CallbackArgType()> GetArgumentCallback;
 
   // Type for a listener.
-  // We store the message loop from which the listener was registered,
+  // We store the task runner from which the listener was registered,
   // so we can run the callback on the same loop.
   struct Listener {
     Listener(script::Wrappable* owner, const CallbackHolderType& cb)
         : callback(owner, cb),
-          task_runner(base::ThreadTaskRunnerHandle::Get()) {}
+          task_runner(base::SequencedTaskRunner::GetCurrentDefault()) {}
 
-    // Notifies listener. Must be called on the same message loop the
+    // Notifies listener. Must be called on the same task runner the
     // listener registered its callback from.
     void Notify(GetArgumentCallback on_notify) {
-      DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), task_runner);
+      DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner);
       CallbackArgType arg = on_notify.Run();
       callback.value().Run(arg);
     }
 
     typename CallbackHolderType::Reference callback;
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner;
+    scoped_refptr<base::SequencedTaskRunner> task_runner;
   };
 
   explicit H5vccEventListenerContainer(script::Wrappable* owner)
@@ -132,7 +132,7 @@ template <>
 inline void H5vccEventListenerContainer<
     void,
     script::CallbackFunction<void()> >::Listener::Notify(GetArgumentCallback) {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), task_runner);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner);
   callback.value().Run();
 }
 

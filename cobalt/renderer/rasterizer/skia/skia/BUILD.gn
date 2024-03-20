@@ -52,6 +52,7 @@ skia_common("skia_library_no_asan") {
       ]
     }
   }
+  deps = [ "//base" ]
 
   # TODO(b/207398024): If this is a target we need to build, then we'll
   # need to rework the configuration framework to be able to remove this

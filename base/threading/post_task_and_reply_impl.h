@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #define BASE_THREADING_POST_TASK_AND_REPLY_IMPL_H_
 
 #include "base/base_export.h"
-#include "base/callback.h"
+#include "base/functional/callback.h"
 #include "base/location.h"
 
 namespace base {
@@ -18,18 +18,19 @@ namespace internal {
 // custom execution context.
 //
 // If you're looking for a concrete implementation of PostTaskAndReply, you
-// probably want base::TaskRunner or base/task/post_task.h
+// probably want a base::TaskRunner (typically obtained from
+// base/task/thread_pool.h).
 class BASE_EXPORT PostTaskAndReplyImpl {
  public:
   virtual ~PostTaskAndReplyImpl() = default;
 
   // Posts |task| by calling PostTask(). On completion, posts |reply| to the
   // origin sequence. Can only be called when
-  // SequencedTaskRunnerHandle::IsSet(). Each callback is deleted synchronously
-  // after running, or scheduled for asynchronous deletion on the origin
-  // sequence if it can't run (e.g. if a TaskRunner skips it on shutdown). See
-  // SequencedTaskRunner::DeleteSoon() for when objects scheduled for
-  // asynchronous deletion can be leaked. Note: All //base task posting APIs
+  // SequencedTaskRunner::HasCurrentDefault(). Each callback is deleted
+  // synchronously after running, or scheduled for asynchronous deletion on the
+  // origin sequence if it can't run (e.g. if a TaskRunner skips it on
+  // shutdown). See SequencedTaskRunner::DeleteSoon() for when objects scheduled
+  // for asynchronous deletion can be leaked. Note: All //base task posting APIs
   // require callbacks to support deletion on the posting sequence if they can't
   // be scheduled.
   bool PostTaskAndReply(const Location& from_here,

@@ -21,7 +21,7 @@
 
 namespace base {
 class FilePath;
-class SingleThreadTaskRunner;
+class SequencedTaskRunner;
 }  // namespace base
 
 namespace updater {
@@ -63,7 +63,7 @@ class NetworkFetcher : public update_client::NetworkFetcher {
   void DownloadToFileComplete();
 
   scoped_refptr<NetworkFetcherWinHTTP> network_fetcher_;
-  scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_;
 
   DownloadToFileCompleteCallback download_to_file_complete_callback_;
   PostRequestCompleteCallback post_request_complete_callback_;

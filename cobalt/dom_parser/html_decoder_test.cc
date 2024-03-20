@@ -17,8 +17,8 @@
 #include <memory>
 
 #include "base/callback.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/test/task_environment.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/document.h"
@@ -39,6 +39,8 @@
 
 namespace cobalt {
 namespace dom_parser {
+
+using ::testing::_;
 
 const int kDOMMaxElementDepth = 32;
 
@@ -67,14 +69,16 @@ class HTMLDecoderTest : public ::testing::Test {
   base::SourceLocation source_location_;
   MockLoadCompleteCallback mock_load_complete_callback_;
   std::unique_ptr<HTMLDecoder> html_decoder_;
-  base::MessageLoop message_loop_;
+  base::test::TaskEnvironment task_environment_{
+      base::test::SingleThreadTaskEnvironment::MainThreadType::DEFAULT,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 HTMLDecoderTest::HTMLDecoderTest()
     : loader_factory_("Test" /* name */, &fetcher_factory_,
                       NULL /* ResourceProvider */, null_debugger_hooks_,
                       0 /* encoded_image_cache_capacity */,
-                      base::ThreadPriority::DEFAULT),
+                      base::ThreadType::kDefault),
       dom_parser_(new Parser()),
       dom_stat_tracker_(new dom::DomStatTracker("HTMLDecoderTest")),
       html_element_context_(
@@ -85,7 +89,7 @@ HTMLDecoderTest::HTMLDecoderTest()
           NULL, NULL, NULL, NULL, NULL, dom_stat_tracker_.get(), "",
           base::kApplicationStateStarted, NULL, NULL),
       document_(new dom::Document(&html_element_context_)),
-      root_(new dom::Element(document_, base::Token("element"))),
+      root_(new dom::Element(document_.get(), base_token::Token("element"))),
       source_location_(base::SourceLocation("[object HTMLDecoderTest]", 1, 1)) {
 }
 
@@ -97,6 +101,8 @@ TEST_F(HTMLDecoderTest, CanParseEmptyDocument) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = document_->first_element_child();
@@ -120,6 +126,8 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyNulls) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(reinterpret_cast<char*>(temp), sizeof(temp));
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = document_->first_element_child();
@@ -139,6 +147,8 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlySpaces) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = document_->first_element_child();
@@ -158,6 +168,8 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyHTML) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = document_->first_element_child();
@@ -177,6 +189,8 @@ TEST_F(HTMLDecoderTest, CanParseDocumentWithOnlyBody) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = document_->first_element_child();
@@ -196,6 +210,8 @@ TEST_F(HTMLDecoderTest, DecodingWholeDocumentShouldAddImpliedTags) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = document_->first_element_child();
@@ -220,6 +236,8 @@ TEST_F(HTMLDecoderTest, DecodingDocumentFragmentShouldNotAddImpliedTags) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -236,6 +254,8 @@ TEST_F(HTMLDecoderTest, CanParseAttributesWithAndWithoutValue) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -265,6 +285,8 @@ TEST_F(HTMLDecoderTest, CanParseIncompleteAttributesAssignment) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -288,6 +310,8 @@ TEST_F(HTMLDecoderTest, CanParseSelfClosingTags) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -307,6 +331,8 @@ TEST_F(HTMLDecoderTest, CanParseNormalCharacters) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -327,6 +353,8 @@ TEST_F(HTMLDecoderTest, ShouldIgnoreNonUTF8Input) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(reinterpret_cast<char*>(temp), sizeof(temp));
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   ASSERT_FALSE(root_->first_child());
@@ -341,6 +369,8 @@ TEST_F(HTMLDecoderTest, CanParseEscapedCharacters) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -369,6 +399,8 @@ TEST_F(HTMLDecoderTest, CanParseEscapedInvalidUnicodeCharacters) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -389,6 +421,8 @@ TEST_F(HTMLDecoderTest, CanParseUTF8EncodedSupplementaryCharacters) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -405,7 +439,7 @@ TEST_F(HTMLDecoderTest, CanParseUTF8SplitInChunks) {
 
   for (size_t first_chunk_size = 0; first_chunk_size < input.length();
        first_chunk_size++) {
-    root_ = new dom::Element(document_, base::Token("element"));
+    root_ = new dom::Element(document_.get(), base_token::Token("element"));
     html_decoder_.reset(new HTMLDecoder(
         document_, root_, NULL, kDOMMaxElementDepth, source_location_,
         base::Bind(&MockLoadCompleteCallback::Run,
@@ -416,6 +450,9 @@ TEST_F(HTMLDecoderTest, CanParseUTF8SplitInChunks) {
     html_decoder_->DecodeChunk(input.c_str(), first_chunk_size);
     html_decoder_->DecodeChunk(input.c_str() + first_chunk_size,
                                input.length() - first_chunk_size);
+    EXPECT_CALL(mock_load_complete_callback_,
+                Run(absl::optional<std::string>()))
+        .Times(1);
     html_decoder_->Finish();
 
     dom::Element* element = root_->first_element_child();
@@ -440,6 +477,8 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags1) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -467,6 +506,8 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags2) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -486,6 +527,8 @@ TEST_F(HTMLDecoderTest, TagNamesShouldBeCaseInsensitive) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -501,6 +544,8 @@ TEST_F(HTMLDecoderTest, AttributesShouldBeCaseInsensitive) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   dom::Element* element = root_->first_element_child();
@@ -525,6 +570,8 @@ TEST_F(HTMLDecoderTest, LibxmlDecodingErrorShouldTerminateParsing) {
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
+  EXPECT_CALL(mock_load_complete_callback_, Run(absl::optional<std::string>()))
+      .Times(1);
   html_decoder_->Finish();
 
   root_ = document_->first_element_child();

@@ -1,21 +1,21 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_TEST_CT_TEST_UTIL_H_
 #define NET_TEST_CT_TEST_UTIL_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "net/cert/signed_certificate_timestamp.h"
 #include "net/cert/signed_certificate_timestamp_and_status.h"
-#include "starboard/types.h"
 
-namespace net {
-
-namespace ct {
+namespace net::ct {
 
 struct DigitallySigned;
 struct MerkleTreeLeaf;
@@ -126,8 +126,6 @@ bool CheckForSingleVerifiedSCTInResult(
 bool CheckForSCTOrigin(const SignedCertificateTimestampAndStatusList& scts,
                        SignedCertificateTimestamp::Origin origin);
 
-}  // namespace ct
-
-}  // namespace net
+}  // namespace net::ct
 
 #endif  // NET_TEST_CT_TEST_UTIL_H_

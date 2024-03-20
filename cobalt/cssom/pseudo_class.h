@@ -36,7 +36,7 @@ class NotPseudoClass;
 //   https://www.w3.org/TR/selectors4/#pseudo-classes
 class PseudoClass : public SimpleSelector {
  public:
-  explicit PseudoClass(base::Token text)
+  explicit PseudoClass(base_token::Token text)
       : SimpleSelector(kPseudoClass,
                        base::Tokens::pseudo_class_selector_prefix(), text) {}
   ~PseudoClass() override {}

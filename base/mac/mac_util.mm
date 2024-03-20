@@ -1,14 +1,17 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/mac/mac_util.h"
 
 #import <Cocoa/Cocoa.h>
+#include <CoreServices/CoreServices.h>
 #import <IOKit/IOKitLib.h>
 #include <errno.h>
 #include <stddef.h>
 #include <string.h>
+#include <sys/sysctl.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
 #include <sys/xattr.h>
 
@@ -17,109 +20,97 @@
 #include "base/mac/bundle_locations.h"
 #include "base/mac/foundation_util.h"
 #include "base/mac/mac_logging.h"
+#include "base/mac/scoped_aedesc.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/mac/scoped_ioobject.h"
 #include "base/mac/scoped_nsobject.h"
-#include "base/mac/sdk_forward_declarations.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
+#include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "build/build_config.h"
 
-namespace base {
-namespace mac {
+namespace base::mac {
 
 namespace {
 
-// The current count of outstanding requests for full screen mode from browser
-// windows, plugins, etc.
-int g_full_screen_requests[kNumFullScreenModes] = { 0 };
+class LoginItemsFileList {
+ public:
+  LoginItemsFileList() = default;
+  LoginItemsFileList(const LoginItemsFileList&) = delete;
+  LoginItemsFileList& operator=(const LoginItemsFileList&) = delete;
+  ~LoginItemsFileList() = default;
 
-// Sets the appropriate application presentation option based on the current
-// full screen requests.  Since only one presentation option can be active at a
-// given time, full screen requests are ordered by priority.  If there are no
-// outstanding full screen requests, reverts to normal mode.  If the correct
-// presentation option is already set, does nothing.
-void SetUIMode() {
-  NSApplicationPresentationOptions current_options =
-      [NSApp presentationOptions];
-
-  // Determine which mode should be active, based on which requests are
-  // currently outstanding.  More permissive requests take precedence.  For
-  // example, plugins request |kFullScreenModeAutoHideAll|, while browser
-  // windows request |kFullScreenModeHideDock| when the fullscreen overlay is
-  // down.  Precedence goes to plugins in this case, so AutoHideAll wins over
-  // HideDock.
-  NSApplicationPresentationOptions desired_options =
-      NSApplicationPresentationDefault;
-  if (g_full_screen_requests[kFullScreenModeAutoHideAll] > 0) {
-    desired_options = NSApplicationPresentationHideDock |
-                      NSApplicationPresentationAutoHideMenuBar;
-  } else if (g_full_screen_requests[kFullScreenModeHideDock] > 0) {
-    desired_options = NSApplicationPresentationHideDock;
-  } else if (g_full_screen_requests[kFullScreenModeHideAll] > 0) {
-    desired_options = NSApplicationPresentationHideDock |
-                      NSApplicationPresentationHideMenuBar;
+  [[nodiscard]] bool Initialize() {
+    DCHECK(!login_items_.get()) << __func__ << " called more than once.";
+    // The LSSharedFileList suite of functions has been deprecated. Instead,
+    // a LoginItems helper should be registered with SMLoginItemSetEnabled()
+    // https://crbug.com/1154377.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    login_items_.reset(LSSharedFileListCreate(
+        nullptr, kLSSharedFileListSessionLoginItems, nullptr));
+#pragma clang diagnostic pop
+    DLOG_IF(ERROR, !login_items_.get()) << "Couldn't get a Login Items list.";
+    return login_items_.get();
   }
 
-  // Mac OS X bug: if the window is fullscreened (Lion-style) and
-  // NSApplicationPresentationDefault is requested, the result is that the menu
-  // bar doesn't auto-hide. rdar://13576498 http://www.openradar.me/13576498
-  //
-  // As a workaround, in that case, explicitly set the presentation options to
-  // the ones that are set by the system as it fullscreens a window.
-  if (desired_options == NSApplicationPresentationDefault &&
-      current_options & NSApplicationPresentationFullScreen) {
-    desired_options |= NSApplicationPresentationFullScreen |
-                       NSApplicationPresentationAutoHideMenuBar |
-                       NSApplicationPresentationAutoHideDock;
+  LSSharedFileListRef GetLoginFileList() {
+    DCHECK(login_items_.get()) << "Initialize() failed or not called.";
+    return login_items_;
   }
 
-  if (current_options != desired_options)
-    [NSApp setPresentationOptions:desired_options];
-}
+  // Looks into Shared File Lists corresponding to Login Items for the item
+  // representing the specified bundle.  If such an item is found, returns a
+  // retained reference to it. Caller is responsible for releasing the
+  // reference.
+  ScopedCFTypeRef<LSSharedFileListItemRef> GetLoginItemForApp(NSURL* url) {
+    DCHECK(login_items_.get()) << "Initialize() failed or not called.";
 
-// Looks into Shared File Lists corresponding to Login Items for the item
-// representing the current application.  If such an item is found, returns a
-// retained reference to it. Caller is responsible for releasing the reference.
-LSSharedFileListItemRef GetLoginItemForApp() {
-  ScopedCFTypeRef<LSSharedFileListRef> login_items(LSSharedFileListCreate(
-      NULL, kLSSharedFileListSessionLoginItems, NULL));
+#pragma clang diagnostic push  // https://crbug.com/1154377
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    base::scoped_nsobject<NSArray> login_items_array(
+        CFToNSCast(LSSharedFileListCopySnapshot(login_items_, nullptr)));
+#pragma clang diagnostic pop
 
-  if (!login_items.get()) {
-    DLOG(ERROR) << "Couldn't get a Login Items list.";
-    return NULL;
-  }
+    for (id login_item in login_items_array.get()) {
+      LSSharedFileListItemRef item =
+          reinterpret_cast<LSSharedFileListItemRef>(login_item);
+#pragma clang diagnostic push  // https://crbug.com/1154377
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+      // kLSSharedFileListDoNotMountVolumes is used so that we don't trigger
+      // mounting when it's not expected by a user. Just listing the login
+      // items should not cause any side-effects.
+      ScopedCFTypeRef<CFURLRef> item_url(LSSharedFileListItemCopyResolvedURL(
+          item, kLSSharedFileListDoNotMountVolumes, nullptr));
+#pragma clang diagnostic pop
 
-  base::scoped_nsobject<NSArray> login_items_array(
-      CFToNSCast(LSSharedFileListCopySnapshot(login_items, NULL)));
-
-  NSURL* url = [NSURL fileURLWithPath:[base::mac::MainBundle() bundlePath]];
-
-  for(NSUInteger i = 0; i < [login_items_array count]; ++i) {
-    LSSharedFileListItemRef item =
-        reinterpret_cast<LSSharedFileListItemRef>(login_items_array[i]);
-    CFURLRef item_url_ref = NULL;
-
-    // It seems that LSSharedFileListItemResolve() can return NULL in
-    // item_url_ref even if the function itself returns noErr. See
-    // https://crbug.com/760989
-    if (LSSharedFileListItemResolve(item, 0, &item_url_ref, NULL) == noErr &&
-        item_url_ref) {
-      ScopedCFTypeRef<CFURLRef> item_url(item_url_ref);
-      if (CFEqual(item_url, url)) {
-        CFRetain(item);
-        return item;
+      if (item_url && CFEqual(item_url, url)) {
+        return ScopedCFTypeRef<LSSharedFileListItemRef>(
+            item, base::scoped_policy::RETAIN);
       }
     }
+
+    return ScopedCFTypeRef<LSSharedFileListItemRef>();
   }
 
-  return NULL;
-}
+  ScopedCFTypeRef<LSSharedFileListItemRef> GetLoginItemForMainApp() {
+    NSURL* url = [NSURL fileURLWithPath:[base::mac::MainBundle() bundlePath]];
+    return GetLoginItemForApp(url);
+  }
+
+ private:
+  ScopedCFTypeRef<LSSharedFileListRef> login_items_;
+};
 
 bool IsHiddenLoginItem(LSSharedFileListItemRef item) {
+#pragma clang diagnostic push  // https://crbug.com/1154377
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   ScopedCFTypeRef<CFBooleanRef> hidden(reinterpret_cast<CFBooleanRef>(
       LSSharedFileListItemCopyProperty(item,
           reinterpret_cast<CFStringRef>(kLSSharedFileListLoginItemHidden))));
+#pragma clang diagnostic pop
 
   return hidden && hidden == kCFBooleanTrue;
 }
@@ -164,135 +155,61 @@ CGColorSpaceRef GetSystemColorSpace() {
   return g_system_color_space;
 }
 
-// Add a request for full screen mode.  Must be called on the main thread.
-void RequestFullScreen(FullScreenMode mode) {
-  DCHECK_LT(mode, kNumFullScreenModes);
-  if (mode >= kNumFullScreenModes)
+void AddToLoginItems(const FilePath& app_bundle_file_path,
+                     bool hide_on_startup) {
+  LoginItemsFileList login_items;
+  if (!login_items.Initialize())
     return;
 
-  DCHECK_GE(g_full_screen_requests[mode], 0);
-  if (mode < 0)
-    return;
+  NSURL* app_bundle_url = base::mac::FilePathToNSURL(app_bundle_file_path);
+  base::ScopedCFTypeRef<LSSharedFileListItemRef> item(
+      login_items.GetLoginItemForApp(app_bundle_url));
 
-  g_full_screen_requests[mode] = std::max(g_full_screen_requests[mode] + 1, 1);
-  SetUIMode();
-}
-
-// Release a request for full screen mode.  Must be called on the main thread.
-void ReleaseFullScreen(FullScreenMode mode) {
-  DCHECK_LT(mode, kNumFullScreenModes);
-  if (mode >= kNumFullScreenModes)
-    return;
-
-  DCHECK_GE(g_full_screen_requests[mode], 0);
-  if (mode < 0)
-    return;
-
-  g_full_screen_requests[mode] = std::max(g_full_screen_requests[mode] - 1, 0);
-  SetUIMode();
-}
-
-// Switches full screen modes.  Releases a request for |from_mode| and adds a
-// new request for |to_mode|.  Must be called on the main thread.
-void SwitchFullScreenModes(FullScreenMode from_mode, FullScreenMode to_mode) {
-  DCHECK_LT(from_mode, kNumFullScreenModes);
-  DCHECK_LT(to_mode, kNumFullScreenModes);
-  if (from_mode >= kNumFullScreenModes || to_mode >= kNumFullScreenModes)
-    return;
-
-  DCHECK_GT(g_full_screen_requests[from_mode], 0);
-  DCHECK_GE(g_full_screen_requests[to_mode], 0);
-  g_full_screen_requests[from_mode] =
-      std::max(g_full_screen_requests[from_mode] - 1, 0);
-  g_full_screen_requests[to_mode] =
-      std::max(g_full_screen_requests[to_mode] + 1, 1);
-  SetUIMode();
-}
-
-bool SetFileBackupExclusion(const FilePath& file_path) {
-  NSString* file_path_ns =
-      [NSString stringWithUTF8String:file_path.value().c_str()];
-  NSURL* file_url = [NSURL fileURLWithPath:file_path_ns];
-
-  // When excludeByPath is true the application must be running with root
-  // privileges (admin for 10.6 and earlier) but the URL does not have to
-  // already exist. When excludeByPath is false the URL must already exist but
-  // can be used in non-root (or admin as above) mode. We use false so that
-  // non-root (or admin) users don't get their TimeMachine drive filled up with
-  // unnecessary backups.
-  OSStatus os_err =
-      CSBackupSetItemExcluded(base::mac::NSToCFCast(file_url), TRUE, FALSE);
-  if (os_err != noErr) {
-    OSSTATUS_DLOG(WARNING, os_err)
-        << "Failed to set backup exclusion for file '"
-        << file_path.value().c_str() << "'";
-  }
-  return os_err == noErr;
-}
-
-bool CheckLoginItemStatus(bool* is_hidden) {
-  ScopedCFTypeRef<LSSharedFileListItemRef> item(GetLoginItemForApp());
-  if (!item.get())
-    return false;
-
-  if (is_hidden)
-    *is_hidden = IsHiddenLoginItem(item);
-
-  return true;
-}
-
-void AddToLoginItems(bool hide_on_startup) {
-  ScopedCFTypeRef<LSSharedFileListItemRef> item(GetLoginItemForApp());
   if (item.get() && (IsHiddenLoginItem(item) == hide_on_startup)) {
     return;  // Already is a login item with required hide flag.
   }
 
-  ScopedCFTypeRef<LSSharedFileListRef> login_items(LSSharedFileListCreate(
-      NULL, kLSSharedFileListSessionLoginItems, NULL));
-
-  if (!login_items.get()) {
-    DLOG(ERROR) << "Couldn't get a Login Items list.";
-    return;
-  }
-
   // Remove the old item, it has wrong hide flag, we'll create a new one.
   if (item.get()) {
-    LSSharedFileListItemRemove(login_items, item);
+#pragma clang diagnostic push  // https://crbug.com/1154377
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    LSSharedFileListItemRemove(login_items.GetLoginFileList(), item);
+#pragma clang diagnostic pop
   }
 
-  NSURL* url = [NSURL fileURLWithPath:[base::mac::MainBundle() bundlePath]];
-
+#pragma clang diagnostic push  // https://crbug.com/1154377
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   BOOL hide = hide_on_startup ? YES : NO;
   NSDictionary* properties =
-      [NSDictionary
-        dictionaryWithObject:[NSNumber numberWithBool:hide]
-                      forKey:(NSString*)kLSSharedFileListLoginItemHidden];
+      @{(NSString*)kLSSharedFileListLoginItemHidden : @(hide) };
 
-  ScopedCFTypeRef<LSSharedFileListItemRef> new_item;
-  new_item.reset(LSSharedFileListInsertItemURL(
-      login_items, kLSSharedFileListItemLast, NULL, NULL,
-      reinterpret_cast<CFURLRef>(url),
-      reinterpret_cast<CFDictionaryRef>(properties), NULL));
+  ScopedCFTypeRef<LSSharedFileListItemRef> new_item(
+      LSSharedFileListInsertItemURL(
+          login_items.GetLoginFileList(), kLSSharedFileListItemLast, nullptr,
+          nullptr, reinterpret_cast<CFURLRef>(app_bundle_url),
+          reinterpret_cast<CFDictionaryRef>(properties), nullptr));
+#pragma clang diagnostic pop
 
   if (!new_item.get()) {
     DLOG(ERROR) << "Couldn't insert current app into Login Items list.";
   }
 }
 
-void RemoveFromLoginItems() {
-  ScopedCFTypeRef<LSSharedFileListItemRef> item(GetLoginItemForApp());
+void RemoveFromLoginItems(const FilePath& app_bundle_file_path) {
+  LoginItemsFileList login_items;
+  if (!login_items.Initialize())
+    return;
+
+  NSURL* app_bundle_url = base::mac::FilePathToNSURL(app_bundle_file_path);
+  base::ScopedCFTypeRef<LSSharedFileListItemRef> item(
+      login_items.GetLoginItemForApp(app_bundle_url));
   if (!item.get())
     return;
 
-  ScopedCFTypeRef<LSSharedFileListRef> login_items(LSSharedFileListCreate(
-      NULL, kLSSharedFileListSessionLoginItems, NULL));
-
-  if (!login_items.get()) {
-    DLOG(ERROR) << "Couldn't get a Login Items list.";
-    return;
-  }
-
-  LSSharedFileListItemRemove(login_items, item);
+#pragma clang diagnostic push  // https://crbug.com/1154377
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  LSSharedFileListItemRemove(login_items.GetLoginFileList(), item);
+#pragma clang diagnostic pop
 }
 
 bool WasLaunchedAsLoginOrResumeItem() {
@@ -347,7 +264,12 @@ bool WasLaunchedAsHiddenLoginItem() {
   if (!WasLaunchedAsLoginOrResumeItem())
     return false;
 
-  ScopedCFTypeRef<LSSharedFileListItemRef> item(GetLoginItemForApp());
+  LoginItemsFileList login_items;
+  if (!login_items.Initialize())
+    return false;
+
+  base::ScopedCFTypeRef<LSSharedFileListItemRef> item(
+      login_items.GetLoginItemForMainApp());
   if (!item.get()) {
     // OS X can launch items for the resume feature.
     return false;
@@ -363,16 +285,16 @@ bool RemoveQuarantineAttribute(const FilePath& file_path) {
 
 namespace {
 
-// Returns the running system's Darwin major version. Don't call this, it's
-// an implementation detail and its result is meant to be cached by
-// MacOSXMinorVersion.
+// Returns the running system's Darwin major version. Don't call this, it's an
+// implementation detail and its result is meant to be cached by
+// MacOSVersionInternal().
 int DarwinMajorVersionInternal() {
-  // base::OperatingSystemVersionNumbers calls Gestalt, which is a
-  // higher-level operation than is needed. It might perform unnecessary
-  // operations. On 10.6, it was observed to be able to spawn threads (see
-  // http://crbug.com/53200). It might also read files or perform other
-  // blocking operations. Actually, nobody really knows for sure just what
-  // Gestalt might do, or what it might be taught to do in the future.
+  // base::OperatingSystemVersionNumbers() at one time called Gestalt(), which
+  // was observed to be able to spawn threads (see https://crbug.com/53200).
+  // Nowadays that function calls -[NSProcessInfo operatingSystemVersion], whose
+  // current implementation does things like hit the file system, which is
+  // possibly a blocking operation. Either way, it's overkill for what needs to
+  // be done here.
   //
   // uname, on the other hand, is implemented as a simple series of sysctl
   // system calls to obtain the relevant data from the kernel. The data is
@@ -393,9 +315,10 @@ int DarwinMajorVersionInternal() {
   int darwin_major_version = 0;
   char* dot = strchr(uname_info.release, '.');
   if (dot) {
-    if (!base::StringToInt(base::StringPiece(uname_info.release,
-                                             dot - uname_info.release),
-                           &darwin_major_version)) {
+    if (!base::StringToInt(
+            base::StringPiece(uname_info.release,
+                              static_cast<size_t>(dot - uname_info.release)),
+            &darwin_major_version)) {
       dot = NULL;
     }
   }
@@ -408,35 +331,61 @@ int DarwinMajorVersionInternal() {
   return darwin_major_version;
 }
 
-// Returns the running system's Mac OS X minor version. This is the |y| value
-// in 10.y or 10.y.z. Don't call this, it's an implementation detail and the
-// result is meant to be cached by MacOSXMinorVersion.
-int MacOSXMinorVersionInternal() {
+// The implementation of MacOSVersion() as defined in the header. Don't call
+// this, it's an implementation detail and the result is meant to be cached by
+// MacOSVersion().
+int MacOSVersionInternal() {
   int darwin_major_version = DarwinMajorVersionInternal();
 
-  // The Darwin major version is always 4 greater than the Mac OS X minor
-  // version for Darwin versions beginning with 6, corresponding to Mac OS X
-  // 10.2. Since this correspondence may change in the future, warn when
-  // encountering a version higher than anything seen before. Older Darwin
-  // versions, or versions that can't be determined, result in
-  // immediate death.
+  // Darwin major versions 6 through 19 corresponded to macOS versions 10.2
+  // through 10.15.
   CHECK(darwin_major_version >= 6);
-  int mac_os_x_minor_version = darwin_major_version - 4;
-  DLOG_IF(WARNING, darwin_major_version > 18)
-      << "Assuming Darwin " << base::IntToString(darwin_major_version)
-      << " is macOS 10." << base::IntToString(mac_os_x_minor_version);
+  if (darwin_major_version <= 19)
+    return 1000 + darwin_major_version - 4;
 
-  return mac_os_x_minor_version;
+  // Darwin major version 20 corresponds to macOS version 11.0. Assume a
+  // correspondence between Darwin's major version numbers and macOS major
+  // version numbers.
+  int macos_major_version = darwin_major_version - 9;
+
+  return macos_major_version * 100;
 }
 
 }  // namespace
 
 namespace internal {
-int MacOSXMinorVersion() {
-  static int mac_os_x_minor_version = MacOSXMinorVersionInternal();
-  return mac_os_x_minor_version;
+
+int MacOSVersion() {
+  static int macos_version = MacOSVersionInternal();
+  return macos_version;
 }
+
 }  // namespace internal
+
+namespace {
+
+#if defined(ARCH_CPU_X86_64)
+// https://developer.apple.com/documentation/apple_silicon/about_the_rosetta_translation_environment#3616845
+bool ProcessIsTranslated() {
+  int ret = 0;
+  size_t size = sizeof(ret);
+  if (sysctlbyname("sysctl.proc_translated", &ret, &size, nullptr, 0) == -1)
+    return false;
+  return ret;
+}
+#endif  // ARCH_CPU_X86_64
+
+}  // namespace
+
+CPUType GetCPUType() {
+#if defined(ARCH_CPU_ARM64)
+  return CPUType::kArm;
+#elif defined(ARCH_CPU_X86_64)
+  return ProcessIsTranslated() ? CPUType::kTranslatedIntel : CPUType::kIntel;
+#else
+#error Time for another chip transition?
+#endif  // ARCH_CPU_*
+}
 
 std::string GetModelIdentifier() {
   std::string return_string;
@@ -470,10 +419,13 @@ bool ParseModelIdentifier(const std::string& ident,
     return false;
   int32_t major_tmp, minor_tmp;
   std::string::const_iterator begin = ident.begin();
-  if (!StringToInt(
-          StringPiece(begin + number_loc, begin + comma_loc), &major_tmp) ||
+  if (!StringToInt(MakeStringPiece(begin + static_cast<ptrdiff_t>(number_loc),
+                                   begin + static_cast<ptrdiff_t>(comma_loc)),
+                   &major_tmp) ||
       !StringToInt(
-          StringPiece(begin + comma_loc + 1, ident.end()), &minor_tmp))
+          MakeStringPiece(begin + static_cast<ptrdiff_t>(comma_loc) + 1,
+                          ident.end()),
+          &minor_tmp))
     return false;
   *type = ident.substr(0, number_loc);
   *major = major_tmp;
@@ -481,5 +433,181 @@ bool ParseModelIdentifier(const std::string& ident,
   return true;
 }
 
-}  // namespace mac
-}  // namespace base
+std::string GetOSDisplayName() {
+  std::string version_string = base::SysNSStringToUTF8(
+      [[NSProcessInfo processInfo] operatingSystemVersionString]);
+  return "macOS " + version_string;
+}
+
+std::string GetPlatformSerialNumber() {
+  base::mac::ScopedIOObject<io_service_t> expert_device(
+      IOServiceGetMatchingService(kIOMasterPortDefault,
+                                  IOServiceMatching("IOPlatformExpertDevice")));
+  if (!expert_device) {
+    DLOG(ERROR) << "Error retrieving the machine serial number.";
+    return std::string();
+  }
+
+  base::ScopedCFTypeRef<CFTypeRef> serial_number(
+      IORegistryEntryCreateCFProperty(expert_device,
+                                      CFSTR(kIOPlatformSerialNumberKey),
+                                      kCFAllocatorDefault, 0));
+  CFStringRef serial_number_cfstring =
+      base::mac::CFCast<CFStringRef>(serial_number);
+  if (!serial_number_cfstring) {
+    DLOG(ERROR) << "Error retrieving the machine serial number.";
+    return std::string();
+  }
+
+  return base::SysCFStringRefToUTF8(serial_number_cfstring);
+}
+
+void OpenSystemSettingsPane(SystemSettingsPane pane) {
+  NSString* url = nil;
+  NSString* pane_file = nil;
+  NSData* subpane_data = nil;
+  // Note: On macOS 13 and later, System Settings are implemented with app
+  // extensions found at /System/Library/ExtensionKit/Extensions/. URLs to open
+  // them are constructed with a scheme of "x-apple.systempreferences" and a
+  // body of the the bundle ID of the app extension. (In the Info.plist there is
+  // an EXAppExtensionAttributes dictionary with legacy identifiers, but given
+  // that those are explicitly named "legacy", this code prefers to use the
+  // bundle IDs for the URLs it uses.) It is not yet known how to definitively
+  // identify the query string used to open sub-panes; the ones used below were
+  // determined from historical usage, disassembly of related code, and
+  // guessing. Clarity was requested from Apple in FB11753405.
+  switch (pane) {
+    case SystemSettingsPane::kAccessibility_Captions:
+      if (IsAtLeastOS13()) {
+        url = @"x-apple.systempreferences:com.apple.Accessibility-Settings."
+              @"extension?Captioning";
+      } else {
+        url = @"x-apple.systempreferences:com.apple.preference.universalaccess?"
+              @"Captioning";
+      }
+      break;
+    case SystemSettingsPane::kDateTime:
+      if (IsAtLeastOS13()) {
+        url =
+            @"x-apple.systempreferences:com.apple.Date-Time-Settings.extension";
+      } else {
+        pane_file = @"/System/Library/PreferencePanes/DateAndTime.prefPane";
+      }
+      break;
+    case SystemSettingsPane::kNetwork_Proxies:
+      if (IsAtLeastOS13()) {
+        url = @"x-apple.systempreferences:com.apple.Network-Settings.extension?"
+              @"Proxies";
+      } else {
+        pane_file = @"/System/Library/PreferencePanes/Network.prefPane";
+        subpane_data = [@"Proxies" dataUsingEncoding:NSASCIIStringEncoding];
+      }
+      break;
+    case SystemSettingsPane::kPrintersScanners:
+      if (IsAtLeastOS13()) {
+        url = @"x-apple.systempreferences:com.apple.Print-Scan-Settings."
+              @"extension";
+      } else {
+        pane_file = @"/System/Library/PreferencePanes/PrintAndFax.prefPane";
+      }
+      break;
+    case SystemSettingsPane::kPrivacySecurity_Accessibility:
+      if (IsAtLeastOS13()) {
+        url = @"x-apple.systempreferences:com.apple.settings.PrivacySecurity."
+              @"extension?Privacy_Accessibility";
+      } else {
+        url = @"x-apple.systempreferences:com.apple.preference.security?"
+              @"Privacy_Accessibility";
+      }
+      break;
+    case SystemSettingsPane::kPrivacySecurity_Bluetooth:
+      if (IsAtLeastOS13()) {
+        url = @"x-apple.systempreferences:com.apple.settings.PrivacySecurity."
+              @"extension?Privacy_Bluetooth";
+      } else {
+        url = @"x-apple.systempreferences:com.apple.preference.security?"
+              @"Privacy_Bluetooth";
+      }
+      break;
+    case SystemSettingsPane::kPrivacySecurity_Camera:
+      if (IsAtLeastOS13()) {
+        url = @"x-apple.systempreferences:com.apple.settings.PrivacySecurity."
+              @"extension?Privacy_Camera";
+      } else {
+        url = @"x-apple.systempreferences:com.apple.preference.security?"
+              @"Privacy_Camera";
+      }
+      break;
+    case SystemSettingsPane::kPrivacySecurity_Extensions_Sharing:
+      if (IsAtLeastOS13()) {
+        // See ShareKit, -[SHKSharingServicePicker openAppExtensionsPrefpane].
+        url = @"x-apple.systempreferences:com.apple.ExtensionPreferences?"
+              @"Sharing";
+      } else {
+        // This is equivalent to the implementation of AppKit's
+        // +[NSSharingServicePicker openAppExtensionsPrefPane].
+        pane_file = @"/System/Library/PreferencePanes/Extensions.prefPane";
+        NSDictionary* subpane_dict = @{
+          @"action" : @"revealExtensionPoint",
+          @"protocol" : @"com.apple.share-services"
+        };
+        subpane_data = [NSPropertyListSerialization
+            dataWithPropertyList:subpane_dict
+                          format:NSPropertyListXMLFormat_v1_0
+                         options:0
+                           error:nil];
+      }
+      break;
+    case SystemSettingsPane::kPrivacySecurity_LocationServices:
+      if (IsAtLeastOS13()) {
+        url = @"x-apple.systempreferences:com.apple.settings.PrivacySecurity."
+              @"extension?Privacy_LocationServices";
+      } else {
+        url = @"x-apple.systempreferences:com.apple.preference.security?"
+              @"Privacy_LocationServices";
+      }
+      break;
+    case SystemSettingsPane::kPrivacySecurity_Microphone:
+      if (IsAtLeastOS13()) {
+        url = @"x-apple.systempreferences:com.apple.settings.PrivacySecurity."
+              @"extension?Privacy_Microphone";
+      } else {
+        url = @"x-apple.systempreferences:com.apple.preference.security?"
+              @"Privacy_Microphone";
+      }
+      break;
+    case SystemSettingsPane::kPrivacySecurity_ScreenRecording:
+      if (IsAtLeastOS13()) {
+        url = @"x-apple.systempreferences:com.apple.settings.PrivacySecurity."
+              @"extension?Privacy_ScreenCapture";
+      } else {
+        url = @"x-apple.systempreferences:com.apple.preference.security?"
+              @"Privacy_ScreenCapture";
+      }
+      break;
+  }
+
+  DCHECK(url != nil ^ pane_file != nil);
+
+  if (url) {
+    [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:url]];
+    return;
+  }
+
+  base::scoped_nsobject<NSAppleEventDescriptor> subpane_descriptor;
+  NSArray* pane_file_urls = @[ [NSURL fileURLWithPath:pane_file] ];
+
+  LSLaunchURLSpec launchSpec = {0};
+  launchSpec.itemURLs = NSToCFCast(pane_file_urls);
+  if (subpane_data) {
+    subpane_descriptor.reset([[NSAppleEventDescriptor alloc]
+        initWithDescriptorType:'ptru'
+                          data:subpane_data]);
+    launchSpec.passThruParams = subpane_descriptor.get().aeDesc;
+  }
+  launchSpec.launchFlags = kLSLaunchAsync | kLSLaunchDontAddToRecents;
+
+  LSOpenFromURLSpec(&launchSpec, nullptr);
+}
+
+}  // namespace base::mac

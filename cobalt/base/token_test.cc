@@ -21,7 +21,7 @@
 #include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace base {
+namespace base_token {
 namespace {
 
 TEST(TokenTest, Create) {
@@ -131,4 +131,4 @@ TEST(TokenTest, Collision) {
 }
 
 }  // namespace
-}  // namespace base
+}  // namespace base_token

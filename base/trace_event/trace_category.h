@@ -1,10 +1,13 @@
-#include "starboard/types.h"
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TRACE_EVENT_TRACE_CATEGORY_H_
 #define BASE_TRACE_EVENT_TRACE_CATEGORY_H_
+
+#include <stdint.h>
+
+#include "base/check.h"
 
 namespace base {
 namespace trace_event {
@@ -46,7 +49,7 @@ struct TraceCategory {
   // today TRACE_EVENT* macros cache the state ptr. They should just cache the
   // full TraceCategory ptr, which is immutable, and use these helper function
   // here. This will get rid of the need of this awkward ptr getter completely.
-  const uint8_t* state_ptr() const {
+  constexpr const uint8_t* state_ptr() const {
     return const_cast<const uint8_t*>(&state_);
   }
 

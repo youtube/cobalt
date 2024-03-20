@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,6 @@
 
 namespace base {
 class Value;
-class DictionaryValue;
 }
 
 namespace net {
@@ -32,7 +31,7 @@ class ProxyInfo;
 // take precedence over the manual ones.
 //
 // For more details see:
-// http://www.chromium.org/developers/design-documents/proxy-settings-fallback
+// http://www.chromium.org/developers/design-documents/network-stack/proxy-settings-fallback
 class NET_EXPORT ProxyConfig {
  public:
   // ProxyRules describes the "manual" proxy settings.
@@ -118,9 +117,9 @@ class NET_EXPORT ProxyConfig {
     ProxyBypassRules bypass_rules;
 
     // Reverse the meaning of |bypass_rules|.
-    bool reverse_bypass;
+    bool reverse_bypass = false;
 
-    Type type;
+    Type type = Type::EMPTY;
 
     // Set if |type| is Type::PROXY_LIST.
     ProxyList single_proxies;
@@ -152,8 +151,7 @@ class NET_EXPORT ProxyConfig {
   ~ProxyConfig();
   ProxyConfig& operator=(const ProxyConfig& config);
 
-  // Returns true if the given config is equivalent to this config.  The
-  // comparison ignores differences in |source()|.
+  // Returns true if the given config is equivalent to this config.
   bool Equals(const ProxyConfig& other) const;
 
   // Returns true if this config contains any "automatic" settings. See the
@@ -163,7 +161,7 @@ class NET_EXPORT ProxyConfig {
   void ClearAutomaticSettings();
 
   // Creates a Value dump of this configuration.
-  std::unique_ptr<base::DictionaryValue> ToValue() const;
+  base::Value ToValue() const;
 
   ProxyRules& proxy_rules() {
     return proxy_rules_;
@@ -201,6 +199,10 @@ class NET_EXPORT ProxyConfig {
     return auto_detect_;
   }
 
+  void set_from_system(bool from_system) { from_system_ = from_system; }
+
+  bool from_system() const { return from_system_; }
+
   // Helpers to construct some common proxy configurations.
 
   static ProxyConfig CreateDirect() {
@@ -223,14 +225,17 @@ class NET_EXPORT ProxyConfig {
 
  private:
   // True if the proxy configuration should be auto-detected.
-  bool auto_detect_;
+  bool auto_detect_ = false;
+
+  // True if the proxy configuration was created from system settings.
+  bool from_system_ = false;
 
   // If non-empty, indicates the URL of the proxy auto-config file to use.
   GURL pac_url_;
 
   // If true, blocks all traffic in case fetching the PAC script from |pac_url_|
   // fails. Only valid if |pac_url_| is non-empty.
-  bool pac_mandatory_;
+  bool pac_mandatory_ = false;
 
   // Manual proxy settings.
   ProxyRules proxy_rules_;

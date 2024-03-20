@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,6 +22,7 @@
 #include "net/base/net_export.h"
 #include "net/socket/ssl_socket.h"
 #include "net/socket/stream_socket.h"
+#include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace crypto {
 class RSAPrivateKey;
@@ -36,7 +37,7 @@ class X509Certificate;
 // A server socket that uses SSL as the transport layer.
 class SSLServerSocket : public SSLSocket {
  public:
-  ~SSLServerSocket() override {}
+  ~SSLServerSocket() override = default;
 
   // Perform the SSL server handshake, and notify the supplied callback
   // if the process completes asynchronously.  If Disconnect is called before
@@ -47,7 +48,7 @@ class SSLServerSocket : public SSLSocket {
 
 class SSLServerContext {
  public:
-  virtual ~SSLServerContext(){};
+  virtual ~SSLServerContext() = default;
 
   // Creates an SSL server socket over an already-connected transport socket.
   // The caller must ensure the returned socket does not outlive the server
@@ -63,9 +64,17 @@ class SSLServerContext {
 // context will share the same session cache.
 //
 // The caller must provide the server certificate and private key to use.
-// It takes a reference to |certificate|.
-// The |key| and |ssl_config| parameters are copied.
+// It takes a reference to |certificate| and |pkey|.
+// The |ssl_config| parameter is copied.
 //
+NET_EXPORT std::unique_ptr<SSLServerContext> CreateSSLServerContext(
+    X509Certificate* certificate,
+    EVP_PKEY* pkey,
+    const SSLServerConfig& ssl_config);
+
+// As above, but takes an RSAPrivateKey object. Deprecated, use the EVP_PKEY
+// version instead.
+// TODO(mattm): convert existing callers and remove this function.
 NET_EXPORT std::unique_ptr<SSLServerContext> CreateSSLServerContext(
     X509Certificate* certificate,
     const crypto::RSAPrivateKey& key,

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,8 +6,10 @@ package org.chromium.base.memory;
 
 import android.content.ComponentCallbacks2;
 import android.os.Looper;
-import android.support.test.filters.SmallTest;
 
+import androidx.test.filters.SmallTest;
+
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -16,8 +18,8 @@ import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.MemoryPressureLevel;
-import org.chromium.base.Supplier;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
 import java.util.concurrent.TimeUnit;
@@ -89,6 +91,11 @@ public class MemoryPressureMonitorTest {
 
         mMonitor = new MemoryPressureMonitor(THROTTLING_INTERVAL_MS);
         mMonitor.setCurrentPressureSupplierForTesting(null);
+    }
+
+    @After
+    public void tearDown() {
+        ThreadUtils.clearUiThreadForTesting();
     }
 
     /**

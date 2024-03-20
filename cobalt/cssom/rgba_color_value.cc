@@ -14,6 +14,8 @@
 
 #include "cobalt/cssom/rgba_color_value.h"
 
+#include <cmath>
+
 #include "base/lazy_instance.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/cssom/property_value_visitor.h"

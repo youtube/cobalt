@@ -1,10 +1,10 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
-import android.support.test.filters.SmallTest;
+import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -13,6 +13,8 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Feature;
+
+import java.util.Map;
 
 /**
  * Tests for {@link CommandLine}.
@@ -38,7 +40,7 @@ public class CommandLineTest {
     static final String CL_ADDED_VALUE_2 = "bozo";
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         CommandLine.reset();
     }
 
@@ -57,7 +59,7 @@ public class CommandLineTest {
         Assert.assertNull(cl.getSwitchValue("non-existant"));
     }
 
-    void checkSettingThenGetting() {
+    void checkSettingThenGettingThenRemoving() {
         CommandLine cl = CommandLine.getInstance();
 
         // Add a plain switch.
@@ -69,7 +71,11 @@ public class CommandLineTest {
         Assert.assertFalse(cl.hasSwitch(CL_ADDED_SWITCH_2));
         Assert.assertNull(cl.getSwitchValue(CL_ADDED_SWITCH_2));
         cl.appendSwitchWithValue(CL_ADDED_SWITCH_2, CL_ADDED_VALUE_2);
-        Assert.assertTrue(CL_ADDED_VALUE_2.equals(cl.getSwitchValue(CL_ADDED_SWITCH_2)));
+        Assert.assertEquals(CL_ADDED_VALUE_2, cl.getSwitchValue(CL_ADDED_SWITCH_2));
+
+        // Update a switch's value.
+        cl.appendSwitchWithValue(CL_ADDED_SWITCH_2, "updatedValue");
+        Assert.assertEquals("updatedValue", cl.getSwitchValue(CL_ADDED_SWITCH_2));
 
         // Append a few new things.
         final String switchesAndArgs[] = { "dummy", "--superfast", "--speed=turbo" };
@@ -80,7 +86,26 @@ public class CommandLineTest {
         Assert.assertFalse(cl.hasSwitch("dummy"));
         Assert.assertFalse(cl.hasSwitch("command"));
         Assert.assertTrue(cl.hasSwitch("superfast"));
-        Assert.assertTrue("turbo".equals(cl.getSwitchValue("speed")));
+        Assert.assertEquals("turbo", cl.getSwitchValue("speed"));
+
+        // Get all switches
+        Map<String, String> switches = cl.getSwitches();
+        Assert.assertTrue(switches.containsKey(CL_ADDED_SWITCH));
+        Assert.assertTrue(switches.containsKey(CL_ADDED_SWITCH_2));
+
+        // Remove a plain switch.
+        cl.removeSwitch(CL_ADDED_SWITCH);
+        Assert.assertFalse(cl.hasSwitch(CL_ADDED_SWITCH));
+
+        // Remove a switch with a value.
+        cl.removeSwitch(CL_ADDED_SWITCH_2);
+        Assert.assertFalse(cl.hasSwitch(CL_ADDED_SWITCH_2));
+        Assert.assertNull(cl.getSwitchValue(CL_ADDED_SWITCH_2));
+
+        // Get all switches again to verify it updated.
+        switches = cl.getSwitches();
+        Assert.assertFalse(switches.containsKey(CL_ADDED_SWITCH));
+        Assert.assertFalse(switches.containsKey(CL_ADDED_SWITCH_2));
     }
 
     void checkTokenizer(String[] expected, String toParse) {
@@ -97,7 +122,7 @@ public class CommandLineTest {
     public void testJavaInitialization() {
         CommandLine.init(INIT_SWITCHES);
         checkInitSwitches();
-        checkSettingThenGetting();
+        checkSettingThenGettingThenRemoving();
     }
 
     @Test
@@ -106,7 +131,7 @@ public class CommandLineTest {
     public void testBufferInitialization() {
         CommandLine.init(CommandLine.tokenizeQuotedArguments(INIT_SWITCHES_BUFFER));
         checkInitSwitches();
-        checkSettingThenGetting();
+        checkSettingThenGettingThenRemoving();
     }
 
     @Test
@@ -137,5 +162,33 @@ public class CommandLineTest {
                                   "mn\\'op",
                                   "qr\\\"st"};
         checkTokenizer(expected, toParse);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Android-AppBase"})
+    public void testUpdatingArgList() {
+        CommandLine.init(null);
+        CommandLine cl = CommandLine.getInstance();
+        cl.appendSwitch(CL_ADDED_SWITCH);
+        cl.appendSwitchWithValue(CL_ADDED_SWITCH_2, CL_ADDED_VALUE_2);
+        cl.appendSwitchWithValue(CL_ADDED_SWITCH_2, "updatedValue");
+
+        final String[] expectedValueForBothSwitches = {
+                "",
+                "--" + CL_ADDED_SWITCH,
+                "--" + CL_ADDED_SWITCH_2 + "=" + CL_ADDED_VALUE_2,
+                "--" + CL_ADDED_SWITCH_2 + "=updatedValue",
+        };
+        Assert.assertArrayEquals("Appending a switch multiple times should add multiple args",
+                expectedValueForBothSwitches, CommandLine.getJavaSwitchesOrNull());
+
+        cl.removeSwitch(CL_ADDED_SWITCH_2);
+        final String[] expectedValueWithSecondSwitchRemoved = {
+                "",
+                "--" + CL_ADDED_SWITCH,
+        };
+        Assert.assertArrayEquals("Removing a switch should remove all its args",
+                expectedValueWithSecondSwitchRemoved, CommandLine.getJavaSwitchesOrNull());
     }
 }

@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,11 @@
 // See transport_security_state_static.template for more information on the data
 // in this file.
 
-// Cobalt copied this file from Chromium directly.
+// Note that consumers must include <stdint.h>, "<iterator>", and
+// "net/http/transport_security_state_source.h", which this file cannot do
+// itself, since it's always included in a nested namespace.
 
-#include "base/stl_util.h"
-#include "net/http/transport_security_state_source.h"
-#include "starboard/types.h"
+// Cobalt copied this file from Chromium directly.
 
 static const char kSPKIHash_TestSPKI1[] =
     "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01"
@@ -20,23 +20,22 @@ static const char kSPKIHash_TestSPKI2[] =
     "\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02"
     "\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02\x02";
 
-static const char* const kExpectCTReportURIs[] = {
+static const char* const kNoRejectedPublicKeys[] = {
     nullptr,
 };
 
-static const char* const kNoRejectedPublicKeys[] = {
-    NULL,
-};
-
 static const char* const kTest1AcceptableCerts[] = {
-    kSPKIHash_TestSPKI1, nullptr,
+    kSPKIHash_TestSPKI1,
+    nullptr,
 };
 static const char* const kTest1RejectedCerts[] = {
-    kSPKIHash_TestSPKI2, nullptr,
+    kSPKIHash_TestSPKI2,
+    nullptr,
 };
 
 static const char* const kTest2AcceptableCerts[] = {
-    kSPKIHash_TestSPKI2, nullptr,
+    kSPKIHash_TestSPKI2,
+    nullptr,
 };
 
 static const struct net::TransportSecurityStateSource::Pinset kPinsets[] = {
@@ -45,19 +44,24 @@ static const struct net::TransportSecurityStateSource::Pinset kPinsets[] = {
 };
 
 static const uint8_t kHSTSHuffmanTree[] = {
-    0x80, 0xe1, 0x00, 0xae, 0xec, 0xef, 0xe3, 0xe8, 0x02,
-    0x03, 0x01, 0x04, 0xf8, 0xff, 0xf0, 0xf4, 0x06, 0x07,
-    0xe5, 0xed, 0xf3, 0x09, 0x08, 0x0a, 0x05, 0x0b,
+    0x80, 0xe1, 0x00, 0xae, 0xec, 0xef, 0xe3, 0xe8, 0x02, 0x03, 0x01, 0x04,
+    0xf8, 0xff, 0xf0, 0xf4, 0x06, 0x07, 0xe5, 0xed, 0xf3, 0x09, 0x08, 0x0a,
+    0x05, 0x0b,
 };
 
 static const uint8_t kPreloadedHSTSData[] = {
-    0xff, 0xff, 0x7a, 0xb1, 0xe4, 0xaf, 0x18, 0xe3, 0xaf, 0x38, 0x38, 0x24,
+    0x7f, 0xbd, 0x58, 0xf2, 0x57, 0x8c, 0x71, 0xd7, 0x9c, 0x1c, 0x24,
 };
 
-static const unsigned kPreloadedHSTSBits = 94;
+static const unsigned kPreloadedHSTSBits = 86;
 static const unsigned kHSTSRootPosition = 0;
 
 static const net::TransportSecurityStateSource kHSTSSource = {
-    kHSTSHuffmanTree,   sizeof(kHSTSHuffmanTree), kPreloadedHSTSData,
-    kPreloadedHSTSBits, kHSTSRootPosition,        kExpectCTReportURIs,
-    kPinsets,           base::size(kPinsets)};
+  kHSTSHuffmanTree,
+  sizeof(kHSTSHuffmanTree),
+  kPreloadedHSTSData,
+  kPreloadedHSTSBits,
+  kHSTSRootPosition,
+  kPinsets,
+  std::size(kPinsets)
+};

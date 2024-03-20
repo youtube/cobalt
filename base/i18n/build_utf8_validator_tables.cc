@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,6 +26,8 @@
 // This code uses type uint8_t throughout to represent bytes, to avoid
 // signed/unsigned char confusion.
 
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,10 +41,9 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 
 namespace {
@@ -51,7 +52,7 @@ const char kHelpText[] =
     "Usage: build_utf8_validator_tables [ --help ] [ --output=<file> ]\n";
 
 const char kProlog[] =
-    "// Copyright 2013 The Chromium Authors. All rights reserved.\n"
+    "// Copyright 2013 The Chromium Authors\n"
     "// Use of this source code is governed by a BSD-style license that can "
     "be\n"
     "// found in the LICENSE file.\n"
@@ -69,7 +70,8 @@ const char kProlog[] =
 const char kEpilog[] =
     "};\n"
     "\n"
-    "const size_t kUtf8ValidatorTablesSize = arraysize(kUtf8ValidatorTables);\n"
+    "const size_t kUtf8ValidatorTablesSize = "
+    "std::size(kUtf8ValidatorTables);\n"
     "\n"
     "}  // namespace internal\n"
     "}  // namespace base\n";
@@ -130,14 +132,17 @@ class TablePrinter {
   explicit TablePrinter(FILE* stream)
       : stream_(stream), values_on_this_line_(0), current_offset_(0) {}
 
+  TablePrinter(const TablePrinter&) = delete;
+  TablePrinter& operator=(const TablePrinter&) = delete;
+
   void PrintValue(uint8_t value) {
     if (values_on_this_line_ == 0) {
       fputs("   ", stream_);
     } else if (values_on_this_line_ == kMaxValuesPerLine) {
-      fprintf(stream_, "  // 0x%02x\n   ", current_offset_);
+      fprintf(stream_.get(), "  // 0x%02x\n   ", current_offset_);
       values_on_this_line_ = 0;
     }
-    fprintf(stream_, " 0x%02x,", static_cast<int>(value));
+    fprintf(stream_.get(), " 0x%02x,", static_cast<int>(value));
     ++values_on_this_line_;
     ++current_offset_;
   }
@@ -147,13 +152,13 @@ class TablePrinter {
       fputs("      ", stream_);
       ++values_on_this_line_;
     }
-    fprintf(stream_, "  // 0x%02x\n", current_offset_);
+    fprintf(stream_.get(), "  // 0x%02x\n", current_offset_);
     values_on_this_line_ = 0;
   }
 
  private:
   // stdio stream. Not owned.
-  FILE* stream_;
+  raw_ptr<FILE> stream_;
 
   // Number of values so far printed on this line.
   int values_on_this_line_;
@@ -162,8 +167,6 @@ class TablePrinter {
   int current_offset_;
 
   static const int kMaxValuesPerLine = 8;
-
-  DISALLOW_COPY_AND_ASSIGN(TablePrinter);
 };
 
 // Start by filling a PairVector with characters. The resulting vector goes from
@@ -179,10 +182,10 @@ PairVector InitializeCharacters() {
     uint8_t bytes[4];
     unsigned int offset = 0;
     UBool is_error = false;
-    U8_APPEND(bytes, offset, arraysize(bytes), i, is_error);
+    U8_APPEND(bytes, offset, std::size(bytes), i, is_error);
     DCHECK(!is_error);
     DCHECK_GT(offset, 0u);
-    DCHECK_LE(offset, arraysize(bytes));
+    DCHECK_LE(offset, std::size(bytes));
     Pair pair = {Character(bytes, bytes + offset), StringSet()};
     vector.push_back(pair);
   }
@@ -262,9 +265,9 @@ void MoveAllCharsToSets(PairVector* pairs) {
 // algorithm is working. Use the command-line option
 // --vmodule=build_utf8_validator_tables=1 to see this output.
 void LogStringSets(const PairVector& pairs) {
-  for (auto pair_it = pairs.begin(); pair_it != pairs.end(); ++pair_it) {
+  for (const auto& pair_it : pairs) {
     std::string set_as_string;
-    for (auto set_it = pair_it->set.begin(); set_it != pair_it->set.end();
+    for (auto set_it = pair_it.set.begin(); set_it != pair_it.set.end();
          ++set_it) {
       set_as_string += base::StringPrintf("[\\x%02x-\\x%02x]",
                                           static_cast<int>(set_it->from()),
@@ -317,7 +320,7 @@ uint8_t MakeState(const StringSet& set,
       {static_cast<uint8_t>(range.to() + 1), 1}};
   states->push_back(
       State(new_state_initializer,
-            new_state_initializer + arraysize(new_state_initializer)));
+            new_state_initializer + std::size(new_state_initializer)));
   const uint8_t new_state_number =
       base::checked_cast<uint8_t>(states->size() - 1);
   CHECK(state_map->insert(std::make_pair(set, new_state_number)).second);
@@ -349,10 +352,9 @@ std::vector<State> GenerateStates(const PairVector& pairs) {
       const StateRange new_range_initializer[] = {
           {range.from(), target_state},
           {static_cast<uint8_t>(range.to() + 1), 1}};
-      states[0]
-          .insert(states[0].end(),
-                  new_range_initializer,
-                  new_range_initializer + arraysize(new_range_initializer));
+      states[0].insert(
+          states[0].end(), new_range_initializer,
+          new_range_initializer + std::size(new_range_initializer));
     }
   }
   return states;
@@ -372,13 +374,13 @@ void PrintStates(const std::vector<State>& states, FILE* stream) {
   std::vector<uint8_t> shifts;
   uint8_t pos = 0;
 
-  for (auto state_it = states.begin(); state_it != states.end(); ++state_it) {
+  for (const auto& state_it : states) {
     // We want to set |shift| to the (0-based) index of the least-significant
     // set bit in any of the ranges for this state, since this tells us how many
     // bits we can discard and still determine what range a byte lies in. Sadly
     // it appears that ffs() is not portable, so we do it clumsily.
     uint8_t shift = 7;
-    for (auto range_it = state_it->begin(); range_it != state_it->end();
+    for (auto range_it = state_it.begin(); range_it != state_it.end();
          ++range_it) {
       while (shift > 0 && range_it->from % (1 << shift) != 0) {
         --shift;
@@ -424,10 +426,11 @@ void PrintStates(const std::vector<State>& states, FILE* stream) {
 int main(int argc, char* argv[]) {
   base::CommandLine::Init(argc, argv);
   logging::LoggingSettings settings;
-  settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
+  settings.logging_dest =
+      logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
   logging::InitLogging(settings);
   if (base::CommandLine::ForCurrentProcess()->HasSwitch("help")) {
-    fwrite(kHelpText, 1, arraysize(kHelpText), stdout);
+    fwrite(kHelpText, 1, std::size(kHelpText), stdout);
     exit(EXIT_SUCCESS);
   }
   base::FilePath filename =

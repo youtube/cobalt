@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,29 +6,29 @@
 
 namespace net {
 
-AuthChallengeInfo::AuthChallengeInfo() : is_proxy(false) {
-}
+AuthChallengeInfo::AuthChallengeInfo() = default;
 
-bool AuthChallengeInfo::Equals(const AuthChallengeInfo& that) const {
-  return (this->is_proxy == that.is_proxy &&
-          this->challenger == that.challenger && this->scheme == that.scheme &&
-          this->realm == that.realm);
+AuthChallengeInfo::AuthChallengeInfo(const AuthChallengeInfo& other) = default;
+
+bool AuthChallengeInfo::MatchesExceptPath(
+    const AuthChallengeInfo& other) const {
+  return (is_proxy == other.is_proxy && challenger == other.challenger &&
+          scheme == other.scheme && realm == other.realm &&
+          challenge == other.challenge);
 }
 
 AuthChallengeInfo::~AuthChallengeInfo() = default;
 
 AuthCredentials::AuthCredentials() = default;
 
-AuthCredentials::AuthCredentials(const base::string16& username,
-                                 const base::string16& password)
-    : username_(username),
-      password_(password) {
-}
+AuthCredentials::AuthCredentials(const std::u16string& username,
+                                 const std::u16string& password)
+    : username_(username), password_(password) {}
 
 AuthCredentials::~AuthCredentials() = default;
 
-void AuthCredentials::Set(const base::string16& username,
-                          const base::string16& password) {
+void AuthCredentials::Set(const std::u16string& username,
+                          const std::u16string& password) {
   username_ = username;
   password_ = password;
 }

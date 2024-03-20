@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 #include "base/base_export.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/field_trial.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/synchronization/lock.h"
 
 namespace base {
@@ -21,10 +22,12 @@ namespace base {
 class BASE_EXPORT FieldTrialParamAssociator {
  public:
   FieldTrialParamAssociator();
-  ~FieldTrialParamAssociator();
 
-  // Key-value mapping type for field trial parameters.
-  typedef std::map<std::string, std::string> FieldTrialParams;
+  FieldTrialParamAssociator(const FieldTrialParamAssociator&) = delete;
+  FieldTrialParamAssociator& operator=(const FieldTrialParamAssociator&) =
+      delete;
+
+  ~FieldTrialParamAssociator();
 
   // Retrieve the singleton.
   static FieldTrialParamAssociator* GetInstance();
@@ -35,9 +38,9 @@ class BASE_EXPORT FieldTrialParamAssociator {
                                  const FieldTrialParams& params);
 
   // Gets the parameters for a field trial and its chosen group. If not found in
-  // field_trial_params_, then tries to looks it up in shared memory.
-  bool GetFieldTrialParams(const std::string& trial_name,
-                           FieldTrialParams* params);
+  // field_trial_params_, then tries to looks it up in shared memory. Returns
+  // false if no params are available or the passed |field_trial| is null.
+  bool GetFieldTrialParams(FieldTrial* field_trial, FieldTrialParams* params);
 
   // Gets the parameters for a field trial and its chosen group. Does not
   // fallback to looking it up in shared memory. This should only be used if you
@@ -64,11 +67,11 @@ class BASE_EXPORT FieldTrialParamAssociator {
 
   // (field_trial_name, field_trial_group)
   typedef std::pair<std::string, std::string> FieldTrialKey;
+  // The following type can be used for lookups without needing to copy strings.
+  typedef std::pair<const std::string&, const std::string&> FieldTrialRefKey;
 
   Lock lock_;
   std::map<FieldTrialKey, FieldTrialParams> field_trial_params_;
-
-  DISALLOW_COPY_AND_ASSIGN(FieldTrialParamAssociator);
 };
 
 }  // namespace base

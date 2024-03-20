@@ -1,22 +1,24 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DNS_MDNS_CLIENT_H_
 #define NET_DNS_MDNS_CLIENT_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "base/callback.h"
+#include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_response.h"
 #include "net/dns/record_parsed.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -68,11 +70,11 @@ class NET_EXPORT MDnsTransaction {
     FLAG_MASK = (1 << 3) - 1,
   };
 
-  typedef base::Callback<void(Result, const RecordParsed*)>
-  ResultCallback;
+  typedef base::RepeatingCallback<void(Result, const RecordParsed*)>
+      ResultCallback;
 
   // Destroying the transaction cancels it.
-  virtual ~MDnsTransaction() {}
+  virtual ~MDnsTransaction() = default;
 
   // Start the transaction. Return true on success. Cache-based transactions
   // will execute the callback synchronously.
@@ -88,6 +90,10 @@ class NET_EXPORT MDnsTransaction {
 // A listener listens for updates regarding a specific record or set of records.
 // Created by the MDnsClient (see |MDnsClient::CreateListener|) and used to keep
 // track of listeners.
+//
+// TODO(ericorth@chromium.org): Consider moving this inside MDnsClient to better
+// organize the namespace and avoid confusion with
+// net::HostResolver::MdnsListener.
 class NET_EXPORT MDnsListener {
  public:
   // Used in the MDnsListener delegate to signify what type of change has been
@@ -100,7 +106,7 @@ class NET_EXPORT MDnsListener {
 
   class Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
 
     // Called when a record is added, removed or updated.
     virtual void OnRecordUpdate(UpdateType update,
@@ -115,7 +121,7 @@ class NET_EXPORT MDnsListener {
   };
 
   // Destroying the listener stops listening.
-  virtual ~MDnsListener() {}
+  virtual ~MDnsListener() = default;
 
   // Start the listener. Return true on success.
   virtual bool Start() = 0;
@@ -134,7 +140,7 @@ class NET_EXPORT MDnsListener {
 // Creates bound datagram sockets ready to use by MDnsClient.
 class NET_EXPORT MDnsSocketFactory {
  public:
-  virtual ~MDnsSocketFactory() {}
+  virtual ~MDnsSocketFactory() = default;
   virtual void CreateSockets(
       std::vector<std::unique_ptr<DatagramServerSocket>>* sockets) = 0;
 
@@ -148,7 +154,7 @@ class NET_EXPORT MDnsSocketFactory {
 // the client stops listening on the network and destroys the cache.
 class NET_EXPORT MDnsClient {
  public:
-  virtual ~MDnsClient() {}
+  virtual ~MDnsClient() = default;
 
   // Create listener object for RRType |rrtype| and name |name|.
   virtual std::unique_ptr<MDnsListener> CreateListener(
@@ -165,7 +171,7 @@ class NET_EXPORT MDnsClient {
       int flags,
       const MDnsTransaction::ResultCallback& callback) = 0;
 
-  virtual bool StartListening(MDnsSocketFactory* factory) = 0;
+  virtual int StartListening(MDnsSocketFactory* factory) = 0;
 
   // Do not call this inside callbacks from related MDnsListener and
   // MDnsTransaction objects.
@@ -176,7 +182,16 @@ class NET_EXPORT MDnsClient {
   static std::unique_ptr<MDnsClient> CreateDefault();
 };
 
-NET_EXPORT IPEndPoint GetMDnsIPEndPoint(AddressFamily address_family);
+// Gets the endpoint for the multicast group a socket should join to receive
+// MDNS messages. Such sockets should also bind to the endpoint from
+// GetMDnsReceiveEndPoint().
+//
+// This is also the endpoint messages should be sent to to send MDNS messages.
+NET_EXPORT IPEndPoint GetMDnsGroupEndPoint(AddressFamily address_family);
+
+// Gets the endpoint sockets should be bound to to receive MDNS messages. Such
+// sockets should also join the multicast group from GetMDnsGroupEndPoint().
+NET_EXPORT IPEndPoint GetMDnsReceiveEndPoint(AddressFamily address_family);
 
 typedef std::vector<std::pair<uint32_t, AddressFamily>>
     InterfaceIndexFamilyList;

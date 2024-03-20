@@ -5,7 +5,7 @@
 #ifndef MEDIA_GPU_CHROMEOS_MAILBOX_VIDEO_FRAME_CONVERTER_H_
 #define MEDIA_GPU_CHROMEOS_MAILBOX_VIDEO_FRAME_CONVERTER_H_
 
-#include "base/callback_forward.h"
+#include "base/functional/callback_forward.h"
 #include "base/containers/queue.h"
 #include "base/containers/small_map.h"
 #include "base/memory/scoped_refptr.h"

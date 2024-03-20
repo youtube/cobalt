@@ -220,7 +220,7 @@ float value_or(float value, float default_value) {
 void InputDeviceManagerDesktop::HandleKeyboardEvent(
     bool is_key_down, const system_window::InputEvent* input_event,
     int key_code) {
-  base::Token type =
+  base_token::Token type =
       is_key_down ? base::Tokens::keydown() : base::Tokens::keyup();
   dom::KeyboardEvent::KeyLocationCode location =
       dom::KeyboardEvent::KeyCodeToKeyLocation(key_code);
@@ -238,7 +238,7 @@ void InputDeviceManagerDesktop::HandleKeyboardEvent(
 }
 
 void InputDeviceManagerDesktop::HandlePointerEvent(
-    base::Token type, const system_window::InputEvent* input_event) {
+    base_token::Token type, const system_window::InputEvent* input_event) {
   dom::PointerEventInit pointer_event;
   UpdateEventInit(input_event, &pointer_event);
   UpdateMouseEventInit(input_event, &pointer_event);
@@ -280,7 +280,7 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
 
 void InputDeviceManagerDesktop::HandleWheelEvent(
     const system_window::InputEvent* input_event) {
-  base::Token type = base::Tokens::wheel();
+  base_token::Token type = base::Tokens::wheel();
   dom::WheelEventInit wheel_event;
   UpdateEventInit(input_event, &wheel_event);
   UpdateMouseEventInit(input_event, &wheel_event);
@@ -296,7 +296,7 @@ void InputDeviceManagerDesktop::HandleWheelEvent(
 void InputDeviceManagerDesktop::HandleInputEvent(
     const system_window::InputEvent* event) {
   // Note: we currently treat all dom::InputEvents as input (never beforeinput).
-  base::Token type = base::Tokens::input();
+  base_token::Token type = base::Tokens::input();
 
   dom::InputEventInit input_event;
   UpdateEventInit(event, &input_event);
@@ -337,7 +337,7 @@ void InputDeviceManagerDesktop::HandleSystemWindowInputEvent(
             input_event->type() == system_window::InputEvent::kPointerDown,
             input_event, key_code);
       } else {
-        base::Token type =
+        base_token::Token type =
             input_event->type() == system_window::InputEvent::kPointerDown
                 ? base::Tokens::pointerdown()
                 : base::Tokens::pointerup();

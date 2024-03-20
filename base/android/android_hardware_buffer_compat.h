@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,7 @@
 #include <android/sensor.h>
 
 #include "base/base_export.h"
-#include "base/lazy_instance.h"
-#include "starboard/types.h"
+#include "base/no_destructor.h"
 
 extern "C" {
 using PFAHardwareBuffer_allocate = void (*)(const AHardwareBuffer_Desc* desc,
@@ -40,7 +39,11 @@ namespace base {
 class BASE_EXPORT AndroidHardwareBufferCompat {
  public:
   static bool IsSupportAvailable();
-  static AndroidHardwareBufferCompat GetInstance();
+  static AndroidHardwareBufferCompat& GetInstance();
+
+  AndroidHardwareBufferCompat(const AndroidHardwareBufferCompat&) = delete;
+  AndroidHardwareBufferCompat& operator=(const AndroidHardwareBufferCompat&) =
+      delete;
 
   void Allocate(const AHardwareBuffer_Desc* desc, AHardwareBuffer** outBuffer);
   void Acquire(AHardwareBuffer* buffer);
@@ -56,7 +59,7 @@ class BASE_EXPORT AndroidHardwareBufferCompat {
   int Unlock(AHardwareBuffer* buffer, int32_t* fence);
 
  private:
-  friend struct base::LazyInstanceTraitsBase<AndroidHardwareBufferCompat>;
+  friend class NoDestructor<AndroidHardwareBufferCompat>;
   AndroidHardwareBufferCompat();
 
   PFAHardwareBuffer_allocate allocate_;

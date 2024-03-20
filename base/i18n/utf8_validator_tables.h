@@ -1,12 +1,13 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_I18N_UTF8_VALIDATOR_TABLES_H_
 #define BASE_I18N_UTF8_VALIDATOR_TABLES_H_
 
-#include "base/macros.h"
-#include "starboard/types.h"
+#include <stddef.h>
+#include <stdint.h>
+
 
 namespace base {
 namespace internal {

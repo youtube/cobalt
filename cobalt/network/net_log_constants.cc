@@ -34,14 +34,13 @@ namespace {
 const int kLogFormatVersion = 1;
 }  // namespace
 
-std::unique_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
+std::unique_ptr<base::Value::Dict> NetLogConstants::GetConstants() {
   // This function is based on the implementation of
   // NetInternalsUI::GetConstants() in Chromium 25.
-  std::unique_ptr<base::DictionaryValue> constants_dict(
-      new base::DictionaryValue());
+  std::unique_ptr<base::Value::Dict> constants_dict(new base::Value::Dict());
 
   // Version of the file format.
-  constants_dict->SetInteger("logFormatVersion", kLogFormatVersion);
+  constants_dict->Set("logFormatVersion", kLogFormatVersion);
 
   // Add a dictionary with information on the relationship between event type
   // enums and their symbolic names.
@@ -50,17 +49,8 @@ std::unique_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
   // Add a dictionary with the version of the client and its command line
   // arguments.
   {
-    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-
-    dict->SetString("name", "Cobalt");
-    dict->SetString("version", base::StringPrintf("%s.%s", COBALT_VERSION,
-                                                  COBALT_BUILD_VERSION_NUMBER));
     base::TimeDelta time_since_epoch =
         base::Time::Now() - base::Time::UnixEpoch();
-
-    // Not sure where this gets added, but net-internals seems to like it.
-    dict->SetDouble("numericDate",
-                    static_cast<double>(time_since_epoch.InMilliseconds()));
 
     // A number of other keys are in clientInfo that either aren't relevant to
     // Cobalt or just not too interesting for us:
@@ -69,60 +59,73 @@ std::unique_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
     // The tool in Chrome handles the absence of these with no problem. See
     // NetInternalsUI::GetConstants() for how these are set for Chrome.
 
-    constants_dict->Set("clientInfo", std::move(dict));
+    constants_dict->Set(
+        "clientInfo",
+        base::Value::Dict()
+            .Set("name", "Cobalt")
+            .Set("version", base::StringPrintf("%s.%s", COBALT_VERSION,
+                                               COBALT_BUILD_VERSION_NUMBER))
+            .Set("numericDate",
+                 static_cast<double>(time_since_epoch.InMilliseconds())));
   }
 
   // Add a dictionary with information about the relationship between load flag
   // enums and their symbolic names.
   {
-    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+    std::unique_ptr<base::Value::Dict> dict(new base::Value::Dict());
 
-#define LOAD_FLAG(label, value) \
-  dict->SetInteger(#label, static_cast<int>(value));
+#define LOAD_FLAG(label, value) dict->Set(#label, static_cast<int>(value));
 #include "net/base/load_flags_list.h"
 #undef LOAD_FLAG
 
+#ifdef REGULAR_UPSTREAM_CODE
     constants_dict->Set("loadFlag", std::move(dict));
+#else
+    constants_dict->Set("loadFlag", base::Value::Dict());
+#endif
   }
 
   // Add a dictionary with information about the relationship between load state
   // enums and their symbolic names.
   {
-    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+    std::unique_ptr<base::Value::Dict> dict(new base::Value::Dict());
 
-#define LOAD_STATE(label, value) \
-  dict->SetInteger(#label, static_cast<int>(value));
+#define LOAD_STATE(label, value) dict->Set(#label, static_cast<int>(value));
 #include "net/base/load_states_list.h"
 #undef LOAD_STATE
 
+#ifdef REGULAR_UPSTREAM_CODE
     constants_dict->Set("loadState", std::move(dict));
+#else
+    constants_dict->Set("loadState", base::Value::Dict());
+#endif
   }
 
   // Add information on the relationship between net error codes and their
   // symbolic names.
   {
-    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+    std::unique_ptr<base::Value::Dict> dict(new base::Value::Dict());
 
-#define NET_ERROR(label, value) \
-  dict->SetInteger(#label, static_cast<int>(value));
+#define NET_ERROR(label, value) dict->Set(#label, static_cast<int>(value));
 #include "net/base/net_error_list.h"
 #undef NET_ERROR
 
+#ifdef REGULAR_UPSTREAM_CODE
     constants_dict->Set("netError", std::move(dict));
+#else
+    constants_dict->Set("netError", base::Value::Dict());
+#endif
   }
 
   // Information about the relationship between event phase enums and their
   // symbolic names.
   {
-    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-
     // TODO: find out where the corresponding integer number for each
     // event phase lives and replace the following hard-coded number with them.
-    dict->SetInteger("PHASE_BEGIN", 0);
-    dict->SetInteger("PHASE_END", 1);
-    dict->SetInteger("PHASE_NONE", 2);
-
-    constants_dict->Set("logEventPhase", std::move(dict));
+    constants_dict->Set("logEventPhase", base::Value::Dict()
+                                             .Set("PHASE_BEGIN", 0)
+                                             .Set("PHASE_END", 1)
+                                             .Set("PHASE_NONE", 2));
   }
 
   // Information about the relationship between source type enums and
@@ -132,7 +135,7 @@ std::unique_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
   // Information about the relationship between LogLevel enums and their
   // symbolic names.
   // {
-  //   std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+  //   std::unique_ptr<base::Value::Dict> dict(new base::Value::Dict());
 
   //   dict->SetInteger("DEFAULT", "net::NetLog::NetLogCaptureMode::Default()");
   //   dict->SetInteger("INCLUDE_COOKIES_AND_CREDENTIALS",
@@ -146,14 +149,12 @@ std::unique_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
   // Information about the relationship between address family enums and
   // their symbolic names.
   {
-    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-
-    dict->SetInteger("ADDRESS_FAMILY_UNSPECIFIED",
-                     net::ADDRESS_FAMILY_UNSPECIFIED);
-    dict->SetInteger("ADDRESS_FAMILY_IPV4", net::ADDRESS_FAMILY_IPV4);
-    dict->SetInteger("ADDRESS_FAMILY_IPV6", net::ADDRESS_FAMILY_IPV6);
-
-    constants_dict->Set("addressFamily", std::move(dict));
+    constants_dict->Set(
+        "addressFamily",
+        base::Value::Dict()
+            .Set("ADDRESS_FAMILY_UNSPECIFIED", net::ADDRESS_FAMILY_UNSPECIFIED)
+            .Set("ADDRESS_FAMILY_IPV4", net::ADDRESS_FAMILY_IPV4)
+            .Set("ADDRESS_FAMILY_IPV6", net::ADDRESS_FAMILY_IPV6));
   }
 
   // Information about how the "time ticks" values we have given it relate to
@@ -176,8 +177,7 @@ std::unique_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
     int64 tick_to_unix_time_ms = tick_to_time_ms - kUnixEpochMs;
 
     // Pass it as a string, since it may be too large to fit in an integer.
-    constants_dict->SetString("timeTickOffset",
-                              base::Int64ToString(tick_to_unix_time_ms));
+    constants_dict->Set("timeTickOffset", std::to_string(tick_to_unix_time_ms));
   }
   return constants_dict;
 }

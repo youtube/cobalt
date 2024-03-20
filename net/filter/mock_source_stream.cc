@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,19 +6,13 @@
 
 #include <utility>
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "net/base/io_buffer.h"
-#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
-MockSourceStream::MockSourceStream()
-    : SourceStream(SourceStream::TYPE_NONE),
-      read_one_byte_at_a_time_(false),
-      awaiting_completion_(false),
-      dest_buffer_(nullptr),
-      dest_buffer_size_(0) {}
+MockSourceStream::MockSourceStream() : SourceStream(SourceStream::TYPE_NONE) {}
 
 MockSourceStream::~MockSourceStream() {
   DCHECK(!awaiting_completion_);
@@ -52,6 +46,12 @@ int MockSourceStream::Read(IOBuffer* dest_buffer,
 
 std::string MockSourceStream::Description() const {
   return "";
+}
+
+bool MockSourceStream::MayHaveMoreBytes() const {
+  if (always_report_has_more_bytes_)
+    return true;
+  return !results_.empty();
 }
 
 MockSourceStream::QueuedResult::QueuedResult(const char* data,

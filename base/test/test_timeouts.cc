@@ -1,17 +1,22 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/test/test_timeouts.h"
 
 #include <algorithm>
+#include <string>
 
+#include "base/cfi_buildflags.h"
+#include "base/check_op.h"
+#include "base/clang_profiling_buildflags.h"
 #include "base/command_line.h"
 #include "base/debug/debugger.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/test_switches.h"
 #include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
 
 namespace {
 
@@ -21,16 +26,20 @@ namespace {
 // 2) min_value.
 // 3) the numerical value given by switch_name on the command line multiplied
 // by kTimeoutMultiplier.
-void InitializeTimeout(const char* switch_name, int min_value, int* value) {
+void InitializeTimeout(const char* switch_name,
+                       base::TimeDelta min_value,
+                       base::TimeDelta* value) {
   DCHECK(value);
-  int command_line_timeout = 0;
+  base::TimeDelta command_line_timeout;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
     std::string string_value(base::CommandLine::ForCurrentProcess()->
          GetSwitchValueASCII(switch_name));
-    if (!base::StringToInt(string_value, &command_line_timeout)) {
+    int command_line_timeout_ms = 0;
+    if (!base::StringToInt(string_value, &command_line_timeout_ms)) {
       LOG(FATAL) << "Timeout value \"" << string_value << "\" was parsed as "
-                 << command_line_timeout;
+                 << command_line_timeout_ms;
     }
+    command_line_timeout = base::Milliseconds(command_line_timeout_ms);
   }
 
 #if defined(MEMORY_SANITIZER)
@@ -38,12 +47,35 @@ void InitializeTimeout(const char* switch_name, int min_value, int* value) {
   // down significantly.
   // For MSan the slowdown depends heavily on the value of msan_track_origins
   // build flag. The multiplier below corresponds to msan_track_origins = 1.
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // A handful of tests on ChromeOS time out when using the 6x limit used
+  // elsewhere, so it's bumped to 10x.
+  constexpr int kTimeoutMultiplier = 10;
+#else
   constexpr int kTimeoutMultiplier = 6;
-#elif defined(ADDRESS_SANITIZER) && defined(OS_WIN)
+#endif
+#elif BUILDFLAG(CFI_DIAG)
+  constexpr int kTimeoutMultiplier = 3;
+#elif defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_WIN)
   // ASan/Win has not been optimized yet, give it a higher
   // timeout multiplier. See http://crbug.com/412471
   constexpr int kTimeoutMultiplier = 3;
+#elif defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_CHROMEOS_ASH)
+  // A number of tests on ChromeOS run very close to the 2x limit, so ChromeOS
+  // gets 3x.
+  constexpr int kTimeoutMultiplier = 3;
 #elif defined(ADDRESS_SANITIZER) || defined(THREAD_SANITIZER)
+  constexpr int kTimeoutMultiplier = 2;
+#elif BUILDFLAG(CLANG_PROFILING)
+  // On coverage build, tests run 3x slower.
+  constexpr int kTimeoutMultiplier = 3;
+#elif !defined(NDEBUG) && BUILDFLAG(IS_CHROMEOS_ASH)
+  // TODO(crbug.com/1058022): reduce the multiplier back to 2x.
+  // A number of tests on ChromeOS run very close to the base limit, so ChromeOS
+  // gets 3x.
+  constexpr int kTimeoutMultiplier = 3;
+#elif !defined(NDEBUG) && BUILDFLAG(IS_MAC)
+  // A lot of browser_tests on Mac debug time out.
   constexpr int kTimeoutMultiplier = 2;
 #else
   constexpr int kTimeoutMultiplier = 1;
@@ -60,22 +92,18 @@ bool TestTimeouts::initialized_ = false;
 
 // The timeout values should increase in the order they appear in this block.
 // static
-int TestTimeouts::tiny_timeout_ms_ = 100;
-int TestTimeouts::action_timeout_ms_ = 10000;
-#ifndef NDEBUG
-int TestTimeouts::action_max_timeout_ms_ = 45000;
-#else
-int TestTimeouts::action_max_timeout_ms_ = 30000;
-#endif  // NDEBUG
-
-int TestTimeouts::test_launcher_timeout_ms_ = 45000;
+base::TimeDelta TestTimeouts::tiny_timeout_ = base::Milliseconds(100);
+base::TimeDelta TestTimeouts::action_timeout_ = base::Seconds(10);
+base::TimeDelta TestTimeouts::action_max_timeout_ = base::Seconds(30);
+base::TimeDelta TestTimeouts::test_launcher_timeout_ = base::Seconds(45);
 
 // static
 void TestTimeouts::Initialize() {
   DCHECK(!initialized_);
   initialized_ = true;
 
-  if (base::debug::BeingDebugged()) {
+  const bool being_debugged = base::debug::BeingDebugged();
+  if (being_debugged) {
     fprintf(stdout,
         "Detected presence of a debugger, running without test timeouts.\n");
   }
@@ -83,7 +111,8 @@ void TestTimeouts::Initialize() {
   // Note that these timeouts MUST be initialized in the correct order as
   // per the CHECKS below.
 
-  InitializeTimeout(switches::kTestTinyTimeout, 0, &tiny_timeout_ms_);
+  InitializeTimeout(switches::kTestTinyTimeout, base::TimeDelta(),
+                    &tiny_timeout_);
 
   // All timeouts other than the "tiny" one should be set to very large values
   // when in a debugger or when run interactively, so that tests will not get
@@ -93,25 +122,23 @@ void TestTimeouts::Initialize() {
   // hang (because it's used as a task-posting delay).  In particular this
   // causes problems for some iOS device tests, which are always run inside a
   // debugger (thus BeingDebugged() is true even on the bots).
-  int min_ui_test_action_timeout = tiny_timeout_ms_;
-  if (base::debug::BeingDebugged() ||
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kTestLauncherInteractive)) {
-    constexpr int kVeryLargeTimeoutMs = 100000000;
-    min_ui_test_action_timeout = kVeryLargeTimeoutMs;
+  base::TimeDelta min_ui_test_action_timeout = tiny_timeout_;
+  if (being_debugged || base::CommandLine::ForCurrentProcess()->HasSwitch(
+                            switches::kTestLauncherInteractive)) {
+    min_ui_test_action_timeout = base::Days(1);
   }
 
   InitializeTimeout(switches::kUiTestActionTimeout, min_ui_test_action_timeout,
-                    &action_timeout_ms_);
-  InitializeTimeout(switches::kUiTestActionMaxTimeout, action_timeout_ms_,
-                    &action_max_timeout_ms_);
+                    &action_timeout_);
+  InitializeTimeout(switches::kUiTestActionMaxTimeout, action_timeout_,
+                    &action_max_timeout_);
 
   // Test launcher timeout is independent from anything above action timeout.
-  InitializeTimeout(switches::kTestLauncherTimeout, action_timeout_ms_,
-                    &test_launcher_timeout_ms_);
+  InitializeTimeout(switches::kTestLauncherTimeout, action_timeout_,
+                    &test_launcher_timeout_);
 
   // The timeout values should be increasing in the right order.
-  CHECK_LE(tiny_timeout_ms_, action_timeout_ms_);
-  CHECK_LE(action_timeout_ms_, action_max_timeout_ms_);
-  CHECK_LE(action_timeout_ms_, test_launcher_timeout_ms_);
+  CHECK_LE(tiny_timeout_, action_timeout_);
+  CHECK_LE(action_timeout_, action_max_timeout_);
+  CHECK_LE(action_timeout_, test_launcher_timeout_);
 }

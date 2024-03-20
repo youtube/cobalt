@@ -1,11 +1,10 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/metrics/histogram_functions.h"
 
 #include "base/metrics/histogram_macros.h"
-#include "base/metrics/statistics_recorder.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -20,8 +19,6 @@ enum UmaHistogramTestingEnum {
 };
 
 TEST(HistogramFunctionsTest, ExactLinear) {
-  std::unique_ptr<StatisticsRecorder> recorder =
-      StatisticsRecorder::CreateTemporaryForTesting();
   std::string histogram("Testing.UMA.HistogramExactLinear");
   HistogramTester tester;
   UmaHistogramExactLinear(histogram, 10, 100);
@@ -41,7 +38,6 @@ TEST(HistogramFunctionsTest, ExactLinear) {
   tester.ExpectTotalCount(histogram, 5);
 }
 
-#if !defined(STARBOARD)
 TEST(HistogramFunctionsTest, Enumeration) {
   std::string histogram("Testing.UMA.HistogramEnumeration");
   HistogramTester tester;
@@ -57,11 +53,8 @@ TEST(HistogramFunctionsTest, Enumeration) {
       histogram, static_cast<int>(UMA_HISTOGRAM_TESTING_ENUM_THIRD) + 1, 1);
   tester.ExpectTotalCount(histogram, 2);
 }
-#endif
 
 TEST(HistogramFunctionsTest, Boolean) {
-  std::unique_ptr<StatisticsRecorder> recorder =
-      StatisticsRecorder::CreateTemporaryForTesting();
   std::string histogram("Testing.UMA.HistogramBoolean");
   HistogramTester tester;
   UmaHistogramBoolean(histogram, true);
@@ -72,57 +65,82 @@ TEST(HistogramFunctionsTest, Boolean) {
 }
 
 TEST(HistogramFunctionsTest, Percentage) {
-  std::unique_ptr<StatisticsRecorder> recorder =
-      StatisticsRecorder::CreateTemporaryForTesting();
   std::string histogram("Testing.UMA.HistogramPercentage");
   HistogramTester tester;
-  UmaHistogramPercentage(histogram, 50);
-  tester.ExpectUniqueSample(histogram, 50, 1);
-  // Test overflows.
-  UmaHistogramPercentage(histogram, 110);
-  tester.ExpectBucketCount(histogram, 101, 1);
-  tester.ExpectTotalCount(histogram, 2);
-}
+  UmaHistogramPercentage(histogram, 1);
+  tester.ExpectBucketCount(histogram, 1, 1);
+  tester.ExpectTotalCount(histogram, 1);
 
-TEST(HistogramFunctionsTest, Counts) {
-  std::unique_ptr<StatisticsRecorder> recorder =
-      StatisticsRecorder::CreateTemporaryForTesting();
-  std::string histogram("Testing.UMA.HistogramCount.Custom");
-  HistogramTester tester;
-  UmaHistogramCustomCounts(histogram, 10, 1, 100, 10);
-  tester.ExpectUniqueSample(histogram, 10, 1);
-  UmaHistogramCustomCounts(histogram, 20, 1, 100, 10);
-  UmaHistogramCustomCounts(histogram, 20, 1, 100, 10);
-  UmaHistogramCustomCounts(histogram, 20, 1, 100, 10);
-  tester.ExpectBucketCount(histogram, 20, 3);
-  tester.ExpectTotalCount(histogram, 4);
-  UmaHistogramCustomCounts(histogram, 110, 1, 100, 10);
+  UmaHistogramPercentage(histogram, 50);
+  tester.ExpectBucketCount(histogram, 50, 1);
+  tester.ExpectTotalCount(histogram, 2);
+
+  UmaHistogramPercentage(histogram, 100);
+  tester.ExpectBucketCount(histogram, 100, 1);
+  tester.ExpectTotalCount(histogram, 3);
+  // Test overflows.
+  UmaHistogramPercentage(histogram, 101);
   tester.ExpectBucketCount(histogram, 101, 1);
+  tester.ExpectTotalCount(histogram, 4);
+
+  UmaHistogramPercentage(histogram, 500);
+  tester.ExpectBucketCount(histogram, 101, 2);
   tester.ExpectTotalCount(histogram, 5);
 }
 
+TEST(HistogramFunctionsTest, Counts) {
+  std::string histogram("Testing.UMA.HistogramCount.Custom");
+  HistogramTester tester;
+
+  // Add a sample that should go into the underflow bucket.
+  UmaHistogramCustomCounts(histogram, 0, 1, 100, 10);
+
+  // Add a sample that should go into the first bucket.
+  UmaHistogramCustomCounts(histogram, 1, 1, 100, 10);
+
+  // Add multiple samples that should go into the same bucket.
+  UmaHistogramCustomCounts(histogram, 20, 1, 100, 10);
+  UmaHistogramCustomCounts(histogram, 20, 1, 100, 10);
+  UmaHistogramCustomCounts(histogram, 21, 1, 100, 10);
+
+  // Add a sample that should go into the last bucket.
+  UmaHistogramCustomCounts(histogram, 99, 1, 100, 10);
+
+  // Add some samples that should go into the overflow bucket.
+  UmaHistogramCustomCounts(histogram, 100, 1, 100, 10);
+  UmaHistogramCustomCounts(histogram, 101, 1, 100, 10);
+
+  // Verify the number of samples.
+  tester.ExpectTotalCount(histogram, 8);
+
+  // Verify the following:
+  // (a) The underflow bucket [0, 1) contains one sample.
+  // (b) The first and last buckets each contain one sample.
+  // (c) The bucket for values in [16, 29) contains three samples.
+  // (d) The overflow bucket contains two samples.
+  EXPECT_THAT(tester.GetAllSamples(histogram),
+              testing::ElementsAre(Bucket(0, 1), Bucket(1, 1), Bucket(16, 3),
+                                   Bucket(54, 1), Bucket(100, 2)));
+}
+
 TEST(HistogramFunctionsTest, Times) {
-  std::unique_ptr<StatisticsRecorder> recorder =
-      StatisticsRecorder::CreateTemporaryForTesting();
   std::string histogram("Testing.UMA.HistogramTimes");
   HistogramTester tester;
-  UmaHistogramTimes(histogram, TimeDelta::FromSeconds(1));
-  tester.ExpectTimeBucketCount(histogram, TimeDelta::FromSeconds(1), 1);
+  UmaHistogramTimes(histogram, Seconds(1));
+  tester.ExpectTimeBucketCount(histogram, Seconds(1), 1);
   tester.ExpectTotalCount(histogram, 1);
-  UmaHistogramTimes(histogram, TimeDelta::FromSeconds(9));
-  tester.ExpectTimeBucketCount(histogram, TimeDelta::FromSeconds(9), 1);
+  UmaHistogramTimes(histogram, Seconds(9));
+  tester.ExpectTimeBucketCount(histogram, Seconds(9), 1);
   tester.ExpectTotalCount(histogram, 2);
-  UmaHistogramTimes(histogram, TimeDelta::FromSeconds(10));  // Overflows
-  tester.ExpectTimeBucketCount(histogram, TimeDelta::FromSeconds(10), 1);
-  UmaHistogramTimes(histogram, TimeDelta::FromSeconds(20));  // Overflows.
+  UmaHistogramTimes(histogram, Seconds(10));  // Overflows
+  tester.ExpectTimeBucketCount(histogram, Seconds(10), 1);
+  UmaHistogramTimes(histogram, Seconds(20));  // Overflows.
   // Check the value by picking any overflow time.
-  tester.ExpectTimeBucketCount(histogram, TimeDelta::FromSeconds(11), 2);
+  tester.ExpectTimeBucketCount(histogram, Seconds(11), 2);
   tester.ExpectTotalCount(histogram, 4);
 }
 
 TEST(HistogramFunctionsTest, Sparse_SupportsLargeRange) {
-  std::unique_ptr<StatisticsRecorder> recorder =
-      StatisticsRecorder::CreateTemporaryForTesting();
   std::string histogram("Testing.UMA.HistogramSparse");
   HistogramTester tester;
   UmaHistogramSparse(histogram, 0);
@@ -133,8 +151,6 @@ TEST(HistogramFunctionsTest, Sparse_SupportsLargeRange) {
 }
 
 TEST(HistogramFunctionsTest, Sparse_SupportsNegativeValues) {
-  std::unique_ptr<StatisticsRecorder> recorder =
-      StatisticsRecorder::CreateTemporaryForTesting();
   std::string histogram("Testing.UMA.HistogramSparse");
   HistogramTester tester;
   UmaHistogramSparse(histogram, -1);

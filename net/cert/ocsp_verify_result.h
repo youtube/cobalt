@@ -1,11 +1,9 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_CERT_OCSP_VERIFY_RESULT_H_
 #define NET_CERT_OCSP_VERIFY_RESULT_H_
-
-#include <string>
 
 #include "net/base/net_export.h"
 #include "net/cert/ocsp_revocation_status.h"
@@ -58,7 +56,11 @@ struct NET_EXPORT OCSPVerifyResult {
 
     // The OCSPResponseData structure could not be parsed.
     PARSE_RESPONSE_DATA_ERROR = 8,
-    RESPONSE_STATUS_MAX = PARSE_RESPONSE_DATA_ERROR
+
+    // Unhandled critical extension in either OCSPResponseData or
+    // OCSPSingleResponse
+    UNHANDLED_CRITICAL_EXTENSION = 9,
+    RESPONSE_STATUS_MAX = UNHANDLED_CRITICAL_EXTENSION
   };
 
   ResponseStatus response_status = NOT_CHECKED;

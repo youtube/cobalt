@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,12 +7,17 @@
 #ifndef NET_QUIC_QUIC_CHROMIUM_CLIENT_STREAM_H_
 #define NET_QUIC_QUIC_CHROMIUM_CLIENT_STREAM_H_
 
+#include <stddef.h>
+
+#include <memory>
 #include <vector>
 
-#include "base/callback_forward.h"
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "net/base/completion_once_callback.h"
+#include "net/base/idempotency.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_data_stream.h"
@@ -20,10 +25,9 @@
 #include "net/http/http_response_info.h"
 #include "net/http/http_stream.h"
 #include "net/log/net_log_with_source.h"
-#include "net/third_party/quic/core/http/quic_spdy_stream.h"
-#include "net/third_party/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quiche/quic/core/http/quic_spdy_stream.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "starboard/types.h"
 
 namespace quic {
 class QuicSpdyClientSessionBase;
@@ -38,18 +42,21 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   // Wrapper for interacting with the session in a restricted fashion.
   class NET_EXPORT_PRIVATE Handle {
    public:
+    Handle(const Handle&) = delete;
+    Handle& operator=(const Handle&) = delete;
+
     ~Handle();
 
     // Returns true if the stream is still connected.
     bool IsOpen() { return stream_ != nullptr; }
 
-    // Reads initial headers into |header_block| and returns the length of
-    // the HEADERS frame which contained them. If headers are not available,
-    // returns ERR_IO_PENDING and will invoke |callback| asynchronously when
-    // the headers arrive.
+    // Reads initial or 103 Early Hints headers into |header_block| and returns
+    // the length of the HEADERS frame which contained them. If headers are not
+    // available, returns ERR_IO_PENDING and will invoke |callback|
+    // asynchronously when the headers arrive.
     // TODO(rch): Invoke |callback| when there is a stream or connection error
     // instead of calling OnClose() or OnError().
-    int ReadInitialHeaders(spdy::SpdyHeaderBlock* header_block,
+    int ReadInitialHeaders(spdy::Http2HeaderBlock* header_block,
                            CompletionOnceCallback callback);
 
     // Reads at most |buffer_len| bytes of body into |buffer| and returns the
@@ -67,7 +74,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
     // the headers arrive.
     // TODO(rch): Invoke |callback| when there is a stream or connection error
     // instead of calling OnClose() or OnError().
-    int ReadTrailingHeaders(spdy::SpdyHeaderBlock* header_block,
+    int ReadTrailingHeaders(spdy::Http2HeaderBlock* header_block,
                             CompletionOnceCallback callback);
 
     // Writes |header_block| to the peer. Closes the write side if |fin| is
@@ -76,9 +83,9 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
     // an error writing the headers, or the number of bytes written on
     // success. Will not return ERR_IO_PENDING.
     int WriteHeaders(
-        spdy::SpdyHeaderBlock header_block,
+        spdy::Http2HeaderBlock header_block,
         bool fin,
-        quic::QuicReferenceCountedPointer<quic::QuicAckListenerInterface>
+        quiche::QuicheReferenceCountedPointer<quic::QuicAckListenerInterface>
             ack_notifier_delegate);
 
     // Writes |data| to the peer. Closes the write side if |fin| is true.
@@ -106,8 +113,8 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
     // stream is open.
     void DisableConnectionMigrationToCellularNetwork();
 
-    // Sets the priority of the stream to |priority|.
-    void SetPriority(spdy::SpdyPriority priority);
+    // Sets the precedence of the stream to |priority|.
+    void SetPriority(const quic::QuicStreamPriority& priority);
 
     // Sends a RST_STREAM frame to the peer and closes the streams.
     void Reset(quic::QuicRstStreamErrorCode error_code);
@@ -124,6 +131,14 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
     bool IsDoneReading() const;
     bool IsFirstStream() const;
 
+    base::TimeTicks first_early_hints_time() const {
+      return first_early_hints_time_;
+    }
+
+    base::TimeTicks headers_received_start_time() const {
+      return headers_received_start_time_;
+    }
+
     // TODO(rch): Move these test-only methods to a peer, or else remove.
     void OnPromiseHeaderList(quic::QuicStreamId promised_id,
                              size_t frame_len,
@@ -132,6 +147,11 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
 
     const NetLogWithSource& net_log() const;
 
+    // Sets the idempotency of the request.
+    void SetRequestIdempotency(Idempotency idempotency);
+    // Returns the idempotency of the request.
+    Idempotency GetRequestIdempotency() const;
+
    private:
     friend class QuicChromiumClientStream;
 
@@ -139,6 +159,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
     explicit Handle(QuicChromiumClientStream* stream);
 
     // Methods invoked by the stream.
+    void OnEarlyHintsAvailable();
     void OnInitialHeadersAvailable();
     void OnTrailingHeadersAvailable();
     void OnDataAvailable();
@@ -159,18 +180,19 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
 
     int HandleIOComplete(int rv);
 
-    QuicChromiumClientStream* stream_;  // Unowned.
+    raw_ptr<QuicChromiumClientStream> stream_;  // Unowned.
 
-    bool may_invoke_callbacks_;  // True when callbacks may be invoked.
+    bool may_invoke_callbacks_ = true;  // True when callbacks may be invoked.
 
-    // Callback to be invoked when ReadHeaders completes asynchronously.
+    // Callback to be invoked when ReadInitialHeaders completes asynchronously.
     CompletionOnceCallback read_headers_callback_;
-    spdy::SpdyHeaderBlock* read_headers_buffer_;
+    // Provided by the owner of this handle when ReadInitialHeaders is called.
+    raw_ptr<spdy::Http2HeaderBlock> read_headers_buffer_ = nullptr;
 
     // Callback to be invoked when ReadBody completes asynchronously.
     CompletionOnceCallback read_body_callback_;
-    IOBuffer* read_body_buffer_;
-    int read_body_buffer_len_;
+    raw_ptr<IOBuffer> read_body_buffer_;
+    int read_body_buffer_len_ = 0;
 
     // Callback to be invoked when WriteStreamData or WritevStreamData completes
     // asynchronously.
@@ -186,14 +208,18 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
     bool is_done_reading_;
     bool is_first_stream_;
     size_t num_bytes_consumed_;
+    Idempotency idempotency_ = DEFAULT_IDEMPOTENCY;
 
-    int net_error_;
+    int net_error_ = ERR_UNEXPECTED;
 
     NetLogWithSource net_log_;
 
-    base::WeakPtrFactory<Handle> weak_factory_;
+    // The time at which the first 103 Early Hints response is received.
+    base::TimeTicks first_early_hints_time_;
 
-    DISALLOW_COPY_AND_ASSIGN(Handle);
+    base::TimeTicks headers_received_start_time_;
+
+    base::WeakPtrFactory<Handle> weak_factory_{this};
   };
 
   QuicChromiumClientStream(
@@ -203,11 +229,13 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
       const NetLogWithSource& net_log,
       const NetworkTrafficAnnotationTag& traffic_annotation);
   QuicChromiumClientStream(
-      quic::PendingStream pending,
+      quic::PendingStream* pending,
       quic::QuicSpdyClientSessionBase* session,
-      quic::StreamType type,
       const NetLogWithSource& net_log,
       const NetworkTrafficAnnotationTag& traffic_annotation);
+
+  QuicChromiumClientStream(const QuicChromiumClientStream&) = delete;
+  QuicChromiumClientStream& operator=(const QuicChromiumClientStream&) = delete;
 
   ~QuicChromiumClientStream() override;
 
@@ -227,9 +255,9 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   void OnClose() override;
   void OnCanWrite() override;
   size_t WriteHeaders(
-      spdy::SpdyHeaderBlock header_block,
+      spdy::Http2HeaderBlock header_block,
       bool fin,
-      quic::QuicReferenceCountedPointer<quic::QuicAckListenerInterface>
+      quiche::QuicheReferenceCountedPointer<quic::QuicAckListenerInterface>
           ack_listener) override;
 
   // While the server's set_priority shouldn't be called externally, the creator
@@ -239,7 +267,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   // Writes |data| to the peer and closes the write side if |fin| is true.
   // Returns true if the data have been fully written. If the data was not fully
   // written, returns false and OnCanWrite() will be invoked later.
-  bool WriteStreamData(quic::QuicStringPiece data, bool fin);
+  bool WriteStreamData(absl::string_view data, bool fin);
   // Same as WriteStreamData except it writes data from a vector of IOBuffers,
   // with the length of each buffer at the corresponding index in |lengths|.
   bool WritevStreamData(const std::vector<scoped_refptr<IOBuffer>>& buffers,
@@ -252,6 +280,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   // Clears |handle_| from this stream.
   void ClearHandle();
 
+  // Notifies the stream handle of error, but doesn't close the stream.
   void OnError(int error);
 
   // Reads at most |buf_len| bytes into |buf|. Returns the number of bytes read.
@@ -270,10 +299,11 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   // True if this stream is the first data stream created on this session.
   bool IsFirstStream();
 
-  bool DeliverInitialHeaders(spdy::SpdyHeaderBlock* header_block,
-                             int* frame_len);
+  int DeliverEarlyHints(spdy::Http2HeaderBlock* header_block);
 
-  bool DeliverTrailingHeaders(spdy::SpdyHeaderBlock* header_block,
+  int DeliverInitialHeaders(spdy::Http2HeaderBlock* header_block);
+
+  bool DeliverTrailingHeaders(spdy::Http2HeaderBlock* header_block,
                               int* frame_len);
 
   using quic::QuicSpdyStream::HasBufferedData;
@@ -288,31 +318,45 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   void NotifyHandleOfDataAvailable();
 
   NetLogWithSource net_log_;
-  Handle* handle_;
-
-  bool headers_delivered_;
+  raw_ptr<Handle> handle_ = nullptr;
 
   // True when initial headers have been sent.
-  bool initial_headers_sent_;
+  bool initial_headers_sent_ = false;
 
-  quic::QuicSpdyClientSessionBase* session_;
+  raw_ptr<quic::QuicSpdyClientSessionBase> session_;
   quic::QuicTransportVersion quic_version_;
 
   // Set to false if this stream should not be migrated to a cellular network
   // during connection migration.
-  bool can_migrate_to_cellular_network_;
+  bool can_migrate_to_cellular_network_ = true;
 
-  // Stores the initial header if they arrive before the handle.
-  spdy::SpdyHeaderBlock initial_headers_;
+  // True if non-informational (non-1xx) initial headers have arrived.
+  bool initial_headers_arrived_ = false;
+  // True if non-informational (non-1xx) initial headers have been delivered to
+  // the handle.
+  bool headers_delivered_ = false;
+  // Stores the initial header until they are delivered to the handle.
+  spdy::Http2HeaderBlock initial_headers_;
   // Length of the HEADERS frame containing initial headers.
-  size_t initial_headers_frame_len_;
+  size_t initial_headers_frame_len_ = 0;
 
   // Length of the HEADERS frame containing trailing headers.
-  size_t trailing_headers_frame_len_;
+  size_t trailing_headers_frame_len_ = 0;
 
-  base::WeakPtrFactory<QuicChromiumClientStream> weak_factory_;
+  struct EarlyHints {
+    EarlyHints(spdy::Http2HeaderBlock headers, size_t frame_len)
+        : headers(std::move(headers)), frame_len(frame_len) {}
+    EarlyHints(EarlyHints&& other) = default;
+    EarlyHints& operator=(EarlyHints&& other) = default;
+    EarlyHints(const EarlyHints& other) = delete;
+    EarlyHints& operator=(const EarlyHints& other) = delete;
 
-  DISALLOW_COPY_AND_ASSIGN(QuicChromiumClientStream);
+    spdy::Http2HeaderBlock headers;
+    size_t frame_len = 0;
+  };
+  base::circular_deque<EarlyHints> early_hints_;
+
+  base::WeakPtrFactory<QuicChromiumClientStream> weak_factory_{this};
 };
 
 }  // namespace net

@@ -32,7 +32,7 @@ DebugDispatcher::DebugDispatcher(script::ScriptDebugger* script_debugger,
                                  DebugScriptRunner* script_runner)
     : script_debugger_(script_debugger),
       script_runner_(script_runner),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       is_paused_(false),
       // No manual reset, not initially signaled.
       command_added_while_paused_(
@@ -212,18 +212,18 @@ JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
   std::string json_result;
   bool success = script_runner_->RunCommand(method, json_params, &json_result);
 
-  JSONObject response(new base::DictionaryValue());
+  JSONObject response(std::make_unique<base::Value::Dict>());
   if (success) {
     JSONObject result = JSONParse(json_result);
     if (result) {
-      response->Set("result", std::unique_ptr<base::Value>(result.release()));
+      response->Set("result", std::move(*result.release()));
     }
   } else if (json_result.empty()) {
     // Unimplemented commands aren't successful, and |json_result| is empty.
     response.reset();
   } else {
     // On error, |json_result| is the error message.
-    response->SetString("error.message", json_result);
+    response->Set("error.message", json_result);
   }
   return response;
 }

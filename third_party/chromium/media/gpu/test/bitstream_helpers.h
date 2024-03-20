@@ -5,7 +5,7 @@
 #ifndef MEDIA_GPU_TEST_BITSTREAM_HELPERS_H_
 #define MEDIA_GPU_TEST_BITSTREAM_HELPERS_H_
 
-#include "base/callback_forward.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "media/video/video_encode_accelerator.h"
 

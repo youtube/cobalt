@@ -1,17 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_STREAM_PARSER_H_
 #define NET_HTTP_HTTP_STREAM_PARSER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_piece.h"
+#include "base/time/time.h"
 #include "crypto/ec_private_key.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/completion_repeating_callback.h"
@@ -19,11 +23,9 @@
 #include "net/base/net_export.h"
 #include "net/log/net_log_with_source.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "starboard/types.h"
 
 namespace net {
 
-class ClientSocketHandle;
 class DrainableIOBuffer;
 class GrowableIOBuffer;
 class HttpChunkedDecoder;
@@ -33,28 +35,32 @@ class HttpResponseInfo;
 class IOBuffer;
 class SSLCertRequestInfo;
 class SSLInfo;
+class StreamSocket;
 class UploadDataStream;
 
 class NET_EXPORT_PRIVATE HttpStreamParser {
  public:
+  // |connection_is_reused| must be |true| if |stream_socket| has previously
+  // been used successfully for an HTTP/1.x request.
+  //
   // Any data in |read_buffer| will be used before reading from the socket
   // and any data left over after parsing the stream will be put into
   // |read_buffer|.  The left over data will start at offset 0 and the
   // buffer's offset will be set to the first free byte. |read_buffer| may
   // have its capacity changed.
-  HttpStreamParser(ClientSocketHandle* connection,
+  //
+  // It is not safe to call into the HttpStreamParser after destroying the
+  // |stream_socket|.
+  HttpStreamParser(StreamSocket* stream_socket,
+                   bool connection_is_reused,
                    const HttpRequestInfo* request,
                    GrowableIOBuffer* read_buffer,
                    const NetLogWithSource& net_log);
-  virtual ~HttpStreamParser();
 
-  // Sets whether or not HTTP/0.9 is only allowed on default ports. It's not
-  // allowed, by default.
-  void set_http_09_on_non_default_ports_enabled(
-      bool http_09_on_non_default_ports_enabled) {
-    http_09_on_non_default_ports_enabled_ =
-        http_09_on_non_default_ports_enabled;
-  }
+  HttpStreamParser(const HttpStreamParser&) = delete;
+  HttpStreamParser& operator=(const HttpStreamParser&) = delete;
+
+  virtual ~HttpStreamParser();
 
   // These functions implement the interface described in HttpStream with
   // some additional functionality
@@ -64,23 +70,19 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
                   HttpResponseInfo* response,
                   CompletionOnceCallback callback);
 
+  int ConfirmHandshake(CompletionOnceCallback callback);
+
   int ReadResponseHeaders(CompletionOnceCallback callback);
 
   int ReadResponseBody(IOBuffer* buf,
                        int buf_len,
                        CompletionOnceCallback callback);
 
-  void Close(bool not_reusable);
-
   bool IsResponseBodyComplete() const;
 
   bool CanFindEndOfResponse() const;
 
   bool IsMoreDataBuffered() const;
-
-  bool IsConnectionReused() const;
-
-  void SetConnectionReused();
 
   // Returns true if the underlying connection can be reused.
   // The connection can be reused if:
@@ -93,9 +95,20 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   // false.
   bool CanReuseConnection() const;
 
+  // Called when stream is closed.
+  void OnConnectionClose();
+
   int64_t received_bytes() const { return received_bytes_; }
 
   int64_t sent_bytes() const { return sent_bytes_; }
+
+  base::TimeTicks first_response_start_time() const {
+    return first_response_start_time_;
+  }
+  base::TimeTicks non_informational_response_start_time() const {
+    return non_informational_response_start_time_;
+  }
+  base::TimeTicks first_early_hints_time() { return first_early_hints_time_; }
 
   void GetSSLInfo(SSLInfo* ssl_info);
 
@@ -109,7 +122,7 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   //
   // The output will look like: "HEX\r\n[payload]\r\n"
   // where HEX is a length in hexdecimal (without the "0x" prefix).
-  static int EncodeChunk(const base::StringPiece& payload,
+  static int EncodeChunk(base::StringPiece payload,
                          char* output,
                          size_t output_size);
 
@@ -178,6 +191,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   // This handles most of the logic for DoReadHeadersComplete.
   int HandleReadHeaderResult(int result);
 
+  void RunConfirmHandshakeCallback(int rv);
+
   // Examines |read_buf_| to find the start and end of the headers. If they are
   // found, parse them with DoParseResponseHeaders().  Return the offset for
   // the end of the headers, or -1 if the complete headers were not found, or
@@ -199,20 +214,17 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   bool SendRequestBuffersEmpty();
 
   // Next state of the request, when the current one completes.
-  State io_state_;
+  State io_state_ = STATE_NONE;
 
   // Null when read state machine is invoked.
-  const HttpRequestInfo* request_;
+  raw_ptr<const HttpRequestInfo, DanglingUntriaged> request_;
 
   // The request header data.  May include a merged request body.
   scoped_refptr<DrainableIOBuffer> request_headers_;
 
   // Size of just the request headers.  May be less than the length of
   // |request_headers_| if the body was merged with the headers.
-  int request_headers_length_;
-
-  // True if HTTP/0.9 should be permitted on non-default ports.
-  bool http_09_on_non_default_ports_enabled_;
+  int request_headers_length_ = 0;
 
   // Temporary buffer for reading.
   scoped_refptr<GrowableIOBuffer> read_buf_;
@@ -220,49 +232,83 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   // Offset of the first unused byte in |read_buf_|.  May be nonzero due to
   // body data in the same packet as header data but is zero when reading
   // headers.
-  int read_buf_unused_offset_;
+  int read_buf_unused_offset_ = 0;
 
   // The amount beyond |read_buf_unused_offset_| where the status line starts;
-  // -1 if not found yet.
-  int response_header_start_offset_;
+  // std::string::npos if not found yet.
+  size_t response_header_start_offset_;
 
   // The amount of received data.  If connection is reused then intermediate
   // value may be bigger than final.
-  int64_t received_bytes_;
+  int64_t received_bytes_ = 0;
 
   // The amount of sent data.
-  int64_t sent_bytes_;
+  int64_t sent_bytes_ = 0;
 
   // The parsed response headers.  Owned by the caller of SendRequest.   This
   // cannot be safely accessed after reading the final set of headers, as the
   // caller of SendRequest may have been destroyed - this happens in the case an
   // HttpResponseBodyDrainer is used.
-  HttpResponseInfo* response_;
+  raw_ptr<HttpResponseInfo, DanglingUntriaged> response_ = nullptr;
+
+  // Time at which the first bytes of the first header response including
+  // informational responses (1xx) are about to be parsed. This corresponds to
+  // |LoadTimingInfo::receive_headers_start|. See also comments there.
+  base::TimeTicks first_response_start_time_;
+
+  // Time at which the first bytes of the current header response are about to
+  // be parsed. This is reset every time new response headers including
+  // non-informational responses (1xx) are parsed.
+  base::TimeTicks current_response_start_time_;
+
+  // Time at which the first byte of the non-informational header response
+  // (non-1xx) are about to be parsed. This corresponds to
+  // |LoadTimingInfo::receive_non_informational_headers_start|. See also
+  // comments there.
+  base::TimeTicks non_informational_response_start_time_;
+
+  // Time at which the first 103 Early Hints response is received. This
+  // corresponds to |LoadTimingInfo::first_early_hints_time|.
+  base::TimeTicks first_early_hints_time_;
 
   // Indicates the content length.  If this value is less than zero
   // (and chunked_decoder_ is null), then we must read until the server
   // closes the connection.
-  int64_t response_body_length_;
+  int64_t response_body_length_ = -1;
 
   // True if reading a keep-alive response. False if not, or if don't yet know.
-  bool response_is_keep_alive_;
+  bool response_is_keep_alive_ = false;
+
+  // True if we've seen a response that has an HTTP status line. This is
+  // persistent across multiple response parsing. If we see a status line
+  // for a response, this will remain true forever.
+  bool has_seen_status_line_ = false;
 
   // Keep track of the number of response body bytes read so far.
-  int64_t response_body_read_;
+  int64_t response_body_read_ = 0;
 
   // Helper if the data is chunked.
   std::unique_ptr<HttpChunkedDecoder> chunked_decoder_;
 
   // Where the caller wants the body data.
   scoped_refptr<IOBuffer> user_read_buf_;
-  int user_read_buf_len_;
+  int user_read_buf_len_ = 0;
+
+  // The callback to notify a user that the handshake has been confirmed.
+  CompletionOnceCallback confirm_handshake_callback_;
 
   // The callback to notify a user that their request or response is
   // complete or there was an error
   CompletionOnceCallback callback_;
 
-  // The underlying socket.
-  ClientSocketHandle* const connection_;
+  // The underlying socket, owned by the caller. The HttpStreamParser must be
+  // destroyed before the caller destroys the socket, or relinquishes ownership
+  // of it.
+  raw_ptr<StreamSocket, DanglingUntriaged> stream_socket_;
+
+  // Whether the socket has already been used. Only used in HTTP/0.9 detection
+  // logic.
+  const bool connection_is_reused_;
 
   NetLogWithSource net_log_;
 
@@ -274,16 +320,14 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   // Buffer used to send the request body. This points the same buffer as
   // |request_body_read_buf_| unless the data is chunked.
   scoped_refptr<SeekableIOBuffer> request_body_send_buf_;
-  bool sent_last_chunk_;
+  bool sent_last_chunk_ = false;
 
   // Error received when uploading the body, if any.
-  int upload_error_;
+  int upload_error_ = OK;
 
   MutableNetworkTrafficAnnotationTag traffic_annotation_;
 
-  base::WeakPtrFactory<HttpStreamParser> weak_ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(HttpStreamParser);
+  base::WeakPtrFactory<HttpStreamParser> weak_ptr_factory_{this};
 };
 
 }  // namespace net

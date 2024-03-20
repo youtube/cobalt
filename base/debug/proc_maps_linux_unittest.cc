@@ -1,15 +1,17 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/debug/proc_maps_linux.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
 #include "base/files/file_path.h"
-#include "base/macros.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -170,7 +172,7 @@ TEST(ProcMapsTest, Permissions) {
          MappedMemoryRegion::EXECUTE | MappedMemoryRegion::PRIVATE},
   };
 
-  for (size_t i = 0; i < arraysize(kTestCases); ++i) {
+  for (size_t i = 0; i < std::size(kTestCases); ++i) {
     SCOPED_TRACE(
         base::StringPrintf("kTestCases[%zu] = %s", i, kTestCases[i].input));
 
@@ -183,18 +185,14 @@ TEST(ProcMapsTest, Permissions) {
   }
 }
 
-#if defined(ADDRESS_SANITIZER)
 // AddressSanitizer may move local variables to a dedicated "fake stack" which
 // is outside the stack region listed in /proc/self/maps. We disable ASan
 // instrumentation for this function to force the variable to be local.
-__attribute__((no_sanitize_address))
-#endif
-#if HAS_FEATURE(safe_stack)
-// SafeStack places address-taken variables on the unsafe stack, but the default
-// stack region in /proc/self/maps is the safe stack.
-__attribute__((no_sanitize("safe-stack")))
-#endif
-void CheckProcMapsRegions(const std::vector<MappedMemoryRegion> &regions) {
+//
+// Similarly, HWAddressSanitizer may add a tag to all stack pointers which may
+// move it outside of the stack regions in /proc/self/maps.
+__attribute__((no_sanitize("address", "hwaddress"))) void CheckProcMapsRegions(
+    const std::vector<MappedMemoryRegion>& regions) {
   // We should be able to find both the current executable as well as the stack
   // mapped into memory. Use the address of |exe_path| as a way of finding the
   // stack.
@@ -205,29 +203,29 @@ void CheckProcMapsRegions(const std::vector<MappedMemoryRegion> &regions) {
   bool found_stack = false;
   bool found_address = false;
 
-  for (size_t i = 0; i < regions.size(); ++i) {
-    if (regions[i].path == exe_path.value()) {
+  for (const auto& i : regions) {
+    if (i.path == exe_path.value()) {
       // It's OK to find the executable mapped multiple times as there'll be
       // multiple sections (e.g., text, data).
       found_exe = true;
     }
 
-    if (regions[i].path == "[stack]") {
+    if (i.path == "[stack]") {
 // On Android the test is run on a background thread, since [stack] is for
 // the main thread, we cannot test this.
-#if !defined(OS_ANDROID)
-      EXPECT_GE(address, regions[i].start);
-      EXPECT_LT(address, regions[i].end);
+#if !BUILDFLAG(IS_ANDROID)
+      EXPECT_GE(address, i.start);
+      EXPECT_LT(address, i.end);
 #endif
-      EXPECT_TRUE(regions[i].permissions & MappedMemoryRegion::READ);
-      EXPECT_TRUE(regions[i].permissions & MappedMemoryRegion::WRITE);
-      EXPECT_FALSE(regions[i].permissions & MappedMemoryRegion::EXECUTE);
-      EXPECT_TRUE(regions[i].permissions & MappedMemoryRegion::PRIVATE);
+      EXPECT_TRUE(i.permissions & MappedMemoryRegion::READ);
+      EXPECT_TRUE(i.permissions & MappedMemoryRegion::WRITE);
+      EXPECT_FALSE(i.permissions & MappedMemoryRegion::EXECUTE);
+      EXPECT_TRUE(i.permissions & MappedMemoryRegion::PRIVATE);
       EXPECT_FALSE(found_stack) << "Found duplicate stacks";
       found_stack = true;
     }
 
-    if (address >= regions[i].start && address < regions[i].end) {
+    if (address >= i.start && address < i.end) {
       EXPECT_FALSE(found_address) << "Found same address in multiple regions";
       found_address = true;
     }
@@ -271,7 +269,7 @@ TEST(ProcMapsTest, MissingFields) {
     "00400000-0040b000 r-xp 00000000 794418 /bin/cat\n",   // Missing device.
   };
 
-  for (size_t i = 0; i < arraysize(kTestCases); ++i) {
+  for (size_t i = 0; i < std::size(kTestCases); ++i) {
     SCOPED_TRACE(base::StringPrintf("kTestCases[%zu] = %s", i, kTestCases[i]));
     std::vector<MappedMemoryRegion> regions;
     EXPECT_FALSE(ParseProcMaps(kTestCases[i], &regions));
@@ -288,7 +286,7 @@ TEST(ProcMapsTest, InvalidInput) {
     "00400000-0040b000 rwxp 00000000 fc:00 parse! /bin/cat\n",
   };
 
-  for (size_t i = 0; i < arraysize(kTestCases); ++i) {
+  for (size_t i = 0; i < std::size(kTestCases); ++i) {
     SCOPED_TRACE(base::StringPrintf("kTestCases[%zu] = %s", i, kTestCases[i]));
     std::vector<MappedMemoryRegion> regions;
     EXPECT_FALSE(ParseProcMaps(kTestCases[i], &regions));

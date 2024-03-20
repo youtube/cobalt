@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,19 +6,19 @@
 
 #include <Security/Security.h>
 
+#include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/logging.h"
 #include "base/mac/mac_logging.h"
-#include "base/message_loop/message_loop.h"
-#include "base/message_loop/message_loop_current.h"
-#include "base/observer_list_threadsafe.h"
+#include "base/memory/raw_ptr.h"
+#include "base/notreached.h"
 #include "base/process/process_handle.h"
-#include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
+#include "base/task/current_thread.h"
+#include "base/task/single_thread_task_runner.h"
 #include "crypto/mac_security_services_lock.h"
 #include "net/base/net_errors.h"
 #include "net/cert/x509_certificate.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -29,17 +29,21 @@ class CertDatabase::Notifier {
   // Creates a new Notifier that will forward Keychain events to |cert_db|.
   // |message_loop| must refer to a thread with an associated CFRunLoop - a
   // TYPE_UI thread. Events will be dispatched from this message loop.
-  Notifier(CertDatabase* cert_db, base::MessageLoop* message_loop)
-      : cert_db_(cert_db),
-        registered_(false),
-        called_shutdown_(false) {
+  Notifier(CertDatabase* cert_db,
+           scoped_refptr<base::SingleThreadTaskRunner> task_runner)
+      : cert_db_(cert_db), task_runner_(std::move(task_runner)) {
     // Ensure an associated CFRunLoop.
-    DCHECK(base::MessageLoopForUI::IsCurrent());
-    task_runner_ = message_loop->task_runner();
-    task_runner_->PostTask(FROM_HERE,
-                           base::Bind(&Notifier::Init,
-                                      base::Unretained(this)));
+    DCHECK(base::CurrentUIThread::IsSet());
+    DCHECK(task_runner_->BelongsToCurrentThread());
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&Notifier::Init, base::Unretained(this)));
   }
+
+// Much of the Keychain API was marked deprecated as of the macOS 13 SDK.
+// Removal of its use is tracked in https://crbug.com/1348251 but deprecation
+// warnings are disabled in the meanwhile.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
   // Should be called from the |task_runner_|'s sequence. Use Shutdown()
   // to shutdown on arbitrary sequence.
@@ -49,6 +53,8 @@ class CertDatabase::Notifier {
     if (registered_ && task_runner_->RunsTasksInCurrentSequence())
       SecKeychainRemoveCallback(&Notifier::KeychainCallback);
   }
+
+#pragma clang diagnostic pop
 
   void Shutdown() {
     called_shutdown_ = true;
@@ -60,6 +66,12 @@ class CertDatabase::Notifier {
     }
   }
 
+// Much of the Keychain API was marked deprecated as of the macOS 13 SDK.
+// Removal of its use is tracked in https://crbug.com/1348251 but deprecation
+// warnings are disabled in the meanwhile.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
  private:
   void Init() {
     SecKeychainEventMask event_mask =
@@ -70,16 +82,18 @@ class CertDatabase::Notifier {
       registered_ = true;
   }
 
+#pragma clang diagnostic pop
+
   // SecKeychainCallback function that receives notifications from securityd
   // and forwards them to the |cert_db_|.
   static OSStatus KeychainCallback(SecKeychainEvent keychain_event,
                                    SecKeychainCallbackInfo* info,
                                    void* context);
 
-  CertDatabase* const cert_db_;
+  const raw_ptr<CertDatabase> cert_db_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-  bool registered_;
-  bool called_shutdown_;
+  bool registered_ = false;
+  bool called_shutdown_ = false;
 };
 
 // static
@@ -116,9 +130,10 @@ OSStatus CertDatabase::Notifier::KeychainCallback(
   return errSecSuccess;
 }
 
-void CertDatabase::SetMessageLoopForKeychainEvents() {
+void CertDatabase::StartListeningForKeychainEvents() {
   ReleaseNotifier();
-  notifier_ = new Notifier(this, base::MessageLoopCurrentForUI::Get());
+  notifier_ =
+      new Notifier(this, base::SingleThreadTaskRunner::GetCurrentDefault());
 }
 
 void CertDatabase::ReleaseNotifier() {

@@ -54,7 +54,7 @@ class SHA1EntropyProvider : public base::FieldTrial::EntropyProvider {
   ~SHA1EntropyProvider() override;
 
   // base::FieldTrial::EntropyProvider implementation:
-  double GetEntropyForTrial(const std::string& trial_name,
+  double GetEntropyForTrial(base::StringPiece trial_name,
                             uint32_t randomization_seed) const override;
 
  private:
@@ -77,7 +77,7 @@ class PermutedEntropyProvider : public base::FieldTrial::EntropyProvider {
   ~PermutedEntropyProvider() override;
 
   // base::FieldTrial::EntropyProvider implementation:
-  double GetEntropyForTrial(const std::string& trial_name,
+  double GetEntropyForTrial(base::StringPiece trial_name,
                             uint32_t randomization_seed) const override;
 
  protected:

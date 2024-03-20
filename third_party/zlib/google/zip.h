@@ -51,7 +51,7 @@ class FileAccessor {
 class ZipParams {
  public:
   ZipParams(const base::FilePath& src_dir, const base::FilePath& dest_file);
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
   // Does not take ownership of |dest_fd|.
   ZipParams(const base::FilePath& src_dir, int dest_fd);
 
@@ -95,7 +95,7 @@ class ZipParams {
   base::FilePath src_dir_;
 
   base::FilePath dest_file_;
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
   int dest_fd_ = base::kInvalidPlatformFile;
 #endif
 

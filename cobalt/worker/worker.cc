@@ -19,7 +19,8 @@
 
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/task_runner.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/script/environment_settings.h"
@@ -177,7 +178,7 @@ void Worker::Obtain() {
   DCHECK(web_context_->environment_settings());
   const GURL& url = web_context_->environment_settings()->creation_url();
   DCHECK(!url.is_empty());
-  loader::Origin origin = loader::Origin(url.GetOrigin());
+  loader::Origin origin = loader::Origin(url.DeprecatedGetOriginAsURL());
 
   DCHECK(options_.outside_context);
 
@@ -202,7 +203,7 @@ void Worker::Obtain() {
 
 void Worker::SendErrorEventToOutside(const std::string& message) {
   LOG(WARNING) << "Worker loading failed : " << message;
-  options_.outside_context->message_loop()->task_runner()->PostTask(
+  options_.outside_context->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(
           [](base::WeakPtr<web::EventTarget> event_target,

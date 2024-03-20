@@ -43,7 +43,7 @@ PerformanceEntryList FilterBufferByNameAndType(
     // 2.2  If type is not null and entryObject's type attribute does not
     // match type in a case-sensitive manner, go to next entryObject.
     const PerformanceEntry::EntryType type =
-        PerformanceEntry::ToEntryTypeEnum(entry_type.as_string());
+        PerformanceEntry::ToEntryTypeEnum(std::string(entry_type));
     bool is_entry_type_not_valid =
         type != PerformanceEntry::kInvalid && type != entry->EntryTypeEnum();
     if (is_entry_type_not_valid) {

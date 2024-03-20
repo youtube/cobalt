@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>  // for std::move
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/document.h"
@@ -40,7 +40,7 @@ HTMLImageElement::HTMLImageElement(script::EnvironmentSettings* env_settings)
                       ->window()
                       ->document()
                       .get(),
-                  base::Token(kTagName)) {}
+                  base_token::Token(kTagName)) {}
 
 void HTMLImageElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
   if (!cached_image_loaded_callback_handler_) {
@@ -81,7 +81,7 @@ void HTMLImageElement::OnRemoveAttribute(const std::string& name) {
 // Algorithm for UpdateTheImageData:
 //   https://www.w3.org/TR/html50/embedded-content-0.html#update-the-image-data
 void HTMLImageElement::UpdateImageData() {
-  DCHECK(base::MessageLoop::current());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(node_document());
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::UpdateImageData()");
 
@@ -203,7 +203,7 @@ void HTMLImageElement::OnLoadingError() {
 }
 
 void HTMLImageElement::PreventGarbageCollectionUntilEventIsDispatched(
-    base::Token event_name) {
+    base_token::Token event_name) {
   std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_event_dispatch(
           new script::GlobalEnvironment::ScopedPreventGarbageCollection(
@@ -214,7 +214,7 @@ void HTMLImageElement::PreventGarbageCollectionUntilEventIsDispatched(
 }
 
 void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
-    base::Token event_name,
+    base_token::Token event_name,
     std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
         scoped_prevent_gc) {
   PostToDispatchEventNameAndRunCallback(

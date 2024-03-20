@@ -61,17 +61,17 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
   //     d1
   //     d2
   scoped_refptr<Node> a1 =
-      node->AppendChild(new Element(document, base::Token("a1")));
+      node->AppendChild(new Element(document, base_token::Token("a1")));
   scoped_refptr<Node> a2 =
-      node->AppendChild(new Element(document, base::Token("a2")));
+      node->AppendChild(new Element(document, base_token::Token("a2")));
   scoped_refptr<Node> b1 =
-      a1->AppendChild(new Element(document, base::Token("b1")));
+      a1->AppendChild(new Element(document, base_token::Token("b1")));
   scoped_refptr<Node> c1 =
-      b1->AppendChild(new Element(document, base::Token("c1")));
+      b1->AppendChild(new Element(document, base_token::Token("c1")));
   scoped_refptr<Node> d1 =
-      a2->AppendChild(new Element(document, base::Token("d1")));
+      a2->AppendChild(new Element(document, base_token::Token("d1")));
   scoped_refptr<Node> d2 =
-      a2->AppendChild(new Element(document, base::Token("d2")));
+      a2->AppendChild(new Element(document, base_token::Token("d2")));
 
   scoped_refptr<HTMLCollection> collection =
       node->GetElementsByClassName("class");
@@ -158,19 +158,24 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   //   a3
   //     d1
   HTMLElementFactory html_element_factory;
-  html_element_factory.CreateHTMLElement(document, base::Token("a1"));
+  html_element_factory.CreateHTMLElement(document, base_token::Token("a1"));
 
-  scoped_refptr<Node> a1 = node->AppendChild(
-      html_element_factory.CreateHTMLElement(document, base::Token("a1")));
+  scoped_refptr<Node> a1 =
+      node->AppendChild(html_element_factory.CreateHTMLElement(
+          document, base_token::Token("a1")));
 
-  scoped_refptr<Node> a3 = node->AppendChild(
-      html_element_factory.CreateHTMLElement(document, base::Token("a2")));
-  scoped_refptr<Node> b1 = a1->AppendChild(
-      html_element_factory.CreateHTMLElement(document, base::Token("b1")));
-  scoped_refptr<Node> c1 = b1->AppendChild(
-      html_element_factory.CreateHTMLElement(document, base::Token("element")));
-  scoped_refptr<Node> d1 = a3->AppendChild(
-      html_element_factory.CreateHTMLElement(document, base::Token("element")));
+  scoped_refptr<Node> a3 =
+      node->AppendChild(html_element_factory.CreateHTMLElement(
+          document, base_token::Token("a2")));
+  scoped_refptr<Node> b1 =
+      a1->AppendChild(html_element_factory.CreateHTMLElement(
+          document, base_token::Token("b1")));
+  scoped_refptr<Node> c1 =
+      b1->AppendChild(html_element_factory.CreateHTMLElement(
+          document, base_token::Token("element")));
+  scoped_refptr<Node> d1 =
+      a3->AppendChild(html_element_factory.CreateHTMLElement(
+          document, base_token::Token("element")));
 
   // GetElementsByTagName should return all elements when provided with
   // parameter "*".
@@ -201,9 +206,10 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   EXPECT_EQ(d1, collection->NamedItem("id"));
 
   // Add a new node with a matching tag.
-  scoped_refptr<Node> a2 = node->InsertBefore(
-      html_element_factory.CreateHTMLElement(document, base::Token("element")),
-      a3);
+  scoped_refptr<Node> a2 =
+      node->InsertBefore(html_element_factory.CreateHTMLElement(
+                             document, base_token::Token("element")),
+                         a3);
   EXPECT_EQ(3, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(a2, collection->Item(1));

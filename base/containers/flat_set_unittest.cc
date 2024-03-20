@@ -1,13 +1,11 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/containers/flat_set.h"
 
 #include <string>
-#include <vector>
 
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/test/move_only_int.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -20,6 +18,23 @@
 using ::testing::ElementsAre;
 
 namespace base {
+
+namespace {
+
+class ImplicitInt {
+ public:
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  ImplicitInt(int data) : data_(data) {}
+
+ private:
+  friend bool operator<(const ImplicitInt& lhs, const ImplicitInt& rhs) {
+    return lhs.data_ < rhs.data_;
+  }
+
+  int data_;
+};
+
+}  // namespace
 
 TEST(FlatSet, IncompleteType) {
   struct A {
@@ -38,16 +53,15 @@ TEST(FlatSet, IncompleteType) {
 TEST(FlatSet, RangeConstructor) {
   flat_set<int>::value_type input_vals[] = {1, 1, 1, 2, 2, 2, 3, 3, 3};
 
-  flat_set<int> cont(std::begin(input_vals), std::end(input_vals),
-                     base::KEEP_FIRST_OF_DUPES);
+  flat_set<int> cont(std::begin(input_vals), std::end(input_vals));
   EXPECT_THAT(cont, ElementsAre(1, 2, 3));
 }
 
 TEST(FlatSet, MoveConstructor) {
   int input_range[] = {1, 2, 3, 4};
 
-  flat_set<MoveOnlyInt> original(std::begin(input_range), std::end(input_range),
-                                 base::KEEP_FIRST_OF_DUPES);
+  flat_set<MoveOnlyInt> original(std::begin(input_range),
+                                 std::end(input_range));
   flat_set<MoveOnlyInt> moved(std::move(original));
 
   EXPECT_EQ(1U, moved.count(MoveOnlyInt(1)));
@@ -57,7 +71,7 @@ TEST(FlatSet, MoveConstructor) {
 }
 
 TEST(FlatSet, InitializerListConstructor) {
-  flat_set<int> cont({1, 2, 3, 4, 5, 6, 10, 8}, KEEP_FIRST_OF_DUPES);
+  flat_set<int> cont({1, 2, 3, 4, 5, 6, 10, 8});
   EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4, 5, 6, 8, 10));
 }
 
@@ -103,6 +117,8 @@ TEST(FlatSet, UsingTransparentCompare) {
   s1.count(x);
   s.find(x);
   s1.find(x);
+  s.contains(x);
+  s1.contains(x);
   s.equal_range(x);
   s1.equal_range(x);
   s.lower_bound(x);
@@ -115,10 +131,28 @@ TEST(FlatSet, UsingTransparentCompare) {
   s.emplace(0);
   s.emplace(1);
   s.erase(s.begin());
-#if !defined(STARBOARD)
-  // Raspi compiler does not support erasing const iterator.
   s.erase(s.cbegin());
-#endif
+}
+
+TEST(FlatSet, UsingInitializerList) {
+  base::flat_set<ImplicitInt> s;
+  const auto& s1 = s;
+
+  // Check if the calls can be resolved. Correctness is checked in flat_tree
+  // tests.
+  s.count({1});
+  s1.count({2});
+  s.find({3});
+  s1.find({4});
+  s.contains({5});
+  s1.contains({6});
+  s.equal_range({7});
+  s1.equal_range({8});
+  s.lower_bound({9});
+  s1.lower_bound({10});
+  s.upper_bound({11});
+  s1.upper_bound({12});
+  s.erase({13});
 }
 
 }  // namespace base

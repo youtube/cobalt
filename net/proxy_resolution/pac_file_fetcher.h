@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,13 @@
 // script. It is specific to fetching a PAC script; enforces timeout, max-size,
 // status code.
 
-#ifndef NET_PROXY_PAC_FILE_FETCHER_H_
-#define NET_PROXY_PAC_FILE_FETCHER_H_
+#ifndef NET_PROXY_RESOLUTION_PAC_FILE_FETCHER_H_
+#define NET_PROXY_RESOLUTION_PAC_FILE_FETCHER_H_
 
-#include "base/strings/string16.h"
+#include <string>
+
 #include "net/base/completion_once_callback.h"
+#include "net/base/isolation_info.h"
 #include "net/base/net_export.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
@@ -24,8 +26,12 @@ class URLRequestContext;
 // timeouts, maximum size constraints, content encoding, etc..
 class NET_EXPORT_PRIVATE PacFileFetcher {
  public:
+  PacFileFetcher();
+  PacFileFetcher(const PacFileFetcher&) = delete;
+  PacFileFetcher& operator=(const PacFileFetcher&) = delete;
+
   // Destruction should cancel any outstanding requests.
-  virtual ~PacFileFetcher() {}
+  virtual ~PacFileFetcher();
 
   // Downloads the given PAC URL, and invokes |callback| on completion.
   // Returns OK on success, otherwise the error code. If the return code is
@@ -38,7 +44,7 @@ class NET_EXPORT_PRIVATE PacFileFetcher {
   //
   //    ERR_TIMED_OUT         -- the fetch took too long to complete.
   //    ERR_FILE_TOO_BIG      -- the response's body was too large.
-  //    ERR_PAC_STATUS_NOT_OK -- non-200 HTTP status code.
+  //    ERR_HTTP_RESPONSE_CODE_FAILURE -- non-200 HTTP status code.
   //    ERR_NOT_IMPLEMENTED   -- the response required authentication.
   //
   // If the request is cancelled (either using the "Cancel()" method or by
@@ -46,7 +52,7 @@ class NET_EXPORT_PRIVATE PacFileFetcher {
   //
   // Only one fetch is allowed to be outstanding at a time.
   virtual int Fetch(const GURL& url,
-                    base::string16* utf16_text,
+                    std::u16string* utf16_text,
                     CompletionOnceCallback callback,
                     const NetworkTrafficAnnotationTag traffic_annotation) = 0;
 
@@ -62,8 +68,17 @@ class NET_EXPORT_PRIVATE PacFileFetcher {
   // called.  Must be called before the URLRequestContext the fetcher was
   // created with is torn down.
   virtual void OnShutdown() = 0;
+
+  const IsolationInfo& isolation_info() const { return isolation_info_; }
+
+ private:
+  // Transient IsolationInfo used to fetch PAC scripts and resolve hostnames.
+  // Safe to reuse because delays for WPAD fetches don't provide information
+  // to the web platform useful to attackers, and WPAD fetches uniformly
+  // block all network requests.
+  const IsolationInfo isolation_info_ = IsolationInfo::CreateTransient();
 };
 
 }  // namespace net
 
-#endif  // NET_PROXY_PAC_FILE_FETCHER_H_
+#endif  // NET_PROXY_RESOLUTION_PAC_FILE_FETCHER_H_

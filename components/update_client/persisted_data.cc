@@ -38,15 +38,13 @@ int PersistedData::GetInt(const std::string& id,
   DCHECK_EQ(std::string::npos, id.find('.'));
   if (!pref_service_)
     return fallback;
-  const base::DictionaryValue* dict =
+  const base::Value::Dict* dict =
       pref_service_->GetDictionary(kPersistedDataPreference);
   if (!dict)
     return fallback;
-  int result = 0;
-  return dict->GetInteger(
-             base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()), &result)
-             ? result
-             : fallback;
+  absl::optional<int> result = dict->FindInt(
+             base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()));
+  return result.value_or(fallback);
 }
 
 std::string PersistedData::GetString(const std::string& id,
@@ -56,15 +54,13 @@ std::string PersistedData::GetString(const std::string& id,
   DCHECK_EQ(std::string::npos, id.find('.'));
   if (!pref_service_)
     return std::string();
-  const base::DictionaryValue* dict =
+  const base::Value::Dict* dict =
       pref_service_->GetDictionary(kPersistedDataPreference);
   if (!dict)
     return std::string();
-  std::string result;
-  return dict->GetString(
-             base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()), &result)
-             ? result
-             : std::string();
+  const std::string* result = dict->FindString(
+             base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()));
+  return result != nullptr ? *result : std::string();
 }
 
 int PersistedData::GetDateLastRollCall(const std::string& id) const {
@@ -88,14 +84,12 @@ std::string PersistedData::GetUpdaterChannel(const std::string& id) const {
   return GetString(id, "updaterchannel");
 }
 std::string PersistedData::GetLatestChannel() const {
-  const base::DictionaryValue* dict =
+  const base::Value::Dict* dict =
       pref_service_->GetDictionary(kPersistedDataPreference);
   if (!dict)
     return std::string();
-  std::string result;
-  return dict->GetString("latestchannel", &result)
-             ? result
-             : std::string();
+  const std::string* result = dict->FindString("latestchannel");
+  return result != nullptr ? *result : std::string();
 }
 #endif
 
@@ -116,12 +110,12 @@ void PersistedData::SetDateLastRollCall(const std::vector<std::string>& ids,
   DCHECK(thread_checker_.CalledOnValidThread());
   if (!pref_service_ || datenum < 0)
     return;
-  DictionaryPrefUpdate update(pref_service_, kPersistedDataPreference);
+  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
   for (const auto& id : ids) {
     // We assume ids do not contain '.' characters.
     DCHECK_EQ(std::string::npos, id.find('.'));
-    update->SetInteger(base::StringPrintf("apps.%s.dlrc", id.c_str()), datenum);
-    update->SetString(base::StringPrintf("apps.%s.pf", id.c_str()),
+    update->Set(base::StringPrintf("apps.%s.dlrc", id.c_str()), datenum);
+    update->Set(base::StringPrintf("apps.%s.pf", id.c_str()),
                       base::GenerateGUID());
   }
 }
@@ -131,12 +125,12 @@ void PersistedData::SetDateLastActive(const std::vector<std::string>& ids,
   DCHECK(thread_checker_.CalledOnValidThread());
   if (!pref_service_ || datenum < 0)
     return;
-  DictionaryPrefUpdate update(pref_service_, kPersistedDataPreference);
+  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
   for (const auto& id : ids) {
     if (GetActiveBit(id)) {
       // We assume ids do not contain '.' characters.
       DCHECK_EQ(std::string::npos, id.find('.'));
-      update->SetInteger(base::StringPrintf("apps.%s.dla", id.c_str()),
+      update->Set(base::StringPrintf("apps.%s.dla", id.c_str()),
                          datenum);
       activity_data_service_->ClearActiveBit(id);
     }
@@ -149,8 +143,8 @@ void PersistedData::SetString(const std::string& id,
   DCHECK(thread_checker_.CalledOnValidThread());
   if (!pref_service_)
     return;
-  DictionaryPrefUpdate update(pref_service_, kPersistedDataPreference);
-  update->SetString(base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()),
+  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
+  update->Set(base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()),
                     value);
 }
 
@@ -167,8 +161,8 @@ void PersistedData::SetLatestChannel(const std::string& channel) {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (!pref_service_)
     return;
-  DictionaryPrefUpdate update(pref_service_, kPersistedDataPreference);
-  update->SetString("latestchannel", channel);
+  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
+  update->Set("latestchannel", channel);
 }
 #endif
 

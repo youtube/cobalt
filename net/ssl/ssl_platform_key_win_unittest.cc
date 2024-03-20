@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,14 +9,17 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "crypto/scoped_capi_types.h"
+#include "crypto/scoped_cng_types.h"
+#include "net/base/features.h"
 #include "net/cert/x509_certificate.h"
 #include "net/ssl/ssl_private_key.h"
 #include "net/ssl/ssl_private_key_test_util.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
-#include "net/test/test_with_scoped_task_environment.h"
+#include "net/test/test_with_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
@@ -36,27 +39,27 @@ struct TestKey {
   const char* cert_file;
   const char* key_file;
   int type;
+  bool is_rsa_1024;
 };
 
 const TestKey kTestKeys[] = {
-    {"RSA", "client_1.pem", "client_1.pk8", EVP_PKEY_RSA},
-    {"ECDSA_P256", "client_4.pem", "client_4.pk8", EVP_PKEY_EC},
-    {"ECDSA_P384", "client_5.pem", "client_5.pk8", EVP_PKEY_EC},
-    {"ECDSA_P521", "client_6.pem", "client_6.pk8", EVP_PKEY_EC},
+    {"RSA", "client_1.pem", "client_1.pk8", EVP_PKEY_RSA,
+     /*is_rsa_1024=*/false},
+    {"P256", "client_4.pem", "client_4.pk8", EVP_PKEY_EC,
+     /*is_rsa_1024=*/false},
+    {"P384", "client_5.pem", "client_5.pk8", EVP_PKEY_EC,
+     /*is_rsa_1024=*/false},
+    {"P521", "client_6.pem", "client_6.pk8", EVP_PKEY_EC,
+     /*is_rsa_1024=*/false},
+    {"RSA1024", "client_7.pem", "client_7.pk8", EVP_PKEY_RSA,
+     /*is_rsa_1024=*/true},
 };
 
-std::string TestKeyToString(const testing::TestParamInfo<TestKey>& params) {
-  return params.param.name;
+std::string TestParamsToString(
+    const testing::TestParamInfo<std::tuple<TestKey, bool>>& params) {
+  return std::string(std::get<0>(params.param).name) +
+         (std::get<1>(params.param) ? "" : "NoSHA1Probe");
 }
-
-class ScopedNCRYPT_PROV_HANDLE {
- public:
-  ScopedNCRYPT_PROV_HANDLE(NCRYPT_PROV_HANDLE prov) : prov_(prov) {}
-  ~ScopedNCRYPT_PROV_HANDLE() { NCryptFreeObject(prov_); }
-
- private:
-  NCRYPT_PROV_HANDLE prov_;
-};
 
 // Appends |bn| to |cbb|, represented as |len| bytes in little-endian order,
 // zero-padded as needed. Returns true on success and false if |len| is too
@@ -86,8 +89,8 @@ bool PKCS8ToBLOBForCAPI(const std::string& pkcs8, std::vector<uint8_t>* blob) {
 
   RSAPUBKEY rsapubkey = {0};
   rsapubkey.magic = 0x32415352;
-  rsapubkey.bitlen = BN_num_bits(rsa->n);
-  rsapubkey.pubexp = BN_get_word(rsa->e);
+  rsapubkey.bitlen = RSA_bits(rsa);
+  rsapubkey.pubexp = BN_get_word(RSA_get0_e(rsa));
 
   uint8_t* blob_data;
   size_t blob_len;
@@ -97,13 +100,20 @@ bool PKCS8ToBLOBForCAPI(const std::string& pkcs8, std::vector<uint8_t>* blob) {
                      sizeof(header)) ||
       !CBB_add_bytes(cbb.get(), reinterpret_cast<const uint8_t*>(&rsapubkey),
                      sizeof(rsapubkey)) ||
-      !AddBIGNUMLittleEndian(cbb.get(), rsa->n, rsapubkey.bitlen / 8) ||
-      !AddBIGNUMLittleEndian(cbb.get(), rsa->p, rsapubkey.bitlen / 16) ||
-      !AddBIGNUMLittleEndian(cbb.get(), rsa->q, rsapubkey.bitlen / 16) ||
-      !AddBIGNUMLittleEndian(cbb.get(), rsa->dmp1, rsapubkey.bitlen / 16) ||
-      !AddBIGNUMLittleEndian(cbb.get(), rsa->dmq1, rsapubkey.bitlen / 16) ||
-      !AddBIGNUMLittleEndian(cbb.get(), rsa->iqmp, rsapubkey.bitlen / 16) ||
-      !AddBIGNUMLittleEndian(cbb.get(), rsa->d, rsapubkey.bitlen / 8) ||
+      !AddBIGNUMLittleEndian(cbb.get(), RSA_get0_n(rsa),
+                             rsapubkey.bitlen / 8) ||
+      !AddBIGNUMLittleEndian(cbb.get(), RSA_get0_p(rsa),
+                             rsapubkey.bitlen / 16) ||
+      !AddBIGNUMLittleEndian(cbb.get(), RSA_get0_q(rsa),
+                             rsapubkey.bitlen / 16) ||
+      !AddBIGNUMLittleEndian(cbb.get(), RSA_get0_dmp1(rsa),
+                             rsapubkey.bitlen / 16) ||
+      !AddBIGNUMLittleEndian(cbb.get(), RSA_get0_dmq1(rsa),
+                             rsapubkey.bitlen / 16) ||
+      !AddBIGNUMLittleEndian(cbb.get(), RSA_get0_iqmp(rsa),
+                             rsapubkey.bitlen / 16) ||
+      !AddBIGNUMLittleEndian(cbb.get(), RSA_get0_d(rsa),
+                             rsapubkey.bitlen / 8) ||
       !CBB_finish(cbb.get(), &blob_data, &blob_len)) {
     return false;
   }
@@ -139,11 +149,11 @@ bool PKCS8ToBLOBForCNG(const std::string& pkcs8,
     const RSA* rsa = EVP_PKEY_get0_RSA(key.get());
     BCRYPT_RSAKEY_BLOB header = {0};
     header.Magic = BCRYPT_RSAFULLPRIVATE_MAGIC;
-    header.BitLength = BN_num_bits(rsa->n);
-    header.cbPublicExp = BN_num_bytes(rsa->e);
-    header.cbModulus = BN_num_bytes(rsa->n);
-    header.cbPrime1 = BN_num_bytes(rsa->p);
-    header.cbPrime2 = BN_num_bytes(rsa->q);
+    header.BitLength = RSA_bits(rsa);
+    header.cbPublicExp = BN_num_bytes(RSA_get0_e(rsa));
+    header.cbModulus = BN_num_bytes(RSA_get0_n(rsa));
+    header.cbPrime1 = BN_num_bytes(RSA_get0_p(rsa));
+    header.cbPrime2 = BN_num_bytes(RSA_get0_q(rsa));
 
     uint8_t* blob_data;
     size_t blob_len;
@@ -151,14 +161,14 @@ bool PKCS8ToBLOBForCNG(const std::string& pkcs8,
     if (!CBB_init(cbb.get(), sizeof(header) + pkcs8.size()) ||
         !CBB_add_bytes(cbb.get(), reinterpret_cast<const uint8_t*>(&header),
                        sizeof(header)) ||
-        !AddBIGNUMBigEndian(cbb.get(), rsa->e, header.cbPublicExp) ||
-        !AddBIGNUMBigEndian(cbb.get(), rsa->n, header.cbModulus) ||
-        !AddBIGNUMBigEndian(cbb.get(), rsa->p, header.cbPrime1) ||
-        !AddBIGNUMBigEndian(cbb.get(), rsa->q, header.cbPrime2) ||
-        !AddBIGNUMBigEndian(cbb.get(), rsa->dmp1, header.cbPrime1) ||
-        !AddBIGNUMBigEndian(cbb.get(), rsa->dmq1, header.cbPrime2) ||
-        !AddBIGNUMBigEndian(cbb.get(), rsa->iqmp, header.cbPrime1) ||
-        !AddBIGNUMBigEndian(cbb.get(), rsa->d, header.cbModulus) ||
+        !AddBIGNUMBigEndian(cbb.get(), RSA_get0_e(rsa), header.cbPublicExp) ||
+        !AddBIGNUMBigEndian(cbb.get(), RSA_get0_n(rsa), header.cbModulus) ||
+        !AddBIGNUMBigEndian(cbb.get(), RSA_get0_p(rsa), header.cbPrime1) ||
+        !AddBIGNUMBigEndian(cbb.get(), RSA_get0_q(rsa), header.cbPrime2) ||
+        !AddBIGNUMBigEndian(cbb.get(), RSA_get0_dmp1(rsa), header.cbPrime1) ||
+        !AddBIGNUMBigEndian(cbb.get(), RSA_get0_dmq1(rsa), header.cbPrime2) ||
+        !AddBIGNUMBigEndian(cbb.get(), RSA_get0_iqmp(rsa), header.cbPrime1) ||
+        !AddBIGNUMBigEndian(cbb.get(), RSA_get0_d(rsa), header.cbModulus) ||
         !CBB_finish(cbb.get(), &blob_data, &blob_len)) {
       return false;
     }
@@ -222,11 +232,29 @@ bool PKCS8ToBLOBForCNG(const std::string& pkcs8,
 
 }  // namespace
 
-class SSLPlatformKeyCNGTest : public testing::TestWithParam<TestKey>,
-                              public WithScopedTaskEnvironment {};
+class SSLPlatformKeyWinTest
+    : public testing::TestWithParam<std::tuple<TestKey, bool>>,
+      public WithTaskEnvironment {
+ public:
+  SSLPlatformKeyWinTest() {
+    if (SHA256ProbeEnabled()) {
+      scoped_feature_list_.InitAndEnableFeature(
+          features::kPlatformKeyProbeSHA256);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          features::kPlatformKeyProbeSHA256);
+    }
+  }
 
-TEST_P(SSLPlatformKeyCNGTest, KeyMatches) {
-  const TestKey& test_key = GetParam();
+  const TestKey& GetTestKey() const { return std::get<0>(GetParam()); }
+  bool SHA256ProbeEnabled() const { return std::get<1>(GetParam()); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_P(SSLPlatformKeyWinTest, KeyMatchesCNG) {
+  const TestKey& test_key = GetTestKey();
 
   // Load test data.
   scoped_refptr<X509Certificate> cert =
@@ -243,53 +271,65 @@ TEST_P(SSLPlatformKeyCNGTest, KeyMatches) {
   // types we use), the Microsoft Software KSP will treat the key as ephemeral.
   //
   // https://msdn.microsoft.com/en-us/library/windows/desktop/aa376276(v=vs.85).aspx
-  NCRYPT_PROV_HANDLE prov;
-  SECURITY_STATUS status =
-      NCryptOpenStorageProvider(&prov, MS_KEY_STORAGE_PROVIDER, 0);
+  crypto::ScopedNCryptProvider prov;
+  SECURITY_STATUS status = NCryptOpenStorageProvider(
+      crypto::ScopedNCryptProvider::Receiver(prov).get(),
+      MS_KEY_STORAGE_PROVIDER, 0);
   ASSERT_FALSE(FAILED(status)) << status;
-  ScopedNCRYPT_PROV_HANDLE scoped_prov(prov);
 
   LPCWSTR blob_type;
   std::vector<uint8_t> blob;
   ASSERT_TRUE(PKCS8ToBLOBForCNG(pkcs8, &blob_type, &blob));
-  NCRYPT_KEY_HANDLE ncrypt_key;
-  status = NCryptImportKey(prov, 0 /* hImportKey */, blob_type,
-                           nullptr /* pParameterList */, &ncrypt_key,
+  crypto::ScopedNCryptKey ncrypt_key;
+  status = NCryptImportKey(prov.get(), /*hImportKey=*/0, blob_type,
+                           /*pParameterList=*/nullptr,
+                           crypto::ScopedNCryptKey::Receiver(ncrypt_key).get(),
                            blob.data(), blob.size(), NCRYPT_SILENT_FLAG);
   ASSERT_FALSE(FAILED(status)) << status;
 
-  scoped_refptr<SSLPrivateKey> key = WrapCNGPrivateKey(cert.get(), ncrypt_key);
+  scoped_refptr<SSLPrivateKey> key =
+      WrapCNGPrivateKey(cert.get(), std::move(ncrypt_key));
   ASSERT_TRUE(key);
 
-  EXPECT_EQ(SSLPrivateKey::DefaultAlgorithmPreferences(test_key.type,
-                                                       true /* supports PSS */),
-            key->GetAlgorithmPreferences());
+  if (test_key.is_rsa_1024 && !SHA256ProbeEnabled()) {
+    // For RSA-1024 and below, if SHA-256 probing is disabled, we conservatively
+    // prefer to sign SHA-1 hashes. See https://crbug.com/278370.
+    std::vector<uint16_t> expected = {
+        SSL_SIGN_RSA_PKCS1_SHA1,   SSL_SIGN_RSA_PKCS1_SHA256,
+        SSL_SIGN_RSA_PKCS1_SHA384, SSL_SIGN_RSA_PKCS1_SHA512,
+        SSL_SIGN_RSA_PSS_SHA256,   SSL_SIGN_RSA_PSS_SHA384,
+        SSL_SIGN_RSA_PSS_SHA512};
+    EXPECT_EQ(expected, key->GetAlgorithmPreferences());
+  } else {
+    EXPECT_EQ(SSLPrivateKey::DefaultAlgorithmPreferences(test_key.type,
+                                                         /*supports_pss=*/true),
+              key->GetAlgorithmPreferences());
+  }
 
   TestSSLPrivateKeyMatches(key.get(), pkcs8);
 }
 
-INSTANTIATE_TEST_CASE_P(,
-                        SSLPlatformKeyCNGTest,
-                        testing::ValuesIn(kTestKeys),
-                        TestKeyToString);
-
-TEST(SSLPlatformKeyCAPITest, KeyMatches) {
-  base::test::ScopedTaskEnvironment scoped_task_environment;
+TEST_P(SSLPlatformKeyWinTest, KeyMatchesCAPI) {
+  const TestKey& test_key = GetTestKey();
+  if (test_key.type != EVP_PKEY_RSA) {
+    GTEST_SKIP() << "CAPI only supports RSA keys";
+  }
 
   // Load test data.
   scoped_refptr<X509Certificate> cert =
-      ImportCertFromFile(GetTestCertsDirectory(), "client_1.pem");
+      ImportCertFromFile(GetTestCertsDirectory(), test_key.cert_file);
   ASSERT_TRUE(cert);
 
   std::string pkcs8;
   base::FilePath pkcs8_path =
-      GetTestCertsDirectory().AppendASCII("client_1.pk8");
+      GetTestCertsDirectory().AppendASCII(test_key.key_file);
   ASSERT_TRUE(base::ReadFileToString(pkcs8_path, &pkcs8));
 
   // Import the key into CAPI. Use CRYPT_VERIFYCONTEXT for an ephemeral key.
   crypto::ScopedHCRYPTPROV prov;
   ASSERT_NE(FALSE,
-            CryptAcquireContext(prov.receive(), nullptr, nullptr, PROV_RSA_AES,
+            CryptAcquireContext(crypto::ScopedHCRYPTPROV::Receiver(prov).get(),
+                                nullptr, nullptr, PROV_RSA_AES,
                                 CRYPT_VERIFYCONTEXT | CRYPT_SILENT))
       << GetLastError();
 
@@ -297,24 +337,45 @@ TEST(SSLPlatformKeyCAPITest, KeyMatches) {
   ASSERT_TRUE(PKCS8ToBLOBForCAPI(pkcs8, &blob));
 
   crypto::ScopedHCRYPTKEY hcryptkey;
-  ASSERT_NE(FALSE, CryptImportKey(prov.get(), blob.data(), blob.size(),
-                                  0 /* hPubKey */, 0 /* dwFlags */,
-                                  hcryptkey.receive()))
+  ASSERT_NE(FALSE,
+            CryptImportKey(prov.get(), blob.data(), blob.size(),
+                           /*hPubKey=*/0, /*dwFlags=*/0,
+                           crypto::ScopedHCRYPTKEY::Receiver(hcryptkey).get()))
       << GetLastError();
   // Release |hcryptkey| so it does not outlive |prov|.
   hcryptkey.reset();
 
   scoped_refptr<SSLPrivateKey> key =
-      WrapCAPIPrivateKey(cert.get(), prov.release(), AT_SIGNATURE);
+      WrapCAPIPrivateKey(cert.get(), std::move(prov), AT_SIGNATURE);
   ASSERT_TRUE(key);
 
-  std::vector<uint16_t> expected = {
-      SSL_SIGN_RSA_PKCS1_SHA1, SSL_SIGN_RSA_PKCS1_SHA256,
-      SSL_SIGN_RSA_PKCS1_SHA384, SSL_SIGN_RSA_PKCS1_SHA512,
-  };
-  EXPECT_EQ(expected, key->GetAlgorithmPreferences());
+  if (SHA256ProbeEnabled()) {
+    std::vector<uint16_t> expected = {
+        SSL_SIGN_RSA_PKCS1_SHA256,
+        SSL_SIGN_RSA_PKCS1_SHA384,
+        SSL_SIGN_RSA_PKCS1_SHA512,
+        SSL_SIGN_RSA_PKCS1_SHA1,
+    };
+    EXPECT_EQ(expected, key->GetAlgorithmPreferences());
+  } else {
+    // When the SHA-256 probe is disabled, we conservatively assume every CAPI
+    // key may be SHA-1-only.
+    std::vector<uint16_t> expected = {
+        SSL_SIGN_RSA_PKCS1_SHA1,
+        SSL_SIGN_RSA_PKCS1_SHA256,
+        SSL_SIGN_RSA_PKCS1_SHA384,
+        SSL_SIGN_RSA_PKCS1_SHA512,
+    };
+    EXPECT_EQ(expected, key->GetAlgorithmPreferences());
+  }
 
   TestSSLPrivateKeyMatches(key.get(), pkcs8);
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         SSLPlatformKeyWinTest,
+                         testing::Combine(testing::ValuesIn(kTestKeys),
+                                          testing::Bool()),
+                         TestParamsToString);
 
 }  // namespace net

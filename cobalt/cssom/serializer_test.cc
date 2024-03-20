@@ -165,7 +165,7 @@ TEST(SerializerTest, SerializeSelectorsTest) {
        "[quote_backslash=\"-\\22 -\\5c -\"]"},
   };
   // clang-format on
-  base::Token::ScopedAlphabeticalSorting sort_scope;
+  base_token::Token::ScopedAlphabeticalSorting sort_scope;
   std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   base::SourceLocation loc("[object SelectorTest]", 1, 1);
   for (const TestPair& selector : selectors) {
@@ -237,7 +237,7 @@ TEST(SerializerTest, SerializeIdentifierTest) {
   for (const TestPair& identifier : identifiers) {
     std::string serialized_identifier;
     Serializer serializer(&serialized_identifier);
-    serializer.SerializeIdentifier(base::Token(identifier.source));
+    serializer.SerializeIdentifier(base_token::Token(identifier.source));
     EXPECT_EQ(identifier.serialized, serialized_identifier)
         << "  Source: \"" << identifier.source << '"';
   }

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,23 +11,23 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include "base/strings/string_util.h"
 
 #if !defined(__LP64__)
 #include <time64.h>
 #endif
 
+#include "base/files/file.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/rand_util.h"
 #include "base/strings/string_piece.h"
-#include "base/strings/stringprintf.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
 
 extern "C" {
 // There is no futimes() avaiable in Bionic, so we provide our own
 // implementation until it is there.
 int futimes(int fd, const struct timeval tv[2]) {
-  if (tv == NULL)
-    return syscall(__NR_utimensat, fd, NULL, NULL, 0);
+  if (tv == nullptr)
+    return base::checked_cast<int>(syscall(__NR_utimensat, fd, NULL, NULL, 0));
 
   if (tv[0].tv_usec < 0 || tv[0].tv_usec >= 1000000 ||
       tv[1].tv_usec < 0 || tv[1].tv_usec >= 1000000) {
@@ -41,7 +41,7 @@ int futimes(int fd, const struct timeval tv[2]) {
   ts[0].tv_nsec = tv[0].tv_usec * 1000;
   ts[1].tv_sec = tv[1].tv_sec;
   ts[1].tv_nsec = tv[1].tv_usec * 1000;
-  return syscall(__NR_utimensat, fd, NULL, ts, 0);
+  return base::checked_cast<int>(syscall(__NR_utimensat, fd, NULL, ts, 0));
 }
 
 #if !defined(__LP64__)
@@ -54,7 +54,7 @@ time_t timegm(struct tm* const t) {
   time64_t result = timegm64(t);
   if (result < kTimeMin || result > kTimeMax)
     return -1;
-  return result;
+  return static_cast<time_t>(result);
 }
 #endif
 
@@ -106,7 +106,7 @@ void sincosf(float angle, float* s, float* c) {
   *s = sinf(angle);
 }
 
-#endif // __GNUC__ && !__clang__
+#endif  // __GNUC__ && !__clang__
 
 // An implementation of mkdtemp, since it is not exposed by the NDK
 // for native API level 9 that we target.
@@ -116,39 +116,37 @@ void sincosf(float angle, float* s, float* c) {
 // passes. Please don't enable it, since it creates a directory and may be
 // source of flakyness.
 char* mkdtemp(char* path) {
-  if (path == NULL) {
+  if (!path) {
     errno = EINVAL;
-    return NULL;
+    return nullptr;
   }
 
-  const int path_len = strlen(path);
+  const size_t path_len = strlen(path);
 
   // The last six characters of 'path' must be XXXXXX.
   const base::StringPiece kSuffix("XXXXXX");
-  const int kSuffixLen = kSuffix.length();
-  if (!base::StringPiece(path, path_len).ends_with(kSuffix)) {
+  const size_t kSuffixLen = kSuffix.length();
+  if (!base::EndsWith(base::StringPiece(path, path_len), kSuffix)) {
     errno = EINVAL;
-    return NULL;
+    return nullptr;
   }
 
   // If the path contains a directory, as in /tmp/foo/XXXXXXXX, make sure
   // that /tmp/foo exists, otherwise we're going to loop a really long
   // time for nothing below
   char* dirsep = strrchr(path, '/');
-  if (dirsep != NULL) {
-    struct stat st;
-    int ret;
-
+  if (dirsep) {
     *dirsep = '\0';  // Terminating directory path temporarily
 
-    ret = stat(path, &st);
+    base::stat_wrapper_t st;
+    int ret = base::File::Stat(path, &st);
 
     *dirsep = '/';  // Restoring directory separator
     if (ret < 0)  // Directory probably does not exist
-      return NULL;
+      return nullptr;
     if (!S_ISDIR(st.st_mode)) {  // Not a directory
       errno = ENOTDIR;
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -159,7 +157,7 @@ char* mkdtemp(char* path) {
   // number of tries.
   for (int i = 0; i < kMaxTries; ++i) {
     // Fill the suffix XXXXXX with a random string composed of a-z chars.
-    for (int pos = 0; pos < kSuffixLen; ++pos) {
+    for (size_t pos = 0; pos < kSuffixLen; ++pos) {
       char rand_char = static_cast<char>(base::RandInt('a', 'z'));
       path[path_len - kSuffixLen + pos] = rand_char;
     }
@@ -169,12 +167,12 @@ char* mkdtemp(char* path) {
     }
     if (errno != EEXIST) {
       // The directory doesn't exist, but an error occured
-      return NULL;
+      return nullptr;
     }
   }
 
   // We reached the max number of tries.
-  return NULL;
+  return nullptr;
 }
 
 }  // extern "C"

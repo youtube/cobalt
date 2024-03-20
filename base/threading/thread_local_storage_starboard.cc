@@ -14,7 +14,7 @@
 
 #include "base/threading/thread_local_storage.h"
 
-#include "base/logging.h"
+#include "base/notreached.h"
 
 namespace base {
 

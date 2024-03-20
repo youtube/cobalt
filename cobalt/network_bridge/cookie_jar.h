@@ -17,9 +17,9 @@
 
 #include <string>
 
+#include "base/macros.h"
 #include "net/cookies/cookie_store.h"
 #include "url/gurl.h"
-
 namespace cobalt {
 namespace network_bridge {
 

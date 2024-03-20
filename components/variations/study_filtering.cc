@@ -9,6 +9,7 @@
 
 #include <set>
 
+#include "base/containers/contains.h"
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
 #include "components/variations/client_filterable_state.h"
@@ -60,10 +61,10 @@ bool CheckStudyFormFactor(const Study::Filter& filter,
   // ignored. We do not expect both to be present for Chrome due to server-side
   // checks.
   if (filter.form_factor_size() > 0)
-    return base::ContainsValue(filter.form_factor(), form_factor);
+    return base::Contains(filter.form_factor(), form_factor);
 
   // Omit if we match the blacklist.
-  return !base::ContainsValue(filter.exclude_form_factor(), form_factor);
+  return !base::Contains(filter.exclude_form_factor(), form_factor);
 }
 
 bool CheckStudyHardwareClass(const Study::Filter& filter,
@@ -100,10 +101,10 @@ bool CheckStudyLocale(const Study::Filter& filter, const std::string& locale) {
   // that this means this overrides the exclude_locale in case that ever occurs
   // (which it shouldn't).
   if (filter.locale_size() > 0)
-    return base::ContainsValue(filter.locale(), locale);
+    return base::Contains(filter.locale(), locale);
 
   // Omit if matches any of the exclude entries.
-  return !base::ContainsValue(filter.exclude_locale(), locale);
+  return !base::Contains(filter.exclude_locale(), locale);
 }
 
 bool CheckStudyPlatform(const Study::Filter& filter, Study::Platform platform) {
@@ -170,10 +171,10 @@ bool CheckStudyCountry(const Study::Filter& filter,
   // that this means this overrides the exclude_country in case that ever occurs
   // (which it shouldn't).
   if (filter.country_size() > 0)
-    return base::ContainsValue(filter.country(), country);
+    return base::Contains(filter.country(), country);
 
   // Omit if matches any of the exclude entries.
-  return !base::ContainsValue(filter.exclude_country(), country);
+  return !base::Contains(filter.exclude_country(), country);
 }
 
 const std::string& GetClientCountryForStudy(

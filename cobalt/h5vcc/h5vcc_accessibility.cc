@@ -15,7 +15,7 @@
 #include "cobalt/h5vcc/h5vcc_accessibility.h"
 
 #include "base/command_line.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/accessibility_settings_changed_event.h"
 #include "cobalt/base/accessibility_text_to_speech_settings_changed_event.h"
@@ -43,7 +43,7 @@ bool ShouldForceTextToSpeech() {
 
 H5vccAccessibility::H5vccAccessibility(base::EventDispatcher* event_dispatcher)
     : event_dispatcher_(event_dispatcher) {
-  task_runner_ = base::ThreadTaskRunnerHandle::Get();
+  task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
   on_application_event_callback_ = base::Bind(
       &H5vccAccessibility::OnApplicationEvent, base::Unretained(this));
   event_dispatcher_->AddEventCallback(
@@ -100,28 +100,28 @@ bool H5vccAccessibility::text_to_speech() const {
 
 void H5vccAccessibility::AddTextToSpeechListener(
     const H5vccAccessibilityCallbackHolder& holder) {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner_);
   text_to_speech_listener_.reset(
       new H5vccAccessibilityCallbackReference(this, holder));
 }
 
 void H5vccAccessibility::AddHighContrastTextListener(
     const H5vccAccessibilityCallbackHolder& holder) {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner_);
   high_contrast_text_listener_.reset(
       new H5vccAccessibilityCallbackReference(this, holder));
 }
 
 void H5vccAccessibility::OnApplicationEvent(const base::Event* event) {
   // This method should be called from the application event thread.
-  DCHECK_NE(base::ThreadTaskRunnerHandle::Get(), task_runner_);
+  DCHECK_NE(base::SequencedTaskRunner::GetCurrentDefault(), task_runner_);
   task_runner_->PostTask(
       FROM_HERE, base::Bind(&H5vccAccessibility::InternalOnApplicationEvent,
                             base::Unretained(this), event->GetTypeId()));
 }
 
 void H5vccAccessibility::InternalOnApplicationEvent(base::TypeId type) {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner_);
   if (type == base::AccessibilitySettingsChangedEvent::TypeId() &&
       high_contrast_text_listener_) {
     high_contrast_text_listener_->value().Run();

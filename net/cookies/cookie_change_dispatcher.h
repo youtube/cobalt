@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,10 @@
 #include <memory>
 #include <string>
 
-#include "base/callback.h"
-#include "base/compiler_specific.h"
+#include "base/functional/callback.h"
 #include "net/base/net_export.h"
 #include "net/cookies/canonical_cookie.h"
+#include "net/cookies/cookie_access_result.h"
 
 class GURL;
 
@@ -38,6 +38,23 @@ enum class CookieChangeCause {
   EXPIRED_OVERWRITE
 };
 
+struct NET_EXPORT CookieChangeInfo {
+  CookieChangeInfo();
+  CookieChangeInfo(const CanonicalCookie& cookie,
+                   CookieAccessResult access_result,
+                   CookieChangeCause cause);
+  ~CookieChangeInfo();
+
+  // The cookie that changed.
+  CanonicalCookie cookie;
+
+  // The access result of the cookie at the time of the change.
+  CookieAccessResult access_result;
+
+  // The reason for the change.
+  CookieChangeCause cause = CookieChangeCause::EXPLICIT;
+};
+
 // Return a string corresponding to the change cause.  For debugging/logging.
 NET_EXPORT const char* CookieChangeCauseToString(CookieChangeCause cause);
 
@@ -48,6 +65,7 @@ NET_EXPORT bool CookieChangeCauseIsDeletion(CookieChangeCause cause);
 // Called when a cookie is changed in a CookieStore.
 //
 // Receives the CanonicalCookie which was added to or removed from the store,
+// the CookieAccessSemantics of the cookie at the time of the change event,
 // and a CookieStore::ChangeCause indicating if the cookie was added, updated,
 // or removed.
 //
@@ -58,8 +76,7 @@ NET_EXPORT bool CookieChangeCauseIsDeletion(CookieChangeCause cause);
 // The callback must not synchronously modify any cookie in the CookieStore
 // whose change it is observing.
 using CookieChangeCallback =
-    base::RepeatingCallback<void(const CanonicalCookie& cookie,
-                                 CookieChangeCause cause)>;
+    base::RepeatingCallback<void(const CookieChangeInfo&)>;
 
 // Records a listener's interest in CookieStore changes.
 //
@@ -80,10 +97,11 @@ using CookieChangeCallback =
 class CookieChangeSubscription {
  public:
   CookieChangeSubscription() = default;
-  virtual ~CookieChangeSubscription() = default;
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(CookieChangeSubscription);
+  CookieChangeSubscription(const CookieChangeSubscription&) = delete;
+  CookieChangeSubscription& operator=(const CookieChangeSubscription&) = delete;
+
+  virtual ~CookieChangeSubscription() = default;
 };
 
 // Exposes changes to a CookieStore's contents.
@@ -104,29 +122,47 @@ class CookieChangeSubscription {
 class CookieChangeDispatcher {
  public:
   CookieChangeDispatcher() = default;
+
+  CookieChangeDispatcher(const CookieChangeDispatcher&) = delete;
+  CookieChangeDispatcher& operator=(const CookieChangeDispatcher&) = delete;
+
   virtual ~CookieChangeDispatcher() = default;
 
-  // Observe changes to all cookies named |name| that would be sent in a
-  // request to |url|.
-  virtual std::unique_ptr<CookieChangeSubscription> AddCallbackForCookie(
+  // Observe changes to all cookies named `name` that would be sent in a
+  // request to `url`.
+  //
+  // If `cookie_partition_key` is nullopt, then we ignore all change events for
+  // partitioned cookies. Otherwise it only subscribes to change events for
+  // partitioned cookies with the same provided key.
+  // Unpartitioned cookies are not affected by the `cookie_partition_key`
+  // parameter.
+  [[nodiscard]] virtual std::unique_ptr<CookieChangeSubscription>
+  AddCallbackForCookie(
       const GURL& url,
       const std::string& name,
-      CookieChangeCallback callback) WARN_UNUSED_RESULT = 0;
+      const absl::optional<CookiePartitionKey>& cookie_partition_key,
+      CookieChangeCallback callback) = 0;
 
-  // Observe changes to the cookies that would be sent for a request to |url|.
-  virtual std::unique_ptr<CookieChangeSubscription> AddCallbackForUrl(
+  // Observe changes to the cookies that would be sent for a request to `url`.
+  //
+  // If `cookie_partition_key` is nullopt, then we ignore all change events for
+  // partitioned cookies. Otherwise it only subscribes to change events for
+  // partitioned cookies with the same provided key.
+  // Unpartitioned cookies are not affected by the `cookie_partition_key`
+  // parameter.
+  [[nodiscard]] virtual std::unique_ptr<CookieChangeSubscription>
+  AddCallbackForUrl(
       const GURL& url,
-      CookieChangeCallback callback) WARN_UNUSED_RESULT = 0;
+      const absl::optional<CookiePartitionKey>& cookie_partition_key,
+      CookieChangeCallback callback) = 0;
 
   // Observe all the CookieStore's changes.
   //
   // The callback will not observe a few bookkeeping changes.
   // See kChangeCauseMapping in cookie_monster.cc for details.
-  virtual std::unique_ptr<CookieChangeSubscription> AddCallbackForAllChanges(
-      CookieChangeCallback callback) WARN_UNUSED_RESULT = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CookieChangeDispatcher);
+  // TODO(crbug.com/1225444): Add support for Partitioned cookies.
+  [[nodiscard]] virtual std::unique_ptr<CookieChangeSubscription>
+  AddCallbackForAllChanges(CookieChangeCallback callback) = 0;
 };
 
 }  // namespace net

@@ -76,7 +76,7 @@ void ExtendableEvent::StateChange(
     DCHECK(worker_context);
     // 5.2.1. Let registration be the current global object's associated
     //        service worker's containing service worker registration.
-    worker_context->message_loop()->task_runner()->PostTask(
+    worker_context->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(
             &ServiceWorkerContext::WaitUntilSubSteps,

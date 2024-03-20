@@ -23,8 +23,28 @@ base::ProcessId kStarboardFakeProcessId = 1;
 
 namespace base {
 
+ProcessId GetProcId(ProcessHandle) {
+  return kStarboardFakeProcessId;
+}
+
+ProcessId GetParentProcessId(ProcessHandle) {
+  return kStarboardFakeProcessId;
+}
+
 ProcessId GetCurrentProcId() {
   return kStarboardFakeProcessId;
+}
+
+ProcessHandle GetCurrentProcessHandle() {
+  return GetCurrentProcId();
+}
+
+bool Process::IsProcessBackgrounded() const {
+  return false;
+}
+
+Time Process::CreationTime() const {
+  return Time();
 }
 
 #ifndef STARBOARD
@@ -33,5 +53,19 @@ void Process::TerminateCurrentProcessImmediately(int exit_code) {
   std::_Exit(exit_code);
 }
 #endif  // !STARBOARD
+
+Process Process::Current() {
+  return Process();
+}
+
+Process::Process(ProcessHandle handle) {}
+Process::~Process() {}
+
+void Process::TerminateCurrentProcessImmediately(int) {}
+
+bool Process::IsValid() const { return false; }
+bool Process::WaitForExitWithTimeout(TimeDelta timeout, int* exit_code) const { return false; }
+bool Process::Terminate(int exit_code, bool wait) const { return false; }
+void Process::Close() {}
 
 }  // namespace base

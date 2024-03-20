@@ -1,10 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/synchronization/atomic_flag.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
 
 namespace base {
 
@@ -16,17 +16,16 @@ AtomicFlag::AtomicFlag() {
   DETACH_FROM_SEQUENCE(set_sequence_checker_);
 }
 
+AtomicFlag::~AtomicFlag() = default;
+
 void AtomicFlag::Set() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(set_sequence_checker_);
-  base::subtle::Release_Store(&flag_, 1);
-}
-
-bool AtomicFlag::IsSet() const {
-  return base::subtle::Acquire_Load(&flag_) != 0;
+  flag_.store(1, std::memory_order_release);
 }
 
 void AtomicFlag::UnsafeResetForTesting() {
-  base::subtle::Release_Store(&flag_, 0);
+  DETACH_FROM_SEQUENCE(set_sequence_checker_);
+  flag_.store(0, std::memory_order_release);
 }
 
 }  // namespace base

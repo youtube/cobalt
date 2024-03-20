@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,10 @@
 #include <vector>
 
 #include "base/bits.h"
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/timer/elapsed_timer.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "testing/perf/perf_result_reporter.h"
 
 namespace net {
 namespace {
@@ -71,7 +72,7 @@ const char kRepresentativePlainText[] =
 void RunLooksLikeBinary(const std::string& plaintext, size_t iterations) {
   bool looks_like_binary = false;
   for (size_t i = 0; i < iterations; ++i) {
-    if (LooksLikeBinary(&plaintext[0], plaintext.size()))
+    if (LooksLikeBinary(plaintext))
       looks_like_binary = true;
   }
   CHECK(!looks_like_binary);
@@ -94,9 +95,12 @@ TEST(MimeSnifferTest, PlainTextPerfTest) {
   RunLooksLikeBinary(plaintext, kWarmupIterations);
   base::ElapsedTimer elapsed_timer;
   RunLooksLikeBinary(plaintext, kMeasuredIterations);
-  LOG(INFO) << (elapsed_timer.Elapsed().InMicroseconds() * 1000 * 1024 /
-                (static_cast<int64_t>(plaintext.size()) * kMeasuredIterations))
-            << "ns per KB";
+  perf_test::PerfResultReporter reporter("MimeSniffer.", "PlainText");
+  reporter.RegisterImportantMetric("throughput",
+                                   "bytesPerSecond_biggerIsBetter");
+  reporter.AddResult("throughput", static_cast<int64_t>(plaintext.size()) *
+                                       kMeasuredIterations /
+                                       elapsed_timer.Elapsed().InSecondsF());
 }
 
 }  // namespace

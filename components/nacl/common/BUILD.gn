@@ -1,0 +1,5 @@
+import("//build/buildflag_header.gni")
+buildflag_header("buildflags") {
+  header = "buildflags.h"
+  flags = [ "IS_MINIMAL_TOOLCHAIN=false" ]
+}

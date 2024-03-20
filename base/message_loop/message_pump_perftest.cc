@@ -1,29 +1,64 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
+#include <stddef.h>
+#include <stdint.h>
+
+#include <memory>
+
 #include "base/format_macros.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
-#include "base/message_loop/message_loop.h"
-#include "base/single_thread_task_runner.h"
+#include "base/message_loop/message_pump_type.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/current_thread.h"
+#include "base/task/sequence_manager/sequence_manager_impl.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "testing/perf/perf_test.h"
+#include "testing/perf/perf_result_reporter.h"
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include "base/android/java_handler_thread.h"
-#include "starboard/types.h"
 #endif
 
 namespace base {
+namespace {
+
+constexpr char kMetricPrefixScheduleWork[] = "ScheduleWork.";
+constexpr char kMetricMinBatchTime[] = "min_batch_time_per_task";
+constexpr char kMetricMaxBatchTime[] = "max_batch_time_per_task";
+constexpr char kMetricTotalTime[] = "total_time_per_task";
+constexpr char kMetricThreadTime[] = "thread_time_per_task";
+
+perf_test::PerfResultReporter SetUpReporter(const std::string& story_name) {
+  perf_test::PerfResultReporter reporter(kMetricPrefixScheduleWork, story_name);
+  reporter.RegisterImportantMetric(kMetricMinBatchTime, "us");
+  reporter.RegisterImportantMetric(kMetricMaxBatchTime, "us");
+  reporter.RegisterImportantMetric(kMetricTotalTime, "us");
+  reporter.RegisterImportantMetric(kMetricThreadTime, "us");
+  return reporter;
+}
+
+#if BUILDFLAG(IS_ANDROID)
+class JavaHandlerThreadForTest : public android::JavaHandlerThread {
+ public:
+  explicit JavaHandlerThreadForTest(const char* name)
+      : android::JavaHandlerThread(name, base::ThreadType::kDefault) {}
+
+  using android::JavaHandlerThread::state;
+  using android::JavaHandlerThread::State;
+};
+#endif
+
+}  // namespace
 
 class ScheduleWorkTest : public testing::Test {
  public:
@@ -47,7 +82,7 @@ class ScheduleWorkTest : public testing::Test {
     uint64_t schedule_calls = 0u;
     do {
       for (size_t i = 0; i < kBatchSize; ++i) {
-        target_message_loop()->ScheduleWork();
+        target_message_loop_base()->GetMessagePump()->ScheduleWork();
         schedule_calls++;
       }
       now = base::TimeTicks::Now();
@@ -55,7 +90,7 @@ class ScheduleWorkTest : public testing::Test {
       lastnow = now;
       minimum = std::min(minimum, laptime);
       maximum = std::max(maximum, laptime);
-    } while (now - start < base::TimeDelta::FromSeconds(kTargetTimeSec));
+    } while (now - start < base::Seconds(kTargetTimeSec));
 
     scheduling_times_[index] = now - start;
     if (ThreadTicks::IsSupported())
@@ -63,21 +98,24 @@ class ScheduleWorkTest : public testing::Test {
           base::ThreadTicks::Now() - thread_start;
     min_batch_times_[index] = minimum;
     max_batch_times_[index] = maximum;
-    target_message_loop()->task_runner()->PostTask(
+    target_message_loop_base()->GetTaskRunner()->PostTask(
         FROM_HERE, base::BindOnce(&ScheduleWorkTest::Increment,
                                   base::Unretained(this), schedule_calls));
   }
 
-  void ScheduleWork(MessageLoop::Type target_type, int num_scheduling_threads) {
-#if defined(OS_ANDROID)
-    if (target_type == MessageLoop::TYPE_JAVA) {
-      java_thread_.reset(new android::JavaHandlerThread("target"));
+  void ScheduleWork(MessagePumpType target_type, int num_scheduling_threads) {
+#if BUILDFLAG(IS_ANDROID)
+    if (target_type == MessagePumpType::JAVA) {
+      java_thread_ = std::make_unique<JavaHandlerThreadForTest>("target");
       java_thread_->Start();
     } else
 #endif
     {
-      target_.reset(new Thread("target"));
-      target_->StartWithOptions(Thread::Options(target_type, 0u));
+      target_ = std::make_unique<Thread>("test");
+
+      Thread::Options options(target_type, 0u);
+      options.message_pump_type = target_type;
+      target_->StartWithOptions(std::move(options));
 
       // Without this, it's possible for the scheduling threads to start and run
       // before the target thread. In this case, the scheduling threads will
@@ -88,10 +126,14 @@ class ScheduleWorkTest : public testing::Test {
     }
 
     std::vector<std::unique_ptr<Thread>> scheduling_threads;
-    scheduling_times_.reset(new base::TimeDelta[num_scheduling_threads]);
-    scheduling_thread_times_.reset(new base::TimeDelta[num_scheduling_threads]);
-    min_batch_times_.reset(new base::TimeDelta[num_scheduling_threads]);
-    max_batch_times_.reset(new base::TimeDelta[num_scheduling_threads]);
+    scheduling_times_ =
+        std::make_unique<base::TimeDelta[]>(num_scheduling_threads);
+    scheduling_thread_times_ =
+        std::make_unique<base::TimeDelta[]>(num_scheduling_threads);
+    min_batch_times_ =
+        std::make_unique<base::TimeDelta[]>(num_scheduling_threads);
+    max_batch_times_ =
+        std::make_unique<base::TimeDelta[]>(num_scheduling_threads);
 
     for (int i = 0; i < num_scheduling_threads; ++i) {
       scheduling_threads.push_back(std::make_unique<Thread>("posting thread"));
@@ -107,8 +149,8 @@ class ScheduleWorkTest : public testing::Test {
     for (int i = 0; i < num_scheduling_threads; ++i) {
       scheduling_threads[i]->Stop();
     }
-#if defined(OS_ANDROID)
-    if (target_type == MessageLoop::TYPE_JAVA) {
+#if BUILDFLAG(IS_ANDROID)
+    if (target_type == MessagePumpType::JAVA) {
       java_thread_->Stop();
       java_thread_.reset();
     } else
@@ -127,56 +169,41 @@ class ScheduleWorkTest : public testing::Test {
       min_batch_time = std::min(min_batch_time, min_batch_times_[i]);
       max_batch_time = std::max(max_batch_time, max_batch_times_[i]);
     }
-    std::string trace = StringPrintf(
-        "%d_threads_scheduling_to_%s_pump",
-        num_scheduling_threads,
-        target_type == MessageLoop::TYPE_IO
+
+    std::string story_name = StringPrintf(
+        "%s_pump_from_%d_threads",
+        target_type == MessagePumpType::IO
             ? "io"
-            : (target_type == MessageLoop::TYPE_UI ? "ui" : "default"));
-    perf_test::PrintResult(
-        "task",
-        "",
-        trace,
-        total_time.InMicroseconds() / static_cast<double>(counter_),
-        "us/task",
-        true);
-    perf_test::PrintResult(
-        "task",
-        "_min_batch_time",
-        trace,
-        min_batch_time.InMicroseconds() / static_cast<double>(kBatchSize),
-        "us/task",
-        false);
-    perf_test::PrintResult(
-        "task",
-        "_max_batch_time",
-        trace,
-        max_batch_time.InMicroseconds() / static_cast<double>(kBatchSize),
-        "us/task",
-        false);
+            : (target_type == MessagePumpType::UI ? "ui" : "default"),
+        num_scheduling_threads);
+    auto reporter = SetUpReporter(story_name);
+    reporter.AddResult(kMetricMinBatchTime, total_time.InMicroseconds() /
+                                                static_cast<double>(counter_));
+    reporter.AddResult(
+        kMetricMaxBatchTime,
+        max_batch_time.InMicroseconds() / static_cast<double>(kBatchSize));
+    reporter.AddResult(kMetricTotalTime, total_time.InMicroseconds() /
+                                             static_cast<double>(counter_));
     if (ThreadTicks::IsSupported()) {
-      perf_test::PrintResult(
-          "task",
-          "_thread_time",
-          trace,
-          total_thread_time.InMicroseconds() / static_cast<double>(counter_),
-          "us/task",
-          true);
+      reporter.AddResult(kMetricThreadTime, total_thread_time.InMicroseconds() /
+                                                static_cast<double>(counter_));
     }
   }
 
-  MessageLoop* target_message_loop() {
-#if defined(OS_ANDROID)
-    if (java_thread_)
-      return java_thread_->message_loop();
+  sequence_manager::internal::SequenceManagerImpl* target_message_loop_base() {
+#if BUILDFLAG(IS_ANDROID)
+    if (java_thread_) {
+      return static_cast<sequence_manager::internal::SequenceManagerImpl*>(
+          java_thread_->state()->sequence_manager.get());
+    }
 #endif
-    return target_->message_loop();
+    return CurrentThread::Get()->GetCurrentSequenceManagerImpl();
   }
 
  private:
   std::unique_ptr<Thread> target_;
-#if defined(OS_ANDROID)
-  std::unique_ptr<android::JavaHandlerThread> java_thread_;
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<JavaHandlerThreadForTest> java_thread_;
 #endif
   std::unique_ptr<base::TimeDelta[]> scheduling_times_;
   std::unique_ptr<base::TimeDelta[]> scheduling_thread_times_;
@@ -189,52 +216,52 @@ class ScheduleWorkTest : public testing::Test {
 };
 
 TEST_F(ScheduleWorkTest, ThreadTimeToIOFromOneThread) {
-  ScheduleWork(MessageLoop::TYPE_IO, 1);
+  ScheduleWork(MessagePumpType::IO, 1);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToIOFromTwoThreads) {
-  ScheduleWork(MessageLoop::TYPE_IO, 2);
+  ScheduleWork(MessagePumpType::IO, 2);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToIOFromFourThreads) {
-  ScheduleWork(MessageLoop::TYPE_IO, 4);
+  ScheduleWork(MessagePumpType::IO, 4);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToUIFromOneThread) {
-  ScheduleWork(MessageLoop::TYPE_UI, 1);
+  ScheduleWork(MessagePumpType::UI, 1);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToUIFromTwoThreads) {
-  ScheduleWork(MessageLoop::TYPE_UI, 2);
+  ScheduleWork(MessagePumpType::UI, 2);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToUIFromFourThreads) {
-  ScheduleWork(MessageLoop::TYPE_UI, 4);
+  ScheduleWork(MessagePumpType::UI, 4);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToDefaultFromOneThread) {
-  ScheduleWork(MessageLoop::TYPE_DEFAULT, 1);
+  ScheduleWork(MessagePumpType::DEFAULT, 1);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToDefaultFromTwoThreads) {
-  ScheduleWork(MessageLoop::TYPE_DEFAULT, 2);
+  ScheduleWork(MessagePumpType::DEFAULT, 2);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToDefaultFromFourThreads) {
-  ScheduleWork(MessageLoop::TYPE_DEFAULT, 4);
+  ScheduleWork(MessagePumpType::DEFAULT, 4);
 }
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 TEST_F(ScheduleWorkTest, ThreadTimeToJavaFromOneThread) {
-  ScheduleWork(MessageLoop::TYPE_JAVA, 1);
+  ScheduleWork(MessagePumpType::JAVA, 1);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToJavaFromTwoThreads) {
-  ScheduleWork(MessageLoop::TYPE_JAVA, 2);
+  ScheduleWork(MessagePumpType::JAVA, 2);
 }
 
 TEST_F(ScheduleWorkTest, ThreadTimeToJavaFromFourThreads) {
-  ScheduleWork(MessageLoop::TYPE_JAVA, 4);
+  ScheduleWork(MessagePumpType::JAVA, 4);
 }
 #endif
 

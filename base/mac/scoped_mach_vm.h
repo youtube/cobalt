@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,13 @@
 #define BASE_MAC_SCOPED_MACH_VM_H_
 
 #include <mach/mach.h>
+#include <stddef.h>
 
 #include <algorithm>
+#include <utility>
 
 #include "base/base_export.h"
-#include "base/logging.h"
-#include "base/macros.h"
-#include "starboard/types.h"
+#include "base/check_op.h"
 
 // Use ScopedMachVM to supervise ownership of pages in the current process
 // through the Mach VM subsystem. Pages allocated with vm_allocate can be
@@ -43,8 +43,7 @@
 //   }
 //   ScopedMachVM vm_owner(address, mach_vm_round_page(size));
 
-namespace base {
-namespace mac {
+namespace base::mac {
 
 class BASE_EXPORT ScopedMachVM {
  public:
@@ -54,13 +53,24 @@ class BASE_EXPORT ScopedMachVM {
     DCHECK_EQ(size % PAGE_SIZE, 0u);
   }
 
+  ScopedMachVM(const ScopedMachVM&) = delete;
+  ScopedMachVM& operator=(const ScopedMachVM&) = delete;
+
   ~ScopedMachVM() {
     if (size_) {
       vm_deallocate(mach_task_self(), address_, size_);
     }
   }
 
+  // Resets the scoper to manage a new memory region. Both |address| and |size|
+  // must be page-aligned. If the new region is a smaller subset of the
+  // existing region (i.e. the new and old regions overlap), the non-
+  // overlapping part of the old region is deallocated.
   void reset(vm_address_t address = 0, vm_size_t size = 0);
+
+  // Like reset() but does not DCHECK that |address| and |size| are page-
+  // aligned.
+  void reset_unaligned(vm_address_t address, vm_size_t size);
 
   vm_address_t address() const {
     return address_;
@@ -83,11 +93,8 @@ class BASE_EXPORT ScopedMachVM {
  private:
   vm_address_t address_;
   vm_size_t size_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedMachVM);
 };
 
-}  // namespace mac
-}  // namespace base
+}  // namespace base::mac
 
 #endif  // BASE_MAC_SCOPED_MACH_VM_H_

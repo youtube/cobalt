@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/bind.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"

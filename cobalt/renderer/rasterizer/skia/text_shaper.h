@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/strings/string16.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/renderer/rasterizer/skia/font.h"
@@ -70,7 +69,7 @@ class TextShaper {
   // Returns a newly created glyph buffer, which can be used to render the
   // shaped text.
   scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
-      const base::char16* text_buffer, size_t text_length,
+      const char16_t* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       render_tree::FontProvider* font_provider);
 
@@ -87,7 +86,7 @@ class TextShaper {
   // buffer is not created from the shaping data. It is instead only used to
   // generate the width of the data when it is shaped.
   // Returns the width of the shaped text.
-  float GetTextWidth(const base::char16* text_buffer, size_t text_length,
+  float GetTextWidth(const char16_t* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts);
@@ -129,7 +128,7 @@ class TextShaper {
   // shaped text.
   // If |maybe_used_fonts| is non-NULL, it is populated with all of the fonts
   // used during shaping.
-  float ShapeText(const base::char16* text_buffer, size_t text_length,
+  float ShapeText(const char16_t* text_buffer, size_t text_length,
                   const std::string& language, bool is_rtl,
                   render_tree::FontProvider* font_provider,
                   SkTextBlobBuilder* maybe_builder, math::RectF* maybe_bounds,
@@ -138,14 +137,14 @@ class TextShaper {
   // Populate a ScriptRuns object with all runs of text containing a single
   // skia::Font and UScriptCode combination.
   // Returns false if the script run collection fails.
-  bool CollectScriptRuns(const base::char16* text_buffer, size_t text_length,
+  bool CollectScriptRuns(const char16_t* text_buffer, size_t text_length,
                          render_tree::FontProvider* font_provider,
                          ScriptRuns* runs);
 
   // Shape a complex text run using HarfBuzz.
-  void ShapeComplexRun(const base::char16* text_buffer,
-                       const ScriptRun& script_run, const std::string& language,
-                       bool is_rtl, render_tree::FontProvider* font_provider,
+  void ShapeComplexRun(const char16_t* text_buffer, const ScriptRun& script_run,
+                       const std::string& language, bool is_rtl,
+                       render_tree::FontProvider* font_provider,
                        SkTextBlobBuilder* maybe_builder,
                        VerticalBounds* maybe_vertical_bounds,
                        render_tree::FontVector* maybe_used_fonts,
@@ -153,7 +152,7 @@ class TextShaper {
 
   // Shape a simple text run. In the case where the direction is RTL, the text
   // will be reversed.
-  void ShapeSimpleRunWithDirection(const base::char16* text_buffer,
+  void ShapeSimpleRunWithDirection(const char16_t* text_buffer,
                                    size_t text_length, bool is_rtl,
                                    render_tree::FontProvider* font_provider,
                                    SkTextBlobBuilder* maybe_builder,
@@ -163,7 +162,7 @@ class TextShaper {
 
   // Shape a simple text run, relying on the skia::Font objects provided by the
   // FontProvider to determine the shaping data.
-  void ShapeSimpleRun(const base::char16* text_buffer, size_t text_length,
+  void ShapeSimpleRun(const char16_t* text_buffer, size_t text_length,
                       render_tree::FontProvider* font_provider,
                       SkTextBlobBuilder* maybe_builder,
                       VerticalBounds* maybe_vertical_bounds,
@@ -201,7 +200,7 @@ class TextShaper {
   // The allocated text buffer used by complex shaping when normalizing the
   // text.
   size_t local_text_buffer_size_;
-  std::unique_ptr<base::char16[]> local_text_buffer_;
+  std::unique_ptr<char16_t[]> local_text_buffer_;
 };
 
 }  // namespace skia

@@ -1,9 +1,13 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <windows.h>
+
 #include <winternl.h>
+
+#include <string>
+#include <utility>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -12,20 +16,37 @@
 #include "base/test/multiprocess_test.h"
 #include "base/test/test_timeouts.h"
 #include "base/win/scoped_handle.h"
-
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
 namespace base {
 namespace win {
 
+namespace {
+
+std::string FailureMessage(const std::string& msg) {
+#if defined(NDEBUG) && defined(OFFICIAL_BUILD)
+  // Official release builds strip all fatal messages for saving binary size,
+  // see base/check.h.
+  return "";
+#else
+  return msg;
+#endif  // defined(NDEBUG) && defined(OFFICIAL_BUILD)
+}
+
+}  // namespace
+
 namespace testing {
 extern "C" bool __declspec(dllexport) RunTest();
 }  // namespace testing
 
-TEST(ScopedHandleTest, ScopedHandle) {
+using ScopedHandleTest = ::testing::Test;
+using ScopedHandleDeathTest = ::testing::Test;
+
+TEST_F(ScopedHandleTest, ScopedHandle) {
   // Any illegal error code will do. We just need to test that it is preserved
-  // by ScopedHandle to avoid bug 528394.
+  // by ScopedHandle to avoid https://crbug.com/528394.
   const DWORD magic_error = 0x12345678;
 
   HANDLE handle = ::CreateMutex(nullptr, false, nullptr);
@@ -48,53 +69,77 @@ TEST(ScopedHandleTest, ScopedHandle) {
   EXPECT_EQ(magic_error, ::GetLastError());
 }
 
-TEST(ScopedHandleTest, ActiveVerifierTrackedHasBeenClosed) {
+TEST_F(ScopedHandleDeathTest, HandleVerifierTrackedHasBeenClosed) {
   HANDLE handle = ::CreateMutex(nullptr, false, nullptr);
   ASSERT_NE(HANDLE(nullptr), handle);
-  typedef NTSTATUS(WINAPI * NtCloseFunc)(HANDLE);
-  NtCloseFunc ntclose = reinterpret_cast<NtCloseFunc>(
-      GetProcAddress(GetModuleHandle(L"ntdll.dll"), "NtClose"));
-  ASSERT_NE(nullptr, ntclose);
 
-  ASSERT_DEATH({
-    base::win::ScopedHandle handle_holder(handle);
-    ntclose(handle);
-    // Destructing a ScopedHandle with an illegally closed handle should fail.
-  }, "");
+  ASSERT_DEATH(
+      {
+        base::win::ScopedHandle handle_holder(handle);
+        ::NtClose(handle);
+        // Destructing a ScopedHandle with an illegally closed handle should
+        // fail.
+      },
+      FailureMessage("CloseHandle failed"));
 }
 
-TEST(ScopedHandleTest, ActiveVerifierDoubleTracking) {
-  HANDLE handle = ::CreateMutex(nullptr, false, nullptr);
-  ASSERT_NE(HANDLE(nullptr), handle);
+TEST_F(ScopedHandleDeathTest, HandleVerifierCloseTrackedHandle) {
+  ASSERT_DEATH(
+      {
+        HANDLE handle = ::CreateMutex(nullptr, false, nullptr);
+        ASSERT_NE(HANDLE(nullptr), handle);
 
-  base::win::ScopedHandle handle_holder(handle);
+        // Start tracking the handle so that closes outside of the checker are
+        // caught.
+        base::win::CheckedScopedHandle handle_holder(handle);
 
-  ASSERT_DEATH({
-    base::win::ScopedHandle handle_holder2(handle);
-  }, "");
+        // Closing a tracked handle using ::CloseHandle should crash due to hook
+        // noticing the illegal close.
+        ::CloseHandle(handle);
+      },
+      // This test must match the CloseHandleHook causing this failure, because
+      // if the hook doesn't crash and instead the handle is double closed by
+      // the `handle_holder` going out of scope, then there is still a crash,
+      // but a different crash and one we are not explicitly testing here. This
+      // other crash is tested in HandleVerifierTrackedHasBeenClosed above.
+      FailureMessage("CloseHandleHook validation failure"));
 }
 
-TEST(ScopedHandleTest, ActiveVerifierWrongOwner) {
+TEST_F(ScopedHandleDeathTest, HandleVerifierDoubleTracking) {
   HANDLE handle = ::CreateMutex(nullptr, false, nullptr);
   ASSERT_NE(HANDLE(nullptr), handle);
 
-  base::win::ScopedHandle handle_holder(handle);
-  ASSERT_DEATH({
-    base::win::ScopedHandle handle_holder2;
-    handle_holder2.handle_ = handle;
-  }, "");
-  ASSERT_TRUE(handle_holder.IsValid());
+  base::win::CheckedScopedHandle handle_holder(handle);
+
+  ASSERT_DEATH({ base::win::CheckedScopedHandle handle_holder2(handle); },
+               FailureMessage("Handle Already Tracked"));
+}
+
+TEST_F(ScopedHandleDeathTest, HandleVerifierWrongOwner) {
+  HANDLE handle = ::CreateMutex(nullptr, false, nullptr);
+  ASSERT_NE(HANDLE(nullptr), handle);
+
+  base::win::CheckedScopedHandle handle_holder(handle);
+  ASSERT_DEATH(
+      {
+        base::win::CheckedScopedHandle handle_holder2;
+        handle_holder2.handle_ = handle;
+      },
+      FailureMessage("Closing a handle owned by something else"));
+  ASSERT_TRUE(handle_holder.is_valid());
   handle_holder.Close();
 }
 
-TEST(ScopedHandleTest, ActiveVerifierUntrackedHandle) {
+TEST_F(ScopedHandleDeathTest, HandleVerifierUntrackedHandle) {
   HANDLE handle = ::CreateMutex(nullptr, false, nullptr);
   ASSERT_NE(HANDLE(nullptr), handle);
 
-  ASSERT_DEATH({
-    base::win::ScopedHandle handle_holder;
-    handle_holder.handle_ = handle;
-  }, "");
+  ASSERT_DEATH(
+      {
+        base::win::CheckedScopedHandle handle_holder;
+        handle_holder.handle_ = handle;
+      },
+      FailureMessage("Closing an untracked handle"));
 
   ASSERT_TRUE(::CloseHandle(handle));
 }
@@ -107,7 +152,7 @@ TEST(ScopedHandleTest, ActiveVerifierUntrackedHandle) {
 #define MAYBE_MultiProcess MultiProcess
 #endif
 
-TEST(ScopedHandleTest, MAYBE_MultiProcess) {
+TEST_F(ScopedHandleTest, MAYBE_MultiProcess) {
   // Initializing ICU in the child process causes a scoped handle to be created
   // before the test gets a chance to test the race condition, so disable ICU
   // for the child process here.
@@ -115,7 +160,7 @@ TEST(ScopedHandleTest, MAYBE_MultiProcess) {
   command_line.AppendSwitch(switches::kTestDoNotInitializeIcu);
 
   base::Process test_child_process = base::SpawnMultiProcessTestChild(
-      "ActiveVerifierChildProcess", command_line, LaunchOptions());
+      "HandleVerifierChildProcess", command_line, LaunchOptions());
 
   int rv = -1;
   ASSERT_TRUE(test_child_process.WaitForExitWithTimeout(
@@ -123,8 +168,9 @@ TEST(ScopedHandleTest, MAYBE_MultiProcess) {
   EXPECT_EQ(0, rv);
 }
 
-MULTIPROCESS_TEST_MAIN(ActiveVerifierChildProcess) {
-  ScopedNativeLibrary module(FilePath(L"scoped_handle_test_dll.dll"));
+MULTIPROCESS_TEST_MAIN(HandleVerifierChildProcess) {
+  ScopedNativeLibrary module(
+      FilePath(FILE_PATH_LITERAL("scoped_handle_test_dll.dll")));
 
   if (!module.is_valid())
     return 1;

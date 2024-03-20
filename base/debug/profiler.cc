@@ -1,75 +1,23 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/debug/profiler.h"
 
-#include <string>
-
 #include "base/allocator/buildflags.h"
+#include "base/check.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/process/process_handle.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/string_util.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/win/current_module.h"
 #include "base/win/pe_image.h"
-#endif  // defined(OS_WIN)
-
-// TODO(peria): Enable profiling on Windows.
-#if BUILDFLAG(ENABLE_PROFILING) && !defined(NO_TCMALLOC) && !defined(OS_WIN)
-
-#if BUILDFLAG(USE_NEW_TCMALLOC)
-#include "third_party/tcmalloc/chromium/src/gperftools/profiler.h"
-#else
-#include "third_party/tcmalloc/gperftools-2.0/chromium/src/gperftools/profiler.h"
-#endif
-
-#endif
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace base {
 namespace debug {
 
-// TODO(peria): Enable profiling on Windows.
-#if BUILDFLAG(ENABLE_PROFILING) && !defined(NO_TCMALLOC) && !defined(OS_WIN)
-
-static int profile_count = 0;
-
-void StartProfiling(const std::string& name) {
-  ++profile_count;
-  std::string full_name(name);
-  std::string pid = IntToString(GetCurrentProcId());
-  std::string count = IntToString(profile_count);
-  ReplaceSubstringsAfterOffset(&full_name, 0, "{pid}", pid);
-  ReplaceSubstringsAfterOffset(&full_name, 0, "{count}", count);
-  ProfilerStart(full_name.c_str());
-}
-
-void StopProfiling() {
-  ProfilerFlush();
-  ProfilerStop();
-}
-
-void FlushProfiling() {
-  ProfilerFlush();
-}
-
-bool BeingProfiled() {
-  return ProfilingIsEnabledForAllThreads();
-}
-
-void RestartProfilingAfterFork() {
-  ProfilerRegisterThread();
-}
-
-bool IsProfilingSupported() {
-  return true;
-}
-
-#else
-
 void StartProfiling(const std::string& name) {
 }
 
@@ -90,15 +38,9 @@ bool IsProfilingSupported() {
   return false;
 }
 
-#endif
-
-#if !defined(OS_WIN)
+#if !BUILDFLAG(IS_WIN)
 
 ReturnAddressLocationResolver GetProfilerReturnAddrResolutionFunc() {
-  return nullptr;
-}
-
-DynamicFunctionEntryHook GetProfilerDynamicFunctionEntryHookFunc() {
   return nullptr;
 }
 
@@ -110,7 +52,7 @@ MoveDynamicSymbol GetProfilerMoveDynamicSymbolFunc() {
   return nullptr;
 }
 
-#else  // defined(OS_WIN)
+#else  // BUILDFLAG(IS_WIN)
 
 namespace {
 
@@ -162,7 +104,7 @@ FunctionType FindFunctionInImports(const char* function_name) {
   base::win::PEImage image(CURRENT_MODULE());
 
   FunctionSearchContext ctx = { function_name, NULL };
-  image.EnumImportChunks(FindResolutionFunctionInImports, &ctx);
+  image.EnumImportChunks(FindResolutionFunctionInImports, &ctx, nullptr);
 
   return reinterpret_cast<FunctionType>(ctx.function);
 }
@@ -172,11 +114,6 @@ FunctionType FindFunctionInImports(const char* function_name) {
 ReturnAddressLocationResolver GetProfilerReturnAddrResolutionFunc() {
   return FindFunctionInImports<ReturnAddressLocationResolver>(
       "ResolveReturnAddressLocation");
-}
-
-DynamicFunctionEntryHook GetProfilerDynamicFunctionEntryHookFunc() {
-  return FindFunctionInImports<DynamicFunctionEntryHook>(
-      "OnDynamicFunctionEntry");
 }
 
 AddDynamicSymbol GetProfilerAddDynamicSymbolFunc() {
@@ -189,7 +126,7 @@ MoveDynamicSymbol GetProfilerMoveDynamicSymbolFunc() {
       "MoveDynamicSymbol");
 }
 
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace debug
 }  // namespace base

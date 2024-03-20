@@ -44,7 +44,7 @@ class InputDeviceManagerDesktop : public InputDeviceManager {
                            int key_code);
   void HandleInputEvent(const system_window::InputEvent* event);
 
-  void HandlePointerEvent(base::Token type,
+  void HandlePointerEvent(base_token::Token type,
                           const system_window::InputEvent* input_event);
 
   void HandleWheelEvent(const system_window::InputEvent* input_event);

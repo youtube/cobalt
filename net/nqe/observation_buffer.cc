@@ -1,33 +1,21 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/nqe/observation_buffer.h"
 
 #include <float.h>
-#include <math.h>
 
 #include <algorithm>
 #include <utility>
 
-#include "base/macros.h"
-#include "base/stl_util.h"
+#include "base/containers/cxx20_erase.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "net/nqe/network_quality_estimator_params.h"
 #include "net/nqe/weighted_observation.h"
 
-#include "starboard/client_porting/cwrappers/pow_wrapper.h"
-
-#if defined(STARBOARD)
-#include "starboard/types.h"
-#endif
-
-namespace net {
-
-namespace nqe {
-
-namespace internal {
+namespace net::nqe::internal {
 
 ObservationBuffer::ObservationBuffer(
     const NetworkQualityEstimatorParams* params,
@@ -77,7 +65,7 @@ void ObservationBuffer::AddObservation(const Observation& observation) {
   DCHECK_LE(observations_.size(), params_->observation_buffer_size());
 }
 
-base::Optional<int32_t> ObservationBuffer::GetPercentile(
+absl::optional<int32_t> ObservationBuffer::GetPercentile(
     base::TimeTicks begin_timestamp,
     int32_t current_signal_strength,
     int percentile,
@@ -100,7 +88,7 @@ base::Optional<int32_t> ObservationBuffer::GetPercentile(
   }
 
   if (weighted_observations.empty())
-    return base::nullopt;
+    return absl::nullopt;
 
   double desired_weight = percentile / 100.0 * total_weight;
 
@@ -117,62 +105,6 @@ base::Optional<int32_t> ObservationBuffer::GetPercentile(
   // In this case, we return the highest |value| among all observations.
   // This is same as value of the last observation in the sorted vector.
   return weighted_observations.at(weighted_observations.size() - 1).value;
-}
-
-void ObservationBuffer::GetPercentileForEachHostWithCounts(
-    base::TimeTicks begin_timestamp,
-    int percentile,
-    const base::Optional<std::set<IPHash>>& host_filter,
-    std::map<IPHash, int32_t>* host_keyed_percentiles,
-    std::map<IPHash, size_t>* host_keyed_counts) const {
-  DCHECK_GE(Capacity(), Size());
-  DCHECK_LE(0, percentile);
-  DCHECK_GE(100, percentile);
-
-  host_keyed_percentiles->clear();
-  host_keyed_counts->clear();
-
-  // Filter the observations based on timestamp, and the
-  // presence of a valid host tag. Split the observations into a map keyed by
-  // the remote host to make it easy to calculate percentiles for each host.
-  std::map<IPHash, std::vector<int32_t>> host_keyed_observations;
-  for (const auto& observation : observations_) {
-    // Look at only those observations which have a |host|.
-    if (!observation.host())
-      continue;
-
-    IPHash host = observation.host().value();
-    if (host_filter && (host_filter->find(host) == host_filter->end()))
-      continue;
-
-    // Filter the observations recorded before |begin_timestamp|.
-    if (observation.timestamp() < begin_timestamp)
-      continue;
-
-    // Skip 0 values of RTT.
-    if (observation.value() < 1)
-      continue;
-
-    // Create the map entry if it did not already exist. Does nothing if
-    // |host| was seen before.
-    host_keyed_observations.emplace(host, std::vector<int32_t>());
-    host_keyed_observations[host].push_back(observation.value());
-  }
-
-  if (host_keyed_observations.empty())
-    return;
-
-  // Calculate the percentile values for each host.
-  for (auto& host_observations : host_keyed_observations) {
-    IPHash host = host_observations.first;
-    auto& observations = host_observations.second;
-    std::sort(observations.begin(), observations.end());
-    size_t count = observations.size();
-    DCHECK_GT(count, 0u);
-    (*host_keyed_counts)[host] = count;
-    int percentile_index = ((count - 1) * percentile) / 100;
-    (*host_keyed_percentiles)[host] = observations[percentile_index];
-  }
 }
 
 void ObservationBuffer::RemoveObservationsWithSource(
@@ -212,8 +144,7 @@ void ObservationBuffer::ComputeWeightedObservations(
     }
 
     double weight = time_weight * signal_strength_weight;
-
-    weight = std::max(DBL_MIN, std::min(1.0, weight));
+    weight = std::clamp(weight, DBL_MIN, 1.0);
 
     weighted_observations->push_back(
         WeightedObservation(observation.value(), weight));
@@ -237,8 +168,4 @@ size_t ObservationBuffer::Capacity() const {
   return params_->observation_buffer_size();
 }
 
-}  // namespace internal
-
-}  // namespace nqe
-
-}  // namespace net
+}  // namespace net::nqe::internal

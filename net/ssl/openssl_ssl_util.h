@@ -1,14 +1,15 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SSL_OPENSSL_SSL_UTIL_H_
 #define NET_SSL_OPENSSL_SSL_UTIL_H_
 
+#include <stdint.h>
+
 #include "net/base/net_export.h"
 #include "net/cert/x509_certificate.h"
-#include "net/log/net_log_parameters_callback.h"
-#include "starboard/types.h"
+#include "net/log/net_log_event_type.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace crypto {
@@ -21,6 +22,8 @@ class Location;
 
 namespace net {
 
+class NetLogWithSource;
+
 // Puts a net error, |err|, on the error stack in OpenSSL. The file and line are
 // extracted from |posted_from|. The function code of the error is left as 0.
 void OpenSSLPutNetError(const base::Location& posted_from, int err);
@@ -31,8 +34,8 @@ struct SslSetClearMask {
   SslSetClearMask();
   void ConfigureFlag(long flag, bool state);
 
-  long set_mask;
-  long clear_mask;
+  long set_mask = 0;
+  long clear_mask = 0;
 };
 
 // Converts an OpenSSL error code into a net error code, walking the OpenSSL
@@ -47,11 +50,11 @@ NET_EXPORT_PRIVATE int MapOpenSSLError(
 
 // Helper struct to store information about an OpenSSL error stack entry.
 struct OpenSSLErrorInfo {
-  OpenSSLErrorInfo() : error_code(0), file(NULL), line(0) {}
+  OpenSSLErrorInfo() = default;
 
-  uint32_t error_code;
-  const char* file;
-  int line;
+  uint32_t error_code = 0;
+  const char* file = nullptr;
+  int line = 0;
 };
 
 // Converts an OpenSSL error code into a net error code, walking the OpenSSL
@@ -67,11 +70,12 @@ int MapOpenSSLErrorWithDetails(int err,
                                const crypto::OpenSSLErrStackTracer& tracer,
                                OpenSSLErrorInfo* out_error_info);
 
-// Creates NetLog callback for an OpenSSL error.
-NetLogParametersCallback CreateNetLogOpenSSLErrorCallback(
-    int net_error,
-    int ssl_error,
-    const OpenSSLErrorInfo& error_info);
+// Logs an OpenSSL error to the NetLog.
+void NetLogOpenSSLError(const NetLogWithSource& net_log,
+                        NetLogEventType type,
+                        int net_error,
+                        int ssl_error,
+                        const OpenSSLErrorInfo& error_info);
 
 // Returns the net SSL version number (see ssl_connection_status_flags.h) for
 // this SSL connection.

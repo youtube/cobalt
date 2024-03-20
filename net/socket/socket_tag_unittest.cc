@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,19 +6,19 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #endif
+
+#include <stdint.h>
 
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/sockaddr_storage.h"
 #include "net/socket/socket_test_util.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -32,7 +32,7 @@ TEST(SocketTagTest, Compares) {
   EXPECT_FALSE(unset1 != unset2);
   EXPECT_FALSE(unset1 < unset2);
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   SocketTag s00(0, 0), s01(0, 1), s11(1, 1);
 
   EXPECT_FALSE(s00 == unset1);
@@ -54,8 +54,13 @@ TEST(SocketTagTest, Compares) {
 
 // On Android, where socket tagging is supported, verify that SocketTag::Apply
 // works as expected.
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 TEST(SocketTagTest, Apply) {
+  if (!CanGetTaggedBytes()) {
+    DVLOG(0) << "Skipping test - GetTaggedBytes unsupported.";
+    return;
+  }
+
   // Start test server.
   EmbeddedTestServer test_server;
   test_server.AddDefaultHandlers(base::FilePath());

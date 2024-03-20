@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 // Following tests are ported and extended tests from libcpp for std::set.
 // They can be found here:
-// https://github.com/llvm-mirror/libcxx/tree/master/test/std/containers/associative/set
+// https://github.com/llvm/llvm-project/tree/main/libcxx/test/std/containers/associative/set
 //
 // Not ported tests:
 // * No tests with PrivateConstructor and std::less<> changed to std::less<T>
@@ -28,6 +28,7 @@
 // * No tests with min_allocator and no tests counting allocations.
 //   Flat sets currently don't support allocators.
 
+#include <deque>
 #include <forward_list>
 #include <functional>
 #include <iterator>
@@ -35,8 +36,10 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
+#include "base/functional/identity.h"
+#include "base/ranges/algorithm.h"
 #include "base/template_util.h"
+#include "base/test/gtest_util.h"
 #include "base/test/move_only_int.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -95,6 +98,8 @@ class Emplaceable {
     other.int_ = 0;
     other.double_ = 0.0;
   }
+  Emplaceable(const Emplaceable&) = delete;
+  Emplaceable& operator=(const Emplaceable&) = delete;
 
   Emplaceable& operator=(Emplaceable&& other) {
     int_ = other.int_;
@@ -115,8 +120,6 @@ class Emplaceable {
  private:
   int int_;
   double double_;
-
-  DISALLOW_COPY_AND_ASSIGN(Emplaceable);
 };
 
 struct TemplateConstructor {
@@ -147,32 +150,41 @@ struct LessByFirst {
 };
 
 // Common test trees.
-using IntTree =
-    flat_tree<int, int, GetKeyFromValueIdentity<int>, std::less<int>>;
+template <typename ContainerT>
+using TypedTree = flat_tree<typename ContainerT::value_type,
+                            base::identity,
+                            std::less<>,
+                            ContainerT>;
+using IntTree = TypedTree<std::vector<int>>;
 using IntPair = std::pair<int, int>;
 using IntPairTree = flat_tree<IntPair,
-                              IntPair,
-                              GetKeyFromValueIdentity<IntPair>,
-                              LessByFirst<IntPair>>;
+                              base::identity,
+                              LessByFirst<IntPair>,
+                              std::vector<IntPair>>;
 using MoveOnlyTree = flat_tree<MoveOnlyInt,
-                               MoveOnlyInt,
-                               GetKeyFromValueIdentity<MoveOnlyInt>,
-                               std::less<MoveOnlyInt>>;
+                               base::identity,
+                               std::less<>,
+                               std::vector<MoveOnlyInt>>;
 using EmplaceableTree = flat_tree<Emplaceable,
-                                  Emplaceable,
-                                  GetKeyFromValueIdentity<Emplaceable>,
-                                  std::less<Emplaceable>>;
+                                  base::identity,
+                                  std::less<>,
+                                  std::vector<Emplaceable>>;
 using ReversedTree =
-    flat_tree<int, int, GetKeyFromValueIdentity<int>, std::greater<int>>;
+    flat_tree<int, base::identity, std::greater<int>, std::vector<int>>;
 
 using TreeWithStrangeCompare = flat_tree<int,
-                                         int,
-                                         GetKeyFromValueIdentity<int>,
-                                         NonDefaultConstructibleCompare>;
+                                         base::identity,
+                                         NonDefaultConstructibleCompare,
+                                         std::vector<int>>;
 
 using ::testing::ElementsAre;
+using ::testing::IsEmpty;
 
 }  // namespace
+
+template <typename T>
+class FlatTreeTest : public testing::Test {};
+TYPED_TEST_SUITE_P(FlatTreeTest);
 
 TEST(FlatTree, IsMultipass) {
   static_assert(!is_multipass<std::istream_iterator<int>>(),
@@ -188,66 +200,26 @@ TEST(FlatTree, IsMultipass) {
                 "RandomAccessIterator is multipass");
 }
 
-TEST(FlatTree, LastUnique) {
-  using Pair = std::pair<int, int>;
-  using Vect = std::vector<Pair>;
-
-  auto cmp = [](const Pair& lhs, const Pair& rhs) {
-    return lhs.first == rhs.first;
+// Tests that the compiler generated move operators propagrate noexcept
+// specifiers.
+TEST(FlatTree, NoExcept) {
+  struct MoveThrows {
+    MoveThrows(MoveThrows&&) noexcept(false) {}
+    MoveThrows& operator=(MoveThrows&&) noexcept(false) { return *this; }
   };
 
-  // Empty case.
-  Vect empty;
-  EXPECT_EQ(empty.end(), LastUnique(empty.begin(), empty.end(), cmp));
+  using MoveThrowsTree = flat_tree<MoveThrows, base::identity, std::less<>,
+                                   std::array<MoveThrows, 1>>;
 
-  // Single element.
-  Vect one;
-  one.push_back(Pair(1, 1));
-  EXPECT_EQ(one.end(), LastUnique(one.begin(), one.end(), cmp));
-  ASSERT_EQ(1u, one.size());
-  EXPECT_THAT(one, ElementsAre(Pair(1, 1)));
+  static_assert(std::is_nothrow_move_constructible<IntTree>::value,
+                "Error: IntTree is not nothrow move constructible");
+  static_assert(std::is_nothrow_move_assignable<IntTree>::value,
+                "Error: IntTree is not nothrow move assignable");
 
-  // Two elements, already unique.
-  Vect two_u;
-  two_u.push_back(Pair(1, 1));
-  two_u.push_back(Pair(2, 2));
-  EXPECT_EQ(two_u.end(), LastUnique(two_u.begin(), two_u.end(), cmp));
-  EXPECT_THAT(two_u, ElementsAre(Pair(1, 1), Pair(2, 2)));
-
-  // Two elements, dupes.
-  Vect two_d;
-  two_d.push_back(Pair(1, 1));
-  two_d.push_back(Pair(1, 2));
-  auto last = LastUnique(two_d.begin(), two_d.end(), cmp);
-  EXPECT_EQ(two_d.begin() + 1, last);
-  two_d.erase(last, two_d.end());
-  EXPECT_THAT(two_d, ElementsAre(Pair(1, 2)));
-
-  // Non-dupes, dupes, non-dupes.
-  Vect ndn;
-  ndn.push_back(Pair(1, 1));
-  ndn.push_back(Pair(2, 1));
-  ndn.push_back(Pair(2, 2));
-  ndn.push_back(Pair(2, 3));
-  ndn.push_back(Pair(3, 1));
-  last = LastUnique(ndn.begin(), ndn.end(), cmp);
-  EXPECT_EQ(ndn.begin() + 3, last);
-  ndn.erase(last, ndn.end());
-  EXPECT_THAT(ndn, ElementsAre(Pair(1, 1), Pair(2, 3), Pair(3, 1)));
-
-  // Dupes, non-dupes, dupes.
-  Vect dnd;
-  dnd.push_back(Pair(1, 1));
-  dnd.push_back(Pair(1, 2));
-  dnd.push_back(Pair(1, 3));
-  dnd.push_back(Pair(2, 1));
-  dnd.push_back(Pair(3, 1));
-  dnd.push_back(Pair(3, 2));
-  dnd.push_back(Pair(3, 3));
-  last = LastUnique(dnd.begin(), dnd.end(), cmp);
-  EXPECT_EQ(dnd.begin() + 3, last);
-  dnd.erase(last, dnd.end());
-  EXPECT_THAT(dnd, ElementsAre(Pair(1, 3), Pair(2, 1), Pair(3, 3)));
+  static_assert(!std::is_nothrow_move_constructible<MoveThrowsTree>::value,
+                "Error: MoveThrowsTree is nothrow move constructible");
+  static_assert(!std::is_nothrow_move_assignable<MoveThrowsTree>::value,
+                "Error: MoveThrowsTree is nothrow move assignable");
 }
 
 // ----------------------------------------------------------------------------
@@ -258,7 +230,7 @@ TEST(FlatTree, LastUnique) {
 
 TEST(FlatTree, IncompleteType) {
   struct A {
-    using Tree = flat_tree<A, A, GetKeyFromValueIdentity<A>, std::less<A>>;
+    using Tree = flat_tree<A, base::identity, std::less<A>, std::vector<A>>;
     int data;
     Tree set_with_incomplete_type;
     Tree::iterator it;
@@ -274,14 +246,14 @@ TEST(FlatTree, Stability) {
   using Pair = std::pair<int, int>;
 
   using Tree =
-      flat_tree<Pair, Pair, GetKeyFromValueIdentity<Pair>, LessByFirst<Pair>>;
+      flat_tree<Pair, base::identity, LessByFirst<Pair>, std::vector<Pair>>;
 
   // Constructors are stable.
   Tree cont({{0, 0}, {1, 0}, {0, 1}, {2, 0}, {0, 2}, {1, 1}});
 
   auto AllOfSecondsAreZero = [&cont] {
-    return std::all_of(cont.begin(), cont.end(),
-                       [](const Pair& elem) { return elem.second == 0; });
+    return ranges::all_of(cont,
+                          [](const Pair& elem) { return elem.second == 0; });
   };
 
   EXPECT_TRUE(AllOfSecondsAreZero()) << "constructor should be stable";
@@ -321,8 +293,7 @@ TEST(FlatTree, Types) {
   // These are guaranteed to be portable.
   static_assert((std::is_same<int, IntTree::key_type>::value), "");
   static_assert((std::is_same<int, IntTree::value_type>::value), "");
-  static_assert((std::is_same<std::less<int>, IntTree::key_compare>::value),
-                "");
+  static_assert((std::is_same<std::less<>, IntTree::key_compare>::value), "");
   static_assert((std::is_same<int&, IntTree::reference>::value), "");
   static_assert((std::is_same<const int&, IntTree::const_reference>::value),
                 "");
@@ -336,9 +307,9 @@ TEST(FlatTree, Types) {
 // flat_tree()
 // flat_tree(const Compare& comp)
 
-TEST(FlatTree, DefaultConstructor) {
+TYPED_TEST_P(FlatTreeTest, DefaultConstructor) {
   {
-    IntTree cont;
+    TypedTree<TypeParam> cont;
     EXPECT_THAT(cont, ElementsAre());
   }
 
@@ -348,44 +319,11 @@ TEST(FlatTree, DefaultConstructor) {
   }
 }
 
-// flat_tree(InputIterator first,
-//           InputIterator last,
-//           FlatContainerDupes dupe_handling,
-//           const Compare& comp = Compare())
-
-TEST(FlatTree, RangeConstructor) {
-  {
-    IntPair input_vals[] = {{1, 1}, {1, 2}, {2, 1}, {2, 2}, {1, 3},
-                            {2, 3}, {3, 1}, {3, 2}, {3, 3}};
-
-    IntPairTree first_of(MakeInputIterator(std::begin(input_vals)),
-                         MakeInputIterator(std::end(input_vals)));
-    EXPECT_THAT(first_of,
-                ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1)));
-
-    IntPairTree last_of(MakeInputIterator(std::begin(input_vals)),
-                        MakeInputIterator(std::end(input_vals)),
-                        KEEP_LAST_OF_DUPES);
-    EXPECT_THAT(last_of,
-                ElementsAre(IntPair(1, 3), IntPair(2, 3), IntPair(3, 3)));
-  }
-  {
-    TreeWithStrangeCompare::value_type input_vals[] = {1, 1, 1, 2, 2,
-                                                       2, 3, 3, 3};
-
-    TreeWithStrangeCompare cont(MakeInputIterator(std::begin(input_vals)),
-                                MakeInputIterator(std::end(input_vals)),
-                                KEEP_FIRST_OF_DUPES,
-                                NonDefaultConstructibleCompare(0));
-    EXPECT_THAT(cont, ElementsAre(1, 2, 3));
-  }
-}
-
 // flat_tree(const flat_tree& x)
 
-TEST(FlatTree, CopyConstructor) {
-  IntTree original({1, 2, 3, 4});
-  IntTree copied(original);
+TYPED_TEST_P(FlatTreeTest, CopyConstructor) {
+  TypedTree<TypeParam> original({1, 2, 3, 4});
+  TypedTree<TypeParam> copied(original);
 
   EXPECT_THAT(copied, ElementsAre(1, 2, 3, 4));
 
@@ -408,9 +346,44 @@ TEST(FlatTree, MoveConstructor) {
   EXPECT_EQ(1U, moved.count(MoveOnlyInt(4)));
 }
 
-// flat_tree(std::vector<value_type>, FlatContainerDupes dupe_handling)
+// flat_tree(InputIterator first,
+//           InputIterator last,
+//           const Compare& comp = Compare())
 
-TEST(FlatTree, VectorConstructor) {
+TEST(FlatTree, RangeConstructor) {
+  {
+    IntPair input_vals[] = {{1, 1}, {1, 2}, {2, 1}, {2, 2}, {1, 3},
+                            {2, 3}, {3, 1}, {3, 2}, {3, 3}};
+
+    IntPairTree first_of(MakeInputIterator(std::begin(input_vals)),
+                         MakeInputIterator(std::end(input_vals)));
+    EXPECT_THAT(first_of,
+                ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1)));
+  }
+  {
+    TreeWithStrangeCompare::value_type input_vals[] = {1, 1, 1, 2, 2,
+                                                       2, 3, 3, 3};
+
+    TreeWithStrangeCompare cont(MakeInputIterator(std::begin(input_vals)),
+                                MakeInputIterator(std::end(input_vals)),
+                                NonDefaultConstructibleCompare(0));
+    EXPECT_THAT(cont, ElementsAre(1, 2, 3));
+  }
+}
+
+// flat_tree(const container_type&)
+
+TYPED_TEST_P(FlatTreeTest, ContainerCopyConstructor) {
+  TypeParam items = {1, 2, 3, 4};
+  TypedTree<TypeParam> tree(items);
+
+  EXPECT_THAT(tree, ElementsAre(1, 2, 3, 4));
+  EXPECT_THAT(items, ElementsAre(1, 2, 3, 4));
+}
+
+// flat_tree(container_type&&)
+
+TEST(FlatTree, ContainerMoveConstructor) {
   using Pair = std::pair<int, MoveOnlyInt>;
 
   // Construct an unsorted vector with a duplicate item in it. Sorted by the
@@ -422,7 +395,7 @@ TEST(FlatTree, VectorConstructor) {
   storage.push_back(Pair(2, MoveOnlyInt(1)));
 
   using Tree =
-      flat_tree<Pair, Pair, GetKeyFromValueIdentity<Pair>, LessByFirst<Pair>>;
+      flat_tree<Pair, base::identity, LessByFirst<Pair>, std::vector<Pair>>;
   Tree tree(std::move(storage));
 
   // The list should be two items long, with only the first "2" saved.
@@ -434,28 +407,22 @@ TEST(FlatTree, VectorConstructor) {
   const Pair& first = *(tree.begin() + 1);
   ASSERT_EQ(2, first.first);
   ASSERT_EQ(0, first.second.data());
-
-  // Test KEEP_LAST_OF_DUPES with a simple vector constructor.
-  std::vector<IntPair> int_storage{{1, 1}, {1, 2}, {2, 1}};
-  IntPairTree int_tree(std::move(int_storage), KEEP_LAST_OF_DUPES);
-  EXPECT_THAT(int_tree, ElementsAre(IntPair(1, 2), IntPair(2, 1)));
 }
 
 // flat_tree(std::initializer_list<value_type> ilist,
-//           FlatContainerDupes dupe_handling,
 //           const Compare& comp = Compare())
 
-TEST(FlatTree, InitializerListConstructor) {
+TYPED_TEST_P(FlatTreeTest, InitializerListConstructor) {
   {
-    IntTree cont({1, 2, 3, 4, 5, 6, 10, 8});
+    TypedTree<TypeParam> cont({1, 2, 3, 4, 5, 6, 10, 8});
     EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4, 5, 6, 8, 10));
   }
   {
-    IntTree cont({1, 2, 3, 4, 5, 6, 10, 8});
+    TypedTree<TypeParam> cont({1, 2, 3, 4, 5, 6, 10, 8});
     EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4, 5, 6, 8, 10));
   }
   {
-    TreeWithStrangeCompare cont({1, 2, 3, 4, 5, 6, 10, 8}, KEEP_FIRST_OF_DUPES,
+    TreeWithStrangeCompare cont({1, 2, 3, 4, 5, 6, 10, 8},
                                 NonDefaultConstructibleCompare(0));
     EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4, 5, 6, 8, 10));
   }
@@ -463,9 +430,88 @@ TEST(FlatTree, InitializerListConstructor) {
     IntPairTree first_of({{1, 1}, {2, 1}, {1, 2}});
     EXPECT_THAT(first_of, ElementsAre(IntPair(1, 1), IntPair(2, 1)));
   }
+}
+
+// flat_tree(sorted_unique_t,
+//           InputIterator first,
+//           InputIterator last,
+//           const Compare& comp = Compare())
+
+TEST(FlatTree, SortedUniqueRangeConstructor) {
   {
-    IntPairTree last_of({{1, 1}, {2, 1}, {1, 2}}, KEEP_LAST_OF_DUPES);
-    EXPECT_THAT(last_of, ElementsAre(IntPair(1, 2), IntPair(2, 1)));
+    IntPair input_vals[] = {{1, 1}, {2, 1}, {3, 1}};
+
+    IntPairTree first_of(sorted_unique,
+                         MakeInputIterator(std::begin(input_vals)),
+                         MakeInputIterator(std::end(input_vals)));
+    EXPECT_THAT(first_of,
+                ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1)));
+  }
+  {
+    TreeWithStrangeCompare::value_type input_vals[] = {1, 2, 3};
+
+    TreeWithStrangeCompare cont(sorted_unique,
+                                MakeInputIterator(std::begin(input_vals)),
+                                MakeInputIterator(std::end(input_vals)),
+                                NonDefaultConstructibleCompare(0));
+    EXPECT_THAT(cont, ElementsAre(1, 2, 3));
+  }
+}
+
+// flat_tree(sorted_unique_t, const container_type&)
+
+TYPED_TEST_P(FlatTreeTest, SortedUniqueContainerCopyConstructor) {
+  TypeParam items = {1, 2, 3, 4};
+  TypedTree<TypeParam> tree(sorted_unique, items);
+
+  EXPECT_THAT(tree, ElementsAre(1, 2, 3, 4));
+  EXPECT_THAT(items, ElementsAre(1, 2, 3, 4));
+}
+
+// flat_tree(sorted_unique_t, std::vector<value_type>&&)
+
+TEST(FlatTree, SortedUniqueVectorMoveConstructor) {
+  using Pair = std::pair<int, MoveOnlyInt>;
+
+  std::vector<Pair> storage;
+  storage.push_back(Pair(1, MoveOnlyInt(0)));
+  storage.push_back(Pair(2, MoveOnlyInt(0)));
+
+  using Tree =
+      flat_tree<Pair, base::identity, LessByFirst<Pair>, std::vector<Pair>>;
+  Tree tree(sorted_unique, std::move(storage));
+
+  ASSERT_EQ(2u, tree.size());
+  const Pair& zeroth = *tree.begin();
+  ASSERT_EQ(1, zeroth.first);
+  ASSERT_EQ(0, zeroth.second.data());
+
+  const Pair& first = *(tree.begin() + 1);
+  ASSERT_EQ(2, first.first);
+  ASSERT_EQ(0, first.second.data());
+}
+
+// flat_tree(sorted_unique_t,
+//           std::initializer_list<value_type> ilist,
+//           const Compare& comp = Compare())
+
+TYPED_TEST_P(FlatTreeTest, SortedUniqueInitializerListConstructor) {
+  {
+    TypedTree<TypeParam> cont(sorted_unique, {1, 2, 3, 4, 5, 6, 8, 10});
+    EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4, 5, 6, 8, 10));
+  }
+  {
+    TypedTree<TypeParam> cont(sorted_unique, {1, 2, 3, 4, 5, 6, 8, 10});
+    EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4, 5, 6, 8, 10));
+  }
+  {
+    TreeWithStrangeCompare cont(sorted_unique, {1, 2, 3, 4, 5, 6, 8, 10},
+                                NonDefaultConstructibleCompare(0));
+    EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4, 5, 6, 8, 10));
+  }
+  {
+    IntPairTree first_of(sorted_unique, {{1, 1}, {2, 1}});
+    EXPECT_THAT(first_of, ElementsAre(IntPair(1, 1), IntPair(2, 1)));
   }
 }
 
@@ -474,9 +520,9 @@ TEST(FlatTree, InitializerListConstructor) {
 
 // flat_tree& operator=(const flat_tree&)
 
-TEST(FlatTree, CopyAssignable) {
-  IntTree original({1, 2, 3, 4});
-  IntTree copied;
+TYPED_TEST_P(FlatTreeTest, CopyAssignable) {
+  TypedTree<TypeParam> original({1, 2, 3, 4});
+  TypedTree<TypeParam> copied;
   copied = original;
 
   EXPECT_THAT(copied, ElementsAre(1, 2, 3, 4));
@@ -501,8 +547,8 @@ TEST(FlatTree, MoveAssignable) {
 
 // flat_tree& operator=(std::initializer_list<value_type> ilist)
 
-TEST(FlatTree, InitializerListAssignable) {
-  IntTree cont({0});
+TYPED_TEST_P(FlatTreeTest, InitializerListAssignable) {
+  TypedTree<TypeParam> cont({0});
   cont = {1, 2, 3, 4, 5, 6, 10, 8};
 
   EXPECT_EQ(0U, cont.count(0));
@@ -514,7 +560,7 @@ TEST(FlatTree, InitializerListAssignable) {
 
 // void reserve(size_type new_capacity)
 
-TEST(FlatTree, Reserve) {
+TEST(FlatTreeTest, Reserve) {
   IntTree cont({1, 2, 3});
 
   cont.reserve(5);
@@ -523,7 +569,7 @@ TEST(FlatTree, Reserve) {
 
 // size_type capacity() const
 
-TEST(FlatTree, Capacity) {
+TEST(FlatTreeTest, Capacity) {
   IntTree cont({1, 2, 3});
 
   EXPECT_LE(cont.size(), cont.capacity());
@@ -533,7 +579,7 @@ TEST(FlatTree, Capacity) {
 
 // void shrink_to_fit()
 
-TEST(FlatTree, ShrinkToFit) {
+TEST(FlatTreeTest, ShrinkToFit) {
   IntTree cont({1, 2, 3});
 
   IntTree::size_type capacity_before = cont.capacity();
@@ -546,16 +592,16 @@ TEST(FlatTree, ShrinkToFit) {
 
 // void clear()
 
-TEST(FlatTree, Clear) {
-  IntTree cont({1, 2, 3, 4, 5, 6, 7, 8});
+TYPED_TEST_P(FlatTreeTest, Clear) {
+  TypedTree<TypeParam> cont({1, 2, 3, 4, 5, 6, 7, 8});
   cont.clear();
   EXPECT_THAT(cont, ElementsAre());
 }
 
 // size_type size() const
 
-TEST(FlatTree, Size) {
-  IntTree cont;
+TYPED_TEST_P(FlatTreeTest, Size) {
+  TypedTree<TypeParam> cont;
 
   EXPECT_EQ(0U, cont.size());
   cont.insert(2);
@@ -574,8 +620,8 @@ TEST(FlatTree, Size) {
 
 // bool empty() const
 
-TEST(FlatTree, Empty) {
-  IntTree cont;
+TYPED_TEST_P(FlatTreeTest, Empty) {
+  TypedTree<TypeParam> cont;
 
   EXPECT_TRUE(cont.empty());
   cont.insert(1);
@@ -602,10 +648,11 @@ TEST(FlatTree, Empty) {
 // const_reverse_iterator crbegin() const
 // const_reverse_iterator crend() const
 
-TEST(FlatTree, Iterators) {
-  IntTree cont({1, 2, 3, 4, 5, 6, 7, 8});
+TYPED_TEST_P(FlatTreeTest, Iterators) {
+  TypedTree<TypeParam> cont({1, 2, 3, 4, 5, 6, 7, 8});
 
-  auto size = static_cast<IntTree::difference_type>(cont.size());
+  auto size =
+      static_cast<typename TypedTree<TypeParam>::difference_type>(cont.size());
 
   EXPECT_EQ(size, std::distance(cont.begin(), cont.end()));
   EXPECT_EQ(size, std::distance(cont.cbegin(), cont.cend()));
@@ -638,11 +685,12 @@ TEST(FlatTree, Iterators) {
 
 // pair<iterator, bool> insert(const value_type& val)
 
-TEST(FlatTree, InsertLValue) {
-  IntTree cont;
+TYPED_TEST_P(FlatTreeTest, InsertLValue) {
+  TypedTree<TypeParam> cont;
 
   int value = 2;
-  std::pair<IntTree::iterator, bool> result = cont.insert(value);
+  std::pair<typename TypedTree<TypeParam>::iterator, bool> result =
+      cont.insert(value);
   EXPECT_TRUE(result.second);
   EXPECT_EQ(cont.begin(), result.first);
   EXPECT_EQ(1U, cont.size());
@@ -702,8 +750,8 @@ TEST(FlatTree, InsertRValue) {
 
 // iterator insert(const_iterator position_hint, const value_type& val)
 
-TEST(FlatTree, InsertPositionLValue) {
-  IntTree cont;
+TYPED_TEST_P(FlatTreeTest, InsertPositionLValue) {
+  TypedTree<TypeParam> cont;
 
   auto result = cont.insert(cont.cend(), 2);
   EXPECT_EQ(cont.begin(), result);
@@ -762,8 +810,8 @@ TEST(FlatTree, InsertIterIter) {
     }
   };
 
-  using IntIntMap =
-      flat_tree<int, IntPair, GetKeyFromIntIntPair, std::less<int>>;
+  using IntIntMap = flat_tree<int, GetKeyFromIntIntPair, std::less<int>,
+                              std::vector<IntPair>>;
 
   {
     IntIntMap cont;
@@ -791,24 +839,8 @@ TEST(FlatTree, InsertIterIter) {
 
   {
     IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
-    IntPair int_pairs[] = {{1, 2}};
-    cont.insert(std::begin(int_pairs), std::end(int_pairs), KEEP_LAST_OF_DUPES);
-    EXPECT_THAT(cont, ElementsAre(IntPair(1, 2), IntPair(2, 1), IntPair(3, 1),
-                                  IntPair(4, 1)));
-  }
-
-  {
-    IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
     IntPair int_pairs[] = {{5, 1}};
     cont.insert(std::begin(int_pairs), std::end(int_pairs));
-    EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
-                                  IntPair(4, 1), IntPair(5, 1)));
-  }
-
-  {
-    IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
-    IntPair int_pairs[] = {{5, 1}};
-    cont.insert(std::begin(int_pairs), std::end(int_pairs), KEEP_LAST_OF_DUPES);
     EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
                                   IntPair(4, 1), IntPair(5, 1)));
   }
@@ -819,14 +851,6 @@ TEST(FlatTree, InsertIterIter) {
     cont.insert(std::begin(int_pairs), std::end(int_pairs));
     EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
                                   IntPair(4, 1)));
-  }
-
-  {
-    IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
-    IntPair int_pairs[] = {{3, 2}, {1, 2}, {4, 2}, {2, 2}};
-    cont.insert(std::begin(int_pairs), std::end(int_pairs), KEEP_LAST_OF_DUPES);
-    EXPECT_THAT(cont, ElementsAre(IntPair(1, 2), IntPair(2, 2), IntPair(3, 2),
-                                  IntPair(4, 2)));
   }
 
   {
@@ -838,22 +862,12 @@ TEST(FlatTree, InsertIterIter) {
                                   IntPair(4, 1), IntPair(5, 2), IntPair(6, 2),
                                   IntPair(7, 2), IntPair(8, 2)));
   }
-
-  {
-    IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
-    IntPair int_pairs[] = {{3, 2}, {1, 2}, {4, 2}, {2, 2}, {7, 2}, {6, 2},
-                           {8, 2}, {5, 2}, {5, 3}, {6, 3}, {7, 3}, {8, 3}};
-    cont.insert(std::begin(int_pairs), std::end(int_pairs), KEEP_LAST_OF_DUPES);
-    EXPECT_THAT(cont, ElementsAre(IntPair(1, 2), IntPair(2, 2), IntPair(3, 2),
-                                  IntPair(4, 2), IntPair(5, 3), IntPair(6, 3),
-                                  IntPair(7, 3), IntPair(8, 3)));
-  }
 }
 
 // template <class... Args>
 // pair<iterator, bool> emplace(Args&&... args)
 
-TEST(FlatTree, Emplace) {
+TYPED_TEST_P(FlatTreeTest, Emplace) {
   {
     EmplaceableTree cont;
 
@@ -876,9 +890,10 @@ TEST(FlatTree, Emplace) {
     EXPECT_EQ(Emplaceable(2, 3.5), *result.first);
   }
   {
-    IntTree cont;
+    TypedTree<TypeParam> cont;
 
-    std::pair<IntTree::iterator, bool> result = cont.emplace(2);
+    std::pair<typename TypedTree<TypeParam>::iterator, bool> result =
+        cont.emplace(2);
     EXPECT_TRUE(result.second);
     EXPECT_EQ(cont.begin(), result.first);
     EXPECT_EQ(1U, cont.size());
@@ -889,7 +904,7 @@ TEST(FlatTree, Emplace) {
 // template <class... Args>
 // iterator emplace_hint(const_iterator position_hint, Args&&... args)
 
-TEST(FlatTree, EmplacePosition) {
+TYPED_TEST_P(FlatTreeTest, EmplacePosition) {
   {
     EmplaceableTree cont;
 
@@ -909,7 +924,7 @@ TEST(FlatTree, EmplacePosition) {
     EXPECT_EQ(Emplaceable(2, 3.5), *result);
   }
   {
-    IntTree cont;
+    TypedTree<TypeParam> cont;
 
     auto result = cont.emplace_hint(cont.cend(), 2);
     EXPECT_EQ(cont.begin(), result);
@@ -919,46 +934,39 @@ TEST(FlatTree, EmplacePosition) {
 }
 
 // ----------------------------------------------------------------------------
+// Underlying type operations.
+
+// underlying_type extract() &&
+TYPED_TEST_P(FlatTreeTest, Extract) {
+  TypedTree<TypeParam> cont;
+  cont.emplace(3);
+  cont.emplace(1);
+  cont.emplace(2);
+  cont.emplace(4);
+
+  TypeParam body = std::move(cont).extract();
+  EXPECT_THAT(cont, IsEmpty());
+  EXPECT_THAT(body, ElementsAre(1, 2, 3, 4));
+}
+
+// replace(underlying_type&&)
+TYPED_TEST_P(FlatTreeTest, Replace) {
+  TypeParam body = {1, 2, 3, 4};
+  TypedTree<TypeParam> cont;
+  cont.replace(std::move(body));
+
+  EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4));
+}
+
+// ----------------------------------------------------------------------------
 // Erase operations.
 
 // iterator erase(const_iterator position_hint)
 
-TEST(FlatTree, ErasePosition) {
+TYPED_TEST_P(FlatTreeTest, ErasePosition) {
   {
-    IntTree cont({1, 2, 3, 4, 5, 6, 7, 8});
+    TypedTree<TypeParam> cont({1, 2, 3, 4, 5, 6, 7, 8});
 
-#if defined(STARBOARD)
-    // Raspi compiler does not support erasing const iterator.
-    auto it = cont.erase(std::next(cont.begin(), 3));
-    EXPECT_EQ(std::next(cont.begin(), 3), it);
-    EXPECT_THAT(cont, ElementsAre(1, 2, 3, 5, 6, 7, 8));
-
-    it = cont.erase(std::next(cont.begin(), 0));
-    EXPECT_EQ(cont.begin(), it);
-    EXPECT_THAT(cont, ElementsAre(2, 3, 5, 6, 7, 8));
-
-    it = cont.erase(std::next(cont.begin(), 5));
-    EXPECT_EQ(cont.end(), it);
-    EXPECT_THAT(cont, ElementsAre(2, 3, 5, 6, 7));
-
-    it = cont.erase(std::next(cont.begin(), 1));
-    EXPECT_EQ(std::next(cont.begin()), it);
-    EXPECT_THAT(cont, ElementsAre(2, 5, 6, 7));
-
-    it = cont.erase(std::next(cont.begin(), 2));
-    EXPECT_EQ(std::next(cont.begin(), 2), it);
-    EXPECT_THAT(cont, ElementsAre(2, 5, 7));
-
-    it = cont.erase(std::next(cont.begin(), 2));
-    EXPECT_EQ(std::next(cont.begin(), 2), it);
-    EXPECT_THAT(cont, ElementsAre(2, 5));
-
-    it = cont.erase(std::next(cont.begin(), 0));
-    EXPECT_EQ(std::next(cont.begin(), 0), it);
-    EXPECT_THAT(cont, ElementsAre(5));
-
-    it = cont.erase(cont.begin());
-#else
     auto it = cont.erase(std::next(cont.cbegin(), 3));
     EXPECT_EQ(std::next(cont.begin(), 3), it);
     EXPECT_THAT(cont, ElementsAre(1, 2, 3, 5, 6, 7, 8));
@@ -988,7 +996,6 @@ TEST(FlatTree, ErasePosition) {
     EXPECT_THAT(cont, ElementsAre(5));
 
     it = cont.erase(cont.cbegin());
-#endif
     EXPECT_EQ(cont.begin(), it);
     EXPECT_EQ(cont.end(), it);
   }
@@ -998,7 +1005,7 @@ TEST(FlatTree, ErasePosition) {
   {
     using T = TemplateConstructor;
 
-    flat_tree<T, T, GetKeyFromValueIdentity<T>, std::less<void>> cont;
+    flat_tree<T, base::identity, std::less<>, std::vector<T>> cont;
     T v(0);
 
     auto it = cont.find(v);
@@ -1009,28 +1016,9 @@ TEST(FlatTree, ErasePosition) {
 
 // iterator erase(const_iterator first, const_iterator last)
 
-TEST(FlatTree, EraseRange) {
-  IntTree cont({1, 2, 3, 4, 5, 6, 7, 8});
+TYPED_TEST_P(FlatTreeTest, EraseRange) {
+  TypedTree<TypeParam> cont({1, 2, 3, 4, 5, 6, 7, 8});
 
-#if defined(STARBOARD)
-  // Raspi compiler does not support erasing const iterator.
-  auto it = cont.erase(std::next(cont.begin(), 5), std::next(cont.begin(), 5));
-  EXPECT_EQ(std::next(cont.begin(), 5), it);
-  EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4, 5, 6, 7, 8));
-
-  it = cont.erase(std::next(cont.begin(), 3), std::next(cont.begin(), 4));
-  EXPECT_EQ(std::next(cont.begin(), 3), it);
-  EXPECT_THAT(cont, ElementsAre(1, 2, 3, 5, 6, 7, 8));
-
-  it = cont.erase(std::next(cont.begin(), 2), std::next(cont.begin(), 5));
-  EXPECT_EQ(std::next(cont.begin(), 2), it);
-  EXPECT_THAT(cont, ElementsAre(1, 2, 7, 8));
-
-  it = cont.erase(std::next(cont.begin(), 0), std::next(cont.begin(), 2));
-  EXPECT_EQ(std::next(cont.begin(), 0), it);
-  EXPECT_THAT(cont, ElementsAre(7, 8));
-  it = cont.erase(cont.begin(), cont.end());
-#else
   auto it =
       cont.erase(std::next(cont.cbegin(), 5), std::next(cont.cbegin(), 5));
   EXPECT_EQ(std::next(cont.begin(), 5), it);
@@ -1049,15 +1037,14 @@ TEST(FlatTree, EraseRange) {
   EXPECT_THAT(cont, ElementsAre(7, 8));
 
   it = cont.erase(cont.cbegin(), cont.cend());
-#endif
   EXPECT_EQ(cont.begin(), it);
   EXPECT_EQ(cont.end(), it);
 }
 
 // size_type erase(const key_type& key)
 
-TEST(FlatTree, EraseKey) {
-  IntTree cont({1, 2, 3, 4, 5, 6, 7, 8});
+TYPED_TEST_P(FlatTreeTest, EraseKey) {
+  TypedTree<TypeParam> cont({1, 2, 3, 4, 5, 6, 7, 8});
 
   EXPECT_EQ(0U, cont.erase(9));
   EXPECT_THAT(cont, ElementsAre(1, 2, 3, 4, 5, 6, 7, 8));
@@ -1087,6 +1074,18 @@ TEST(FlatTree, EraseKey) {
   EXPECT_THAT(cont, ElementsAre());
 }
 
+TYPED_TEST_P(FlatTreeTest, EraseEndDeath) {
+  {
+    TypedTree<TypeParam> tree;
+    ASSERT_DEATH_IF_SUPPORTED(tree.erase(tree.cend()), "");
+  }
+
+  {
+    TypedTree<TypeParam> tree = {1, 2, 3, 4};
+    ASSERT_DEATH_IF_SUPPORTED(tree.erase(tree.find(5)), "");
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Comparators.
 
@@ -1095,11 +1094,10 @@ TEST(FlatTree, EraseKey) {
 TEST(FlatTree, KeyComp) {
   ReversedTree cont({1, 2, 3, 4, 5});
 
-  EXPECT_TRUE(std::is_sorted(cont.begin(), cont.end(), cont.key_comp()));
+  EXPECT_TRUE(ranges::is_sorted(cont, cont.key_comp()));
   int new_elements[] = {6, 7, 8, 9, 10};
-  std::copy(std::begin(new_elements), std::end(new_elements),
-            std::inserter(cont, cont.end()));
-  EXPECT_TRUE(std::is_sorted(cont.begin(), cont.end(), cont.key_comp()));
+  ranges::copy(new_elements, std::inserter(cont, cont.end()));
+  EXPECT_TRUE(ranges::is_sorted(cont, cont.key_comp()));
 }
 
 // value_compare value_comp() const
@@ -1107,11 +1105,10 @@ TEST(FlatTree, KeyComp) {
 TEST(FlatTree, ValueComp) {
   ReversedTree cont({1, 2, 3, 4, 5});
 
-  EXPECT_TRUE(std::is_sorted(cont.begin(), cont.end(), cont.value_comp()));
+  EXPECT_TRUE(ranges::is_sorted(cont, cont.value_comp()));
   int new_elements[] = {6, 7, 8, 9, 10};
-  std::copy(std::begin(new_elements), std::end(new_elements),
-            std::inserter(cont, cont.end()));
-  EXPECT_TRUE(std::is_sorted(cont.begin(), cont.end(), cont.value_comp()));
+  ranges::copy(new_elements, std::inserter(cont, cont.end()));
+  EXPECT_TRUE(ranges::is_sorted(cont, cont.value_comp()));
 }
 
 // ----------------------------------------------------------------------------
@@ -1119,8 +1116,8 @@ TEST(FlatTree, ValueComp) {
 
 // size_type count(const key_type& key) const
 
-TEST(FlatTree, Count) {
-  const IntTree cont({5, 6, 7, 8, 9, 10, 11, 12});
+TYPED_TEST_P(FlatTreeTest, Count) {
+  const TypedTree<TypeParam> cont({5, 6, 7, 8, 9, 10, 11, 12});
 
   EXPECT_EQ(1U, cont.count(5));
   EXPECT_EQ(1U, cont.count(6));
@@ -1136,9 +1133,9 @@ TEST(FlatTree, Count) {
 // iterator find(const key_type& key)
 // const_iterator find(const key_type& key) const
 
-TEST(FlatTree, Find) {
+TYPED_TEST_P(FlatTreeTest, Find) {
   {
-    IntTree cont({5, 6, 7, 8, 9, 10, 11, 12});
+    TypedTree<TypeParam> cont({5, 6, 7, 8, 9, 10, 11, 12});
 
     EXPECT_EQ(cont.begin(), cont.find(5));
     EXPECT_EQ(std::next(cont.begin()), cont.find(6));
@@ -1151,7 +1148,7 @@ TEST(FlatTree, Find) {
     EXPECT_EQ(std::next(cont.begin(), 8), cont.find(4));
   }
   {
-    const IntTree cont({5, 6, 7, 8, 9, 10, 11, 12});
+    const TypedTree<TypeParam> cont({5, 6, 7, 8, 9, 10, 11, 12});
 
     EXPECT_EQ(cont.begin(), cont.find(5));
     EXPECT_EQ(std::next(cont.begin()), cont.find(6));
@@ -1167,8 +1164,8 @@ TEST(FlatTree, Find) {
 
 // bool contains(const key_type& key) const
 
-TEST(FlatTree, Contains) {
-  const IntTree cont({5, 6, 7, 8, 9, 10, 11, 12});
+TYPED_TEST_P(FlatTreeTest, Contains) {
+  const TypedTree<TypeParam> cont({5, 6, 7, 8, 9, 10, 11, 12});
 
   EXPECT_TRUE(cont.contains(5));
   EXPECT_TRUE(cont.contains(6));
@@ -1184,12 +1181,13 @@ TEST(FlatTree, Contains) {
 // pair<iterator, iterator> equal_range(const key_type& key)
 // pair<const_iterator, const_iterator> equal_range(const key_type& key) const
 
-TEST(FlatTree, EqualRange) {
+TYPED_TEST_P(FlatTreeTest, EqualRange) {
   {
-    IntTree cont({5, 7, 9, 11, 13, 15, 17, 19});
+    TypedTree<TypeParam> cont({5, 7, 9, 11, 13, 15, 17, 19});
 
-    std::pair<IntTree::iterator, IntTree::iterator> result =
-        cont.equal_range(5);
+    std::pair<typename TypedTree<TypeParam>::iterator,
+              typename TypedTree<TypeParam>::iterator>
+        result = cont.equal_range(5);
     EXPECT_EQ(std::next(cont.begin(), 0), result.first);
     EXPECT_EQ(std::next(cont.begin(), 1), result.second);
     result = cont.equal_range(7);
@@ -1242,10 +1240,11 @@ TEST(FlatTree, EqualRange) {
     EXPECT_EQ(std::next(cont.begin(), 8), result.second);
   }
   {
-    const IntTree cont({5, 7, 9, 11, 13, 15, 17, 19});
+    const TypedTree<TypeParam> cont({5, 7, 9, 11, 13, 15, 17, 19});
 
-    std::pair<IntTree::const_iterator, IntTree::const_iterator> result =
-        cont.equal_range(5);
+    std::pair<typename TypedTree<TypeParam>::const_iterator,
+              typename TypedTree<TypeParam>::const_iterator>
+        result = cont.equal_range(5);
     EXPECT_EQ(std::next(cont.begin(), 0), result.first);
     EXPECT_EQ(std::next(cont.begin(), 1), result.second);
     result = cont.equal_range(7);
@@ -1302,9 +1301,9 @@ TEST(FlatTree, EqualRange) {
 //       iterator lower_bound(const key_type& key);
 // const_iterator lower_bound(const key_type& key) const;
 
-TEST(FlatTree, LowerBound) {
+TYPED_TEST_P(FlatTreeTest, LowerBound) {
   {
-    IntTree cont({5, 7, 9, 11, 13, 15, 17, 19});
+    TypedTree<TypeParam> cont({5, 7, 9, 11, 13, 15, 17, 19});
 
     EXPECT_EQ(cont.begin(), cont.lower_bound(5));
     EXPECT_EQ(std::next(cont.begin()), cont.lower_bound(7));
@@ -1325,7 +1324,7 @@ TEST(FlatTree, LowerBound) {
     EXPECT_EQ(std::next(cont.begin(), 8), cont.lower_bound(20));
   }
   {
-    const IntTree cont({5, 7, 9, 11, 13, 15, 17, 19});
+    const TypedTree<TypeParam> cont({5, 7, 9, 11, 13, 15, 17, 19});
 
     EXPECT_EQ(cont.begin(), cont.lower_bound(5));
     EXPECT_EQ(std::next(cont.begin()), cont.lower_bound(7));
@@ -1350,9 +1349,9 @@ TEST(FlatTree, LowerBound) {
 // iterator upper_bound(const key_type& key)
 // const_iterator upper_bound(const key_type& key) const
 
-TEST(FlatTree, UpperBound) {
+TYPED_TEST_P(FlatTreeTest, UpperBound) {
   {
-    IntTree cont({5, 7, 9, 11, 13, 15, 17, 19});
+    TypedTree<TypeParam> cont({5, 7, 9, 11, 13, 15, 17, 19});
 
     EXPECT_EQ(std::next(cont.begin(), 1), cont.upper_bound(5));
     EXPECT_EQ(std::next(cont.begin(), 2), cont.upper_bound(7));
@@ -1373,7 +1372,7 @@ TEST(FlatTree, UpperBound) {
     EXPECT_EQ(std::next(cont.begin(), 8), cont.upper_bound(20));
   }
   {
-    const IntTree cont({5, 7, 9, 11, 13, 15, 17, 19});
+    const TypedTree<TypeParam> cont({5, 7, 9, 11, 13, 15, 17, 19});
 
     EXPECT_EQ(std::next(cont.begin(), 1), cont.upper_bound(5));
     EXPECT_EQ(std::next(cont.begin(), 2), cont.upper_bound(7));
@@ -1401,9 +1400,9 @@ TEST(FlatTree, UpperBound) {
 // void swap(flat_tree& other)
 // void swap(flat_tree& lhs, flat_tree& rhs)
 
-TEST(FlatTreeOurs, Swap) {
-  IntTree x({1, 2, 3});
-  IntTree y({4});
+TYPED_TEST_P(FlatTreeTest, Swap) {
+  TypedTree<TypeParam> x({1, 2, 3});
+  TypedTree<TypeParam> y({4});
   swap(x, y);
   EXPECT_THAT(x, ElementsAre(4));
   EXPECT_THAT(y, ElementsAre(1, 2, 3));
@@ -1436,19 +1435,105 @@ TEST(FlatTree, Comparison) {
   EXPECT_GE(biggest, biggest);
 }
 
-TEST(FlatSet, EraseIf) {
-  IntTree x;
-  EraseIf(x, [](int) { return false; });
+TYPED_TEST_P(FlatTreeTest, EraseIf) {
+  TypedTree<TypeParam> x;
+  EXPECT_EQ(0u, base::EraseIf(x, [](int) { return false; }));
   EXPECT_THAT(x, ElementsAre());
 
   x = {1, 2, 3};
-  EraseIf(x, [](int elem) { return !(elem & 1); });
+  EXPECT_EQ(1u, base::EraseIf(x, [](int elem) { return !(elem & 1); }));
   EXPECT_THAT(x, ElementsAre(1, 3));
 
   x = {1, 2, 3, 4};
-  EraseIf(x, [](int elem) { return elem & 1; });
+  EXPECT_EQ(2u, base::EraseIf(x, [](int elem) { return elem & 1; }));
   EXPECT_THAT(x, ElementsAre(2, 4));
 }
+
+// Test unsorted containers or containers with repeated elements cause a DCHECK
+// if used with the sorted_unique tag.
+TYPED_TEST_P(FlatTreeTest, SortedUniqueRangeConstructorDCHECKs) {
+  int unsorted[] = {2, 1};
+  EXPECT_DCHECK_DEATH(TypedTree<TypeParam>(sorted_unique, std::begin(unsorted),
+                                           std::end(unsorted)));
+
+  int repeated[] = {1, 2, 2};
+  EXPECT_DCHECK_DEATH(TypedTree<TypeParam>(sorted_unique, std::begin(repeated),
+                                           std::end(repeated)));
+}
+
+TYPED_TEST_P(FlatTreeTest, SortedUniqueVectorCopyConstructorDCHECKs) {
+  TypeParam unsorted = {2, 1};
+  EXPECT_DCHECK_DEATH(TypedTree<TypeParam>(sorted_unique, unsorted));
+
+  TypeParam repeated = {1, 2, 2};
+  EXPECT_DCHECK_DEATH(TypedTree<TypeParam>(sorted_unique, repeated));
+}
+
+TYPED_TEST_P(FlatTreeTest, SortedUniqueVectorMoveConstructorDCHECKs) {
+  TypeParam unsorted = {2, 1};
+  EXPECT_DCHECK_DEATH(TypedTree<TypeParam>(sorted_unique, std::move(unsorted)));
+
+  TypeParam repeated = {1, 2, 2};
+  EXPECT_DCHECK_DEATH(TypedTree<TypeParam>(sorted_unique, std::move(repeated)));
+}
+
+TYPED_TEST_P(FlatTreeTest, SortedUniqueInitializerListConstructorDCHECKs) {
+  std::initializer_list<int> unsorted = {2, 1};
+  EXPECT_DCHECK_DEATH(TypedTree<TypeParam>(sorted_unique, unsorted));
+
+  std::initializer_list<int> repeated = {1, 2, 2};
+  EXPECT_DCHECK_DEATH(TypedTree<TypeParam>(sorted_unique, repeated));
+}
+
+TYPED_TEST_P(FlatTreeTest, ReplaceDCHECKs) {
+  TypedTree<TypeParam> tree;
+  TypeParam unsorted = {2, 1};
+  EXPECT_DCHECK_DEATH(tree.replace(std::move(unsorted)));
+
+  TypeParam repeated = {1, 2, 2};
+  EXPECT_DCHECK_DEATH(tree.replace(std::move(repeated)));
+}
+
+REGISTER_TYPED_TEST_SUITE_P(FlatTreeTest,
+                            DefaultConstructor,
+                            CopyConstructor,
+                            ContainerCopyConstructor,
+                            InitializerListConstructor,
+                            SortedUniqueContainerCopyConstructor,
+                            SortedUniqueInitializerListConstructor,
+                            CopyAssignable,
+                            InitializerListAssignable,
+                            Clear,
+                            Size,
+                            Empty,
+                            Iterators,
+                            InsertLValue,
+                            InsertPositionLValue,
+                            Emplace,
+                            EmplacePosition,
+                            Extract,
+                            Replace,
+                            ErasePosition,
+                            EraseRange,
+                            EraseKey,
+                            EraseEndDeath,
+                            Count,
+                            Find,
+                            Contains,
+                            EqualRange,
+                            LowerBound,
+                            UpperBound,
+                            Swap,
+                            EraseIf,
+                            SortedUniqueRangeConstructorDCHECKs,
+                            SortedUniqueVectorCopyConstructorDCHECKs,
+                            SortedUniqueVectorMoveConstructorDCHECKs,
+                            SortedUniqueInitializerListConstructorDCHECKs,
+                            ReplaceDCHECKs);
+
+using IntSequenceContainers =
+    ::testing::Types<std::deque<int>, std::vector<int>>;
+INSTANTIATE_TYPED_TEST_SUITE_P(My, FlatTreeTest, IntSequenceContainers);
 
 }  // namespace internal
 }  // namespace base

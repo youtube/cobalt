@@ -1,21 +1,19 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/der/parser.h"
 
-#include "base/logging.h"
+#include "base/check.h"
 #include "net/der/parse_values.h"
 
-namespace net {
+namespace net::der {
 
-namespace der {
-
-Parser::Parser() : advance_len_(0) {
+Parser::Parser() {
   CBS_init(&cbs_, nullptr, 0);
 }
 
-Parser::Parser(const Input& input) : advance_len_(0) {
+Parser::Parser(const Input& input) {
   CBS_init(&cbs_, input.UnsafeData(), input.Length());
 }
 
@@ -61,9 +59,9 @@ bool Parser::ReadTagAndValue(Tag* tag, Input* out) {
   return true;
 }
 
-bool Parser::ReadOptionalTag(Tag tag, Input* out, bool* present) {
+bool Parser::ReadOptionalTag(Tag tag, absl::optional<Input>* out) {
   if (!HasMore()) {
-    *present = false;
+    *out = absl::nullopt;
     return true;
   }
   Tag actual_tag;
@@ -73,12 +71,20 @@ bool Parser::ReadOptionalTag(Tag tag, Input* out, bool* present) {
   }
   if (actual_tag == tag) {
     CHECK(Advance());
-    *present = true;
     *out = value;
   } else {
     advance_len_ = 0;
-    *present = false;
+    *out = absl::nullopt;
   }
+  return true;
+}
+
+bool Parser::ReadOptionalTag(Tag tag, Input* out, bool* present) {
+  absl::optional<Input> tmp_out;
+  if (!ReadOptionalTag(tag, &tmp_out))
+    return false;
+  *present = tmp_out.has_value();
+  *out = tmp_out.value_or(der::Input());
   return true;
 }
 
@@ -133,11 +139,11 @@ bool Parser::ReadUint64(uint64_t* out) {
   return ParseUint64(encoded_int, out);
 }
 
-bool Parser::ReadBitString(BitString* bit_string) {
+absl::optional<BitString> Parser::ReadBitString() {
   Input value;
   if (!ReadTag(kBitString, &value))
-    return false;
-  return ParseBitString(value, bit_string);
+    return absl::nullopt;
+  return ParseBitString(value);
 }
 
 bool Parser::ReadGeneralizedTime(GeneralizedTime* out) {
@@ -147,6 +153,4 @@ bool Parser::ReadGeneralizedTime(GeneralizedTime* out) {
   return ParseGeneralizedTime(value, out);
 }
 
-}  // namespace der
-
-}  // namespace net
+}  // namespace net::der

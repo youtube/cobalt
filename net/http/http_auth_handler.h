@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,11 @@
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 #include "net/log/net_log_with_source.h"
+#include "url/scheme_host_port.h"
 
 namespace net {
 
+class NetworkAnonymizationKey;
 class HttpAuthChallengeTokenizer;
 struct HttpRequestInfo;
 class SSLInfo;
@@ -32,18 +34,30 @@ class SSLInfo;
 class NET_EXPORT_PRIVATE HttpAuthHandler {
  public:
   HttpAuthHandler();
+
+  HttpAuthHandler(const HttpAuthHandler&) = delete;
+  HttpAuthHandler& operator=(const HttpAuthHandler&) = delete;
+
   virtual ~HttpAuthHandler();
 
   // Initializes the handler using a challenge issued by a server.
-  // |challenge| must be non-NULL and have already tokenized the
-  // authentication scheme, but none of the tokens occurring after the
-  // authentication scheme. |target| and |origin| are both stored
-  // for later use, and are not part of the initial challenge.
-  bool InitFromChallenge(HttpAuthChallengeTokenizer* challenge,
-                         HttpAuth::Target target,
-                         const SSLInfo& ssl_info,
-                         const GURL& origin,
-                         const NetLogWithSource& net_log);
+  //
+  // |challenge| must be non-nullptr and have already tokenized the
+  //      authentication scheme, but none of the tokens occurring after the
+  //      authentication scheme.
+  // |target| and |scheme_host_port| are both stored for later use, and are not
+  //      part of the initial challenge.
+  // |ssl_info| must be valid if the underlying connection used a certificate.
+  // |network_anonymization_key| the NetworkAnonymizationKey associated with the
+  //      challenge. Used for host resolutions, if any are needed.
+  // |net_log| to be used for logging.
+  bool InitFromChallenge(
+      HttpAuthChallengeTokenizer* challenge,
+      HttpAuth::Target target,
+      const SSLInfo& ssl_info,
+      const NetworkAnonymizationKey& network_anonymization_key,
+      const url::SchemeHostPort& scheme_host_port,
+      const NetLogWithSource& net_log);
 
   // Determines how the previous authorization attempt was received.
   //
@@ -55,19 +69,19 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   // attempt used a stale nonce (and nonce-count) and that a new attempt should
   // be made with a different nonce provided in the challenge.
   //
-  // |challenge| must be non-NULL and have already tokenized the
+  // |challenge| must be non-nullptr and have already tokenized the
   // authentication scheme, but none of the tokens occurring after the
   // authentication scheme.
-  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuthChallengeTokenizer* challenge) = 0;
+  HttpAuth::AuthorizationResult HandleAnotherChallenge(
+      HttpAuthChallengeTokenizer* challenge);
 
   // Generates an authentication token, potentially asynchronously.
   //
-  // When |credentials| is NULL, the default credentials for the currently
+  // When |credentials| is nullptr, the default credentials for the currently
   // logged in user are used. |AllowsDefaultCredentials()| MUST be true in this
   // case.
   //
-  // |request|, |callback|, and |auth_token| must be non-NULL.
+  // |request|, |callback|, and |auth_token| must be non-nullptr.
   //
   // The return value is a net error code.
   //
@@ -110,10 +124,9 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   }
 
   // Returns the proxy or server which issued the authentication challenge
-  // that this HttpAuthHandler is handling. The URL includes scheme, host, and
-  // port, but does not include path.
-  const GURL& origin() const {
-    return origin_;
+  // that this HttpAuthHandler is handling.
+  const url::SchemeHostPort& scheme_host_port() const {
+    return scheme_host_port_;
   }
 
   // Returns true if the authentication scheme does not send the username and
@@ -129,6 +142,9 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   bool is_connection_based() const {
     return (properties_ & IS_CONNECTION_BASED) != 0;
   }
+
+  // This HttpAuthHandler's bound NetLog.
+  const NetLogWithSource& net_log() const { return net_log_; }
 
   // If NeedsIdentity() returns true, then a subsequent call to
   // GenerateAuthToken() must indicate which identity to use. This can be done
@@ -163,17 +179,22 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   };
 
   // Initializes the handler using a challenge issued by a server.
-  // |challenge| must be non-NULL and have already tokenized the
+  // |challenge| must be non-nullptr and have already tokenized the
   // authentication scheme, but none of the tokens occurring after the
   // authentication scheme.
   //
   // If the request was sent over an encrypted connection, |ssl_info| is valid
   // and describes the connection.
   //
+  // NetworkAnonymizationKey is the NetworkAnonymizationKey associated with the
+  // request.
+  //
   // Implementations are expected to initialize the following members:
   // scheme_, realm_, score_, properties_
-  virtual bool Init(HttpAuthChallengeTokenizer* challenge,
-                    const SSLInfo& ssl_info) = 0;
+  virtual bool Init(
+      HttpAuthChallengeTokenizer* challenge,
+      const SSLInfo& ssl_info,
+      const NetworkAnonymizationKey& network_anonymization_key) = 0;
 
   // |GenerateAuthTokenImpl()} is the auth-scheme specific implementation
   // of generating the next auth token. Callers should use |GenerateAuthToken()|
@@ -183,8 +204,14 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
                                     CompletionOnceCallback callback,
                                     std::string* auth_token) = 0;
 
+  // See HandleAnotherChallenge() above. HandleAuthChallengeImpl is the
+  // scheme-specific implementation. Callers should use HandleAnotherChallenge()
+  // instead.
+  virtual HttpAuth::AuthorizationResult HandleAnotherChallengeImpl(
+      HttpAuthChallengeTokenizer* challenge) = 0;
+
   // The auth-scheme as an enumerated value.
-  HttpAuth::Scheme auth_scheme_;
+  HttpAuth::Scheme auth_scheme_ = HttpAuth::AUTH_SCHEME_MAX;
 
   // The realm, encoded as UTF-8. Used by "basic" and "digest".
   std::string realm_;
@@ -194,23 +221,25 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
 
   // The {scheme, host, port} for the authentication target.  Used by "ntlm"
   // and "negotiate" to construct the service principal name.
-  GURL origin_;
+  url::SchemeHostPort scheme_host_port_;
 
   // The score for this challenge. Higher numbers are better.
-  int score_;
+  int score_ = -1;
 
   // Whether this authentication request is for a proxy server, or an
   // origin server.
-  HttpAuth::Target target_;
+  HttpAuth::Target target_ = HttpAuth::AUTH_NONE;
 
   // A bitmask of the properties of the authentication scheme.
-  int properties_;
-
-  NetLogWithSource net_log_;
+  int properties_ = -1;
 
  private:
   void OnGenerateAuthTokenComplete(int rv);
-  void FinishGenerateAuthToken();
+  void FinishGenerateAuthToken(int rv);
+
+  // NetLog that should be used for logging events generated by this
+  // HttpAuthHandler.
+  NetLogWithSource net_log_;
 
   CompletionOnceCallback callback_;
 };

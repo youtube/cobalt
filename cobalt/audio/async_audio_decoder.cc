@@ -57,7 +57,7 @@ void AsyncAudioDecoder::AsyncDecode(
   DCHECK(!decode_finish_callback.is_null());
 
   // Queue a decoding operation to be performed on AsyncAudioDecoder thread.
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&Decode, audio_data, size, decode_finish_callback));
 }
 

@@ -33,9 +33,9 @@ class PointerEvent : public MouseEvent {
  public:
   explicit PointerEvent(const std::string& type);
   PointerEvent(const std::string& type, const PointerEventInit& init_dict);
-  PointerEvent(base::Token type, const scoped_refptr<Window>& view,
+  PointerEvent(base_token::Token type, const scoped_refptr<Window>& view,
                const PointerEventInit& init_dict);
-  PointerEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+  PointerEvent(base_token::Token type, Bubbles bubbles, Cancelable cancelable,
                const scoped_refptr<Window>& view,
                const PointerEventInit& init_dict);
 

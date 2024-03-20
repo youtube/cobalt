@@ -1,16 +1,17 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_LINUX_UTIL_H_
 #define BASE_LINUX_UTIL_H_
 
+#include <stdint.h>
 #include <sys/types.h>
 
 #include <string>
+#include <vector>
 
 #include "base/base_export.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -21,8 +22,20 @@ BASE_EXPORT extern char g_linux_distro[];
 // Get the Linux Distro if we can, or return "Unknown".
 BASE_EXPORT std::string GetLinuxDistro();
 
+#if defined(UNIT_TEST)
+// Get the value of given key from the given input (content of the
+// /etc/os-release file. Exposed for testing.
+BASE_EXPORT std::string GetKeyValueFromOSReleaseFileForTesting(
+    const std::string& input,
+    const char* key);
+#endif  // defined(UNIT_TEST)
+
 // Set the Linux Distro string.
 BASE_EXPORT void SetLinuxDistro(const std::string& distro);
+
+// For a given process |pid|, get a list of all its threads. On success, returns
+// true and appends the list of threads to |tids|. Otherwise, returns false.
+BASE_EXPORT bool GetThreadsForProcess(pid_t pid, std::vector<pid_t>* tids);
 
 // For a given process |pid|, look through all its threads and find the first
 // thread with /proc/[pid]/task/[thread_id]/syscall whose first N bytes matches

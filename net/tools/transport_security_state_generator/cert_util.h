@@ -1,21 +1,18 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_TOOLS_TRANSPORT_SECURITY_STATE_GENERATOR_CERT_UTIL_H_
 #define NET_TOOLS_TRANSPORT_SECURITY_STATE_GENERATOR_CERT_UTIL_H_
 
+#include <stdint.h>
+
 #include "base/strings/string_piece.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/x509v3.h"
 
-namespace net {
-
-namespace transport_security_state {
+namespace net::transport_security_state {
 class SPKIHash;
-}  // namespace transport_security_state
-
-}  // namespace net
+}  // namespace net::transport_security_state
 
 // Decodes the PEM block in |pem_data| and attempts to parse the resulting
 // structure. Returns a pointer to a X509 instance if successful and NULL

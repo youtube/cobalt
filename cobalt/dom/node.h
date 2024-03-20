@@ -120,7 +120,7 @@ class Node : public web::EventTarget {
   // Web API: Node
   //
   virtual NodeType node_type() const = 0;
-  virtual base::Token node_name() const = 0;
+  virtual base_token::Token node_name() const = 0;
 
   Document* owner_document() const;
   Node* parent_node() const { return parent_; }

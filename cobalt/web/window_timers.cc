@@ -20,7 +20,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -241,7 +241,7 @@ void WindowTimers::Timer::StartOrResume() {
           desired_run_time_ < base::TimeTicks::Now()) {
         // The timer was paused and the desired run time is in the past.
         // Call the callback once before continuing the repeating timer.
-        base::SequencedTaskRunnerHandle::Get()->PostTask(
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
             FROM_HERE, base::Bind(&WindowTimers::Timer::Run, this));
       }
       break;
@@ -252,18 +252,18 @@ void WindowTimers::Timer::Disable() {
   // Prevent the timer callback from doing anything.
   active_ = false;
 
-  // Clear the TimerBase object to release the reference to |this| in the
+  // Clear the DelayTimerBase object to release the reference to |this| in the
   // user callback.
   timer_.reset();
 }
 
 template <class TimerClass>
-std::unique_ptr<base::internal::TimerBase>
+std::unique_ptr<base::internal::DelayTimerBase>
 WindowTimers::Timer::CreateAndStart() {
   auto* timer = new TimerClass();
   timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout_),
                base::Bind(&WindowTimers::Timer::Run, this));
-  return std::unique_ptr<base::internal::TimerBase>(timer);
+  return std::unique_ptr<base::internal::DelayTimerBase>(timer);
 }
 
 }  // namespace web

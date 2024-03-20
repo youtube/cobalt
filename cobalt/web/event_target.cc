@@ -20,7 +20,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/memory/ptr_util.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -62,7 +62,7 @@ void EventTarget::AddEventListener(const std::string& type,
   }
 
   AddEventListenerInternal(base::WrapUnique(new EventTargetListenerInfo(
-      this, base::Token(type), EventTargetListenerInfo::kAddEventListener,
+      this, base_token::Token(type), EventTargetListenerInfo::kAddEventListener,
       use_capture, listener)));
 }
 
@@ -76,7 +76,7 @@ void EventTarget::RemoveEventListener(const std::string& type,
   }
 
   EventTargetListenerInfo listener_info(
-      this, base::Token(type), EventTargetListenerInfo::kAddEventListener,
+      this, base_token::Token(type), EventTargetListenerInfo::kAddEventListener,
       use_capture, listener);
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
@@ -133,7 +133,7 @@ void EventTarget::DispatchEventAndRunCallback(
 }
 
 void EventTarget::DispatchEventNameAndRunCallback(
-    base::Token event_name, const base::Closure& dispatched_callback) {
+    base_token::Token event_name, const base::Closure& dispatched_callback) {
   DispatchEvent(base::WrapRefCounted(new Event(event_name)));
   if (!dispatched_callback.is_null()) {
     dispatched_callback.Run();
@@ -141,7 +141,7 @@ void EventTarget::DispatchEventNameAndRunCallback(
 }
 
 void EventTarget::PostToDispatchEventName(const base::Location& location,
-                                          base::Token event_name) {
+                                          base_token::Token event_name) {
   PostToDispatchEventNameAndRunCallback(location, event_name, base::Closure());
 }
 
@@ -153,22 +153,22 @@ void EventTarget::PostToDispatchEvent(const base::Location& location,
 void EventTarget::PostToDispatchEventAndRunCallback(
     const base::Location& location, const scoped_refptr<Event>& event,
     const base::Closure& callback) {
-  if (!base::MessageLoop::current()) {
+  if (!base::SequencedTaskRunner::GetCurrentDefault()) {
     return;
   }
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       location,
       base::Bind(base::IgnoreResult(&EventTarget::DispatchEventAndRunCallback),
                  base::AsWeakPtr<EventTarget>(this), event, callback));
 }
 
 void EventTarget::PostToDispatchEventNameAndRunCallback(
-    const base::Location& location, base::Token event_name,
+    const base::Location& location, base_token::Token event_name,
     const base::Closure& callback) {
-  if (!base::MessageLoop::current()) {
+  if (!base::SequencedTaskRunner::GetCurrentDefault()) {
     return;
   }
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       location,
       base::Bind(
           base::IgnoreResult(&EventTarget::DispatchEventNameAndRunCallback),
@@ -176,7 +176,7 @@ void EventTarget::PostToDispatchEventNameAndRunCallback(
 }
 
 void EventTarget::SetAttributeEventListener(
-    base::Token type, const EventListenerScriptValue& listener) {
+    base_token::Token type, const EventListenerScriptValue& listener) {
   DCHECK(!unpack_onerror_events_ || type != base::Tokens::error());
 
   AddEventListenerInternal(base::WrapUnique(new EventTargetListenerInfo(
@@ -185,7 +185,7 @@ void EventTarget::SetAttributeEventListener(
 }
 
 const EventTarget::EventListenerScriptValue*
-EventTarget::GetAttributeEventListener(base::Token type) const {
+EventTarget::GetAttributeEventListener(base_token::Token type) const {
   DCHECK(!unpack_onerror_events_ || type != base::Tokens::error());
 
   EventTargetListenerInfo* listener_info =
@@ -194,7 +194,7 @@ EventTarget::GetAttributeEventListener(base::Token type) const {
 }
 
 void EventTarget::SetAttributeOnErrorEventListener(
-    base::Token type, const OnErrorEventListenerScriptValue& listener) {
+    base_token::Token type, const OnErrorEventListenerScriptValue& listener) {
   DCHECK_EQ(base::Tokens::error(), type);
 
   AddEventListenerInternal(base::WrapUnique(new EventTargetListenerInfo(
@@ -203,7 +203,7 @@ void EventTarget::SetAttributeOnErrorEventListener(
 }
 
 const EventTarget::OnErrorEventListenerScriptValue*
-EventTarget::GetAttributeOnErrorEventListener(base::Token type) const {
+EventTarget::GetAttributeOnErrorEventListener(base_token::Token type) const {
   DCHECK_EQ(base::Tokens::error(), type);
 
   EventTargetListenerInfo* listener_info =
@@ -223,7 +223,7 @@ bool EventTarget::HasOneOrMoreAttributeEventListener() const {
 }
 
 EventTargetListenerInfo* EventTarget::GetAttributeEventListenerInternal(
-    base::Token type) const {
+    base_token::Token type) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
@@ -280,7 +280,7 @@ void EventTarget::TraceMembers(script::Tracer* tracer) {
 }
 
 void EventTarget::AddEventListenerRegistrationCallback(
-    void* object, base::Token token, base::OnceClosure callback) {
+    void* object, base_token::Token token, base::OnceClosure callback) {
   base::AutoLock lock(event_listener_registration_mutex_);
   event_listener_registration_callbacks_[token][object] = std::move(callback);
 }
@@ -325,7 +325,7 @@ void EventTarget::AddEventListenerInternal(
       listener_info->task(), listener_info->type().c_str(),
       base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
 
-  base::Token type = listener_info->type();
+  base_token::Token type = listener_info->type();
   event_listener_infos_.push_back(std::move(listener_info));
 
   {
@@ -341,7 +341,7 @@ void EventTarget::AddEventListenerInternal(
   }
 }
 
-bool EventTarget::HasEventListener(base::Token type) {
+bool EventTarget::HasEventListener(base_token::Token type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();

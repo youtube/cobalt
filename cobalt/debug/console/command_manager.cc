@@ -14,6 +14,8 @@
 
 #include "cobalt/debug/console/command_manager.h"
 
+#include <cstring>
+
 #include "base/logging.h"
 #include "starboard/string.h"
 

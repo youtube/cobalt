@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,11 +12,16 @@
 
 namespace {
 
-#pragma optimize("", off)
 // Handlers for invalid parameter and pure call. They generate a breakpoint to
 // tell breakpad that it needs to dump the process.
-void InvalidParameter(const wchar_t* expression, const wchar_t* function,
-                      const wchar_t* file, unsigned int line,
+// These functions should be written to be unique in order to avoid confusing
+// call stacks from /OPT:ICF function folding. Printing a unique message or
+// returning a unique value will do this. Note that for best results they need
+// to be unique from *all* functions in Chrome.
+void InvalidParameter(const wchar_t* expression,
+                      const wchar_t* function,
+                      const wchar_t* file,
+                      unsigned int line,
                       uintptr_t reserved) {
   __debugbreak();
   // Use a different exit code from PureCall to avoid COMDAT folding.
@@ -28,7 +33,6 @@ void PureCall() {
   // Use a different exit code from InvalidParameter to avoid COMDAT folding.
   _exit(2);
 }
-#pragma optimize("", on)
 
 }  // namespace
 

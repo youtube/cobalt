@@ -113,7 +113,7 @@ struct App {
   base::Optional<Ping> ping;
 
   // Progress/result pings.
-  base::Optional<std::vector<base::Value>> events;
+  absl::optional<std::vector<base::Value::Dict>> events;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(App);

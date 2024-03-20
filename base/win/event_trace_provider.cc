@@ -1,28 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 #include "base/win/event_trace_provider.h"
+
 #include <windows.h>
-#include <cguid.h>
 
 namespace base {
 namespace win {
 
 TRACE_GUID_REGISTRATION EtwTraceProvider::obligatory_guid_registration_ = {
-  &GUID_NULL,
-  NULL
-};
+    &GUID_NULL, nullptr};
 
 EtwTraceProvider::EtwTraceProvider(const GUID& provider_name)
-    : provider_name_(provider_name), registration_handle_(NULL),
-      session_handle_(NULL), enable_flags_(0), enable_level_(0) {
-}
+    : provider_name_(provider_name) {}
 
-EtwTraceProvider::EtwTraceProvider()
-    : provider_name_(GUID_NULL), registration_handle_(NULL),
-      session_handle_(NULL), enable_flags_(0), enable_level_(0) {
-}
+EtwTraceProvider::EtwTraceProvider() = default;
 
 EtwTraceProvider::~EtwTraceProvider() {
   Unregister();
@@ -69,8 +62,10 @@ ULONG EtwTraceProvider::Callback(WMIDPREQUESTCODE request, void* buffer) {
 }
 
 ULONG WINAPI EtwTraceProvider::ControlCallback(WMIDPREQUESTCODE request,
-    void* context, ULONG *reserved, void* buffer) {
-  EtwTraceProvider *provider = reinterpret_cast<EtwTraceProvider*>(context);
+                                               void* context,
+                                               ULONG* reserved,
+                                               void* buffer) {
+  EtwTraceProvider* provider = reinterpret_cast<EtwTraceProvider*>(context);
 
   return provider->Callback(request, buffer);
 }
@@ -79,8 +74,9 @@ ULONG EtwTraceProvider::Register() {
   if (provider_name_ == GUID_NULL)
     return ERROR_INVALID_NAME;
 
-  return ::RegisterTraceGuids(ControlCallback, this, &provider_name_,
-      1, &obligatory_guid_registration_, NULL, NULL, &registration_handle_);
+  return ::RegisterTraceGuids(ControlCallback, this, &provider_name_, 1,
+                              &obligatory_guid_registration_, nullptr, nullptr,
+                              &registration_handle_);
 }
 
 ULONG EtwTraceProvider::Unregister() {
@@ -96,29 +92,35 @@ ULONG EtwTraceProvider::Unregister() {
 }
 
 ULONG EtwTraceProvider::Log(const EtwEventClass& event_class,
-    EtwEventType type, EtwEventLevel level, const char *message) {
+                            EtwEventType type,
+                            EtwEventLevel level,
+                            const char* message) {
   if (NULL == session_handle_ || enable_level_ < level)
     return ERROR_SUCCESS;  // No one listening.
 
   EtwMofEvent<1> event(event_class, type, level);
 
   event.fields[0].DataPtr = reinterpret_cast<ULONG64>(message);
-  event.fields[0].Length = message ?
-      static_cast<ULONG>(sizeof(message[0]) * (1 + strlen(message))) : 0;
+  event.fields[0].Length =
+      message ? static_cast<ULONG>(sizeof(message[0]) * (1 + strlen(message)))
+              : 0;
 
   return ::TraceEvent(session_handle_, &event.header);
 }
 
 ULONG EtwTraceProvider::Log(const EtwEventClass& event_class,
-    EtwEventType type, EtwEventLevel level, const wchar_t *message) {
+                            EtwEventType type,
+                            EtwEventLevel level,
+                            const wchar_t* message) {
   if (NULL == session_handle_ || enable_level_ < level)
     return ERROR_SUCCESS;  // No one listening.
 
   EtwMofEvent<1> event(event_class, type, level);
 
   event.fields[0].DataPtr = reinterpret_cast<ULONG64>(message);
-  event.fields[0].Length = message ?
-      static_cast<ULONG>(sizeof(message[0]) * (1 + wcslen(message))) : 0;
+  event.fields[0].Length =
+      message ? static_cast<ULONG>(sizeof(message[0]) * (1 + wcslen(message)))
+              : 0;
 
   return ::TraceEvent(session_handle_, &event.header);
 }

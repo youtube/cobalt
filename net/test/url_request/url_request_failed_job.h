@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "net/url_request/url_request_job.h"
 #include "url/gurl.h"
@@ -29,14 +28,17 @@ class URLRequestFailedJob : public URLRequestJob {
   };
 
   URLRequestFailedJob(URLRequest* request,
-                      NetworkDelegate* network_delegate,
                       FailurePhase phase,
                       int net_error);
 
   // Same as above, except that the job fails at FailurePhase.START.
   URLRequestFailedJob(URLRequest* request,
-                      NetworkDelegate* network_delegate,
                       int net_error);
+
+  URLRequestFailedJob(const URLRequestFailedJob&) = delete;
+  URLRequestFailedJob& operator=(const URLRequestFailedJob&) = delete;
+
+  ~URLRequestFailedJob() override;
 
   // URLRequestJob implementation:
   void Start() override;
@@ -72,18 +74,15 @@ class URLRequestFailedJob : public URLRequestJob {
                                          const std::string& hostname);
 
  protected:
-  ~URLRequestFailedJob() override;
   void StartAsync();
 
  private:
   HttpResponseInfo response_info_;
   const FailurePhase phase_;
   const int net_error_;
-  int64_t total_received_bytes_;
+  int64_t total_received_bytes_ = 0;
 
-  base::WeakPtrFactory<URLRequestFailedJob> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(URLRequestFailedJob);
+  base::WeakPtrFactory<URLRequestFailedJob> weak_factory_{this};
 };
 
 }  // namespace net

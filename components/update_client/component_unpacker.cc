@@ -19,7 +19,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/component_patcher.h"
 #include "components/update_client/patcher.h"
@@ -159,13 +159,13 @@ bool ComponentUnpacker::BeginPatching() {
     }
     patcher_ = base::MakeRefCounted<ComponentPatcher>(
         unpack_diff_path_, unpack_path_, installer_, patcher_tool_);
-    base::SequencedTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&ComponentPatcher::Start, patcher_,
                        base::BindOnce(&ComponentUnpacker::EndPatching,
                                       scoped_refptr<ComponentUnpacker>(this))));
   } else {
-    base::SequencedTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&ComponentUnpacker::EndPatching,
                                   scoped_refptr<ComponentUnpacker>(this),
                                   UnpackerError::kNone, 0));
@@ -197,7 +197,7 @@ void ComponentUnpacker::EndUnpacking() {
     result.public_key = public_key_;
   }
 
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback_), result));
 }
 

@@ -1,19 +1,24 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/files/file_path_watcher_kqueue.h"
 
 #include <fcntl.h>
+#include <stddef.h>
 #include <sys/param.h>
 
-#include "base/bind.h"
+#include <string>
+#include <vector>
+
+#include "base/file_descriptor_posix.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "base/threading/sequenced_task_runner_handle.h"
-#include "starboard/types.h"
 
 // On some platforms these are not defined.
 #if !defined(EV_RECEIPT)
@@ -38,18 +43,18 @@ void FilePathWatcherKQueue::ReleaseEvent(struct kevent& event) {
   event.udata = NULL;
 }
 
-int FilePathWatcherKQueue::EventsForPath(FilePath path, EventVector* events) {
+size_t FilePathWatcherKQueue::EventsForPath(FilePath path,
+                                            EventVector* events) {
   // Make sure that we are working with a clean slate.
   DCHECK(events->empty());
 
-  std::vector<FilePath::StringType> components;
-  path.GetComponents(&components);
+  std::vector<FilePath::StringType> components = path.GetComponents();
 
-  if (components.size() < 1) {
-    return -1;
+  if (components.empty()) {
+    return 0;
   }
 
-  int last_existing_entry = 0;
+  size_t last_existing_entry = 0;
   FilePath built_path;
   bool path_still_exists = true;
   for (std::vector<FilePath::StringType>::iterator i = components.begin();
@@ -79,12 +84,29 @@ int FilePathWatcherKQueue::EventsForPath(FilePath path, EventVector* events) {
   return last_existing_entry;
 }
 
+// static
+size_t FilePathWatcherKQueue::EventForItem(const FilePath& path,
+                                           EventVector* events) {
+  // Make sure that we are working with a clean slate.
+  DCHECK(events->empty());
+
+  events->resize(1);
+  auto& event = events->front();
+  EV_SET(&event, FileDescriptorForPath(path), EVFILT_VNODE,
+         (EV_ADD | EV_CLEAR | EV_RECEIPT),
+         (NOTE_DELETE | NOTE_WRITE | NOTE_ATTRIB | NOTE_RENAME | NOTE_REVOKE |
+          NOTE_EXTEND),
+         0, new EventData(path, /*subdir=*/FilePath::StringType()));
+
+  return event.ident != kNoFileDescriptor ? 1 : 0;
+}
+
 uintptr_t FilePathWatcherKQueue::FileDescriptorForPath(const FilePath& path) {
-  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   int fd = HANDLE_EINTR(open(path.value().c_str(), O_EVTONLY));
-  if (fd == -1)
+  if (fd < 0)
     return kNoFileDescriptor;
-  return fd;
+  return static_cast<uintptr_t>(fd);
 }
 
 void FilePathWatcherKQueue::CloseFileDescriptor(uintptr_t* fd) {
@@ -92,14 +114,14 @@ void FilePathWatcherKQueue::CloseFileDescriptor(uintptr_t* fd) {
     return;
   }
 
-  if (IGNORE_EINTR(close(*fd)) != 0) {
+  if (IGNORE_EINTR(close(checked_cast<int>(*fd))) != 0) {
     DPLOG(ERROR) << "close";
   }
   *fd = kNoFileDescriptor;
 }
 
 bool FilePathWatcherKQueue::AreKeventValuesValid(struct kevent* kevents,
-                                               int count) {
+                                                 int count) {
   if (count < 0) {
     DPLOG(ERROR) << "kevent";
     return false;
@@ -211,9 +233,10 @@ bool FilePathWatcherKQueue::UpdateWatches(bool* target_file_affected) {
     }
 
     EventVector updates(valid);
-    ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
-    int count = HANDLE_EINTR(kevent(kqueue_, &events_[0], valid, &updates[0],
-                                    valid, NULL));
+    ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+    const int valid_int = checked_cast<int>(valid);
+    int count = HANDLE_EINTR(
+        kevent(kqueue_, &events_[0], valid_int, &updates[0], valid_int, NULL));
     if (!AreKeventValuesValid(&updates[0], count)) {
       return false;
     }
@@ -235,18 +258,18 @@ bool FilePathWatcherKQueue::UpdateWatches(bool* target_file_affected) {
 }
 
 bool FilePathWatcherKQueue::Watch(const FilePath& path,
-                                  bool recursive,
+                                  Type type,
                                   const FilePathWatcher::Callback& callback) {
   DCHECK(target_.value().empty());  // Can only watch one path.
   DCHECK(!callback.is_null());
   DCHECK_EQ(kqueue_, -1);
   // Recursive watch is not supported using kqueue.
-  DCHECK(!recursive);
+  DCHECK_NE(type, Type::kRecursive);
 
   callback_ = callback;
   target_ = path;
 
-  set_task_runner(SequencedTaskRunnerHandle::Get());
+  set_task_runner(SequencedTaskRunner::GetCurrentDefault());
 
   kqueue_ = kqueue();
   if (kqueue_ == -1) {
@@ -254,14 +277,21 @@ bool FilePathWatcherKQueue::Watch(const FilePath& path,
     return false;
   }
 
-  int last_entry = EventsForPath(target_, &events_);
-  DCHECK_NE(last_entry, 0);
+  size_t last_entry = type == Type::kNonRecursive
+                          ? EventsForPath(target_, &events_)
+                          : EventForItem(target_, &events_);
+  if (!last_entry) {
+    // No notifications can possibly come in, so fail fast.
+    Cancel();
+    return false;
+  }
 
   EventVector responses(last_entry);
 
-  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
-  int count = HANDLE_EINTR(kevent(kqueue_, &events_[0], last_entry,
-                                  &responses[0], last_entry, NULL));
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+  const int last_entry_int = checked_cast<int>(last_entry);
+  int count = HANDLE_EINTR(kevent(kqueue_, &events_[0], last_entry_int,
+                                  &responses[0], last_entry_int, NULL));
   if (!AreKeventValuesValid(&responses[0], count)) {
     // Calling Cancel() here to close any file descriptors that were opened.
     // This would happen in the destructor anyways, but FilePathWatchers tend to
@@ -275,8 +305,8 @@ bool FilePathWatcherKQueue::Watch(const FilePath& path,
   // callback cannot be invoked after |kqueue_watch_controller_| (which is a
   // member of |this|) has been deleted.
   kqueue_watch_controller_ = FileDescriptorWatcher::WatchReadable(
-      kqueue_,
-      Bind(&FilePathWatcherKQueue::OnKQueueReadable, Unretained(this)));
+      kqueue_, BindRepeating(&FilePathWatcherKQueue::OnKQueueReadable,
+                             Unretained(this)));
 
   return true;
 }
@@ -295,7 +325,7 @@ void FilePathWatcherKQueue::Cancel() {
       DPLOG(ERROR) << "close kqueue";
     }
     kqueue_ = -1;
-    std::for_each(events_.begin(), events_.end(), ReleaseEvent);
+    base::ranges::for_each(events_, ReleaseEvent);
     events_.clear();
     callback_.Reset();
   }
@@ -310,8 +340,8 @@ void FilePathWatcherKQueue::OnKQueueReadable() {
   // occurred.
   EventVector updates(events_.size());
   struct timespec timeout = {0, 0};
-  int count = HANDLE_EINTR(kevent(kqueue_, NULL, 0, &updates[0], updates.size(),
-                                  &timeout));
+  int count = HANDLE_EINTR(kevent(kqueue_, NULL, 0, &updates[0],
+                                  checked_cast<int>(updates.size()), &timeout));
 
   // Error values are stored within updates, so check to make sure that no
   // errors occurred.
@@ -325,7 +355,8 @@ void FilePathWatcherKQueue::OnKQueueReadable() {
   bool send_notification = false;
 
   // Iterate through each of the updates and react to them.
-  for (int i = 0; i < count; ++i) {
+  // AreKeventValuesValid() guarantees `count` is non-negative.
+  for (size_t i = 0; i < static_cast<size_t>(count); ++i) {
     // Find our kevent record that matches the update notification.
     EventVector::iterator event = events_.begin();
     for (; event != events_.end(); ++event) {
@@ -365,6 +396,7 @@ void FilePathWatcherKQueue::OnKQueueReadable() {
     if (!UpdateWatches(&send_notification)) {
       callback_.Run(target_, true /* error */);
       Cancel();
+      return;
     }
   }
 

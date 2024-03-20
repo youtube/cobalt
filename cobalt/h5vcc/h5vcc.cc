@@ -14,11 +14,6 @@
 
 #include "cobalt/h5vcc/h5vcc.h"
 
-#if defined(COBALT_ENABLE_ACCOUNT_MANAGER)
-#include "cobalt/h5vcc/h5vcc_account_manager_internal.h"
-#include "cobalt/script/source_code.h"
-#endif
-
 #include "cobalt/h5vcc/h5vcc_metrics.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 
@@ -50,23 +45,6 @@ H5vcc::H5vcc(const Settings& settings) {
   system_ = new H5vccSystem(updater_);
 #else
   system_ = new H5vccSystem();
-#endif
-
-#if defined(COBALT_ENABLE_ACCOUNT_MANAGER)
-  // Bind "H5vccAccountManager" if it is supported. (This is not to be confused
-  // with settings.account_manager.)
-  if (H5vccAccountManagerInternal::IsSupported()) {
-    // Since we don't want to bind an instance of a wrappable, we cannot use
-    // Bind() nor BindTo(). Instead, just evaluate a script to alias the type.
-    scoped_refptr<script::SourceCode> source =
-        script::SourceCode::CreateSourceCode(
-            "H5vccAccountManager = H5vccAccountManagerInternal;"
-            "window.H5vccAccountManager = window.H5vccAccountManagerInternal;",
-            base::SourceLocation("h5vcc.cc", __LINE__, 1));
-    std::string result;
-    bool success = settings.global_environment->EvaluateScript(source, &result);
-    CHECK(success);
-  }
 #endif
 }
 

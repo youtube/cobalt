@@ -13,11 +13,11 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #if defined(STARBOARD)
 #include "components/update_client/net/url_request_post_interceptor.h"
-#include "net/url_request/url_fetcher.h"
+#include "cobalt/network/custom/url_fetcher.h"
 #else
 #include "components/update_client/net/url_loader_post_interceptor.h"
 #endif
@@ -67,7 +67,7 @@ class RequestSenderTest : public testing::Test,
   void Quit();
   void RunThreads();
 
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::test::TaskEnvironment scoped_task_environment_;
 
   scoped_refptr<TestConfigurator> config_;
   std::unique_ptr<RequestSender> request_sender_;
@@ -94,7 +94,7 @@ INSTANTIATE_TEST_SUITE_P(IsForeground, RequestSenderTest, ::testing::Bool());
 
 RequestSenderTest::RequestSenderTest()
     : scoped_task_environment_(
-          base::test::ScopedTaskEnvironment::MainThreadType::IO) {}
+          base::test::TaskEnvironment::MainThreadType::IO) {}
 
 RequestSenderTest::~RequestSenderTest() {}
 

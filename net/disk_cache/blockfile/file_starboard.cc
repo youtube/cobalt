@@ -1,33 +1,21 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// Adapted from file_posix.cc
+// Copyright 2012 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "net/disk_cache/blockfile/file.h"
 
+#include <stdint.h>
 #include <limits>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/logging.h"
 #include "base/run_loop.h"
-#include "base/task/post_task.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/thread_pool.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
-#include "starboard/types.h"
 
 namespace disk_cache {
 
@@ -38,8 +26,8 @@ bool File::Init(const base::FilePath& name) {
   if (base_file_.IsValid())
     return false;
 
-  int flags =
-      base::File::FLAG_OPEN | base::File::FLAG_READ | base::File::FLAG_WRITE;
+  int flags = base::File::FLAG_OPEN | base::File::FLAG_READ |
+              base::File::FLAG_WRITE;
   base_file_.Initialize(name, flags);
   return base_file_.IsValid();
 }
@@ -66,16 +54,13 @@ bool File::Write(const void* buffer, size_t buffer_len, size_t offset) {
     return false;
   }
 
-  int ret =
-      base_file_.Write(offset, static_cast<const char*>(buffer), buffer_len);
+  int ret = base_file_.Write(offset, static_cast<const char*>(buffer),
+                             buffer_len);
   return (static_cast<size_t>(ret) == buffer_len);
 }
 
-bool File::Read(void* buffer,
-                size_t buffer_len,
-                size_t offset,
-                FileIOCallback* callback,
-                bool* completed) {
+bool File::Read(void* buffer, size_t buffer_len, size_t offset,
+                FileIOCallback* callback, bool* completed) {
   DCHECK(base_file_.IsValid());
   if (!callback) {
     if (completed)
@@ -88,7 +73,7 @@ bool File::Read(void* buffer,
     return false;
   }
 
-  base::PostTaskWithTraitsAndReplyWithResult(
+  base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::TaskPriority::USER_BLOCKING, base::MayBlock()},
       base::BindOnce(&File::DoRead, base::Unretained(this), buffer, buffer_len,
                      offset),
@@ -98,11 +83,8 @@ bool File::Read(void* buffer,
   return true;
 }
 
-bool File::Write(const void* buffer,
-                 size_t buffer_len,
-                 size_t offset,
-                 FileIOCallback* callback,
-                 bool* completed) {
+bool File::Write(const void* buffer, size_t buffer_len, size_t offset,
+                 FileIOCallback* callback, bool* completed) {
   DCHECK(base_file_.IsValid());
   if (!callback) {
     if (completed)
@@ -119,7 +101,7 @@ bool File::Write(const void* buffer,
   // finish before it reads from the network again.
   // TODO(fdoray): Consider removing this from the critical path of network
   // requests and changing the priority to BACKGROUND.
-  base::PostTaskWithTraitsAndReplyWithResult(
+  base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::TaskPriority::USER_BLOCKING, base::MayBlock()},
       base::BindOnce(&File::DoWrite, base::Unretained(this), buffer, buffer_len,
                      offset),
@@ -150,17 +132,18 @@ size_t File::GetLength() {
 }
 
 // Static.
-void File::WaitForPendingIO(int* num_pending_io) {
+void File::WaitForPendingIOForTesting(int* num_pending_io) {
   // We are running unit tests so we should wait for all callbacks.
 
   // This waits for callbacks running on worker threads.
-  base::TaskScheduler::GetInstance()->FlushForTesting();
+  base::ThreadPoolInstance::Get()->FlushForTesting();
   // This waits for the "Reply" tasks running on the current MessageLoop.
   base::RunLoop().RunUntilIdle();
 }
 
 // Static.
-void File::DropPendingIO() {}
+void File::DropPendingIO() {
+}
 
 File::~File() = default;
 

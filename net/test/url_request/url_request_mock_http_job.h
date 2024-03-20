@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,12 +7,12 @@
 #ifndef NET_TEST_URL_REQUEST_URL_REQUEST_MOCK_HTTP_JOB_H_
 #define NET_TEST_URL_REQUEST_URL_REQUEST_MOCK_HTTP_JOB_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
-#include "net/url_request/url_request_file_job.h"
-#include "starboard/types.h"
+#include "net/test/url_request/url_request_test_job_backed_by_file.h"
 #include "url/gurl.h"
 
 namespace base {
@@ -25,12 +25,16 @@ class URLRequestInterceptor;
 
 namespace net {
 
-class URLRequestMockHTTPJob : public URLRequestFileJob {
+class URLRequestMockHTTPJob : public URLRequestTestJobBackedByFile {
  public:
-  // Note that all file I/O is done using TaskScheduler.
+  // Note that all file I/O is done using ThreadPool.
   URLRequestMockHTTPJob(URLRequest* request,
-                        NetworkDelegate* network_delegate,
                         const base::FilePath& file_path);
+
+  URLRequestMockHTTPJob(const URLRequestMockHTTPJob&) = delete;
+  URLRequestMockHTTPJob& operator=(const URLRequestMockHTTPJob&) = delete;
+
+  ~URLRequestMockHTTPJob() override;
 
   // URLRequestJob overrides.
   void Start() override;
@@ -66,9 +70,6 @@ class URLRequestMockHTTPJob : public URLRequestFileJob {
   static std::unique_ptr<URLRequestInterceptor> CreateInterceptorForSingleFile(
       const base::FilePath& file);
 
- protected:
-  ~URLRequestMockHTTPJob() override;
-
  private:
   void GetResponseInfoConst(HttpResponseInfo* info) const;
   void SetHeadersAndStart(const std::string& raw_headers);
@@ -76,9 +77,7 @@ class URLRequestMockHTTPJob : public URLRequestFileJob {
   std::string raw_headers_;
   int64_t total_received_bytes_ = 0;
 
-  base::WeakPtrFactory<URLRequestMockHTTPJob> weak_ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(URLRequestMockHTTPJob);
+  base::WeakPtrFactory<URLRequestMockHTTPJob> weak_ptr_factory_{this};
 };
 
 }  // namespace net

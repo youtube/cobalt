@@ -11,7 +11,7 @@
 #include <set>
 #include <string>
 
-#include "base/callback_forward.h"
+#include "base/functional/callback_forward.h"
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/files/important_file_writer.h"
@@ -20,7 +20,8 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
-#include "base/task/post_task.h"
+#include "base/task/thread_pool.h"
+#include "base/values.h"
 #include "components/prefs/persistent_pref_store.h"
 #include "components/prefs/pref_filter.h"
 #include "components/prefs/prefs_export.h"
@@ -67,14 +68,14 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   JsonPrefStore(const base::FilePath& pref_filename,
                 std::unique_ptr<PrefFilter> pref_filter = nullptr,
                 scoped_refptr<base::SequencedTaskRunner> file_task_runner =
-                    base::CreateSequencedTaskRunnerWithTraits(
+                    base::ThreadPool::CreateSequencedTaskRunner(
                         {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
                          base::TaskShutdownBehavior::BLOCK_SHUTDOWN}));
 
   // PrefStore overrides:
   bool GetValue(const std::string& key,
                 const base::Value** result) const override;
-  std::unique_ptr<base::DictionaryValue> GetValues() const override;
+  base::Value::Dict GetValues() const override;
   void AddObserver(PrefStore::Observer* observer) override;
   void RemoveObserver(PrefStore::Observer* observer) override;
   bool HasObservers() const override;
@@ -83,10 +84,10 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   // PersistentPrefStore overrides:
   bool GetMutableValue(const std::string& key, base::Value** result) override;
   void SetValue(const std::string& key,
-                std::unique_ptr<base::Value> value,
+                base::Value value,
                 uint32_t flags) override;
   void SetValueSilently(const std::string& key,
-                        std::unique_ptr<base::Value> value,
+                        base::Value value,
                         uint32_t flags) override;
   void RemoveValue(const std::string& key, uint32_t flags) override;
   bool ReadOnly() const override;
@@ -125,6 +126,10 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
 
   ~JsonPrefStore() override;
 
+  // Perform pre-serialization bookkeeping common to either serialization flow
+  // (main thread or background thread).
+  void PerformPreserializationTasks();
+
   // If |write_success| is true, runs |on_next_successful_write_|.
   // Otherwise, re-registers |on_next_successful_write_|.
   void RunOrScheduleNextSuccessfulWriteCallback(bool write_success);
@@ -152,7 +157,7 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   void OnFileRead(std::unique_ptr<ReadResult> read_result);
 
   // ImportantFileWriter::DataSerializer overrides:
-  bool SerializeData(std::string* output) override;
+  absl::optional<std::string> SerializeData() override;
 
   // This method is called after the JSON file has been read and the result has
   // potentially been intercepted and modified by |pref_filter_|.
@@ -162,7 +167,7 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   // (typically because the |pref_filter_| has already altered the |prefs|) --
   // this will be ignored if this store is read-only.
   void FinalizeFileRead(bool initialization_successful,
-                        std::unique_ptr<base::DictionaryValue> prefs,
+                        base::Value::Dict prefs,
                         bool schedule_write);
 
   // Schedule a write with the file writer as long as |flags| doesn't contain
@@ -172,7 +177,7 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   const base::FilePath path_;
   const scoped_refptr<base::SequencedTaskRunner> file_task_runner_;
 
-  std::unique_ptr<base::DictionaryValue> prefs_;
+  base::Value::Dict prefs_;
 
   bool read_only_;
 

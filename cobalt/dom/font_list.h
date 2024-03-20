@@ -134,11 +134,11 @@ class FontList : public render_tree::FontProvider,
   // the case where |maybe_bounds| is non-NULL, it will also be populated with
   // the bounds of the rect.
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const base::char16* text_buffer, int32 text_length, bool is_rtl);
+      const char16_t* text_buffer, int32 text_length, bool is_rtl);
 
   // Given a string of text, return its width. This is faster than
   // CreateGlyphBuffer().
-  float GetTextWidth(const base::char16* text_buffer, int32 text_length,
+  float GetTextWidth(const char16_t* text_buffer, int32 text_length,
                      bool is_rtl, render_tree::FontVector* maybe_used_fonts);
 
   const render_tree::FontMetrics& GetFontMetrics();
@@ -149,7 +149,7 @@ class FontList : public render_tree::FontProvider,
   render_tree::FontMetrics GetFontMetrics(const render_tree::FontVector& fonts);
 
   // Returns the text run that signifies an ellipsis code point.
-  base::char16 GetEllipsisValue() const;
+  char16_t GetEllipsisValue() const;
   // Returns the first font in the font-list that supports the ellipsis code
   // point. In the case where the ellipsis font has not already been calculated,
   // it lazily generates it.

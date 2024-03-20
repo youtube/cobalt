@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,20 +17,18 @@ namespace net {
 class NET_EXPORT URLRequestErrorJob : public URLRequestJob {
  public:
   URLRequestErrorJob(URLRequest* request,
-                     NetworkDelegate* network_delegate,
                      int error);
+  ~URLRequestErrorJob() override;
 
   void Start() override;
   void Kill() override;
 
  private:
-  ~URLRequestErrorJob() override;
-
   void StartAsync();
 
   int error_;
 
-  base::WeakPtrFactory<URLRequestErrorJob> weak_factory_;
+  base::WeakPtrFactory<URLRequestErrorJob> weak_factory_{this};
 };
 
 }  // namespace net

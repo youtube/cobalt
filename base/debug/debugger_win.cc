@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright 2010 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,6 @@
 #include <stdlib.h>
 #include <windows.h>
 
-#include "base/test/clang_coverage.h"
-#include "starboard/types.h"
-
 namespace base {
 namespace debug {
 
@@ -17,16 +14,14 @@ bool BeingDebugged() {
   return ::IsDebuggerPresent() != 0;
 }
 
-void BreakDebugger() {
-#if defined(CLANG_COVERAGE)
-  WriteClangCoverageProfile();
-#endif
-
+void BreakDebuggerAsyncSafe() {
   if (IsDebugUISuppressed())
     _exit(1);
 
   __debugbreak();
 }
+
+void VerifyDebugger() {}
 
 }  // namespace debug
 }  // namespace base

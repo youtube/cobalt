@@ -209,8 +209,8 @@ class AudioContext : public web::EventTarget {
   int next_callback_id_;
   DecodeCallbacks pending_decode_callbacks_;
 
-  // The main message loop.
-  scoped_refptr<base::SingleThreadTaskRunner> const main_message_loop_;
+  // The main task runner.
+  scoped_refptr<base::SequencedTaskRunner> const main_task_runner_;
 
   AsyncAudioDecoder audio_decoder_;
 

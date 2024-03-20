@@ -1,9 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_CERT_X509_UTIL_NSS_H_
 #define NET_CERT_X509_UTIL_NSS_H_
+
+#include <stddef.h>
 
 #include <string>
 #include <vector>
@@ -12,21 +14,20 @@
 #include "net/cert/cert_type.h"
 #include "net/cert/scoped_nss_types.h"
 #include "net/cert/x509_certificate.h"
-#include "starboard/types.h"
 
 typedef struct CERTCertificateStr CERTCertificate;
 typedef struct CERTNameStr CERTName;
 typedef struct PK11SlotInfoStr PK11SlotInfo;
 typedef struct SECItemStr SECItem;
 
-namespace net {
-
-namespace x509_util {
+namespace net::x509_util {
 
 // Returns true if two certificate handles refer to identical certificates.
 NET_EXPORT bool IsSameCertificate(CERTCertificate* a, CERTCertificate* b);
 NET_EXPORT bool IsSameCertificate(CERTCertificate* a, const X509Certificate* b);
 NET_EXPORT bool IsSameCertificate(const X509Certificate* a, CERTCertificate* b);
+NET_EXPORT bool IsSameCertificate(CERTCertificate* a, const CRYPTO_BUFFER* b);
+NET_EXPORT bool IsSameCertificate(const CRYPTO_BUFFER* a, CERTCertificate* b);
 
 // Returns a CERTCertificate handle from the DER-encoded representation. The
 // returned value may reference an already existing CERTCertificate object.
@@ -158,8 +159,12 @@ NET_EXPORT bool GetValidityTimes(CERTCertificate* cert,
 // (all zero) fingerprint on failure.
 NET_EXPORT SHA256HashValue CalculateFingerprint256(CERTCertificate* cert);
 
-} // namespace x509_util
+// Prefer using NSSCertDatabase::ImportUserCert. Temporary public for Kcer.
+// Import a user certificate. The private key for the user certificate must
+// already be installed, otherwise returns ERR_NO_PRIVATE_KEY_FOR_CERT.
+// Returns OK or a network error code.
+NET_EXPORT int ImportUserCert(CERTCertificate* cert);
 
-} // namespace net
+}  // namespace net::x509_util
 
 #endif  // NET_CERT_X509_UTIL_NSS_H_

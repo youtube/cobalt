@@ -1,16 +1,17 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/cert/test_root_certs.h"
 
 #include <string>
+#include <utility>
 
-#include "base/files/file_path.h"
-#include "base/files/file_util.h"
-#include "base/logging.h"
-#include "base/threading/thread_restrictions.h"
+#include "net/cert/pki/cert_errors.h"
+#include "net/cert/pki/trust_store.h"
 #include "net/cert/x509_certificate.h"
+#include "net/cert/x509_util.h"
+#include "third_party/boringssl/src/include/openssl/pool.h"
 
 namespace net {
 
@@ -20,17 +21,6 @@ bool g_has_instance = false;
 
 base::LazyInstance<TestRootCerts>::Leaky
     g_test_root_certs = LAZY_INSTANCE_INITIALIZER;
-
-CertificateList LoadCertificates(const base::FilePath& filename) {
-  std::string raw_cert;
-  if (!base::ReadFileToString(filename, &raw_cert)) {
-    LOG(ERROR) << "Can't load certificate " << filename.value();
-    return CertificateList();
-  }
-
-  return X509Certificate::CreateCertificateListFromBytes(
-      raw_cert.data(), raw_cert.length(), X509Certificate::FORMAT_AUTO);
-}
 
 }  // namespace
 
@@ -43,13 +33,45 @@ bool TestRootCerts::HasInstance() {
   return g_has_instance;
 }
 
-bool TestRootCerts::AddFromFile(const base::FilePath& file) {
-  base::ThreadRestrictions::ScopedAllowIO allow_io_for_loading_test_certs;
-  CertificateList root_certs = LoadCertificates(file);
-  if (root_certs.empty() || root_certs.size() > 1)
+bool TestRootCerts::Add(X509Certificate* certificate, CertificateTrust trust) {
+  CertErrors errors;
+  std::shared_ptr<const ParsedCertificate> parsed = ParsedCertificate::Create(
+      bssl::UpRef(certificate->cert_buffer()),
+      x509_util::DefaultParseCertificateOptions(), &errors);
+  if (!parsed) {
     return false;
+  }
 
-  return Add(root_certs.front().get());
+  test_trust_store_.AddCertificate(std::move(parsed), trust);
+  if (trust.HasUnspecifiedTrust() || trust.IsDistrusted()) {
+    // TestRootCerts doesn't support passing the specific trust settings into
+    // the OS implementations in any case, but in the case of unspecified trust
+    // or explicit distrust, simply not passing the certs to the OS
+    // implementation is better than nothing.
+    return true;
+  }
+  return AddImpl(certificate);
+}
+
+void TestRootCerts::AddKnownRoot(base::span<const uint8_t> der_cert) {
+  test_known_roots_.insert(std::string(
+      reinterpret_cast<const char*>(der_cert.data()), der_cert.size()));
+}
+
+void TestRootCerts::Clear() {
+  ClearImpl();
+  test_trust_store_.Clear();
+  test_known_roots_.clear();
+}
+
+bool TestRootCerts::IsEmpty() const {
+  return test_trust_store_.IsEmpty();
+}
+
+bool TestRootCerts::IsKnownRoot(base::span<const uint8_t> der_cert) const {
+  return test_known_roots_.find(
+             base::StringPiece(reinterpret_cast<const char*>(der_cert.data()),
+                               der_cert.size())) != test_known_roots_.end();
 }
 
 TestRootCerts::TestRootCerts() {
@@ -59,20 +81,46 @@ TestRootCerts::TestRootCerts() {
 
 ScopedTestRoot::ScopedTestRoot() = default;
 
-ScopedTestRoot::ScopedTestRoot(X509Certificate* cert) {
-  Reset(cert);
+ScopedTestRoot::ScopedTestRoot(X509Certificate* cert, CertificateTrust trust) {
+  Reset({cert}, trust);
+}
+
+ScopedTestRoot::ScopedTestRoot(CertificateList certs, CertificateTrust trust) {
+  Reset(std::move(certs), trust);
+}
+
+ScopedTestRoot::ScopedTestRoot(ScopedTestRoot&& other) {
+  *this = std::move(other);
+}
+
+ScopedTestRoot& ScopedTestRoot::operator=(ScopedTestRoot&& other) {
+  CertificateList tmp_certs;
+  tmp_certs.swap(other.certs_);
+  Reset(std::move(tmp_certs));
+  return *this;
 }
 
 ScopedTestRoot::~ScopedTestRoot() {
-  Reset(NULL);
+  Reset({});
 }
 
-void ScopedTestRoot::Reset(X509Certificate* cert) {
-  if (cert_.get())
+void ScopedTestRoot::Reset(CertificateList certs, CertificateTrust trust) {
+  if (!certs_.empty())
     TestRootCerts::GetInstance()->Clear();
-  if (cert)
-    TestRootCerts::GetInstance()->Add(cert);
-  cert_ = cert;
+  for (const auto& cert : certs)
+    TestRootCerts::GetInstance()->Add(cert.get(), trust);
+  certs_ = certs;
+}
+
+ScopedTestKnownRoot::ScopedTestKnownRoot() = default;
+
+ScopedTestKnownRoot::ScopedTestKnownRoot(X509Certificate* cert) {
+  TestRootCerts::GetInstance()->AddKnownRoot(
+      x509_util::CryptoBufferAsSpan(cert->cert_buffer()));
+}
+
+ScopedTestKnownRoot::~ScopedTestKnownRoot() {
+  TestRootCerts::GetInstance()->Clear();
 }
 
 }  // namespace net

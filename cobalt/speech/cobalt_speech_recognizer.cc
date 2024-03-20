@@ -28,7 +28,7 @@
 #if defined(SB_USE_SB_MICROPHONE)
 #include "cobalt/speech/microphone_starboard.h"
 #endif  // defined(SB_USE_SB_MICROPHONE)
-#include "net/url_request/url_fetcher.h"
+#include "cobalt/network/custom/url_fetcher.h"
 
 namespace cobalt {
 namespace speech {

@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,24 +6,22 @@
 
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "net/socket/fuzzed_socket.h"
 
 namespace net {
 
-FuzzedServerSocket::FuzzedServerSocket(base::FuzzedDataProvider* data_provider,
+FuzzedServerSocket::FuzzedServerSocket(FuzzedDataProvider* data_provider,
                                        net::NetLog* net_log)
-    : data_provider_(data_provider),
-      net_log_(net_log),
-      first_accept_(true),
-      listen_called_(false),
-      weak_factory_(this) {}
+    : data_provider_(data_provider), net_log_(net_log) {}
 
 FuzzedServerSocket::~FuzzedServerSocket() = default;
 
-int FuzzedServerSocket::Listen(const IPEndPoint& address, int backlog) {
+int FuzzedServerSocket::Listen(const IPEndPoint& address,
+                               int backlog,
+                               absl::optional<bool> ipv6_only) {
   DCHECK(!listen_called_);
   listening_on_ = address;
   listen_called_ = true;
@@ -38,7 +36,7 @@ int FuzzedServerSocket::GetLocalAddress(IPEndPoint* address) const {
 int FuzzedServerSocket::Accept(std::unique_ptr<StreamSocket>* socket,
                                CompletionOnceCallback callback) {
   if (first_accept_) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&FuzzedServerSocket::DispatchAccept,
                                   weak_factory_.GetWeakPtr(), socket,
                                   std::move(callback)));

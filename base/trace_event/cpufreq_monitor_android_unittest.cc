@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,14 +11,15 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
-#include "starboard/types.h"
+#include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 namespace trace_event {
 
-class TestTaskRunner : public SingleThreadTaskRunner {
+class TestTaskRunner final : public SingleThreadTaskRunner {
  public:
   bool PostDelayedTask(const Location& from_here,
                        OnceClosure task,
@@ -48,7 +49,7 @@ class TestTaskRunner : public SingleThreadTaskRunner {
   }
 
  private:
-  ~TestTaskRunner() final {}
+  ~TestTaskRunner() override {}
 
   std::list<std::pair<base::TimeDelta, OnceClosure>> delayed_tasks_;
 };
@@ -152,8 +153,7 @@ class CPUFreqMonitorTest : public testing::Test {
       std::string file_path =
           delegate_->GetScalingCurFreqPathString(pair.first);
       std::string str_freq = base::StringPrintf("%d\n", pair.second);
-      base::WriteFile(base::FilePath(file_path), str_freq.c_str(),
-                      str_freq.length());
+      base::WriteFile(base::FilePath(file_path), str_freq);
     }
   }
 
@@ -161,8 +161,7 @@ class CPUFreqMonitorTest : public testing::Test {
                              const std::vector<std::string>& related_cpus) {
     for (unsigned int i = 0; i < clusters.size(); i++) {
       base::WriteFile(base::FilePath(delegate_->GetRelatedCPUsPathString(i)),
-                      related_cpus[clusters[i]].c_str(),
-                      related_cpus[clusters[i]].length());
+                      related_cpus[clusters[i]]);
     }
   }
 
@@ -192,7 +191,7 @@ class CPUFreqMonitorTest : public testing::Test {
   scoped_refptr<TestTaskRunner> task_runner_;
   std::unique_ptr<ScopedTempDir> temp_dir_;
   std::unique_ptr<CPUFreqMonitor> monitor_;
-  TestDelegate* delegate_;
+  raw_ptr<TestDelegate> delegate_;
 };
 
 TEST_F(CPUFreqMonitorTest, TestStart) {

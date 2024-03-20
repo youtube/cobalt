@@ -1,10 +1,11 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/cookies/cookie_deletion_info.h"
 
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_options.h"
 
 namespace net {
@@ -28,12 +29,8 @@ bool DomainMatchesDomains(const net::CanonicalCookie& cookie,
   // If the cookie's domain is is not parsed as belonging to a registry
   // (e.g. for IP addresses or internal hostnames) an empty string will be
   // returned.  In this case, use the domain in the cookie.
-  if (effective_domain.empty()) {
-    if (cookie.IsDomainCookie())
-      effective_domain = cookie.Domain().substr(1);
-    else
-      effective_domain = cookie.Domain();
-  }
+  if (effective_domain.empty())
+    effective_domain = cookie.DomainWithoutDot();
 
   return match_domains.count(effective_domain) != 0;
 }
@@ -75,14 +72,7 @@ CookieDeletionInfo::CookieDeletionInfo()
 
 CookieDeletionInfo::CookieDeletionInfo(base::Time start_time,
                                        base::Time end_time)
-    : creation_range(start_time, end_time) {
-  // Options to use for deletion of cookies associated with
-  // a particular URL.  These options will make sure that all
-  // cookies associated with the URL are deleted.
-  cookie_options.set_include_httponly();
-  cookie_options.set_same_site_cookie_mode(
-      net::CookieOptions::SameSiteCookieMode::INCLUDE_STRICT_AND_LAX);
-}
+    : creation_range(start_time, end_time) {}
 
 CookieDeletionInfo::CookieDeletionInfo(CookieDeletionInfo&& other) = default;
 
@@ -97,7 +87,8 @@ CookieDeletionInfo& CookieDeletionInfo::operator=(CookieDeletionInfo&& rhs) =
 CookieDeletionInfo& CookieDeletionInfo::operator=(
     const CookieDeletionInfo& rhs) = default;
 
-bool CookieDeletionInfo::Matches(const CanonicalCookie& cookie) const {
+bool CookieDeletionInfo::Matches(const CanonicalCookie& cookie,
+                                 const CookieAccessParams& params) const {
   if (session_control != SessionControl::IGNORE_CONTROL &&
       (cookie.IsPersistent() !=
        (session_control == SessionControl::PERSISTENT_COOKIES))) {
@@ -120,8 +111,13 @@ bool CookieDeletionInfo::Matches(const CanonicalCookie& cookie) const {
     return false;
   }
 
+  // |CookieOptions::MakeAllInclusive()| options will make sure that all
+  // cookies associated with the URL are deleted.
   if (url.has_value() &&
-      !cookie.IncludeForRequestURL(url.value(), cookie_options)) {
+      !cookie
+           .IncludeForRequestURL(url.value(), CookieOptions::MakeAllInclusive(),
+                                 params)
+           .status.IsInclude()) {
     return false;
   }
 
@@ -132,6 +128,15 @@ bool CookieDeletionInfo::Matches(const CanonicalCookie& cookie) const {
 
   if (!domains_and_ips_to_ignore.empty() &&
       DomainMatchesDomains(cookie, domains_and_ips_to_ignore)) {
+    return false;
+  }
+
+  if (cookie.IsPartitioned() &&
+      !cookie_partition_key_collection.Contains(*cookie.PartitionKey())) {
+    return false;
+  }
+
+  if (partitioned_state_only && !cookie.IsPartitioned()) {
     return false;
   }
 

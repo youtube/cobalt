@@ -1,20 +1,20 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/debug/stack_trace.h"
 
 #include <android/log.h>
+#include <stddef.h>
 #include <unwind.h>
 
 #include <algorithm>
 #include <ostream>
 
 #include "base/debug/proc_maps_linux.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 #ifdef __LP64__
 #define FMT_ADDR  "0x%016lx"
@@ -31,7 +31,7 @@ struct StackCrawlState {
         max_depth(max_depth),
         have_skipped_self(false) {}
 
-  uintptr_t* frames;
+  raw_ptr<uintptr_t> frames;
   size_t frame_count;
   size_t max_depth;
   bool have_skipped_self;
@@ -53,6 +53,11 @@ _Unwind_Reason_Code TraceStackFrame(_Unwind_Context* context, void* arg) {
   return _URC_NO_REASON;
 }
 
+bool EndsWith(const std::string& s, const std::string& suffix) {
+  return s.size() >= suffix.size() &&
+         s.substr(s.size() - suffix.size(), suffix.size()) == suffix;
+}
+
 }  // namespace
 
 namespace base {
@@ -70,12 +75,10 @@ bool EnableInProcessStackDumping() {
   return (sigaction(SIGPIPE, &action, NULL) == 0);
 }
 
-StackTrace::StackTrace(size_t count) {
-  count = std::min(arraysize(trace_), count);
-
-  StackCrawlState state(reinterpret_cast<uintptr_t*>(trace_), count);
+size_t CollectStackTrace(void** trace, size_t count) {
+  StackCrawlState state(reinterpret_cast<uintptr_t*>(trace), count);
   _Unwind_Backtrace(&TraceStackFrame, &state);
-  count_ = state.frame_count;
+  return state.frame_count;
 }
 
 void StackTrace::PrintWithPrefix(const char* prefix_string) const {
@@ -95,7 +98,7 @@ void StackTrace::OutputToStreamWithPrefix(std::ostream* os,
   // on fatal log messages in debug builds only. If the restriction is enabled
   // then it will recursively trigger fatal failures when this enters on the
   // UI thread.
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
+  base::ScopedAllowBlocking scoped_allow_blocking;
   if (!ReadProcMaps(&proc_maps)) {
     __android_log_write(
         ANDROID_LOG_ERROR, "chromium", "Failed to read /proc/self/maps");
@@ -121,12 +124,21 @@ void StackTrace::OutputToStreamWithPrefix(std::ostream* os,
     if (prefix_string)
       *os << prefix_string;
 
-    *os << base::StringPrintf("#%02zd " FMT_ADDR " ", i, address);
+    // Adjust absolute address to be an offset within the mapped region, to
+    // match the format dumped by Android's crash output.
+    if (iter != regions.end()) {
+      address -= iter->start;
+    }
+
+    // The format below intentionally matches that of Android's debuggerd
+    // output. This simplifies decoding by scripts such as stack.py.
+    *os << base::StringPrintf("#%02zd pc " FMT_ADDR " ", i, address);
 
     if (iter != regions.end()) {
-      uintptr_t rel_pc = address - iter->start + iter->offset;
-      const char* path = iter->path.c_str();
-      *os << base::StringPrintf("%s+" FMT_ADDR, path, rel_pc);
+      *os << base::StringPrintf("%s", iter->path.c_str());
+      if (EndsWith(iter->path, ".apk")) {
+        *os << base::StringPrintf(" (offset 0x%llx)", iter->offset);
+      }
     } else {
       *os << "<unknown>";
     }

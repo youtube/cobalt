@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,7 +34,7 @@ void WontCompile() {
   UMA_HISTOGRAM_ENUMERATION("", TypeA::A, B);
 }
 
-#elif defined(NCTEST_NEGATIVE_ENUM_MAX)  // [r'static_assert failed "\|boundary\| is out of range of HistogramBase::Sample"']
+#elif defined(NCTEST_NEGATIVE_ENUM_MAX)  // [r"fatal error: static_assert failed due to requirement 'static_cast<uintmax_t>\(TypeA::A\) < static_cast<uintmax_t>\(std::numeric_limits<int>::max\(\)\)': |boundary| is out of range of HistogramBase::Sample"]
 
 void WontCompile() {
   // Buckets for enumeration start from 0, so a boundary < 0 is illegal.
@@ -42,7 +42,7 @@ void WontCompile() {
   UMA_HISTOGRAM_ENUMERATION("", TypeA::A, TypeA::A);
 }
 
-#elif defined(NCTEST_ENUM_MAX_OUT_OF_RANGE)  // [r'static_assert failed "\|boundary\| is out of range of HistogramBase::Sample"']
+#elif defined(NCTEST_ENUM_MAX_OUT_OF_RANGE)  // [r"fatal error: static_assert failed due to requirement 'static_cast<uintmax_t>\(TypeA::A\) < static_cast<uintmax_t>\(std::numeric_limits<int>::max\(\)\)': |boundary| is out of range of HistogramBase::Sample"]
 
 void WontCompile() {
   // HistogramBase::Sample is an int and can't hold larger values.
@@ -50,14 +50,24 @@ void WontCompile() {
   UMA_HISTOGRAM_ENUMERATION("", TypeA::A, TypeA::A);
 }
 
-#elif defined(NCTEST_SAMPLE_NOT_ENUM)  // [r'static_assert failed "Unexpected: \|boundary\| is enum, but \|sample\| is not."']
+#elif defined(NCTEST_SAMPLE_NOT_ENUM)  // [r"fatal error: static_assert failed due to requirement 'static_cast<uintmax_t>\(TypeA::A\) < static_cast<uintmax_t>\(std::numeric_limits<int>::max\(\)\)': |boundary| is out of range of HistogramBase::Sample"]
 
 void WontCompile() {
   enum TypeA { A };
   UMA_HISTOGRAM_ENUMERATION("", 0, TypeA::A);
 }
 
-#elif defined(NCTEST_FUNCTION_INT)  // [r"Non enum passed to UmaHistogramEnumeration"]
+#elif defined(NCTEST_FUNCTION_ENUM_NO_MAXVALUE)  // [r"no member named 'kMaxValue' in 'base::NoMaxValue'"]
+
+enum class NoMaxValue {
+  kMoo,
+};
+
+void WontCompile() {
+  UmaHistogramEnumeration("", NoMaxValue::kMoo);
+}
+
+#elif defined(NCTEST_FUNCTION_INT_AS_ENUM)  // [r"static assertion failed due to requirement 'std::is_enum<int>::value'"]
 
 void WontCompile() {
   UmaHistogramEnumeration("", 1, 2);

@@ -15,6 +15,8 @@
 #ifndef COBALT_NETWORK_URL_REQUEST_CONTEXT_GETTER_H_
 #define COBALT_NETWORK_URL_REQUEST_CONTEXT_GETTER_H_
 
+#include "base/macros.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "net/url_request/url_request_context_getter.h"
 
@@ -30,7 +32,7 @@ class URLRequestContextGetter : public net::URLRequestContextGetter {
 
   // Implementation for net::UrlRequestContextGetter.
   net::URLRequestContext* GetURLRequestContext() override;
-  scoped_refptr<base::SequencedTaskRunner> GetNetworkTaskRunner()
+  scoped_refptr<base::SingleThreadTaskRunner> GetNetworkTaskRunner()
       const override;
 
  protected:
@@ -38,7 +40,7 @@ class URLRequestContextGetter : public net::URLRequestContextGetter {
 
  private:
   URLRequestContext* url_request_context_;
-  scoped_refptr<base::SequencedTaskRunner> network_task_runner_;
+  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
   DISALLOW_COPY_AND_ASSIGN(URLRequestContextGetter);
 };
 

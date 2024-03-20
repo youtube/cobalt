@@ -260,7 +260,7 @@ script::Sequence<std::string> PerformanceObserver::supported_entry_types() {
   script::Sequence<std::string> supported_entry_type_list;
   for (size_t i = 0; i < arraysize(PerformanceEntry::kEntryTypeString); ++i) {
     const char* entry_type = PerformanceEntry::kEntryTypeString[i];
-    if (!base::LowerCaseEqualsASCII("invalid", entry_type)) {
+    if (!base::EqualsCaseInsensitiveASCII("invalid", entry_type)) {
       std::string entry_type_string(entry_type);
       supported_entry_type_list.push_back(entry_type_string);
     }

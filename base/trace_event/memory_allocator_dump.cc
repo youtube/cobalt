@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,13 +8,15 @@
 
 #include "base/format_macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "base/trace_event/process_memory_dump.h"
-#include "base/trace_event/trace_event_argument.h"
+#include "base/trace_event/traced_value.h"
 #include "base/values.h"
-#include "starboard/types.h"
+#include "third_party/perfetto/protos/perfetto/trace/memory_graph.pbzero.h"
+#include "third_party/perfetto/protos/perfetto/trace/trace_packet.pbzero.h"
 
 namespace base {
 namespace trace_event {
@@ -91,6 +93,52 @@ void MemoryAllocatorDump::AsValueInto(TracedValue* value) const {
   value->EndDictionary();  // "allocator_name/heap_subheap": { ... }
 }
 
+void MemoryAllocatorDump::AsProtoInto(
+    perfetto::protos::pbzero::MemoryTrackerSnapshot::ProcessSnapshot::
+        MemoryNode* memory_node) const {
+  memory_node->set_id(guid_.ToUint64());
+  memory_node->set_absolute_name(absolute_name_);
+  if (flags() & WEAK) {
+    memory_node->set_weak(true);
+  }
+
+  for (const Entry& entry : entries_) {
+    if (entry.name == "size") {
+      DCHECK_EQ(entry.entry_type, Entry::EntryType::kUint64);
+      DCHECK_EQ(entry.units, kUnitsBytes);
+      memory_node->set_size_bytes(entry.value_uint64);
+      continue;
+    }
+
+    perfetto::protos::pbzero::MemoryTrackerSnapshot_ProcessSnapshot::
+        MemoryNode::MemoryNodeEntry* proto_memory_node_entry =
+            memory_node->add_entries();
+
+    proto_memory_node_entry->set_name(entry.name);
+    switch (entry.entry_type) {
+      case Entry::EntryType::kUint64:
+        proto_memory_node_entry->set_value_uint64(entry.value_uint64);
+        break;
+      case Entry::EntryType::kString:
+        proto_memory_node_entry->set_value_string(entry.value_string);
+        break;
+    }
+    if (entry.units == kUnitsBytes) {
+      proto_memory_node_entry->set_units(
+          perfetto::protos::pbzero::MemoryTrackerSnapshot::ProcessSnapshot::
+              MemoryNode::MemoryNodeEntry::BYTES);
+    } else if (entry.units == kUnitsObjects) {
+      proto_memory_node_entry->set_units(
+          perfetto::protos::pbzero::MemoryTrackerSnapshot::ProcessSnapshot::
+              MemoryNode::MemoryNodeEntry::COUNT);
+    } else {
+      proto_memory_node_entry->set_units(
+          perfetto::protos::pbzero::MemoryTrackerSnapshot::ProcessSnapshot::
+              MemoryNode::MemoryNodeEntry::UNSPECIFIED);
+    }
+  }
+}
+
 uint64_t MemoryAllocatorDump::GetSizeInternal() const {
   if (cached_size_.has_value())
     return *cached_size_;
@@ -102,7 +150,7 @@ uint64_t MemoryAllocatorDump::GetSizeInternal() const {
     }
   }
   return 0;
-};
+}
 
 MemoryAllocatorDump::Entry::Entry() : entry_type(kString), value_uint64() {}
 MemoryAllocatorDump::Entry::Entry(MemoryAllocatorDump::Entry&&) noexcept =

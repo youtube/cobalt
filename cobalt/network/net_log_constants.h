@@ -24,7 +24,7 @@ namespace network {
 
 class NetLogConstants {
  public:
-  static std::unique_ptr<base::DictionaryValue> GetConstants();
+  static std::unique_ptr<base::Value::Dict> GetConstants();
 };
 
 }  // namespace network

@@ -1,16 +1,16 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/strings/sys_string_conversions.h"
 
+#include <stddef.h>
+#include <string.h>
 #include <wchar.h>
 
 #include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -27,7 +27,7 @@ std::wstring SysUTF8ToWide(StringPiece utf8) {
   return out;
 }
 
-#if defined(SYSTEM_NATIVE_UTF8) || defined(OS_ANDROID) || defined(STARBOARD)
+#if defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID)
 // TODO(port): Consider reverting the OS_ANDROID when we have wcrtomb()
 // support and a better understanding of what calls these routines.
 
@@ -48,8 +48,7 @@ std::string SysWideToNativeMB(const std::wstring& wide) {
   // without writing the output, counting the number of multi-byte characters.
   size_t num_out_chars = 0;
   memset(&ps, 0, sizeof(ps));
-  for (size_t i = 0; i < wide.size(); ++i) {
-    const wchar_t src = wide[i];
+  for (auto src : wide) {
     // Use a temp buffer since calling wcrtomb with an output of NULL does not
     // calculate the output length.
     char buf[16];
@@ -59,7 +58,6 @@ std::string SysWideToNativeMB(const std::wstring& wide) {
       // Handle any errors and return an empty string.
       case static_cast<size_t>(-1):
         return std::string();
-        break;
       case 0:
         // We hit an embedded null byte, keep going.
         ++num_out_chars;
@@ -87,7 +85,6 @@ std::string SysWideToNativeMB(const std::wstring& wide) {
       // Handle any errors and return an empty string.
       case static_cast<size_t>(-1):
         return std::string();
-        break;
       case 0:
         // We hit an embedded null byte, keep going.
         ++j;  // Output is already zeroed.
@@ -116,11 +113,10 @@ std::wstring SysNativeMBToWide(StringPiece native_mb) {
       case static_cast<size_t>(-2):
       case static_cast<size_t>(-1):
         return std::wstring();
-        break;
       case 0:
         // We hit an embedded null byte, keep going.
         i += 1;
-        FALLTHROUGH;
+        [[fallthrough]];
       default:
         i += res;
         ++num_out_chars;
@@ -146,7 +142,6 @@ std::wstring SysNativeMBToWide(StringPiece native_mb) {
       case static_cast<size_t>(-2):
       case static_cast<size_t>(-1):
         return std::wstring();
-        break;
       case 0:
         i += 1;  // Skip null byte.
         break;
@@ -159,6 +154,6 @@ std::wstring SysNativeMBToWide(StringPiece native_mb) {
   return out;
 }
 
-#endif  // defined(SYSTEM_NATIVE_UTF8) || defined(OS_ANDROID)
+#endif  // defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID)
 
 }  // namespace base

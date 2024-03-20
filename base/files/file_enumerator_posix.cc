@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,29 +7,48 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fnmatch.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "base/logging.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 namespace base {
 namespace {
 
-void GetStat(const FilePath& path, bool show_links, struct stat* st) {
+void GetStat(const FilePath& path, bool show_links, stat_wrapper_t* st) {
   DCHECK(st);
-  const int res = show_links ? lstat(path.value().c_str(), st)
-                             : stat(path.value().c_str(), st);
+  const int res = show_links ? File::Lstat(path.value().c_str(), st)
+                             : File::Stat(path.value().c_str(), st);
   if (res < 0) {
     // Print the stat() error message unless it was ENOENT and we're following
     // symlinks.
-    if (!(errno == ENOENT && !show_links))
-      DPLOG(ERROR) << "Couldn't stat" << path.value();
+    DPLOG_IF(ERROR, errno != ENOENT || show_links)
+        << "Cannot stat '" << path << "'";
     memset(st, 0, sizeof(*st));
   }
 }
+
+#if BUILDFLAG(IS_FUCHSIA)
+bool ShouldShowSymLinks(int file_type) {
+  return false;
+}
+#else
+bool ShouldShowSymLinks(int file_type) {
+  return file_type & FileEnumerator::SHOW_SYM_LINKS;
+}
+#endif  // BUILDFLAG(IS_FUCHSIA)
+
+#if BUILDFLAG(IS_FUCHSIA)
+bool ShouldTrackVisitedDirectories(int file_type) {
+  return false;
+}
+#else
+bool ShouldTrackVisitedDirectories(int file_type) {
+  return !(file_type & FileEnumerator::SHOW_SYM_LINKS);
+}
+#endif  // BUILDFLAG(IS_FUCHSIA)
 
 }  // namespace
 
@@ -81,17 +100,38 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
                                int file_type,
                                const FilePath::StringType& pattern,
                                FolderSearchPolicy folder_search_policy)
+    : FileEnumerator(root_path,
+                     recursive,
+                     file_type,
+                     pattern,
+                     folder_search_policy,
+                     ErrorPolicy::IGNORE_ERRORS) {}
+
+FileEnumerator::FileEnumerator(const FilePath& root_path,
+                               bool recursive,
+                               int file_type,
+                               const FilePath::StringType& pattern,
+                               FolderSearchPolicy folder_search_policy,
+                               ErrorPolicy error_policy)
     : current_directory_entry_(0),
       root_path_(root_path),
       recursive_(recursive),
       file_type_(file_type),
       pattern_(pattern),
-      folder_search_policy_(folder_search_policy) {
+      folder_search_policy_(folder_search_policy),
+      error_policy_(error_policy) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
 
-  if (recursive && !(file_type & SHOW_SYM_LINKS)) {
-    struct stat st;
+  if (file_type_ & FileType::NAMES_ONLY) {
+    DCHECK(!recursive_);
+    DCHECK_EQ(file_type_ & ~(FileType::NAMES_ONLY | FileType::INCLUDE_DOT_DOT),
+              0);
+    file_type_ |= (FileType::FILES | FileType::DIRECTORIES);
+  }
+
+  if (recursive && ShouldTrackVisitedDirectories(file_type_)) {
+    stat_wrapper_t st;
     GetStat(root_path, false, &st);
     visited_directories_.insert(st.st_ino);
   }
@@ -102,7 +142,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
 FileEnumerator::~FileEnumerator() = default;
 
 FilePath FileEnumerator::Next() {
-  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
 
   ++current_directory_entry_;
 
@@ -116,12 +156,16 @@ FilePath FileEnumerator::Next() {
     pending_paths_.pop();
 
     DIR* dir = opendir(root_path_.value().c_str());
-    if (!dir)
-      continue;
+    if (!dir) {
+      if (errno == 0 || error_policy_ == ErrorPolicy::IGNORE_ERRORS)
+        continue;
+      error_ = File::OSErrorToFileError(errno);
+      return FilePath();
+    }
 
     directory_entries_.clear();
 
-#if defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA)
     // Fuchsia does not support .. on the file system server side, see
     // https://fuchsia.googlesource.com/docs/+/master/dotdot.md and
     // https://crbug.com/735540. However, for UI purposes, having the parent
@@ -134,11 +178,15 @@ FilePath FileEnumerator::Next() {
     if (!ShouldSkip(dotdot.filename_)) {
       directory_entries_.push_back(std::move(dotdot));
     }
-#endif  // OS_FUCHSIA
+#endif  // BUILDFLAG(IS_FUCHSIA)
 
     current_directory_entry_ = 0;
     struct dirent* dent;
-    while ((dent = readdir(dir))) {
+    // NOTE: Per the readdir() documentation, when the end of the directory is
+    // reached with no errors, null is returned and errno is not changed.
+    // Therefore we must reset errno to zero before calling readdir() if we
+    // wish to know whether a null result indicates an error condition.
+    while (errno = 0, dent = readdir(dir)) {
       FileInfo info;
       info.filename_ = FilePath(dent->d_name);
 
@@ -160,16 +208,22 @@ FilePath FileEnumerator::Next() {
       if (!recursive_ && !is_pattern_matched)
         continue;
 
+      // If the caller only wants the names of files and directories, then
+      // continue without populating `info` further.
+      if (file_type_ & FileType::NAMES_ONLY) {
+        directory_entries_.push_back(std::move(info));
+        continue;
+      }
+
       const FilePath full_path = root_path_.Append(info.filename_);
-      const bool show_sym_links = file_type_ & SHOW_SYM_LINKS;
-      GetStat(full_path, show_sym_links, &info.stat_);
+      GetStat(full_path, ShouldShowSymLinks(file_type_), &info.stat_);
 
       const bool is_dir = info.IsDirectory();
 
       // Recursive mode: schedule traversal of a directory if either
       // SHOW_SYM_LINKS is on or we haven't visited the directory yet.
       if (recursive_ && is_dir &&
-          (show_sym_links ||
+          (!ShouldTrackVisitedDirectories(file_type_) ||
            visited_directories_.insert(info.stat_.st_ino).second)) {
         pending_paths_.push(full_path);
       }
@@ -177,7 +231,12 @@ FilePath FileEnumerator::Next() {
       if (is_pattern_matched && IsTypeMatched(is_dir))
         directory_entries_.push_back(std::move(info));
     }
+    int readdir_errno = errno;
     closedir(dir);
+    if (readdir_errno != 0 && error_policy_ != ErrorPolicy::IGNORE_ERRORS) {
+      error_ = File::OSErrorToFileError(readdir_errno);
+      return FilePath();
+    }
 
     // MATCH_ONLY policy enumerates files in matched subfolders by "*" pattern.
     // ALL policy enumerates files in all subfolders by origin pattern.
@@ -190,6 +249,7 @@ FilePath FileEnumerator::Next() {
 }
 
 FileEnumerator::FileInfo FileEnumerator::GetInfo() const {
+  DCHECK(!(file_type_ & FileType::NAMES_ONLY));
   return directory_entries_[current_directory_entry_];
 }
 

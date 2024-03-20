@@ -1,10 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/upload_data_stream.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/values.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -14,38 +14,34 @@ namespace net {
 
 namespace {
 
-std::unique_ptr<base::Value> NetLogInitEndInfoCallback(
-    int result,
-    int total_size,
-    bool is_chunked,
-    NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+base::Value::Dict NetLogInitEndInfoParams(int result,
+                                          int total_size,
+                                          bool is_chunked) {
+  base::Value::Dict dict;
 
-  dict->SetInteger("net_error", result);
-  dict->SetInteger("total_size", total_size);
-  dict->SetBoolean("is_chunked", is_chunked);
-  return std::move(dict);
+  dict.Set("net_error", result);
+  dict.Set("total_size", total_size);
+  dict.Set("is_chunked", is_chunked);
+  return dict;
 }
 
-std::unique_ptr<base::Value> NetLogReadInfoCallback(
-    int current_position,
-    NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+base::Value::Dict CreateReadInfoParams(int current_position) {
+  base::Value::Dict dict;
 
-  dict->SetInteger("current_position", current_position);
-  return std::move(dict);
+  dict.Set("current_position", current_position);
+  return dict;
 }
 
 }  // namespace
 
 UploadDataStream::UploadDataStream(bool is_chunked, int64_t identifier)
-    : total_size_(0),
-      current_position_(0),
-      identifier_(identifier),
+    : UploadDataStream(is_chunked, /*has_null_source=*/false, identifier) {}
+UploadDataStream::UploadDataStream(bool is_chunked,
+                                   bool has_null_source,
+                                   int64_t identifier)
+    : identifier_(identifier),
       is_chunked_(is_chunked),
-      initialized_successfully_(false),
-      is_eof_(false) {
-}
+      has_null_source_(has_null_source) {}
 
 UploadDataStream::~UploadDataStream() = default;
 
@@ -77,7 +73,7 @@ int UploadDataStream::Read(IOBuffer* buf,
   DCHECK_GT(buf_len, 0);
 
   net_log_.BeginEvent(NetLogEventType::UPLOAD_DATA_STREAM_READ,
-                      base::Bind(&NetLogReadInfoCallback, current_position_));
+                      [&] { return CreateReadInfoParams(current_position_); });
 
   int result = 0;
   if (!is_eof_)
@@ -142,7 +138,7 @@ bool UploadDataStream::IsInMemory() const {
 
 const std::vector<std::unique_ptr<UploadElementReader>>*
 UploadDataStream::GetElementReaders() const {
-  return NULL;
+  return nullptr;
 }
 
 void UploadDataStream::OnInitCompleted(int result) {
@@ -157,9 +153,9 @@ void UploadDataStream::OnInitCompleted(int result) {
       is_eof_ = true;
   }
 
-  net_log_.EndEvent(
-      NetLogEventType::UPLOAD_DATA_STREAM_INIT,
-      base::Bind(&NetLogInitEndInfoCallback, result, total_size_, is_chunked_));
+  net_log_.EndEvent(NetLogEventType::UPLOAD_DATA_STREAM_INIT, [&] {
+    return NetLogInitEndInfoParams(result, total_size_, is_chunked_);
+  });
 
   if (!callback_.is_null())
     std::move(callback_).Run(result);
@@ -192,6 +188,10 @@ UploadProgress UploadDataStream::GetUploadProgress() const {
     return UploadProgress();
 
   return UploadProgress(current_position_, total_size_);
+}
+
+bool UploadDataStream::AllowHTTP1() const {
+  return true;
 }
 
 }  // namespace net

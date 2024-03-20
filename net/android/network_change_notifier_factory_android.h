@@ -1,12 +1,13 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_ANDROID_NETWORK_CHANGE_NOTIFIER_FACTORY_ANDROID_H_
 #define NET_ANDROID_NETWORK_CHANGE_NOTIFIER_FACTORY_ANDROID_H_
 
+#include <memory>
+
 #include "base/compiler_specific.h"
-#include "base/macros.h"
 #include "net/android/network_change_notifier_delegate_android.h"
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier_factory.h"
@@ -25,17 +26,22 @@ class NET_EXPORT NetworkChangeNotifierFactoryAndroid :
   // Must be called on the JNI thread.
   NetworkChangeNotifierFactoryAndroid();
 
+  NetworkChangeNotifierFactoryAndroid(
+      const NetworkChangeNotifierFactoryAndroid&) = delete;
+  NetworkChangeNotifierFactoryAndroid& operator=(
+      const NetworkChangeNotifierFactoryAndroid&) = delete;
+
   // Must be called on the JNI thread.
   ~NetworkChangeNotifierFactoryAndroid() override;
 
   // NetworkChangeNotifierFactory:
-  NetworkChangeNotifier* CreateInstance() override;
+  std::unique_ptr<NetworkChangeNotifier> CreateInstanceWithInitialTypes(
+      NetworkChangeNotifier::ConnectionType /*initial_type*/,
+      NetworkChangeNotifier::ConnectionSubtype /*initial_subtype*/) override;
 
  private:
   // Delegate passed to the instances created by this class.
   NetworkChangeNotifierDelegateAndroid delegate_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierFactoryAndroid);
 };
 
 }  // namespace net

@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/bind.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/storage_area.h"
 #include "cobalt/storage/storage_manager.h"

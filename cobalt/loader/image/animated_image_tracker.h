@@ -20,6 +20,7 @@
 
 #include "base/containers/small_map.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/unused.h"
 #include "cobalt/loader/image/image.h"
@@ -34,9 +35,8 @@ namespace image {
 // playing status is updated hence decoding is turned on / off for it.
 class AnimatedImageTracker {
  public:
-  AnimatedImageTracker(
-      const char* name,
-      base::ThreadPriority animated_image_decode_thread_priority);
+  AnimatedImageTracker(const char* name,
+                       base::ThreadType animated_image_decode_thread_priority);
   ~AnimatedImageTracker();
 
   // Updates the count of an image URL that is being displayed.

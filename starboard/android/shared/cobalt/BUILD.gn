@@ -21,5 +21,6 @@ static_library("cobalt_platform") {
     "//cobalt/base",
     "//starboard/android/shared:starboard_platform",
     "//starboard/common",
+    "//third_party/abseil-cpp:absl",
   ]
 }

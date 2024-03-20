@@ -15,7 +15,7 @@
 namespace metrics {
 
 ExpiredHistogramsChecker::ExpiredHistogramsChecker(
-    const uint64_t* array,
+    const uint32_t* array,
     size_t size,
     const std::string& whitelist_str)
     : array_(array), size_(size) {
@@ -24,7 +24,7 @@ ExpiredHistogramsChecker::ExpiredHistogramsChecker(
 
 ExpiredHistogramsChecker::~ExpiredHistogramsChecker() {}
 
-bool ExpiredHistogramsChecker::ShouldRecord(uint64_t histogram_hash) const {
+bool ExpiredHistogramsChecker::ShouldRecord(uint32_t histogram_hash) const {
   // If histogram is whitelisted then it should always be recorded.
   if (base::ContainsKey(whitelist_, histogram_hash))
     return true;

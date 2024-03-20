@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "base/base64.h"
+#include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/csp/crypto.h"
 #include "cobalt/csp/media_list_directive.h"
@@ -84,7 +85,7 @@ DirectiveList::DirectiveList(ContentSecurityPolicy* policy,
     set_eval_disabled_error_message(message);
   }
   if (report_only() && report_endpoints_.empty()) {
-    policy->ReportMissingReportURI(text.as_string());
+    policy->ReportMissingReportURI(text.data());
   }
 }
 
@@ -789,11 +790,11 @@ void DirectiveList::ParseReflectedXSS(const std::string& name,
   // value1
   //       ^
 
-  if (base::LowerCaseEqualsASCII(begin, position, "allow")) {
+  if (base::EqualsCaseInsensitiveASCII(begin, position, "allow")) {
     reflected_xss_disposition_ = kAllowReflectedXSS;
-  } else if (base::LowerCaseEqualsASCII(begin, position, "filter")) {
+  } else if (base::EqualsCaseInsensitiveASCII(begin, position, "filter")) {
     reflected_xss_disposition_ = kFilterReflectedXSS;
-  } else if (base::LowerCaseEqualsASCII(begin, position, "block")) {
+  } else if (base::EqualsCaseInsensitiveASCII(begin, position, "block")) {
     reflected_xss_disposition_ = kBlockReflectedXSS;
   } else {
     reflected_xss_disposition_ = kReflectedXSSInvalid;
@@ -839,19 +840,19 @@ void DirectiveList::ParseReferrer(const std::string& name,
 
   // value1
   //       ^
-  if (base::LowerCaseEqualsASCII(begin, position, "unsafe-url")) {
+  if (base::EqualsCaseInsensitiveASCII(begin, position, "unsafe-url")) {
     referrer_policy_ = kReferrerPolicyUnsafeUrl;
-  } else if (base::LowerCaseEqualsASCII(begin, position, "no-referrer")) {
+  } else if (base::EqualsCaseInsensitiveASCII(begin, position, "no-referrer")) {
     referrer_policy_ = kReferrerPolicyNoReferrer;
-  } else if (base::LowerCaseEqualsASCII(begin, position,
-                                        "no-referrer-when-downgrade")) {
+  } else if (base::EqualsCaseInsensitiveASCII(begin, position,
+                                              "no-referrer-when-downgrade")) {
     referrer_policy_ = kReferrerPolicyDefault;
-  } else if (base::LowerCaseEqualsASCII(begin, position, "origin")) {
+  } else if (base::EqualsCaseInsensitiveASCII(begin, position, "origin")) {
     referrer_policy_ = kReferrerPolicyOrigin;
-  } else if (base::LowerCaseEqualsASCII(begin, position,
-                                        "origin-when-cross-origin") ||
-             base::LowerCaseEqualsASCII(begin, position,
-                                        "origin-when-crossorigin")) {
+  } else if (base::EqualsCaseInsensitiveASCII(begin, position,
+                                              "origin-when-cross-origin") ||
+             base::EqualsCaseInsensitiveASCII(begin, position,
+                                              "origin-when-crossorigin")) {
     referrer_policy_ = kReferrerPolicyOriginWhenCrossOrigin;
   } else {
     policy_->ReportInvalidReferrer(value);

@@ -14,7 +14,7 @@
 
 #include "cobalt/dom/intersection_observer_task_manager.h"
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/intersection_observer.h"
@@ -64,8 +64,8 @@ void IntersectionObserverTaskManager::QueueIntersectionObserverTask() {
   intersection_observer_task_queued_ = true;
   // 3. Queue a task to the document's event loop to notify intersection
   // observers. (Cobalt does not support the document event loop concept, so we
-  // will instead PostTask() to the WebModule's message loop)
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  // will instead PostTask() to the WebModule's task runner)
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::Bind(&IntersectionObserverTaskManager::NotifyIntersectionObservers,
                  base::Unretained(this)));
@@ -81,7 +81,7 @@ void IntersectionObserverTaskManager::NotifyIntersectionObservers() {
       "cobalt::dom",
       "IntersectionObserverTaskManager::NotifyIntersectionObservers()");
   DCHECK(intersection_observer_task_queued_);
-  DCHECK(base::MessageLoop::current());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
 
   // https://www.w3.org/TR/intersection-observer/#notify-intersection-observers-algo
   // To notify intersection observers for a Document document, run these steps:

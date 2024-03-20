@@ -111,6 +111,7 @@
 
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
+#include <openssl/mem.h>
 #include <openssl/stack.h>
 #include <openssl/thread.h>
 

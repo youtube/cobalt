@@ -74,7 +74,7 @@ class Cache : public script::Wrappable {
     GURL url() const { return url_; }
     int response_code() const { return response_code_; }
     const std::string& status_text() const { return status_text_; }
-    base::ListValue headers() { return std::move(headers_); }
+    base::Value::List headers() { return std::move(headers_); }
     std::vector<uint8_t> BufferToVector() const;
     std::string BufferToString() const;
 
@@ -92,7 +92,7 @@ class Cache : public script::Wrappable {
     scoped_refptr<net::GrowableIOBuffer> buffer_;
     int buffer_size_;
     int response_code_;
-    base::ListValue headers_;
+    base::Value::List headers_;
     std::string status_text_;
   };
 

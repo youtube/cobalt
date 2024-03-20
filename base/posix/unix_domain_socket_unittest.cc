@@ -1,25 +1,25 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "build/build_config.h"
 
+#include <stddef.h>
+#include <stdint.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/pickle.h"
 #include "base/posix/unix_domain_socket.h"
-#include "base/single_thread_task_runner.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -29,14 +29,14 @@ namespace {
 // Callers should use ASSERT_NO_FATAL_FAILURE with this function, to
 // ensure that execution is aborted if the function has assertion failure.
 void CreateSocketPair(int fds[2]) {
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
   // Mac OS does not support SOCK_SEQPACKET.
   int flags = SOCK_STREAM;
 #else
   int flags = SOCK_SEQPACKET;
 #endif
   ASSERT_EQ(0, socketpair(AF_UNIX, flags, 0, fds));
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
   // On OSX an attempt to read or write to a closed socket may generate a
   // SIGPIPE rather than returning -1, corrected with SO_NOSIGPIPE option.
   int nosigpipe = 1;
@@ -77,7 +77,7 @@ TEST(UnixDomainSocketTest, SendRecvMsgAbortOnReplyFDClose) {
                       WaitableEvent::InitialState::NOT_SIGNALED);
   message_thread.task_runner()->PostTask(
       FROM_HERE, BindOnce(&WaitableEvent::Signal, Unretained(&event)));
-  ASSERT_TRUE(event.TimedWait(TimeDelta::FromMilliseconds(5000)));
+  ASSERT_TRUE(event.TimedWait(Milliseconds(5000)));
 }
 
 TEST(UnixDomainSocketTest, SendRecvMsgAvoidsSIGPIPE) {

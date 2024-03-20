@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -143,12 +143,6 @@ void WebSocketHandshakeStreamBase::RecordHandshakeResult(
     HandshakeResult result) {
   UMA_HISTOGRAM_ENUMERATION("Net.WebSocket.HandshakeResult2", result,
                             HandshakeResult::NUM_HANDSHAKE_RESULT_TYPES);
-}
-
-void WebSocketHandshakeStreamBase::RecordDeflateMode(
-    WebSocketDeflateParameters::ContextTakeOverMode deflate_mode) {
-  UMA_HISTOGRAM_ENUMERATION("Net.WebSocket.DeflateMode", deflate_mode,
-                            WebSocketDeflater::NUM_CONTEXT_TAKEOVER_MODE_TYPES);
 }
 
 }  // namespace net

@@ -104,28 +104,28 @@ class EventTarget : public script::Wrappable,
   // Creates a new event with the given name and calls DispatchEvent with it,
   // and runs dispatched_callback after finish.
   void DispatchEventNameAndRunCallback(
-      base::Token event_name, const base::Closure& dispatched_callback);
+      base_token::Token event_name, const base::Closure& dispatched_callback);
 
-  // Posts a task on the current message loop to dispatch event by name. It
-  // does nothing if there is no current message loop.
+  // Posts a task on the current task runner to dispatch event by name. It
+  // does nothing if there is no current task runner.
   void PostToDispatchEventName(const base::Location& location,
-                               base::Token event_name);
+                               base_token::Token event_name);
 
-  // Posts a task on the current message loop to dispatch event. It does nothing
-  // if there is no current message loop.
+  // Posts a task on the current task runner to dispatch event. It does nothing
+  // if there is no current task runner.
   void PostToDispatchEvent(const base::Location& location,
                            const scoped_refptr<Event>& event);
 
-  // Posts a task on the current message loop to dispatch event by name, and
+  // Posts a task on the current task runner to dispatch event by name, and
   // runs dispatched_callback after finish. It does nothing if there is no
-  // current message loop.
+  // current task runner.
   void PostToDispatchEventNameAndRunCallback(
-      const base::Location& location, base::Token event_name,
+      const base::Location& location, base_token::Token event_name,
       const base::Closure& dispatched_callback);
 
-  // Posts a task on the current message loop to dispatch event, and runs
+  // Posts a task on the current task runner to dispatch event, and runs
   // dispatched_callback after finish.  It does nothing if there is no current
-  // message loop.
+  // task runner.
   void PostToDispatchEventAndRunCallback(
       const base::Location& location, const scoped_refptr<Event>& event,
       const base::Closure& dispatched_callback);
@@ -133,9 +133,9 @@ class EventTarget : public script::Wrappable,
   // Check if target has event listener (attribute or not attribute).
 
   bool HasEventListener(const char* type) {
-    return HasEventListener(base::Token(type));
+    return HasEventListener(base_token::Token(type));
   }
-  bool HasEventListener(base::Token type);
+  bool HasEventListener(base_token::Token type);
 
   // Web API: GlobalEventHandlers (implements)
   // Many objects can have event handlers specified. These act as non-capture
@@ -499,23 +499,23 @@ class EventTarget : public script::Wrappable,
 
   // Set an event listener assigned as an attribute. Overwrite the existing one
   // if there is any.
-  void SetAttributeEventListener(base::Token type,
+  void SetAttributeEventListener(base_token::Token type,
                                  const EventListenerScriptValue& listener);
 
   // Get the event listener currently assigned to an attribute, or NULL if
   // there is none.
   const EventListenerScriptValue* GetAttributeEventListener(
-      base::Token type) const;
+      base_token::Token type) const;
 
   // Similar to SetAttributeEventListener(), but this function should only
   // be called with type == base::Tokens::error().
   void SetAttributeOnErrorEventListener(
-      base::Token type, const OnErrorEventListenerScriptValue& listener);
+      base_token::Token type, const OnErrorEventListenerScriptValue& listener);
 
   // Similar to GetAttributeEventListener(), but this function should only
   // be called with type == base::Tokens::error().
   const OnErrorEventListenerScriptValue* GetAttributeOnErrorEventListener(
-      base::Token type) const;
+      base_token::Token type) const;
 
   // Return true if one or more event listeners are registered
   bool HasOneOrMoreAttributeEventListener() const;
@@ -537,8 +537,8 @@ class EventTarget : public script::Wrappable,
   web::EnvironmentSettings* environment_settings() const {
     return environment_settings_;
   }
-  std::set<base::Token>& event_listener_event_types() const {
-    static std::set<base::Token> event_listener_event_types;
+  std::set<base_token::Token>& event_listener_event_types() const {
+    static std::set<base_token::Token> event_listener_event_types;
     for (auto& event_listener_info : event_listener_infos_) {
       event_listener_event_types.insert(event_listener_info->type());
     }
@@ -549,10 +549,11 @@ class EventTarget : public script::Wrappable,
   // given type.
   void AddEventListenerRegistrationCallback(void* object, const char* type,
                                             base::OnceClosure callback) {
-    AddEventListenerRegistrationCallback(object, base::Token(type),
+    AddEventListenerRegistrationCallback(object, base_token::Token(type),
                                          std::move(callback));
   }
-  void AddEventListenerRegistrationCallback(void* object, base::Token type,
+  void AddEventListenerRegistrationCallback(void* object,
+                                            base_token::Token type,
                                             base::OnceClosure callback);
   void RemoveEventListenerRegistrationCallbacks(void* object);
 
@@ -564,7 +565,7 @@ class EventTarget : public script::Wrappable,
       EventListenerInfos;
 
   EventTargetListenerInfo* GetAttributeEventListenerInternal(
-      base::Token type) const;
+      base_token::Token type) const;
 
   void AddEventListenerInternal(
       std::unique_ptr<EventTargetListenerInfo> listener);
@@ -579,7 +580,7 @@ class EventTarget : public script::Wrappable,
   bool unpack_onerror_events_;
 
   base::Lock event_listener_registration_mutex_;
-  std::map<base::Token, std::map<void*, base::OnceClosure>>
+  std::map<base_token::Token, std::map<void*, base::OnceClosure>>
       event_listener_registration_callbacks_;
 
   // Thread checker ensures all calls to the EventTarget are made from the

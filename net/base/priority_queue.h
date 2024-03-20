@@ -1,21 +1,24 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_PRIORITY_QUEUE_H_
 #define NET_BASE_PRIORITY_QUEUE_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <list>
+#include <utility>
 #include <vector>
 
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/check_op.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/threading/thread_checker.h"
 
 #if !defined(NDEBUG)
 #include <unordered_set>
-
-#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -129,18 +132,19 @@ class PriorityQueue {
   };
 
   // Creates a new queue for |num_priorities|.
-  explicit PriorityQueue(Priority num_priorities)
-      : lists_(num_priorities), size_(0) {
+  explicit PriorityQueue(Priority num_priorities) : lists_(num_priorities) {
 #if !defined(NDEBUG)
     next_id_ = 0;
 #endif
   }
 
+  PriorityQueue(const PriorityQueue&) = delete;
+  PriorityQueue& operator=(const PriorityQueue&) = delete;
   ~PriorityQueue() { DCHECK_CALLED_ON_VALID_THREAD(thread_checker_); }
 
   // Adds |value| with |priority| to the queue. Returns a pointer to the
   // created element.
-  Pointer Insert(const T& value, Priority priority) {
+  Pointer Insert(T value, Priority priority) {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK_LT(priority, lists_.size());
     ++size_;
@@ -149,16 +153,16 @@ class PriorityQueue {
     unsigned id = next_id_;
     valid_ids_.insert(id);
     ++next_id_;
-    return Pointer(priority, list.insert(list.end(),
-                                         std::make_pair(id, value)));
+    list.emplace_back(std::make_pair(id, std::move(value)));
 #else
-    return Pointer(priority, list.insert(list.end(), value));
+    list.emplace_back(std::move(value));
 #endif
+    return Pointer(priority, std::prev(list.end()));
   }
 
   // Adds |value| with |priority| to the queue. Returns a pointer to the
   // created element.
-  Pointer InsertAtFront(const T& value, Priority priority) {
+  Pointer InsertAtFront(T value, Priority priority) {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK_LT(priority, lists_.size());
     ++size_;
@@ -167,16 +171,16 @@ class PriorityQueue {
     unsigned id = next_id_;
     valid_ids_.insert(id);
     ++next_id_;
-    return Pointer(priority, list.insert(list.begin(),
-                                         std::make_pair(id, value)));
+    list.emplace_front(std::make_pair(id, std::move(value)));
 #else
-    return Pointer(priority, list.insert(list.begin(), value));
+    list.emplace_front(std::move(value));
 #endif
+    return Pointer(priority, list.begin());
   }
 
   // Removes the value pointed by |pointer| from the queue. All pointers to this
-  // value including |pointer| become invalid.
-  void Erase(const Pointer& pointer) {
+  // value including |pointer| become invalid. Returns the erased value.
+  T Erase(const Pointer& pointer) {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK_LT(pointer.priority_, lists_.size());
     DCHECK_GT(size_, 0u);
@@ -184,10 +188,14 @@ class PriorityQueue {
 #if !defined(NDEBUG)
     DCHECK_EQ(1u, valid_ids_.erase(pointer.id_));
     DCHECK_EQ(pointer.iterator_->first, pointer.id_);
+    T erased = std::move(pointer.iterator_->second);
+#else
+    T erased = std::move(*pointer.iterator_);
 #endif
 
     --size_;
     lists_[pointer.priority_].erase(pointer.iterator_);
+    return erased;
   }
 
   // Returns a pointer to the first value of minimum priority or a null-pointer
@@ -240,14 +248,15 @@ class PriorityQueue {
     return Pointer();
   }
 
-  // Given an ordering of the values in this queue by decreasing
-  // priority and then FIFO, returns a pointer to the value following
-  // the value of the given pointer (which must be non-NULL).
+  // Given an ordering of the values in this queue by decreasing priority and
+  // then FIFO, returns a pointer to the value following the value of the given
+  // pointer (which must be non-NULL). I.e., gets the next element in decreasing
+  // priority, then FIFO order. If the given pointer is already pointing at the
+  // last value, returns a null Pointer.
   //
-  // (One could also implement GetNextTowardsFirstMin() [decreasing
-  // priority, then reverse FIFO] as well as
-  // GetNextTowards{First,Last}Max() [increasing priority, then
-  // {,reverse} FIFO].)
+  // (One could also implement GetNextTowardsFirstMin() [decreasing priority,
+  // then reverse FIFO] as well as GetNextTowards{First,Last}Max() [increasing
+  // priority, then {,reverse} FIFO].)
   Pointer GetNextTowardsLastMin(const Pointer& pointer) const {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!pointer.is_null());
@@ -258,12 +267,71 @@ class PriorityQueue {
     DCHECK(it != lists_[priority].end());
     ++it;
     while (it == lists_[priority].end()) {
-      if (priority == 0u)
+      if (priority == 0u) {
+        DCHECK(pointer.Equals(LastMin()));
         return Pointer();
+      }
       --priority;
       it = const_cast<List*>(&lists_[priority])->begin();
     }
     return Pointer(priority, it);
+  }
+
+  // Given an ordering of the values in this queue by decreasing priority and
+  // then FIFO, returns a pointer to the value preceding the value of the given
+  // pointer (which must be non-NULL). I.e., gets the next element in increasing
+  // priority, then reverse FIFO order. If the given pointer is already pointing
+  // at the first value, returns a null Pointer.
+  Pointer GetPreviousTowardsFirstMax(const Pointer& pointer) const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    DCHECK(!pointer.is_null());
+    DCHECK_LT(pointer.priority_, lists_.size());
+
+    typename Pointer::ListIterator it = pointer.iterator_;
+    Priority priority = pointer.priority_;
+    DCHECK(it != lists_[priority].end());
+    while (it == lists_[priority].begin()) {
+      if (priority == num_priorities() - 1) {
+        DCHECK(pointer.Equals(FirstMax()));
+        return Pointer();
+      }
+      ++priority;
+      it = const_cast<List*>(&lists_[priority])->end();
+    }
+    return Pointer(priority, std::prev(it));
+  }
+
+  // Checks whether |lhs| is closer in the queue to the first max element than
+  // |rhs|. Assumes that both Pointers refer to elements in this PriorityQueue.
+  bool IsCloserToFirstMaxThan(const Pointer& lhs, const Pointer& rhs) {
+    if (lhs.Equals(rhs))
+      return false;
+    if (lhs.priority_ == rhs.priority_) {
+      // Traverse list starting from lhs and see if we find rhs.
+      for (auto it = lhs.iterator_; it != lists_[lhs.priority_].end(); ++it) {
+        if (it == rhs.iterator_)
+          return true;
+      }
+      return false;
+    }
+    return lhs.priority_ > rhs.priority_;
+  }
+
+  // Checks whether |lhs| is closer in the queue to the last min element than
+  // |rhs|. Assumes that both Pointers refer to elements in this PriorityQueue.
+  bool IsCloserToLastMinThan(const Pointer& lhs, const Pointer& rhs) {
+    return !lhs.Equals(rhs) && !IsCloserToFirstMaxThan(lhs, rhs);
+  }
+
+  // Finds the first element (with respect to decreasing priority, then FIFO
+  // order) which matches the given predicate.
+  Pointer FindIf(const base::RepeatingCallback<bool(T)>& pred) {
+    for (auto pointer = FirstMax(); !pointer.is_null();
+         pointer = GetNextTowardsLastMin(pointer)) {
+      if (pred.Run(pointer.value()))
+        return pointer;
+    }
+    return Pointer();
   }
 
   // Empties the queue. All pointers become invalid.
@@ -304,11 +372,9 @@ class PriorityQueue {
 #endif
 
   ListVector lists_;
-  size_t size_;
+  size_t size_ = 0;
 
   THREAD_CHECKER(thread_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(PriorityQueue);
 };
 
 }  // namespace net
