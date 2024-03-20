@@ -410,6 +410,7 @@ shared_library("immediate_crash_test_helper") {
 
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
+  install_target = false
   build_loader = false
   testonly = true
   sources = [ "test_shared_library.cc" ]
