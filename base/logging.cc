@@ -695,6 +695,12 @@ bool ShouldCreateLogMessage(int severity) {
 // set, or only LOG_TO_FILE is set, since that is useful for local development
 // and debugging.
 bool ShouldLogToStderr(int severity) {
+#if defined(STARBOARD)
+  if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
+    // Don't SbLog to stderr if already logging to system debug log.
+    return false;
+  }
+#endif
   if (g_logging_destination & LOG_TO_STDERR)
     return true;
 
@@ -984,10 +990,7 @@ LogMessage::~LogMessage() {
     //   free_something();
     // }
 #if defined(STARBOARD)
-    if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) == 0) {
-      // Don't SbLog here if already done for system debug log.
-      SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
-    }
+    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
 #else
     WriteToFd(STDERR_FILENO, str_newline.data(), str_newline.size());
 #endif
