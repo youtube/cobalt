@@ -376,20 +376,16 @@ int SbPlayerTestFixture::ConvertDurationToAudioBufferCount(
     int64_t duration) const {
   SB_DCHECK(HasAudio());
   SB_DCHECK(audio_dmp_reader_->number_of_audio_buffers());
-  return std::max(
-      1,
-      static_cast<int>(duration * audio_dmp_reader_->number_of_audio_buffers() /
-                       audio_dmp_reader_->audio_duration()));
+  return duration * audio_dmp_reader_->number_of_audio_buffers() /
+         audio_dmp_reader_->audio_duration();
 }
 
 int SbPlayerTestFixture::ConvertDurationToVideoBufferCount(
     int64_t duration) const {
   SB_DCHECK(HasVideo());
   SB_DCHECK(video_dmp_reader_->number_of_video_buffers());
-  return std::max(
-      1,
-      static_cast<int>(duration * video_dmp_reader_->number_of_video_buffers() /
-                       video_dmp_reader_->video_duration()));
+  return duration * video_dmp_reader_->number_of_video_buffers() /
+         video_dmp_reader_->video_duration();
 }
 
 // static

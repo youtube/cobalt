@@ -95,9 +95,6 @@ class SbPlayerTestFixture {
   bool HasVideo() const { return video_dmp_reader_; }
 
   int64_t GetAudioSampleTimestamp(int index) const;
-
-  // Returns the number of buffers that contains |duration| worth of audio or
-  // video. Returns at minimum 1 buffer.
   int ConvertDurationToAudioBufferCount(int64_t duration) const;
   int ConvertDurationToVideoBufferCount(int64_t duration) const;
 
