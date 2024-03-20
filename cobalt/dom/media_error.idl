@@ -20,8 +20,8 @@ interface MediaError {
   const unsigned short MEDIA_ERR_DECODE = 3;
   const unsigned short MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
   const unsigned short MEDIA_ERR_ENCRYPTED = 5;
-  // The underlying playback capability has changed, the app should treat this
-  // as a transient error and retry playback.
+  // Deprecated. Capability change errors are reported with
+  // code MEDIA_ERR_DECODE.
   const unsigned short MEDIA_ERR_CAPABILITY_CHANGED = 1000;
 
   readonly attribute unsigned short code;

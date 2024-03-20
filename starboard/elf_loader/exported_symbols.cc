@@ -461,6 +461,26 @@ ExportedSymbols::ExportedSymbols() {
   map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__wrap_gmtime_r);
   map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
+  map_["pthread_cond_broadcast"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_cond_broadcast);
+  map_["pthread_cond_destroy"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_cond_destroy);
+  map_["pthread_cond_init"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_cond_init);
+  map_["pthread_cond_signal"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_cond_signal);
+  map_["pthread_cond_timedwait"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_cond_timedwait);
+  map_["pthread_cond_wait"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_cond_wait);
+  map_["pthread_condattr_destroy"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_condattr_destroy);
+  map_["pthread_condattr_getclock"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_condattr_getclock);
+  map_["pthread_condattr_init"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_condattr_init);
+  map_["pthread_condattr_setclock"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_condattr_setclock);
   map_["pthread_mutex_destroy"] =
       reinterpret_cast<const void*>(&__wrap_pthread_mutex_destroy);
   map_["pthread_mutex_init"] =
