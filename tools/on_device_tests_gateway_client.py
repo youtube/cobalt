@@ -191,7 +191,7 @@ def main():
       help='Name of the builder that built the artifacts, '
       'if any. Saved with performance test results')
   trigger_parser.add_argument(
-      '-b', '--builder_url', type=str, help='Url to the run, if any.')
+      '--builder_url', type=str, help='Url to the run, if any.')
   trigger_parser.add_argument(
       '-n',
       '--build_number',
