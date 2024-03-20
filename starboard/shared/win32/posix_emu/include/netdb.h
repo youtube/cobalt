@@ -17,4 +17,6 @@
 
 #include <ws2tcpip.h>
 
+#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
+
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETDB_H_
