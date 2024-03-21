@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop/message_pump_type.h"
+#include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_executor.h"
 #include "cobalt/base/init_cobalt.h"
@@ -39,6 +40,7 @@ template <StartFunction preload_function, StartFunction start_function,
 void BaseEventHandler(const SbEvent* event) {
   static base::AtExitManager* g_at_exit = NULL;
   static base::SingleThreadTaskExecutor* g_task_executor = NULL;
+  static base::RunLoop* g_run_loop = NULL;
   static bool g_started = false;
   switch (event->type) {
     case kSbEventTypePreload: {
@@ -55,6 +57,8 @@ void BaseEventHandler(const SbEvent* event) {
       DCHECK(!g_task_executor);
       g_task_executor =
           new base::SingleThreadTaskExecutor(base::MessagePumpType::UI);
+      g_run_loop = new base::RunLoop();
+      g_run_loop->BeforeRun();
       preload_function(data->argument_count, data->argument_values, data->link,
                        base::Bind(&SbSystemRequestStop, 0), event->timestamp);
       g_started = true;
@@ -74,6 +78,8 @@ void BaseEventHandler(const SbEvent* event) {
         DCHECK(!g_task_executor);
         g_task_executor =
             new base::SingleThreadTaskExecutor(base::MessagePumpType::UI);
+        g_run_loop = new base::RunLoop();
+        g_run_loop->BeforeRun();
       }
       start_function(data->argument_count, data->argument_values, data->link,
                      base::Bind(&SbSystemRequestStop, 0), event->timestamp);
@@ -90,6 +96,10 @@ void BaseEventHandler(const SbEvent* event) {
       // Force the loop to quit.
       delete g_task_executor;
       g_task_executor = NULL;
+
+      g_run_loop->AfterRun();
+      delete g_run_loop;
+      g_run_loop = NULL;
 
       // Run all at-exit tasks just before terminating.
       delete g_at_exit;

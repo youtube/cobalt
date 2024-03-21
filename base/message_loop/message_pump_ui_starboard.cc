@@ -15,7 +15,6 @@
 #include "base/message_loop/message_pump_ui_starboard.h"
 
 #include "base/logging.h"
-#include "base/run_loop.h"
 #include "base/time/time.h"
 #include "starboard/event.h"
 #include "starboard/system.h"

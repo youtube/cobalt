@@ -160,7 +160,6 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;
   NetworkDelegate* network_delegate_;
   std::unique_ptr<NetworkSystem> network_system_;
-  std::unique_ptr<net::HttpUserAgentSettings> http_user_agent_settings_;
   std::unique_ptr<network_bridge::CookieJar> cookie_jar_;
 #if defined(DIAL_SERVER)
   void OnRestartDialService(base::WaitableEvent* creation_event);

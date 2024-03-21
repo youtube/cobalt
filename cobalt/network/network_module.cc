@@ -88,8 +88,10 @@ NetworkModule::~NetworkModule() {
 }
 
 std::string NetworkModule::GetUserAgent() const {
-  DCHECK(http_user_agent_settings_);
-  return http_user_agent_settings_->GetUserAgent();
+  auto* http_user_agent_settings =
+      url_request_context_->url_request_context()->http_user_agent_settings();
+  DCHECK(http_user_agent_settings);
+  return http_user_agent_settings->GetUserAgent();
 }
 
 network_bridge::PostSender NetworkModule::GetPostSender() const {
