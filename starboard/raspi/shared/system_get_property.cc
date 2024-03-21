@@ -40,60 +40,6 @@ std::string GetModelName() {
   const char* file_path = "/proc/device-tree/model";
   // Size of the raw data
   size_t file_data_size;
-
-  SbLogRawFormatF("size sys get prop musl_stat %lu \n",
-                  sizeof(struct musl_stat));
-
-  SbLogRawFormatF("offset st_dev %lu \n", offsetof(struct musl_stat, st_dev));
-  SbLogRawFormatF("size st_dev %lu \n", sizeof(((struct musl_stat*)0)->st_dev));
-
-  SbLogRawFormatF("offset st_ino %lu \n", offsetof(struct musl_stat, st_ino));
-  SbLogRawFormatF("size st_ino %lu \n", sizeof(((struct musl_stat*)0)->st_ino));
-
-  SbLogRawFormatF("offset st_nlink %lu \n",
-                  offsetof(struct musl_stat, st_nlink));
-  SbLogRawFormatF("size st_nlink %lu \n",
-                  sizeof(((struct musl_stat*)0)->st_nlink));
-
-  SbLogRawFormatF("offset mode %lu \n", offsetof(struct musl_stat, st_mode));
-  SbLogRawFormatF("size mode %lu \n", sizeof(((struct musl_stat*)0)->st_mode));
-
-  SbLogRawFormatF("offset st_uid %lu \n", offsetof(struct musl_stat, st_uid));
-  SbLogRawFormatF("size st_uid %lu \n", sizeof(((struct musl_stat*)0)->st_uid));
-
-  SbLogRawFormatF("offset st_gid %lu \n", offsetof(struct musl_stat, st_gid));
-  SbLogRawFormatF("size st_gid %lu \n", sizeof(((struct musl_stat*)0)->st_gid));
-
-  SbLogRawFormatF("offset st_rdev %lu \n", offsetof(struct musl_stat, st_rdev));
-  SbLogRawFormatF("size st_rdev %lu \n",
-                  sizeof(((struct musl_stat*)0)->st_rdev));
-
-  SbLogRawFormatF("offset st_size %lu \n", offsetof(struct musl_stat, st_size));
-  SbLogRawFormatF("size st_size %lu \n",
-                  sizeof(((struct musl_stat*)0)->st_size));
-
-  SbLogRawFormatF("offset st_blksize %lu \n",
-                  offsetof(struct musl_stat, st_blksize));
-  SbLogRawFormatF("size st_blksize %lu \n",
-                  sizeof(((struct musl_stat*)0)->st_blksize));
-
-  SbLogRawFormatF("offset st_blocks %lu \n",
-                  offsetof(struct musl_stat, st_blocks));
-  SbLogRawFormatF("size st_blocks %lu \n",
-                  sizeof(((struct musl_stat*)0)->st_blocks));
-
-  SbLogRawFormatF("offset st_atim %lu \n", offsetof(struct musl_stat, st_atim));
-  SbLogRawFormatF("size st_atim %lu \n",
-                  sizeof(((struct musl_stat*)0)->st_atim));
-
-  SbLogRawFormatF("offset st_mtim %lu \n", offsetof(struct musl_stat, st_mtim));
-  SbLogRawFormatF("size st_mtim %lu \n",
-                  sizeof(((struct musl_stat*)0)->st_mtim));
-
-  SbLogRawFormatF("offset st_ctim %lu \n", offsetof(struct musl_stat, st_ctim));
-  SbLogRawFormatF("size st_ctim %lu \n",
-                  sizeof(((struct musl_stat*)0)->st_ctim));
-
   file_data_size = 0;
   // Get the size of the file by reading it until the end. This is
   // required because files under /proc do not always return a valid size
