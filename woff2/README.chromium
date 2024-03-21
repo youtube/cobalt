@@ -1,0 +1,14 @@
+Name: woff2
+URL: https://github.com/google/woff2
+Version: 4721483ad780ee2b63cb787bfee4aa64b61a0446
+License: MIT
+License File: LICENSE
+Security Critical: yes
+
+Description:
+The reference implementation of the WOFF 2.0 web font compression
+format (http://www.w3.org/TR/WOFF2/).
+
+Local Modifications:
+
+- BUILD.gn: Added.

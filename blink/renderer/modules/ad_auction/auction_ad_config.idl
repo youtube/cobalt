@@ -1,0 +1,63 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Configuration that is passed to navigator.runAdAuction().
+// https://github.com/WICG/turtledove/blob/main/FLEDGE.md#21-initiating-an-on-device-auction
+
+// USVString is used instead of the enum type, since enums don't allow unknown
+// values, making forward compatibility difficult.
+// See https://github.com/whatwg/webidl/issues/893
+
+dictionary AuctionReportBuyersConfig {
+  required bigint bucket;
+  required double scale;
+};
+
+dictionary AuctionAdConfig {
+  required USVString seller;
+  required USVString decisionLogicUrl;
+  USVString trustedScoringSignalsUrl;
+  sequence<USVString> interestGroupBuyers;
+  any auctionSignals;
+  any sellerSignals;
+
+  // Really (USVString or Promise<USVString>) directFromSellerSignals;
+  any directFromSellerSignals;
+
+  unsigned long long sellerTimeout;
+  unsigned short sellerExperimentGroupId;
+
+  // Really (record<USVString, any> or Promise<record<USVString, any>>)
+  any perBuyerSignals;
+
+  // Really (record<USVString, unsigned long long> or
+  //         Promise<record<USVString, unsigned long long>>)
+  any perBuyerTimeouts;
+  any perBuyerCumulativeTimeouts;
+
+  USVString sellerCurrency;
+
+  // Really (record<USVString, USVString> or
+  //         Promise<record<USVString, USVString>>)
+  any perBuyerCurrencies;
+
+  record<USVString, unsigned short> perBuyerGroupLimits;
+  record<USVString, unsigned short> perBuyerExperimentGroupIds;
+  record<USVString, record<USVString, double>> perBuyerPrioritySignals;
+
+  // `auctionReportBuyerKeys`, `auctionReportBuyers`, and
+  // `requiredSellerCapabilities` are described in:
+  // https://github.com/WICG/turtledove/blob/main/FLEDGE_extended_PA_reporting.md
+  sequence<bigint> auctionReportBuyerKeys;
+  record<DOMString, AuctionReportBuyersConfig> auctionReportBuyers;
+  sequence<DOMString> requiredSellerCapabilities;
+
+  AuctionAdInterestGroupSize requestedSize;
+
+  sequence<AuctionAdConfig> componentAuctions;
+  AbortSignal? signal;
+
+  // Really (boolean or Promise<boolean>)
+  any resolveToConfig;
+};

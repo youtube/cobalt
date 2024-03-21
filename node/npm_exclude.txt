@@ -1,0 +1,26 @@
+*/.*
+*/example/
+*/examples/
+*.html
+hydrolysis/hydrolysis.js
+*/jsdoc2md/
+*.lock
+*.md
+*.png
+*.sh
+*.svg
+*/test/
+*.ts
+@types/**/*
+*.woff
+*.yml
+Makefile
+source-map.debug.js
+powered-test/es6-destructuring-assignments.js
+*.map
+typescript/lib/*
+typescript/loc/*
+
+# This is pulled in from html-minifier, but there is no plan to use the
+# --minify-js which is the only entry to that codepath.
+uglify-js/*

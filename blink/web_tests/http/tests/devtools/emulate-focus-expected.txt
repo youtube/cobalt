@@ -1,0 +1,10 @@
+Tests that focus emulation works.
+
+document.hasFocus(): false
+
+Emulating page focus
+document.hasFocus(): true
+
+Disabling focus emulation
+document.hasFocus(): false
+

@@ -1,0 +1,1 @@
+Checks that slider appearance on regular node doesn't crash.
