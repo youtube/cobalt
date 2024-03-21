@@ -28,12 +28,6 @@ if (use_hacky_cobalt_changes) {
       "BASE_HASH_NAMESPACE=std",
       "BASE_HASH_USE_HASH_STRUCT",
     ]
-    if (current_toolchain == cobalt_toolchain) {
-      defines += [
-        "ALLOW_UNUSED_TYPE=",
-        "WARN_UNUSED_RESULT=",
-      ]
-    }
   }
 
   config("hacky_wnos") {

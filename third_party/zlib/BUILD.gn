@@ -68,8 +68,8 @@ source_set("zlib_adler32_simd") {
     ]
     if (!is_debug) {
       # Use optimize_speed (-O3) to output the _smallest_ code.
-      if(!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:default_optimization" ]
+      if (!use_cobalt_customizations) {
+        configs -= [ "//build/config/compiler:default_optimization" ]
       }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
@@ -125,7 +125,9 @@ if (use_arm_neon_optimizations) {
         } else {
           assert(false, "CPU detection requires the Android NDK")
         }
-      } else if (!is_win && !is_clang && current_toolchain != starboard_toolchain) {
+      } else if (!is_win && !is_clang &&
+                 current_toolchain != starboard_toolchain &&
+                 !is_native_target_build) {
         assert(!use_thin_lto,
                "ThinLTO fails mixing different module-level targets")
         cflags_c = [ "-march=armv8-a+crc" ]
@@ -146,8 +148,8 @@ if (use_arm_neon_optimizations) {
       }
 
       if (!is_debug) {
-        if(!use_cobalt_customizations) {
-        configs -= [ "//build/config/compiler:default_optimization" ]
+        if (!use_cobalt_customizations) {
+          configs -= [ "//build/config/compiler:default_optimization" ]
         }
         configs += [ "//build/config/compiler:optimize_speed" ]
       }
@@ -219,15 +221,15 @@ source_set("zlib_inflate_chunk_simd") {
     if (use_arm_neon_optimizations && !is_debug) {
       # Here we trade better performance on newer/bigger ARMv8 cores
       # for less perf on ARMv7, per crbug.com/772870#c40
-      if(!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:default_optimization" ]
+      if (!use_cobalt_customizations) {
+        configs -= [ "//build/config/compiler:default_optimization" ]
       }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
   }
 
   if (!use_cobalt_customizations) {
-  configs -= [ "//build/config/compiler:chromium_code" ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
     ":zlib_internal_config",
@@ -296,7 +298,7 @@ source_set("zlib_x86_simd") {
   }
 
   if (!use_cobalt_customizations) {
-  configs -= [ "//build/config/compiler:chromium_code" ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
     ":zlib_internal_config",
@@ -401,7 +403,7 @@ component("zlib_hidden") {
       "gzread.c",
       "gzwrite.c",
     ]
-  } else if (!is_native_target_build) {
+  } else {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
@@ -425,7 +427,7 @@ if (use_cobalt_customizations) {
   }
 
   group("zlib") {
-    all_dependent_configs = [":zlib_all_dependent_config" ]
+    all_dependent_configs = [ ":zlib_all_dependent_config" ]
     public_deps = [ ":zlib_hidden" ]
   }
 }
@@ -439,7 +441,7 @@ config("minizip_warnings") {
     if (is_clang_16 && use_cobalt_customizations) {
       cflags += [
         "-Wno-misleading-indentation",
-        "-Wno-unused-but-set-variable"
+        "-Wno-unused-but-set-variable",
       ]
     }
   }
@@ -480,8 +482,8 @@ static_library("minizip") {
       "contrib/minizip/iostarboard.h",
     ]
     deps += [ "//starboard:starboard_headers_only" ]
-  } else if (!is_native_target_build) {
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  } else {
+    configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
     "//build/config/compiler:no_chromium_code",
@@ -494,29 +496,27 @@ static_library("minizip") {
 }
 
 if (!is_starboard) {
-executable("zlib_bench") {
-  include_dirs = [ "." ]
+  executable("zlib_bench") {
+    include_dirs = [ "." ]
 
-  sources = [
+    sources = [
     "contrib/bench/zlib_bench.cc",
   ]
 
-  if (!is_debug) {
-      if (!is_native_target_build) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-      }
-    configs += [ "//build/config/compiler:optimize_speed" ]
-  }
+    if (!is_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_speed" ]
+    }
 
     if (!use_cobalt_customizations) {
-  configs -= [ "//build/config/compiler:chromium_code" ]
+      configs -= [ "//build/config/compiler:chromium_code" ]
     }
-  configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
 
-  deps = [
+    deps = [
     ":zlib",
   ]
-}
+  }
 }
 
 static_library("zip") {
@@ -548,7 +548,7 @@ target(gtest_target_type, "zip_unittests") {
     "google/compression_utils.h",
     "google/compression_utils_portable.cc",
     "google/compression_utils_portable.h",
-  ]
+      ]
 
   deps = [
     ":minizip",
