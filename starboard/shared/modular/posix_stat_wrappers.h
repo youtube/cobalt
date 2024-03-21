@@ -55,8 +55,8 @@ struct musl_stat {
   int64_t unused[3];
 #else
   uint64_t /*dev_t*/ st_dev;
-  uint32_t /*int*/ __st_dev_padding;
-  int32_t /*long*/ __st_ino_truncated;
+  uint32_t /*int*/ _st_dev_padding;
+  int32_t /*long*/ _st_ino_truncated;
 
   uint32_t /*mode_t*/ st_mode;
   uint32_t /*nlink_t*/ st_nlink;
@@ -67,7 +67,7 @@ struct musl_stat {
   int64_t /*off_t*/ st_size;
   int32_t /*blksize_t*/ st_blksize;
   int64_t /*blkcnt_t*/ st_blocks;
-  int32_t __unused[6];
+  int32_t _unused[6];
   uint64_t /*ino_t*/ st_ino;
   struct musl_timespec /*struct timespec*/ st_atim;
   struct musl_timespec /*struct timespec*/ st_mtim;
