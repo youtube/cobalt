@@ -1,0 +1,13 @@
+Document
+++Group
+++++Group LocalizedControlType='header'
+++++++Group IsControlElement=false
+++++++++Text Name='Header inside article.'
+++Group
+++++Group LocalizedControlType='header'
+++++++Group IsControlElement=false
+++++++++Text Name='Header inside section.'
+++Group
+++++Group LocalizedControlType='header'
+++++++Group IsControlElement=false
+++++++++Text Name='Header inside main.'

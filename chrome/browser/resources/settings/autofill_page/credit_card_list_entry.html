@@ -1,0 +1,102 @@
+    <style include="settings-shared passwords-shared">
+      .expiration-column,
+      .misc-column {
+        align-items: center;
+        display: flex;
+        flex: 1;
+      }
+
+      .misc-column {
+        justify-content: flex-end;
+      }
+
+      .list-item {
+        margin-bottom: 8px;
+        margin-top: 8px;
+      }
+
+      #creditCardExpiration {
+        flex: 1;
+      }
+
+      .sub-label {
+        color: var(--cr-secondary-text-color);
+      }
+
+      #paymentsLabel {
+        margin-inline-start: 16px;
+      }
+
+      #paymentsIcon {
+        vertical-align: middle;
+      }
+
+      #virtualCardLabel {
+        margin-inline-start: 8px;
+      }
+
+      #cardImage {
+        margin-inline-end: 16px;
+        vertical-align: middle;
+      }
+    </style>
+    <div class="list-item" role="row">
+      <div class="type-column" role="cell">
+        <template is="dom-if" if="[[showExpirationAsSecondaryLabelEnabled_]]">
+          <img id="cardImage" src="[[creditCard.imageSrc]]" alt="">
+        </template>
+        <div class="summary-column">
+          <div id="summaryLabel" class="ellipses">
+            [[creditCard.metadata.summaryLabel]]
+          </div>
+          <div id="summarySublabel"
+              hidden$="[[!showExpirationAsSecondaryLabelEnabled_]]"
+              class="ellipses sub-label">
+            [[getSummarySublabel_(creditCard, virtualCardEnrollmentEnabled_)]]
+          </div>
+        </div>
+        <span id="virtualCardLabel"
+            hidden$="[[!shouldShowVirtualCardLabel_(creditCard.metadata)]]">
+          $i18n{virtualCardEnabled}
+        </span>
+        <span id="paymentsLabel" class="sub-label"
+            hidden$="[[!shouldShowPaymentsLabel_(creditCard.metadata)]]">
+            [[getPaymentsLabel_(creditCard.metadata)]]
+        </span>
+      </div>
+      <div class="expiration-column">
+        <div id="creditCardExpiration" role="cell"
+            hidden$="[[showExpirationAsSecondaryLabelEnabled_]]">
+          [[creditCard.expirationMonth]]/[[creditCard.expirationYear]]
+        </div>
+        <div role="cell" class="misc-column">
+          <div id="paymentsIndicator"
+              hidden$="[[!shouldShowPaymentsIndicator_(creditCard.metadata)]]">
+            <if expr="_google_chrome">
+              <picture id="paymentsIcon">
+                <source
+                    srcset="chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_DARK_SMALL"
+                    media="(prefers-color-scheme: dark)">
+                <img alt="" src="chrome://theme/IDR_AUTOFILL_GOOGLE_PAY_SMALL">
+              </picture>
+            </if>
+            <if expr="not _google_chrome">
+              <span class="sub-label">
+                [[getPaymentsLabel_(creditCard.metadata)]]
+              </span>
+            </if>
+          </div>
+          <template is="dom-if" if="[[showDots_(creditCard.metadata)]]">
+            <cr-icon-button class="icon-more-vert" id="creditCardMenu"
+                title="[[moreActionsTitle_(creditCard)]]"
+                on-click="onDotsMenuClick_">
+            </cr-icon-button>
+          </template>
+          <template is="dom-if" if="[[!showDots_(creditCard.metadata)]]">
+            <cr-icon-button class="icon-external" id="remoteCreditCardLink"
+                title="$i18n{remoteCreditCardLinkLabel}" role="link"
+                on-click="onRemoteEditClick_"></cr-icon-button>
+          </template>
+        </div>
+      </div>
+    </div>

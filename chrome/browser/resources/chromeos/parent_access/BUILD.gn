@@ -1,0 +1,127 @@
+# Copyright 2021 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//third_party/closure_compiler/compile_js.gni")
+import("//tools/polymer/html_to_js.gni")
+
+group("closure_compile") {
+  deps = [ ":closure_compile_local" ]
+}
+
+js_type_check("closure_compile_local") {
+  is_polymer3 = true
+  closure_flags = default_closure_args + mojom_js_args + [
+                    "js_module_root=" + rebase_path(".", root_build_dir),
+                    "js_module_root=" + rebase_path(
+                            "$root_gen_dir/mojom-webui/chrome/browser/ui/webui/ash/parent_access/",
+                            root_build_dir),
+                  ]
+  deps = [
+    ":parent_access_after",
+    ":parent_access_app",
+    ":parent_access_before",
+    ":parent_access_controller",
+    ":parent_access_disabled",
+    ":parent_access_screen",
+    ":parent_access_ui",
+    ":parent_access_ui_handler",
+    ":utils",
+    ":webview_manager",
+    "flows:extension_approvals_after",
+    "flows:extension_approvals_before",
+    "flows:extension_approvals_disabled",
+    "flows:extension_approvals_template",
+    "flows:extension_permission",
+    "flows:local_web_approvals_after",
+  ]
+}
+
+js_library("parent_access_after") {
+  deps = [
+    ":parent_access_screen",
+    "flows:local_web_approvals_after",
+    "//chrome/browser/ui/webui/ash/parent_access:mojo_bindings_webui_js",
+    "//third_party/polymer/v3_0/components-chromium/polymer:polymer_bundled",
+  ]
+  externs_list =
+      [ "//ui/webui/resources/cr_elements/cr_button/cr_button_externs.js" ]
+}
+
+js_library("parent_access_before") {
+  deps = [
+    ":parent_access_screen",
+    "//third_party/polymer/v3_0/components-chromium/polymer:polymer_bundled",
+  ]
+  externs_list =
+      [ "//ui/webui/resources/cr_elements/cr_button/cr_button_externs.js" ]
+}
+
+js_library("parent_access_disabled") {
+  deps = [
+    ":parent_access_screen",
+    "//third_party/polymer/v3_0/components-chromium/polymer:polymer_bundled",
+  ]
+  externs_list =
+      [ "//ui/webui/resources/cr_elements/cr_button/cr_button_externs.js" ]
+}
+
+js_library("parent_access_app") {
+  deps = [
+    ":parent_access_after",
+    ":parent_access_before",
+    ":parent_access_disabled",
+    ":parent_access_ui",
+    ":parent_access_ui_handler",
+    "//chrome/browser/resources/chromeos/supervision:supervised_user_error",
+    "//chrome/browser/resources/chromeos/supervision:supervised_user_offline",
+    "//chrome/browser/ui/webui/ash/parent_access:mojo_bindings_webui_js",
+    "//third_party/polymer/v3_0/components-chromium/polymer:polymer_bundled",
+  ]
+  externs_list = [ "//ui/webui/resources/cr_elements/cr_view_manager/cr_view_manager_externs.js" ]
+}
+
+js_library("parent_access_controller") {
+  deps = [
+    "//ash/webui/common/resources:promise_resolver",
+    "//ash/webui/common/resources/post_message_api:post_message_api_server",
+  ]
+}
+
+js_library("parent_access_ui") {
+  deps = [
+    ":parent_access_controller",
+    ":parent_access_ui_handler",
+    "//ash/webui/common/resources:load_time_data.m",
+    "//chrome/browser/ui/webui/ash/parent_access:mojo_bindings_webui_js",
+    "//third_party/polymer/v3_0/components-chromium/polymer:polymer_bundled",
+  ]
+  externs_list = [
+    "$externs_path/chrome_extensions.js",
+    "$externs_path/webview_tag.js",
+  ]
+}
+
+js_library("parent_access_ui_handler") {
+  deps =
+      [ "//chrome/browser/ui/webui/ash/parent_access:mojo_bindings_webui_js" ]
+}
+
+js_library("webview_manager") {
+}
+
+js_library("parent_access_screen") {
+}
+
+js_library("utils") {
+}
+
+html_to_js("web_components") {
+  js_files = [
+    "parent_access_after.js",
+    "parent_access_app.js",
+    "parent_access_before.js",
+    "parent_access_disabled.js",
+    "parent_access_ui.js",
+  ]
+}

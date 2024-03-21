@@ -1,0 +1,4 @@
+Tests renderer: server redirection to failure.
+requested url: http://www.example.com/
+requested url: http://www.example.com/1
+requested url: http://www.example.com/FAIL

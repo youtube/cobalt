@@ -1,0 +1,47 @@
+<style include="cr-nav-menu-item-style">
+  :host {
+    display: flex;
+    height: 100%;
+  }
+
+  #sidebar {
+    border-inline-end: 1px solid var(--cr-separator-color);
+    box-sizing: border-box;
+    overflow: auto;
+    padding-block-end: 12px;
+    padding-inline-end: 12px;
+    width: 256px;
+  }
+
+  h1 {
+    color: var(--cr-primary-text-color);
+    font-size: 170%;
+    font-weight: 500;
+    padding-inline-start: 24px;
+  }
+
+  iframe {
+    border: none;
+    height: 100%;
+    width: 100%;
+  }
+
+  #main {
+    flex: 1;
+  }
+</style>
+<div id="sidebar">
+  <h1>WebUI Gallery</h1>
+  <cr-menu-selector id="selector" selectable="a" selected-attribute="selected">
+    <template is="dom-repeat" items="[[demos]]">
+      <a role="menuitem" href="[[item.path]]"
+          class="cr-nav-menu-item">[[item.name]]</a>
+    </template>
+  </cr-menu-selector>
+</div>
+
+<iron-location path="{{path_}}"></iron-location>
+
+<div id="main">
+  <iframe id="iframe"></iframe>
+</div>

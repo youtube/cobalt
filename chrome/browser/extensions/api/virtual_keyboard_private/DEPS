@@ -1,0 +1,5 @@
+include_rules = [
+  "+ash/clipboard",
+  "+media/audio",
+  "+services/audio/public/cpp",
+]

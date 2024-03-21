@@ -1,0 +1,122 @@
+# This file contains tests for browser_tests built for ash, and
+# requires Lacros.
+# For more information, please see //chrome/test/base/chromeos/README.md.
+*Magn*.*
+AccessibilityExtension*
+Autoclick*
+AshTtsApiTest*
+BrowserAppShelfControllerBrowserTest*
+ChromeVox*
+DemoAshRequiresLacrosTest*
+DesksTemplatesClientLacrosTest*
+Dictation*
+ExtensionKeeplistTest*
+NonKioskAcceleratorLacrosTest*
+SelectToSpeak*
+SwitchAccess*
+VpnExtensionObserverBrowserTest*
+WebAppsCrosapiBrowserTest*
+WebAppProviderBridgeBrowserTest*
+WebKioskAcceleratorLacrosTest*
+WebKioskAshRequiresLacrosTest*
+# TODO(b/262789941) Enable more accessibility tests.
+-ChromeVoxBackgroundTest.TabSwitchAndRefreshRecovery
+-ChromeVoxBackgroundTest.TextSelectionAndLiveRegion
+-ChromeVoxBackgroundTest.TouchEditingState
+-ChromeVoxBackgroundTestWithHoldingSpacePredictabilityDisabled.SwipeLeftRight4ByContainers
+-ChromeVoxBackgroundTestWithHoldingSpacePredictabilityEnabled.SwipeLeftRight4ByContainers
+-ChromeVoxDesktopAutomationHandlerTest.TaskManagerTableView
+-ChromeVoxISearchTest.Simple
+-ChromeVoxPanelTest.FormControlsMenu
+-ChromeVoxPanelTest.InternationalFormControlsMenu
+-ChromeVoxPanelTest.LinkMenu
+-ChromeVoxPortalsTest.PortalName
+-ChromeVoxPortalsTest.ShouldFocusPortal
+# TODO(crbug.com/1378396) Remove once ash extension context menus are passed through to lacros
+-SelectToSpeakContextMenuTest.*
+-SelectToSpeakEnhancedNetworkTtsVoicesTest.*
+-SelectToSpeakNavigationControlTest.*
+-SwitchAccessItemScanManagerTest.*
+-SwitchAccessPointScanManagerTest.PointScanLeftClick
+-ChromeVoxAutoScrollHandlerTest.RecyclerViewByPredicate
+-DockedMagnifierVirtualKeyboardTest.WelcomeScreen
+-ChromeVoxTutorialTest.Gestures
+-ChromeVoxTutorialTest.ExitButtonTest
+-ChromeVoxTutorialTest.EscapeTest
+# TODO(https://crbug.com/1378291) Ash and Lacros browser window sizes differ.
+-ChromeVoxEditingTest.SelectAcrossSoftLineWraps
+-ChromeVoxBackgroundTest.ListBoxItemsNavigation
+-ChromeVoxLiveRegionsTest.FocusThenLiveRegion
+-ChromeVoxLiveRegionsTest.LiveRegionAddElement
+-ChromeVoxLiveRegionsTest.LiveRegionRemoveElement
+-ChromeVoxUserActionMonitorTest.Gestures
+# TODO(crbug.com/1339456) Disabled when switch to LacrosOnly.
+-DesksTemplatesClientLacrosTest.SystemUILaunchBrowser
+# TODO(crbug.com/1356103) Disabled when switch to LacrosOnly.
+-SwitchAccessPointScanManagerTest.PointScanRightClick
+# TODO(b/262594550) Flaky
+-ChromeVoxBackgroundTest.CrossWindowNextPreviousFocus
+-ChromeVoxBackgroundTest.MultipleListBoxes
+-ChromeVoxBackgroundTest.SelectOptionSelected
+-ChromeVoxBackgroundTest.GestureGranularity
+-ChromeVoxBackgroundTest.GestureOnPopUpButton
+-ChromeVoxBackgroundTest.HitTestOnExoSurface
+-ChromeVoxEditingTest.JumpCommandsSyncSelection
+-ChromeVoxBackgroundTest.MixedNavWithRangeInvalidation
+-ChromeVoxBackgroundTest.NavigateOutOfMultiline
+-ChromeVoxBackgroundTest.ShowContextMenu
+-ChromeVoxBackgroundTestWithTestServer.InPageLinks
+-ChromeVoxBackgroundTest.UseEditableState
+# TODO(crbug.com/1424533): Flaky
+-ChromeVoxEditingTest.GiantTextAreaPerformance
+-ChromeVoxEditingTest.EditableLineTwoStaticTexts
+-ChromeVoxEditingTest.MoveByLineIntent
+-ChromeVoxEditingTest.RichTextImageByCharacter
+-ChromeVoxEditingTest.SelectAllBareTextContent
+-ChromeVoxEditingTest.TelTrimsWhitespace
+-ChromeVoxEditingTest.TextAreaBrailleEmptyLine
+-ChromeVoxEditingTest.TextAreaEvents
+-ChromeVoxEditingTest.RichTextExtendByCharacter
+-ChromeVoxEditingTest.InputEvents
+-ChromeVoxEditingTest.SelectAll
+-ChromeVoxEditingTest.BackwardWordDeleteAcrossParagraphs
+-ChromeVoxTutorialTest.BasicTest
+-ChromeVoxTutorialTest.EarconLesson
+-ChromeVoxBackgroundTest.NavigationIgnoresLabels
+-ChromeVoxBackgroundTest.GroupNavigation
+-ChromeVoxBackgroundTest.MenuItemRadio
+-ChromeVoxBackgroundTest.NestedListNavigationMixed
+-ChromeVoxBackgroundTest.ShowContextMenuOnViewsTab
+-ChromeVoxBackgroundTest.NewTabRead
+-ChromeVoxAutoScrollHandlerTest.RecyclerViewByCharacter
+-ChromeVoxAutoScrollHandlerTest.ScrollForward
+-ChromeVoxPanelTest.TouchGesturesMenuAvailableWhenInTouchMode
+-ChromeVoxPanelTest.ActionsMenu
+-ChromeVoxPanelTest.SearchMenu
+# TODO(b/268051293) Flaky
+-SelectToSpeakKeystrokeSelectionTest.NonReorderedSvgPreservesSelectionStartEnd
+-SelectToSpeakKeystrokeSelectionTest.OmniboxPartiallySelectedInMid
+-SelectToSpeakKeystrokeSelectionTest.SpeakTextSurroundedByBrs
+-SelectToSpeakKeystrokeSelectionTest.SpeaksTextAtKeystrokeSingleWord
+-SelectToSpeakKeystrokeSelectionTest.TwoTextFieldsFullySelected
+-SelectToSpeakKeystrokeSelectionTest.contentEditableExternallySelected
+-SelectToSpeakMouseSelectionTest.SpeaksNodeWhenClicked
+-SelectToSpeakMouseSelectionTest.VoiceSwitching
+# TODO(b/268056158) Flaky
+-SelectToSpeakTestWithVoiceSwitching.BreaksAtLanguageBounds
+# TODO(b/277821091) Flaky
+-ChromeVoxBackgroundTest.NavigationEscapesEdit
+-ChromeVoxBackgroundTest.NavigationIgnoresLabels
+-ChromeVoxEditingTest.NonbreakingSpaceNewLineOrSpace
+-ChromeVoxEditingTest.MoveByWordSuggestions
+-ChromeVoxTutorialTest.ResourcesTest
+-ChromeVoxBackgroundTest.EarconsForControls
+-ChromeVoxBackgroundTest.NavigationIgnoresDescriptions
+-ChromeVoxBackgroundTest.NavigationEscapesEdit
+-ChromeVoxBackgroundTest.NavigationIgnoresLabels
+-ChromeVoxEditingTest.NonbreakingSpaceNewLineOrSpace
+# TODO(crbug.com/1432222): Flaky
+-DictationE2ETest.SilencesSpokenFeedbackWhenStarting
+-DictationUIE2ETest.HintsTimeoutWithChromeVox
+# TODO(b/262789941): Flaky
+-MagnifierE2ETest.IgnoresRootNodeFocus

@@ -1,0 +1,52 @@
+<!doctype html>
+<!--
+Tests that the provided WebXR device has the expected capabilities
+-->
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="../resources/webxr_e2e.css">
+  </head>
+  <body>
+    <canvas id="webgl-canvas"></canvas>
+    <script src="../../../../../../third_party/blink/web_tests/resources/testharness.js"></script>
+    <script src="../resources/webxr_e2e.js"></script>
+    <script src="../resources/webxr_boilerplate.js"></script>
+    <script>
+      var expectations = {
+        "Daydream": {
+          "immersive": true,
+          "non-immersive": true,
+        }
+      };
+
+      function stepCheckCapabilities(device) {
+        if (!(device in expectations)) {
+          assert_unreached("Given device " + device + " not in expectations");
+          done();
+          return;
+        }
+
+        let expected = expectations[device];
+        var supportsNonImmersive;
+        var supportsImmersive;
+        console.log('Checking inline session support');
+        navigator.xr.isSessionSupported('inline').then((supported) => {
+          console.log('Got inline support: ' + supported);
+          supportsNonImmersive = supported;
+        }).then( () => {
+          console.log('Checking immersive support');
+          navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+            console.log('Got immersive support: ' + supported);
+            supportsImmersive = supported;
+          }).then(() => {
+            assert_equals(supportsNonImmersive, expected["non-immersive"],
+                'Device supports non-immersive sessions');
+            assert_equals(supportsImmersive, expected["immersive"],
+                'Device supports immersive sessions');
+            done();
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

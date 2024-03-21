@@ -1,0 +1,288 @@
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//chrome/common/features.gni")
+import("//tools/grit/grit_rule.gni")
+import("//tools/grit/preprocess_if_expr.gni")
+import("//tools/polymer/css_to_wrapper.gni")
+import("//tools/polymer/html_to_wrapper.gni")
+import("//tools/typescript/ts_library.gni")
+import("//ui/webui/resources/tools/generate_grd.gni")
+import("//ui/webui/resources/tools/optimize_webui.gni")
+import("//ui/webui/webui_features.gni")
+import("./os_settings.gni")
+
+assert(is_chromeos_ash, "ChromeOS Settings is ChromeOS only")
+
+# root_gen_dir is "gen"
+# target_gen_dir is "gen/chrome/browser/resources/settings/chromeos"
+
+tsc_input_folder = "tsc_input"
+tsc_input_dir = "$target_gen_dir/$tsc_input_folder"
+tsc_output_folder = "tsc"
+tsc_output_dir = "$target_gen_dir/$tsc_output_folder"
+
+nearby_share_tsc_dir =
+    "$root_gen_dir/chrome/browser/resources/nearby_share/shared/tsc"
+
+if (optimize_webui) {
+  build_manifest_v3 = "build_v3_manifest.json"
+
+  optimize_webui("optimize_bundle") {
+    host = "os-settings"
+    input = rebase_path(tsc_output_dir, root_build_dir)
+    js_module_in_files = [
+      "chromeos/lazy_load.js",
+      "chromeos/os_settings.js",
+    ]
+    out_manifest = "$target_gen_dir/$build_manifest_v3"
+
+    deps = [ ":build_ts" ]
+    excludes = [
+      "chrome://resources/cr_components/app_management/app_management.mojom-webui.js",
+      "chrome://resources/ash/common/bluetooth/cros_bluetooth_config.js",
+      "chrome://resources/ash/common/cellular_setup/mojo_interface_provider.js",
+      "chrome://resources/ash/common/hotspot/cros_hotspot_config.js",
+      "chrome://resources/ash/common/hotspot/cros_hotspot_config.mojom-webui.js",
+      "chrome://resources/ash/common/network/mojo_interface_provider.js",
+      "chrome://resources/mojo/chromeos/ash/services/cellular_setup/public/mojom/cellular_setup.mojom-webui.js",
+      "chrome://resources/mojo/chromeos/ash/services/cellular_setup/public/mojom/esim_manager.mojom-webui.js",
+      "chrome://resources/mojo/chromeos/ash/services/auth_factor_config/public/mojom/auth_factor_config.mojom-webui.js",
+      "chrome://resources/mojo/chromeos/ash/services/bluetooth_config/public/mojom/cros_bluetooth_config.mojom-webui.js",
+      "chrome://resources/mojo/chromeos/ash/services/nearby/public/mojom/nearby_share_settings.mojom-webui.js",
+      "chrome://resources/mojo/chromeos/ash/services/nearby/public/mojom/nearby_share_target_types.mojom-webui.js",
+      "chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js",
+      "chrome://resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js",
+      "chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js",
+      "chrome://resources/mojo/mojo/public/mojom/base/time.mojom-webui.js",
+      "chrome://resources/mojo/services/network/public/mojom/ip_address.mojom-webui.js",
+      "chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js",
+    ]
+    external_paths = [
+      "/shared/settings|" + rebase_path(
+              "$root_gen_dir/chrome/browser/resources/settings_shared/tsc",
+              root_build_dir),
+      "/shared/|" + rebase_path(nearby_share_tsc_dir, root_build_dir),
+    ]
+  }
+}
+
+# TypeScript Build Configuration
+ts_library("build_ts") {
+  tsconfig_base = "//tools/typescript/tsconfig_base_polymer.json"
+  deps = [
+    "//ash/webui/common/resources:build_ts",
+    "//chrome/browser/resources/nearby_share/shared:build_ts",
+    "//chrome/browser/resources/settings_shared:build_ts",
+    "//third_party/polymer/v3_0:library",
+    "//ui/webui/resources/cr_components/app_management:build_ts",
+    "//ui/webui/resources/cr_components/color_change_listener:build_ts",
+    "//ui/webui/resources/cr_components/localized_link:build_ts",
+    "//ui/webui/resources/cr_components/managed_footnote:build_ts",
+    "//ui/webui/resources/cr_components/settings_prefs:build_ts",
+    "//ui/webui/resources/cr_elements:build_ts",
+    "//ui/webui/resources/js:build_ts",
+    "//ui/webui/resources/mojo:build_ts",
+  ]
+  extra_deps = [
+    ":generate_css_wrapper_files",
+    ":generate_html_wrapper_files",
+    ":generate_mojom_webui",
+    ":preprocess",
+    "//ash/webui/common/resources:generate_definitions",
+  ]
+  path_mappings = [
+    "/shared/settings/*|" + rebase_path(
+            "$root_gen_dir/chrome/browser/resources/settings_shared/tsc/*",
+            target_gen_dir),
+
+    # Additional path mappings for Nearby share code
+    "/shared/*|" + rebase_path("$nearby_share_tsc_dir/*", target_gen_dir),
+  ]
+  definitions = ts_definition_files
+  root_dir = tsc_input_dir
+  in_files =
+      src_ts_files + html_wrapper_files + css_wrapper_files + mojom_webui_files
+  out_dir = tsc_output_dir
+
+  # Allows .d.ts files to be generated for output JS files, so this build target
+  # can be referenced by other ts_library() targets (e.g. browser tests)
+  composite = true
+}
+
+preprocess_if_expr("preprocess") {
+  defines = chrome_grit_defines
+  in_folder = "../"
+  in_files = src_ts_files + html_files + css_files
+  out_folder = tsc_input_dir
+}
+
+# preprocess should happen before these code gen.
+html_to_wrapper("generate_html_wrapper_files") {
+  deps = [ ":preprocess" ]
+  in_files = html_files
+  in_folder = tsc_input_dir
+  out_folder = tsc_input_dir
+}
+
+# preprocess should happen before these code gen.
+css_to_wrapper("generate_css_wrapper_files") {
+  deps = [ ":preprocess" ]
+  in_files = css_files
+  in_folder = tsc_input_dir
+  out_folder = tsc_input_dir
+}
+
+# Generate all WebUI mojom files and copy them to tsc_input_dir to be
+# input to ts_library(). These files are bundled in optimized builds.
+group("generate_mojom_webui") {
+  public_deps = [
+    ":copy_mojom_ts",
+    ":generate_personalization_search_mojom",
+    ":generate_search_mojom",
+  ]
+}
+
+# Copy generated Mojo TS bindings to $tsc_input_dir/mojom-webui/ dir
+copy("copy_mojom_ts") {
+  deps = [
+    "//ash/public/mojom:input_device_settings_ts__generator",
+    "//chrome/browser/ui/webui/settings/ash/files_page/mojom:mojom_ts__generator",
+    "//chrome/browser/ui/webui/settings/ash/input_device_settings:mojom_ts__generator",
+    "//chrome/browser/ui/webui/settings/ash/os_apps_page/mojom:mojom_ts__generator",
+    "//chrome/browser/ui/webui/settings/chromeos/constants:mojom_ts__generator",
+    "//chromeos/ash/components/audio/public/mojom:mojom_ts__generator",
+    "//chromeos/ash/components/drivefs/mojom:pin_manager_types_ts__generator",
+    "//ui/events/ash/mojom:mojom_ts__generator",
+  ]
+  sources = [
+    "$root_gen_dir/ash/public/mojom/input_device_settings.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/ui/webui/settings/ash/files_page/mojom/google_drive_handler.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/ui/webui/settings/ash/input_device_settings/input_device_settings_provider.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/ui/webui/settings/ash/os_apps_page/mojom/app_notification_handler.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/ui/webui/settings/chromeos/constants/setting.mojom-webui.ts",
+    "$root_gen_dir/chromeos/ash/components/audio/public/mojom/cros_audio_config.mojom-webui.ts",
+    "$root_gen_dir/chromeos/ash/components/drivefs/mojom/pin_manager_types.mojom-webui.ts",
+    "$root_gen_dir/ui/events/ash/mojom/modifier_key.mojom-webui.ts",
+  ]
+  outputs = [ "$tsc_input_dir/chromeos/mojom-webui/{{source_file_part}}" ]
+}
+
+copy("generate_personalization_search_mojom") {
+  deps =
+      [ "//ash/webui/personalization_app/search:mojo_bindings_ts__generator" ]
+  sources = [
+    "$root_gen_dir/ash/webui/personalization_app/search/search.mojom-webui.ts",
+  ]
+  outputs = [ "$tsc_input_dir/chromeos/mojom-webui/search/personalization_search.mojom-webui.ts" ]
+}
+
+copy("generate_search_mojom") {
+  deps = [
+    "//chrome/browser/ui/webui/settings/ash/search:mojo_bindings_ts__generator",
+  ]
+  sources = [
+    "$root_gen_dir/chrome/browser/ui/webui/settings/ash/search/search.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/ui/webui/settings/ash/search/search_result_icon.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/ui/webui/settings/ash/search/user_action_recorder.mojom-webui.ts",
+  ]
+  outputs =
+      [ "$tsc_input_dir/chromeos/mojom-webui/search/{{source_file_part}}" ]
+}
+
+grit("resources") {
+  defines = chrome_grit_defines
+
+  # These arguments are needed since the grd is generated at build time.
+  enable_input_discovery_for_gn_analyze = false
+  source = "$target_gen_dir/os_settings_resources.grd"
+  deps = [ ":build_grd" ]
+
+  outputs = [
+    "grit/os_settings_resources.h",
+    "grit/os_settings_resources_map.cc",
+    "grit/os_settings_resources_map.h",
+    "os_settings_resources.pak",
+  ]
+  output_dir = "$root_gen_dir/chrome"
+}
+
+generate_grd("build_grd") {
+  grd_prefix = "os_settings"
+  out_grd = "$target_gen_dir/${grd_prefix}_resources.grd"
+  input_files = [
+    "images/computer_and_bluetooth_switch_dark.svg",
+    "images/computer_and_bluetooth_switch.svg",
+    "images/error_badge_dark.svg",
+    "images/error_badge.svg",
+    "images/icon_add_cellular.svg",
+    "images/icon_add_circle.svg",
+    "images/icon_add_wifi.svg",
+    "images/icon_pair_bluetooth.svg",
+    "images/keyboard_shortcut_dark.svg",
+    "images/keyboard_shortcut.svg",
+    "images/multidevice_permission_setup_connecting.svg",
+    "images/multidevice_permission_setup_connecting_dark.svg",
+    "images/notification_access_connecting_dark.svg",
+    "images/notification_access_connecting.svg",
+    "images/notification_access_error_dark.svg",
+    "images/notification_access_error.svg",
+    "images/notification_access_finished_dark.svg",
+    "images/notification_access_finished.svg",
+    "images/notification_access_setup.svg",
+    "images/notification_access_setup_dark.svg",
+    "images/smart_privacy.svg",
+    "images/smart_privacy_dark.svg",
+    "images/switch_access_setup_guide_assign_next.svg",
+    "images/switch_access_setup_guide_assign_next_dark.svg",
+    "images/switch_access_setup_guide_assign_previous.svg",
+    "images/switch_access_setup_guide_assign_previous_dark.svg",
+    "images/switch_access_setup_guide_assign_select.svg",
+    "images/switch_access_setup_guide_assign_select_dark.svg",
+    "images/switch_access_setup_guide_auto_scan_enabled.svg",
+    "images/switch_access_setup_guide_auto_scan_enabled_dark.svg",
+    "images/switch_access_setup_guide_choose_one_switch.svg",
+    "images/switch_access_setup_guide_choose_one_switch_dark.svg",
+    "images/switch_access_setup_guide_choose_three_switches.svg",
+    "images/switch_access_setup_guide_choose_three_switches_dark.svg",
+    "images/switch_access_setup_guide_choose_two_switches.svg",
+    "images/switch_access_setup_guide_choose_two_switches_dark.svg",
+    "images/switch_access_setup_guide_closing.svg",
+    "images/switch_access_setup_guide_closing_dark.svg",
+    "os_settings_v3.html",
+  ]
+  input_files_base_dir = rebase_path(".", "//")
+  deps = [ "//chrome/browser/resources/nearby_share/shared:build_json_grdp" ]
+  grdp_files = [ "$root_gen_dir/chrome/browser/resources/nearby_share/shared/nearby_share_json_resources.grdp" ]
+  manifest_files = []
+  resource_path_rewrites =
+      [ "os_settings_v3.html|chromeos/os_settings_v3.html" ]
+
+  if (optimize_webui) {
+    deps += [ ":optimize_bundle" ]
+    manifest_files += [ "$target_gen_dir/$build_manifest_v3" ]
+    resource_path_rewrites += [
+      "chromeos/lazy_load.rollup.js|chromeos/lazy_load.js",
+      "chromeos/os_settings.rollup.js|chromeos/os_settings.js",
+      "chromeos/shared.rollup.js|chromeos/shared.rollup.js",
+    ]
+  } else {
+    deps += [
+      ":build_ts",
+      "//chrome/browser/resources/nearby_share/shared:build_grdp",
+    ]
+    grdp_files += [ "$root_gen_dir/chrome/browser/resources/nearby_share/shared/resources.grdp" ]
+    manifest_files +=
+        filter_include(get_target_outputs(":build_ts"), [ "*.manifest" ])
+  }
+}
+
+# grdp for OS Settings files that are needed by OOBE.
+generate_grd("build_oobe_grdp") {
+  grd_prefix = "os_settings_oobe"
+  out_grd = "$target_gen_dir/os_settings_oobe_resources.grdp"
+  input_files_base_dir = rebase_path(".", "//")
+  input_files = [ "images/smart_privacy.svg" ]
+}

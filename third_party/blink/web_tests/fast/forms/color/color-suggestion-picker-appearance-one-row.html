@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<script src="../resources/picker-common.js"></script>
+
+<input type='color' id='color' value='#ff0000' list='single'>
+<datalist id='single'>
+    <option>#000000</option>
+</datalist>
+
+<script>
+  window.onload = openPickerAppearanceOnly(document.querySelector('input'));
+</script>

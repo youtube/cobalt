@@ -1,0 +1,27 @@
+# TODO(crbug.com/1111979) Enable all tests on lacros.
+-AccessContextAuditBrowserTest.CheckSessionOnly
+-AccessContextAuditBrowserTest.RemoveRecords
+-All/WebRtcScreenCaptureBrowserTestWithPicker.ScreenCaptureVideo/*
+-All/WebRtcScreenCaptureBrowserTestWithPicker.ScreenCaptureVideoAndAudio/*
+-BluetoothApiTest.*
+-BluetoothLowEnergyApiTest.*
+-BluetoothPrivateApiTest.*
+-BrowserTest.RestorePinnedTabs
+-BrowserViewTest.GetAccessibleTabModalDialogTitle
+-BrowsingDataRemoverBrowserTest.StorageRemovedFromDisk
+-DeclarativeContentApiTest.RulesPersistence
+-ExternalProtocolDialogBrowserTest.TestFocus
+-FolderUploadConfirmationViewTest.InitiallyFocusesCancel
+-KeepAliveDevToolsTest.KeepsAliveUntilBrowserClose
+-OmniboxPopupViewViewsTest.ClickOmnibox
+-OmniboxPopupViewViewsTest.PopupMatchesLocationBarBackground
+-ProfileListDesktopBrowserTest.SwitchToProfile
+-SSLUITest.TestCloseTabWithUnsafePopup
+# crbug.com/1121486
+# Following tests were flaky. We disable them first until we have time to investigate.
+-All/HostedOrWebAppTest.CtrlClickLink/HostedApp
+-All/HostedOrWebAppTest.CtrlClickLink/WebApp
+-AudioFocusWebContentsObserverBrowserTest.PlatformAppHasDifferentAudioFocus
+-ContentSettingsTest.AllowCookiesForASessionUsingExceptions
+-CustomTabBarViewBrowserTest.BackToAppButtonIsNotVisibleInOutOfScopePopups
+-DevToolsTest.TestDispatchKeyEventShowsAutoFill

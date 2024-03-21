@@ -1,0 +1,42 @@
+<!--
+Copyright 2021 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<style include="cr-icons cr-shared-style oobe-common-styles">
+  cr-button {
+    --border-color: var(--oobe-bg-color);
+    --cr-button-height: var(--oobe-button-height);
+    border-radius: var(--oobe-button-radius);
+    margin: 0 4px;
+  }
+  ::slotted(*) {
+    text-transform: none;
+  }
+  hd-iron-icon {
+    --iron-icon-height: var(--oobe-button-icon-size);
+    --iron-icon-width: var(--oobe-button-icon-size);
+    margin-inline-end: 4px;
+  }
+  :host ::slotted(*),
+  .fallback {
+    font-family: var(--oobe-button-font-family);
+    font-size: var(--oobe-button-font-size);
+  }
+</style>
+<cr-button id="button" disabled="[[disabled]]"
+    aria-label$="[[labelForAriaText_]]">
+  <div id="container" class="flex vertical layout center self-stretch">
+    <div class="flex layout horizontal center self-stretch center-justified">
+      <hd-iron-icon id="icon" icon1x="[[icon1x]]" icon2x="[[icon2x]]"
+          class="oobe-icon" hidden>
+      </hd-iron-icon>
+      <slot name="text">
+        <template is="dom-if" if="[[textKey]]">
+          <div class="fallback">[[i18nDynamic(locale, textKey)]]</div>
+        </template>
+      </slot>
+    </div>
+  </div>
+</cr-button>

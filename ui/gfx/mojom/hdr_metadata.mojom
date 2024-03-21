@@ -1,0 +1,26 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module gfx.mojom;
+
+import "skia/public/mojom/skcolorspace_primaries.mojom";
+
+enum HDRMode {
+  kDefault,
+  kExtended,
+};
+
+// This defines a mojo transport format for gfx::HDRMetadata.
+// See ui/gfx/hdr_metadata.h for description.
+struct ColorVolumeMetadata {
+  skia.mojom.SkColorSpacePrimaries primaries;
+  float luminance_max;
+  float luminance_min;
+};
+
+struct HDRMetadata {
+  ColorVolumeMetadata color_volume_metadata;
+  uint32 max_content_light_level;
+  uint32 max_frame_average_light_level;
+};

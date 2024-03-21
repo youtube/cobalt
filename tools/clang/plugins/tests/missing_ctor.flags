@@ -1,0 +1,1 @@
+-Xclang -plugin-arg-find-bad-constructs -Xclang raw-ref-template-as-trivial-member

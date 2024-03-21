@@ -1,0 +1,87 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module screen_ai.mojom;
+
+import "mojo/public/mojom/base/file_path.mojom";
+import "mojo/public/mojom/base/read_only_file.mojom";
+import "sandbox/policy/mojom/sandbox.mojom";
+import "skia/public/mojom/bitmap.mojom";
+import "ui/accessibility/mojom/ax_tree_id.mojom";
+import "ui/accessibility/mojom/ax_tree_update.mojom";
+
+// Main interface a client uses for visual annotation functions of the Screen AI
+// service.
+interface ScreenAIAnnotator {
+  // Receives an image, such as a screenshot or a canvas content, as well as the
+  // ID of the accessibility tree that contains the image (`parent_tree_id`).
+  // It then asks the Screen AI library to perform semantic layout extraction on
+  // the image and returns the ID of the accessibility tree which would be
+  // created by the service containing the output of the library.
+  ExtractSemanticLayout(skia.mojom.BitmapN32 image,
+    ax.mojom.AXTreeID parent_tree_id) =>
+    (ax.mojom.AXTreeID child_tree_id);
+
+  // Receives an image, such as a screenshot or a page from a PDF file, as well
+  // as the ID of the accessibility tree that contains the image
+  // (`parent_tree_id`). It then asks the Screen AI library to perform OCR on
+  // the image. It returns an AXTreeUpdate with nodes built from OCR results.
+  // The returned AXTreeUpdate is not a properly serialized update and is only
+  // a container for the root id of a subtree and nodes built from OCR results.
+  PerformOcrAndReturnAXTreeUpdate(skia.mojom.BitmapN32 image) =>
+    (ax.mojom.AXTreeUpdate update);
+};
+
+// This interface sends accessibility messages from the Screen AI Service to
+// `AXScreenAIAnnotator` in the browser process in non-ChromeOS or the extension
+// in ChromeOS.
+interface ScreenAIAnnotatorClient {
+  // Sent to inform about the creation of a new accessibility tree or an update
+  // to an existing one.
+  HandleAXTreeUpdate(ax.mojom.AXTreeUpdate update);
+};
+
+// Main interface a client uses for Main Content Extraction function of Screen
+// AI service. Each RenderFrameImpl can have one AXTreeDistiller which contains
+// an Screen2xMainContentExtractor.
+// All interfaces of one browser profile use one ScreenAIService.
+interface Screen2xMainContentExtractor {
+  // Receives the accessibility tree, schedules processing, and returns the main
+  // content of the given tree. ukm_source_id is a ukm::SourceId which is used
+  // to tie the UKM event to the main frame URL for metrics collection.
+  ExtractMainContent(ax.mojom.AXTreeUpdate snapshot, int64 ukm_source_id) =>
+    (array<int32> content_node_ids);
+};
+
+
+// The service runs in a sandboxed process to run Screen AI service library. The
+// library provides two AI modules:
+//   1) An image processing module to analyze snapshots of the browser or an
+//      image in a PDF and add more details to the accessibility tree.
+//   2) A text processing module that receives the accessibility tree and
+//      returns the main content of the tree.
+[ServiceSandbox=sandbox.mojom.Sandbox.kScreenAI]
+interface ScreenAIService {
+  // Triggers the service to load and initialize the Screen AI library at
+  // |library_path|. |screen2x_model_config| and |screen2x_model| are already
+  // open file handles to Screen2x model files. The rest of model files are
+  // read from |library_path| folder.
+  // This should be called from the browser process.
+  // TODO(https://crbug.com/1278249): Read all model files from file handles.
+  LoadAndInitializeLibrary(
+    mojo_base.mojom.ReadOnlyFile screen2x_model_config,
+    mojo_base.mojom.ReadOnlyFile screen2x_model,
+    mojo_base.mojom.FilePath library_path) =>
+      (bool initialized);
+
+  // Binds a new annotator to the service.
+  BindAnnotator(pending_receiver<ScreenAIAnnotator> annotator);
+
+  // Binds a client to receive update messages for annotation service.
+  BindAnnotatorClient(pending_remote<ScreenAIAnnotatorClient> annotator_client);
+
+  // Binds a new main content extractor to the service.
+  BindMainContentExtractor(pending_receiver<Screen2xMainContentExtractor>
+    main_content_extractor);
+};

@@ -1,0 +1,136 @@
+<style include="common cros-button-style">
+  :host {
+    color: var(--cros-text-color-primary);
+    font: var(--personalization-app-label-font);
+  }
+
+  /* Header */
+  #themeHeader {
+    align-items: center;
+    display: grid;
+    grid-template-areas:
+      'title       .'
+      '.           .'
+      'description toggle';
+    grid-template-columns: auto fit-content(40px);
+    grid-template-rows: 20px 6px 18px;
+  }
+
+  #themeTitle {
+    color: var(--cros-text-color-primary);
+    font-size: var(--cros-body-2-font-size);
+    font-weight: var(--cros-display-6-font-weight);
+    grid-area: title;
+  }
+
+  #dynamicColorToggleDescription {
+    color: var(--cros-sys-secondary);
+    font-size: 12px;
+    font-weight: var(--cros-body-1-font-weight);
+    grid-area: description;
+  }
+
+  #dynamicColorToggle {
+    grid-area: toggle;
+  }
+
+  /* Buttons */
+  iron-selector {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    margin: 16px 0 12px;
+  }
+
+  #container cr-button {
+    background-color: var(--cros-sys-app_base_shaded);
+    border: none;
+    border-radius: 16px;
+    display: grid;
+    height: 76px;
+    justify-items: center;
+    padding: 0;
+    --ink-color: rgba(var(--cros-ripple-color-rgb), 1);
+    --paper-ripple-opacity: var(--cros-button-primary-ripple-opacity);
+  }
+
+  .container {
+    height: 48px;
+    position: relative;
+    width: 48px;
+  }
+
+  iron-icon[icon='personalization:circle_checkmark'] {
+    display: none;
+  }
+
+  cr-button[aria-pressed='true'] iron-icon[icon='personalization:circle_checkmark'] {
+    --iron-icon-height: 20px;
+    --iron-icon-width: 20px;
+    bottom: -4px;
+    display: block;
+    position: absolute;
+    right: -4px;
+  }
+
+  color-scheme-icon-svg,
+  svg {
+    grid-column: 1;
+    grid-row: 1;
+    height: 48px;
+    position: relative;
+    width: 48px;
+  }
+</style>
+<div id="container">
+  <div id="themeHeader">
+    <div id="themeTitle" class="ellipsis">$i18n{dynamicColorLabel}</div>
+    <div id="dynamicColorToggleDescription" class="ellipsis">$i18n{dynamicColorDescription}</div>
+    <cr-toggle checked="{{automaticSeedColorEnabled}}" id="dynamicColorToggle"
+        on-change="onToggleChanged_" aria-labelledby="dynamicColorToggleDescription">
+    </cr-toggle>
+  </div>
+  <iron-a11y-keys id="colorSchemeKeys" keys="left right" on-keys-pressed="onColorSchemeKeysPress_">
+  </iron-a11y-keys>
+  <iron-a11y-keys id="staticColorKeys" keys="left right" on-keys-pressed="onStaticColorKeysPress_">
+  </iron-a11y-keys>
+  <iron-selector
+      id="colorSchemeSelector"
+      selected="0"
+      selected-item="{{colorSchemeHighlightedButton_}}"
+      hidden="[[!automaticSeedColorEnabled]]">
+    <template is="dom-repeat" items="[[sampleColorSchemes_]]" as="colorScheme">
+      <cr-button
+          tabindex$="[[getColorSchemeTabIndex_(colorScheme.scheme)]]"
+          on-click="onClickColorSchemeButton_"
+          data-color-scheme-id$="[[colorScheme.scheme]]"
+          aria-pressed$="[[getColorSchemeAriaPressed_(colorScheme.scheme, colorSchemeSelected_)]]"
+          aria-description$="[[getColorSchemeAriaDescription_(colorScheme.scheme)]]">
+        <div class="container">
+          <color-scheme-icon-svg scheme="[[colorScheme]]"></color-scheme-icon-svg>
+          <iron-icon class="checkmark" icon="personalization:circle_checkmark"></iron-icon>
+        </div>
+      </cr-button>
+    </template>
+  </iron-selector>
+  <iron-selector
+      id="staticColorSelector"
+      selected="0"
+      selected-item="{{staticColorHighlightedButton_}}"
+      hidden$="[[automaticSeedColorEnabled]]">
+    <template is="dom-repeat" items="[[staticColors_]]" as="staticColor">
+      <cr-button
+          tabindex$="[[getStaticColorTabIndex_(staticColor.hexVal)]]"
+          on-click="onClickStaticColorButton_"
+          aria-pressed$="[[getStaticColorAriaPressed_(staticColor.hexVal, staticColorSelected_)]]"
+          aria-description$="[[getStaticColorAriaDescription_(staticColor.enumVal)]]">
+        <div class="container">
+          <svg>
+            <circle style$="fill: [[staticColor.hexVal]]" cx="24" cy="24" r="24"></circle>
+          </svg>
+          <iron-icon icon="personalization:circle_checkmark"></iron-icon>
+        </div>
+      </cr-button>
+    </template>
+  </iron-selector>
+</div>

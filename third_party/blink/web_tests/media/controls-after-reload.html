@@ -1,0 +1,36 @@
+<html>
+<head>
+    <script src="../resources/run-after-layout-and-paint.js"></script>
+    <script src=media-controls.js></script>
+</head>
+<body>
+<p>Making sure the controller looks ok after a second load().</p>
+<video controls></video>
+</body>
+<script>
+  if (window.testRunner)
+    testRunner.waitUntilDone();
+
+  const video = document.getElementsByTagName('video')[0];
+  enableTestMode(video);
+
+  video.addEventListener("canplaythrough", () => {
+    video.src = "content/test.ogv";
+
+    video.play().then(() => {
+      // Ensure that the frame is always the same in pixel result.
+      video.addEventListener("seeked", () => {
+        runAfterLayoutAndPaint(() => {
+          if (window.testRunner)
+              testRunner.notifyDone();
+        });
+      }, { once: true });
+
+      video.pause();
+      video.currentTime = 0;
+    });
+  }, { once: true });
+
+  video.src = "content/counting.ogv";
+</script>
+</html>

@@ -1,0 +1,337 @@
+    <style include="settings-shared">
+      img {
+        width: 100%;
+      }
+
+      #explanationText,
+      #exceptionHeader,
+      #generalControls {
+        padding: 0 var(--cr-section-padding);
+      }
+
+      #explanationText {
+        margin-top: 16px;
+      }
+
+      .radio-group-sub-heading {
+        padding-bottom: 10px;
+      }
+
+      .bullet-line {
+        align-items: center;
+        display: flex;
+        min-height: var(--cr-section-two-line-min-height);
+      }
+
+      .bullet-line.one-line {
+        min-height: var(--cr-section-min-height);
+      }
+
+      .bullet-line > div {
+        padding-inline-start: var(--cr-radio-button-size);
+      }
+
+      settings-collapse-radio-button {
+        --settings-collapse-toggle-min-height: var(--cr-section-min-height);
+      }
+
+      settings-collapse-radio-button:not(:first-of-type) {
+        --settings-collapse-separator-line: var(--cr-separator-line);
+      }
+
+      settings-collapse-radio-button .bullet-line:last-child {
+        padding-bottom: 12px;
+      }
+
+      #toastText {
+        align-items: center;
+        display: flex;
+        max-width: 300px;
+        min-height: var(--cr-section-two-line-min-height);
+      }
+    </style>
+    <picture>
+      <source
+          srcset="chrome://settings/images/cookies_banner_dark.svg"
+          media="(prefers-color-scheme: dark)">
+      <img id="banner" alt=""
+          src="chrome://settings/images/cookies_banner.svg">
+    </picture>
+    <template is="dom-if" if="[[isPrivacySandboxSettings4_]]">
+      <div id="explanationText" class="secondary">
+        $i18n{thirdPartyCookiesPageDescription}
+      </div>
+      <div id="generalControls">
+        <h2>$i18n{thirdPartyCookiesPageDefaultBehaviorHeading}</h2>
+        <div class="secondary radio-group-sub-heading">
+          $i18n{thirdPartyCookiesPageDefaultBehaviorDescription}
+        </div>
+        <settings-radio-group id="primarySettingGroup" no-set-pref
+            pref="{{prefs.profile.cookie_controls_mode}}"
+            selectable-elements="
+                cr-radio-button, settings-collapse-radio-button"
+            on-change="onCookieControlsModeChanged_">
+          <settings-collapse-radio-button id="allowThirdParty"
+              pref="[[prefs.profile.cookie_controls_mode]]"
+              name="[[cookieControlsModeEnum_.OFF]]"
+              label="$i18n{thirdPartyCookiesPageAllowRadioLabel}"
+              expand-aria-label="
+                  $i18n{thirdPartyCookiesPageAllowExpandA11yLabel}">
+            <div slot="collapse">
+              <div class="bullet-line">
+                <iron-icon icon="settings:cookie"></iron-icon>
+                <div class="secondary">
+                  $i18n{thirdPartyCookiesPageAllowBulOne}
+                </div>
+              </div>
+              <div class="bullet-line">
+                <iron-icon icon="settings:cookie"></iron-icon>
+                <div class="secondary">
+                  $i18n{thirdPartyCookiesPageAllowBulTwo}
+                </div>
+              </div>
+            </div>
+          </settings-collapse-radio-button>
+          <settings-collapse-radio-button id="blockThirdPartyIncognito"
+              pref="[[prefs.profile.cookie_controls_mode]]"
+              name="[[cookieControlsModeEnum_.INCOGNITO_ONLY]]"
+              label="$i18n{thirdPartyCookiesPageBlockIncognitoRadioLabel}"
+              expand-aria-label="
+                  $i18n{thirdPartyCookiesPageBlockIncognitoExpandA11yLabel}">
+            <div slot="collapse">
+              <div class="bullet-line">
+                <iron-icon icon="settings:cookie"></iron-icon>
+                <div class="secondary">
+                  $i18n{thirdPartyCookiesPageBlockIncognitoBulOne}
+                </div>
+              </div>
+              <div class="bullet-line" id="blockThirdPartyIncognitoBulTwo">
+                <iron-icon icon="settings:block"></iron-icon>
+                <div class="secondary">
+                  [[getThirdPartyCookiesPageBlockThirdPartyIncognitoBulTwoLabel_()]]
+                </div>
+              </div>
+            </div>
+          </settings-collapse-radio-button>
+          <settings-collapse-radio-button id="blockThirdParty"
+              pref="[[prefs.profile.cookie_controls_mode]]"
+              name="[[cookieControlsModeEnum_.BLOCK_THIRD_PARTY]]"
+              label="$i18n{thirdPartyCookiesPageBlockRadioLabel}"
+              expand-aria-label="
+                  $i18n{thirdPartyCookiesPageBlockExpandA11yLabel}">
+            <div slot="collapse">
+              <div class="bullet-line">
+                <iron-icon icon="settings:cookie"></iron-icon>
+                <div class="secondary">
+                  $i18n{thirdPartyCookiesPageBlockBulOne}
+                </div>
+              </div>
+              <div class="bullet-line">
+                <iron-icon icon="settings:block"></iron-icon>
+                <div class="secondary">
+                  $i18n{thirdPartyCookiesPageBlockBulTwo}
+                </div>
+              </div>
+              <template is="dom-if" if="[[enableFirstPartySetsUI_]]">
+                <settings-toggle-button
+                    id="firstPartySetsToggle"
+                    pref="{{prefs.privacy_sandbox.first_party_sets_enabled}}"
+                    label="$i18n{cookiePageFpsLabel}"
+                    sub-label="$i18n{cookiePageFpsSubLabel}"
+                    disabled="[[firstPartySetsToggleDisabled_(
+                        prefs.profile.cookie_controls_mode.value)]]">
+                </settings-toggle-button>
+              </template>
+            </div>
+          </settings-collapse-radio-button>
+        </settings-radio-group>
+      </div>
+    </template>
+    <template is="dom-if" if="[[!isPrivacySandboxSettings4_]]">
+      <div id="generalControls">
+        <h2>$i18n{cookiePageGeneralControls}</h2>
+        <settings-radio-group id="primarySettingGroup" no-set-pref
+            pref="{{prefs.generated.cookie_primary_setting}}"
+            selectable-elements="
+                cr-radio-button, settings-collapse-radio-button"
+            on-change="onCookiePrimarySettingChanged_">
+          <settings-collapse-radio-button id="allowAll"
+              pref="[[prefs.generated.cookie_primary_setting]]"
+              name="[[cookiePrimarySettingEnum_.ALLOW_ALL]]"
+              label="$i18n{cookiePageAllowAll}"
+              expand-aria-label="$i18n{cookiePageAllowAllExpandA11yLabel}">
+            <div slot="collapse">
+              <div class="bullet-line">
+                <iron-icon icon="settings:cookie"></iron-icon>
+                <div class="secondary">$i18n{cookiePageAllowAllBulOne}</div>
+              </div>
+              <div class="bullet-line">
+                <iron-icon icon="settings:cookie"></iron-icon>
+                <div class="secondary">$i18n{cookiePageAllowAllBulTwo}</div>
+              </div>
+            </div>
+          </settings-collapse-radio-button>
+          <settings-collapse-radio-button id="blockThirdPartyIncognito"
+              pref="[[prefs.generated.cookie_primary_setting]]"
+              name="[[cookiePrimarySettingEnum_.BLOCK_THIRD_PARTY_INCOGNITO]]"
+              label="$i18n{cookiePageBlockThirdIncognito}"
+              expand-aria-label=
+                  "$i18n{cookiePageBlockThirdIncognitoExpandA11yLabel}">
+            <div slot="collapse">
+              <div class="bullet-line">
+                <iron-icon icon="settings:cookie"></iron-icon>
+                <div class="secondary">
+                      $i18n{cookiePageBlockThirdIncognitoBulOne}
+                </div>
+              </div>
+              <div class="bullet-line"
+                  id="cookiesPageBlockThirdPartyIncognitoBulTwo">
+                <iron-icon icon="settings:block"></iron-icon>
+                <div class="secondary">
+                  [[getCookiesPageBlockThirdPartyIncognitoBulTwoLabel_()]]
+                </div>
+              </div>
+            </div>
+          </settings-collapse-radio-button>
+          <settings-collapse-radio-button id="blockThirdParty"
+              pref="[[prefs.generated.cookie_primary_setting]]"
+              name="[[cookiePrimarySettingEnum_.BLOCK_THIRD_PARTY]]"
+              label="$i18n{cookiePageBlockThird}"
+              expand-aria-label="$i18n{cookiePageBlockThirdExpandA11yLabel}">
+            <div slot="collapse">
+              <div class="bullet-line">
+                <iron-icon icon="settings:cookie"></iron-icon>
+                <div class="secondary">$i18n{cookiePageBlockThirdBulOne}</div>
+              </div>
+              <div class="bullet-line">
+                <iron-icon icon="settings:block"></iron-icon>
+                <div class="secondary">$i18n{cookiePageBlockThirdBulTwo}</div>
+              </div>
+              <template is="dom-if" if="[[enableFirstPartySetsUI_]]">
+                <settings-toggle-button
+                    id="firstPartySetsToggle"
+                    pref="{{prefs.privacy_sandbox.first_party_sets_enabled}}"
+                    label="$i18n{cookiePageFpsLabel}"
+                    sub-label="$i18n{cookiePageFpsSubLabel}"
+                    disabled="[[firstPartySetsToggleDisabled_(
+                        prefs.generated.cookie_primary_setting.value)]]">
+                </settings-toggle-button>
+              </template>
+            </div>
+          </settings-collapse-radio-button>
+          <settings-collapse-radio-button id="blockAll"
+              pref="[[blockAllPref_]]"
+              name="[[cookiePrimarySettingEnum_.BLOCK_ALL]]"
+              label="$i18n{cookiePageBlockAll}"
+              expand-aria-label="$i18n{cookiePageBlockAllExpandA11yLabel}">
+            <div slot="collapse">
+              <div class="bullet-line">
+                <iron-icon icon="settings:block"></iron-icon>
+                <div class="secondary">$i18n{cookiePageBlockAllBulOne}</div>
+              </div>
+              <div class="bullet-line">
+                <iron-icon icon="settings:block"></iron-icon>
+                <div class="secondary">$i18n{cookiePageBlockAllBulTwo}</div>
+              </div>
+              <div class="bullet-line one-line">
+                <iron-icon icon="settings:block"></iron-icon>
+                <div class="secondary">$i18n{cookiePageBlockAllBulThree}</div>
+              </div>
+            </div>
+          </settings-collapse-radio-button>
+        </settings-radio-group>
+      </div>
+      <settings-toggle-button id="clearOnExit" class="hr"
+          pref="{{prefs.generated.cookie_session_only}}"
+          label="$i18n{cookiePageClearOnExit}"
+  <if expr="not chromeos_ash">
+          sub-label="[[getClearOnExitSubLabel_()]]"
+  </if>
+          on-settings-boolean-control-change="onClearOnExitChange_">
+      </settings-toggle-button>
+    </template>
+    <settings-do-not-track-toggle id="doNotTrack"
+        prefs="{{prefs}}">
+    </settings-do-not-track-toggle>
+    <template is="dom-if" if="[[!showPreloadingSubPage_]]">
+      <settings-toggle-button id="preloadingToggle"
+          class="hr"
+          hidden="[[!pageVisibility.networkPrediction]]"
+          label="$i18n{networkPredictionEnabled}"
+          sub-label="$i18n{networkPredictionEnabledDescCookiesPage}"
+          pref="{{prefs.net.network_prediction_options}}"
+          numeric-unchecked-value="[[networkPredictionUncheckedValue_]]"
+          on-settings-boolean-control-change="onNetworkPredictionChange_">
+      </settings-toggle-button>
+    </template>
+    <template is="dom-if" if="[[showPreloadingSubPage_]]">
+      <cr-link-row id="preloadingLinkRow"
+          class="hr"
+          hidden="[[!pageVisibility.networkPrediction]]"
+          on-click="onPreloadingClick_"
+          label="$i18n{preloadingPageTitle}"
+          sub-label="[[getNetworkPredictionsOptionsLabel_(
+              prefs.net.network_prediction_options.value)]]"
+          role-description="$i18n{networkPredictionEnabledDescCookiesPage}">
+      </cr-link-row>
+    </template>
+    <cr-link-row id="site-data-trigger" class="hr"
+        on-click="onSiteDataClick_" label="$i18n{cookiePageAllSitesLink}"
+        role-description="$i18n{subpageArrowRoleDescription}">
+    </cr-link-row>
+    <template is="dom-if" if="[[isPrivacySandboxSettings4_]]">
+      <div id="exceptionHeader">
+        <h2>$i18n{thirdPartyCookiesPageCustomizedBehaviorHeading}</h2>
+        <div id="exceptionHeaderSubLabel" class="secondary">
+          $i18n{thirdPartyCookiesPageCustomizedBehaviorDescription}
+        </div>
+      </div>
+      <site-list id="allowExceptionsList"
+          category="[[cookiesContentSettingType_]]"
+          category-subtype="[[contentSetting_.ALLOW]]"
+          category-header="
+              $i18n{thirdPartyCookiesPageAllowExceptionsSubHeading}"
+          read-only-list="[[exceptionListsReadOnly_]]"
+          search-filter="[[searchTerm]]"
+          cookies-exception-type="third-party">
+      </site-list>
+    </template>
+    <template is="dom-if" if="[[!isPrivacySandboxSettings4_]]">
+      <div id="exceptionHeader">
+        <h2>$i18n{siteSettingsCustomizedBehaviors}</h2>
+      </div>
+      <site-list id="allowExceptionsList"
+          category="[[cookiesContentSettingType_]]"
+          category-subtype="[[contentSetting_.ALLOW]]"
+          category-header="$i18n{cookiePageAllowExceptions}"
+          read-only-list="[[exceptionListsReadOnly_]]"
+          search-filter="[[searchTerm]]"
+          cookies-exception-type="combined">
+      </site-list>
+      </site-list>
+      <site-list id="sessionOnlyExceptionsList"
+          category="[[cookiesContentSettingType_]]"
+          category-subtype="[[contentSetting_.SESSION_ONLY]]"
+          category-header="$i18n{cookiePageSessionOnlyExceptions}"
+          read-only-list="[[exceptionListsReadOnly_]]"
+          search-filter="[[searchTerm]]"
+          cookies-exception-type="combined">
+      </site-list>
+      <site-list id="blockExceptionsList"
+          category="[[cookiesContentSettingType_]]"
+          category-subtype="[[contentSetting_.BLOCK]]"
+          category-header="$i18n{cookiePageBlockExceptions}"
+          read-only-list="[[exceptionListsReadOnly_]]"
+          search-filter="[[searchTerm]]"
+          cookies-exception-type="combined">
+      </site-list>
+    </template>
+    <cr-toast id="toast">
+      <div id="toastText">$i18n{privacySandboxCookiesDialog}</div>
+      <cr-button on-click="onPrivacySandboxClick_">
+        $i18n{privacySandboxCookiesDialogMore}
+      </cr-button>
+      <a id="privacySandboxLink" href="privacySandbox"
+          target="_blank" tabindex="-1" aria-disabled="true"
+          role="none"></a>
+    </cr-toast>
