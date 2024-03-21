@@ -3,15 +3,19 @@ description:
   "Filtered subtree at extensions/buildflags."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "https://cobalt.googlesource.com/extensions/buildflags_filtered_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "80.0.3987.162"  # from https://chromereleases.googleblog.com/2020/03/stable-channel-update-for-desktop_31.html
   }
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "f12b46f00f17488ad16cb242bf4f248bdde9618b"
   }
-  version: "80.0.3987.162"
+  identifier {
+    type: "UpstreamSubdir"
+    value: "extensions/buildflags"
+  }
   last_upgrade_date {
     year: 2018
     month: 3
