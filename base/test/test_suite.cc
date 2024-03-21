@@ -299,6 +299,9 @@ void InitializeLogging() {
 #if BUILDFLAG(IS_ANDROID)
   // To view log output with IDs and timestamps use "adb logcat -v threadtime".
   logging::SetLogItems(false, false, false, false);
+#elif defined(STARBOARD)
+  // Starboard applications are single process
+  logging::SetLogItems(false, true, false, false);
 #else
   // We want process and thread IDs because we may have multiple processes.
   logging::SetLogItems(true, true, false, false);

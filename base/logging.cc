@@ -695,6 +695,12 @@ bool ShouldCreateLogMessage(int severity) {
 // set, or only LOG_TO_FILE is set, since that is useful for local development
 // and debugging.
 bool ShouldLogToStderr(int severity) {
+#if defined(STARBOARD)
+  if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
+    // Don't SbLog to stderr if already logging to system debug log.
+    return false;
+  }
+#endif
   if (g_logging_destination & LOG_TO_STDERR)
     return true;
 
@@ -1092,7 +1098,13 @@ void LogMessage::Init(const char* file, int line) {
     if (g_log_process_id)
       stream_ << base::GetUniqueIdForProcess() << ':';
     if (g_log_thread_id)
+#if defined(STARBOARD)
+      // Logging the thread name is added for Starboard logs.
+      stream_ << base::PlatformThread::GetName() << '/'
+              << base::PlatformThread::CurrentId() << ":";
+#else
       stream_ << base::PlatformThread::CurrentId() << ':';
+#endif
     if (g_log_timestamp) {
 #if defined(STARBOARD)
     EzTimeValue time_value;
