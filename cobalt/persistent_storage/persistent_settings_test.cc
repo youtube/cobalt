@@ -318,7 +318,7 @@ TEST_F(PersistentSettingTest, GetSetList) {
   base::Value list(base::Value::Type::LIST);
   list.GetList().Append("hello");
   persistent_settings->SetPersistentSetting(
-      "key", base::Value::ToUniquePtrValue(std::move(list)), std::move(closure),
+      "key", base::Value::ToUniquePtrValue(list.Clone()), std::move(closure),
       true);
   test_done_.Wait();
   test_done_.Reset();
@@ -339,7 +339,7 @@ TEST_F(PersistentSettingTest, GetSetList) {
 
   list.GetList().Append("there");
   persistent_settings->SetPersistentSetting(
-      "key", base::Value::ToUniquePtrValue(std::move(list)), std::move(closure),
+      "key", base::Value::ToUniquePtrValue(list.Clone()), std::move(closure),
       true);
   test_done_.Wait();
   test_done_.Reset();
@@ -362,7 +362,7 @@ TEST_F(PersistentSettingTest, GetSetList) {
 
   list.GetList().Append(42);
   persistent_settings->SetPersistentSetting(
-      "key", base::Value::ToUniquePtrValue(std::move(list)), std::move(closure),
+      "key", base::Value::ToUniquePtrValue(list.Clone()), std::move(closure),
       true);
   test_done_.Wait();
   test_done_.Reset();
@@ -389,7 +389,7 @@ TEST_F(PersistentSettingTest, GetSetDictionary) {
   base::Value dict(base::Value::Type::DICT);
   dict.GetDict().Set("key_string", "hello");
   persistent_settings->SetPersistentSetting(
-      "key", base::Value::ToUniquePtrValue(std::move(dict)), std::move(closure),
+      "key", base::Value::ToUniquePtrValue(dict.Clone()), std::move(closure),
       true);
   test_done_.Wait();
   test_done_.Reset();
@@ -411,7 +411,7 @@ TEST_F(PersistentSettingTest, GetSetDictionary) {
 
   dict.GetDict().Set("key_int", 42);
   persistent_settings->SetPersistentSetting(
-      "key", base::Value::ToUniquePtrValue(std::move(dict)), std::move(closure),
+      "key", base::Value::ToUniquePtrValue(dict.Clone()), std::move(closure),
       true);
   test_done_.Wait();
   test_done_.Reset();
@@ -444,7 +444,7 @@ TEST_F(PersistentSettingTest, URLAsKey) {
   base::Value dict(base::Value::Type::DICT);
   dict.GetDict().Set("http://127.0.0.1:45019/", "Dictionary URL Key Works!");
   persistent_settings->SetPersistentSetting(
-      "http://127.0.0.1:45019/", base::Value::ToUniquePtrValue(std::move(dict)),
+      "http://127.0.0.1:45019/", base::Value::ToUniquePtrValue(dict.Clone()),
       std::move(closure), true);
   test_done_.Wait();
   test_done_.Reset();
