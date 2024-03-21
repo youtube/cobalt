@@ -27,6 +27,7 @@
 namespace cobalt {
 namespace media_session {
 
+using starboard::ScopedLock;
 using MediaImageSequence = ::cobalt::script::Sequence<MediaImage>;
 
 namespace {
@@ -205,7 +206,14 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
   }
 
   platform_playback_state_ = ConvertPlaybackState(state);
-  if (session_state_.actual_playback_state() != ComputeActualPlaybackState()) {
+
+  MediaSessionPlaybackState actual_playback_state;
+  {
+    ScopedLock scoped_lock(session_state_mutex_);
+    actual_playback_state = session_state_.actual_playback_state();
+  }
+
+  if (actual_playback_state != ComputeActualPlaybackState()) {
     UpdateMediaSessionState();
   }
 
@@ -271,6 +279,8 @@ void MediaSessionClient::UpdateMediaSessionState() {
     metadata->set_album(session_metadata->album());
     metadata->set_artwork(session_metadata->artwork());
   }
+
+  ScopedLock scoped_lock(session_state_mutex_);
 
   session_state_ = MediaSessionState(
       metadata, media_session_->last_position_updated_time_,
