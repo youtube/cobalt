@@ -27,6 +27,10 @@
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/eztime/eztime.h"
+#endif
+
 #if defined(_AIX)
 extern "C" {
 extern long altzone;
@@ -118,7 +122,20 @@ inline std::tm* gm_time(const std::time_t* timep, std::tm* result) {
 }
 
 inline std::tm* local_time(const std::time_t* timep, std::tm* result) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(STARBOARD)
+  const EzTimeT* eztime_timep = static_cast<const EzTimeT*>(timep);
+  EzTimeExploded eztime_result;
+  if (!EzTimeTExplode(eztime_timep, EzTimeZone::kEzTimeZoneLocal,
+                      &eztime_result)) {
+    return nullptr;
+  }
+  std::tm result_local = {
+      eztime_result.tm_sec,  eztime_result.tm_min,  eztime_result.tm_hour,
+      eztime_result.tm_mday, eztime_result.tm_mon,  eztime_result.tm_year,
+      eztime_result.tm_wday, eztime_result.tm_yday, eztime_result.tm_isdst};
+  result = &result_local;
+  return result;
+#elif defined(_WIN32) || defined(_WIN64)
   return localtime_s(result, timep) ? nullptr : result;
 #else
   return localtime_r(timep, result);
