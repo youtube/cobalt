@@ -462,7 +462,6 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
       int opt = 1;
       ioctlsocket(socket_handle, FIONBIO, reinterpret_cast<u_long*>(&opt));
     }
-  } else if (cmd == F_GETFL) {
   }
   return 0;
 }

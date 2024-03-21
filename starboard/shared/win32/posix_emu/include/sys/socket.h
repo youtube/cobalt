@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
 
 #include <BaseTsd.h>
+#include <sys/types.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
