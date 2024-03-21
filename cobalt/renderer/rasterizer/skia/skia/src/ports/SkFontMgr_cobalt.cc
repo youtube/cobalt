@@ -303,6 +303,10 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onLegacyMakeTypeface(
 }
 
 void SkFontMgr_Cobalt::LoadLocaleDefault() {
+  // Clear default families that may have been left from a previous older
+  // locale.
+  default_families_.clear();
+
   std::string script =
       icu::Locale::createCanonical(base::GetSystemLanguageScript().c_str())
           .getScript();
