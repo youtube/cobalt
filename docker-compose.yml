@@ -32,6 +32,7 @@ x-build-common-definitions: &build-common-definitions
   <<:
     - *common-definitions
     - *build-volumes
+  platform: linux/amd64
   depends_on:
     - build-base
 
@@ -92,6 +93,7 @@ services:
       context: ./docker/linux
       dockerfile: base/Dockerfile
     image: cobalt-base
+    platform: linux/amd64
     scale: 0
 
   base-bionic:
@@ -102,6 +104,7 @@ services:
       context: ./docker/linux
       dockerfile: base/Dockerfile
     image: base-bionic
+    platform: linux/amd64
     scale: 0
 
   # Define common build container for Linux
@@ -116,6 +119,7 @@ services:
     image: cobalt-build-base
     depends_on:
       - base
+    platform: linux/amd64
     scale: 0
 
   build-base-bionic:
@@ -129,6 +133,7 @@ services:
     image: build-base-bionic
     depends_on:
       - base-bionic
+    platform: linux/amd64
     scale: 0
 
   build-linux-stub:
