@@ -186,14 +186,12 @@ if (!use_cobalt_customizations) {
 
   if (is_starboard) {
     sources -= [
-      "src/crypto/mem.c",
       "src/crypto/rand_extra/deterministic.c",
       "src/crypto/rand_extra/fuchsia.c",
       "src/crypto/rand_extra/windows.c",
     ]
     sources += [
       "src/crypto/cpu-starboard.c",
-      "src/crypto/mem_starboard.c",
       "src/crypto/rand_extra/starboard.c",
       "src/crypto/refcount_starboard.c",
       "src/crypto/thread_starboard.cc",

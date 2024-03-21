@@ -3,16 +3,19 @@ description:
   "Subtree at third_party/khronos."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "/third_party/khronos_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "66.0.3359.203"  # from https://chromereleases.googleblog.com/2018/05/stable-channel-update-for-chrome-os_31.html
   }
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/khronos"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "a5c45940a64a6a427a78537e1e3bb4b7d83b7180"
   }
-  version: "7425fd090088b0408ec4176d3dfc5568a480cb10"
-  # corresponds to https://chromium.googlesource.com/chromium/src/+/66.0.3359.203/third_party/khronos
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/khronos"
+  }
   last_upgrade_date {
     year: 2017
     month: 12

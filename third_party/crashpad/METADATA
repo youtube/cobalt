@@ -5,15 +5,19 @@ description:
   "little disk space and is platform agnostic."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src"
-    # Chromium in turn references https://chromium.googlesource.com/crashpad/crashpad:
-    # https://chromium.googlesource.com/chromium/src/+/84.0.4147.144/third_party/crashpad/README.chromium#14
+  identifier {
+    type: "ChromiumVersion"
+    value: "84.0.4147.135"  # from https://chromereleases.googleblog.com/2020/08/stable-channel-update-for-desktop_18.html
   }
-  version: "84.0.4147.144"
-  # Chromium references Crashpad commit c7d1d2a1dd7cf2442cbb8aa8da7348fa01d54182:
-  # https://chromium.googlesource.com/chromium/src/+/84.0.4147.144/third_party/crashpad/README.chromium#5
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "e04e467cb3a7d291988eb267ca11cc909adf6f52"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/crashpad/crashpad"
+  }
   last_upgrade_date {
     year: 2023
     month: 8

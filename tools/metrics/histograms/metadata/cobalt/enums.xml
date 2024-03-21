@@ -64,7 +64,9 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="21" label="PIPELINE_ERROR_EXTERNAL_RENDERER_FAILED"/>
   <int value="22" label="DEMUXER_ERROR_DETECTED_HLS"/>
   <int value="23" label="PIPELINE_ERROR_HARDWARE_CONTEXT_RESET"/>
-  <int value="24" label="PLAYBACK_CAPABILITY_CHANGED"/>
+  <!-- Deprecated. Capability change errors are reported with
+       PIPELINE_ERROR_DECODE  -->
+  <int value="24" label="PLAYBACK_CAPABILITY_CHANGED (deprecated)"/>
 </enum>
 
 </enums>
