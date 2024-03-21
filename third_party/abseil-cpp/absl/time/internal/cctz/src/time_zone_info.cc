@@ -761,6 +761,12 @@ class FuchsiaZoneInfoSource : public FileZoneInfoSource {
 
 std::unique_ptr<ZoneInfoSource> FuchsiaZoneInfoSource::Open(
     const std::string& name) {
+#if defined(STARBOARD)
+  // Don't compile this (unneeded) implementation on Starboard as it uses
+  // fstream.
+  SB_NOTIMPLEMENTED();
+  return nullptr;
+#else
   // Use of the "file:" prefix is intended for testing purposes only.
   const std::size_t pos = (name.compare(0, 5, "file:") == 0) ? 5 : 0;
 
@@ -785,21 +791,22 @@ std::unique_ptr<ZoneInfoSource> FuchsiaZoneInfoSource::Open(
     if (fp == nullptr) continue;
 
     std::string version;
-    // if (!prefix.empty()) {
-    //   // Fuchsia builds place the version in "<prefix>revision.txt".
-    //   std::ifstream version_stream(prefix + "revision.txt");
-    //   if (version_stream.is_open()) {
-    //     // revision.txt should contain no newlines, but to be
-    //     // defensive we read just the first line.
-    //     std::getline(version_stream, version);
-    //   }
-    // }
+    if (!prefix.empty()) {
+      // Fuchsia builds place the version in "<prefix>revision.txt".
+      std::ifstream version_stream(prefix + "revision.txt");
+      if (version_stream.is_open()) {
+        // revision.txt should contain no newlines, but to be
+        // defensive we read just the first line.
+        std::getline(version_stream, version);
+      }
+    }
 
     return std::unique_ptr<ZoneInfoSource>(
         new FuchsiaZoneInfoSource(std::move(fp), std::move(version)));
   }
 
   return nullptr;
+#endif
 }
 
 }  // namespace

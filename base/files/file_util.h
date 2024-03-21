@@ -251,6 +251,7 @@ BASE_EXPORT bool ReadFileToStringWithMaxSize(const FilePath& path,
                                              std::string* contents,
                                              size_t max_size);
 
+#if !defined(STARBOARD)
 // As ReadFileToString, but reading from an open stream after seeking to its
 // start (if supported by the stream). This can also be used to read the whole
 // file from a file descriptor by converting the file descriptor into a stream
@@ -262,6 +263,7 @@ BASE_EXPORT bool ReadStreamToString(FILE* stream, std::string* contents);
 BASE_EXPORT bool ReadStreamToStringWithMaxSize(FILE* stream,
                                                size_t max_size,
                                                std::string* contents);
+#endif
 
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
