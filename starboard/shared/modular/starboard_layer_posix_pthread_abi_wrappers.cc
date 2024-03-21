@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/modular/posix_pthread_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 
 #include <pthread.h>
 
@@ -62,7 +62,7 @@ typedef struct PosixCondAttrPrivate {
         (condition_attr)->cond_attr_buffer)             \
         ->cond_attr)
 
-int __wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex) {
+int __abi_wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex) {
   if (!mutex) {
     return EINVAL;
   }
@@ -75,8 +75,8 @@ int __wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex) {
   return pthread_mutex_destroy(PTHREAD_INTERNAL_MUTEX(mutex));
 }
 
-int __wrap_pthread_mutex_init(musl_pthread_mutex_t* mutex,
-                              const musl_pthread_mutexattr_t* mutex_attr) {
+int __abi_wrap_pthread_mutex_init(musl_pthread_mutex_t* mutex,
+                                  const musl_pthread_mutexattr_t* mutex_attr) {
   if (!mutex) {
     return EINVAL;
   }
@@ -91,7 +91,7 @@ int __wrap_pthread_mutex_init(musl_pthread_mutex_t* mutex,
   return pthread_mutex_init(PTHREAD_INTERNAL_MUTEX(mutex), tmp);
 }
 
-int __wrap_pthread_mutex_lock(musl_pthread_mutex_t* mutex) {
+int __abi_wrap_pthread_mutex_lock(musl_pthread_mutex_t* mutex) {
   if (!mutex) {
     return EINVAL;
   }
@@ -104,7 +104,7 @@ int __wrap_pthread_mutex_lock(musl_pthread_mutex_t* mutex) {
   return pthread_mutex_lock(PTHREAD_INTERNAL_MUTEX(mutex));
 }
 
-int __wrap_pthread_mutex_unlock(musl_pthread_mutex_t* mutex) {
+int __abi_wrap_pthread_mutex_unlock(musl_pthread_mutex_t* mutex) {
   if (!mutex) {
     return EINVAL;
   }
@@ -116,7 +116,7 @@ int __wrap_pthread_mutex_unlock(musl_pthread_mutex_t* mutex) {
   return pthread_mutex_unlock(PTHREAD_INTERNAL_MUTEX(mutex));
 }
 
-int __wrap_pthread_mutex_trylock(musl_pthread_mutex_t* mutex) {
+int __abi_wrap_pthread_mutex_trylock(musl_pthread_mutex_t* mutex) {
   if (!mutex) {
     return EINVAL;
   }
@@ -129,7 +129,7 @@ int __wrap_pthread_mutex_trylock(musl_pthread_mutex_t* mutex) {
   return pthread_mutex_trylock(PTHREAD_INTERNAL_MUTEX(mutex));
 }
 
-int __wrap_pthread_cond_broadcast(musl_pthread_cond_t* cond) {
+int __abi_wrap_pthread_cond_broadcast(musl_pthread_cond_t* cond) {
   if (!cond) {
     return EINVAL;
   }
@@ -144,7 +144,7 @@ int __wrap_pthread_cond_broadcast(musl_pthread_cond_t* cond) {
   return pthread_cond_broadcast(PTHREAD_INTERNAL_CONDITION(cond));
 }
 
-int __wrap_pthread_cond_destroy(musl_pthread_cond_t* cond) {
+int __abi_wrap_pthread_cond_destroy(musl_pthread_cond_t* cond) {
   if (!cond) {
     return EINVAL;
   }
@@ -157,8 +157,8 @@ int __wrap_pthread_cond_destroy(musl_pthread_cond_t* cond) {
   return pthread_cond_destroy(PTHREAD_INTERNAL_CONDITION(cond));
 }
 
-int __wrap_pthread_cond_init(musl_pthread_cond_t* cond,
-                             const musl_pthread_condattr_t* attr) {
+int __abi_wrap_pthread_cond_init(musl_pthread_cond_t* cond,
+                                 const musl_pthread_condattr_t* attr) {
   if (!cond) {
     return EINVAL;
   }
@@ -172,7 +172,7 @@ int __wrap_pthread_cond_init(musl_pthread_cond_t* cond,
   }
 }
 
-int __wrap_pthread_cond_signal(musl_pthread_cond_t* cond) {
+int __abi_wrap_pthread_cond_signal(musl_pthread_cond_t* cond) {
   if (!cond) {
     return EINVAL;
   }
@@ -188,9 +188,9 @@ int __wrap_pthread_cond_signal(musl_pthread_cond_t* cond) {
   return pthread_cond_signal(PTHREAD_INTERNAL_CONDITION(cond));
 }
 
-int __wrap_pthread_cond_timedwait(musl_pthread_cond_t* cond,
-                                  musl_pthread_mutex_t* mutex,
-                                  const struct musl_timespec* t) {
+int __abi_wrap_pthread_cond_timedwait(musl_pthread_cond_t* cond,
+                                      musl_pthread_mutex_t* mutex,
+                                      const struct musl_timespec* t) {
   if (!cond || !mutex || !t) {
     return EINVAL;
   }
@@ -212,8 +212,8 @@ int __wrap_pthread_cond_timedwait(musl_pthread_cond_t* cond,
   return ret;
 }
 
-int __wrap_pthread_cond_wait(musl_pthread_cond_t* cond,
-                             musl_pthread_mutex_t* mutex) {
+int __abi_wrap_pthread_cond_wait(musl_pthread_cond_t* cond,
+                                 musl_pthread_mutex_t* mutex) {
   if (!cond || !mutex) {
     return EINVAL;
   }
@@ -230,15 +230,15 @@ int __wrap_pthread_cond_wait(musl_pthread_cond_t* cond,
                            PTHREAD_INTERNAL_MUTEX(mutex));
 }
 
-int __wrap_pthread_condattr_destroy(musl_pthread_condattr_t* attr) {
+int __abi_wrap_pthread_condattr_destroy(musl_pthread_condattr_t* attr) {
   if (!attr) {
     return EINVAL;
   }
   return pthread_condattr_destroy(PTHREAD_INTERNAL_CONDITION_ATTR(attr));
 }
 
-int __wrap_pthread_condattr_getclock(const musl_pthread_condattr_t* attr,
-                                     clockid_t* clock_id) {
+int __abi_wrap_pthread_condattr_getclock(const musl_pthread_condattr_t* attr,
+                                         clockid_t* clock_id) {
   if (!attr) {
     return EINVAL;
   }
@@ -252,15 +252,15 @@ int __wrap_pthread_condattr_getclock(const musl_pthread_condattr_t* attr,
 #endif
 }
 
-int __wrap_pthread_condattr_init(musl_pthread_condattr_t* attr) {
+int __abi_wrap_pthread_condattr_init(musl_pthread_condattr_t* attr) {
   if (!attr) {
     return EINVAL;
   }
   return pthread_condattr_init(PTHREAD_INTERNAL_CONDITION_ATTR(attr));
 }
 
-int __wrap_pthread_condattr_setclock(musl_pthread_condattr_t* attr,
-                                     clockid_t clock_id) {
+int __abi_wrap_pthread_condattr_setclock(musl_pthread_condattr_t* attr,
+                                         clockid_t clock_id) {
   if (!attr) {
     return EINVAL;
   }

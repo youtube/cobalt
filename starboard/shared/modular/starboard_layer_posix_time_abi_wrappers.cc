@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/modular/posix_time_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 
 #include "starboard/log.h"
 
-int __wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
-                         struct musl_timespec* mts) {
+int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
+                             struct musl_timespec* mts) {
   if (!mts) {
     return -1;
   }
@@ -49,7 +49,7 @@ int __wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
   return retval;
 }
 
-int __wrap_gettimeofday(struct musl_timeval* mtv, void* tzp) {
+int __abi_wrap_gettimeofday(struct musl_timeval* mtv, void* tzp) {
   if (!mtv) {
     return -1;
   }
@@ -60,7 +60,7 @@ int __wrap_gettimeofday(struct musl_timeval* mtv, void* tzp) {
   return retval;
 }
 
-int64_t __wrap_time(int64_t* /* time_t* */ musl_tloc) {
+int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc) {
   time_t t = time(NULL);  // The type from platform toolchain (may be 32-bits).
   int64_t retval = static_cast<int64_t>(t);
   if (musl_tloc) {
@@ -69,8 +69,8 @@ int64_t __wrap_time(int64_t* /* time_t* */ musl_tloc) {
   return retval;
 }
 
-struct musl_tm* __wrap_gmtime_r(const int64_t* /* time_t* */ musl_timer,
-                                struct musl_tm* musl_result) {
+struct musl_tm* __abi_wrap_gmtime_r(const int64_t* /* time_t* */ musl_timer,
+                                    struct musl_tm* musl_result) {
   if (!musl_timer || !musl_result) {
     return NULL;
   }
