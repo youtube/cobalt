@@ -52,6 +52,7 @@ void RunAndReply(OnceCallback<bool()> action_callback,
 
 #endif  // !BUILDFLAG(IS_WIN)
 
+#if !defined(STARBOARD)
 bool ReadStreamToSpanWithMaxSize(
     FILE* stream,
     size_t max_size,
@@ -70,8 +71,7 @@ bool ReadStreamToSpanWithMaxSize(
   constexpr size_t kDefaultChunkSize = 1 << 16;
   size_t chunk_size = kDefaultChunkSize - 1;
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-#if defined(USE_HACKY_COBALT_CHANGES)
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   BY_HANDLE_FILE_INFORMATION file_info = {};
   if (::GetFileInformationByHandle(
           reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(stream))),
@@ -103,27 +103,27 @@ bool ReadStreamToSpanWithMaxSize(
   span<uint8_t> bytes_span = resize_span(chunk_size);
   DCHECK_EQ(bytes_span.size(), chunk_size);
 
-  // while ((bytes_read_this_pass = fread(bytes_span.data() + bytes_read_so_far, 1,
-  //                                      chunk_size, stream)) > 0) {
-  //   if ((max_size - bytes_read_so_far) < bytes_read_this_pass) {
-  //     // Read more than max_size bytes, bail out.
-  //     bytes_read_so_far = max_size;
-  //     read_status = false;
-  //     break;
-  //   }
-  //   // In case EOF was not reached, iterate again but revert to the default
-  //   // chunk size.
-  //   if (bytes_read_so_far == 0)
-  //     chunk_size = kDefaultChunkSize;
+  while ((bytes_read_this_pass = fread(bytes_span.data() + bytes_read_so_far, 1,
+                                       chunk_size, stream)) > 0) {
+    if ((max_size - bytes_read_so_far) < bytes_read_this_pass) {
+      // Read more than max_size bytes, bail out.
+      bytes_read_so_far = max_size;
+      read_status = false;
+      break;
+    }
+    // In case EOF was not reached, iterate again but revert to the default
+    // chunk size.
+    if (bytes_read_so_far == 0)
+      chunk_size = kDefaultChunkSize;
 
-  //   bytes_read_so_far += bytes_read_this_pass;
-  //   // Last fread syscall (after EOF) can be avoided via feof, which is just a
-  //   // flag check.
-  //   if (feof(stream))
-  //     break;
-  //   bytes_span = resize_span(bytes_read_so_far + chunk_size);
-  //   DCHECK_EQ(bytes_span.size(), bytes_read_so_far + chunk_size);
-  // }
+    bytes_read_so_far += bytes_read_this_pass;
+    // Last fread syscall (after EOF) can be avoided via feof, which is just a
+    // flag check.
+    if (feof(stream))
+      break;
+    bytes_span = resize_span(bytes_read_so_far + chunk_size);
+    DCHECK_EQ(bytes_span.size(), bytes_read_so_far + chunk_size);
+  }
   read_status = read_status && !ferror(stream);
 
   // Trim the container down to the number of bytes that were actually read.
@@ -132,6 +132,7 @@ bool ReadStreamToSpanWithMaxSize(
 
   return read_status;
 }
+#endif
 
 }  // namespace
 
@@ -320,6 +321,7 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 }
 #endif  // !defined(USE_HACKY_COBALT_CHANGES)
 
+#if !defined(STARBOARD)
 bool ReadStreamToString(FILE* stream, std::string* contents) {
   return ReadStreamToStringWithMaxSize(
       stream, std::numeric_limits<size_t>::max(), contents);
@@ -344,6 +346,7 @@ bool ReadStreamToStringWithMaxSize(FILE* stream,
   }
   return read_successs;
 }
+#endif
 
 absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
   if (path.ReferencesParent()) {
