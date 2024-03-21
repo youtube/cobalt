@@ -50,6 +50,29 @@ config("platform_configuration") {
     # Suppress import library warning caused by the win32/posix_emu
     "/ignore:4286",
   ]
+
+  if (use_hacky_cobalt_changes) {
+    # TODO: b/330363799 - These were added for the base/net update and should
+    # be removed.
+    cflags = [
+      "/wd4003",
+      "/wd4722",
+      "/wd4715",
+      "/wd4359",
+      "/wd4312",
+      "/wd4005",
+      "/wd4180",
+      "/wd4359",
+      "/wd4553",
+      "/wd4229",
+      "/wd4146",
+      "/wd4324",
+      "/wd4245",
+      "/wd4700",
+      "/wd4702",
+    ]
+    defines += [ "_ITERATOR_DEBUG_LEVEL=0" ]
+  }
 }
 
 config("no_pedantic_warnings") {
