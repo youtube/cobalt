@@ -123,17 +123,22 @@ inline std::tm* gm_time(const std::time_t* timep, std::tm* result) {
 
 inline std::tm* local_time(const std::time_t* timep, std::tm* result) {
 #if defined(STARBOARD)
-  const EzTimeT* eztime_timep = static_cast<const EzTimeT*>(timep);
+  const EzTimeT eztime_timep = static_cast<const EzTimeT>(*timep);
   EzTimeExploded eztime_result;
-  if (!EzTimeTExplode(eztime_timep, EzTimeZone::kEzTimeZoneLocal,
+  if (!EzTimeTExplode(&eztime_timep, EzTimeZone::kEzTimeZoneLocal,
                       &eztime_result)) {
     return nullptr;
   }
-  std::tm result_local = {
-      eztime_result.tm_sec,  eztime_result.tm_min,  eztime_result.tm_hour,
-      eztime_result.tm_mday, eztime_result.tm_mon,  eztime_result.tm_year,
-      eztime_result.tm_wday, eztime_result.tm_yday, eztime_result.tm_isdst};
-  result = &result_local;
+
+  result->tm_sec = eztime_result.tm_sec;
+  result->tm_min = eztime_result.tm_min;
+  result->tm_hour = eztime_result.tm_hour;
+  result->tm_mday = eztime_result.tm_mday;
+  result->tm_mon = eztime_result.tm_mon;
+  result->tm_year = eztime_result.tm_year;
+  result->tm_wday = eztime_result.tm_wday;
+  result->tm_yday = eztime_result.tm_yday;
+  result->tm_isdst = eztime_result.tm_isdst;
   return result;
 #elif defined(_WIN32) || defined(_WIN64)
   return localtime_s(result, timep) ? nullptr : result;
