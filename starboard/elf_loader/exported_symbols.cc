@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/accessibility.h"
@@ -425,16 +426,19 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeaddrinfo);
   REGISTER_SYMBOL(freeifaddrs);
+  REGISTER_SYMBOL(fstat);
   REGISTER_SYMBOL(getaddrinfo);
   REGISTER_SYMBOL(getifaddrs);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(lseek);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);

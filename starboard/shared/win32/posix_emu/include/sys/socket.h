@@ -25,6 +25,12 @@
 extern "C" {
 #endif
 
+int sb_lseek(int fd, off_t offset, int origin);
+#define lseek sb_lseek
+
+SSIZE_T sb_read(int fildes, void* buf, size_t nbyte);
+#define read sb_read
+
 int sb_socket(int domain, int type, int protocol);
 #define socket sb_socket
 
@@ -68,6 +74,9 @@ int sb_setsockopt(int socket,
                   const void* option_value,
                   int option_len);
 #define setsockopt sb_setsockopt
+
+int sb_fstat(int fd, struct stat* buffer);
+#define fstat sb_fstat
 
 #ifdef __cplusplus
 }
