@@ -67,6 +67,17 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="24" label="PLAYBACK_CAPABILITY_CHANGED"/>
 </enum>
 
+<enum name="CrashpadInstallationStatus">
+  <summary>
+   Possible status of Crashpad installation by the Loader App
+  </summary>
+  <int value="0" label="UNKNOWN"/>
+  <int value="1" label="SUCCEEDED"/>
+  <int value="2" label="FAILED_CRASHPAD_HANDLER_BINARY_NOT_FOUND"/>
+  <int value="3" label="FAILED_DATABASE_INITIALIZATION_FAILED"/>
+  <int value="4" label="FAILED_SIGNAL_HANDLER_INSTALLATION_FAILED"/>
+</enum>
+
 </enums>
 
 </histogram-configuration>
