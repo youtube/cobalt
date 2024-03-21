@@ -23,7 +23,9 @@
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/log.h"
 #include "starboard/shared/environment.h"
+#include "starboard/shared/modular/posix_stat_wrappers.h"
 
 namespace {
 
@@ -38,6 +40,59 @@ std::string GetModelName() {
   const char* file_path = "/proc/device-tree/model";
   // Size of the raw data
   size_t file_data_size;
+
+  SbLogRawFormatF("size sys get prop musl_stat %u \n",
+                  sizeof(struct musl_stat));
+
+  SbLogRawFormatF("offset st_dev %u \n", offsetof(struct musl_stat, st_dev));
+  SbLogRawFormatF("size st_dev %u \n", sizeof(((struct musl_stat*)0)->st_dev));
+
+  SbLogRawFormatF("offset st_ino %u \n", offsetof(struct musl_stat, st_ino));
+  SbLogRawFormatF("size st_ino %u \n", sizeof(((struct musl_stat*)0)->st_ino));
+
+  SbLogRawFormatF("offset st_nlink %u \n",
+                  offsetof(struct musl_stat, st_nlink));
+  SbLogRawFormatF("size st_nlink %u \n",
+                  sizeof(((struct musl_stat*)0)->st_nlink));
+
+  SbLogRawFormatF("offset mode %u \n", offsetof(struct musl_stat, st_mode));
+  SbLogRawFormatF("size mode %u \n", sizeof(((struct musl_stat*)0)->st_mode));
+
+  SbLogRawFormatF("offset st_uid %u \n", offsetof(struct musl_stat, st_uid));
+  SbLogRawFormatF("size st_uid %u \n", sizeof(((struct musl_stat*)0)->st_uid));
+
+  SbLogRawFormatF("offset st_gid %u \n", offsetof(struct musl_stat, st_gid));
+  SbLogRawFormatF("size st_gid %u \n", sizeof(((struct musl_stat*)0)->st_gid));
+
+  SbLogRawFormatF("offset st_rdev %u \n", offsetof(struct musl_stat, st_rdev));
+  SbLogRawFormatF("size st_rdev %u \n",
+                  sizeof(((struct musl_stat*)0)->st_rdev));
+
+  SbLogRawFormatF("offset st_size %u \n", offsetof(struct musl_stat, st_size));
+  SbLogRawFormatF("size st_size %u \n",
+                  sizeof(((struct musl_stat*)0)->st_size));
+
+  SbLogRawFormatF("offset st_blksize %u \n",
+                  offsetof(struct musl_stat, st_blksize));
+  SbLogRawFormatF("size st_blksize %u \n",
+                  sizeof(((struct musl_stat*)0)->st_blksize));
+
+  SbLogRawFormatF("offset st_blocks %u \n",
+                  offsetof(struct musl_stat, st_blocks));
+  SbLogRawFormatF("size st_blocks %u \n",
+                  sizeof(((struct musl_stat*)0)->st_blocks));
+
+  SbLogRawFormatF("offset st_atim %u \n", offsetof(struct musl_stat, st_atim));
+  SbLogRawFormatF("size st_atim %u \n",
+                  sizeof(((struct musl_stat*)0)->st_atim));
+
+  SbLogRawFormatF("offset st_mtim %u \n", offsetof(struct musl_stat, st_mtim));
+  SbLogRawFormatF("size st_mtim %u \n",
+                  sizeof(((struct musl_stat*)0)->st_mtim));
+
+  SbLogRawFormatF("offset st_ctim %u \n", offsetof(struct musl_stat, st_ctim));
+  SbLogRawFormatF("size st_ctim %u \n",
+                  sizeof(((struct musl_stat*)0)->st_ctim));
 
   file_data_size = 0;
   // Get the size of the file by reading it until the end. This is
