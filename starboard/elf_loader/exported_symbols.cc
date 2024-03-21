@@ -431,12 +431,14 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getifaddrs);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(lseek);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
