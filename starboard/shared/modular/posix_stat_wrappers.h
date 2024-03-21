@@ -35,9 +35,10 @@ extern "C" {
 #endif
 
 struct musl_stat {
+#if SB_IS(ARCH_ARM64) || SB_IS(ARCH_X64)
   int64_t /*dev_t*/ st_dev;
   int64_t /*ino_t*/ st_ino;
-  __MUSL_LONG_TYPE /*nlink_t*/ st_nlink;
+  int64_t /*nlink_t*/ st_nlink;
 
   unsigned /*mode_t*/ st_mode;
   unsigned /*uid_t*/ st_uid;
@@ -45,13 +46,33 @@ struct musl_stat {
   unsigned /*unsigned int*/ __pad0;
   int64_t /*dev_t*/ st_rdev;
   int64_t /*off_t*/ st_size;
-  __MUSL_LONG_TYPE /*blksize_t*/ st_blksize;
+  int64_t /*blksize_t*/ st_blksize;
   int64_t /*blkcnt_t*/ st_blocks;
 
   struct musl_timespec /*struct timespec*/ st_atim;
   struct musl_timespec /*struct timespec*/ st_mtim;
   struct musl_timespec /*struct timespec*/ st_ctim;
-  __MUSL_LONG_TYPE unused[3];
+  int64_t unused[3];
+#else
+  uint64_t /*dev_t*/ st_dev;
+  uint32_t /*int*/ __st_dev_padding;
+  int32_t /*long*/ __st_ino_truncated;
+
+  uint32_t /*mode_t*/ st_mode;
+  uint32_t /*nlink_t*/ st_nlink;
+  uint32_t /*uid_t*/ st_uid;
+  uint32_t /*gid_t*/ st_gid;
+  uint64_t /*dev_t*/ st_rdev;
+  uint32_t /*int*/ __st_rdev_padding;
+  int64_t /*off_t*/ st_size;
+  int32_t /*blksize_t*/ st_blksize;
+  int64_t /*blkcnt_t*/ st_blocks;
+  int32_t __unused[6];
+  uint64_t /*ino_t*/ st_ino;
+  struct musl_timespec /*struct timespec*/ st_atim;
+  struct musl_timespec /*struct timespec*/ st_mtim;
+  struct musl_timespec /*struct timespec*/ st_ctim;
+#endif
 };
 
 SB_EXPORT int __wrap_stat(const char* path, struct musl_stat* info);

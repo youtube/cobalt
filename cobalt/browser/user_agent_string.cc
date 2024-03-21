@@ -14,6 +14,10 @@
 
 #include "cobalt/browser/user_agent_string.h"
 
+#include <string.h>
+#include <sys/stat.h>
+
+#include <cstddef>
 #include <vector>
 
 #include "base/command_line.h"
@@ -21,6 +25,7 @@
 #include "cobalt/browser/switches.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/log.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -40,6 +45,48 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
 // variables and state.  If global state should be referenced, it should be done
 // so during the creation of |platform_info| instead.
 std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
+  SbLogRawFormatF("size cobalt stat %u \n", sizeof(struct stat));
+
+  SbLogRawFormatF("offset st_dev %u \n", offsetof(struct stat, st_dev));
+  SbLogRawFormatF("size st_dev %u \n", sizeof(((struct stat*)0)->st_dev));
+
+  SbLogRawFormatF("offset st_ino %u \n", offsetof(struct stat, st_ino));
+  SbLogRawFormatF("size st_ino %u \n", sizeof(((struct stat*)0)->st_ino));
+
+  SbLogRawFormatF("offset st_nlink %u \n", offsetof(struct stat, st_nlink));
+  SbLogRawFormatF("size st_nlink %u \n", sizeof(((struct stat*)0)->st_nlink));
+
+  SbLogRawFormatF("offset mode %u \n", offsetof(struct stat, st_mode));
+  SbLogRawFormatF("size mode %u \n", sizeof(((struct stat*)0)->st_mode));
+
+  SbLogRawFormatF("offset st_uid %u \n", offsetof(struct stat, st_uid));
+  SbLogRawFormatF("size st_uid %u \n", sizeof(((struct stat*)0)->st_uid));
+
+  SbLogRawFormatF("offset st_gid %u \n", offsetof(struct stat, st_gid));
+  SbLogRawFormatF("size st_gid %u \n", sizeof(((struct stat*)0)->st_gid));
+
+  SbLogRawFormatF("offset st_rdev %u \n", offsetof(struct stat, st_rdev));
+  SbLogRawFormatF("size st_rdev %u \n", sizeof(((struct stat*)0)->st_rdev));
+
+  SbLogRawFormatF("offset st_size %u \n", offsetof(struct stat, st_size));
+  SbLogRawFormatF("size st_size %u \n", sizeof(((struct stat*)0)->st_size));
+
+  SbLogRawFormatF("offset st_blksize %u \n", offsetof(struct stat, st_blksize));
+  SbLogRawFormatF("size st_blksize %u \n",
+                  sizeof(((struct stat*)0)->st_blksize));
+
+  SbLogRawFormatF("offset st_blocks %u \n", offsetof(struct stat, st_blocks));
+  SbLogRawFormatF("size st_blocks %u \n", sizeof(((struct stat*)0)->st_blocks));
+
+  SbLogRawFormatF("offset st_atim %u \n", offsetof(struct stat, st_atim));
+  SbLogRawFormatF("size st_atim %u \n", sizeof(((struct stat*)0)->st_atim));
+
+  SbLogRawFormatF("offset st_mtim %u \n", offsetof(struct stat, st_mtim));
+  SbLogRawFormatF("size st_mtim %u \n", sizeof(((struct stat*)0)->st_mtim));
+
+  SbLogRawFormatF("offset st_ctim %u \n", offsetof(struct stat, st_ctim));
+  SbLogRawFormatF("size st_ctim %u \n", sizeof(((struct stat*)0)->st_ctim));
+
   // Cobalt's user agent contains the following sections:
   //   Mozilla/5.0 (ChromiumStylePlatform)
   //   Cobalt/Version.BuildNumber-BuildConfiguration (unlike Gecko)
