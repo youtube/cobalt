@@ -137,6 +137,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'memory_store_test',
         'metrics_test',
         'network_test',
+        'net_unittests',
         'overlay_info_test',
         'persistent_settings_test',
         'png_utils_test',
