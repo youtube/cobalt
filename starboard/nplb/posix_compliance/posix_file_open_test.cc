@@ -43,8 +43,10 @@ void BasicTest(bool existing,
               << ", original_line=" << original_line
 
   if (!existing) {
-    EXPECT_FALSE(SbFileExists(filename.c_str())) << SB_FILE_OPEN_TEST_CONTEXT;
-    if (SbFileExists(filename.c_str())) {
+    struct stat file_info;
+    bool file_exists = stat(filename.c_str(), &file_info) == 0;
+    EXPECT_FALSE(file_exists) << SB_FILE_OPEN_TEST_CONTEXT;
+    if (file_exists) {
       return;
     }
   }

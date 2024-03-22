@@ -179,7 +179,6 @@ config("modular") {
     ldflags += [
       "-Wl,--wrap=clock_gettime",
       "-Wl,--wrap=gettimeofday",
-      "-Wl,--wrap=time",
       "-Wl,--wrap=gmtime_r",
       "-Wl,--wrap=mmap",
       "-Wl,--wrap=pthread_mutex_destroy",
@@ -197,6 +196,8 @@ config("modular") {
       "-Wl,--wrap=pthread_condattr_getclock",
       "-Wl,--wrap=pthread_condattr_init",
       "-Wl,--wrap=pthread_condattr_setclock",
+      "-Wl,--wrap=stat",
+      "-Wl,--wrap=time",
     ]
   }
 }

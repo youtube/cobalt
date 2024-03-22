@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
-#include "starboard/file.h"
+#ifndef STARBOARD_ANDROID_SHARED_POSIX_EMU_SYS_STAT_H_
+#define STARBOARD_ANDROID_SHARED_POSIX_EMU_SYS_STAT_H_
 
-bool SbFileExists(const char* path) {
-  return SbFileCanOpen(path, kSbFileRead);
-}
+#include <../../usr/include/sys/stat.h>  // The Android version of this same file
+
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+int sb_stat(const char* path, struct stat* info);
+
+#undef stat
+#define stat sb_stat
+
+#ifdef __cplusplus
+}
+#endif  // __cplusplus
+
+#endif  // STARBOARD_ANDROID_SHARED_POSIX_EMU_SYS_STAT_H_

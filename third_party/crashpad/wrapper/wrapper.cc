@@ -14,6 +14,8 @@
 
 #include "third_party/crashpad/wrapper/wrapper.h"
 
+#include <sys/stat.h>
+
 #include <map>
 #include <vector>
 
@@ -193,9 +195,10 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
-  if (!SbFileExists(handler_path.value().c_str())) {
+  struct stat file_info;
+  if (stat(handler_path.value().c_str(), &file_info) != 0) {
     LOG(ERROR) << "crashpad_handler not at expected location of "
-               << handler_path.value();
+                 << handler_path.value();
     return;
   }
 

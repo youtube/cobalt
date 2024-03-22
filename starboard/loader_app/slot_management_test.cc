@@ -14,6 +14,8 @@
 
 #include "starboard/loader_app/slot_management.h"
 
+#include <sys/stat.h>
+
 #include <string>
 #include <vector>
 
@@ -92,6 +94,11 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
     return result;
   }
 
+  bool FileExists(const char* path) {
+    struct stat info;
+    return stat(path, &info) == 0;
+  }
+
   void CreateBadFile(int index, const std::string& app_key) {
     std::vector<char> installation_path(kSbFileMaxPath);
     ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(index, installation_path.data(),
@@ -122,7 +129,7 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
         starboard::loader_app::GetGoodAppKeyFilePath(installation_path.data(),
                                                      app_key);
     ASSERT_TRUE(!good_app_key_file_path.empty());
-    ASSERT_EQ(exists, SbFileExists(good_app_key_file_path.c_str()));
+    ASSERT_EQ(exists, FileExists(good_app_key_file_path.c_str()));
   }
 
   void VerifyBadFile(int index, const std::string& app_key, bool exists) {
@@ -133,7 +140,7 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
                                                     app_key);
     ASSERT_TRUE(!bad_app_key_file_path.empty());
     SB_LOG(INFO) << "bad_app_key_file_path=" << bad_app_key_file_path;
-    ASSERT_EQ(exists, SbFileExists(bad_app_key_file_path.c_str()));
+    ASSERT_EQ(exists, FileExists(bad_app_key_file_path.c_str()));
   }
 
   void CreateDrainFile(int index, const std::string& app_key) {
@@ -176,7 +183,7 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
     for (const std::string& dir : dirs) {
       path += kSbFileSepString;
       path += dir;
-      if (!SbFileExists(path.c_str())) {
+      if (!FileExists(path.c_str())) {
         EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
 
         if (out_top_created_dir.empty()) {

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include <queue>
 #include <set>
 #include <string>
@@ -29,13 +31,18 @@ namespace {
 
 typedef std::set<std::string> StringSet;
 
+bool FileExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0;
+}
+
 TEST(SbDirectoryGetNextTest, SunnyDay) {
   const int kNumFiles = 65;
   ScopedRandomFile files[kNumFiles];
 
   std::string directory_name = files[0].filename();
   directory_name.resize(directory_name.find_last_of(kSbFileSepChar));
-  EXPECT_TRUE(SbFileExists(directory_name.c_str()))
+  EXPECT_TRUE(FileExists(directory_name.c_str()))
       << "Missing directory: " << directory_name;
 
   SbFileError error = kSbFileErrorMax;
@@ -83,7 +90,7 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
 TEST(SbDirectoryGetNextTest, SunnyDayStaticContent) {
   std::string testdata_dir = GetFileTestsDataDir();
   EXPECT_FALSE(testdata_dir.empty());
-  EXPECT_TRUE(SbFileExists(testdata_dir.c_str()))
+  EXPECT_TRUE(FileExists(testdata_dir.c_str()))
       << "Missing directory: " << testdata_dir;
 
   // Make sure all the test directories and files are found exactly once.
@@ -160,7 +167,7 @@ TEST(SbDirectoryGetNextTest, FailureNullEntry) {
 
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  EXPECT_TRUE(SbFileExists(path.c_str())) << "Directory is " << path;
+  EXPECT_TRUE(FileExists(path.c_str())) << "Directory is " << path;
 
   SbFileError error = kSbFileErrorMax;
   SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
@@ -178,7 +185,7 @@ TEST(SbDirectoryGetNextTest, FailureOnInsufficientSize) {
   ScopedRandomFile file;
   std::string directory_name = file.filename();
   directory_name.resize(directory_name.find_last_of(kSbFileSepChar));
-  EXPECT_TRUE(SbFileExists(directory_name.c_str()))
+  EXPECT_TRUE(FileExists(directory_name.c_str()))
       << "Directory_name is " << directory_name;
 
   SbFileError error = kSbFileErrorMax;

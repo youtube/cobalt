@@ -16,6 +16,8 @@
 
 #include "base/files/file_util.h"
 
+#include <sys/stat.h>
+
 #include <stack>
 #include <string>
 
@@ -231,7 +233,8 @@ bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
 
 bool PathExists(const FilePath &path) {
   AssertBlockingAllowed();
-  return SbFileExists(path.value().c_str());
+  struct stat file_info;
+  return stat(path.value().c_str(), &file_info) == 0;
 }
 
 bool PathIsWritable(const FilePath &path) {
