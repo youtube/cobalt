@@ -102,6 +102,9 @@
 
 #if defined(STARBOARD)
 static void sb_localtime_r(const time_t* secs, struct tm* time) {
+  if (secs == nullptr || time == nullptr) {
+    return;
+  }
   const EzTimeT eztime_secs = static_cast<const EzTimeT>(*secs);
   EzTimeExploded eztime_result;
   if (!EzTimeTExplode(&eztime_secs, EzTimeZone::kEzTimeZoneLocal,
@@ -121,6 +124,9 @@ static void sb_localtime_r(const time_t* secs, struct tm* time) {
 }
 
 time_t sb_mktime(struct tm *tm) {
+  if (tm == nullptr) {
+    return -1;
+  }
   EzTimeExploded exploded = {tm->tm_sec,  tm->tm_min,  tm->tm_hour,
                              tm->tm_mday, tm->tm_mon,  tm->tm_year,
                              tm->tm_wday, tm->tm_yday, tm->tm_isdst};
