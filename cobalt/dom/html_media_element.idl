@@ -63,8 +63,7 @@ interface HTMLMediaElement : HTMLElement {
   attribute boolean muted;
 
   // non standard, semicolon separated names of audio connectors, like
-  // "hdmi;bluetooth".  It raises `NotSupportedError` on apps doesn't support
-  // this feature, or `InvalidStateError` if there isn't an active playback.
+  // "hdmi;bluetooth".
   // TODO(b/267678497): The current interface is tentative, to be refined.
-  [RaisesException] readonly attribute DOMString h5vccAudioConnectors;
+  readonly attribute DOMString h5vccAudioConnectors;
 };
