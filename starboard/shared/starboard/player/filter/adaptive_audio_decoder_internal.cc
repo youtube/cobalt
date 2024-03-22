@@ -146,7 +146,13 @@ void AdaptiveAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (audio_decoder_) {
+<<<<<<< HEAD
     TeardownAudioDecoder();
+=======
+    audio_decoder_->Reset();
+    resampler_.reset();
+    channel_mixer_.reset();
+>>>>>>> d66b09b0522 ([media] Reset audio decoder via AudioDecoder::Reset() (#2672))
   }
   CancelPendingJobs();
   while (!decoded_audios_.empty()) {
