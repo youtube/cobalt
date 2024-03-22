@@ -645,7 +645,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
   int max_surface_size = std::max(gr_context_->maxRenderTargetSize(),
                                   gr_context_->maxTextureSize());
-  DLOG(INFO) << "Max renderer surface size: " << max_surface_size;
 }
 
 HardwareRasterizer::Impl::~Impl() {
