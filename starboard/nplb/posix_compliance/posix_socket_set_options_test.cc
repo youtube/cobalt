@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
 #include "starboard/configuration.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 
 namespace starboard {
 namespace nplb {
