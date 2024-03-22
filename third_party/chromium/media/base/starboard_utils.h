@@ -24,7 +24,11 @@
 #include "media/base/video_codecs.h"
 #include "media/base/video_decoder_config.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/hdr_metadata.h"
+#else
 #include "ui/gfx/hdr_metadata.h"
+#endif  // defined(STARBOARD)
 
 namespace media {
 

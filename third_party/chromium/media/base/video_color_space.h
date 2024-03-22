@@ -6,7 +6,11 @@
 #define MEDIA_BASE_VIDEO_COLOR_SPACE_H_
 
 #include "media/base/media_export.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/color_space.h"
+#else
 #include "ui/gfx/color_space.h"
+#endif  // defined(STARBOARD)
 
 namespace media {
 

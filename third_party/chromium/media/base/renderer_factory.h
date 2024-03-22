@@ -13,7 +13,11 @@
 #include "media/base/media_resource.h"
 #include "media/base/overlay_info.h"
 #include "media/base/renderer.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/color_space.h"
+#else
 #include "ui/gfx/color_space.h"
+#endif  // defined(STARBOARD)
 
 namespace base {
 class SingleThreadTaskRunner;

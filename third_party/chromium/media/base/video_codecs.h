@@ -9,7 +9,11 @@
 #include <string>
 #include "media/base/media_export.h"
 #include "media/media_buildflags.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/color_space.h"
+#else
 #include "ui/gfx/color_space.h"
+#endif  // defined(STARBOARD)
 
 namespace media {
 

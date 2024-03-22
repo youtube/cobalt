@@ -19,9 +19,15 @@
 #include "media/base/video_transformation.h"
 #include "media/base/video_types.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/hdr_metadata.h"
+#else
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/hdr_metadata.h"
+#endif  // defined(STARBOARD)
 
 namespace media {
 
