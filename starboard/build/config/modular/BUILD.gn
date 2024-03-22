@@ -33,10 +33,7 @@ config("modular") {
     cflags += [ "-fPIC" ]
   }
 
-  cflags_cc = [
-    "-nostdinc++",
-    "-std=c++17",
-  ]
+  cflags_cc = [ "-nostdinc++" ]
 
   defines = [
     # Ensure that the Starboardized __external_threading file is included.
