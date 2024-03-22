@@ -123,6 +123,9 @@ inline std::tm* gm_time(const std::time_t* timep, std::tm* result) {
 
 inline std::tm* local_time(const std::time_t* timep, std::tm* result) {
 #if defined(STARBOARD)
+  if (timep == nullptr || result == nullptr) {
+    return nullptr;
+  }
   const EzTimeT eztime_timep = static_cast<const EzTimeT>(*timep);
   EzTimeExploded eztime_result;
   if (!EzTimeTExplode(&eztime_timep, EzTimeZone::kEzTimeZoneLocal,
