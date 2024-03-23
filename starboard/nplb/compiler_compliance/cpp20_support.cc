@@ -17,6 +17,7 @@
 #include <numeric>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace starboard {
@@ -34,17 +35,22 @@ void test_string_ends_with() {
   bool result = std::string("foobar").ends_with("bar");
 }
 
+#if __cpp_lib_assume_aligned >= 201811L
 // Test std::assume_aligned support
 void test_assume_aligned(int* p) {
   int* p1 = std::assume_aligned<256>(p);
 }
+#else
+// Fallback implementation if std::assume_aligned is not supported
+// Currently android platform is incapable of building std::assume_aligned.
+#endif
 
 // Test std::erase_if support
 void test_erase_if() {
   std::vector<char> cnt(10);
   std::iota(cnt.begin(), cnt.end(), '0');
   std::erase(cnt, '3');
-  auto erased = std::erase_if(cnt, [](char x) { return (x - '0') % 2 == 0; });
+  std::erase_if(cnt, [](char x) { return (x - '0') % 2 == 0; });
 }
 
 // Test std::midpoint support
