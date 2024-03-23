@@ -12,17 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+#include <memory>
+#include <numeric>
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace starboard {
 namespace nplb {
 namespace compiler_compliance {
 namespace {
 
-// Test string ends with support
+// These examples are taken after referring to
+// 1) The chromium C++20 allowlist:
+// https://chromium.googlesource.com/chromium/src/+/refs/branch-heads/5735/styleguide/c++/c++-features.md
+// 2) cpp reference : https://en.cppreference.com/w/cpp
 
+// Test std::string ends_with support
 void test_string_ends_with() {
   bool result = std::string("foobar").ends_with("bar");
+}
+
+// Test std::assume_aligned support
+void test_assume_aligned(int* p) {
+  int* p1 = std::assume_aligned<256>(p);
+}
+
+// Test std::erase_if support
+void test_erase_if() {
+  std::vector<char> cnt(10);
+  std::iota(cnt.begin(), cnt.end(), '0');
+  std::erase(cnt, '3');
+  auto erased = std::erase_if(cnt, [](char x) { return (x - '0') % 2 == 0; });
+}
+
+// Test std::midpoint support
+void test_midpoint() {
+  std::uint32_t a = std::numeric_limits<std::uint32_t>::max();
+  std::uint32_t b = std::numeric_limits<std::uint32_t>::max() - 2;
+  std::midpoint(a, b);
+}
+
+// Test designated initializers
+void test_designated_initializer() {
+  struct S {
+    int x = 1;
+    int y = 2;
+  };
+  S s{.y = 3};  // OK, s.x == 1, s.y == 3
 }
 
 }  // namespace
