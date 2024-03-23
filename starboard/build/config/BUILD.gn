@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/compiler/compiler.gni")
+import("//starboard/build/config/os_definitions.gni")
 
 config("base") {
   defines = [ "USE_COBALT_CUSTOMIZATIONS" ]
@@ -236,7 +237,7 @@ config("default_compiler_flags") {
 # TODO: b/329683364 - Move other flags setting the c++ standard from each
 # platform's platform_configuration to this config.
 config("default_cpp_standard") {
-  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+  if ((sb_is_modular && current_toolchain == cobalt_toolchain) || is_android) {
     cflags_cc = [ "-std=c++17" ]
   }
 
