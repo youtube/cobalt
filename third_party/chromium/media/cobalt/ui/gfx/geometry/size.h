@@ -9,8 +9,13 @@
 #include <string>
 
 #include "base/numerics/checked_math.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size_base.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size_f.h"
+#else
 #include "ui/gfx/geometry/size_base.h"
 #include "ui/gfx/geometry/size_f.h"
+#endif  // defined(STARBOARD)
 
 namespace gfx {
 

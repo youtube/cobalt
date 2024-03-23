@@ -14,8 +14,10 @@
 #include "build/build_config.h"
 #if !defined(STARBOARD)
 #include "third_party/skia/include/core/SkRefCnt.h"
-#endif  // !defined(STARBOARD)
 #include "ui/gfx/color_space_export.h"
+#else
+#include "third_party/chromium/media/cobalt/ui/gfx/color_space_export.h"
+#endif  // !defined(STARBOARD)
 
 struct skcms_Matrix3x3;
 struct skcms_TransferFunction;

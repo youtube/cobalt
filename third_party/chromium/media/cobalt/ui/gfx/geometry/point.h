@@ -8,9 +8,15 @@
 #include <iosfwd>
 #include <string>
 
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/point_base.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/point_f.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/vector2d.h"
+#else
 #include "ui/gfx/geometry/point_base.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/vector2d.h"
+#endif  // defined(STARBOARD)
 
 namespace gfx {
 

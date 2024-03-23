@@ -24,9 +24,9 @@
 #include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 #include "third_party/chromium/media/cobalt/ui/gfx/hdr_metadata.h"
 #else
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/size.h"
-#include "ui/gfx/hdr_metadata.h"
+// #include "ui/gfx/geometry/rect.h"
+// #include "ui/gfx/geometry/size.h"
+// #include "ui/gfx/hdr_metadata.h"
 #endif  // defined(STARBOARD)
 
 namespace media {

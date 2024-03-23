@@ -6,7 +6,11 @@
 #define UI_GFX_HDR_METADATA_H_
 
 #include "media/base/media_export.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/point_f.h"
+#else
 #include "ui/gfx/geometry/point_f.h"
+#endif
 
 namespace gfx {
 

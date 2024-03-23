@@ -8,7 +8,11 @@
 #include <iosfwd>
 #include <string>
 
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/point_f.h"
+#else
 #include "ui/gfx/geometry/point_f.h"
+#endif  // defined(STARBOARD)
 
 namespace gfx {
 

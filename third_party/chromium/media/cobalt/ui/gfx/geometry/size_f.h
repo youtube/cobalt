@@ -8,7 +8,11 @@
 #include <iostream>
 #include <string>
 
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size_base.h"
+#else
 #include "ui/gfx/geometry/size_base.h"
+#endif  // defined(STARBOARD)
 
 namespace gfx {
 

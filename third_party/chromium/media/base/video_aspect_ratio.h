@@ -8,8 +8,13 @@
 #include <stdint.h>
 
 #include "media/base/media_export.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#else
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
+#endif  // defined(STARBOARD)
 
 namespace media {
 

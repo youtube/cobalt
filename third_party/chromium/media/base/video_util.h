@@ -14,8 +14,13 @@
 #include "media/base/status.h"
 #include "media/base/video_types.h"
 #include "third_party/skia/include/core/SkImage.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#else
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
+#endif
 
 class GrDirectContext;
 

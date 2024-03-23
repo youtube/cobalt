@@ -50,7 +50,7 @@ class GEOMETRY_EXPORT Size {
   // This call will CHECK if the area of this size would overflow int.
   int GetArea() const;
   // Returns a checked numeric representation of the area.
-  base::CheckedNumeric<int> GetCheckedArea() const;
+  // base::CheckedNumeric<int> GetCheckedArea() const;
 
   uint64_t Area64() const {
     return static_cast<uint64_t>(width_) * static_cast<uint64_t>(height_);

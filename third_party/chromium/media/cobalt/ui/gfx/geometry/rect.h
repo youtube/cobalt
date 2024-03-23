@@ -16,11 +16,19 @@
 #include <iosfwd>
 #include <string>
 
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/point.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect_base.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect_base_impl.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/vector2d.h"
+#else
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect_base.h"
 #include "ui/gfx/geometry/rect_base_impl.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/vector2d.h"
+#endif  // defined(STARBOARD)
 
 namespace gfx {
 

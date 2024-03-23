@@ -14,7 +14,11 @@
 #include <string>
 
 #include "base/basictypes.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/vector2d_f.h"
+#else
 #include "ui/gfx/geometry/vector2d_f.h"
+#endif  // defined(STARBOARD)
 
 namespace gfx {
 

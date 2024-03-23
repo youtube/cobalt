@@ -10,7 +10,11 @@
 
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect_base.h"
+#else
 #include "ui/gfx/geometry/rect_base.h"
+#endif  // defined(STARBOARD)
 
 namespace gfx {
 
