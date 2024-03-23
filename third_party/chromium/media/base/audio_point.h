@@ -9,7 +9,11 @@
 #include <vector>
 
 #include "media/base/media_shmem_export.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/point3_f.h"
+#else
 #include "ui/gfx/geometry/point3_f.h"
+#endif  // defined(STARBOARD)
 
 namespace media {
 

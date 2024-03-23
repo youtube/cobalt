@@ -16,7 +16,11 @@
 #include "media/base/video_codecs.h"
 #include "media/base/video_color_space.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#if defined(STARBOARD)
+#include "third_party/chromium/media/cobalt/ui/gfx/color_space.h"
+#else
 #include "ui/gfx/color_space.h"
+#endif  // defined (STARBOARD)
 #include "url/gurl.h"
 
 namespace media {
