@@ -45,6 +45,5 @@ Book: /youtube/cobalt/_book.yaml
 | **`starboard_level_gtest_target_type`**<br><br>The default value is `"executable"`. |
 | **`static_library_configs`**<br><br> Target-specific configurations for static_library targets.<br><br>The default value is `[]`. |
 | **`use_skia_next`**<br><br> Flag to use a future version of Skia, currently not available.<br><br>The default value is `false`. |
-| **`use_thin_archive`**<br><br> Whether or not to link with thin archives.<br><br>The default value is `true`. |
 | **`v8_enable_pointer_compression_override`**<br><br> Set to true to enable pointer compression for v8.<br><br>The default value is `true`. |
 | **`v8_enable_webassembly`**<br><br> Enable WASM and install WebAssembly global.<br><br>The default value is `false`. |
