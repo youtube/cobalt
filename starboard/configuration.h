@@ -355,28 +355,6 @@ struct CompileAssert {};
 #error "Your platform must define SB_IMPORT_PLATFORM."
 #endif
 
-#if !SB_HAS(STD_UNORDERED_HASH)
-
-#if !defined(SB_HASH_MAP_INCLUDE)
-#error \
-    "Your platform must define SB_HASH_MAP_INCLUDE or "\
-    "define SB_HAS_STD_UNORDERED_HASH 1."
-#endif
-
-#if !defined(SB_HASH_NAMESPACE)
-#error \
-    "Your platform must define SB_HASH_NAMESPACE or "\
-    "define SB_HAS_STD_UNORDERED_HASH 1."
-#endif
-
-#if !defined(SB_HASH_SET_INCLUDE)
-#error \
-    "Your platform must define SB_HASH_SET_INCLUDE or "\
-    "define SB_HAS_STD_UNORDERED_HASH 1."
-#endif
-
-#endif  // !SB_HAS(STD_UNORDERED_HASH)
-
 #if defined(SB_DEFAULT_MMAP_THRESHOLD)
 #error \
     "SB_DEFAULT_MMAP_THRESHOLD should not be defined in Starboard " \

@@ -21,22 +21,6 @@ Book: /youtube/cobalt/_book.yaml
 | **`SB_EXPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as exported outside of the current shared library.<br><br>The default value in the Stub implementation is <br>`__attribute__((visibility("default")))` |
 | **`SB_IMPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as imported from outside of the current linking unit. |
 
-
-## Extensions Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_STD_UNORDERED_HASH`**<br><br>Do not use <unordered_map> and <unordered_set> for the hash table types.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_LONG_LONG_HASH`**<br><br>GCC/Clang doesn't define a long long hash function, except for Android and Game consoles.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_STRING_HASH`**<br><br>GCC/Clang doesn't define a string hash function, except for Game Consoles.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_HASH_USING`**<br><br>Desktop Linux needs a using statement for the hash functions.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_HASH_VALUE`**<br><br>Set this to 1 if hash functions for custom types can be defined as a hash_value() function. Otherwise, they need to be placed inside a partially-specified hash struct template with an operator().<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_HASH_WARNING`**<br><br>Set this to 1 if use of hash_map or hash_set causes a deprecation warning (which then breaks the build).<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HASH_MAP_INCLUDE`**<br><br>The location to include hash_map on this platform.<br><br>The default value in the Stub implementation is `<ext/hash_map>` |
-| **`SB_HASH_NAMESPACE`**<br><br>C++'s hash_map and hash_set are often found in different namespaces depending on the compiler.<br><br>The default value in the Stub implementation is `__gnu_cxx` |
-| **`SB_HASH_SET_INCLUDE`**<br><br>The location to include hash_set on this platform.<br><br>The default value in the Stub implementation is `<ext/hash_set>` |
-
-
 ## Filesystem Configuration
 
 | Properties |
