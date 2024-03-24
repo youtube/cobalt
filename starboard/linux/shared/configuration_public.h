@@ -104,13 +104,6 @@
 // The location to include hash_set on this platform.
 #define SB_HASH_SET_INCLUDE <ext/hash_set>
 
-// --- Graphics Configuration ------------------------------------------------
-
-// Indicates whether or not the given platform supports bilinear filtering.
-// This can be checked to enable/disable renderer tests that verify that this is
-// working properly.
-#define SB_HAS_BILINEAR_FILTERING_SUPPORT 1
-
 // --- I/O Configuration -----------------------------------------------------
 
 // Whether the current platform has speech synthesis.
