@@ -71,9 +71,6 @@ declare_args() {
   starboard_level_gtest_target_type = "executable"
   starboard_level_final_executable_type = "executable"
 
-  # Halt execution on failure to allocate memory.
-  abort_on_allocation_failure = true
-
   # The source of EGL and GLES headers and libraries.
   # Valid values (case and everything sensitive!):
   #   "system_gles2" - Use the system implementation of EGL + GLES2. The
