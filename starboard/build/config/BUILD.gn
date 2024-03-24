@@ -126,12 +126,6 @@ config("starboard") {
       "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
     ]
 
-    if (gl_type == "none") {
-      defines += [ "SB_GN_GL_TYPE_IS_NONE=1" ]
-    } else {
-      defines += [ "SB_GN_GL_TYPE_IS_NONE=0" ]
-    }
-
     if (!is_gold) {
       defines += [
         "ENABLE_DEBUGGER",
