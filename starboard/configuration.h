@@ -558,135 +558,15 @@ struct CompileAssert {};
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
-    defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
-#error "New versions of Starboard specify player output mode at runtime."
-#endif
-
 #if !defined(SB_HAS_NV12_TEXTURE_SUPPORT)
 #error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
 #endif
-
-#if defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
-#error "SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is deprecated."
-#error "Use `CobaltExtensionGraphicsApi` instead."
-#error "See [`CobaltExtensionGraphicsApi`](../extension/graphics.h)."
-#endif
-
-#if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
-#error "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET is deprecated."
-#error "Implement |SbMediaGetAudioBufferBudget| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
-
-#if defined(COBALT_MEDIA_BUFFER_ALIGNMENT)
-#error "COBALT_MEDIA_BUFFER_ALIGNMENT is deprecated."
-#error "Implement |SbMediaGetBufferAlignment| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_ALIGNMENT
-
-#if defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT)
-#error "COBALT_MEDIA_BUFFER_ALLOCATION_UNIT is deprecated."
-#error "Implement |SbMediaGetBufferAllocationUnit| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT
-
-#if defined( \
-    COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
-#error "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS"
-#error "is deprecated. Implement"
-#error "|SbMediaGetBufferGarbageCollectionDurationThreshold| instead."
-#endif  // defined(
-// COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
-
-#if defined(COBALT_MEDIA_BUFFER_PADDING)
-#error "COBALT_MEDIA_BUFFER_PADDING is deprecated."
-#error "Implement |SbMediaGetBufferPadding| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_PADDING)
-
-#if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE)
-#error "COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE is deprecated."
-#error "Implement |SbMediaGetBufferStorageType| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE)
-
-#if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
-#error "COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY is deprecated."
-#error "Implement |SbMediaGetBufferStorageType| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
-
-#if defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
-#error "COBALT_MEDIA_BUFFER_INITIAL_CAPACITY is deprecated."
-#error "implement |SbMediaGetInitialBufferCapacity| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
-
-#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
-#error "COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P is deprecated."
-#error "Implement |SbMediaGetMaxBufferCapacity| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
-
-#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
-#error "COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K is deprecated."
-#error "Implement |SbMediaGetMaxBufferCapacity| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
-
-#if defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET)
-#error "COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET is deprecated."
-#error "Implement |SbMediaGetProgressiveBufferBudget| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET)
-
-#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P)
-#error "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P is deprecated."
-#error "Implement |SbMediaGetVideoBufferBudget| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P)
-
-#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K)
-#error "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K is deprecated."
-#error "Implement |SbMediaGetVideoBufferBudget| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K)
-
-#if defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
-#error "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND is deprecated."
-#error "Implement |SbMediaIsBufferPoolAllocateOnDemand| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
-
-#if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
-#error "SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT is deprecated."
-#error "Implement function |SbMediaGetAudioBufferBudget| instead."
-#endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
-
-#if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
-#error "SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT is deprecated."
-#error "Implement function |SbMediaGetVideoBufferBudget| instead."
-#endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
-
-#if defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
-#error "SB_MEDIA_MAIN_BUFFER_BUDGET is deprecated."
-#endif  // defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
-
-#if defined(SB_MEDIA_GPU_BUFFER_BUDGET)
-#error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
-#endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
-
-#if defined(SB_HAS_AUDIOLESS_VIDEO)
-#error "SB_HAS_AUDIOLESS_VIDEO is deprecated."
-#endif  // defined(SB_HAS_AUDIOLESS_VIDEO)
 
 #if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #error \
     "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT should not be defined for " \
            "API version >= 12."
 #endif  // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-
-#if defined(SB_HAS_DRM_SESSION_CLOSED)
-#error "SB_HAS_DRM_SESSION_CLOSED should not be defined for API version >= 10."
-#endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
-
-#if defined(SB_HAS_PLAYER_FILTER_TESTS)
-#error "SB_HAS_PLAYER_FILTER_TESTS should not be defined in API versions >= 10."
-#endif  // defined(SB_HAS_PLAYER_FILTER_TESTS)
-
-#if defined(SB_HAS_PLAYER_ERROR_MESSAGE)
-#error \
-    "SB_HAS_PLAYER_ERROR_MESSAGE should not be defined in API versions " \
-       ">= 10."
-#endif  // defined(SB_HAS_PLAYER_ERROR_MESSAGE)
 
 #if defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #error \
