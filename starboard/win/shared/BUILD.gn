@@ -138,6 +138,7 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/window_blur_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_focus_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
+    "//starboard/shared/stub/window_get_display_handle.cc",
     "//starboard/shared/stub/window_get_on_screen_keyboard_bounding_rect.cc",
     "//starboard/shared/stub/window_hide_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_is_on_screen_keyboard_shown.cc",

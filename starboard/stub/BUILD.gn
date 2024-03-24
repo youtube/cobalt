@@ -271,6 +271,7 @@ static_library("stub_sources") {
     "//starboard/shared/stub/window_destroy.cc",
     "//starboard/shared/stub/window_focus_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
+    "//starboard/shared/stub/window_get_display_handle.cc",
     "//starboard/shared/stub/window_get_on_screen_keyboard_bounding_rect.cc",
     "//starboard/shared/stub/window_get_platform_handle.cc",
     "//starboard/shared/stub/window_get_size.cc",

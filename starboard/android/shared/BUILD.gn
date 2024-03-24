@@ -257,6 +257,7 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/thread_sampler_is_supported.cc",
     "//starboard/shared/stub/thread_sampler_thaw.cc",
     "//starboard/shared/stub/ui_nav_get_interface.cc",
+    "//starboard/shared/stub/window_get_display_handle.cc",
     "accessibility_get_caption_settings.cc",
     "accessibility_get_display_settings.cc",
     "accessibility_get_text_to_speech_settings.cc",
