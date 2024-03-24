@@ -26,7 +26,7 @@ namespace shared {
 
 namespace {
 
-const SbTimeMonotonic kBufferTooLateThreshold = -30 * kSbTimeMillisecond;
+const SbTimeMonotonic kBufferTooLateThreshold = -32 * kSbTimeMillisecond;
 const SbTimeMonotonic kBufferReadyThreshold = 50 * kSbTimeMillisecond;
 
 jlong GetSystemNanoTime() {
