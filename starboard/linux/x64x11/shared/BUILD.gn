@@ -41,6 +41,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/x11/player_set_bounds.cc",
     "//starboard/shared/x11/window_create.cc",
     "//starboard/shared/x11/window_destroy.cc",
+    "//starboard/shared/x11/window_get_display_handle.cc",
     "//starboard/shared/x11/window_get_platform_handle.cc",
     "//starboard/shared/x11/window_get_size.cc",
     "//starboard/shared/x11/window_internal.cc",

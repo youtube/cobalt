@@ -104,8 +104,17 @@ Application::Application() {
   window_ = SbWindowCreate(&options);
   SB_CHECK(SbWindowIsValid(window_));
 
+#if STARBOARD >= 16
+  display _ = SbWindowGetDisplayHandle(window_);
+  // Fall back to SB_EGL_DEFAULT_DISPLAY
+  if (SB_EGL_NO_DISPLAY != display_) {
+    display_ = EGL_CALL_SIMPLE(eglGetDisplay(SB_EGL_DEFAULT_DISPLAY));
+    SB_CHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
+  }
+#else
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(SB_EGL_DEFAULT_DISPLAY));
   SB_CHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
+#endif
   SB_CHECK(SB_EGL_NO_DISPLAY != display_);
 
   EGL_CALL(eglInitialize(display_, NULL, NULL));

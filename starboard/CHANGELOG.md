@@ -9,6 +9,14 @@ since the version previous to it.
 
 ## Version 16
 
+
+### Added SbWindowGetDisplayHandle
+
+The function retrieves native EGL display handle, simplifying correct EGL
+context initialization on some platforms. This complements
+SbWindowGetPlatformHandle, which retrieves the native window handle.
+
+
 ### Added standard POSIX socket getaddrinfo/freeaddrinfo APIs.
 The standard API `getaddrinfo` and `freeaddrinfo`, can be used from
 <netdb.h>.

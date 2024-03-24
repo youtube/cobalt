@@ -139,9 +139,18 @@ GraphicsSystemEGL::GraphicsSystemEGL(
   glimp::SetTraceEventImplementation(&s_glimp_to_base_trace_event_bridge);
 #endif  // #if defined(ENABLE_GLIMP_TRACING)
 
+#if STARBOARD >= 16
+  display _ = SbWindowGetDisplayHandle(window_);
+  // Fall back to SB_EGL_DEFAULT_DISPLAY
+  if (SB_EGL_NO_DISPLAY != display_) {
+    display_ = EGL_CALL_SIMPLE(eglGetDisplay(SB_EGL_DEFAULT_DISPLAY));
+    SB_CHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
+  }
+#else
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
-  CHECK_NE(EGL_NO_DISPLAY, display_);
   CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
+#endif
+  CHECK_NE(EGL_NO_DISPLAY, display_);
 
   {
     // Despite eglTerminate() being used in the destructor, the current
