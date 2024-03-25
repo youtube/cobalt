@@ -15,6 +15,10 @@
 #ifndef BASE_HASH_MD5_H_
 #define BASE_HASH_MD5_H_
 
+#if !defined(STARBOARD)
+#error "This file only works with Cobalt/Starboard."
+#endif  // !defined(STARBOARD)
+
 #include "base/md5.h"
 
 #endif  // BASE_HASH_MD5_H_
