@@ -22,6 +22,9 @@ namespace starboard {
 
 namespace {
 
+// Thread safety isn't needed for this global variable since the extension's
+// interface specifies that all accesses and mutations must be from the same
+// thread.
 static CrashpadInstallationStatus g_crashpad_installation_status;
 
 void SetCrashpadInstallationStatus(CrashpadInstallationStatus status) {

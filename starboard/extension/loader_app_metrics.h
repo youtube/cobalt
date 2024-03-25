@@ -48,6 +48,9 @@ typedef struct StarboardExtensionLoaderAppMetricsApi {
 
   // The fields below this point were added in version 1 or later.
 
+  // The accessors and mutators below are assumed to be called from the same
+  // thread: Cobalt's application thread.
+
   void (*SetCrashpadInstallationStatus)(CrashpadInstallationStatus status);
 
   CrashpadInstallationStatus (*GetCrashpadInstallationStatus)();
