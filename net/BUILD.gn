@@ -1075,6 +1075,8 @@ component("net") {
   if (is_starboard) {
     sources += [
       "base/file_stream_context_starboard.cc",
+      "cert/internal/trust_store_in_memory_starboard.cc",
+      "cert/internal/trust_store_in_memory_starboard.h",
     ]
     if (sb_is_modular || is_android || is_win) {
       # TODO: Either always build or don't build with this.
