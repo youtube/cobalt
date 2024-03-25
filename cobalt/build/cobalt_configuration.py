@@ -136,7 +136,9 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'media_test',
         'memory_store_test',
         'metrics_test',
+        'network_test',
         'overlay_info_test',
+        'persistent_settings_test',
         'png_utils_test',
         'render_tree_test',
         'renderer_test',
@@ -155,9 +157,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     ]
     # return [
     #     'layout_tests',
-    #     'network_test',
     #     'net_unittests',
-    #     'persistent_settings_test',
     # ]
 
   def GetTestBlackBoxTargets(self):

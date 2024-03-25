@@ -302,11 +302,12 @@ void ServiceWorkerPersistentSettings::
 
   // Add key_string to the registered keys and write to persistent settings.
   key_set_.insert(key_string);
-  std::vector<base::Value> key_list;
+  base::Value::List key_list;
   for (auto& key : key_set_) {
-    key_list.emplace_back(key);
+    key_list.Append(key);
   }
-  persistent_settings_->SetPersistentSetting(kSettingsKeyList, nullptr);
+  persistent_settings_->SetPersistentSetting(
+      kSettingsKeyList, std::make_unique<base::Value>(std::move(key_list)));
 
   // Persist ServiceWorkerRegistrationObject's fields.
   dict.Set(kSettingsStorageKeyKey, registration->storage_key().GetURL().spec());
@@ -323,7 +324,8 @@ void ServiceWorkerPersistentSettings::
                               .ToDeltaSinceWindowsEpoch()
                               .InMicroseconds()));
 
-  persistent_settings_->SetPersistentSetting(key_string, nullptr);
+  persistent_settings_->SetPersistentSetting(
+      key_string, std::make_unique<base::Value>(std::move(dict)));
 }
 
 base::Value::Dict
@@ -390,11 +392,12 @@ void ServiceWorkerPersistentSettings::
 
   // Remove registration key string.
   key_set_.erase(key_string);
-  std::vector<base::Value> key_list;
+  base::Value::List key_list;
   for (auto& key : key_set_) {
-    key_list.emplace_back(key);
+    key_list.Append(key);
   }
-  persistent_settings_->SetPersistentSetting(kSettingsKeyList, nullptr);
+  persistent_settings_->SetPersistentSetting(
+      kSettingsKeyList, std::make_unique<base::Value>(std::move(key_list)));
 
   // Remove the registration dictionary.
   persistent_settings_->RemovePersistentSetting(key_string);

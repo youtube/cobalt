@@ -152,7 +152,11 @@ bool JsonPrefStore::GetValue(const std::string& key,
                              const base::Value** result) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+#if defined(STARBOARD)
+  const base::Value* tmp = prefs_.Find(key);
+#else
   const base::Value* tmp = prefs_.FindByDottedPath(key);
+#endif
   if (!tmp)
     return false;
 
@@ -193,7 +197,11 @@ bool JsonPrefStore::GetMutableValue(const std::string& key,
                                     base::Value** result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+#if defined(STARBOARD)
+  base::Value* tmp = prefs_.Find(key);
+#else
   base::Value* tmp = prefs_.FindByDottedPath(key);
+#endif
   if (!tmp)
     return false;
 
@@ -207,9 +215,17 @@ void JsonPrefStore::SetValue(const std::string& key,
                              uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+#if defined(STARBOARD)
+  base::Value* old_value = prefs_.Find(key);
+#else
   base::Value* old_value = prefs_.FindByDottedPath(key);
+#endif
   if (!old_value || value != *old_value) {
+#if defined(STARBOARD)
+    prefs_.Set(key, std::move(value));
+#else
     prefs_.SetByDottedPath(key, std::move(value));
+#endif
     ReportValueChanged(key, flags);
   }
 }
@@ -219,9 +235,17 @@ void JsonPrefStore::SetValueSilently(const std::string& key,
                                      uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+#if defined(STARBOARD)
+  base::Value* old_value = prefs_.Find(key);
+#else
   base::Value* old_value = prefs_.FindByDottedPath(key);
+#endif
   if (!old_value || value != *old_value) {
+#if defined(STARBOARD)
+    prefs_.Set(key, std::move(value));
+#else
     prefs_.SetByDottedPath(key, std::move(value));
+#endif
     ScheduleWrite(flags);
   }
 }
@@ -229,7 +253,11 @@ void JsonPrefStore::SetValueSilently(const std::string& key,
 void JsonPrefStore::RemoveValue(const std::string& key, uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+#if defined(STARBOARD)
+  if (prefs_.Remove(key)) {
+#else
   if (prefs_.RemoveByDottedPath(key)) {
+#endif
     ReportValueChanged(key, flags);
   }
 }
@@ -238,7 +266,11 @@ void JsonPrefStore::RemoveValueSilently(const std::string& key,
                                         uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+#if defined(STARBOARD)
+  prefs_.Remove(key);
+#else
   prefs_.RemoveByDottedPath(key);
+#endif
   ScheduleWrite(flags);
 }
 
