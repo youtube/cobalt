@@ -57,23 +57,6 @@
 #include "third_party/glm/glm/gtc/matrix_transform.hpp"
 #include "third_party/glm/glm/gtx/transform.hpp"
 
-#define BILINEAR_FILTERING_SUPPORTED 1
-#define NV12_TEXTURE_SUPPORTED 1
-
-#if defined(STARBOARD)
-#if !SB_HAS(BILINEAR_FILTERING_SUPPORT)
-#undef BILINEAR_FILTERING_SUPPORTED
-#define BILINEAR_FILTERING_SUPPORTED 0
-#endif
-#endif
-
-#if defined(STARBOARD)
-#if !SB_HAS(NV12_TEXTURE_SUPPORT)
-#undef NV12_TEXTURE_SUPPORTED
-#define NV12_TEXTURE_SUPPORTED 0
-#endif
-#endif
-
 using cobalt::loader::image::AnimatedWebPImage;
 using cobalt::loader::image::MockImageDecoder;
 using cobalt::loader::image::MockImageDecoderCallback;
@@ -1346,9 +1329,6 @@ scoped_refptr<Image> MakeI420Image(ResourceProvider* resource_provider,
       std::move(image_memory), image_data_descriptor);
 }
 
-// The software rasterizer does not support NV12 images.
-#if NV12_TEXTURE_SUPPORTED
-
 // Creates a two plane YUV image where the Y channel is stored as a
 // single-channel image plane and the U and V channels are interleaved in a
 // second image plane. The NV12 format dictates that the UV plane has the same
@@ -1412,7 +1392,6 @@ scoped_refptr<Image> MakeNV12Image(ResourceProvider* resource_provider,
   return resource_provider->CreateMultiPlaneImageFromRawMemory(
       std::move(image_memory), image_data_descriptor);
 }
-#endif  // #if NV12_TEXTURE_SUPPORTED
 }  // namespace
 
 scoped_refptr<Image> MakeUYVYImage(ResourceProvider* resource_provider,
@@ -1576,9 +1555,6 @@ TEST_F(PixelTest, YUV422UYVYImageScaledAndTranslated) {
                                               -1.0f, 0.0f, 0.0f, 1.0f)));
 }
 
-// The software rasterizer does not support NV12 images.
-#if NV12_TEXTURE_SUPPORTED
-
 TEST_F(PixelTest, TwoPlaneYUVImageSupport) {
   // Tests that an ImageNode hooked up to a 3-plane YUV image works fine.
   scoped_refptr<Image> image =
@@ -1605,7 +1581,6 @@ TEST_F(PixelTest, TwoPlaneYUVImageWithTransform) {
           TranslateMatrix(-half_output_size.width(),
                           -half_output_size.height())));
 }
-#endif  // #if NV12_TEXTURE_SUPPORTED
 
 TEST_F(PixelTest, ImageNodeLocalTransformRotationAndScale) {
   scoped_refptr<Image> image =
@@ -2075,8 +2050,6 @@ TEST_F(PixelTest, ImageEdgeNoWrapWithPixelCentersOffset) {
       PointF(100.0f, 100.51f), kNumCascades));
 }
 
-#if BILINEAR_FILTERING_SUPPORTED
-
 TEST_F(PixelTest, ImagesAreLinearlyInterpolated) {
   // We want to make sure that image pixels are accessed through a bilinear
   // interpolation magnification filter.
@@ -2097,8 +2070,6 @@ TEST_F(PixelTest, ZoomedInImagesDoNotWrapInterpolated) {
       ScaleMatrix(2) * TranslateMatrix(-0.5f, -0.5f)));
 }
 
-#endif  // BILINEAR_FILTERING_SUPPORTED
-
 TEST_F(PixelTest, YUV3PlaneImagesAreLinearlyInterpolated) {
   // Tests that three plane YUV images are bilinearly interpolated.
   scoped_refptr<Image> image = MakeI420Image(GetResourceProvider(), Size(8, 8));
@@ -2106,17 +2077,12 @@ TEST_F(PixelTest, YUV3PlaneImagesAreLinearlyInterpolated) {
   TestTree(new ImageNode(image, RectF(output_surface_size())));
 }
 
-// The software rasterizer does not support NV12 images.
-#if NV12_TEXTURE_SUPPORTED
-
 TEST_F(PixelTest, YUV2PlaneImagesAreLinearlyInterpolated) {
   // Tests that two plane YUV images are bilinearly interpolated.
   scoped_refptr<Image> image = MakeNV12Image(GetResourceProvider(), Size(8, 8));
 
   TestTree(new ImageNode(image, RectF(output_surface_size())));
 }
-
-#endif  // #if NV12_TEXTURE_SUPPORTED
 
 TEST_F(PixelTest, VeryLargeOpacityFilterDoesNotOccupyVeryMuchMemory) {
   // This test ensures that an opacity filter being applied to an extremely
@@ -4071,16 +4037,12 @@ TEST_F(PixelTest, MapToMeshRGBTest) {
   TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
 }
 
-#if NV12_TEXTURE_SUPPORTED
-
 TEST_F(PixelTest, MapToMeshNV12Test) {
   // Tests that MapToMesh filter works as expected with a NV12 YUV texture.
   scoped_refptr<Image> image =
       MakeNV12Image(GetResourceProvider(), Size(200, 200));
   TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
 }
-
-#endif  // #if NV12_TEXTURE_SUPPORTED
 
 TEST_F(PixelTest, MapToMeshI420Test) {
   // Tests that MapToMesh filter works as expected with a I420 YUV texture.

@@ -70,12 +70,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- Graphics Configuration ------------------------------------------------
-
-// Indicates whether or not the given platform supports rendering of NV12
-// textures. These textures typically originate from video decoders.
-#define SB_HAS_NV12_TEXTURE_SUPPORT 1
-
 // --- Decoder-only Params ---
 
 // --- Memory Configuration --------------------------------------------------

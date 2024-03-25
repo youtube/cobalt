@@ -536,10 +536,6 @@ struct CompileAssert {};
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#if !defined(SB_HAS_NV12_TEXTURE_SUPPORT)
-#error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
-#endif
-
 #if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #error \
     "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT should not be defined for " \
@@ -572,20 +568,6 @@ struct CompileAssert {};
 #define SB_FUNCTION __PRETTY_FUNCTION__
 #else
 #define SB_FUNCTION __FUNCTION__
-#endif
-
-// --- Gyp Derived Configuration -----------------------------------------------
-
-// Specifies whether this platform has a performant OpenGL ES 2 implementation,
-// which allows client applications to use GL rendering paths.  Derived from
-// the gyp variable `gl_type` which indicates what kind of GL implementation
-// is available.
-#if !defined(SB_HAS_GLES2)
-#if defined(SB_GN_GL_TYPE_IS_NONE)
-#define SB_HAS_GLES2 !SB_GN_GL_TYPE_IS_NONE
-#else
-#define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
-#endif
 #endif
 
 // --- Deprecated Feature Macros -----------------------------------------------

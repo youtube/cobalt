@@ -21,6 +21,7 @@
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/time_zone.h"
@@ -33,6 +34,7 @@
 #include "starboard/shared/posix/memory_mapped_file.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/crash_handler.h"
+#include "starboard/shared/starboard/loader_app_metrics.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
@@ -86,5 +88,8 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::shared::GetIfaApi();
   }
 #endif  // SB_API_VERSION < 14
+  if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
+    return starboard::shared::starboard::GetLoaderAppMetricsApi();
+  }
   return NULL;
 }

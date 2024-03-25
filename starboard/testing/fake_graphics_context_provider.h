@@ -39,29 +39,20 @@ class FakeGraphicsContextProvider {
 
   SbWindow window() { return window_; }
   SbDecodeTargetGraphicsContextProvider* decoder_target_provider() {
-#if SB_HAS(GLES2)
     return &decoder_target_provider_;
-#else   // SB_HAS(GLES2)
-    return NULL;
-#endif  // SB_HAS(GLES2)
   }
 
-#if SB_HAS(GLES2)
   void RunOnGlesContextThread(const std::function<void()>& functor);
   void ReleaseDecodeTarget(SbDecodeTarget decode_target);
-#endif  // SB_HAS(GLES2)
 
   void Render();
 
  private:
-#if SB_HAS(GLES2)
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
-#endif  // SB_HAS(GLES2)
 
   void InitializeWindow();
 
-#if SB_HAS(GLES2)
   void InitializeEGL();
 
   void OnDecodeTargetGlesContextRunner(
@@ -82,13 +73,10 @@ class FakeGraphicsContextProvider {
   SbEglContext context_;
   Queue<std::function<void()>> functor_queue_;
   SbThread decode_target_context_thread_;
-#endif  // SB_HAS(GLES2)
 
   SbWindow window_;
 
-#if SB_HAS(GLES2)
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
-#endif  // SB_HAS(GLES2)
 };
 
 }  // namespace testing

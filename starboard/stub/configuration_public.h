@@ -104,10 +104,6 @@
 
 // --- Graphics Configuration ------------------------------------------------
 
-// Indicates whether or not the given platform supports rendering of NV12
-// textures. These textures typically originate from video decoders.
-#define SB_HAS_NV12_TEXTURE_SUPPORT 0
-
 #define SB_HAS_VIRTUAL_REALITY 1
 
 // --- I/O Configuration -----------------------------------------------------

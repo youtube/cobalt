@@ -34,7 +34,6 @@ Book: /youtube/cobalt/_book.yaml
 
 | Properties |
 | :--- |
-| **`SB_HAS_NV12_TEXTURE_SUPPORT`**<br><br>Indicates whether or not the given platform supports rendering of NV12 textures. These textures typically originate from video decoders.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_VIRTUAL_REALITY`**<br><br>The default value in the Stub implementation is `1` |
 
 
