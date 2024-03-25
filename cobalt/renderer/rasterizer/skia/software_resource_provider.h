@@ -39,7 +39,7 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
     return base::GetTypeId<SoftwareResourceProvider>();
   }
 
-  void Finish() override{};
+  void Finish() override {};
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) override;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) override;
