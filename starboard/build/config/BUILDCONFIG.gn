@@ -161,11 +161,8 @@ default_compiler_configs = [
   "//starboard/build/config:warnings_as_errors",
   "//starboard/build/config:default_compiler_flags",
   "//starboard/build/config:default_cpp_standard",
+  "//build/config/compiler:thin_archive",
 ]
-
-if (use_thin_archive) {
-  default_compiler_configs += [ "//build/config/compiler:thin_archive" ]
-}
 
 if (is_starboard) {
   default_compiler_configs += [ "//starboard/build/config:starboard" ]

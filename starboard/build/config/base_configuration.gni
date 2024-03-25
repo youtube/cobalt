@@ -149,9 +149,6 @@ declare_args() {
   # Set to true to enable pointer compression for v8.
   v8_enable_pointer_compression_override = true
 
-  # Whether or not to link with thin archives.
-  use_thin_archive = true
-
   # Whether or not to disable run-time type information (adding no_rtti flag).
   sb_use_no_rtti = false
 
