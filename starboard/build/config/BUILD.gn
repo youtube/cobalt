@@ -85,7 +85,11 @@ config("host") {
       cflags = [
         "/wd4267",  # Possible loss of precision from size_t to a smaller type.
         "/wd4715",  # Not all control paths return value.
+        "/std:c++17",
       ]
+    } else if (is_apple) {
+      cflags_cc = [ "-std=gnu++17" ]
+      cflags_objcc = [ "-std=gnu++17" ]
     }
   }
 }
