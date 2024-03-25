@@ -25,6 +25,7 @@ group("gn_all") {
     "//starboard/client_porting/eztime",
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
+    "//starboard/examples/glclear:starboard_glclear_example",
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
@@ -32,10 +33,6 @@ group("gn_all") {
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
   ]
-
-  if (gl_type != "none") {
-    deps += [ "//starboard/examples/glclear:starboard_glclear_example" ]
-  }
 
   if (has_platform_targets) {
     deps += [ "//$starboard_path/platform_targets" ]

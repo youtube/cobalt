@@ -574,20 +574,6 @@ struct CompileAssert {};
 #define SB_FUNCTION __FUNCTION__
 #endif
 
-// --- Gyp Derived Configuration -----------------------------------------------
-
-// Specifies whether this platform has a performant OpenGL ES 2 implementation,
-// which allows client applications to use GL rendering paths.  Derived from
-// the gyp variable `gl_type` which indicates what kind of GL implementation
-// is available.
-#if !defined(SB_HAS_GLES2)
-#if defined(SB_GN_GL_TYPE_IS_NONE)
-#define SB_HAS_GLES2 !SB_GN_GL_TYPE_IS_NONE
-#else
-#define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
-#endif
-#endif
-
 // --- Deprecated Feature Macros -----------------------------------------------
 
 // Deprecated feature macros are no longer referenced by application code, and

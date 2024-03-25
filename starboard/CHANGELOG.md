@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### GLES2 configuration mandatory
+SB_HAS_GLES2 configuration has been removed, and `gl_type` GN config no longer
+accepts `none` as an option.
+
 ### Removed pre-C++11 hash map configuration
 Build configurations for `SB_HAS_STD_UNORDERED_HASH`, `SB_HAS_LONG_LONG_HASH`,
  `SB_HAS_STRING_HASH`, `SB_HAS_HASH_USING`, `SB_HAS_HASH_VALUE`,
