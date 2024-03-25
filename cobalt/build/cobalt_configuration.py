@@ -158,7 +158,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     ]
     # return [
     #     'layout_tests',
-    #     'net_unittests',
     # ]
 
   def GetTestBlackBoxTargets(self):

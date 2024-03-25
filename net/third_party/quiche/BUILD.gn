@@ -1400,6 +1400,23 @@ if (!is_ios && false) {
   }
 }
 
+if (use_hacky_cobalt_changes) {
+  copy("test_data") {
+    if (is_starboard) {
+      install_content = true
+    }
+    visibility = [ ":quiche_tests" ]
+    testonly = true
+    sources = [
+      "src/quiche/common/platform/api/testdir/README.md",
+      "src/quiche/common/platform/api/testdir/a/b/c/d/e",
+      "src/quiche/common/platform/api/testdir/a/subdir/testfile",
+      "src/quiche/common/platform/api/testdir/a/z",
+      "src/quiche/common/platform/api/testdir/testfile",
+    ]
+    outputs = [ "$sb_static_contents_output_data_dir/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
+  }
+} else {
 bundle_data("test_data") {
   visibility = [ ":quiche_tests" ]
   testonly = true
@@ -1412,6 +1429,7 @@ bundle_data("test_data") {
   ]
   outputs = [ "{{bundle_resources_dir}}/" +
               "{{source_root_relative_dir}}/{{source_file_part}}" ]
+}
 }
 
 source_set("quiche_tests") {
@@ -1668,6 +1686,7 @@ source_set("quiche_tests") {
   public_configs = [ ":quiche_config" ]
 
   deps = [
+    ":test_data",
     "//net",
     "//net:quic_test_tools",
     "//net:simple_quic_tools",
