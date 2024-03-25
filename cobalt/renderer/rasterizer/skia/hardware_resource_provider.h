@@ -94,6 +94,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       const std::string& language) override;
 
   void LoadAdditionalFonts() override;
+  void ClearAdditionalFonts() override;
 
   // This resource provider uses ots (OpenTypeSanitizer) to sanitize the raw
   // typeface data and skia to generate the typeface. It supports TrueType,

@@ -187,6 +187,13 @@ void SoftwareResourceProvider::LoadAdditionalFonts() {
   cobalt_font_manager->LoadLocaleDefault();
 }
 
+void SoftwareResourceProvider::ClearAdditionalFonts() {
+  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  SkFontMgr_Cobalt* cobalt_font_manager =
+      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
+  cobalt_font_manager->ClearLocaleDefault();
+}
+
 scoped_refptr<render_tree::Typeface>
 SoftwareResourceProvider::CreateTypefaceFromRawData(
     std::unique_ptr<render_tree::ResourceProvider::RawTypefaceDataVector>
