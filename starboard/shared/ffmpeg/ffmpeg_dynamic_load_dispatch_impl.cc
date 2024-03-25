@@ -311,6 +311,7 @@ void FFMPEGDispatchImpl::LoadSymbols() {
     INITSYMBOL(avcodec_, avcodec_decode_audio4);
     INITSYMBOL(avcodec_, avcodec_decode_video2);
   } else {
+    INITSYMBOL(avcodec_, avcodec_send_packet);
     INITSYMBOL(avcodec_, avcodec_receive_frame);
   }
 
