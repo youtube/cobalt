@@ -33,6 +33,8 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/eme/media_encrypted_event.h"
+#include "cobalt/dom/eme/media_encrypted_event_init.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_settings.h"
@@ -49,9 +51,6 @@
 #include "cobalt/web/event.h"
 #include "cobalt/web/web_settings.h"
 #include "starboard/system.h"
-
-#include "cobalt/dom/eme/media_encrypted_event.h"
-#include "cobalt/dom/eme/media_encrypted_event_init.h"
 
 namespace cobalt {
 namespace dom {
@@ -645,16 +644,13 @@ void HTMLMediaElement::ScheduleEvent(const scoped_refptr<web::Event>& event) {
   event_queue_.Enqueue(event);
 }
 
-std::string HTMLMediaElement::h5vcc_audio_connectors(
-    script::ExceptionState* exception_state) const {
+std::string HTMLMediaElement::h5vcc_audio_connectors() const {
   static const CobaltExtensionConfigurableAudioWriteAheadApi* extension_api =
       static_cast<const CobaltExtensionConfigurableAudioWriteAheadApi*>(
           SbSystemGetExtension(
               kCobaltExtensionConfigurableAudioWriteAheadName));
   if (extension_api) {
     if (!player_) {
-      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
-                               exception_state);
       return std::string();
     }
 
@@ -666,8 +662,6 @@ std::string HTMLMediaElement::h5vcc_audio_connectors(
     return base::JoinString(configs, ";");
   }
 
-  web::DOMException::Raise(web::DOMException::kNotSupportedErr,
-                           exception_state);
   return std::string();
 }
 
