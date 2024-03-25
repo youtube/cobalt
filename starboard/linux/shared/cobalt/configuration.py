@@ -98,15 +98,7 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
         # These tests are timing-sensitive, and are thus flaky on slower builds
         test_filter.TestFilter(
             'web_platform_tests',
-            'xhr/WebPlatformTest.Run/XMLHttpRequest_send_timeout_events_htm',
-            'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests',
-            'streams/WebPlatformTest.Run/streams_readable_streams_templated_html',  # pylint:disable=line-too-long
-            'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests',
-            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel')
+            'cors/WebPlatformTest.Run/cors_preflight_failure_htm')
     ])
     return filters
 

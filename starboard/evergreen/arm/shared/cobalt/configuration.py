@@ -27,11 +27,6 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super().GetTestFilters()
-    filters.extend([
-        # TODO: Remove this filter once the layout_tests slowdown in the debug
-        # configuration is resolved.
-        test_filter.TestFilter('layout_tests', test_filter.FILTER_ALL, 'debug'),
-    ])
     for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

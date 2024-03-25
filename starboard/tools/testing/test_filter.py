@@ -35,12 +35,8 @@ class TestFilter(object):
   target_name:  The name of the unit test binary from which to remove tests.
   test_name:  The name of a specific test from the provided test target, or a
     constant from this module defining a group of tests to filter.
-  config: An optional argument specifying for which build configuration
-    the test should be excluded.  If this name is not provided, the test
-    will be excluded from all test runs.
   """
 
-  def __init__(self, target_name, test_name, config=None):
+  def __init__(self, target_name, test_name):
     self.target_name = target_name
     self.test_name = test_name
-    self.config = config
