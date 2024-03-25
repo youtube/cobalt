@@ -15,6 +15,8 @@
 import("//starboard/build/config/os_definitions.gni")
 
 _elf_loader_sources = [
+  "binary_patch_file_impl.cc",
+  "binary_patch_file_impl.h",
   "dynamic_section.cc",
   "dynamic_section.h",
   "elf_hash_table.cc",
@@ -56,6 +58,7 @@ static_library("elf_loader") {
     ":constants",
     ":evergreen_config",
     ":evergreen_info",
+    "//courgette:bsdiff",
     "//starboard:starboard_group",
     "//starboard/common",
     "//starboard/shared/modular:posix_wrappers",

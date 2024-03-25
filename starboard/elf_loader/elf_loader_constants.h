@@ -23,6 +23,9 @@ namespace elf_loader {
 // File path suffix for compressed binaries.
 extern const char kCompressionSuffix[];
 
+// File path suffix for binary patches.
+extern const char kBinaryPatchSuffix[];
+
 // Command line flag to specify the library path.
 extern const char kEvergreenLibrary[];
 

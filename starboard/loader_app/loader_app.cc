@@ -64,10 +64,12 @@ class CobaltLibraryLoader : public starboard::loader_app::LibraryLoader {
   virtual bool Load(const std::string& library_path,
                     const std::string& content_path,
                     bool use_compression,
-                    bool use_memory_mapped_file) {
+                    bool use_memory_mapped_file,
+                    bool use_binary_diff) {
     return g_elf_loader.Load(library_path, content_path, false,
                              &starboard::loader_app::SbSystemGetExtensionShim,
-                             use_compression, use_memory_mapped_file);
+                             use_compression, use_memory_mapped_file,
+                             use_binary_diff);
   }
   virtual void* Resolve(const std::string& symbol) {
     return g_elf_loader.LookupSymbol(symbol.c_str());

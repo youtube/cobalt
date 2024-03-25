@@ -63,7 +63,8 @@ bool ElfLoader::Load(const std::string& library_path,
                      bool is_relative_path,
                      const void* (*custom_get_extension)(const char* name),
                      bool use_compression,
-                     bool use_memory_mapped_file) {
+                     bool use_memory_mapped_file,
+                     bool use_binary_diff) {
   if (is_relative_path) {
     library_path_ = common::PrependContentPath(library_path);
     content_path_ = common::PrependContentPath(content_path);
@@ -76,12 +77,20 @@ bool ElfLoader::Load(const std::string& library_path,
     SB_LOG(ERROR) << "|library_path_| and |content_path_| cannot be empty.";
     return false;
   }
+
+  std::vector<char> original_content_dir(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory,
+                       original_content_dir.data(), kSbFileMaxPath)) {
+    SB_LOG(ERROR) << "Couldn't get original content directory.";
+    return false;
+  }
+
   EvergreenConfig::Create(library_path_.c_str(), content_path_.c_str(),
-                          custom_get_extension);
+                          original_content_dir.data(), custom_get_extension);
   SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
   int64_t start_time = CurrentMonotonicTime();
   bool res = impl_->Load(library_path_.c_str(), use_compression,
-                         use_memory_mapped_file);
+                         use_memory_mapped_file, use_binary_diff);
   int64_t end_time = CurrentMonotonicTime();
   SB_LOG(INFO) << "Loading took: " << (end_time - start_time) / 1000 << " ms";
   return res;

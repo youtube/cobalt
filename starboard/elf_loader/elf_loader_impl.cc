@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/elf_loader/binary_patch_file_impl.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/file.h"
@@ -50,7 +51,8 @@ ElfLoaderImpl::ElfLoaderImpl() {
 
 bool ElfLoaderImpl::Load(const char* name,
                          bool use_compression,
-                         bool use_memory_mapped_files) {
+                         bool use_memory_mapped_files,
+                         bool use_binary_diff) {
   if (use_compression && use_memory_mapped_files) {
     SB_LOG(ERROR) << "Loading " << name
                   << " Compression is not supported with memory mapped files.";
@@ -61,6 +63,9 @@ bool ElfLoaderImpl::Load(const char* name,
   if (use_compression && EndsWith(name, kCompressionSuffix)) {
     elf_file.reset(new LZ4FileImpl());
     SB_LOG(INFO) << "Loading " << name << " using compression";
+  } else if (use_binary_diff && EndsWith(name, kBinaryPatchSuffix)) {
+    elf_file.reset(new BinaryPatchFileImpl());
+    SB_LOG(INFO) << "Loading " << name << " using binary patching";
   } else {
     SB_LOG(INFO) << "Loading " << name;
     elf_file.reset(new FileImpl());
