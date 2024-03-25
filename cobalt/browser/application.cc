@@ -23,6 +23,7 @@
 #include "base/command_line.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/metrics/user_metrics.h"
 #include "base/optional.h"
@@ -84,6 +85,7 @@
 #include "starboard/event.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/installation_manager.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
 #include "url/gurl.h"
@@ -621,6 +623,22 @@ void AddCrashLogApplicationState(base::ApplicationState state) {
                                                       application_state);
 }
 
+void RecordLoaderAppMetrics() {
+  auto metrics_extension =
+      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
+          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
+  if (metrics_extension &&
+      strcmp(metrics_extension->name,
+             kStarboardExtensionLoaderAppMetricsName) == 0 &&
+      metrics_extension->version >= 1) {
+    base::UmaHistogramEnumeration(
+        "Cobalt.LoaderApp.CrashpadInstallationStatus",
+        metrics_extension->GetCrashpadInstallationStatus());
+    LOG(INFO) << "Recorded sample for "
+              << "Cobalt.LoaderApp.CrashpadInstallationStatus";
+  }
+}
+
 }  // namespace
 
 // Static user logs
@@ -1029,6 +1047,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   AddCrashLogApplicationState(base::kApplicationStateStarted);
+  RecordLoaderAppMetrics();
 }
 
 Application::~Application() {
