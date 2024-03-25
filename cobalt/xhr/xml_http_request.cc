@@ -1217,6 +1217,7 @@ void XMLHttpRequestImpl::WillDestroyCurrentMessageLoop() {
 void XMLHttpRequestImpl::ReportLoadTimingInfo(
     const net::LoadTimingInfo& timing_info) {
   load_timing_info_ = timing_info;
+  metrics_.ReportResourceTimingMetrics(timing_info);
 }
 
 void XMLHttpRequestImpl::GetLoadTimingInfoAndCreateResourceTiming() {

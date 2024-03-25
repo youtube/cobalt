@@ -40,6 +40,7 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/xhr/url_fetcher_buffer_writer.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
+#include "cobalt/xhr/xml_http_request_metrics.h"
 #include "cobalt/xhr/xml_http_request_upload.h"
 #include "net/base/load_timing_info.h"
 #include "net/http/http_request_headers.h"
@@ -455,6 +456,8 @@ class XMLHttpRequestImpl
       prevent_gc_until_send_complete_;
 
   std::string request_body_text_;
+
+  XMLHttpRequestMetrics metrics_;
 };
 
 class DOMXMLHttpRequestImpl : public XMLHttpRequestImpl {

@@ -32,6 +32,8 @@ static_library("xhr") {
     "xml_http_request.h",
     "xml_http_request_event_target.cc",
     "xml_http_request_event_target.h",
+    "xml_http_request_metrics.cc",
+    "xml_http_request_metrics.h",
   ]
 
   public_deps = [ ":xhr_settings" ]
@@ -67,6 +69,7 @@ target(gtest_target_type, "xhr_test") {
   sources = [
     "fetch_buffer_pool_test.cc",
     "xhr_settings_test.cc",
+    "xml_http_request_metrics_test.cc",
     "xml_http_request_test.cc",
   ]
   deps = [
