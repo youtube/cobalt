@@ -162,9 +162,6 @@ declare_args() {
   # Enables an NPLB audit of C++17 support.
   sb_enable_cpp17_audit = true
 
-  # Flag to use a future version of Skia, currently not available.
-  use_skia_next = false
-
   # Enable when using clang 16.
   is_clang_16 = false
 
