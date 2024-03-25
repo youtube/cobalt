@@ -149,8 +149,7 @@ class HTMLMediaElement : public HTMLElement,
   // Returns semicolon separated names of audio connectors, like
   // "hdmi;bluetooth".
   // TODO(b/267678497): The current interface is tentative, to be refined.
-  std::string h5vcc_audio_connectors(
-      script::ExceptionState* exception_state) const;
+  std::string h5vcc_audio_connectors() const;
 
   // Set max video capabilities.
   void SetMaxVideoCapabilities(const std::string& max_video_capabilities,
