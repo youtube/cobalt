@@ -185,6 +185,72 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.XHR.RequestTiming.TcpHandshakeTime"
+    units="milliseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the TCP handshake of XHR requests.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.XHR.RequestTiming.DnsLookupTime"
+    units="milliseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the DNS lookup of XHR requests.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.XHR.RequestTiming.RequestTime"
+    units="milliseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the request of XHR requests.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.XHR.RequestTiming.TlsNegotiationTime"
+    units="milliseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for TLS negotiation of XHR requests.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.XHR.RequestTiming.TimeToFetch"
+    units="milliseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the full fetch of XHR requests.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.XHR.RequestTiming.ServiceWorkerProcessingTime"
+    units="milliseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the service worker processing time of XHR requests.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.MediaDevices.MicCreationSucceeded" enum="Boolean"
     expires_after="never">
 <!-- expires-never: Needed for long-term tracking of device mic support. -->
