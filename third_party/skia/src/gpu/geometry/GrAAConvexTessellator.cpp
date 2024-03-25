@@ -20,19 +20,21 @@
 //  test more degenerate cases
 
 // The tolerance for fusing vertices and eliminating colinear lines (It is in device space).
-static const SkScalar kClose = (SK_Scalar1 / 16);
-static const SkScalar kCloseSqd = kClose * kClose;
+static constexpr SkScalar kClose = (SK_Scalar1 / 16);
+static constexpr SkScalar kCloseSqd = kClose * kClose;
 
 // tesselation tolerance values, in device space pixels
-static const SkScalar kQuadTolerance = 0.2f;
-static const SkScalar kCubicTolerance = 0.2f;
-static const SkScalar kConicTolerance = 0.25f;
+static constexpr SkScalar kQuadTolerance = 0.2f;
+static constexpr SkScalar kCubicTolerance = 0.2f;
+static constexpr SkScalar kQuadToleranceSqd = kQuadTolerance * kQuadTolerance;
+static constexpr SkScalar kCubicToleranceSqd = kCubicTolerance * kCubicTolerance;
+static constexpr SkScalar kConicTolerance = 0.25f;
 
 // dot product below which we use a round cap between curve segments
-static const SkScalar kRoundCapThreshold = 0.8f;
+static constexpr SkScalar kRoundCapThreshold = 0.8f;
 
 // dot product above which we consider two adjacent curves to be part of the "same" curve
-static const SkScalar kCurveConnectionThreshold = 0.8f;
+static constexpr SkScalar kCurveConnectionThreshold = 0.8f;
 
 static bool intersect(const SkPoint& p0, const SkPoint& n0,
                       const SkPoint& p1, const SkPoint& n1,
@@ -48,11 +50,16 @@ static bool intersect(const SkPoint& p0, const SkPoint& n0,
 
 // This is a special case version of intersect where we have the vector
 // perpendicular to the second line rather than the vector parallel to it.
-static SkScalar perp_intersect(const SkPoint& p0, const SkPoint& n0,
-                               const SkPoint& p1, const SkPoint& perp) {
+static bool perp_intersect(const SkPoint& p0, const SkPoint& n0,
+                           const SkPoint& p1, const SkPoint& perp,
+                           SkScalar* t) {
     const SkPoint v = p1 - p0;
     SkScalar perpDot = n0.dot(perp);
-    return v.dot(perp) / perpDot;
+    if (SkScalarNearlyZero(perpDot)) {
+        return false;
+    }
+    *t = v.dot(perp) / perpDot;
+    return SkScalarIsFinite(*t);
 }
 
 static bool duplicate_pt(const SkPoint& p0, const SkPoint& p1) {
@@ -355,7 +362,10 @@ bool GrAAConvexTessellator::computePtAlongBisector(int startIdx,
     // First find the point where the edge and the bisector intersect
     SkPoint newP;
 
-    SkScalar t = perp_intersect(fPts[startIdx], bisector, fPts[edgeIdx], norm);
+    SkScalar t;
+    if (!perp_intersect(fPts[startIdx], bisector, fPts[edgeIdx], norm, &t)) {
+        return false;
+    }
     if (SkScalarNearlyEqual(t, 0.0f)) {
         // the start point was one of the original ring points
         SkASSERT(startIdx < fPts.count());
@@ -956,7 +966,7 @@ void GrAAConvexTessellator::quadTo(const SkPoint pts[3]) {
     fPointBuffer.setCount(maxCount);
     SkPoint* target = fPointBuffer.begin();
     int count = GrPathUtils::generateQuadraticPoints(pts[0], pts[1], pts[2],
-                                                     kQuadTolerance, &target, maxCount);
+                                                     kQuadToleranceSqd, &target, maxCount);
     fPointBuffer.setCount(count);
     for (int i = 0; i < count - 1; i++) {
         this->lineTo(fPointBuffer[i], kCurve_CurveState);
@@ -977,7 +987,7 @@ void GrAAConvexTessellator::cubicTo(const SkMatrix& m, const SkPoint srcPts[4]) 
     fPointBuffer.setCount(maxCount);
     SkPoint* target = fPointBuffer.begin();
     int count = GrPathUtils::generateCubicPoints(pts[0], pts[1], pts[2], pts[3],
-            kCubicTolerance, &target, maxCount);
+            kCubicToleranceSqd, &target, maxCount);
     fPointBuffer.setCount(count);
     for (int i = 0; i < count - 1; i++) {
         this->lineTo(fPointBuffer[i], kCurve_CurveState);

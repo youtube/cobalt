@@ -26,6 +26,7 @@
 #include "starboard/common/system_property.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 #include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
@@ -94,11 +95,16 @@ base::FilePath GetDatabasePath() {
   return base::FilePath(crashpad_directory_path.c_str());
 }
 
-void InitializeCrashpadDatabase(const base::FilePath database_directory_path) {
+bool InitializeCrashpadDatabase(const base::FilePath database_directory_path) {
   std::unique_ptr<::crashpad::CrashReportDatabase> database =
       ::crashpad::CrashReportDatabase::Initialize(database_directory_path);
+  if (!database) {
+    return false;
+  }
+
   ::crashpad::Settings* settings = database->GetSettings();
   settings->SetUploadsEnabled(true);
+  return true;
 }
 
 std::string GetProductName() {
@@ -182,6 +188,18 @@ std::map<std::string, std::string> GetPlatformInfo() {
   return platform_info;
 }
 
+void RecordStatus(CrashpadInstallationStatus status) {
+  auto metrics_extension =
+      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
+          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
+  if (metrics_extension &&
+      strcmp(metrics_extension->name,
+             kStarboardExtensionLoaderAppMetricsName) == 0 &&
+      metrics_extension->version >= 1) {
+    metrics_extension->SetCrashpadInstallationStatus(status);
+  }
+}
+
 }  // namespace
 
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
@@ -189,8 +207,10 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
   if (!SbFileExists(handler_path.value().c_str())) {
-    LOG(WARNING) << "crashpad_handler not at expected location of "
-                 << handler_path.value();
+    LOG(ERROR) << "crashpad_handler not at expected location of "
+               << handler_path.value();
+    RecordStatus(
+        CrashpadInstallationStatus::kFailedCrashpadHandlerBinaryNotFound);
     return;
   }
 
@@ -206,19 +226,38 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   const std::map<std::string, std::string> platform_info = GetPlatformInfo();
   default_annotations.insert(platform_info.begin(), platform_info.end());
 
-  InitializeCrashpadDatabase(database_directory_path);
+  if (!InitializeCrashpadDatabase(database_directory_path)) {
+    LOG(ERROR) << "Failed to initialize Crashpad database";
+    RecordStatus(
+        CrashpadInstallationStatus::kFailedDatabaseInitializationFailed);
+
+    // As we investigate b/329458881 we may find that it's safe to continue with
+    // installation of the Crashpad handler here with the hope that the handler,
+    // when it runs, doesn't experience the same failure when initializing the
+    // Crashpad database. For now it seems safer to just give up on crash
+    // reporting for this particular Cobalt session.
+    return;
+  }
+
   client->SetUnhandledSignals({});
 
-  client->StartHandlerAtCrash(handler_path,
-                              database_directory_path,
-                              default_metrics_dir,
-                              kUploadUrl,
-                              ca_certificates_path,
-                              default_annotations,
-                              default_arguments);
+  if (!client->StartHandlerAtCrash(handler_path,
+                                   database_directory_path,
+                                   default_metrics_dir,
+                                   kUploadUrl,
+                                   ca_certificates_path,
+                                   default_annotations,
+                                   default_arguments)) {
+    LOG(ERROR) << "Failed to install the signal handler";
+    RecordStatus(
+        CrashpadInstallationStatus::kFailedSignalHandlerInstallationFailed);
+    return;
+  }
 
   ::crashpad::SanitizationInformation sanitization_info = {0, 0, 0, 1};
   client->SendSanitizationInformationToHandler(sanitization_info);
+
+  RecordStatus(CrashpadInstallationStatus::kSucceeded);
 }
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {

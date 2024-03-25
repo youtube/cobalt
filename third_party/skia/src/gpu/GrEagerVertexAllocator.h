@@ -8,6 +8,7 @@
 #ifndef GrEagerVertexAllocator_DEFINED
 #define GrEagerVertexAllocator_DEFINED
 
+#include "src/gpu/BufferWriter.h"
 #include "src/gpu/GrThreadSafeCache.h"
 
 class GrMeshDrawTarget;
@@ -23,14 +24,16 @@ class GrMeshDrawTarget;
 // actual vertex count.
 class GrEagerVertexAllocator {
 public:
-    template<typename T> T* lock(int eagerCount) {
-        return static_cast<T*>(this->lock(sizeof(T), eagerCount));
-    }
     virtual void* lock(size_t stride, int eagerCount) = 0;
 
     virtual void unlock(int actualCount) = 0;
 
     virtual ~GrEagerVertexAllocator() {}
+
+    skgpu::VertexWriter lockWriter(size_t stride, int eagerCount) {
+        void* p = this->lock(stride, eagerCount);
+        return p ? skgpu::VertexWriter{p, stride * eagerCount} : skgpu::VertexWriter{};
+    }
 };
 
 // GrEagerVertexAllocator implementation that uses GrMeshDrawTarget::makeVertexSpace and
@@ -50,9 +53,6 @@ public:
         SkASSERT(!fLockCount);
     }
 #endif
-
-    // Un-shadow GrEagerVertexAllocator::lock<T>.
-    using GrEagerVertexAllocator::lock;
 
     // Mark "final" as a hint for the compiler to not use the vtable.
     void* lock(size_t stride, int eagerCount) final;

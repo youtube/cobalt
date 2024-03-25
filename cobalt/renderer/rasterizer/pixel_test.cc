@@ -57,15 +57,7 @@
 #include "third_party/glm/glm/gtc/matrix_transform.hpp"
 #include "third_party/glm/glm/gtx/transform.hpp"
 
-#define BILINEAR_FILTERING_SUPPORTED 1
 #define NV12_TEXTURE_SUPPORTED 1
-
-#if defined(STARBOARD)
-#if !SB_HAS(BILINEAR_FILTERING_SUPPORT)
-#undef BILINEAR_FILTERING_SUPPORTED
-#define BILINEAR_FILTERING_SUPPORTED 0
-#endif
-#endif
 
 #if defined(STARBOARD)
 #if !SB_HAS(NV12_TEXTURE_SUPPORT)
@@ -2075,8 +2067,6 @@ TEST_F(PixelTest, ImageEdgeNoWrapWithPixelCentersOffset) {
       PointF(100.0f, 100.51f), kNumCascades));
 }
 
-#if BILINEAR_FILTERING_SUPPORTED
-
 TEST_F(PixelTest, ImagesAreLinearlyInterpolated) {
   // We want to make sure that image pixels are accessed through a bilinear
   // interpolation magnification filter.
@@ -2096,8 +2086,6 @@ TEST_F(PixelTest, ZoomedInImagesDoNotWrapInterpolated) {
       RectF(output_surface_size()),
       ScaleMatrix(2) * TranslateMatrix(-0.5f, -0.5f)));
 }
-
-#endif  // BILINEAR_FILTERING_SUPPORTED
 
 TEST_F(PixelTest, YUV3PlaneImagesAreLinearlyInterpolated) {
   // Tests that three plane YUV images are bilinearly interpolated.

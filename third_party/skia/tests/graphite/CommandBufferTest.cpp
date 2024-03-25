@@ -8,15 +8,29 @@
 #include "tests/Test.h"
 
 #include "experimental/graphite/include/Context.h"
-#include "experimental/graphite/src/ContextPriv.h"
-
+#include "experimental/graphite/include/Recorder.h"
 #include "experimental/graphite/include/mtl/MtlTypes.h"
 #include "experimental/graphite/src/Buffer.h"
+#include "experimental/graphite/src/Caps.h"
 #include "experimental/graphite/src/CommandBuffer.h"
+#include "experimental/graphite/src/ContextPriv.h"
+#include "experimental/graphite/src/DrawBufferManager.h"
+#include "experimental/graphite/src/DrawWriter.h"
+#include "experimental/graphite/src/GlobalCache.h"
 #include "experimental/graphite/src/Gpu.h"
-#include "experimental/graphite/src/RenderPipeline.h"
+#include "experimental/graphite/src/GraphicsPipeline.h"
+#include "experimental/graphite/src/RecorderPriv.h"
+#include "experimental/graphite/src/Renderer.h"
 #include "experimental/graphite/src/ResourceProvider.h"
+#include "experimental/graphite/src/Sampler.h"
 #include "experimental/graphite/src/Texture.h"
+#include "experimental/graphite/src/TextureProxy.h"
+#include "experimental/graphite/src/UniformManager.h"
+#include "experimental/graphite/src/geom/Shape.h"
+#include "experimental/graphite/src/geom/Transform_graphite.h"
+#include "src/core/SkKeyHelpers.h"
+#include "src/core/SkShaderCodeDictionary.h"
+#include "src/core/SkUniformData.h"
 
 #if GRAPHITE_TEST_UTILS
 // set to 1 if you want to do GPU capture of the commandBuffer
@@ -24,6 +38,188 @@
 #endif
 
 using namespace skgpu;
+
+namespace {
+
+const DepthStencilSettings kTestDepthStencilSettings = {
+    // stencil
+    {},
+    {},
+    0,
+    true,
+    // depth
+    CompareOp::kAlways,
+    true,
+    false,
+};
+
+class UniformRectDraw final : public RenderStep {
+public:
+    ~UniformRectDraw() override {}
+
+    static const RenderStep* Singleton() {
+        static const UniformRectDraw kSingleton;
+        return &kSingleton;
+    }
+
+    const char* name() const override { return "uniform-rect"; }
+
+    const char* vertexSkSL() const override {
+        return "float2 tmpPosition = float2(float(sk_VertexID >> 1), float(sk_VertexID & 1));\n"
+               "float4 devPosition = float4(tmpPosition * scale + translate, 0.0, 1.0);\n";
+    }
+
+    void writeVertices(DrawWriter* writer,
+                       const SkIRect&,
+                       const Transform&,
+                       const Shape&) const override {
+        // The shape is upload via uniforms, so this just needs to record 4 data-less vertices
+        writer->draw({}, 4);
+    }
+
+    sk_sp<SkUniformData> writeUniforms(Layout layout,
+                                       const SkIRect&,
+                                       const Transform&,
+                                       const Shape& shape) const override {
+        SkASSERT(shape.isRect());
+        // TODO: A << API for uniforms would be nice, particularly if it could take pre-computed
+        // offsets for each uniform.
+        auto uniforms = SkUniformData::Make(this->uniforms(), sizeof(float) * 4);
+        float2 scale = shape.rect().size();
+        float2 translate = shape.rect().topLeft();
+        memcpy(uniforms->data(), &scale, sizeof(float2));
+        memcpy(uniforms->data() + sizeof(float2), &translate, sizeof(float2));
+        return uniforms;
+    }
+
+private:
+    UniformRectDraw() : RenderStep(Flags::kPerformsShading,
+                                   /*uniforms=*/{{"scale",     SkSLType::kFloat2},
+                                                 {"translate", SkSLType::kFloat2}},
+                                   PrimitiveType::kTriangleStrip,
+                                   {{},
+                                    {},
+                                    0,
+                                    true,
+                                    CompareOp::kAlways,
+                                    false,
+                                    false},
+                                   /*vertexAttrs=*/{},
+                                   /*instanceAttrs=*/{}) {}
+};
+
+class TriangleRectDraw final : public RenderStep {
+public:
+    ~TriangleRectDraw() override {}
+
+    static const RenderStep* Singleton() {
+        static const TriangleRectDraw kSingleton;
+        return &kSingleton;
+    }
+
+    const char* name() const override { return "triangle-rect"; }
+
+    const char* vertexSkSL() const override {
+        return "float4 devPosition = float4(position * scale + translate, 0.0, 1.0);\n";
+    }
+
+    void writeVertices(DrawWriter* writer,
+                       const SkIRect&,
+                       const Transform&,
+                       const Shape& shape) const override {
+        DrawBufferManager* bufferMgr = writer->bufferManager();
+        auto [vertexWriter, vertices] = bufferMgr->getVertexWriter(4 * this->vertexStride());
+        vertexWriter << 0.5f * (shape.rect().left() + 1.f)  << 0.5f * (shape.rect().top() + 1.f)
+                     << 0.5f * (shape.rect().left() + 1.f)  << 0.5f * (shape.rect().bot() + 1.f)
+                     << 0.5f * (shape.rect().right() + 1.f) << 0.5f * (shape.rect().top() + 1.f)
+                     << 0.5f * (shape.rect().right() + 1.f) << 0.5f * (shape.rect().bot() + 1.f);
+
+        // TODO: Would be nice to re-use this
+        auto [indexWriter, indices] = bufferMgr->getIndexWriter(6 * sizeof(uint16_t));
+        indexWriter << 0 << 1 << 2
+                    << 2 << 1 << 3;
+
+        writer->drawIndexed(vertices, indices, 6);
+    }
+
+    sk_sp<SkUniformData> writeUniforms(Layout layout,
+                                       const SkIRect&,
+                                       const Transform&,
+                                       const Shape&) const override {
+        auto uniforms = SkUniformData::Make(this->uniforms(), sizeof(float) * 4);
+        float data[4] = {2.f, 2.f, -1.f, -1.f};
+        memcpy(uniforms->data(), data, 4 * sizeof(float));
+        return uniforms;
+    }
+
+private:
+    TriangleRectDraw()
+            : RenderStep(Flags::kPerformsShading,
+                         /*uniforms=*/{{"scale",     SkSLType::kFloat2},
+                                       {"translate", SkSLType::kFloat2}},
+                         PrimitiveType::kTriangles,
+                         kTestDepthStencilSettings,
+                         /*vertexAttrs=*/{{"position",
+                                           VertexAttribType::kFloat2,
+                                           SkSLType::kFloat2}},
+                         /*instanceAttrs=*/{}) {}
+};
+
+class InstanceRectDraw final : public RenderStep {
+public:
+    ~InstanceRectDraw() override {}
+
+    static const RenderStep* Singleton() {
+        static const InstanceRectDraw kSingleton;
+        return &kSingleton;
+    }
+
+    const char* name() const override { return "instance-rect"; }
+
+    const char* vertexSkSL() const override {
+        return "float2 tmpPosition = float2(float(sk_VertexID >> 1), float(sk_VertexID & 1));\n"
+               "float4 devPosition = float4(tmpPosition * dims + position, 0.0, 1.0);\n";
+    }
+
+    void writeVertices(DrawWriter* writer,
+                       const SkIRect&,
+                       const Transform&,
+                       const Shape& shape) const override {
+        SkASSERT(shape.isRect());
+
+        DrawBufferManager* bufferMgr = writer->bufferManager();
+
+        // TODO: To truly test draw merging, this index buffer needs to remembered across
+        // writeVertices calls
+        auto [indexWriter, indices] = bufferMgr->getIndexWriter(6 * sizeof(uint16_t));
+        indexWriter << 0 << 1 << 2
+                    << 2 << 1 << 3;
+
+        DrawWriter::Instances instances{*writer, {}, indices, 6};
+        instances.append(1) << shape.rect().topLeft() << shape.rect().size();
+    }
+
+    sk_sp<SkUniformData> writeUniforms(Layout,
+                                       const SkIRect&,
+                                       const Transform&,
+                                       const Shape&) const override {
+        return nullptr;
+    }
+
+private:
+    InstanceRectDraw()
+            : RenderStep(Flags::kPerformsShading,
+                         /*uniforms=*/{},
+                         PrimitiveType::kTriangles,
+                         kTestDepthStencilSettings,
+                         /*vertexAttrs=*/{},
+                         /*instanceAttrs=*/ {
+                                { "position", VertexAttribType::kFloat2, SkSLType::kFloat2 },
+                                { "dims",     VertexAttribType::kFloat2, SkSLType::kFloat2 }
+                         }) {}
+};
+
+} // anonymous namespace
 
 /*
  * This is to test the various pieces of the CommandBuffer interface.
@@ -38,7 +234,10 @@ DEF_GRAPHITE_TEST_FOR_CONTEXTS(CommandBufferTest, reporter, context) {
 #if GRAPHITE_TEST_UTILS && CAPTURE_COMMANDBUFFER
     gpu->testingOnly_startCapture();
 #endif
-    auto commandBuffer = gpu->resourceProvider()->createCommandBuffer();
+    auto recorder = context->makeRecorder();
+    auto resourceProvider = recorder->priv().resourceProvider();
+    auto dict = resourceProvider->shaderCodeDictionary();
+    auto commandBuffer = resourceProvider->createCommandBuffer();
 
     SkISize textureSize = { kTextureWidth, kTextureHeight };
 #ifdef SK_METAL
@@ -48,126 +247,123 @@ DEF_GRAPHITE_TEST_FOR_CONTEXTS(CommandBufferTest, reporter, context) {
         70,     // MTLPixelFormatRGBA8Unorm
         0x0005, // MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead
         2,      // MTLStorageModePrivate
+        false,  // framebufferOnly
     };
     TextureInfo textureInfo(mtlTextureInfo);
 #else
     TextureInfo textureInfo;
 #endif
 
-    sk_sp<Texture> texture = gpu->resourceProvider()->findOrCreateTexture(textureSize,
-                                                                          textureInfo);
-    REPORTER_ASSERT(reporter, texture);
+    std::unique_ptr<SkPaintParamsKey> key = CreateKey(dict,
+                                                      SkBackend::kGraphite,
+                                                      ShaderCombo::ShaderType::kSolidColor,
+                                                      SkTileMode::kClamp,
+                                                      SkBlendMode::kSrc);
+
+    auto entry = dict->findOrCreate(std::move(key));
+
+    auto target = sk_sp<TextureProxy>(new TextureProxy(textureSize, textureInfo));
+    REPORTER_ASSERT(reporter, target);
 
     RenderPassDesc renderPassDesc = {};
-    renderPassDesc.fColorAttachment.fTexture = texture;
+    renderPassDesc.fColorAttachment.fTextureInfo = target->textureInfo();
     renderPassDesc.fColorAttachment.fLoadOp = LoadOp::kClear;
     renderPassDesc.fColorAttachment.fStoreOp = StoreOp::kStore;
     renderPassDesc.fClearColor = { 1, 0, 0, 1 }; // red
 
-    commandBuffer->beginRenderPass(renderPassDesc);
+    target->instantiate(resourceProvider);
+    DrawBufferManager bufferMgr(resourceProvider, 4);
 
-    // Shared uniform buffer
-    struct UniformData {
-        SkPoint fScale;
-        SkPoint fTranslate;
+    TextureInfo depthStencilInfo =
+            gpu->caps()->getDefaultDepthStencilTextureInfo(DepthStencilFlags::kDepthStencil,
+                                                           1,
+                                                           Protected::kNo);
+    renderPassDesc.fDepthStencilAttachment.fTextureInfo = depthStencilInfo;
+    renderPassDesc.fDepthStencilAttachment.fLoadOp = LoadOp::kDiscard;
+    renderPassDesc.fDepthStencilAttachment.fStoreOp = StoreOp::kDiscard;
+    sk_sp<Texture> depthStencilTexture =
+            resourceProvider->findOrCreateTexture(textureSize, depthStencilInfo);
+
+    // Create Sampler -- for now, just to test creation
+    sk_sp<Sampler> sampler = resourceProvider->findOrCreateCompatibleSampler(
+            SkSamplingOptions(SkFilterMode::kLinear), SkTileMode::kClamp, SkTileMode::kDecal);
+    REPORTER_ASSERT(reporter, sampler);
+
+    commandBuffer->beginRenderPass(renderPassDesc, target->refTexture(), nullptr,
+                                   depthStencilTexture);
+
+    commandBuffer->setViewport(0.f, 0.f, kTextureWidth, kTextureHeight);
+
+    DrawWriter drawWriter(commandBuffer->asDrawDispatcher(), &bufferMgr);
+
+    struct RectAndColor {
+        SkRect    fRect;
         SkColor4f fColor;
     };
-    sk_sp<Buffer> uniformBuffer = gpu->resourceProvider()->findOrCreateBuffer(
-            2*sizeof(UniformData), BufferType::kUniform, PrioritizeGpuReads::kNo);
-    size_t uniformOffset = 0;
 
+    auto draw = [&](const RenderStep* step, std::vector<RectAndColor> draws) {
+        GraphicsPipelineDesc pipelineDesc;
+        pipelineDesc.setProgram(step, entry->uniqueID());
+        drawWriter.newPipelineState(step->primitiveType(),
+                                    step->vertexStride(),
+                                    step->instanceStride());
+        auto pipeline = resourceProvider->findOrCreateGraphicsPipeline(pipelineDesc,
+                                                                       renderPassDesc);
+        commandBuffer->bindGraphicsPipeline(std::move(pipeline));
+
+        // All of the test RenderSteps ignore the transform, so just use the identity
+        static const Transform kIdentity{SkM44()};
+        // No set scissor, so use entire render target dimensions
+        static const SkIRect kBounds = SkIRect::MakeWH(kTextureWidth, kTextureHeight);
+
+        for (auto d : draws) {
+            drawWriter.newDynamicState();
+            Shape shape(d.fRect);
+
+            auto renderStepUniforms =
+                    step->writeUniforms(Layout::kMetal, kBounds, kIdentity, shape);
+            if (renderStepUniforms) {
+                auto [writer, bindInfo] =
+                        bufferMgr.getUniformWriter(renderStepUniforms->dataSize());
+                writer.write(renderStepUniforms->data(), renderStepUniforms->dataSize());
+                commandBuffer->bindUniformBuffer(UniformSlot::kRenderStep,
+                                                 sk_ref_sp(bindInfo.fBuffer),
+                                                 bindInfo.fOffset);
+            }
+
+            // TODO: Rely on uniform writer and GetUniforms(kSolidColor).
+            auto [writer, bindInfo] = bufferMgr.getUniformWriter(sizeof(SkColor4f));
+            writer.write(&d.fColor, sizeof(SkColor4f));
+            commandBuffer->bindUniformBuffer(UniformSlot::kPaint,
+                                             sk_ref_sp(bindInfo.fBuffer),
+                                             bindInfo.fOffset);
+
+            step->writeVertices(&drawWriter, kBounds, kIdentity, shape);
+        }
+    };
+
+    SkRect fullRect = SkRect::MakeIWH(kTextureWidth, kTextureHeight);
     // Draw blue rectangle over entire rendertarget (which was red)
-    RenderPipelineDesc pipelineDesc;
-    pipelineDesc.setTestingOnlyShaderIndex(0);
-    auto renderPipeline = gpu->resourceProvider()->findOrCreateRenderPipeline(pipelineDesc);
-    commandBuffer->bindRenderPipeline(std::move(renderPipeline));
-    commandBuffer->draw(PrimitiveType::kTriangleStrip, 0, 4);
+    draw(UniformRectDraw::Singleton(), {{fullRect, SkColors::kBlue}});
 
     // Draw inset yellow rectangle using uniforms
-    pipelineDesc.setTestingOnlyShaderIndex(1);
-    renderPipeline = gpu->resourceProvider()->findOrCreateRenderPipeline(pipelineDesc);
-    commandBuffer->bindRenderPipeline(std::move(renderPipeline));
-    UniformData* uniforms = (UniformData*)uniformBuffer->map();
-    uniforms->fScale = SkPoint({1.8, 1.8});
-    uniforms->fTranslate = SkPoint({-0.9, -0.9});
-    uniforms->fColor = SkColors::kYellow;
-    commandBuffer->bindUniformBuffer(uniformBuffer, uniformOffset);
-    commandBuffer->draw(PrimitiveType::kTriangleStrip, 0, 4);
-    uniformOffset += sizeof(UniformData);
-    ++uniforms;
+    draw(UniformRectDraw::Singleton(),
+         {{fullRect.makeInset(kTextureWidth/20.f, kTextureHeight/20.f), SkColors::kYellow}});
 
     // Draw inset magenta rectangle with triangles in vertex buffer
-    pipelineDesc.setTestingOnlyShaderIndex(2);
-    skgpu::RenderPipelineDesc::Attribute vertexAttributes[1] = {
-        { "position", VertexAttribType::kFloat2, SLType::kFloat2 }
-    };
-    pipelineDesc.setVertexAttributes(vertexAttributes, 1);
-    renderPipeline = gpu->resourceProvider()->findOrCreateRenderPipeline(pipelineDesc);
-    commandBuffer->bindRenderPipeline(std::move(renderPipeline));
+    draw(TriangleRectDraw::Singleton(),
+         {{fullRect.makeInset(kTextureWidth/4.f, kTextureHeight/4.f), SkColors::kMagenta}});
 
-    struct VertexData {
-        SkPoint fPosition;
-    };
-    sk_sp<Buffer> vertexBuffer = gpu->resourceProvider()->findOrCreateBuffer(
-            4*sizeof(VertexData), BufferType::kVertex, PrioritizeGpuReads::kNo);
-    sk_sp<Buffer> indexBuffer = gpu->resourceProvider()->findOrCreateBuffer(
-            6*sizeof(uint16_t), BufferType::kIndex, PrioritizeGpuReads::kNo);
-    auto vertices = (VertexData*)vertexBuffer->map();
-    vertices[0].fPosition = SkPoint({0.25f, 0.25f});
-    vertices[1].fPosition = SkPoint({0.25f, 0.75f});
-    vertices[2].fPosition = SkPoint({0.75f, 0.25f});
-    vertices[3].fPosition = SkPoint({0.75f, 0.75f});
-    vertexBuffer->unmap();
-    auto indices = (uint16_t*)indexBuffer->map();
-    indices[0] = 0;
-    indices[1] = 1;
-    indices[2] = 2;
-    indices[3] = 2;
-    indices[4] = 1;
-    indices[5] = 3;
-    indexBuffer->unmap();
-    commandBuffer->bindVertexBuffers(vertexBuffer, nullptr);
-    commandBuffer->bindIndexBuffer(indexBuffer, 0);
-    uniforms->fScale = SkPoint({2, 2});
-    uniforms->fTranslate = SkPoint({-1, -1});
-    uniforms->fColor = SkColors::kMagenta;
-    commandBuffer->bindUniformBuffer(uniformBuffer, uniformOffset);
-    commandBuffer->drawIndexed(PrimitiveType::kTriangles, 0, 6, 0);
+    // Draw green and cyan rects using instance buffer
+    draw(InstanceRectDraw::Singleton(),
+         { {{kTextureWidth/3.f, kTextureHeight/3.f,
+             kTextureWidth/2.f, kTextureHeight/2.f}, SkColors::kGreen},
+           {{kTextureWidth/2.f, kTextureHeight/2.f,
+             5.f*kTextureWidth/8.f, 5.f*kTextureHeight/8.f}, SkColors::kCyan} });
 
-    // draw rects using instance buffer
-    pipelineDesc.setTestingOnlyShaderIndex(3);
-    skgpu::RenderPipelineDesc::Attribute instanceAttributes[3] = {
-        { "position", VertexAttribType::kFloat2, SLType::kFloat2 },
-        { "dims", VertexAttribType::kFloat2, SLType::kFloat2 },
-        { "color", VertexAttribType::kFloat4, SLType::kFloat4 }
-    };
-    pipelineDesc.setVertexAttributes(nullptr, 0);
-    pipelineDesc.setInstanceAttributes(instanceAttributes, 3);
-    renderPipeline = gpu->resourceProvider()->findOrCreateRenderPipeline(pipelineDesc);
-    commandBuffer->bindRenderPipeline(std::move(renderPipeline));
-
-    struct InstanceData {
-        SkPoint fPosition;
-        SkPoint fDims;
-        SkColor4f fColor;
-    };
-    sk_sp<Buffer> instanceBuffer = gpu->resourceProvider()->findOrCreateBuffer(
-            2*sizeof(InstanceData), BufferType::kVertex, PrioritizeGpuReads::kNo);
-    auto instances = (InstanceData*)instanceBuffer->map();
-    instances[0].fPosition = SkPoint({-0.4, -0.4});
-    instances[0].fDims = SkPoint({0.4, 0.4});
-    instances[0].fColor = SkColors::kGreen;
-    instances[1].fPosition = SkPoint({0, 0});
-    instances[1].fDims = SkPoint({0.25, 0.25});
-    instances[1].fColor = SkColors::kCyan;
-    instanceBuffer->unmap();
-    commandBuffer->bindVertexBuffers(nullptr, instanceBuffer);
-//    commandBuffer->drawInstanced(PrimitiveType::kTriangleStrip, 0, 4, 0, 2);
-    commandBuffer->drawIndexedInstanced(PrimitiveType::kTriangles, 0, 6, 0, 0, 2);
-
+    drawWriter.flush();
+    bufferMgr.transferToCommandBuffer(commandBuffer.get());
     commandBuffer->endRenderPass();
-
-    uniformBuffer->unmap();
 
     // Do readback
 
@@ -175,11 +371,11 @@ DEF_GRAPHITE_TEST_FOR_CONTEXTS(CommandBufferTest, reporter, context) {
     //       add bpp to Caps
     size_t rowBytes = 4*kTextureWidth;
     size_t bufferSize = rowBytes*kTextureHeight;
-    sk_sp<Buffer> copyBuffer = gpu->resourceProvider()->findOrCreateBuffer(
+    sk_sp<Buffer> copyBuffer = resourceProvider->findOrCreateBuffer(
             bufferSize, BufferType::kXferGpuToCpu, PrioritizeGpuReads::kNo);
     REPORTER_ASSERT(reporter, copyBuffer);
     SkIRect srcRect = { 0, 0, kTextureWidth, kTextureHeight };
-    commandBuffer->copyTextureToBuffer(texture, srcRect, copyBuffer, 0, rowBytes);
+    commandBuffer->copyTextureToBuffer(target->refTexture(), srcRect, copyBuffer, 0, rowBytes);
 
     bool result = gpu->submit(commandBuffer);
     REPORTER_ASSERT(reporter, result);

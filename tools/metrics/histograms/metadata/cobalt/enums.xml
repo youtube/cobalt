@@ -64,7 +64,20 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="21" label="PIPELINE_ERROR_EXTERNAL_RENDERER_FAILED"/>
   <int value="22" label="DEMUXER_ERROR_DETECTED_HLS"/>
   <int value="23" label="PIPELINE_ERROR_HARDWARE_CONTEXT_RESET"/>
-  <int value="24" label="PLAYBACK_CAPABILITY_CHANGED"/>
+  <!-- Deprecated. Capability change errors are reported with
+       PIPELINE_ERROR_DECODE  -->
+  <int value="24" label="PLAYBACK_CAPABILITY_CHANGED (deprecated)"/>
+</enum>
+
+<enum name="CrashpadInstallationStatus">
+  <summary>
+   Possible status of Crashpad installation by the Loader App
+  </summary>
+  <int value="0" label="UNKNOWN"/>
+  <int value="1" label="SUCCEEDED"/>
+  <int value="2" label="FAILED_CRASHPAD_HANDLER_BINARY_NOT_FOUND"/>
+  <int value="3" label="FAILED_DATABASE_INITIALIZATION_FAILED"/>
+  <int value="4" label="FAILED_SIGNAL_HANDLER_INSTALLATION_FAILED"/>
 </enum>
 
 </enums>

@@ -6,9 +6,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+ - `SkRuntimeEffect.makeShader` and `SkRuntimeEffect.makeShaderWithChildren` no longer accept
+   an `isOpaque` parameter. These functions will now make a best effort to determine if your
+   shader always produces opaque output, and optimize accordingly. If you definitely want your
+   shader to produce opaque output, do so in the shader's SkSL code.
+
+### Added
+ - `SkPicture.makeShader`
+ - Skia now has a GN toolchain that is used to compile CanvasKit. Ideally, all settings should
+   be the same, but there may be some subtle differences in practice. This changes the setup
+   to build CanvasKit (users no longer need to download emsdk themselves).
+
+### Changed
+ - If an invalid matrix type is passed in (e.g. not an array, TypedArray, or DOMMatrix), CanvasKit
+   will throw instead of drawing incorrectly.
+
+## [0.33.0] - 2022-02-03
+
+### Added
+ - `Surface.updateTextureFromSource` prevents flickering on some platforms by re-using the texture
+   for a given `Image` instead of needing to always create a new one via
+   `Surface.makeImageFromTextureSource`. (skbug.com/12723)
+ - `ParagraphBuilder.reset` allows re-use of the underlying memory.
+ - `PathEffect.MakePath2D`, `PathEffect.MakePath1D` and `PathEffect.MakeLine2D`.
+
+### Changed
+ - Surface factories always produce a surface with an attached color space. Specifying `null` to
+   `CanvasKit.MakeWebGLCanvasSurface` or calling any factory that does not take a color space
+   will now create a surface with a color space of `CanvasKit.ColorSpace.SRGB`.
+ - We now build/ship with emscripten 3.1.3.
+ - Internal calls no longer use dynamic dispatch (skbug.com/12795).
+ - JPEG and WEBP encoding are turned on by default in full version (in /bin/full/).
+
+### Fixed
+ - Supplying textures via `Surface.makeImageFromTextureSource` should not cause issues with
+   Mipmaps or other places where Skia needs to create textures (skbug.com/12797)
+ - `CanvasKit.MakeRenderTarget` correctly takes 2 or 3 params, as per the documentation.
+ - `CanvasKit.MakeOnScreenGLSurface` and other gpu surface constructors correctly adjust the
+   underlying WebGL context, avoiding corruption and mismatched textures
+   (https://github.com/flutter/flutter/issues/95259).
+
+## [0.32.0] - 2021-12-15
+
+### Breaking
+ - `Canvas.drawVertices` and `Canvas.drawPatch` treat the default blend mode differently.
+   See https://bugs.chromium.org/p/skia/issues/detail?id=12662.
+ - `Canvas.markCTM` and `Canvas.findMarkedCTM` have been removed. They were effectively no-ops.
+
+### Added
+ - Rough implementation of `measureText` to Canvas2D emulation layer. For accurate numbers, clients
+   should use a real shaping library, like SkParagraph.
+ - `AnimatedImage.currentFrameDuration` has been added, as well as some clarifying documentation.
+
+### Fixed
+ - Drawing images created from MakeLazyImageFromTextureSource should no longer cause a draw to only
+   partially show up on some frames <https://crbug.com/skia/12740>.
+
+## [0.31.0] - 2021-11-16
+
+### Added
+ - `CanvasKit.MakeLazyImageFromTextureSource`, which is similar to
+   `Surface.makeImageFromTextureSource`, but can be re-used across different WebGL contexts.
+
+### Breaking
+ - `Surface.makeImageFromTextureSource` now takes an optional ImageInfo or PartialImageInfo
+   instead of optional width and height. Sensible defaults will be used if not supplied.
+
+### Fixed
+ - Some `Surface` methods would not properly switch to the right WebGL context.
+ - Warnings about `INVALID_ENUM: enable: invalid capability` should be reduced/eliminated.
+
 ### Removed
  - `FontMgr.MakeTypefaceFromData` and `FontMgr.RefDefault` have been removed in favor of
    `Typeface.MakeFreeTypeFaceFromData`
+
+### Changed
+ - `make release`, `make debug`, and variants put the output in a different location (./build).
+ - Example .html files load CanvasKit from the new location (./build).
 
 ### Type Changes (index.d.ts)
  - `Surface.requestAnimationFrame` and `Surface.drawOnce` are properly documented.

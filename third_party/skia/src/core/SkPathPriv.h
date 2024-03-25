@@ -429,7 +429,7 @@ class SkPathEdgeIter {
     SkPoint         fScratch[2];    // for auto-close lines
     bool            fNeedsCloseLine;
     bool            fNextIsNewContour;
-    SkDEBUGCODE(bool fIsConic);
+    SkDEBUGCODE(bool fIsConic;)
 
     enum {
         kIllegalEdgeValue = 99
@@ -460,7 +460,7 @@ public:
         bool            fIsNewContour;
 
         // Returns true when it holds an Edge, false when the path is done.
-        operator bool() { return fPts != nullptr; }
+        explicit operator bool() { return fPts != nullptr; }
     };
 
     Result next() {

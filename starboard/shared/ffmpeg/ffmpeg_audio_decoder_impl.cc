@@ -17,6 +17,8 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 
+#include <string>
+
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -160,62 +162,108 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
 #if LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
   ffmpeg_->avcodec_get_frame_defaults(av_frame_);
 #endif  // LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
-  int frame_decoded = 0;
-  int result = ffmpeg_->avcodec_decode_audio4(codec_context_, av_frame_,
-                                              &frame_decoded, &packet);
-  if (result != input_buffer->size()) {
-    // TODO: Consider fill it with silence.
-    SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
-                     << " with input buffer size: " << input_buffer->size()
-                     << " and frame decoded: " << frame_decoded;
+
+  int result = 0;
+  if (ffmpeg_->avcodec_version() < kAVCodecHasUniformDecodeAPI) {
+    int frame_decoded = 0;
+    result = ffmpeg_->avcodec_decode_audio4(codec_context_, av_frame_,
+                                            &frame_decoded, &packet);
+    if (result != input_buffer->size()) {
+      // TODO: Consider fill it with silence.
+      SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: "
+                       << result
+                       << " with input buffer size: " << input_buffer->size()
+                       << " and frame decoded: " << frame_decoded;
+      error_cb_(kSbPlayerErrorDecode,
+                FormatString("avcodec_decode_audio4() failed with result %d.",
+                             result));
+      return;
+    }
+
+    if (frame_decoded != 1) {
+      // TODO: Adjust timestamp accordingly when decoding result is shifted.
+      SB_DCHECK(frame_decoded == 0);
+      SB_DLOG(WARNING) << "avcodec_decode_audio4()/avcodec_receive_frame() "
+                          "returns with 0 frames decoded";
+      return;
+    }
+
+    ProcessDecodedFrame(*input_buffer, *av_frame_);
+    return;
+  }
+
+  // Newer decode API.
+  const int send_packet_result =
+      ffmpeg_->avcodec_send_packet(codec_context_, &packet);
+  if (send_packet_result != 0) {
+    const std::string error_message = FormatString(
+        "avcodec_send_packet() failed with result %d.", send_packet_result);
+    SB_DLOG(WARNING) << error_message;
+    error_cb_(kSbPlayerErrorDecode, error_message);
+    return;
+  }
+
+  // Keep receiving frames until the decoder has processed the entire packet.
+  for (;;) {
+    result = ffmpeg_->avcodec_receive_frame(codec_context_, av_frame_);
+    if (result != 0) {
+      // We either hit an error or are done processing packet.
+      break;
+    }
+    ProcessDecodedFrame(*input_buffer, *av_frame_);
+  }
+
+  // A return value of AVERROR(EAGAIN) signifies that the decoder needs
+  // another packet, so we are done processing the existing packet at that
+  // point.
+  if (result != AVERROR(EAGAIN)) {
+    SB_DLOG(WARNING) << "avcodec_receive_frame() failed with result: "
+                     << result;
     error_cb_(
         kSbPlayerErrorDecode,
-        FormatString("avcodec_decode_audio4() failed with result %d.", result));
-    return;
+        FormatString("avcodec_receive_frame() failed with result %d.", result));
   }
+}
 
-  if (frame_decoded != 1) {
-    // TODO: Adjust timestamp accordingly when decoding result is shifted.
-    SB_DCHECK(frame_decoded == 0);
-    SB_DLOG(WARNING) << "avcodec_decode_audio4() returns with 0 frames decoded";
-    return;
-  }
-
+void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
+    const InputBuffer& input_buffer,
+    const AVFrame& av_frame) {
   int decoded_audio_size = ffmpeg_->av_samples_get_buffer_size(
-      NULL, codec_context_->channels, av_frame_->nb_samples,
+      NULL, codec_context_->channels, av_frame.nb_samples,
       codec_context_->sample_fmt, 1);
   audio_stream_info_.samples_per_second = codec_context_->sample_rate;
 
-  if (decoded_audio_size > 0) {
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        codec_context_->channels, GetSampleType(), GetStorageType(),
-        input_buffer->timestamp(),
-        codec_context_->channels * av_frame_->nb_samples *
-            starboard::media::GetBytesPerSample(GetSampleType()));
-    if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
-      memcpy(decoded_audio->data(), *av_frame_->extended_data,
-             decoded_audio->size_in_bytes());
-    } else {
-      SB_DCHECK(GetStorageType() == kSbMediaAudioFrameStorageTypePlanar);
-      const int per_channel_size_in_bytes =
-          decoded_audio->size_in_bytes() / decoded_audio->channels();
-      for (int i = 0; i < decoded_audio->channels(); ++i) {
-        memcpy(decoded_audio->data() + per_channel_size_in_bytes * i,
-               av_frame_->extended_data[i], per_channel_size_in_bytes);
-      }
-      decoded_audio = decoded_audio->SwitchFormatTo(
-          GetSampleType(), kSbMediaAudioFrameStorageTypeInterleaved);
-    }
-    decoded_audio->AdjustForDiscardedDurations(
-        audio_stream_info_.samples_per_second,
-        input_buffer->audio_sample_info().discarded_duration_from_front,
-        input_buffer->audio_sample_info().discarded_duration_from_back);
-    decoded_audios_.push(decoded_audio);
-    Schedule(output_cb_);
-  } else {
+  if (decoded_audio_size <= 0) {
     // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << "Decoded audio frame is empty.";
+    return;
   }
+
+  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+      codec_context_->channels, GetSampleType(), GetStorageType(),
+      input_buffer.timestamp(),
+      codec_context_->channels * av_frame.nb_samples *
+          starboard::media::GetBytesPerSample(GetSampleType()));
+  if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
+    memcpy(decoded_audio->data(), *av_frame.extended_data,
+           decoded_audio->size_in_bytes());
+  } else {
+    SB_DCHECK(GetStorageType() == kSbMediaAudioFrameStorageTypePlanar);
+    const int per_channel_size_in_bytes =
+        decoded_audio->size_in_bytes() / decoded_audio->channels();
+    for (int i = 0; i < decoded_audio->channels(); ++i) {
+      memcpy(decoded_audio->data() + per_channel_size_in_bytes * i,
+             av_frame.extended_data[i], per_channel_size_in_bytes);
+    }
+    decoded_audio = decoded_audio->SwitchFormatTo(
+        GetSampleType(), kSbMediaAudioFrameStorageTypeInterleaved);
+  }
+  decoded_audio->AdjustForDiscardedDurations(
+      audio_stream_info_.samples_per_second,
+      input_buffer.audio_sample_info().discarded_duration_from_front,
+      input_buffer.audio_sample_info().discarded_duration_from_back);
+  decoded_audios_.push(decoded_audio);
+  Schedule(output_cb_);
 }
 
 void AudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
@@ -248,6 +296,11 @@ AudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
 
 void AudioDecoderImpl<FFMPEG>::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
+
+  TeardownCodec();
+  if ((ffmpeg_->specialization_version()) == FFMPEG) {
+    InitializeCodec();
+  }
 
   stream_ended_ = false;
   while (!decoded_audios_.empty()) {

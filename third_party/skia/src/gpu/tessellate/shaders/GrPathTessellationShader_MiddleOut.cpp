@@ -8,10 +8,13 @@
 #include "src/gpu/tessellate/shaders/GrPathTessellationShader.h"
 
 #include "src/core/SkMathPriv.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/glsl/GrGLSLVertexGeoBuilder.h"
+#include "src/gpu/tessellate/PathTessellator.h"
 #include "src/gpu/tessellate/Tessellation.h"
 #include "src/gpu/tessellate/WangsFormula.h"
 
+using skgpu::PatchAttribs;
 using skgpu::VertexWriter;
 
 namespace {
@@ -31,61 +34,88 @@ namespace {
 class MiddleOutShader : public GrPathTessellationShader {
 public:
     MiddleOutShader(const GrShaderCaps& shaderCaps, const SkMatrix& viewMatrix,
-                    const SkPMColor4f& color, PatchType patchType)
+                    const SkPMColor4f& color, PatchAttribs attribs)
             : GrPathTessellationShader(kTessellate_MiddleOutShader_ClassID,
-                                       GrPrimitiveType::kTriangles, 0, viewMatrix, color)
-            , fPatchType(patchType) {
-        fInstanceAttribs.emplace_back("p01", kFloat4_GrVertexAttribType, kFloat4_GrSLType);
-        fInstanceAttribs.emplace_back("p23", kFloat4_GrVertexAttribType, kFloat4_GrSLType);
-        if (fPatchType == PatchType::kWedges) {
-            fInstanceAttribs.emplace_back("fanPoint", kFloat2_GrVertexAttribType, kFloat2_GrSLType);
+                                       GrPrimitiveType::kTriangles, 0, viewMatrix, color, attribs) {
+        fInstanceAttribs.emplace_back("p01", kFloat4_GrVertexAttribType, SkSLType::kFloat4);
+        fInstanceAttribs.emplace_back("p23", kFloat4_GrVertexAttribType, SkSLType::kFloat4);
+        if (fAttribs & PatchAttribs::kFanPoint) {
+            fInstanceAttribs.emplace_back("fanPointAttrib",
+                                          kFloat2_GrVertexAttribType,
+                                          SkSLType::kFloat2);
         }
-        if (!shaderCaps.infinitySupport()) {
+        if (fAttribs & PatchAttribs::kColor) {
+            fInstanceAttribs.emplace_back("colorAttrib",
+                                          (fAttribs & PatchAttribs::kWideColorIfEnabled)
+                                                  ? kFloat4_GrVertexAttribType
+                                                  : kUByte4_norm_GrVertexAttribType,
+                                          SkSLType::kHalf4);
+        }
+        if (fAttribs & PatchAttribs::kExplicitCurveType) {
             // A conic curve is written out with p3=[w,Infinity], but GPUs that don't support
             // infinity can't detect this. On these platforms we also write out an extra float with
             // each patch that explicitly tells the shader what type of curve it is.
-            fInstanceAttribs.emplace_back("curveType", kFloat_GrVertexAttribType, kFloat_GrSLType);
+            fInstanceAttribs.emplace_back("curveType", kFloat_GrVertexAttribType, SkSLType::kFloat);
         }
-        this->setInstanceAttributes(fInstanceAttribs.data(), fInstanceAttribs.count());
+        this->setInstanceAttributesWithImplicitOffsets(fInstanceAttribs.data(),
+                                                       fInstanceAttribs.count());
         SkASSERT(fInstanceAttribs.count() <= kMaxInstanceAttribCount);
+        SkASSERT(this->instanceStride() ==
+                 sizeof(SkPoint) * 4 + skgpu::PatchAttribsStride(fAttribs));
 
         constexpr static Attribute kVertexAttrib("resolveLevel_and_idx", kFloat2_GrVertexAttribType,
-                                                 kFloat2_GrSLType);
-        this->setVertexAttributes(&kVertexAttrib, 1);
+                                                 SkSLType::kFloat2);
+        this->setVertexAttributesWithImplicitOffsets(&kVertexAttrib, 1);
+    }
+
+    int maxTessellationSegments(const GrShaderCaps&) const override {
+        return 1 << skgpu::PathTessellator::kMaxFixedResolveLevel;
     }
 
 private:
     const char* name() const final { return "tessellate_MiddleOutShader"; }
-    void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder* b) const final {
-        b->add32((uint32_t)fPatchType);
+    void addToKey(const GrShaderCaps&, skgpu::KeyBuilder* b) const final {
+        // When color is in a uniform, it's always wide so we need to ignore kWideColorIfEnabled.
+        // When color is in an attrib, its wideness is accounted for as part of the attrib key in
+        // GrGeometryProcessor::getAttributeKey().
+        // Either way, we get the correct key by ignoring .
+        b->add32((uint32_t)(fAttribs & ~PatchAttribs::kWideColorIfEnabled));
     }
     std::unique_ptr<ProgramImpl> makeProgramImpl(const GrShaderCaps&) const final;
-    const PatchType fPatchType;
 
-    constexpr static int kMaxInstanceAttribCount = 4;
+    constexpr static int kMaxInstanceAttribCount = 5;
     SkSTArray<kMaxInstanceAttribCount, Attribute> fInstanceAttribs;
 };
 
 std::unique_ptr<GrGeometryProcessor::ProgramImpl> MiddleOutShader::makeProgramImpl(
         const GrShaderCaps&) const {
     class Impl : public GrPathTessellationShader::Impl {
-        void emitVertexCode(const GrShaderCaps& shaderCaps, const GrPathTessellationShader& shader,
-                            GrGLSLVertexBuilder* v, GrGPArgs* gpArgs) override {
+        void emitVertexCode(const GrShaderCaps& shaderCaps,
+                            const GrPathTessellationShader& shader,
+                            GrGLSLVertexBuilder* v,
+                            GrGLSLVaryingHandler* varyingHandler,
+                            GrGPArgs* gpArgs) override {
+            const MiddleOutShader& middleOutShader = shader.cast<MiddleOutShader>();
             v->defineConstant("PRECISION", skgpu::kTessellationPrecision);
-            v->defineConstant("MAX_FIXED_RESOLVE_LEVEL", (float)kMaxFixedCountResolveLevel);
-            v->defineConstant("MAX_FIXED_SEGMENTS", (float)kMaxFixedCountSegments);
+            v->defineConstant("MAX_FIXED_RESOLVE_LEVEL",
+                              (float)skgpu::PathTessellator::kMaxFixedResolveLevel);
+            v->defineConstant("MAX_FIXED_SEGMENTS",
+                              (float)(1 << skgpu::PathTessellator::kMaxFixedResolveLevel));
             v->insertFunction(skgpu::wangs_formula::as_sksl().c_str());
-            if (shaderCaps.infinitySupport()) {
-                v->insertFunction(R"(
-                bool is_conic_curve() { return isinf(p23.w); }
-                bool is_triangular_conic_curve() { return isinf(p23.z); })");
-            } else {
+            if (middleOutShader.fAttribs & PatchAttribs::kExplicitCurveType) {
                 v->insertFunction(SkStringPrintf(R"(
-                bool is_conic_curve() { return curveType != %g; })", kCubicCurveType).c_str());
+                bool is_conic_curve() {
+                    return curveType != %g;
+                })", skgpu::kCubicCurveType).c_str());
                 v->insertFunction(SkStringPrintf(R"(
                 bool is_triangular_conic_curve() {
                     return curveType == %g;
-                })", kTriangularConicCurveType).c_str());
+                })", skgpu::kTriangularConicCurveType).c_str());
+            } else {
+                SkASSERT(shaderCaps.infinitySupport());
+                v->insertFunction(R"(
+                bool is_conic_curve() { return isinf(p23.w); }
+                bool is_triangular_conic_curve() { return isinf(p23.z); })");
             }
             if (shaderCaps.bitManipulationSupport()) {
                 v->insertFunction(R"(
@@ -102,11 +132,11 @@ std::unique_ptr<GrGeometryProcessor::ProgramImpl> MiddleOutShader::makeProgramIm
             float resolveLevel = resolveLevel_and_idx.x;
             float idxInResolveLevel = resolveLevel_and_idx.y;
             float2 localcoord;)");
-            if (shader.cast<MiddleOutShader>().fPatchType == PatchType::kWedges) {
+            if (middleOutShader.fAttribs & PatchAttribs::kFanPoint) {
                 v->codeAppend(R"(
                 // A negative resolve level means this is the fan point.
                 if (resolveLevel < 0) {
-                    localcoord = fanPoint;
+                    localcoord = fanPointAttrib;
                 } else)");  // Fall through to next if ().
             }
             v->codeAppend(R"(
@@ -167,8 +197,16 @@ std::unique_ptr<GrGeometryProcessor::ProgramImpl> MiddleOutShader::makeProgramIm
                 }
             }
             float2 vertexpos = AFFINE_MATRIX * localcoord + TRANSLATE;)");
-            gpArgs->fLocalCoordVar.set(kFloat2_GrSLType, "localcoord");
-            gpArgs->fPositionVar.set(kFloat2_GrSLType, "vertexpos");
+            gpArgs->fLocalCoordVar.set(SkSLType::kFloat2, "localcoord");
+            gpArgs->fPositionVar.set(SkSLType::kFloat2, "vertexpos");
+            if (middleOutShader.fAttribs & PatchAttribs::kColor) {
+                GrGLSLVarying colorVarying(SkSLType::kHalf4);
+                varyingHandler->addVarying("color",
+                                           &colorVarying,
+                                           GrGLSLVaryingHandler::Interpolation::kCanBeFlat);
+                v->codeAppendf("%s = colorAttrib;", colorVarying.vsOut());
+                fVaryingColorName = colorVarying.fsIn();
+            }
         }
     };
     return std::make_unique<Impl>();
@@ -177,111 +215,13 @@ std::unique_ptr<GrGeometryProcessor::ProgramImpl> MiddleOutShader::makeProgramIm
 }  // namespace
 
 GrPathTessellationShader* GrPathTessellationShader::MakeMiddleOutFixedCountShader(
-        const GrShaderCaps& shaderCaps, SkArenaAlloc* arena, const SkMatrix& viewMatrix,
-        const SkPMColor4f& color, PatchType patchType) {
-    return arena->make<MiddleOutShader>(shaderCaps, viewMatrix, color, patchType);
-}
-
-void GrPathTessellationShader::InitializeVertexBufferForMiddleOutCurves(VertexWriter vertexWriter,
-                                                                        size_t bufferSize) {
-    SkASSERT(bufferSize >= kMiddleOutVertexStride * 2);
-    SkASSERT(bufferSize % kMiddleOutVertexStride == 0);
-    int vertexCount = bufferSize / kMiddleOutVertexStride;
-    SkASSERT(vertexCount > 3);
-    SkDEBUGCODE(VertexWriter end = vertexWriter.makeOffset(vertexCount * kMiddleOutVertexStride);)
-
-    // Lay out the vertices in "middle-out" order:
-    //
-    // T= 0/1, 1/1,              ; resolveLevel=0
-    //    1/2,                   ; resolveLevel=1  (0/2 and 2/2 are already in resolveLevel 0)
-    //    1/4, 3/4,              ; resolveLevel=2  (2/4 is already in resolveLevel 1)
-    //    1/8, 3/8, 5/8, 7/8,    ; resolveLevel=3  (2/8 and 6/8 are already in resolveLevel 2)
-    //    ...                    ; resolveLevel=...
-    //
-    // Resolve level 0 is just the beginning and ending vertices.
-    vertexWriter << (float)0/*resolveLevel*/ << (float)0/*idx*/;
-    vertexWriter << (float)0/*resolveLevel*/ << (float)1/*idx*/;
-
-    // Resolve levels 1..kMaxResolveLevel.
-    int maxResolveLevel = SkPrevLog2(vertexCount - 1);
-    SkASSERT((1 << maxResolveLevel) + 1 == vertexCount);
-    for (int resolveLevel = 1; resolveLevel <= maxResolveLevel; ++resolveLevel) {
-        int numSegmentsInResolveLevel = 1 << resolveLevel;
-        // Write out the odd vertices in this resolveLevel. The even vertices were already written
-        // out in previous resolveLevels and will be indexed from there.
-        for (int i = 1; i < numSegmentsInResolveLevel; i += 2) {
-            vertexWriter << (float)resolveLevel << (float)i;
-        }
-    }
-
-    SkASSERT(vertexWriter == end);
-}
-
-void GrPathTessellationShader::InitializeVertexBufferForMiddleOutWedges(VertexWriter vertexWriter,
-                                                                        size_t bufferSize) {
-    SkASSERT(bufferSize >= kMiddleOutVertexStride);
-    // Start out with the fan point. A negative resolve level indicates the fan point.
-    vertexWriter << (float)-1/*resolveLevel*/ << (float)-1/*idx*/;
-
-    InitializeVertexBufferForMiddleOutCurves(std::move(vertexWriter),
-                                             bufferSize - kMiddleOutVertexStride);
-}
-
-static void fill_index_buffer_for_curves(VertexWriter vertexWriter,
-                                         size_t bufferSize,
-                                         uint16_t baseIndex) {
-    SkASSERT(bufferSize % (sizeof(uint16_t) * 3) == 0);
-    int triangleCount = bufferSize / (sizeof(uint16_t) * 3);
-    SkASSERT(triangleCount >= 1);
-    SkTArray<std::array<uint16_t, 3>> indexData(triangleCount);
-
-    // Connect the vertices with a middle-out triangulation. Refer to
-    // InitializeVertexBufferForMiddleOutCurves() for the exact vertex ordering.
-    //
-    // Resolve level 1 is just a single triangle at T=[0, 1/2, 1].
-    const auto* neighborInLastResolveLevel = &indexData.push_back({baseIndex,
-                                                                   (uint16_t)(baseIndex + 2),
-                                                                   (uint16_t)(baseIndex + 1)});
-
-    // Resolve levels 2..maxResolveLevel
-    int maxResolveLevel = SkPrevLog2(triangleCount + 1);
-    uint16_t nextIndex = baseIndex + 3;
-    SkASSERT(GrPathTessellationShader::NumCurveTrianglesAtResolveLevel(maxResolveLevel) ==
-             triangleCount);
-    for (int resolveLevel = 2; resolveLevel <= maxResolveLevel; ++resolveLevel) {
-        SkDEBUGCODE(auto* firstTriangleInCurrentResolveLevel = indexData.end());
-        int numOuterTrianglelsInResolveLevel = 1 << (resolveLevel - 1);
-        SkASSERT(numOuterTrianglelsInResolveLevel % 2 == 0);
-        int numTrianglePairsInResolveLevel = numOuterTrianglelsInResolveLevel >> 1;
-        for (int i = 0; i < numTrianglePairsInResolveLevel; ++i) {
-            // First triangle shares the left edge of "neighborInLastResolveLevel".
-            indexData.push_back({(*neighborInLastResolveLevel)[0],
-                                 nextIndex++,
-                                 (*neighborInLastResolveLevel)[1]});
-            // Second triangle shares the right edge of "neighborInLastResolveLevel".
-            indexData.push_back({(*neighborInLastResolveLevel)[1],
-                                 nextIndex++,
-                                 (*neighborInLastResolveLevel)[2]});
-            ++neighborInLastResolveLevel;
-        }
-        SkASSERT(neighborInLastResolveLevel == firstTriangleInCurrentResolveLevel);
-    }
-    SkASSERT(indexData.count() == triangleCount);
-    SkASSERT(nextIndex == baseIndex + triangleCount + 2);
-
-    vertexWriter.writeArray(indexData.data(), indexData.count());
-}
-
-void GrPathTessellationShader::InitializeIndexBufferForMiddleOutCurves(VertexWriter vertexWriter,
-                                                                       size_t bufferSize) {
-    fill_index_buffer_for_curves(std::move(vertexWriter), bufferSize, 0);
-}
-
-void GrPathTessellationShader::InitializeIndexBufferForMiddleOutWedges(VertexWriter vertexWriter,
-                                                                       size_t bufferSize) {
-    SkASSERT(bufferSize >= sizeof(uint16_t) * 3);
-    // Start out with the fan triangle.
-    vertexWriter << (uint16_t)0 << (uint16_t)1 << (uint16_t)2;
-
-    fill_index_buffer_for_curves(std::move(vertexWriter), bufferSize - sizeof(uint16_t) * 3, 1);
+        const GrShaderCaps& shaderCaps,
+        SkArenaAlloc* arena,
+        const SkMatrix& viewMatrix,
+        const SkPMColor4f& color,
+        PatchAttribs attribs) {
+    // We should use explicit curve type when, and only when, there isn't infinity support.
+    // Otherwise the GPU can infer curve type based on infinity.
+    SkASSERT(shaderCaps.infinitySupport() != (attribs & PatchAttribs::kExplicitCurveType));
+    return arena->make<MiddleOutShader>(shaderCaps, viewMatrix, color, attribs);
 }

@@ -8,12 +8,9 @@
 #ifndef SkData_DEFINED
 #define SkData_DEFINED
 
-#if !defined(STARBOARD)
 #include <stdio.h>
-#endif
 
 #include "include/core/SkRefCnt.h"
-#include "src/core/SkOSFile.h"  // Included for SkFile.
 
 class SkStream;
 
@@ -90,6 +87,12 @@ public:
     static sk_sp<SkData> MakeUninitialized(size_t length);
 
     /**
+     *  Create a new data with zero-initialized contents. The caller should call writable_data()
+     *  to write into the buffer, but this must be done before another ref() is made.
+     */
+    static sk_sp<SkData> MakeZeroInitialized(size_t length);
+
+    /**
      *  Create a new dataref by copying the specified c-string
      *  (a null-terminated array of bytes). The returned SkData will have size()
      *  equal to strlen(cstr) + 1. If cstr is NULL, it will be treated the same
@@ -130,7 +133,7 @@ public:
      *  The FILE must be open for reading only.
      *  Returns NULL on failure.
      */
-    static sk_sp<SkData> MakeFromFILE(SkFile* f);
+    static sk_sp<SkData> MakeFromFILE(FILE* f);
 
     /**
      *  Create a new dataref from a file descriptor.

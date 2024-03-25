@@ -16,11 +16,12 @@
 #include "src/codec/SkCodecPriv.h"
 #include "src/codec/SkJpegDecoderMgr.h"
 #include "src/codec/SkParseEncodedOrigin.h"
-#include "src/pdf/SkJpegInfo.h"
 
 // stdio is needed for libjpeg-turbo
 #include <stdio.h>
 #include "src/codec/SkJpegUtility.h"
+
+#ifdef SK_CODEC_DECODES_JPEG
 
 // This warning triggers false postives way too often in here.
 #if defined(__GNUC__) && !defined(__clang__)
@@ -996,3 +997,5 @@ bool SkGetJpegInfo(const void* data, size_t len,
     }
     return true;
 }
+
+#endif // SK_CODEC_DECODES_JPEG

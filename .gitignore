@@ -9,3 +9,4 @@
 /venv/*
 _certs/
 .coverage
+compile_commands.json

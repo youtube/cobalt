@@ -533,7 +533,12 @@ SB_EXPORT void SbPlayerWriteSample2(SbPlayer player,
                                     int number_of_sample_infos);
 
 // Returns the maximum number of samples that can be written in a single call
-// to SbPlayerWriteSamples().
+// to SbPlayerWriteSamples(). Returning a value greater than one can improve
+// performance by allowing SbPlayerWriteSamples() to write multiple samples in
+// one call.
+//
+// Note that this feature is currently disabled in Cobalt where
+// SbPlayerWriteSamples() will always be called with one sample.
 //
 // |player|: The player for which the number is retrieved.
 // |sample_type|: The type of sample for which the number is retrieved. See the

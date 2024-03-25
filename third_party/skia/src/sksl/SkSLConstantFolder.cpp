@@ -26,6 +26,17 @@
 
 namespace SkSL {
 
+static bool is_vec_or_mat(const Type& type) {
+    switch (type.typeKind()) {
+        case Type::TypeKind::kMatrix:
+        case Type::TypeKind::kVector:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
 static std::unique_ptr<Expression> eliminate_no_op_boolean(const Expression& left,
                                                            Operator op,
                                                            const Expression& right) {
@@ -61,10 +72,10 @@ static std::unique_ptr<Expression> short_circuit_boolean(const Expression& left,
     return eliminate_no_op_boolean(right, op, left);
 }
 
-static std::unique_ptr<Expression> simplify_vector_equality(const Context& context,
-                                                            const Expression& left,
-                                                            Operator op,
-                                                            const Expression& right) {
+static std::unique_ptr<Expression> simplify_constant_equality(const Context& context,
+                                                              const Expression& left,
+                                                              Operator op,
+                                                              const Expression& right) {
     if (op.kind() == Token::Kind::TK_EQEQ || op.kind() == Token::Kind::TK_NEQ) {
         bool equality = (op.kind() == Token::Kind::TK_EQEQ);
 
@@ -83,16 +94,68 @@ static std::unique_ptr<Expression> simplify_vector_equality(const Context& conte
     return nullptr;
 }
 
-static std::unique_ptr<Expression> simplify_vector(const Context& context,
-                                                   const Expression& left,
-                                                   Operator op,
-                                                   const Expression& right) {
-    SkASSERT(left.type().isVector());
-    SkASSERT(left.type() == right.type());
+static std::unique_ptr<Expression> simplify_matrix_times_matrix(const Context& context,
+                                                                const Expression& left,
+                                                                const Expression& right) {
+    const Type& leftType = left.type();
+    const Type& rightType = right.type();
+
+    SkASSERT(leftType.isMatrix());
+    SkASSERT(rightType.isMatrix());
+
+    const Type& componentType = leftType.componentType();
+    SkASSERT(componentType.matches(rightType.componentType()));
+
+    const int leftColumns  = leftType.columns(),
+              leftRows     = leftType.rows(),
+              rightColumns = rightType.columns(),
+              rightRows    = rightType.rows(),
+              outColumns   = rightColumns,
+              outRows      = leftRows;
+    SkASSERT(leftColumns == rightRows);
+    const Type& resultType = componentType.toCompound(context, outColumns, outRows);
+
+    // Fetch the left matrix.
+    double leftVals[4][4];
+    for (int c = 0; c < leftColumns; ++c) {
+        for (int r = 0; r < leftRows; ++r) {
+            leftVals[c][r] = *left.getConstantValue((c * leftRows) + r);
+        }
+    }
+    // Fetch the right matrix.
+    double rightVals[4][4];
+    for (int c = 0; c < rightColumns; ++c) {
+        for (int r = 0; r < rightRows; ++r) {
+            rightVals[c][r] = *right.getConstantValue((c * rightRows) + r);
+        }
+    }
+
+    ExpressionArray args;
+    args.reserve_back(outColumns * outRows);
+    for (int c = 0; c < outColumns; ++c) {
+        for (int r = 0; r < outRows; ++r) {
+            // Compute a dot product for this position.
+            double val = 0;
+            for (int dotIdx = 0; dotIdx < leftColumns; ++dotIdx) {
+                val += leftVals[dotIdx][r] * rightVals[c][dotIdx];
+            }
+            args.push_back(Literal::Make(left.fLine, val, &componentType));
+        }
+    }
+
+    return ConstructorCompound::Make(context, left.fLine, resultType, std::move(args));
+}
+
+static std::unique_ptr<Expression> simplify_componentwise(const Context& context,
+                                                          const Expression& left,
+                                                          Operator op,
+                                                          const Expression& right) {
+    SkASSERT(is_vec_or_mat(left.type()));
+    SkASSERT(left.type().matches(right.type()));
     const Type& type = left.type();
 
     // Handle equality operations: == !=
-    if (std::unique_ptr<Expression> result = simplify_vector_equality(context, left, op, right)) {
+    if (std::unique_ptr<Expression> result = simplify_constant_equality(context, left, op, right)) {
         return result;
     }
 
@@ -109,6 +172,8 @@ static std::unique_ptr<Expression> simplify_vector(const Context& context,
     }
 
     const Type& componentType = type.componentType();
+    SkASSERT(componentType.isNumber());
+
     double minimumValue = -INFINITY, maximumValue = INFINITY;
     if (componentType.isInteger()) {
         minimumValue = componentType.minimumValue();
@@ -116,10 +181,10 @@ static std::unique_ptr<Expression> simplify_vector(const Context& context,
     }
 
     ExpressionArray args;
-    args.reserve_back(type.columns());
-    for (int i = 0; i < type.columns(); i++) {
-        double value = foldFn(left.getConstantSubexpression(i)->as<Literal>().value(),
-                              right.getConstantSubexpression(i)->as<Literal>().value());
+    int numSlots = type.slotCount();
+    args.reserve_back(numSlots);
+    for (int i = 0; i < numSlots; i++) {
+        double value = foldFn(*left.getConstantValue(i), *right.getConstantValue(i));
         if (value < minimumValue || value > maximumValue) {
             return nullptr;
         }
@@ -127,6 +192,25 @@ static std::unique_ptr<Expression> simplify_vector(const Context& context,
         args.push_back(Literal::Make(left.fLine, value, &componentType));
     }
     return ConstructorCompound::Make(context, left.fLine, type, std::move(args));
+}
+
+static std::unique_ptr<Expression> splat_scalar(const Context& context,
+                                                const Expression& scalar,
+                                                const Type& type) {
+    if (type.isVector()) {
+        return ConstructorSplat::Make(context, scalar.fLine, type, scalar.clone());
+    }
+    if (type.isMatrix()) {
+        int numSlots = type.slotCount();
+        ExpressionArray splatMatrix;
+        splatMatrix.reserve_back(numSlots);
+        for (int index = 0; index < numSlots; ++index) {
+            splatMatrix.push_back(scalar.clone());
+        }
+        return ConstructorCompound::Make(context, scalar.fLine, type, std::move(splatMatrix));
+    }
+    SkDEBUGFAILF("unsupported type %s", type.description().c_str());
+    return nullptr;
 }
 
 static std::unique_ptr<Expression> cast_expression(const Context& context,
@@ -155,16 +239,11 @@ bool ConstantFolder::GetConstantValue(const Expression& value, double* out) {
     return true;
 }
 
-static bool is_constant_scalar_value(const Expression& inExpr, double match) {
-    const Expression* expr = ConstantFolder::GetConstantValueForVariable(inExpr);
-    return (expr->is<Literal>() && expr->as<Literal>().value() == match);
-}
-
 static bool contains_constant_zero(const Expression& expr) {
     int numSlots = expr.type().slotCount();
     for (int index = 0; index < numSlots; ++index) {
-        const Expression* subexpr = expr.getConstantSubexpression(index);
-        if (subexpr && is_constant_scalar_value(*subexpr, 0.0)) {
+        std::optional<double> slotVal = expr.getConstantValue(index);
+        if (slotVal.has_value() && *slotVal == 0.0) {
             return true;
         }
     }
@@ -174,16 +253,16 @@ static bool contains_constant_zero(const Expression& expr) {
 static bool is_constant_value(const Expression& expr, double value) {
     int numSlots = expr.type().slotCount();
     for (int index = 0; index < numSlots; ++index) {
-        const Expression* subexpr = expr.getConstantSubexpression(index);
-        if (!subexpr || !is_constant_scalar_value(*subexpr, value)) {
+        std::optional<double> slotVal = expr.getConstantValue(index);
+        if (!slotVal.has_value() || *slotVal != value) {
             return false;
         }
     }
     return true;
 }
 
-bool ConstantFolder::ErrorOnDivideByZero(const Context& context, int line, Operator op,
-                                         const Expression& right) {
+static bool error_on_divide_by_zero(const Context& context, int line, Operator op,
+                                    const Expression& right) {
     switch (op.kind()) {
         case Token::Kind::TK_SLASH:
         case Token::Kind::TK_SLASHEQ:
@@ -342,16 +421,9 @@ std::unique_ptr<Expression> ConstantFolder::Simplify(const Context& context,
                                                      Operator op,
                                                      const Expression& rightExpr,
                                                      const Type& resultType) {
-    // When optimization is enabled, replace constant variables with trivial initial-values.
-    const Expression* left;
-    const Expression* right;
-    if (context.fConfig->fSettings.fOptimize) {
-        left = GetConstantValueForVariable(leftExpr);
-        right = GetConstantValueForVariable(rightExpr);
-    } else {
-        left = &leftExpr;
-        right = &rightExpr;
-    }
+    // Replace constant variables with their literal values.
+    const Expression* left = GetConstantValueForVariable(leftExpr);
+    const Expression* right = GetConstantValueForVariable(rightExpr);
 
     // If this is the comma operator, the left side is evaluated but not otherwise used in any way.
     // So if the left side has no side effects, it can just be eliminated entirely.
@@ -411,7 +483,7 @@ std::unique_ptr<Expression> ConstantFolder::Simplify(const Context& context,
         return Literal::MakeBool(context, leftExpr.fLine, /*value=*/false);
     }
 
-    if (ErrorOnDivideByZero(context, line, op, *right)) {
+    if (error_on_divide_by_zero(context, line, op, *right)) {
         return nullptr;
     }
 
@@ -432,9 +504,7 @@ std::unique_ptr<Expression> ConstantFolder::Simplify(const Context& context,
         return nullptr;
     }
 
-    // Note that we expressly do not worry about precision and overflow here -- we use the maximum
-    // precision to calculate the results and hope the result makes sense.
-    // TODO(skia:10932): detect and handle integer overflow properly.
+    // Note that fold_int_expression returns null if the result would overflow its type.
     using SKSL_UINT = uint64_t;
     if (left->isIntLiteral() && right->isIntLiteral()) {
         SKSL_INT leftVal  = left->as<Literal>().intValue();
@@ -513,76 +583,34 @@ std::unique_ptr<Expression> ConstantFolder::Simplify(const Context& context,
         #undef RESULT
     }
 
-    // Perform constant folding on pairs of vectors.
-    if (leftType.isVector() && leftType == rightType) {
-        if (leftType.componentType().isFloat()) {
-            return simplify_vector(context, *left, op, *right);
-        }
-        if (leftType.componentType().isInteger()) {
-            return simplify_vector(context, *left, op, *right);
-        }
-        if (leftType.componentType().isBoolean()) {
-            return simplify_vector_equality(context, *left, op, *right);
-        }
-        return nullptr;
+    // Perform matrix * matrix multiplication.
+    if (op.kind() == Token::Kind::TK_STAR && leftType.isMatrix() && rightType.isMatrix()) {
+        return simplify_matrix_times_matrix(context, *left, *right);
     }
 
-    // Perform constant folding on vectors against scalars, e.g.: half4(2) + 2
-    if (leftType.isVector() && leftType.componentType() == rightType) {
-        if (rightType.isFloat()) {
-            return simplify_vector(context, *left, op, ConstructorSplat(*right, left->type()));
-        }
-        if (rightType.isInteger()) {
-            return simplify_vector(context, *left, op, ConstructorSplat(*right, left->type()));
-        }
-        if (rightType.isBoolean()) {
-            return simplify_vector_equality(context, *left, op,
-                                            ConstructorSplat(*right, left->type()));
-        }
-        return nullptr;
+    // Perform constant folding on pairs of vectors/matrices.
+    if (is_vec_or_mat(leftType) && leftType.matches(rightType)) {
+        return simplify_componentwise(context, *left, op, *right);
     }
 
-    // Perform constant folding on scalars against vectors, e.g.: 2 + half4(2)
-    if (rightType.isVector() && rightType.componentType() == leftType) {
-        if (leftType.isFloat()) {
-            return simplify_vector(context, ConstructorSplat(*left, right->type()), op, *right);
-        }
-        if (leftType.isInteger()) {
-            return simplify_vector(context, ConstructorSplat(*left, right->type()), op, *right);
-        }
-        if (leftType.isBoolean()) {
-            return simplify_vector_equality(context, ConstructorSplat(*left, right->type()),
-                                            op, *right);
-        }
-        return nullptr;
+    // Perform constant folding on vectors/matrices against scalars, e.g.: half4(2) + 2
+    if (rightType.isScalar() && is_vec_or_mat(leftType) &&
+        leftType.componentType().matches(rightType)) {
+        return simplify_componentwise(context, *left, op,
+                                      *splat_scalar(context, *right, left->type()));
+    }
+
+    // Perform constant folding on scalars against vectors/matrices, e.g.: 2 + half4(2)
+    if (leftType.isScalar() && is_vec_or_mat(rightType) &&
+        rightType.componentType().matches(leftType)) {
+        return simplify_componentwise(context, *splat_scalar(context, *left, right->type()),
+                                      op, *right);
     }
 
     // Perform constant folding on pairs of matrices or arrays.
     if ((leftType.isMatrix() && rightType.isMatrix()) ||
         (leftType.isArray() && rightType.isArray())) {
-        bool equality;
-        switch (op.kind()) {
-            case Token::Kind::TK_EQEQ:
-                equality = true;
-                break;
-            case Token::Kind::TK_NEQ:
-                equality = false;
-                break;
-            default:
-                return nullptr;
-        }
-
-        switch (left->compareConstant(*right)) {
-            case Expression::ComparisonResult::kNotEqual:
-                equality = !equality;
-                [[fallthrough]];
-
-            case Expression::ComparisonResult::kEqual:
-                return Literal::MakeBool(context, line, equality);
-
-            case Expression::ComparisonResult::kUnknown:
-                return nullptr;
-        }
+        return simplify_constant_equality(context, *left, op, *right);
     }
 
     // We aren't able to constant-fold.

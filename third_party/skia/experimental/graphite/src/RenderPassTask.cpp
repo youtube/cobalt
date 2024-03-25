@@ -8,41 +8,65 @@
 #include "experimental/graphite/src/RenderPassTask.h"
 
 #include "experimental/graphite/src/CommandBuffer.h"
+#include "experimental/graphite/src/ContextPriv.h"
 #include "experimental/graphite/src/DrawPass.h"
+#include "experimental/graphite/src/Log.h"
+#include "experimental/graphite/src/ResourceProvider.h"
 #include "experimental/graphite/src/Texture.h"
 #include "experimental/graphite/src/TextureProxy.h"
 
 namespace skgpu {
 
-sk_sp<RenderPassTask> RenderPassTask::Make(std::vector<std::unique_ptr<DrawPass>> passes) {
-    return sk_sp<RenderPassTask>(new RenderPassTask(std::move(passes)));
+sk_sp<RenderPassTask> RenderPassTask::Make(std::vector<std::unique_ptr<DrawPass>> passes,
+                                           const RenderPassDesc& desc,
+                                           sk_sp<TextureProxy> target) {
+    // For now we have one DrawPass per RenderPassTask
+    SkASSERT(passes.size() == 1);
+
+    return sk_sp<RenderPassTask>(new RenderPassTask(std::move(passes), desc, target));
 }
 
-RenderPassTask::RenderPassTask(std::vector<std::unique_ptr<DrawPass>> passes)
-        : fDrawPasses(std::move(passes)) {}
+RenderPassTask::RenderPassTask(std::vector<std::unique_ptr<DrawPass>> passes,
+                               const RenderPassDesc& desc,
+                               sk_sp<TextureProxy> target)
+        : fDrawPasses(std::move(passes))
+        , fRenderPassDesc(desc)
+        , fTarget(std::move(target)) {}
 
 RenderPassTask::~RenderPassTask() = default;
 
-void RenderPassTask::execute(CommandBuffer* commandBuffer) {
+void RenderPassTask::addCommands(ResourceProvider* resourceProvider, CommandBuffer* commandBuffer) {
     // TBD: Expose the surfaces that will need to be attached within the renderpass?
 
-    // TODO: for task execution, iterate the draw passes (can assume just 1 for sprint?) and
-    // determine RenderPassDesc. Then start the render pass, then iterate passes again and
-    // possibly(?) start each subpass, and call DrawPass::execute() on the command buffer provided
-    // to the task. Then close the render pass and we should have pixels..
+    // TODO: for task execution, start the render pass, then iterate passes and
+    // possibly(?) start each subpass, and call DrawPass::addCommands() on the command buffer
+    // provided to the task. Then close the render pass and we should have pixels..
 
-    // TODO: For now just generate a renderpass for each draw pass until we start using subpasses
-    for (const auto& drawPass: fDrawPasses) {
-        RenderPassDesc desc;
+    // Instantiate the target
+    if (fTarget) {
+        if (!fTarget->instantiate(resourceProvider)) {
+            SKGPU_LOG_W("Given invalid texture proxy. Will not create renderpass!");
+            SKGPU_LOG_W("Dimensions are (%d, %d).",
+                        fTarget->dimensions().width(), fTarget->dimensions().height());
+            return;
+        }
+    }
 
-        desc.fColorAttachment.fTexture = drawPass->target()->refTexture();
-        // TODO: need to get these from the drawPass somehow
-        desc.fColorAttachment.fLoadOp = LoadOp::kLoad;
-        desc.fColorAttachment.fStoreOp = StoreOp::kStore;
+    sk_sp<Texture> depthStencilTexture;
+    if (fRenderPassDesc.fDepthStencilAttachment.fTextureInfo.isValid()) {
+        // TODO: ensure this is a scratch/recycled texture
+        depthStencilTexture = resourceProvider->findOrCreateTexture(
+                fTarget->dimensions(), fRenderPassDesc.fDepthStencilAttachment.fTextureInfo);
+        SkASSERT(depthStencilTexture);
+    }
 
-        commandBuffer->beginRenderPass(desc);
-
-        drawPass->execute(commandBuffer);
+    if (commandBuffer->beginRenderPass(fRenderPassDesc, fTarget->refTexture(), nullptr,
+                                       std::move(depthStencilTexture))) {
+        // Assuming one draw pass per renderpasstask for now
+        SkASSERT(fDrawPasses.size() == 1);
+        for (const auto& drawPass: fDrawPasses) {
+            drawPass->addCommands(resourceProvider, commandBuffer, fRenderPassDesc);
+        }
 
         commandBuffer->endRenderPass();
     }

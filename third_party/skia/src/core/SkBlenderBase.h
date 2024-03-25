@@ -10,13 +10,18 @@
 
 #include "include/core/SkBlender.h"
 #include "include/core/SkColorSpace.h"
-#include "include/private/SkTOptional.h"
 #include "src/core/SkArenaAlloc.h"
 #include "src/core/SkVM.h"
 
+#include <optional>
+
+enum class SkBackend : uint8_t;
 struct GrFPArgs;
 class GrFragmentProcessor;
+class SkPaintParamsKeyBuilder;
 class SkRuntimeEffect;
+class SkShaderCodeDictionary;
+class SkUniformBlock;
 
 /**
  * Encapsulates a blend function, including non-public APIs.
@@ -29,7 +34,7 @@ public:
      * Returns true if this SkBlender represents any SkBlendMode, and returns the blender's
      * SkBlendMode in `mode`. Returns false for other types of blends.
      */
-    virtual skstd::optional<SkBlendMode> asBlendMode() const { return {}; }
+    virtual std::optional<SkBlendMode> asBlendMode() const { return {}; }
 
     /** Creates the blend program in SkVM. */
     SK_WARN_UNUSED_RESULT
@@ -51,6 +56,12 @@ public:
 #endif
 
     virtual SkRuntimeEffect* asRuntimeEffect() const { return nullptr; }
+
+    // TODO: make pure virtual
+    virtual void addToKey(SkShaderCodeDictionary*,
+                          SkBackend,
+                          SkPaintParamsKeyBuilder*,
+                          SkUniformBlock*) const;
 
     static SkFlattenable::Type GetFlattenableType() { return kSkBlender_Type; }
     Type getFlattenableType() const override { return GetFlattenableType(); }

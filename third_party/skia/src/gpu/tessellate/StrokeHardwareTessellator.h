@@ -8,7 +8,6 @@
 #ifndef tessellate_StrokeHardwareTessellator_DEFINED
 #define tessellate_StrokeHardwareTessellator_DEFINED
 
-#include "src/gpu/GrVertexChunkArray.h"
 #include "src/gpu/tessellate/StrokeTessellator.h"
 
 namespace skgpu {
@@ -16,21 +15,30 @@ namespace skgpu {
 // Renders opaque, constant-color strokes by decomposing them into standalone tessellation patches.
 // Each patch is either a "cubic" (single stroked bezier curve with butt caps) or a "join". Requires
 // MSAA if antialiasing is desired.
-class StrokeHardwareTessellator : public StrokeTessellator {
+class StrokeHardwareTessellator final : public StrokeTessellator {
 public:
-    StrokeHardwareTessellator(const GrShaderCaps& shaderCaps,
-                              ShaderFlags shaderFlags,
-                              const SkMatrix& viewMatrix,
-                              PathStrokeList* pathStrokeList,
-                              std::array<float,2> matrixMinMaxScales);
+    StrokeHardwareTessellator(PatchAttribs attribs, int maxTessellationSegments)
+            : StrokeTessellator(attribs), fMaxTessellationSegments(maxTessellationSegments) {}
 
-    void prepare(GrMeshDrawTarget*, int totalCombinedVerbCnt) override;
+    int patchPreallocCount(int totalCombinedStrokeVerbCnt) const final;
+
+    int writePatches(PatchWriter&,
+                     const SkMatrix& shaderMatrix,
+                     std::array<float,2> matrixMinMaxScales,
+                     PathStrokeList*) final;
+
 #if SK_GPU_V1
-    void draw(GrOpFlushState*) const override;
+    int prepare(GrMeshDrawTarget*,
+                const SkMatrix& shaderMatrix,
+                std::array<float,2> matrixMinMaxScales,
+                PathStrokeList*,
+                int totalCombinedStrokeVerbCnt) final;
+
+    void draw(GrOpFlushState*) const final;
 #endif
 
 private:
-    GrVertexChunkArray fPatchChunks;
+    const int fMaxTessellationSegments;
 };
 
 }  // namespace skgpu

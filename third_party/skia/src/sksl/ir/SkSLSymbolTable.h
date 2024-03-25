@@ -74,12 +74,7 @@ public:
      * UnresolvedFunction symbol (pointing to all of the candidates) will be added to the symbol
      * table and returned.
      */
-    const Symbol* operator[](skstd::string_view name);
-
-    /**
-     * Creates a new name for a symbol which already exists; does not take ownership of Symbol*.
-     */
-    void addAlias(skstd::string_view name, const Symbol* symbol);
+    const Symbol* operator[](std::string_view name);
 
     void addWithoutOwnership(const Symbol* symbol);
 
@@ -136,7 +131,7 @@ public:
         return this->isBuiltin() ? this : fParent->builtinParent();
     }
 
-    const String* takeOwnershipOfString(String n);
+    const std::string* takeOwnershipOfString(std::string n);
 
     std::shared_ptr<SymbolTable> fParent;
 
@@ -144,7 +139,7 @@ public:
 
 private:
     struct SymbolKey {
-        skstd::string_view fName;
+        std::string_view fName;
         uint32_t       fHash;
 
         bool operator==(const SymbolKey& that) const { return fName == that.fName; }
@@ -154,7 +149,7 @@ private:
         };
     };
 
-    static SymbolKey MakeSymbolKey(skstd::string_view name) {
+    static SymbolKey MakeSymbolKey(std::string_view name) {
         return SymbolKey{name, SkOpts::hash_fn(name.data(), name.size(), 0)};
     }
 
@@ -164,7 +159,7 @@ private:
 
     bool fBuiltin = false;
     std::vector<std::unique_ptr<IRNode>> fOwnedNodes;
-    std::forward_list<String> fOwnedStrings;
+    std::forward_list<std::string> fOwnedStrings;
     SkTHashMap<SymbolKey, const Symbol*, SymbolKey::Hash> fSymbols;
     const Context& fContext;
 

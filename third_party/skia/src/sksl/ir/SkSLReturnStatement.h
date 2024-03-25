@@ -41,14 +41,15 @@ public:
     }
 
     std::unique_ptr<Statement> clone() const override {
-        return std::make_unique<ReturnStatement>(fLine, this->expression()->clone());
+        return std::make_unique<ReturnStatement>(fLine,
+                this->expression() ? this->expression()->clone() : nullptr);
     }
 
-    String description() const override {
+    std::string description() const override {
         if (this->expression()) {
             return "return " + this->expression()->description() + ";";
         } else {
-            return String("return;");
+            return "return;";
         }
     }
 

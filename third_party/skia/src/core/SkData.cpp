@@ -57,7 +57,9 @@ size_t SkData::copyRange(size_t offset, size_t length, void* buffer) const {
     }
     SkASSERT(length > 0);
 
-    memcpy(buffer, this->bytes() + offset, length);
+    if (buffer) {
+        memcpy(buffer, this->bytes() + offset, length);
+    }
     return length;
 }
 
@@ -111,6 +113,14 @@ sk_sp<SkData> SkData::MakeUninitialized(size_t length) {
     return PrivateNewWithCopy(nullptr, length);
 }
 
+sk_sp<SkData> SkData::MakeZeroInitialized(size_t length) {
+    auto data = MakeUninitialized(length);
+    if (length != 0) {
+        memset(data->writable_data(), 0, data->size());
+    }
+    return data;
+}
+
 sk_sp<SkData> SkData::MakeWithProc(const void* ptr, size_t length, ReleaseProc proc, void* ctx) {
     return sk_sp<SkData>(new SkData(ptr, length, proc, ctx));
 }
@@ -121,7 +131,7 @@ static void sk_mmap_releaseproc(const void* addr, void* ctx) {
     sk_fmunmap(addr, length);
 }
 
-sk_sp<SkData> SkData::MakeFromFILE(SkFile* f) {
+sk_sp<SkData> SkData::MakeFromFILE(FILE* f) {
     size_t size;
     void* addr = sk_fmmap(f, &size);
     if (nullptr == addr) {
@@ -132,7 +142,7 @@ sk_sp<SkData> SkData::MakeFromFILE(SkFile* f) {
 }
 
 sk_sp<SkData> SkData::MakeFromFileName(const char path[]) {
-    SkFile* f = path ? sk_fopen(path, kRead_SkFILE_Flag) : nullptr;
+    FILE* f = path ? sk_fopen(path, kRead_SkFILE_Flag) : nullptr;
     if (nullptr == f) {
         return nullptr;
     }

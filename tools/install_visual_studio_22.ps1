@@ -5,7 +5,7 @@ New-Item -Path "C:\" -Name "src" -ItemType "directory" -Force
 # Pins Visual Studio 2022 release version to 17.4.6 (includes Clang 15.0.1).
 # This should be kept in sync with the VS installer used in Build CI containers
 # defined in `docker/windows/base/visualstudio2022/Dockerfile`
-$VS_INSTALL_URL="https://download.visualstudio.microsoft.com/download/pr/d1ed8638-9e88-461e-92b7-4e29cc6172c3/30be9c2a5e40d5666eeae683e319b472c8bcc8231c7b346fe798f0ad0f7e498b/vs_Professional.exe"
+$VS_INSTALL_URL="https://download.visualstudio.microsoft.com/download/pr/63fee7e3-bede-41ad-97a2-97b8b9f535d1/2c37061fd2dc51c1283d9e9476437a2b0f211250e514df07c4b9827b95e8d849/vs_Professional.exe"
 
 Invoke-WebRequest -Uri $VS_INSTALL_URL -OutFile C:\src\vs_professional.exe
 

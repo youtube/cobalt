@@ -10,7 +10,6 @@
 #include "include/private/GrTypesPriv.h"
 #include "src/gpu/GrDataUtils.h"
 #include "src/gpu/gl/GrGLUtil.h"
-
 #include <stdio.h>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -244,6 +243,25 @@ static GrGLRenderer get_renderer(const char* rendererString, const GrGLExtension
         if (strstr(intelString, "Bay Trail")) {
             return GrGLRenderer::kIntelValleyView;
         }
+        // In Mesa, 'RKL' can be followed by 'Graphics', same for 'TGL' and 'ADL'.
+        // Referenced from the following Mesa source code:
+        // https://github.com/mesa3d/mesa/blob/master/include/pci_ids/iris_pci_ids.h
+        if (strstr(intelString, "RKL")) {
+            return GrGLRenderer::kIntelRocketLake;
+        }
+        if (strstr(intelString, "TGL")) {
+            return GrGLRenderer::kIntelTigerLake;
+        }
+        // For Windows on ADL-S devices, 'AlderLake-S' might be followed by 'Intel(R)'.
+        if (strstr(intelString, "ADL") || strstr(intelString, "AlderLake")) {
+            return GrGLRenderer::kIntelAlderLake;
+        }
+        // For Windows on TGL or other ADL devices, we might only get 'Xe' from the string.
+        // Since they are both 12th gen, we could temporarily use 'kIntelTigerLake' to cover
+        // both TGL and ADL.
+        if (strstr(intelString, "Xe")) {
+            return GrGLRenderer::kIntelTigerLake;
+        }
         // There are many possible intervening strings here:
         // 'Intel(R)' is a common prefix
         // 'Iris' may appear, followed by '(R)' or '(TM)'
@@ -291,6 +309,11 @@ static GrGLRenderer get_renderer(const char* rendererString, const GrGLExtension
                 }
                 if (intelNumber == 655) {
                     return GrGLRenderer::kIntelCoffeeLake;
+                }
+                // 710/730/750/770 are all 12th gen UHD Graphics, but it's hard to distinguish
+                // among RKL, TGL and ADL. We might temporarily use 'kIntelTigerLake' to cover all.
+                if (intelNumber >= 710 && intelNumber <= 770) {
+                    return GrGLRenderer::kIntelTigerLake;
                 }
                 if (intelNumber >= 910 && intelNumber <= 950) {
                     return GrGLRenderer::kIntelIceLake;
@@ -520,6 +543,25 @@ static std::tuple<GrGLDriver, GrGLDriverVersion> get_driver_and_version(GrGLStan
                 // doesn't fit into the 'patch' bits, so omit it until we need it.
                 driverVersion = GR_GL_DRIVER_VER(driverMajor, driverMinor, 0);
             }
+        } else if (vendor == GrGLVendor::kARM) {
+            // Example:
+            // OpenGL ES 3.2 v1.r26p0-01rel0.217d2597f6bd19b169343737782e56e3
+            // It's unclear how to interpret what comes between "p" and "rel". Every string we've
+            // seen so far has "0-01" there. We ignore it for now.
+            int ignored0;
+            int ignored1;
+            int n = sscanf(versionString,
+                           "OpenGL ES %d.%d v%d.r%dp%d-%drel",
+                           &major,
+                           &minor,
+                           &driverMajor,
+                           &driverMinor,
+                           &ignored0,
+                           &ignored1);
+            if (n == 6) {
+                driver = GrGLDriver::kARM;
+                driverVersion = GR_GL_DRIVER_VER(driverMajor, driverMinor, 0);
+            }
         } else {
             static constexpr char kEmulatorPrefix[] = "Android Emulator OpenGL ES Translator";
             if (0 == strncmp(kEmulatorPrefix, rendererString, strlen(kEmulatorPrefix))) {
@@ -734,6 +776,7 @@ bool GrGLFormatIsCompressed(GrGLFormat format) {
         case GrGLFormat::kR16F:
         case GrGLFormat::kLUMINANCE16F:
         case GrGLFormat::kRGB8:
+        case GrGLFormat::kRGBX8:
         case GrGLFormat::kRG8:
         case GrGLFormat::kRGB10_A2:
         case GrGLFormat::kRGBA4:

@@ -151,6 +151,40 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.SourceBuffer.AppendBuffer.Timing"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the main action of the `SourceBuffer.appendBuffer` call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SourceBuffer.PrepareAppend.Timing"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for preparation of `SourceBuffer.appendBuffer` calls.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SourceBuffer.Other.Timing"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Catch-all for timing data for `SourceBuffer.appendBuffer` calls. This
+    histogram is not expected to receive data normally.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.MediaDevices.MicCreationSucceeded" enum="Boolean"
     expires_after="never">
 <!-- expires-never: Needed for long-term tracking of device mic support. -->
@@ -161,6 +195,17 @@ Always run the pretty print utility on this file after editing:
   <summary>
     A boolean representing the success or failure of an attempted mic creation
     event via mediaDevices.getUserMedia().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.CrashpadInstallationStatus"
+    enum="CrashpadInstallationStatus" expires_after="never">
+<!-- expires-never: Needed for crash reporting system health metrics. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of Crashpad installation by the Loader App.
   </summary>
 </histogram>
 

@@ -23,7 +23,7 @@
 #include "src/utils/SkUTF.h"
 
 SkTypeface::SkTypeface(const SkFontStyle& style, bool isFixedPitch)
-    : fUniqueID(SkTypefaceCache::NewFontID()), fStyle(style), fIsFixedPitch(isFixedPitch) { }
+    : fUniqueID(SkTypefaceCache::NewTypefaceID()), fStyle(style), fIsFixedPitch(isFixedPitch) { }
 
 SkTypeface::~SkTypeface() { }
 
@@ -222,6 +222,9 @@ sk_sp<SkTypeface> SkTypeface::MakeDeserialize(SkStream* stream) {
         SkFontArguments args;
         args.setCollectionIndex(desc.getCollectionIndex());
         args.setVariationDesignPosition({desc.getVariation(), desc.getVariationCoordinateCount()});
+        args.setPalette({desc.getPaletteIndex(),
+                         desc.getPaletteEntryOverrides(),
+                         desc.getPaletteEntryOverrideCount()});
         sk_sp<SkFontMgr> defaultFm = SkFontMgr::RefDefault();
         sk_sp<SkTypeface> typeface = defaultFm->makeFromStream(desc.detachStream(), args);
         if (typeface) {
@@ -288,6 +291,15 @@ std::unique_ptr<SkStreamAsset> SkTypeface::openStream(int* ttcIndex) const {
         ttcIndex = &ttcIndexStorage;
     }
     return this->onOpenStream(ttcIndex);
+}
+
+std::unique_ptr<SkStreamAsset> SkTypeface::openExistingStream(int* ttcIndex) const {
+    int ttcIndexStorage;
+    if (nullptr == ttcIndex) {
+        // So our subclasses don't need to check for null param
+        ttcIndex = &ttcIndexStorage;
+    }
+    return this->onOpenExistingStream(ttcIndex);
 }
 
 std::unique_ptr<SkScalerContext> SkTypeface::createScalerContext(
@@ -436,6 +448,10 @@ std::unique_ptr<SkAdvancedTypefaceMetrics> SkTypeface::getAdvancedMetrics() cons
 bool SkTypeface::onGetKerningPairAdjustments(const uint16_t glyphs[], int count,
                                              int32_t adjustments[]) const {
     return false;
+}
+
+std::unique_ptr<SkStreamAsset> SkTypeface::onOpenExistingStream(int* ttcIndex) const {
+    return this->onOpenStream(ttcIndex);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

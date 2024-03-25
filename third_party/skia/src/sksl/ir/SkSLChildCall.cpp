@@ -20,17 +20,13 @@ bool ChildCall::hasProperty(Property property) const {
 }
 
 std::unique_ptr<Expression> ChildCall::clone() const {
-    ExpressionArray cloned;
-    cloned.reserve_back(this->arguments().size());
-    for (const std::unique_ptr<Expression>& arg : this->arguments()) {
-        cloned.push_back(arg->clone());
-    }
-    return std::make_unique<ChildCall>(fLine, &this->type(), &this->child(), std::move(cloned));
+    return std::make_unique<ChildCall>(fLine, &this->type(), &this->child(),
+                                       this->arguments().clone());
 }
 
-String ChildCall::description() const {
-    String result = String(this->child().name()) + ".eval(";
-    String separator;
+std::string ChildCall::description() const {
+    std::string result = std::string(this->child().name()) + ".eval(";
+    std::string separator;
     for (const std::unique_ptr<Expression>& arg : this->arguments()) {
         result += separator;
         result += arg->description();
@@ -60,7 +56,7 @@ String ChildCall::description() const {
         return false;
     }
     for (size_t i = 0; i < arguments.size(); i++) {
-        if (arguments[i]->type() != *params[i]) {
+        if (!arguments[i]->type().matches(*params[i])) {
             return false;
         }
     }

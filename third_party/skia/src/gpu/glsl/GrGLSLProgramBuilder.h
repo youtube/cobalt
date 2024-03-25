@@ -26,7 +26,7 @@ class GrRenderTarget;
 class GrShaderVar;
 class GrGLSLVaryingHandler;
 class SkString;
-class GrShaderCaps;
+struct GrShaderCaps;
 
 class GrGLSLProgramBuilder {
 public:
@@ -55,7 +55,7 @@ public:
         return this->uniformHandler()->samplerVariable(handle);
     }
 
-    GrSwizzle samplerSwizzle(SamplerHandle handle) const {
+    skgpu::Swizzle samplerSwizzle(SamplerHandle handle) const {
         return this->uniformHandler()->samplerSwizzle(handle);
     }
 
@@ -63,7 +63,7 @@ public:
         return this->uniformHandler()->inputSamplerVariable(handle);
     }
 
-    GrSwizzle inputSamplerSwizzle(SamplerHandle handle) const {
+    skgpu::Swizzle inputSamplerSwizzle(SamplerHandle handle) const {
         return this->uniformHandler()->inputSamplerSwizzle(handle);
     }
 
@@ -141,19 +141,19 @@ private:
     /** Adds the root FPs */
     bool emitAndInstallFragProcs(SkString* colorInOut, SkString* coverageInOut);
     /** Adds a single root FP tree. */
-    SkString emitFragProc(const GrFragmentProcessor&,
-                          GrFragmentProcessor::ProgramImpl&,
-                          const SkString& input,
-                          SkString output);
+    SkString emitRootFragProc(const GrFragmentProcessor& fp,
+                              GrFragmentProcessor::ProgramImpl& impl,
+                              const SkString& input,
+                              SkString output);
     /** Recursive step to write out children FPs' functions before parent's. */
     void writeChildFPFunctions(const GrFragmentProcessor& fp,
                                GrFragmentProcessor::ProgramImpl& impl);
     /** Adds the SkSL function that implements an FP assuming its children are already written. */
     void writeFPFunction(const GrFragmentProcessor& fp, GrFragmentProcessor::ProgramImpl& impl);
     bool emitAndInstallXferProc(const SkString& colorIn, const SkString& coverageIn);
-    SamplerHandle emitSampler(const GrBackendFormat&, GrSamplerState, const GrSwizzle&,
+    SamplerHandle emitSampler(const GrBackendFormat&, GrSamplerState, const skgpu::Swizzle&,
                               const char* name);
-    SamplerHandle emitInputSampler(const GrSwizzle& swizzle, const char* name);
+    SamplerHandle emitInputSampler(const skgpu::Swizzle& swizzle, const char* name);
     bool checkSamplerCounts();
 
 #ifdef SK_DEBUG
@@ -166,6 +166,7 @@ private:
     int fNumFragmentSamplers;
 
     GrGeometryProcessor::ProgramImpl::FPCoordsMap fFPCoordsMap;
+    GrShaderVar                                   fLocalCoordsVar;
 
     /**
      * Each root processor has an stage index. The GP is stage 0. The first root FP is stage 1,

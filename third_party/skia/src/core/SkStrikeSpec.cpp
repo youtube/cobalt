@@ -19,12 +19,20 @@
 #include "src/gpu/text/GrStrikeCache.h"
 #endif
 
+SkStrikeSpec::SkStrikeSpec(const SkDescriptor& descriptor, sk_sp<SkTypeface> typeface)
+    : fAutoDescriptor{descriptor}
+    , fTypeface{std::move(typeface)} {}
+
+SkStrikeSpec::SkStrikeSpec(const SkStrikeSpec&) = default;
+SkStrikeSpec::SkStrikeSpec(SkStrikeSpec&&) = default;
+SkStrikeSpec::~SkStrikeSpec() = default;
+
 SkStrikeSpec SkStrikeSpec::MakeMask(const SkFont& font, const SkPaint& paint,
                                     const SkSurfaceProps& surfaceProps,
                                     SkScalerContextFlags scalerContextFlags,
                                     const SkMatrix& deviceMatrix) {
 
-    return SkStrikeSpec(font, paint, surfaceProps, scalerContextFlags, deviceMatrix, 1);
+    return SkStrikeSpec(font, paint, surfaceProps, scalerContextFlags, deviceMatrix);
 }
 
 std::tuple<SkStrikeSpec, SkScalar> SkStrikeSpec::MakePath(
@@ -36,19 +44,18 @@ std::tuple<SkStrikeSpec, SkScalar> SkStrikeSpec::MakePath(
     SkPaint pathPaint{paint};
     SkFont pathFont{font};
 
-    // The factor to get from the size stored in the strike to the size needed for
-    // the source.
-    SkScalar strikeToSourceRatio = pathFont.setupForAsPaths(&pathPaint);
-
     // The sub-pixel position will always happen when transforming to the screen.
     pathFont.setSubpixel(false);
 
-    return {SkStrikeSpec(pathFont, pathPaint, surfaceProps, scalerContextFlags,
-                         SkMatrix::I(), strikeToSourceRatio),
-            strikeToSourceRatio};
+    // The factor to get from the size stored in the strike to the size needed for
+    // the source.
+    SkScalar strikeToSourceScale = pathFont.setupForAsPaths(&pathPaint);
+
+    return {SkStrikeSpec(pathFont, pathPaint, surfaceProps, scalerContextFlags, SkMatrix::I()),
+            strikeToSourceScale};
 }
 
-SkStrikeSpec SkStrikeSpec::MakeSourceFallback(
+std::tuple<SkStrikeSpec, SkScalar> SkStrikeSpec::MakeSourceFallback(
         const SkFont& font,
         const SkPaint& paint,
         const SkSurfaceProps& surfaceProps,
@@ -73,10 +80,10 @@ SkStrikeSpec SkStrikeSpec::MakeSourceFallback(
     fallbackFont.setSubpixel(false);
 
     // The scale factor to go from strike size to the source size for glyphs.
-    SkScalar strikeToSourceRatio = runFontTextSize / fallbackTextSize;
+    SkScalar strikeToSourceScale = runFontTextSize / fallbackTextSize;
 
-    return SkStrikeSpec(fallbackFont, paint, surfaceProps, scalerContextFlags,
-                        SkMatrix::I(), strikeToSourceRatio);
+    return {SkStrikeSpec(fallbackFont, paint, surfaceProps, scalerContextFlags, SkMatrix::I()),
+            strikeToSourceScale};
 }
 
 std::tuple<SkStrikeSpec, SkScalar> SkStrikeSpec::MakeCanonicalized(
@@ -96,8 +103,7 @@ std::tuple<SkStrikeSpec, SkScalar> SkStrikeSpec::MakeCanonicalized(
     }
 
     return {SkStrikeSpec(*canonicalizedFont, canonicalizedPaint,
-                         SkSurfaceProps(), kFakeGammaAndBoostContrast,
-                         SkMatrix::I(), strikeToSourceScale),
+                         SkSurfaceProps(), kFakeGammaAndBoostContrast, SkMatrix::I()),
             strikeToSourceScale};
 }
 
@@ -107,8 +113,8 @@ SkStrikeSpec SkStrikeSpec::MakeWithNoDevice(const SkFont& font, const SkPaint* p
         setupPaint = *paint;
     }
 
-    return SkStrikeSpec(font, setupPaint, SkSurfaceProps(), kFakeGammaAndBoostContrast,
-                        SkMatrix::I(), 1);
+    return SkStrikeSpec(
+            font, setupPaint, SkSurfaceProps(), kFakeGammaAndBoostContrast, SkMatrix::I());
 }
 
 bool SkStrikeSpec::ShouldDrawAsPath(
@@ -157,32 +163,30 @@ SkStrikeSpec SkStrikeSpec::MakePDFVector(const SkTypeface& typeface, int* size) 
     }
     font.setSize((SkScalar)unitsPerEm);
 
-    return SkStrikeSpec(font, SkPaint(),
-                        SkSurfaceProps(0, kUnknown_SkPixelGeometry), kFakeGammaAndBoostContrast,
-                        SkMatrix::I(), 1);
+    return SkStrikeSpec(font,
+                        SkPaint(),
+                        SkSurfaceProps(0, kUnknown_SkPixelGeometry),
+                        kFakeGammaAndBoostContrast,
+                        SkMatrix::I());
 }
 
 #if SK_SUPPORT_GPU
-std::tuple<SkStrikeSpec, SkScalar, SkScalar>
+std::tuple<SkStrikeSpec, SkScalar, GrSDFTMatrixRange>
 SkStrikeSpec::MakeSDFT(const SkFont& font, const SkPaint& paint,
                        const SkSurfaceProps& surfaceProps, const SkMatrix& deviceMatrix,
                        const GrSDFTControl& control) {
+    // Add filter to the paint which creates the SDFT data for A8 masks.
     SkPaint dfPaint{paint};
     dfPaint.setMaskFilter(GrSDFMaskFilter::Make());
-    SkScalar strikeToSourceRatio;
-    SkFont dfFont = control.getSDFFont(font, deviceMatrix, &strikeToSourceRatio);
+
+    auto [dfFont, strikeToSourceScale, matrixRange] = control.getSDFFont(font, deviceMatrix);
 
     // Fake-gamma and subpixel antialiasing are applied in the shader, so we ignore the
     // passed-in scaler context flags. (It's only used when we fall-back to bitmap text).
     SkScalerContextFlags flags = SkScalerContextFlags::kNone;
+    SkStrikeSpec strikeSpec(dfFont, dfPaint, surfaceProps, flags, SkMatrix::I());
 
-    SkScalar minScale, maxScale;
-    std::tie(minScale, maxScale) = control.computeSDFMinMaxScale(font.getSize(), deviceMatrix);
-
-    SkStrikeSpec strikeSpec(dfFont, dfPaint, surfaceProps, flags,
-                            SkMatrix::I(), strikeToSourceRatio);
-
-    return std::make_tuple(std::move(strikeSpec), minScale, maxScale);
+    return std::make_tuple(std::move(strikeSpec), strikeToSourceScale, matrixRange);
 }
 
 sk_sp<GrTextStrike> SkStrikeSpec::findOrCreateGrStrike(GrStrikeCache* cache) const {
@@ -193,10 +197,7 @@ sk_sp<GrTextStrike> SkStrikeSpec::findOrCreateGrStrike(GrStrikeCache* cache) con
 SkStrikeSpec::SkStrikeSpec(const SkFont& font, const SkPaint& paint,
                            const SkSurfaceProps& surfaceProps,
                            SkScalerContextFlags scalerContextFlags,
-                           const SkMatrix& deviceMatrix,
-                           SkScalar strikeToSourceRatio)
-    : fStrikeToSourceRatio(strikeToSourceRatio)
-{
+                           const SkMatrix& deviceMatrix) {
     SkScalerContextEffects effects;
 
     SkScalerContext::CreateDescriptorAndEffectsUsingPaint(
@@ -208,14 +209,19 @@ SkStrikeSpec::SkStrikeSpec(const SkFont& font, const SkPaint& paint,
     fTypeface = font.refTypefaceOrDefault();
 }
 
-SkScopedStrikeForGPU SkStrikeSpec::findOrCreateScopedStrike(SkStrikeForGPUCacheInterface* cache) const {
+SkScopedStrikeForGPU SkStrikeSpec::findOrCreateScopedStrike(
+        SkStrikeForGPUCacheInterface* cache) const {
+    return cache->findOrCreateScopedStrike(*this);
+}
+
+sk_sp<SkStrike> SkStrikeSpec::findOrCreateStrike() const {
     SkScalerContextEffects effects{fPathEffect.get(), fMaskFilter.get()};
-    return cache->findOrCreateScopedStrike(*fAutoDescriptor.getDesc(), effects, *fTypeface);
+    return SkStrikeCache::GlobalStrikeCache()->findOrCreateStrike(*this);
 }
 
 sk_sp<SkStrike> SkStrikeSpec::findOrCreateStrike(SkStrikeCache* cache) const {
     SkScalerContextEffects effects{fPathEffect.get(), fMaskFilter.get()};
-    return cache->findOrCreateStrike(*fAutoDescriptor.getDesc(), effects, *fTypeface);
+    return cache->findOrCreateStrike(*this);
 }
 
 SkBulkGlyphMetrics::SkBulkGlyphMetrics(const SkStrikeSpec& spec)
@@ -235,6 +241,8 @@ SkBulkGlyphMetricsAndPaths::SkBulkGlyphMetricsAndPaths(const SkStrikeSpec& spec)
 
 SkBulkGlyphMetricsAndPaths::SkBulkGlyphMetricsAndPaths(sk_sp<SkStrike>&& strike)
         : fStrike{std::move(strike)} { }
+
+SkBulkGlyphMetricsAndPaths::~SkBulkGlyphMetricsAndPaths() = default;
 
 SkSpan<const SkGlyph*> SkBulkGlyphMetricsAndPaths::glyphs(SkSpan<const SkGlyphID> glyphIDs) {
     fGlyphs.reset(glyphIDs.size());
@@ -258,6 +266,8 @@ SkBulkGlyphMetricsAndImages::SkBulkGlyphMetricsAndImages(const SkStrikeSpec& spe
 
 SkBulkGlyphMetricsAndImages::SkBulkGlyphMetricsAndImages(sk_sp<SkStrike>&& strike)
         : fStrike{std::move(strike)} { }
+
+SkBulkGlyphMetricsAndImages::~SkBulkGlyphMetricsAndImages() = default;
 
 SkSpan<const SkGlyph*> SkBulkGlyphMetricsAndImages::glyphs(SkSpan<const SkPackedGlyphID> glyphIDs) {
     fGlyphs.reset(glyphIDs.size());

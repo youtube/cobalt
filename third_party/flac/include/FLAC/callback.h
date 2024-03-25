@@ -1,5 +1,6 @@
 /* libFLAC - Free Lossless Audio Codec library
- * Copyright (C) 2004,2005,2006,2007  Josh Coalson
+ * Copyright (C) 2004-2009  Josh Coalson
+ * Copyright (C) 2011-2014  Xiph.Org Foundation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,9 +34,7 @@
 #define FLAC__CALLBACK_H
 
 #include "ordinals.h"
-#ifndef STARBOARD
 #include <stdlib.h> /* for size_t */
-#endif  // STARBOARD
 
 /** \file include/FLAC/callback.h
  *

@@ -51,7 +51,6 @@ struct SkRect;
 class SkRegion;
 class SkRRect;
 struct SkRSXform;
-class SkRuntimeEffect;
 class SkTextBlob;
 class SkVertices;
 
@@ -95,8 +94,8 @@ public:
                                                     int sampleCnt,
                                                     GrMipmapped,
                                                     GrProtected,
-                                                    GrSwizzle readSwizzle,
-                                                    GrSwizzle writeSwizzle,
+                                                    skgpu::Swizzle readSwizzle,
+                                                    skgpu::Swizzle writeSwizzle,
                                                     GrSurfaceOrigin,
                                                     SkBudgeted,
                                                     const SkSurfaceProps&);
@@ -363,6 +362,19 @@ public:
                    const SkMatrix& viewMatrix,
                    GrStyledShape&&);
 
+    /**
+     * Draws vertices with a paint.
+     *
+     * @param   paint            describes how to color pixels.
+     * @param   viewMatrix       transformation matrix
+     * @param   vertices         specifies the mesh to draw.
+     * @param   overridePrimType primitive type to draw. If NULL, derive prim type from vertices.
+     */
+    void drawVertices(const GrClip*,
+                      GrPaint&& paint,
+                      const SkMatrixProvider& matrixProvider,
+                      sk_sp<SkVertices> vertices,
+                      GrPrimitiveType* overridePrimType = nullptr);
 
     /**
      * Draws vertices with a paint.
@@ -373,12 +385,10 @@ public:
      * @param   overridePrimType primitive type to draw. If NULL, derive prim type from vertices.
      * @param   effect           runtime effect that will handle custom vertex attributes.
      */
-    void drawVertices(const GrClip*,
-                      GrPaint&& paint,
-                      const SkMatrixProvider& matrixProvider,
-                      sk_sp<SkVertices> vertices,
-                      GrPrimitiveType* overridePrimType = nullptr,
-                      const SkRuntimeEffect* effect = nullptr);
+    void drawCustomMesh(const GrClip*,
+                        GrPaint&& paint,
+                        const SkMatrixProvider& matrixProvider,
+                        SkCustomMesh);
 
     /**
      * Draws textured sprites from an atlas with a paint. This currently does not support AA for the
@@ -477,7 +487,8 @@ public:
      * @param viewMatrix      transformationMatrix
      * @param glyphRunList    text, text positions, and paint.
      */
-    void drawGlyphRunList(const GrClip*,
+    void drawGlyphRunList(SkCanvas*,
+                          const GrClip*,
                           const SkMatrixProvider& viewMatrix,
                           const SkGlyphRunList& glyphRunList,
                           const SkPaint& paint);
@@ -488,21 +499,26 @@ public:
      * @param viewMatrix      transformationMatrix
      * @param glyphRunList    text, text positions, and paint.
      */
-    void drawGlyphRunListWithCache(const GrClip*,
-                                   const SkMatrixProvider& viewMatrix,
-                                   const SkGlyphRunList& glyphRunList,
-                                   const SkPaint& paint);
-
-    /**
-     * Draw the text specified by the SkGlyphRunList.
-     *
-     * @param viewMatrix      transformationMatrix
-     * @param glyphRunList    text, text positions, and paint.
-     */
-    void drawGlyphRunListNoCache(const GrClip*,
+    void drawGlyphRunListNoCache(SkCanvas*,
+                                 const GrClip*,
                                  const SkMatrixProvider& viewMatrix,
                                  const SkGlyphRunList& glyphRunList,
                                  const SkPaint& paint);
+
+    /**
+     * Convert the glyph-run list to a slug.
+     */
+    sk_sp<GrSlug> convertGlyphRunListToSlug(const SkMatrixProvider& viewMatrix,
+                                            const SkGlyphRunList& glyphRunList,
+                                            const SkPaint& paint);
+
+    /**
+     * Draw a slug.
+     */
+    void drawSlug(SkCanvas*,
+                  const GrClip* clip,
+                  const SkMatrixProvider& viewMatrix,
+                  GrSlug* slugPtr);
 
     /**
      * Adds the necessary signal and wait semaphores and adds the passed in SkDrawable to the
@@ -629,6 +645,9 @@ public:
     void testingOnly_SetPreserveOpsOnFullClear() { fPreserveOpsOnFullClear_TestingOnly = true; }
 #endif
 
+    void drawStrokedLine(const GrClip*, GrPaint&&, GrAA, const SkMatrix&, const SkPoint[2],
+                         const SkStrokeRec&);
+
 private:
     enum class QuadOptimization;
 
@@ -675,9 +694,6 @@ private:
                           GrAA aa,
                           DrawQuad* quad,
                           const SkRect* subset = nullptr);
-
-    void drawStrokedLine(const GrClip*, GrPaint&&, GrAA, const SkMatrix&, const SkPoint[2],
-                         const SkStrokeRec&);
 
     // Tries to detect if the given shape is a simple, and draws it without path rendering if
     // we know how.

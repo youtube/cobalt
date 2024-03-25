@@ -175,32 +175,46 @@ int RuntimeCheckErrorFunc(int errorType, const char* filename, int linenumber,
 
 using namespace DM;
 using sk_gpu_test::GrContextFactory;
-using sk_gpu_test::GLTestContext;
 using sk_gpu_test::ContextInfo;
+#ifdef SK_GL
+using sk_gpu_test::GLTestContext;
+#endif
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 static FILE* gVLog;
 
-template <typename... Args>
-static void vlog(const char* fmt, Args&&... args) {
+static void vlog(const char* fmt, ...) SK_PRINTF_LIKE(1, 2);
+
+static void vlog(const char* fmt, ...) {
     if (gVLog) {
-        fprintf(gVLog, fmt, args...);
+        va_list args;
+        va_start(args, fmt);
+        vfprintf(gVLog, fmt, args);
         fflush(gVLog);
+        va_end(args);
     }
 }
 
-template <typename... Args>
-static void info(const char* fmt, Args&&... args) {
-    vlog(fmt, args...);
-    if (!FLAGS_quiet) {
-        printf(fmt, args...);
+static void info(const char* fmt, ...) SK_PRINTF_LIKE(1, 2);
+
+static void info(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    if (gVLog) {
+        va_list vlogArgs;
+        va_copy(vlogArgs, args);
+        vfprintf(gVLog, fmt, vlogArgs);
+        fflush(gVLog);
+        va_end(vlogArgs);
     }
-}
-static void info(const char* fmt) {
+
     if (!FLAGS_quiet) {
-        printf("%s", fmt);  // Clang warns printf(fmt) is insecure.
+        vprintf(fmt, args);
     }
+
+    va_end(args);
 }
 
 static SkTArray<SkString>* gFailures = new SkTArray<SkString>;
@@ -300,7 +314,7 @@ static void find_culprit() {
         SkAutoSpinlock lock(*gMutex);
 
         const DWORD code = e->ExceptionRecord->ExceptionCode;
-        info("\nCaught exception %u", code);
+        info("\nCaught exception %lu", code);
         for (const auto& exception : kExceptions) {
             if (exception.code == code) {
                 info(" %s", exception.name);
@@ -974,7 +988,7 @@ static Sink* create_sink(const GrContextOptions& grCtxOptions, const SkCommandLi
 #define SINK(t, sink, ...) if (config->getBackend().equals(t)) return new sink(__VA_ARGS__)
 
     if (FLAGS_cpu) {
-        SINK("g8",          RasterSink, kGray_8_SkColorType);
+        SINK("r8",          RasterSink, kR8_unorm_SkColorType);
         SINK("565",         RasterSink, kRGB_565_SkColorType);
         SINK("4444",        RasterSink, kARGB_4444_SkColorType);
         SINK("8888",        RasterSink, kN32_SkColorType);

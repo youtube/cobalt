@@ -38,8 +38,8 @@ public:
         return true;
     }
 
-    String description() const override {
-        return String("/* inlined: ") + this->function().name() + String(" */");
+    std::string description() const override {
+        return "/* inlined: " + std::string(this->function().name()) + " */";
     }
 
     std::unique_ptr<Statement> clone() const override {

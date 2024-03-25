@@ -7,9 +7,11 @@
 
 #include "src/shaders/SkImageShader.h"
 
+#include "include/private/SkImageInfoPriv.h"
 #include "src/core/SkArenaAlloc.h"
 #include "src/core/SkColorSpacePriv.h"
 #include "src/core/SkColorSpaceXformSteps.h"
+#include "src/core/SkKeyHelpers.h"
 #include "src/core/SkMatrixPriv.h"
 #include "src/core/SkMatrixProvider.h"
 #include "src/core/SkMipmapAccessor.h"
@@ -66,18 +68,34 @@ static SkTileMode optimize(SkTileMode tm, int dimension) {
 #endif
 }
 
+// TODO: currently this only *always* used in asFragmentProcessor(), which is excluded on no-gpu
+// builds. No-gpu builds only use needs_subset() in asserts, so release+no-gpu doesn't use it, which
+// can cause builds to fail if unused warnings are treated as errors.
+SK_MAYBE_UNUSED static bool needs_subset(SkImage* img, const SkRect& subset) {
+    return subset != SkRect::Make(img->dimensions());
+}
+
 SkImageShader::SkImageShader(sk_sp<SkImage> img,
+                             const SkRect& subset,
                              SkTileMode tmx, SkTileMode tmy,
                              const SkSamplingOptions& sampling,
                              const SkMatrix* localMatrix,
+                             bool raw,
                              bool clampAsIfUnpremul)
-    : INHERITED(localMatrix)
-    , fImage(std::move(img))
-    , fSampling(sampling)
-    , fTileModeX(optimize(tmx, fImage->width()))
-    , fTileModeY(optimize(tmy, fImage->height()))
-    , fClampAsIfUnpremul(clampAsIfUnpremul)
-{}
+        : INHERITED(localMatrix)
+        , fImage(std::move(img))
+        , fSampling(sampling)
+        , fTileModeX(optimize(tmx, fImage->width()))
+        , fTileModeY(optimize(tmy, fImage->height()))
+        , fSubset(subset)
+        , fRaw(raw)
+        , fClampAsIfUnpremul(clampAsIfUnpremul) {
+    // These options should never appear together:
+    SkASSERT(!fRaw || !fClampAsIfUnpremul);
+
+    // Bicubic filtering of raw image shaders would add a surprising clamp - so we don't support it
+    SkASSERT(!fRaw || !fSampling.useCubic);
+}
 
 // just used for legacy-unflattening
 enum class LegacyFilterEnum {
@@ -121,7 +139,14 @@ sk_sp<SkFlattenable> SkImageShader::CreateProc(SkReadBuffer& buffer) {
         return nullptr;
     }
 
-    return SkImageShader::Make(std::move(img), tmx, tmy, sampling, &localMatrix);
+    bool raw = buffer.isVersionLT(SkPicturePriv::Version::kRawImageShaders) ? false
+                                                                            : buffer.readBool();
+
+    // TODO(skbug.com/12784): Subset is not serialized yet; it's only used by special images so it
+    // will never be written to an SKP.
+
+    return raw ? SkImageShader::MakeRaw(std::move(img), tmx, tmy, sampling, &localMatrix)
+               : SkImageShader::Make(std::move(img), tmx, tmy, sampling, &localMatrix);
 }
 
 void SkImageShader::flatten(SkWriteBuffer& buffer) const {
@@ -133,6 +158,12 @@ void SkImageShader::flatten(SkWriteBuffer& buffer) const {
     buffer.writeMatrix(this->getLocalMatrix());
     buffer.writeImage(fImage.get());
     SkASSERT(fClampAsIfUnpremul == false);
+
+    // TODO(skbug.com/12784): Subset is not serialized yet; it's only used by special images so it
+    // will never be written to an SKP.
+    SkASSERT(!needs_subset(fImage.get(), fSubset));
+
+    buffer.writeBool(fRaw);
 }
 
 bool SkImageShader::isOpaque() const {
@@ -175,6 +206,7 @@ static bool legacy_shader_can_handle(const SkMatrix& inv) {
 
 SkShaderBase::Context* SkImageShader::onMakeContext(const ContextRec& rec,
                                                     SkArenaAlloc* alloc) const {
+    SkASSERT(!needs_subset(fImage.get(), fSubset)); // TODO(skbug.com/12784)
     if (fImage->alphaType() == kUnpremul_SkAlphaType) {
         return nullptr;
     }
@@ -251,6 +283,31 @@ sk_sp<SkShader> SkImageShader::Make(sk_sp<SkImage> image,
                                     const SkSamplingOptions& options,
                                     const SkMatrix* localMatrix,
                                     bool clampAsIfUnpremul) {
+    SkRect subset = image ? SkRect::Make(image->dimensions()) : SkRect::MakeEmpty();
+    return MakeSubset(std::move(image), subset, tmx, tmy, options, localMatrix, clampAsIfUnpremul);
+}
+
+sk_sp<SkShader> SkImageShader::MakeRaw(sk_sp<SkImage> image,
+                                       SkTileMode tmx, SkTileMode tmy,
+                                       const SkSamplingOptions& options,
+                                       const SkMatrix* localMatrix) {
+    if (options.useCubic) {
+        return nullptr;
+    }
+    if (!image) {
+        return sk_make_sp<SkEmptyShader>();
+    }
+    return sk_sp<SkShader>{new SkImageShader(
+            image, SkRect::Make(image->dimensions()), tmx, tmy, options, localMatrix,
+            /*raw=*/true, /*clampAsIfUnpremul=*/false)};
+}
+
+sk_sp<SkShader> SkImageShader::MakeSubset(sk_sp<SkImage> image,
+                                          const SkRect& subset,
+                                          SkTileMode tmx, SkTileMode tmy,
+                                          const SkSamplingOptions& options,
+                                          const SkMatrix* localMatrix,
+                                          bool clampAsIfUnpremul) {
     auto is_unit = [](float x) {
         return x >= 0 && x <= 1;
     };
@@ -259,12 +316,18 @@ sk_sp<SkShader> SkImageShader::Make(sk_sp<SkImage> image,
             return nullptr;
         }
     }
-    if (!image) {
+    if (!image || subset.isEmpty()) {
         return sk_make_sp<SkEmptyShader>();
     }
-    return sk_sp<SkShader>{
-        new SkImageShader(image, tmx, tmy, options, localMatrix, clampAsIfUnpremul)
-    };
+
+    // Validate subset and check if we can drop it
+    if (!SkRect::Make(image->bounds()).contains(subset)) {
+        return nullptr;
+    }
+    // TODO(skbug.com/12784): GPU-only for now since it's only supported in onAsFragmentProcessor()
+    SkASSERT(!needs_subset(image.get(), subset) || image->isTextureBacked());
+    return sk_sp<SkShader>{new SkImageShader(
+            image, subset, tmx, tmy, options, localMatrix, /*raw=*/false, clampAsIfUnpremul)};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -283,33 +346,39 @@ std::unique_ptr<GrFragmentProcessor> SkImageShader::asFragmentProcessor(
     }
 
     SkTileMode tileModes[2] = {fTileModeX, fTileModeY};
+    const SkRect* subset = needs_subset(fImage.get(), fSubset) ? &fSubset : nullptr;
     auto fp = as_IB(fImage.get())->asFragmentProcessor(args.fContext,
                                                        fSampling,
                                                        tileModes,
-                                                       lmInverse);
+                                                       lmInverse,
+                                                       subset);
     if (!fp) {
         return nullptr;
     }
 
-    fp = GrColorSpaceXformEffect::Make(std::move(fp),
-                                       fImage->colorSpace(),
-                                       fImage->alphaType(),
-                                       args.fDstColorInfo->colorSpace(),
-                                       kPremul_SkAlphaType);
-    if (fImage->isAlphaOnly()) {
-        return GrBlendFragmentProcessor::Make(std::move(fp), nullptr, SkBlendMode::kDstIn);
-    } else if (args.fInputColorIsOpaque) {
-        // If the input alpha is known to be 1, we don't need to take the kSrcIn path. This is
-        // just an optimization. However, we can't just return 'fp' here. We need to actually
-        // inhibit the coverage-as-alpha optimization, or we'll fail to incorporate AA correctly.
-        // The OverrideInput FP happens to do that, so wrap our fp in one of those. The texture FP
-        // doesn't actually use the input color at all, so the overridden input is irrelevant.
-        return GrFragmentProcessor::OverrideInput(std::move(fp), SK_PMColor4fWHITE, false);
+    if (!fRaw) {
+        fp = GrColorSpaceXformEffect::Make(std::move(fp),
+                                           fImage->colorSpace(),
+                                           fImage->alphaType(),
+                                           args.fDstColorInfo->colorSpace(),
+                                           kPremul_SkAlphaType);
+
+        if (fImage->isAlphaOnly()) {
+            fp = GrBlendFragmentProcessor::Make(std::move(fp), nullptr, SkBlendMode::kDstIn);
+        }
     }
-    return GrBlendFragmentProcessor::Make(std::move(fp), nullptr, SkBlendMode::kSrcIn);
+
+    return fp;
 }
 
 #endif
+
+void SkImageShader::addToKey(SkShaderCodeDictionary* dict,
+                             SkBackend backend,
+                             SkPaintParamsKeyBuilder* builder,
+                             SkUniformBlock* uniformBlock) const {
+    ImageShaderBlock::AddToKey(dict, backend, builder, uniformBlock, { fTileModeX, fTileModeY });
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "src/core/SkImagePriv.h"
@@ -323,7 +392,7 @@ sk_sp<SkShader> SkMakeBitmapShaderForPaint(const SkPaint& paint, const SkBitmap&
     if (!s) {
         return nullptr;
     }
-    if (src.colorType() == kAlpha_8_SkColorType && paint.getShader()) {
+    if (SkColorTypeIsAlphaOnly(src.colorType()) && paint.getShader()) {
         // Compose the image shader with the paint's shader. Alpha images+shaders should output the
         // texture's alpha multiplied by the shader's color. DstIn (d*sa) will achieve this with
         // the source image and dst shader (MakeBlend takes dst first, src second).
@@ -383,6 +452,7 @@ static SkMatrix tweak_inv_matrix(SkFilterMode filter, SkMatrix matrix) {
 }
 
 bool SkImageShader::doStages(const SkStageRec& rec, TransformShader* updater) const {
+    SkASSERT(!needs_subset(fImage.get(), fSubset)); // TODO(skbug.com/12784)
     // We only support certain sampling options in stages so far
     auto sampling = fSampling;
     if (sampling.useCubic) {
@@ -491,6 +561,9 @@ bool SkImageShader::doStages(const SkStageRec& rec, TransformShader* updater) co
             case kGray_8_SkColorType:       p->append(SkRasterPipeline::gather_a8,      ctx);
                                             p->append(SkRasterPipeline::alpha_to_gray      ); break;
 
+            case kR8_unorm_SkColorType:     p->append(SkRasterPipeline::gather_a8,      ctx);
+                                            p->append(SkRasterPipeline::alpha_to_red       ); break;
+
             case kRGB_888x_SkColorType:     p->append(SkRasterPipeline::gather_8888,    ctx);
                                             p->append(SkRasterPipeline::force_opaque       ); break;
 
@@ -523,8 +596,8 @@ bool SkImageShader::doStages(const SkStageRec& rec, TransformShader* updater) co
         SkColorSpace* cs = pm.colorSpace();
         SkAlphaType   at = pm.alphaType();
 
-        // Color for A8 images comes from the paint.  TODO: all alpha images?  none?
-        if (pm.colorType() == kAlpha_8_SkColorType) {
+        // Color for alpha-only images comes from the paint.
+        if (SkColorTypeIsAlphaOnly(pm.colorType()) && !fRaw) {
             SkColor4f rgb = rec.fPaint.getColor4f();
             p->append_set_rgb(alloc, rgb);
 
@@ -541,9 +614,9 @@ bool SkImageShader::doStages(const SkStageRec& rec, TransformShader* updater) co
         }
 
         // Transform color space and alpha type to match shader convention (dst CS, premul alpha).
-        alloc->make<SkColorSpaceXformSteps>(cs, at,
-                                            rec.fDstCS, kPremul_SkAlphaType)
-            ->apply(p);
+        if (!fRaw) {
+            alloc->make<SkColorSpaceXformSteps>(cs, at, rec.fDstCS, kPremul_SkAlphaType)->apply(p);
+        }
 
         return true;
     };
@@ -681,7 +754,7 @@ skvm::Color SkImageShader::makeProgram(
         skvm::Builder* p, skvm::Coord device, skvm::Coord origLocal, skvm::Color paint,
         const SkMatrixProvider& matrices, const SkMatrix* localM, const SkColorInfo& dst,
         skvm::Uniforms* uniforms, const TransformShader* coordShader, SkArenaAlloc* alloc) const {
-
+    SkASSERT(!needs_subset(fImage.get(), fSubset)); // TODO(skbug.com/12784)
     SkMatrix baseInv;
     if (!this->computeTotalInverse(matrices.localToDevice(), localM, &baseInv)) {
         return {};
@@ -918,7 +991,7 @@ skvm::Color SkImageShader::makeProgram(
     // Alpha-only images get their color from the paint (already converted to dst color space).
     SkColorSpace* cs = upper.colorSpace();
     SkAlphaType   at = upper.alphaType();
-    if (SkColorTypeIsAlphaOnly(upper.colorType())) {
+    if (SkColorTypeIsAlphaOnly(upper.colorType()) && !fRaw) {
         c.r = paint.r;
         c.g = paint.g;
         c.b = paint.b;
@@ -939,5 +1012,7 @@ skvm::Color SkImageShader::makeProgram(
         c.b = clamp(c.b, 0.0f, limit);
     }
 
-    return SkColorSpaceXformSteps{cs,at, dst.colorSpace(),dst.alphaType()}.program(p, uniforms, c);
+    return fRaw ? c
+                : SkColorSpaceXformSteps{cs, at, dst.colorSpace(), dst.alphaType()}.program(
+                          p, uniforms, c);
 }

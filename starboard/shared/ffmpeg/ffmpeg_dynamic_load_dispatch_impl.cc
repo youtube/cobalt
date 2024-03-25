@@ -142,7 +142,9 @@ FFMPEGDispatch* FFMPEGDispatchImpl::get_ffmpeg_dispatch() {
     // Dynamically load the libraries and retrieve the function pointers.
     if (OpenLibraries()) {
       LoadSymbols();
-      ffmpeg_->av_register_all();
+      if (ffmpeg_->avformat_version() < kAVFormatDoesNotHaveRegisterAll) {
+        ffmpeg_->av_register_all();
+      }
     }
   }
   SbMutexRelease(&mutex_);
@@ -267,8 +269,8 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   // Load symbols from the avutil shared library.
   INITSYMBOL(avutil_, avutil_version);
   SB_DCHECK(ffmpeg_->avutil_version);
-  SB_LOG(INFO) << "Opened avutil  - version is:" << ffmpeg_->avutil_version()
-               << std::endl;
+  SB_LOG(INFO) << "Opened libavutil  - version is:"
+               << ffmpeg_->avutil_version();
   INITSYMBOL(avutil_, av_malloc);
   INITSYMBOL(avutil_, av_freep);
   INITSYMBOL(avutil_, av_free);
@@ -284,7 +286,7 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_version);
   SB_DCHECK(ffmpeg_->avcodec_version);
   SB_LOG(INFO) << "Opened libavcodec - version is:"
-               << ffmpeg_->avcodec_version() << std::endl;
+               << ffmpeg_->avcodec_version();
 
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
     INITSYMBOL(avcodec_, av_frame_alloc);
@@ -304,8 +306,15 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_close);
   INITSYMBOL(avcodec_, avcodec_open2);
   INITSYMBOL(avcodec_, av_init_packet);
-  INITSYMBOL(avcodec_, avcodec_decode_audio4);
-  INITSYMBOL(avcodec_, avcodec_decode_video2);
+
+  if (ffmpeg_->avcodec_version() < kAVCodecHasUniformDecodeAPI) {
+    INITSYMBOL(avcodec_, avcodec_decode_audio4);
+    INITSYMBOL(avcodec_, avcodec_decode_video2);
+  } else {
+    INITSYMBOL(avcodec_, avcodec_send_packet);
+    INITSYMBOL(avcodec_, avcodec_receive_frame);
+  }
+
   INITSYMBOL(avcodec_, avcodec_flush_buffers);
   INITSYMBOL(avcodec_, avcodec_align_dimensions2);
 
@@ -322,9 +331,11 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avformat_, avformat_version);
   SB_DCHECK(ffmpeg_->avformat_version);
   SB_LOG(INFO) << "Opened libavformat - version is:"
-               << ffmpeg_->avformat_version() << std::endl;
-  INITSYMBOL(avformat_, av_register_all);
-  SB_DCHECK(ffmpeg_->av_register_all);
+               << ffmpeg_->avformat_version();
+  if (ffmpeg_->avformat_version() < kAVFormatDoesNotHaveRegisterAll) {
+    INITSYMBOL(avformat_, av_register_all);
+    SB_DCHECK(ffmpeg_->av_register_all);
+  }
   INITSYMBOL(avformat_, av_read_frame);
   INITSYMBOL(avformat_, av_seek_frame);
   INITSYMBOL(avformat_, avformat_open_input);

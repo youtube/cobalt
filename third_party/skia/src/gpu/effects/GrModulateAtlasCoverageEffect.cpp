@@ -8,6 +8,7 @@
 #include "src/gpu/effects/GrModulateAtlasCoverageEffect.h"
 
 #include "src/gpu/GrDynamicAtlas.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/effects/GrTextureEffect.h"
 
 GrModulateAtlasCoverageEffect::GrModulateAtlasCoverageEffect(
@@ -32,6 +33,11 @@ GrModulateAtlasCoverageEffect::GrModulateAtlasCoverageEffect(
         , fFlags(that.fFlags)
         , fBounds(that.fBounds) {}
 
+void GrModulateAtlasCoverageEffect::onAddToKey(const GrShaderCaps&,
+                                               skgpu::KeyBuilder* b) const {
+    b->add32(fFlags & Flags::kCheckBounds);
+}
+
 std::unique_ptr<GrFragmentProcessor::ProgramImpl>
 GrModulateAtlasCoverageEffect::onMakeProgramImpl() const {
     class Impl : public ProgramImpl {
@@ -44,7 +50,7 @@ GrModulateAtlasCoverageEffect::onMakeProgramImpl() const {
             if (fp.fFlags & Flags::kCheckBounds) {
                 const char* boundsName;
                 fBoundsUniform = uniHandler->addUniform(&fp, kFragment_GrShaderFlag,
-                                                        kFloat4_GrSLType, "bounds", &boundsName);
+                                                        SkSLType::kFloat4, "bounds", &boundsName);
                 // Are we inside the path's valid atlas bounds?
                 f->codeAppendf("if (all(greaterThan(sk_FragCoord.xy, %s.xy)) && "
                                    "all(lessThan(sk_FragCoord.xy, %s.zw))) ",
@@ -56,7 +62,7 @@ GrModulateAtlasCoverageEffect::onMakeProgramImpl() const {
             f->codeAppendf("}");
             const char* coverageMaybeInvertName;
             fCoverageMaybeInvertUniform = uniHandler->addUniform(&fp, kFragment_GrShaderFlag,
-                                                                 kHalf2_GrSLType, "coverageInvert",
+                                                                 SkSLType::kHalf2, "coverageInvert",
                                                                  &coverageMaybeInvertName);
             // Invert coverage, if needed.
             f->codeAppendf("coverage = coverage * %s.x + %s.y;",

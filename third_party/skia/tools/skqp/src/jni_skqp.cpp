@@ -72,12 +72,6 @@ static void set_string_array_element(JNIEnv* env, jobjectArray a, const char* s,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-sk_sp<SkData> get_resource(const char* resource) {
-    return open_asset_data((std::string("resources/")  + resource).c_str());
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 template <typename T, typename F>
 jobjectArray to_java_string_array(JNIEnv* env,
                                   const std::vector<T>& array,
@@ -105,7 +99,7 @@ void Java_org_skia_skqp_SkQP_nInit(JNIEnv* env, jobject object, jobject assetMan
     jclass SkQP_class = env->GetObjectClass(object);
 
     // tools/Resources
-    gResourceFactory = &get_resource;
+    gResourceFactory = &open_asset_data;
 
     std::string reportDirectory = to_string(env, dataDir);
 
@@ -120,9 +114,7 @@ void Java_org_skia_skqp_SkQP_nInit(JNIEnv* env, jobject object, jobject assetMan
     auto backends = gSkQP.getSupportedBackends();
     jassert(env, backends.size() > 0,);
     auto gms = gSkQP.getGMs();
-    jassert(env, gms.size() > 0,);
     auto unitTests = gSkQP.getUnitTests();
-    jassert(env, unitTests.size() > 0,);
 
     constexpr char kStringArrayType[] = "[Ljava/lang/String;";
     env->SetObjectField(object, env->GetFieldID(SkQP_class, "mBackends", kStringArrayType),

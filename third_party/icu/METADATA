@@ -4,12 +4,16 @@ description:
   "software internationalization."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/deps/icu"
+  identifier {
+    type: "ChromiumVersion"
+    value: "88.0.4324.186"  # from https://chromereleases.googleblog.com/2021/02/stable-channel-update-for-chrome-os_17.html
   }
-  version: "d1e2bd28c490a92d410c8014b68527941e124212"
-  # from https://chromium.googlesource.com/chromium/src/+/88.0.4324.150/DEPS#1045
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/deps/icu.git"
+    version: "c9630bce20c30571259bd22704a79c9ea2b5e16c"
+    # from https://chromium.googlesource.com/chromium/src/+/88.0.4324.186/DEPS#1045
+  }
   last_upgrade_date {
     year: 2021
     month: 1

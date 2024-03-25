@@ -73,43 +73,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- Extensions Configuration ----------------------------------------------
-
-// Please use <unordered_map> and <unordered_set> for the hash table types.
-#define SB_HAS_STD_UNORDERED_HASH 1
-
-// GCC/Clang doesn't define a long long hash function, except for Android and
-// Game consoles.
-#define SB_HAS_LONG_LONG_HASH 1
-
-// GCC/Clang doesn't define a string hash function, except for Game Consoles.
-#define SB_HAS_STRING_HASH 1
-
-// Desktop Linux needs a using statement for the hash functions.
-#define SB_HAS_HASH_USING 1
-
-// Set this to 1 if hash functions for custom types can be defined as a
-// hash_value() function. Otherwise, they need to be placed inside a
-// partially-specified hash struct template with an operator().
-#define SB_HAS_HASH_VALUE 1
-
-// Set this to 1 if use of hash_map or hash_set causes a deprecation warning
-// (which then breaks the build).
-#define SB_HAS_HASH_WARNING 1
-#define _SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS
-
-// The location to include hash_map on this platform.
-#define SB_HASH_MAP_INCLUDE <hash_map>
-
-// C++'s hash_map and hash_set are often found in different namespaces depending
-// on the compiler.
-#define SB_HASH_NAMESPACE stdext
-
-// The location to include hash_set on this platform.
-#define SB_HASH_SET_INCLUDE <hash_set>
-
-// --- Filesystem Configuration ----------------------------------------------
-
 // --- Graphics Configuration ------------------------------------------------
 
 // Indicates whether or not the given platform supports rendering of NV12

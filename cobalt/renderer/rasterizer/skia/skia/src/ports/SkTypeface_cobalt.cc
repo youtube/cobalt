@@ -70,9 +70,9 @@ std::unique_ptr<SkFontData> SkTypeface_Cobalt::onMakeFontData() const {
   if (!stream) {
     return nullptr;
   }
-  return std::make_unique<SkFontData>(std::move(stream), index,
-                                      computed_variation_position_.data(),
-                                      computed_variation_position_.count());
+  return std::make_unique<SkFontData>(
+      std::move(stream), index, 0, computed_variation_position_.data(),
+      computed_variation_position_.count(), nullptr, 0);
 }
 
 SkTypeface_CobaltStream::SkTypeface_CobaltStream(

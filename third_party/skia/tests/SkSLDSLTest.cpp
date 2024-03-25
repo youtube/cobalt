@@ -69,7 +69,7 @@ public:
         SetErrorReporter(fOldReporter);
     }
 
-    void handleError(skstd::string_view msg, SkSL::PositionInfo pos) override {
+    void handleError(std::string_view msg, SkSL::PositionInfo pos) override {
         REPORTER_ASSERT(fReporter, fMsg, "Received unexpected extra error: %.*s\n",
                 (int)msg.length(), msg.data());
         REPORTER_ASSERT(fReporter, !fMsg || msg == fMsg,
@@ -130,17 +130,17 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLStartup, r, ctxInfo) {
     REPORTER_ASSERT(r, !whitespace_insensitive_compare("a b c  d", "\n\n\nabc"));
 }
 
-static SkSL::String stringize(DSLStatement& stmt)          { return stmt.release()->description(); }
-static SkSL::String stringize(DSLPossibleStatement& stmt)  { return stmt.release()->description(); }
-static SkSL::String stringize(DSLExpression& expr)         { return expr.release()->description(); }
-static SkSL::String stringize(DSLPossibleExpression& expr) { return expr.release()->description(); }
-static SkSL::String stringize(DSLBlock& blck)              { return blck.release()->description(); }
-static SkSL::String stringize(SkSL::IRNode& node)          { return node.description(); }
-static SkSL::String stringize(SkSL::Program& program)      { return program.description(); }
+static std::string stringize(DSLStatement& stmt)          { return stmt.release()->description(); }
+static std::string stringize(DSLPossibleStatement& stmt)  { return stmt.release()->description(); }
+static std::string stringize(DSLExpression& expr)         { return expr.release()->description(); }
+static std::string stringize(DSLPossibleExpression& expr) { return expr.release()->description(); }
+static std::string stringize(DSLBlock& blck)              { return blck.release()->description(); }
+static std::string stringize(SkSL::IRNode& node)          { return node.description(); }
+static std::string stringize(SkSL::Program& program)      { return program.description(); }
 
 template <typename T>
 static void expect_equal(skiatest::Reporter* r, int lineNumber, T& input, const char* expected) {
-    SkSL::String actual = stringize(input);
+    std::string actual = stringize(input);
     if (!whitespace_insensitive_compare(expected, actual.c_str())) {
         ERRORF(r, "(Failed on line %d)\nExpected: %s\n  Actual: %s\n",
                   lineNumber, expected, actual.c_str());
@@ -165,12 +165,13 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLFlags, r, ctxInfo) {
     }
 
     {
-        SkSL::ProgramSettings settings;
-        settings.fOptimize = false;
+        SkSL::ProgramSettings settings = default_settings();
+        settings.fAllowNarrowingConversions = true;
         AutoDSLContext context(ctxInfo.directContext()->priv().getGpu(), settings,
                                SkSL::ProgramKind::kFragment);
-        EXPECT_EQUAL(All(GreaterThan(Float4(1), Float4(0))),
-                     "all(greaterThan(float4(1.0), float4(0.0)))");
+        Var x(kHalf_Type, "x");
+        Var y(kFloat_Type, "y");
+        EXPECT_EQUAL(x = y, "(x = half(y))");
     }
 
     {
@@ -1879,10 +1880,10 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLModifiers, r, ctxInfo) {
 
 DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLLayout, r, ctxInfo) {
     AutoDSLContext context(ctxInfo.directContext()->priv().getGpu(), no_mark_vars_declared());
-    Var v1(DSLModifiers(DSLLayout().location(1).set(2).binding(3).offset(4).index(5).builtin(6)
+    Var v1(DSLModifiers(DSLLayout().location(1).offset(4).index(5).builtin(6)
                                    .inputAttachmentIndex(7),
                         kConst_Modifier), kInt_Type, "v1", 0);
-    EXPECT_EQUAL(Declare(v1), "layout (location = 1, offset = 4, binding = 3, index = 5, set = 2, "
+    EXPECT_EQUAL(Declare(v1), "layout (location = 1, offset = 4, index = 5, "
                               "builtin = 6, input_attachment_index = 7) const int v1 = 0;");
 
     Var v2(DSLLayout().originUpperLeft(), kFloat2_Type, "v2");
@@ -1895,9 +1896,8 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLLayout, r, ctxInfo) {
     EXPECT_EQUAL(Declare(v5), "layout (blend_support_all_equations) half4 v5;");
 
     {
-        ExpectError error(r, "'srgb_unpremul' is only permitted in runtime effects");
-        DSLGlobalVar v(DSLModifiers(DSLLayout().srgbUnpremul(), kUniform_Modifier), kHalf4_Type,
-                       "v");
+        ExpectError error(r, "'layout(color)' is only permitted in runtime effects");
+        DSLGlobalVar v(DSLModifiers(DSLLayout().color(), kUniform_Modifier), kHalf4_Type, "v");
         Declare(v);
     }
 
@@ -1953,8 +1953,8 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLLayout, r, ctxInfo) {
     }
 
     {
-        ExpectError error(r, "layout qualifier 'srgb_unpremul' appears more than once");
-        DSLLayout().srgbUnpremul().srgbUnpremul();
+        ExpectError error(r, "layout qualifier 'color' appears more than once");
+        DSLLayout().color().color();
     }
 }
 
@@ -2081,7 +2081,7 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLInlining, r, ctxInfo) {
         sk_FragColor() = (sqr(2), Half4(sqr(3)))
     );
     const char* source = "source test";
-    std::unique_ptr<SkSL::Program> program = ReleaseProgram(std::make_unique<SkSL::String>(source));
+    std::unique_ptr<SkSL::Program> program = ReleaseProgram(std::make_unique<std::string>(source));
     EXPECT_EQUAL(*program,
                  "layout(location = 0, index = 0, builtin = 10001) out half4 sk_FragColor;"
                  "layout(builtin = 17)in bool sk_Clockwise;"
@@ -2135,7 +2135,7 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLPrototypes, r, ctxInfo) {
                 "float sqr(float x) { return (x * x); }");
 
         const char* source = "source test";
-        std::unique_ptr<SkSL::Program> p = ReleaseProgram(std::make_unique<SkSL::String>(source));
+        std::unique_ptr<SkSL::Program> p = ReleaseProgram(std::make_unique<std::string>(source));
         EXPECT_EQUAL(*p,
             "layout (builtin = 17) in bool sk_Clockwise;"
             "float sqr(float x);"

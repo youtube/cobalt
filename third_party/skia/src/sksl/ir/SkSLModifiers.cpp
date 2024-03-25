@@ -35,7 +35,7 @@ bool Modifiers::checkPermitted(const Context& context, int line, int permittedMo
     for (const auto& f : kModifierFlags) {
         if (modifierFlags & f.flag) {
             if (!(permittedModifierFlags & f.flag)) {
-                context.fErrors->error(line, "'" + String(f.name) + "' is not permitted here");
+                context.fErrors->error(line, "'" + std::string(f.name) + "' is not permitted here");
                 success = false;
             }
             modifierFlags &= ~f.flag;
@@ -47,7 +47,7 @@ bool Modifiers::checkPermitted(const Context& context, int line, int permittedMo
         { Layout::kOriginUpperLeft_Flag,          "origin_upper_left"},
         { Layout::kPushConstant_Flag,             "push_constant"},
         { Layout::kBlendSupportAllEquations_Flag, "blend_support_all_equations"},
-        { Layout::kSRGBUnpremul_Flag,             "srgb_unpremul"},
+        { Layout::kColor_Flag,                    "color"},
         { Layout::kLocation_Flag,                 "location"},
         { Layout::kOffset_Flag,                   "offset"},
         { Layout::kBinding_Flag,                  "binding"},
@@ -61,8 +61,8 @@ bool Modifiers::checkPermitted(const Context& context, int line, int permittedMo
     for (const auto& lf : kLayoutFlags) {
         if (layoutFlags & lf.flag) {
             if (!(permittedLayoutFlags & lf.flag)) {
-                context.fErrors->error(
-                        line, "layout qualifier '" + String(lf.name) + "' is not permitted here");
+                context.fErrors->error(line, "layout qualifier '" + std::string(lf.name) +
+                                             "' is not permitted here");
                 success = false;
             }
             layoutFlags &= ~lf.flag;

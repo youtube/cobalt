@@ -11,7 +11,7 @@
 #define SKSL_Lexer
 #include <cstddef>
 #include <cstdint>
-#include "include/core/SkStringView.h"
+#include <string_view>
 namespace SkSL {
 
 struct Token {
@@ -19,6 +19,7 @@ struct Token {
         TK_END_OF_FILE,
         TK_FLOAT_LITERAL,
         TK_INT_LITERAL,
+        TK_BAD_OCTAL,
         TK_TRUE_LITERAL,
         TK_FALSE_LITERAL,
         TK_IF,
@@ -99,7 +100,6 @@ struct Token {
         TK_BITWISEXOREQ,
         TK_BITWISEANDEQ,
         TK_SEMICOLON,
-        TK_ARROW,
         TK_WHITESPACE,
         TK_LINE_COMMENT,
         TK_BLOCK_COMMENT,
@@ -119,7 +119,7 @@ struct Token {
 
 class Lexer {
 public:
-    void start(skstd::string_view text) {
+    void start(std::string_view text) {
         fText = text;
         fOffset = 0;
         fLine = 1;
@@ -140,7 +140,7 @@ public:
     }
 
 private:
-    skstd::string_view fText;
+    std::string_view fText;
     int32_t fOffset;
     int32_t fLine;
 };

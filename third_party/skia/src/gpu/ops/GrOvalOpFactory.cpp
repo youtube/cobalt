@@ -20,6 +20,7 @@
 #include "src/gpu/GrResourceProvider.h"
 #include "src/gpu/GrShaderCaps.h"
 #include "src/gpu/GrStyle.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #include "src/gpu/glsl/GrGLSLProgramDataManager.h"
 #include "src/gpu/glsl/GrGLSLUniformHandler.h"
@@ -31,6 +32,7 @@
 #include <utility>
 
 using skgpu::VertexWriter;
+using skgpu::VertexColor;
 
 namespace {
 
@@ -77,7 +79,7 @@ public:
 
     const char* name() const override { return "CircleGeometryProcessor"; }
 
-    void addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const override {
+    void addToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const override {
         b->addBool(fStroke,                             "stroked"        );
         b->addBool(fInClipPlane.isInitialized(),        "clipPlane"      );
         b->addBool(fInIsectPlane.isInitialized(),       "isectPlane"     );
@@ -98,26 +100,26 @@ private:
             : INHERITED(kCircleGeometryProcessor_ClassID)
             , fLocalMatrix(localMatrix)
             , fStroke(stroke) {
-        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
+        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
         fInColor = MakeColorAttribute("inColor", wideColor);
-        fInCircleEdge = {"inCircleEdge", kFloat4_GrVertexAttribType, kFloat4_GrSLType};
+        fInCircleEdge = {"inCircleEdge", kFloat4_GrVertexAttribType, SkSLType::kFloat4};
 
         if (clipPlane) {
-            fInClipPlane = {"inClipPlane", kFloat3_GrVertexAttribType, kHalf3_GrSLType};
+            fInClipPlane = {"inClipPlane", kFloat3_GrVertexAttribType, SkSLType::kHalf3};
         }
         if (isectPlane) {
-            fInIsectPlane = {"inIsectPlane", kFloat3_GrVertexAttribType, kHalf3_GrSLType};
+            fInIsectPlane = {"inIsectPlane", kFloat3_GrVertexAttribType, SkSLType::kHalf3};
         }
         if (unionPlane) {
-            fInUnionPlane = {"inUnionPlane", kFloat3_GrVertexAttribType, kHalf3_GrSLType};
+            fInUnionPlane = {"inUnionPlane", kFloat3_GrVertexAttribType, SkSLType::kHalf3};
         }
         if (roundCaps) {
             SkASSERT(stroke);
             SkASSERT(clipPlane);
             fInRoundCapCenters =
-                    {"inRoundCapCenters", kFloat4_GrVertexAttribType, kFloat4_GrSLType};
+                    {"inRoundCapCenters", kFloat4_GrVertexAttribType, SkSLType::kFloat4};
         }
-        this->setVertexAttributes(&fInPosition, 7);
+        this->setVertexAttributesWithImplicitOffsets(&fInPosition, 7);
     }
 
     class Impl : public ProgramImpl {
@@ -160,7 +162,7 @@ private:
                 varyingHandler->addPassThroughAttribute(cgp.fInUnionPlane.asShaderVar(),
                                                         "unionPlane");
             }
-            GrGLSLVarying capRadius(kFloat_GrSLType);
+            GrGLSLVarying capRadius(SkSLType::kFloat);
             if (cgp.fInRoundCapCenters.isInitialized()) {
                 fragBuilder->codeAppend("float4 roundCapCenters;");
                 varyingHandler->addPassThroughAttribute(cgp.fInRoundCapCenters.asShaderVar(),
@@ -279,7 +281,7 @@ public:
 
     const char* name() const override { return "ButtCapDashedCircleGeometryProcessor"; }
 
-    void addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const override {
+    void addToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const override {
         b->addBits(ProgramImpl::kMatrixKeyBits,
                    ProgramImpl::ComputeMatrixKey(caps, fLocalMatrix),
                    "localMatrixType");
@@ -293,11 +295,11 @@ private:
     ButtCapDashedCircleGeometryProcessor(bool wideColor, const SkMatrix& localMatrix)
             : INHERITED(kButtCapStrokedCircleGeometryProcessor_ClassID)
             , fLocalMatrix(localMatrix) {
-        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
+        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
         fInColor = MakeColorAttribute("inColor", wideColor);
-        fInCircleEdge = {"inCircleEdge", kFloat4_GrVertexAttribType, kFloat4_GrSLType};
-        fInDashParams = {"inDashParams", kFloat4_GrVertexAttribType, kFloat4_GrSLType};
-        this->setVertexAttributes(&fInPosition, 4);
+        fInCircleEdge = {"inCircleEdge", kFloat4_GrVertexAttribType, SkSLType::kFloat4};
+        fInDashParams = {"inDashParams", kFloat4_GrVertexAttribType, SkSLType::kFloat4};
+        this->setVertexAttributesWithImplicitOffsets(&fInPosition, 4);
     }
 
     class Impl : public ProgramImpl {
@@ -332,10 +334,10 @@ private:
                     bcscgp.fInDashParams.asShaderVar(),
                     "dashParams",
                     GrGLSLVaryingHandler::Interpolation::kCanBeFlat);
-            GrGLSLVarying wrapDashes(kHalf4_GrSLType);
+            GrGLSLVarying wrapDashes(SkSLType::kHalf4);
             varyingHandler->addVarying("wrapDashes", &wrapDashes,
                                        GrGLSLVaryingHandler::Interpolation::kCanBeFlat);
-            GrGLSLVarying lastIntervalLength(kHalf_GrSLType);
+            GrGLSLVarying lastIntervalLength(SkSLType::kHalf);
             varyingHandler->addVarying("lastIntervalLength", &lastIntervalLength,
                                        GrGLSLVaryingHandler::Interpolation::kCanBeFlat);
             vertBuilder->codeAppendf("float4 dashParams = %s;", bcscgp.fInDashParams.name());
@@ -416,11 +418,11 @@ private:
                             &fLocalMatrixUniform);
 
             GrShaderVar fnArgs[] = {
-                    GrShaderVar("angleToEdge", kFloat_GrSLType),
-                    GrShaderVar("diameter", kFloat_GrSLType),
+                    GrShaderVar("angleToEdge", SkSLType::kFloat),
+                    GrShaderVar("diameter", SkSLType::kFloat),
             };
             SkString fnName = fragBuilder->getMangledFunctionName("coverage_from_dash_edge");
-            fragBuilder->emitFunction(kFloat_GrSLType, fnName.c_str(),
+            fragBuilder->emitFunction(SkSLType::kFloat, fnName.c_str(),
                                       {fnArgs, SK_ARRAY_COUNT(fnArgs)}, R"(
                     float linearDist;
                     angleToEdge = clamp(angleToEdge, -3.1415, 3.1415);
@@ -535,7 +537,7 @@ public:
 
     const char* name() const override { return "EllipseGeometryProcessor"; }
 
-    void addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const override {
+    void addToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const override {
         b->addBool(fStroke, "stroked");
         b->addBits(ProgramImpl::kMatrixKeyBits,
                    ProgramImpl::ComputeMatrixKey(caps, fLocalMatrix),
@@ -553,15 +555,15 @@ private:
             , fLocalMatrix(localMatrix)
             , fStroke(stroke)
             , fUseScale(useScale) {
-        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
+        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
         fInColor = MakeColorAttribute("inColor", wideColor);
         if (useScale) {
-            fInEllipseOffset = {"inEllipseOffset", kFloat3_GrVertexAttribType, kFloat3_GrSLType};
+            fInEllipseOffset = {"inEllipseOffset", kFloat3_GrVertexAttribType, SkSLType::kFloat3};
         } else {
-            fInEllipseOffset = {"inEllipseOffset", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
+            fInEllipseOffset = {"inEllipseOffset", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
         }
-        fInEllipseRadii = {"inEllipseRadii", kFloat4_GrVertexAttribType, kFloat4_GrSLType};
-        this->setVertexAttributes(&fInPosition, 4);
+        fInEllipseRadii = {"inEllipseRadii", kFloat4_GrVertexAttribType, SkSLType::kFloat4};
+        this->setVertexAttributesWithImplicitOffsets(&fInPosition, 4);
     }
 
     class Impl : public ProgramImpl {
@@ -583,13 +585,13 @@ private:
             // emit attributes
             varyingHandler->emitAttributes(egp);
 
-            GrSLType offsetType = egp.fUseScale ? kFloat3_GrSLType : kFloat2_GrSLType;
+            SkSLType offsetType = egp.fUseScale ? SkSLType::kFloat3 : SkSLType::kFloat2;
             GrGLSLVarying ellipseOffsets(offsetType);
             varyingHandler->addVarying("EllipseOffsets", &ellipseOffsets);
             vertBuilder->codeAppendf("%s = %s;", ellipseOffsets.vsOut(),
                                      egp.fInEllipseOffset.name());
 
-            GrGLSLVarying ellipseRadii(kFloat4_GrSLType);
+            GrGLSLVarying ellipseRadii(SkSLType::kFloat4);
             varyingHandler->addVarying("EllipseRadii", &ellipseRadii);
             vertBuilder->codeAppendf("%s = %s;", ellipseRadii.vsOut(), egp.fInEllipseRadii.name());
 
@@ -732,7 +734,7 @@ public:
 
     const char* name() const override { return "DIEllipseGeometryProcessor"; }
 
-    void addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const override {
+    void addToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const override {
         b->addBits(2, static_cast<uint32_t>(fStyle), "style");
         b->addBits(ProgramImpl::kMatrixKeyBits,
                    ProgramImpl::ComputeMatrixKey(caps, fViewMatrix),
@@ -750,17 +752,17 @@ private:
             , fViewMatrix(viewMatrix)
             , fUseScale(useScale)
             , fStyle(style) {
-        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
+        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
         fInColor = MakeColorAttribute("inColor", wideColor);
         if (useScale) {
             fInEllipseOffsets0 = {"inEllipseOffsets0", kFloat3_GrVertexAttribType,
-                                  kFloat3_GrSLType};
+                                  SkSLType::kFloat3};
         } else {
             fInEllipseOffsets0 = {"inEllipseOffsets0", kFloat2_GrVertexAttribType,
-                                  kFloat2_GrSLType};
+                                  SkSLType::kFloat2};
         }
-        fInEllipseOffsets1 = {"inEllipseOffsets1", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
-        this->setVertexAttributes(&fInPosition, 4);
+        fInEllipseOffsets1 = {"inEllipseOffsets1", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
+        this->setVertexAttributesWithImplicitOffsets(&fInPosition, 4);
     }
 
     class Impl : public ProgramImpl {
@@ -783,12 +785,12 @@ private:
             // emit attributes
             varyingHandler->emitAttributes(diegp);
 
-            GrSLType offsetType = (diegp.fUseScale) ? kFloat3_GrSLType : kFloat2_GrSLType;
+            SkSLType offsetType = (diegp.fUseScale) ? SkSLType::kFloat3 : SkSLType::kFloat2;
             GrGLSLVarying offsets0(offsetType);
             varyingHandler->addVarying("EllipseOffsets0", &offsets0);
             vertBuilder->codeAppendf("%s = %s;", offsets0.vsOut(), diegp.fInEllipseOffsets0.name());
 
-            GrGLSLVarying offsets1(kFloat2_GrSLType);
+            GrGLSLVarying offsets1(SkSLType::kFloat2);
             varyingHandler->addVarying("EllipseOffsets1", &offsets1);
             vertBuilder->codeAppendf("%s = %s;", offsets1.vsOut(), diegp.fInEllipseOffsets1.name());
 
@@ -1279,8 +1281,8 @@ private:
 
         sk_sp<const GrBuffer> vertexBuffer;
         int firstVertex;
-        VertexWriter vertices{target->makeVertexSpace(fProgramInfo->geomProc().vertexStride(),
-                                                      fVertCount, &vertexBuffer, &firstVertex)};
+        VertexWriter vertices = target->makeVertexWriter(fProgramInfo->geomProc().vertexStride(),
+                                                         fVertCount, &vertexBuffer, &firstVertex);
         if (!vertices) {
             SkDebugf("Could not allocate vertices\n");
             return;
@@ -1298,7 +1300,7 @@ private:
         for (const auto& circle : fCircles) {
             SkScalar innerRadius = circle.fInnerRadius;
             SkScalar outerRadius = circle.fOuterRadius;
-            GrVertexColor color(circle.fColor, fWideColor);
+            VertexColor color(circle.fColor, fWideColor);
             const SkRect& bounds = circle.fDevBounds;
 
             // The inner radius in the vertex data must be specified in normalized space.
@@ -1651,8 +1653,8 @@ private:
 
         sk_sp<const GrBuffer> vertexBuffer;
         int firstVertex;
-        VertexWriter vertices{target->makeVertexSpace(fProgramInfo->geomProc().vertexStride(),
-                                                      fVertCount, &vertexBuffer, &firstVertex)};
+        VertexWriter vertices = target->makeVertexWriter(fProgramInfo->geomProc().vertexStride(),
+                                                         fVertCount, &vertexBuffer, &firstVertex);
         if (!vertices) {
             SkDebugf("Could not allocate vertices\n");
             return;
@@ -1683,7 +1685,7 @@ private:
                 dashParams.startAngle = -dashParams.startAngle;
             }
 
-            GrVertexColor color(circle.fColor, fWideColor);
+            VertexColor color(circle.fColor, fWideColor);
 
             // The bounding geometry for the circle is composed of an outer bounding octagon and
             // an inner bounded octagon.
@@ -1997,7 +1999,7 @@ private:
         float aaBloat = target->usesMSAASurface() ? SK_ScalarSqrt2 : .5f;
 
         for (const auto& ellipse : fEllipses) {
-            GrVertexColor color(ellipse.fColor, fWideColor);
+            VertexColor color(ellipse.fColor, fWideColor);
             SkScalar xRadius = ellipse.fXRadius;
             SkScalar yRadius = ellipse.fYRadius;
 
@@ -2268,7 +2270,7 @@ private:
         }
 
         for (const auto& ellipse : fEllipses) {
-            GrVertexColor color(ellipse.fColor, fWideColor);
+            VertexColor color(ellipse.fColor, fWideColor);
             SkScalar xRadius = ellipse.fXRadius;
             SkScalar yRadius = ellipse.fYRadius;
 
@@ -2595,7 +2597,7 @@ public:
 private:
     static void FillInOverstrokeVerts(VertexWriter& verts, const SkRect& bounds, SkScalar smInset,
                                       SkScalar bigInset, SkScalar xOffset, SkScalar outerRadius,
-                                      SkScalar innerRadius, const GrVertexColor& color) {
+                                      SkScalar innerRadius, const VertexColor& color) {
         SkASSERT(smInset < bigInset);
 
         // TL
@@ -2682,8 +2684,8 @@ private:
         sk_sp<const GrBuffer> vertexBuffer;
         int firstVertex;
 
-        VertexWriter verts{target->makeVertexSpace(fProgramInfo->geomProc().vertexStride(),
-                                                     fVertCount, &vertexBuffer, &firstVertex)};
+        VertexWriter verts = target->makeVertexWriter(fProgramInfo->geomProc().vertexStride(),
+                                                      fVertCount, &vertexBuffer, &firstVertex);
         if (!verts) {
             SkDebugf("Could not allocate vertices\n");
             return;
@@ -2699,7 +2701,7 @@ private:
 
         int currStartVertex = 0;
         for (const auto& rrect : fRRects) {
-            GrVertexColor color(rrect.fColor, fWideColor);
+            VertexColor color(rrect.fColor, fWideColor);
             SkScalar outerRadius = rrect.fOuterRadius;
             const SkRect& bounds = rrect.fDevBounds;
 
@@ -2844,12 +2846,12 @@ private:
 
 static const int kNumRRectsInIndexBuffer = 256;
 
-GR_DECLARE_STATIC_UNIQUE_KEY(gStrokeRRectOnlyIndexBufferKey);
-GR_DECLARE_STATIC_UNIQUE_KEY(gRRectOnlyIndexBufferKey);
+SKGPU_DECLARE_STATIC_UNIQUE_KEY(gStrokeRRectOnlyIndexBufferKey);
+SKGPU_DECLARE_STATIC_UNIQUE_KEY(gRRectOnlyIndexBufferKey);
 static sk_sp<const GrBuffer> get_rrect_index_buffer(RRectType type,
                                                     GrResourceProvider* resourceProvider) {
-    GR_DEFINE_STATIC_UNIQUE_KEY(gStrokeRRectOnlyIndexBufferKey);
-    GR_DEFINE_STATIC_UNIQUE_KEY(gRRectOnlyIndexBufferKey);
+    SKGPU_DEFINE_STATIC_UNIQUE_KEY(gStrokeRRectOnlyIndexBufferKey);
+    SKGPU_DEFINE_STATIC_UNIQUE_KEY(gRRectOnlyIndexBufferKey);
     switch (type) {
         case kFill_RRectType:
             return resourceProvider->findOrCreatePatternedIndexBuffer(
@@ -3020,7 +3022,7 @@ private:
         }
 
         for (const auto& rrect : fRRects) {
-            GrVertexColor color(rrect.fColor, fWideColor);
+            VertexColor color(rrect.fColor, fWideColor);
             // Compute the reciprocals of the radii here to save time in the shader
             float reciprocalRadii[4] = {
                 SkScalarInvert(rrect.fXRadius),

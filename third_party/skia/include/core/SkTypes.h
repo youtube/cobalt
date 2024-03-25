@@ -23,7 +23,7 @@
     !defined(SK_BUILD_FOR_UNIX) && !defined(SK_BUILD_FOR_MAC)
 
     #ifdef __APPLE__
-        #include "TargetConditionals.h"
+        #include <TargetConditionals.h>
     #endif
 
     #if defined(_WIN32) || defined(__SYMBIAN32__)
@@ -270,9 +270,9 @@
 #endif
 
 #ifndef SK_ABORT
-#ifdef SK_BUILD_FOR_WIN
-    // This style lets Visual Studio follow errors back to the source file.
-#define SK_DUMP_LINE_FORMAT "%s(%d)"
+#  ifdef SK_BUILD_FOR_WIN
+     // This style lets Visual Studio follow errors back to the source file.
+#    define SK_DUMP_LINE_FORMAT "%s(%d)"
 #define SK_ABORT(...)                                           \
         do {                                                        \
             SkDebugf(SK_DUMP_LINE_FORMAT ": fatal error: \"%s\"\n", \
@@ -282,17 +282,15 @@
             SK_DUMP_GOOGLE3_STACK();                                \
             sk_abort_no_print();                                    \
         } while (false)
-#else
-#define SK_DUMP_LINE_FORMAT "%s:%d"
-#define SK_ABORT(message, ...)                                           \
-        do {                                                                 \
-            SkDebugf(SK_DUMP_LINE_FORMAT ": fatal error: \"" message "\"\n", \
-                     __FILE__,                                               \
-                     __LINE__,                                               \
-                     ##__VA_ARGS__);                                         \
-            SK_DUMP_GOOGLE3_STACK();                                         \
-            sk_abort_no_print();                                             \
-        } while (false)
+#  else
+#    define SK_DUMP_LINE_FORMAT "%s:%d"
+#  define SK_ABORT(message, ...) \
+    do { \
+        SkDebugf(SK_DUMP_LINE_FORMAT ": fatal error: \"" message "\"\n", \
+                 __FILE__, __LINE__, ##__VA_ARGS__); \
+        SK_DUMP_GOOGLE3_STACK(); \
+        sk_abort_no_print(); \
+    } while (false)
 #endif
 #endif
 
@@ -335,21 +333,6 @@
          SK_ ## C1 ## 32_SHIFT == 8  &&             \
          SK_ ## C2 ## 32_SHIFT == 16 &&             \
          SK_ ## C3 ## 32_SHIFT == 24)
-#endif
-
-#if defined(STARBOARD)
-typedef enum SkPmcolor { SkPmcolorIsRgba, SkPmcolorIsBgra } SkPmColor;
-
-inline SkPmcolor GetSkPmcolor() {
-    if (SK_PMCOLOR_BYTE_ORDER(R,G,B,A)) {
-        return SkPmcolorIsRgba;
-    } else if (SK_PMCOLOR_BYTE_ORDER(B,G,R,A)) {
-        return SkPmcolorIsBgra;
-    } else {
-        DCHECK(false) << "SK shift values do not correspond to a supported byte order.";
-        return (SkPmcolor)NULL;
-    }
-}
 #endif
 
 #if defined SK_DEBUG && defined SK_BUILD_FOR_WIN && !defined(STARBOARD)
@@ -402,14 +385,6 @@ inline SkPmcolor GetSkPmcolor() {
 #  endif
 #endif
 
-#if SK_CPU_SSE_LEVEL >= SK_CPU_SSE_LEVEL_SSE1
-    #define SK_PREFETCH(ptr) _mm_prefetch(reinterpret_cast<const char*>(ptr), _MM_HINT_T0)
-#elif defined(__GNUC__)
-    #define SK_PREFETCH(ptr) __builtin_prefetch(ptr)
-#else
-    #define SK_PREFETCH(ptr)
-#endif
-
 #ifndef SK_PRINTF_LIKE
 #  if defined(__clang__) || defined(__GNUC__)
 #    define SK_PRINTF_LIKE(A, B) __attribute__((format(printf, (A), (B))))
@@ -428,10 +403,6 @@ inline SkPmcolor GetSkPmcolor() {
 
 #ifndef GR_TEST_UTILS
 #  define GR_TEST_UTILS 0
-#endif
-
-#ifndef SK_GPU_V2
-#  define SK_GPU_V2 0
 #endif
 
 #ifndef SK_GPU_V1
@@ -549,7 +520,7 @@ typedef unsigned U16CPU;
 /** @return false or true based on the condition
 */
 template <typename T> static constexpr bool SkToBool(const T& x) {
-    return 0 != x;  // NOLINT(modernize-use-nullptr)
+    return (bool)x;
 }
 
 static constexpr int16_t SK_MaxS16 = INT16_MAX;
@@ -666,5 +637,20 @@ enum class SkBackingFit {
     kApprox,
     kExact
 };
+
+#if defined(STARBOARD)
+typedef enum SkPmcolor { SkPmcolorIsRgba, SkPmcolorIsBgra } SkPmColor;
+
+inline SkPmcolor GetSkPmcolor() {
+    if (SK_PMCOLOR_BYTE_ORDER(R,G,B,A)) {
+        return SkPmcolorIsRgba;
+    } else if (SK_PMCOLOR_BYTE_ORDER(B,G,R,A)) {
+        return SkPmcolorIsBgra;
+    } else {
+        SkASSERTF(false,"SK shift values do not correspond to a supported byte order.");
+        return (SkPmcolor)NULL;
+    }
+}
+#endif
 
 #endif
