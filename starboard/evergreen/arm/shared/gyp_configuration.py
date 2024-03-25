@@ -25,7 +25,3 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
     super().__init__(platform)
 
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
-
-
-def CreatePlatformConfig():
-  return EvergreenArmConfiguration('evergreen-arm')

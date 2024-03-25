@@ -57,7 +57,7 @@ def _EnsureBuildDirectoryExists(path):
     warnings.warn(f"'{path}' does not exist.")
 
 
-def _FilterTests(target_list, filters, config_name):
+def _FilterTests(target_list, filters):
   """Returns a Mapping of test targets -> filtered tests."""
   targets = {}
   for target in target_list:
@@ -66,10 +66,6 @@ def _FilterTests(target_list, filters, config_name):
   for platform_filter in filters:
     if platform_filter == test_filter.DISABLE_TESTING:
       return {}
-
-    # Only filter the tests specifying our config or all configs.
-    if platform_filter.config and platform_filter.config != config_name:
-      continue
 
     target_name = platform_filter.target_name
     if platform_filter.test_name == test_filter.FILTER_ALL:
@@ -351,8 +347,7 @@ class TestRunner(object):
       RuntimeError:  The specified test binary has been disabled for the given
         platform and configuration.
     """
-    targets = _FilterTests(specified_targets, self._GetTestFilters(),
-                           self.config)
+    targets = _FilterTests(specified_targets, self._GetTestFilters())
     if len(targets) != len(specified_targets):
       # If any of the provided target names have been filtered,
       # they will not all run.
@@ -379,7 +374,7 @@ class TestRunner(object):
       targets.extend(self._app_config.GetTestTargets())
     targets = list(set(targets))
 
-    final_targets = _FilterTests(targets, self._GetTestFilters(), self.config)
+    final_targets = _FilterTests(targets, self._GetTestFilters())
     if not final_targets:
       sys.stderr.write("All tests were filtered; no tests will be run.\n")
 
@@ -624,8 +619,8 @@ class TestRunner(object):
     return failed_tests
 
   def _GetFilteredTestList(self, target_name):
-    return _FilterTests([target_name], self._GetTestFilters(),
-                        self.config).get(target_name, [])
+    return _FilterTests([target_name],
+                        self._GetTestFilters()).get(target_name, [])
 
   def _ProcessAllTestResults(self, results):
     """Collects and returns output for all selected tests.
