@@ -26,7 +26,7 @@ namespace compiler_compliance {
 namespace {
 
 // These examples are taken after referring to
-// 1) The chromium C++20 allowlist:
+// 1) C++20 allowlist from chromium m114 milestone branch :
 // https://chromium.googlesource.com/chromium/src/+/refs/branch-heads/5735/styleguide/c++/c++-features.md
 // 2) cpp reference : https://en.cppreference.com/w/cpp
 
@@ -34,16 +34,6 @@ namespace {
 void test_string_ends_with() {
   bool result = std::string("foobar").ends_with("bar");
 }
-
-#if __cpp_lib_assume_aligned >= 201811L
-// Test std::assume_aligned support
-void test_assume_aligned(int* p) {
-  int* p1 = std::assume_aligned<256>(p);
-}
-#else
-// Fallback implementation if std::assume_aligned is not supported
-// Currently android platform is incapable of building std::assume_aligned.
-#endif
 
 // Test std::erase_if support
 void test_erase_if() {

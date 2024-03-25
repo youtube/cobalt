@@ -234,8 +234,9 @@ config("default_compiler_flags") {
   }
 }
 
-# TODO: b/329683364 - Move other flags setting the c++ standard from each
-# platform's platform_configuration to this config.
+# This config is intended to encapsulate all platform-specific logic for selecting the C++ standard
+# version in shared code. Starboard platform-specific build code should not attempt to overload this.
+# TODO: b/329683364 - Refactor the remaining related flags from each platforms platform_configuration to here.
 config("default_cpp_standard") {
   if ((sb_is_modular && current_toolchain == cobalt_toolchain) || is_android) {
     cflags_cc = [ "-std=c++17" ]
