@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+### Removed SB_HAS_NV12_TEXTURE_SUPPORT
+This flag is resolved at run-time.
+
 ### GLES2 configuration mandatory
 SB_HAS_GLES2 configuration has been removed, and `gl_type` GN config no longer
 accepts `none` as an option.

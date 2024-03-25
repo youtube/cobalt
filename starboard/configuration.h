@@ -536,10 +536,6 @@ struct CompileAssert {};
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#if !defined(SB_HAS_NV12_TEXTURE_SUPPORT)
-#error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
-#endif
-
 #if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #error \
     "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT should not be defined for " \
