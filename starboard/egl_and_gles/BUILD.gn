@@ -23,6 +23,7 @@
 # in the configuration.gni for the current platform.
 
 group("egl_and_gles") {
+  assert(gl_type != "none", "gl_type must be set to a valid value")
   public_deps = [ ":egl_and_gles_$gl_type" ]
 }
 
