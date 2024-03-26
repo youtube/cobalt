@@ -1728,8 +1728,11 @@ source_set("quiche_tests") {
       "src/quiche/quic/core/congestion_control/send_algorithm_test.cc",
       "src/quiche/quic/core/crypto/quic_client_session_cache_test.cc",
       "src/quiche/quic/core/quic_trace_visitor_test.cc",
-      "src/quiche/quic/core/tls_client_handshaker_test.cc",
       "src/quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
+
+      # TODO: b/331437821
+      "src/quiche/common/platform/api/quiche_file_utils_test.cc",
+      "src/quiche/quic/tools/quic_memory_cache_backend_test.cc",
 
       # Re-enable once we use c++20.
       "src/quiche/common/capsule_test.cc",

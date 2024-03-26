@@ -151,7 +151,11 @@ void TlsHandshaker::AdvanceHandshake() {
       !is_connection_closed()) {
     QUIC_VLOG(1) << "SSL_do_handshake failed; SSL_get_error returns "
                  << ssl_error;
+#if defined(STARBOARD)
+    ERR_print_errors_fp(nullptr);
+#else
     ERR_print_errors_fp(stderr);
+#endif
     if (dont_close_connection_in_tls_alert_callback_ &&
         last_tls_alert_.has_value()) {
       QUIC_RELOADABLE_FLAG_COUNT_N(

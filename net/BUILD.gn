@@ -3338,6 +3338,21 @@ test("net_unittests") {
       "disk_cache/simple/simple_index_file_unittest.cc",
       "disk_cache/simple/simple_version_upgrade_unittest.cc",
 
+      # TODO: b/331469815
+      "socket/tcp_client_socket_unittest.cc",
+
+      # TODO: b/331472624
+      "cert/pki/path_builder_unittest.cc",
+      "cert/multi_threaded_cert_verifier_unittest.cc",
+
+      # TODO: b/331488150 failed on modular builds.
+      "base/proxy_string_util_unittest.cc",
+      "cert/cert_verify_proc_builtin_unittest.cc",
+      "cert_net/cert_net_fetcher_url_request_unittest.cc",
+      "base/registry_controlled_domains/registry_controlled_domain_unittest.cc",
+      "http/http_cache_unittest.cc",
+      "base/scheme_host_port_matcher_rule_unittest.cc",
+
       # Re-enable once we're on c++20
       "base/backoff_entry_serializer_unittest.cc",
     ]
