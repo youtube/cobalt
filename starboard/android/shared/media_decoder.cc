@@ -17,6 +17,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/player_perf.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -196,6 +197,9 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!SbThreadIsValid(decoder_thread_)) {
+    char name[4096] = {0};
+    SbThreadGetName(name, SB_ARRAY_SIZE_INT(name));
+    AddThreadIDInternal(name, static_cast<int32_t>(SbThreadGetId()));
     decoder_thread_ = SbThreadCreate(
         0,
         media_type_ == kSbMediaTypeAudio ? kSbThreadPriorityNormal
@@ -238,6 +242,9 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   SB_DCHECK(context);
   MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+  char name[4096] = {0};
+  SbThreadGetName(name, SB_ARRAY_SIZE_INT(name));
+  AddThreadIDInternal(name, static_cast<int32_t>(SbThreadGetId()));
   decoder->DecoderThreadFunc();
   return NULL;
 }

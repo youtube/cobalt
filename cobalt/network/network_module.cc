@@ -26,6 +26,7 @@
 #include "cobalt/network/network_system.h"
 #include "cobalt/network/switches.h"
 #include "net/url_request/static_http_user_agent_settings.h"
+#include "starboard/extension/player_perf.h"
 
 namespace cobalt {
 namespace network {
@@ -200,6 +201,17 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
       url_request_context_.get(), thread_.get());
 
   SetEnableQuicFromPersistentSettings();
+  const StarboardExtensionPlayerPerfApi* player_perf_extension =
+      static_cast<const StarboardExtensionPlayerPerfApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerPerfName));
+  if (player_perf_extension &&
+      strcmp(player_perf_extension->name, kStarboardExtensionPlayerPerfName) ==
+          0 &&
+      player_perf_extension->version >= 1) {
+    player_perf_extension->AddThreadID(
+        thread_->thread_name().c_str(),
+        static_cast<int32_t>(thread_->GetThreadId()));
+  }
 }
 
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
