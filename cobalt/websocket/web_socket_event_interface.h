@@ -126,7 +126,7 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
       scoped_refptr<net::HttpResponseHeaders> response_headers,
       const net::HostPortPair& host_port_pair,
       base::OnceCallback<void(const net::AuthCredentials*)> callback,
-      base::Optional<net::AuthCredentials>* credentials) override;
+      absl::optional<net::AuthCredentials>* credentials) override;
 
  protected:
   CobaltWebSocketEventHandler() {}

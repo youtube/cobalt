@@ -4570,7 +4570,7 @@ TEST_F(PixelTest, LottieScaledWideAnimationTest) {
 
 TEST_F(PixelTest, DebugAnimatedWebPFrame) {
   MockImageDecoder image_decoder(GetResourceProvider());
-  image_decoder.ExpectCallWithError(base::nullopt);
+  image_decoder.ExpectCallWithError(absl::nullopt);
 
   std::vector<uint8> image_data =
       GetFileData(GetTestFilePath("loading-spinner-opaque.webp"));

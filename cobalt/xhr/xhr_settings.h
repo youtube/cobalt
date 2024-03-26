@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace xhr {
@@ -30,9 +30,9 @@ namespace xhr {
 // XMLHttpRequest behaviors being controlled by them.
 class XhrSettings {
  public:
-  virtual base::Optional<bool> IsFetchBufferPoolEnabled() const = 0;
-  virtual base::Optional<int> GetDefaultFetchBufferSize() const = 0;
-  virtual base::Optional<bool> IsTryLockForProgressCheckEnabled() const = 0;
+  virtual absl::optional<bool> IsFetchBufferPoolEnabled() const = 0;
+  virtual absl::optional<int> GetDefaultFetchBufferSize() const = 0;
+  virtual absl::optional<bool> IsTryLockForProgressCheckEnabled() const = 0;
 
  protected:
   XhrSettings() = default;
@@ -47,15 +47,15 @@ class XhrSettings {
 // This class is thread safe.
 class XhrSettingsImpl : public XhrSettings {
  public:
-  base::Optional<bool> IsFetchBufferPoolEnabled() const override {
+  absl::optional<bool> IsFetchBufferPoolEnabled() const override {
     base::AutoLock auto_lock(lock_);
     return is_fetch_buffer_pool_enabled_;
   }
-  base::Optional<int> GetDefaultFetchBufferSize() const override {
+  absl::optional<int> GetDefaultFetchBufferSize() const override {
     base::AutoLock auto_lock(lock_);
     return default_fetch_buffer_size_;
   }
-  base::Optional<bool> IsTryLockForProgressCheckEnabled() const override {
+  absl::optional<bool> IsTryLockForProgressCheckEnabled() const override {
     base::AutoLock auto_lock(lock_);
     return is_try_lock_for_progress_check_enabled_;
   }
@@ -92,9 +92,9 @@ class XhrSettingsImpl : public XhrSettings {
 
  private:
   mutable base::Lock lock_;
-  base::Optional<bool> is_fetch_buffer_pool_enabled_;
-  base::Optional<int> default_fetch_buffer_size_;
-  base::Optional<bool> is_try_lock_for_progress_check_enabled_;
+  absl::optional<bool> is_fetch_buffer_pool_enabled_;
+  absl::optional<int> default_fetch_buffer_size_;
+  absl::optional<bool> is_try_lock_for_progress_check_enabled_;
 };
 
 }  // namespace xhr

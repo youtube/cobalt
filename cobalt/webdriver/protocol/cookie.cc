@@ -44,20 +44,20 @@ std::unique_ptr<base::Value> Cookie::ToValue(const Cookie& cookie) {
   return std::unique_ptr<base::Value>(cookie_value.release());
 }
 
-base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
+absl::optional<Cookie> Cookie::FromValue(const base::Value* value) {
   // TODO: Malformed data should return an "unable to set cookie"
   // error, but the current implementation will return "invalid parameter".
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
     DLOG(INFO) << "Parameter is not a dictionary.";
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   const base::DictionaryValue* cookie_dictionary_value;
   if (!dictionary_value->GetDictionary(kCookieKey, &cookie_dictionary_value)) {
     DLOG(INFO) << base::StringPrintf("Value of key [%s] is not a JSON object.",
                                      kCookieKey);
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   std::string cookie_name;
@@ -68,7 +68,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
     DLOG(INFO) << base::StringPrintf(
         "cookie.%s or cookie.%s either does not exist or is not a string",
         kNameKey, kValueKey);
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   Cookie new_cookie(cookie_name, cookie_value);
@@ -79,7 +79,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
       new_cookie.domain_ = string_value;
     } else {
       DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kDomainKey);
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
   if (cookie_dictionary_value->HasKey(kPathKey)) {
@@ -87,7 +87,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
       new_cookie.path_ = string_value;
     } else {
       DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kPathKey);
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
 
@@ -98,7 +98,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
     } else {
       DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
                                        kSecureKey);
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
   if (cookie_dictionary_value->HasKey(kHttpOnlyKey)) {
@@ -107,7 +107,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
     } else {
       DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
                                        kHttpOnlyKey);
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
 
@@ -120,7 +120,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
     } else {
       DLOG(INFO) << base::StringPrintf("cookie.%s is not an integer",
                                        kExpiryKey);
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
   return new_cookie;
@@ -131,17 +131,17 @@ void Cookie::ToCookieVector(const std::string& cookies_string,
   std::vector<std::string> cookie_strings = base::SplitString(
       cookies_string, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (size_t i = 0; i < cookie_strings.size(); ++i) {
-    base::Optional<Cookie> cookie = FromString(cookie_strings[i]);
+    absl::optional<Cookie> cookie = FromString(cookie_strings[i]);
     if (cookie) {
       cookies->push_back(*cookie);
     }
   }
 }
 
-base::Optional<Cookie> Cookie::FromString(const std::string& cookie_as_string) {
+absl::optional<Cookie> Cookie::FromString(const std::string& cookie_as_string) {
   size_t pos = cookie_as_string.find('=');
   if (pos == std::string::npos) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   DCHECK(pos < cookie_as_string.size());
   return Cookie(cookie_as_string.substr(0, pos),

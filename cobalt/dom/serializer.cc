@@ -46,7 +46,7 @@ void WriteAttributes(const scoped_refptr<const Element>& element,
     // it explicitly as a cssom::CSSDeclaredStyleDeclaration structure instead
     // of as an attribute string, so we add it (or replace it) explicitly in the
     // attribute map.
-    base::Optional<std::string> style_attribute = element->GetStyleAttribute();
+    absl::optional<std::string> style_attribute = element->GetStyleAttribute();
     if (style_attribute && !style_attribute->empty()) {
       sorted_attribute_map[kStyleAttributeName] = std::move(*style_attribute);
     }

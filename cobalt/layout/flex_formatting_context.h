@@ -43,9 +43,9 @@ class FlexFormattingContext : public FormattingContext {
 
   // layout flex items and determine cross size.
   void ResolveFlexibleLengthsAndCrossSizes(
-      const base::Optional<LayoutUnit>& cross_space,
-      const base::Optional<LayoutUnit>& min_cross_space,
-      const base::Optional<LayoutUnit>& max_cross_space,
+      const absl::optional<LayoutUnit>& cross_space,
+      const absl::optional<LayoutUnit>& min_cross_space,
+      const absl::optional<LayoutUnit>& max_cross_space,
       const scoped_refptr<cssom::PropertyValue>& align_content);
 
   LayoutUnit cross_size() const { return cross_size_; }

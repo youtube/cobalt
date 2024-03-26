@@ -55,7 +55,7 @@ NodeSearchResult<T> FindNode(
     NodeFilterFunction<T> typed_filter_function = base::Bind([](T*) {
       return true;
     }),
-    base::Optional<NodeReplaceFunction> replace_function = base::nullopt) {
+    absl::optional<NodeReplaceFunction> replace_function = absl::nullopt) {
   // Wrap the typed filter with an untyped callback.
   auto type_checking_filter_function = base::Bind(
       [](NodeFilterFunction<T> typed_filter_function, render_tree::Node* node) {
@@ -85,7 +85,7 @@ template <>
 NodeSearchResult<render_tree::Node> FindNode<render_tree::Node>(
     const scoped_refptr<render_tree::Node>& tree,
     NodeFilterFunction<render_tree::Node> filter_function,
-    base::Optional<NodeReplaceFunction> replace_function);
+    absl::optional<NodeReplaceFunction> replace_function);
 
 // Checks whether the given filter node has a MapToMesh filter in it.
 bool HasMapToMesh(render_tree::FilterNode* node);

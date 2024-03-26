@@ -19,8 +19,8 @@
 #include <string>
 
 #include "base/callback.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace debug {
@@ -68,7 +68,7 @@ class DebugClient {
   };
 
   // Callback to receive a command response from the dispatcher.
-  typedef base::Callback<void(const base::Optional<std::string>& response)>
+  typedef base::Callback<void(const absl::optional<std::string>& response)>
       ResponseCallback;
 
   DebugClient(backend::DebugDispatcher* dispatcher, Delegate* delegate);

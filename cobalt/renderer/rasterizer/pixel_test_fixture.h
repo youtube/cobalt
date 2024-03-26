@@ -18,13 +18,13 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/render_tree_pixel_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {
@@ -64,7 +64,7 @@ class PixelTest : public testing::Test {
   std::vector<uint8> GetFileData(const base::FilePath& file_path);
 
  private:
-  base::Optional<RenderTreePixelTester> pixel_tester_;
+  absl::optional<RenderTreePixelTester> pixel_tester_;
   math::Size output_surface_size_;
 };
 

@@ -101,7 +101,7 @@ class TextDecoder : public Decoder {
 
     text_available_callback_.Run(last_url_origin_, std::move(text_));
     if (!load_complete_callback_.is_null()) {
-      load_complete_callback_.Run(base::nullopt);
+      load_complete_callback_.Run(absl::nullopt);
     }
   }
 

@@ -19,12 +19,12 @@
 #include <string>
 
 #include "base/files/file_path.h"
-#include "base/optional.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/debug/debug_client.h"
 #include "net/server/http_server.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace debug {
@@ -56,7 +56,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
   void OnClose(int connection_id) override;
 
   // Debugger command response handler.
-  void OnDebuggerResponse(int id, const base::Optional<std::string>& response);
+  void OnDebuggerResponse(int id, const absl::optional<std::string>& response);
 
   // DebugClient::Delegate implementation.
   void OnDebugClientEvent(const std::string& method,

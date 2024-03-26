@@ -18,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/optional.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
@@ -40,6 +39,7 @@
 #include "cobalt/math/vector2d.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/web/event.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {

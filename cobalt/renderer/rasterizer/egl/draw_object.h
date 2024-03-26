@@ -16,7 +16,6 @@
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_OBJECT_H_
 
 #include "base/callback.h"
-#include "base/optional.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
@@ -26,6 +25,7 @@
 #include "cobalt/renderer/egl_and_gles.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {
@@ -35,7 +35,7 @@ namespace egl {
 // Base type to rasterize various objects via GL commands.
 class DrawObject {
  public:
-  typedef base::Optional<render_tree::RoundedCorners> OptionalRoundedCorners;
+  typedef absl::optional<render_tree::RoundedCorners> OptionalRoundedCorners;
 
   // Callback to get a scratch "1D" texture of the given |size|. If such a
   // request was previously fulfilled for the relevant render tree node, then

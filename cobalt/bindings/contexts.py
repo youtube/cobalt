@@ -59,7 +59,7 @@ def is_array_buffer_or_view_type(idl_type):
 def idl_literal_to_cobalt_literal(idl_type, idl_literal):
   """Map IDL literal to the corresponding cobalt value."""
   if idl_literal.is_null and not idl_type.is_interface_type:
-    return 'base::nullopt'
+    return 'absl::nullopt'
   if idl_type.is_enum:
     return convert_to_cobalt_enumeration_value(idl_type, idl_literal.value)
   return str(idl_literal)
@@ -109,20 +109,20 @@ def idl_string_type_to_cobalt(idl_type):
 
 
 def cobalt_type_is_optional(idl_type):
-  """Return True iff the idl_type should be wrapped by a base::Optional<>.
+  """Return True iff the idl_type should be wrapped by a absl::optional<>.
 
   Returns:
-    (bool): Whether the cobalt type should be wrapped in base::Optional<>.
+    (bool): Whether the cobalt type should be wrapped in absl::optional<>.
   Args:
     idl_type: An idl_types.IdlType object.  The Cobalt type for interfaces and
       callback functions are scoped_refptr or
   script::Handle, so they can already be assigned a NULL value. Other types,
     such as primitives, strings, and unions, need to be wrapped by
-  base::Optional<>, in which case the IDL null value will map to
-  base::nullopt_t.
+  absl::optional<>, in which case the IDL null value will map to
+  absl::nullopt.
   """
 
-  # These never need base::Optional<>
+  # These never need absl::optional<>
   if (idl_type.is_interface_type or idl_type.is_callback_function or
       idl_type.is_callback_interface or is_object_type(idl_type) or
       is_any_type(idl_type) or is_array_buffer_or_view_type(idl_type)):
@@ -190,7 +190,7 @@ def get_conversion_flags(idl_type, extended_attributes):
       not idl_type.base_type.startswith('unrestricted ')):
     flags.append('kConversionFlagRestricted')
   if idl_type.is_nullable and not cobalt_type_is_optional(idl_type.inner_type):
-    # Other types use base::Optional<> so there is no need for a flag to check
+    # Other types use absl::optional<> so there is no need for a flag to check
     # if null values are allowed.
     flags.append('kConversionFlagNullable')
   if idl_type.is_string_type:
@@ -318,7 +318,7 @@ class ContextBuilder(object):
     assert cobalt_type, f'Unsupported idl_type {idl_type}'
 
     if cobalt_type_is_optional(idl_type):
-      cobalt_type = f'base::Optional<{cobalt_type} >'
+      cobalt_type = f'absl::optional<{cobalt_type} >'
 
     return cobalt_type
 

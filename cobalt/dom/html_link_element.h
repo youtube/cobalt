@@ -19,7 +19,6 @@
 #include <string>
 #include <vector>
 
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/cssom/style_sheet.h"
 #include "cobalt/dom/html_element.h"
@@ -27,6 +26,7 @@
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/text_decoder.h"
 #include "cobalt/web/url_utils.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -54,8 +54,8 @@ class HTMLLinkElement : public HTMLElement {
   std::string href() const { return GetAttribute("href").value_or(""); }
   void set_href(const std::string& value) { SetAttribute("href", value); }
 
-  base::Optional<std::string> cross_origin() const;
-  void set_cross_origin(const base::Optional<std::string>& value);
+  absl::optional<std::string> cross_origin() const;
+  void set_cross_origin(const absl::optional<std::string>& value);
 
   // Custom, not in any spec.
   //
@@ -81,7 +81,7 @@ class HTMLLinkElement : public HTMLElement {
 
   void OnContentProduced(const loader::Origin& last_url_origin,
                          std::unique_ptr<std::string> content);
-  void OnLoadingComplete(const base::Optional<std::string>& error);
+  void OnLoadingComplete(const absl::optional<std::string>& error);
   void OnSplashscreenLoaded(Document* document, const std::string& content);
   void OnStylesheetLoaded(Document* document, const std::string& content);
   void ReleaseLoader();

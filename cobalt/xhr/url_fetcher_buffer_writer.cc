@@ -47,7 +47,7 @@ void ReleaseMemory(script::PreallocatedArrayBufferData* data) {
 }  // namespace
 
 URLFetcherResponseWriter::Buffer::Buffer(
-    Type type, const base::Optional<bool>& enable_try_lock_for_progress_check)
+    Type type, const absl::optional<bool>& enable_try_lock_for_progress_check)
     : type_(type),
       enable_try_lock_for_progress_check_(
           enable_try_lock_for_progress_check.value_or(false)) {
@@ -55,8 +55,8 @@ URLFetcherResponseWriter::Buffer::Buffer(
 }
 
 URLFetcherResponseWriter::Buffer::Buffer(
-    Type type, const base::Optional<bool>& enable_try_lock_for_progress_check,
-    const base::Optional<int>& fetch_buffer_size)
+    Type type, const absl::optional<bool>& enable_try_lock_for_progress_check,
+    const absl::optional<int>& fetch_buffer_size)
     : type_(type),
       enable_try_lock_for_progress_check_(
           enable_try_lock_for_progress_check.value_or(true)),

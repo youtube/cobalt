@@ -44,7 +44,7 @@ class MutationRecordBuilder {
 class AttributeMutationRecordBuilder : public MutationRecordBuilder {
  public:
   AttributeMutationRecordBuilder(const std::string& attribute_name,
-                                 const base::Optional<std::string>& old_value)
+                                 const absl::optional<std::string>& old_value)
       : attribute_name_(attribute_name), old_value_(old_value) {}
 
   scoped_refptr<MutationRecord> MaybeCreateMutationRecord(
@@ -54,7 +54,7 @@ class AttributeMutationRecordBuilder : public MutationRecordBuilder {
       return NULL;
     }
 
-    base::Optional<std::string> old_value;
+    absl::optional<std::string> old_value;
     if (options.has_attribute_old_value() && options.attribute_old_value()) {
       old_value = old_value_;
     }
@@ -87,7 +87,7 @@ class AttributeMutationRecordBuilder : public MutationRecordBuilder {
   }
 
   std::string attribute_name_;
-  base::Optional<std::string> old_value_;
+  absl::optional<std::string> old_value_;
 };
 
 // MutationRecordBuild for character data mutations.
@@ -107,7 +107,7 @@ class CharacterDataMutationRecordBuilder : public MutationRecordBuilder {
       return NULL;
     }
 
-    base::Optional<std::string> old_value;
+    absl::optional<std::string> old_value;
     if (options.has_character_data_old_value() &&
         options.character_data_old_value()) {
       old_value = old_character_data_;
@@ -202,7 +202,7 @@ MutationReporter::~MutationReporter() {}
 // https://www.w3.org/TR/dom/#queue-a-mutation-record
 void MutationReporter::ReportAttributesMutation(
     const std::string& name,
-    const base::Optional<std::string>& old_value) const {
+    const absl::optional<std::string>& old_value) const {
   TRACE_EVENT0("cobalt::dom", "MutationReporter::ReportAttributesMutation()");
   AttributeMutationRecordBuilder record_builder(name, old_value);
   ReportToInterestedObservers(target_, observers_.get(), &record_builder);

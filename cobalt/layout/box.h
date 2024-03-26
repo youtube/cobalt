@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
@@ -44,6 +43,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/ui_navigation/nav_item.h"
 #include "cobalt/web_animations/animation_set.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 
@@ -106,9 +106,9 @@ struct LayoutParams {
            containing_block_direction == rhs.containing_block_direction;
   }
 
-  base::Optional<LayoutUnit> maybe_margin_top;
-  base::Optional<LayoutUnit> maybe_margin_bottom;
-  base::Optional<LayoutUnit> maybe_height;
+  absl::optional<LayoutUnit> maybe_margin_top;
+  absl::optional<LayoutUnit> maybe_margin_bottom;
+  absl::optional<LayoutUnit> maybe_height;
 };
 
 inline std::ostream& operator<<(std::ostream& stream,
@@ -553,7 +553,7 @@ class Box : public base::RefCounted<Box> {
   virtual bool TrySplitAtSecondBidiLevelRun() = 0;
 
   // Retrieve the bidi level for the box, if it has one.
-  virtual base::Optional<int> GetBidiLevel() const = 0;
+  virtual absl::optional<int> GetBidiLevel() const = 0;
 
   // Sets whether a leading white space in the box or its first non-collapsed
   // descendant should be collapsed.
@@ -738,9 +738,9 @@ class Box : public base::RefCounted<Box> {
       const scoped_refptr<IntersectionObserverRoot>& intersection_observer_root)
       const;
 
-  base::Optional<LayoutUnit> collapsed_margin_top_;
-  base::Optional<LayoutUnit> collapsed_margin_bottom_;
-  base::Optional<LayoutUnit> collapsed_empty_margin_;
+  absl::optional<LayoutUnit> collapsed_margin_top_;
+  absl::optional<LayoutUnit> collapsed_margin_bottom_;
+  absl::optional<LayoutUnit> collapsed_empty_margin_;
 
   static bool IsBorderStyleNoneOrHidden(
       const scoped_refptr<cssom::PropertyValue>& border_style);
@@ -820,8 +820,8 @@ class Box : public base::RefCounted<Box> {
   void UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
       BaseDirection containing_block_direction,
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
-      const base::Optional<LayoutUnit>& possibly_overconstrained_margin_left,
-      const base::Optional<LayoutUnit>& possibly_overconstrained_margin_right);
+      const absl::optional<LayoutUnit>& possibly_overconstrained_margin_left,
+      const absl::optional<LayoutUnit>& possibly_overconstrained_margin_right);
 
   // Set border insets in InlineContainerBox UpdateBorders to an empty
   // LayoutUnit or the computed_style value using is_split_on_*_.
@@ -844,11 +844,11 @@ class Box : public base::RefCounted<Box> {
 
   // Computes the normalized "outer" rounded corners (if there are any) from the
   // border radii.
-  base::Optional<render_tree::RoundedCorners> ComputeRoundedCorners() const;
+  absl::optional<render_tree::RoundedCorners> ComputeRoundedCorners() const;
 
   // Computes the corresponding "inner" rounded corners.
-  base::Optional<render_tree::RoundedCorners> ComputePaddingRoundedCorners(
-      const base::Optional<render_tree::RoundedCorners>& rounded_corners) const;
+  absl::optional<render_tree::RoundedCorners> ComputePaddingRoundedCorners(
+      const absl::optional<render_tree::RoundedCorners>& rounded_corners) const;
 
   // Called after TryPlaceEllipsisOrProcessPlacedEllipsis() determines that the
   // box is impacted by the ellipsis. This handles both determining the location
@@ -882,14 +882,14 @@ class Box : public base::RefCounted<Box> {
 
   // Helper methods used by |RenderAndAnimate|.
   void RenderAndAnimateBorder(
-      const base::Optional<render_tree::RoundedCorners>& rounded_corners,
+      const absl::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateOutline(
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateBackgroundColor(
-      const base::Optional<render_tree::RoundedCorners>& rounded_corners,
+      const absl::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
   struct RenderAndAnimateBackgroundImageResult {
@@ -902,10 +902,10 @@ class Box : public base::RefCounted<Box> {
     bool is_opaque;
   };
   RenderAndAnimateBackgroundImageResult RenderAndAnimateBackgroundImage(
-      const base::Optional<render_tree::RoundedCorners>& rounded_corners);
+      const absl::optional<render_tree::RoundedCorners>& rounded_corners);
   void RenderAndAnimateBoxShadow(
-      const base::Optional<render_tree::RoundedCorners>& outer_rounded_corners,
-      const base::Optional<render_tree::RoundedCorners>& inner_rounded_corners,
+      const absl::optional<render_tree::RoundedCorners>& outer_rounded_corners,
+      const absl::optional<render_tree::RoundedCorners>& inner_rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
 
@@ -917,7 +917,7 @@ class Box : public base::RefCounted<Box> {
       float opacity, bool opacity_animated);
 
   scoped_refptr<render_tree::Node> RenderAndAnimateOverflow(
-      const base::Optional<render_tree::RoundedCorners>& rounded_corners,
+      const absl::optional<render_tree::RoundedCorners>& rounded_corners,
       const scoped_refptr<render_tree::Node>& content_node,
       render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& border_node_offset);
@@ -995,11 +995,11 @@ class Box : public base::RefCounted<Box> {
 
   // Referenced and updated by ValidateUpdateSizeInputs() to memoize the
   // parameters we were passed during in last call to UpdateSizes().
-  base::Optional<LayoutParams> last_update_size_params_;
+  absl::optional<LayoutParams> last_update_size_params_;
 
   // Render tree node caching is used to prevent the node from needing to be
   // recalculated during each call to RenderAndAnimateContent.
-  base::Optional<CachedRenderTreeNodeInfo> cached_render_tree_node_info_;
+  absl::optional<CachedRenderTreeNodeInfo> cached_render_tree_node_info_;
 
   // A value that indicates the drawing order relative to other boxes in the
   // same stacking context. Smaller values indicate boxes that are drawn

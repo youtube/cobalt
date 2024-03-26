@@ -32,12 +32,12 @@ script::Sequence<std::string> CValView::Keys() {
   return key_list;
 }
 
-base::Optional<std::string> CValView::GetValue(const std::string& name) {
+absl::optional<std::string> CValView::GetValue(const std::string& name) {
   return base::CValManager::GetInstance()->GetValueAsString(name);
 }
 
 std::string CValView::GetPrettyValue(const std::string& name) {
-  base::Optional<std::string> result =
+  absl::optional<std::string> result =
       base::CValManager::GetInstance()->GetValueAsPrettyString(name);
   return result ? *result : "<undefined>";
 }

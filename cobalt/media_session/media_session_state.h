@@ -17,13 +17,13 @@
 
 #include <bitset>
 
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/media_session/media_metadata_init.h"
 #include "cobalt/media_session/media_position_state.h"
 #include "cobalt/media_session/media_session_action.h"
 #include "cobalt/media_session/media_session_playback_state.h"
 #include "starboard/common/time.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace media_session {
@@ -36,9 +36,9 @@ class MediaSessionState {
   MediaSessionState() {}
 
   MediaSessionState(
-      base::Optional<MediaMetadataInit> metadata,
+      absl::optional<MediaMetadataInit> metadata,
       int64_t last_position_updated_time,
-      const base::Optional<MediaPositionState>& media_position_state,
+      const absl::optional<MediaPositionState>& media_position_state,
       MediaSessionPlaybackState actual_playback_state,
       AvailableActionsSet available_actions);
 
@@ -50,7 +50,7 @@ class MediaSessionState {
   bool has_metadata() const { return metadata_.has_value(); }
 
   // Returns the metadata about the currently playing media.
-  const base::Optional<MediaMetadataInit>& metadata() const {
+  const absl::optional<MediaMetadataInit>& metadata() const {
     return metadata_;
   }
 
@@ -94,7 +94,7 @@ class MediaSessionState {
   bool operator!=(const MediaSessionState& other) const;
 
  private:
-  base::Optional<MediaMetadataInit> metadata_;
+  absl::optional<MediaMetadataInit> metadata_;
   int64_t last_position_updated_time_ = 0;
   int64_t last_position_usec_ = 0;
   double actual_playback_rate_ = 0.0;

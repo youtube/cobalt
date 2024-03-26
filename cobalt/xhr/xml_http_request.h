@@ -23,7 +23,6 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop_current.h"
-#include "base/optional.h"
 #include "base/timer/timer.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/loader/cors_preflight.h"
@@ -47,6 +46,7 @@
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 #include "starboard/common/atomic.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -108,22 +108,22 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void Abort();
   void Open(const std::string& method, const std::string& url,
             script::ExceptionState* exception_state) {
-    return Open(method, url, true, base::nullopt, base::nullopt,
+    return Open(method, url, true, absl::nullopt, absl::nullopt,
                 exception_state);
   }
   void Open(const std::string& method, const std::string& url, bool async,
             script::ExceptionState* exception_state) {
-    return Open(method, url, async, base::nullopt, base::nullopt,
+    return Open(method, url, async, absl::nullopt, absl::nullopt,
                 exception_state);
   }
   void Open(const std::string& method, const std::string& url, bool async,
-            const base::Optional<std::string>& username,
+            const absl::optional<std::string>& username,
             script::ExceptionState* exception_state) {
-    return Open(method, url, async, username, base::nullopt, exception_state);
+    return Open(method, url, async, username, absl::nullopt, exception_state);
   }
   void Open(const std::string& method, const std::string& url, bool async,
-            const base::Optional<std::string>& username,
-            const base::Optional<std::string>& password,
+            const absl::optional<std::string>& username,
+            const absl::optional<std::string>& password,
             script::ExceptionState* exception_state);
 
   // Must be called after open(), but before send().
@@ -136,9 +136,9 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
                         script::ExceptionState* exception_state);
 
   void Send(script::ExceptionState* exception_state) {
-    Send(base::nullopt, exception_state);
+    Send(absl::nullopt, exception_state);
   }
-  void Send(const base::Optional<RequestBodyType>& request_body,
+  void Send(const absl::optional<RequestBodyType>& request_body,
             script::ExceptionState* exception_state);
 
   // FetchAPI: replacement for Send() when fetch functionality is required.
@@ -150,16 +150,16 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   typedef script::ScriptValue<FetchModeCallback> FetchModeCallbackArg;
   void Fetch(const FetchUpdateCallbackArg& fetch_callback,
              const FetchModeCallbackArg& fetch_mode_callback,
-             const base::Optional<RequestBodyType>& request_body,
+             const absl::optional<RequestBodyType>& request_body,
              script::ExceptionState* exception_state);
 
-  base::Optional<std::string> GetResponseHeader(const std::string& header);
+  absl::optional<std::string> GetResponseHeader(const std::string& header);
   std::string GetAllResponseHeaders();
 
   const std::string& response_text(script::ExceptionState* exception_state);
   scoped_refptr<dom::Document> response_xml(
       script::ExceptionState* exception_state);
-  base::Optional<ResponseType> response(
+  absl::optional<ResponseType> response(
       script::ExceptionState* exception_state);
 
   int ready_state() const;
@@ -238,8 +238,8 @@ class XMLHttpRequestImpl
 
   void Abort();
   void Open(const std::string& method, const std::string& url, bool async,
-            const base::Optional<std::string>& username,
-            const base::Optional<std::string>& password,
+            const absl::optional<std::string>& username,
+            const absl::optional<std::string>& password,
             script::ExceptionState* exception_state);
 
   // Must be called after open(), but before send().
@@ -251,7 +251,7 @@ class XMLHttpRequestImpl
   void OverrideMimeType(const std::string& mime_type,
                         script::ExceptionState* exception_state);
 
-  void Send(const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
+  void Send(const absl::optional<XMLHttpRequest::RequestBodyType>& request_body,
             script::ExceptionState* exception_state);
 
   // FetchAPI: replacement for Send() when fetch functionality is required.
@@ -264,16 +264,16 @@ class XMLHttpRequestImpl
   void Fetch(
       const FetchUpdateCallbackArg& fetch_callback,
       const FetchModeCallbackArg& fetch_mode_callback,
-      const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
+      const absl::optional<XMLHttpRequest::RequestBodyType>& request_body,
       script::ExceptionState* exception_state);
 
-  base::Optional<std::string> GetResponseHeader(const std::string& header);
+  absl::optional<std::string> GetResponseHeader(const std::string& header);
   std::string GetAllResponseHeaders();
 
   const std::string& response_text(script::ExceptionState* exception_state);
   virtual scoped_refptr<dom::Document> response_xml(
       script::ExceptionState* exception_state);
-  base::Optional<XMLHttpRequest::ResponseType> response(
+  absl::optional<XMLHttpRequest::ResponseType> response(
       script::ExceptionState* exception_state);
 
   int ready_state() const { return static_cast<int>(state_); }
@@ -393,7 +393,7 @@ class XMLHttpRequestImpl
   virtual void StartRequest(const std::string& request_body);
 
   void SendFallback(
-      const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
+      const absl::optional<XMLHttpRequest::RequestBodyType>& request_body,
       script::ExceptionState* exception_state);
   void SendIntercepted(std::unique_ptr<std::string> response);
 
@@ -477,7 +477,7 @@ class DOMXMLHttpRequestImpl : public XMLHttpRequestImpl {
   scoped_refptr<dom::Document> GetDocumentResponseEntityBody();
 
   void XMLDecoderLoadCompleteCallback(
-      const base::Optional<std::string>& status);
+      const absl::optional<std::string>& status);
 
   bool has_xml_decoder_error_;
 };

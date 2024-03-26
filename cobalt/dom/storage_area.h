@@ -19,9 +19,9 @@
 #include <string>
 
 #include "base/containers/hash_tables.h"
-#include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/loader/origin.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -43,8 +43,8 @@ class StorageArea {
   ~StorageArea();
 
   int length();
-  base::Optional<std::string> Key(int index);
-  base::Optional<std::string> GetItem(const std::string& key);
+  absl::optional<std::string> Key(int index);
+  absl::optional<std::string> GetItem(const std::string& key);
   void SetItem(const std::string& key, const std::string& value);
   void RemoveItem(const std::string& key);
   void Clear();

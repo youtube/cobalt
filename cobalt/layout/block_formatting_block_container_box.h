@@ -120,7 +120,7 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
                        LayoutUnit available_width,
                        bool should_collapse_trailing_white_space) override;
 
-  base::Optional<int> GetBidiLevel() const override;
+  absl::optional<int> GetBidiLevel() const override;
 
   bool DoesFulfillEllipsisPlacementRequirement() const override;
   void DoPreEllipsisPlacementProcessing() override;

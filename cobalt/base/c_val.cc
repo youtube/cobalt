@@ -119,26 +119,27 @@ std::set<std::string> CValManager::GetOrderedCValNames() {
   return ret;
 }
 
-Optional<std::string> CValManager::GetCValStringValue(const std::string& name,
-                                                      bool pretty) {
+absl::optional<std::string> CValManager::GetCValStringValue(
+    const std::string& name, bool pretty) {
   base::AutoLock auto_lock(cvals_lock_);
 
   // Return the value of a CVal, if it exists.  If it does not exist,
   // indicate that it does not exist.
   NameVarMap::const_iterator found = registered_vars_->find(name);
   if (found == registered_vars_->end()) {
-    return nullopt;
+    return absl::nullopt;
   } else {
     return (pretty ? found->second->GetValueAsPrettyString()
                    : found->second->GetValueAsString());
   }
 }
 
-Optional<std::string> CValManager::GetValueAsString(const std::string& name) {
+absl::optional<std::string> CValManager::GetValueAsString(
+    const std::string& name) {
   return GetCValStringValue(name, false);
 }
 
-Optional<std::string> CValManager::GetValueAsPrettyString(
+absl::optional<std::string> CValManager::GetValueAsPrettyString(
     const std::string& name) {
   return GetCValStringValue(name, true);
 }

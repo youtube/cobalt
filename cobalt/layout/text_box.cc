@@ -266,7 +266,7 @@ bool TextBox::TrySplitAtSecondBidiLevelRun() {
   }
 }
 
-base::Optional<int> TextBox::GetBidiLevel() const {
+absl::optional<int> TextBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_start_position_);
 }
 
@@ -668,7 +668,7 @@ void TextBox::SplitAtPosition(int32 split_start_position) {
 
   // The width is no longer valid for this box now that it has been split.
   update_size_results_valid_ = false;
-  non_collapsible_text_width_ = base::nullopt;
+  non_collapsible_text_width_ = absl::nullopt;
 
   const bool kIsProductOfSplitTrue = true;
 

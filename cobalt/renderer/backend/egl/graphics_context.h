@@ -18,13 +18,13 @@
 #include <memory>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/graphics_context.h"  // nogncheck
 #include "cobalt/renderer/egl_and_gles.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {
@@ -177,7 +177,7 @@ class GraphicsContextEGL : public GraphicsContext {
 
   // Lazily evaluate whether we need to do a vertical flip when calling
   // glReadPixels(), and cache the result here when that question is answered.
-  base::Optional<bool> read_pixels_needs_vertical_flip_;
+  absl::optional<bool> read_pixels_needs_vertical_flip_;
 
   // When creating and destroying textures, OpenGL calls need to be made with
   // a GL context current.  By making TextureEGL a friend class of

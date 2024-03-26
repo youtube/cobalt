@@ -8,7 +8,7 @@
 #include <string>
 
 #include "base/debug/alias.h"
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
@@ -230,7 +230,7 @@ class URL_EXPORT Origin {
 
   // The nonce is used for maintaining identity of an opaque origin. This
   // nonce is preserved when an opaque origin is copied or moved.
-  base::Optional<base::UnguessableToken> nonce_;
+  absl::optional<base::UnguessableToken> nonce_;
 };
 
 URL_EXPORT std::ostream& operator<<(std::ostream& out, const Origin& origin);

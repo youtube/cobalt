@@ -43,11 +43,11 @@ unsigned int AnimationTimeline::num_animations() const {
 // Returns the current time for the document.  This is based off of the last
 // sampled time.
 // https://www.w3.org/TR/web-animations-1/#the-animationtimeline-interface
-base::Optional<double> AnimationTimeline::current_time() const {
+absl::optional<double> AnimationTimeline::current_time() const {
   if (sampled_clock_time_) {
     return sampled_clock_time_->InMillisecondsF();
   } else {
-    return base::nullopt;
+    return absl::nullopt;
   }
 }
 
@@ -56,7 +56,7 @@ void AnimationTimeline::Sample() {
     sampled_clock_time_ = clock_->Now();
     event_queue_.UpdateTime(*sampled_clock_time_);
   } else {
-    sampled_clock_time_ = base::nullopt;
+    sampled_clock_time_ = absl::nullopt;
   }
   UpdateNextEventTimer();
 }

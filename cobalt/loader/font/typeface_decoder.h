@@ -20,10 +20,10 @@
 #include <vector>
 
 #include "base/callback.h"
-#include "base/optional.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/typeface.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace loader {

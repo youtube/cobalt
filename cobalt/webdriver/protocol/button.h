@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -33,7 +33,7 @@ namespace protocol {
 class Button {
  public:
   static std::unique_ptr<base::Value> ToValue(const Button& button);
-  static base::Optional<Button> FromValue(const base::Value* value);
+  static absl::optional<Button> FromValue(const base::Value* value);
 
   int button() const { return button_; }
 

@@ -20,8 +20,8 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/optional.h"
 #include "cobalt/script/array_buffer.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace xhr {
@@ -36,7 +36,7 @@ class FetchBufferPool {
   static constexpr int kDefaultBufferSize = 1024 * 1024;
 
   explicit FetchBufferPool(
-      const base::Optional<int>& default_buffer_size = base::Optional<int>())
+      const absl::optional<int>& default_buffer_size = absl::optional<int>())
       // Use "kDefaultBufferSize + 0" to force using kDefaultBufferSize as
       // r-value to avoid link error.
       : default_buffer_size_(

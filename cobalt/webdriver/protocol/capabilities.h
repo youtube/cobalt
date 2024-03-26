@@ -18,9 +18,9 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
 #include "cobalt/webdriver/protocol/proxy.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -32,7 +32,7 @@ class Capabilities {
  public:
   // Convert a Capabilities object to/from a base::Value
   static std::unique_ptr<base::Value> ToValue(const Capabilities& capabilities);
-  static base::Optional<Capabilities> FromValue(const base::Value* value);
+  static absl::optional<Capabilities> FromValue(const base::Value* value);
 
   // Create the actual capabilities of Cobalt's WebDriver implementation.
   static Capabilities CreateActualCapabilities();
@@ -40,29 +40,29 @@ class Capabilities {
   // Return true if we support all the capabilities listed here.
   bool AreCapabilitiesSupported() const;
 
-  base::Optional<Proxy> proxy() const { return proxy_; }
+  absl::optional<Proxy> proxy() const { return proxy_; }
 
  private:
   Capabilities() {}
   // The capabilities listed here:
   // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#capabilities-json-object
 
-  base::Optional<std::string> browser_name_;
-  base::Optional<std::string> version_;
-  base::Optional<std::string> platform_;
-  base::Optional<bool> javascript_enabled_;
-  base::Optional<bool> takes_screenshot_;
-  base::Optional<bool> handles_alerts_;
-  base::Optional<bool> database_enabled_;
-  base::Optional<bool> location_context_enabled_;
-  base::Optional<bool> application_cache_enabled_;
-  base::Optional<bool> browser_connection_enabled_;
-  base::Optional<bool> css_selectors_enabled_;
-  base::Optional<bool> web_storage_enabled_;
-  base::Optional<bool> rotatable_;
-  base::Optional<bool> accept_ssl_certs_;
-  base::Optional<bool> native_events_;
-  base::Optional<Proxy> proxy_;
+  absl::optional<std::string> browser_name_;
+  absl::optional<std::string> version_;
+  absl::optional<std::string> platform_;
+  absl::optional<bool> javascript_enabled_;
+  absl::optional<bool> takes_screenshot_;
+  absl::optional<bool> handles_alerts_;
+  absl::optional<bool> database_enabled_;
+  absl::optional<bool> location_context_enabled_;
+  absl::optional<bool> application_cache_enabled_;
+  absl::optional<bool> browser_connection_enabled_;
+  absl::optional<bool> css_selectors_enabled_;
+  absl::optional<bool> web_storage_enabled_;
+  absl::optional<bool> rotatable_;
+  absl::optional<bool> accept_ssl_certs_;
+  absl::optional<bool> native_events_;
+  absl::optional<Proxy> proxy_;
 };
 
 // Clients can provide two sets of Capabilities objects - one specifying
@@ -70,11 +70,11 @@ class Capabilities {
 // that the session must have.
 class RequestedCapabilities {
  public:
-  static base::Optional<RequestedCapabilities> FromValue(
+  static absl::optional<RequestedCapabilities> FromValue(
       const base::Value* value);
 
   const Capabilities& desired() const { return desired_; }
-  const base::Optional<Capabilities>& required() const { return required_; }
+  const absl::optional<Capabilities>& required() const { return required_; }
 
  private:
   explicit RequestedCapabilities(const Capabilities& desired)
@@ -83,7 +83,7 @@ class RequestedCapabilities {
                         const Capabilities& required)
       : desired_(desired), required_(required) {}
   Capabilities desired_;
-  base::Optional<Capabilities> required_;
+  absl::optional<Capabilities> required_;
 };
 
 }  // namespace protocol

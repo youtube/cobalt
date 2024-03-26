@@ -18,11 +18,11 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/loader/loader_types.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/web/url_utils.h"
 #include "net/http/http_response_headers.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -32,7 +32,7 @@ class Fetcher;
 
 class Decoder {
  public:
-  typedef base::Callback<void(const base::Optional<std::string>&)>
+  typedef base::Callback<void(const absl::optional<std::string>&)>
       OnCompleteFunction;
 
   Decoder() {}

@@ -28,7 +28,7 @@ DOMImplementation::DOMImplementation(script::EnvironmentSettings* settings) {
 }
 
 scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
-    base::Optional<std::string> namespace_name,
+    absl::optional<std::string> namespace_name,
     const std::string& qualified_name) {
   return CreateDocument(namespace_name, qualified_name, NULL);
 }
@@ -36,7 +36,7 @@ scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
 // Algorithm for CreateDocument:
 //   https://www.w3.org/TR/dom/#dom-domimplementation-createdocument
 scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
-    base::Optional<std::string> namespace_name,
+    absl::optional<std::string> namespace_name,
     const std::string& qualified_name, scoped_refptr<DocumentType> doctype) {
   // 1. Let document be a new XMLDocument.
   scoped_refptr<XMLDocument> document = new XMLDocument(html_element_context_);

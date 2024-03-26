@@ -51,7 +51,7 @@ void OnPNGEncodeComplete(ScreenshotResultContext* context,
 
 util::CommandResult<std::string> Screenshot::RequestScreenshot(
     const GetScreenshotFunction& screenshot_function,
-    base::Optional<math::Rect> clip_rect) {
+    absl::optional<math::Rect> clip_rect) {
   typedef util::CommandResult<std::string> CommandResult;
 
   // Request the screenshot and wait for the PNG data.

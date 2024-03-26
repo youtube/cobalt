@@ -18,9 +18,9 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -30,7 +30,7 @@ class CValView : public script::Wrappable {
   CValView();
 
   script::Sequence<std::string> Keys();
-  base::Optional<std::string> GetValue(const std::string& name);
+  absl::optional<std::string> GetValue(const std::string& name);
   std::string GetPrettyValue(const std::string& name);
 
   DEFINE_WRAPPABLE_TYPE(CValView);

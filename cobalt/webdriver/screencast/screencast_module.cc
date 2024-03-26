@@ -113,7 +113,7 @@ void ScreencastModule::StopServer() {
     std::unique_ptr<base::Value> message = std::unique_ptr<base::Value>();
     // Send rejection to request with invalid ID.
     next_request->result_handler->SendResult(
-        base::nullopt, protocol::Response::kUnknownError, std::move(message));
+        absl::nullopt, protocol::Response::kUnknownError, std::move(message));
   }
   screenshot_server_.reset();
 }
@@ -134,7 +134,7 @@ void ScreencastModule::PutRequestInQueue(
   } else {
     // Send rejection to request with invalid ID.
     std::unique_ptr<base::Value> message = std::unique_ptr<base::Value>();
-    result_handler->SendResult(base::nullopt, protocol::Response::kUnknownError,
+    result_handler->SendResult(absl::nullopt, protocol::Response::kUnknownError,
                                std::move(message));
   }
 }
@@ -174,7 +174,7 @@ void ScreencastModule::SendScreenshotToNextInQueue(
     } else {
       // Send rejection to request with invalid ID.
       next_request->result_handler->SendResult(
-          base::nullopt, protocol::Response::kUnknownError, std::move(message));
+          absl::nullopt, protocol::Response::kUnknownError, std::move(message));
     }
   }
 }
@@ -185,7 +185,7 @@ void ScreencastModule::TakeScreenshot() {
     num_screenshots_processing_++;
     screenshot_function_.Run(
         loader::image::EncodedStaticImage::ImageFormat::kJPEG,
-        /*clip_rect=*/base::nullopt,
+        /*clip_rect=*/absl::nullopt,
         base::Bind(&ScreencastModule::SendScreenshotToNextInQueue,
                    base::Unretained(this)));
   }

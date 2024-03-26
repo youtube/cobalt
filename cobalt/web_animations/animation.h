@@ -21,11 +21,11 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web_animations/animation_effect_read_only.h"
 #include "cobalt/web_animations/animation_timeline.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web_animations {
@@ -55,10 +55,10 @@ class Animation : public script::Wrappable {
    public:
     Data() : playback_rate_(1.0) {}
 
-    const base::Optional<base::TimeDelta>& start_time() const {
+    const absl::optional<base::TimeDelta>& start_time() const {
       return start_time_;
     }
-    void set_start_time(const base::Optional<base::TimeDelta>& start_time) {
+    void set_start_time(const absl::optional<base::TimeDelta>& start_time) {
       start_time_ = start_time;
     }
 
@@ -69,13 +69,13 @@ class Animation : public script::Wrappable {
 
     // Converts the animation's timeline's time into the animation's local
     // time, which takes into account this animation's start_time().
-    base::Optional<base::TimeDelta> ComputeLocalTimeFromTimelineTime(
-        const base::Optional<base::TimeDelta>& timeline_time) const;
-    base::Optional<base::TimeDelta> ComputeTimelineTimeFromLocalTime(
-        const base::Optional<base::TimeDelta>& local_time) const;
+    absl::optional<base::TimeDelta> ComputeLocalTimeFromTimelineTime(
+        const absl::optional<base::TimeDelta>& timeline_time) const;
+    absl::optional<base::TimeDelta> ComputeTimelineTimeFromLocalTime(
+        const absl::optional<base::TimeDelta>& local_time) const;
 
    private:
-    base::Optional<base::TimeDelta> start_time_;
+    absl::optional<base::TimeDelta> start_time_;
     double playback_rate_;
   };
 
@@ -117,23 +117,23 @@ class Animation : public script::Wrappable {
   const scoped_refptr<AnimationTimeline>& timeline() const { return timeline_; }
   void set_timeline(const scoped_refptr<AnimationTimeline>& timeline);
 
-  base::Optional<double> start_time() const {
+  absl::optional<double> start_time() const {
     return data_.start_time()
-               ? base::Optional<double>(data_.start_time()->InMillisecondsF())
-               : base::nullopt;
+               ? absl::optional<double>(data_.start_time()->InMillisecondsF())
+               : absl::nullopt;
   }
-  void set_start_time(const base::Optional<double>& start_time) {
+  void set_start_time(const absl::optional<double>& start_time) {
     if (!start_time) {
-      data_.set_start_time(base::nullopt);
+      data_.set_start_time(absl::nullopt);
     } else {
       data_.set_start_time(base::TimeDelta::FromMillisecondsD(*start_time));
     }
   }
 
-  base::Optional<double> current_time() const;
-  base::Optional<base::TimeDelta> current_time_as_time_delta() const;
+  absl::optional<double> current_time() const;
+  absl::optional<base::TimeDelta> current_time_as_time_delta() const;
 
-  void set_current_time(const base::Optional<double>& current_time);
+  void set_current_time(const absl::optional<double>& current_time);
 
   double playback_rate() const { return data_.playback_rate(); }
   void set_playback_rate(double playback_rate) {

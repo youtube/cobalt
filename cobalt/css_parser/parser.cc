@@ -25,7 +25,6 @@
 #include "base/bind.h"
 #include "base/containers/hash_tables.h"
 #include "base/lazy_instance.h"
-#include "base/optional.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -88,6 +87,7 @@
 #include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/universal_selector.h"
 #include "cobalt/cssom/url_value.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #if !defined(COBALT_BUILD_TYPE_GOLD)
 #include "base/command_line.h"
 #include "cobalt/css_parser/switches.h"
@@ -208,7 +208,7 @@ class ParserImpl {
 
   StringPool string_pool_;
   Scanner scanner_;
-  ::base::Optional<YYLTYPE> last_syntax_error_location_;
+  ::absl::optional<YYLTYPE> last_syntax_error_location_;
 
   // Parsing results, named after entry points.
   // Only one of them may be non-NULL.
@@ -388,7 +388,7 @@ bool ParserImpl::Parse() {
   // For more information on error codes
   // see http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html
   TRACE_EVENT0("cobalt::css_parser", "ParseImpl::Parse");
-  last_syntax_error_location_ = ::base::nullopt;
+  last_syntax_error_location_ = ::absl::nullopt;
   int error_code(yyparse(this, &scanner_));
   switch (error_code) {
     case 0:

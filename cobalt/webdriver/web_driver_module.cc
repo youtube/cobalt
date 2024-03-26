@@ -527,7 +527,7 @@ void WebDriverModule::GetServerStatus(
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  result_handler->SendResult(base::nullopt, protocol::Response::kSuccess,
+  result_handler->SendResult(absl::nullopt, protocol::Response::kSuccess,
                              protocol::ServerStatus::ToValue(status_));
 }
 
@@ -541,7 +541,7 @@ void WebDriverModule::GetActiveSessions(
   if (session_) {
     sessions.push_back(session_->session_id());
   }
-  result_handler->SendResult(base::nullopt, protocol::Response::kSuccess,
+  result_handler->SendResult(absl::nullopt, protocol::Response::kSuccess,
                              util::internal::ToValue(sessions));
 }
 
@@ -552,7 +552,7 @@ void WebDriverModule::CreateSession(
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  base::Optional<protocol::RequestedCapabilities> requested_capabilities =
+  absl::optional<protocol::RequestedCapabilities> requested_capabilities =
       protocol::RequestedCapabilities::FromValue(parameters);
   if (!requested_capabilities) {
     result_handler->SendInvalidRequestResponse(
@@ -563,7 +563,7 @@ void WebDriverModule::CreateSession(
   util::CommandResult<protocol::Capabilities> command_result =
       CreateSessionInternal(requested_capabilities.value());
 
-  base::Optional<protocol::SessionId> session_id;
+  absl::optional<protocol::SessionId> session_id;
   if (command_result.is_success()) {
     session_id = session_->session_id();
   }
@@ -589,7 +589,7 @@ void WebDriverModule::DeleteSession(
     }
   }
   // If the session doesn't exist, then this is a no-op.
-  result_handler->SendResult(base::nullopt, protocol::Response::kSuccess,
+  result_handler->SendResult(absl::nullopt, protocol::Response::kSuccess,
                              std::unique_ptr<base::Value>());
 }
 
@@ -650,7 +650,7 @@ void WebDriverModule::RequestScreenshot(
 
     CommandResult result =
         Screenshot::RequestScreenshot(get_screenshot_function_,
-                                      /*clip_rect=*/base::nullopt);
+                                      /*clip_rect=*/absl::nullopt);
     util::internal::ReturnResponse(session_driver->session_id(), result,
                                    result_handler.get());
   }
@@ -712,7 +712,7 @@ void WebDriverModule::GetAttribute(
     if (element_driver) {
       std::string attribute_name = path_variables->GetVariable(kAttributeName);
 
-      typedef util::CommandResult<base::Optional<std::string> > CommandResult;
+      typedef util::CommandResult<absl::optional<std::string> > CommandResult;
       CommandResult result =
           element_driver->GetAttribute(std::move(attribute_name));
       util::internal::ReturnResponse(session_driver->session_id(), result,
@@ -829,7 +829,7 @@ WebDriverModule::CreateSessionInternal(
 
   // If proxy settings were requested when the session was created, set them
   // now.
-  base::Optional<protocol::Proxy> proxy_settings =
+  absl::optional<protocol::Proxy> proxy_settings =
       requested_capabilities.desired().proxy();
   if (!proxy_settings && requested_capabilities.required()) {
     proxy_settings = requested_capabilities.required()->proxy();

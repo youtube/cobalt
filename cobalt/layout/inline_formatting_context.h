@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/formatting_context.h"
 #include "cobalt/layout/layout_unit.h"
@@ -27,6 +26,7 @@
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/font.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {

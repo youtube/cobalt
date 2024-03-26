@@ -34,15 +34,15 @@ TEST(CValTimeIntervalTimerStatsTest, DefaultValues) {
   base::CValTimeIntervalTimerStats<> cval(name, time_interval_in_ms);
 
   base::CValManager* cvm = base::CValManager::GetInstance();
-  base::Optional<std::string> count =
+  absl::optional<std::string> count =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Cnt", name.c_str()));
-  base::Optional<std::string> avg =
+  absl::optional<std::string> avg =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Avg", name.c_str()));
-  base::Optional<std::string> min =
+  absl::optional<std::string> min =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Min", name.c_str()));
-  base::Optional<std::string> max =
+  absl::optional<std::string> max =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Max", name.c_str()));
-  base::Optional<std::string> std =
+  absl::optional<std::string> std =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Std", name.c_str()));
 
   EXPECT_TRUE(count);
@@ -72,15 +72,15 @@ TEST(CValTimeIntervalTimerStatsTest, NoTimeout) {
   cval.Stop(base::TimeTicks::FromInternalValue(21000));
 
   base::CValManager* cvm = base::CValManager::GetInstance();
-  base::Optional<std::string> count =
+  absl::optional<std::string> count =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Cnt", name.c_str()));
-  base::Optional<std::string> avg =
+  absl::optional<std::string> avg =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Avg", name.c_str()));
-  base::Optional<std::string> min =
+  absl::optional<std::string> min =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Min", name.c_str()));
-  base::Optional<std::string> max =
+  absl::optional<std::string> max =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Max", name.c_str()));
-  base::Optional<std::string> std =
+  absl::optional<std::string> std =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Std", name.c_str()));
 
   EXPECT_TRUE(count);
@@ -114,15 +114,15 @@ TEST(CValTimeIntervalTimerStatsTest, OneTimeout) {
   cval.Stop(base::TimeTicks::FromInternalValue(55000));
 
   base::CValManager* cvm = base::CValManager::GetInstance();
-  base::Optional<std::string> count =
+  absl::optional<std::string> count =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Cnt", name.c_str()));
-  base::Optional<std::string> avg =
+  absl::optional<std::string> avg =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Avg", name.c_str()));
-  base::Optional<std::string> min =
+  absl::optional<std::string> min =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Min", name.c_str()));
-  base::Optional<std::string> max =
+  absl::optional<std::string> max =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Max", name.c_str()));
-  base::Optional<std::string> std =
+  absl::optional<std::string> std =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Std", name.c_str()));
 
   EXPECT_TRUE(count);
@@ -158,15 +158,15 @@ TEST(CValTimeIntervalTimerStatsTest, TwoTimeouts) {
   cval.Stop(base::TimeTicks::FromInternalValue(110000));
 
   base::CValManager* cvm = base::CValManager::GetInstance();
-  base::Optional<std::string> count =
+  absl::optional<std::string> count =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Cnt", name.c_str()));
-  base::Optional<std::string> avg =
+  absl::optional<std::string> avg =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Avg", name.c_str()));
-  base::Optional<std::string> min =
+  absl::optional<std::string> min =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Min", name.c_str()));
-  base::Optional<std::string> max =
+  absl::optional<std::string> max =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Max", name.c_str()));
-  base::Optional<std::string> std =
+  absl::optional<std::string> std =
       cvm->GetValueAsPrettyString(base::StringPrintf("%s.Std", name.c_str()));
 
   EXPECT_TRUE(count);

@@ -21,7 +21,6 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
@@ -34,6 +33,7 @@
 #include "cobalt/worker/service_worker_registration_map.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/worker_type.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -57,7 +57,7 @@ class ServiceWorkerContext {
   base::MessageLoop* message_loop() { return message_loop_; }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#start-register-algorithm
-  void StartRegister(const base::Optional<GURL>& scope_url,
+  void StartRegister(const absl::optional<GURL>& scope_url,
                      const GURL& script_url,
                      std::unique_ptr<script::ValuePromiseWrappable::Reference>
                          promise_reference,

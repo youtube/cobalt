@@ -267,13 +267,13 @@ void PointerState::SetClientCoordinates(int32_t pointer_id,
   client_coordinates_[pointer_id] = position;
 }
 
-base::Optional<math::Vector2dF> PointerState::GetClientCoordinates(
+absl::optional<math::Vector2dF> PointerState::GetClientCoordinates(
     int32_t pointer_id) {
   auto client_coordinate = client_coordinates_.find(pointer_id);
   if (client_coordinate != client_coordinates_.end()) {
     return client_coordinate->second;
   }
-  base::Optional<math::Vector2dF> ret;
+  absl::optional<math::Vector2dF> ret;
   return ret;
 }
 
@@ -285,12 +285,12 @@ void PointerState::SetClientTimeStamp(int32_t pointer_id, uint64 time_stamp) {
   client_time_stamps_[pointer_id] = time_stamp;
 }
 
-base::Optional<uint64> PointerState::GetClientTimeStamp(int32_t pointer_id) {
+absl::optional<uint64> PointerState::GetClientTimeStamp(int32_t pointer_id) {
   auto time_stamp = client_time_stamps_.find(pointer_id);
   if (time_stamp != client_time_stamps_.end()) {
     return time_stamp->second;
   }
-  base::Optional<uint64> ret;
+  absl::optional<uint64> ret;
   return ret;
 }
 

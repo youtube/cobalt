@@ -161,9 +161,9 @@ class Application {
     // GPU memory stats are not always available, so we put them behind
     // base::optional so that we can enable them at runtime depending on system
     // capabilities.
-    base::Optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
+    absl::optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
         free_gpu_memory;
-    base::Optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
+    absl::optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
         used_gpu_memory;
 
     base::CVal<int64, base::CValPublic> app_start_time;
@@ -174,8 +174,8 @@ class Application {
   void UpdatePeriodicStats();
   void DispatchEventInternal(base::Event* event);
 
-  base::Optional<int64_t> preload_timestamp_;
-  base::Optional<int64_t> start_timestamp_;
+  absl::optional<int64_t> preload_timestamp_;
+  absl::optional<int64_t> start_timestamp_;
 
   // Json PrefStore used for persistent settings.
   std::unique_ptr<persistent_storage::PersistentSettings> persistent_settings_;

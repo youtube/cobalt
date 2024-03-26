@@ -71,7 +71,7 @@ ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
                      result_message_loop_),
           base::Bind(
               &PostToMessageLoopChecked<loader::Decoder::OnCompleteFunction,
-                                        base::Optional<std::string>>,
+                                        absl::optional<std::string>>,
               weak_this_, load_complete_callback, result_message_loop_))) {
   DCHECK(load_message_loop_);
   DCHECK(result_message_loop_);

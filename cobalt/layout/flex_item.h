@@ -19,9 +19,9 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/layout_unit.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
@@ -81,14 +81,14 @@ class FlexItem {
 
   // Determine the flex base size.
   //   https://www.w3.org/TR/css-flexbox-1/#flex-base-size
-  void DetermineFlexBaseSize(const base::Optional<LayoutUnit>& main_space,
+  void DetermineFlexBaseSize(const absl::optional<LayoutUnit>& main_space,
                              bool container_shrink_to_fit_width_forced);
 
   // Determine the hypothetical main size.
   //   https://www.w3.org/TR/css-flexbox-1/#hypothetical-main-size
   void DetermineHypotheticalMainSize(const SizeLayoutUnit& available_space);
 
-  base::Optional<LayoutUnit> GetContentBasedMinimumSize(
+  absl::optional<LayoutUnit> GetContentBasedMinimumSize(
       const SizeLayoutUnit& containing_block_size) const;
 
   // Return the size difference between the content and margin box on the main
@@ -100,23 +100,23 @@ class FlexItem {
   virtual LayoutUnit GetContentToMarginCrossAxis() const = 0;
 
   // Return the used style for the size in the main axis.
-  virtual base::Optional<LayoutUnit> GetUsedMainAxisSizeIfNotAuto(
+  virtual absl::optional<LayoutUnit> GetUsedMainAxisSizeIfNotAuto(
       const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Return the used style for the min size in the main axis.
-  virtual base::Optional<LayoutUnit> GetUsedMinMainAxisSizeIfNotAuto(
+  virtual absl::optional<LayoutUnit> GetUsedMinMainAxisSizeIfNotAuto(
       const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Return the used style for the min size in the cross axis.
-  virtual base::Optional<LayoutUnit> GetUsedMinCrossAxisSizeIfNotAuto(
+  virtual absl::optional<LayoutUnit> GetUsedMinCrossAxisSizeIfNotAuto(
       const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Return the used style for the max size in the main axis.
-  virtual base::Optional<LayoutUnit> GetUsedMaxMainAxisSizeIfNotNone(
+  virtual absl::optional<LayoutUnit> GetUsedMaxMainAxisSizeIfNotNone(
       const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Return the used style for the max size in the cross axis.
-  virtual base::Optional<LayoutUnit> GetUsedMaxCrossAxisSizeIfNotNone(
+  virtual absl::optional<LayoutUnit> GetUsedMaxCrossAxisSizeIfNotNone(
       const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Determine the hypothetical cross size.

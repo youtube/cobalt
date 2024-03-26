@@ -69,7 +69,7 @@ class TestWithJavaScriptBase {
 
   bool EvaluateScript(
       const std::string& js_code,
-      base::Optional<script::ValueHandleHolder::Reference>* result) {
+      absl::optional<script::ValueHandleHolder::Reference>* result) {
     DCHECK(global_environment());
     return global_environment()->EvaluateScript(
         CreateSourceCodeAndPrepareEval(js_code),

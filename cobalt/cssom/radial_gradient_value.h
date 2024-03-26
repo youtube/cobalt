@@ -22,11 +22,11 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/color_stop.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace cssom {
@@ -74,7 +74,7 @@ class RadialGradientValue : public PropertyValue {
 
   const Shape& shape() const { return shape_; }
 
-  base::Optional<SizeKeyword> size_keyword() const { return size_keyword_; }
+  absl::optional<SizeKeyword> size_keyword() const { return size_keyword_; }
   const scoped_refptr<PropertyListValue>& size_value() const {
     return size_value_;
   }
@@ -95,7 +95,7 @@ class RadialGradientValue : public PropertyValue {
   const Shape shape_;
 
   // Exactly one of |size_keyword_| and |size_value_| is engaged.
-  const base::Optional<SizeKeyword> size_keyword_;
+  const absl::optional<SizeKeyword> size_keyword_;
   const scoped_refptr<PropertyListValue> size_value_;
 
   const scoped_refptr<PropertyListValue> position_;

@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/url_canon.h"
 
@@ -25,7 +25,7 @@ namespace base {
 
 // Returns a filesystem-safe key that corresponds to the application whose start
 // URL is |url|. Returns nullopt if |url| is not a valid URL.
-Optional<std::string> GetApplicationKey(const GURL& url);
+absl::optional<std::string> GetApplicationKey(const GURL& url);
 
 }  // namespace base
 

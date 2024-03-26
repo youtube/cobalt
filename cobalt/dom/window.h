@@ -121,7 +121,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
   typedef web::UrlRegistry<MediaSource> MediaSourceRegistry;
   typedef base::Callback<void(const std::string&,
-                              const base::Optional<std::string>&)>
+                              const absl::optional<std::string>&)>
       CacheCallback;
   typedef base::Callback<void(
       const scoped_refptr<ui_navigation::NavItem>& nav_item)>
@@ -368,7 +368,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
 
   // Cache the passed in splash screen content for the window.location URL.
   void CacheSplashScreen(const std::string& content,
-                         const base::Optional<std::string>& topic);
+                         const absl::optional<std::string>& topic);
 
   void CancelScroll(const scoped_refptr<ui_navigation::NavItem>& nav_item);
 

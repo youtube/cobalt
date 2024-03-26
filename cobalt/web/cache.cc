@@ -289,7 +289,7 @@ script::HandlePromiseVoid Cache::Put(
              std::unique_ptr<script::ValuePromiseVoid::Reference>
                  promise_reference,
              v8::Local<v8::Promise> array_buffer_promise)
-              -> base::Optional<v8::Local<v8::Promise>> {
+              -> absl::optional<v8::Local<v8::Promise>> {
             uint32_t key =
                 cache_utils::GetKey(environment_settings->base_url(),
                                     request_reference->referenced_value());
@@ -300,7 +300,7 @@ script::HandlePromiseVoid Cache::Put(
                 cache_utils::ToV8Value(response_reference->referenced_value()));
             if (!options) {
               promise_reference->value().Reject();
-              return base::nullopt;
+              return absl::nullopt;
             }
             base::DictionaryValue metadata;
             metadata.SetKey("url", base::Value(url));
@@ -310,7 +310,7 @@ script::HandlePromiseVoid Cache::Put(
                 cache_utils::ToUint8Vector(array_buffer_promise->Result()),
                 std::move(metadata));
             promise_reference->value().Resolve();
-            return base::nullopt;
+            return absl::nullopt;
           },
           environment_settings, std::move(request_reference),
           std::move(response_reference), std::move(promise_reference)));
@@ -386,7 +386,7 @@ script::HandlePromiseAny Cache::Keys(
               if (!url) {
                 continue;
               }
-              base::Optional<v8::Local<v8::Value>> request =
+              absl::optional<v8::Local<v8::Value>> request =
                   cache_utils::CreateRequest(isolate, url->GetString());
               if (request) {
                 requests.push_back(std::move(request.value()));

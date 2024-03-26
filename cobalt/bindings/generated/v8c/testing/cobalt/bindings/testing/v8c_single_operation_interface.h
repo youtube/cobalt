@@ -41,7 +41,7 @@ class V8cSingleOperationInterface : public script::v8c::ScopedPersistent<v8::Val
   V8cSingleOperationInterface(v8::Isolate* isolate, v8::Local<v8::Value> handle)
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
-  base::Optional<int32_t > HandleCallback(
+  absl::optional<int32_t > HandleCallback(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<ArbitraryInterface>& value,
       bool* had_exception) const override;

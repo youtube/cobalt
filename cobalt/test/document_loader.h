@@ -18,7 +18,6 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -37,6 +36,7 @@
 #include "cobalt/loader/loader.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/script/fake_script_runner.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace test {
@@ -95,7 +95,7 @@ class DocumentLoader : public dom::DocumentObserver {
   dom::Document* document() { return document_.get(); }
 
  private:
-  static void OnLoadComplete(const base::Optional<std::string>& error) {
+  static void OnLoadComplete(const absl::optional<std::string>& error) {
     if (error) DLOG(ERROR) << *error;
   }
 

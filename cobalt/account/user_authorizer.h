@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/time/time.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace account {
@@ -29,7 +29,7 @@ struct AccessToken {
   std::string token_value;
 
   // The absolute time that this token expires, if any.
-  base::Optional<base::Time> expiry;
+  absl::optional<base::Time> expiry;
 };
 
 // Platform-specific mechanism to authorize a user to access protected resources

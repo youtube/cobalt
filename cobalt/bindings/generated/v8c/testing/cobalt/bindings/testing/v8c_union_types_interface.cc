@@ -189,7 +189,7 @@ void unionWithNullableMemberPropertyAttributeSetter(
                        V8cExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value,
                        v8::Local<v8::Value> v8_value) {
-  TypeTraits<base::Optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<absl::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -230,7 +230,7 @@ void nullableUnionPropertyAttributeSetter(
                        V8cExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value,
                        v8::Local<v8::Value> v8_value) {
-  TypeTraits<base::Optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<absl::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {

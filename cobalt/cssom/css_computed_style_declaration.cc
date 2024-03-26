@@ -45,10 +45,10 @@ unsigned int CSSComputedStyleDeclaration::length() const {
 // The item(index) method must return the property name of the CSS declaration
 // at position index.
 //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
-base::Optional<std::string> CSSComputedStyleDeclaration::Item(
+absl::optional<std::string> CSSComputedStyleDeclaration::Item(
     unsigned int index) const {
-  if (index >= length()) return base::nullopt;
-  return base::Optional<std::string>(
+  if (index >= length()) return absl::nullopt;
+  return absl::optional<std::string>(
       GetPropertyName(GetLexicographicalLonghandPropertyKey(index)));
 }
 

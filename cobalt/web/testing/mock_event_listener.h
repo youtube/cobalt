@@ -19,12 +19,12 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_listener.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web {
@@ -32,7 +32,7 @@ namespace testing {
 
 class MockEventListener : public EventListener {
  public:
-  typedef base::Optional<bool> (*HandleEventFunction)(
+  typedef absl::optional<bool> (*HandleEventFunction)(
       const scoped_refptr<script::Wrappable>&, const scoped_refptr<Event>&,
       bool*);
 
@@ -42,7 +42,7 @@ class MockEventListener : public EventListener {
   }
 
   MOCK_CONST_METHOD3(
-      HandleEvent, base::Optional<bool>(const scoped_refptr<script::Wrappable>&,
+      HandleEvent, absl::optional<bool>(const scoped_refptr<script::Wrappable>&,
                                         const scoped_refptr<Event>&, bool*));
 
   void ExpectHandleEventCall(const scoped_refptr<Event>& event,
@@ -117,35 +117,35 @@ class MockEventListener : public EventListener {
     EXPECT_CALL(*this, HandleEvent(_, _, _)).Times(0);
   }
 
-  static base::Optional<bool> DoNothing(const scoped_refptr<script::Wrappable>&,
+  static absl::optional<bool> DoNothing(const scoped_refptr<script::Wrappable>&,
                                         const scoped_refptr<Event>&,
                                         bool* had_exception) {
     *had_exception = false;
-    return base::nullopt;
+    return absl::nullopt;
   }
 
-  static base::Optional<bool> StopPropagation(
+  static absl::optional<bool> StopPropagation(
       const scoped_refptr<script::Wrappable>&,
       const scoped_refptr<Event>& event, bool* had_exception) {
     *had_exception = false;
     event->StopPropagation();
-    return base::nullopt;
+    return absl::nullopt;
   }
 
-  static base::Optional<bool> StopImmediatePropagation(
+  static absl::optional<bool> StopImmediatePropagation(
       const scoped_refptr<script::Wrappable>&,
       const scoped_refptr<Event>& event, bool* had_exception) {
     *had_exception = false;
     event->StopImmediatePropagation();
-    return base::nullopt;
+    return absl::nullopt;
   }
 
-  static base::Optional<bool> PreventDefault(
+  static absl::optional<bool> PreventDefault(
       const scoped_refptr<script::Wrappable>&,
       const scoped_refptr<Event>& event, bool* had_exception) {
     *had_exception = false;
     event->PreventDefault();
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   virtual ~MockEventListener() {}
@@ -159,7 +159,7 @@ class MockEventListener : public EventListener {
     // No JavaScript exception, and no return value.
     ON_CALL(*this, HandleEvent(_, _, _))
         .WillByDefault(
-            DoAll(SetArgPointee<2>(false), Return(base::Optional<bool>())));
+            DoAll(SetArgPointee<2>(false), Return(absl::optional<bool>())));
   }
 };
 }  // namespace testing

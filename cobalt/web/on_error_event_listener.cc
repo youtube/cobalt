@@ -25,7 +25,7 @@
 namespace cobalt {
 namespace web {
 
-base::Optional<bool> OnErrorEventListener::HandleEvent(
+absl::optional<bool> OnErrorEventListener::HandleEvent(
     const scoped_refptr<script::Wrappable>& callback_this,
     const scoped_refptr<Event>& event, bool* had_exception,
     bool unpack_error_events) const {

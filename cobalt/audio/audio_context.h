@@ -22,7 +22,6 @@
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/audio/async_audio_decoder.h"
 #include "cobalt/audio/audio_buffer.h"
@@ -36,6 +35,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/event_target.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace audio {
@@ -174,7 +174,7 @@ class AudioContext : public web::EventTarget {
 
     std::string audio_data;
     DecodeSuccessCallbackReference success_callback;
-    base::Optional<DecodeErrorCallbackReference> error_callback;
+    absl::optional<DecodeErrorCallbackReference> error_callback;
   };
 
   typedef base::hash_map<int, DecodeCallbackInfo*> DecodeCallbacks;

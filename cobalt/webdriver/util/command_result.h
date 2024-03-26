@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/webdriver/protocol/response.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -55,8 +55,8 @@ class CommandResult {
 
  private:
   protocol::Response::StatusCode status_code_;
-  base::Optional<T> result_;
-  base::Optional<std::string> error_message_;
+  absl::optional<T> result_;
+  absl::optional<std::string> error_message_;
   bool can_retry_;
 };
 
@@ -85,7 +85,7 @@ class CommandResult<void> {
 
  private:
   protocol::Response::StatusCode status_code_;
-  base::Optional<std::string> error_message_;
+  absl::optional<std::string> error_message_;
   bool can_retry_;
 };
 

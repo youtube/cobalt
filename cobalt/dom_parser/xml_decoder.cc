@@ -41,7 +41,7 @@ void XMLDecoder::Finish() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   libxml_xml_parser_wrapper_->Finish();
   if (!load_complete_callback_.is_null()) {
-    load_complete_callback_.Run(base::nullopt);
+    load_complete_callback_.Run(absl::nullopt);
   }
 }
 

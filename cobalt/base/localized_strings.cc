@@ -19,17 +19,17 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/optional.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
 namespace {
 
-base::Optional<base::FilePath> GetFilenameForLanguage(
+absl::optional<base::FilePath> GetFilenameForLanguage(
     const std::string& language) {
   const int kBufferSize = 256;
   char buffer[kBufferSize];
@@ -37,7 +37,7 @@ base::Optional<base::FilePath> GetFilenameForLanguage(
       SbSystemGetPath(kSbSystemPathContentDirectory, buffer, kBufferSize);
   if (!got_path) {
     DLOG(ERROR) << "Cannot get content path for i18n files.";
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   return base::FilePath(buffer).Append("i18n").Append(language).AddExtension(

@@ -20,12 +20,12 @@
 
 #include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/animations/animation_list.h"
 #include "cobalt/render_tree/movable.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/node_visitor.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -261,7 +261,7 @@ class AnimateNode : public Node {
   // will get set when Apply() is called to produce a new AnimateNode that can
   // then be Apply()d again.  It can be used during the second apply to check
   // if some animations have expired.
-  base::Optional<base::TimeDelta> snapshot_time_;
+  absl::optional<base::TimeDelta> snapshot_time_;
 };
 
 }  // namespace animations

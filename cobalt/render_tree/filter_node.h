@@ -19,7 +19,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/optional.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/render_tree/blur_filter.h"
 #include "cobalt/render_tree/map_to_mesh_filter.h"
@@ -27,6 +26,7 @@
 #include "cobalt/render_tree/opacity_filter.h"
 #include "cobalt/render_tree/shadow.h"
 #include "cobalt/render_tree/viewport_filter.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -68,21 +68,21 @@ class FilterNode : public Node {
 
     // If set, this filter will make the source subtree appear transparent,
     // with the level of transparency dictated by the OpacityFilter's value.
-    base::Optional<OpacityFilter> opacity_filter;
+    absl::optional<OpacityFilter> opacity_filter;
 
     // If set, this filter will specify the viewport of source content. Only
     // the source content within the viewport rectangle will be rendered.
     // Rounded corners may be specified on this filter.
-    base::Optional<ViewportFilter> viewport_filter;
+    absl::optional<ViewportFilter> viewport_filter;
 
     // If set, then a Gaussian blur will be applied to the source with a
     // Gaussian kernel of standard deviation |blur_sigma|.
-    base::Optional<BlurFilter> blur_filter;
+    absl::optional<BlurFilter> blur_filter;
 
     // If set, indicates that the rasterized output of the source content should
     // be used as a texture which is then mapped onto a 3D mesh specified by the
     // filter.
-    base::Optional<MapToMeshFilter> map_to_mesh_filter;
+    absl::optional<MapToMeshFilter> map_to_mesh_filter;
   };
 
   // Forwarding constructor to the set of Builder constructors.

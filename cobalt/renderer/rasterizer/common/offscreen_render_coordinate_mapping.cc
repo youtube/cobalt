@@ -35,7 +35,7 @@ float GetFractionalComponent(float value) { return value - std::floor(value); }
 
 OffscreenRenderCoordinateMapping GetOffscreenRenderCoordinateMapping(
     const RectF& local_bounds, const Matrix3F& transform,
-    const base::Optional<Rect>& viewport_bounds) {
+    const absl::optional<Rect>& viewport_bounds) {
   bool has_rotation_or_skew =
       transform.Get(0, 1) != 0 || transform.Get(1, 0) != 0;
 

@@ -22,7 +22,6 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/circular_buffer_shell.h"
 #include "cobalt/csp/content_security_policy.h"
@@ -33,6 +32,7 @@
 #include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -132,7 +132,7 @@ class URLFetcherDataSource : public DataSource,
   base::CircularBufferShell buffer_;
   uint64 buffer_offset_;
 
-  base::Optional<uint64> total_size_of_resource_;
+  absl::optional<uint64> total_size_of_resource_;
   bool error_occured_;
 
   uint64 last_request_offset_;

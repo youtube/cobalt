@@ -136,7 +136,7 @@ void CachedResourceBase::ScheduleLoadingRetry() {
 }
 
 void CachedResourceBase::OnLoadingComplete(
-    const base::Optional<std::string>& error) {
+    const absl::optional<std::string>& error) {
   DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
 
   if (loader_ != nullptr) {

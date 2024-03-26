@@ -16,13 +16,13 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/layout_tests/test_utils.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using cobalt::cssom::ViewportSize;
 
@@ -44,7 +44,7 @@ GURL GetURLFromBaseFilePath(const base::FilePath& base_file_path) {
               base_file_path.AddExtension("html").value());
 }
 
-base::Optional<TestInfo> ParseLayoutTestCaseLine(
+absl::optional<TestInfo> ParseLayoutTestCaseLine(
     const base::FilePath& top_level, const std::string& line_string) {
   // The test case file path can optionally be postfixed by a colon and a
   // viewport resolution.
@@ -52,7 +52,7 @@ base::Optional<TestInfo> ParseLayoutTestCaseLine(
       line_string, ":", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   DCHECK(!file_path_tokens.empty());
 
-  base::Optional<cssom::ViewportSize> viewport_size;
+  absl::optional<cssom::ViewportSize> viewport_size;
   if (file_path_tokens.size() > 1) {
     DCHECK_EQ(2u, file_path_tokens.size());
     // If there is a colon, the string that comes after the colon contains the
@@ -72,7 +72,7 @@ base::Optional<TestInfo> ParseLayoutTestCaseLine(
   TrimWhitespaceASCII(file_path_tokens[0], base::TRIM_ALL,
                       &base_file_path_string);
   if (base_file_path_string.empty()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   base::FilePath base_file_path(top_level.Append(base_file_path_string));
 
@@ -110,7 +110,7 @@ std::vector<TestInfo> EnumerateLayoutTests(const std::string& top_level) {
         // Skip comment lines.
         continue;
       }
-      base::Optional<TestInfo> parsed_test_info =
+      absl::optional<TestInfo> parsed_test_info =
           ParseLayoutTestCaseLine(base::FilePath(top_level), *iter);
       if (!parsed_test_info) {
         continue;

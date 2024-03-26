@@ -257,7 +257,7 @@ LayoutManager::Impl::DoSynchronousLayoutAndGetRenderTree() {
                                             layout_stat_tracker_,
                                             &initial_containing_block_);
 
-  base::Optional<double> current_time_milliseconds =
+  absl::optional<double> current_time_milliseconds =
       this->window_->document()->timeline()->current_time();
   DCHECK(current_time_milliseconds.has_value());
   base::TimeDelta current_time =

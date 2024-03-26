@@ -21,7 +21,7 @@ namespace {
 const char kFrameIdKey[] = "id";
 }  // namespace
 
-base::Optional<FrameId> FrameId::FromValue(const base::Value* value) {
+absl::optional<FrameId> FrameId::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   const base::Value* frame_id_value;
   if (value->GetAsDictionary(&dictionary_value) &&
@@ -41,10 +41,10 @@ base::Optional<FrameId> FrameId::FromValue(const base::Value* value) {
       case base::Value::Type::DOUBLE:
       case base::Value::Type::LIST:
         // Malformed parameter.
-        return base::nullopt;
+        return absl::nullopt;
     }
   }
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 }  // namespace protocol

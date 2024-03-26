@@ -35,7 +35,7 @@ class FetcherToDecoderAdapter;
 // decoder creators.
 class LoaderOnThread {
  public:
-  LoaderOnThread(base::Callback<void(const base::Optional<std::string>&)>
+  LoaderOnThread(base::Callback<void(const absl::optional<std::string>&)>
                      load_complete_callback)
       : load_complete_callback_(load_complete_callback),
         load_complete_waitable_event_(
@@ -52,7 +52,7 @@ class LoaderOnThread {
              base::Callback<std::unique_ptr<Decoder>()> decoder_creator);
   void End();
 
-  void SignalLoadComplete(const base::Optional<std::string>& error) {
+  void SignalLoadComplete(const absl::optional<std::string>& error) {
     load_complete_callback_.Run(error);
     load_complete_waitable_event_.Signal();
   }
@@ -73,7 +73,7 @@ class LoaderOnThread {
   void WaitForEnd() { end_waitable_event_.Wait(); }
 
  private:
-  base::Callback<void(const base::Optional<std::string>&)>
+  base::Callback<void(const absl::optional<std::string>&)>
       load_complete_callback_;
 
   std::unique_ptr<Decoder> decoder_;
@@ -90,7 +90,7 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
  public:
   FetcherToDecoderAdapter(
       LoaderOnThread* loader_on_thread, Decoder* decoder,
-      base::Callback<void(const base::Optional<std::string>&)>
+      base::Callback<void(const absl::optional<std::string>&)>
           load_complete_callback)
       : loader_on_thread_(loader_on_thread), decoder_(decoder) {}
 
@@ -102,7 +102,7 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
     DCHECK(fetcher);
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
-    loader_on_thread_->SignalLoadComplete(base::nullopt);
+    loader_on_thread_->SignalLoadComplete(absl::nullopt);
   }
   void OnError(Fetcher* fetcher, const std::string& error) override {
     loader_on_thread_->SignalLoadComplete(error);
@@ -151,7 +151,7 @@ void LoadSynchronously(
     base::MessageLoop* message_loop, base::WaitableEvent* interrupt_trigger,
     base::Callback<std::unique_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
     base::Callback<std::unique_ptr<Decoder>()> decoder_creator,
-    base::Callback<void(const base::Optional<std::string>&)>
+    base::Callback<void(const absl::optional<std::string>&)>
         load_complete_callback) {
   TRACE_EVENT0("cobalt::loader", "LoadSynchronously()");
   DCHECK(message_loop);

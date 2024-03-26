@@ -40,11 +40,11 @@ int StorageArea::length() {
   return static_cast<int>(storage_map_->size());
 }
 
-base::Optional<std::string> StorageArea::Key(int index) {
+absl::optional<std::string> StorageArea::Key(int index) {
   Init();
 
   if (index < 0 || index >= length()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   // Advance N elements to get to index.
   // TODO: If this is called often, we should cache the iterator.
@@ -57,21 +57,21 @@ base::Optional<std::string> StorageArea::Key(int index) {
   return it->first;
 }
 
-base::Optional<std::string> StorageArea::GetItem(const std::string& key) {
+absl::optional<std::string> StorageArea::GetItem(const std::string& key) {
   Init();
 
   StorageMap::const_iterator it = storage_map_->find(key);
   if (it != storage_map_->end()) {
     return it->second;
   } else {
-    return base::nullopt;
+    return absl::nullopt;
   }
 }
 
 void StorageArea::SetItem(const std::string& key, const std::string& value) {
   Init();
 
-  base::Optional<std::string> old_value = GetItem(key);
+  absl::optional<std::string> old_value = GetItem(key);
 
   // If the previous value is equal to value, then the method must do nothing.
   // https://www.w3.org/TR/2015/CR-webstorage-20150609/#storage-0
@@ -103,7 +103,7 @@ void StorageArea::RemoveItem(const std::string& key) {
   size_bytes_ -= static_cast<int>(it->second.length());
   std::string old_value = it->second;
   storage_map_->erase(it);
-  storage_node_->DispatchEvent(key, old_value, base::nullopt);
+  storage_node_->DispatchEvent(key, old_value, absl::nullopt);
   if (db_interface_) {
     db_interface_->Delete(origin_, key);
   }
@@ -114,7 +114,7 @@ void StorageArea::Clear() {
 
   storage_map_->clear();
   size_bytes_ = 0;
-  storage_node_->DispatchEvent(base::nullopt, base::nullopt, base::nullopt);
+  storage_node_->DispatchEvent(absl::nullopt, absl::nullopt, absl::nullopt);
   if (db_interface_) {
     db_interface_->Clear(origin_);
   }

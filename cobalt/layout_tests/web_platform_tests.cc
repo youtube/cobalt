@@ -166,7 +166,7 @@ void WindowCloseCallback(base::RunLoop* run_loop,
 
 // Called when layout completes.
 void WebModuleOnRenderTreeProducedCallback(
-    base::Optional<browser::WebModule::LayoutResults>* out_results,
+    absl::optional<browser::WebModule::LayoutResults>* out_results,
     const browser::WebModule::LayoutResults& results) {
   out_results->emplace(results.render_tree, results.layout_time);
 }
@@ -237,7 +237,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   web_module_options.web_options.platform_info = platform_info.get();
 
   // Prepare a slot for our results to be placed when ready.
-  base::Optional<browser::WebModule::LayoutResults> results;
+  absl::optional<browser::WebModule::LayoutResults> results;
   base::RunLoop run_loop;
 
   // Run the WebModule and wait for a layout to occur.

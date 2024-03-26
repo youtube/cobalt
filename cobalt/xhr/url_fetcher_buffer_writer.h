@@ -21,13 +21,13 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/task_runner.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/xhr/fetch_buffer_pool.h"
 #include "net/base/io_buffer.h"
 #include "net/url_request/url_fetcher_response_writer.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace xhr {
@@ -47,12 +47,12 @@ class URLFetcherResponseWriter : public net::URLFetcherResponseWriter {
     // This ctor should be used when |type| isn't |kBufferPool|, it's checked in
     // the implementation.
     Buffer(Type type,
-           const base::Optional<bool>& enable_try_lock_for_progress_check);
+           const absl::optional<bool>& enable_try_lock_for_progress_check);
     // This ctor should be used when |type| is |kBufferPool|, it's checked in
     // the implementation.
     Buffer(Type type,
-           const base::Optional<bool>& enable_try_lock_for_progress_check,
-           const base::Optional<int>& fetch_buffer_size);
+           const absl::optional<bool>& enable_try_lock_for_progress_check,
+           const absl::optional<int>& fetch_buffer_size);
 
     void DisablePreallocate();
     void Clear();

@@ -22,7 +22,7 @@
 
 #include <string>
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/script_value.h"

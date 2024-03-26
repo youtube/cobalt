@@ -20,29 +20,29 @@
 #include <string>
 #include <vector>
 
-#include "base/optional.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/configuration/configuration.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
 namespace {
 
-base::Optional<int64_t> MakeValidIfGreaterThanOrEqualToZero(int64_t value) {
-  base::Optional<int64_t> output;
+absl::optional<int64_t> MakeValidIfGreaterThanOrEqualToZero(int64_t value) {
+  absl::optional<int64_t> output;
   if (value >= 0) {
     output = value;
   }
   return output;
 }
 
-base::Optional<TextureDimensions> MakeDimensionsIfValid(TextureDimensions td) {
-  base::Optional<TextureDimensions> output;
+absl::optional<TextureDimensions> MakeDimensionsIfValid(TextureDimensions td) {
+  absl::optional<TextureDimensions> output;
   if ((td.width() > 0) && (td.height() > 0) && td.bytes_per_pixel() > 0) {
     output = td;
   }
@@ -111,11 +111,11 @@ int64_t ParseMemoryValue(const std::string& value, bool* parse_ok) {
 }
 
 template <typename ValueType>
-bool TryParseValue(base::Optional<ValueType>* destination,
+bool TryParseValue(absl::optional<ValueType>* destination,
                    const std::string& string_value);
 
 template <>
-bool TryParseValue<int64_t>(base::Optional<int64_t>* destination,
+bool TryParseValue<int64_t>(absl::optional<int64_t>* destination,
                             const std::string& string_value) {
   bool parse_ok = false;
   int64_t int_value = ParseMemoryValue(string_value, &parse_ok);
@@ -131,7 +131,7 @@ bool TryParseValue<int64_t>(base::Optional<int64_t>* destination,
 
 template <>
 bool TryParseValue<TextureDimensions>(
-    base::Optional<TextureDimensions>* destination,
+    absl::optional<TextureDimensions>* destination,
     const std::string& string_value) {
   std::vector<ParsedIntValue> int_values = ParseDimensions(string_value);
 
@@ -173,7 +173,7 @@ TextureDimensions GetAutosetValue() {
 
 template <typename ValueType>
 bool Set(const base::CommandLine& command_line,
-         base::Optional<ValueType>* setting, const char* setting_name) {
+         absl::optional<ValueType>* setting, const char* setting_name) {
   if (!command_line.HasSwitch(setting_name)) {
     return true;
   }

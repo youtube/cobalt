@@ -21,7 +21,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/strings/string_piece.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
@@ -30,6 +29,7 @@
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/shadow.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -63,7 +63,7 @@ class TextNode : public Node {
 
     // Shadows to be applied under the text.  These will be drawn in
     // back-to-front order, so the last shadow will be on the bottom.
-    base::Optional<std::vector<Shadow> > shadows;
+    absl::optional<std::vector<Shadow> > shadows;
   };
 
   // Forwarding constructor to the set of Builder constructors.

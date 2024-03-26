@@ -144,7 +144,7 @@ class SubmissionQueue {
   // 0.  Theoretically, its actual value doesn't really matter, but this method
   // keeps the origin on the same order as the current clock values in order
   // to avoid the chance of floating point error.
-  base::Optional<base::TimeTicks> renderer_time_origin_;
+  absl::optional<base::TimeTicks> renderer_time_origin_;
 
   // The queue of submissions, sorted in ascending order of times.
   SubmissionQueueInternal submission_queue_;
@@ -162,7 +162,7 @@ class SubmissionQueue {
 
   // Debug value to help DCHECK that input |now| values are monotonically
   // increasing.
-  base::Optional<base::TimeTicks> last_now_;
+  absl::optional<base::TimeTicks> last_now_;
 
   base::CVal<base::TimeDelta> to_submission_time_cval_;
   base::CVal<size_t> queue_size_;

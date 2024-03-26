@@ -19,10 +19,10 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/dom/device_orientation_event_init.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -41,17 +41,17 @@ class DeviceOrientationEvent : public web::Event {
   DeviceOrientationEvent(const std::string& type,
                          const DeviceOrientationEventInit& init);
 
-  base::Optional<double> alpha() const { return alpha_; }
-  base::Optional<double> beta() const { return beta_; }
-  base::Optional<double> gamma() const { return gamma_; }
+  absl::optional<double> alpha() const { return alpha_; }
+  absl::optional<double> beta() const { return beta_; }
+  absl::optional<double> gamma() const { return gamma_; }
   bool absolute() const { return absolute_; }
 
   DEFINE_WRAPPABLE_TYPE(DeviceOrientationEvent);
 
  private:
-  base::Optional<double> alpha_;
-  base::Optional<double> beta_;
-  base::Optional<double> gamma_;
+  absl::optional<double> alpha_;
+  absl::optional<double> beta_;
+  absl::optional<double> gamma_;
   bool absolute_;
 
   DISALLOW_COPY_AND_ASSIGN(DeviceOrientationEvent);

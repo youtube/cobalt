@@ -17,7 +17,6 @@
 #include <memory>
 #include <vector>
 
-#include "base/optional.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/dom_settings.h"
@@ -32,6 +31,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/media.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -199,7 +199,7 @@ const scoped_refptr<media_session::MediaSession>& Navigator::media_session() {
 //       with the order of declaration.
 // See
 // https://www.w3.org/TR/encrypted-media/#get-supported-capabilities-for-audio-video-type.
-base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
+absl::optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
 Navigator::TryGetSupportedCapabilities(
     const media::CanPlayTypeHandler& can_play_type_handler,
     const std::string& key_system,
@@ -219,7 +219,7 @@ Navigator::TryGetSupportedCapabilities(
     const std::string& content_type = requested_media_capability.content_type();
     // 3.3. If content type is the empty string, return null.
     if (content_type.empty()) {
-      return base::nullopt;
+      return absl::nullopt;
     }
     // 3.13. If the user agent and [CDM] implementation definitely support
     //       playback of encrypted media data for the combination of container,
@@ -232,7 +232,7 @@ Navigator::TryGetSupportedCapabilities(
   }
   // 4. If supported media capabilities is empty, return null.
   if (supported_media_capabilities.empty()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   // 5. Return supported media capabilities.
   return supported_media_capabilities;
@@ -244,7 +244,7 @@ Navigator::TryGetSupportedCapabilities(
 // is always given and go straight to "3.1.1.2 Get Supported Configuration and
 // Consent". See
 // https://www.w3.org/TR/encrypted-media/#get-supported-configuration-and-consent.
-base::Optional<eme::MediaKeySystemConfiguration>
+absl::optional<eme::MediaKeySystemConfiguration>
 Navigator::TryGetSupportedConfiguration(
     const media::CanPlayTypeHandler& can_play_type_handler,
     const std::string& key_system,
@@ -280,7 +280,7 @@ Navigator::TryGetSupportedConfiguration(
        candidate_configuration.video_capabilities().empty()) &&
       (!candidate_configuration.has_audio_capabilities() ||
        candidate_configuration.audio_capabilities().empty())) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   // 16. If the videoCapabilities member in candidate configuration is
@@ -289,13 +289,13 @@ Navigator::TryGetSupportedConfiguration(
       !candidate_configuration.video_capabilities().empty()) {
     // 16.1. Let video capabilities be the result of executing the "Get
     //       Supported Capabilities for Audio/Video Type" algorithm.
-    base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
+    absl::optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
         maybe_video_capabilities = TryGetSupportedCapabilities(
             can_play_type_handler, key_system,
             candidate_configuration.video_capabilities());
     // 16.2. If video capabilities is null, return NotSupported.
     if (!maybe_video_capabilities) {
-      return base::nullopt;
+      return absl::nullopt;
     }
     // 16.3. Set the videoCapabilities member of accumulated configuration to
     //       video capabilities.
@@ -313,13 +313,13 @@ Navigator::TryGetSupportedConfiguration(
       !candidate_configuration.audio_capabilities().empty()) {
     // 17.1. Let audio capabilities be the result of executing the "Get
     //       Supported Capabilities for Audio/Video Type" algorithm.
-    base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
+    absl::optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
         maybe_audio_capabilities = TryGetSupportedCapabilities(
             can_play_type_handler, key_system,
             candidate_configuration.audio_capabilities());
     // 17.2. If audio capabilities is null, return NotSupported.
     if (!maybe_audio_capabilities) {
-      return base::nullopt;
+      return absl::nullopt;
     }
     // 17.3. Set the audioCapabilities member of accumulated configuration to
     //       audio capabilities.
@@ -372,7 +372,7 @@ Navigator::RequestMediaKeySystemAccess(
        configuration_index < supported_configurations.size();
        ++configuration_index) {
     // 6.3.3. If supported configuration is not NotSupported:
-    base::Optional<eme::MediaKeySystemConfiguration>
+    absl::optional<eme::MediaKeySystemConfiguration>
         maybe_supported_configuration = TryGetSupportedConfiguration(
             *dom_settings->can_play_type_handler(), key_system,
             supported_configurations.at(configuration_index));

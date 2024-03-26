@@ -43,13 +43,13 @@ std::unique_ptr<base::Value> Moveto::ToValue(const Moveto& moveto) {
   return std::unique_ptr<base::Value>(moveto_object.release());
 }
 
-base::Optional<Moveto> Moveto::FromValue(const base::Value* value) {
+absl::optional<Moveto> Moveto::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value = nullptr;
   if (!value->GetAsDictionary(&dictionary_value)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
-  base::Optional<ElementId> element;
+  absl::optional<ElementId> element;
   std::string element_id;
   if (dictionary_value->GetString(kElementKey, &element_id) &&
       !element_id.empty()) {
@@ -63,13 +63,13 @@ base::Optional<Moveto> Moveto::FromValue(const base::Value* value) {
   }
 
   int xoffset_value = 0;
-  base::Optional<int> xoffset;
+  absl::optional<int> xoffset;
   if (dictionary_value->GetInteger(kXoffsetKey, &xoffset_value)) {
     xoffset = xoffset_value;
   }
 
   int yoffset_value = 0;
-  base::Optional<int> yoffset;
+  absl::optional<int> yoffset;
   if (dictionary_value->GetInteger(kYoffsetKey, &yoffset_value)) {
     yoffset = yoffset_value;
   }

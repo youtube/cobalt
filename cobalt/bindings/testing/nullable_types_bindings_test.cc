@@ -71,24 +71,24 @@ TEST_F(NullableTypesBindingsTest, GetNullProperty) {
   std::string result;
 
   EXPECT_CALL(test_mock(), nullable_boolean_property())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(
       EvaluateScript("test.nullableBooleanProperty === null;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), nullable_numeric_property())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(
       EvaluateScript("test.nullableNumericProperty === null;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), nullable_string_property())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(EvaluateScript("test.nullableStringProperty === null;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), nullable_dictionary_property())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(
       EvaluateScript("test.nullableDictionaryProperty === null;", &result));
   EXPECT_STREQ("true", result.c_str());
@@ -104,18 +104,18 @@ TEST_F(NullableTypesBindingsTest, GetNonNullProperty) {
   std::string result;
 
   EXPECT_CALL(test_mock(), nullable_boolean_property())
-      .WillOnce(Return(base::Optional<bool>(true)));
+      .WillOnce(Return(absl::optional<bool>(true)));
   EXPECT_TRUE(
       EvaluateScript("test.nullableBooleanProperty === true;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), nullable_numeric_property())
-      .WillOnce(Return(base::Optional<int32_t>(5)));
+      .WillOnce(Return(absl::optional<int32_t>(5)));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericProperty === 5;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), nullable_string_property())
-      .WillOnce(Return(base::Optional<std::string>("foo")));
+      .WillOnce(Return(absl::optional<std::string>("foo")));
   EXPECT_TRUE(
       EvaluateScript("test.nullableStringProperty === \"foo\";", &result));
   EXPECT_STREQ("true", result.c_str());
@@ -123,7 +123,7 @@ TEST_F(NullableTypesBindingsTest, GetNonNullProperty) {
   TestDictionary test_dictionary;
   test_dictionary.set_string_member("foobar");
   EXPECT_CALL(test_mock(), nullable_dictionary_property())
-      .WillOnce(Return(base::Optional<TestDictionary>(test_dictionary)));
+      .WillOnce(Return(absl::optional<TestDictionary>(test_dictionary)));
   EXPECT_TRUE(
       EvaluateScript("test.nullableDictionaryProperty.stringMember;", &result));
   EXPECT_STREQ("foobar", result.c_str());
@@ -141,25 +141,25 @@ TEST_F(NullableTypesBindingsTest, ReturnNullFromOperation) {
   std::string result;
 
   EXPECT_CALL(test_mock(), NullableBooleanOperation())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(
       EvaluateScript("test.nullableBooleanOperation() === null;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), NullableNumericOperation())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(
       EvaluateScript("test.nullableNumericOperation() === null;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), NullableStringOperation())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(
       EvaluateScript("test.nullableStringOperation() === null;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), NullableDictionaryOperation())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(
       EvaluateScript("test.nullableDictionaryOperation() === null;", &result));
   EXPECT_STREQ("true", result.c_str());
@@ -176,19 +176,19 @@ TEST_F(NullableTypesBindingsTest, ReturnNonNullFromOperation) {
   std::string result;
 
   EXPECT_CALL(test_mock(), NullableBooleanOperation())
-      .WillOnce(Return(base::Optional<bool>(true)));
+      .WillOnce(Return(absl::optional<bool>(true)));
   EXPECT_TRUE(
       EvaluateScript("test.nullableBooleanOperation() === true;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), NullableNumericOperation())
-      .WillOnce(Return(base::Optional<int32_t>(5)));
+      .WillOnce(Return(absl::optional<int32_t>(5)));
   EXPECT_TRUE(
       EvaluateScript("test.nullableNumericOperation() === 5;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), NullableStringOperation())
-      .WillOnce(Return(base::Optional<std::string>("foo")));
+      .WillOnce(Return(absl::optional<std::string>("foo")));
   EXPECT_TRUE(
       EvaluateScript("test.nullableStringOperation() === \"foo\";", &result));
   EXPECT_STREQ("true", result.c_str());
@@ -196,7 +196,7 @@ TEST_F(NullableTypesBindingsTest, ReturnNonNullFromOperation) {
   TestDictionary test_dictionary;
   test_dictionary.set_string_member("foobar");
   EXPECT_CALL(test_mock(), NullableDictionaryOperation())
-      .WillOnce(Return(base::Optional<TestDictionary>(test_dictionary)));
+      .WillOnce(Return(absl::optional<TestDictionary>(test_dictionary)));
   EXPECT_TRUE(EvaluateScript("test.nullableDictionaryOperation().stringMember;",
                              &result));
   EXPECT_STREQ("foobar", result.c_str());
@@ -213,19 +213,19 @@ TEST_F(NullableTypesBindingsTest, SetNullProperty) {
   InSequence in_sequence_dummy;
 
   EXPECT_CALL(test_mock(),
-              set_nullable_boolean_property(base::Optional<bool>()));
+              set_nullable_boolean_property(absl::optional<bool>()));
   EXPECT_TRUE(EvaluateScript("test.nullableBooleanProperty = null;", NULL));
 
   EXPECT_CALL(test_mock(),
-              set_nullable_numeric_property(base::Optional<int32_t>()));
+              set_nullable_numeric_property(absl::optional<int32_t>()));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericProperty = null;", NULL));
 
   EXPECT_CALL(test_mock(),
-              set_nullable_string_property(base::Optional<std::string>()));
+              set_nullable_string_property(absl::optional<std::string>()));
   EXPECT_TRUE(EvaluateScript("test.nullableStringProperty = null;", NULL));
 
   EXPECT_CALL(test_mock(), set_nullable_dictionary_property(
-                               base::Optional<TestDictionary>()));
+                               absl::optional<TestDictionary>()));
   EXPECT_TRUE(EvaluateScript("test.nullableDictionaryProperty = null;", NULL));
 
   EXPECT_CALL(test_mock(), set_nullable_object_property(
@@ -237,22 +237,22 @@ TEST_F(NullableTypesBindingsTest, SetNonNullProperty) {
   InSequence in_sequence_dummy;
 
   EXPECT_CALL(test_mock(),
-              set_nullable_boolean_property(base::Optional<bool>(true)));
+              set_nullable_boolean_property(absl::optional<bool>(true)));
   EXPECT_TRUE(EvaluateScript("test.nullableBooleanProperty = true;", NULL));
 
   EXPECT_CALL(test_mock(),
-              set_nullable_numeric_property(base::Optional<int32_t>(5)));
+              set_nullable_numeric_property(absl::optional<int32_t>(5)));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericProperty = 5;", NULL));
 
   EXPECT_CALL(test_mock(),
-              set_nullable_string_property(base::Optional<std::string>("foo")));
+              set_nullable_string_property(absl::optional<std::string>("foo")));
   EXPECT_TRUE(EvaluateScript("test.nullableStringProperty = \"foo\";", NULL));
 
   TestDictionary test_dictionary;
   test_dictionary.set_string_member("foobar");
   EXPECT_CALL(test_mock(),
               set_nullable_dictionary_property(
-                  base::Optional<TestDictionary>(test_dictionary)));
+                  absl::optional<TestDictionary>(test_dictionary)));
   EXPECT_TRUE(EvaluateScript(
       "test.nullableDictionaryProperty = {stringMember: \"foobar\"};", NULL));
 
@@ -267,18 +267,18 @@ TEST_F(NullableTypesBindingsTest, SetNonNullProperty) {
 TEST_F(NullableTypesBindingsTest, PassNullArgument) {
   InSequence in_sequence_dummy;
 
-  EXPECT_CALL(test_mock(), NullableBooleanArgument(base::Optional<bool>()));
+  EXPECT_CALL(test_mock(), NullableBooleanArgument(absl::optional<bool>()));
   EXPECT_TRUE(EvaluateScript("test.nullableBooleanArgument(null);", NULL));
 
-  EXPECT_CALL(test_mock(), NullableNumericArgument(base::Optional<int32_t>()));
+  EXPECT_CALL(test_mock(), NullableNumericArgument(absl::optional<int32_t>()));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericArgument(null);", NULL));
 
   EXPECT_CALL(test_mock(),
-              NullableStringArgument(base::Optional<std::string>()));
+              NullableStringArgument(absl::optional<std::string>()));
   EXPECT_TRUE(EvaluateScript("test.nullableStringArgument(null);", NULL));
 
   EXPECT_CALL(test_mock(),
-              NullableDictionaryArgument(base::Optional<TestDictionary>()));
+              NullableDictionaryArgument(absl::optional<TestDictionary>()));
   EXPECT_TRUE(EvaluateScript("test.nullableDictionaryArgument(null);", NULL));
 
   EXPECT_CALL(test_mock(),
@@ -289,21 +289,21 @@ TEST_F(NullableTypesBindingsTest, PassNullArgument) {
 TEST_F(NullableTypesBindingsTest, PassNonNullArgument) {
   InSequence in_sequence_dummy;
 
-  EXPECT_CALL(test_mock(), NullableBooleanArgument(base::Optional<bool>(true)));
+  EXPECT_CALL(test_mock(), NullableBooleanArgument(absl::optional<bool>(true)));
   EXPECT_TRUE(EvaluateScript("test.nullableBooleanArgument(true);", NULL));
 
-  EXPECT_CALL(test_mock(), NullableNumericArgument(base::Optional<int32_t>(5)));
+  EXPECT_CALL(test_mock(), NullableNumericArgument(absl::optional<int32_t>(5)));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericArgument(5);", NULL));
 
   EXPECT_CALL(test_mock(),
-              NullableStringArgument(base::Optional<std::string>("foo")));
+              NullableStringArgument(absl::optional<std::string>("foo")));
   EXPECT_TRUE(EvaluateScript("test.nullableStringArgument(\"foo\");", NULL));
 
   TestDictionary test_dictionary;
   test_dictionary.set_string_member("foobar");
   EXPECT_CALL(test_mock(),
               NullableDictionaryArgument(
-                  base::Optional<TestDictionary>(test_dictionary)));
+                  absl::optional<TestDictionary>(test_dictionary)));
   EXPECT_TRUE(EvaluateScript(
       "test.nullableDictionaryArgument({stringMember: \"foobar\"});", NULL));
 

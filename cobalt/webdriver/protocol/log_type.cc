@@ -18,14 +18,14 @@ namespace cobalt {
 namespace webdriver {
 namespace protocol {
 
-base::Optional<LogType> LogType::FromValue(const base::Value* value) {
+absl::optional<LogType> LogType::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   std::string type;
   if (value->GetAsDictionary(&dictionary_value) &&
       dictionary_value->GetString("type", &type)) {
     return LogType(type);
   }
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 }  // namespace protocol

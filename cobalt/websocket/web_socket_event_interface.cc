@@ -117,7 +117,7 @@ int CobaltWebSocketEventHandler::OnAuthRequired(
     scoped_refptr<net::HttpResponseHeaders> response_headers,
     const net::HostPortPair& host_port_pair,
     base::OnceCallback<void(const net::AuthCredentials*)> callback,
-    base::Optional<net::AuthCredentials>* credentials) {
+    absl::optional<net::AuthCredentials>* credentials) {
   NOTIMPLEMENTED()
   return net::OK;
 }

@@ -40,7 +40,7 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   const std::string& os_name_and_version() const override {
     return os_name_and_version_;
   }
-  base::Optional<std::string> original_design_manufacturer() const override {
+  absl::optional<std::string> original_design_manufacturer() const override {
     return original_design_manufacturer_;
   }
 
@@ -51,17 +51,17 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   const std::string& device_type_string() const override {
     return device_type_string_;
   }
-  base::Optional<std::string> chipset_model_number() const override {
+  absl::optional<std::string> chipset_model_number() const override {
     return chipset_model_number_;
   }
-  base::Optional<std::string> model_year() const override {
+  absl::optional<std::string> model_year() const override {
     return model_year_;
   }
-  base::Optional<std::string> firmware_version() const override {
+  absl::optional<std::string> firmware_version() const override {
     return firmware_version_;
   }
-  base::Optional<std::string> brand() const override { return brand_; }
-  base::Optional<std::string> model() const override { return model_; }
+  absl::optional<std::string> brand() const override { return brand_; }
+  absl::optional<std::string> model() const override { return model_; }
   const std::string& aux_field() const override { return aux_field_; }
   const std::string& javascript_engine_version() const override {
     return javascript_engine_version_;
@@ -95,17 +95,17 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   void set_starboard_version(const std::string& starboard_version);
   void set_os_name_and_version(const std::string& os_name_and_version);
   void set_original_design_manufacturer(
-      base::Optional<std::string> original_design_manufacturer);
+      absl::optional<std::string> original_design_manufacturer);
 #if SB_API_VERSION < 15
   void set_device_type(SbSystemDeviceType device_type);
 #endif
   void set_device_type(const std::string& device_type);
   void set_chipset_model_number(
-      base::Optional<std::string> chipset_model_number);
-  void set_model_year(base::Optional<std::string> model_year);
-  void set_firmware_version(base::Optional<std::string> firmware_version);
-  void set_brand(base::Optional<std::string> brand);
-  void set_model(base::Optional<std::string> model);
+      absl::optional<std::string> chipset_model_number);
+  void set_model_year(absl::optional<std::string> model_year);
+  void set_firmware_version(absl::optional<std::string> firmware_version);
+  void set_brand(absl::optional<std::string> brand);
+  void set_model(absl::optional<std::string> model);
   void set_aux_field(const std::string& aux_field);
   void set_javascript_engine_version(
       const std::string& javascript_engine_version);
@@ -124,16 +124,16 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
  private:
   std::string starboard_version_;
   std::string os_name_and_version_;
-  base::Optional<std::string> original_design_manufacturer_;
+  absl::optional<std::string> original_design_manufacturer_;
 #if SB_API_VERSION < 15
   SbSystemDeviceType device_type_ = kSbSystemDeviceTypeUnknown;
 #endif
   std::string device_type_string_;
-  base::Optional<std::string> chipset_model_number_;
-  base::Optional<std::string> model_year_;
-  base::Optional<std::string> firmware_version_;
-  base::Optional<std::string> brand_;
-  base::Optional<std::string> model_;
+  absl::optional<std::string> chipset_model_number_;
+  absl::optional<std::string> model_year_;
+  absl::optional<std::string> firmware_version_;
+  absl::optional<std::string> brand_;
+  absl::optional<std::string> model_;
   std::string aux_field_;
   std::string javascript_engine_version_;
   std::string rasterizer_type_;

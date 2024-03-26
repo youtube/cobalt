@@ -22,7 +22,6 @@
 #include "base/basictypes.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/strings/string_piece.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
@@ -37,6 +36,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/blob_property_bag.h"
 #include "cobalt/web/event_target.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace media_capture {

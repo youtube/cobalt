@@ -21,7 +21,6 @@
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/script/array_buffer.h"
@@ -36,6 +35,7 @@
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/message_event.h"
 #include "cobalt/websocket/web_socket_impl.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace websocket {

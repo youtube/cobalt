@@ -19,12 +19,12 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/optional.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/rounded_corners.h"
 #include "cobalt/render_tree/shadow.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -52,7 +52,7 @@ class RectShadowNode : public Node {
 
     // If specified, the source shadow rectangle shape will have rounded
     // corners.
-    base::Optional<RoundedCorners> rounded_corners;
+    absl::optional<RoundedCorners> rounded_corners;
 
     // The shadow parameters that will be cast from the specified rectangle.
     // None of the area within the rectangle will be shaded.

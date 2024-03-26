@@ -16,11 +16,11 @@
 
 #include <vector>
 
-#include "base/optional.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace cssom {
@@ -31,7 +31,7 @@ void SetPropertyValuesOfHigherPrecedence(
     const scoped_refptr<const CSSDeclaredStyleData>& style,
     const CascadePrecedence& precedence_normal,
     const CascadePrecedence& precedence_important,
-    base::Optional<CascadePrecedence>* cascade_precedences,
+    absl::optional<CascadePrecedence>* cascade_precedences,
     scoped_refptr<MutableCSSComputedStyleData>* cascaded_style,
     bool* background_image_refreshed) {
   const CSSDeclaredStyleData::PropertyValues& property_values =
@@ -69,7 +69,7 @@ scoped_refptr<MutableCSSComputedStyleData> PromoteToCascadedStyle(
 
   // A sparse vector of CascadePrecedence values for all possible property
   // values.
-  base::Optional<CascadePrecedence>
+  absl::optional<CascadePrecedence>
       cascade_precedences[static_cast<size_t>(kNumLonghandProperties)];
 
   if (inline_style) {

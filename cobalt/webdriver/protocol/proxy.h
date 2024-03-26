@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -27,7 +27,7 @@ namespace protocol {
 // Session proxy settings.
 class Proxy {
  public:
-  static base::Optional<Proxy> FromValue(const base::Value* value);
+  static absl::optional<Proxy> FromValue(const base::Value* value);
 
   // Rules conforms to the format described in net/proxy/proxy_config.h
   const std::string& rules() { return rules_; }

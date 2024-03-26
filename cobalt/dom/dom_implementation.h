@@ -18,11 +18,11 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/dom/document_type.h"
 #include "cobalt/dom/xml_document.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -43,10 +43,10 @@ class DOMImplementation : public script::Wrappable {
 
   // Web API: DOMImplementation
   scoped_refptr<XMLDocument> CreateDocument(
-      base::Optional<std::string> namespace_name,
+      absl::optional<std::string> namespace_name,
       const std::string& qualified_name);
   scoped_refptr<XMLDocument> CreateDocument(
-      base::Optional<std::string> namespace_name,
+      absl::optional<std::string> namespace_name,
       const std::string& qualified_name, scoped_refptr<DocumentType> doctype);
 
   DEFINE_WRAPPABLE_TYPE(DOMImplementation);

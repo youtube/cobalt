@@ -19,11 +19,11 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/math/rect_f.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
@@ -67,7 +67,7 @@ class LayoutBoxes : public dom::LayoutBoxes {
   //
   const Boxes& boxes() { return boxes_; }
 
-  base::Optional<std::pair<dom::Directionality, math::RectF>>&
+  absl::optional<std::pair<dom::Directionality, math::RectF>>&
   scroll_area_cache() override {
     return scroll_area_cache_;
   }
@@ -80,7 +80,7 @@ class LayoutBoxes : public dom::LayoutBoxes {
 
   Boxes boxes_;
 
-  mutable base::Optional<std::pair<dom::Directionality, math::RectF>>
+  mutable absl::optional<std::pair<dom::Directionality, math::RectF>>
       scroll_area_cache_;
 };
 

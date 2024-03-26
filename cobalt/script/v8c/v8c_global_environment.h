@@ -23,7 +23,6 @@
 #include "base/basictypes.h"
 #include "base/containers/hash_tables.h"
 #include "base/logging.h"
-#include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/global_environment.h"
@@ -31,6 +30,7 @@
 #include "cobalt/script/v8c/v8c_heap_tracer.h"
 #include "cobalt/script/v8c/v8c_source_code.h"
 #include "cobalt/script/v8c/wrapper_factory.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8.h"
 
@@ -74,7 +74,7 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
       const scoped_refptr<Wrappable>& owning_object,
-      base::Optional<ValueHandleHolder::Reference>* out_value_handle) override;
+      absl::optional<ValueHandleHolder::Reference>* out_value_handle) override;
 
   std::vector<StackFrame> GetStackTrace(int max_frames) override;
   using GlobalEnvironment::GetStackTrace;

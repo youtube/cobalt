@@ -150,7 +150,7 @@ class ChildIterator<CompositionNode> {
 
   // The builder to use if we are modifying the children.  If constructed, it
   // starts as a copy of the origin CompositionNode's data.
-  base::Optional<CompositionNode::Builder> modified_children_builder_;
+  absl::optional<CompositionNode::Builder> modified_children_builder_;
 };
 
 // FilterNodes can have up to 1 child.
@@ -182,7 +182,7 @@ class ChildIterator<FilterNode> {
   FilterNode* filter_node_;
   Node* source_;
 
-  base::Optional<FilterNode::Builder> modified_children_builder_;
+  absl::optional<FilterNode::Builder> modified_children_builder_;
 };
 
 // MatrixTransform3DNodes can have up to 1 child.
@@ -215,7 +215,7 @@ class ChildIterator<MatrixTransform3DNode> {
   MatrixTransform3DNode* matrix_transform_3d_node_;
   Node* source_;
 
-  base::Optional<MatrixTransform3DNode::Builder> modified_children_builder_;
+  absl::optional<MatrixTransform3DNode::Builder> modified_children_builder_;
 };
 
 // MatrixTransformNodes can have up to 1 child.
@@ -248,7 +248,7 @@ class ChildIterator<MatrixTransformNode> {
   MatrixTransformNode* matrix_transform_node_;
   Node* source_;
 
-  base::Optional<MatrixTransformNode::Builder> modified_children_builder_;
+  absl::optional<MatrixTransformNode::Builder> modified_children_builder_;
 };
 
 }  // namespace render_tree

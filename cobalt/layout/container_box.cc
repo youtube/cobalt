@@ -375,13 +375,13 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
   DCHECK_EQ(child_box->computed_style()->position(),
             cssom::KeywordValue::GetRelative());
 
-  base::Optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
+  absl::optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
       child_box->computed_style(), child_layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
+  absl::optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
       child_box->computed_style(), child_layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
+  absl::optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
       child_box->computed_style(), child_layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_bottom = GetUsedBottomIfNotAuto(
+  absl::optional<LayoutUnit> maybe_bottom = GetUsedBottomIfNotAuto(
       child_box->computed_style(), child_layout_params.containing_block_size);
 
   Vector2dLayoutUnit offset;

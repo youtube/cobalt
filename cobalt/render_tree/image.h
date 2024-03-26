@@ -18,8 +18,8 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/math/size.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -209,7 +209,7 @@ class MultiPlaneImageDataDescriptor {
 
   // We keep an array of base::optionals so that we don't have to specify a
   // default constructor for PlaneInformation.
-  base::Optional<PlaneInformation> plane_descriptors_[kMaxPlanes];
+  absl::optional<PlaneInformation> plane_descriptors_[kMaxPlanes];
 };
 
 // The Image type is an abstract base class that represents a stored image

@@ -17,10 +17,10 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/loader/image/image_encoder.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/webdriver/util/command_result.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -31,13 +31,13 @@ class Screenshot {
       const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>
       ScreenshotCompleteCallback;
   typedef base::Callback<void(loader::image::EncodedStaticImage::ImageFormat,
-                              const base::Optional<math::Rect>& clip_rect,
+                              const absl::optional<math::Rect>& clip_rect,
                               const ScreenshotCompleteCallback&)>
       GetScreenshotFunction;
 
   static util::CommandResult<std::string> RequestScreenshot(
       const GetScreenshotFunction& screenshot_function,
-      base::Optional<math::Rect> clip_rect);
+      absl::optional<math::Rect> clip_rect);
 };
 
 }  // namespace webdriver

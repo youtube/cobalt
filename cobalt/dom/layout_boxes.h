@@ -23,6 +23,7 @@
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/ui_navigation/nav_item.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -91,7 +92,7 @@ class LayoutBoxes {
   // Invalidate the layout box's render tree nodes.
   virtual void InvalidateRenderTreeNodes() = 0;
 
-  virtual base::Optional<std::pair<dom::Directionality, math::RectF>>&
+  virtual absl::optional<std::pair<dom::Directionality, math::RectF>>&
   scroll_area_cache() = 0;
 
   // Update the navigation item associated with the layout boxes.

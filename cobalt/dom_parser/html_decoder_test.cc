@@ -18,7 +18,6 @@
 
 #include "base/callback.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/document.h"
@@ -36,6 +35,7 @@
 #include "cobalt/script/testing/stub_script_runner.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom_parser {
@@ -43,9 +43,9 @@ namespace dom_parser {
 const int kDOMMaxElementDepth = 32;
 
 class MockLoadCompleteCallback
-    : public base::Callback<void(const base::Optional<std::string>&)> {
+    : public base::Callback<void(const absl::optional<std::string>&)> {
  public:
-  MOCK_METHOD1(Run, void(const base::Optional<std::string>&));
+  MOCK_METHOD1(Run, void(const absl::optional<std::string>&));
 };
 
 class HTMLDecoderTest : public ::testing::Test {

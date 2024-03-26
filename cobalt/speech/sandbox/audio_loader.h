@@ -19,10 +19,10 @@
 #include <string>
 
 #include "base/callback.h"
-#include "base/optional.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/network/network_module.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace speech {
@@ -37,7 +37,7 @@ class AudioLoader {
 
  private:
   void OnLoadingDone(const uint8* data, int size);
-  void OnLoadingError(const base::Optional<std::string>& error);
+  void OnLoadingError(const absl::optional<std::string>& error);
 
   const DoneCallback done_callback_;
   network::NetworkModule* network_module_;

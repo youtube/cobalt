@@ -16,8 +16,8 @@
 #define COBALT_BINDINGS_TESTING_SINGLE_OPERATION_INTERFACE_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace bindings {
@@ -27,7 +27,7 @@ class ArbitraryInterface;
 
 class SingleOperationInterface {
  public:
-  virtual base::Optional<int32_t> HandleCallback(
+  virtual absl::optional<int32_t> HandleCallback(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<ArbitraryInterface>& value,
       bool* had_exception) const = 0;

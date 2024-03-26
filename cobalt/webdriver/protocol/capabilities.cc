@@ -53,7 +53,7 @@ class CapabilityReader {
                    base::DictionaryValue* capabilities_value)
       : capabilities_(capabilities), capabilities_value_(capabilities_value) {}
 
-  template <base::Optional<std::string> Capabilities::*member>
+  template <absl::optional<std::string> Capabilities::*member>
   void TryReadCapability(const char* key) {
     std::string value;
     if (capabilities_value_->GetString(key, &value)) {
@@ -63,7 +63,7 @@ class CapabilityReader {
     }
   }
 
-  template <base::Optional<bool> Capabilities::*member>
+  template <absl::optional<bool> Capabilities::*member>
   void TryReadCapability(const char* key) {
     bool value;
     if (capabilities_value_->GetBoolean(key, &value)) {
@@ -73,7 +73,7 @@ class CapabilityReader {
     }
   }
 
-  template <typename T, base::Optional<T> Capabilities::*member>
+  template <typename T, absl::optional<T> Capabilities::*member>
   void TryReadCapability(const char* key) {
     const base::DictionaryValue* dictionary_value;
     if (capabilities_value_->GetDictionary(key, &dictionary_value)) {
@@ -96,14 +96,14 @@ class CapabilityWriter {
                    base::DictionaryValue* capabilities_value)
       : capabilities_(capabilities), capabilities_value_(capabilities_value) {}
 
-  template <base::Optional<std::string> Capabilities::*member>
+  template <absl::optional<std::string> Capabilities::*member>
   void TryWriteCapability(const char* key) {
     if (capabilities_.*member) {
       capabilities_value_->SetString(key, (capabilities_.*member).value_or(""));
     }
   }
 
-  template <base::Optional<bool> Capabilities::*member>
+  template <absl::optional<bool> Capabilities::*member>
   void TryWriteCapability(const char* key) {
     if (capabilities_.*member) {
       capabilities_value_->SetBoolean(key,
@@ -152,10 +152,10 @@ std::unique_ptr<base::Value> Capabilities::ToValue(
   return std::unique_ptr<base::Value>(capabilities_value.release());
 }
 
-base::Optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
+absl::optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
   const base::DictionaryValue* value_as_dictionary;
   if (!value->GetAsDictionary(&value_as_dictionary)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   // Create a new Capabilities object, and copy the capabilities dictionary
   // from which we will read capabilities
@@ -211,15 +211,15 @@ bool Capabilities::AreCapabilitiesSupported() const {
   return true;
 }
 
-base::Optional<RequestedCapabilities> RequestedCapabilities::FromValue(
+absl::optional<RequestedCapabilities> RequestedCapabilities::FromValue(
     const base::Value* value) {
   DCHECK(value);
   const base::DictionaryValue* requested_capabilities_value;
   if (!value->GetAsDictionary(&requested_capabilities_value)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
-  base::Optional<Capabilities> desired;
+  absl::optional<Capabilities> desired;
   const base::Value* capabilities_value = NULL;
   if (requested_capabilities_value->Get(kDesiredCapabilitiesKey,
                                         &capabilities_value)) {
@@ -227,9 +227,9 @@ base::Optional<RequestedCapabilities> RequestedCapabilities::FromValue(
   }
   if (!desired) {
     // Desired capabilities are required.
-    return base::nullopt;
+    return absl::nullopt;
   }
-  base::Optional<Capabilities> required;
+  absl::optional<Capabilities> required;
   if (requested_capabilities_value->Get(kRequiredCapabilitiesKey,
                                         &capabilities_value)) {
     required = Capabilities::FromValue(capabilities_value);

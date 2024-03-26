@@ -15,24 +15,24 @@
 #ifndef COBALT_LAYOUT_BLOCK_FORMATTING_CONTEXT_H_
 #define COBALT_LAYOUT_BLOCK_FORMATTING_CONTEXT_H_
 
-#include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/formatting_context.h"
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/math/point_f.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
 
 struct MarginCollapsingParams {
-  MarginCollapsingParams(const bool is_margin_collapsible)
+  explicit MarginCollapsingParams(const bool is_margin_collapsible)
       : collapsing_margin(0),
         should_collapse_own_margins_together(true),
         should_collapse_margin_bottom(true),
         should_collapse_margin_top(is_margin_collapsible) {}
 
   LayoutUnit collapsing_margin;
-  base::Optional<LayoutUnit> context_margin_top;
+  absl::optional<LayoutUnit> context_margin_top;
   bool should_collapse_own_margins_together;
   bool should_collapse_margin_bottom;
   bool should_collapse_margin_top;

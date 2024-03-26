@@ -212,8 +212,8 @@ XMLHttpRequest::~XMLHttpRequest() {
 void XMLHttpRequest::Abort() { xhr_impl_->Abort(); }
 void XMLHttpRequest::Open(const std::string& method, const std::string& url,
                           bool async,
-                          const base::Optional<std::string>& username,
-                          const base::Optional<std::string>& password,
+                          const absl::optional<std::string>& username,
+                          const absl::optional<std::string>& password,
                           script::ExceptionState* exception_state) {
   xhr_impl_->Open(method, url, async, username, password, exception_state);
 }
@@ -232,20 +232,20 @@ void XMLHttpRequest::OverrideMimeType(const std::string& mime_type,
   xhr_impl_->OverrideMimeType(mime_type, exception_state);
 }
 
-void XMLHttpRequest::Send(const base::Optional<RequestBodyType>& request_body,
+void XMLHttpRequest::Send(const absl::optional<RequestBodyType>& request_body,
                           script::ExceptionState* exception_state) {
   xhr_impl_->Send(request_body, exception_state);
 }
 
 void XMLHttpRequest::Fetch(const FetchUpdateCallbackArg& fetch_callback,
                            const FetchModeCallbackArg& fetch_mode_callback,
-                           const base::Optional<RequestBodyType>& request_body,
+                           const absl::optional<RequestBodyType>& request_body,
                            script::ExceptionState* exception_state) {
   xhr_impl_->Fetch(fetch_callback, fetch_mode_callback, request_body,
                    exception_state);
 }
 
-base::Optional<std::string> XMLHttpRequest::GetResponseHeader(
+absl::optional<std::string> XMLHttpRequest::GetResponseHeader(
     const std::string& header) {
   return xhr_impl_->GetResponseHeader(header);
 }
@@ -261,7 +261,7 @@ scoped_refptr<dom::Document> XMLHttpRequest::response_xml(
     script::ExceptionState* exception_state) {
   return xhr_impl_->response_xml(exception_state);
 }
-base::Optional<XMLHttpRequest::ResponseType> XMLHttpRequest::response(
+absl::optional<XMLHttpRequest::ResponseType> XMLHttpRequest::response(
     script::ExceptionState* exception_state) {
   return xhr_impl_->response(exception_state);
 }
@@ -401,8 +401,8 @@ void XMLHttpRequestImpl::Abort() {
 // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-open()-method
 void XMLHttpRequestImpl::Open(const std::string& method, const std::string& url,
                               bool async,
-                              const base::Optional<std::string>& username,
-                              const base::Optional<std::string>& password,
+                              const absl::optional<std::string>& username,
+                              const absl::optional<std::string>& password,
                               script::ExceptionState* exception_state) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -515,7 +515,7 @@ void XMLHttpRequestImpl::OverrideMimeType(
 }
 
 void XMLHttpRequestImpl::Send(
-    const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
+    const absl::optional<XMLHttpRequest::RequestBodyType>& request_body,
     script::ExceptionState* exception_state) {
   error_ = false;
   auto* context = environment_settings()->context();
@@ -603,7 +603,7 @@ void XMLHttpRequestImpl::SendIntercepted(
 }
 
 void XMLHttpRequestImpl::SendFallback(
-    const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
+    const absl::optional<XMLHttpRequest::RequestBodyType>& request_body,
     script::ExceptionState* exception_state) {
   if (will_destroy_current_message_loop_.load()) {
     return;
@@ -701,7 +701,7 @@ void XMLHttpRequestImpl::SendFallback(
 void XMLHttpRequestImpl::Fetch(
     const FetchUpdateCallbackArg& fetch_callback,
     const FetchModeCallbackArg& fetch_mode_callback,
-    const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
+    const absl::optional<XMLHttpRequest::RequestBodyType>& request_body,
     script::ExceptionState* exception_state) {
   fetch_callback_.reset(
       new FetchUpdateCallbackArg::Reference(xhr_, fetch_callback));
@@ -710,20 +710,20 @@ void XMLHttpRequestImpl::Fetch(
   Send(request_body, exception_state);
 }
 
-base::Optional<std::string> XMLHttpRequestImpl::GetResponseHeader(
+absl::optional<std::string> XMLHttpRequestImpl::GetResponseHeader(
     const std::string& header) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-getresponseheader()-method
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (state_ == XMLHttpRequest::kUnsent || state_ == XMLHttpRequest::kOpened ||
       error_) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   // Set-Cookie should be stripped from the response headers in OnDone().
   if (base::LowerCaseEqualsASCII(header, "set-cookie") ||
       base::LowerCaseEqualsASCII(header, "set-cookie2")) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   bool found;
@@ -734,7 +734,7 @@ base::Optional<std::string> XMLHttpRequestImpl::GetResponseHeader(
   } else {
     found = http_response_headers_->GetNormalizedHeader(header, &value);
   }
-  return found ? base::make_optional(value) : base::nullopt;
+  return found ? absl::make_optional(value) : absl::nullopt;
 }
 
 std::string XMLHttpRequestImpl::GetAllResponseHeaders() {
@@ -793,7 +793,7 @@ scoped_refptr<dom::Document> XMLHttpRequestImpl::response_xml(
   return NULL;
 }
 
-base::Optional<XMLHttpRequest::ResponseType> XMLHttpRequestImpl::response(
+absl::optional<XMLHttpRequest::ResponseType> XMLHttpRequestImpl::response(
     script::ExceptionState* exception_state) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#response
   switch (response_type_) {
@@ -804,7 +804,7 @@ base::Optional<XMLHttpRequest::ResponseType> XMLHttpRequestImpl::response(
       script::Handle<script::ArrayBuffer> maybe_array_buffer_response =
           response_array_buffer();
       if (maybe_array_buffer_response.IsEmpty()) {
-        return base::nullopt;
+        return absl::nullopt;
       }
       return XMLHttpRequest::ResponseType(maybe_array_buffer_response);
     }
@@ -815,7 +815,7 @@ base::Optional<XMLHttpRequest::ResponseType> XMLHttpRequestImpl::response(
       NOTIMPLEMENTED() << "Unsupported response_type_ "
                        << response_type(exception_state);
   }
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 int XMLHttpRequestImpl::status() const {
@@ -1656,7 +1656,7 @@ DOMXMLHttpRequestImpl::GetDocumentResponseEntityBody() {
 }
 
 void DOMXMLHttpRequestImpl::XMLDecoderLoadCompleteCallback(
-    const base::Optional<std::string>& error) {
+    const absl::optional<std::string>& error) {
   if (error) has_xml_decoder_error_ = true;
 }
 

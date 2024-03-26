@@ -17,9 +17,9 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/event_target.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace xhr {
@@ -50,13 +50,13 @@ class XMLHttpRequestEventTarget : public web::EventTarget {
  protected:
   ~XMLHttpRequestEventTarget() override;
 
-  base::Optional<EventListenerScriptValue::Reference> onabort_listener_;
-  base::Optional<EventListenerScriptValue::Reference> onerror_listener_;
-  base::Optional<EventListenerScriptValue::Reference> onload_listener_;
-  base::Optional<EventListenerScriptValue::Reference> onloadend_listener_;
-  base::Optional<EventListenerScriptValue::Reference> onloadstart_listener_;
-  base::Optional<EventListenerScriptValue::Reference> onprogress_listener_;
-  base::Optional<EventListenerScriptValue::Reference> ontimeout_listener_;
+  absl::optional<EventListenerScriptValue::Reference> onabort_listener_;
+  absl::optional<EventListenerScriptValue::Reference> onerror_listener_;
+  absl::optional<EventListenerScriptValue::Reference> onload_listener_;
+  absl::optional<EventListenerScriptValue::Reference> onloadend_listener_;
+  absl::optional<EventListenerScriptValue::Reference> onloadstart_listener_;
+  absl::optional<EventListenerScriptValue::Reference> onprogress_listener_;
+  absl::optional<EventListenerScriptValue::Reference> ontimeout_listener_;
 
  private:
   // From EventTarget.

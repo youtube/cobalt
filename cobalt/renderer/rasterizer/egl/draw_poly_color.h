@@ -17,10 +17,10 @@
 
 #include <vector>
 
-#include "base/optional.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {
@@ -69,7 +69,7 @@ class DrawPolyColor : public DrawObject {
 
   uint16_t* index_buffer_;
   uint8_t* vertex_buffer_;
-  base::Optional<bool> can_merge_;
+  absl::optional<bool> can_merge_;
 };
 
 }  // namespace egl

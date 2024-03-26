@@ -49,23 +49,23 @@ bool GetSearchStrategyFromString(const std::string& strategy_string,
 }
 }  // namespace
 
-base::Optional<SearchStrategy> SearchStrategy::FromValue(
+absl::optional<SearchStrategy> SearchStrategy::FromValue(
     const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   std::string using_strategy;
   std::string parameter;
   if (!dictionary_value->GetString(kUsingKey, &using_strategy)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   if (!dictionary_value->GetString(kValueKey, &parameter)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   SearchStrategy::Strategy strategy;
   if (!GetSearchStrategyFromString(using_strategy, &strategy)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return SearchStrategy(strategy, parameter);
 }

@@ -134,7 +134,7 @@ class WindowDriver : private ElementMapping {
 
   util::CommandResult<protocol::ScriptResult> ExecuteScriptInternal(
       const protocol::Script& script,
-      base::Optional<base::TimeDelta> async_timeout,
+      absl::optional<base::TimeDelta> async_timeout,
       ScriptExecutorResult::ResultHandler* result_handler);
 
   util::CommandResult<void> SendKeysInternal(

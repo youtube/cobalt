@@ -23,7 +23,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -37,6 +36,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/web/csp_delegate.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace debug {
@@ -110,7 +110,7 @@ class DebugDispatcher {
   // is supported, ownership of the command parameter should be kept and used to
   // send the response. If the command is not supported, the command should be
   // returned so the dispatcher can try calling a JS fallback implementation.
-  typedef base::Callback<base::Optional<Command>(Command command)>
+  typedef base::Callback<absl::optional<Command>(Command command)>
       CommandHandler;
 
   DebugDispatcher(script::ScriptDebugger* script_debugger,

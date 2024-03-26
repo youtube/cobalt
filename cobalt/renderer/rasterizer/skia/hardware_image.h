@@ -105,7 +105,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       std::unique_ptr<math::RectF> content_region,
       scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner,
-      base::Optional<AlternateRgbaFormat> alternate_rgba_format);
+      absl::optional<AlternateRgbaFormat> alternate_rgba_format);
   HardwareFrontendImage(
       const scoped_refptr<render_tree::Node>& root,
       const SubmitOffscreenCallback& submit_offscreen_callback,
@@ -134,7 +134,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
 
   bool IsOpaque() const override { return is_opaque_; }
 
-  base::Optional<AlternateRgbaFormat> alternate_rgba_format() {
+  absl::optional<AlternateRgbaFormat> alternate_rgba_format() {
     return alternate_rgba_format_;
   }
 
@@ -157,7 +157,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // actually contains pixel data in a non-RGBA format, like UYVY for example.
   // In this case, we track that in this member.  If this value is null, then
   // we are dealing with a normal RGBA texture.
-  const base::Optional<AlternateRgbaFormat> alternate_rgba_format_;
+  const absl::optional<AlternateRgbaFormat> alternate_rgba_format_;
 
   // We shadow the image dimensions so they can be quickly looked up from just
   // the frontend image object.

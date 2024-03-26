@@ -18,11 +18,11 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/event_listener.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web {
@@ -37,13 +37,13 @@ class OnErrorEventListener {
   // translated to the more complicated IDL handleEvent interface which is
   // marked protected.  During that translation, the event parameters may
   // be unpacked if the |unpack_error_events| flag is true.
-  base::Optional<bool> HandleEvent(
+  absl::optional<bool> HandleEvent(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<Event>& event, bool* had_exception,
       bool unpack_error_events) const;
 
  protected:
-  virtual base::Optional<bool> HandleEvent(
+  virtual absl::optional<bool> HandleEvent(
       const scoped_refptr<script::Wrappable>& callback_this,
       const EventOrMessage& message, const std::string& filename, uint32 lineno,
       uint32 colno, const script::ValueHandleHolder* error,

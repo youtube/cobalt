@@ -14,9 +14,9 @@
 
 #include "cobalt/renderer/rasterizer/common/find_node.h"
 
-#include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/animations/animate_node.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {
@@ -26,7 +26,7 @@ namespace common {
 class FinderNodeVisitor : public render_tree::NodeVisitor {
  public:
   FinderNodeVisitor(NodeFilterFunction<render_tree::Node> filter_function,
-                    base::Optional<NodeReplaceFunction> replace_function)
+                    absl::optional<NodeReplaceFunction> replace_function)
       : filter_function_(filter_function),
         replace_function_(replace_function) {}
 
@@ -108,7 +108,7 @@ class FinderNodeVisitor : public render_tree::NodeVisitor {
   }
 
   NodeFilterFunction<render_tree::Node> filter_function_;
-  base::Optional<NodeReplaceFunction> replace_function_;
+  absl::optional<NodeReplaceFunction> replace_function_;
 
   scoped_refptr<render_tree::Node> found_node_;
   scoped_refptr<render_tree::Node> replace_with_;
@@ -118,7 +118,7 @@ template <>
 NodeSearchResult<render_tree::Node> FindNode<render_tree::Node>(
     const scoped_refptr<render_tree::Node>& tree,
     NodeFilterFunction<render_tree::Node> filter_function,
-    base::Optional<NodeReplaceFunction> replace_function) {
+    absl::optional<NodeReplaceFunction> replace_function) {
   FinderNodeVisitor visitor(filter_function, replace_function);
   tree->Accept(&visitor);
 

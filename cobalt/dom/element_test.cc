@@ -155,7 +155,7 @@ TEST_F(ElementTest, AttributeMethods) {
   EXPECT_EQ(std::string("2"), element->GetAttribute("b"));
 
   EXPECT_FALSE(element->HasAttribute("c"));
-  EXPECT_EQ(base::nullopt, element->GetAttribute("c"));
+  EXPECT_EQ(absl::nullopt, element->GetAttribute("c"));
 
   element->RemoveAttribute("a");
   EXPECT_FALSE(element->HasAttribute("a"));
@@ -329,7 +329,7 @@ TEST_F(ElementTest, ClassList) {
   EXPECT_EQ(std::string("b"), class_list->Item(0));
   EXPECT_EQ(std::string("d"), class_list->Item(1));
   EXPECT_EQ(std::string("c"), class_list->Item(2));
-  EXPECT_EQ(base::nullopt, class_list->Item(3));
+  EXPECT_EQ(absl::nullopt, class_list->Item(3));
 }
 
 TEST_F(ElementTest, GetElementsByClassName) {
@@ -705,7 +705,7 @@ TEST_F(ElementTest, NodeValueAndTextContent) {
   root->AppendChild(new Element(document_, base::Token("element")))
       ->AppendChild(new Text(document_, "Sparta."));
   // NodeValue should always be NULL.
-  EXPECT_EQ(base::nullopt, root->node_value());
+  EXPECT_EQ(absl::nullopt, root->node_value());
   // TextContent should be all texts concatenated.
   EXPECT_EQ("This is Sparta.", root->text_content().value());
 

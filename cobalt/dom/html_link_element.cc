@@ -87,7 +87,7 @@ bool IsRelContentCriticalResource(const std::string& rel) {
 }
 
 loader::RequestMode GetRequestMode(
-    const base::Optional<std::string>& cross_origin_attribute) {
+    const absl::optional<std::string>& cross_origin_attribute) {
   // https://html.spec.whatwg.org/#cors-settings-attribute
   if (cross_origin_attribute) {
     if (*cross_origin_attribute == "use-credentials") {
@@ -122,8 +122,8 @@ void HTMLLinkElement::OnInsertedIntoDocument() {
   }
 }
 
-base::Optional<std::string> HTMLLinkElement::cross_origin() const {
-  base::Optional<std::string> cross_origin_attribute =
+absl::optional<std::string> HTMLLinkElement::cross_origin() const {
+  absl::optional<std::string> cross_origin_attribute =
       GetAttribute("crossOrigin");
   if (cross_origin_attribute &&
       (*cross_origin_attribute != "anonymous" &&
@@ -134,7 +134,7 @@ base::Optional<std::string> HTMLLinkElement::cross_origin() const {
 }
 
 void HTMLLinkElement::set_cross_origin(
-    const base::Optional<std::string>& value) {
+    const absl::optional<std::string>& value) {
   if (value) {
     SetAttribute("crossOrigin", *value);
   } else {
@@ -273,7 +273,7 @@ void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
 }
 
 void HTMLLinkElement::OnLoadingComplete(
-    const base::Optional<std::string>& error) {
+    const absl::optional<std::string>& error) {
   // GetLoadTimingInfo and create resource timing before loader released.
   GetLoadTimingInfoAndCreateResourceTiming();
 
@@ -309,7 +309,7 @@ void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
   scoped_refptr<Window> window = document->window();
   std::string link = rel();
   size_t last_underscore = link.find_last_of("_");
-  base::Optional<std::string> topic;
+  absl::optional<std::string> topic;
   if (last_underscore != std::string::npos) {
     topic = link.substr(0, last_underscore);
   }

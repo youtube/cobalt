@@ -38,31 +38,31 @@ class SystemCaptionSettings : public web::EventTarget {
   explicit SystemCaptionSettings(script::EnvironmentSettings* settings)
       : web::EventTarget(settings) {}
 
-  base::Optional<std::string> background_color();
+  absl::optional<std::string> background_color();
   CaptionState background_color_state();
 
-  base::Optional<std::string> background_opacity();
+  absl::optional<std::string> background_opacity();
   CaptionState background_opacity_state();
 
-  base::Optional<std::string> character_edge_style();
+  absl::optional<std::string> character_edge_style();
   CaptionState character_edge_style_state();
 
-  base::Optional<std::string> font_color();
+  absl::optional<std::string> font_color();
   CaptionState font_color_state();
 
-  base::Optional<std::string> font_family();
+  absl::optional<std::string> font_family();
   CaptionState font_family_state();
 
-  base::Optional<std::string> font_opacity();
+  absl::optional<std::string> font_opacity();
   CaptionState font_opacity_state();
 
-  base::Optional<std::string> font_size();
+  absl::optional<std::string> font_size();
   CaptionState font_size_state();
 
-  base::Optional<std::string> window_color();
+  absl::optional<std::string> window_color();
   CaptionState window_color_state();
 
-  base::Optional<std::string> window_opacity();
+  absl::optional<std::string> window_opacity();
   CaptionState window_opacity_state();
 
   bool is_enabled();

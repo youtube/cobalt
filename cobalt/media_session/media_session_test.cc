@@ -422,7 +422,7 @@ TEST(MediaSessionTest, PositionState) {
 
   int64_t start_time = 1111111111;
 
-  base::Optional<MediaPositionState> position_state;
+  absl::optional<MediaPositionState> position_state;
   position_state.emplace();
   position_state->set_duration(100.0);
   position_state->set_position(10.0);
@@ -513,7 +513,7 @@ TEST(MediaSessionTest, PositionState) {
 
   // Position state cleared
   EXPECT_CALL(*session, GetMonotonicNow()).WillOnce(Return(start_time));
-  session->SetPositionState(base::nullopt);
+  session->SetPositionState(absl::nullopt);
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
   EXPECT_EQ(0, state.GetCurrentPlaybackPosition(
@@ -533,7 +533,7 @@ TEST(MediaSessionTest, Metadata) {
   MediaSessionState state;
 
   MediaMetadataInit init_metadata;
-  base::Optional<MediaMetadataInit> state_metadata;
+  absl::optional<MediaMetadataInit> state_metadata;
 
   // Trigger a session state change without impacting metadata.
   session->set_playback_state(kMediaSessionPlaybackStateNone);

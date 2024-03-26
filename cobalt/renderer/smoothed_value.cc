@@ -22,7 +22,7 @@ namespace cobalt {
 namespace renderer {
 
 SmoothedValue::SmoothedValue(base::TimeDelta time_to_converge,
-                             base::Optional<double> max_slope_magnitude)
+                             absl::optional<double> max_slope_magnitude)
     : time_to_converge_(time_to_converge),
       previous_derivative_(0),
       max_slope_magnitude_(max_slope_magnitude) {
@@ -33,7 +33,7 @@ SmoothedValue::SmoothedValue(base::TimeDelta time_to_converge,
 void SmoothedValue::SetTarget(double target, const base::TimeTicks& time) {
   // Determine the current derivative and value.
   double current_derivative = GetCurrentDerivative(time);
-  base::Optional<double> current_value;
+  absl::optional<double> current_value;
   if (target_) {
     current_value = GetValueAtTime(time);
   }
@@ -47,7 +47,7 @@ void SmoothedValue::SetTarget(double target, const base::TimeTicks& time) {
 }
 
 void SmoothedValue::SnapToTarget() {
-  previous_value_ = base::nullopt;
+  previous_value_ = absl::nullopt;
   previous_derivative_ = 0;
 }
 

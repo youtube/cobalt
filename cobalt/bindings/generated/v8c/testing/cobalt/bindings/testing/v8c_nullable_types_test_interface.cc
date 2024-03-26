@@ -142,7 +142,7 @@ void nullableBooleanPropertyAttributeSetter(
                        V8cExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value,
                        v8::Local<v8::Value> v8_value) {
-  TypeTraits<base::Optional<bool > >::ConversionType value;
+  TypeTraits<absl::optional<bool > >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -183,7 +183,7 @@ void nullableNumericPropertyAttributeSetter(
                        V8cExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value,
                        v8::Local<v8::Value> v8_value) {
-  TypeTraits<base::Optional<int32_t > >::ConversionType value;
+  TypeTraits<absl::optional<int32_t > >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -224,7 +224,7 @@ void nullableStringPropertyAttributeSetter(
                        V8cExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value,
                        v8::Local<v8::Value> v8_value) {
-  TypeTraits<base::Optional<std::string > >::ConversionType value;
+  TypeTraits<absl::optional<std::string > >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -265,7 +265,7 @@ void nullableDictionaryPropertyAttributeSetter(
                        V8cExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value,
                        v8::Local<v8::Value> v8_value) {
-  TypeTraits<base::Optional<TestDictionary > >::ConversionType value;
+  TypeTraits<absl::optional<TestDictionary > >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -342,7 +342,7 @@ void nullableBooleanArgumentMethod(const v8::FunctionCallbackInfo<v8::Value>& in
     return;
   }
   // Non-optional arguments
-  TypeTraits<base::Optional<bool > >::ConversionType arg;
+  TypeTraits<absl::optional<bool > >::ConversionType arg;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,
@@ -410,7 +410,7 @@ void nullableDictionaryArgumentMethod(const v8::FunctionCallbackInfo<v8::Value>&
     return;
   }
   // Non-optional arguments
-  TypeTraits<base::Optional<TestDictionary > >::ConversionType arg;
+  TypeTraits<absl::optional<TestDictionary > >::ConversionType arg;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,
@@ -478,7 +478,7 @@ void nullableNumericArgumentMethod(const v8::FunctionCallbackInfo<v8::Value>& in
     return;
   }
   // Non-optional arguments
-  TypeTraits<base::Optional<int32_t > >::ConversionType arg;
+  TypeTraits<absl::optional<int32_t > >::ConversionType arg;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,
@@ -614,7 +614,7 @@ void nullableStringArgumentMethod(const v8::FunctionCallbackInfo<v8::Value>& inf
     return;
   }
   // Non-optional arguments
-  TypeTraits<base::Optional<std::string > >::ConversionType arg;
+  TypeTraits<absl::optional<std::string > >::ConversionType arg;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,

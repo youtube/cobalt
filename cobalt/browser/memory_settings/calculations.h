@@ -17,10 +17,10 @@
 #ifndef COBALT_BROWSER_MEMORY_SETTINGS_CALCULATIONS_H_
 #define COBALT_BROWSER_MEMORY_SETTINGS_CALCULATIONS_H_
 
-#include "base/optional.h"
 #include "cobalt/browser/memory_settings/texture_dimensions.h"
 #include "cobalt/math/size.h"
 #include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {

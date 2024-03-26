@@ -25,7 +25,6 @@
 #include "base/bind.h"
 #include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/c_val.h"
@@ -35,6 +34,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
 #include "net/base/linked_hash_map.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -178,7 +178,7 @@ class CachedResourceBase
   void ScheduleLoadingRetry();
 
   // Notify the loading error.
-  void OnLoadingComplete(const base::Optional<std::string>& error);
+  void OnLoadingComplete(const absl::optional<std::string>& error);
 
   THREAD_CHECKER(cached_resource_thread_checker_);
 
@@ -537,7 +537,7 @@ class ResourceCache : public ResourceCacheBase {
   typedef base::Callback<std::unique_ptr<Loader>(
       const GURL&, const Origin&, const csp::SecurityCallback&,
       const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
-      const base::Callback<void(const base::Optional<std::string>&)>&)>
+      const base::Callback<void(const absl::optional<std::string>&)>&)>
       CreateLoaderFunction;
 
   // Call this function to notify the caller that this resource is requested.

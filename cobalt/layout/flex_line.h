@@ -19,10 +19,10 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/flex_item.h"
 #include "cobalt/layout/layout_unit.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
@@ -73,7 +73,7 @@ class FlexLine {
   std::vector<std::unique_ptr<FlexItem>> items_;
 
   LayoutUnit cross_size_;
-  base::Optional<LayoutUnit> max_baseline_to_top_;
+  absl::optional<LayoutUnit> max_baseline_to_top_;
 };
 
 }  // namespace layout

@@ -19,13 +19,13 @@
 #include <string>
 
 #include "base/callback.h"
-#include "base/optional.h"
 #include "base/threading/thread.h"
 #include "base/timer/timer.h"
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/web/event.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace speech {
@@ -83,7 +83,7 @@ class MicrophoneManager {
   // Microphone state.
   State state_;
   // Repeat timer to poll mic events.
-  base::Optional<base::RepeatingTimer> poll_mic_events_timer_;
+  absl::optional<base::RepeatingTimer> poll_mic_events_timer_;
   // Microphone thread.
   base::Thread thread_;
 };

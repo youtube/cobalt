@@ -35,8 +35,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      ActiveTimeComputesToUnresolvedIfLocalTimeIsUnresolved) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> active_time =
-      timing.ComputeActiveTimeFromLocalTime(base::nullopt);
+  absl::optional<base::TimeDelta> active_time =
+      timing.ComputeActiveTimeFromLocalTime(absl::nullopt);
 
   EXPECT_FALSE(active_time);
 }
@@ -45,7 +45,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      ActiveTimeSubtractsDelayDuringActivePhase) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> active_time =
+  absl::optional<base::TimeDelta> active_time =
       timing.ComputeActiveTimeFromLocalTime(base::TimeDelta::FromSecondsD(2.0));
 
   ASSERT_TRUE(active_time);
@@ -56,7 +56,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      ActiveTimeComputesToZeroBeforeDelayWithFillModeBoth) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> active_time =
+  absl::optional<base::TimeDelta> active_time =
       timing.ComputeActiveTimeFromLocalTime(base::TimeDelta::FromSecondsD(0.5));
 
   ASSERT_TRUE(active_time);
@@ -67,7 +67,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      ActiveTimeCapsAtDurationWithFillModeBoth) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> active_time =
+  absl::optional<base::TimeDelta> active_time =
       timing.ComputeActiveTimeFromLocalTime(base::TimeDelta::FromSecondsD(3.5));
 
   ASSERT_TRUE(active_time);
@@ -78,8 +78,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      ScaledActiveTimeComputesToUnresolvedIfActiveTimeIsUnresolved) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> scaled_active_time =
-      timing.ComputeScaledActiveTimeFromActiveTime(base::nullopt);
+  absl::optional<base::TimeDelta> scaled_active_time =
+      timing.ComputeScaledActiveTimeFromActiveTime(absl::nullopt);
 
   EXPECT_FALSE(scaled_active_time);
 }
@@ -88,7 +88,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      ScaledActiveTimeAddsStartOffsetToActiveTime) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> scaled_active_time =
+  absl::optional<base::TimeDelta> scaled_active_time =
       timing.ComputeScaledActiveTimeFromActiveTime(
           base::TimeDelta::FromSecondsD(0.5));
 
@@ -100,8 +100,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      IterationTimeComputesToUnresolvedIfScaledActiveTimeIsUnresolved) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> iteration_time =
-      timing.ComputeIterationTimeFromScaledActiveTime(base::nullopt);
+  absl::optional<base::TimeDelta> iteration_time =
+      timing.ComputeIterationTimeFromScaledActiveTime(absl::nullopt);
 
   EXPECT_FALSE(iteration_time);
 }
@@ -114,7 +114,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       base::TimeDelta::FromSeconds(0), AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetLinear());
 
-  base::Optional<base::TimeDelta> iteration_time =
+  absl::optional<base::TimeDelta> iteration_time =
       timing.ComputeIterationTimeFromScaledActiveTime(
           base::TimeDelta::FromSecondsD(0.5));
 
@@ -130,7 +130,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       base::TimeDelta::FromSeconds(2), AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetLinear());
 
-  base::Optional<base::TimeDelta> iteration_time =
+  absl::optional<base::TimeDelta> iteration_time =
       timing.ComputeIterationTimeFromScaledActiveTime(
           base::TimeDelta::FromSecondsD(2.0));
 
@@ -142,7 +142,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      IterationTimeIsScaledActiveTimeModulosIterationDuration) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> iteration_time =
+  absl::optional<base::TimeDelta> iteration_time =
       timing.ComputeIterationTimeFromScaledActiveTime(
           base::TimeDelta::FromSecondsD(2.5));
 
@@ -154,8 +154,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      CurrentIterationIsUnresolvedIfActiveTimeIsUnresolved) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<double> current_iteration = timing.ComputeCurrentIteration(
-      base::nullopt, base::nullopt, base::nullopt);
+  absl::optional<double> current_iteration = timing.ComputeCurrentIteration(
+      absl::nullopt, absl::nullopt, absl::nullopt);
 
   EXPECT_FALSE(current_iteration);
 }
@@ -174,7 +174,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   base::TimeDelta iteration_time =
       *timing.ComputeIterationTimeFromScaledActiveTime(scaled_active_time);
 
-  base::Optional<double> current_iteration = timing.ComputeCurrentIteration(
+  absl::optional<double> current_iteration = timing.ComputeCurrentIteration(
       active_time, scaled_active_time, iteration_time);
 
   ASSERT_TRUE(current_iteration);
@@ -196,7 +196,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   base::TimeDelta iteration_time =
       *timing.ComputeIterationTimeFromScaledActiveTime(scaled_active_time);
 
-  base::Optional<double> current_iteration = timing.ComputeCurrentIteration(
+  absl::optional<double> current_iteration = timing.ComputeCurrentIteration(
       active_time, scaled_active_time, iteration_time);
 
   ASSERT_TRUE(current_iteration);
@@ -217,7 +217,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   base::TimeDelta iteration_time =
       *timing.ComputeIterationTimeFromScaledActiveTime(scaled_active_time);
 
-  base::Optional<double> current_iteration = timing.ComputeCurrentIteration(
+  absl::optional<double> current_iteration = timing.ComputeCurrentIteration(
       active_time, scaled_active_time, iteration_time);
 
   ASSERT_TRUE(current_iteration);
@@ -242,7 +242,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 
   ASSERT_DOUBLE_EQ(timing.duration().InSecondsF(), iteration_time.InSecondsF());
 
-  base::Optional<double> current_iteration = timing.ComputeCurrentIteration(
+  absl::optional<double> current_iteration = timing.ComputeCurrentIteration(
       active_time, scaled_active_time, iteration_time);
 
   ASSERT_TRUE(current_iteration);
@@ -263,7 +263,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   base::TimeDelta iteration_time =
       *timing.ComputeIterationTimeFromScaledActiveTime(scaled_active_time);
 
-  base::Optional<double> current_iteration = timing.ComputeCurrentIteration(
+  absl::optional<double> current_iteration = timing.ComputeCurrentIteration(
       active_time, scaled_active_time, iteration_time);
 
   ASSERT_TRUE(current_iteration);
@@ -274,8 +274,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      DirectedTimeIsUnresolvedIfIterationTimeIsUnresolved) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> directed_time =
-      timing.ComputeDirectedTimeFromIterationTime(base::nullopt, base::nullopt);
+  absl::optional<base::TimeDelta> directed_time =
+      timing.ComputeDirectedTimeFromIterationTime(absl::nullopt, absl::nullopt);
 
   EXPECT_FALSE(directed_time);
 }
@@ -288,7 +288,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       base::TimeDelta::FromSeconds(1), AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetLinear());
 
-  base::Optional<base::TimeDelta> directed_time =
+  absl::optional<base::TimeDelta> directed_time =
       timing.ComputeDirectedTimeFromIterationTime(
           base::TimeDelta::FromSecondsD(0.25), 0.0);
 
@@ -304,7 +304,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       base::TimeDelta::FromSeconds(1), AnimationEffectTimingReadOnly::kReverse,
       cssom::TimingFunction::GetLinear());
 
-  base::Optional<base::TimeDelta> directed_time =
+  absl::optional<base::TimeDelta> directed_time =
       timing.ComputeDirectedTimeFromIterationTime(
           base::TimeDelta::FromSecondsD(0.25), 0.0);
 
@@ -321,7 +321,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       AnimationEffectTimingReadOnly::kAlternate,
       cssom::TimingFunction::GetLinear());
 
-  base::Optional<base::TimeDelta> directed_time =
+  absl::optional<base::TimeDelta> directed_time =
       timing.ComputeDirectedTimeFromIterationTime(
           base::TimeDelta::FromSecondsD(0.25), 0.0);
 
@@ -344,7 +344,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       AnimationEffectTimingReadOnly::kAlternateReverse,
       cssom::TimingFunction::GetLinear());
 
-  base::Optional<base::TimeDelta> directed_time =
+  absl::optional<base::TimeDelta> directed_time =
       timing.ComputeDirectedTimeFromIterationTime(
           base::TimeDelta::FromSecondsD(0.25), 0.0);
 
@@ -367,7 +367,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       AnimationEffectTimingReadOnly::kAlternate,
       cssom::TimingFunction::GetLinear());
 
-  base::Optional<base::TimeDelta> directed_time =
+  absl::optional<base::TimeDelta> directed_time =
       timing.ComputeDirectedTimeFromIterationTime(
           base::TimeDelta::FromSecondsD(0.25),
           std::numeric_limits<double>::infinity());
@@ -380,8 +380,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      TransformedTimeIsUnresolvedIfDirectedTimeIsUnresolved) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> transformed_time =
-      timing.ComputeTransformedTimeFromDirectedTime(base::nullopt);
+  absl::optional<base::TimeDelta> transformed_time =
+      timing.ComputeTransformedTimeFromDirectedTime(absl::nullopt);
 
   EXPECT_FALSE(transformed_time);
 }
@@ -394,7 +394,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetLinear());
 
-  base::Optional<base::TimeDelta> transformed_time =
+  absl::optional<base::TimeDelta> transformed_time =
       timing.ComputeTransformedTimeFromDirectedTime(
           base::TimeDelta::FromSecondsD(1.5));
 
@@ -410,7 +410,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetLinear());
 
-  base::Optional<base::TimeDelta> transformed_time =
+  absl::optional<base::TimeDelta> transformed_time =
       timing.ComputeTransformedTimeFromDirectedTime(
           base::TimeDelta::FromSecondsD(1.5));
 
@@ -422,7 +422,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      TransformedTimeIsEqualToDirectedTimeForLinearEasing) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<base::TimeDelta> transformed_time =
+  absl::optional<base::TimeDelta> transformed_time =
       timing.ComputeTransformedTimeFromDirectedTime(
           base::TimeDelta::FromSecondsD(1.5));
 
@@ -438,7 +438,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       base::TimeDelta::FromSeconds(2), AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetEase());
 
-  base::Optional<base::TimeDelta> transformed_time =
+  absl::optional<base::TimeDelta> transformed_time =
       timing.ComputeTransformedTimeFromDirectedTime(
           base::TimeDelta::FromSecondsD(1.5));
 
@@ -452,8 +452,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      IterationProgressIsUnresolvedIfTransformedTimeIsUnresolved) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<double> iteration_progress =
-      timing.ComputeIterationProgressFromTransformedTime(base::nullopt);
+  absl::optional<double> iteration_progress =
+      timing.ComputeIterationProgressFromTransformedTime(absl::nullopt);
 
   EXPECT_FALSE(iteration_progress);
 }
@@ -462,7 +462,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
      IterationProgressIsTransformedTimeDividedByDuration) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
-  base::Optional<double> iteration_progress =
+  absl::optional<double> iteration_progress =
       timing.ComputeIterationProgressFromTransformedTime(
           base::TimeDelta::FromSecondsD(1.5));
 

@@ -856,8 +856,8 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
   return new_html_element;
 }
 
-base::Optional<std::string> HTMLElement::GetStyleAttribute() const {
-  base::Optional<std::string> value = Element::GetStyleAttribute();
+absl::optional<std::string> HTMLElement::GetStyleAttribute() const {
+  absl::optional<std::string> value = Element::GetStyleAttribute();
   return value.value_or(style_->css_text(NULL));
 }
 
@@ -1227,7 +1227,7 @@ void HTMLElement::InvalidateLayoutBoxes() {
       pseudo_element->reset_layout_boxes();
     }
   }
-  directionality_ = base::nullopt;
+  directionality_ = absl::nullopt;
 }
 
 void HTMLElement::OnUiNavBlur(int64_t monotonic_time) {
@@ -1562,7 +1562,7 @@ void HTMLElement::SetTabIndex(const std::string& value) {
   if (base::StringToInt32(value, &tabindex)) {
     tabindex_ = tabindex;
   } else {
-    tabindex_ = base::nullopt;
+    tabindex_ = absl::nullopt;
   }
 
   // Changing the tabindex may trigger a UI navigation change.
@@ -1581,7 +1581,7 @@ void HTMLElement::SetUiNavFocusDuration(const std::string& value) {
       ui_nav_item_->SetFocusDuration(*ui_nav_focus_duration_);
     }
   } else {
-    ui_nav_focus_duration_ = base::nullopt;
+    ui_nav_focus_duration_ = absl::nullopt;
     if (ui_nav_item_) {
       ui_nav_item_->SetFocusDuration(0.0f);
     }
@@ -2230,7 +2230,7 @@ bool HTMLElement::CanBeDesignatedByPointerIfDisplayed() const {
 void HTMLElement::UpdateUiNavigation() {
   ui_nav_needs_update_ = false;
 
-  base::Optional<ui_navigation::NativeItemType> ui_nav_item_type;
+  absl::optional<ui_navigation::NativeItemType> ui_nav_item_type;
   if (tabindex_ && *tabindex_ <= kUiNavFocusTabIndexThreshold &&
       computed_style()->pointer_events() != cssom::KeywordValue::GetNone()) {
     ui_nav_item_type = ui_navigation::kNativeItemTypeFocus;

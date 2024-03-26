@@ -20,7 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "base/optional.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_settings/calculations.h"
 #include "cobalt/browser/memory_settings/test_common.h"
@@ -29,6 +28,7 @@
 #include "cobalt/math/size.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {

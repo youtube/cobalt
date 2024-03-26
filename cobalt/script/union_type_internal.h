@@ -21,11 +21,11 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/sequence.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace script {
@@ -117,9 +117,9 @@ struct UnionTypeTraits<Sequence<T>> : UnionTypeDefaultTraits<Sequence<T>> {
 
 // Explicitly blacklist nullable types. None of the union members should be
 // nullable. If the union has a nullable member, then the whole union type
-// should be declared nullable such as base::Optional<base::UnionTypeN<...> >
+// should be declared nullable such as absl::optional<base::UnionTypeN<...> >
 template <typename T>
-struct UnionTypeTraits<base::Optional<T>> : UnionTypeDefaultTraits<T> {
+struct UnionTypeTraits<absl::optional<T>> : UnionTypeDefaultTraits<T> {
   // This assert will only be evaluated if the template is instantiated.
   COMPILE_ASSERT(sizeof(T) == 0, NullableTypesAreNotPermittedInUnionss);
 };

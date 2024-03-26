@@ -314,7 +314,7 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
     // If the decode target is specified as UYVY format, then we need to pass
     // this in as supplementary data, as the |texture| object only knows that
     // it is RGBA.
-    base::Optional<AlternateRgbaFormat> alternate_rgba_format;
+    absl::optional<AlternateRgbaFormat> alternate_rgba_format;
     if (info.format == kSbDecodeTargetFormat1PlaneUYVY) {
       alternate_rgba_format = AlternateRgbaFormat_UYVY;
     }

@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -26,7 +26,7 @@ namespace protocol {
 
 class LogType {
  public:
-  static base::Optional<LogType> FromValue(const base::Value* value);
+  static absl::optional<LogType> FromValue(const base::Value* value);
   explicit LogType(const std::string& type) : type_(type) {}
   const std::string& type() const { return type_; }
 

@@ -15,8 +15,8 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_FRAME_ID_H_
 #define COBALT_WEBDRIVER_PROTOCOL_FRAME_ID_H_
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -28,7 +28,7 @@ namespace protocol {
 // is always active.
 class FrameId {
  public:
-  static base::Optional<FrameId> FromValue(const base::Value* value);
+  static absl::optional<FrameId> FromValue(const base::Value* value);
 
   bool is_top_level_browsing_context() const {
     return is_top_level_browsing_context_;

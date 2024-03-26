@@ -15,8 +15,8 @@
 #ifndef COBALT_RENDERER_SMOOTHED_VALUE_H_
 #define COBALT_RENDERER_SMOOTHED_VALUE_H_
 
-#include "base/optional.h"
 #include "base/time/time.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {
@@ -32,7 +32,7 @@ class SmoothedValue {
   // |time_to_converge|.
   SmoothedValue(
       base::TimeDelta time_to_converge,
-      base::Optional<double> max_slope_magnitude = base::Optional<double>());
+      absl::optional<double> max_slope_magnitude = absl::optional<double>());
 
   // Sets the target value that GetCurrentValue() will smoothly converge
   // towards.
@@ -76,19 +76,19 @@ class SmoothedValue {
   const base::TimeDelta time_to_converge_;
 
   // The current target value that we are converging towards.
-  base::Optional<double> target_;
+  absl::optional<double> target_;
 
   // Tracks when |target_| was last set.
   base::TimeTicks target_set_time_;
 
   // The value returned by GetCurrentValue() at the time that the target was
   // last set.
-  base::Optional<double> previous_value_;
+  absl::optional<double> previous_value_;
 
   // The derivative of GetCurrentValue() when target was last set.
   double previous_derivative_;
 
-  base::Optional<double> max_slope_magnitude_;
+  absl::optional<double> max_slope_magnitude_;
 };
 
 }  // namespace renderer

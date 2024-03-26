@@ -130,7 +130,7 @@ void H5vccStorage::ClearCookies() {
                  base::Passed(net::CookieStore::DeleteCallback())));
 }
 
-void H5vccStorage::Flush(const base::Optional<bool>& sync) {
+void H5vccStorage::Flush(const absl::optional<bool>& sync) {
   if (sync.value_or(false) == true) {
     // Synchronously wait for storage to flush before returning.
     network_module_->storage_manager()->FlushSynchronous();

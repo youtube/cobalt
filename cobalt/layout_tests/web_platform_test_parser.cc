@@ -19,7 +19,6 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/optional.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -29,6 +28,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout_tests {
@@ -62,13 +62,13 @@ WebPlatformTestInfo::State StringToExpectation(
   }
 }
 
-base::Optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
+absl::optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
     const std::string& line_string) {
   std::vector<std::string> test_case_tokens = base::SplitString(
       line_string, ",", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   if (test_case_tokens.size() < 2) {
     DLOG(WARNING) << "Failed to parse: " << line_string;
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   for (size_t i = 0; i < test_case_tokens.size(); ++i) {
@@ -79,7 +79,7 @@ base::Optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
   std::string test_expect = base::ToLowerASCII(test_case_tokens[1]);
   WebPlatformTestInfo::State expectation = StringToExpectation(test_expect);
   if (expectation == WebPlatformTestInfo::kDisable) {
-    return base::nullopt;
+    return absl::nullopt;
   } else {
     WebPlatformTestInfo test_info;
     test_info.url = test_case_tokens[0];
@@ -158,7 +158,7 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
         continue;
       }
 
-      base::Optional<WebPlatformTestInfo> parsed_test_info =
+      absl::optional<WebPlatformTestInfo> parsed_test_info =
           ParseWebPlatformTestCaseLine(trimmed_line);
       if (parsed_test_info) {
         WebPlatformTestInfo& test_info = *parsed_test_info;

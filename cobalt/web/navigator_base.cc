@@ -17,7 +17,6 @@
 #include <memory>
 #include <vector>
 
-#include "base/optional.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
@@ -25,6 +24,7 @@
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/worker/service_worker_container.h"
 #include "starboard/configuration_constants.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web {

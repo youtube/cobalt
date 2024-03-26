@@ -47,7 +47,7 @@ void Quit(base::RunLoop* run_loop) {
 // signal to stop the WebModule's message loop since our work is done after a
 // layout has been performed.
 void WebModuleOnRenderTreeProducedCallback(
-    base::Optional<browser::WebModule::LayoutResults>* out_results,
+    absl::optional<browser::WebModule::LayoutResults>* out_results,
     base::RunLoop* run_loop, base::MessageLoop* message_loop,
     const browser::WebModule::LayoutResults& results) {
   out_results->emplace(results.render_tree, results.layout_time);
@@ -99,7 +99,7 @@ browser::WebModule::LayoutResults SnapshotURL(
   web_module_options.web_options.network_module = &network_module;
 
   // Prepare a slot for our results to be placed when ready.
-  base::Optional<browser::WebModule::LayoutResults> results;
+  absl::optional<browser::WebModule::LayoutResults> results;
 
   // Create the WebModule and wait for a layout to occur.
   browser::WebModule web_module("SnapshotURL");

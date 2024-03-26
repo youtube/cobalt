@@ -22,7 +22,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/sequence_checker.h"
 #include "base/sequenced_task_runner.h"
 #include "cobalt/network/network_module.h"
@@ -37,6 +36,7 @@
 #include "net/websockets/websocket_frame.h"
 #include "net/websockets/websocket_frame_parser.h"
 #include "net/websockets/websocket_handshake_stream_create_helper.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {

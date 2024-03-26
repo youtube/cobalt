@@ -17,13 +17,13 @@
 #include <algorithm>
 #include <memory>
 
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "starboard/common/time.h"
 #include "starboard/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {

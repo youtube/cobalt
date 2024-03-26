@@ -21,10 +21,10 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/cancelable_callback.h"
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace loader {
@@ -36,7 +36,7 @@ class Loader {
   typedef base::Callback<std::unique_ptr<Fetcher>(Fetcher::Handler*)>
       FetcherCreator;
   typedef base::Callback<void(Loader*)> OnDestructionFunction;
-  typedef base::Callback<void(const base::Optional<std::string>&)>
+  typedef base::Callback<void(const absl::optional<std::string>&)>
       OnCompleteFunction;
   typedef base::Callback<std::unique_ptr<Decoder>(const OnCompleteFunction&)>
       DecoderCreator;
@@ -64,7 +64,7 @@ class Loader {
 
   bool DidFailFromTransientError() const;
 
-  void LoadComplete(const base::Optional<std::string>& status);
+  void LoadComplete(const absl::optional<std::string>& status);
 
   net::LoadTimingInfo get_load_timing_info();
   void set_load_timing_info(const net::LoadTimingInfo& timing_info);

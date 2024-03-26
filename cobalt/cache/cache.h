@@ -27,12 +27,12 @@
 #include "base/files/file_path.h"
 #include "base/macros.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/values.h"
 #include "cobalt/cache/memory_capped_directory.h"
 #include "cobalt/network/disk_cache/resource_type.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 template <typename T>
@@ -51,20 +51,20 @@ class Cache {
   void DeleteAll();
   std::vector<uint32_t> KeysWithMetadata(
       network::disk_cache::ResourceType resource_type);
-  base::Optional<base::Value> Metadata(
+  absl::optional<base::Value> Metadata(
       network::disk_cache::ResourceType resource_type, uint32_t key);
   std::unique_ptr<std::vector<uint8_t>> Retrieve(
       network::disk_cache::ResourceType resource_type, uint32_t key,
       std::function<std::pair<std::unique_ptr<std::vector<uint8_t>>,
-                              base::Optional<base::Value>>()>
+                              absl::optional<base::Value>>()>
           generate);
   std::unique_ptr<std::vector<uint8_t>> Retrieve(
       network::disk_cache::ResourceType resource_type, uint32_t key);
   void Resize(network::disk_cache::ResourceType resource_type, uint32_t bytes);
   void Store(network::disk_cache::ResourceType resource_type, uint32_t key,
              const std::vector<uint8_t>& data,
-             const base::Optional<base::Value>& metadata);
-  base::Optional<uint32_t> GetMaxCacheStorageInBytes(
+             const absl::optional<base::Value>& metadata);
+  absl::optional<uint32_t> GetMaxCacheStorageInBytes(
       network::disk_cache::ResourceType resource_type);
 
  private:

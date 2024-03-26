@@ -19,7 +19,6 @@
 #include <utility>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/cssom/animation_set.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -27,6 +26,7 @@
 #include "cobalt/dom/css_animations_adapter.h"
 #include "cobalt/dom/css_transitions_adapter.h"
 #include "cobalt/dom/layout_boxes.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -91,11 +91,11 @@ class PseudoElement {
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;
 
-  base::Optional<CSSTransitionsAdapter> transitions_adapter_;
-  base::Optional<cssom::TransitionSet> css_transitions_;
+  absl::optional<CSSTransitionsAdapter> transitions_adapter_;
+  absl::optional<cssom::TransitionSet> css_transitions_;
 
-  base::Optional<CSSAnimationsAdapter> animations_adapter_;
-  base::Optional<cssom::AnimationSet> css_animations_;
+  absl::optional<CSSAnimationsAdapter> animations_adapter_;
+  absl::optional<cssom::AnimationSet> css_animations_;
 
   cssom::RulesWithCascadePrecedence matching_rules_;
   bool computed_style_invalid_;

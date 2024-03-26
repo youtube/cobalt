@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace script {
@@ -36,16 +36,16 @@ class SourceProvider {
   virtual ~SourceProvider() {}
 
   // Last column of the script, for inline scripts.
-  virtual base::Optional<int> GetEndColumn() = 0;
+  virtual absl::optional<int> GetEndColumn() = 0;
 
   // Last line of the script, for inline scripts.
-  virtual base::Optional<int> GetEndLine() = 0;
+  virtual absl::optional<int> GetEndLine() = 0;
 
   // Line where parsing failed, if any.
-  virtual base::Optional<int> GetErrorLine() = 0;
+  virtual absl::optional<int> GetErrorLine() = 0;
 
   // Error message from parser, if any.
-  virtual base::Optional<std::string> GetErrorMessage() = 0;
+  virtual absl::optional<std::string> GetErrorMessage() = 0;
 
   // Unique identifier for this script.
   virtual std::string GetScriptId() = 0;
@@ -54,19 +54,19 @@ class SourceProvider {
   virtual std::string GetScriptSource() = 0;
 
   // URL of source map associated with script, if any.
-  virtual base::Optional<std::string> GetSourceMapUrl() = 0;
+  virtual absl::optional<std::string> GetSourceMapUrl() = 0;
 
   // First column of the script, for inline scripts.
-  virtual base::Optional<int> GetStartColumn() = 0;
+  virtual absl::optional<int> GetStartColumn() = 0;
 
   // First line of the script, for inline scripts.
-  virtual base::Optional<int> GetStartLine() = 0;
+  virtual absl::optional<int> GetStartLine() = 0;
 
   // URL or name of the script file.
   virtual std::string GetUrl() = 0;
 
   // Whether this is a user extension script, optional.
-  virtual base::Optional<bool> IsContentScript() = 0;
+  virtual absl::optional<bool> IsContentScript() = 0;
 };
 
 }  // namespace script

@@ -66,7 +66,7 @@ Checker::Checker()
     : cpu_memory_warning_fired_(false), gpu_memory_warning_fired_(false) {}
 
 void Checker::RunChecks(const AutoMem& auto_mem, int64_t curr_cpu_memory_usage,
-                        base::Optional<int64_t> curr_gpu_memory_usage) {
+                        absl::optional<int64_t> curr_gpu_memory_usage) {
   DoCheck("CPU", curr_cpu_memory_usage, *auto_mem.max_cpu_bytes(),
           &cpu_memory_warning_fired_);
 

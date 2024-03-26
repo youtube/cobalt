@@ -63,7 +63,7 @@ XMLHttpRequestEventTarget::ontimeout() const {
 void XMLHttpRequestEventTarget::set_onabort(
     const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
-    onabort_listener_ = base::nullopt;
+    onabort_listener_ = absl::nullopt;
   } else {
     onabort_listener_.emplace(this, listener);
   }
@@ -72,7 +72,7 @@ void XMLHttpRequestEventTarget::set_onabort(
 void XMLHttpRequestEventTarget::set_onerror(
     const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
-    onerror_listener_ = base::nullopt;
+    onerror_listener_ = absl::nullopt;
   } else {
     onerror_listener_.emplace(this, listener);
   }
@@ -81,7 +81,7 @@ void XMLHttpRequestEventTarget::set_onerror(
 void XMLHttpRequestEventTarget::set_onload(
     const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
-    onload_listener_ = base::nullopt;
+    onload_listener_ = absl::nullopt;
   } else {
     onload_listener_.emplace(this, listener);
   }
@@ -90,7 +90,7 @@ void XMLHttpRequestEventTarget::set_onload(
 void XMLHttpRequestEventTarget::set_onloadend(
     const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
-    onloadend_listener_ = base::nullopt;
+    onloadend_listener_ = absl::nullopt;
   } else {
     onloadend_listener_.emplace(this, listener);
   }
@@ -99,7 +99,7 @@ void XMLHttpRequestEventTarget::set_onloadend(
 void XMLHttpRequestEventTarget::set_onloadstart(
     const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
-    onloadstart_listener_ = base::nullopt;
+    onloadstart_listener_ = absl::nullopt;
   } else {
     onloadstart_listener_.emplace(this, listener);
   }
@@ -108,7 +108,7 @@ void XMLHttpRequestEventTarget::set_onloadstart(
 void XMLHttpRequestEventTarget::set_onprogress(
     const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
-    onprogress_listener_ = base::nullopt;
+    onprogress_listener_ = absl::nullopt;
   } else {
     onprogress_listener_.emplace(this, listener);
   }
@@ -117,7 +117,7 @@ void XMLHttpRequestEventTarget::set_onprogress(
 void XMLHttpRequestEventTarget::set_ontimeout(
     const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
-    ontimeout_listener_ = base::nullopt;
+    ontimeout_listener_ = absl::nullopt;
   } else {
     ontimeout_listener_.emplace(this, listener);
   }

@@ -73,7 +73,7 @@ void MediaSession::SetActionHandler(
   MaybeQueueChangeTask(base::TimeDelta());
 }
 
-void MediaSession::SetPositionState(base::Optional<MediaPositionState> state) {
+void MediaSession::SetPositionState(absl::optional<MediaPositionState> state) {
   last_position_updated_time_ = GetMonotonicNow();
   media_position_state_ = state;
   MaybeQueueChangeTask(base::TimeDelta());

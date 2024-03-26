@@ -18,6 +18,7 @@
 #define COBALT_BROWSER_MEMORY_SETTINGS_TEXTURE_DIMENSIONS_H_
 
 #include <iosfwd>
+#include <ostream>
 
 #include "starboard/types.h"
 

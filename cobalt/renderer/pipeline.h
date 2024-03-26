@@ -19,7 +19,6 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
@@ -33,6 +32,7 @@
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/submission.h"
 #include "cobalt/renderer/submission_queue.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if defined(ENABLE_DEBUGGER)
 #include "cobalt/debug/console/command_manager.h"  // nogncheck
@@ -102,7 +102,7 @@ class Pipeline {
   // will be called with the pixel data and the dimensions of the image.
   void RasterizeToRGBAPixels(
       const scoped_refptr<render_tree::Node>& render_tree_root,
-      const base::Optional<math::Rect>& clip_rect,
+      const absl::optional<math::Rect>& clip_rect,
       const RasterizationCompleteCallback& complete);
 
   // Inserts a fence that ensures the rasterizer rasterizes up until the
@@ -214,7 +214,7 @@ class Pipeline {
   // as possible, it is up to the rasterizer to pace the pipeline.  The timer
   // is used to manage the repeated posting of the rasterize task call and
   // to make proper shutdown easier.
-  base::Optional<base::RepeatingTimer> rasterize_timer_;
+  absl::optional<base::RepeatingTimer> rasterize_timer_;
 
   // ThreadChecker for use by the rasterizer_thread_ defined below.
   THREAD_CHECKER(rasterizer_thread_checker_);
@@ -234,7 +234,7 @@ class Pipeline {
 
   // Manages a queue of render tree submissions that are to be rendered in
   // the future.
-  base::Optional<SubmissionQueue> submission_queue_;
+  absl::optional<SubmissionQueue> submission_queue_;
 
   // If true, we will submit the current render tree to the rasterizer every
   // frame, even if it hasn't changed.
@@ -249,9 +249,9 @@ class Pipeline {
   // Keeps track of the area of the screen that animations previously existed
   // within, so that we can know which regions of the screens would be dirty
   // next frame.
-  base::Optional<math::Rect> previous_animated_area_;
+  absl::optional<math::Rect> previous_animated_area_;
   // The submission time used during the last render tree render.
-  base::Optional<base::TimeDelta> last_render_time_;
+  absl::optional<base::TimeDelta> last_render_time_;
   // Keep track of whether the last rendered tree had active animations. This
   // allows us to skip rasterizing that render tree if we see it again and it
   // did have expired animations.
@@ -318,16 +318,16 @@ class Pipeline {
   // FPS statistics from the last animation.
   bool enable_fps_overlay_;
 
-  base::Optional<FpsOverlay> fps_overlay_;
+  absl::optional<FpsOverlay> fps_overlay_;
 
   // True if the overlay has been updated and it needs to be re-rasterized.
   bool fps_overlay_update_pending_;
 
   // Time fence data that records if a time fence is active, at what time, and
   // what submission if any is waiting to be queued once we pass the time fence.
-  base::Optional<base::TimeDelta> time_fence_;
-  base::Optional<Submission> post_fence_submission_;
-  base::Optional<base::TimeTicks> post_fence_receipt_time_;
+  absl::optional<base::TimeDelta> time_fence_;
+  absl::optional<Submission> post_fence_submission_;
+  absl::optional<base::TimeTicks> post_fence_receipt_time_;
 
   // Information about the current timeline.  Each incoming submission
   // identifies with a particular timeline, and if that ever changes, we assume

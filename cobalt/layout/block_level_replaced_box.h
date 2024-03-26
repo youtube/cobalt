@@ -17,13 +17,13 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
 #include "cobalt/layout/replaced_box.h"
 #include "cobalt/math/size_f.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
@@ -35,13 +35,13 @@ class BlockLevelReplacedBox : public ReplacedBox {
           css_computed_style_declaration,
       const ReplaceImageCB& replace_image_cb, const SetBoundsCB& set_bounds_cb,
       const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-      const base::Optional<LayoutUnit>& maybe_intrinsic_width,
-      const base::Optional<LayoutUnit>& maybe_intrinsic_height,
-      const base::Optional<float>& maybe_intrinsic_ratio,
+      const absl::optional<LayoutUnit>& maybe_intrinsic_width,
+      const absl::optional<LayoutUnit>& maybe_intrinsic_height,
+      const absl::optional<float>& maybe_intrinsic_ratio,
       UsedStyleProvider* used_style_provider,
-      base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
+      absl::optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
       const math::SizeF& content_size,
-      base::Optional<render_tree::LottieAnimation::LottieProperties>
+      absl::optional<render_tree::LottieAnimation::LottieProperties>
           lottie_properties,
       LayoutStatTracker* layout_stat_tracker);
 
@@ -58,8 +58,8 @@ class BlockLevelReplacedBox : public ReplacedBox {
   void UpdateHorizontalMargins(
       BaseDirection containing_block_direction,
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
-      const base::Optional<LayoutUnit>& maybe_margin_left,
-      const base::Optional<LayoutUnit>& maybe_margin_right) override;
+      const absl::optional<LayoutUnit>& maybe_margin_left,
+      const absl::optional<LayoutUnit>& maybe_margin_right) override;
 };
 
 }  // namespace layout

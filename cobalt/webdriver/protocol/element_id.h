@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -33,7 +33,7 @@ class ElementId {
   // Convert the ElementId to a WebElement JSON object:
   // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#webelement-json-object
   static std::unique_ptr<base::Value> ToValue(const ElementId& element_id);
-  static base::Optional<ElementId> FromValue(const base::Value* value);
+  static absl::optional<ElementId> FromValue(const base::Value* value);
 
   explicit ElementId(const std::string& id) : id_(id) {}
   const std::string& id() const { return id_; }

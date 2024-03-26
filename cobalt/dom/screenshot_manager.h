@@ -19,7 +19,6 @@
 #include <unordered_map>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/loader/image/image.h"
@@ -29,6 +28,7 @@
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -45,7 +45,7 @@ class ScreenshotManager {
 
   using ProvideScreenshotFunctionCallback =
       base::Callback<void(const scoped_refptr<render_tree::Node>&,
-                          const base::Optional<math::Rect>& clip_rect,
+                          const absl::optional<math::Rect>& clip_rect,
                           const OnUnencodedImageCallback&)>;
 
   explicit ScreenshotManager(

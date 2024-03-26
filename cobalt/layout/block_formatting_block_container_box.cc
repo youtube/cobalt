@@ -215,7 +215,7 @@ WrapResult InlineLevelBlockContainerBox::TryWrapAt(
              : kWrapResultNoWrap;
 }
 
-base::Optional<int> InlineLevelBlockContainerBox::GetBidiLevel() const {
+absl::optional<int> InlineLevelBlockContainerBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
 

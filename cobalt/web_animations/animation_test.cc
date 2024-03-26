@@ -22,15 +22,15 @@ namespace web_animations {
 TEST(AnimationDataTests, LocalTimeIsUnresolvedIfTimelineTimeIsUnresolved) {
   Animation::Data animation;
   animation.set_start_time(base::TimeDelta::FromSeconds(2));
-  base::Optional<base::TimeDelta> local_time =
-      animation.ComputeLocalTimeFromTimelineTime(base::nullopt);
+  absl::optional<base::TimeDelta> local_time =
+      animation.ComputeLocalTimeFromTimelineTime(absl::nullopt);
 
   EXPECT_FALSE(local_time);
 }
 
 TEST(AnimationDataTests, LocalTimeIsUnresolvedIfStartTimeIsUnresolved) {
   Animation::Data animation;
-  base::Optional<base::TimeDelta> local_time =
+  absl::optional<base::TimeDelta> local_time =
       animation.ComputeLocalTimeFromTimelineTime(
           base::TimeDelta::FromMilliseconds(3000));
 
@@ -40,7 +40,7 @@ TEST(AnimationDataTests, LocalTimeIsUnresolvedIfStartTimeIsUnresolved) {
 TEST(AnimationDataTests, LocalTimeIsTimelineTimeMinusStartTime) {
   Animation::Data animation;
   animation.set_start_time(base::TimeDelta::FromSeconds(2));
-  base::Optional<base::TimeDelta> local_time =
+  absl::optional<base::TimeDelta> local_time =
       animation.ComputeLocalTimeFromTimelineTime(
           base::TimeDelta::FromMilliseconds(3000));
 
@@ -52,7 +52,7 @@ TEST(AnimationDataTests, LocalTimeIsMultipliedByPlaybackRate) {
   Animation::Data animation;
   animation.set_start_time(base::TimeDelta::FromSeconds(2));
   animation.set_playback_rate(2.0);
-  base::Optional<base::TimeDelta> local_time =
+  absl::optional<base::TimeDelta> local_time =
       animation.ComputeLocalTimeFromTimelineTime(
           base::TimeDelta::FromMilliseconds(3000));
 

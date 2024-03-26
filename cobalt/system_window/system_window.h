@@ -15,12 +15,12 @@
 #ifndef COBALT_SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 #define COBALT_SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 
-#include "base/optional.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/math/size.h"
 #include "cobalt/system_window/input_event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace system_window {
@@ -32,7 +32,7 @@ namespace system_window {
 class SystemWindow {
  public:
   SystemWindow(base::EventDispatcher* event_dispatcher,
-               const base::Optional<math::Size>& window_size);
+               const absl::optional<math::Size>& window_size);
   ~SystemWindow();
 
   // Returns the dimensions of the window.

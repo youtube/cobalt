@@ -41,9 +41,9 @@ GURL GetApplicationOrigin(const GURL& url) {
 }
 }  // namespace
 
-Optional<std::string> GetApplicationKey(const GURL& url) {
+absl::optional<std::string> GetApplicationKey(const GURL& url) {
   if (!url.is_valid()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   std::string raw_url = GetApplicationOrigin(url).spec();

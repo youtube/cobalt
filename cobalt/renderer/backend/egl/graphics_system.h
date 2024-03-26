@@ -17,11 +17,11 @@
 
 #include <memory>
 
-#include "base/optional.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/egl_and_gles.h"
 #include "cobalt/system_window/system_window.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {

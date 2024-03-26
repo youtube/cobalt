@@ -19,19 +19,19 @@
 #include <utility>
 #include <vector>
 
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/renderer/submission.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {
 
 RenderTreeCombiner::Layer::Layer(RenderTreeCombiner* render_tree_combiner)
     : render_tree_combiner_(render_tree_combiner),
-      render_tree_(base::nullopt),
-      receipt_time_(base::nullopt) {}
+      render_tree_(absl::nullopt),
+      receipt_time_(absl::nullopt) {}
 
 RenderTreeCombiner::Layer::~Layer() {
   DCHECK(render_tree_combiner_);
@@ -39,18 +39,18 @@ RenderTreeCombiner::Layer::~Layer() {
 }
 
 void RenderTreeCombiner::Layer::Submit(
-    const base::Optional<renderer::Submission>& render_tree_submission) {
+    const absl::optional<renderer::Submission>& render_tree_submission) {
   render_tree_ = render_tree_submission;
   receipt_time_ = base::TimeTicks::Now();
 }
 
-base::Optional<renderer::Submission>
+absl::optional<renderer::Submission>
 RenderTreeCombiner::Layer::GetCurrentSubmission() {
   if (!render_tree_) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
-  base::Optional<base::TimeDelta> current_time_offset = CurrentTimeOffset();
+  absl::optional<base::TimeDelta> current_time_offset = CurrentTimeOffset();
   DCHECK(current_time_offset);
   renderer::Submission submission(render_tree_->render_tree,
                                   *current_time_offset);
@@ -62,9 +62,9 @@ RenderTreeCombiner::Layer::GetCurrentSubmission() {
   return submission;
 }
 
-base::Optional<base::TimeDelta> RenderTreeCombiner::Layer::CurrentTimeOffset() {
+absl::optional<base::TimeDelta> RenderTreeCombiner::Layer::CurrentTimeOffset() {
   if (!receipt_time_) {
-    return base::nullopt;
+    return absl::nullopt;
   } else {
     return render_tree_->time_offset +
            (base::TimeTicks::Now() - *receipt_time_);
@@ -106,7 +106,7 @@ void RenderTreeCombiner::RemoveLayer(const Layer* layer) {
   }
 }
 
-base::Optional<renderer::Submission>
+absl::optional<renderer::Submission>
 RenderTreeCombiner::GetCurrentSubmission() {
   render_tree::CompositionNode::Builder builder;
 
@@ -125,7 +125,7 @@ RenderTreeCombiner::GetCurrentSubmission() {
     }
   }
   if (!first_layer_with_render_tree) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   Layer* timeline_layer = (timeline_layer_ && timeline_layer_->render_tree_)

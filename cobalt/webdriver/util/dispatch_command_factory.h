@@ -76,7 +76,7 @@ std::unique_ptr<base::Value> ToValue(const std::vector<T>& value) {
 
 // Partial template specialization for base::optional.
 template <typename T>
-std::unique_ptr<base::Value> ToValue(const base::Optional<T>& value) {
+std::unique_ptr<base::Value> ToValue(const absl::optional<T>& value) {
   if (value) {
     return ToValue<T>(*value);
   } else {
@@ -107,21 +107,21 @@ std::unique_ptr<base::Value> ToValue(
   return std::make_unique<base::Value>();
 }
 
-// Convert a base::Value to a base::Optional<T>. If value could not be converted
-// base::nullopt will be returned.
+// Convert a base::Value to a absl::optional<T>. If value could not be converted
+// absl::nullopt will be returned.
 template <typename T>
-base::Optional<T> FromValue(const base::Value* value) {
+absl::optional<T> FromValue(const base::Value* value) {
   return T::FromValue(value);
 }
 
 template <>
-base::Optional<GURL> FromValue(const base::Value* value) {
+absl::optional<GURL> FromValue(const base::Value* value) {
   const char kUrlKey[] = "url";
   std::string url;
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value) ||
       !dictionary_value->GetString(kUrlKey, &url)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return GURL(url.c_str());
 }
@@ -131,7 +131,7 @@ base::Optional<GURL> FromValue(const base::Value* value) {
 // result in the CommandResult instance is converted to a base::Value and
 // returned.
 template <typename R>
-void ReturnResponse(const base::Optional<protocol::SessionId>& session_id,
+void ReturnResponse(const absl::optional<protocol::SessionId>& session_id,
                     const util::CommandResult<R>& command_result,
                     WebDriverDispatcher::CommandResultHandler* result_handler) {
   std::unique_ptr<base::Value> result;
@@ -239,7 +239,7 @@ class DispatchCommandFactory
     // Upon successful completion of the command, the result will be sent to
     // CommandResultHandler.
     typedef base::Callback<void(
-        const base::Optional<protocol::SessionId>&, DriverClassT* driver,
+        const absl::optional<protocol::SessionId>&, DriverClassT* driver,
         const base::Value* parameters, CommandResultHandler* result_handler)>
         RunCommandCallback;
 
@@ -251,7 +251,7 @@ class DispatchCommandFactory
     // function with no parameters.
     static void RunCommand(
         const DriverCommandFunction& driver_command,
-        const base::Optional<protocol::SessionId>& session_id,
+        const absl::optional<protocol::SessionId>& session_id,
         DriverClassT* driver, const base::Value* parameters,
         CommandResultHandler* result_handler) {
       // Ignore parameters.
@@ -272,14 +272,14 @@ class DispatchCommandFactory
         const base::Callback<util::CommandResult<R>(
             DriverClassT*, typename internal::ForwardType<A1>::value)>&
             driver_command,
-        const base::Optional<protocol::SessionId>& session_id,
+        const absl::optional<protocol::SessionId>& session_id,
         DriverClassT* driver, const base::Value* parameters,
         CommandResultHandler* result_handler) {
       // Extract the parameter from |parameters|. If unsuccessful, return a
       // kInvalidParameters error. Otherwise, pass the extracted parameter to
       // the |driver_command|.
       using A1_NO_REF = typename std::remove_reference<A1>::type;
-      base::Optional<A1_NO_REF> param =
+      absl::optional<A1_NO_REF> param =
           internal::FromValue<A1_NO_REF>(parameters);
       if (!param) {
         result_handler->SendInvalidRequestResponse(

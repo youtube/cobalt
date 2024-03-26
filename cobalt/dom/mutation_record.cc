@@ -22,7 +22,7 @@ namespace dom {
 
 scoped_refptr<MutationRecord> MutationRecord::CreateAttributeMutationRecord(
     const scoped_refptr<Node>& target, const std::string& attribute_name,
-    const base::Optional<std::string>& old_value) {
+    const absl::optional<std::string>& old_value) {
   scoped_refptr<MutationRecord> record =
       new MutationRecord(base::Tokens::attributes(), target);
   record->attribute_name_ = attribute_name;
@@ -32,7 +32,7 @@ scoped_refptr<MutationRecord> MutationRecord::CreateAttributeMutationRecord(
 
 scoped_refptr<MutationRecord> MutationRecord::CreateCharacterDataMutationRecord(
     const scoped_refptr<Node>& target,
-    const base::Optional<std::string>& old_character_data) {
+    const absl::optional<std::string>& old_character_data) {
   scoped_refptr<MutationRecord> record =
       new MutationRecord(base::Tokens::characterData(), target);
   record->old_value_ = old_character_data;

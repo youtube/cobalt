@@ -172,13 +172,13 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
       const ReplacedBox::ReplaceImageCB& replace_image_cb,
       const ReplacedBox::SetBoundsCB& set_bounds_cb,
       const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-      const base::Optional<LayoutUnit>& maybe_intrinsic_width,
-      const base::Optional<LayoutUnit>& maybe_intrinsic_height,
-      const base::Optional<float>& maybe_intrinsic_ratio,
+      const absl::optional<LayoutUnit>& maybe_intrinsic_width,
+      const absl::optional<LayoutUnit>& maybe_intrinsic_height,
+      const absl::optional<float>& maybe_intrinsic_ratio,
       const BoxGenerator::Context* context,
-      base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
+      absl::optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
       math::SizeF content_size,
-      base::Optional<render_tree::LottieAnimation::LottieProperties>
+      absl::optional<render_tree::LottieAnimation::LottieProperties>
           lottie_properties)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
@@ -204,13 +204,13 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const ReplacedBox::SetBoundsCB set_bounds_cb_;
   const scoped_refptr<Paragraph> paragraph_;
   const int32 text_position_;
-  const base::Optional<LayoutUnit> maybe_intrinsic_width_;
-  const base::Optional<LayoutUnit> maybe_intrinsic_height_;
-  const base::Optional<float> maybe_intrinsic_ratio_;
+  const absl::optional<LayoutUnit> maybe_intrinsic_width_;
+  const absl::optional<LayoutUnit> maybe_intrinsic_height_;
+  const absl::optional<float> maybe_intrinsic_ratio_;
   const BoxGenerator::Context* context_;
-  base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode_;
+  absl::optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode_;
   math::SizeF content_size_;
-  base::Optional<render_tree::LottieAnimation::LottieProperties>
+  absl::optional<render_tree::LottieAnimation::LottieProperties>
       lottie_properties_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
@@ -275,7 +275,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
 
   // If the optional is disengaged, then we don't know if punch out is enabled
   // or not.
-  base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode;
+  absl::optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode;
   bool paint_to_black = false;
   auto decode_target_provider =
       video_element->GetDecodeTargetProvider(&paint_to_black);
@@ -303,8 +303,8 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
           ? base::Bind(GetVideoFrame, decode_target_provider, resource_provider)
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,
-      base::nullopt, base::nullopt, base::nullopt, context_, replaced_box_mode,
-      video_element->GetVideoSize(), base::nullopt);
+      absl::nullopt, absl::nullopt, absl::nullopt, context_, replaced_box_mode,
+      video_element->GetVideoSize(), absl::nullopt);
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
@@ -379,8 +379,8 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
           ? base::Bind(GetLottieAnimation,
                        lottie_player->cached_image()->TryGetResource())
           : ReplacedBox::ReplaceImageCB(),
-      ReplacedBox::SetBoundsCB(), *paragraph_, text_position, base::nullopt,
-      base::nullopt, base::nullopt, context_,
+      ReplacedBox::SetBoundsCB(), *paragraph_, text_position, absl::nullopt,
+      absl::nullopt, absl::nullopt, context_,
       ReplacedBox::ReplacedBoxMode::kLottie,
       math::Size() /* only relevant to punch out video */,
       lottie_player->GetProperties());

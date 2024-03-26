@@ -42,7 +42,7 @@ std::string GetTagName(dom::Element* element) {
   return element->tag_name().c_str();
 }
 
-base::Optional<std::string> GetAttribute(const std::string& attribute_name,
+absl::optional<std::string> GetAttribute(const std::string& attribute_name,
                                          dom::Element* element) {
   DCHECK(element);
   return element->GetAttribute(attribute_name);
@@ -198,7 +198,7 @@ util::CommandResult<bool> ElementDriver::Equals(
       protocol::Response::kStaleElementReference);
 }
 
-util::CommandResult<base::Optional<std::string> > ElementDriver::GetAttribute(
+util::CommandResult<absl::optional<std::string> > ElementDriver::GetAttribute(
     const std::string& attribute_name) {
   return util::CallWeakOnMessageLoopAndReturnResult(
       element_task_runner_,

@@ -23,7 +23,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -39,6 +38,7 @@
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/clamp.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {
@@ -57,8 +57,8 @@ bool SignalsAutoset(const TextureDimensions& value) {
 }
 
 template <typename MemorySettingType, typename ValueType>
-void SetMemorySetting(const base::Optional<ValueType>& command_line_setting,
-                      const base::Optional<ValueType>& build_setting,
+void SetMemorySetting(const absl::optional<ValueType>& command_line_setting,
+                      const absl::optional<ValueType>& build_setting,
                       const ValueType& autoset_value,
                       MemorySettingType* setting) {
   const std::string setting_name = setting->name();
@@ -93,8 +93,8 @@ void SetMemorySetting(const base::Optional<ValueType>& command_line_setting,
 template <typename MemorySettingType, typename ValueType>
 std::unique_ptr<MemorySettingType> CreateMemorySetting(
     const char* setting_name,
-    const base::Optional<ValueType>& command_line_setting,
-    const base::Optional<ValueType>& build_setting,
+    const absl::optional<ValueType>& command_line_setting,
+    const absl::optional<ValueType>& build_setting,
     const ValueType& autoset_value) {
   std::unique_ptr<MemorySettingType> output(
       new MemorySettingType(setting_name));
@@ -105,9 +105,9 @@ std::unique_ptr<MemorySettingType> CreateMemorySetting(
 
 std::unique_ptr<IntSetting> CreateSystemMemorySetting(
     const char* setting_name, MemorySetting::MemoryType memory_type,
-    const base::Optional<int64_t>& command_line_setting,
-    const base::Optional<int64_t>& build_setting,
-    const base::Optional<int64_t>& starboard_value) {
+    const absl::optional<int64_t>& command_line_setting,
+    const absl::optional<int64_t>& build_setting,
+    const absl::optional<int64_t>& starboard_value) {
   std::unique_ptr<IntSetting> setting(new IntSetting(setting_name));
   setting->set_memory_type(memory_type);
   if (command_line_setting) {
@@ -184,7 +184,7 @@ std::unique_ptr<IntSetting> CreateGpuSetting(
     const AutoMemSettings& command_line_settings,
     const AutoMemSettings& build_settings) {
   // Bind to the starboard api, if applicable.
-  base::Optional<int64_t> starboard_setting;
+  absl::optional<int64_t> starboard_setting;
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     starboard_setting = SbSystemGetTotalGPUMemory();
   }
@@ -313,7 +313,7 @@ void AutoMem::LogToPrettyPrintString(const math::Size& ui_resolution,
     error_msgs.push_back("ERROR - CPU CONSUMED WAS MORE THAN AVAILABLE.");
   }
 
-  const base::Optional<int64_t> max_gpu_value =
+  const absl::optional<int64_t> max_gpu_value =
       max_gpu_bytes_->optional_value();
   if (max_gpu_value) {
     if (*max_gpu_value <= 0) {

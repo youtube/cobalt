@@ -1020,7 +1020,7 @@ void UsedBorderRadiusProvider::VisitLength(cssom::LengthValue* length) {
   if (length->value() > 0) {
     rounded_corner_.emplace(length->value(), length->value());
   } else {
-    rounded_corner_ = base::nullopt;
+    rounded_corner_ = absl::nullopt;
   }
 }
 
@@ -1030,7 +1030,7 @@ void UsedBorderRadiusProvider::VisitPercentage(
     rounded_corner_.emplace(percentage->value() * frame_size_.width(),
                             percentage->value() * frame_size_.height());
   } else {
-    rounded_corner_ = base::nullopt;
+    rounded_corner_ = absl::nullopt;
   }
 }
 
@@ -1188,7 +1188,7 @@ class UsedFlexBasisProvider : public UsedLengthValueProvider {
 
 }  // namespace
 
-base::Optional<LayoutUnit> GetUsedLeftIfNotAuto(
+absl::optional<LayoutUnit> GetUsedLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1198,7 +1198,7 @@ base::Optional<LayoutUnit> GetUsedLeftIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedTopIfNotAuto(
+absl::optional<LayoutUnit> GetUsedTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
@@ -1208,7 +1208,7 @@ base::Optional<LayoutUnit> GetUsedTopIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedRightIfNotAuto(
+absl::optional<LayoutUnit> GetUsedRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1218,7 +1218,7 @@ base::Optional<LayoutUnit> GetUsedRightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
+absl::optional<LayoutUnit> GetUsedBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
@@ -1232,7 +1232,7 @@ base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
 // way as width, except that if a value would resolve to auto for width, it
 // instead resolves to content for flex-basis.
 //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
-base::Optional<LayoutUnit> GetUsedFlexBasisIfNotContent(
+absl::optional<LayoutUnit> GetUsedFlexBasisIfNotContent(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     bool main_direction_is_horizontal, LayoutUnit main_space,
     bool* flex_basis_depends_on_available_space) {
@@ -1265,7 +1265,7 @@ base::Optional<LayoutUnit> GetUsedFlexBasisIfNotContent(
   return used_flex_basis_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedWidthIfNotAuto(
+absl::optional<LayoutUnit> GetUsedWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block) {
@@ -1280,7 +1280,7 @@ base::Optional<LayoutUnit> GetUsedWidthIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
+absl::optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
@@ -1290,7 +1290,7 @@ base::Optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
+absl::optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block) {
@@ -1305,7 +1305,7 @@ base::Optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedMinHeightIfNotAuto(
+absl::optional<LayoutUnit> GetUsedMinHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
@@ -1315,7 +1315,7 @@ base::Optional<LayoutUnit> GetUsedMinHeightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedMinWidthIfNotAuto(
+absl::optional<LayoutUnit> GetUsedMinWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block) {
@@ -1330,7 +1330,7 @@ base::Optional<LayoutUnit> GetUsedMinWidthIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedHeightIfNotAuto(
+absl::optional<LayoutUnit> GetUsedHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* height_depends_on_containing_block) {
@@ -1346,7 +1346,7 @@ base::Optional<LayoutUnit> GetUsedHeightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
+absl::optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1356,7 +1356,7 @@ base::Optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
+absl::optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1366,7 +1366,7 @@ base::Optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
+absl::optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1376,7 +1376,7 @@ base::Optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::Optional<LayoutUnit> GetUsedMarginBottomIfNotAuto(
+absl::optional<LayoutUnit> GetUsedMarginBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.

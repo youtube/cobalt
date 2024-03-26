@@ -21,7 +21,6 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/debug/console/console_command.h"
 #include "cobalt/debug/console/debug_console_mode.h"
@@ -32,6 +31,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace debug {
@@ -53,7 +53,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   typedef script::ScriptValue<AttachCallback> AttachCallbackArg;
 
   // JavaScript callback to receive the response after executing a command.
-  typedef script::CallbackFunction<void(base::Optional<std::string>)>
+  typedef script::CallbackFunction<void(absl::optional<std::string>)>
       ResponseCallback;
   typedef script::ScriptValue<ResponseCallback> ResponseCallbackArg;
 
@@ -91,7 +91,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   void SendCommand(const std::string& method, const std::string& json_params,
                    const ResponseCallbackArg& callback);
 
-  const base::Optional<std::string>& last_error() const { return last_error_; }
+  const absl::optional<std::string>& last_error() const { return last_error_; }
   const scoped_refptr<DebuggerEventTarget>& on_event() const {
     return on_event_;
   }
@@ -113,7 +113,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   // Passes the response to the JavaScript callback registered with the command.
   void OnCommandResponse(
       const scoped_refptr<ResponseCallbackInfo>& callback_info,
-      const base::Optional<std::string>& response) const;
+      const absl::optional<std::string>& response) const;
 
   // DebugClient::Delegate implementation.
   void OnDebugClientEvent(const std::string& method,
@@ -126,7 +126,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   // is a response for.
   void RunResponseCallback(
       const scoped_refptr<ResponseCallbackInfo>& callback_info,
-      base::Optional<std::string> response) const;
+      absl::optional<std::string> response) const;
 
   // A view onto Cobalt's CVals
   scoped_refptr<dom::CValView> c_val_;
@@ -148,7 +148,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   // app using the chrome.runtime.lastError object. When we add support for
   // Cobalt's equivalent to the runtime extension API, we may wish to consider
   // using that and removing this attribute.
-  base::Optional<std::string> last_error_;
+  absl::optional<std::string> last_error_;
 };
 
 }  // namespace console

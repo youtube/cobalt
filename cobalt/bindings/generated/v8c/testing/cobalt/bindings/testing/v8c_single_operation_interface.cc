@@ -50,12 +50,12 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
-base::Optional<int32_t > V8cSingleOperationInterface::HandleCallback(
+absl::optional<int32_t > V8cSingleOperationInterface::HandleCallback(
     const scoped_refptr<script::Wrappable>& callback_this,
     const scoped_refptr<ArbitraryInterface>& value,
     bool* had_exception) const {
   bool success = false;
-  base::Optional<int32_t > cobalt_return_value;
+  absl::optional<int32_t > cobalt_return_value;
 
   DCHECK(isolate_);
   DCHECK(!this->IsEmpty());

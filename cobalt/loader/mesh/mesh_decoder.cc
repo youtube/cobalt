@@ -253,7 +253,7 @@ void MeshDecoder::Finish() {
           resource_provider_, 0, 0, &raw_data_->at(4), raw_data_->size() - 4);
   if (mesh_projection) {
     mesh_available_callback_.Run(mesh_projection);
-    load_complete_callback_.Run(base::nullopt);
+    load_complete_callback_.Run(absl::nullopt);
   } else {
     // Error must have occurred in MeshDecoderSink::Decode.
     load_complete_callback_.Run(

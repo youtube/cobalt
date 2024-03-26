@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/browser/user_agent_platform_info.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {

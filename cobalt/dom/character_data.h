@@ -29,8 +29,8 @@ namespace dom {
 class CharacterData : public Node {
  public:
   // Web API: Node
-  base::Optional<std::string> node_value() const override { return data_; }
-  void set_node_value(const base::Optional<std::string>& node_value) override {
+  absl::optional<std::string> node_value() const override { return data_; }
+  void set_node_value(const absl::optional<std::string>& node_value) override {
     // Don't use value_or to avoid copying the string.
     if (node_value) {
       set_data(node_value.value());
@@ -39,9 +39,9 @@ class CharacterData : public Node {
     }
   }
 
-  base::Optional<std::string> text_content() const override { return data_; }
+  absl::optional<std::string> text_content() const override { return data_; }
   void set_text_content(
-      const base::Optional<std::string>& text_content) override {
+      const absl::optional<std::string>& text_content) override {
     // Don't use value_or to avoid copying the string.
     if (text_content) {
       set_data(text_content.value());

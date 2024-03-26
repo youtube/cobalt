@@ -47,14 +47,14 @@ unsigned int DOMTokenList::length() const {
 
 // Algorithm for Item:
 //   https://www.w3.org/TR/dom/#dom-domtokenlist-item
-base::Optional<std::string> DOMTokenList::Item(unsigned int index) const {
+absl::optional<std::string> DOMTokenList::Item(unsigned int index) const {
   // Custom, not in any spec.
   MaybeRefresh();
 
   // 1. If index is equal to or greater than the number of tokens in tokens,
   //    return null.
   if (index >= tokens_.size()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   // 2. Return the indexth token in tokens.
@@ -148,7 +148,7 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
 // Algorithm for Toggle:
 //   https://www.w3.org/TR/dom/#dom-domtokenlist-toggle
 bool DOMTokenList::Toggle(const std::string& token,
-                          const base::Optional<bool>& force) {
+                          const absl::optional<bool>& force) {
   // Custom, not in any spec.
   MaybeRefresh();
 

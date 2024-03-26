@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/environment_settings.h"
@@ -31,6 +30,7 @@
 #include "cobalt/script/wrappable.h"
 #include "net/base/io_buffer.h"
 #include "net/url_request/url_request.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {

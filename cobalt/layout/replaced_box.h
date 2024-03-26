@@ -18,7 +18,6 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/layout/box.h"
@@ -28,6 +27,7 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/lottie_animation.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
@@ -55,13 +55,13 @@ class ReplacedBox : public Box {
               const ReplaceImageCB& replace_image_cb,
               const SetBoundsCB& set_bounds_cb,
               const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-              const base::Optional<LayoutUnit>& maybe_intrinsic_width,
-              const base::Optional<LayoutUnit>& maybe_intrinsic_height,
-              const base::Optional<float>& maybe_intrinsic_ratio,
+              const absl::optional<LayoutUnit>& maybe_intrinsic_width,
+              const absl::optional<LayoutUnit>& maybe_intrinsic_height,
+              const absl::optional<float>& maybe_intrinsic_ratio,
               UsedStyleProvider* used_style_provider,
-              base::Optional<ReplacedBoxMode> replaced_box_mode,
+              absl::optional<ReplacedBoxMode> replaced_box_mode,
               const math::SizeF& content_size,
-              base::Optional<render_tree::LottieAnimation::LottieProperties>
+              absl::optional<render_tree::LottieAnimation::LottieProperties>
                   lottie_properties,
               LayoutStatTracker* layout_stat_tracker);
 
@@ -74,7 +74,7 @@ class ReplacedBox : public Box {
 
   void SplitBidiLevelRuns() override;
   bool TrySplitAtSecondBidiLevelRun() override;
-  base::Optional<int> GetBidiLevel() const override;
+  absl::optional<int> GetBidiLevel() const override;
 
   void SetShouldCollapseLeadingWhiteSpace(
       bool should_collapse_leading_white_space) override;
@@ -110,8 +110,8 @@ class ReplacedBox : public Box {
   virtual void UpdateHorizontalMargins(
       BaseDirection containing_block_direction,
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
-      const base::Optional<LayoutUnit>& maybe_margin_left,
-      const base::Optional<LayoutUnit>& maybe_margin_right) = 0;
+      const absl::optional<LayoutUnit>& maybe_margin_left,
+      const absl::optional<LayoutUnit>& maybe_margin_right) = 0;
 
  private:
   void RenderAndAnimateContentWithMapToMesh(
@@ -120,8 +120,8 @@ class ReplacedBox : public Box {
   void RenderAndAnimateContentWithLetterboxing(
       render_tree::CompositionNode::Builder* border_node_builder) const;
 
-  const base::Optional<LayoutUnit> maybe_intrinsic_width_;
-  const base::Optional<LayoutUnit> maybe_intrinsic_height_;
+  const absl::optional<LayoutUnit> maybe_intrinsic_width_;
+  const absl::optional<LayoutUnit> maybe_intrinsic_height_;
   const float intrinsic_ratio_;
 
   const ReplaceImageCB replace_image_cb_;
@@ -129,9 +129,9 @@ class ReplacedBox : public Box {
 
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
-  base::Optional<ReplacedBoxMode> replaced_box_mode_;
+  absl::optional<ReplacedBoxMode> replaced_box_mode_;
   math::SizeF content_size_;
-  base::Optional<render_tree::LottieAnimation::LottieProperties>
+  absl::optional<render_tree::LottieAnimation::LottieProperties>
       lottie_properties_;
 };
 

@@ -23,7 +23,6 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "base/strings/string_piece.h"
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/animation_set.h"
@@ -45,6 +44,7 @@
 #include "cobalt/dom/pseudo_element.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/ui_navigation/nav_item.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -200,7 +200,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Custom, not in any spec: Element.
   scoped_refptr<HTMLElement> AsHTMLElement() override { return this; }
 
-  base::Optional<std::string> GetStyleAttribute() const override;
+  absl::optional<std::string> GetStyleAttribute() const override;
   void SetStyleAttribute(const std::string& value) override;
   void RemoveStyleAttribute() override;
 
@@ -474,10 +474,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // properties, and instead relies entirely upon the 'dir' attribute for
   // determining directionality. Inheritance of directionality occurs via the
   // base direction of the parent element's paragraph.
-  base::Optional<Directionality> directionality_;
+  absl::optional<Directionality> directionality_;
 
   // Cache the tabindex value.
-  base::Optional<int32> tabindex_;
+  absl::optional<int32> tabindex_;
 
   // The inline style specified via attribute's in the element's HTML tag, or
   // through JavaScript (accessed via style() defined above).
@@ -535,7 +535,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Specify how long focus should remain on this navigation item once it
   // becomes focused.
-  base::Optional<float> ui_nav_focus_duration_;
+  absl::optional<float> ui_nav_focus_duration_;
 
   // Signal whether the UI navigation item may need to be updated.
   bool ui_nav_needs_update_ = false;

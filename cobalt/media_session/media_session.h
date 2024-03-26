@@ -76,7 +76,7 @@ class MediaSession : public script::Wrappable {
   void SetActionHandler(MediaSessionAction action,
                         const MediaSessionActionHandlerHolder& handler);
 
-  void SetPositionState(base::Optional<MediaPositionState> state);
+  void SetPositionState(absl::optional<MediaPositionState> state);
 
   DEFINE_WRAPPABLE_TYPE(MediaSession);
   void TraceMembers(script::Tracer* tracer) override;
@@ -107,7 +107,7 @@ class MediaSession : public script::Wrappable {
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   bool is_change_task_queued_;
   int64_t last_position_updated_time_;
-  base::Optional<MediaPositionState> media_position_state_;
+  absl::optional<MediaPositionState> media_position_state_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaSession);
 };

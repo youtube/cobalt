@@ -17,10 +17,10 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/base/token.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace bindings {
@@ -45,9 +45,9 @@ class DOMStringTestInterface : public script::Wrappable {
   MOCK_METHOD1(set_undefined_is_empty_property, void(const std::string&));
 
   MOCK_CONST_METHOD0(nullable_undefined_is_empty_property,
-                     base::Optional<std::string>());
+                     absl::optional<std::string>());
   MOCK_METHOD1(set_nullable_undefined_is_empty_property,
-               void(const base::Optional<std::string>&));
+               void(const absl::optional<std::string>&));
 
   DEFINE_WRAPPABLE_TYPE(DOMStringTestInterface);
 };

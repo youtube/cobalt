@@ -45,7 +45,7 @@ namespace {
 bool PermitAnyURL(const GURL&, bool) { return true; }
 
 loader::RequestMode GetRequestMode(
-    const base::Optional<std::string>& cross_origin_attribute) {
+    const absl::optional<std::string>& cross_origin_attribute) {
   // https://html.spec.whatwg.org/#cors-settings-attribute
   if (cross_origin_attribute) {
     if (*cross_origin_attribute == "use-credentials") {
@@ -87,8 +87,8 @@ std::string HTMLScriptElement::src() const {
   return url.is_valid() ? url.spec() : src;
 }
 
-base::Optional<std::string> HTMLScriptElement::cross_origin() const {
-  base::Optional<std::string> cross_origin_attribute =
+absl::optional<std::string> HTMLScriptElement::cross_origin() const {
+  absl::optional<std::string> cross_origin_attribute =
       GetAttribute("crossOrigin");
   if (cross_origin_attribute &&
       (*cross_origin_attribute != "anonymous" &&
@@ -99,7 +99,7 @@ base::Optional<std::string> HTMLScriptElement::cross_origin() const {
 }
 
 void HTMLScriptElement::set_cross_origin(
-    const base::Optional<std::string>& value) {
+    const absl::optional<std::string>& value) {
   if (value) {
     SetAttribute("crossOrigin", *value);
   } else {
@@ -428,7 +428,7 @@ void HTMLScriptElement::Prepare() {
 
       // The user agent must immediately execute the script block, even if other
       // scripts are already executing.
-      base::Optional<std::string> content = text_content();
+      absl::optional<std::string> content = text_content();
       const std::string& text = content.value_or(base::EmptyString());
       if (bypass_csp || text.empty() ||
           csp_delegate->AllowInline(web::CspDelegate::kScript,
@@ -457,7 +457,7 @@ void HTMLScriptElement::OnSyncContentProduced(
 }
 
 void HTMLScriptElement::OnSyncLoadingComplete(
-    const base::Optional<std::string>& error) {
+    const absl::optional<std::string>& error) {
   error_ = error;
   if (!error) return;
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingComplete()");
@@ -487,7 +487,7 @@ void HTMLScriptElement::OnContentProduced(
 // Algorithm for OnLoadingComplete:
 //   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingComplete(
-    const base::Optional<std::string>& error) {
+    const absl::optional<std::string>& error) {
   error_ = error;
   // GetLoadTimingInfo and create resource timing before loader released.
   GetLoadTimingInfoAndCreateResourceTiming();

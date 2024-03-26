@@ -32,7 +32,7 @@ class GetGlobalScopeTypeIdWindow : public ::testing::Test {
 class CacheStorageTest
     : public testing::TestWithJavaScriptBase<GetGlobalScopeTypeIdWindow> {};
 
-v8::Local<v8::Value> Await(base::Optional<v8::Local<v8::Value>> promise_value) {
+v8::Local<v8::Value> Await(absl::optional<v8::Local<v8::Value>> promise_value) {
   EXPECT_TRUE(promise_value.has_value());
   EXPECT_TRUE(promise_value.value()->IsPromise());
   auto promise = promise_value->As<v8::Promise>();

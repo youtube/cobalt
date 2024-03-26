@@ -34,14 +34,14 @@ const char kSslProxyKey[] = "sslProxy";
 const char kManualProxyType[] = "manual";
 }  // namespace
 
-base::Optional<Proxy> Proxy::FromValue(const base::Value* value) {
+absl::optional<Proxy> Proxy::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   std::string proxy_type_string;
   if (!dictionary_value->GetString(kProxyTypeKey, &proxy_type_string)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   proxy_type_string = base::ToLowerASCII(proxy_type_string);
   if (proxy_type_string == kManualProxyType) {
@@ -61,7 +61,7 @@ base::Optional<Proxy> Proxy::FromValue(const base::Value* value) {
     // Only manual proxy type is supported.
     DLOG(INFO) << "Unsupported proxy type: " << proxy_type_string;
   }
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 }  // namespace protocol

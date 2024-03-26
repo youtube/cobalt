@@ -41,7 +41,7 @@ struct MockMeshDecoderCallback {
   }
 
   MOCK_METHOD1(OnCompleteFunction,
-               void(const base::Optional<std::string>& message));
+               void(const absl::optional<std::string>& message));
 
   scoped_refptr<MeshProjection> mesh_projection;
 };
@@ -59,7 +59,7 @@ class MockMeshDecoder : public Decoder {
 
   scoped_refptr<MeshProjection> GetMeshProjection();
 
-  void ExpectCallWithError(const base::Optional<std::string>& message);
+  void ExpectCallWithError(const absl::optional<std::string>& message);
 
  protected:
   ::testing::StrictMock<MockMeshDecoderCallback> mesh_decoder_callback_;
@@ -93,7 +93,7 @@ scoped_refptr<MeshProjection> MockMeshDecoder::GetMeshProjection() {
 }
 
 void MockMeshDecoder::ExpectCallWithError(
-    const base::Optional<std::string>& error) {
+    const absl::optional<std::string>& error) {
   EXPECT_CALL(mesh_decoder_callback_, OnCompleteFunction(error));
 }
 
@@ -131,7 +131,7 @@ std::vector<uint8> GetMeshData(const base::FilePath& file_path) {
 // Test that we can decode a mesh received in one chunk.
 TEST(MeshDecoderTest, DecodeMesh) {
   MockMeshDecoder mesh_decoder;
-  mesh_decoder.ExpectCallWithError(base::nullopt);
+  mesh_decoder.ExpectCallWithError(absl::nullopt);
 
   std::vector<uint8> mesh_data = GetMeshData(GetTestMeshPath(kTestMeshbox));
   mesh_decoder.DecodeChunk(reinterpret_cast<char*>(&mesh_data[0]),
@@ -172,7 +172,7 @@ TEST(MeshDecoderTest, DecodeMesh) {
 // Test that we can decode a mesh received in multiple chunks.
 TEST(MeshDecoderTest, DecodeMeshWithMultipleChunks) {
   MockMeshDecoder mesh_decoder;
-  mesh_decoder.ExpectCallWithError(base::nullopt);
+  mesh_decoder.ExpectCallWithError(absl::nullopt);
 
   std::vector<uint8> mesh_data = GetMeshData(GetTestMeshPath(kTestMeshbox));
   mesh_decoder.DecodeChunk(reinterpret_cast<char*>(&mesh_data[0]), 4);

@@ -28,7 +28,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
-#include "base/optional.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/base/clock.h"
@@ -56,6 +55,7 @@
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -109,7 +109,7 @@ class Document : public Node,
             const scoped_refptr<base::BasicClock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
-            const base::Optional<cssom::ViewportSize>& viewport_size,
+            const absl::optional<cssom::ViewportSize>& viewport_size,
             network_bridge::CookieJar* cookie_jar,
             int dom_max_element_depth = 0)
         : url(url_value),
@@ -126,7 +126,7 @@ class Document : public Node,
     scoped_refptr<base::BasicClock> navigation_start_clock;
     base::Callback<void(const GURL&)> navigation_callback;
     scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet;
-    base::Optional<cssom::ViewportSize> viewport_size;
+    absl::optional<cssom::ViewportSize> viewport_size;
     network_bridge::CookieJar* cookie_jar;
     int dom_max_element_depth;
   };
@@ -568,7 +568,7 @@ class Document : public Node,
   bool are_keyframes_dirty_;
 
   // Viewport size.
-  base::Optional<cssom::ViewportSize> viewport_size_;
+  absl::optional<cssom::ViewportSize> viewport_size_;
   network_bridge::CookieJar* cookie_jar_;
   // Associated location object.
   scoped_refptr<Location> location_;

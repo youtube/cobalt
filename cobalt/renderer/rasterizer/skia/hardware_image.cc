@@ -260,15 +260,15 @@ class HardwareFrontendImage::HardwareBackendImage {
 
 namespace {
 // Given a ImageDataDescriptor, returns a AlternateRgbaFormat value for it,
-// which for most formats will be base::nullopt, but for those that piggy-back
+// which for most formats will be absl::nullopt, but for those that piggy-back
 // on RGBA but assign different meanings to each of the 4 pixels, this will
 // return a special formatting option.
-base::Optional<AlternateRgbaFormat> AlternateRgbaFormatFromImageDataDescriptor(
+absl::optional<AlternateRgbaFormat> AlternateRgbaFormatFromImageDataDescriptor(
     const render_tree::ImageDataDescriptor& descriptor) {
   if (descriptor.pixel_format == render_tree::kPixelFormatUYVY) {
     return AlternateRgbaFormat_UYVY;
   } else {
-    return base::nullopt;
+    return absl::nullopt;
   }
 }
 
@@ -280,7 +280,7 @@ base::Optional<AlternateRgbaFormat> AlternateRgbaFormatFromImageDataDescriptor(
 // which is more natural.
 math::Size AdjustSizeForFormat(
     const math::Size& size,
-    const base::Optional<AlternateRgbaFormat>& alternate_rgba_format) {
+    const absl::optional<AlternateRgbaFormat>& alternate_rgba_format) {
   if (!alternate_rgba_format) {
     return size;
   }
@@ -338,7 +338,7 @@ HardwareFrontendImage::HardwareFrontendImage(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     std::unique_ptr<math::RectF> content_region,
     scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner,
-    base::Optional<AlternateRgbaFormat> alternate_rgba_format)
+    absl::optional<AlternateRgbaFormat> alternate_rgba_format)
     : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
       content_region_(std::move(content_region)),
       alternate_rgba_format_(alternate_rgba_format),

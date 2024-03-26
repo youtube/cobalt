@@ -20,7 +20,6 @@
 #include "base/bind.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
@@ -31,6 +30,7 @@
 #include "net/server/http_server_request_info.h"
 #include "net/socket/tcp_server_socket.h"
 #include "starboard/common/socket.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace debug {
@@ -63,7 +63,7 @@ std::string GetMimeType(const base::FilePath& path) {
   return "text/plain";
 }
 
-base::Optional<base::FilePath> AppendIndexFile(
+absl::optional<base::FilePath> AppendIndexFile(
     const base::FilePath& directory) {
   DCHECK(base::DirectoryExists(directory));
   base::FilePath result;
@@ -76,7 +76,7 @@ base::Optional<base::FilePath> AppendIndexFile(
     return result;
   }
   DLOG(ERROR) << "No index file found at: " << directory.value();
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 const char kContentDir[] = "debug_remote";
@@ -156,7 +156,7 @@ void DebugWebServer::OnHttpRequest(int connection_id,
 
   // If the disk path is a directory, look for an index file.
   if (base::DirectoryExists(file_path)) {
-    base::Optional<base::FilePath> index_file_path = AppendIndexFile(file_path);
+    absl::optional<base::FilePath> index_file_path = AppendIndexFile(file_path);
     if (index_file_path) {
       file_path = *index_file_path;
     } else {
@@ -252,7 +252,7 @@ void DebugWebServer::SendErrorResponseOverWebSocket(
 }
 
 void DebugWebServer::OnDebuggerResponse(
-    int id, const base::Optional<std::string>& response) {
+    int id, const absl::optional<std::string>& response) {
   JSONObject response_object = JSONParse(response.value());
   DCHECK(response_object);
   response_object->SetInteger(kIdField, id);

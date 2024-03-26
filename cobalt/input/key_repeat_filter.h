@@ -17,10 +17,10 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "base/timer/timer.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/key_event_handler.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace input {
@@ -41,7 +41,7 @@ class KeyRepeatFilter : public KeyEventHandler {
                    const dom::KeyboardEventInit& keyboard_event);
   void FireKeyRepeatEvent();
 
-  base::Optional<dom::KeyboardEventInit> last_event_data_;
+  absl::optional<dom::KeyboardEventInit> last_event_data_;
 
   base::RepeatingTimer key_repeat_timer_;
 };

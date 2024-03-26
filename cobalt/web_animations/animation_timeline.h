@@ -20,11 +20,11 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web_animations/timed_task_queue.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web_animations {
@@ -40,13 +40,13 @@ class AnimationTimeline : public script::Wrappable {
 
   // Returns the current sample time of the timeline, in milliseconds.  If the
   // returned optional is not engaged, this timeline is 'unresolved'.
-  base::Optional<double> current_time() const;
+  absl::optional<double> current_time() const;
 
   // Custom, not in any spec.
 
   // Helper class to return the current time as a base::TimeDelta instead of a
   // double.
-  const base::Optional<base::TimeDelta>& current_time_as_time_delta() const {
+  const absl::optional<base::TimeDelta>& current_time_as_time_delta() const {
     return sampled_clock_time_;
   }
 
@@ -81,7 +81,7 @@ class AnimationTimeline : public script::Wrappable {
   scoped_refptr<base::BasicClock> clock_;
   scoped_refptr<AnimationSet> animations_;
   TimedTaskQueue event_queue_;
-  base::Optional<base::TimeDelta> sampled_clock_time_;
+  absl::optional<base::TimeDelta> sampled_clock_time_;
   base::OneShotTimer next_event_timer_;
 
   // So that Animation objects can register themselves.
