@@ -25,13 +25,6 @@ _FILTERED_TESTS = {
         # Enable multiplayer tests once it's supported.
         'MultiplePlayerTests/*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*',
-        # Disabled due to POSIX API issues: b/330771976
-        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
-        'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/type_ipv6_filter_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
-        'SbSocketAddressTypes/SbSocketResolveTest.SunnyDayFiltered/filter_ipv6_type_ipv6',
     ],
     'player_filter_tests': [
         'PlayerComponentsTests/PlayerComponentsTest.*',
