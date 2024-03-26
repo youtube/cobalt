@@ -5,6 +5,10 @@
 #ifndef BASE_TYPES_STRONG_ALIAS_H_
 #define BASE_TYPES_STRONG_ALIAS_H_
 
+#if !defined(STARBOARD)
+#error "This file only works with Cobalt/Starboard."
+#endif  // !defined(STARBOARD)
+
 #include <ostream>
 #include <type_traits>
 #include <utility>
