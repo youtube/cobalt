@@ -1214,6 +1214,18 @@ TEST_F(PixelTest, SimpleTextInRed40PtChineseFont) {
       ColorRGBA(1.0, 0, 0, 1.0), std::vector<Shadow>(), "Noto Sans CJK SC"));
 }
 
+TEST_F(PixelTest, SimpleTextInRed40PtKatakanaJapaneseFont) {
+  TestTree(CreateTextNodeWithinSurface(
+      GetResourceProvider(), "カタカナ！", FontStyle(), 40,
+      ColorRGBA(1.0, 0, 0, 1.0), std::vector<Shadow>(), "Noto Sans CJK JP"));
+}
+
+TEST_F(PixelTest, SimpleTextInRed40PtHiranganaJapaneseFont) {
+  TestTree(CreateTextNodeWithinSurface(
+      GetResourceProvider(), "ひらがな！", FontStyle(), 40,
+      ColorRGBA(1.0, 0, 0, 1.0), std::vector<Shadow>(), "Noto Sans CJK JP"));
+}
+
 TEST_F(PixelTest, RotatedTextInScaledRoundedCorners) {
   // If the source has enough fidelity, then magnified versions of it
   // should be crisp instead of blurry; blurriness indicates that any

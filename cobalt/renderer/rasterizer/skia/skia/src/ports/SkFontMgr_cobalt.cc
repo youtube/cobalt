@@ -97,6 +97,7 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
 
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);
+  initial_families_ = default_families_;
 }
 
 void SkFontMgr_Cobalt::PurgeCaches() {
@@ -303,10 +304,6 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onLegacyMakeTypeface(
 }
 
 void SkFontMgr_Cobalt::LoadLocaleDefault() {
-  // Clear default families that may have been left from a previous older
-  // locale.
-  default_families_.clear();
-
   std::string script =
       icu::Locale::createCanonical(base::GetSystemLanguageScript().c_str())
           .getScript();
@@ -323,6 +320,10 @@ void SkFontMgr_Cobalt::LoadLocaleDefault() {
   }
 
   default_fonts_loaded_event_.Signal();
+}
+
+void SkFontMgr_Cobalt::ClearLocaleDefault() {
+  default_families_ = initial_families_;
 }
 
 void SkFontMgr_Cobalt::ParseConfigAndBuildFamilies(

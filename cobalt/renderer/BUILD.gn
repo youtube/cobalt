@@ -424,6 +424,8 @@ copy("renderer_copy_test_data") {
     "rasterizer/testdata/SimpleTextInEthiopicBold-expected.png",
     "rasterizer/testdata/SimpleTextInRed40PtChineseFont-expected.png",
     "rasterizer/testdata/SimpleTextInRed40PtFont-expected.png",
+    "rasterizer/testdata/SimpleTextInRed40PtHiranganaJapaneseFont-expected.png",
+    "rasterizer/testdata/SimpleTextInRed40PtKatakanaJapaneseFont-expected.png",
     "rasterizer/testdata/SimpleTextInRed40PtThaiFont-expected.png",
     "rasterizer/testdata/SingleRGBAImageLargerThanRenderTarget-expected.png",
     "rasterizer/testdata/SingleRGBAImageWithAlphaFormatOpaque-expected.png",

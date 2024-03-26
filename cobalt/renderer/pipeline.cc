@@ -682,6 +682,9 @@ void Pipeline::ShutdownRasterizerThread() {
   // contain references to render tree nodes and resources.
   last_render_tree_ = NULL;
   last_animated_render_tree_ = NULL;
+
+  // Async load additional fonts after rasterizer thread is fully initialized.
+  GetResourceProvider()->ClearAdditionalFonts();
 }
 
 #if defined(ENABLE_DEBUGGER)

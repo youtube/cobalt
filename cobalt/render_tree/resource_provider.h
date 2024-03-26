@@ -131,6 +131,9 @@ class ResourceProvider {
 
   // Loads additional fonts that should be loaded asynchronously at startup.
   virtual void LoadAdditionalFonts() = 0;
+  // Clears additional fonts loaded asynchronously at startup.
+  virtual void ClearAdditionalFonts() = 0;
+
 
   // Given a set of typeface information, this method returns the locally
   // available typeface that best fits the specified parameters. In the case
