@@ -22,7 +22,7 @@ try:
 except ImportError:
   import urllib2 as urllib
 
-from tools import download_from_gcs
+from cobalt.tools import download_from_gcs
 
 
 def DownloadGerritCommitMsgHook(force=False):
