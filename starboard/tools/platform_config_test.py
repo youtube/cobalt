@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Tests the command_line module."""
+"""Tests all platform configs."""
 
 import unittest
 import os
@@ -146,6 +146,8 @@ class PlatformTest(unittest.TestCase):
     self.assertEqual(config.GetName(), conf)
     self.assertEqual(config.GetDirectory(), conf_dir)
     self.assertEqual(config.GetTestEnvVariables(), app_env)
+    # config.GetTestFilters()
+    # config.GetPlatformTestFilters()
     for test in ['nplb', 'common_test']:
       self.assertIn(test, config.GetTestTargets())
     self.assertEqual(config.GetTestBlackBoxTargets(), [])

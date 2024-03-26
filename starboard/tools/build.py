@@ -166,6 +166,10 @@ _PLATFORM_CONFIG_DICT = {}
 _PLATFORM_TEST_FILTERS_DICT = {}
 
 
+def GetPlatformApplicationConfig(platform_name, application_name):
+  pass
+
+
 def GetPlatformConfig(platform_name):
   """Returns a platform specific configuration.
 
