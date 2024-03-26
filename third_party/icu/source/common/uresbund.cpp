@@ -219,6 +219,7 @@ static int32_t ures_flushCache()
          */
     } while(deletedMore);
 
+    SbLogRawFormatF("%s:%d %s: cache count %d rbDeletedNum %d\n", __FILE__, __LINE__, __FUNCTION__, cache->count, rbDeletedNum);
     return rbDeletedNum;
 }
 
@@ -271,6 +272,7 @@ static UBool U_CALLCONV ures_cleanup(void)
 static void U_CALLCONV createCache(UErrorCode &status) {
     U_ASSERT(cache == NULL);
     cache = uhash_open(hashEntry, compareEntries, NULL, &status);
+    SbLogRawFormatF("%s:%d %s: cache count %d\n", __FILE__, __LINE__, __FUNCTION__, cache->count);
     ucln_common_registerCleanup(UCLN_COMMON_URES, ures_cleanup);
 }
      
@@ -306,6 +308,7 @@ getPoolEntry(const char *path, UErrorCode *status);
  *    CAUTION:  resbMutex must be locked when calling this function.
  */
 static UResourceDataEntry *init_entry(const char *localeID, const char *path, UErrorCode *status) {
+    SbLogRawFormatF("%s:%d %s: localeID \"%s\" path \"%s\" cache count %d\n", __FILE__, __LINE__, __FUNCTION__, localeID, path, cache->count);
     UResourceDataEntry *r = NULL;
     UResourceDataEntry find;
     /*int32_t hashValue;*/

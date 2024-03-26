@@ -64,6 +64,11 @@ std::string GetSystemLanguageScript() {
     language += buffer;
   } else {
     uloc_addLikelySubtags(NULL, buffer, arraysize(buffer), &icu_result);
+    if (!U_SUCCESS(icu_result)) {
+      // language = "en_Latn_US";
+      LOG(INFO) << __FUNCTION__ << " language \"" << language
+                << "\" HACK NEEDED.";
+    }
     if (U_SUCCESS(icu_result) && buffer[0]) {
       return buffer;
     }
