@@ -45,7 +45,7 @@ struct SbPlayerPrivate {
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
       void* context,
-      starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
+      starboard::unique_ptr_alias<PlayerWorker::Handler> player_worker_handler);
 
   void Seek(int64_t seek_to_time, int ticket);
   template <typename PlayerSampleInfo>
@@ -83,7 +83,7 @@ struct SbPlayerPrivate {
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
       void* context,
-      starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
+      starboard::unique_ptr_alias<PlayerWorker::Handler> player_worker_handler);
 
   SbPlayerPrivate(const SbPlayerPrivate&) = delete;
   SbPlayerPrivate& operator=(const SbPlayerPrivate&) = delete;
@@ -111,7 +111,7 @@ struct SbPlayerPrivate {
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;
 
-  starboard::scoped_ptr<PlayerWorker> worker_;
+  std::unique_ptr<PlayerWorker> worker_;
 
   starboard::Mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;

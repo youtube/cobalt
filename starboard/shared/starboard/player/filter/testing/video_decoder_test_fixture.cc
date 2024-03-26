@@ -92,7 +92,7 @@ void VideoDecoderTestFixture::Initialize() {
       fake_graphics_context_provider_->decoder_target_provider(), nullptr);
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
 
-  scoped_ptr<PlayerComponents::Factory> factory;
+  unique_ptr_alias<PlayerComponents::Factory> factory;
   if (using_stub_decoder_) {
     factory = StubPlayerComponentsFactory::Create();
   } else {

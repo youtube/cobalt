@@ -176,7 +176,7 @@ std::string GetAudioChannelLayoutMixerTestConfigName(
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToMono) {
-  scoped_ptr<AudioChannelLayoutMixer> mixer =
+  std::unique_ptr<AudioChannelLayoutMixer> mixer =
       AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 1);
   ASSERT_TRUE(mixer);
 
@@ -215,7 +215,7 @@ TEST_P(AudioChannelLayoutMixerTest, MixToMono) {
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToStereo) {
-  scoped_ptr<AudioChannelLayoutMixer> mixer =
+  std::unique_ptr<AudioChannelLayoutMixer> mixer =
       AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 2);
   ASSERT_TRUE(mixer);
 
@@ -254,7 +254,7 @@ TEST_P(AudioChannelLayoutMixerTest, MixToStereo) {
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToQuad) {
-  scoped_ptr<AudioChannelLayoutMixer> mixer =
+  std::unique_ptr<AudioChannelLayoutMixer> mixer =
       AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 4);
   ASSERT_TRUE(mixer);
 
@@ -298,7 +298,7 @@ TEST_P(AudioChannelLayoutMixerTest, MixToQuad) {
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToFivePointOne) {
-  scoped_ptr<AudioChannelLayoutMixer> mixer =
+  std::unique_ptr<AudioChannelLayoutMixer> mixer =
       AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 6);
   ASSERT_TRUE(mixer);
 

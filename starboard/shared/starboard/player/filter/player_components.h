@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -154,7 +155,7 @@ class PlayerComponents {
     // TODO: Consider making it return Factory*.
     // Individual platform should implement this function to allow the creation
     // of a Factory instance.
-    static scoped_ptr<Factory> Create();
+    static unique_ptr_alias<Factory> Create();
 
     // Individual implementations must implement this function to indicate which
     // output modes they support.
@@ -162,7 +163,7 @@ class PlayerComponents {
                                     SbMediaVideoCodec codec,
                                     SbDrmSystem drm_system);
 
-    virtual scoped_ptr<PlayerComponents> CreateComponents(
+    virtual unique_ptr_alias<PlayerComponents> CreateComponents(
         const CreationParameters& creation_parameters,
         std::string* error_message);
 
@@ -174,10 +175,10 @@ class PlayerComponents {
     // unit tests to run.
     virtual bool CreateSubComponents(
         const CreationParameters& creation_parameters,
-        scoped_ptr<AudioDecoder>* audio_decoder,
-        scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-        scoped_ptr<VideoDecoder>* video_decoder,
-        scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+        unique_ptr_alias<AudioDecoder>* audio_decoder,
+        unique_ptr_alias<AudioRendererSink>* audio_renderer_sink,
+        unique_ptr_alias<VideoDecoder>* video_decoder,
+        unique_ptr_alias<VideoRenderAlgorithm>* video_render_algorithm,
         scoped_refptr<VideoRendererSink>* video_renderer_sink,
         std::string* error_message) = 0;
 
@@ -186,13 +187,13 @@ class PlayerComponents {
 
     void CreateStubAudioComponents(
         const CreationParameters& creation_parameters,
-        scoped_ptr<AudioDecoder>* audio_decoder,
-        scoped_ptr<AudioRendererSink>* audio_renderer_sink);
+        unique_ptr_alias<AudioDecoder>* audio_decoder,
+        unique_ptr_alias<AudioRendererSink>* audio_renderer_sink);
 
     void CreateStubVideoComponents(
         const CreationParameters& creation_parameters,
-        scoped_ptr<VideoDecoder>* video_decoder,
-        scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+        unique_ptr_alias<VideoDecoder>* video_decoder,
+        unique_ptr_alias<VideoRenderAlgorithm>* video_render_algorithm,
         scoped_refptr<VideoRendererSink>* video_renderer_sink);
 
     // Check AudioRenderer ctor for more details on the parameters.
