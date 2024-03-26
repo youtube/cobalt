@@ -25,6 +25,7 @@
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/media_session/media_session_action_details.h"
 #include "cobalt/media_session/media_session_state.h"
+#include "starboard/common/mutex.h"
 #include "starboard/extension/media_session.h"
 
 namespace cobalt {
@@ -106,6 +107,7 @@ class MediaSessionClient : public base::SupportsWeakPtr<MediaSessionClient> {
   MediaSessionPlaybackState platform_playback_state_;
   const media::WebMediaPlayerFactory* media_player_factory_ = nullptr;
   const CobaltExtensionMediaSessionApi* extension_;
+  starboard::Mutex session_state_mutex_;
 
   void UpdateMediaSessionState();
   MediaSessionPlaybackState ComputeActualPlaybackState() const;
