@@ -17,7 +17,6 @@ files: |
             starboard|
             tools/metrics/actions/cobalt|
             tools/metrics/histograms/metadata/cobalt|
-            tools/raspi_image|
             tools/testing|
         )/
         | ^[^/]+$  # files in the root
