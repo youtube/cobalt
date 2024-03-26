@@ -134,7 +134,7 @@ int PosixSocketSetSendBufferSize(int socket_fd, int32_t size) {
 
 int PosixGetLocalAddressiIPv4(sockaddr* address_ptr) {
   int result = -1;
-  struct ifaddrs* ifaddr;
+  struct ifaddrs* ifaddr = NULL;
   if (getifaddrs(&ifaddr) == -1) {
     return -1;
   }

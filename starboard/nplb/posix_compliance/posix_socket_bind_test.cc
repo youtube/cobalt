@@ -19,7 +19,6 @@
 
 namespace starboard {
 namespace nplb {
-
 namespace {
 
 TEST(PosixSocketBindTest, RainyDayNullSocket) {
@@ -93,6 +92,7 @@ TEST(PosixSocketBindTest, RainyDayBadInterface) {
 
 TEST(PosixSocketBindTest, SunnyDayLocalInterface) {
   sockaddr_in6 address = {};
+
 #if SB_HAS(IPV6)
   EXPECT_TRUE(PosixGetLocalAddressiIPv4(
                   reinterpret_cast<struct sockaddr*>(&address)) == 0 ||
@@ -112,6 +112,162 @@ TEST(PosixSocketBindTest, SunnyDayLocalInterface) {
                    sizeof(struct sockaddr)) == 0);
   EXPECT_TRUE(close(socket_fd) == 0);
 }
+
+// Pair data input test
+std::string GetPosixSocketAddressTypeFilterPairName(
+    ::testing::TestParamInfo<std::pair<int, int>> info) {
+  return FormatString("type_%d_filter_%d",
+                      info.param.first,
+                      info.param.second);
+}
+
+class PosixSocketBindPairFilterTest
+    : public ::testing::TestWithParam<
+          std::pair<int, int> > {
+ public:
+  int GetAddressType() { return GetParam().first; }
+  int GetFilterType() { return GetParam().second; }
+};
+
+#if SB_HAS(IPV6)
+class PosixSocketBindPairCSTest
+    : public ::testing::TestWithParam<
+          std::pair<int, int> > {
+ public:
+  int GetServerAddressType() { return GetParam().first; }
+  int GetClientAddressType() { return GetParam().second; }
+};
+#endif
+
+// This is to use NULL in asserts, which otherwise complain about long
+// vs. pointer type.
+const void* kNull = NULL;
+
+TEST_P(PosixSocketBindPairFilterTest, RainyDayNullSocketPair) {
+  sockaddr_in address = {};
+  address.sin_family = GetAddressType();
+  address.sin_port = GetPortNumberForTests();
+
+  int invalid_socket_fd = -1;
+
+  EXPECT_FALSE(bind(invalid_socket_fd, reinterpret_cast<sockaddr*>(&address),
+                    sizeof(sockaddr_in)) == 0);
+}
+
+TEST_P(PosixSocketBindPairFilterTest, RainyDayNullAddressPair) {
+  return;
+  int socket_fd = socket(GetAddressType(), SOCK_STREAM, IPPROTO_TCP);
+  ASSERT_TRUE(socket_fd > 0);
+
+  // Binding with a NULL address should fail.
+  EXPECT_FALSE(bind(socket_fd, NULL, 0) == 0);
+
+  // Even though that failed, binding the same socket now with 0.0.0.0:2048
+  // should work.
+  sockaddr_in address = {};
+  address.sin_family = GetAddressType();
+  address.sin_port = GetPortNumberForTests();
+
+  EXPECT_TRUE(bind(socket_fd, reinterpret_cast<sockaddr*>(&address),
+                   sizeof(sockaddr_in)) == 0);
+  EXPECT_TRUE(close(socket_fd) == 0);
+}
+
+TEST_P(PosixSocketBindPairFilterTest, RainyDayBadInterfacePair) {
+  return;
+  int socket_fd = socket(GetAddressType(), SOCK_STREAM, IPPROTO_TCP);
+  ASSERT_TRUE(socket_fd > 0);
+
+  // Binding with an interface that doesn't exist on this device should fail, so
+  // let's find an address of a well-known public website that we shouldn't be
+  // able to bind to.
+  const char* kTestHostName = "www.yahoo.com";
+
+  struct addrinfo* ai = nullptr;
+  struct addrinfo hints = {0};
+  hints.ai_family = GetFilterType();
+  hints.ai_flags = AI_ADDRCONFIG;
+  hints.ai_socktype = SOCK_STREAM;
+
+  // Most likely success since it is a well known website
+  int result = getaddrinfo(kTestHostName, nullptr, &hints, &ai);
+  EXPECT_TRUE(result == 0);
+  if (result < 0) {
+    close(socket_fd);
+    return;
+  }
+
+  int address_count = 0;
+  for (struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
+    ++address_count;
+  }
+  EXPECT_LT(0, address_count);
+
+  // Extract the address out of the addrinfo structure
+  struct sockaddr server_address = {};
+
+  int index = 0;
+  for (struct addrinfo* i = ai; i != nullptr; i = i->ai_next, ++index) {
+    // Skip over any addresses we can't parse.
+    if (i->ai_addr != NULL) {
+      memcpy(&server_address, i->ai_addr, i->ai_addrlen);
+      break;
+    }
+  }
+
+  freeaddrinfo(ai);
+
+  EXPECT_FALSE(bind(socket_fd, &server_address, sizeof(sockaddr_in)) == 0);
+  EXPECT_TRUE(close(socket_fd) == 0);
+}
+
+#if SB_HAS(IPV6)
+TEST_P(PosixSocketBindPairCSTest, RainyDayWrongAddressTypePair) {
+  return;
+  int socket_fd = socket(GetServerAddressType(), SOCK_STREAM, IPPROTO_TCP);
+  ASSERT_TRUE(socket_fd > 0);
+
+  // Binding with the wrong address type should fail.
+  sockaddr_in client_address = {};
+  client_address.sin_family = GetClientAddressType();
+  client_address.sin_port = GetPortNumberForTests();
+  EXPECT_FALSE(bind(socket_fd, reinterpret_cast<sockaddr*>(&client_address),
+                    sizeof(sockaddr_in)) == 0);
+
+  // Even though that failed, binding the same socket now with the server
+  // address type should work.
+  sockaddr_in server_address = {};
+  server_address.sin_family = GetServerAddressType();
+  server_address.sin_port = GetPortNumberForTests();
+  EXPECT_TRUE(bind(socket_fd, reinterpret_cast<sockaddr*>(&server_address),
+                   sizeof(sockaddr_in)) == 0);
+  EXPECT_TRUE(close(socket_fd) == 0);
+}
+#endif
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_SUITE_P(
+    PosixSocketBindTest,
+    PosixSocketBindPairFilterTest,
+    ::testing::Values(
+        std::make_pair(AF_INET, AF_INET),
+        std::make_pair(AF_INET6, AF_INET6)),
+    GetPosixSocketAddressTypeFilterPairName);
+INSTANTIATE_TEST_SUITE_P(
+    PosixSocketBindTest,
+    PosixSocketBindPairCSTest,
+    ::testing::Values(
+        std::make_pair(AF_INET, AF_INET6),
+        std::make_pair(AF_INET6, AF_INET)),
+    GetPosixSocketAddressTypeFilterPairName);
+#else
+INSTANTIATE_TEST_SUITE_P(
+    PosixSocketBindTest,
+    PosixSocketBindPairFilterTest,
+    ::testing::Values(std::make_pair(AF_INET,
+                                     AF_INET)),
+    GetPosixSocketAddressTypeFilterPairName);
+#endif
 
 }  // namespace
 }  // namespace nplb
