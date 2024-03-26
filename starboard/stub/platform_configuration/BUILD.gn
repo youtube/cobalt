@@ -16,7 +16,6 @@ config("platform_configuration") {
   configs = [ "//starboard/build/config/sabi" ]
   cflags = []
 
-  cflags_cc = [ "-std=gnu++17" ]
   ldflags = [ "-static-libstdc++" ]
 
   libs = [ "pthread" ]
