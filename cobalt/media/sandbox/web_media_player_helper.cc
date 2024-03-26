@@ -20,7 +20,7 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media/file_data_source.h"
 #include "cobalt/media/url_fetcher_data_source.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace cobalt {
 namespace media {
