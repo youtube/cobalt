@@ -16,10 +16,6 @@
 
 #include <errno.h>
 
-// Undef alias to `free` and pull in the system-level header so we can use it
-#undef free
-#include <../ucrt/malloc.h>
-
 // clang-format off
 // The windows.h must be included before the synchapi.h
 #include <windows.h>   // NOLINT
@@ -87,7 +83,9 @@ int posix_memalign(void** res, size_t alignment, size_t size) {
   return ENOMEM;
 }
 
-void sb_free(void* p) {
+void __real_free(void* p);  // Provided by `--wrap=free`
+
+void __wrap_free(void* p) {
   if (!p) {
     return;
   }
@@ -95,7 +93,7 @@ void sb_free(void* p) {
   if (res == p) {
     _aligned_free(p);
   } else {
-    free(p);  // This is using the system-level implementation.
+    __real_free(p);  // This is using the system-level implementation.
   }
 }
 

@@ -25,9 +25,7 @@ extern "C" {
 int posix_memalign(void** res, size_t alignment, size_t size);
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/free.html
-void sb_free(void* ptr);
-#undef free
-#define free sb_free
+// Handled via `--wrap=free` - see __wrap_free implementation
 
 #ifdef __cplusplus
 }
