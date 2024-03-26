@@ -118,9 +118,6 @@ int pthread_condattr_getclock(const pthread_condattr_t* attr, clockid_t* clock_i
 }
 
 int pthread_condattr_setclock(pthread_condattr_t *attr, clockid_t clock_id) {
-  if (clock_id == CLOCK_MONOTONIC) {
-    return 0;
-  }
   // Not supported in Starboard 14/15
   SB_DCHECK(false);
   return -1;
