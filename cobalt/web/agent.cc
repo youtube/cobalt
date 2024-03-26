@@ -23,6 +23,7 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/startup_timer.h"
+#include "cobalt/js_profiler/profiler_group.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/script/environment_settings.h"
@@ -96,6 +97,9 @@ class Impl : public Context {
   }
   script::ScriptRunner* script_runner() const final {
     return script_runner_.get();
+  }
+  js_profiler::ProfilerGroup* profiler_group() const final {
+    return profiler_group_.get();
   }
   Blob::Registry* blob_registry() const final { return blob_registry_.get(); }
   web::WebSettings* web_settings() const final { return web_settings_; }
@@ -173,6 +177,10 @@ class Impl : public Context {
     return active_service_worker_;
   }
 
+  void set_profiler_group(
+      std::unique_ptr<js_profiler::ProfilerGroup> profiler_group) final {
+    profiler_group_ = std::move(profiler_group);
+  }
 
  private:
   // Injects a list of attributes into the Web Context's global object.
@@ -217,6 +225,9 @@ class Impl : public Context {
 
   // Environment Settings object
   std::unique_ptr<EnvironmentSettings> environment_settings_;
+
+  // A ProfilerGroup contains all window.Profiler objects on the isolate.
+  std::unique_ptr<js_profiler::ProfilerGroup> profiler_group_ = nullptr;
 
   // The service worker registration object map.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#environment-settings-object-service-worker-registration-object-map
@@ -329,6 +340,7 @@ void Impl::ShutDownJavaScriptEngine() {
   blob_registry_.reset();
   script_runner_.reset();
   execution_state_.reset();
+  profiler_group_.reset();
 
   // Ensure that global_environment_ is null before it's destroyed.
   scoped_refptr<script::GlobalEnvironment> global_environment(

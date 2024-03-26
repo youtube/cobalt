@@ -20,9 +20,16 @@
   ConstructorCallWith=EnvironmentSettings,
   RaisesException = Constructor,
 ]
-interface Profiler : EventTarget {
+interface Profiler {
   readonly attribute DOMHighResTimeStamp sampleInterval;
   readonly attribute boolean stopped;
 
+  // TODO(b/326337485): This function mocks but does not fully emulate the EventTarget interface. It can
+  // take and call many callbacks as listeners. However, note that this class does not remove listeners
+  // or dispatch events. Use with caution.
+  [CallWith=EnvironmentSettings] void addEventListener(DOMString token, SampleBufferFullCallback listener);
+
   [CallWith=EnvironmentSettings] Promise<ProfilerTraceWrapper> stop();
 };
+
+callback SampleBufferFullCallback = void();

@@ -29,6 +29,7 @@ source_set("web_testing") {
     "//base/test:test_support",
     "//cobalt/base",
     "//cobalt/browser",
+    "//cobalt/js_profiler",
     "//cobalt/loader",
     "//cobalt/network",
     "//cobalt/script",

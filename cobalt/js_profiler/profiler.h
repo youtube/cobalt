@@ -17,67 +17,78 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "base/threading/thread_checker.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
+#include "cobalt/js_profiler/profiler_group.h"
 #include "cobalt/js_profiler/profiler_init_options.h"
 #include "cobalt/js_profiler/profiler_trace.h"
+#include "cobalt/script/callback_function.h"
 #include "cobalt/script/promise.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
-#include "third_party/v8/include/cppgc/member.h"
 #include "third_party/v8/include/v8-profiler.h"
 
 namespace cobalt {
 namespace js_profiler {
 
-class Profiler : public cobalt::web::EventTarget {
+// Forward declaration of ProfilerGroup
+class ProfilerGroup;
+
+// TODO(b/326337485): Profiler should be a subclass of EventTarget.
+class Profiler : public script::Wrappable {
  public:
-  using ProfilerTracePromise = script::HandlePromiseWrappable;
+  static const int kBaseSampleIntervalMs = 10;
+  typedef script::HandlePromiseWrappable ProfilerTracePromise;
+  typedef script::CallbackFunction<void()> SampleBufferFullCallback;
+  typedef script::ScriptValue<SampleBufferFullCallback>
+      SampleBufferFullCallbackHolder;
+  typedef SampleBufferFullCallbackHolder::Reference
+      SampleBufferFullCallbackReference;
 
   Profiler(script::EnvironmentSettings* settings, ProfilerInitOptions options,
            script::ExceptionState* exception_state);
-  ~Profiler();
+  ~Profiler() override = default;
+
+  void AddEventListener(script::EnvironmentSettings* environment_settings,
+                        const std::string& name,
+                        const SampleBufferFullCallbackHolder& listener);
+
+  void DispatchSampleBufferFullEvent();
 
   ProfilerTracePromise Stop(script::EnvironmentSettings* environment_settings);
+  void Cancel();
 
   bool stopped() const { return stopped_; }
 
   dom::DOMHighResTimeStamp sample_interval() const { return sample_interval_; }
+  std::string ProfilerId() const { return profiler_id_; }
+  base::TimeTicks time_origin() const { return time_origin_; }
 
   DEFINE_WRAPPABLE_TYPE(Profiler);
 
-  virtual v8::CpuProfilingStatus ImplProfilingStart(
-      std::string profiler_id, v8::CpuProfilingOptions options,
-      script::EnvironmentSettings* settings);
-
  private:
-  void PerformStop(script::EnvironmentSettings* environment_settings,
+  void PerformStop(ProfilerGroup* profiler_group,
                    std::unique_ptr<script::ValuePromiseWrappable::Reference>
                        promise_reference,
                    base::TimeTicks time_origin, std::string profiler_id);
 
-  std::string nextProfileId();
-
   bool stopped_;
   dom::DOMHighResTimeStamp sample_interval_;
-  v8::CpuProfiler* cpu_profiler_ = nullptr;
   base::TimeTicks time_origin_;
   std::string profiler_id_;
-};
+  ProfilerGroup* profiler_group_;
+  // All samplebufferfull listeners. Prevents GC on callbacks owned by this
+  // object, by binding to global-wrappable.
+  std::vector<std::unique_ptr<SampleBufferFullCallbackReference>> listeners_;
 
-class ProfilerMaxSamplesDelegate : public v8::DiscardedSamplesDelegate {
- public:
-  explicit ProfilerMaxSamplesDelegate(Profiler* profiler)
-      : profiler_(profiler) {}
-  void Notify() override {
-    if (profiler_.Get()) {
-      profiler_->DispatchEvent(new web::Event("samplebufferfull"));
-    }
-  }
+  // Thread checker for the thread that creates this instance.
+  THREAD_CHECKER(thread_checker_);
 
- private:
-  cppgc::WeakMember<Profiler> profiler_;
+  DISALLOW_COPY_AND_ASSIGN(Profiler);
 };
 
 }  // namespace js_profiler

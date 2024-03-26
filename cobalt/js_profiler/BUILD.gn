@@ -16,6 +16,8 @@ static_library("js_profiler") {
   sources = [
     "profiler.cc",
     "profiler.h",
+    "profiler_group.cc",
+    "profiler_group.h",
     "profiler_trace_builder.cc",
     "profiler_trace_builder.h",
     "profiler_trace_wrapper.h",
