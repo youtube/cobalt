@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Removed configuration for `abort_on_allocation_failure`
+This flag has no effect in builds, and checked allocations are removed
+in Starboard 16.
+
 ### Removed SB_HAS_NV12_TEXTURE_SUPPORT
 This flag is resolved at run-time.
 

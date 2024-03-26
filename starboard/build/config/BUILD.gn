@@ -140,10 +140,6 @@ config("starboard") {
       ]
     }
 
-    if (abort_on_allocation_failure) {
-      defines += [ "SB_ABORT_ON_ALLOCATION_FAILURE" ]
-    }
-
     if (is_internal_build) {
       defines += [ "INTERNAL_BUILD" ]
     }

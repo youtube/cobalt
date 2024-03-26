@@ -5,7 +5,6 @@ Book: /youtube/cobalt/_book.yaml
 
 | Variables |
 | :--- |
-| **`abort_on_allocation_failure`**<br><br> Halt execution on failure to allocate memory.<br><br>The default value is `true`. |
 | **`asan_symbolizer_path`**<br><br> A symbolizer path for ASAN can be added to allow translation of callstacks.<br><br>The default value is `"<clang_base_path>/bin/llvm-symbolizer"`. |
 | **`cobalt_licenses_platform`**<br><br> Sub-directory to copy license file to.<br><br>The default value is `"default"`. |
 | **`cobalt_platform_dependencies`**<br><br> List of platform-specific targets that get compiled into cobalt.<br><br>The default value is `[]`. |
