@@ -42,16 +42,20 @@ TEST(PosixSocketListenTest, SunnyDayUnbound) {
   }
 
   // bind socket with local address
-  struct sockaddr_in address = {};
-  result =
-      PosixGetLocalAddressiIPv4(reinterpret_cast<struct sockaddr*>(&address));
-  address.sin_port = GetPortNumberForTests();
-  address.sin_family = AF_INET;
-  EXPECT_TRUE(result == 0);
-  if (result != 0) {
-    close(socket_fd);
-    return;
-  }
+#if SB_HAS(IPV6)
+  sockaddr_in6 address = {};
+  sockaddr_in6* address_ptr = reinterpret_cast<sockaddr_in6*>(&address);
+  EXPECT_TRUE(
+      PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
+      PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
+  address.sin6_port = htons(GetPortNumberForTests());
+#else
+  sockaddr address = {0};
+  EXPECT_TRUE(PosixGetLocalAddressIPv4(&address) == 0);
+  sockaddr_in* address_ptr = reinterpret_cast<sockaddr_in*>(&address);
+  address_ptr->sin_port = htons(GetPortNumberForTests());
+#endif
+
   result =
       bind(socket_fd, reinterpret_cast<sockaddr*>(&address), sizeof(sockaddr));
   EXPECT_TRUE(result == 0);
@@ -69,15 +73,16 @@ TEST(PosixSocketListenTest, SunnyDayUnbound) {
   // Listening on an unbound socket should listen to a system-assigned port on
   // all local interfaces.
   socklen_t socklen;
+  sockaddr_in addr_in = {0};
   result =
-      getsockname(socket_fd, reinterpret_cast<sockaddr*>(&address), &socklen);
+      getsockname(socket_fd, reinterpret_cast<sockaddr*>(&addr_in), &socklen);
   if (result < 0) {
     close(socket_fd);
     return;
   }
 
-  EXPECT_EQ(AF_INET, address.sin_family);
-  EXPECT_NE(0, address.sin_port);
+  EXPECT_EQ(AF_INET, addr_in.sin_family);
+  EXPECT_NE(0, addr_in.sin_port);
   EXPECT_TRUE(close(socket_fd) == 0);
 }
 
