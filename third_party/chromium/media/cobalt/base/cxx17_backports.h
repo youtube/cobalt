@@ -15,6 +15,10 @@
 #ifndef BASE_CXX17_BACKPORTS_H_
 #define BASE_CXX17_BACKPORTS_H_
 
+#if !defined(STARBOARD)
+#error "This file only works with Cobalt/Starboard."
+#endif  // !defined(STARBOARD)
+
 #include "base/stl_util.h"
 
 #endif  // BASE_CXX17_BACKPORTS_H_
