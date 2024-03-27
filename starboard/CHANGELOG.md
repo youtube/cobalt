@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed `VIRTUAL_REALITY` configuration
+This configuration not used in Cobalt.
+
 ### Removed configuration for `abort_on_allocation_failure`
 This flag has no effect in builds, and checked allocations are removed
 in Starboard 16.
