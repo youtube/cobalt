@@ -49,6 +49,10 @@ config("platform_configuration") {
   ldflags = [
     # Suppress import library warning caused by the win32/posix_emu
     "/ignore:4286",
+
+    # POSIX emulation platform wrappers - only needed for existing system
+    # functions you want to tweak
+    "-Wl,--wrap=free",
   ]
 }
 
