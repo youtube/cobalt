@@ -37,7 +37,7 @@ jobs:
           unzip /tmp/gn.zip -d /usr/local/bin
           rm /tmp/gn.zip
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           fetch-depth: 0

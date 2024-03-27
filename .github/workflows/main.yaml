@@ -76,7 +76,7 @@ jobs:
       )
     steps:
       - id: checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           fetch-depth: 1
@@ -150,7 +150,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout files
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           fetch-depth: 0
@@ -186,7 +186,7 @@ jobs:
     runs-on: [self-hosted, linux-runner]
     steps:
       - name: Checkout files
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           fetch-depth: 2
@@ -233,7 +233,7 @@ jobs:
       TMPDIR: /__w/_temp
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
@@ -329,7 +329,7 @@ jobs:
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           fetch-depth: 1
@@ -361,7 +361,7 @@ jobs:
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           fetch-depth: 1
