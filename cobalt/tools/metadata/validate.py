@@ -31,7 +31,7 @@ def validate_content(textproto_content,
                      metadata_file_path='',
                      warn_deprecations=False):
   # pylint: disable=import-outside-toplevel
-  from tools.metadata.gen import metadata_file_pb2
+  from cobalt.tools.metadata.gen import metadata_file_pb2
   metadata = metadata_file_pb2.Metadata()
   text_format.Parse(textproto_content, metadata)
   if not metadata.name:
