@@ -71,12 +71,8 @@ declare_args() {
   starboard_level_gtest_target_type = "executable"
   starboard_level_final_executable_type = "executable"
 
-  # Halt execution on failure to allocate memory.
-  abort_on_allocation_failure = true
-
   # The source of EGL and GLES headers and libraries.
   # Valid values (case and everything sensitive!):
-  #   "none"   - No EGL + GLES implementation is available on this platform.
   #   "system_gles2" - Use the system implementation of EGL + GLES2. The
   #                    headers and libraries must be on the system include and
   #                    link paths.
@@ -150,9 +146,6 @@ declare_args() {
   # Set to true to enable pointer compression for v8.
   v8_enable_pointer_compression_override = true
 
-  # Whether or not to link with thin archives.
-  use_thin_archive = true
-
   # Whether or not to disable run-time type information (adding no_rtti flag).
   sb_use_no_rtti = false
 
@@ -162,8 +155,8 @@ declare_args() {
   # Enables an NPLB audit of C++17 support.
   sb_enable_cpp17_audit = true
 
-  # Flag to use a future version of Skia, currently not available.
-  use_skia_next = false
+  # Enables an NPLB audit of C++20 support.
+  sb_enable_cpp20_audit = true
 
   # Enable when using clang 16.
   is_clang_16 = false

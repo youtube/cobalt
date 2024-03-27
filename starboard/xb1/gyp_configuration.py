@@ -36,7 +36,3 @@ class Xb1Configuration(gyp_configuration_win32.Win32SharedConfiguration):
         os.path.join(os.path.dirname(__file__), 'launcher.py'))
     launcher_module = imp.load_source('launcher', module_path)
     return launcher_module
-
-  def GetDeployPathPatterns(self):
-    """example src/out/xb1_devel/appx"""
-    return ['appx/*']  # Overinclude

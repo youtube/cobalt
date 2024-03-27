@@ -107,6 +107,12 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
 
   void UpdateDecodeTarget_Locked(const scoped_refptr<CpuVideoFrame>& frame);
 
+  // Processes a decoded video frame received from FFmpeg. The frame is
+  // ultimately passed to decoder_status_cb_.
+  //
+  // Returns false if the frame contains invalid data.
+  bool ProcessDecodedFrame(const AVFrame& av_frame);
+
   FFMPEGDispatch* ffmpeg_;
 
   // |video_codec_| will be initialized inside ctor and won't be changed during

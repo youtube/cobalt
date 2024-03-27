@@ -98,7 +98,6 @@ config("compiler_flags") {
     "MESA_EGL_NO_X11_HEADERS",
   ]
   cflags_c += [ "-std=c11" ]
-  cflags_cc = [ "-std=gnu++17" ]
 
   if (use_asan) {
     cflags += [

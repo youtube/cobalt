@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//starboard/build/config/os_definitions.gni")
+import("//third_party/protobuf/proto_library.gni")
 
 _common_loader_app_sources = [
   "loader_app.cc",
@@ -224,12 +225,9 @@ target(gtest_target_type, "drain_file_test") {
   ]
 }
 
-static_library("installation_store_proto") {
-  sources = [
-    "installation_store.pb.cc",
-    "installation_store.pb.h",
-  ]
-  public_deps = [ "//third_party/protobuf:protobuf_lite" ]
+proto_library("installation_store_proto") {
+  sources = [ "installation_store.proto" ]
+  generate_python = false
 }
 
 static_library("installation_manager") {

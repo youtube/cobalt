@@ -70,7 +70,7 @@ class MEDIA_EXPORT DemuxerStream {
 
 #if defined(STARBOARD)
   virtual std::string mime_type() const { return ""; }
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
 
   // Request a buffer to returned via the provided callback.
   //
@@ -80,10 +80,10 @@ class MEDIA_EXPORT DemuxerStream {
 #if defined(STARBOARD)
   typedef base::OnceCallback<void(Status, const std::vector<scoped_refptr<DecoderBuffer>>&)> ReadCB;
   virtual void Read(int max_number_of_buffers_to_read, ReadCB read_cb) = 0;
-#else  // defined (STARBOARD)
+#else  // defined(STARBOARD)
   typedef base::OnceCallback<void(Status, scoped_refptr<DecoderBuffer>)> ReadCB;
   virtual void Read(ReadCB read_cb) = 0;
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
 
   // Returns the audio/video decoder configuration. It is an error to call the
   // audio method on a video stream and vice versa. After |kConfigChanged| is
