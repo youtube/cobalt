@@ -67,14 +67,19 @@ declare_args() {
 }
 
 if (visual_studio_path == "") {
-  toolchain_data =
+  vs_toolchain_data =
       exec_script("../../vs_toolchain.py", [ "get_toolchain_dir" ], "scope")
-  visual_studio_path = toolchain_data.vs_path
-  windows_sdk_version = toolchain_data.sdk_version
-  windows_sdk_path = toolchain_data.sdk_path
-  visual_studio_version = toolchain_data.vs_version
-  wdk_path = toolchain_data.wdk_dir
-  visual_studio_runtime_dirs = toolchain_data.runtime_dirs
+  visual_studio_path = vs_toolchain_data.vs_path
+  windows_sdk_version = vs_toolchain_data.sdk_version
+  windows_sdk_path = vs_toolchain_data.sdk_path
+  visual_studio_version = vs_toolchain_data.vc_version
+  wdk_path = vs_toolchain_data.wdk_dir
+  visual_studio_runtime_dirs = vs_toolchain_data.runtime_dirs
+  declare_args() {
+    msvc_path = "$visual_studio_path/VC/Tools/MSVC/$visual_studio_version"
+    wdk_include_path = "$windows_sdk_path/include/$windows_sdk_version"
+    wdk_lib_path = "$windows_sdk_path/lib/$windows_sdk_version"
+  }
 } else if (!is_starboard) {
   assert(visual_studio_version != "",
          "You must set the visual_studio_version if you set the path")

@@ -29,3 +29,19 @@ msvc_toolchain("target") {
     current_cpu = "x64"
   }
 }
+
+msvc_toolchain("native_target") {
+  cl = "$tool_base_path/cl.exe"
+  lib = "$tool_base_path/lib.exe"
+  link = "$tool_base_path/link.exe"
+  asm = "$tool_base_path/ml64.exe"
+  sys_lib_flags = "/LIBPATH:\"$msvc_path/lib/x64/store\" " + common_libpaths
+
+  toolchain_args = {
+    is_clang = false
+    current_os = "win"
+    current_cpu = "x64"
+    is_starboard = false
+    is_native_target_build = true
+  }
+}

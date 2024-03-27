@@ -17,7 +17,7 @@
 #include <windows.h>
 #include <intrin.h>
 #include <powrprof.h>
-#include <winnt.h>
+#include <compat/win/winnt.h>
 
 #include <algorithm>
 #include <utility>

@@ -14,7 +14,7 @@
 
 import("../build/crashpad_buildconfig.gni")
 
-static_library("test") {
+crashpad_static_library("test") {
   testonly = true
 
   sources = [
@@ -114,7 +114,7 @@ static_library("test") {
 
   public_configs = [ "..:crashpad_config" ]
 
-  configs += [
+  configs = [
     "../build:crashpad_is_in_chromium",
     "../build:crashpad_is_in_fuchsia",
   ]
@@ -225,10 +225,10 @@ if (!crashpad_is_ios) {
 }
 }
 
-static_library("googlemock_main") {
+crashpad_static_library("googlemock_main") {
   testonly = true
   sources = [ "gtest_main.cc" ]
-  configs += [ "../build:crashpad_is_in_chromium" ]
+  configs = [ "../build:crashpad_is_in_chromium" ]
   defines = [ "CRASHPAD_TEST_LAUNCHER_GOOGLEMOCK" ]
   deps = [
     ":test",
@@ -245,10 +245,10 @@ static_library("googlemock_main") {
   }
 }
 
-static_library("googletest_main") {
+crashpad_static_library("googletest_main") {
   testonly = true
   sources = [ "gtest_main.cc" ]
-  configs += [ "../build:crashpad_is_in_chromium" ]
+  configs = [ "../build:crashpad_is_in_chromium" ]
   defines = [ "CRASHPAD_TEST_LAUNCHER_GOOGLETEST" ]
   deps = [
     ":test",

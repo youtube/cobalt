@@ -34,12 +34,6 @@
 #include "test/win/win_child_process.h"
 #endif  // OS_WIN
 
-#if defined(CRASHPAD_IS_IN_CHROMIUM)
-#include "base/bind.h"
-#include "base/test/launcher/unit_test_launcher.h"
-#include "base/test/test_suite.h"
-#endif  // CRASHPAD_IS_IN_CHROMIUM
-
 namespace {
 
 #if !defined(OS_IOS)
@@ -73,32 +67,6 @@ int main(int argc, char* argv[]) {
         child_func_name);
   }
 #endif  // !OS_IOS
-
-#if defined(CRASHPAD_IS_IN_CHROMIUM)
-
-#if defined(OS_WIN)
-  // Chromium’s test launcher interferes with WinMultiprocess-based tests. Allow
-  // their child processes to be launched by the standard Google Test-based test
-  // runner.
-  const bool use_chromium_test_launcher =
-      !crashpad::test::WinChildProcess::IsChildProcess();
-#elif defined(OS_ANDROID)
-  constexpr bool use_chromium_test_launcher = false;
-#else  // OS_WIN
-  constexpr bool use_chromium_test_launcher = true;
-#endif  // OS_WIN
-
-  if (use_chromium_test_launcher) {
-    // This supports --test-launcher-summary-output, which writes a JSON file
-    // containing test details needed by Swarming.
-    base::TestSuite test_suite(argc, argv);
-    return base::LaunchUnitTests(
-        argc,
-        argv,
-        base::BindOnce(&base::TestSuite::Run, base::Unretained(&test_suite)));
-  }
-
-#endif  // CRASHPAD_IS_IN_CHROMIUM
 
 #if defined(CRASHPAD_TEST_LAUNCHER_GOOGLEMOCK)
   testing::InitGoogleMock(&argc, argv);

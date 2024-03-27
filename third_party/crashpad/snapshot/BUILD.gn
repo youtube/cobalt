@@ -19,7 +19,7 @@ if (crashpad_is_in_chromium) {
   import("//build/config/compiler/compiler.gni")
 }
 
-static_library("snapshot") {
+crashpad_static_library("snapshot") {
   if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
     check_includes = false
   }
@@ -61,8 +61,6 @@ static_library("snapshot") {
     "minidump/thread_snapshot_minidump.cc",
     "minidump/thread_snapshot_minidump.h",
     "module_snapshot.h",
-    "module_snapshot_evergreen.cc",
-    "module_snapshot_evergreen.h",
     "process_snapshot.h",
     "snapshot_constants.h",
     "system_snapshot.h",
@@ -180,6 +178,8 @@ static_library("snapshot") {
       "elf/elf_symbol_table_reader.h",
       "elf/module_snapshot_elf.cc",
       "elf/module_snapshot_elf.h",
+      "module_snapshot_evergreen.cc",
+      "module_snapshot_evergreen.h",
     ]
   }
 
@@ -260,14 +260,15 @@ static_library("snapshot") {
 
   if (crashpad_is_win) {
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
-    libs = [ "powrprof.lib" ]
+    libs = [ "powrprof.lib",
+             "kernel32.lib", ]
   }
 
-  configs += [ "..:disable_ubsan" ]
+  configs = [ "..:disable_ubsan" ]
 }
 
 # :context is the only part of snapshot that minidump may depend on.
-static_library("context") {
+crashpad_static_library("context") {
   sources = [
     "cpu_architecture.h",
     "cpu_context.cc",
@@ -298,7 +299,7 @@ if (crashpad_is_linux) {
   }
 }
 
-static_library("test_support") {
+crashpad_static_library("test_support") {
   testonly = true
 
   sources = [

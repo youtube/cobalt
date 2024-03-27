@@ -108,6 +108,7 @@ if (build_with_separate_cobalt_toolchain) {
 } else {
   cobalt_toolchain = "//$starboard_path/toolchain:target"
   starboard_toolchain = cobalt_toolchain
+  native_target_toolchain = "//$starboard_path/toolchain:native_target"
 }
 set_default_toolchain(cobalt_toolchain)
 import("//starboard/build/config/toolchain_variables.gni")

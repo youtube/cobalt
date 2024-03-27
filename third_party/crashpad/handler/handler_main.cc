@@ -159,7 +159,6 @@ void Usage(const base::FilePath& me) {
 "                              clients\n"
 "      --trace-parent-with-exception=EXCEPTION_INFORMATION_ADDRESS\n"
 "                              request a dump for the handler's parent process\n"
-#endif  // OS_LINUX || OS_ANDROID
 #if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 "      --evergreen-information=EVERGREEN_INFORMATION_ADDRESS\n"
 "                              the address of a EvegreenInfo struct.\n"
@@ -167,6 +166,7 @@ void Usage(const base::FilePath& me) {
 "                              the handler was started at time of crash, as\n"
 "                              opposed to time of launch\n"
 #endif
+#endif  // OS_LINUX || OS_ANDROID
 "      --url=URL               send crash reports to this Breakpad server URL,\n"
 "                              only if uploads are enabled for the database\n"
 #if defined(OS_CHROMEOS)
@@ -479,7 +479,7 @@ void MonitorSelf(const Options& options) {
                                     options.database,
                                     base::FilePath(),
                                     options.url,
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+#if (defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)) && (defined(OS_LINUX) || defined(OS_ANDROID))
                                     options.ca_certificates_path,
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
                                     options.annotations,
@@ -656,7 +656,7 @@ int HandlerMain(int argc,
      nullptr,
      kOptionTraceParentWithException},
 #endif  // OS_LINUX || OS_ANDROID
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+#if (defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)) && (defined(OS_LINUX) || defined(OS_ANDROID))
     {"evergreen-information",
      required_argument,
      nullptr,
@@ -1009,7 +1009,7 @@ int HandlerMain(int argc,
     upload_thread.Reset(new CrashReportUploadThread(
         database.get(),
         options.url,
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+#if (defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)) && (defined(OS_LINUX) || defined(OS_ANDROID))
         options.ca_certificates_path,
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
         upload_thread_options));

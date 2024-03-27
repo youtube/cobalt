@@ -18,6 +18,9 @@ import("util/net/tls.gni")
 
 config("crashpad_config") {
   include_dirs = [ "." ]
+  if (crashpad_is_win) {
+    defines = [ "OS_WIN" ]
+  }
 }
 
 # TODO(fuchsia:46805): Remove this once instances of UB have been cleaned up.

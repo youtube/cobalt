@@ -24,9 +24,7 @@ source_set("tool_support") {
 
   deps = [ "../third_party/mini_chromium:base" ]
 
-  if (crashpad_is_in_native_target_build) {
-    configs -= [ "//build/config/compiler:default_include_dirs" ]
-  }
+  configs -= [ "//build/config/compiler:default_include_dirs" ]
 }
 
 if (!crashpad_is_ios) {

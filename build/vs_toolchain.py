@@ -41,6 +41,9 @@ from gn_helpers import ToGNString
 #   Records the packaged and default version of Visual Studio
 TOOLCHAIN_HASH = '27370823e7'
 SDK_VERSION = '10.0.22621.0'
+MSVS_VC_SUBDIR = ['VC', 'Tools', 'MSVC']
+ENV_MSVC_VERSION = 'MSVC_VERSION'
+ENV_MSVS_OVERRIDE_PATH = 'GYP_MSVS_OVERRIDE_PATH'
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 json_data_file = os.path.join(script_dir, 'win_toolchain.json')
@@ -76,8 +79,6 @@ def SetEnvironmentAndGetRuntimeDllDirs():
   runtime.
   """
   vs_runtime_dll_dirs = None
-  depot_tools_win_toolchain = \
-      bool(int(os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', '1')))
   # When running on a non-Windows host, only do this if the SDK has explicitly
   # been downloaded before (in which case json_data_file will exist).
   if ((_HostIsWindows() or os.path.exists(json_data_file))
@@ -106,7 +107,7 @@ def SetEnvironmentAndGetRuntimeDllDirs():
     if len(vs_runtime_dll_dirs) == 2:
       vs_runtime_dll_dirs.append('Arm64Unused')
 
-    os.environ['GYP_MSVS_OVERRIDE_PATH'] = toolchain
+    os.environ[ENV_MSVS_OVERRIDE_PATH] = toolchain
 
     os.environ['WINDOWSSDKDIR'] = win_sdk
     os.environ['WDK_DIR'] = wdk
@@ -114,8 +115,11 @@ def SetEnvironmentAndGetRuntimeDllDirs():
     runtime_path = os.path.pathsep.join(vs_runtime_dll_dirs)
     os.environ['PATH'] = runtime_path + os.path.pathsep + os.environ['PATH']
   elif sys.platform == 'win32' and not depot_tools_win_toolchain:
-    if not 'GYP_MSVS_OVERRIDE_PATH' in os.environ:
-      os.environ['GYP_MSVS_OVERRIDE_PATH'] = DetectVisualStudioPath()
+    if not ENV_MSVS_OVERRIDE_PATH in os.environ:
+      vspath = DetectVisualStudioPath()
+      vc_versions = os.listdir(os.path.join(*([vspath] + MSVS_VC_SUBDIR)))
+      os.environ[ENV_MSVC_VERSION] = vc_versions[-1]
+      os.environ[ENV_MSVS_OVERRIDE_PATH] = vspath
 
     # When using an installed toolchain these files aren't needed in the output
     # directory in order to run binaries locally, but they are needed in order
@@ -168,7 +172,7 @@ def GetVisualStudioVersion():
   supported_versions = list(MSVS_VERSIONS.keys())
 
   # VS installed in depot_tools for Googlers
-  if bool(int(os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', '1'))):
+  if depot_tools_win_toolchain:
     return supported_versions[0]
 
   # VS installed in system for external developers
@@ -342,8 +346,8 @@ def FindVCComponentRoot(component):
   """
 
   SetEnvironmentAndGetRuntimeDllDirs()
-  assert ('GYP_MSVS_OVERRIDE_PATH' in os.environ)
-  vc_component_msvc_root = os.path.join(os.environ['GYP_MSVS_OVERRIDE_PATH'],
+  assert (ENV_MSVS_OVERRIDE_PATH in os.environ)
+  vc_component_msvc_root = os.path.join(os.environ[ENV_MSVS_OVERRIDE_PATH],
       'VC', component, 'MSVC')
   vc_component_msvc_contents = glob.glob(
       os.path.join(vc_component_msvc_root, '14.*'))
@@ -448,7 +452,7 @@ def _CopyDebugger(target_dir, target_cpu):
 
   # The x64 version of msdia140.dll is always used because symupload and
   # dump_syms are always built as x64 binaries.
-  dia_path = os.path.join(NormalizePath(os.environ['GYP_MSVS_OVERRIDE_PATH']),
+  dia_path = os.path.join(NormalizePath(os.environ[ENV_MSVS_OVERRIDE_PATH]),
                           'DIA SDK', 'bin', 'amd64', 'msdia140.dll')
   _CopyRuntimeImpl(os.path.join(target_dir, 'msdia140.dll'), dia_path)
 
@@ -488,8 +492,6 @@ def Update(force=False, no_download=False):
   if force == '--force' or os.path.exists(json_data_file):
     force = True
 
-  depot_tools_win_toolchain = \
-      bool(int(os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', '1')))
   if (_HostIsWindows() or force) and depot_tools_win_toolchain:
     import find_depot_tools
     depot_tools_path = find_depot_tools.add_depot_tools_to_path()
@@ -560,20 +562,21 @@ def GetToolchainDir():
   runtime_dll_dirs = SetEnvironmentAndGetRuntimeDllDirs()
   win_sdk_dir = SetEnvironmentAndGetSDKDir()
 
-  print('''vs_path = %s
-sdk_version = %s
-sdk_path = %s
-vs_version = %s
-wdk_dir = %s
-runtime_dirs = %s
-''' % (ToGNString(NormalizePath(
-      os.environ['GYP_MSVS_OVERRIDE_PATH'])), ToGNString(SDK_VERSION),
-       ToGNString(win_sdk_dir), ToGNString(GetVisualStudioVersion()),
-       ToGNString(NormalizePath(os.environ.get('WDK_DIR', ''))),
-       ToGNString(os.path.pathsep.join(runtime_dll_dirs or ['None']))))
+  print(f'''
+vs_path = {ToGNString(NormalizePath(os.environ[ENV_MSVS_OVERRIDE_PATH]))}
+vc_version = {ToGNString(NormalizePath(os.environ[ENV_MSVC_VERSION]))}
+sdk_version = {ToGNString(SDK_VERSION)}
+sdk_path = {ToGNString(win_sdk_dir)}
+vs_version = {ToGNString(GetVisualStudioVersion())}
+wdk_dir = {ToGNString(NormalizePath(os.environ.get('WDK_DIR', '')))}
+runtime_dirs = {ToGNString(os.path.pathsep.join(runtime_dll_dirs or ['None']))}
+  ''')
 
 
 def main():
+  global depot_tools_win_toolchain
+  depot_tools_win_toolchain= \
+    bool(int(os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', '0')))
   commands = {
       'update': Update,
       'get_toolchain_dir': GetToolchainDir,
