@@ -166,7 +166,8 @@ _PLATFORM_CONFIG_DICT = {}
 _PLATFORM_TEST_FILTERS_DICT = {}
 
 
-def GetPlatformApplicationConfig(platform_name, application_name):
+def GetPlatformApplicationConfig(platform_name, conf_dir, application_name):
+
   pass
 
 

@@ -20,7 +20,7 @@ import unittest
 import os
 
 from starboard.build.platforms import PLATFORMS
-from starboard.tools.build import GetPlatformConfig
+from starboard.tools.build import GetPlatformConfig, GetPlatformApplicationConfig
 
 
 class PlatformTest(unittest.TestCase):
@@ -154,6 +154,8 @@ class PlatformTest(unittest.TestCase):
     self.assertIsNotNone(config.GetLauncherPath())
     self.assertIsNotNone(config.GetLauncher())
     app_conf = config.GetApplicationConfiguration('cobalt')
+    appconf2 = GetPlatformApplicationConfig(conf, conf_dir, 'cobalt')
+    self.assertEqual(type(app_conf), type(appconf2))
     self.assertEqual(app_conf.GetName(), 'cobalt')
     self.assertEqual(app_conf.GetDirectory(), os.path.join(conf_dir, 'cobalt'))
 
