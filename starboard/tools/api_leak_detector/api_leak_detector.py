@@ -93,6 +93,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'connect',
     'clock_gettime',
     'close',
+    'errno',
     'free',
     'freeifaddrs',
     'freeaddrinfo',

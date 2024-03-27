@@ -21,6 +21,7 @@
 #undef NO_ERROR  // http://b/302733082#comment15
 #include <ws2tcpip.h>
 #include <map>
+#include "starboard/common/log.h"
 #include "starboard/types.h"
 
 static int gen_fd() {
@@ -67,16 +68,19 @@ int handle_db_put(FileOrSocket handle) {
 static FileOrSocket handle_db_get(int fd, bool erase) {
   FileOrSocket invalid_handle = {/*is_file=*/false, -1, INVALID_SOCKET};
   if (fd < 0) {
+    _set_errno(EBADF);
     return invalid_handle;
   }
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (g_map_addr == nullptr) {
     g_map_addr = new std::map<int, FileOrSocket>();
+    _set_errno(EBADF);
     return invalid_handle;
   }
 
   auto itr = g_map_addr->find(fd);
   if (itr == g_map_addr->end()) {
+    _set_errno(EBADF);
     return invalid_handle;
   }
 
@@ -86,6 +90,141 @@ static FileOrSocket handle_db_get(int fd, bool erase) {
   }
   LeaveCriticalSection(&g_critical_section.critical_section_);
   return handle;
+}
+
+// WSAGetLastError should be called immediately to retrieve the extended error
+// code for the failing function call.
+// https://learn.microsoft.com/en-us/windows/win32/winsock/error-codes-errno-h-errno-and-wsagetlasterror-2
+static void set_errno() {
+  int winsockError = WSAGetLastError();
+  int sockError = 0;
+
+  // The error codes returned by Windows Sockets are similar to UNIX socket
+  // error
+  // code constants, but the constants are all prefixed with WSA. So in Winsock
+  // applications the WSAEWOULDBLOCK error code would be returned, while in UNIX
+  // applications the EWOULDBLOCK error code would be returned.
+  // The errno values in a WIN32 are a subset of the values for errno in UNIX systems.
+  switch (winsockError) {
+    case WSAEINTR:  // Interrupted function call
+      sockError = EINTR;
+      break;
+    case WSAEBADF:  // WSAEBADF
+      sockError = EBADF;
+      break;
+    case WSAEACCES:  // WSAEACCES
+      sockError = EACCES;
+      break;
+    case WSAEFAULT:  // Bad address
+      sockError = EFAULT;
+      break;
+    case WSAEINVAL:  // Invalid argument
+      sockError = EINVAL;
+      break;
+    case WSAEMFILE:  // Too many open files
+      sockError = EMFILE;
+      break;
+    case WSAEWOULDBLOCK:  // Operation would block
+      sockError = EWOULDBLOCK;
+      break;
+    case WSAEINPROGRESS:  // Operation now in progress
+      sockError = EINPROGRESS;
+      break;
+    case WSAEALREADY:  // Operation already in progress
+      sockError = EALREADY;
+      break;
+    case WSAENOTSOCK:  // Socket operation on non-socket
+      sockError = ENOTSOCK;
+      break;
+    case WSAEDESTADDRREQ:  // Destination address required
+      sockError = EDESTADDRREQ;
+      break;
+    case WSAEMSGSIZE:  // Message too long
+      sockError = EMSGSIZE;
+      break;
+    case WSAEPROTOTYPE:  // Protocol wrong type for socket
+      sockError = EPROTOTYPE;
+      break;
+    case WSAENOPROTOOPT:  // Bad protocol option
+      sockError = ENOPROTOOPT;
+      break;
+    case WSAEPROTONOSUPPORT:  // Protocol not supported
+      sockError = EPROTONOSUPPORT;
+      break;
+    case WSAEOPNOTSUPP:  // Operation not supported
+      sockError = EOPNOTSUPP;
+      break;
+    case WSAEAFNOSUPPORT:  // Address family not supported by protocol family
+      sockError = EAFNOSUPPORT;
+      break;
+    case WSAEADDRINUSE:  // Address already in use
+      sockError = EADDRINUSE;
+      break;
+    case WSAEADDRNOTAVAIL:  // Cannot assign requested address
+      sockError = EADDRNOTAVAIL;
+      break;
+    case WSAENETDOWN:  // Network is down
+      sockError = ENETDOWN;
+      break;
+    case WSAENETUNREACH:  // Network is unreachable
+      sockError = ENETUNREACH;
+      break;
+    case WSAENETRESET:  // Network dropped connection on reset
+      sockError = ENETRESET;
+      break;
+    case WSAECONNABORTED:  // Software caused connection abort
+      sockError = ECONNABORTED;
+      break;
+    case WSAECONNRESET:  // Connection reset by peer
+      sockError = ECONNRESET;
+      break;
+    case WSAENOBUFS:  // No buffer space available
+      sockError = ENOBUFS;
+      break;
+    case WSAEISCONN:  // Socket is already connected
+      sockError = EISCONN;
+      break;
+    case WSAENOTCONN:  // Socket is not connected
+      sockError = ENOTCONN;
+      break;
+    case WSAETIMEDOUT:  // Connection timed out
+      sockError = ETIMEDOUT;
+      break;
+    case WSAECONNREFUSED:  // Connection refused
+      sockError = ECONNREFUSED;
+      break;
+    case WSAELOOP:  // WSAELOOP
+      sockError = ELOOP;
+      break;
+    case WSAENAMETOOLONG:  // WSAENAMETOOLONG
+      sockError = ENAMETOOLONG;
+      break;
+    case WSAEHOSTUNREACH:  // No route to host
+      sockError = EHOSTUNREACH;
+      break;
+    case WSAENOTEMPTY:  // WSAENOTEMPTY
+      sockError = ENOTEMPTY;
+      break;
+    case WSAHOST_NOT_FOUND:  // Host not found
+      sockError = HOST_NOT_FOUND;
+      break;
+    case WSATRY_AGAIN:  // Non-authoritative host not found
+      sockError = TRY_AGAIN;
+      break;
+    case WSANO_RECOVERY:  // This is a non-recoverable error
+      sockError = NO_RECOVERY;
+      break;
+    case WSANO_DATA:  // Valid name, no data record of requested type
+      sockError = NO_DATA;
+      break;
+    default:
+      SB_DLOG(WARNING) << "Unknown socket error.";
+      break;
+  }
+
+  _set_errno(0);
+  _set_errno(sockError);
+  SB_DLOG(INFO) << "Encounter socket error: " << sockError;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -99,8 +238,7 @@ int sb_socket(int domain, int type, int protocol) {
   // socket() returns a handle to a kernel object instead
   SOCKET socket_handle = socket(domain, type, protocol);
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
-    errno = WSAGetLastError();
+    set_errno();
     return -1;
   }
 
@@ -134,10 +272,13 @@ int close(int fd) {
   FileOrSocket handle = handle_db_get(fd, true);
 
   if (!handle.is_file && handle.socket == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   } else if (!handle.is_file) {
-    return closesocket(handle.socket);
+    int iResult = closesocket(handle.socket);
+    if (iResult == SOCKET_ERROR) {
+      set_errno();
+    }
+    return iResult;
   }
 
   // This is then a file handle, so use Windows `_close` API.
@@ -147,37 +288,38 @@ int close(int fd) {
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
   SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   }
 
-  int result = bind(socket_handle, address, address_len);
-  errno = WSAGetLastError();
-  return result;
+  int iResult = bind(socket_handle, address, address_len);
+  if (iResult == SOCKET_ERROR) {
+    set_errno();
+  }
+  return iResult;
 }
 
 int sb_listen(int socket, int backlog) {
   SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   }
 
-  int result = listen(socket_handle, backlog);
-  errno = WSAGetLastError();
-  return result;
+  int iResult = listen(socket_handle, backlog);
+  if (iResult == SOCKET_ERROR) {
+    set_errno();
+  }
+  return iResult;
 }
 
 int sb_accept(int socket, sockaddr* addr, int* addrlen) {
   SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   }
 
   SOCKET accept_handle = accept(socket_handle, addr, addrlen);
   if (accept_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
+    set_errno();
     return -1;
   }
 
@@ -188,36 +330,41 @@ int sb_accept(int socket, sockaddr* addr, int* addrlen) {
 int sb_connect(int socket, sockaddr* name, int namelen) {
   SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   }
 
-  int result = connect(socket_handle, name, namelen);
-  errno = WSAGetLastError();
-  return result;
+  int iResult = connect(socket_handle, name, namelen);
+  if (iResult == SOCKET_ERROR) {
+    set_errno();
+  }
+  return iResult;
 }
 
 int sb_send(int sockfd, const void* buf, size_t len, int flags) {
   SOCKET socket_handle = handle_db_get(sockfd, false).socket;
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   }
-  int result =
+
+  int iResult =
       send(socket_handle, reinterpret_cast<const char*>(buf), len, flags);
-  errno = WSAGetLastError();
-  return result;
+  if (iResult == SOCKET_ERROR) {
+    set_errno();
+  }
+  return iResult;
 }
 
 int sb_recv(int sockfd, void* buf, size_t len, int flags) {
   SOCKET socket_handle = handle_db_get(sockfd, false).socket;
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   }
-  int result = recv(socket_handle, reinterpret_cast<char*>(buf), len, flags);
-  errno = WSAGetLastError();
-  return result;
+
+  int iResult = recv(socket_handle, reinterpret_cast<char*>(buf), len, flags);
+  if (iResult == SOCKET_ERROR) {
+    set_errno();
+  }
+  return iResult;
 }
 
 int sb_sendto(int sockfd,
@@ -228,13 +375,15 @@ int sb_sendto(int sockfd,
               socklen_t dest_len) {
   SOCKET socket_handle = handle_db_get(sockfd, false).socket;
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   }
-  int result = sendto(socket_handle, reinterpret_cast<const char*>(buf), len,
+
+  int iResult = sendto(socket_handle, reinterpret_cast<const char*>(buf), len,
                       flags, dest_addr, dest_len);
-  errno = WSAGetLastError();
-  return result;
+  if (iResult == SOCKET_ERROR) {
+    set_errno();
+  }
+  return iResult;
 }
 
 int sb_recvfrom(int sockfd,
@@ -245,13 +394,16 @@ int sb_recvfrom(int sockfd,
                 socklen_t* address_len) {
   SOCKET socket_handle = handle_db_get(sockfd, false).socket;
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   }
-  int result = recvfrom(socket_handle, reinterpret_cast<char*>(buf), len, flags,
+
+  int iResult = recvfrom(socket_handle, reinterpret_cast<char*>(buf), len,
+                         flags,
                         address, address_len);
-  errno = WSAGetLastError();
-  return result;
+  if (iResult == SOCKET_ERROR) {
+    set_errno();
+  }
+  return iResult;
 }
 
 int sb_setsockopt(int socket,
@@ -265,17 +417,13 @@ int sb_setsockopt(int socket,
     return -1;
   }
 
-  int result =
+  int iResult =
       setsockopt(handle.socket, level, option_name,
                  reinterpret_cast<const char*>(option_value), option_len);
-  // TODO(b/321999529): Windows returns SOCKET_ERROR on failure. The specific
-  // error code can be retrieved by calling WSAGetLastError(), and Posix returns
-  // -1 on failure and sets errno to the error’s value.
-  if (result == SOCKET_ERROR) {
-    errno = WSAGetLastError();
-    return -1;
+  if (iResult == SOCKET_ERROR) {
+    set_errno();
   }
-  return 0;
+  return iResult;
 }
 
 int sb_fcntl(int fd, int cmd, ... /*arg*/) {
