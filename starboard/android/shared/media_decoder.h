@@ -113,6 +113,8 @@ class MediaDecoder
 
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
+  bool Reset();
+
  private:
   struct Event {
     enum Type {
@@ -188,6 +190,7 @@ class MediaDecoder
   atomic_bool stream_ended_;
 
   atomic_bool destroying_;
+  atomic_bool has_pending_format_changed_;
 
   optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
 

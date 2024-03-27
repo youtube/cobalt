@@ -45,7 +45,8 @@ class AudioDecoder
       AudioStreamInfo;
 
   AudioDecoder(const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system);
+               SbDrmSystem drm_system,
+               bool force_recreate_decoder_during_reset);
   ~AudioDecoder() override;
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -77,6 +78,7 @@ class AudioDecoder
 
   const AudioStreamInfo audio_stream_info_;
   const SbMediaAudioSampleType sample_type_;
+  const bool force_recreate_decoder_during_reset_;
 
   jint output_sample_rate_;
   jint output_channel_count_;

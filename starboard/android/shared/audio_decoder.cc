@@ -70,12 +70,15 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 }  // namespace
 
 AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system)
+                           SbDrmSystem drm_system,
+                           bool force_recreate_decoder_during_reset)
     : audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
       output_sample_rate_(audio_stream_info.samples_per_second),
       output_channel_count_(audio_stream_info.number_of_channels),
-      drm_system_(static_cast<DrmSystem*>(drm_system)) {
+      drm_system_(static_cast<DrmSystem*>(drm_system)),
+      force_recreate_decoder_during_reset_(
+          force_recreate_decoder_during_reset) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
   }
@@ -167,13 +170,16 @@ void AudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
-  media_decoder_.reset();
-  audio_frame_discarder_.Reset();
+  // If fail to reset |media_decoder_|, then re-create |media_decoder_|.
+  if (force_recreate_decoder_during_reset_ || !media_decoder_->Reset()) {
+    media_decoder_.reset();
 
-  if (!InitializeCodec()) {
-    // TODO: Communicate this failure to our clients somehow.
-    SB_LOG(ERROR) << "Failed to initialize codec after reset.";
+    if (!InitializeCodec()) {
+      // TODO: Communicate this failure to our clients somehow.
+      SB_LOG(ERROR) << "Failed to initialize codec after reset.";
+    }
   }
+  audio_frame_discarder_.Reset();
 
   consumed_cb_ = nullptr;
 
