@@ -5,7 +5,6 @@
   "platforms": [
     "win32"
   ],
-  "on_host_test": true,
   "on_host_test_shards": ["0", "1", "2", "3"],
   "includes": [
     {
