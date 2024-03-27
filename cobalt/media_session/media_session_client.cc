@@ -18,6 +18,7 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/logging.h"
 #include "cobalt/media_session/media_image.h"
@@ -297,60 +298,54 @@ void MediaSessionClient::UpdateMediaSessionState() {
 
 void MediaSessionClient::OnMediaSessionStateChanged(
     const MediaSessionState& session_state) {
-  if (extension_ && extension_->version >= 1) {
-    CobaltExtensionMediaSessionState ext_state;
-    size_t artwork_size = 0;
-    if (session_state.has_metadata() &&
-        session_state.metadata().value().has_artwork()) {
-      artwork_size = session_state.metadata().value().artwork().size();
-    }
-    std::unique_ptr<CobaltExtensionMediaImage[]> ext_artwork =
-        std::unique_ptr<CobaltExtensionMediaImage[]>(
-            new CobaltExtensionMediaImage[artwork_size]);
+  if (!extension_ || extension_->version < 1) {
+    return;
+  }
 
-    ext_state.duration = session_state.duration();
-    ext_state.actual_playback_rate = session_state.actual_playback_rate();
-    ext_state.current_playback_position =
-        session_state.current_playback_position();
-    ext_state.has_position_state = session_state.has_position_state();
-    ext_state.actual_playback_state =
-        ConvertPlaybackState(session_state.actual_playback_state());
-    ConvertMediaSessionActions(session_state.available_actions(),
-                               ext_state.available_actions);
-    std::string album = "";
-    std::string artist = "";
-    std::string title = "";
+  CobaltExtensionMediaSessionState ext_state;
+  size_t artwork_size = 0;
+  if (session_state.has_metadata() &&
+      session_state.metadata().value().has_artwork()) {
+    artwork_size = session_state.metadata().value().artwork().size();
+  }
+  std::vector<CobaltExtensionMediaImage> ext_artwork(artwork_size);
 
-    if (session_state.has_metadata()) {
-      const MediaMetadataInit& metadata = session_state.metadata().value();
-      album = metadata.album();
-      artist = metadata.artist();
-      title = metadata.title();
-      if (artwork_size > 0) {
-        const MediaImageSequence& artwork(metadata.artwork());
-        for (MediaImageSequence::size_type i = 0; i < artwork_size; i++) {
-          const MediaImage& media_image(artwork.at(i));
-          CobaltExtensionMediaImage ext_image;
-          ext_image.src = media_image.src().c_str();
-          if (ext_image.src == nullptr) {
-            // src() is required, but Cobalt IDL parser doesn't enforce it.
-            // See cobalt/media_session/media_image.idl for more info.
-            // https://wicg.github.io/mediasession/#dictdef-mediaimage
-            LOG(ERROR) << "Required src string for MediaImage is missing.";
-          }
-          ext_image.size = media_image.sizes().c_str();
-          ext_image.type = media_image.type().c_str();
-          ext_artwork[i] = ext_image;
-        }
+  ext_state.duration = session_state.duration();
+  ext_state.actual_playback_rate = session_state.actual_playback_rate();
+  ext_state.current_playback_position =
+      session_state.current_playback_position();
+  ext_state.has_position_state = session_state.has_position_state();
+  ext_state.actual_playback_state =
+      ConvertPlaybackState(session_state.actual_playback_state());
+  ConvertMediaSessionActions(session_state.available_actions(),
+                             ext_state.available_actions);
+  std::string album = "";
+  std::string artist = "";
+  std::string title = "";
+
+  if (session_state.has_metadata()) {
+    const MediaMetadataInit& metadata = session_state.metadata().value();
+    album = metadata.album();
+    artist = metadata.artist();
+    title = metadata.title();
+    if (artwork_size > 0) {
+      const MediaImageSequence& artwork(metadata.artwork());
+      for (MediaImageSequence::size_type i = 0; i < artwork_size; i++) {
+        const MediaImage& media_image(artwork.at(i));
+        CobaltExtensionMediaImage ext_image;
+        ext_image.src = media_image.src().c_str();
+        ext_image.size = media_image.sizes().c_str();
+        ext_image.type = media_image.type().c_str();
+        ext_artwork[i] = ext_image;
       }
     }
-    CobaltExtensionMediaMetadata ext_metadata = {
-        album.c_str(), artist.c_str(), title.c_str(), ext_artwork.get(),
-        artwork_size};
-    ext_state.metadata = &ext_metadata;
-
-    extension_->OnMediaSessionStateChanged(ext_state);
   }
+  CobaltExtensionMediaMetadata ext_metadata = {
+      album.c_str(), artist.c_str(), title.c_str(), ext_artwork.data(),
+      artwork_size};
+  ext_state.metadata = &ext_metadata;
+
+  extension_->OnMediaSessionStateChanged(ext_state);
 }
 
 // static
