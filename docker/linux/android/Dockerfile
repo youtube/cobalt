@@ -52,6 +52,7 @@ ARG CMDLINE_URL=https://dl.google.com/android/repository/${TOOLS}
 ENV ANDROID_SDK_ROOT=/root/starboard-toolchains/AndroidSdk/
 
 RUN cd /tmp \
+  && rm -rf ${ANDROID_SDK_ROOT} \
   && mkdir -p ${ANDROID_SDK_ROOT} \
   && curl --silent -O -J  ${CMDLINE_URL} \
   && unzip ${TOOLS} -d ${ANDROID_SDK_ROOT} \
@@ -65,7 +66,6 @@ RUN cd /tmp \
     "extras;android;m2repository" \
     "extras;google;m2repository" \
     "ndk;25.2.9519653" \
-    "platforms;android-30" \
     "platforms;android-31" \
     "platform-tools" \
   && echo "Android SDK installed"

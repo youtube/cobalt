@@ -51,6 +51,10 @@
 #include "time_zone_fixed.h"
 #include "time_zone_posix.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace time_internal {
@@ -647,6 +651,10 @@ class FileZoneInfoSource : public ZoneInfoSource {
 
 std::unique_ptr<ZoneInfoSource> FileZoneInfoSource::Open(
     const std::string& name) {
+#if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
+  return nullptr;
+#else
   // Use of the "file:" prefix is intended for testing purposes only.
   const std::size_t pos = (name.compare(0, 5, "file:") == 0) ? 5 : 0;
 
@@ -673,6 +681,7 @@ std::unique_ptr<ZoneInfoSource> FileZoneInfoSource::Open(
   auto fp = FOpen(path.c_str(), "rb");
   if (fp == nullptr) return nullptr;
   return std::unique_ptr<ZoneInfoSource>(new FileZoneInfoSource(std::move(fp)));
+#endif
 }
 
 class AndroidZoneInfoSource : public FileZoneInfoSource {

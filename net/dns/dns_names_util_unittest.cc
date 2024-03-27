@@ -773,7 +773,10 @@ TEST(DnsUtilTest, CanonicalizeNames) {
   EXPECT_EQ(UrlCanonicalizeNameIfAble("g{oo}gle.test"), "g%7Boo%7Dgle.test");
   EXPECT_EQ(UrlCanonicalizeNameIfAble("G{OO}GLE.test"), "g%7Boo%7Dgle.test");
 
-  // gügle.test
+// The MSVC compiler can't handle the below character, even in a comment.
+#if !defined(COMPILER_MSVC)
+  // gï¿½gle.test
+#endif
   EXPECT_EQ(UrlCanonicalizeNameIfAble("g\u00FCgle.test"), "xn--ggle-0ra.test");
   EXPECT_EQ(UrlCanonicalizeNameIfAble("G\u00fcGLE.test"), "xn--ggle-0ra.test");
 }

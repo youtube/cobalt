@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/run_loop.h"
+#include "base/test/task_environment.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/comment.h"
@@ -59,6 +60,8 @@ class ElementTest : public ::testing::Test {
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
   scoped_refptr<XMLDocument> xml_document_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 ElementTest::ElementTest()

@@ -90,7 +90,7 @@ assert(!is_nacl || is_nacl_saigo,
 
 # This is here instead of in //build because //build is DEPS'd in by a few
 # subprojects that still support MSVC.
-assert(!is_win || is_clang,
+assert(!is_win || is_clang || use_cobalt_customizations,
        "only clang-cl is supported on Windows, see https://crbug.com/988071")
 
 if (is_apple) {
@@ -189,6 +189,14 @@ config("perfetto_config") {
 if (enable_pkeys && is_debug) {
   config("no_stack_protector") {
     cflags = [ "-fno-stack-protector" ]
+  }
+}
+
+if (is_starboard) {
+  config("starboard_config") {
+    if (!is_gold) {
+      defines = [ "ENABLE_TEST_DATA" ]
+    }
   }
 }
 
@@ -980,6 +988,7 @@ component("base") {
       "profiler/module_cache_starboard.cc",
       "profiler/stack_sampler_starboard.cc",
       "rand_util_starboard.cc",
+      "strings/string_util_starboard.cc",
       "strings/string_util_starboard.h",
       "strings/sys_string_conversions_starboard.cc",
       "synchronization/condition_variable_starboard.cc",
@@ -1092,6 +1101,8 @@ component("base") {
 
   if (is_starboard) {
     deps -= [ "//base/allocator/partition_allocator:raw_ptr" ]
+    # TODO: b/330221826 Change to |public_configs| with matching dependencies.
+    all_dependent_configs += [ ":starboard_config" ]
   }
 
   if (is_starboard && current_toolchain != host_toolchain) {
@@ -1102,10 +1113,6 @@ component("base") {
   # Its gateway to being a component is through `//base`, so we have
   # to provide the appropriate `#define` here.
   defines += [ "IS_RAW_PTR_IMPL" ]
-
-  if (!is_gold) {
-    defines += [ "ENABLE_TEST_DATA" ]
-  }
 
   if (is_apple) {
     deps += [ "//base/time/buildflags:buildflags" ]
@@ -1675,14 +1682,14 @@ component("base") {
       ]
     }
 
-    if (is_win) {
+    if (is_win && !is_starboard) {
       sources += [
         "base_paths_win.cc",
         "base_paths_win.h",
       ]
     }
 
-    if (is_mac) {
+    if (is_mac && !is_starboard) {
       sources += [
         "base_paths_mac.h",
         "base_paths_mac.mm",
@@ -1802,7 +1809,7 @@ component("base") {
   }
 
   # Windows.
-  if (is_win) {
+  if (is_win && !is_starboard) {
     sources += [
       "debug/debugger_win.cc",
       "debug/gdi_debug_util_win.cc",
@@ -2031,7 +2038,7 @@ component("base") {
   }
 
   # Desktop Mac.
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     sources += [
       "allocator/partition_allocator/shim/allocator_interception_mac.h",
       "allocator/partition_allocator/shim/allocator_interception_mac.mm",
@@ -2117,7 +2124,7 @@ component("base") {
   }
 
   # Mac or iOS.
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     sources += [
       "file_version_info_mac.h",
       "file_version_info_mac.mm",
@@ -2199,7 +2206,7 @@ component("base") {
   }
 
   # iOS
-  if (is_ios) {
+  if (is_ios && !is_starboard) {
     sources += [
       "base_paths_mac.h",
       "base_paths_mac.mm",
@@ -2368,7 +2375,7 @@ component("base") {
     }
   }
 
-  if ((is_posix && !is_apple && !is_android && !is_chromeos) || is_fuchsia) {
+  if ((is_posix && !is_apple && !is_android && !is_chromeos) || is_fuchsia || is_starboard) {
     sources += [ "power_monitor/power_monitor_device_source_stub.cc" ]
   }
 
@@ -2911,7 +2918,7 @@ if (!is_ios && !use_cobalt_customizations) {
   }
 }
 
-if (is_win) {
+if (is_win && !is_starboard) {
   # Target to manually rebuild pe_image_test.dll which is checked into
   # base/test/data/pe_image.
   shared_library("pe_image_test") {
@@ -2936,7 +2943,7 @@ if (is_win) {
   }
 }
 
-if ((is_win && (current_cpu == "x64" || current_cpu == "arm64")) || is_mac ||
+if ((is_win && (current_cpu == "x64" || current_cpu == "arm64") && !is_starboard) || is_mac ||
     (is_android && (current_cpu == "arm" || current_cpu == "arm64")) ||
     (is_chromeos && current_cpu == "x64")) {
   # Must be a loadable module so that it can be loaded/unloaded at runtime
@@ -3046,7 +3053,7 @@ copy("base_unittests_bundle_data") {
   }
 }
 
-if (is_apple) {
+if (is_apple && !is_starboard) {
   source_set("base_unittests_arc") {
     testonly = true
     sources = [
@@ -3573,6 +3580,24 @@ test("base_unittests") {
       "files/memory_mapped_file_unittest.cc",
     ]
 
+    if (is_win && use_hacky_cobalt_changes) {
+      sources -= [
+        "power_monitor/battery_state_sampler_unittest.cc",
+        "profiler/stack_sampling_profiler_unittest.cc",
+        "ranges/algorithm_unittest.cc",
+        "safe_numerics_unittest.cc",
+        "strings/string_util_unittest.cc",
+        "task/sequence_manager/atomic_flag_set_unittest.cc",
+        "test/test_future_unittest.cc",
+        "tools_sanity_unittest.cc",
+        "types/expected_unittest.cc",
+
+        # NiceMock needs to be fixed
+        "threading/scoped_blocking_call_unittest.cc",
+      ]
+      cflags = [ "/wd4172" ]
+    }
+
     if (is_clang) {
       cflags_cc = [ "-Wno-trigraphs" ]
     }
@@ -3636,7 +3661,7 @@ test("base_unittests") {
     deps += [ "//build/rust:cxx_cppdeps" ]
   }
 
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     deps += [ ":base_unittests_arc" ]
   }
 
@@ -3651,7 +3676,7 @@ test("base_unittests") {
     "//tools/metrics/histograms/enums.xml",
   ]
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     deps += [ "//base/win:base_win_buildflags" ]
 
     sources += [
@@ -3732,7 +3757,7 @@ test("base_unittests") {
     }
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     sources += [
       "allocator/partition_allocator/shim/allocator_interception_mac_unittest.mm",
       "allocator/partition_allocator/shim/malloc_zone_functions_mac_unittest.cc",
@@ -3756,7 +3781,7 @@ test("base_unittests") {
     ]
   }
 
-  if (is_apple && enable_mach_absolute_time_ticks) {
+  if (is_apple && enable_mach_absolute_time_ticks && !is_starboard) {
     sources += [ "time/time_mac_unittest.mm" ]
   }
 
@@ -3870,7 +3895,7 @@ test("base_unittests") {
     sources += [ "debug/allocation_trace_unittest.cc" ]
   }
 
-  if (is_ios) {
+  if (is_ios && !is_starboard) {
     sources += [
       "ios/device_util_unittest.mm",
       "ios/scoped_critical_action_unittest.mm",
@@ -3994,7 +4019,7 @@ test("base_unittests") {
     deps += [ ":partition_alloc_test_support" ]
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     sources += [ "message_loop/message_pump_kqueue_unittest.cc" ]
     frameworks = [
       "CoreFoundation.framework",
@@ -4114,7 +4139,7 @@ test("base_unittests") {
     ]
   }
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     deps += [ "//base:scoped_handle_test_dll" ]
     if (current_cpu == "x64" || current_cpu == "arm64") {
       sources += [ "profiler/win32_stack_frame_unwinder_unittest.cc" ]
@@ -4126,7 +4151,7 @@ test("base_unittests") {
       deps += [ ":rust_cfg_win_test" ]
     }
   }
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     sources += [ "profiler/frame_pointer_unwinder_unittest.cc" ]
   }
   if (is_chromeos && current_cpu == "x64") {
@@ -4943,7 +4968,7 @@ fuzzer_test("base_json_string_escape_fuzzer") {
   deps = [ "//base" ]
 }
 
-if (is_mac) {
+if (is_mac && !is_starboard) {
   protoc_convert("base_mach_port_rendezvous_convert_corpus") {
     sources = [
       "test/data/mach_port_rendezvous_fuzz/dead_name.textproto",

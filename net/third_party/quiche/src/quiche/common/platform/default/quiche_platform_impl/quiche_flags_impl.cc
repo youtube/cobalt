@@ -17,12 +17,13 @@
 
 // Preprocessor macros can only have one definition.
 // Select the right macro based on the number of arguments.
+#define MY_CR_EXPAND_ARG(arg) arg
 #define GET_6TH_ARG(arg1, arg2, arg3, arg4, arg5, arg6, ...) arg6
-#define QUIC_PROTOCOL_FLAG_MACRO_CHOOSER(...)                    \
-  GET_6TH_ARG(__VA_ARGS__, DEFINE_QUIC_PROTOCOL_FLAG_TWO_VALUES, \
-              DEFINE_QUIC_PROTOCOL_FLAG_SINGLE_VALUE)
-#define QUIC_PROTOCOL_FLAG(...) \
-  QUIC_PROTOCOL_FLAG_MACRO_CHOOSER(__VA_ARGS__)(__VA_ARGS__)
+#define QUIC_PROTOCOL_FLAG(...)                    \
+  MY_CR_EXPAND_ARG(GET_6TH_ARG(__VA_ARGS__, DEFINE_QUIC_PROTOCOL_FLAG_TWO_VALUES, \
+              DEFINE_QUIC_PROTOCOL_FLAG_SINGLE_VALUE)(__VA_ARGS__))
+// #define QUIC_PROTOCOL_FLAG(...) \
+//   QUIC_PROTOCOL_FLAG_MACRO_CHOOSER(__VA_ARGS__)(__VA_ARGS__)
 
 #include "quiche/quic/core/quic_protocol_flags_list.h"
 

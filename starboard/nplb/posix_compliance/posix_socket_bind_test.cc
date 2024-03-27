@@ -14,7 +14,6 @@
 
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
-#if SB_API_VERSION >= 16
 
 #include <ifaddrs.h>
 #include <netinet/in.h>
@@ -27,57 +26,6 @@
 
 namespace starboard {
 namespace nplb {
-
-// Helper functions
-int PosixGetLocalAddressiIPv4(sockaddr* address_ptr) {
-  int result = -1;
-  struct ifaddrs* ifaddr;
-  if (getifaddrs(&ifaddr) == -1) {
-    return -1;
-  }
-  /* Walk through linked list, maintaining head pointer so we
-              can free list later. */
-  for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-    if (ifa->ifa_addr == NULL) {
-      continue;
-    }
-    /* For an AF_INET* interface address, display the address. */
-    if (ifa->ifa_addr->sa_family == AF_INET) {
-      memcpy(address_ptr, ifa->ifa_addr, sizeof(struct sockaddr_in));
-      result = 0;
-      break;
-    }
-  }
-
-  freeifaddrs(ifaddr);
-  return result;
-}
-
-#if SB_HAS(IPV6)
-int PosixGetLocalAddressiIPv6(sockaddr_in6* address_ptr) {
-  int result = -1;
-  struct ifaddrs* ifaddr;
-  if (getifaddrs(&ifaddr) == -1) {
-    return -1;
-  }
-  /* Walk through linked list, maintaining head pointer so we
-              can free list later. */
-  for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-    if (ifa->ifa_addr == NULL) {
-      continue;
-    }
-    /* For an AF_INET* interface address, display the address. */
-    if (ifa->ifa_addr->sa_family == AF_INET6) {
-      memcpy(address_ptr, ifa->ifa_addr, sizeof(struct sockaddr_in6));
-      result = 0;
-      break;
-    }
-  }
-
-  freeifaddrs(ifaddr);
-  return result;
-}
-#endif
 
 namespace {
 
@@ -175,4 +123,3 @@ TEST(PosixSocketBindTest, SunnyDayLocalInterface) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 16

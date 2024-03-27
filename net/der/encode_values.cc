@@ -7,7 +7,7 @@
 #include "base/time/time.h"
 #include "net/der/parse_values.h"
 
-// #include "third_party/boringssl/src/include/openssl/time.h"
+#include "third_party/boringssl/src/include/openssl/time.h"
 
 namespace net::der {
 
@@ -52,21 +52,21 @@ bool EncodeTimeAsGeneralizedTime(const base::Time& time,
   return true;
 }
 
-// bool EncodePosixTimeAsGeneralizedTime(int64_t posix_time,
-//                                       GeneralizedTime* generalized_time) {
-//   struct tm tmp_tm;
-//   if (!OPENSSL_posix_to_tm(posix_time, &tmp_tm)) {
-//     return false;
-//   }
+bool EncodePosixTimeAsGeneralizedTime(int64_t posix_time,
+                                      GeneralizedTime* generalized_time) {
+  struct tm tmp_tm;
+  if (!OPENSSL_posix_to_tm(posix_time, &tmp_tm)) {
+    return false;
+  }
 
-//   generalized_time->year = tmp_tm.tm_year + 1900;
-//   generalized_time->month = tmp_tm.tm_mon + 1;
-//   generalized_time->day = tmp_tm.tm_mday;
-//   generalized_time->hours = tmp_tm.tm_hour;
-//   generalized_time->minutes = tmp_tm.tm_min;
-//   generalized_time->seconds = tmp_tm.tm_sec;
-//   return true;
-// }
+  generalized_time->year = tmp_tm.tm_year + 1900;
+  generalized_time->month = tmp_tm.tm_mon + 1;
+  generalized_time->day = tmp_tm.tm_mday;
+  generalized_time->hours = tmp_tm.tm_hour;
+  generalized_time->minutes = tmp_tm.tm_min;
+  generalized_time->seconds = tmp_tm.tm_sec;
+  return true;
+}
 
 bool GeneralizedTimeToTime(const der::GeneralizedTime& generalized,
                            base::Time* result) {
@@ -98,22 +98,22 @@ bool GeneralizedTimeToTime(const der::GeneralizedTime& generalized,
   return false;
 }
 
-// bool GeneralizedTimeToPosixTime(const der::GeneralizedTime& generalized,
-//                                 int64_t* result) {
-//   struct tm tmp_tm;
-//   tmp_tm.tm_year = generalized.year - 1900;
-//   tmp_tm.tm_mon = generalized.month - 1;
-//   tmp_tm.tm_mday = generalized.day;
-//   tmp_tm.tm_hour = generalized.hours;
-//   tmp_tm.tm_min = generalized.minutes;
-//   tmp_tm.tm_sec = generalized.seconds;
-//   // BoringSSL POSIX time, like POSIX itself, does not support leap seconds.
-//   // Collapse to previous second.
-//   if (tmp_tm.tm_sec == 60) {
-//     tmp_tm.tm_sec = 59;
-//   }
-//   return OPENSSL_tm_to_posix(&tmp_tm, result);
-// }
+bool GeneralizedTimeToPosixTime(const der::GeneralizedTime& generalized,
+                                int64_t* result) {
+  struct tm tmp_tm;
+  tmp_tm.tm_year = generalized.year - 1900;
+  tmp_tm.tm_mon = generalized.month - 1;
+  tmp_tm.tm_mday = generalized.day;
+  tmp_tm.tm_hour = generalized.hours;
+  tmp_tm.tm_min = generalized.minutes;
+  tmp_tm.tm_sec = generalized.seconds;
+  // BoringSSL POSIX time, like POSIX itself, does not support leap seconds.
+  // Collapse to previous second.
+  if (tmp_tm.tm_sec == 60) {
+    tmp_tm.tm_sec = 59;
+  }
+  return OPENSSL_tm_to_posix(&tmp_tm, result);
+}
 
 bool EncodeGeneralizedTime(const GeneralizedTime& time,
                            uint8_t out[kGeneralizedTimeLength]) {

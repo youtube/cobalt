@@ -270,6 +270,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
 HarnessResult ParseResults(const std::string& json_results) {
   HarnessResult harness_result;
   std::vector<TestResult>& test_results = harness_result.test_results;
+  (void)test_results;
 
   base::JSONReader::Result root = base::JSONReader::ReadAndReturnValueWithError(
       json_results, base::JSONParserOptions::JSON_REPLACE_INVALID_CHARACTERS);

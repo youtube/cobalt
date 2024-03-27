@@ -102,14 +102,15 @@ scoped_refptr<DialServiceHandler> DialService::GetHandler(
 
   // remove '/apps/'
   const base::StringPiece kUrlPrefix("/apps/");
-  if (!path.rfind(kUrlPrefix, 0)) {
+  if (path.rfind(kUrlPrefix, 0) == std::string::npos) {
     return nullptr;
   }
   path = path.substr(kUrlPrefix.size());
 
   // find the next '/', and extract the portion in between.
   size_t pos = path.find_first_of('/');
-  std::string service_path = std::string(path.substr(0, pos));
+  std::string service_path =
+      std::string(pos == std::string::npos ? path : path.substr(0, pos));
 
   // sanity check further, then extract the data.
   DCHECK_EQ(std::string::npos, service_path.find('/'));
@@ -120,7 +121,7 @@ scoped_refptr<DialServiceHandler> DialService::GetHandler(
   DCHECK(it->second);
 
   // for the remaining portion, extract it out as the handler path.
-  *handler_path = std::string(path.substr(pos));
+  *handler_path = std::string(pos == std::string::npos ? "" : path.substr(pos));
 
   // If the |handler_path| is empty, that means the request is "/apps/Foo", the
   // semantic equivalent of "/apps/Foo/". If we keep the |handler_path| empty,
@@ -157,10 +158,18 @@ void DialServiceProxy::Deregister(
       FROM_HERE, base::Bind(&DialServiceProxy::OnDeregister, this, handler));
 }
 
+void DialServiceProxy::ReplaceDialService(
+    const base::WeakPtr<DialService>& service) {
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::Bind(&DialServiceProxy::OnReplaceDialService, this, service));
+}
+
 void DialServiceProxy::OnRegister(
     const scoped_refptr<DialServiceHandler>& handler) {
   if (dial_service_) {
     dial_service_->Register(handler);
+    handlers_.push_back(handler);
   }
 }
 
@@ -168,6 +177,17 @@ void DialServiceProxy::OnDeregister(
     const scoped_refptr<DialServiceHandler>& handler) {
   if (dial_service_) {
     dial_service_->Deregister(handler);
+    handlers_.remove(handler);
+  }
+}
+
+void DialServiceProxy::OnReplaceDialService(
+    const base::WeakPtr<DialService>& service) {
+  dial_service_ = service;
+  if (dial_service_) {
+    for (auto handler : handlers_) {
+      dial_service_->Register(handler);
+    }
   }
 }
 

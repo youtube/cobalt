@@ -1175,7 +1175,9 @@ PR_ParseTimeString(
                    zone_offset for the date we are parsing is the same as
                    the zone offset on 00:00:00 2 Jan 1970 GMT. */
                 secs = 86400;
+#ifndef USE_HACKY_COBALT_CHANGES
                 localtime_r(&secs, &localTime);
+#endif
                 zone_offset = localTime.tm_min
                               + 60 * localTime.tm_hour
                               + 1440 * (localTime.tm_mday - 2);

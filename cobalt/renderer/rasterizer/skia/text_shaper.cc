@@ -196,7 +196,9 @@ bool TextShaper::CollectScriptRuns(const char16_t* text_buffer,
   // Initialize the next data with the first character. This allows us to avoid
   // checking for the first character case within the while loop.
   int32 next_character = base::unicode::NormalizeSpaces(
-      base::i18n::UTF16CharIterator(text_buffer, text_length).get());
+      base::i18n::UTF16CharIterator(
+          base::StringPiece16(text_buffer, text_length))
+          .get());
   render_tree::GlyphIndex next_glyph = render_tree::kInvalidGlyphIndex;
   Font* next_font = base::polymorphic_downcast<Font*>(
       font_provider->GetCharacterFont(next_character, &next_glyph).get());
@@ -218,8 +220,8 @@ bool TextShaper::CollectScriptRuns(const char16_t* text_buffer,
 
     // Create an iterator starting at the current index and containing the
     // remaining length.
-    base::i18n::UTF16CharIterator iter(text_buffer + current_index,
-                                       end_index - current_index);
+    base::i18n::UTF16CharIterator iter(base::StringPiece16(
+        text_buffer + current_index, end_index - current_index));
     // Skip over the first character. It's already set as our current font
     // and current script.
     iter.Advance();
@@ -426,9 +428,9 @@ void TextShaper::ShapeSimpleRun(const char16_t* text_buffer, size_t text_length,
   int glyph_count = 0;
   Font* last_font = NULL;
 
+  base::StringPiece16 text(text_buffer, text_length);
   // Walk through each character within the run.
-  for (base::i18n::UTF16CharIterator iter(text_buffer, text_length);
-       !iter.end(); iter.Advance()) {
+  for (base::i18n::UTF16CharIterator iter(text); !iter.end(); iter.Advance()) {
     // Retrieve the current character and normalize spaces and zero width
     // spaces before processing it.
     int32 character = base::unicode::NormalizeSpaces(iter.get());

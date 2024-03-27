@@ -88,8 +88,10 @@ NetworkModule::~NetworkModule() {
 }
 
 std::string NetworkModule::GetUserAgent() const {
-  DCHECK(http_user_agent_settings_);
-  return http_user_agent_settings_->GetUserAgent();
+  auto* http_user_agent_settings =
+      url_request_context_->url_request_context()->http_user_agent_settings();
+  DCHECK(http_user_agent_settings);
+  return http_user_agent_settings->GetUserAgent();
 }
 
 network_bridge::PostSender NetworkModule::GetPostSender() const {
@@ -231,6 +233,29 @@ void NetworkModule::OnCreate(
 
   creation_event->Signal();
 }
+
+#if defined(DIAL_SERVER)
+void NetworkModule::RestartDialService() {
+  base::WaitableEvent creation_event(
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED);
+  // Run Network module startup on IO thread,
+  // so the network delegate and URL request context are
+  // constructed on that thread.
+  task_runner()->PostTask(FROM_HERE,
+                          base::Bind(&NetworkModule::OnRestartDialService,
+                                     base::Unretained(this), &creation_event));
+  // Wait for OnCreate() to run, so we can be sure our members
+  // have been constructed.
+  creation_event.Wait();
+}
+
+void NetworkModule::OnRestartDialService(base::WaitableEvent* creation_event) {
+  dial_service_.reset(new DialService());
+  dial_service_proxy_->ReplaceDialService(dial_service_->AsWeakPtr());
+  creation_event->Signal();
+}
+#endif
 
 void NetworkModule::AddClientHintHeaders(
     net::URLFetcher& url_fetcher, ClientHintHeadersCallType call_type) const {

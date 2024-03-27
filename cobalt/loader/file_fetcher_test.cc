@@ -21,6 +21,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/test/task_environment.h"
 #include "cobalt/loader/fetcher_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -36,11 +37,13 @@ namespace loader {
 class FileFetcherTest : public ::testing::Test {
  protected:
   FileFetcherTest();
-  ~FileFetcherTest() override {}
+  ~FileFetcherTest() override { file_fetcher_.reset(); }
 
   base::FilePath data_dir_;
   base::FilePath dir_test_data_;
   std::unique_ptr<FileFetcher> file_fetcher_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::DEFAULT};
 };
 
 FileFetcherTest::FileFetcherTest() {

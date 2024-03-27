@@ -15,10 +15,11 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
 
-#include <winsock2.h>
-#undef NO_ERROR  // http://b/302733082#comment15
 #include <BaseTsd.h>
+#include <winsock2.h>
 #include <ws2tcpip.h>
+
+#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,6 +45,22 @@ int sb_send(int sockfd, const void* buf, size_t len, int flags);
 
 int sb_recv(int sockfd, void* buf, size_t len, int flags);
 #define recv sb_recv
+
+int sb_sendto(int sockfd,
+              const void* buf,
+              size_t len,
+              int flags,
+              const struct sockaddr* dest_addr,
+              socklen_t dest_len);
+#define sendto sb_sendto
+
+int sb_recvfrom(int sockfd,
+                void* buf,
+                size_t len,
+                int flags,
+                struct sockaddr* address,
+                socklen_t* address_len);
+#define recvfrom sb_recvfrom
 
 int sb_setsockopt(int socket,
                   int level,

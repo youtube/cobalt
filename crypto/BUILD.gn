@@ -69,7 +69,7 @@ component("crypto") {
     "//third_party/boringssl",
   ]
 
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     sources += [
       "apple_keychain.h",
 
@@ -170,6 +170,11 @@ test("crypto_unittests") {
 
   if (is_win) {
     sources += [ "unexportable_key_metrics_unittest.cc" ]
+
+    if (use_hacky_cobalt_changes) {
+      # TODO: b/329904264 - Re-enable on Windows once on clang.
+      sources -= [ "secure_hash_unittest.cc" ]
+    }
   }
 
   # Some files are built when NSS is used for the platform certificate library.

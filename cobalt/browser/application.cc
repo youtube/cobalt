@@ -646,6 +646,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 
   TRACE_EVENT0("cobalt::browser", "Application::Application()");
 
+
+  // A one-per-process task scheduler is needed for usage of APIs in
+  // base/post_task.h which will be used by some net APIs like
+  // URLRequestContext;
+  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
+      "Cobalt TaskScheduler");
   DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(base::CurrentUIThread::IsSet());
 
@@ -673,12 +679,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // Get the system language and initialize our localized strings.
   std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
-
-  // A one-per-process task scheduler is needed for usage of APIs in
-  // base/post_task.h which will be used by some net APIs like
-  // URLRequestContext;
-  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
-      "Cobalt TaskScheduler");
 
   starboard::StatsTrackerContainer::GetInstance()->set_stats_tracker(
       std::make_unique<StarboardStatsTracker>());

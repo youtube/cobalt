@@ -14,7 +14,6 @@
 
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
-#if SB_API_VERSION >= 16
 
 #include <ifaddrs.h>
 #include <netinet/in.h>
@@ -40,10 +39,29 @@ TEST(PosixSocketListenTest, SunnyDayUnbound) {
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_TRUE(socket_fd >= 0);
 
-  // bind socket
-  struct sockaddr_in address = {0};
-  EXPECT_TRUE(result = bind(socket_fd, reinterpret_cast<sockaddr*>(&address),
-                            sizeof(sockaddr) == 0));
+  // set socket reuseable
+  const int on = 1;
+  result = setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+  EXPECT_TRUE(result == 0);
+  if (result != 0) {
+    close(socket_fd);
+    return;
+  }
+
+  // bind socket with local address
+  struct sockaddr_in address = {};
+  result =
+      PosixGetLocalAddressiIPv4(reinterpret_cast<struct sockaddr*>(&address));
+  address.sin_port = GetPortNumberForTests();
+  address.sin_family = AF_INET;
+  EXPECT_TRUE(result == 0);
+  if (result != 0) {
+    close(socket_fd);
+    return;
+  }
+  result =
+      bind(socket_fd, reinterpret_cast<sockaddr*>(&address), sizeof(sockaddr));
+  EXPECT_TRUE(result == 0);
   if (result != 0) {
     close(socket_fd);
     return;
@@ -73,4 +91,3 @@ TEST(PosixSocketListenTest, SunnyDayUnbound) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 16

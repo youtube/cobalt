@@ -14,7 +14,6 @@
 
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
-#if SB_API_VERSION >= 16
 
 #include <ifaddrs.h>
 #include <netinet/in.h>
@@ -28,96 +27,7 @@
 
 namespace starboard {
 namespace nplb {
-
-int PosixSocketCreateAndConnect(int server_domain,
-                                int client_domain,
-                                int port,
-                                int64_t timeout,
-                                int* listen_socket_fd,
-                                int* client_socket_fd,
-                                int* server_socket_fd) {
-  int result = -1;
-  // create listen socket, bind and listen on <port>
-  *listen_socket_fd = socket(server_domain, SOCK_STREAM, IPPROTO_TCP);
-  if (*listen_socket_fd < 0) {
-    return -1;
-  }
-  // set socket reuseable
-  const int on = 1;
-  result =
-      setsockopt(*listen_socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  if (result != 0) {
-    close(*listen_socket_fd);
-    return -1;
-  }
-  // bind socket with local address
-  struct sockaddr_in address = {};
-  result =
-      PosixGetLocalAddressiIPv4(reinterpret_cast<struct sockaddr*>(&address));
-  address.sin_port = port;
-  address.sin_family = AF_INET;
-  if (result != 0) {
-    close(*listen_socket_fd);
-    return -1;
-  }
-  result = bind(*listen_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
-                sizeof(struct sockaddr_in));
-  if (result != 0) {
-    close(*listen_socket_fd);
-    return -1;
-  }
-  result = listen(*listen_socket_fd, kMaxConn);
-  if (result != 0) {
-    close(*listen_socket_fd);
-    return -1;
-  }
-
-  // create client socket and connect to localhost:<port>
-  *client_socket_fd = socket(client_domain, SOCK_STREAM, IPPROTO_TCP);
-  if (*client_socket_fd < 0) {
-    close(*listen_socket_fd);
-    return -1;
-  }
-  result =
-      setsockopt(*client_socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  if (result != 0) {
-    close(*listen_socket_fd);
-    close(*client_socket_fd);
-    return -1;
-  }
-  result =
-      connect(*client_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
-              sizeof(struct sockaddr_in));
-  if (result != 0) {
-    close(*listen_socket_fd);
-    close(*client_socket_fd);
-    return -1;
-  }
-
-  int64_t start = CurrentMonotonicTime();
-  while ((CurrentMonotonicTime() - start < timeout)) {
-    *server_socket_fd = accept(*listen_socket_fd, NULL, NULL);
-    if (*server_socket_fd > 0) {
-      return 0;
-    }
-
-    // If we didn't get a socket, it should be pending.
-#if EWOULDBLOCK != EAGAIN
-    if (errno == EINPROGRESS || errno == EAGAIN || errno == EWOULDBLOCK)
-#else
-    if (errno == EINPROGRESS || errno == EAGAIN)
-#endif
-    {
-      // Just being polite.
-      SbThreadYield();
-    }
-  }
-
-  // timeout expired
-  close(*listen_socket_fd);
-  close(*client_socket_fd);
-  return -1;
-}
+namespace {
 
 // Transfers data between the two connected local sockets, spinning until |size|
 // has been transferred, or an error occurs.
@@ -158,35 +68,6 @@ int Transfer(int receive_socket_fd,
 
   return size;
 }
-
-int PosixSocketSetReceiveBufferSize(int socket_fd, int32_t size) {
-  if (socket_fd < 0) {
-    errno = EBADF;
-    return -1;
-  }
-
-  int result = setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF, "SO_RCVBUF", size);
-  if (result != 0) {
-    return -1;
-  }
-
-  return 0;
-}
-
-int PosixSocketSetSendBufferSize(int socket_fd, int32_t size) {
-  if (socket_fd < 0) {
-    errno = EBADF;
-    return -1;
-  }
-
-  int result = setsockopt(socket_fd, SOL_SOCKET, SO_SNDBUF, "SO_SNDBUF", size);
-  if (result != 0) {
-    return -1;
-  }
-  return 0;
-}
-
-namespace {
 
 TEST(PosixSocketReceiveTest, SunnyDay) {
   const int kBufSize = 256 * 1024;
@@ -242,4 +123,3 @@ TEST(PosixSocketReceiveTest, SunnyDay) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 16

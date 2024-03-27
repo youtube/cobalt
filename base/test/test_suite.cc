@@ -288,12 +288,20 @@ void InitializeLogging() {
   constexpr auto kLoggingDest =
       logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
 #endif
+#if defined(STARBOARD)
+// TODO: Remove once we use c++20
+  CHECK(logging::InitLogging({kLoggingDest}));
+#else
   CHECK(logging::InitLogging({.logging_dest = kLoggingDest}));
+#endif
 
   // We want process and thread IDs because we may have multiple processes.
 #if BUILDFLAG(IS_ANDROID)
   // To view log output with IDs and timestamps use "adb logcat -v threadtime".
   logging::SetLogItems(false, false, false, false);
+#elif defined(STARBOARD)
+  // Starboard applications are single process
+  logging::SetLogItems(false, true, false, false);
 #else
   // We want process and thread IDs because we may have multiple processes.
   logging::SetLogItems(true, true, false, false);

@@ -327,6 +327,7 @@ class ResourceProviderStub : public ResourceProvider {
   }
 
   void LoadAdditionalFonts() override {}
+  void ClearAdditionalFonts() override {}
 
   scoped_refptr<Typeface> CreateTypefaceFromRawData(
       std::unique_ptr<RawTypefaceDataVector> raw_data,

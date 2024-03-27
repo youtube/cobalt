@@ -39,7 +39,7 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
     return base::GetTypeId<SoftwareResourceProvider>();
   }
 
-  void Finish() override{};
+  void Finish() override {};
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) override;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) override;
@@ -85,6 +85,7 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
       const std::string& language) override;
 
   void LoadAdditionalFonts() override;
+  void ClearAdditionalFonts() override;
 
   // This resource provider uses ots (OpenTypeSanitizer) to sanitize the raw
   // typeface data and skia to generate the typeface. It supports TrueType,

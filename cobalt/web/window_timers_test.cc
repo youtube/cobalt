@@ -87,7 +87,9 @@ class WindowTimersTest : public ::testing::Test,
                          public net::WithTaskEnvironment {
  protected:
   WindowTimersTest()
-      : stat_tracker_("WindowTimersTest", "Test"),
+      : net::WithTaskEnvironment(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME),
+        stat_tracker_("WindowTimersTest", "Test"),
         callback_(&mock_timer_callback_) {
     script::Wrappable* foo = nullptr;
     timers_.reset(

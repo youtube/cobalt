@@ -15,6 +15,7 @@
 #ifndef COBALT_NETWORK_DIAL_DIAL_SERVICE_H_
 #define COBALT_NETWORK_DIAL_DIAL_SERVICE_H_
 
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -63,7 +64,7 @@ class NET_EXPORT DialService : public base::SupportsWeakPtr<DialService> {
 
   scoped_refptr<network::DialHttpServer> http_server_;
   std::unique_ptr<network::DialUdpServer> udp_server_;
-  typedef std::map<std::string, scoped_refptr<DialServiceHandler> >
+  typedef std::map<std::string, scoped_refptr<DialServiceHandler>>
       ServiceHandlerMap;
   ServiceHandlerMap handlers_;
   std::string http_host_address_;
@@ -82,6 +83,7 @@ class NET_EXPORT DialServiceProxy
   explicit DialServiceProxy(const base::WeakPtr<DialService>& dial_service);
   void Register(const scoped_refptr<DialServiceHandler>& handler);
   void Deregister(const scoped_refptr<DialServiceHandler>& handler);
+  void ReplaceDialService(const base::WeakPtr<DialService>& service);
   std::string host_address() const { return host_address_; }
 
  private:
@@ -89,9 +91,12 @@ class NET_EXPORT DialServiceProxy
   virtual ~DialServiceProxy();
   void OnRegister(const scoped_refptr<DialServiceHandler>& handler);
   void OnDeregister(const scoped_refptr<DialServiceHandler>& handler);
+  void OnReplaceDialService(const base::WeakPtr<DialService>& service);
 
   base::WeakPtr<DialService> dial_service_;
   std::string host_address_;
+
+  std::list<scoped_refptr<DialServiceHandler>> handlers_;
 
   // Message loop to call DialService methods on.
   scoped_refptr<base::SequencedTaskRunner> task_runner_;

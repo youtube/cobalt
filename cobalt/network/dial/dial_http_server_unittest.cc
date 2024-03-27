@@ -113,10 +113,10 @@ class DialHttpServerTest : public testing::Test {
   SSLConfigService* ssl_config_service_;
   ProxyResolutionService* proxy_resolution_service_;
   TransportSecurityState* transport_security_state_;
-  MultiLogCTVerifier* cert_transparency_verifier_;
   CTPolicyEnforcer* ct_policy_enforcer_;
   CertVerifier* cert_verifier_;
   HostResolver* host_resolver_;
+  net::QuicContext quic_context_;
 
   DialHttpServerTest()
       : scoped_task_env_(base::test::TaskEnvironment::MainThreadType::IO) {
@@ -139,6 +139,9 @@ class DialHttpServerTest : public testing::Test {
     context.host_resolver = host_resolver_ = new MockHostResolver();
     context.cert_verifier = cert_verifier_ =
         net::CertVerifier::CreateDefault(nullptr).release();
+    context.quic_context = &quic_context_;
+    context.client_socket_factory =
+        net::ClientSocketFactory::GetDefaultFactory();
     session_.reset(new HttpNetworkSession(params, context));
     client_.reset(new HttpNetworkTransaction(net::RequestPriority::MEDIUM,
                                              session_.get()));
@@ -163,7 +166,6 @@ class DialHttpServerTest : public testing::Test {
     delete ssl_config_service_;
     delete proxy_resolution_service_;
     delete transport_security_state_;
-    delete cert_transparency_verifier_;
     delete ct_policy_enforcer_;
     delete cert_verifier_;
     delete host_resolver_;

@@ -194,7 +194,7 @@ TEST(MediaSessionTest, ActualPlaybackState) {
 
 TEST(MediaSessionTest, NullActionClears) {
   base::test::SingleThreadTaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+      base::test::TaskEnvironment::TimeSource::DEFAULT};
 
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));

@@ -19,6 +19,7 @@
 
 #include "base/optional.h"
 #include "base/run_loop.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -73,10 +74,12 @@ class StubFetcherHandler : public Fetcher::Handler {
 class FetcherFactoryTest : public ::testing::Test {
  protected:
   FetcherFactoryTest() {}
-  ~FetcherFactoryTest() override {}
+  ~FetcherFactoryTest() override { fetcher_.reset(); }
 
   FetcherFactory fetcher_factory_;
   std::unique_ptr<Fetcher> fetcher_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::DEFAULT};
 };
 
 TEST_F(FetcherFactoryTest, InvalidURL) {

@@ -1,0 +1,29 @@
+#!/bin/bash
+# Copyright (C) 2021 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -eu
+
+# cd into the //infra/perfetto.dev dir, so this works uniformely when invoked by
+# other paths. the cd is required for npm install.
+cd -P ${BASH_SOURCE[0]%/*}
+
+# Ensure that `npm ci` has been called and is current. Note that the set of
+# packages that the docs website requires is != the UI ones.
+if ! test node_modules/.stamp -nt package-lock.json; then
+  ../../tools/npm ci
+  touch node_modules/.stamp
+fi
+
+../../tools/node ./build.js "$@"

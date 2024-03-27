@@ -19,7 +19,6 @@
 
 #include "base/base_export.h"
 #include "base/message_loop/message_pump.h"
-#include "base/run_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "starboard/event.h"

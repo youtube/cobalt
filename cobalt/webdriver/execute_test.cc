@@ -55,7 +55,9 @@ class JSONScriptExecutorResult : public ScriptExecutorResult::ResultHandler {
     json_result_ = base::JSONReader::Read(result.c_str());
   }
   void OnTimeout() { NOTREACHED(); }
-  absl::optional<base::Value> json_result() { return std::move(json_result_); }
+  const base::Value* json_result() const {
+    return (json_result_.has_value() ? &json_result_.value() : nullptr);
+  }
 
  private:
   absl::optional<base::Value> json_result_;
@@ -263,11 +265,11 @@ TEST_F(ScriptExecutorTest, ConvertWebElement) {
   JSONScriptExecutorResult result_handler;
   EXPECT_TRUE(
       script_executor_->Execute(gc_prevented_params.params, &result_handler));
-  ASSERT_TRUE(result_handler.json_result().has_value());
+  ASSERT_TRUE(result_handler.json_result());
 
-  ASSERT_TRUE(result_handler.json_result().value().is_dict());
+  ASSERT_TRUE(result_handler.json_result()->is_dict());
   const base::Value::Dict* dictionary_value =
-      result_handler.json_result().value().GetIfDict();
+      result_handler.json_result()->GetIfDict();
   const std::string* element_id =
       dictionary_value->FindString(protocol::ElementId::kElementKey);
   EXPECT_TRUE(!!element_id);
@@ -285,11 +287,11 @@ TEST_F(ScriptExecutorTest, ConvertArray) {
   JSONScriptExecutorResult result_handler;
   EXPECT_TRUE(
       script_executor_->Execute(gc_prevented_params.params, &result_handler));
-  ASSERT_TRUE(result_handler.json_result().has_value());
+  ASSERT_TRUE(result_handler.json_result());
 
-  ASSERT_TRUE(result_handler.json_result().value().is_list());
+  ASSERT_TRUE(result_handler.json_result()->is_list());
   const base::Value::List* list_value =
-      result_handler.json_result().value().GetIfList();
+      result_handler.json_result()->GetIfList();
   ASSERT_EQ(list_value->size(), 2);
 
   EXPECT_TRUE((*list_value)[0].is_int());
@@ -311,11 +313,11 @@ TEST_F(ScriptExecutorTest, ConvertObject) {
   JSONScriptExecutorResult result_handler;
   EXPECT_TRUE(
       script_executor_->Execute(gc_prevented_params.params, &result_handler));
-  ASSERT_TRUE(result_handler.json_result().has_value());
+  ASSERT_TRUE(result_handler.json_result());
 
-  ASSERT_TRUE(result_handler.json_result().value().is_dict());
+  ASSERT_TRUE(result_handler.json_result()->is_dict());
   const base::Value::Dict* dictionary_value =
-      result_handler.json_result().value().GetIfDict();
+      result_handler.json_result()->GetIfDict();
   absl::optional<int> value = dictionary_value->FindInt("sum");
   EXPECT_TRUE(value.has_value());
   EXPECT_EQ(value.value(), 11);

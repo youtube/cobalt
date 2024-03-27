@@ -64,7 +64,7 @@ class TestSuspendableThreadDelegate : public SuspendableThreadDelegate {
     RegisterContextStackPointer(thread_context) =
         reinterpret_cast<uintptr_t>(&(*fake_stack_)[0]);
     RegisterContextInstructionPointer(thread_context) =
-        reinterpret_cast<uintptr_t>((*fake_stack_)[0]);
+        static_cast<uintptr_t>((*fake_stack_)[0]);
     return true;
   }
 

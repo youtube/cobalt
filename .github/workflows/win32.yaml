@@ -1,18 +1,18 @@
 name: win32
 
 on:
-  # pull_request:
-  #   types: [opened, reopened, synchronize, labeled]
-  #   branches:
-  #     - main
-  #     - feature/*
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    branches:
+      - main
+      - feature/*
   push:
     branches:
       - main
       - feature/*
   schedule:
     # GTM timezone.
-    - cron: '0 4 * * *'
+    - cron: '0 9 * * *'
   workflow_dispatch:
     inputs:
       nightly:

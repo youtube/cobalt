@@ -1079,7 +1079,8 @@ scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
                           base::OnStringConversionError::SUBSTITUTE,
                           &utf16_string);
     int32 first_character = base::unicode::NormalizeSpaces(
-        base::i18n::UTF16CharIterator(utf16_string.c_str(), utf16_string.size())
+        base::i18n::UTF16CharIterator(
+            base::StringPiece16(utf16_string.c_str(), utf16_string.size()))
             .get());
     font = resource_provider
                ->GetCharacterFallbackTypeface(first_character, font_style,
@@ -1211,6 +1212,18 @@ TEST_F(PixelTest, SimpleTextInRed40PtChineseFont) {
   TestTree(CreateTextNodeWithinSurface(
       GetResourceProvider(), "你好！", FontStyle(), 40,
       ColorRGBA(1.0, 0, 0, 1.0), std::vector<Shadow>(), "Noto Sans CJK SC"));
+}
+
+TEST_F(PixelTest, SimpleTextInRed40PtKatakanaJapaneseFont) {
+  TestTree(CreateTextNodeWithinSurface(
+      GetResourceProvider(), "カタカナ！", FontStyle(), 40,
+      ColorRGBA(1.0, 0, 0, 1.0), std::vector<Shadow>(), "Noto Sans CJK JP"));
+}
+
+TEST_F(PixelTest, SimpleTextInRed40PtHiranganaJapaneseFont) {
+  TestTree(CreateTextNodeWithinSurface(
+      GetResourceProvider(), "ひらがな！", FontStyle(), 40,
+      ColorRGBA(1.0, 0, 0, 1.0), std::vector<Shadow>(), "Noto Sans CJK JP"));
 }
 
 TEST_F(PixelTest, RotatedTextInScaledRoundedCorners) {

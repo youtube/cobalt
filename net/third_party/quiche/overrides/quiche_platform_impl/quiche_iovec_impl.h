@@ -9,7 +9,7 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
 /* Structure for scatter/gather I/O.  */
 struct iovec {
   void* iov_base; /* Pointer to data.  */

@@ -26,12 +26,10 @@ bool gSkUseThreadLocalStrikeCaches_IAcknowledgeThisIsIncrediblyExperimental = fa
 
 SkStrikeCache* SkStrikeCache::GlobalStrikeCache() {
 #if !defined(STARBOARD)
-#if !defined(SK_BUILD_FOR_IOS)
     if (gSkUseThreadLocalStrikeCaches_IAcknowledgeThisIsIncrediblyExperimental) {
         static thread_local auto* cache = new SkStrikeCache;
         return cache;
     }
-#endif
 #endif
     static auto* cache = new SkStrikeCache;
     return cache;
