@@ -11,16 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#if SB_API_VERSION >= 16
 
 #include <errno.h>
-#include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
 #include "starboard/common/log.h"
-#include "starboard/nplb/socket_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -119,3 +117,4 @@ TEST(PosixErrnoTest, ConnectToInvalidAddress) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif  // SB_API_VERSION >= 16
