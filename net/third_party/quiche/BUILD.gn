@@ -1400,6 +1400,23 @@ if (!is_ios && false) {
   }
 }
 
+if (use_hacky_cobalt_changes) {
+  copy("test_data") {
+    if (is_starboard) {
+      install_content = true
+    }
+    visibility = [ ":quiche_tests" ]
+    testonly = true
+    sources = [
+      "src/quiche/common/platform/api/testdir/README.md",
+      "src/quiche/common/platform/api/testdir/a/b/c/d/e",
+      "src/quiche/common/platform/api/testdir/a/subdir/testfile",
+      "src/quiche/common/platform/api/testdir/a/z",
+      "src/quiche/common/platform/api/testdir/testfile",
+    ]
+    outputs = [ "$sb_static_contents_output_data_dir/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
+  }
+} else {
 bundle_data("test_data") {
   visibility = [ ":quiche_tests" ]
   testonly = true
@@ -1412,6 +1429,7 @@ bundle_data("test_data") {
   ]
   outputs = [ "{{bundle_resources_dir}}/" +
               "{{source_root_relative_dir}}/{{source_file_part}}" ]
+}
 }
 
 source_set("quiche_tests") {
@@ -1668,6 +1686,7 @@ source_set("quiche_tests") {
   public_configs = [ ":quiche_config" ]
 
   deps = [
+    ":test_data",
     "//net",
     "//net:quic_test_tools",
     "//net:simple_quic_tools",
@@ -1709,8 +1728,11 @@ source_set("quiche_tests") {
       "src/quiche/quic/core/congestion_control/send_algorithm_test.cc",
       "src/quiche/quic/core/crypto/quic_client_session_cache_test.cc",
       "src/quiche/quic/core/quic_trace_visitor_test.cc",
-      "src/quiche/quic/core/tls_client_handshaker_test.cc",
       "src/quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
+
+      # TODO: b/331437821
+      "src/quiche/common/platform/api/quiche_file_utils_test.cc",
+      "src/quiche/quic/tools/quic_memory_cache_backend_test.cc",
 
       # Re-enable once we use c++20.
       "src/quiche/common/capsule_test.cc",

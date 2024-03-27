@@ -825,7 +825,7 @@ void EmbeddedTestServer::ServeFilesFromSourceDirectory(
     base::StringPiece relative) {
   base::FilePath test_data_dir;
 #if defined(STARBOARD)
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir);
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &test_data_dir));
 #else
   CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
 #endif
@@ -850,7 +850,7 @@ base::FilePath EmbeddedTestServer::GetFullPathFromSourceDirectory(
     const base::FilePath& relative) {
   base::FilePath test_data_dir;
 #if defined(STARBOARD)
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir);
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &test_data_dir));
 #else
   CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
 #endif

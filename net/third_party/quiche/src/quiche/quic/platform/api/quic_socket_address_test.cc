@@ -6,9 +6,6 @@
 
 #include <memory>
 #include <sstream>
-#if defined(USE_HACKY_COBALT_CHANGES)
-#include <unistd.h>
-#endif
 
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -96,7 +93,7 @@ TEST(QuicSocketAddress, Normalize) {
 
 // TODO(vasilvv): either ensure this works on all platforms, or deprecate and
 // remove this API.
-#if defined(__linux__) && !defined(ANDROID)
+#if defined(__linux__) && !defined(ANDROID) && !defined(STARBOARD)
 #include <errno.h>
 #include <sys/socket.h>
 #include <sys/types.h>

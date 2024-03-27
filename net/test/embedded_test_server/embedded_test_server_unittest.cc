@@ -242,7 +242,7 @@ TEST_P(EmbeddedTestServerTest, RegisterRequestHandler) {
 TEST_P(EmbeddedTestServerTest, ServeFilesFromDirectory) {
   base::FilePath src_dir;
 #if defined(STARBOARD)
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir);
+  ASSERT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &src_dir));
 #else
   ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
 #endif
@@ -275,7 +275,7 @@ TEST_P(EmbeddedTestServerTest, MockHeadersWithoutCRLF) {
 
   base::FilePath src_dir;
 #if defined(STARBOARD)
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir);
+  ASSERT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &src_dir));
 #else
   ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
 #endif
@@ -703,7 +703,7 @@ class EmbeddedTestServerThreadingTestDelegate
     EmbeddedTestServer server(type_, protocol_);
     base::FilePath src_dir;
 #if defined(STARBOARD)
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir);
+    ASSERT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &src_dir));
 #else
     ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
 #endif
