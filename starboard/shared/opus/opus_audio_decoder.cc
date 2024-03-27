@@ -47,31 +47,11 @@ static const VorbisLayout vorbis_mappings[8] = {
 
 OpusAudioDecoder::OpusAudioDecoder(const AudioStreamInfo& audio_stream_info)
     : audio_stream_info_(audio_stream_info) {
-  int error;
-  int channels = audio_stream_info_.number_of_channels;
-  if (channels > 8 || channels < 1) {
-    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
-    return;
-  }
-
-  decoder_ = opus_multistream_decoder_create(
-      audio_stream_info_.samples_per_second, channels,
-      vorbis_mappings[channels - 1].nb_streams,
-      vorbis_mappings[channels - 1].nb_coupled_streams,
-      vorbis_mappings[channels - 1].mapping, &error);
-  if (error != OPUS_OK) {
-    SB_LOG(ERROR) << "Failed to create decoder with error: "
-                  << opus_strerror(error);
-    decoder_ = NULL;
-    return;
-  }
-  SB_DCHECK(decoder_ != NULL);
+  InitializeCodec();
 }
 
 OpusAudioDecoder::~OpusAudioDecoder() {
-  if (decoder_) {
-    opus_multistream_decoder_destroy(decoder_);
-  }
+  TeardownCodec();
 }
 
 void OpusAudioDecoder::Initialize(const OutputCB& output_cb,
@@ -215,6 +195,34 @@ void OpusAudioDecoder::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
+void OpusAudioDecoder::InitializeCodec() {
+  int error;
+  int channels = audio_stream_info_.number_of_channels;
+  if (channels > 8 || channels < 1) {
+    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
+    return;
+  }
+
+  decoder_ = opus_multistream_decoder_create(
+      audio_stream_info_.samples_per_second, channels,
+      vorbis_mappings[channels - 1].nb_streams,
+      vorbis_mappings[channels - 1].nb_coupled_streams,
+      vorbis_mappings[channels - 1].mapping, &error);
+  if (error != OPUS_OK) {
+    SB_LOG(ERROR) << "Failed to create decoder with error: "
+                  << opus_strerror(error);
+    decoder_ = NULL;
+    return;
+  }
+  SB_DCHECK(decoder_ != NULL);
+}
+
+void OpusAudioDecoder::TeardownCodec() {
+  if (decoder_) {
+    opus_multistream_decoder_destroy(decoder_);
+  }
+}
+
 scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
     int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
@@ -232,6 +240,9 @@ scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
 
 void OpusAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
+
+  TeardownCodec();
+  InitializeCodec();
 
   stream_ended_ = false;
   while (!decoded_audios_.empty()) {
