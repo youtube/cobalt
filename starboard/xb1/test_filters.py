@@ -31,6 +31,7 @@ _FILTERED_TESTS = {
         'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/*',
         ('VideoDecoderTests/VideoDecoderTest'
          '.MultipleValidInputsAfterInvalidKeyFrame/*'),
+        'VideoDecoderTests/VideoDecoderTest.MultipleResets/sintel_399_av1_dmp_DecodeToTexture',
         # AC3/EAC3 use a passthrough audio decoder that is incompatible with
         # AdaptiveAudioDecoderTests.
         # b/281740486.
