@@ -106,6 +106,8 @@ class MediaSessionClient : public base::SupportsWeakPtr<MediaSessionClient> {
   MediaSessionPlaybackState platform_playback_state_;
   const media::WebMediaPlayerFactory* media_player_factory_ = nullptr;
   const CobaltExtensionMediaSessionApi* extension_;
+  std::unique_ptr<CobaltExtensionMediaImage[]> extension_artwork_ = nullptr;
+  std::unique_ptr<CobaltExtensionMediaMetadata> extension_metadata_ = nullptr;
 
   void UpdateMediaSessionState();
   MediaSessionPlaybackState ComputeActualPlaybackState() const;
