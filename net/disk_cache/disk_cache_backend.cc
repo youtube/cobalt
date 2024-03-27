@@ -353,7 +353,7 @@ BackendResult CreateCacheBackend(net::CacheType type,
     if (mem_backend_impl) {
       mem_backend_impl->SetPostCleanupCallback(
           std::move(post_cleanup_callback));
-      return BackendResult::MakeError(net::OK);
+      return BackendResult::Make(std::move(mem_backend_impl));
     } else {
       if (!post_cleanup_callback.is_null())
         base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
