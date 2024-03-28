@@ -18,7 +18,9 @@
 
 extern "C" {
 
-int stat(const char* path, struct musl_stat* info) {
+int __abi_wrap_stat(const char* path, struct stat* info);
+
+int stat(const char* path, struct stat* info) {
   return __abi_wrap_stat(path, info);
 }
 }
