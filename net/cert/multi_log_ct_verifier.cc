@@ -72,7 +72,6 @@ MultiLogCTVerifier::~MultiLogCTVerifier() = default;
 void MultiLogCTVerifier::AddLogs(
     const std::vector<scoped_refptr<const CTLogVerifier>>& log_verifiers) {
   for (const auto& log_verifier : log_verifiers) {
-    VLOG(1) << "Adding CT log: " << log_verifier->description();
     logs_[log_verifier->key_id()] = log_verifier;
   }
 }
@@ -204,7 +203,6 @@ bool MultiLogCTVerifier::VerifySingleSCT(
   // Assume this SCT is untrusted until proven otherwise.
   const auto& it = logs_.find(sct->log_id);
   if (it == logs_.end()) {
-    DVLOG(1) << "SCT does not match any known log.";
     AddSCTAndLogStatus(sct, ct::SCT_STATUS_LOG_UNKNOWN, output_scts);
     return false;
   }
@@ -212,14 +210,12 @@ bool MultiLogCTVerifier::VerifySingleSCT(
   sct->log_description = it->second->description();
 
   if (!it->second->Verify(expected_entry, *sct.get())) {
-    DVLOG(1) << "Unable to verify SCT signature.";
     AddSCTAndLogStatus(sct, ct::SCT_STATUS_INVALID_SIGNATURE, output_scts);
     return false;
   }
 
   // SCT verified ok, just make sure the timestamp is legitimate.
   if (sct->timestamp > base::Time::Now()) {
-    DVLOG(1) << "SCT is from the future!";
     AddSCTAndLogStatus(sct, ct::SCT_STATUS_INVALID_TIMESTAMP, output_scts);
     return false;
   }

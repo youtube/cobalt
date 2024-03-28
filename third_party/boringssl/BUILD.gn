@@ -5,11 +5,17 @@
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
 import("//build/config/compiler/compiler.gni")
+import("//build/config/rust.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("BUILD.generated.gni")
 import("BUILD.generated_tests.gni")
+
+if (enable_rust) {
+  import("//build/rust/cargo_crate.gni")
+  import("//build/rust/rust_bindgen.gni")
+}
 
 # Config for us and everybody else depending on BoringSSL.
 config("external_config") {
@@ -78,6 +84,48 @@ config("no_asm_config") {
 
 all_sources = crypto_sources + ssl_sources
 all_headers = crypto_headers + ssl_headers
+
+if (enable_rust_boringssl) {
+  rust_bindgen("raw_bssl_sys_bindings") {
+    header = "src/rust/bssl-sys/wrapper.h"
+    deps = [ ":boringssl" ]
+    bindgen_flags = [
+      "no-derive-default",
+      "enable-function-attribute-detection",
+      "use-core",
+      "default-macro-constant-type=signed",
+      "rustified-enum=point_conversion_form_t",
+      "allowlist-file=.*[[:punct:]]include[[:punct:]]openssl[[:punct:]].*\\.h",
+      "allowlist-file=.*[[:punct:]]rust_wrapper\\.h",
+    ]
+    visibility = [ ":*" ]  # private, should only be exposed through bssl_crypto
+  }
+
+  # Low level, bindgen generates system bindings to boringssl
+  cargo_crate("bssl_sys") {
+    crate_type = "rlib"
+    crate_root = "src/rust/bssl-sys/src/lib.rs"
+    sources = [ "src/rust/bssl-sys/src/lib.rs" ]
+    edition = "2021"
+    deps = [
+      ":boringssl",
+      ":raw_bssl_sys_bindings",
+    ]
+    visibility = [ ":*" ]  # private, should only be exposed through bssl_crypto
+
+    _bindgen_output = get_target_outputs(":raw_bssl_sys_bindings")
+    rustenv = [ "BINDGEN_RS_FILE=" + rebase_path(_bindgen_output[0]) ]
+  }
+
+  # Rust bindings to boringssl
+  cargo_crate("bssl_crypto") {
+    crate_type = "rlib"
+    crate_root = "src/rust/bssl-crypto/src/lib.rs"
+    sources = [ "src/rust/bssl-crypto/src/lib.rs" ]
+    edition = "2021"
+    deps = [ ":bssl_sys" ]
+  }
+}
 
 if (!use_cobalt_customizations) {
 # Windows' assembly is built with NASM. The other platforms use the platform
@@ -298,12 +346,7 @@ if (build_with_chromium) {
     ]
 
     # Chromium infrastructure does not support GTest, only the //base wrapper.
-    sources -= [
-      "src/crypto/test/gtest_main.cc",
-
-      # //base includes its own conflicting malloc shim.
-      "src/crypto/test/malloc.cc",
-    ]
+    sources -= [ "src/crypto/test/gtest_main.cc" ]
     sources += [
       "gtest_main_chromium.cc",
       "test_data_chromium.cc",
@@ -330,12 +373,7 @@ if (build_with_chromium) {
     ]
 
     # Chromium infrastructure does not support GTest, only the //base wrapper.
-    sources -= [
-      "src/crypto/test/gtest_main.cc",
-
-      # //base includes its own conflicting malloc shim.
-      "src/crypto/test/malloc.cc",
-    ]
+    sources -= [ "src/crypto/test/gtest_main.cc" ]
     sources += [ "gtest_main_chromium.cc" ]
     deps += [ "//base/test:test_support" ]
   }

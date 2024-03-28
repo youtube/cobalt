@@ -139,11 +139,9 @@ bool ReadList(size_t max_list_length,
   while (!list_data.empty()) {
     base::StringPiece list_item;
     if (!ReadVariableBytes(max_item_length, &list_data, &list_item)) {
-      DVLOG(1) << "Failed to read item in list.";
       return false;
     }
     if (list_item.empty()) {
-      DVLOG(1) << "Empty item in list";
       return false;
     }
     result.push_back(list_item);
@@ -295,12 +293,8 @@ bool DecodeDigitallySigned(base::StringPiece* input,
   }
 
   DigitallySigned result;
-  if (!ConvertHashAlgorithm(hash_algo, &result.hash_algorithm)) {
-    DVLOG(1) << "Invalid hash algorithm " << hash_algo;
-    return false;
-  }
-  if (!ConvertSignatureAlgorithm(sig_algo, &result.signature_algorithm)) {
-    DVLOG(1) << "Invalid signature algorithm " << sig_algo;
+  if (!ConvertHashAlgorithm(hash_algo, &result.hash_algorithm) ||
+      !ConvertSignatureAlgorithm(sig_algo, &result.signature_algorithm)) {
     return false;
   }
   sig_data.CopyToString(&result.signature_data);
@@ -328,8 +322,6 @@ static bool ReadTimeSinceEpoch(base::StringPiece* input, base::Time* output) {
   base::CheckedNumeric<int64_t> time_since_epoch_signed = time_since_epoch;
 
   if (!time_since_epoch_signed.IsValid()) {
-    DVLOG(1) << "Timestamp value too big to cast to int64_t: "
-             << time_since_epoch;
     return false;
   }
 
@@ -407,7 +399,6 @@ bool DecodeSignedCertificateTimestamp(
   if (!ReadUint(kVersionLength, input, &version))
     return false;
   if (version != SignedCertificateTimestamp::V1) {
-    DVLOG(1) << "Unsupported/invalid version " << version;
     return false;
   }
 
