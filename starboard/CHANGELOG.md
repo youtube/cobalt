@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed `QUIRK_SOCKET_BSD_HEADERS` configuration
+This config flag is unused.
+
 ## Removed `SB_HAS_SPEECH_SYNTHESIS` configuration
 This configuration has been replaced by `SbSpeechSynthesisIsSupported()`
 
