@@ -1601,7 +1601,9 @@ config("default_warnings") {
 
       # -Wpacked-not-aligned complains all generated mojom-shared-internal.h
       # files.
+      if (!is_native_target_build) {
       cflags += [ "-Wno-packed-not-aligned" ]
+      }
     }
   }
 

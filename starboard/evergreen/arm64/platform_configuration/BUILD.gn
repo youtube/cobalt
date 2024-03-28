@@ -21,6 +21,7 @@ config("sabi_flags") {
     # char is unsigned by default for arm64.
     "-fsigned-char",
   ]
+  asmflags = cflags
 }
 
 config("platform_configuration") {

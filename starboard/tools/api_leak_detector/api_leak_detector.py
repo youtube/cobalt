@@ -87,6 +87,10 @@ _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 
 # Allowed POSIX symbols in Starboard 16
 _ALLOWED_SB16_POSIX_SYMBOLS = [
+    'freeifaddrs',
+    'getifaddrs',
+    'freeaddrinfo',
+    'getaddrinfo',
     'calloc',
     'clock_gettime',
     'free',

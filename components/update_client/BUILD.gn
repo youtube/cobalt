@@ -227,6 +227,7 @@ target(gtest_target_type, "update_client_test") {
     ":update_client",
     ":update_client_test_files",
     "//cobalt/base",
+    "//cobalt/network",
     "//cobalt/test:run_all_unittests",
     "//cobalt/updater",
     "//components/crx_file",

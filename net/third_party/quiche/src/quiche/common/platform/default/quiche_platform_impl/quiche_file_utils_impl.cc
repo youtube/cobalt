@@ -27,6 +27,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
 #include "absl/types/optional.h"
+#include "base/files/file.h"
 
 namespace quiche {
 
@@ -58,6 +59,35 @@ std::string JoinPathImpl(absl::string_view a, absl::string_view b) {
 #endif  // defined(_WIN32)
 
 absl::optional<std::string> ReadFileContentsImpl(absl::string_view file) {
+#if defined(STARBOARD)
+  base::File file_handle(base::FilePath(file), base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!file_handle.IsValid()) {
+    return absl::nullopt;
+  }
+
+  auto max_size = std::numeric_limits<size_t>::max();
+  std::string contents;
+  const size_t kBufferSize = 1 << 12;
+  char buf[kBufferSize];
+  size_t len;
+  size_t size = 0;
+  bool read_status = true;
+
+  while ((len = file_handle.ReadAtCurrentPos(buf, sizeof(buf))) > 0) {
+    size_t bytes_to_add = std::min(len, max_size - size);
+    if (size + bytes_to_add > contents.max_size()) {
+      return absl::nullopt;
+    }
+    contents.append(buf, std::min(len, max_size - size));
+
+    if ((max_size - size) < len) {
+      return absl::nullopt;
+    }
+
+    size += len;
+  }
+  return contents;
+#else
   std::ifstream input_file(std::string{file}, std::ios::binary);
   if (!input_file || !input_file.is_open()) {
     return absl::nullopt;
@@ -78,6 +108,7 @@ absl::optional<std::string> ReadFileContentsImpl(absl::string_view file) {
   }
 
   return output;
+#endif
 }
 
 #if defined(STARBOARD)
