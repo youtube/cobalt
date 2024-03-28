@@ -64,28 +64,28 @@ RUN cd /tmp \
     && echo ${CLANG_VER} >> ${TC_HOME}/cr_build_revision \
     && rm clang-${CLANG_VER}.tgz
 
-# === Install Clang toolchain for llvm-symbolization.
-ARG COBALT_CLANG_VER
+# === Install Clang 16 toolchain for llvm-symbolization.
+ARG CLANG_16_VER
 
-ARG COBALT_CLANG_TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${COBALT_CLANG_VER}
-ARG COBALT_CLANG_BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
+ARG CLANG_16_TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_16_VER}
+ARG CLANG_16_BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
 
 RUN cd /tmp \
-    && mkdir -p ${COBALT_CLANG_TC_HOME} \
+    && mkdir -p ${CLANG_16_TC_HOME} \
     && curl --silent -O -J \
-        ${COBALT_CLANG_BASE_URL}/Linux_x64/clang-llvmorg-${COBALT_CLANG_VER}.tgz \
-    && tar xf clang-llvmorg-${COBALT_CLANG_VER}.tgz -C ${COBALT_CLANG_TC_HOME} \
-    && echo ${COBALT_CLANG_VER} >> ${COBALT_CLANG_TC_HOME}/cr_build_revision \
-    && rm clang-llvmorg-${COBALT_CLANG_VER}.tgz
+        ${CLANG_16_BASE_URL}/Linux_x64/clang-llvmorg-${CLANG_16_VER}.tgz \
+    && tar xf clang-llvmorg-${CLANG_16_VER}.tgz -C ${CLANG_16_TC_HOME} \
+    && echo ${CLANG_16_VER} >> ${CLANG_16_TC_HOME}/cr_build_revision \
+    && rm clang-llvmorg-${CLANG_16_VER}.tgz
 
-# === Install Clang toolchain coverage tools.
+# === Install Clang 16 toolchain coverage tools.
 RUN cd /tmp \
-    && mkdir -p ${COBALT_CLANG_TC_HOME} \
+    && mkdir -p ${CLANG_16_TC_HOME} \
     && curl --silent -O -J \
-        ${COBALT_CLANG_BASE_URL}/Linux_x64/llvm-code-coverage-llvmorg-${COBALT_CLANG_VER}.tgz \
-    && tar xf llvm-code-coverage-llvmorg-${COBALT_CLANG_VER}.tgz -C ${COBALT_CLANG_TC_HOME} \
-    && echo ${COBALT_CLANG_VER} >> ${COBALT_CLANG_TC_HOME}/cr_build_revision \
-    && rm llvm-code-coverage-llvmorg-${COBALT_CLANG_VER}.tgz
+        ${CLANG_16_BASE_URL}/Linux_x64/llvm-code-coverage-llvmorg-${CLANG_16_VER}.tgz \
+    && tar xf llvm-code-coverage-llvmorg-${CLANG_16_VER}.tgz -C ${CLANG_16_TC_HOME} \
+    && echo ${CLANG_16_VER} >> ${CLANG_16_TC_HOME}/cr_build_revision \
+    && rm llvm-code-coverage-llvmorg-${CLANG_16_VER}.tgz
 
 WORKDIR /out
 # Sets the locale in the environment. This is needed for NPLB unit tests.

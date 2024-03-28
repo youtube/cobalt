@@ -41,7 +41,7 @@ SANITIZER_HOOK_ATTRIBUTE const char* __lsan_default_suppressions() {
 #if defined(ASAN_SYMBOLIZER_PATH)
 extern "C" const char* __asan_default_options() {
   // TODO(b/278247547) : Remove detect_stack_use_after_return=0 once the issue
-  // with AddressSanitizerFlags in Clang is resolved.
+  // with AddressSanitizerFlags in Clang 16 is resolved.
   return "detect_stack_use_after_return=0:external_symbolizer_"
          "path=" ASAN_SYMBOLIZER_PATH;
 }
