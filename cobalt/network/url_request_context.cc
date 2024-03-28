@@ -216,6 +216,8 @@ URLRequestContext::URLRequestContext(
     LoadDiskCacheQuotaSettings(cache_persistent_settings_.get(),
                                max_cache_bytes);
 
+    // Disable default http cache.
+    url_request_context_builder->DisableHttpCache();
     url_request_context_builder->SetCreateHttpTransactionFactoryCallback(
         base::BindOnce(
             [](persistent_storage::PersistentSettings* persistent_settings,

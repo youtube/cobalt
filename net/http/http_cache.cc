@@ -462,6 +462,9 @@ absl::optional<std::string> HttpCache::GenerateCacheKey(
     bool is_subframe_document_resource,
     bool use_single_keyed_cache,
     const std::string& single_key_checksum) {
+#if defined(STARBOARD)
+  return HttpUtil::SpecForRequest(url);
+#else
   // The first character of the key may vary depending on whether or not sending
   // credentials is permitted for this request. This only happens if the
   // SplitCacheByIncludeCredentials feature is enabled, or if the single-keyed
@@ -507,6 +510,7 @@ absl::optional<std::string> HttpCache::GenerateCacheKey(
   return base::StringPrintf("%c/%" PRId64 "/%s%s", credential_key,
                             upload_data_identifier, isolation_key.c_str(),
                             HttpUtil::SpecForRequest(url).c_str());
+#endif  // defined(STARBOARD)
 }
 
 // static
