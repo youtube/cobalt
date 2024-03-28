@@ -825,7 +825,9 @@ bool TimeZoneInfo::Load(const std::string& name) {
       name, [](const std::string& n) -> std::unique_ptr<ZoneInfoSource> {
         if (auto z = FileZoneInfoSource::Open(n)) return z;
         if (auto z = AndroidZoneInfoSource::Open(n)) return z;
+#if !defined(STARBOARD)
         if (auto z = FuchsiaZoneInfoSource::Open(n)) return z;
+#endif
         return nullptr;
       });
   return zip != nullptr && Load(zip.get());
