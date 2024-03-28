@@ -141,4 +141,35 @@ int pthread_once(pthread_once_t* once_control, void (*init_routine)(void)) {
   return SbOnce((SbOnceControl*)once_control->once_buffer, init_routine) ? 0
                                                                          : -1;
 }
+
+int pthread_create(pthread_t* thread,
+                   const pthread_attr_t* attr,
+                   void* (*start_routine)(void*),
+                   void* arg) {
+  SbThread starboard_thread =
+      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
+                     start_routine, arg);
+  if (SbThreadIsValid(thread)) {
+    *thread = starboard_thread;
+    return 0;
+  }
+  return EINVAL;
+}
+
+int pthread_join(pthread_t thread, void** value_ptr) {
+  return SbThreadJoin(thread, value_ptr) ? 0 : EINVAL;
+}
+
+int pthread_detach(pthread_t thread) {
+  SbThreadDetach(thread);
+  return 0;
+}
+
+pthread_t pthread_self() {
+  return SbThreadGetCurrent();
+}
+
+int pthread_equal(pthread_t t1, pthread_t t2) {
+  return SbThreadIsEqual(t1, t2);
+}
 #endif  // SB_API_VERSION < 16

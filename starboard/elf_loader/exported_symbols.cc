@@ -490,6 +490,14 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_init);
   map_["pthread_condattr_setclock"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_setclock);
+  map_["pthread_create"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_create);
+  map_["pthread_detach"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_detach);
+  map_["pthread_equal"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_equal);
+  map_["pthread_join"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_join);
   map_["pthread_mutex_destroy"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_destroy);
   map_["pthread_mutex_init"] =
@@ -502,6 +510,8 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
   map_["pthread_once"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
+  map_["pthread_self"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_self);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
 

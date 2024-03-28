@@ -51,11 +51,19 @@ typedef union musl_pthread_condattr_t {
   void* ptr;
 } musl_pthread_condattr_t;
 
+#define MUSL_PTHREAD_ATTR_MAX_SIZE 80
+typedef union musl_pthread_attr_t {
+  uint8_t attr_buffer[MUSL_PTHREAD_ATTR_MAX_SIZE];
+  void* ptr;
+} musl_pthread_attr_t;
+
 #define MUSL_PTHREAD_ONCE_MAX_SIZE 64
 typedef union musl_pthread_once_t {
   uint8_t once_buffer[MUSL_PTHREAD_ONCE_MAX_SIZE];
   void* ptr;
 } musl_pthread_once_t;
+
+typedef void* musl_pthread_t;
 
 SB_EXPORT int __abi_wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex);
 SB_EXPORT int __abi_wrap_pthread_mutex_init(
@@ -87,6 +95,16 @@ SB_EXPORT int __abi_wrap_pthread_condattr_setclock(
 
 SB_EXPORT int __abi_wrap_pthread_once(musl_pthread_once_t* once_control,
                                       void (*init_routine)(void));
+
+SB_EXPORT int __abi_wrap_pthread_create(musl_pthread_t* thread,
+                                        const musl_pthread_attr_t* attr,
+                                        void* (*start_routine)(void*),
+                                        void* arg);
+SB_EXPORT int __abi_wrap_pthread_join(musl_pthread_t thread, void** value_ptr);
+SB_EXPORT int __abi_wrap_pthread_detach(musl_pthread_t thread);
+SB_EXPORT int __abi_wrap_pthread_equal(musl_pthread_t t1, musl_pthread_t t2);
+SB_EXPORT musl_pthread_t __abi_wrap_pthread_self();
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
