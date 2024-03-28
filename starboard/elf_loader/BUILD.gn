@@ -44,6 +44,7 @@ config("elf_loader_config") {
   ]
 }
 
+if(sb_is_evergreen_compatible) {
 static_library("elf_loader") {
   sources = _elf_loader_sources + [
               "elf_loader_impl.cc",
@@ -61,6 +62,7 @@ static_library("elf_loader") {
     "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
     "//third_party/lz4_lib:lz4",
   ]
+}
 }
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
