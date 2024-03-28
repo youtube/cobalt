@@ -37,6 +37,7 @@ config("media_config_public") {
   # TODO: Make include_dirs other than the first one private.
   include_dirs = [
     "//third_party/abseil-cpp",
+    "//third_party/libwebm/source",
     "..",
     "cobalt",
     "../../skia",
@@ -46,6 +47,7 @@ config("media_config_public") {
 config("external_config") {
   include_dirs = [
     "//third_party/abseil-cpp",
+    "//third_party/libwebm/source",
     "..",
     "cobalt",
     "../../skia",
