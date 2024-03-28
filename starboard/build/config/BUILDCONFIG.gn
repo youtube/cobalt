@@ -176,10 +176,6 @@ if (use_hacky_cobalt_changes) {
   default_compiler_configs += [ "//starboard/build/config:hacky_build_config" ]
 }
 
-if (use_thin_archive) {
-  default_compiler_configs += [ "//build/config/compiler:thin_archive" ]
-}
-
 if (is_starboard) {
   default_compiler_configs += [ "//starboard/build/config:starboard" ]
 }
