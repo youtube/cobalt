@@ -241,9 +241,20 @@ scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
 void OpusAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  TeardownCodec();
-  InitializeCodec();
+  if (decoder_) {
+    int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
+    if (error != OPUS_OK) {
+      SB_LOG(ERROR) << "Failed to reset decoder with error: "
+                    << opus_strerror(error);
 
+      // If fail to reset opus decoder, re-create it.
+      TeardownCodec();
+      InitializeCodec();
+    }
+    SB_DCHECK(decoder_ != NULL);
+  }
+
+  frames_per_au_ = kMaxOpusFramesPerAU;
   stream_ended_ = false;
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
