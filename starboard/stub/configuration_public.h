@@ -29,10 +29,6 @@
 // following quirk.
 #undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
 
-// Some platforms do not have thread affinity support. Platforms where this is
-// the case should define the following quirk.
-#undef SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
