@@ -20,7 +20,6 @@ files: |
             tools/metrics/histograms/metadata/cobalt|
             tools/raspi_image|
             tools/testing|
-            tools/windows
         )/
         | ^[^/]+$  # files in the root
     )
