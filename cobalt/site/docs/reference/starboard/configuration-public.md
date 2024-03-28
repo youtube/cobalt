@@ -35,7 +35,6 @@ Book: /youtube/cobalt/_book.yaml
 | Properties |
 | :--- |
 | **`SB_HAS_ON_SCREEN_KEYBOARD`**<br><br>Whether the current platform implements the on screen keyboard interface.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_SPEECH_SYNTHESIS`**<br><br>Whether the current platform has speech synthesis.<br><br>The default value in the Stub implementation is `1` |
 
 
 ## Media Configuration

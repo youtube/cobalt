@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed `SB_HAS_SPEECH_SYNTHESIS` configuration
+This configuration has been replaced by `SbSpeechSynthesisIsSupported()`
+
 ## Removed `VIRTUAL_REALITY` configuration
 This configuration not used in Cobalt.
 

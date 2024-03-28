@@ -72,11 +72,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM __declspec(dllimport)
 
-// --- I/O Configuration -----------------------------------------------------
-
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
 // --- Media Configuration ---------------------------------------------------
 
 // Whether the current platform uses a media player that relies on a URL.

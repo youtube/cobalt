@@ -72,12 +72,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- I/O Configuration -----------------------------------------------------
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 1
-
-// --- Decoder-only Params ---
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies the platform can map
