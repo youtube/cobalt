@@ -55,6 +55,7 @@
  * [including the GNU Public Licence.] */
 
 #include <openssl/asn1.h>
+#include <openssl/time.h>
 
 #include <string.h>
 #include <time.h>
@@ -73,29 +74,31 @@ IMPLEMENT_ASN1_MSTRING(ASN1_TIME, B_ASN1_TIME)
 
 IMPLEMENT_ASN1_FUNCTIONS_const(ASN1_TIME)
 
-ASN1_TIME *ASN1_TIME_set(ASN1_TIME *s, time_t t) {
-  return ASN1_TIME_adj(s, t, 0, 0);
+ASN1_TIME *ASN1_TIME_set_posix(ASN1_TIME *s, int64_t posix_time) {
+  return ASN1_TIME_adj(s, posix_time, 0, 0);
 }
 
-ASN1_TIME *ASN1_TIME_adj(ASN1_TIME *s, time_t t, int offset_day,
-                         long offset_sec) {
-  struct tm *ts;
-  struct tm data;
+ASN1_TIME *ASN1_TIME_set(ASN1_TIME *s, time_t time) {
+  return ASN1_TIME_adj(s, time, 0, 0);
+}
 
-  ts = OPENSSL_gmtime(&t, &data);
-  if (ts == NULL) {
+ASN1_TIME *ASN1_TIME_adj(ASN1_TIME *s, int64_t posix_time, int offset_day,
+                         long offset_sec) {
+  struct tm tm;
+
+  if (!OPENSSL_posix_to_tm(posix_time, &tm)) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_ERROR_GETTING_TIME);
     return NULL;
   }
   if (offset_day || offset_sec) {
-    if (!OPENSSL_gmtime_adj(ts, offset_day, offset_sec)) {
+    if (!OPENSSL_gmtime_adj(&tm, offset_day, offset_sec)) {
       return NULL;
     }
   }
-  if ((ts->tm_year >= 50) && (ts->tm_year < 150)) {
-    return ASN1_UTCTIME_adj(s, t, offset_day, offset_sec);
+  if ((tm.tm_year >= 50) && (tm.tm_year < 150)) {
+    return ASN1_UTCTIME_adj(s, posix_time, offset_day, offset_sec);
   }
-  return ASN1_GENERALIZEDTIME_adj(s, t, offset_day, offset_sec);
+  return ASN1_GENERALIZEDTIME_adj(s, posix_time, offset_day, offset_sec);
 }
 
 int ASN1_TIME_check(const ASN1_TIME *t) {
@@ -163,36 +166,15 @@ err:
   return NULL;
 }
 
-
 int ASN1_TIME_set_string(ASN1_TIME *s, const char *str) {
-  ASN1_TIME t;
-
-  t.length = strlen(str);
-  t.data = (unsigned char *)str;
-  t.flags = 0;
-
-  t.type = V_ASN1_UTCTIME;
-
-  if (!ASN1_TIME_check(&t)) {
-    t.type = V_ASN1_GENERALIZEDTIME;
-    if (!ASN1_TIME_check(&t)) {
-      return 0;
-    }
-  }
-
-  if (s && !ASN1_STRING_copy((ASN1_STRING *)s, (ASN1_STRING *)&t)) {
-    return 0;
-  }
-
-  return 1;
+  return ASN1_UTCTIME_set_string(s, str) ||
+         ASN1_GENERALIZEDTIME_set_string(s, str);
 }
 
 static int asn1_time_to_tm(struct tm *tm, const ASN1_TIME *t,
                            int allow_timezone_offset) {
   if (t == NULL) {
-    time_t now_t;
-    time(&now_t);
-    if (OPENSSL_gmtime(&now_t, tm)) {
+    if (OPENSSL_posix_to_tm(time(NULL), tm)) {
       return 1;
     }
     return 0;

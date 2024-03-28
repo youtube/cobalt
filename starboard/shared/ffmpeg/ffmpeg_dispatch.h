@@ -48,7 +48,12 @@ constexpr int kAVUtilSupportsBufferCreate = 3409920;
 // https://github.com/FFmpeg/FFmpeg/blob/70d25268c21cbee5f08304da95be1f647c630c15/doc/APIchanges#L195
 // avcodec_decode_audio4 and avcodec_decode_video2 replaced by
 // avcodec_receive_frame()
-constexpr int kAVCodecHasUniformDecodeAPI = 3940198;
+//
+// The APIs were removed in this change:
+// https://github.com/FFmpeg/FFmpeg/commit/7c1f347b184b6738abdc22fdcda40baa9f932522#diff-76418b674d0db8d5027d2e1e325dbe9b92b65b09d9f20cdd305ad14b0e46562d
+// (note the values in libavcodec/version.h)
+// AV_VERSION_INT(58, 137, 100)
+constexpr int kAVCodecHasUniformDecodeAPI = 3836260;
 
 // https://github.com/FFmpeg/FFmpeg/blob/70d25268c21cbee5f08304da95be1f647c630c15/doc/APIchanges#L86
 // no longer required
@@ -114,6 +119,7 @@ class FFMPEGDispatch {
                                AVFrame* picture,
                                int* got_picture_ptr,
                                const AVPacket* avpkt);
+  int (*avcodec_send_packet)(AVCodecContext* avctx, const AVPacket* avpkt);
   int (*avcodec_receive_frame)(AVCodecContext* avctx, AVFrame* frame);
   void (*avcodec_flush_buffers)(AVCodecContext* avctx);
   AVFrame* (*avcodec_alloc_frame)(void);

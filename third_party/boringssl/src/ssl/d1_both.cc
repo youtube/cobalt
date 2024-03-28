@@ -163,7 +163,6 @@ static UniquePtr<hm_fragment> dtls1_hm_fragment_new(
   frag->data =
       (uint8_t *)OPENSSL_malloc(DTLS1_HM_HEADER_LENGTH + msg_hdr->msg_len);
   if (frag->data == NULL) {
-    OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
     return nullptr;
   }
 
@@ -174,7 +173,6 @@ static UniquePtr<hm_fragment> dtls1_hm_fragment_new(
       !CBB_add_u24(cbb.get(), 0 /* frag_off */) ||
       !CBB_add_u24(cbb.get(), msg_hdr->msg_len) ||
       !CBB_finish(cbb.get(), NULL, NULL)) {
-    OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
     return nullptr;
   }
 
@@ -188,7 +186,6 @@ static UniquePtr<hm_fragment> dtls1_hm_fragment_new(
     size_t bitmask_len = (msg_hdr->msg_len + 7) / 8;
     frag->reassembly = (uint8_t *)OPENSSL_malloc(bitmask_len);
     if (frag->reassembly == NULL) {
-      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
       return nullptr;
     }
     OPENSSL_memset(frag->reassembly, 0, bitmask_len);
@@ -682,6 +679,7 @@ static enum seal_result_t seal_next_message(SSL *ssl, uint8_t *out,
 
   // Assemble a fragment, to be sealed in-place.
   ScopedCBB cbb;
+  CBB child;
   uint8_t *frag = out + prefix;
   size_t max_frag = max_out - prefix, frag_len;
   if (!CBB_init_fixed(cbb.get(), frag, max_frag) ||
@@ -689,8 +687,8 @@ static enum seal_result_t seal_next_message(SSL *ssl, uint8_t *out,
       !CBB_add_u24(cbb.get(), hdr.msg_len) ||
       !CBB_add_u16(cbb.get(), hdr.seq) ||
       !CBB_add_u24(cbb.get(), ssl->d1->outgoing_offset) ||
-      !CBB_add_u24(cbb.get(), todo) ||
-      !CBB_add_bytes(cbb.get(), CBS_data(&body), todo) ||
+      !CBB_add_u24_length_prefixed(cbb.get(), &child) ||
+      !CBB_add_bytes(&child, CBS_data(&body), todo) ||
       !CBB_finish(cbb.get(), NULL, &frag_len)) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     return seal_error;

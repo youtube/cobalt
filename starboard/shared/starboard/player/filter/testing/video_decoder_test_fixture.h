@@ -99,9 +99,7 @@ class VideoDecoderTestFixture {
 
   void OnError();
 
-#if SB_HAS(GLES2)
   void AssertInvalidDecodeTarget();
-#endif  // SB_HAS(GLES2)
 
   void WaitForNextEvent(Event* event,
                         int64_t timeout = kDefaultWaitForNextEventTimeOut);

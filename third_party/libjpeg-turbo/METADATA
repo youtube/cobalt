@@ -6,13 +6,13 @@ description:
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "108.0.5359.240"  # from https://chromereleases.googleblog.com/2023/08/long-term-support-channel-update-for_21.html
+    value: "108.0.5359.243"  # from https://chromereleases.googleblog.com/2023/09/long-term-support-channel-update-for_18.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo.git"
     version: "ed683925e4897a84b3bffc5c1414c85b97a129a3"
-    # from https://chromium.googlesource.com/chromium/src/+/108.0.5359.240/DEPS#1507
+    # from https://chromium.googlesource.com/chromium/src/+/108.0.5359.243/DEPS#1507
   }
   last_upgrade_date {
     year: 2021
