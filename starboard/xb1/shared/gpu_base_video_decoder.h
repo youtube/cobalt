@@ -85,7 +85,8 @@ class GpuVideoDecoderBase
    private:
     uint16_t width_ = 0;
     uint16_t height_ = 0;
-    D3D12_RESOURCE_DESC texture_desc_ = {0};
+    // https://paste.googleplex.com/6580813386219520
+    D3D12_RESOURCE_DESC texture_desc_ ;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> d3d12_resources_[kNumberOfPlanes];
     Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d11_textures_[kNumberOfPlanes];

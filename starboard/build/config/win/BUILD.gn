@@ -45,7 +45,13 @@ config("common") {
     "$wdk_include_path/winrt",
     "$msvc_path/include",
   ]
-  cflags += [ "/EHsc" ]
+  cflags += [
+    "/w",
+    "/EHsc",
+
+  #  #https://paste.googleplex.com/6411097686409216
+  #   "/ZW",
+  ]
 
   # msvs_debug/_devel/etc
   ldflags += [ "/INCREMENTAL:NO" ]
