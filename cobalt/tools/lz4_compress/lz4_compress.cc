@@ -111,28 +111,24 @@ bool WriteFile(const char* file_path, std::vector<char>& buffer) {
 
 int main(int argc, char* argv[]) {
   if (argc != 3) {
-    std::cerr << "Usage: lz4_compress <source> <destination>"
-              << "\n";
+    std::cerr << "Usage: lz4_compress <source> <destination>" << "\n";
     return 1;
   }
 
   std::vector<char> src_buffer;
   if (!ReadFile(argv[1], src_buffer)) {
-    std::cerr << "Failed to read the src file"
-              << "\n";
+    std::cerr << "Failed to read the src file" << "\n";
     return 1;
   }
 
   std::vector<char> dst_buffer;
   if (!Compress(src_buffer, dst_buffer)) {
-    std::cerr << "Failed to compress"
-              << "\n";
+    std::cerr << "Failed to compress" << "\n";
     return 1;
   }
 
   if (!WriteFile(argv[2], dst_buffer)) {
-    std::cerr << "Failed to write the dst file"
-              << "\n";
+    std::cerr << "Failed to write the dst file" << "\n";
     return 1;
   }
 
