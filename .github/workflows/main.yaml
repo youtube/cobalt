@@ -277,10 +277,10 @@ jobs:
            echo "COBALT_BOOTLOADER=${COBALT_BOOTLOADER}" >> $GITHUB_ENV
       # Build bootloader for on-host tests if necessary.
       - name: Bootloader GN
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
+        if: ${{ needs.initialize.outputs.bootloader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
         uses: ./.github/actions/gn
       - name: Build Bootloader
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
+        if: ${{ needs.initialize.outputs.bootloader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
         uses: ./.github/actions/build
       - name: Upload Bootloader On Host Test Artifacts
         if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true'}}
