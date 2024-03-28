@@ -129,17 +129,25 @@ int32_t CobaltBackendImpl::GetEntryCount() const {
 CobaltBackendImpl::EntryResult CobaltBackendImpl::OpenOrCreateEntry(
     const std::string& key, net::RequestPriority request_priority,
     EntryResultCallback callback) {
-  return EntryResult::MakeError(net::Error::ERR_BLOCKED_BY_CLIENT);
+  ResourceType type = GetType(key);
+  auto quota = disk_cache::settings::GetQuota(type);
+  if (quota == 0 || simple_backend_map_.count(type) == 0) {
+    return EntryResult::MakeError(net::Error::ERR_BLOCKED_BY_CLIENT);
+  }
+  ::disk_cache::SimpleBackendImpl* simple_backend = simple_backend_map_[type];
+  return simple_backend->OpenOrCreateEntry(key, request_priority,
+                                           std::move(callback));
 }
 
 CobaltBackendImpl::EntryResult CobaltBackendImpl::OpenEntry(
     const std::string& key, net::RequestPriority request_priority,
     EntryResultCallback callback) {
-  if (simple_backend_map_.count(GetType(key)) == 0) {
+  ResourceType type = GetType(key);
+  auto quota = disk_cache::settings::GetQuota(type);
+  if (quota == 0 || simple_backend_map_.count(type) == 0) {
     return EntryResult::MakeError(net::Error::ERR_BLOCKED_BY_CLIENT);
   }
-  ::disk_cache::SimpleBackendImpl* simple_backend =
-      simple_backend_map_[GetType(key)];
+  ::disk_cache::SimpleBackendImpl* simple_backend = simple_backend_map_[type];
   return simple_backend->OpenEntry(key, request_priority, std::move(callback));
 }
 
