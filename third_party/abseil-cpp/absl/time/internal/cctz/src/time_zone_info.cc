@@ -762,9 +762,8 @@ class FuchsiaZoneInfoSource : public FileZoneInfoSource {
 std::unique_ptr<ZoneInfoSource> FuchsiaZoneInfoSource::Open(
     const std::string& name) {
 #if defined(STARBOARD)
-  // Don't compile this (unneeded) implementation on Starboard as it uses
-  // fstream.
-  SB_NOTIMPLEMENTED();
+  // Don't compile this as it uses fstream.
+  SB_CHECK(false) << "A Fuchsia source should not be used in Starboard.";
   return nullptr;
 #else
   // Use of the "file:" prefix is intended for testing purposes only.
