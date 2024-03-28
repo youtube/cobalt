@@ -30,7 +30,7 @@
 #include "third_party/chromium/media/base/media_log.h"
 #include "third_party/chromium/media/base/pipeline_status.h"
 #include "third_party/chromium/media/base/ranges.h"
-#include "ui/gfx/geometry/size.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {

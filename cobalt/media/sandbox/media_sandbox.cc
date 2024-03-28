@@ -32,7 +32,7 @@
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
-#include "ui/gfx/geometry/size.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {

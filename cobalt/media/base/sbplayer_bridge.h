@@ -36,7 +36,7 @@
 #include "third_party/chromium/media/base/decoder_buffer.h"
 #include "third_party/chromium/media/base/demuxer_stream.h"
 #include "third_party/chromium/media/base/video_decoder_config.h"
-#include "ui/gfx/geometry/rect.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
 
 namespace cobalt {
 namespace media {

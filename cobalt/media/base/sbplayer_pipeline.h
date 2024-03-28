@@ -42,8 +42,8 @@
 #include "third_party/chromium/media/base/pipeline_status.h"
 #include "third_party/chromium/media/base/ranges.h"
 #include "third_party/chromium/media/base/video_decoder_config.h"
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/size.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
