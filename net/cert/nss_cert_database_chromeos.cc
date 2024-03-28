@@ -84,12 +84,9 @@ void NSSCertDatabaseChromeOS::ListModules(
     bool need_rw) const {
   NSSCertDatabase::ListModules(modules, need_rw);
 
-  size_t pre_size = modules->size();
   base::EraseIf(*modules,
                 NSSProfileFilterChromeOS::ModuleNotAllowedForProfilePredicate(
                     profile_filter_));
-  DVLOG(1) << "filtered " << pre_size - modules->size() << " of " << pre_size
-           << " modules";
 }
 
 ScopedCERTCertificateList NSSCertDatabaseChromeOS::ListCertsImpl(
@@ -103,12 +100,9 @@ ScopedCERTCertificateList NSSCertDatabaseChromeOS::ListCertsImpl(
   ScopedCERTCertificateList certs(
       NSSCertDatabase::ListCertsImpl(crypto::ScopedPK11Slot()));
 
-  size_t pre_size = certs.size();
   base::EraseIf(certs, [&profile_filter](ScopedCERTCertificate& cert) {
     return !profile_filter.IsCertAllowed(cert.get());
   });
-  DVLOG(1) << "filtered " << pre_size - certs.size() << " of " << pre_size
-           << " certs";
   return certs;
 }
 

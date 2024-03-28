@@ -21,6 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/condition_variable.h"
 #include "starboard/mutex.h"
+#include "starboard/once.h"
 #include "starboard/time.h"
 
 int pthread_mutex_init(pthread_mutex_t *__restrict mutext, const pthread_mutexattr_t *__restrict) {
@@ -118,12 +119,12 @@ int pthread_condattr_getclock(const pthread_condattr_t* attr, clockid_t* clock_i
 }
 
 int pthread_condattr_setclock(pthread_condattr_t *attr, clockid_t clock_id) {
-  if (clock_id == CLOCK_MONOTONIC) {
-    return 0;
-  }
   // Not supported in Starboard 14/15
   SB_DCHECK(false);
   return -1;
 }
-//
+
+int pthread_once(pthread_once_t *once_control, void (*init_routine)(void)) {
+  return SbOnce((SbOnceControl*)once_control->once_buffer, init_routine)? 0: -1;
+}
 #endif  // SB_API_VERSION < 16

@@ -102,10 +102,6 @@
 // We do not need this feature on stub.
 #undef SB_HAS_QUIRK_HASH_FILE_NAME
 
-// --- Graphics Configuration ------------------------------------------------
-
-#define SB_HAS_VIRTUAL_REALITY 1
-
 // --- I/O Configuration -----------------------------------------------------
 
 // Whether the current platform implements the on screen keyboard interface.

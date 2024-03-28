@@ -82,7 +82,6 @@ CTLogVerifier::CTLogVerifier(std::string description, std::string dns_domain)
 bool CTLogVerifier::Verify(const ct::SignedEntryData& entry,
                            const ct::SignedCertificateTimestamp& sct) const {
   if (sct.log_id != key_id()) {
-    DVLOG(1) << "SCT is not signed by this log.";
     return false;
   }
 
@@ -91,13 +90,11 @@ bool CTLogVerifier::Verify(const ct::SignedEntryData& entry,
 
   std::string serialized_log_entry;
   if (!ct::EncodeSignedEntry(entry, &serialized_log_entry)) {
-    DVLOG(1) << "Unable to serialize entry.";
     return false;
   }
   std::string serialized_data;
   if (!ct::EncodeV1SCTSignedData(sct.timestamp, serialized_log_entry,
                                  sct.extensions, &serialized_data)) {
-    DVLOG(1) << "Unable to create SCT to verify.";
     return false;
   }
 
@@ -316,7 +313,7 @@ bool CTLogVerifier::Init(const base::StringPiece& public_key) {
 
   // Right now, only RSASSA-PKCS1v15 with SHA-256 and ECDSA with SHA-256 are
   // supported.
-  switch (EVP_PKEY_type(public_key_->type)) {
+  switch (EVP_PKEY_id(public_key_)) {
     case EVP_PKEY_RSA:
       hash_algorithm_ = ct::DigitallySigned::HASH_ALGO_SHA256;
       signature_algorithm_ = ct::DigitallySigned::SIG_ALGO_RSA;
@@ -326,7 +323,6 @@ bool CTLogVerifier::Init(const base::StringPiece& public_key) {
       signature_algorithm_ = ct::DigitallySigned::SIG_ALGO_ECDSA;
       break;
     default:
-      DVLOG(1) << "Unsupported key type: " << EVP_PKEY_type(public_key_->type);
       return false;
   }
 
@@ -334,7 +330,6 @@ bool CTLogVerifier::Init(const base::StringPiece& public_key) {
   // EVP_PKEY_size returns the size in bytes. 256 = 2048-bit RSA key.
   if (signature_algorithm_ == ct::DigitallySigned::SIG_ALGO_RSA &&
       EVP_PKEY_size(public_key_) < 256) {
-    DVLOG(1) << "Too small a public key.";
     return false;
   }
 

@@ -96,9 +96,6 @@ extern "C" {
 #elif defined(__ARMEL__) || defined(_M_ARM)
 #define OPENSSL_32_BIT
 #define OPENSSL_ARM
-#elif (defined(__PPC64__) || defined(__powerpc64__)) && defined(_LITTLE_ENDIAN)
-#define OPENSSL_64_BIT
-#define OPENSSL_PPC64LE
 #elif defined(__MIPSEL__) && !defined(__LP64__)
 #define OPENSSL_32_BIT
 #define OPENSSL_MIPS
@@ -196,7 +193,7 @@ extern "C" {
 // A consumer may use this symbol in the preprocessor to temporarily build
 // against multiple revisions of BoringSSL at the same time. It is not
 // recommended to do so for longer than is necessary.
-#define BORINGSSL_API_VERSION 18
+#define BORINGSSL_API_VERSION 19
 
 #if defined(BORINGSSL_SHARED_LIBRARY)
 
@@ -223,6 +220,33 @@ extern "C" {
 #define OPENSSL_EXPORT
 
 #endif  // defined(BORINGSSL_SHARED_LIBRARY)
+
+#if defined(_MSC_VER)
+
+// OPENSSL_DEPRECATED is used to mark a function as deprecated. Use
+// of any functions so marked in caller code will produce a warning.
+// OPENSSL_BEGIN_ALLOW_DEPRECATED and OPENSSL_END_ALLOW_DEPRECATED
+// can be used to suppress the warning in regions of caller code.
+#define OPENSSL_DEPRECATED __declspec(deprecated)
+#define OPENSSL_BEGIN_ALLOW_DEPRECATED \
+  __pragma(warning(push)) __pragma(warning(disable : 4996))
+#define OPENSSL_END_ALLOW_DEPRECATED __pragma(warning(pop))
+
+#elif defined(__GNUC__) || defined(__clang__)
+
+#define OPENSSL_DEPRECATED __attribute__((__deprecated__))
+#define OPENSSL_BEGIN_ALLOW_DEPRECATED \
+  _Pragma("GCC diagnostic push")       \
+      _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#define OPENSSL_END_ALLOW_DEPRECATED _Pragma("GCC diagnostic pop")
+
+#else
+
+#define OPENSSL_DEPRECATED
+#define OPENSSL_BEGIN_ALLOW_DEPRECATED
+#define OPENSSL_END_ALLOW_DEPRECATED
+
+#endif
 
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -326,6 +350,19 @@ enum ssl_verify_result_t BORINGSSL_ENUM_INT;
 #define BORINGSSL_ENUM_INT
 #endif
 
+// ossl_ssize_t is a signed type which is large enough to fit the size of any
+// valid memory allocation. We prefer using |size_t|, but sometimes we need a
+// signed type for OpenSSL API compatibility. This type can be used in such
+// cases to avoid overflow.
+//
+// Not all |size_t| values fit in |ossl_ssize_t|, but all |size_t| values that
+// are sizes of or indices into C objects, can be converted without overflow.
+typedef ptrdiff_t ossl_ssize_t;
+
+// CBS_ASN1_TAG is the type used by |CBS| and |CBB| for ASN.1 tags. See that
+// header for details. This type is defined in base.h as a forward declaration.
+typedef uint32_t CBS_ASN1_TAG;
+
 // CRYPTO_THREADID is a dummy value.
 typedef int CRYPTO_THREADID;
 
@@ -409,9 +446,7 @@ typedef struct evp_hpke_ctx_st EVP_HPKE_CTX;
 typedef struct evp_hpke_kdf_st EVP_HPKE_KDF;
 typedef struct evp_hpke_kem_st EVP_HPKE_KEM;
 typedef struct evp_hpke_key_st EVP_HPKE_KEY;
-typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
 typedef struct evp_pkey_ctx_st EVP_PKEY_CTX;
-typedef struct evp_pkey_method_st EVP_PKEY_METHOD;
 typedef struct evp_pkey_st EVP_PKEY;
 typedef struct hmac_ctx_st HMAC_CTX;
 typedef struct md4_state_st MD4_CTX;
@@ -516,8 +551,8 @@ namespace internal {
 template <typename T, typename Enable = void>
 struct DeleterImpl {};
 
-template <typename T>
 struct Deleter {
+  template <typename T>
   void operator()(T *ptr) {
     // Rather than specialize Deleter for each type, we specialize
     // DeleterImpl. This allows bssl::UniquePtr<T> to be used while only
@@ -601,7 +636,7 @@ class StackAllocatedMovable {
 //   bssl::UniquePtr<RSA> rsa(RSA_new());
 //   bssl::UniquePtr<BIO> bio(BIO_new(BIO_s_mem()));
 template <typename T>
-using UniquePtr = std::unique_ptr<T, internal::Deleter<T>>;
+using UniquePtr = std::unique_ptr<T, internal::Deleter>;
 
 #define BORINGSSL_MAKE_UP_REF(type, up_ref_func)             \
   inline UniquePtr<type> UpRef(type *v) {                    \

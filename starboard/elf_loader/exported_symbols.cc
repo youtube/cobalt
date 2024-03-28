@@ -49,9 +49,9 @@
 #include "starboard/once.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
-#include "starboard/shared/modular/posix_mmap_wrappers.h"
-#include "starboard/shared/modular/posix_pthread_wrappers.h"
-#include "starboard/shared/modular/posix_time_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
@@ -453,41 +453,45 @@ ExportedSymbols::ExportedSymbols() {
   // Platform-specific types with musl-based types. These wrappers are defined
   // in //starboard/shared/modular.
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
-  map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
-  map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
-  map_["gmtime_r"] = reinterpret_cast<const void*>(&__wrap_gmtime_r);
-  map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
+  map_["clock_gettime"] =
+      reinterpret_cast<const void*>(&__abi_wrap_clock_gettime);
+  map_["gettimeofday"] =
+      reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
+  map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
+  map_["mmap"] = reinterpret_cast<const void*>(&__abi_wrap_mmap);
   map_["pthread_cond_broadcast"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_cond_broadcast);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_broadcast);
   map_["pthread_cond_destroy"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_cond_destroy);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_destroy);
   map_["pthread_cond_init"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_cond_init);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_init);
   map_["pthread_cond_signal"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_cond_signal);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_signal);
   map_["pthread_cond_timedwait"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_cond_timedwait);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_timedwait);
   map_["pthread_cond_wait"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_cond_wait);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_wait);
   map_["pthread_condattr_destroy"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_condattr_destroy);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_destroy);
   map_["pthread_condattr_getclock"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_condattr_getclock);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_getclock);
   map_["pthread_condattr_init"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_condattr_init);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_init);
   map_["pthread_condattr_setclock"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_condattr_setclock);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_setclock);
   map_["pthread_mutex_destroy"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_mutex_destroy);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_destroy);
   map_["pthread_mutex_init"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_mutex_init);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_init);
   map_["pthread_mutex_lock"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_mutex_lock);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_lock);
   map_["pthread_mutex_unlock"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_mutex_unlock);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_mutex_trylock);
-  map_["time"] = reinterpret_cast<const void*>(&__wrap_time);
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
+  map_["pthread_once"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
+  map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
 
 #if defined(_MSC_VER)
   // MSVC provides a template with the same name.

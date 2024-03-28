@@ -15,6 +15,10 @@
 #ifndef BASE_NOTREACHED_H_
 #define BASE_NOTREACHED_H_
 
+#if !defined(STARBOARD)
+#error "This file only works with Cobalt/Starboard."
+#endif  // !defined(STARBOARD)
+
 #include "base/logging.h"
 
 #endif  // BASE_NOTREACHED_H_
