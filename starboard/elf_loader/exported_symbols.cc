@@ -14,6 +14,7 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <netdb.h>
@@ -421,6 +422,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(connect);
+  REGISTER_SYMBOL(errno);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeaddrinfo);
