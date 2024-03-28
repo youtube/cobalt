@@ -20,7 +20,6 @@ _Unwind_Resume
 _Unwind_Resume_or_Rethrow
 _Unwind_SetGR
 _Unwind_SetIP
-__ctype_b_loc
 __ctype_get_mb_cur_max
 __ctype_toupper_loc
 __cxa_atexit
@@ -57,7 +56,6 @@ bcmp
 bind_textdomain_codeset
 bindtextdomain
 btowc
-close
 dgettext
 exit
 fclose

@@ -28,6 +28,7 @@
 #include "starboard/common/system_property.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 #include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
@@ -189,6 +190,18 @@ std::map<std::string, std::string> GetPlatformInfo() {
   return platform_info;
 }
 
+void RecordStatus(CrashpadInstallationStatus status) {
+  auto metrics_extension =
+      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
+          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
+  if (metrics_extension &&
+      strcmp(metrics_extension->name,
+             kStarboardExtensionLoaderAppMetricsName) == 0 &&
+      metrics_extension->version >= 1) {
+    metrics_extension->SetCrashpadInstallationStatus(status);
+  }
+}
+
 }  // namespace
 
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
@@ -198,6 +211,8 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   if (!SbFileExists(handler_path.value().c_str())) {
     LOG(ERROR) << "crashpad_handler not at expected location of "
                << handler_path.value();
+    RecordStatus(
+        CrashpadInstallationStatus::kFailedCrashpadHandlerBinaryNotFound);
     return;
   }
 
@@ -215,6 +230,8 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   if (!InitializeCrashpadDatabase(database_directory_path)) {
     LOG(ERROR) << "Failed to initialize Crashpad database";
+    RecordStatus(
+        CrashpadInstallationStatus::kFailedDatabaseInitializationFailed);
 
     // As we investigate b/329458881 we may find that it's safe to continue with
     // installation of the Crashpad handler here with the hope that the handler,
@@ -226,16 +243,23 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   client->SetUnhandledSignals({});
 
-  client->StartHandlerAtCrash(handler_path,
-                              database_directory_path,
-                              default_metrics_dir,
-                              kUploadUrl,
-                              ca_certificates_path,
-                              default_annotations,
-                              default_arguments);
+  if (!client->StartHandlerAtCrash(handler_path,
+                                   database_directory_path,
+                                   default_metrics_dir,
+                                   kUploadUrl,
+                                   ca_certificates_path,
+                                   default_annotations,
+                                   default_arguments)) {
+    LOG(ERROR) << "Failed to install the signal handler";
+    RecordStatus(
+        CrashpadInstallationStatus::kFailedSignalHandlerInstallationFailed);
+    return;
+  }
 
   ::crashpad::SanitizationInformation sanitization_info = {0, 0, 0, 1};
   client->SendSanitizationInformationToHandler(sanitization_info);
+
+  RecordStatus(CrashpadInstallationStatus::kSucceeded);
 }
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {

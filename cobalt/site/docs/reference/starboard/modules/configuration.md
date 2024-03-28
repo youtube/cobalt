@@ -67,13 +67,6 @@ header available.
 
 Whether the current platform has 64-bit atomic operations.
 
-### SB_HAS_GLES2
-
-Specifies whether this platform has a performant OpenGL ES 2 implementation,
-which allows client applications to use GL rendering paths. Derived from the gyp
-variable `gl_type` gl_type which indicates what kind of GL implementation is
-available.
-
 ### SB_HAS_QUIRK(SB_FEATURE)
 
 Determines at compile-time whether this platform has a quirk.

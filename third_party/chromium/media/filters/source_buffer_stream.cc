@@ -165,11 +165,11 @@ SourceBufferStream::SourceBufferStream(const std::string& mime_type,
                                        MediaLog* media_log)
     : mime_type_(mime_type),
       media_log_(media_log),
-#else  // defined (STARBOARD)
+#else  // defined(STARBOARD)
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
                                        MediaLog* media_log)
     : media_log_(media_log),
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
       seek_buffer_timestamp_(kNoTimestamp),
       coded_frame_group_start_pts_(kNoTimestamp),
       range_for_next_append_(ranges_.end()),
@@ -188,11 +188,11 @@ SourceBufferStream::SourceBufferStream(const std::string& mime_type,
                                        MediaLog* media_log)
     : mime_type_(mime_type),
       media_log_(media_log),
-#else  // defined (STARBOARD)
+#else  // defined(STARBOARD)
 SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
                                        MediaLog* media_log)
     : media_log_(media_log),
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
       seek_buffer_timestamp_(kNoTimestamp),
       coded_frame_group_start_pts_(kNoTimestamp),
       range_for_next_append_(ranges_.end()),
@@ -201,8 +201,12 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
       memory_limit_(
           GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
+#if !defined(STARBOARD)
+                                           &video_config)) {
+#else // !defined(STARBOARD)
                                            &video_config,
                                            mime_type_)) {
+#endif  // !defined(STARBOARD)
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
   DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
@@ -2086,6 +2090,6 @@ base::TimeDelta SourceBufferStream::GetBufferedDurationForGarbageCollection()
   return duration;
 }
 
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
 
 }  // namespace media

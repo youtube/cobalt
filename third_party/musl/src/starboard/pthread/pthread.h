@@ -113,6 +113,28 @@ typedef union pthread_condattr_t {
 
 typedef int clockid_t;
 
+// Max size of the pthread_once_t type.
+#define MUSL_PTHREAD_ONCE_MAX_SIZE 64
+
+// An opaque handle to a once control type with
+// aligned at void  pointer type.
+typedef union pthread_once_t{
+  // Reserved memory in which the implementation should map its
+  // native once control variable type.
+  uint8_t once_buffer[MUSL_PTHREAD_ONCE_MAX_SIZE];
+
+  // Guarantees alignment of the type to a void pointer.
+  void* ptr;
+} pthread_once_t;
+
+#ifdef __cplusplus
+#define PTHREAD_ONCE_INIT \
+  {}
+#else
+#define PTHREAD_ONCE_INIT \
+  { 0 }
+#endif
+
 int pthread_mutex_destroy(pthread_mutex_t* mutex);
 int pthread_mutex_init(pthread_mutex_t* mutex, const pthread_mutexattr_t* mutex_attr);
 int pthread_mutex_lock(pthread_mutex_t* mutex);
@@ -135,6 +157,8 @@ int pthread_condattr_destroy(pthread_condattr_t* attr);
 int pthread_condattr_getclock(const pthread_condattr_t* attr, clockid_t* clock_id);
 int pthread_condattr_init(pthread_condattr_t* attr);
 int pthread_condattr_setclock(pthread_condattr_t *attr, clockid_t clock_id);
+
+int pthread_once(pthread_once_t *once_control, void (*init_routine)(void));
 
 
 #ifdef __cplusplus

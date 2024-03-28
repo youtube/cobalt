@@ -6,6 +6,7 @@
 # This script is tested ONLY on Linux. It may not work correctly on
 # Mac OS X.
 #
+set -e # exit if fail
 
 if [ $# -lt 1 ];
 then
@@ -53,8 +54,9 @@ function copy_data {
 function copy_android_extra {
   echo "Copying icudtl_extra.dat for AndroidExtra"
 
-  LD_LIBRARY_PATH=lib/ bin/icupkg -r --ignore-deps \
+  LD_LIBRARY_PATH=lib/ bin/icupkg -r \
     "${TOPSRC}/filters/android-extra-removed-resources.txt" \
+    --ignore-deps \
     "data/out/tmp/icudt${VERSION}l.dat"
 
   echo "AFTER strip out the content is"
@@ -71,7 +73,7 @@ function copy_android_extra {
 BACKUP_DIR="dataout/$1"
 function backup_outdir {
   rm -rf "${BACKUP_DIR}"
-  mkdir "${BACKUP_DIR}"
+  mkdir -p "${BACKUP_DIR}"
   find "data/out" | cpio -pdmv "${BACKUP_DIR}"
 }
 

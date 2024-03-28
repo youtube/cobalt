@@ -32,9 +32,9 @@
 #include "third_party/chromium/media/base/bind_to_current_loop.h"
 #include "third_party/chromium/media/base/limits.h"
 #include "third_party/chromium/media/base/timestamp_constants.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 #include "third_party/chromium/media/filters/chunk_demuxer.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {

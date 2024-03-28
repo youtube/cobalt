@@ -27,7 +27,7 @@ COPY dockerized_install_visual_studio_2022.ps1 /dockerized_install_visual_studio
 # Pins Visual Studio 2022 release version to 17.4.6 (includes Clang 15.0.1).
 # This should be kept in sync with the VS installer used in the dev workstation
 # setup script in: `tools/install_visual_studio_22.ps1`
-ARG MSVS_INSTALLER_URL="https://download.visualstudio.microsoft.com/download/pr/d1ed8638-9e88-461e-92b7-4e29cc6172c3/38b09fc09ae9e590b73ae6752a0ebfd62579798969041bd341689273b842bc10/vs_BuildTools.exe"
+ARG MSVS_INSTALLER_URL="https://download.visualstudio.microsoft.com/download/pr/63fee7e3-bede-41ad-97a2-97b8b9f535d1/d4af71832828f344373f7366c2af3461a83569d297dee8b43d30b7da71e9b5ed/vs_BuildTools.exe"
 RUN C:\dockerized_install_visual_studio_2022.ps1 ${env:MSVS_INSTALLER_URL}
 
 ENV VSINSTALLDIR "C:\BuildTools"

@@ -198,6 +198,17 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.LoaderApp.CrashpadInstallationStatus"
+    enum="CrashpadInstallationStatus" expires_after="never">
+<!-- expires-never: Needed for crash reporting system health metrics. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of Crashpad installation by the Loader App.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>

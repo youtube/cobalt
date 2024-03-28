@@ -12,15 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <ifaddrs.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-#include "starboard/common/time.h"
-#include "starboard/nplb/socket_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 
 namespace starboard {
 namespace nplb {

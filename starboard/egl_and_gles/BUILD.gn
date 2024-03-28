@@ -23,17 +23,12 @@
 # in the configuration.gni for the current platform.
 
 group("egl_and_gles") {
-  if (gl_type != "none") {
-    public_deps = [ ":egl_and_gles_$gl_type" ]
-  }
+  assert(gl_type != "none", "gl_type must be set to a valid value")
+  public_deps = [ ":egl_and_gles_$gl_type" ]
 }
 
 group("egl_and_gles_system_gles2") {
   # Use the system-provided implementation of GLES2.
-}
-
-group("egl_and_gles_system_gles3") {
-  # Deprecated. Use GLES2.
 }
 
 config("egl_and_gles_glimp_public_config") {

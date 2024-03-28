@@ -77,8 +77,13 @@ void LoadSymbols(FFMPEGDispatch* ffmpeg) {
   INITSYMBOL(avcodec_close);
   INITSYMBOL(avcodec_open2);
   INITSYMBOL(av_init_packet);
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 137, 100)
   INITSYMBOL(avcodec_decode_audio4);
   INITSYMBOL(avcodec_decode_video2);
+#else
+  INITSYMBOL(avcodec_send_packet);
+  INITSYMBOL(avcodec_receive_frame);
+#endif  // LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 137, 100)
   INITSYMBOL(avcodec_flush_buffers);
 #if LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avcodec_alloc_frame);

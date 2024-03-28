@@ -529,11 +529,10 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr) {
       if (gctx->iv == c->iv) {
         gctx_out->iv = out->iv;
       } else {
-        gctx_out->iv = OPENSSL_malloc(gctx->ivlen);
+        gctx_out->iv = OPENSSL_memdup(gctx->iv, gctx->ivlen);
         if (!gctx_out->iv) {
           return 0;
         }
-        OPENSSL_memcpy(gctx_out->iv, gctx->iv, gctx->ivlen);
       }
       return 1;
     }
@@ -1469,8 +1468,6 @@ int EVP_has_aes_hardware(void) {
   return hwaes_capable() && crypto_gcm_clmul_enabled();
 #elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
   return hwaes_capable() && CRYPTO_is_ARMv8_PMULL_capable();
-#elif defined(OPENSSL_PPC64LE)
-  return CRYPTO_is_PPC64LE_vcrypto_capable();
 #else
   return 0;
 #endif

@@ -76,7 +76,6 @@ namespace testing {
 
 namespace {
 
-#if SB_HAS(GLES2)
 EGLint const kAttributeList[] = {EGL_RED_SIZE,
                                  8,
                                  EGL_GREEN_SIZE,
@@ -90,37 +89,27 @@ EGLint const kAttributeList[] = {EGL_RED_SIZE,
                                  EGL_RENDERABLE_TYPE,
                                  EGL_OPENGL_ES2_BIT,
                                  EGL_NONE};
-#endif  // SB_HAS(GLES2)
 
 }  // namespace
 
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
-    :
-#if SB_HAS(GLES2)
-      display_(EGL_NO_DISPLAY),
+    : display_(EGL_NO_DISPLAY),
       surface_(EGL_NO_SURFACE),
       context_(EGL_NO_CONTEXT),
-#endif  // SB_HAS(GLES2)
       window_(kSbWindowInvalid) {
   InitializeWindow();
-#if SB_HAS(GLES2)
   InitializeEGL();
-#endif
 }
 
 FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
-#if SB_HAS(GLES2)
   functor_queue_.Put(
       std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
   functor_queue_.Wake();
   SbThreadJoin(decode_target_context_thread_, NULL);
   EGL_CALL(eglDestroySurface(display_, surface_));
   EGL_CALL(eglTerminate(display_));
-#endif  // SB_HAS(GLES2)
   SbWindowDestroy(window_);
 }
-
-#if SB_HAS(GLES2)
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
     const std::function<void()>& functor) {
@@ -176,8 +165,6 @@ void FakeGraphicsContextProvider::RunLoop() {
   }
 }
 
-#endif  // SB_HAS(GLES2)
-
 void FakeGraphicsContextProvider::InitializeWindow() {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
@@ -186,7 +173,6 @@ void FakeGraphicsContextProvider::InitializeWindow() {
   SB_CHECK(SbWindowIsValid(window_));
 }
 
-#if SB_HAS(GLES2)
 void FakeGraphicsContextProvider::InitializeEGL() {
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
   SB_DCHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
@@ -319,8 +305,6 @@ void FakeGraphicsContextProvider::DecodeTargetGlesContextRunner(
   provider->OnDecodeTargetGlesContextRunner(target_function,
                                             target_function_context);
 }
-
-#endif  // SB_HAS(GLES2)
 
 }  // namespace testing
 }  // namespace starboard

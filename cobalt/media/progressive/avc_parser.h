@@ -19,8 +19,8 @@
 
 #include "cobalt/media/progressive/progressive_parser.h"
 #include "third_party/chromium/media/base/media_log.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {

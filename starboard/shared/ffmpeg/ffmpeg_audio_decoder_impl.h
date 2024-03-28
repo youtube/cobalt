@@ -64,6 +64,11 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
   void InitializeCodec();
   void TeardownCodec();
 
+  // Processes decoded (PCM) audio data received from FFmpeg. The audio data is
+  // ultimately enqueued in decoded_audios_.
+  void ProcessDecodedFrame(const InputBuffer& input_buffer,
+                           const AVFrame& av_frame);
+
   static const int kMaxDecodedAudiosSize = 64;
 
   FFMPEGDispatch* ffmpeg_;

@@ -66,6 +66,7 @@
 #include <openssl/rsa.h>
 #include <openssl/stack.h>
 
+#include "../asn1/internal.h"
 #include "internal.h"
 
 
@@ -84,35 +85,37 @@ int X509_REQ_verify(X509_REQ *req, EVP_PKEY *pkey) {
 }
 
 int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md) {
-  x->cert_info->enc.modified = 1;
+  asn1_encoding_clear(&x->cert_info->enc);
   return (ASN1_item_sign(ASN1_ITEM_rptr(X509_CINF), x->cert_info->signature,
                          x->sig_alg, x->signature, x->cert_info, pkey, md));
 }
 
 int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx) {
-  x->cert_info->enc.modified = 1;
+  asn1_encoding_clear(&x->cert_info->enc);
   return ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_CINF), x->cert_info->signature,
                             x->sig_alg, x->signature, x->cert_info, ctx);
 }
 
 int X509_REQ_sign(X509_REQ *x, EVP_PKEY *pkey, const EVP_MD *md) {
+  asn1_encoding_clear(&x->req_info->enc);
   return (ASN1_item_sign(ASN1_ITEM_rptr(X509_REQ_INFO), x->sig_alg, NULL,
                          x->signature, x->req_info, pkey, md));
 }
 
 int X509_REQ_sign_ctx(X509_REQ *x, EVP_MD_CTX *ctx) {
+  asn1_encoding_clear(&x->req_info->enc);
   return ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_REQ_INFO), x->sig_alg, NULL,
                             x->signature, x->req_info, ctx);
 }
 
 int X509_CRL_sign(X509_CRL *x, EVP_PKEY *pkey, const EVP_MD *md) {
-  x->crl->enc.modified = 1;
+  asn1_encoding_clear(&x->crl->enc);
   return (ASN1_item_sign(ASN1_ITEM_rptr(X509_CRL_INFO), x->crl->sig_alg,
                          x->sig_alg, x->signature, x->crl, pkey, md));
 }
 
 int X509_CRL_sign_ctx(X509_CRL *x, EVP_MD_CTX *ctx) {
-  x->crl->enc.modified = 1;
+  asn1_encoding_clear(&x->crl->enc);
   return ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_CRL_INFO), x->crl->sig_alg,
                             x->sig_alg, x->signature, x->crl, ctx);
 }
@@ -125,22 +128,6 @@ int NETSCAPE_SPKI_sign(NETSCAPE_SPKI *x, EVP_PKEY *pkey, const EVP_MD *md) {
 int NETSCAPE_SPKI_verify(NETSCAPE_SPKI *spki, EVP_PKEY *pkey) {
   return (ASN1_item_verify(ASN1_ITEM_rptr(NETSCAPE_SPKAC), spki->sig_algor,
                            spki->signature, spki->spkac, pkey));
-}
-
-X509 *d2i_X509_fp(FILE *fp, X509 **x509) {
-  return ASN1_item_d2i_fp(ASN1_ITEM_rptr(X509), fp, x509);
-}
-
-int i2d_X509_fp(FILE *fp, X509 *x509) {
-  return ASN1_item_i2d_fp(ASN1_ITEM_rptr(X509), fp, x509);
-}
-
-X509 *d2i_X509_bio(BIO *bp, X509 **x509) {
-  return ASN1_item_d2i_bio(ASN1_ITEM_rptr(X509), bp, x509);
-}
-
-int i2d_X509_bio(BIO *bp, X509 *x509) {
-  return ASN1_item_i2d_bio(ASN1_ITEM_rptr(X509), bp, x509);
 }
 
 X509_CRL *d2i_X509_CRL_fp(FILE *fp, X509_CRL **crl) {
@@ -198,6 +185,9 @@ int i2d_X509_REQ_bio(BIO *bp, X509_REQ *req) {
     return ret;                                \
   }
 
+IMPLEMENT_D2I_FP(X509, d2i_X509_fp, d2i_X509_bio);
+IMPLEMENT_I2D_FP(X509, i2d_X509_fp, i2d_X509_bio);
+
 IMPLEMENT_D2I_FP(RSA, d2i_RSAPrivateKey_fp, d2i_RSAPrivateKey_bio)
 IMPLEMENT_I2D_FP(RSA, i2d_RSAPrivateKey_fp, i2d_RSAPrivateKey_bio)
 
@@ -231,6 +221,9 @@ IMPLEMENT_I2D_FP(RSA, i2d_RSA_PUBKEY_fp, i2d_RSA_PUBKEY_bio)
     OPENSSL_free(data);                         \
     return ret;                                 \
   }
+
+IMPLEMENT_D2I_BIO(X509, d2i_X509_bio, d2i_X509)
+IMPLEMENT_I2D_BIO(X509, i2d_X509_bio, i2d_X509)
 
 IMPLEMENT_D2I_BIO(RSA, d2i_RSAPrivateKey_bio, d2i_RSAPrivateKey)
 IMPLEMENT_I2D_BIO(RSA, i2d_RSAPrivateKey_bio, i2d_RSAPrivateKey)
@@ -275,9 +268,18 @@ int X509_pubkey_digest(const X509 *data, const EVP_MD *type, unsigned char *md,
   return EVP_Digest(key->data, key->length, md, len, type, NULL);
 }
 
-int X509_digest(const X509 *data, const EVP_MD *type, unsigned char *md,
-                unsigned int *len) {
-  return (ASN1_item_digest(ASN1_ITEM_rptr(X509), type, (char *)data, md, len));
+int X509_digest(const X509 *x509, const EVP_MD *md, uint8_t *out,
+                unsigned *out_len) {
+  uint8_t *der = NULL;
+  // TODO(https://crbug.com/boringssl/407): This function is not const-correct.
+  int der_len = i2d_X509((X509 *)x509, &der);
+  if (der_len < 0) {
+    return 0;
+  }
+
+  int ret = EVP_Digest(der, der_len, out, out_len, md, NULL);
+  OPENSSL_free(der);
+  return ret;
 }
 
 int X509_CRL_digest(const X509_CRL *data, const EVP_MD *type, unsigned char *md,

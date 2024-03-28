@@ -394,10 +394,8 @@ class PlayerComponentsTest
     // Call GetCurrentDecodeTarget() periodically for decode to texture mode.
     // Or call fake rendering to force renderer go on in punch-out mode.
     if (GetVideoRenderer()) {
-#if SB_HAS(GLES2)
       fake_graphics_context_provider_.RunOnGlesContextThread(
           std::bind(&PlayerComponentsTest::RenderOnGlesContextThread, this));
-#endif  // SB_HAS(GLES2)
     }
     // Process jobs in the job queue.
     job_queue_.RunUntilIdle();

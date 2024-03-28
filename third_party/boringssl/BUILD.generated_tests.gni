@@ -1,6 +1,16 @@
-# Copyright 2016 The Chromium Authors
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+# Copyright (c) 2015, Google Inc.
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+# SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+# OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+# CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 # This file is created by generate_build_files.py. Do not edit manually.
 
@@ -9,7 +19,6 @@ test_support_sources = [
   "src/crypto/test/file_test.cc",
   "src/crypto/test/file_test.h",
   "src/crypto/test/gtest_main.h",
-  "src/crypto/test/malloc.cc",
   "src/crypto/test/test_util.cc",
   "src/crypto/test/test_util.h",
   "src/crypto/test/wycheproof_util.cc",
@@ -59,17 +68,18 @@ crypto_test_sources = [
   "src/crypto/fipsmodule/ec/ec_test.cc",
   "src/crypto/fipsmodule/ec/p256-nistz_test.cc",
   "src/crypto/fipsmodule/ecdsa/ecdsa_test.cc",
+  "src/crypto/fipsmodule/hkdf/hkdf_test.cc",
   "src/crypto/fipsmodule/md5/md5_test.cc",
   "src/crypto/fipsmodule/modes/gcm_test.cc",
   "src/crypto/fipsmodule/rand/ctrdrbg_test.cc",
   "src/crypto/fipsmodule/rand/fork_detect_test.cc",
   "src/crypto/fipsmodule/service_indicator/service_indicator_test.cc",
   "src/crypto/fipsmodule/sha/sha_test.cc",
-  "src/crypto/hkdf/hkdf_test.cc",
   "src/crypto/hmac_extra/hmac_test.cc",
   "src/crypto/hpke/hpke_test.cc",
   "src/crypto/hrss/hrss_test.cc",
   "src/crypto/impl_dispatch_test.cc",
+  "src/crypto/kyber/kyber_test.cc",
   "src/crypto/lhash/lhash_test.cc",
   "src/crypto/obj/obj_test.cc",
   "src/crypto/pem/pem_test.cc",
@@ -132,8 +142,17 @@ crypto_test_data = [
   "src/crypto/evp/evp_tests.txt",
   "src/crypto/evp/scrypt_tests.txt",
   "src/crypto/fipsmodule/aes/aes_tests.txt",
-  "src/crypto/fipsmodule/bn/bn_tests.txt",
-  "src/crypto/fipsmodule/bn/miller_rabin_tests.txt",
+  "src/crypto/fipsmodule/bn/test/exp_tests.txt",
+  "src/crypto/fipsmodule/bn/test/gcd_tests.txt",
+  "src/crypto/fipsmodule/bn/test/miller_rabin_tests.txt",
+  "src/crypto/fipsmodule/bn/test/mod_exp_tests.txt",
+  "src/crypto/fipsmodule/bn/test/mod_inv_tests.txt",
+  "src/crypto/fipsmodule/bn/test/mod_mul_tests.txt",
+  "src/crypto/fipsmodule/bn/test/mod_sqrt_tests.txt",
+  "src/crypto/fipsmodule/bn/test/product_tests.txt",
+  "src/crypto/fipsmodule/bn/test/quotient_tests.txt",
+  "src/crypto/fipsmodule/bn/test/shift_tests.txt",
+  "src/crypto/fipsmodule/bn/test/sum_tests.txt",
   "src/crypto/fipsmodule/cmac/cavp_3des_cmac_tests.txt",
   "src/crypto/fipsmodule/cmac/cavp_aes128_cmac_tests.txt",
   "src/crypto/fipsmodule/cmac/cavp_aes192_cmac_tests.txt",
@@ -146,6 +165,8 @@ crypto_test_data = [
   "src/crypto/fipsmodule/rand/ctrdrbg_vectors.txt",
   "src/crypto/hmac_extra/hmac_tests.txt",
   "src/crypto/hpke/hpke_test_vectors.txt",
+  "src/crypto/kyber/keccak_tests.txt",
+  "src/crypto/kyber/kyber_tests.txt",
   "src/crypto/pkcs8/test/empty_password.p12",
   "src/crypto/pkcs8/test/no_encryption.p12",
   "src/crypto/pkcs8/test/nss.p12",
@@ -191,6 +212,33 @@ crypto_test_data = [
   "src/crypto/x509/test/many_names1.pem",
   "src/crypto/x509/test/many_names2.pem",
   "src/crypto/x509/test/many_names3.pem",
+  "src/crypto/x509/test/policy_intermediate.pem",
+  "src/crypto/x509/test/policy_intermediate_any.pem",
+  "src/crypto/x509/test/policy_intermediate_duplicate.pem",
+  "src/crypto/x509/test/policy_intermediate_invalid.pem",
+  "src/crypto/x509/test/policy_intermediate_mapped.pem",
+  "src/crypto/x509/test/policy_intermediate_mapped_any.pem",
+  "src/crypto/x509/test/policy_intermediate_mapped_oid3.pem",
+  "src/crypto/x509/test/policy_intermediate_require.pem",
+  "src/crypto/x509/test/policy_intermediate_require1.pem",
+  "src/crypto/x509/test/policy_intermediate_require2.pem",
+  "src/crypto/x509/test/policy_intermediate_require_duplicate.pem",
+  "src/crypto/x509/test/policy_intermediate_require_no_policies.pem",
+  "src/crypto/x509/test/policy_leaf.pem",
+  "src/crypto/x509/test/policy_leaf_any.pem",
+  "src/crypto/x509/test/policy_leaf_duplicate.pem",
+  "src/crypto/x509/test/policy_leaf_invalid.pem",
+  "src/crypto/x509/test/policy_leaf_none.pem",
+  "src/crypto/x509/test/policy_leaf_oid1.pem",
+  "src/crypto/x509/test/policy_leaf_oid2.pem",
+  "src/crypto/x509/test/policy_leaf_oid3.pem",
+  "src/crypto/x509/test/policy_leaf_oid4.pem",
+  "src/crypto/x509/test/policy_leaf_oid5.pem",
+  "src/crypto/x509/test/policy_leaf_require.pem",
+  "src/crypto/x509/test/policy_leaf_require1.pem",
+  "src/crypto/x509/test/policy_root.pem",
+  "src/crypto/x509/test/policy_root2.pem",
+  "src/crypto/x509/test/policy_root_cross_inhibit_mapping.pem",
   "src/crypto/x509/test/pss_sha1.pem",
   "src/crypto/x509/test/pss_sha1_explicit.pem",
   "src/crypto/x509/test/pss_sha1_mgf1_syntax_error.pem",

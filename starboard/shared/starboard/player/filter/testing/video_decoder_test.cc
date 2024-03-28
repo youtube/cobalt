@@ -122,13 +122,11 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
   }
 }
 
-#if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, GetCurrentDecodeTargetBeforeWriteInputBuffer) {
   if (fixture_.output_mode() == kSbPlayerOutputModeDecodeToTexture) {
     fixture_.AssertInvalidDecodeTarget();
   }
 }
-#endif  // SB_HAS(GLES2)
 
 TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   // Create three more decoders for each supported combinations.
@@ -185,11 +183,9 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
                           &fixture_, _1, _2),
                 std::bind(&VideoDecoderTestFixture::OnError, &fixture_));
 
-#if SB_HAS(GLES2)
             if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
               fixture_.AssertInvalidDecodeTarget();
             }
-#endif  // SB_HAS(GLES2)
           }
           if (fixture_.HasPendingEvents()) {
             bool error_occurred = false;

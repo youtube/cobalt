@@ -22,6 +22,7 @@
 
 #define PTHREAD_MUTEX_INITIALIZER SRWLOCK_INIT
 #define PTHREAD_COND_INITIALIZER CONDITION_VARIABLE_INIT
+#define PTHREAD_ONCE_INIT INIT_ONCE_STATIC_INIT
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,6 +33,7 @@ typedef unsigned int pthread_mutexattr_t;
 typedef DWORD pthread_key_t;
 typedef CONDITION_VARIABLE pthread_cond_t;
 typedef unsigned int pthread_condattr_t;
+typedef INIT_ONCE pthread_once_t;
 
 int pthread_mutex_destroy(pthread_mutex_t* mutex);
 int pthread_mutex_init(pthread_mutex_t* mutex,
@@ -58,6 +60,8 @@ int pthread_condattr_getclock(const pthread_condattr_t* attr,
                               clockid_t* clock_id);
 int pthread_condattr_init(pthread_condattr_t* attr);
 int pthread_condattr_setclock(pthread_condattr_t* attr, clockid_t clock_id);
+
+int pthread_once(pthread_once_t* once_control, void (*init_routine)(void));
 
 #ifdef __cplusplus
 }

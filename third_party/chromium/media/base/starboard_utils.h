@@ -15,6 +15,10 @@
 #ifndef MEDIA_BASE_STARBOARD_UTILS_H_
 #define MEDIA_BASE_STARBOARD_UTILS_H_
 
+#if !defined(STARBOARD)
+#error "This file only works with Cobalt/Starboard."
+#endif  // !defined(STARBOARD)
+
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "media/base/audio_codecs.h"

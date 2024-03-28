@@ -85,6 +85,13 @@ int rsa_check_public_key(const RSA *rsa) {
     return 0;
   }
 
+  // RSA moduli must be odd. In addition to being necessary for RSA in general,
+  // we cannot setup Montgomery reduction with even moduli.
+  if (!BN_is_odd(rsa->n)) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_RSA_PARAMETERS);
+    return 0;
+  }
+
   // Mitigate DoS attacks by limiting the exponent size. 33 bits was chosen as
   // the limit based on the recommendations in [1] and [2]. Windows CryptoAPI
   // doesn't support values larger than 32 bits [3], so it is unlikely that
@@ -259,95 +266,6 @@ size_t rsa_default_size(const RSA *rsa) {
   return BN_num_bytes(rsa->n);
 }
 
-int RSA_encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
-                const uint8_t *in, size_t in_len, int padding) {
-  boringssl_ensure_rsa_self_test();
-
-  if (!rsa_check_public_key(rsa)) {
-    return 0;
-  }
-
-  const unsigned rsa_size = RSA_size(rsa);
-  BIGNUM *f, *result;
-  uint8_t *buf = NULL;
-  BN_CTX *ctx = NULL;
-  int i, ret = 0;
-
-  if (max_out < rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
-    return 0;
-  }
-
-  ctx = BN_CTX_new();
-  if (ctx == NULL) {
-    goto err;
-  }
-
-  BN_CTX_start(ctx);
-  f = BN_CTX_get(ctx);
-  result = BN_CTX_get(ctx);
-  buf = OPENSSL_malloc(rsa_size);
-  if (!f || !result || !buf) {
-    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
-    goto err;
-  }
-
-  switch (padding) {
-    case RSA_PKCS1_PADDING:
-      i = RSA_padding_add_PKCS1_type_2(buf, rsa_size, in, in_len);
-      break;
-    case RSA_PKCS1_OAEP_PADDING:
-      // Use the default parameters: SHA-1 for both hashes and no label.
-      i = RSA_padding_add_PKCS1_OAEP_mgf1(buf, rsa_size, in, in_len,
-                                          NULL, 0, NULL, NULL);
-      break;
-    case RSA_NO_PADDING:
-      i = RSA_padding_add_none(buf, rsa_size, in, in_len);
-      break;
-    default:
-      OPENSSL_PUT_ERROR(RSA, RSA_R_UNKNOWN_PADDING_TYPE);
-      goto err;
-  }
-
-  if (i <= 0) {
-    goto err;
-  }
-
-  if (BN_bin2bn(buf, rsa_size, f) == NULL) {
-    goto err;
-  }
-
-  if (BN_ucmp(f, rsa->n) >= 0) {
-    // usually the padding functions would catch this
-    OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
-    goto err;
-  }
-
-  if (!BN_MONT_CTX_set_locked(&rsa->mont_n, &rsa->lock, rsa->n, ctx) ||
-      !BN_mod_exp_mont(result, f, rsa->e, &rsa->mont_n->N, ctx, rsa->mont_n)) {
-    goto err;
-  }
-
-  // put in leading 0 bytes if the number is less than the length of the
-  // modulus
-  if (!BN_bn2bin_padded(out, rsa_size, result)) {
-    OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
-    goto err;
-  }
-
-  *out_len = rsa_size;
-  ret = 1;
-
-err:
-  if (ctx != NULL) {
-    BN_CTX_end(ctx);
-    BN_CTX_free(ctx);
-  }
-  OPENSSL_free(buf);
-
-  return ret;
-}
-
 // MAX_BLINDINGS_PER_RSA defines the maximum number of cached BN_BLINDINGs per
 // RSA*. Then this limit is exceeded, BN_BLINDING objects will be created and
 // destroyed as needed.
@@ -365,7 +283,7 @@ err:
 //
 // On success, the index of the assigned BN_BLINDING is written to
 // |*index_used| and must be passed to |rsa_blinding_release| when finished.
-static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
+static BN_BLINDING *rsa_blinding_get(RSA *rsa, size_t *index_used,
                                      BN_CTX *ctx) {
   assert(ctx != NULL);
   assert(rsa->mont_n != NULL);
@@ -376,7 +294,7 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
 
   // Wipe the blinding cache on |fork|.
   if (rsa->blinding_fork_generation != fork_generation) {
-    for (unsigned i = 0; i < rsa->num_blindings; i++) {
+    for (size_t i = 0; i < rsa->num_blindings; i++) {
       // The inuse flag must be zero unless we were forked from a
       // multi-threaded process, in which case calling back into BoringSSL is
       // forbidden.
@@ -407,7 +325,7 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
   // Double the length of the cache.
   static_assert(MAX_BLINDINGS_PER_RSA < UINT_MAX / 2,
                 "MAX_BLINDINGS_PER_RSA too large");
-  unsigned new_num_blindings = rsa->num_blindings * 2;
+  size_t new_num_blindings = rsa->num_blindings * 2;
   if (new_num_blindings == 0) {
     new_num_blindings = 1;
   }
@@ -416,8 +334,6 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
   }
   assert(new_num_blindings > rsa->num_blindings);
 
-  static_assert(MAX_BLINDINGS_PER_RSA < UINT_MAX / sizeof(BN_BLINDING *),
-                "MAX_BLINDINGS_PER_RSA too large");
   BN_BLINDING **new_blindings =
       OPENSSL_malloc(sizeof(BN_BLINDING *) * new_num_blindings);
   uint8_t *new_blindings_inuse = OPENSSL_malloc(new_num_blindings);
@@ -429,10 +345,10 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
                  sizeof(BN_BLINDING *) * rsa->num_blindings);
   OPENSSL_memcpy(new_blindings_inuse, rsa->blindings_inuse, rsa->num_blindings);
 
-  for (unsigned i = rsa->num_blindings; i < new_num_blindings; i++) {
+  for (size_t i = rsa->num_blindings; i < new_num_blindings; i++) {
     new_blindings[i] = BN_BLINDING_new();
     if (new_blindings[i] == NULL) {
-      for (unsigned j = rsa->num_blindings; j < i; j++) {
+      for (size_t j = rsa->num_blindings; j < i; j++) {
         BN_BLINDING_free(new_blindings[j]);
       }
       goto err;
@@ -466,7 +382,7 @@ out:
 // rsa_blinding_release marks the cached BN_BLINDING at the given index as free
 // for other threads to use.
 static void rsa_blinding_release(RSA *rsa, BN_BLINDING *blinding,
-                                 unsigned blinding_index) {
+                                 size_t blinding_index) {
   if (blinding_index == MAX_BLINDINGS_PER_RSA) {
     // This blinding wasn't cached.
     BN_BLINDING_free(blinding);
@@ -493,7 +409,6 @@ int rsa_default_sign_raw(RSA *rsa, size_t *out_len, uint8_t *out,
 
   buf = OPENSSL_malloc(rsa_size);
   if (buf == NULL) {
-    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
@@ -513,7 +428,7 @@ int rsa_default_sign_raw(RSA *rsa, size_t *out_len, uint8_t *out,
     goto err;
   }
 
-  if (!RSA_private_transform(rsa, out, buf, rsa_size)) {
+  if (!rsa_private_transform_no_self_test(rsa, out, buf, rsa_size)) {
     goto err;
   }
 
@@ -527,72 +442,6 @@ err:
   return ret;
 }
 
-int rsa_default_decrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
-                        const uint8_t *in, size_t in_len, int padding) {
-  boringssl_ensure_rsa_self_test();
-
-  const unsigned rsa_size = RSA_size(rsa);
-  uint8_t *buf = NULL;
-  int ret = 0;
-
-  if (max_out < rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
-    return 0;
-  }
-
-  if (padding == RSA_NO_PADDING) {
-    buf = out;
-  } else {
-    // Allocate a temporary buffer to hold the padded plaintext.
-    buf = OPENSSL_malloc(rsa_size);
-    if (buf == NULL) {
-      OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
-      goto err;
-    }
-  }
-
-  if (in_len != rsa_size) {
-    OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_LEN_NOT_EQUAL_TO_MOD_LEN);
-    goto err;
-  }
-
-  if (!RSA_private_transform(rsa, buf, in, rsa_size)) {
-    goto err;
-  }
-
-  switch (padding) {
-    case RSA_PKCS1_PADDING:
-      ret =
-          RSA_padding_check_PKCS1_type_2(out, out_len, rsa_size, buf, rsa_size);
-      break;
-    case RSA_PKCS1_OAEP_PADDING:
-      // Use the default parameters: SHA-1 for both hashes and no label.
-      ret = RSA_padding_check_PKCS1_OAEP_mgf1(out, out_len, rsa_size, buf,
-                                              rsa_size, NULL, 0, NULL, NULL);
-      break;
-    case RSA_NO_PADDING:
-      *out_len = rsa_size;
-      ret = 1;
-      break;
-    default:
-      OPENSSL_PUT_ERROR(RSA, RSA_R_UNKNOWN_PADDING_TYPE);
-      goto err;
-  }
-
-  CONSTTIME_DECLASSIFY(&ret, sizeof(ret));
-  if (!ret) {
-    OPENSSL_PUT_ERROR(RSA, RSA_R_PADDING_CHECK_FAILED);
-  } else {
-    CONSTTIME_DECLASSIFY(out, *out_len);
-  }
-
-err:
-  if (padding != RSA_NO_PADDING) {
-    OPENSSL_free(buf);
-  }
-
-  return ret;
-}
 
 static int mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx);
 
@@ -628,7 +477,6 @@ int rsa_verify_raw_no_self_test(RSA *rsa, size_t *out_len, uint8_t *out,
   f = BN_CTX_get(ctx);
   result = BN_CTX_get(ctx);
   if (f == NULL || result == NULL) {
-    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
@@ -638,7 +486,6 @@ int rsa_verify_raw_no_self_test(RSA *rsa, size_t *out_len, uint8_t *out,
     // Allocate a temporary buffer to hold the padded plaintext.
     buf = OPENSSL_malloc(rsa_size);
     if (buf == NULL) {
-      OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
       goto err;
     }
   }
@@ -707,7 +554,7 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
 
   BIGNUM *f, *result;
   BN_CTX *ctx = NULL;
-  unsigned blinding_index = 0;
+  size_t blinding_index = 0;
   BN_BLINDING *blinding = NULL;
   int ret = 0;
 
@@ -720,10 +567,11 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
   result = BN_CTX_get(ctx);
 
   if (f == NULL || result == NULL) {
-    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
     goto err;
   }
 
+  // The caller should have ensured this.
+  assert(len == BN_num_bytes(rsa->n));
   if (BN_bin2bn(in, len, f) == NULL) {
     goto err;
   }
@@ -785,16 +633,16 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
   // works when the CRT isn't used. That attack is much less likely to succeed
   // than the CRT attack, but there have likely been improvements since 1997.
   //
-  // This check is cheap assuming |e| is small; it almost always is.
+  // This check is cheap assuming |e| is small, which we require in
+  // |rsa_check_public_key|.
   if (rsa->e != NULL) {
     BIGNUM *vrfy = BN_CTX_get(ctx);
     if (vrfy == NULL ||
         !BN_mod_exp_mont(vrfy, result, rsa->e, rsa->n, ctx, rsa->mont_n) ||
-        !BN_equal_consttime(vrfy, f)) {
+        !constant_time_declassify_int(BN_equal_consttime(vrfy, f))) {
       OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
       goto err;
     }
-
   }
 
   if (do_blinding &&
@@ -808,6 +656,7 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
   //
   // See Falko Strenzke, "Manger's Attack revisited", ICICS 2010.
   assert(result->width == rsa->mont_n->N.width);
+  bn_assert_fits_in_bytes(result, len);
   if (!BN_bn2bin_padded(out, len, result)) {
     OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
     goto err;
@@ -926,11 +775,18 @@ static int mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx) {
       // so it is correct mod q. Finally, the result is bounded by [m1, n + m1),
       // and the result is at least |m1|, so this must be the unique answer in
       // [0, n).
-      !bn_mul_consttime(r0, r0, q, ctx) ||
-      !bn_uadd_consttime(r0, r0, m1) ||
-      // The result should be bounded by |n|, but fixed-width operations may
-      // bound the width slightly higher, so fix it.
-      !bn_resize_words(r0, n->width)) {
+      !bn_mul_consttime(r0, r0, q, ctx) ||  //
+      !bn_uadd_consttime(r0, r0, m1)) {
+    goto err;
+  }
+
+  // The result should be bounded by |n|, but fixed-width operations may
+  // bound the width slightly higher, so fix it. This trips constant-time checks
+  // because a naive data flow analysis does not realize the excess words are
+  // publicly zero.
+  assert(BN_cmp(r0, n) < 0);
+  bn_assert_fits_in_bytes(r0, BN_num_bytes(n));
+  if (!bn_resize_words(r0, n->width)) {
     goto err;
   }
 

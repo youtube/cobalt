@@ -159,18 +159,6 @@ class PlatformConfiguration(object):
     """Gets a dict of environment variables needed by unit test binaries."""
     return {}
 
-  def GetDeployPathPatterns(self):
-    """Gets deployment paths patterns for files to be included for deployment.
-
-    Example: ['deploy/*.exe', 'content/*']
-
-    Returns:
-      A list of path wildcard patterns within the PRODUCT_DIR
-      (src/out/<PLATFORM>_<CONFIG>) that need to be deployed in order for the
-      platform launcher to run target executable(s).
-    """
-    raise NotImplementedError()
-
   def GetTestTargets(self):
     """Gets all tests to be run in a unit test run.
 

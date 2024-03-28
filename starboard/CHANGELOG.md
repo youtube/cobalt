@@ -9,6 +9,24 @@ since the version previous to it.
 
 ## Version 16
 
+### Removed configuration for `abort_on_allocation_failure`
+This flag has no effect in builds, and checked allocations are removed
+in Starboard 16.
+
+### Removed SB_HAS_NV12_TEXTURE_SUPPORT
+This flag is resolved at run-time.
+
+### GLES2 configuration mandatory
+SB_HAS_GLES2 configuration has been removed, and `gl_type` GN config no longer
+accepts `none` as an option.
+
+### Removed pre-C++11 hash map configuration
+Build configurations for `SB_HAS_STD_UNORDERED_HASH`, `SB_HAS_LONG_LONG_HASH`,
+ `SB_HAS_STRING_HASH`, `SB_HAS_HASH_USING`, `SB_HAS_HASH_VALUE`,
+ `SB_HAS_HASH_WARNING`, `SB_HASH_MAP_INCLUDE`, `SB_HASH_NAMESPACE`, and
+ `SB_HASH_SET_INCLUDE` are fully removed. C++ standard `unordered_map` and
+ `unordered_set` are used in all builds.
+
 ### Added standard POSIX socket getaddrinfo/freeaddrinfo APIs.
 The standard API `getaddrinfo` and `freeaddrinfo`, can be used from
 <netdb.h>.

@@ -58,6 +58,7 @@
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
+#include <openssl/time.h>
 
 #include <string.h>
 #include <time.h>
@@ -81,34 +82,32 @@ int ASN1_GENERALIZEDTIME_check(const ASN1_GENERALIZEDTIME *d) {
 }
 
 int ASN1_GENERALIZEDTIME_set_string(ASN1_GENERALIZEDTIME *s, const char *str) {
-  ASN1_GENERALIZEDTIME t;
-
-  t.type = V_ASN1_GENERALIZEDTIME;
-  t.length = strlen(str);
-  t.data = (unsigned char *)str;
-  if (ASN1_GENERALIZEDTIME_check(&t)) {
-    if (s != NULL) {
-      if (!ASN1_STRING_set((ASN1_STRING *)s, (unsigned char *)str, t.length)) {
-        return 0;
-      }
-      s->type = V_ASN1_GENERALIZEDTIME;
-    }
-    return 1;
-  } else {
+  size_t len = strlen(str);
+  CBS cbs;
+  CBS_init(&cbs, (const uint8_t *)str, len);
+  if (!CBS_parse_generalized_time(&cbs, /*out_tm=*/NULL,
+                                  /*allow_timezone_offset=*/0)) {
     return 0;
   }
+  if (s != NULL) {
+    if (!ASN1_STRING_set(s, str, len)) {
+      return 0;
+    }
+    s->type = V_ASN1_GENERALIZEDTIME;
+  }
+  return 1;
 }
 
 ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_set(ASN1_GENERALIZEDTIME *s,
-                                               time_t t) {
-  return ASN1_GENERALIZEDTIME_adj(s, t, 0, 0);
+                                               int64_t posix_time) {
+  return ASN1_GENERALIZEDTIME_adj(s, posix_time, 0, 0);
 }
 
 ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_adj(ASN1_GENERALIZEDTIME *s,
-                                               time_t t, int offset_day,
+                                               int64_t posix_time, int offset_day,
                                                long offset_sec) {
   struct tm data;
-  if (!OPENSSL_gmtime(&t, &data)) {
+  if (!OPENSSL_posix_to_tm(posix_time, &data)) {
     return NULL;
   }
 

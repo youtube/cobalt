@@ -28,10 +28,6 @@ class AndroidConfiguration(PlatformConfiguration):
     super().__init__(platform)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
-  def GetDeployPathPatterns(self):
-    # example src/out/android-arm64/devel/cobalt.apk
-    return ['*.apk']
-
   def GetLauncher(self):
     """Gets the module used to launch applications on this platform."""
     module_path = os.path.abspath(

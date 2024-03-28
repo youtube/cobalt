@@ -414,12 +414,13 @@ class TLSFuzzer {
     SSL_CTX_enable_ocsp_stapling(ctx_.get());
 
     // Enable versions and ciphers that are off by default.
-    if (!SSL_CTX_set_strict_cipher_list(ctx_.get(), "ALL:NULL-SHA")) {
+    if (!SSL_CTX_set_strict_cipher_list(ctx_.get(), "ALL")) {
       return false;
     }
 
-    static const int kCurves[] = {NID_CECPQ2, NID_X25519, NID_X9_62_prime256v1,
-                                  NID_secp384r1, NID_secp521r1};
+    static const int kCurves[] = {NID_X25519Kyber768, NID_X25519,
+                                  NID_X9_62_prime256v1, NID_secp384r1,
+                                  NID_secp521r1};
     if (!SSL_CTX_set1_curves(ctx_.get(), kCurves,
                              OPENSSL_ARRAY_SIZE(kCurves))) {
       return false;

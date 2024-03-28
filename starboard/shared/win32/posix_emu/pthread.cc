@@ -140,4 +140,20 @@ int pthread_condattr_setclock(pthread_condattr_t* attr, clockid_t clock_id) {
   return -1;
 }
 
+static BOOL CALLBACK OnceTrampoline(PINIT_ONCE once_control,
+                                    void* parameter,
+                                    void** context) {
+  static_cast<void (*)(void)>(parameter)();
+  return true;
+}
+
+int pthread_once(pthread_once_t* once_control, void (*init_routine)(void)) {
+  if (!once_control || !init_routine) {
+    return -1;
+  }
+  return InitOnceExecuteOnce(once_control, OnceTrampoline, init_routine, NULL)
+             ? 0
+             : -1;
+}
+
 }  // extern "C"

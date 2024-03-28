@@ -145,7 +145,6 @@ void VideoDecoderTestFixture::OnError() {
   SB_LOG(WARNING) << "Video decoder received error.";
 }
 
-#if SB_HAS(GLES2)
 void VideoDecoderTestFixture::AssertInvalidDecodeTarget() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture &&
       !using_stub_decoder_) {
@@ -158,7 +157,6 @@ void VideoDecoderTestFixture::AssertInvalidDecodeTarget() {
     ASSERT_FALSE(is_decode_target_valid);
   }
 }
-#endif  // SB_HAS(GLES2)
 
 void VideoDecoderTestFixture::WaitForNextEvent(Event* event, int64_t timeout) {
   ASSERT_TRUE(event);
@@ -195,18 +193,15 @@ bool VideoDecoderTestFixture::HasPendingEvents() {
 }
 
 void VideoDecoderTestFixture::GetDecodeTargetWhenSupported() {
-#if SB_HAS(GLES2)
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture &&
       !using_stub_decoder_) {
     fake_graphics_context_provider_->RunOnGlesContextThread([&]() {
       SbDecodeTargetRelease(video_decoder_->GetCurrentDecodeTarget());
     });
   }
-#endif  // SB_HAS(GLES2)
 }
 
 void VideoDecoderTestFixture::AssertValidDecodeTargetWhenSupported() {
-#if SB_HAS(GLES2)
   volatile bool is_decode_target_valid = false;
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture &&
       !using_stub_decoder_) {
@@ -217,7 +212,6 @@ void VideoDecoderTestFixture::AssertValidDecodeTargetWhenSupported() {
     });
     ASSERT_TRUE(is_decode_target_valid);
   }
-#endif  // SB_HAS(GLES2)
 }
 
 // This has to be called when the decoder is just initialized/reset or when

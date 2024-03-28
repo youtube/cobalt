@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if !defined(STARBOARD)
+#error "This file only works with Cobalt/Starboard."
+#endif  // !defined(STARBOARD)
+
 #include "media/base/demuxer_memory_limit.h"
 
 #include "media/base/decoder_buffer.h"

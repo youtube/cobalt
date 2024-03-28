@@ -19,6 +19,8 @@
 
 #include <stdlib.h>
 
+#include <string>
+
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/thread.h"
@@ -270,32 +272,68 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
   } else {
     ffmpeg_->avcodec_get_frame_defaults(av_frame_);
   }
-  int frame_decoded = 0;
   int decode_result = 0;
 
   if (ffmpeg_->avcodec_version() < kAVCodecHasUniformDecodeAPI) {
+    // Old decode API.
+    int frame_decoded = 0;
     decode_result = ffmpeg_->avcodec_decode_video2(codec_context_, av_frame_,
                                                    &frame_decoded, packet);
-  } else {
+    if (decode_result < 0) {
+      SB_DLOG(ERROR) << "avcodec_decode_video2() failed with result "
+                     << decode_result;
+      error_cb_(kSbPlayerErrorDecode,
+                FormatString("avcodec_decode_video2() failed with result %d.",
+                             decode_result));
+      error_occurred_ = true;
+      return false;
+    }
+
+    if (frame_decoded == 0) {
+      return false;
+    }
+
+    return ProcessDecodedFrame(*av_frame_);
+  }
+
+  // Newer decode API.
+  const int send_packet_result =
+      ffmpeg_->avcodec_send_packet(codec_context_, packet);
+  if (send_packet_result != 0) {
+    const std::string error_message = FormatString(
+        "avcodec_send_packet() failed with result %d.", send_packet_result);
+    SB_DLOG(WARNING) << error_message;
+    error_cb_(kSbPlayerErrorDecode, error_message);
+    return false;
+  }
+
+  // Keep receiving frames until the decoder has processed the entire packet.
+  for (;;) {
     decode_result = ffmpeg_->avcodec_receive_frame(codec_context_, av_frame_);
+    if (decode_result != 0) {
+      // We either hit an error or are done processing packet.
+      break;
+    }
+
+    if (!ProcessDecodedFrame(*av_frame_)) {
+      return false;
+    }
   }
 
-  if (decode_result < 0) {
-    SB_DLOG(ERROR)
-        << "avcodec_decode_video2()/avcodec_receive_frame() failed with result "
-        << decode_result;
-    error_cb_(kSbPlayerErrorDecode,
-              FormatString("avcodec_decode_video2()/avcodec_receive_frame() "
-                           "failed with result %d.",
-                           decode_result));
-    error_occurred_ = true;
-    return false;
-  }
-  if (frame_decoded == 0) {
+  // A return value of AVERROR(EAGAIN) signifies that the decoder needs
+  // another packet, so we are done processing the existing packet at that
+  // point.
+  if (decode_result != AVERROR(EAGAIN)) {
+    SB_DLOG(WARNING) << "avcodec_receive_frame() failed with result: "
+                     << decode_result;
     return false;
   }
 
-  if (av_frame_->opaque == NULL) {
+  return true;
+}
+
+bool VideoDecoderImpl<FFMPEG>::ProcessDecodedFrame(const AVFrame& av_frame) {
+  if (av_frame.opaque == NULL) {
     SB_DLOG(ERROR) << "Video frame was produced yet has invalid frame data.";
     error_cb_(kSbPlayerErrorDecode,
               "Video frame was produced yet has invalid frame data.");
@@ -303,21 +341,21 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
     return false;
   }
 
-  int codec_aligned_width = av_frame_->width;
-  int codec_aligned_height = av_frame_->height;
+  int codec_aligned_width = av_frame.width;
+  int codec_aligned_height = av_frame.height;
   int codec_linesize_align[AV_NUM_DATA_POINTERS];
   ffmpeg_->avcodec_align_dimensions2(codec_context_, &codec_aligned_width,
                                      &codec_aligned_height,
                                      codec_linesize_align);
 
-  int y_pitch = AlignUp(av_frame_->width, codec_linesize_align[0] * 2);
-  int uv_pitch = av_frame_->linesize[1];
+  int y_pitch = AlignUp(av_frame.width, codec_linesize_align[0] * 2);
+  int uv_pitch = av_frame.linesize[1];
 
   const int kBitDepth = 8;
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      kBitDepth, av_frame_->width, av_frame_->height, y_pitch, uv_pitch,
-      av_frame_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
-      av_frame_->data[2]);
+      kBitDepth, av_frame.width, av_frame.height, y_pitch, uv_pitch,
+      av_frame.reordered_opaque, av_frame.data[0], av_frame.data[1],
+      av_frame.data[2]);
 
   bool result = true;
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {

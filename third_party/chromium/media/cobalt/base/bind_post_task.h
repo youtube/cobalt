@@ -5,6 +5,10 @@
 #ifndef BASE_BIND_POST_TASK_H_
 #define BASE_BIND_POST_TASK_H_
 
+#if !defined(STARBOARD)
+#error "This file only works with Cobalt/Starboard."
+#endif  // !defined(STARBOARD)
+
 #include "base/location.h"
 
 namespace base {

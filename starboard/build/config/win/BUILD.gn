@@ -45,10 +45,7 @@ config("common") {
     "$wdk_include_path/winrt",
     "$msvc_path/include",
   ]
-  cflags += [
-    "/EHsc",
-    "/std:c++17",
-  ]
+  cflags += [ "/EHsc" ]
 
   # msvs_debug/_devel/etc
   ldflags += [ "/INCREMENTAL:NO" ]

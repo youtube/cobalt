@@ -66,25 +66,25 @@ static bool resolve_ecdhe_secret(SSL_HANDSHAKE *hs,
   SSL_HANDSHAKE_HINTS *const hints = hs->hints.get();
   if (hints && !hs->hints_requested && hints->key_share_group_id == group_id &&
       !hints->key_share_secret.empty()) {
-    // Copy DH secret from hints.
-    if (!hs->ecdh_public_key.CopyFrom(hints->key_share_public_key) ||
+    // Copy the key_share secret from hints.
+    if (!hs->key_share_ciphertext.CopyFrom(hints->key_share_ciphertext) ||
         !secret.CopyFrom(hints->key_share_secret)) {
       ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_INTERNAL_ERROR);
       return false;
     }
   } else {
-    ScopedCBB public_key;
+    ScopedCBB ciphertext;
     UniquePtr<SSLKeyShare> key_share = SSLKeyShare::Create(group_id);
     if (!key_share ||  //
-        !CBB_init(public_key.get(), 32) ||
-        !key_share->Accept(public_key.get(), &secret, &alert, peer_key) ||
-        !CBBFinishArray(public_key.get(), &hs->ecdh_public_key)) {
+        !CBB_init(ciphertext.get(), 32) ||
+        !key_share->Encap(ciphertext.get(), &secret, &alert, peer_key) ||
+        !CBBFinishArray(ciphertext.get(), &hs->key_share_ciphertext)) {
       ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
       return false;
     }
     if (hints && hs->hints_requested) {
       hints->key_share_group_id = group_id;
-      if (!hints->key_share_public_key.CopyFrom(hs->ecdh_public_key) ||
+      if (!hints->key_share_ciphertext.CopyFrom(hs->key_share_ciphertext) ||
           !hints->key_share_secret.CopyFrom(secret)) {
         ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_INTERNAL_ERROR);
         return false;
@@ -116,8 +116,11 @@ static const SSL_CIPHER *choose_tls13_cipher(
 
   const uint16_t version = ssl_protocol_version(ssl);
 
-  return ssl_choose_tls13_cipher(cipher_suites, version, group_id,
-                                 ssl->config->only_fips_cipher_suites_in_tls13);
+  return ssl_choose_tls13_cipher(
+      cipher_suites,
+      ssl->config->aes_hw_override ? ssl->config->aes_hw_override_value
+                                   : EVP_has_aes_hardware(),
+      version, group_id, ssl->config->only_fips_cipher_suites_in_tls13);
 }
 
 static bool add_new_session_tickets(SSL_HANDSHAKE *hs, bool *out_sent_tickets) {
@@ -790,7 +793,7 @@ static enum ssl_hs_wait_t do_send_server_hello(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
-  hs->ecdh_public_key.Reset();  // No longer needed.
+  hs->key_share_ciphertext.Reset();  // No longer needed.
   if (!ssl->s3->used_hello_retry_request &&
       !ssl->method->add_change_cipher_spec(ssl)) {
     return ssl_hs_error;

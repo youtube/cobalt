@@ -673,7 +673,6 @@ void SbPlayerTestFixture::GetDecodeTargetWhenSupported() {
   if (!SbPlayerIsValid(player_)) {
     return;
   }
-#if SB_HAS(GLES2)
   fake_graphics_context_provider_->RunOnGlesContextThread([&]() {
     ASSERT_TRUE(SbPlayerIsValid(player_));
     if (output_mode_ != kSbPlayerOutputModeDecodeToTexture) {
@@ -686,7 +685,6 @@ void SbPlayerTestFixture::GetDecodeTargetWhenSupported() {
       SbDecodeTargetRelease(frame);
     }
   });
-#endif  // SB_HAS(GLES2)
 }
 
 void SbPlayerTestFixture::AssertPlayerStateIsValid(SbPlayerState state) const {

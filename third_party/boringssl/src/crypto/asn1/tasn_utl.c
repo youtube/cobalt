@@ -63,6 +63,7 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/obj.h>
+#include <openssl/pool.h>
 #include <openssl/thread.h>
 
 #include "../internal.h"
@@ -131,68 +132,62 @@ static ASN1_ENCODING *asn1_get_enc_ptr(ASN1_VALUE **pval, const ASN1_ITEM *it) {
 }
 
 void asn1_enc_init(ASN1_VALUE **pval, const ASN1_ITEM *it) {
-  ASN1_ENCODING *enc;
-  enc = asn1_get_enc_ptr(pval, it);
+  ASN1_ENCODING *enc = asn1_get_enc_ptr(pval, it);
   if (enc) {
     enc->enc = NULL;
     enc->len = 0;
-    enc->alias_only = 0;
-    enc->alias_only_on_next_parse = 0;
-    enc->modified = 1;
+    enc->buf = NULL;
   }
 }
 
 void asn1_enc_free(ASN1_VALUE **pval, const ASN1_ITEM *it) {
-  ASN1_ENCODING *enc;
-  enc = asn1_get_enc_ptr(pval, it);
+  ASN1_ENCODING *enc = asn1_get_enc_ptr(pval, it);
   if (enc) {
-    if (!enc->alias_only) {
-      OPENSSL_free(enc->enc);
-    }
-    enc->enc = NULL;
-    enc->len = 0;
-    enc->alias_only = 0;
-    enc->alias_only_on_next_parse = 0;
-    enc->modified = 1;
+    asn1_encoding_clear(enc);
   }
 }
 
-int asn1_enc_save(ASN1_VALUE **pval, const unsigned char *in, int inlen,
-                  const ASN1_ITEM *it) {
+int asn1_enc_save(ASN1_VALUE **pval, const uint8_t *in, size_t in_len,
+                  const ASN1_ITEM *it, CRYPTO_BUFFER *buf) {
   ASN1_ENCODING *enc;
   enc = asn1_get_enc_ptr(pval, it);
   if (!enc) {
     return 1;
   }
 
-  if (!enc->alias_only) {
-    OPENSSL_free(enc->enc);
-  }
-
-  enc->alias_only = enc->alias_only_on_next_parse;
-  enc->alias_only_on_next_parse = 0;
-
-  if (enc->alias_only) {
+  asn1_encoding_clear(enc);
+  if (buf != NULL) {
+    assert(CRYPTO_BUFFER_data(buf) <= in &&
+           in + in_len <= CRYPTO_BUFFER_data(buf) + CRYPTO_BUFFER_len(buf));
+    CRYPTO_BUFFER_up_ref(buf);
+    enc->buf = buf;
     enc->enc = (uint8_t *)in;
   } else {
-    enc->enc = OPENSSL_malloc(inlen);
+    enc->enc = OPENSSL_memdup(in, in_len);
     if (!enc->enc) {
       return 0;
     }
-    OPENSSL_memcpy(enc->enc, in, inlen);
   }
 
-  enc->len = inlen;
-  enc->modified = 0;
-
+  enc->len = in_len;
   return 1;
+}
+
+void asn1_encoding_clear(ASN1_ENCODING *enc) {
+  if (enc->buf != NULL) {
+    CRYPTO_BUFFER_free(enc->buf);
+  } else {
+    OPENSSL_free(enc->enc);
+  }
+  enc->enc = NULL;
+  enc->len = 0;
+  enc->buf = NULL;
 }
 
 int asn1_enc_restore(int *len, unsigned char **out, ASN1_VALUE **pval,
                      const ASN1_ITEM *it) {
-  ASN1_ENCODING *enc;
-  enc = asn1_get_enc_ptr(pval, it);
-  if (!enc || enc->modified) {
+  ASN1_ENCODING *enc = asn1_get_enc_ptr(pval, it);
+  if (!enc || enc->len == 0) {
     return 0;
   }
   if (out) {
@@ -207,11 +202,7 @@ int asn1_enc_restore(int *len, unsigned char **out, ASN1_VALUE **pval,
 
 // Given an ASN1_TEMPLATE get a pointer to a field
 ASN1_VALUE **asn1_get_field_ptr(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt) {
-  ASN1_VALUE **pvaltmp;
-  if (tt->flags & ASN1_TFLG_COMBINE) {
-    return pval;
-  }
-  pvaltmp = offset2ptr(*pval, tt->offset);
+  ASN1_VALUE **pvaltmp = offset2ptr(*pval, tt->offset);
   // NOTE for BOOLEAN types the field is just a plain int so we can't return
   // int **, so settle for (int *).
   return pvaltmp;

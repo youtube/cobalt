@@ -23,7 +23,7 @@
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/media/player/web_media_player.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
 namespace cobalt {

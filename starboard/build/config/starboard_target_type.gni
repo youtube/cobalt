@@ -59,9 +59,10 @@ template("starboard_platform_target") {
       public_deps += [ "//$starboard_path:starboard_platform" ]
     }
     if (sb_is_modular) {
-      # For modular builds (including Evergreen), include POSIX wrappers that
+      # For modular builds (including Evergreen), include POSIX ABI wrappers that
       # handle cross-compatibility with musl-based Cobalt code.
-      public_deps += [ "//starboard/shared/modular:posix_wrappers" ]
+      public_deps +=
+          [ "//starboard/shared/modular:starboard_layer_posix_abi_wrappers" ]
     }
   }
 }

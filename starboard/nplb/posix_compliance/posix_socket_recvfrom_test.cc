@@ -15,15 +15,7 @@
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
 
-#include <ifaddrs.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-#include "starboard/common/time.h"
-#include "starboard/nplb/socket_helpers.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 
 namespace starboard {
 namespace nplb {

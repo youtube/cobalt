@@ -152,10 +152,12 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_mutex_acquire_try_test.cc",
     "posix_compliance/posix_mutex_create_test.cc",
     "posix_compliance/posix_mutex_destroy_test.cc",
+    "posix_compliance/posix_once_test.cc",
     "posix_compliance/posix_socket_accept_test.cc",
     "posix_compliance/posix_socket_bind_test.cc",
     "posix_compliance/posix_socket_connect_test.cc",
     "posix_compliance/posix_socket_create_test.cc",
+    "posix_compliance/posix_socket_helpers.cc",
     "posix_compliance/posix_socket_listen_test.cc",
     "posix_compliance/posix_socket_receive_test.cc",
     "posix_compliance/posix_socket_recvfrom_test.cc",
@@ -288,6 +290,10 @@ target(gtest_target_type, "nplb") {
 
   if (sb_enable_cpp17_audit) {
     deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
+  }
+
+  if (sb_enable_cpp20_audit) {
+    deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
   }
 
   data_deps = [

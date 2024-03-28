@@ -1,0 +1,20 @@
+include_rules = [
+  "+base",
+  "+cc/base",
+  "+cc/paint",
+  "+device/vr/buildflags/buildflags.h",
+  "+skia/ext",
+  "+third_party/harfbuzz-ng",
+  "+third_party/skia",
+  "+third_party/test_fonts",
+  "+ui/ios",
+  "+ui/ozone/buildflags.h",
+
+  "-testing/gmock",
+]
+
+specific_include_rules = {
+  "delegated_ink_point\.h" : [
+    "+mojo/public/cpp/bindings/struct_traits.h",
+  ],
+}

@@ -25,6 +25,7 @@ group("gn_all") {
     "//starboard/client_porting/eztime",
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
+    "//starboard/examples/glclear:starboard_glclear_example",
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
@@ -33,10 +34,6 @@ group("gn_all") {
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
   ]
-
-  if (gl_type != "none") {
-    deps += [ "//starboard/examples/glclear:starboard_glclear_example" ]
-  }
 
   if (has_platform_targets) {
     deps += [ "//$starboard_path/platform_targets" ]
@@ -97,6 +94,7 @@ group("default") {
 }
 
 group("starboard_group") {
+  deps = []
   public_deps = [
     ":starboard_headers_only",
     "//starboard/client_porting/cwrappers",
@@ -110,6 +108,21 @@ group("starboard_group") {
       "//third_party/llvm-project/libcxxabi:cxxabi",
       "//third_party/musl:c",
     ]
+
+    if (!sb_is_evergreen) {
+      # For modular builds, we need to wrap any POSIX APIs that may not be ABI
+      # equivalent across the Cobalt toolchain and the platform toolchain. For
+      # non-Evergreen builds, this is done via the below wrapper implementations
+      # of the API functions, which will simply call a renamed version of the
+      # function that will be implemented in the Starboard shared library. The
+      # same behavior is achieved in Evergreen via exported_symbols.cc remapping
+      # the functions to the same renamed version. In both cases, implementation
+      # of these renamed functions will handle translating data types across the
+      # ABI boundary and be compiled into the Starboard shared library in
+      # //starboard/build/config/starboard_target_type.gni.
+      deps += [ "//starboard/shared/modular:cobalt_layer_posix_abi_wrappers" ]
+    }
+
     if (sb_is_evergreen) {
       # public_deps += [ "//starboard/elf_loader:sabi_string" ]
     } else {
