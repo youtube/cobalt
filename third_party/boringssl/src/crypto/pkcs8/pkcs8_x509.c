@@ -334,7 +334,6 @@ static int parse_bag_attributes(CBS *attrs, uint8_t **out_friendly_name,
       // Convert the friendly name to UTF-8.
       CBB cbb;
       if (!CBB_init(&cbb, CBS_len(&value))) {
-        OPENSSL_PUT_ERROR(PKCS8, ERR_R_MALLOC_FAILURE);
         goto err;
       }
       while (CBS_len(&value) != 0) {
@@ -347,7 +346,6 @@ static int parse_bag_attributes(CBS *attrs, uint8_t **out_friendly_name,
         }
       }
       if (!CBB_finish(&cbb, out_friendly_name, out_friendly_name_len)) {
-        OPENSSL_PUT_ERROR(PKCS8, ERR_R_MALLOC_FAILURE);
         CBB_cleanup(&cbb);
         goto err;
       }
@@ -782,7 +780,9 @@ PKCS12* d2i_PKCS12_bio(BIO *bio, PKCS12 **out_p12) {
   }
 
   for (;;) {
-    int n = BIO_read(bio, &buf->data[used], buf->length - used);
+    size_t max_read = buf->length - used;
+    int n = BIO_read(bio, &buf->data[used],
+                     max_read > INT_MAX ? INT_MAX : (int)max_read);
     if (n < 0) {
       if (used == 0) {
         goto out;
@@ -844,7 +844,6 @@ int i2d_PKCS12(const PKCS12 *p12, uint8_t **out) {
   if (*out == NULL) {
     *out = OPENSSL_malloc(p12->ber_len);
     if (*out == NULL) {
-      OPENSSL_PUT_ERROR(PKCS8, ERR_R_MALLOC_FAILURE);
       return -1;
     }
     OPENSSL_memcpy(*out, p12->ber_bytes, p12->ber_len);
@@ -885,7 +884,6 @@ int PKCS12_parse(const PKCS12 *p12, const char *password, EVP_PKEY **out_pkey,
   if (!ca_certs) {
     ca_certs = sk_X509_new_null();
     if (ca_certs == NULL) {
-      OPENSSL_PUT_ERROR(PKCS8, ERR_R_MALLOC_FAILURE);
       return 0;
     }
     ca_certs_alloced = 1;

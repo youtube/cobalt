@@ -300,8 +300,8 @@ static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
 // Returns ownership of |decode_target| to the Starboard implementation.
 // This function will likely result in the destruction of the SbDecodeTarget and
 // all its associated surfaces, though in some cases, platforms may simply
-// adjust a reference count.  In the case where SB_HAS(GLES2), this function
-// must be called on a thread with the context
+// adjust a reference count.  This function must be called on a thread with
+// the context
 SB_EXPORT void SbDecodeTargetRelease(SbDecodeTarget decode_target);
 
 // Writes all information about |decode_target| into |out_info|.
@@ -311,7 +311,6 @@ SB_EXPORT void SbDecodeTargetRelease(SbDecodeTarget decode_target);
 SB_EXPORT bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
                                      SbDecodeTargetInfo* out_info);
 
-#if SB_HAS(GLES2)
 // Inline convenience function to run an arbitrary
 // SbDecodeTargetGlesContextRunnerTarget function through a
 // SbDecodeTargetGraphicsContextProvider.  This is intended to be called by
@@ -341,8 +340,6 @@ static SB_C_INLINE void SbDecodeTargetReleaseInGlesContext(
                                  // Nolint on reinterpret_cast, C shared code
                                  (void*)decode_target);  // NOLINT
 }
-
-#endif  // SB_HAS(GLES2)
 
 #ifdef __cplusplus
 }  // extern "C"

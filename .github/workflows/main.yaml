@@ -29,6 +29,11 @@ on:
         required: false
         type: boolean
         default: false
+      keep_artifacts:
+        description: 'Which artifacts to keep for releases'
+        required: false
+        type: string
+        default: ''
 
 # Global env vars.
 env:
@@ -238,6 +243,15 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v4
+        if: inputs.keep_artifacts
+        with:
+          name: ${{ matrix.platform }}-${{ matrix.config }}
+          path: out/${{ matrix.platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
+          retention-days: 7
+          compression-level: 0 # We expect kept artifacts to be already compressed
+          if-no-files-found: error
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector

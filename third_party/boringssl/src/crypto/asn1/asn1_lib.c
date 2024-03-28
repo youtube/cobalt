@@ -111,20 +111,10 @@ int ASN1_get_object(const unsigned char **inp, long *out_len, int *out_tag,
     return 0x80;
   }
 
-  // TODO(https://crbug.com/boringssl/354): This should use |CBS_get_asn1| to
-  // reject non-minimal lengths, which are only allowed in BER. However,
-  // Android sometimes needs allow a non-minimal length in certificate
-  // signature fields (see b/18228011). Make this only apply to that field,
-  // while requiring DER elsewhere. Better yet, it should be limited to an
-  // preprocessing step in that part of Android.
-  unsigned tag;
-  size_t header_len;
-  int indefinite;
+  CBS_ASN1_TAG tag;
   CBS cbs, body;
   CBS_init(&cbs, *inp, (size_t)in_len);
-  if (!CBS_get_any_ber_asn1_element(&cbs, &body, &tag, &header_len,
-                                    /*out_ber_found=*/NULL, &indefinite) ||
-      indefinite || !CBS_skip(&body, header_len) ||
+  if (!CBS_get_any_asn1(&cbs, &body, &tag) ||
       // Bound the length to comfortably fit in an int. Lengths in this
       // module often switch between int and long without overflow checks.
       CBS_len(&body) > INT_MAX / 2) {
@@ -271,19 +261,27 @@ ASN1_STRING *ASN1_STRING_dup(const ASN1_STRING *str) {
   return ret;
 }
 
-int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len) {
-  unsigned char *c;
+int ASN1_STRING_set(ASN1_STRING *str, const void *_data, ossl_ssize_t len_s) {
   const char *data = _data;
-
-  if (len < 0) {
+  size_t len;
+  if (len_s < 0) {
     if (data == NULL) {
       return 0;
-    } else {
-      len = strlen(data);
     }
+    len = strlen(data);
+  } else {
+    len = (size_t)len_s;
   }
-  if ((str->length <= len) || (str->data == NULL)) {
-    c = str->data;
+
+  // |ASN1_STRING| cannot represent strings that exceed |int|, and we must
+  // reserve space for a trailing NUL below.
+  if (len > INT_MAX || len + 1 < len) {
+    OPENSSL_PUT_ERROR(ASN1, ERR_R_OVERFLOW);
+    return 0;
+  }
+
+  if (str->length <= (int)len || str->data == NULL) {
+    unsigned char *c = str->data;
     if (c == NULL) {
       str->data = OPENSSL_malloc(len + 1);
     } else {
@@ -291,15 +289,17 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len) {
     }
 
     if (str->data == NULL) {
-      OPENSSL_PUT_ERROR(ASN1, ERR_R_MALLOC_FAILURE);
       str->data = c;
       return 0;
     }
   }
-  str->length = len;
+  str->length = (int)len;
   if (data != NULL) {
     OPENSSL_memcpy(str->data, data, len);
-    // an allowance for strings :-)
+    // Historically, OpenSSL would NUL-terminate most (but not all)
+    // |ASN1_STRING|s, in case anyone accidentally passed |str->data| into a
+    // function expecting a C string. We retain this behavior for compatibility,
+    // but code must not rely on this. See CVE-2021-3712.
     str->data[len] = '\0';
   }
   return 1;
@@ -320,7 +320,6 @@ ASN1_STRING *ASN1_STRING_type_new(int type) {
 
   ret = (ASN1_STRING *)OPENSSL_malloc(sizeof(ASN1_STRING));
   if (ret == NULL) {
-    OPENSSL_PUT_ERROR(ASN1, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
   ret->length = 0;

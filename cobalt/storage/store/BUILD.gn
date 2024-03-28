@@ -12,15 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//third_party/protobuf/proto_library.gni")
+
+proto_library("storage_proto") {
+  sources = [ "storage.proto" ]
+  generate_python = false
+}
+
 static_library("memory_store") {
   sources = [
     "memory_store.cc",
     "memory_store.h",
-    "storage.pb.cc",
-    "storage.pb.h",
   ]
 
   deps = [
+    ":storage_proto",
     "//cobalt/base",
     "//cobalt/loader:origin",
     "//cobalt/storage:storage_constants",
@@ -37,6 +43,7 @@ target(gtest_target_type, "memory_store_test") {
 
   deps = [
     ":memory_store",
+    ":storage_proto",
     "//cobalt/base",
     "//cobalt/storage:storage_constants",
     "//cobalt/test:run_all_unittests",

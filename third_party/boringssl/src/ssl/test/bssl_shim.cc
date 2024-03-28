@@ -583,16 +583,14 @@ static bool CheckHandshakeProperties(SSL *ssl, bool is_resume,
   }
 
   uint16_t cipher_id = SSL_CIPHER_get_protocol_id(SSL_get_current_cipher(ssl));
-  if (config->expect_cipher_aes != 0 &&
-      EVP_has_aes_hardware() &&
+  if (config->expect_cipher_aes != 0 && EVP_has_aes_hardware() &&
       config->expect_cipher_aes != cipher_id) {
     fprintf(stderr, "Cipher ID was %04x, wanted %04x (has AES hardware)\n",
             cipher_id, config->expect_cipher_aes);
     return false;
   }
 
-  if (config->expect_cipher_no_aes != 0 &&
-      !EVP_has_aes_hardware() &&
+  if (config->expect_cipher_no_aes != 0 && !EVP_has_aes_hardware() &&
       config->expect_cipher_no_aes != cipher_id) {
     fprintf(stderr, "Cipher ID was %04x, wanted %04x (no AES hardware)\n",
             cipher_id, config->expect_cipher_no_aes);
@@ -663,6 +661,12 @@ static bool CheckHandshakeProperties(SSL *ssl, bool is_resume,
   if (config->expect_ech_accept != !!SSL_ech_accepted(ssl)) {
     fprintf(stderr, "ECH was %saccepted, but wanted opposite.\n",
             SSL_ech_accepted(ssl) ? "" : "not ");
+    return false;
+  }
+
+  if (config->expect_key_usage_invalid != !!SSL_was_key_usage_invalid(ssl)) {
+    fprintf(stderr, "X.509 key usage was %svalid, but wanted opposite.\n",
+            SSL_was_key_usage_invalid(ssl) ? "in" : "");
     return false;
   }
 

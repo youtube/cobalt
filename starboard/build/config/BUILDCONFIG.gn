@@ -165,6 +165,8 @@ default_compiler_configs = [
   "//starboard/build/config:target",
   "//starboard/build/config:warnings_as_errors",
   "//starboard/build/config:default_compiler_flags",
+  "//starboard/build/config:default_cpp_standard",
+  "//build/config/compiler:thin_archive",
   "//build/config/compiler:default_optimization",
   "//build/config/compiler:chromium_code",
   "//build/config/sanitizers:default_sanitizer_flags",
