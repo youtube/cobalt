@@ -1,0 +1,22 @@
+name: "libwebm"
+description:
+    "WebM File Parser."
+
+third_party {
+  url {
+    type: HOMEPAGE
+    value: "https://chromium.googlesource.com/webm/libwebm/"
+  }
+  url {
+    type: ARCHIVE
+    value: "https://chromium.googlesource.com/webm/libwebm/+archive/e4fbea0c9751ae8aa86629b197a28d8276a2b0da.tar.gz"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/webm/libwebm.git"
+  }
+  version: "e4fbea0c9751ae8aa86629b197a28d8276a2b0da"
+  # from https://chromium.googlesource.com/chromium/src/+/refs/tags/96.0.4664.219/DEPS#1308
+  last_upgrade_date { year: 2024 month: 3 day: 26 }
+  license_type: NOTICE
+}
