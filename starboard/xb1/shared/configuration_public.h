@@ -72,10 +72,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM __declspec(dllimport)
 
-// --- Graphics Configuration ------------------------------------------------
-
-#define SB_HAS_VIRTUAL_REALITY 0
-
 // --- I/O Configuration -----------------------------------------------------
 
 // Whether the current platform has speech synthesis.

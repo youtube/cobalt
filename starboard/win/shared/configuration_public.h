@@ -73,10 +73,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- Graphics Configuration ------------------------------------------------
-
-#define SB_HAS_VIRTUAL_REALITY 0
-
 // --- I/O Configuration -----------------------------------------------------
 
 // Whether the current platform supports on screen keyboard.

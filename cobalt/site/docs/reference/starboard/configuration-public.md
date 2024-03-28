@@ -30,13 +30,6 @@ Book: /youtube/cobalt/_book.yaml
 | **`SB_HAS_QUIRK_HASH_FILE_NAME`**<br><br>On some platforms the file system cannot access extremely long file names. We do not need this feature on stub.<br><br>By default, this property is undefined. |
 
 
-## Graphics Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_VIRTUAL_REALITY`**<br><br>The default value in the Stub implementation is `1` |
-
-
 ## I/O Configuration
 
 | Properties |
