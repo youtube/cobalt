@@ -29,7 +29,6 @@ exclude: |
             third_party|
             tools/gyp|
             tools/python|
-            ui|
             url
         )/
         |

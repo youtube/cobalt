@@ -40,7 +40,7 @@
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #include "third_party/chromium/media/base/timestamp_constants.h"
-#include "ui/gfx/geometry/size.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {

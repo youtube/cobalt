@@ -24,7 +24,7 @@
 #include "cobalt/media/media_module.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "ui/gfx/geometry/size.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {

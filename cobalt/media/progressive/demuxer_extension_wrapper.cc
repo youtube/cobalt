@@ -28,11 +28,11 @@
 #include "third_party/chromium/media/base/sample_format.h"
 #include "third_party/chromium/media/base/starboard_utils.h"
 #include "third_party/chromium/media/base/video_types.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/color_space.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 #include "third_party/chromium/media/filters/h264_to_annex_b_bitstream_converter.h"
 #include "third_party/chromium/media/formats/mp4/box_definitions.h"
-#include "ui/gfx/color_space.h"
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
