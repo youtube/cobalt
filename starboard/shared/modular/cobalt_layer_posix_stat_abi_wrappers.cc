@@ -12,22 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_POSIX_EMU_SYS_STAT_H_
-#define STARBOARD_ANDROID_SHARED_POSIX_EMU_SYS_STAT_H_
+#if SB_API_VERSION >= 16
 
-#include <../../usr/include/sys/stat.h>  // The Android version of this same file
+#include <sys/stat.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-int sb_stat(const char* path, struct stat* info);
-
-#undef stat
-#define stat sb_stat
-
-#ifdef __cplusplus
+int stat(const char* path, struct musl_stat* info) {
+  return __abi_wrap_stat(path, info);
 }
-#endif  // __cplusplus
+}
 
-#endif  // STARBOARD_ANDROID_SHARED_POSIX_EMU_SYS_STAT_H_
+#endif  // SB_API_VERSION >= 16

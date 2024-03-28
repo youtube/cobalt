@@ -13,9 +13,6 @@
 // limitations under the License.
 
 #include <sys/stat.h>
-// Undef alias to `stat` and pull in the system-level header so we can use it
-#undef stat
-#include <../../usr/include/sys/stat.h>
 
 #include <android/asset_manager.h>
 
@@ -31,6 +28,7 @@ using starboard::android::shared::OpenAndroidAsset;
 ///////////////////////////////////////////////////////////////////////////////
 
 extern "C" {
+int __real_stat(const char* path, struct stat* info);
 
 // Reverse implementation of TimeTToWindowsUsec and PosixTimeToWindowsTime for
 // backwards compatibility TimeTToWindowsUsec converts to microseconds
@@ -57,10 +55,10 @@ static void MapSbFileInfoToStat(SbFileInfo* file_info, struct stat* stat_info) {
 }
 
 // This needs to be exported to ensure shared_library targets include it.
-int sb_stat(const char* path, struct stat* info) {
+int __wrap_stat(const char* path, struct stat* info) {
   // SbFileExists(path) implementation for Android
   if (!IsAndroidAssetPath(path)) {
-    return stat(path, info);  // Using system level stat call
+    return __real_stat(path, info);  // Using system level stat call
   }
 
   SbFile file = SbFileOpen(path, kSbFileRead | kSbFileOpenOnly, NULL, NULL);

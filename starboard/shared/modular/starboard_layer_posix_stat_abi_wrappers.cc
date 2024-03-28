@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/modular/posix_stat_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 
-int __wrap_stat(const char* path, struct musl_stat* musl_info) {
+int __abi_wrap_stat(const char* path, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
   int retval = stat(path, &stat_info);
 

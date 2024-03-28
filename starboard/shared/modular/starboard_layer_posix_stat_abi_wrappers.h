@@ -21,14 +21,14 @@
 // Cobalt code compiled with musl it will provide argument data that needs
 // to be adjusted when passed to platform-specific system libraries.
 
-#ifndef STARBOARD_SHARED_MODULAR_POSIX_STAT_WRAPPERS_H_
-#define STARBOARD_SHARED_MODULAR_POSIX_STAT_WRAPPERS_H_
+#ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_STAT_ABI_WRAPPERS_H_
+#define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_STAT_ABI_WRAPPERS_H_
 
 #include <sys/stat.h>  // This should be the headers from the platform toolchain
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
-#include "starboard/shared/modular/posix_time_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,10 +75,10 @@ struct musl_stat {
 #endif
 };
 
-SB_EXPORT int __wrap_stat(const char* path, struct musl_stat* info);
+SB_EXPORT int __abi_wrap_stat(const char* path, struct musl_stat* info);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_SHARED_MODULAR_POSIX_STAT_WRAPPERS_H_
+#endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_STAT_ABI_WRAPPERS_H_

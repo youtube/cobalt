@@ -25,7 +25,6 @@
 #include "starboard/common/string.h"
 #include "starboard/log.h"
 #include "starboard/shared/environment.h"
-#include "starboard/shared/modular/posix_stat_wrappers.h"
 
 namespace {
 
