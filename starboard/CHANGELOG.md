@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed `QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES`
+This configuration is not used in Cobalt.
+
 ## Removed `QUIRK_SOCKET_BSD_HEADERS` configuration
 This config flag is unused.
 

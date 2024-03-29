@@ -3,13 +3,6 @@ Book: /youtube/cobalt/_book.yaml
 
 # Starboard Configuration Reference Guide
 
-## Architecture Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES`**<br><br>Some platforms will not align variables on the stack with an alignment greater than 16 bytes. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
-
-
 ## Compiler Configuration
 
 | Properties |

@@ -103,7 +103,4 @@
 // by over 16 bytes.
 #define SB_HAS_QUIRK_DOES_NOT_ALIGN_FIELDS_IN_HEAP_OVER_16_BYTES 1
 
-// The Raspberry Pi does not apparently align stack variables by over 16 bytes.
-#define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
-
 #endif  // STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_

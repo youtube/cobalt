@@ -22,13 +22,6 @@
 #ifndef STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
-// Some platforms will not align variables on the stack with an alignment
-// greater than 16 bytes. Platforms where this is the case should define the
-// following quirk.
-#undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
