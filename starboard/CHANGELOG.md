@@ -12,6 +12,9 @@ since the version previous to it.
 ## Removed `QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES`
 This configuration is not used in Cobalt.
 
+## Removed `QUIRK_SOCKET_BSD_HEADERS` configuration
+This config flag is unused.
+
 ## Removed `SB_HAS_SPEECH_SYNTHESIS` configuration
 This configuration has been replaced by `SbSpeechSynthesisIsSupported()`
 
