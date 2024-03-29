@@ -41,10 +41,7 @@
 #include "cobalt/speech/speech_recognition_error.h"
 #include "net/base/escape.h"
 #include "net/url_request/url_fetcher.h"
-
-#if defined(SB_USE_SB_MICROPHONE)
 #include "starboard/system.h"
-#endif  // defined(SB_USE_SB_MICROPHONE)
 
 namespace cobalt {
 namespace speech {
