@@ -85,11 +85,10 @@ config("host") {
       cflags = [
         "/wd4267",  # Possible loss of precision from size_t to a smaller type.
         "/wd4715",  # Not all control paths return value.
-        "/std:c++17",
       ]
+      configs = [ ":win_cpp_config" ]
     } else if (is_apple) {
-      cflags_cc = [ "-std=gnu++17" ]
-      cflags_objcc = [ "-std=gnu++17" ]
+      configs = [ ":apple_cpp_config" ]
     }
   }
 }
@@ -241,20 +240,17 @@ config("default_cpp_standard") {
   if (current_toolchain == default_toolchain) {
     if (sb_is_modular || is_android) {
       cflags_cc = [ "-std=c++17" ]
-    }
-
-    # These flags apply to non-modular windows platforms which includes win32, xb1.
-    if (is_host_win && !sb_is_modular) {
-      cflags = [ "/std:c++17" ]
-    }
-
-    if (is_linux && !sb_is_modular) {
+    } else if (is_host_win && !sb_is_modular) {
+      # These flags apply to non-modular windows platforms which includes win32, xb1.
+      configs = [ ":win_cpp_config" ]
+    } else if (is_linux && !sb_is_modular) {
       cflags_cc = [ "-std=gnu++17" ]
-    }
-
-    if (is_apple) {
-      cflags_cc = [ "-std=gnu++17" ]
-      cflags_objcc = [ "-std=gnu++17" ]
+    } else if (is_apple) {
+      configs = [ ":apple_cpp_config" ]
+    } else {
+      assert(
+          false,
+          "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
     }
   }
 }
@@ -263,20 +259,27 @@ config("cpp20_supported_config") {
   if (current_toolchain == default_toolchain) {
     if (sb_is_modular || is_android) {
       cflags_cc = [ "-std=c++20" ]
-    }
-
-    # These flags apply to non-modular windows platforms which includes win32, xb1.
-    if (is_host_win && !sb_is_modular) {
+    } else if (is_host_win && !sb_is_modular) {
+      # These flags apply to non-modular windows platforms which includes win32, xb1.
       cflags = [ "/std:c++20" ]
-    }
-
-    if (is_linux && !sb_is_modular) {
+    } else if (is_linux && !sb_is_modular) {
       cflags_cc = [ "-std=gnu++20" ]
-    }
-
-    if (is_apple) {
+    } else if (is_apple) {
       cflags_cc = [ "-std=gnu++20" ]
       cflags_objcc = [ "-std=gnu++20" ]
+    } else {
+      assert(
+          false,
+          "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
     }
   }
+}
+
+config("win_cpp_config") {
+  cflags = [ "/std:c++17" ]
+}
+
+config("apple_cpp_config") {
+  cflags_cc = [ "-std=gnu++17" ]
+  cflags_objcc = [ "-std=gnu++17" ]
 }
