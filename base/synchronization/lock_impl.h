@@ -159,9 +159,7 @@ class SCOPED_LOCKABLE BasicAutoLock {
     lock_.AssertAcquired();
   }
 
-#ifndef USE_HACKY_COBALT_CHANGES
   BasicAutoLock(const BasicAutoLock&) = delete;
-#endif
   BasicAutoLock& operator=(const BasicAutoLock&) = delete;
 
   ~BasicAutoLock() UNLOCK_FUNCTION() {

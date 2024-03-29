@@ -159,10 +159,11 @@ class ServiceWorkerJobs {
 
     // Also return a held autolock, to ensure the item remains a valid item in
     // the queue while it's in use.
-    std::pair<Job*, base::AutoLock> LastItem() {
-      base::AutoLock lock(mutex_);
+    std::pair<Job*, std::unique_ptr<base::AutoLock>> LastItem() {
+      auto lock = std::make_unique<base::AutoLock>(mutex_);
       Job* job = jobs_.empty() ? nullptr : jobs_.back().get();
-      return std::pair<Job*, base::AutoLock>(job, std::move(lock));
+      return std::pair<Job*, std::unique_ptr<base::AutoLock>>(job,
+                                                              std::move(lock));
     }
 
     // Ensure no references are kept to JS objects for a client that is about to
