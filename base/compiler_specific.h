@@ -449,4 +449,9 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #define FALLTHROUGH
 #endif
 
+#if defined(USE_HACKY_COBALT_CHANGES)
+#define ALLOW_UNUSED_TYPE
+#define WARN_UNUSED_RESULT
+#endif
+
 #endif  // BASE_COMPILER_SPECIFIC_H_

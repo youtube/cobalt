@@ -3986,9 +3986,8 @@ TEST_F(FileUtilTest, ReadStreamToString) {
   EXPECT_TRUE(ReadStreamToString(stream.get(), &contents));
   EXPECT_EQ(contents, std::string("there"));
 }
-#endif  // !defined(STARBOARD)
 
-#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
 TEST_F(FileUtilTest, ReadStreamToString_ZeroLengthFile) {
   Thread write_thread("write thread");
   ASSERT_TRUE(write_thread.Start());
@@ -4019,9 +4018,8 @@ TEST_F(FileUtilTest, ReadStreamToString_ZeroLengthFile) {
     EXPECT_EQ(contents, random_data);
   }
 }
-#endif  // BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#endif  // BUILDFLAG(IS_POSIX)
 
-#if !defined(STARBOARD)
 TEST_F(FileUtilTest, ReadStreamToStringWithMaxSize) {
   ScopedFILE stream(
       OpenFile(temp_dir_.GetPath().Append(FPL("hello.txt")), "wb+"));
@@ -4034,12 +4032,12 @@ TEST_F(FileUtilTest, ReadStreamToStringWithMaxSize) {
   std::string contents;
   EXPECT_FALSE(ReadStreamToStringWithMaxSize(stream.get(), 2, &contents));
 }
-#endif  // !defined(STARBOARD)
 
 TEST_F(FileUtilTest, ReadStreamToStringNullStream) {
   std::string contents;
   EXPECT_FALSE(ReadStreamToString(nullptr, &contents));
 }
+#endif  // !defined(STARBOARD)
 
 // Starboard does not support |base::File::SetTimes()|.
 #if !defined(STARBOARD)
