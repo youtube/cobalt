@@ -29,10 +29,12 @@ group("gn_all") {
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
-    "//starboard/loader_app:app_key_files_test",
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
   ]
+  if (sb_is_evergreen_compatible) {
+    deps += [ "//starboard/loader_app:app_key_files_test" ]
+  }
 
   if (has_platform_targets) {
     deps += [ "//$starboard_path/platform_targets" ]
@@ -68,6 +70,7 @@ group("gn_all") {
     deps += [ "//third_party/lz4_lib:lz4" ]
 
     if (sb_is_evergreen_compatible) {
+      print("we can't be here")
       deps += [
         "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
         "//starboard/loader_app:slot_management_test_install($starboard_toolchain)",
