@@ -216,6 +216,21 @@ URLRequestContext::URLRequestContext(
     LoadDiskCacheQuotaSettings(cache_persistent_settings_.get(),
                                max_cache_bytes);
 
+    // Disable default http cache to use the one created by the supplied
+    // callback. |HttpCache| is an |HttpTransactionFactory| with an underlying
+    // |HttpTransactionFactory|.
+    //
+    // In |URLRequestContextBuilder|, first the |http_transaction_factory| is
+    // assigned by either the supplied creation callback, a test factory, or
+    // a default one.
+    //
+    // Then |URLRequestContextBuilder.http_cache_enabled_| is checked. When
+    // |true|, the |http_transaction_factory| is replaced with a default
+    // |HttpCache| wrapping the previously assign |http_transaction_factory|.
+    //
+    // We want to use the |HttpCache| created by the supplied callback, and we
+    // do not want it wrapped by the default |HttpCache|.
+    url_request_context_builder->DisableHttpCache();
     url_request_context_builder->SetCreateHttpTransactionFactoryCallback(
         base::BindOnce(
             [](persistent_storage::PersistentSettings* persistent_settings,
