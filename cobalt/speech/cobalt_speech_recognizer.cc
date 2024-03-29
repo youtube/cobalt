@@ -24,10 +24,8 @@
 #include "cobalt/speech/url_fetcher_fake.h"
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 #include "cobalt/speech/microphone_manager.h"
-#include "cobalt/speech/speech_recognition_error.h"
-#if defined(SB_USE_SB_MICROPHONE)
 #include "cobalt/speech/microphone_starboard.h"
-#endif  // defined(SB_USE_SB_MICROPHONE)
+#include "cobalt/speech/speech_recognition_error.h"
 #include "net/url_request/url_fetcher.h"
 
 namespace cobalt {
@@ -45,15 +43,10 @@ std::unique_ptr<net::URLFetcher> CreateURLFetcher(
 }
 
 std::unique_ptr<Microphone> CreateMicrophone(int buffer_size_bytes) {
-#if defined(SB_USE_SB_MICROPHONE)
   return std::unique_ptr<Microphone>(
       new MicrophoneStarboard(kSampleRate, buffer_size_bytes));
-#else
-  return std::unique_ptr<Microphone>();
-#endif  // defined(SB_USE_SB_MICROPHONE)
 }
 
-#if defined(SB_USE_SB_MICROPHONE)
 #if defined(ENABLE_FAKE_MICROPHONE)
 std::unique_ptr<net::URLFetcher> CreateFakeURLFetcher(
     const GURL& url, net::URLFetcher::RequestType request_type,
@@ -67,7 +60,6 @@ std::unique_ptr<Microphone> CreateFakeMicrophone(
   return std::unique_ptr<Microphone>(new MicrophoneFake(options));
 }
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
-#endif  // defined(SB_USE_SB_MICROPHONE)
 }  // namespace
 
 CobaltSpeechRecognizer::CobaltSpeechRecognizer(
@@ -80,7 +72,6 @@ CobaltSpeechRecognizer::CobaltSpeechRecognizer(
   MicrophoneManager::MicrophoneCreator microphone_creator =
       base::Bind(&CreateMicrophone);
 
-#if defined(SB_USE_SB_MICROPHONE)
 #if defined(ENABLE_FAKE_MICROPHONE)
   if (microphone_options.enable_fake_microphone) {
     // If fake microphone is enabled, fake URL fetchers should be enabled as
@@ -89,7 +80,6 @@ CobaltSpeechRecognizer::CobaltSpeechRecognizer(
     microphone_creator = base::Bind(&CreateFakeMicrophone, microphone_options);
   }
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
-#endif  // defined(SB_USE_SB_MICROPHONE)
 
   service_.reset(new GoogleSpeechService(
       network_module,
