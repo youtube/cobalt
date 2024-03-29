@@ -55,11 +55,6 @@
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
-// This quirk is used to switch the headers included in
-// starboard/shared/linux/socket_get_interface_address.cc for darwin system
-// headers. It may be removed at some point in favor of a different solution.
-#undef SB_HAS_QUIRK_SOCKET_BSD_HEADERS
-
 // --- Compiler Configuration ------------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
