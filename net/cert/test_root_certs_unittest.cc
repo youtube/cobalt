@@ -4,6 +4,7 @@
 
 #include "net/cert/test_root_certs.h"
 
+#include "starboard/common/log.h"
 #include "base/files/file_path.h"
 #include "build/build_config.h"
 #include "net/base/features.h"
@@ -93,12 +94,16 @@ TEST(TestRootCertsTest, OverrideTrust) {
   // certificate should not yet be trusted.
   int flags = 0;
   CertVerifyResult bad_verify_result;
+  SB_LOG(INFO) << "override trust 96";
   scoped_refptr<CertVerifyProc> verify_proc(CreateCertVerifyProc());
+  SB_LOG(INFO) << "override trust 99";
   int bad_status = verify_proc->Verify(
       test_cert.get(), "127.0.0.1", /*ocsp_response=*/std::string(),
       /*sct_list=*/std::string(), flags, CertificateList(), &bad_verify_result,
       NetLogWithSource());
+  SB_LOG(INFO) << "override trust 104";
   EXPECT_NE(OK, bad_status);
+  SB_LOG(INFO) << "override trust 106";
   EXPECT_NE(0u, bad_verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
   EXPECT_FALSE(bad_verify_result.is_issued_by_known_root);
 
@@ -106,8 +111,10 @@ TEST(TestRootCertsTest, OverrideTrust) {
   scoped_refptr<X509Certificate> root_cert =
       ImportCertFromFile(GetTestCertsDirectory(), kRootCertificateFile);
   ASSERT_TRUE(root_cert);
+  SB_LOG(INFO) << "override trust 114";
   ScopedTestRoot scoped_root(root_cert.get());
   EXPECT_FALSE(test_roots->IsEmpty());
+  SB_LOG(INFO) << "override trust 117";
 
   // Test that the certificate verification now succeeds, because the
   // TestRootCerts is successfully imbuing trust.
@@ -117,6 +124,7 @@ TEST(TestRootCertsTest, OverrideTrust) {
       /*sct_list=*/std::string(), flags, CertificateList(), &good_verify_result,
       NetLogWithSource());
   EXPECT_THAT(good_status, IsOk());
+  SB_LOG(INFO) << "override trust 126";
   EXPECT_EQ(0u, good_verify_result.cert_status);
   EXPECT_FALSE(good_verify_result.is_issued_by_known_root);
 
