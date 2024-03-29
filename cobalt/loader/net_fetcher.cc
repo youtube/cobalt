@@ -101,9 +101,17 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
 
   if (url.SchemeIsHTTPOrHTTPS()) {
     auto url_request_context = network_module->url_request_context();
-    std::string key = net::HttpUtil::SpecForRequest(url);
-    url_request_context->AssociateKeyWithResourceType(key,
-                                                      options.resource_type);
+    auto key = net::HttpCache::GenerateCacheKey(
+        url,
+        /*load_flags=*/0, net::NetworkIsolationKey(),
+        /*upload_data_identifier=*/0,
+        /*is_subframe_document_resource=*/false,
+        /*use_single_keyed_cache=*/false,
+        /*single_key_checksum=*/std::string());
+    if (key) {
+      url_request_context->AssociateKeyWithResourceType(key.value(),
+                                                        options.resource_type);
+    }
   }
 
   if ((request_cross_origin_ &&

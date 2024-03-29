@@ -3573,27 +3573,8 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(
   // net error is reported (even though the cert status contains the actual
   // errors) and no SSL blocking page is shown.  An alternative would be to
   // reverse-map the cert status to a net error and replay the net error.
-
-#if defined(STARBOARD)
-  // Only allow caching for specific mime types.
-  std::string mime_type;
-  response_.headers->GetMimeType(&mime_type);
-  bool is_allowed_mime_type = false;
-  for (auto allowed_type : kMimeTypesCacheAllowlist) {
-    if (mime_type.compare(allowed_type) == 0) {
-      is_allowed_mime_type = true;
-      break;
-    }
-  }
-
-  if (!is_allowed_mime_type ||
-      (response_.headers->HasHeaderValue("cache-control", "no-store")) ||
-      IsCertStatusError(response_.ssl_info.cert_status) ||
-      ShouldDisableCaching(*response.headers)) {
-#else
   if (IsCertStatusError(response.ssl_info.cert_status) ||
       ShouldDisableCaching(*response.headers)) {
-#endif
     if (partial_)
       partial_->FixResponseHeaders(response_.headers.get(), true);
 
@@ -4099,6 +4080,25 @@ bool HttpCache::Transaction::ShouldDisableCaching(
   if (headers.HasHeaderValue("cache-control", "no-store")) {
     return true;
   }
+
+#if defined(STARBOARD)
+  if (cache_.get() && cache_->can_disable_by_mime_type()) {
+    // Only allow caching for specific mime types.
+    std::string mime_type;
+    response_.headers->GetMimeType(&mime_type);
+    bool is_allowed_mime_type = false;
+    for (auto allowed_type : kMimeTypesCacheAllowlist) {
+      if (mime_type.compare(allowed_type) == 0) {
+        is_allowed_mime_type = true;
+        break;
+      }
+    }
+
+    if (!is_allowed_mime_type) {
+      return true;
+    }
+  }
+#endif
 
   bool disable_caching = false;
   if (base::FeatureList::IsEnabled(
