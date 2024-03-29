@@ -13,13 +13,6 @@ Book: /youtube/cobalt/_book.yaml
 | **`SB_EXPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as exported outside of the current shared library.<br><br>The default value in the Stub implementation is <br>`__attribute__((visibility("default")))` |
 | **`SB_IMPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as imported from outside of the current linking unit. |
 
-## Filesystem Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_QUIRK_FILESYSTEM_ZERO_FILEINFO_TIME`**<br><br>Some operating systems constantly return zero values for creation, access and modification time for files and directories. When this quirk is defined, we need to ignore corresponded time values in applications as well as take this fact into account in unit tests.<br><br>By default, this property is undefined. |
-| **`SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME`**<br><br>On some platforms the file system stores access times at a coarser granularity than other times. When this quirk is defined, we assume the access time is of 1 day precision.<br><br>By default, this property is undefined. |
-
 
 ## I/O Configuration
 

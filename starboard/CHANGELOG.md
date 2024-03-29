@@ -9,7 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
-## Removes `QUIRK_HASH_FILE_NAME`
+## Removed configs for `FILESYSTEM_ZERO_FILEINFO_TIME` and `COARSE_ACCESS_TIME`
+These are no longer used in Starboard and Cobalt.
+
+## Removed `QUIRK_HASH_FILE_NAME`
 No platforms are using this config anymore.
 
 ## Removed `QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES`
