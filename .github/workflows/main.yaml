@@ -122,11 +122,11 @@ jobs:
         run: |
           on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')
           echo "on_host_test_shards=${on_host_test_shards}" >> $GITHUB_ENV
-      - id: set-on-host-test-bootloader
+      - id: set-on-host-test-evergreen-loader
         shell: bash
         run: |
-          bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')
-          echo "bootloader=${bootloader}" >> $GITHUB_ENV
+          evergreen_loader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.evergreen_loader')
+          echo "evergreen_loader=${evergreen_loader}" >> $GITHUB_ENV
       - id: set-docker-service
         shell: bash
         run: |
@@ -139,7 +139,7 @@ jobs:
       on_device_test_attempts: ${{ env.on_device_test_attempts }}
       on_host_test: ${{ env.on_host_test }}
       on_host_test_shards: ${{ env.on_host_test_shards }}
-      bootloader: ${{ env.bootloader }}
+      evergreen_loader: ${{ env.evergreen_loader }}
       docker_service: ${{ env.docker_service }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
@@ -257,33 +257,33 @@ jobs:
         if: inputs.run_api_leak_detector
         with:
           relative_manifest_path: ${{ inputs.leak_manifest_filename }}
-      - name: Upload Nightly Artifacts
-        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
-        uses: ./.github/actions/upload_nightly_artifacts
       - name: Upload On Host Test Artifacts
         if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
           os: linux
-      # For some reason passing needs.initialize.outputs.bootloader as parameter to build
+      # For some reason passing needs.initialize.outputs.evergreen_loader as parameter to build
       # action didn't work, so instead we set an env var.
-      - name: Set bootloader config
-        if: ${{ needs.initialize.outputs.bootloader != 'null' }}
+      - name: Set Evergreen loader config
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' }}
         shell: bash
         run: |
            set -u
-           COBALT_BOOTLOADER="${{needs.initialize.outputs.bootloader}}"
-           echo "COBALT_BOOTLOADER=${COBALT_BOOTLOADER}" >> $GITHUB_ENV
-      # Build bootloader for on-host tests if necessary.
-      - name: Bootloader GN
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
+           COBALT_EVERGREEN_LOADER="${{needs.initialize.outputs.evergreen_loader}}"
+           echo "COBALT_EVERGREEN_LOADER=${COBALT_EVERGREEN_LOADER}" >> $GITHUB_ENV
+      # Build Evergreen loader for on-host tests if necessary.
+      - name: Evergreen loader GN
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
         uses: ./.github/actions/gn
-      - name: Build Bootloader
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
+      - name: Build Evergreen loader
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
         uses: ./.github/actions/build
-      - name: Upload Bootloader On Host Test Artifacts
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true'}}
+      - name: Upload Nightly Artifacts
+        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
+        uses: ./.github/actions/upload_nightly_artifacts
+      - name: Upload Evergreen loader On Host Test Artifacts
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true'}}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
@@ -324,7 +324,7 @@ jobs:
         shard: ${{ fromJson(needs.initialize.outputs.on_device_test).tests }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     env:
-      COBALT_BOOTLOADER: ${{ needs.initialize.outputs.bootloader }}
+      COBALT_EVERGREEN_LOADER: ${{ needs.initialize.outputs.evergreen_loader }}
       ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
@@ -357,7 +357,7 @@ jobs:
       # For some reason tests complaining about HOME set to /github/home
       # with permission denied error.
       HOME: /root
-      COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
+      COBALT_EVERGREEN_LOADER: ${{needs.initialize.outputs.evergreen_loader}}
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
       - name: Checkout
