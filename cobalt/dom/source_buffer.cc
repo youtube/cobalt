@@ -62,8 +62,8 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/web_settings.h"
-#include "third_party/chromium/media/base/ranges.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
+#include "media/base/ranges.h"
+#include "media/base/timestamp_constants.h"
 
 namespace cobalt {
 namespace dom {

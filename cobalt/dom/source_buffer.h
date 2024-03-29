@@ -72,9 +72,9 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/event_target.h"
+#include "media/base/media_tracks.h"
+#include "media/filters/chunk_demuxer.h"
 #include "starboard/common/mutex.h"
-#include "third_party/chromium/media/base/media_tracks.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {

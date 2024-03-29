@@ -35,9 +35,9 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
+#include "media/base/media_log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/player.h"
-#include "third_party/chromium/media/base/media_log.h"
 
 namespace cobalt {
 namespace media {
