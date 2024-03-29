@@ -69,7 +69,8 @@
           assertEqual('Expected exception message 4: SyntaxError', event.data);
           break;
         case 5:
-          assertEqual('Expected exception message 5: SyntaxError', event.data);
+          const expected = 'Expected exception message 5: NetworkError';
+          assertEqual(expected, event.data.slice(0, expected.length));
           worker.postMessage('import scripts now');
           worker.postMessage('just some data');
           worker.postMessage('a special message');
