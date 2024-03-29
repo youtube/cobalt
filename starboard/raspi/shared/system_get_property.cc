@@ -23,7 +23,6 @@
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/log.h"
 #include "starboard/shared/environment.h"
 
 namespace {
@@ -39,6 +38,7 @@ std::string GetModelName() {
   const char* file_path = "/proc/device-tree/model";
   // Size of the raw data
   size_t file_data_size;
+
   file_data_size = 0;
   // Get the size of the file by reading it until the end. This is
   // required because files under /proc do not always return a valid size

@@ -45,7 +45,6 @@ Build configurations for `SB_HAS_STD_UNORDERED_HASH`, `SB_HAS_LONG_LONG_HASH`,
  `SB_HASH_SET_INCLUDE` are fully removed. C++ standard `unordered_map` and
  `unordered_set` are used in all builds.
 
-
 ### Added standard POSIX socket getaddrinfo/freeaddrinfo APIs.
 The standard API `getaddrinfo` and `freeaddrinfo`, can be used from
 <netdb.h>.

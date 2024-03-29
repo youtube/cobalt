@@ -18,6 +18,10 @@ int __abi_wrap_stat(const char* path, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
   int retval = stat(path, &stat_info);
 
+  if (retval != 0 || musl_info == NULL) {
+    return -1;
+  }
+
   musl_info->st_size = stat_info.st_size;
   musl_info->st_mode = stat_info.st_mode;
 #if defined(_MSC_VER)
