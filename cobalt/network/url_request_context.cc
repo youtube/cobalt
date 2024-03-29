@@ -243,6 +243,7 @@ URLRequestContext::URLRequestContext(
                   std::make_unique<disk_cache::CobaltBackendFactory>(
                       base::FilePath(std::string(path.data())),
                       /* max_bytes */ max_cache_bytes, url_request_context));
+              http_cache->set_can_disable_by_mime_type(true);
               if (persistent_settings != nullptr) {
                 auto cache_enabled =
                     persistent_settings->GetPersistentSettingAsBool(
