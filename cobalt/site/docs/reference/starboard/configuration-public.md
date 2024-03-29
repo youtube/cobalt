@@ -19,7 +19,6 @@ Book: /youtube/cobalt/_book.yaml
 | :--- |
 | **`SB_HAS_QUIRK_FILESYSTEM_ZERO_FILEINFO_TIME`**<br><br>Some operating systems constantly return zero values for creation, access and modification time for files and directories. When this quirk is defined, we need to ignore corresponded time values in applications as well as take this fact into account in unit tests.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME`**<br><br>On some platforms the file system stores access times at a coarser granularity than other times. When this quirk is defined, we assume the access time is of 1 day precision.<br><br>By default, this property is undefined. |
-| **`SB_HAS_QUIRK_HASH_FILE_NAME`**<br><br>On some platforms the file system cannot access extremely long file names. We do not need this feature on stub.<br><br>By default, this property is undefined. |
 
 
 ## I/O Configuration
