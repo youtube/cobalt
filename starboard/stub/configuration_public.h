@@ -80,29 +80,17 @@
 // when this macro is defined.
 #undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
 
-// --- Decoder-only Params ---
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
-// --- Network Configuration -------------------------------------------------
-
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Audits ----------------------------------------------
 
 #if !defined(__GNUC__)
 #error "Stub builds need a GCC-like compiler (for the moment)."
