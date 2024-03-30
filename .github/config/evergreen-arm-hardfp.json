@@ -1,6 +1,6 @@
 {
   "docker_service": "build-raspi",
-  "bootloader": "raspi-2",
+  "evergreen_loader": "raspi-2",
   "on_device_test": {
     "enabled": true,
     "tests": [
@@ -20,7 +20,7 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "extra_bootloader_gn_arguments":"is_clang=false",
+      "extra_evergreen_loader_gn_arguments":"is_clang=false",
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -29,7 +29,7 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "extra_bootloader_gn_arguments":"is_clang=false",
+      "extra_evergreen_loader_gn_arguments":"is_clang=false",
       "sb_api_version":"sb_api_version=14",
       "dimension": "release_version=regex:10.*"
     },
@@ -39,7 +39,7 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "extra_bootloader_gn_arguments":"is_clang=false",
+      "extra_evergreen_loader_gn_arguments":"is_clang=false",
       "sb_api_version":"sb_api_version=13",
       "dimension": "release_version=regex:10.*"
     },
@@ -49,7 +49,7 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "extra_bootloader_gn_arguments":"is_clang=false",
+      "extra_evergreen_loader_gn_arguments":"is_clang=false",
       "sb_api_version":"sb_api_version=12",
       "dimension": "release_version=regex:10.*"
     }

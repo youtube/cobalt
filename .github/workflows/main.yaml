@@ -85,8 +85,8 @@ jobs:
         run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
       - id: set-on-host-test-shards
         run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
-      - id: set-on-host-test-bootloader
-        run: echo "bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')" >> $GITHUB_ENV
+      - id: set-on-host-test-evergreen-loader
+        run: echo "evergreen_loader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.evergreen_loader')" >> $GITHUB_ENV
       - id: set-docker-service
         run: |
           echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')" >> $GITHUB_ENV
@@ -98,7 +98,7 @@ jobs:
       on_device_test_tests: ${{ env.on_device_test_tests }}
       on_host_test: ${{ env.on_host_test }}
       on_host_test_shards: ${{ env.on_host_test_shards }}
-      bootloader: ${{ env.bootloader }}
+      evergreen_loader: ${{ env.evergreen_loader }}
       docker_service: ${{ env.docker_service }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
@@ -192,27 +192,27 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
-      - name: Upload Nightly Artifacts
-        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
-        uses: ./.github/actions/upload_nightly_artifacts
       - name: Upload On Host Test Artifacts
         if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
           os: linux
-      # Build bootloader if necessary.
-      - name: Set bootloader config
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
-        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
-      - name: Bootloader GN
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
+      # Build Evergreen loader if necessary.
+      - name: Set Evergreen loader config
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && matrix.config == 'devel' }}
+        run: echo "COBALT_EVERGREEN_LOADER=${{needs.initialize.outputs.evergreen_loader}}" >> $GITHUB_ENV
+      - name: Evergreen loader GN
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
         uses: ./.github/actions/gn
-      - name: Build Bootloader
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
+      - name: Build Evergreen loader
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
         uses: ./.github/actions/build
-      - name: Upload Bootloader On Host Test Artifacts
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
+      - name: Upload Nightly Artifacts
+        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
+        uses: ./.github/actions/upload_nightly_artifacts
+      - name: Upload Evergreen loader On Host Test Artifacts
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
@@ -267,9 +267,9 @@ jobs:
           echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
           echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
           echo "WORKFLOW=${{ github.workflow }}" >> $GITHUB_ENV
-          if [ "${{ needs.initialize.outputs.bootloader }}" != "null" ]; then
+          if [ "${{ needs.initialize.outputs.evergreen_loader }}" != "null" ]; then
             echo "LOADER_CONFIG=${{ matrix.config }}" >> $GITHUB_ENV
-            echo "LOADER_PLATFORM=${{ needs.initialize.outputs.bootloader }}" >> $GITHUB_ENV
+            echo "LOADER_PLATFORM=${{ needs.initialize.outputs.evergreen_loader }}" >> $GITHUB_ENV
           fi
           if [ "${{ matrix.dimension }}" != "null" ]; then
             echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
@@ -324,7 +324,7 @@ jobs:
       # For some reason tests complaining about HOME set to /github/home
       # with permission denied error.
       HOME: /root
-      COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
+      COBALT_EVERGREEN_LOADER: ${{needs.initialize.outputs.evergreen_loader}}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
