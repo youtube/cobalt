@@ -141,11 +141,9 @@ struct SbSocketWaiterPrivate {
   // Whether or not the waiter was woken up.
   bool woken_up_;
 
-#if !SB_HAS(PIPE)
   // Used to replace pipe.
   SbSocket server_socket_;
   SbSocket client_socket_;
-#endif
 };
 
 #endif  // STARBOARD_SHARED_LIBEVENT_SOCKET_WAITER_INTERNAL_H_
