@@ -192,63 +192,27 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
-<<<<<<< HEAD
-      - name: Upload Nightly Artifacts
-        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
-        uses: ./.github/actions/upload_nightly_artifacts
-=======
-      - name: 'Upload Artifact'
-        uses: actions/upload-artifact@v4
-        if: inputs.keep_artifacts
-        with:
-          name: ${{ matrix.platform }}-${{ matrix.config }}
-          path: out/${{ matrix.platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
-          retention-days: 7
-          compression-level: 0 # We expect kept artifacts to be already compressed
-          if-no-files-found: error
-      - name: Run API Leak Detector
-        uses: ./.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector
-        with:
-          relative_manifest_path: ${{ inputs.leak_manifest_filename }}
->>>>>>> 73a025ce5d8 (Cherry pick PR #2777: Reorder GitHub workflow steps. (#2782))
       - name: Upload On Host Test Artifacts
         if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
           os: linux
-<<<<<<< HEAD
-      # Build bootloader if necessary.
-      - name: Set bootloader config
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
-        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
-      - name: Bootloader GN
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
-=======
-      # For some reason passing needs.initialize.outputs.evergreen_loader as parameter to build
-      # action didn't work, so instead we set an env var.
+      # Build Evergreen loader if necessary.
       - name: Set Evergreen loader config
-        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' }}
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && matrix.config == 'devel' }}
         run: echo "COBALT_EVERGREEN_LOADER=${{needs.initialize.outputs.evergreen_loader}}" >> $GITHUB_ENV
-      # Build Evergreen loader for on-host tests if necessary.
       - name: Evergreen loader GN
         if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
->>>>>>> 73a025ce5d8 (Cherry pick PR #2777: Reorder GitHub workflow steps. (#2782))
         uses: ./.github/actions/gn
       - name: Build Evergreen loader
         if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
         uses: ./.github/actions/build
-<<<<<<< HEAD
-      - name: Upload Bootloader On Host Test Artifacts
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
-=======
       - name: Upload Nightly Artifacts
         if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
       - name: Upload Evergreen loader On Host Test Artifacts
-        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true'}}
->>>>>>> 73a025ce5d8 (Cherry pick PR #2777: Reorder GitHub workflow steps. (#2782))
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
@@ -285,13 +249,6 @@ jobs:
         config: [devel]
         type: ${{ fromJson(needs.initialize.outputs.on_device_test_tests) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
-<<<<<<< HEAD
-=======
-    env:
-      COBALT_EVERGREEN_LOADER: ${{ needs.initialize.outputs.evergreen_loader }}
-      ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
-      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
->>>>>>> 73a025ce5d8 (Cherry pick PR #2777: Reorder GitHub workflow steps. (#2782))
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -310,9 +267,9 @@ jobs:
           echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
           echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
           echo "WORKFLOW=${{ github.workflow }}" >> $GITHUB_ENV
-          if [ "${{ needs.initialize.outputs.bootloader }}" != "null" ]; then
+          if [ "${{ needs.initialize.outputs.evergreen_loader }}" != "null" ]; then
             echo "LOADER_CONFIG=${{ matrix.config }}" >> $GITHUB_ENV
-            echo "LOADER_PLATFORM=${{ needs.initialize.outputs.bootloader }}" >> $GITHUB_ENV
+            echo "LOADER_PLATFORM=${{ needs.initialize.outputs.evergreen_loader }}" >> $GITHUB_ENV
           fi
           if [ "${{ matrix.dimension }}" != "null" ]; then
             echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
@@ -367,12 +324,7 @@ jobs:
       # For some reason tests complaining about HOME set to /github/home
       # with permission denied error.
       HOME: /root
-<<<<<<< HEAD
-      COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
-=======
       COBALT_EVERGREEN_LOADER: ${{needs.initialize.outputs.evergreen_loader}}
-      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
->>>>>>> 73a025ce5d8 (Cherry pick PR #2777: Reorder GitHub workflow steps. (#2782))
     steps:
       - name: Checkout
         uses: actions/checkout@v3
