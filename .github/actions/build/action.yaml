@@ -29,13 +29,8 @@ runs:
             BUILD_TARGET=default
           fi
         else
-<<<<<<< HEAD
-          BUILD_PLATFORM=${COBALT_BOOTLOADER}
-          BUILD_TARGET='loader_app_install elf_loader_sandbox_install crashpad_handler_install'
-=======
           BUILD_PLATFORM=${COBALT_EVERGREEN_LOADER}
-          BUILD_TARGET='loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
->>>>>>> 73a025ce5d8 (Cherry pick PR #2777: Reorder GitHub workflow steps. (#2782))
+          BUILD_TARGET='loader_app_install elf_loader_sandbox_install crashpad_handler_install'
         fi
         # GitHub Runners have home set to /github/home.
         if [ -d /root/starboard-toolchains ]; then
