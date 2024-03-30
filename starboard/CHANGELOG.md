@@ -12,6 +12,9 @@ since the version previous to it.
 ## Removed configs for `FILESYSTEM_ZERO_FILEINFO_TIME` and `COARSE_ACCESS_TIME`
 These are no longer used in Starboard and Cobalt.
 
+## Removed `SB_HAS_PIPE`
+This flag is no longer used.
+
 ## Removed `QUIRK_HASH_FILE_NAME`
 No platforms are using this config anymore.
 

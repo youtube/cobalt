@@ -84,7 +84,4 @@
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
 
-// Specifies whether this platform supports pipe.
-#define SB_HAS_PIPE 1
-
 #endif  // STARBOARD_EVERGREEN_ARM_HARDFP_CONFIGURATION_PUBLIC_H_

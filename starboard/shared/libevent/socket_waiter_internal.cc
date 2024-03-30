@@ -35,14 +35,8 @@ namespace sbposix = starboard::shared::posix;
 #if (defined(_GNU_SOURCE) || defined(_POSIX_VERSION)) && \
     !(PLAYSTATION_GENERATION <= 5)
 #define USE_POSIX_PIPE 1
-#if !SB_HAS(PIPE)
-#error "This platform should have PIPE"
-#endif
 #else
 #define USE_POSIX_PIPE 0
-#if SB_HAS(PIPE)
-#error "This platform should NOT have PIPE"
-#endif
 #endif
 
 namespace {
