@@ -71,11 +71,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- I/O Configuration -----------------------------------------------------
-
-// Whether the current platform supports on screen keyboard.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
