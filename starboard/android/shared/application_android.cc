@@ -511,19 +511,6 @@ Java_dev_cobalt_coat_CobaltA11yHelper_nativeInjectKeyEvent(JNIEnv* env,
   ApplicationAndroid::Get()->SendKeyboardInject(static_cast<SbKey>(key));
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_KeyboardInputConnection_nativeSendText(
-    JniEnvExt* env,
-    jobject unused_clazz,
-    jstring text,
-    jboolean is_composing) {
-  if (text) {
-    std::string utf_str = env->GetStringStandardUTFOrAbort(text);
-    ApplicationAndroid::Get()->SbWindowSendInputEvent(utf_str.c_str(),
-                                                      is_composing);
-  }
-}
-
 void DeleteSbInputDataWithText(void* ptr) {
   SbInputData* data = static_cast<SbInputData*>(ptr);
   const char* input_text = data->input_text;

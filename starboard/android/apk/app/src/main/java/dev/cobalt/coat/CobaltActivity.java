@@ -72,7 +72,6 @@ public abstract class CobaltActivity extends GameActivity {
   private CobaltA11yHelper a11yHelper;
 
   private VideoSurfaceView videoSurfaceView;
-  private KeyboardEditor keyboardEditor;
 
   private boolean forceCreateNewVideoSurfaceView = false;
 
@@ -154,7 +153,7 @@ public abstract class CobaltActivity extends GameActivity {
     DisplayUtil.addDisplayListener(this);
     AudioOutputManager.addAudioDeviceListener(this);
 
-    getStarboardBridge().onActivityStart(this, keyboardEditor);
+    getStarboardBridge().onActivityStart(this);
     super.onStart();
   }
 
