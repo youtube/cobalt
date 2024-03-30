@@ -20,21 +20,7 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-<<<<<<< HEAD
-      "extra_bootloader_gn_arguments":"is_clang=false",
-=======
-      "evergreen_loader_extra_gn_arguments": "use_asan=false is_clang=false",
-      "dimension": "release_version=regex:10.*"
-    },
-    {
-      "name":"sbversion-15",
-      "platform":"evergreen-arm-hardfp-sbversion-15",
-      "target_platform":"evergreen-arm-hardfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=15",
->>>>>>> 73a025ce5d8 (Cherry pick PR #2777: Reorder GitHub workflow steps. (#2782))
+      "extra_evergreen_loader_gn_arguments":"is_clang=false",
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -43,13 +29,8 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-<<<<<<< HEAD
-      "extra_bootloader_gn_arguments":"is_clang=false",
+      "extra_evergreen_loader_gn_arguments":"is_clang=false",
       "sb_api_version":"sb_api_version=14",
-=======
-      "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=14",
->>>>>>> 73a025ce5d8 (Cherry pick PR #2777: Reorder GitHub workflow steps. (#2782))
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -58,8 +39,7 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-<<<<<<< HEAD
-      "extra_bootloader_gn_arguments":"is_clang=false",
+      "extra_evergreen_loader_gn_arguments":"is_clang=false",
       "sb_api_version":"sb_api_version=13",
       "dimension": "release_version=regex:10.*"
     },
@@ -69,12 +49,8 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "extra_bootloader_gn_arguments":"is_clang=false",
+      "extra_evergreen_loader_gn_arguments":"is_clang=false",
       "sb_api_version":"sb_api_version=12",
-=======
-      "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=13",
->>>>>>> 73a025ce5d8 (Cherry pick PR #2777: Reorder GitHub workflow steps. (#2782))
       "dimension": "release_version=regex:10.*"
     }
   ]
