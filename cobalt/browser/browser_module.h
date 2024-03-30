@@ -35,7 +35,6 @@
 #include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
-#include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
 #include "cobalt/browser/memory_settings/checker.h"
@@ -222,8 +221,6 @@ class BrowserModule {
       const base::OnScreenKeyboardFocusedEvent* event);
   void OnOnScreenKeyboardBlurred(
       const base::OnScreenKeyboardBlurredEvent* event);
-  void OnOnScreenKeyboardSuggestionsUpdated(
-      const base::OnScreenKeyboardSuggestionsUpdatedEvent* event);
   void OnCaptionSettingsChanged(
       const base::AccessibilityCaptionSettingsChangedEvent* event);
 

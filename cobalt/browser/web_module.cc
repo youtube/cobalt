@@ -167,9 +167,6 @@ class WebModule::Impl {
   // Injects an on screen keyboard blurred event into the web module. Event is
   // directed at the on screen keyboard element.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
-  // Injects an on screen keyboard suggestions updated event into the web
-  // module. Event is directed at the on screen keyboard element.
-  void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
 
   // Injects a keyboard event into the web module. Event is directed at a
   // specific element if the element is non-null. Otherwise, the currently
@@ -867,17 +864,6 @@ void WebModule::Impl::InjectOnScreenKeyboardBlurredEvent(int ticket) {
   window_->on_screen_keyboard()->DispatchBlurEvent(ticket);
 }
 
-void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
-    int ticket) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(is_running_);
-  DCHECK(window_);
-  DCHECK(window_->on_screen_keyboard());
-
-  window_->on_screen_keyboard()->DispatchSuggestionsUpdatedEvent(ticket);
-}
-
-
 void WebModule::Impl::InjectKeyboardEvent(base::Token type,
                                           const dom::KeyboardEventInit& event,
                                           scoped_refptr<dom::Element> element) {
@@ -1446,16 +1432,6 @@ void WebModule::InjectOnScreenKeyboardBlurredEvent(int ticket) {
   POST_TO_ENSURE_IMPL_ON_THREAD(InjectOnScreenKeyboardBlurredEvent, ticket);
   impl_->InjectOnScreenKeyboardBlurredEvent(ticket);
 }
-
-void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
-  TRACE_EVENT1("cobalt::browser",
-               "WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent()",
-               "ticket", ticket);
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectOnScreenKeyboardSuggestionsUpdatedEvent,
-                                ticket);
-  impl_->InjectOnScreenKeyboardSuggestionsUpdatedEvent(ticket);
-}
-
 
 void WebModule::InjectKeyboardEvent(base::Token type,
                                     const dom::KeyboardEventInit& event) {
