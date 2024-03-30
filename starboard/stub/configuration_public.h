@@ -86,14 +86,12 @@
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
+// --- Network Configuration -------------------------------------------------
+
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
-
-#if !defined(__GNUC__)
-#error "Stub builds need a GCC-like compiler (for the moment)."
-#endif
 
 #endif  // STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
