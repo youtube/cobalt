@@ -18,13 +18,13 @@ runs:
       run: |
         set -x
         project_name=$(gcloud config get-value project)
-        if [ -z ${COBALT_BOOTLOADER+x} ]
+        if [ -z ${COBALT_EVERGREEN_LOADER+x} ]
         then
           PLATFORM=${{matrix.platform}}
           echo "TARGET_PLATFORM=${{matrix.target_platform}}" >> $GITHUB_ENV
         else
-          PLATFORM=${COBALT_BOOTLOADER}
-          echo "TARGET_PLATFORM=${COBALT_BOOTLOADER}" >> $GITHUB_ENV
+          PLATFORM=${COBALT_EVERGREEN_LOADER}
+          echo "TARGET_PLATFORM=${COBALT_EVERGREEN_LOADER}" >> $GITHUB_ENV
         fi
 
         if [ "${{ inputs.type }}" == 'ondevice' ]
@@ -55,9 +55,9 @@ runs:
         if [ "${{ inputs.type }}" == 'ondevice' ]
         then
           outdir="$GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}"
-          if [ -n "${COBALT_BOOTLOADER}" ]
+          if [ -n "${COBALT_EVERGREEN_LOADER}" ]
           then
-            outdir="${outdir} $GITHUB_WORKSPACE/out/${COBALT_BOOTLOADER}_${{matrix.config}}"
+            outdir="${outdir} $GITHUB_WORKSPACE/out/${COBALT_EVERGREEN_LOADER}_${{matrix.config}}"
           fi
           python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s ${outdir}
         elif [ "${{ inputs.type }}" == 'onhost' ]
