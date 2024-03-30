@@ -80,8 +80,6 @@
 // when this macro is defined.
 #undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
 
-// --- Decoder-only Params ---
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
@@ -95,17 +93,5 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "Stub builds need a GCC-like compiler (for the moment)."
-#endif
 
 #endif  // STARBOARD_STUB_CONFIGURATION_PUBLIC_H_

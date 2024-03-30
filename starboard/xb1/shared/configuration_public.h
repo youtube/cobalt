@@ -72,13 +72,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM __declspec(dllimport)
 
-// --- Media Configuration ---------------------------------------------------
-
-// Whether the current platform uses a media player that relies on a URL.
-#define SB_HAS_PLAYER_WITH_URL 0
-
-// --- Decoder-only Params ---
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies the platform can map
@@ -92,19 +85,6 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Configuration ---------------------------------------
-
-// Whether or not the platform supports socket connection reset.
-#define SB_HAS_SOCKET_ERROR_CONNECTION_RESET_SUPPORT 1
-
-// --- Platform Specific Audits ----------------------------------------------
 
 // --- Platform Specific Quirks ----------------------------------------------
 

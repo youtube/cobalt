@@ -84,12 +84,6 @@
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
 
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "Linux builds need a GCC-like compiler (for the moment)."
-#endif
-
 // --- Media Configuration ---------------------------------------------------
 
 // The path of video_dmp_writer.h. Defined here to avoid errors building on
