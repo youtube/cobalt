@@ -34,13 +34,8 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-<<<<<<< HEAD
-      "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=15",
-=======
       "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "15",
->>>>>>> 44b58d2d511 (Reorder GitHub workflow steps. (#2777))
+      "sb_api_version": "sb_api_version=15",
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -49,13 +44,8 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-<<<<<<< HEAD
-      "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=14",
-=======
       "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "14",
->>>>>>> 44b58d2d511 (Reorder GitHub workflow steps. (#2777))
+      "sb_api_version": "sb_api_version=14",
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -64,13 +54,8 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-<<<<<<< HEAD
-      "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=13",
-=======
       "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "13",
->>>>>>> 44b58d2d511 (Reorder GitHub workflow steps. (#2777))
+      "sb_api_version": "sb_api_version=13",
       "dimension": "release_version=regex:10.*"
     }
   ]
