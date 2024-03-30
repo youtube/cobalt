@@ -28,13 +28,13 @@
 #include "base/sequence_checker.h"
 #include "base/threading/thread.h"
 #include "cobalt/media/progressive/data_source_reader.h"
+#include "media/base/audio_decoder_config.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/demuxer.h"
+#include "media/base/pipeline_status.h"
+#include "media/base/ranges.h"
+#include "media/base/video_decoder_config.h"
 #include "starboard/extension/demuxer.h"
-#include "third_party/chromium/media/base/audio_decoder_config.h"
-#include "third_party/chromium/media/base/decoder_buffer.h"
-#include "third_party/chromium/media/base/demuxer.h"
-#include "third_party/chromium/media/base/pipeline_status.h"
-#include "third_party/chromium/media/base/ranges.h"
-#include "third_party/chromium/media/base/video_decoder_config.h"
 
 namespace cobalt {
 namespace media {

@@ -24,12 +24,12 @@
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/sbplayer_interface.h"
+#include "media/base/demuxer.h"
+#include "media/base/media_log.h"
+#include "media/base/pipeline_status.h"
+#include "media/base/ranges.h"
 #include "starboard/drm.h"
 #include "starboard/window.h"
-#include "third_party/chromium/media/base/demuxer.h"
-#include "third_party/chromium/media/base/media_log.h"
-#include "third_party/chromium/media/base/pipeline_status.h"
-#include "third_party/chromium/media/base/ranges.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace cobalt {

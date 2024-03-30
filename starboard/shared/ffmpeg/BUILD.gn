@@ -117,5 +117,5 @@ target(gtest_target_type, "ffmpeg_demuxer_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  data_deps = [ "//third_party/chromium/media/test/data:media_testdata" ]
+  data_deps = [ "//media/test/data:media_testdata" ]
 }

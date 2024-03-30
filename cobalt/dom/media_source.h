@@ -68,7 +68,7 @@
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/url_registry.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
+#include "media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {
