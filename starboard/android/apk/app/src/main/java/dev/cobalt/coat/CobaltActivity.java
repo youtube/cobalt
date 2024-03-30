@@ -41,7 +41,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.*;
+import java.util.regex.Pattern;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends GameActivity {
@@ -111,12 +111,6 @@ public abstract class CobaltActivity extends GameActivity {
     a11yHelper = new CobaltA11yHelper(videoSurfaceView);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-
-    if (KeyboardInputConnection.nativeHasOnScreenKeyboard()) {
-      keyboardEditor = new KeyboardEditor(this);
-      addContentView(
-          keyboardEditor, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-    }
   }
 
   /**

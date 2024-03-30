@@ -174,7 +174,5 @@ public class KeyboardInputConnection extends BaseInputConnection {
     return true;
   }
 
-  public static native boolean nativeHasOnScreenKeyboard();
-
   public static native void nativeSendText(CharSequence text, boolean isComposing);
 }
