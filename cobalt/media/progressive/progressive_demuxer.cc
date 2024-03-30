@@ -26,10 +26,10 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/data_source.h"
+#include "media/base/bind_to_current_loop.h"
+#include "media/base/starboard_utils.h"
+#include "media/base/timestamp_constants.h"
 #include "starboard/types.h"
-#include "third_party/chromium/media/base/bind_to_current_loop.h"
-#include "third_party/chromium/media/base/starboard_utils.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
 
 namespace cobalt {
 namespace media {

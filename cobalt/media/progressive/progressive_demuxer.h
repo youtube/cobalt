@@ -24,11 +24,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/media/progressive/progressive_parser.h"
-#include "third_party/chromium/media/base/decoder_buffer.h"
-#include "third_party/chromium/media/base/demuxer.h"
-#include "third_party/chromium/media/base/demuxer_stream.h"
-#include "third_party/chromium/media/base/media_log.h"
-#include "third_party/chromium/media/base/ranges.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/demuxer.h"
+#include "media/base/demuxer_stream.h"
+#include "media/base/media_log.h"
+#include "media/base/ranges.h"
 
 namespace media {
 class DecoderBuffer;
