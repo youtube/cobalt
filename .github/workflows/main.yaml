@@ -104,21 +104,9 @@ jobs:
       - id: set-on-host-test
         run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
       - id: set-on-host-test-shards
-<<<<<<< HEAD
         run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
-      - id: set-on-host-test-bootloader
-        run: echo "bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')" >> $GITHUB_ENV
-=======
-        shell: bash
-        run: |
-          on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')
-          echo "on_host_test_shards=${on_host_test_shards}" >> $GITHUB_ENV
       - id: set-on-host-test-evergreen-loader
-        shell: bash
-        run: |
-          evergreen_loader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.evergreen_loader')
-          echo "evergreen_loader=${evergreen_loader}" >> $GITHUB_ENV
->>>>>>> 44b58d2d511 (Reorder GitHub workflow steps. (#2777))
+        run: echo "evergreen_loader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.evergreen_loader')" >> $GITHUB_ENV
       - id: set-docker-service
         run: |
           echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')" >> $GITHUB_ENV
@@ -249,25 +237,12 @@ jobs:
           os: linux
       # For some reason passing needs.initialize.outputs.evergreen_loader as parameter to build
       # action didn't work, so instead we set an env var.
-<<<<<<< HEAD
-      - name: Set bootloader config
-        if: ${{ needs.initialize.outputs.bootloader != 'null' }}
-        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
-      # Build bootloader for on-host tests if necessary.
-      - name: Bootloader GN
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
-=======
       - name: Set Evergreen loader config
         if: ${{ needs.initialize.outputs.evergreen_loader != 'null' }}
-        shell: bash
-        run: |
-           set -u
-           COBALT_EVERGREEN_LOADER="${{needs.initialize.outputs.evergreen_loader}}"
-           echo "COBALT_EVERGREEN_LOADER=${COBALT_EVERGREEN_LOADER}" >> $GITHUB_ENV
+        run: echo "COBALT_EVERGREEN_LOADER=${{needs.initialize.outputs.evergreen_loader}}" >> $GITHUB_ENV
       # Build Evergreen loader for on-host tests if necessary.
       - name: Evergreen loader GN
         if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
->>>>>>> 44b58d2d511 (Reorder GitHub workflow steps. (#2777))
         uses: ./.github/actions/gn
       - name: Build Evergreen loader
         if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
