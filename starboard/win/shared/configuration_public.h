@@ -51,10 +51,6 @@
 
 // --- Compiler Configuration ------------------------------------------------
 
-// The platform's annotation for forcing a C function to be inlined.
-//   https://msdn.microsoft.com/en-us/library/bw1hbe6y.aspx#Anchor_1
-#define SB_C_FORCE_INLINE __forceinline
-
 // The platform's annotation for marking a C function as suggested to be
 // inlined.
 #define SB_C_INLINE inline

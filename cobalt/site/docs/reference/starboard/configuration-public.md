@@ -7,7 +7,6 @@ Book: /youtube/cobalt/_book.yaml
 
 | Properties |
 | :--- |
-| **`SB_C_FORCE_INLINE`**<br><br>The platform's annotation for forcing a C function to be inlined.<br><br>The default value in the Stub implementation is <br>`__inline__ __attribute__((always_inline))` |
 | **`SB_C_INLINE`**<br><br>The platform's annotation for marking a C function as suggested to be inlined.<br><br>The default value in the Stub implementation is `inline` |
 | **`SB_C_NOINLINE`**<br><br>The platform's annotation for marking a C function as forcibly not inlined.<br><br>The default value in the Stub implementation is `__attribute__((noinline))` |
 | **`SB_EXPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as exported outside of the current shared library.<br><br>The default value in the Stub implementation is <br>`__attribute__((visibility("default")))` |

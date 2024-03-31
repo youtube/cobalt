@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed configs for `SB_C_FORCE_INLINE`
+This is now automatically defined based on compilers, platforms must not provide
+a definition.
+
 ## Removed configs for `FILESYSTEM_ZERO_FILEINFO_TIME` and `COARSE_ACCESS_TIME`
 These are no longer used in Starboard and Cobalt.
 
