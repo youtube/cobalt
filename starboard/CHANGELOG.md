@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed configs for `SB_C_FORCE_INLINE`
+This is now automatically defined based on compilers, platforms must not provide
+a definition.
+
 ## Deprecated `SB_C_INLINE`
 Use C99 standard `inline` function specifier instead.
 

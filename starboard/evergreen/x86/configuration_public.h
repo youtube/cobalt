@@ -49,8 +49,10 @@
 
 // --- Compiler Configuration ------------------------------------------------
 
+#if SB_API_VERSION < 16
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
+#endif  // SB_API_VERSION < 16
 
 #if SB_API_VERSION < 16
 // The platform's annotation for marking a C function as suggested to be
