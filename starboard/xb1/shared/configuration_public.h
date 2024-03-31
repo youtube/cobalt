@@ -18,8 +18,6 @@
 #ifndef STARBOARD_XB1_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_XB1_SHARED_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -60,10 +58,6 @@
 // The platform's annotation for marking a C function as suggested to be
 // inlined.
 #define SB_C_INLINE inline
-
-// The platform's annotation for marking a C function as forcibly not
-// inlined.
-#define SB_C_NOINLINE __declspec(noinline)
 
 // The platform's annotation for marking a symbol as exported outside of the
 // current shared library.

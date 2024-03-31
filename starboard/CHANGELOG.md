@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed `SB_C_NOINLINE`
+This is only used for testing, a similar header is now found under
+`starboard/shared/testing/no_inline.h`
+
 ## Removed configs for `FILESYSTEM_ZERO_FILEINFO_TIME` and `COARSE_ACCESS_TIME`
 These are no longer used in Starboard and Cobalt.
 
