@@ -299,7 +299,7 @@ typedef struct SbUiNavInterface {
 // --- Functions -------------------------------------------------------------
 
 // Returns whether the given navigation item handle is valid.
-static SB_C_INLINE bool SbUiNavItemIsValid(SbUiNavItem item) {
+static inline bool SbUiNavItemIsValid(SbUiNavItem item) {
   return item != kSbUiNavItemInvalid;
 }
 

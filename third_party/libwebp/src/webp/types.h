@@ -17,7 +17,7 @@
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
 #include "starboard/types.h"
-#define WEBP_INLINE SB_C_INLINE
+#define WEBP_INLINE inline
 #else
 #include <stddef.h>  // for size_t
 

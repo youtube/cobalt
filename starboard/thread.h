@@ -110,27 +110,27 @@ typedef SbThreadLocalKeyPrivate* SbThreadLocalKey;
 #define kSbThreadLocalKeyInvalid (SbThreadLocalKey) NULL
 
 // Returns whether the given thread handle is valid.
-static SB_C_INLINE bool SbThreadIsValid(SbThread thread) {
+static inline bool SbThreadIsValid(SbThread thread) {
   return thread != kSbThreadInvalid;
 }
 
 // Returns whether the given thread ID is valid.
-static SB_C_INLINE bool SbThreadIsValidId(SbThreadId id) {
+static inline bool SbThreadIsValidId(SbThreadId id) {
   return id != kSbThreadInvalidId;
 }
 
 // Returns whether the given thread priority is valid.
-static SB_C_INLINE bool SbThreadIsValidPriority(SbThreadPriority priority) {
+static inline bool SbThreadIsValidPriority(SbThreadPriority priority) {
   return priority != kSbThreadNoPriority;
 }
 
 // Returns whether the given thread affinity is valid.
-static SB_C_INLINE bool SbThreadIsValidAffinity(SbThreadAffinity affinity) {
+static inline bool SbThreadIsValidAffinity(SbThreadAffinity affinity) {
   return affinity != kSbThreadNoAffinity;
 }
 
 // Returns whether the given thread local variable key is valid.
-static SB_C_INLINE bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
+static inline bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
   return key != kSbThreadLocalKeyInvalid;
 }
 
@@ -259,7 +259,7 @@ SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
 // Returns whether |thread| is the current thread.
 //
 // |thread|: The thread to check.
-static SB_C_INLINE bool SbThreadIsCurrent(SbThread thread) {
+static inline bool SbThreadIsCurrent(SbThread thread) {
   return SbThreadGetCurrent() == thread;
 }
 
@@ -273,7 +273,7 @@ typedef SbThreadContextPrivate* SbThreadContext;
 #define kSbThreadContextInvalid ((SbThreadContext)NULL)
 
 // Returns whether the given thread context is valid.
-static SB_C_INLINE bool SbThreadContextIsValid(SbThreadContext context) {
+static inline bool SbThreadContextIsValid(SbThreadContext context) {
   return context != kSbThreadContextInvalid;
 }
 
@@ -309,7 +309,7 @@ typedef SbThreadSamplerPrivate* SbThreadSampler;
 #define kSbThreadSamplerInvalid ((SbThreadSampler)NULL)
 
 // Returns whether the given thread sampler is valid.
-static SB_C_INLINE bool SbThreadSamplerIsValid(SbThreadSampler sampler) {
+static inline bool SbThreadSamplerIsValid(SbThreadSampler sampler) {
   return sampler != kSbThreadSamplerInvalid;
 }
 

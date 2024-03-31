@@ -55,10 +55,6 @@
 //   https://msdn.microsoft.com/en-us/library/bw1hbe6y.aspx#Anchor_1
 #define SB_C_FORCE_INLINE __forceinline
 
-// The platform's annotation for marking a C function as suggested to be
-// inlined.
-#define SB_C_INLINE inline
-
 // The platform's annotation for marking a symbol as exported outside of the
 // current shared library.
 #define SB_EXPORT_PLATFORM __declspec(dllexport)

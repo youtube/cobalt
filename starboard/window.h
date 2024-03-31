@@ -79,7 +79,7 @@ typedef struct SbWindowOptions {
 #define kSbWindowInvalid ((SbWindow)NULL)
 
 // Returns whether the given window handle is valid.
-static SB_C_INLINE bool SbWindowIsValid(SbWindow window) {
+static inline bool SbWindowIsValid(SbWindow window) {
   return window != kSbWindowInvalid;
 }
 

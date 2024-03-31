@@ -86,14 +86,14 @@ SB_EXPORT int SbStringFormat(char* out_buffer,
 // |buffer_size|: The size of |out_buffer|.
 // |format|: A string that specifies how the data should be formatted.
 // |...|: Arguments used in the string.
-static SB_C_INLINE int SbStringFormatF(char* out_buffer,
-                                       size_t buffer_size,
-                                       const char* format,
-                                       ...) SB_PRINTF_FORMAT(3, 4);
-static SB_C_INLINE int SbStringFormatF(char* out_buffer,
-                                       size_t buffer_size,
-                                       const char* format,
-                                       ...) {
+static inline int SbStringFormatF(char* out_buffer,
+                                  size_t buffer_size,
+                                  const char* format,
+                                  ...) SB_PRINTF_FORMAT(3, 4);
+static inline int SbStringFormatF(char* out_buffer,
+                                  size_t buffer_size,
+                                  const char* format,
+                                  ...) {
   va_list arguments;
   va_start(arguments, format);
   int result = SbStringFormat(out_buffer, buffer_size, format, arguments);
@@ -107,12 +107,12 @@ static SB_C_INLINE int SbStringFormatF(char* out_buffer,
 // |out_buffer|: The location where the formatted string is stored.
 // |format|: A string that specifies how the data should be formatted.
 // |...|: Arguments used in the string.
-static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
-                                             const char* format,
-                                             ...) SB_PRINTF_FORMAT(2, 3);
-static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
-                                             const char* format,
-                                             ...) {
+static inline int SbStringFormatUnsafeF(char* out_buffer,
+                                        const char* format,
+                                        ...) SB_PRINTF_FORMAT(2, 3);
+static inline int SbStringFormatUnsafeF(char* out_buffer,
+                                        const char* format,
+                                        ...) {
   va_list arguments;
   va_start(arguments, format);
   int result = SbStringFormat(out_buffer, SSIZE_MAX, format, arguments);
@@ -140,10 +140,10 @@ SB_EXPORT int SbStringFormatWide(wchar_t* out_buffer,
 // |format|: A string that specifies how the data should be formatted.
 // |...|: Arguments used in the string.
 
-static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
-                                           size_t buffer_size,
-                                           const wchar_t* format,
-                                           ...) {
+static inline int SbStringFormatWideF(wchar_t* out_buffer,
+                                      size_t buffer_size,
+                                      const wchar_t* format,
+                                      ...) {
   va_list arguments;
   va_start(arguments, format);
   int result = SbStringFormatWide(out_buffer, buffer_size, format, arguments);
@@ -169,9 +169,7 @@ SB_EXPORT int SbStringScan(const char* buffer,
 // |buffer|: The string to scan for the pattern.
 // |pattern|: The string to search for in |buffer|.
 // |...|: Values matching |pattern| that were extracted from |buffer|.
-static SB_C_INLINE int SbStringScanF(const char* buffer,
-                                     const char* pattern,
-                                     ...) {
+static inline int SbStringScanF(const char* buffer, const char* pattern, ...) {
   va_list arguments;
   va_start(arguments, pattern);
   int result = SbStringScan(buffer, pattern, arguments);

@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+## Deprecated `SB_C_INLINE`
+Use C99 standard `inline` function specifier instead.
+
 ## Removed `SB_C_NOINLINE`
 This is only used for testing, a similar header is now found under
 `starboard/shared/testing/no_inline.h`
