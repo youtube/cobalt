@@ -123,7 +123,7 @@ typedef struct SbFileInfo {
 #define kSbFileInvalid (SbFile) NULL
 
 // Returns whether the given file handle is valid.
-static SB_C_INLINE bool SbFileIsValid(SbFile file) {
+static inline bool SbFileIsValid(SbFile file) {
   return file != kSbFileInvalid;
 }
 

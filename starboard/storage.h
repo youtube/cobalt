@@ -49,7 +49,7 @@ typedef SbStorageRecordPrivate* SbStorageRecord;
 #define kSbStorageInvalidRecord (SbStorageRecord) NULL
 
 // Returns whether the given storage record handle is valid.
-static SB_C_INLINE bool SbStorageIsValidRecord(SbStorageRecord record) {
+static inline bool SbStorageIsValidRecord(SbStorageRecord record) {
   return record != kSbStorageInvalidRecord;
 }
 

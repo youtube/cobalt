@@ -248,13 +248,14 @@ namespace at the starboard repository root.
 
 ### Language Features
 
+  * It is expected that the compiler is at least C11 and C++17 compliant
   * In public headers, particularly in inline functions and macros, only C-Style
     casts may be used, though they are forbidden everywhere else.
   * It is expected that the C compiler supports inline functions. They must be
-    declared `static`, and they must use the `SB_C_INLINE` or
+    declared `static`, and they must use the `inline` or
     `SB_C_FORCE_INLINE` attribute. In straight-C code, there is no anonymous
     namespace, so `static` is allowed and required for inline functions.
-  * No straight-C ISO or POSIX headers should be assumed to exist. Basic C++03
+  * No straight-C ISO or POSIX headers should be assumed to exist. Basic C++17
     headers may be assumed to exist in C++ code. The ISO C standards have grown
     up over a long period of time and have historically been implemented with
     quirks, missing pieces, and so on. Support for the core C++ standard library

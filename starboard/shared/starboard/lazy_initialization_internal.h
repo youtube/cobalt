@@ -36,7 +36,7 @@ namespace starboard {
 // If false is returned, you must initialize the state (e.g. by eventually
 // calling SetInitialized() or else other threads waiting for initialization
 // to complete will wait forever.)
-static SB_C_INLINE bool EnsureInitialized(InitializedState* state) {
+static inline bool EnsureInitialized(InitializedState* state) {
   // Check what state we're in, and if we find that we are uninitialized,
   // simultaneously mark us as initializing and return to the caller.
   InitializedState original = SbAtomicNoBarrier_CompareAndSwap(
@@ -62,12 +62,12 @@ static SB_C_INLINE bool EnsureInitialized(InitializedState* state) {
 // Returns true if the state is initialized, false otherwise.  Do not
 // use the outcome of this function to make a decision on whether to initialize
 // or not, use EnsureInitialized() for that.
-static SB_C_INLINE bool IsInitialized(InitializedState* state) {
+static inline bool IsInitialized(InitializedState* state) {
   return SbAtomicNoBarrier_Load(state) == INITIALIZED_STATE_INITIALIZED;
 }
 
 // Sets the state as being initialized.
-static SB_C_INLINE void SetInitialized(InitializedState* state) {
+static inline void SetInitialized(InitializedState* state) {
   // Mark that we are initialized now.
   SbAtomicRelease_Store(state, INITIALIZED_STATE_INITIALIZED);
 }

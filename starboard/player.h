@@ -316,7 +316,7 @@ typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
 #endif  // SB_API_VERSION >= 15
 
 // Returns whether the given player handle is valid.
-static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
+static inline bool SbPlayerIsValid(SbPlayer player) {
   return player != kSbPlayerInvalid;
 }
 
