@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed `SB_C_NOINLINE`
+This is only used for testing, a similar header is now found under
+`starboard/shared/testing/no_inline.h`
+
 ## Deprecated `OnScreenKeyboard`
 OnScreenKeyboard Starboard API has been deprecated, an extension in
 `starboard/extension/on_screen_keyboard.h` is available instead. The removal
@@ -65,6 +69,10 @@ Build configurations for `SB_HAS_STD_UNORDERED_HASH`, `SB_HAS_LONG_LONG_HASH`,
 ### Added standard POSIX socket getaddrinfo/freeaddrinfo APIs.
 The standard API `getaddrinfo` and `freeaddrinfo`, can be used from
 <netdb.h>.
+
+### Added standard POSIX file stat API and deprecated SbFileExists.
+The file API SbFileExists has been deprecated and the standard API `stat` can
+be used from `sys/stat.h` instead.
 
 ### Added standard POSIX socket send/recv APIs.
 The standard API `send`, `sendto`, `recv`, `recvfrom`, can be used from <sys/socket.h> and

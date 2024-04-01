@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include <string>
 
 #include "starboard/configuration_constants.h"
@@ -23,45 +25,43 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION < 16
-TEST(SbDirectoryCanOpenTest, SunnyDay) {
+TEST(PosixDirectoryCanOpenTest, SunnyDay) {
   std::string path = starboard::nplb::GetTempDir();
+  struct stat file_info;
   EXPECT_FALSE(path.empty());
-  EXPECT_TRUE(SbFileExists(path.c_str()));
+  EXPECT_TRUE(stat(path.c_str(), &file_info) == 0);
 
-  EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
+  EXPECT_TRUE(S_ISDIR(file_info.st_mode));
 }
-#endif
 
-TEST(SbDirectoryCanOpenTest, SunnyDayStaticContent) {
+TEST(PosixDirectoryCanOpenTest, SunnyDayStaticContent) {
   for (auto dir_path : GetFileTestsDirectoryPaths()) {
-    EXPECT_TRUE(SbDirectoryCanOpen(dir_path.c_str()))
-        << "Can't open: " << dir_path;
+    struct stat file_info;
+    stat(dir_path.c_str(), &file_info);
+    EXPECT_TRUE(S_ISDIR(file_info.st_mode)) << "Can't open: " << dir_path;
   }
 }
 
-TEST(SbDirectoryCanOpenTest, FailureMissingStaticContent) {
+TEST(PosixDirectoryCanOpenTest, FailureMissingStaticContent) {
   std::string directory_path = GetFileTestsDataDir();
   std::string missing_dir = directory_path + kSbFileSepChar + "missing_dir";
-  EXPECT_FALSE(SbDirectoryCanOpen(missing_dir.c_str()));
+  struct stat file_info;
+  stat(missing_dir.c_str(), &file_info);
+  EXPECT_FALSE(S_ISDIR(file_info.st_mode));
 }
 
-TEST(SbDirectoryCanOpenTest, FailureNull) {
-  EXPECT_FALSE(SbDirectoryCanOpen(NULL));
+TEST(PosixDirectoryCanOpenTest, FailureEmpty) {
+  struct stat file_info;
+  EXPECT_FALSE(stat("", &file_info) == 0);
 }
 
-TEST(SbDirectoryCanOpenTest, FailureEmpty) {
-  EXPECT_FALSE(SbDirectoryCanOpen(""));
-}
-
-#if SB_API_VERSION < 16
-TEST(SbDirectoryCanOpenTest, FailureRegularFile) {
+TEST(PosixDirectoryCanOpenTest, FailureRegularFile) {
   starboard::nplb::ScopedRandomFile file;
+  struct stat file_info;
 
-  EXPECT_TRUE(SbFileExists(file.filename().c_str()));
-  EXPECT_FALSE(SbDirectoryCanOpen(file.filename().c_str()));
+  EXPECT_TRUE(stat(file.filename().c_str(), &file_info) == 0);
+  EXPECT_FALSE(S_ISDIR(file_info.st_mode));
 }
-#endif  // SB_API_VERSION < 16
 
 }  // namespace
 }  // namespace nplb
