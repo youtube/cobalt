@@ -17,8 +17,6 @@
 #ifndef STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -66,16 +64,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- I/O Configuration -----------------------------------------------------
-
-// Whether the current platform implements the on screen keyboard interface.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
-// --- Decoder-only Params ---
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
@@ -89,26 +77,5 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "RasPi builds need a GCC-like compiler (for the moment)."
-#endif
-
-// --- Platform Specific Quirks ----------------------------------------------
-
-// The Raspberry Pi does not apparently align fields in a heap-allocated struct
-// by over 16 bytes.
-#define SB_HAS_QUIRK_DOES_NOT_ALIGN_FIELDS_IN_HEAP_OVER_16_BYTES 1
-
-// The Raspberry Pi does not apparently align stack variables by over 16 bytes.
-#define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
 
 #endif  // STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_

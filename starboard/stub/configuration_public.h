@@ -22,17 +22,6 @@
 #ifndef STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
-// Some platforms will not align variables on the stack with an alignment
-// greater than 16 bytes. Platforms where this is the case should define the
-// following quirk.
-#undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
-
-// Some platforms do not have thread affinity support. Platforms where this is
-// the case should define the following quirk.
-#undef SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -59,11 +48,6 @@
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
-// This quirk is used to switch the headers included in
-// starboard/shared/linux/socket_get_interface_address.cc for darwin system
-// headers. It may be removed at some point in favor of a different solution.
-#undef SB_HAS_QUIRK_SOCKET_BSD_HEADERS
-
 // --- Compiler Configuration ------------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
@@ -85,42 +69,11 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- Filesystem Configuration ----------------------------------------------
-
-// Some operating systems constantly return zero values for creation, access
-// and modification time for files and directories. When this quirk is defined,
-// we need to ignore corresponded time values in applications as well as take
-// this fact into account in unit tests.
-#undef SB_HAS_QUIRK_FILESYSTEM_ZERO_FILEINFO_TIME
-
-// On some platforms the file system stores access times at a coarser
-// granularity than other times. When this quirk is defined, we assume the
-// access time is of 1 day precision.
-#undef SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME
-
-// On some platforms the file system cannot access extremely long file names.
-// We do not need this feature on stub.
-#undef SB_HAS_QUIRK_HASH_FILE_NAME
-
-// --- Graphics Configuration ------------------------------------------------
-
-#define SB_HAS_VIRTUAL_REALITY 1
-
-// --- I/O Configuration -----------------------------------------------------
-
-// Whether the current platform implements the on screen keyboard interface.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 1
-
 // --- Media Configuration ---------------------------------------------------
 
 // The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only
 // when this macro is defined.
 #undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
-
-// --- Decoder-only Params ---
 
 // --- Memory Configuration --------------------------------------------------
 
@@ -135,17 +88,5 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "Stub builds need a GCC-like compiler (for the moment)."
-#endif
 
 #endif  // STARBOARD_STUB_CONFIGURATION_PUBLIC_H_

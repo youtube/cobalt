@@ -18,9 +18,9 @@
 
 #include "base/time/time.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
+#include "media/base/decoder_buffer.h"
 #include "starboard/media.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/chromium//media/base/decoder_buffer.h"
 
 namespace cobalt {
 namespace media {

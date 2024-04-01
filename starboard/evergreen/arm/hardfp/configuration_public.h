@@ -21,8 +21,6 @@
 #ifndef STARBOARD_EVERGREEN_ARM_HARDFP_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_EVERGREEN_ARM_HARDFP_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -70,16 +68,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- I/O Configuration -----------------------------------------------------
-
-// Whether the current platform implements the on screen keyboard interface.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
-// --- Decoder-only Params ---
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
@@ -93,17 +81,5 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "Evergreen-arm builds need a GCC-like compiler (for the moment)."
-#endif
 
 #endif  // STARBOARD_EVERGREEN_ARM_HARDFP_CONFIGURATION_PUBLIC_H_

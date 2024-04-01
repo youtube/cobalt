@@ -236,16 +236,6 @@ the type of the value pointed to by that data argument, if any.
     triggered by the application have tickets passed in via
     SbWindowBlurOnScreenKeyboard. System-triggered events have ticket value
     kSbEventOnScreenKeyboardInvalidTicket.
-*   `kSbEventTypeOnScreenKeyboardSuggestionsUpdated`
-
-    The platform has updated the on screen keyboard suggestions. This event is
-    triggered by the system or by the application's OnScreenKeyboard update
-    suggestions method. The event has int data representing a ticket. The ticket
-    is used by the application to mark individual calls to the update
-    suggestions method as successfully completed. Events triggered by the
-    application have tickets passed in via
-    SbWindowUpdateOnScreenKeyboardSuggestions. System-triggered events have
-    ticket value kSbEventOnScreenKeyboardInvalidTicket.
 *   `kSbEventTypeAccessibilityCaptionSettingsChanged`
 
     One or more of the fields returned by SbAccessibilityGetCaptionSettings has

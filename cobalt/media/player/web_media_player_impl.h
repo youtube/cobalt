@@ -65,9 +65,9 @@
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/player/web_media_player.h"
 #include "cobalt/media/player/web_media_player_delegate.h"
-#include "third_party/chromium/media/base/demuxer.h"
-#include "third_party/chromium/media/base/eme_constants.h"
-#include "third_party/chromium/media/base/media_log.h"
+#include "media/base/demuxer.h"
+#include "media/base/eme_constants.h"
+#include "media/base/media_log.h"
 #include "url/gurl.h"
 
 #if defined(STARBOARD)

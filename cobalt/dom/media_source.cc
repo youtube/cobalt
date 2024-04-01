@@ -62,8 +62,8 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/event.h"
+#include "media/base/pipeline_status.h"
 #include "starboard/media.h"
-#include "third_party/chromium/media/base/pipeline_status.h"
 
 namespace cobalt {
 namespace dom {
