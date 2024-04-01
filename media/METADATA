@@ -1,7 +1,3 @@
-name: "media"
-description:
-  "Subtree at third_party/chromium/media"
-
 third_party {
   identifier {
     type: "ChromiumVersion"
@@ -15,10 +11,5 @@ third_party {
   identifier {
     type: "UpstreamSubdir"
     value: "media"
-  }
-  last_upgrade_date {
-    year: 2022
-    month: 1
-    day: 11
   }
 }

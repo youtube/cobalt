@@ -31,8 +31,8 @@ static_library("js_profiler") {
     "//cobalt/script",
     "//cobalt/script/v8c:engine",
     "//cobalt/web",
+    "//media",
     "//third_party/abseil-cpp/absl/types:optional",
-    "//third_party/chromium/media:media",
     "//third_party/v8:cppgc",
   ]
 }

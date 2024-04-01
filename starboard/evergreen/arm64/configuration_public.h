@@ -21,8 +21,6 @@
 #ifndef STARBOARD_EVERGREEN_ARM64_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_EVERGREEN_ARM64_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -96,23 +94,5 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "Evergreen-arm64 builds need a GCC-like compiler (for the moment)."
-#endif
-
-// --- Platform Specific Quirks ----------------------------------------------
-
-// Indicates that there is no support for alignment at greater than 16 bytes for
-// items on the stack.
-#define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
 
 #endif  // STARBOARD_EVERGREEN_ARM64_CONFIGURATION_PUBLIC_H_

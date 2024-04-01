@@ -27,10 +27,10 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
+#include "media/base/media_log.h"
+#include "media/filters/chunk_demuxer.h"
 #include "starboard/common/string.h"
 #include "starboard/event.h"
-#include "third_party/chromium/media/base/media_log.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace media {

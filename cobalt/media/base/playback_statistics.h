@@ -20,9 +20,9 @@
 #include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/base/c_val.h"
-#include "third_party/chromium/media/base/decoder_buffer.h"
-#include "third_party/chromium/media/base/pipeline_status.h"
-#include "third_party/chromium/media/base/video_decoder_config.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/pipeline_status.h"
+#include "media/base/video_decoder_config.h"
 
 namespace cobalt {
 namespace media {

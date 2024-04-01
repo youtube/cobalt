@@ -27,12 +27,12 @@
 #include "cobalt/media/progressive/data_source_reader.h"
 #include "cobalt/media/progressive/demuxer_extension_wrapper.h"
 #include "cobalt/media/progressive/progressive_demuxer.h"
+#include "media/base/bind_to_current_loop.h"
+#include "media/base/limits.h"
+#include "media/base/timestamp_constants.h"
+#include "media/filters/chunk_demuxer.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
-#include "third_party/chromium/media/base/bind_to_current_loop.h"
-#include "third_party/chromium/media/base/limits.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -124,7 +124,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       allow_resume_after_suspend_(allow_resume_after_suspend),
       allow_batched_sample_write_(allow_batched_sample_write),
       force_punch_out_by_default_(force_punch_out_by_default),
-      proxy_(new WebMediaPlayerProxy(task_runner_, this)),
+      proxy_(new WebMediaPlayerProxy(main_loop_->task_runner(), this)),
       media_log_(media_log),
       is_local_source_(false),
       suppress_destruction_errors_(false),
