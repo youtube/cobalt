@@ -30,6 +30,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_tracks.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/chunk_demuxer.h"
@@ -39,7 +40,6 @@
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace cobalt {

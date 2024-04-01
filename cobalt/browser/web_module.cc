@@ -169,9 +169,6 @@ class WebModule::Impl {
   // Injects an on screen keyboard blurred event into the web module. Event is
   // directed at the on screen keyboard element.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
-  // Injects an on screen keyboard suggestions updated event into the web
-  // module. Event is directed at the on screen keyboard element.
-  void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
 
   // Injects a keyboard event into the web module. Event is directed at a
   // specific element if the element is non-null. Otherwise, the currently

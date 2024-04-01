@@ -19,10 +19,10 @@
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/progressive/avc_access_unit.h"
 #include "cobalt/media/progressive/data_source_reader.h"
-#include "third_party/chromium/media/base/audio_decoder_config.h"
-#include "third_party/chromium/media/base/demuxer_stream.h"
-#include "third_party/chromium/media/base/media_log.h"
-#include "third_party/chromium/media/base/video_decoder_config.h"
+#include "media/base/audio_decoder_config.h"
+#include "media/base/demuxer_stream.h"
+#include "media/base/media_log.h"
+#include "media/base/video_decoder_config.h"
 
 namespace cobalt {
 namespace media {

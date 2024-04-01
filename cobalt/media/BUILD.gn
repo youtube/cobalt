@@ -108,9 +108,9 @@ component("media") {
     "//cobalt/network",
     "//cobalt/render_tree:render_tree",
     "//cobalt/system_window:system_window",
+    "//media",
     "//net",
     "//starboard:starboard_group",
-    "//third_party/chromium/media",
     "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
@@ -139,9 +139,9 @@ target(gtest_target_type, "media_test") {
     "//cobalt//browser:test_dependencies_on_browser",
     "//cobalt/base",
     "//cobalt/test:run_all_unittests",
+    "//media",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/chromium/media:media",
   ]
 
   data_deps = [ "//cobalt/media/testing:cobalt_media_download_test_data" ]

@@ -119,6 +119,6 @@ if (!use_cobalt_customizations) {
       "//testing/gmock",
       "//testing/gtest",
     ]
-    data_deps = [ "//third_party/chromium/media/test/data:media_testdata" ]
+    data_deps = [ "//media/test/data:media_testdata" ]
   }
 }

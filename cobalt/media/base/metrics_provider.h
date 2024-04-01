@@ -17,12 +17,12 @@
 
 #include <string>
 
+#include "media/base/audio_codecs.h"
+#include "media/base/container_names.h"
+#include "media/base/pipeline_status.h"
+#include "media/base/timestamp_constants.h"
+#include "media/base/video_codecs.h"
 #include "starboard/common/mutex.h"
-#include "third_party/chromium/media/base/audio_codecs.h"
-#include "third_party/chromium/media/base/container_names.h"
-#include "third_party/chromium/media/base/pipeline_status.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
-#include "third_party/chromium/media/base/video_codecs.h"
 
 namespace cobalt {
 namespace media {
