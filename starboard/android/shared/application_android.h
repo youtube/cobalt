@@ -92,6 +92,14 @@ class ApplicationAndroid
 
   void SendKeyboardInject(SbKey key);
 
+  void SbWindowShowOnScreenKeyboard(SbWindow window,
+                                    const char* input_text,
+                                    int ticket);
+  void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket);
+  void SbWindowUpdateOnScreenKeyboardSuggestions(
+      SbWindow window,
+      const std::vector<std::string>& suggestions,
+      int ticket);
   void SbWindowSendInputEvent(const char* input_text, bool is_composing);
   void SendLowMemoryEvent();
   void OsNetworkStatusChange(bool became_online);

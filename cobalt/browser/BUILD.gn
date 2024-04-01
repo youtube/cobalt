@@ -120,6 +120,8 @@ static_library("browser") {
     "device_authentication.h",
     "on_screen_keyboard_extension_bridge.cc",
     "on_screen_keyboard_extension_bridge.h",
+    "on_screen_keyboard_starboard_bridge.cc",
+    "on_screen_keyboard_starboard_bridge.h",
     "render_tree_combiner.cc",
     "render_tree_combiner.h",
     "screen_shot_writer.cc",

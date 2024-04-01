@@ -399,31 +399,23 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);
   REGISTER_SYMBOL(SbUserGetSignedIn);
-  REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
 #endif  // SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowGetOnScreenKeyboardBoundingRect);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowHideOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowIsOnScreenKeyboardShown);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowSetOnScreenKeyboardKeepFocus);
   REGISTER_SYMBOL(SbWindowShowOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
-#endif  // SB_API_VERSION < 16
 
 #if SB_API_VERSION >= 16
   // POSIX APIs

@@ -51,6 +51,9 @@
 
 // --- Common Helper Macros --------------------------------------------------
 
+#define SB_TRUE #error "The macro SB_TRUE is deprecated."
+#define SB_FALSE #error "The macro SB_FALSE is deprecated."
+
 // Determines a compile-time capability of the system.
 #define SB_CAN(SB_FEATURE) \
   ((defined SB_CAN_##SB_FEATURE) && SB_CAN_##SB_FEATURE)
@@ -107,6 +110,9 @@ struct CompileAssert {};
 // Standard CPP trick to stringify an evaluated macro definition.
 #define SB_STRINGIFY(x) SB_STRINGIFY2(x)
 #define SB_STRINGIFY2(x) #x
+
+#define SB_DISALLOW_COPY_AND_ASSIGN \
+  #error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
 
 // An enumeration of values for the kSbPreferredByteOrder configuration
 // variable.  Setting this up properly means avoiding slow color swizzles when
@@ -180,6 +186,13 @@ struct CompileAssert {};
 #define SB_WARN_UNUSED_RESULT
 #endif  // COMPILER_GCC
 #endif  // SB_WARN_UNUSED_RESULT
+
+// Declares a function as overriding a virtual function on compilers that
+// support it.
+#define SB_OVERRIDE                                                   \
+  #error                                                              \
+      "The SB_OVERRIDE macro is deprecated. Please use \"override\" " \
+      "instead."
 
 // Declare numeric literals of signed 64-bit type.
 #if !defined(SB_INT64_C)

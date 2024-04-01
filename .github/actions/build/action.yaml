@@ -17,14 +17,14 @@ runs:
       run: |
         set -x
         env
-        if [ -z ${COBALT_EVERGREEN_LOADER+x} ]; then
+        if [ -z ${COBALT_BOOTLOADER+x} ]; then
           BUILD_PLATFORM=${{ matrix.target_platform }}
           BUILD_TARGET=all
           if [[ "${{matrix.config}}" =~ ^(qa|gold)$ ]]; then
             BUILD_TARGET=default
           fi
         else
-          BUILD_PLATFORM=${COBALT_EVERGREEN_LOADER}
+          BUILD_PLATFORM=${COBALT_BOOTLOADER}
           BUILD_TARGET='loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
         fi
         # GitHub Runners have home set to /github/home.

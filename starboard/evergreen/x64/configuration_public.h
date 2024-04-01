@@ -21,6 +21,8 @@
 #ifndef STARBOARD_EVERGREEN_X64_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_EVERGREEN_X64_CONFIGURATION_PUBLIC_H_
 
+// --- Architecture Configuration --------------------------------------------
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -83,7 +85,6 @@
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
-
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.
@@ -91,5 +92,17 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
+
+// --- Thread Configuration --------------------------------------------------
+
+// --- Tuneable Parameters ---------------------------------------------------
+
+// --- User Configuration ----------------------------------------------------
+
+// --- Platform Specific Audits ----------------------------------------------
+
+#if !defined(__GNUC__)
+#error "Evergreen-x64 builds need a GCC-like compiler (for the moment)."
+#endif
 
 #endif  // STARBOARD_EVERGREEN_X64_CONFIGURATION_PUBLIC_H_

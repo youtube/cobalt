@@ -22,13 +22,13 @@ runs:
       run: |
         set -x
         extra_arguments="${{matrix.extra_gn_arguments}}"
-        if [ -z ${COBALT_EVERGREEN_LOADER+x} ]; then
+        if [ -z ${COBALT_BOOTLOADER+x} ]; then
           BUILD_PLATFORM=${{ matrix.target_platform }}
         else
-          BUILD_PLATFORM=${COBALT_EVERGREEN_LOADER}
-          if [ ! -z "${{matrix.evergreen_loader_extra_gn_arguments}}" ]
+          BUILD_PLATFORM=${COBALT_BOOTLOADER}
+          if [ ! -z "${{matrix.bootloader_extra_gn_arguments}}" ]
           then
-            extra_arguments="${{matrix.evergreen_loader_extra_gn_arguments}}"
+            extra_arguments="${{matrix.bootloader_extra_gn_arguments}}"
           fi
         fi
         if [ -z "${{matrix.sb_api_version}}"]; then

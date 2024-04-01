@@ -102,10 +102,8 @@ typedef intptr_t EGLNativePixmapType;
 #elif defined(__unix__)
 
 /* X11 (tentative)  */
-typedef unsigned long XID;
-typedef XID Pixmap;
-typedef XID Window;
-typedef struct _XDisplay Display;
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
 
 typedef Display *EGLNativeDisplayType;
 typedef Pixmap   EGLNativePixmapType;

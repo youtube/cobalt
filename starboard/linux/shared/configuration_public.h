@@ -72,6 +72,11 @@
 
 // --- I/O Configuration -----------------------------------------------------
 
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 0
+
+// --- Decoder-only Params ---
+
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
@@ -83,6 +88,12 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
+
+// --- Platform Specific Audits ----------------------------------------------
+
+#if !defined(__GNUC__)
+#error "Linux builds need a GCC-like compiler (for the moment)."
+#endif
 
 // --- Media Configuration ---------------------------------------------------
 

@@ -14,6 +14,8 @@
 
 #include "cobalt/speech/microphone_starboard.h"
 
+#if defined(SB_USE_SB_MICROPHONE)
+
 #include "starboard/common/log.h"
 
 namespace cobalt {
@@ -87,3 +89,5 @@ bool MicrophoneStarboard::Close() {
 
 }  // namespace speech
 }  // namespace cobalt
+
+#endif  // defined(SB_USE_SB_MICROPHONE)
