@@ -43,8 +43,6 @@ config("host") {
 
 config("common") {
   arflags = [ "-no_warning_for_no_symbols" ]
-  cflags_cc = [ "-std=gnu++17" ]
-  cflags_objcc = [ "-std=gnu++17" ]
   cflags = [ "-fno-common" ]
   asmflags = [ "-fno-common" ]
   ldflags = [ "-fno-common" ]

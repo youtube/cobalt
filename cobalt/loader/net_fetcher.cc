@@ -33,6 +33,7 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_transaction_factory.h"
+#include "net/http/http_util.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
 #endif  // defined(STARBOARD)
@@ -98,23 +99,26 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
     url_fetcher_->AddExtraRequestHeader("Origin:" + origin.SerializedOrigin());
   }
 
-#ifndef USE_HACKY_COBALT_CHANGES
   if (url.SchemeIsHTTPOrHTTPS()) {
     auto url_request_context = network_module->url_request_context();
-    std::string key = net::HttpUtil::SpecForRequest(url);
-    url_request_context->AssociateKeyWithResourceType(key,
-                                                      options.resource_type);
+    auto key = net::HttpCache::GenerateCacheKey(
+        url,
+        /*load_flags=*/0, net::NetworkIsolationKey(),
+        /*upload_data_identifier=*/0,
+        /*is_subframe_document_resource=*/false,
+        /*use_single_keyed_cache=*/false,
+        /*single_key_checksum=*/std::string());
+    if (key) {
+      url_request_context->AssociateKeyWithResourceType(key.value(),
+                                                        options.resource_type);
+    }
   }
 
   if ((request_cross_origin_ &&
        (request_mode == kCORSModeSameOriginCredentials)) ||
       request_mode == kCORSModeOmitCredentials) {
-    const uint32 kDisableCookiesLoadFlags =
-        net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
-        net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
-    url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
+    url_fetcher_->SetAllowCredentials(false);
   }
-#endif
 
   network_module->AddClientHintHeaders(*url_fetcher_, network::kCallTypeLoader);
 

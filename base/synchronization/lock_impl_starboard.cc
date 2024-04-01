@@ -30,12 +30,6 @@ LockImpl::~LockImpl() {
   DCHECK(result);
 }
 
-// bool LockImpl::Try() {
-//   SbMutexResult result = SbMutexAcquireTry(&native_handle_);
-//   DCHECK_NE(kSbMutexDestroyed, result);
-//   return SbMutexIsSuccess(result);
-// }
-
 void LockImpl::LockInternal() {
   SbMutexResult result = SbMutexAcquire(&native_handle_);
   DCHECK_NE(kSbMutexDestroyed, result);

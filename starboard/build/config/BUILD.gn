@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/compiler/compiler.gni")
+import("//starboard/build/config/os_definitions.gni")
 
 # TODO: b/319085130 - This macro is only used temporarily to enable compilation
 #                     of upstream libraries being updated in Cobalt. Use it as
@@ -27,12 +28,6 @@ if (use_hacky_cobalt_changes) {
       "BASE_HASH_NAMESPACE=std",
       "BASE_HASH_USE_HASH_STRUCT",
     ]
-    if (current_toolchain == cobalt_toolchain) {
-      defines += [
-        "ALLOW_UNUSED_TYPE=",
-        "WARN_UNUSED_RESULT=",
-      ]
-    }
   }
 
   config("hacky_wnos") {
@@ -155,7 +150,11 @@ config("host") {
       cflags = [
         "/wd4267",  # Possible loss of precision from size_t to a smaller type.
         "/wd4715",  # Not all control paths return value.
+        "/std:c++17",
       ]
+    } else if (is_apple) {
+      cflags_cc = [ "-std=gnu++17" ]
+      cflags_objcc = [ "-std=gnu++17" ]
     }
   }
 }
@@ -197,12 +196,6 @@ config("starboard") {
       "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
     ]
 
-    if (gl_type == "none") {
-      defines += [ "SB_GN_GL_TYPE_IS_NONE=1" ]
-    } else {
-      defines += [ "SB_GN_GL_TYPE_IS_NONE=0" ]
-    }
-
     if (!is_gold) {
       defines += [
         "ENABLE_DEBUGGER",
@@ -210,10 +203,6 @@ config("starboard") {
         "ENABLE_TEST_RUNNER",
         "ENABLE_IGNORE_CERTIFICATE_ERRORS",
       ]
-    }
-
-    if (abort_on_allocation_failure) {
-      defines += [ "SB_ABORT_ON_ALLOCATION_FAILURE" ]
     }
 
     if (is_internal_build) {
@@ -307,5 +296,52 @@ config("default_compiler_flags") {
       current_toolchain == cobalt_toolchain && target_cpu == "arm") {
     cflags = [ "-mfpu=vfpv3" ]
     asmflags = cflags
+  }
+}
+
+# This config is intended to encapsulate all platform-specific logic for selecting the C++ standard
+# version in shared code while building with the default toolchain.
+# Starboard platform-specific build code should not attempt to overload this.
+config("default_cpp_standard") {
+  if (current_toolchain == default_toolchain) {
+    if (sb_is_modular || is_android) {
+      cflags_cc = [ "-std=c++17" ]
+    }
+
+    # These flags apply to non-modular windows platforms which includes win32, xb1.
+    if (is_host_win && !sb_is_modular) {
+      cflags = [ "/std:c++17" ]
+    }
+
+    if (is_linux && !sb_is_modular) {
+      cflags_cc = [ "-std=gnu++17" ]
+    }
+
+    if (is_apple) {
+      cflags_cc = [ "-std=gnu++17" ]
+      cflags_objcc = [ "-std=gnu++17" ]
+    }
+  }
+}
+
+config("cpp20_supported_config") {
+  if (current_toolchain == default_toolchain) {
+    if (sb_is_modular || is_android) {
+      cflags_cc = [ "-std=c++20" ]
+    }
+
+    # These flags apply to non-modular windows platforms which includes win32, xb1.
+    if (is_host_win && !sb_is_modular) {
+      cflags = [ "/std:c++20" ]
+    }
+
+    if (is_linux && !sb_is_modular) {
+      cflags_cc = [ "-std=gnu++20" ]
+    }
+
+    if (is_apple) {
+      cflags_cc = [ "-std=gnu++20" ]
+      cflags_objcc = [ "-std=gnu++20" ]
+    }
   }
 }

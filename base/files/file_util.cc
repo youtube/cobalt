@@ -52,6 +52,7 @@ void RunAndReply(OnceCallback<bool()> action_callback,
 
 #endif  // !BUILDFLAG(IS_WIN)
 
+#if !defined(STARBOARD)
 bool ReadStreamToSpanWithMaxSize(
     FILE* stream,
     size_t max_size,
@@ -70,8 +71,7 @@ bool ReadStreamToSpanWithMaxSize(
   constexpr size_t kDefaultChunkSize = 1 << 16;
   size_t chunk_size = kDefaultChunkSize - 1;
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-#if defined(USE_HACKY_COBALT_CHANGES)
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   BY_HANDLE_FILE_INFORMATION file_info = {};
   if (::GetFileInformationByHandle(
           reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(stream))),
@@ -132,6 +132,7 @@ bool ReadStreamToSpanWithMaxSize(
 
   return read_status;
 }
+#endif
 
 }  // namespace
 
@@ -320,6 +321,7 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 }
 #endif  // !defined(USE_HACKY_COBALT_CHANGES)
 
+#if !defined(STARBOARD)
 bool ReadStreamToString(FILE* stream, std::string* contents) {
   return ReadStreamToStringWithMaxSize(
       stream, std::numeric_limits<size_t>::max(), contents);
@@ -344,6 +346,7 @@ bool ReadStreamToStringWithMaxSize(FILE* stream,
   }
   return read_successs;
 }
+#endif
 
 absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
   if (path.ReferencesParent()) {

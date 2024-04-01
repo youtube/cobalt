@@ -5,6 +5,10 @@
 #ifndef NET_SITE_FOR_COOKIES_H
 #define NET_SITE_FOR_COOKIES_H
 
+#if !defined(STARBOARD)
+#error "This file only works with Cobalt/Starboard."
+#endif  // !defined(STARBOARD)
+
 namespace net {
 
 // Reduced version enough to make media code depending on it to be built.
