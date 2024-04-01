@@ -21,6 +21,8 @@
 #ifndef STARBOARD_EVERGREEN_ARM_HARDFP_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_EVERGREEN_ARM_HARDFP_CONFIGURATION_PUBLIC_H_
 
+// --- Architecture Configuration --------------------------------------------
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -91,5 +93,17 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
+
+// --- Thread Configuration --------------------------------------------------
+
+// --- Tuneable Parameters ---------------------------------------------------
+
+// --- User Configuration ----------------------------------------------------
+
+// --- Platform Specific Audits ----------------------------------------------
+
+#if !defined(__GNUC__)
+#error "Evergreen-arm builds need a GCC-like compiler (for the moment)."
+#endif
 
 #endif  // STARBOARD_EVERGREEN_ARM_HARDFP_CONFIGURATION_PUBLIC_H_

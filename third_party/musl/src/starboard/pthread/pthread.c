@@ -24,7 +24,7 @@
 #include "starboard/once.h"
 #include "starboard/time.h"
 
-int pthread_mutex_init(pthread_mutex_t* mutext, const pthread_mutexattr_t*) {
+int pthread_mutex_init(pthread_mutex_t *__restrict mutext, const pthread_mutexattr_t *__restrict) {
   if (SbMutexCreate((SbMutex*)mutext->mutex_buffer)) {
     return 0;
   }
@@ -44,6 +44,7 @@ int pthread_mutex_unlock(pthread_mutex_t* mutex) {
     return 0;
   }
   return EINVAL;
+
 }
 
 int pthread_mutex_trylock(pthread_mutex_t* mutex) {
@@ -59,6 +60,7 @@ int pthread_mutex_destroy(pthread_mutex_t* mutex) {
     return 0;
   }
   return EINVAL;
+
 }
 
 int  pthread_cond_broadcast(pthread_cond_t * cond) {

@@ -100,6 +100,7 @@ TEST(SbAlignTest, AlignAsStackVariable) {
   EXPECT_LE(8, GetAlignment(&by_8));
   EXPECT_LE(16, GetAlignment(&by_16));
 
+#if !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
   SB_ALIGNAS(32) char by_32;
   char unaligned6 = 6;
   EXPECT_NE(unaligned6, unaligned1);
@@ -117,6 +118,7 @@ TEST(SbAlignTest, AlignAsStackVariable) {
   EXPECT_LE(64, GetAlignment(&by_64));
   EXPECT_LE(128, GetAlignment(&by_128));
   EXPECT_LE(256, GetAlignment(&by_256));
+#endif  // !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
 }
 
 TEST(SbAlignTest, AlignOf) {

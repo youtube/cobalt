@@ -51,6 +51,7 @@
 #include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
+#include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/base/starboard_stats_tracker.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/version_compatibility.h"
@@ -963,6 +964,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
+  on_screen_keyboard_suggestions_updated_event_callback_ =
+      base::Bind(&Application::OnOnScreenKeyboardSuggestionsUpdatedEvent,
+                 base::Unretained(this));
+  event_dispatcher_.AddEventCallback(
+      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
+      on_screen_keyboard_suggestions_updated_event_callback_);
   on_caption_settings_changed_event_callback_ = base::Bind(
       &Application::OnCaptionSettingsChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(
@@ -1067,6 +1074,9 @@ Application::~Application() {
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
   event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
+      on_screen_keyboard_suggestions_updated_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
   event_dispatcher_.RemoveEventCallback(
@@ -1148,6 +1158,10 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::OnScreenKeyboardBlurredEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+      DispatchEventInternal(new base::OnScreenKeyboardSuggestionsUpdatedEvent(
+          *static_cast<int*>(starboard_event->data)));
+      break;
     case kSbEventTypeLink: {
       DispatchDeepLink(static_cast<const char*>(starboard_event->data),
                        starboard_event->timestamp);
@@ -1182,11 +1196,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeStop:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
-#if SB_API_VERSION >= 16
-    case kSbEventTypeReserved1:
-#else
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= 16
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
   }
@@ -1264,6 +1273,7 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardShown:
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
     case kSbEventTypeAccessibilitySettingsChanged:
     case kSbEventTypeInput:
     case kSbEventTypeLink:
@@ -1273,11 +1283,6 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
-#if SB_API_VERSION >= 16
-    case kSbEventTypeReserved1:
-#else
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= 16
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
@@ -1333,6 +1338,15 @@ void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
   browser_module_->OnOnScreenKeyboardBlurred(
       base::polymorphic_downcast<const base::OnScreenKeyboardBlurredEvent*>(
           event));
+}
+
+void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
+    const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnOnScreenKeyboardSuggestionsUpdatedEvent()");
+  browser_module_->OnOnScreenKeyboardSuggestionsUpdated(
+      base::polymorphic_downcast<
+          const base::OnScreenKeyboardSuggestionsUpdatedEvent*>(event));
 }
 
 void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {

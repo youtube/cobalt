@@ -19,11 +19,11 @@
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 
-#if !defined(_GNU_SOURCE)
+#if SB_HAS_QUIRK(SOCKET_BSD_HEADERS)
 #include <errno.h>
 #include <net/if.h>
 #include <net/if_dl.h>
-#else  // _GNU_SOURCE is set for Linux
+#else
 #include <linux/if.h>
 #include <linux/if_addr.h>
 #include <netdb.h>

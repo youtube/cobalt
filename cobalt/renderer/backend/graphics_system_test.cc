@@ -57,10 +57,10 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsSystemCanBeInitializedOften) {
                << "ms per initialization.";
 
   // Graphics system initializations should not take more than the maximum of
-  // 250ms or three times as long as the time we just measured.
+  // 200ms or three times as long as the time we just measured.
   int64_t maximum_time_usec_per_initialization =
       std::max<int64_t>(3 * time_per_initialization_usec,
-                        250 * base::Time::kMicrosecondsPerMillisecond);
+                        200 * base::Time::kMicrosecondsPerMillisecond);
 
   int64_t last = starboard::CurrentMonotonicTime();
   for (int i = 0; i < 20; ++i) {
@@ -106,10 +106,10 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
                << "ms per initialization.";
 
   // Graphics system and context initializations should not take more than the
-  // maximum of 250ms or three times as long as the time we just measured.
+  // maximum of 200ms or three times as long as the time we just measured.
   int64_t maximum_time_usec_per_initialization =
       std::max<int64_t>(3 * time_per_initialization_usec,
-                        250 * base::Time::kMicrosecondsPerMillisecond);
+                        200 * base::Time::kMicrosecondsPerMillisecond);
 
   int64_t last = starboard::CurrentMonotonicTime();
   for (int i = 0; i < 20; ++i) {

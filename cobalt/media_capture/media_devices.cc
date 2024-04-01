@@ -36,6 +36,10 @@
 namespace cobalt {
 namespace media_capture {
 
+#if SB_USE_SB_MICROPHONE && !defined(DISABLE_MICROPHONE_IDL)
+#define ENABLE_MICROPHONE_IDL
+#endif
+
 namespace {
 
 using speech::Microphone;
@@ -52,11 +56,13 @@ std::unique_ptr<Microphone> CreateMicrophone(
 
   std::unique_ptr<Microphone> mic;
 
+#if defined(ENABLE_MICROPHONE_IDL)
   mic.reset(new speech::MicrophoneStarboard(
       speech::MicrophoneStarboard::kDefaultSampleRate,
       /* Buffer for one second. */
       speech::MicrophoneStarboard::kDefaultSampleRate *
           speech::MicrophoneStarboard::kSbMicrophoneSampleSizeInBytes));
+#endif  // defined(ENABLE_MICROPHONE_IDL)
 
   return mic;
 }

@@ -42,6 +42,15 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
     const int64_t kOneMinuteInMicroseconds = 60'000'000;
     int64_t time =
         PosixTimeToWindowsTime(CurrentPosixTime()) - kOneMinuteInMicroseconds;
+#if !SB_HAS_QUIRK(FILESYSTEM_ZERO_FILEINFO_TIME)
+#if SB_HAS_QUIRK(FILESYSTEM_COARSE_ACCESS_TIME)
+    // On platforms with coarse access time, we assume 1 day precision and go
+    // back 2 days to avoid rounding issues.
+    const int64_t kOneDayInMicroseconds = 1'000'000LL * 60LL * 60LL * 24LL;
+    int64_t coarse_time = PosixTimeToWindowsTime(CurrentPosixTime()) -
+                          (2 * kOneDayInMicroseconds);
+#endif  // FILESYSTEM_COARSE_ACCESS_TIME
+#endif  // FILESYSTEM_ZERO_FILEINFO_TIME
 
     const int kFileSize = 12;
     starboard::nplb::ScopedRandomFile random_file(kFileSize);
@@ -57,9 +66,19 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
       EXPECT_EQ(kFileSize, info.size);
       EXPECT_FALSE(info.is_directory);
       EXPECT_FALSE(info.is_symbolic_link);
+#if SB_HAS_QUIRK(FILESYSTEM_ZERO_FILEINFO_TIME)
+      EXPECT_LE(0, info.last_accessed);
+      EXPECT_LE(0, info.last_accessed);
+      EXPECT_LE(0, info.creation_time);
+#else
       EXPECT_LE(time, info.last_modified);
+#if SB_HAS_QUIRK(FILESYSTEM_COARSE_ACCESS_TIME)
+      EXPECT_LE(coarse_time, info.last_accessed);
+#else
       EXPECT_LE(time, info.last_accessed);
+#endif  // FILESYSTEM_COARSE_ACCESS_TIME
       EXPECT_LE(time, info.creation_time);
+#endif  // FILESYSTEM_ZERO_FILEINFO_TIME
     }
 
     bool result = SbFileClose(file);

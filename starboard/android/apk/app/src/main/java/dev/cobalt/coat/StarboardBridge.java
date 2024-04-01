@@ -75,6 +75,7 @@ public class StarboardBridge {
   private AudioOutputManager audioOutputManager;
   private CobaltMediaSession cobaltMediaSession;
   private AudioPermissionRequester audioPermissionRequester;
+  private KeyboardEditor keyboardEditor;
   private NetworkStatus networkStatus;
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
@@ -152,8 +153,9 @@ public class StarboardBridge {
 
   private native long nativeCurrentMonotonicTime();
 
-  protected void onActivityStart(Activity activity) {
+  protected void onActivityStart(Activity activity, KeyboardEditor keyboardEditor) {
     activityHolder.set(activity);
+    this.keyboardEditor = keyboardEditor;
     sysConfigChangeReceiver.setForeground(true);
   }
 
@@ -685,6 +687,13 @@ public class StarboardBridge {
   @UsedByNative
   AudioOutputManager getAudioOutputManager() {
     return audioOutputManager;
+  }
+
+  /** Returns Java layer implementation for KeyboardEditor */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  KeyboardEditor getKeyboardEditor() {
+    return keyboardEditor;
   }
 
   /** Returns Java layer implementation for AudioPermissionRequester */

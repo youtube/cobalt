@@ -78,6 +78,7 @@ class Application {
   void OnOnScreenKeyboardHiddenEvent(const base::Event* event);
   void OnOnScreenKeyboardFocusedEvent(const base::Event* event);
   void OnOnScreenKeyboardBlurredEvent(const base::Event* event);
+  void OnOnScreenKeyboardSuggestionsUpdatedEvent(const base::Event* event);
   void OnCaptionSettingsChangedEvent(const base::Event* event);
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
@@ -110,6 +111,7 @@ class Application {
   base::EventCallback on_screen_keyboard_hidden_event_callback_;
   base::EventCallback on_screen_keyboard_focused_event_callback_;
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
+  base::EventCallback on_screen_keyboard_suggestions_updated_event_callback_;
   base::EventCallback on_caption_settings_changed_event_callback_;
   base::EventCallback on_window_on_online_event_callback_;
   base::EventCallback on_window_on_offline_event_callback_;

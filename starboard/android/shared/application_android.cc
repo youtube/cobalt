@@ -511,6 +511,82 @@ Java_dev_cobalt_coat_CobaltA11yHelper_nativeInjectKeyEvent(JNIEnv* env,
   ApplicationAndroid::Get()->SendKeyboardInject(static_cast<SbKey>(key));
 }
 
+extern "C" SB_EXPORT_PLATFORM jboolean
+Java_dev_cobalt_coat_KeyboardInputConnection_nativeHasOnScreenKeyboard(
+    JniEnvExt* env,
+    jobject unused_this) {
+  return SbWindowOnScreenKeyboardIsSupported() ? JNI_TRUE : JNI_FALSE;
+}
+
+void ApplicationAndroid::SbWindowShowOnScreenKeyboard(SbWindow window,
+                                                      const char* input_text,
+                                                      int ticket) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject j_keyboard_editor = env->CallStarboardObjectMethodOrAbort(
+      "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
+  env->CallVoidMethodOrAbort(j_keyboard_editor, "showKeyboard", "()V");
+  int* data = new int;
+  *data = ticket;
+  Inject(new Event(kSbEventTypeOnScreenKeyboardShown, data,
+                   &DeleteDestructor<int>));
+  return;
+}
+
+void ApplicationAndroid::SbWindowHideOnScreenKeyboard(SbWindow window,
+                                                      int ticket) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject j_keyboard_editor = env->CallStarboardObjectMethodOrAbort(
+      "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
+  env->CallVoidMethodOrAbort(j_keyboard_editor, "hideKeyboard", "()V");
+  int* data = new int;
+  *data = ticket;
+  Inject(new Event(kSbEventTypeOnScreenKeyboardHidden, data,
+                   &DeleteDestructor<int>));
+  return;
+}
+
+void ApplicationAndroid::SbWindowUpdateOnScreenKeyboardSuggestions(
+    SbWindow window,
+    const std::vector<std::string>& suggestions,
+    int ticket) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jobjectArray completions = env->NewObjectArray(
+      suggestions.size(),
+      env->FindClass("android/view/inputmethod/CompletionInfo"), 0);
+  jstring str;
+  jobject j_completion_info;
+  for (size_t i = 0; i < suggestions.size(); i++) {
+    str = env->NewStringUTF(suggestions[i].c_str());
+    j_completion_info =
+        env->NewObjectOrAbort("android/view/inputmethod/CompletionInfo",
+                              "(JILjava/lang/CharSequence;)V", i, i, str);
+    env->SetObjectArrayElement(completions, i, j_completion_info);
+  }
+  jobject j_keyboard_editor = env->CallStarboardObjectMethodOrAbort(
+      "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
+  env->CallVoidMethodOrAbort(j_keyboard_editor, "updateCustomCompletions",
+                             "([Landroid/view/inputmethod/CompletionInfo;)V",
+                             completions);
+  int* data = new int;
+  *data = ticket;
+  Inject(new Event(kSbEventTypeOnScreenKeyboardSuggestionsUpdated, data,
+                   &DeleteDestructor<int>));
+  return;
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_KeyboardInputConnection_nativeSendText(
+    JniEnvExt* env,
+    jobject unused_clazz,
+    jstring text,
+    jboolean is_composing) {
+  if (text) {
+    std::string utf_str = env->GetStringStandardUTFOrAbort(text);
+    ApplicationAndroid::Get()->SbWindowSendInputEvent(utf_str.c_str(),
+                                                      is_composing);
+  }
+}
+
 void DeleteSbInputDataWithText(void* ptr) {
   SbInputData* data = static_cast<SbInputData*>(ptr);
   const char* input_text = data->input_text;

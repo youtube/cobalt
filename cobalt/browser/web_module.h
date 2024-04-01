@@ -288,6 +288,9 @@ class WebModule : public base::CurrentThread::DestructionObserver,
   void InjectOnScreenKeyboardFocusedEvent(int ticket);
   // Injects an on screen keyboard blurred event into the web module.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
+  // Injects an on screen keyboard suggestions updated event into the web
+  // module.
+  void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
 
   void InjectWindowOnOnlineEvent(const base::Event* event);
   void InjectWindowOnOfflineEvent(const base::Event* event);

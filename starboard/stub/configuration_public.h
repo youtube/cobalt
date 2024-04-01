@@ -22,6 +22,17 @@
 #ifndef STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 
+// --- Architecture Configuration --------------------------------------------
+
+// Some platforms will not align variables on the stack with an alignment
+// greater than 16 bytes. Platforms where this is the case should define the
+// following quirk.
+#undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
+
+// Some platforms do not have thread affinity support. Platforms where this is
+// the case should define the following quirk.
+#undef SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -47,6 +58,11 @@
 // Chrome has an exclusion for iOS here, we should too when we support iOS.
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
+
+// This quirk is used to switch the headers included in
+// starboard/shared/linux/socket_get_interface_address.cc for darwin system
+// headers. It may be removed at some point in favor of a different solution.
+#undef SB_HAS_QUIRK_SOCKET_BSD_HEADERS
 
 // --- Compiler Configuration ------------------------------------------------
 
@@ -104,6 +120,8 @@
 // when this macro is defined.
 #undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
 
+// --- Decoder-only Params ---
+
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
@@ -117,5 +135,17 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
+
+// --- Thread Configuration --------------------------------------------------
+
+// --- Tuneable Parameters ---------------------------------------------------
+
+// --- User Configuration ----------------------------------------------------
+
+// --- Platform Specific Audits ----------------------------------------------
+
+#if !defined(__GNUC__)
+#error "Stub builds need a GCC-like compiler (for the moment)."
+#endif
 
 #endif  // STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
