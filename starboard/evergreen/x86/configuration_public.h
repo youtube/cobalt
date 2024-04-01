@@ -70,9 +70,4 @@
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
-// --- Network Configuration -------------------------------------------------
-
-// Specifies whether this platform supports pipe.
-#define SB_HAS_PIPE 1
-
 #endif  // STARBOARD_EVERGREEN_X86_CONFIGURATION_PUBLIC_H_

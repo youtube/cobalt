@@ -77,9 +77,6 @@
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
 
-// Specifies whether this platform supports pipe.
-#define SB_HAS_PIPE 1
-
 // --- Media Configuration ---------------------------------------------------
 
 // The path of video_dmp_writer.h. Defined here to avoid errors building on

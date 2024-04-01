@@ -33,6 +33,9 @@ The config value of `SB_HAS_ON_SCREEN_KEYBOARD` is also removed.
 ## Removed configs for `FILESYSTEM_ZERO_FILEINFO_TIME` and `COARSE_ACCESS_TIME`
 These are no longer used in Starboard and Cobalt.
 
+## Removed `SB_HAS_PIPE`
+This flag is no longer used.
+
 ## Removed `QUIRK_HASH_FILE_NAME`
 No platforms are using this config anymore.
 
