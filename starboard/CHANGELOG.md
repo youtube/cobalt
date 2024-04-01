@@ -9,6 +9,23 @@ since the version previous to it.
 
 ## Version 16
 
+## Deprecated `OnScreenKeyboard`
+OnScreenKeyboard Starboard API has been deprecated, an extension in
+`starboard/extension/on_screen_keyboard.h` is available instead. The removal
+includes the following functions:
+* `SbWindowBlurOnScreenKeyboard`
+* `SbWindowFocusOnScreenKeyboard`
+* `SbWindowGetOnScreenKeyboardBoundingRect`
+* `SbWindowHideOnScreenKeyboard`
+* `SbWindowIsOnScreenKeyboardShown`
+* `SbWindowOnScreenKeyboardIsSupported`
+* `SbWindowOnScreenKeyboardSuggestionsSupported`
+* `SbWindowSetOnScreenKeyboardKeepFocus`
+* `SbWindowShowOnScreenKeyboard`
+* `SbWindowUpdateOnScreenKeyboardSuggestions`
+
+The config value of `SB_HAS_ON_SCREEN_KEYBOARD` is also removed.
+
 ## Removed configs for `FILESYSTEM_ZERO_FILEINFO_TIME` and `COARSE_ACCESS_TIME`
 These are no longer used in Starboard and Cobalt.
 

@@ -14,6 +14,10 @@
 
 #include "starboard/window.h"
 
+#if SB_API_VERSION < 16
+
 bool SbWindowOnScreenKeyboardIsSupported() {
   return false;
 }
+
+#endif  // SB_API_VERSION < 16
