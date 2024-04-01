@@ -185,6 +185,17 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.WebMediaPlayer.Seek.Timing"
+    units="milliseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Seek latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the seek latency of WebMediaPlayer.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.MediaDevices.MicCreationSucceeded" enum="Boolean"
     expires_after="never">
 <!-- expires-never: Needed for long-term tracking of device mic support. -->
