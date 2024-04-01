@@ -58,10 +58,6 @@
 // inlined.
 #define SB_C_INLINE inline
 
-// The platform's annotation for marking a C function as forcibly not
-// inlined.
-#define SB_C_NOINLINE __attribute__((noinline))
-
 // The platform's annotation for marking a symbol as exported outside of the
 // current shared library.
 #define SB_EXPORT_PLATFORM __attribute__((visibility("default")))

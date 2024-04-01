@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed `SB_C_NOINLINE`
+This is only used for testing, a similar header is now found under
+`starboard/shared/testing/no_inline.h`
+
 ## Deprecated `OnScreenKeyboard`
 OnScreenKeyboard Starboard API has been deprecated, an extension in
 `starboard/extension/on_screen_keyboard.h` is available instead. The removal

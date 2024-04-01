@@ -14,13 +14,15 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+#include "starboard/shared/testing/no_inline.h"
+
 namespace starboard {
 namespace nplb {
 namespace {
 
 class Object {
  public:
-  SB_C_NOINLINE bool ThisPointerIsNull() {
+  SB_TEST_FORCE_NO_INLINE bool ThisPointerIsNull() {
     auto* pointer = this;
     // Intentionally not "return !pointer", and with a side effect for one
     // branch, in order to more closely match the form that this undefined
