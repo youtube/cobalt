@@ -18,7 +18,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace cobalt {
 namespace media {

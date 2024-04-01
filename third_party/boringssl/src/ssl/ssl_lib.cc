@@ -143,6 +143,7 @@
 #include <algorithm>
 
 #include <assert.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -483,6 +484,17 @@ bool SSL_get_traffic_secrets(const SSL *ssl,
   return true;
 }
 
+void SSL_CTX_set_aes_hw_override_for_testing(SSL_CTX *ctx,
+                                             bool override_value) {
+  ctx->aes_hw_override = true;
+  ctx->aes_hw_override_value = override_value;
+}
+
+void SSL_set_aes_hw_override_for_testing(SSL *ssl, bool override_value) {
+  ssl->config->aes_hw_override = true;
+  ssl->config->aes_hw_override_value = override_value;
+}
+
 BSSL_NAMESPACE_END
 
 using namespace bssl;
@@ -524,7 +536,9 @@ ssl_ctx_st::ssl_ctx_st(const SSL_METHOD *ssl_method)
       false_start_allowed_without_alpn(false),
       handoff(false),
       enable_early_data(false),
-      only_fips_cipher_suites_in_tls13(false) {
+      only_fips_cipher_suites_in_tls13(false),
+      aes_hw_override(false),
+      aes_hw_override_value(false) {
   CRYPTO_MUTEX_init(&lock);
   CRYPTO_new_ex_data(&ex_data);
 }
@@ -646,6 +660,8 @@ SSL *SSL_new(SSL_CTX *ctx) {
   ssl->config->permute_extensions = ctx->permute_extensions;
   ssl->config->only_fips_cipher_suites_in_tls13 =
       ctx->only_fips_cipher_suites_in_tls13;
+  ssl->config->aes_hw_override = ctx->aes_hw_override;
+  ssl->config->aes_hw_override_value = ctx->aes_hw_override_value;
 
   if (!ssl->config->supported_group_list.CopyFrom(ctx->supported_group_list) ||
       !ssl->config->alpn_client_proto_list.CopyFrom(
@@ -2027,18 +2043,27 @@ const char *SSL_get_cipher_list(const SSL *ssl, int n) {
 }
 
 int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
-  return ssl_create_cipher_list(&ctx->cipher_list, str, false /* not strict */);
+  const bool has_aes_hw = ctx->aes_hw_override ? ctx->aes_hw_override_value
+                                               : EVP_has_aes_hardware();
+  return ssl_create_cipher_list(&ctx->cipher_list, has_aes_hw, str,
+                                false /* not strict */);
 }
 
 int SSL_CTX_set_strict_cipher_list(SSL_CTX *ctx, const char *str) {
-  return ssl_create_cipher_list(&ctx->cipher_list, str, true /* strict */);
+  const bool has_aes_hw = ctx->aes_hw_override ? ctx->aes_hw_override_value
+                                               : EVP_has_aes_hardware();
+  return ssl_create_cipher_list(&ctx->cipher_list, has_aes_hw, str,
+                                true /* strict */);
 }
 
 int SSL_set_cipher_list(SSL *ssl, const char *str) {
   if (!ssl->config) {
     return 0;
   }
-  return ssl_create_cipher_list(&ssl->config->cipher_list, str,
+  const bool has_aes_hw = ssl->config->aes_hw_override
+                              ? ssl->config->aes_hw_override_value
+                              : EVP_has_aes_hardware();
+  return ssl_create_cipher_list(&ssl->config->cipher_list, has_aes_hw, str,
                                 false /* not strict */);
 }
 
@@ -2046,7 +2071,10 @@ int SSL_set_strict_cipher_list(SSL *ssl, const char *str) {
   if (!ssl->config) {
     return 0;
   }
-  return ssl_create_cipher_list(&ssl->config->cipher_list, str,
+  const bool has_aes_hw = ssl->config->aes_hw_override
+                              ? ssl->config->aes_hw_override_value
+                              : EVP_has_aes_hardware();
+  return ssl_create_cipher_list(&ssl->config->cipher_list, has_aes_hw, str,
                                 true /* strict */);
 }
 
@@ -2149,7 +2177,6 @@ int SSL_set_tlsext_host_name(SSL *ssl, const char *name) {
   }
   ssl->hostname.reset(OPENSSL_strdup(name));
   if (ssl->hostname == nullptr) {
-    OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
     return 0;
   }
   return 1;
@@ -2201,8 +2228,10 @@ found:
 
 void SSL_get0_next_proto_negotiated(const SSL *ssl, const uint8_t **out_data,
                                     unsigned *out_len) {
+  // NPN protocols have one-byte lengths, so they must fit in |unsigned|.
+  assert(ssl->s3->next_proto_negotiated.size() <= UINT_MAX);
   *out_data = ssl->s3->next_proto_negotiated.data();
-  *out_len = ssl->s3->next_proto_negotiated.size();
+  *out_len = static_cast<unsigned>(ssl->s3->next_proto_negotiated.size());
 }
 
 void SSL_CTX_set_next_protos_advertised_cb(
@@ -2222,7 +2251,7 @@ void SSL_CTX_set_next_proto_select_cb(
 }
 
 int SSL_CTX_set_alpn_protos(SSL_CTX *ctx, const uint8_t *protos,
-                            unsigned protos_len) {
+                            size_t protos_len) {
   // Note this function's return value is backwards.
   auto span = MakeConstSpan(protos, protos_len);
   if (!span.empty() && !ssl_is_valid_alpn_list(span)) {
@@ -2232,7 +2261,7 @@ int SSL_CTX_set_alpn_protos(SSL_CTX *ctx, const uint8_t *protos,
   return ctx->alpn_client_proto_list.CopyFrom(span) ? 0 : 1;
 }
 
-int SSL_set_alpn_protos(SSL *ssl, const uint8_t *protos, unsigned protos_len) {
+int SSL_set_alpn_protos(SSL *ssl, const uint8_t *protos, size_t protos_len) {
   // Note this function's return value is backwards.
   if (!ssl->config) {
     return 1;
@@ -2256,13 +2285,16 @@ void SSL_CTX_set_alpn_select_cb(SSL_CTX *ctx,
 
 void SSL_get0_alpn_selected(const SSL *ssl, const uint8_t **out_data,
                             unsigned *out_len) {
+  Span<const uint8_t> protocol;
   if (SSL_in_early_data(ssl) && !ssl->server) {
-    *out_data = ssl->s3->hs->early_session->early_alpn.data();
-    *out_len = ssl->s3->hs->early_session->early_alpn.size();
+    protocol = ssl->s3->hs->early_session->early_alpn;
   } else {
-    *out_data = ssl->s3->alpn_selected.data();
-    *out_len = ssl->s3->alpn_selected.size();
+    protocol = ssl->s3->alpn_selected;
   }
+  // ALPN protocols have one-byte lengths, so they must fit in |unsigned|.
+  assert(protocol.size() < UINT_MAX);
+  *out_data = protocol.data();
+  *out_len = static_cast<unsigned>(protocol.size());
 }
 
 void SSL_CTX_set_allow_unknown_alpn_protos(SSL_CTX *ctx, int enabled) {
@@ -2801,6 +2833,10 @@ void SSL_set_enforce_rsa_key_usage(SSL *ssl, int enabled) {
     return;
   }
   ssl->config->enforce_rsa_key_usage = !!enabled;
+}
+
+int SSL_was_key_usage_invalid(const SSL *ssl) {
+  return ssl->s3->was_key_usage_invalid;
 }
 
 void SSL_set_renegotiate_mode(SSL *ssl, enum ssl_renegotiate_mode_t mode) {

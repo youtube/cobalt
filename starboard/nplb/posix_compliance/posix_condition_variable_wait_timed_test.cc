@@ -30,8 +30,9 @@ namespace nplb {
 namespace {
 
 void InitCondition(pthread_cond_t* condition, bool use_monotonic) {
-#if (SB_API_VERSION >= 16 || !SB_IS(EVERGREEN)) && \
+#if (SB_API_VERSION >= 16 || !SB_IS(MODULAR)) && \
     !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT) && !defined(_WIN32)
+
   pthread_condattr_t attribute;
   EXPECT_EQ(pthread_condattr_init(&attribute), 0);
   if (use_monotonic) {
@@ -122,7 +123,8 @@ void DoSunnyDay(posix::TakeThenSignalContext* context,
     EXPECT_EQ(pthread_cond_timedwait(&context->condition, &context->mutex,
                                      &delay_timestamp),
               ETIMEDOUT);
-    int64_t elapsed = CurrentTime(use_monotonic) - start;
+    int64_t end = CurrentTime(use_monotonic);
+    int64_t elapsed = end - start;
 
     EXPECT_LE(kDelay, elapsed + kPrecision);
     EXPECT_GT(kDelay * 2, elapsed - kPrecision);

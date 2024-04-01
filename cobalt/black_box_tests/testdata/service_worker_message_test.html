@@ -27,6 +27,8 @@
 
 <body>
     <script>
+        const unregisterAll = () => navigator.serviceWorker.getRegistrations().then(registrations =>
+            Promise.all(registrations.map(r => r.unregister())));
         h5vcc.storage.clearServiceWorkerCache();
 
         var expected_event_count = 0;
@@ -94,6 +96,14 @@
                         event.data.event_type);
                     assertEqual('visible', event.data.visibilityState);
                     assertEqual(true, event.data.focused);
+                    unregisterAll()
+                        .then(result => {
+                            assertEqual(1, result.length);
+                            assertEqual(true, result[0]);
+                            count_event(9);
+                            onEndTest();
+                        })
+                        .catch(notReached);
                     break;
                 default:
                     notReached();
@@ -116,39 +126,14 @@
             registration.active.postMessage({ message:
                 'Registration ready resolved.'});
             count_event(1);
-            window.setTimeout(
-                () => {
-                    registration.unregister()
-                        .then(function (success) {
-                            console.log('(Expected) unregister success :',
-                                success);
-                            count_event(9);
-                        }, function (error) {
-                            console.log('(Unexpected) unregister ' +
-                                `${error}`, error);
-                            assertIncludes('SecurityError: ', `${error}`);
-                            notReached();
-                        });
-                }, 1000);
+            window.activeServiceWorker = registration.active;
         });
 
         navigator.serviceWorker.register('service_worker_message_test.js', {
             scope: './',
-        }).catch(function (error) {
-            console.log('(Unexpected) :', error);
-            notReached();
-        });
+        }).catch(notReached);
 
         setupFinished();
-        // This delay has to be long enough to guarantee that the test has
-        // finished.
-        window.setTimeout(
-            () => {
-                console.log('Events:', expected_event_count)
-                assertEqual(9, expected_event_count);
-                onEndTest();
-            }, 2000);
-
     </script>
 </body>
 

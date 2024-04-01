@@ -368,8 +368,7 @@ static bool SbDecodeTargetIsValid(SbDecodeTarget handle)
 Returns ownership of `decode_target` to the Starboard implementation. This
 function will likely result in the destruction of the SbDecodeTarget and all its
 associated surfaces, though in some cases, platforms may simply adjust a
-reference count. In the case where SB_HAS(GLES2), this function must be called
-on a thread with the context
+reference count. This function must be called on a thread with the context
 
 #### Declaration
 

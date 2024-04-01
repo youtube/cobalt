@@ -109,7 +109,7 @@ net_configs = [
   "//build/config/compiler:wexit_time_destructors",
 ]
 
-if (is_linux || is_chromeos) {
+if ((is_linux || is_chromeos) && !is_starboard) {
   net_configs += [ "//build/config/linux:libresolv" ]
 }
 

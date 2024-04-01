@@ -30,13 +30,10 @@
 #include "../delocate.h"
 #include "./internal.h"
 
-#if defined(OPENSSL_NO_ASM)
-#define FIAT_P256_NO_ASM
-#endif
-
 #if defined(BORINGSSL_HAS_UINT128)
-#define BORINGSSL_NISTP256_64BIT 1
 #include "../../../third_party/fiat/p256_64.h"
+#elif defined(OPENSSL_64_BIT)
+#include "../../../third_party/fiat/p256_64_msvc.h"
 #else
 #include "../../../third_party/fiat/p256_32.h"
 #endif
@@ -44,7 +41,7 @@
 
 // utility functions, handwritten
 
-#if defined(BORINGSSL_NISTP256_64BIT)
+#if defined(OPENSSL_64_BIT)
 #define FIAT_P256_NLIMBS 4
 typedef uint64_t fiat_p256_limb_t;
 typedef uint64_t fiat_p256_felem[FIAT_P256_NLIMBS];
@@ -743,10 +740,12 @@ DEFINE_METHOD_FUNCTION(EC_METHOD, EC_GFp_nistp256_method) {
   out->felem_sqr = ec_GFp_mont_felem_sqr;
   out->felem_to_bytes = ec_GFp_mont_felem_to_bytes;
   out->felem_from_bytes = ec_GFp_mont_felem_from_bytes;
+  out->felem_reduce = ec_GFp_mont_felem_reduce;
+  // TODO(davidben): This should use the specialized field arithmetic
+  // implementation, rather than the generic one.
+  out->felem_exp = ec_GFp_mont_felem_exp;
   out->scalar_inv0_montgomery = ec_simple_scalar_inv0_montgomery;
   out->scalar_to_montgomery_inv_vartime =
       ec_simple_scalar_to_montgomery_inv_vartime;
   out->cmp_x_coordinate = ec_GFp_nistp256_cmp_x_coordinate;
 }
-
-#undef BORINGSSL_NISTP256_64BIT

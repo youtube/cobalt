@@ -14,17 +14,28 @@
 
 # TODO: b/315170518 - Revert to static library after fixing
 # symbol visibility issues for windows based modular platform builds.
-source_set("posix_wrappers") {
+source_set("starboard_layer_posix_abi_wrappers") {
   sources = [
-    "posix_mmap_wrappers.cc",
-    "posix_mmap_wrappers.h",
-    "posix_pthread_wrappers.cc",
-    "posix_pthread_wrappers.h",
-    "posix_time_wrappers.cc",
-    "posix_time_wrappers.h",
+    "starboard_layer_posix_mmap_abi_wrappers.cc",
+    "starboard_layer_posix_mmap_abi_wrappers.h",
+    "starboard_layer_posix_pthread_abi_wrappers.cc",
+    "starboard_layer_posix_pthread_abi_wrappers.h",
+    "starboard_layer_posix_time_abi_wrappers.cc",
+    "starboard_layer_posix_time_abi_wrappers.h",
   ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [ "//starboard:starboard_headers_only" ]
+}
+
+if (sb_is_modular && !sb_is_evergreen &&
+    current_toolchain == cobalt_toolchain) {
+  source_set("cobalt_layer_posix_abi_wrappers") {
+    sources = [
+      "cobalt_layer_posix_mmap_abi_wrappers.cc",
+      "cobalt_layer_posix_pthread_abi_wrappers.cc",
+      "cobalt_layer_posix_time_abi_wrappers.cc",
+    ]
+  }
 }
