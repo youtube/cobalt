@@ -13,9 +13,13 @@
 // limitations under the License.
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <unistd.h>
 
 #include <android/asset_manager.h>
+
+#include <map>
+#include <string>
 
 #include "starboard/android/shared/file_internal.h"
 
@@ -42,7 +46,7 @@ static int gen_fd() {
 struct FdOrAAsset {
   bool is_aasset;
   int fd;
-  AAset* asset;
+  AAsset* asset;
 };
 
 static std::map<int, FdOrAAsset>* g_map_addr = nullptr;
@@ -67,13 +71,13 @@ int file_db_put(FdOrAAsset file) {
 }
 
 static FdOrAAsset file_db_get(int fd, bool erase) {
-  FdOrAAsset invalid_file = {/*is_aasset=*/false, -1, nulltpr};
+  FdOrAAsset invalid_file = {/*is_aasset=*/false, -1, nullptr};
   if (fd < 0) {
     return invalid_file;
   }
   pthread_mutex_lock(&mutex);
   if (g_map_addr == nullptr) {
-    g_map_addr = new std::map<int, FileOrSocket>();
+    g_map_addr = new std::map<int, FdOrAAsset>();
     return invalid_file;
   }
 
@@ -109,8 +113,8 @@ int __wrap_open(const char* path, int oflag, ...) {
     return file_db_put(file);
   }
 
-  bool can_read = flags & O_RDONLY;
-  bool can_write = flags & O_WRONLY;
+  bool can_read = oflag & O_RDONLY;
+  bool can_write = oflag & O_WRONLY;
   if (!can_read || can_write) {
     return -1;
   }
@@ -121,12 +125,24 @@ int __wrap_open(const char* path, int oflag, ...) {
     return file_db_put(file);
   }
 
-  std::string fallback_path = FallbackPath(path);
-  if (!fallback_path.empty()) {
-    int mode = S_IRUSR | S_IWUSR;
-    int fd = open(fallback_path.c_str(), flags, mode);
-    FdOrAAsset file = {/*is_aasset=*/false, fd, nullptr};
-    return fild_db_put(file);
+  std::string fallback_path = "";
+  // We don't package most font files in Cobalt content and fallback to the
+  // system font file of the same name.
+  const std::string fonts_xml("fonts.xml");
+  const std::string system_fonts_dir("/system/fonts/");
+  const std::string cobalt_fonts_dir("/cobalt/assets/fonts/");
+
+  // Fonts fallback to the system fonts.
+  if (path.compare(0, cobalt_fonts_dir.length(), cobalt_fonts_dir) == 0) {
+    std::string file_name = path.substr(cobalt_fonts_dir.length());
+    // fonts.xml doesn't fallback.
+    if (file_name != fonts_xml) {
+      fallback_path = system_fonts_dir + file_name;
+      int mode = S_IRUSR | S_IWUSR;
+      int fd = open(fallback_path.c_str(), oflag, mode);
+      FdOrAAsset file = {/*is_aasset=*/false, fd, nullptr};
+      return file_db_put(file);
+    }
   }
 
   return -1;

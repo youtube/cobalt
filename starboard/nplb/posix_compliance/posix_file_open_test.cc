@@ -128,6 +128,10 @@ TEST(PosixFileOpenTest, OpenTruncatedDoesNotCreateNonExistingFile) {
   BasicTest(false, O_TRUNC | O_WRONLY, false, false, __LINE__);
 }
 
+TEST(PosixFileOpenTest, OpenFailsOnFlagsNotSupported) {
+  BasicTest(false, O_APPEND | O_RDONLY, false, false, __LINE__);
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
