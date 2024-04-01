@@ -222,33 +222,59 @@ int open(const char* path, int oflag, ...) {
   memset(value, 0, sizeof(struct FileOrSocket));
   value->is_file = true;
 
-  int open_flags = 0;
-
-  if (oflag & O_CREAT && oflag & O_EXCL) {
-    open_flags = kSbFileCreateOnly;
-  } else if (oflag & O_CREAT && oflag & O_TRUNC) {
-    open_flags = kSbFileCreateAlways;
-  } else if (oflag & O_CREAT) {
-    open_flags = kSbFileOpenAlways;
-  } else if (oflag & O_TRUNC) {
-    open_flags = kSbFileOpenTruncated;
-  }
-
-  // All the combinations of creation flags supported by SbFileOpen is in the
-  // above. If oflag contains anything other than the access mode flags, it
-  // would not be supported by SbFileOpen.
-  if (!open_flags && oflag ^ O_RDONLY && oflag ^ O_WRONLY && oflag ^ O_RDWR) {
-    out_error = kSbFileErrorFailed;
-    return -1;
-  } else if (oflag & O_RDONLY) {
-    open_flags = kSbFileOpenOnly;
-  }
+  int sbfile_flags = 0;
+  int access_mode_flag = 0;
+  int access_mode_count = 0;
 
   if (oflag & O_RDWR) {
-    open_flags |= kSbFileRead | kSbFileWrite;
-  } else if (oflag & O_WRONLY || open_flags & kSbFileOpenTruncated) {
-    open_flags |= kSbFileWrite;
+    access_mode_flag |= kSbFileRead | kSbFileWrite;
+    oflag &= ~O_RDWR;
+    access_mode_count++;
   }
+  if (oflag & O_WRONLY) {
+    access_mode_flag |= kSbFileWrite;
+    oflag &= ~O_WRONLY;
+    access_mode_count++;
+  }
+  if (oflag & O_RDONLY) {
+    access_mode_flag |= kSbFileRead;
+    oflag &= ~O_RDONLY;
+    access_mode_count++;
+    if (!oflag) {
+      sbfile_flags = kSbFileOpenOnly;
+    }
+  }
+  // Applications shall specify exactly one of the first three file access
+  // modes.
+  if (access_mode_count != 1) {
+    out_error = kSbFileErrorFailed;
+    return -1;
+  }
+
+  if (oflag & O_CREAT && oflag & O_EXCL) {
+    sbfile_flags = kSbFileCreateOnly;
+    oflag &= ~(O_CREAT|O_EXCL);
+  }
+  if (oflag & O_CREAT && oflag & O_TRUNC) {
+    sbfile_flags = kSbFileCreateAlways;
+    oflag &= ~(O_CREAT|O_TRUNC);
+  }
+  if (oflag & O_CREAT) {
+    sbfile_flags = kSbFileOpenAlways;
+    oflag &= ~O_CREAT;
+  }
+  if (oflag & O_TRUNC) {
+    sbfile_flags = kSbFileOpenTruncated;
+    oflag &= ~O_TRUNC;
+  }
+
+  // SbFileOpen does not support any other combination of flags.
+  if (oflag || !sbfile_flags) {
+    out_error = kSbFileErrorFailed;
+    return -1;
+  }
+
+  int open_flags = sbfile_flags | access_mode_flag;
 
   value->file = SbFileOpen(path, open_flags, &out_created, &out_error);
   if (!SbFileIsValid(value->file)){
