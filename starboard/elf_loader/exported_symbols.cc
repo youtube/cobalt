@@ -51,6 +51,7 @@
 #if SB_API_VERSION >= 16
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
@@ -159,7 +160,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileCanOpen);
   REGISTER_SYMBOL(SbFileClose);
   REGISTER_SYMBOL(SbFileDelete);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileExists);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
   REGISTER_SYMBOL(SbFileGetPathInfo);
@@ -499,6 +502,7 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
   map_["pthread_once"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
+  map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
 
 #if defined(_MSC_VER)

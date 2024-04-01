@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include <string>
 #include <vector>
 
@@ -44,7 +46,8 @@ TEST_F(CrashpadConfigTest, VerifyUploadCert) {
                        kSbFileSepString + "cobalt" + kSbFileSepString +
                        "content" + kSbFileSepString + "ssl" + kSbFileSepString +
                        "certs");
-  ASSERT_TRUE(SbFileExists(cert_location.c_str()));
+  struct stat info;
+  ASSERT_TRUE(stat(cert_location.c_str(), &info) == 0);
 }
 
 TEST_F(CrashpadConfigTest, VerifyCrashHandlerExtension) {

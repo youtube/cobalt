@@ -14,9 +14,10 @@
 
 #include "starboard/common/paths.h"
 
+#include <sys/stat.h>
+
 #include <string>
 #include <vector>
-
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
@@ -70,9 +71,10 @@ std::string GetCACertificatesPath(const std::string& content_subdir) {
     return "";
   }
 
+  struct stat info;
   std::string ca_certificates_path =
       GetCACertificatesPathFromSubdir(content_subdir);
-  if (!SbFileExists(ca_certificates_path.c_str())) {
+  if (stat(ca_certificates_path.c_str(), &info) != 0) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
     return "";
   }
@@ -87,12 +89,13 @@ std::string GetCACertificatesPath() {
   std::string ca_certificates_path =
       GetCACertificatesPathFromSubdir(content_subdir);
 
+  struct stat info;
   // Then fall back to the regular content path if necessary.
-  if (!SbFileExists(ca_certificates_path.c_str())) {
+  if (stat(ca_certificates_path.c_str(), &info) != 0) {
     ca_certificates_path = GetCACertificatesPathFromSubdir("");
   }
 
-  if (!SbFileExists(ca_certificates_path.c_str())) {
+  if (stat(ca_certificates_path.c_str(), &info) != 0) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
     return "";
   }
