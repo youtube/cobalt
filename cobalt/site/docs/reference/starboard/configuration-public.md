@@ -13,13 +13,6 @@ Book: /youtube/cobalt/_book.yaml
 | **`SB_IMPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as imported from outside of the current linking unit. |
 
 
-## I/O Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_ON_SCREEN_KEYBOARD`**<br><br>Whether the current platform implements the on screen keyboard interface.<br><br>The default value in the Stub implementation is `0` |
-
-
 ## Media Configuration
 
 | Properties |

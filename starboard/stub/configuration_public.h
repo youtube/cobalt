@@ -65,11 +65,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- I/O Configuration -----------------------------------------------------
-
-// Whether the current platform implements the on screen keyboard interface.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
 // --- Media Configuration ---------------------------------------------------
 
 // The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only
