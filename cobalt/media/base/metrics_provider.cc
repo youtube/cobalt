@@ -159,8 +159,6 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
       break;
     case WebMediaPlayerAction::UNKNOWN_ACTION:
     default:
-      UMA_HISTOGRAM_TIMES("Cobalt.Media.WebMediaPlayer.Other.Timing",
-                          action_duration);
       break;
   }
 }

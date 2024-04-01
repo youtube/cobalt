@@ -62,8 +62,6 @@ TEST_F(MediaMetricsProviderTest, SupportsTrackingMultipleActions) {
   metrics_.EndTrackingAction(WebMediaPlayerAction::SEEK);
 
   histogram_tester_.ExpectUniqueSample(
-      std::string(kUmaPrefix) + "WebMediaPlayer.Other.Timing", 100, 1);
-  histogram_tester_.ExpectUniqueSample(
       std::string(kUmaPrefix) + "WebMediaPlayer.Seek.Timing", 1100, 1);
 }
 
