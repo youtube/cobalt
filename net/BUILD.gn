@@ -1405,7 +1405,7 @@ component("net") {
     sources += [ "disk_cache/blockfile/mapped_file_posix.cc" ]
   }
 
-  if (false) {
+  if (is_android || is_chromeos || is_linux || is_starboard) {
     sources += [
       "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
