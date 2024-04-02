@@ -57,6 +57,8 @@ static_library("updater") {
   allow_circular_includes_from = [ "//components/update_client" ]
 }
 
+if (sb_is_evergreen) {
+
 target(final_executable_type, "updater_sandbox") {
   sources = [
     "updater.cc",
@@ -119,4 +121,6 @@ target(gtest_target_type, "updater_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+}
+
 }

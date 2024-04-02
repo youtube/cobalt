@@ -103,6 +103,8 @@ static_library("update_client") {
   ]
 }
 
+if (sb_is_evergreen) {
+
 static_library("test_support") {
   testonly = true
   sources = [
@@ -246,6 +248,15 @@ target(gtest_target_type, "cobalt_slot_management_test") {
     "//testing/gtest",
 
     # TODO: b/296919440 - Make this a data dep 
-    "//starboard/loader_app($starboard_toolchain)",
+    # "//starboard/loader_app($starboard_toolchain)",
   ]
+  # This makes no sense, the loader we actually need is an entirel different
+  # build config. E.g. the 
+  #   slot_management_test gets built for evergreen-arm-hardfp
+  #   corresponding loader_app gets built for raspi-2
+  # data_deps = [
+  #  "//starboard/loader_app($starboard_toolchain)"
+  #]
+}
+
 }

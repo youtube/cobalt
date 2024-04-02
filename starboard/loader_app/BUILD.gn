@@ -23,23 +23,27 @@ _common_loader_app_sources = [
   "system_get_extension_shim.h",
 ]
 
-group("common_loader_app_dependencies") {
-  public_deps = [
-    ":app_key",
-    ":installation_manager",
-    ":memory_tracker_thread",
-    ":reset_evergreen_update",
-    ":slot_management",
-    "//starboard:starboard_group",
-    "//starboard/elf_loader:constants",
-    "//starboard/elf_loader:evergreen_info",
-    "//starboard/elf_loader:sabi_string",
-  ]
+if (!sb_is_modular && sb_is_evergreen_compatible &&
+    current_toolchain == starboard_toolchain) {
+  group("common_loader_app_dependencies") {
+    public_deps = [
+      ":app_key",
+      ":installation_manager",
+      ":memory_tracker_thread",
+      ":reset_evergreen_update",
+      ":slot_management",
+      "//starboard:starboard_group",
+      "//starboard/elf_loader:constants",
+      "//starboard/elf_loader:evergreen_info",
+      "//starboard/elf_loader:sabi_string",
+    ]
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-    public_deps += [ "//third_party/crashpad/wrapper" ]
-  } else {
-    public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    if (sb_is_evergreen_compatible &&
+        current_toolchain == starboard_toolchain) {
+      public_deps += [ "//third_party/crashpad/wrapper" ]
+    } else {
+      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
   }
 }
 
@@ -80,7 +84,8 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
   }
 }
 
-if (current_toolchain == starboard_toolchain) {
+if (!sb_is_modular && sb_is_evergreen_compatible &&
+    current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "loader_app") {
     build_loader = false
     if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
@@ -121,7 +126,8 @@ if (current_toolchain == starboard_toolchain) {
   not_needed([ "_common_loader_app_sources" ])
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (!sb_is_modular && sb_is_evergreen_compatible &&
+    current_toolchain == starboard_toolchain) {
   # TODO: b/261635039 enable this target on Android
   target(starboard_level_final_executable_type, "loader_app_sys") {
     if ((target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
@@ -249,7 +255,7 @@ static_library("installation_manager") {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(gtest_target_type, "installation_manager_test") {
     testonly = true
     sources = [
@@ -267,30 +273,29 @@ if (!is_host_win) {
   }
 }
 
-static_library("slot_management") {
-  sources = [
-    "slot_management.cc",
-    "slot_management.h",
-  ]
-  deps = [
-    ":app_key_files",
-    ":drain_file",
-    ":installation_manager",
-    "//starboard:starboard_group",
-    "//starboard/elf_loader",
-    "//starboard/elf_loader:constants",
-    "//starboard/elf_loader:sabi_string",
-  ]
-
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-    deps += [ "//third_party/crashpad/wrapper" ]
-  } else {
-    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+if (!sb_is_modular && sb_is_evergreen_compatible &&
+    current_toolchain == starboard_toolchain) {
+  static_library("slot_management") {
+    sources = [
+      "slot_management.cc",
+      "slot_management.h",
+    ]
+    deps = [
+      ":app_key_files",
+      ":drain_file",
+      ":installation_manager",
+      "//starboard:starboard_group",
+      "//starboard/elf_loader",
+      "//starboard/elf_loader:constants",
+      "//starboard/elf_loader:sabi_string",
+      "//third_party/crashpad/wrapper",
+    ]
   }
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (current_toolchain == starboard_toolchain && !is_host_win) {
+if (!sb_is_modular && sb_is_evergreen_compatible &&
+    current_toolchain == starboard_toolchain) {
   target(starboard_level_gtest_target_type, "slot_management_test") {
     testonly = true
     build_loader = false
@@ -343,7 +348,8 @@ static_library("reset_evergreen_update") {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
+if (!sb_is_modular && sb_is_evergreen_compatible &&
+    current_toolchain == starboard_toolchain) {
   target(gtest_target_type, "reset_evergreen_update_test") {
     testonly = true
     sources = [
