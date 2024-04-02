@@ -220,6 +220,61 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.LoaderApp.ElfLoadDuration" units="milliseconds"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for Cobalt's ELF Loader to load the dynamic shared
+    library, which under normal operation is the Cobalt Core library. This
+    metric is only recorded when the shared library is stored as a compressed
+    file, and this metric includes the decompression time.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="milliseconds"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for the ELF dynamic shared library, stored as a compressed
+    file, to be decompressed. This metric is only recorded when the shared
+    library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfLoadUnexplainedDuration"
+    units="milliseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Cobalt.LoaderApp.ElfLoadDuration minus
+    Cobalt.LoaderApp.ElfDecompressionDuration. This metric is only recorded when
+    the shared library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.MaxSampledUsedCPUMemoryDuringELFLoad"
+    units="MB" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The maximum sampled value of CPU memory used by the Loader App while the ELF
+    dynamic shared library is being loaded. Note that this maximum sampled value
+    is not guaranteed to be the true maximum value, which could be greater. This
+    metric is only recorded when the shared library is stored as a compressed
+    file.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>
