@@ -25,10 +25,10 @@
 #include "base/strings/string_split.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
+#include "media/base/mime_util.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
-#include "third_party/chromium/media/base/mime_util.h"
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/browser/switches.h"

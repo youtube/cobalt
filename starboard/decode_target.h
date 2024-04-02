@@ -265,17 +265,16 @@ typedef struct SbDecodeTargetInfo {
 // --- Functions -------------------------------------------------------------
 
 // Returns whether the given file handle is valid.
-static SB_C_INLINE bool SbDecodeTargetIsValid(SbDecodeTarget handle) {
+static inline bool SbDecodeTargetIsValid(SbDecodeTarget handle) {
   return handle != kSbDecodeTargetInvalid;
 }
 
 // Returns whether a given format is valid.
-static SB_C_INLINE bool SbDecodeTargetIsFormatValid(
-    SbDecodeTargetFormat format) {
+static inline bool SbDecodeTargetIsFormatValid(SbDecodeTargetFormat format) {
   return format != kSbDecodeTargetFormatInvalid;
 }
 
-static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
+static inline int SbDecodeTargetNumberOfPlanesForFormat(
     SbDecodeTargetFormat format) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
@@ -315,7 +314,7 @@ SB_EXPORT bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
 // SbDecodeTargetGlesContextRunnerTarget function through a
 // SbDecodeTargetGraphicsContextProvider.  This is intended to be called by
 // Starboard implementations, if it is necessary.
-static SB_C_INLINE void SbDecodeTargetRunInGlesContext(
+static inline void SbDecodeTargetRunInGlesContext(
     SbDecodeTargetGraphicsContextProvider* provider,
     SbDecodeTargetGlesContextRunnerTarget target,
     void* target_context) {
@@ -326,14 +325,14 @@ static SB_C_INLINE void SbDecodeTargetRunInGlesContext(
 
 // This function is just an implementation detail of
 // SbDecodeTargetReleaseInGlesContext() and should not be called directly.
-static SB_C_INLINE void PrivateDecodeTargetReleaser(void* context) {
+static inline void PrivateDecodeTargetReleaser(void* context) {
   SbDecodeTarget decode_target = (SbDecodeTarget)context;
   SbDecodeTargetRelease(decode_target);
 }
 
 // Helper function that is possibly useful to Starboard implementations that
 // will release a decode target on the thread with the GLES context current.
-static SB_C_INLINE void SbDecodeTargetReleaseInGlesContext(
+static inline void SbDecodeTargetReleaseInGlesContext(
     SbDecodeTargetGraphicsContextProvider* provider,
     SbDecodeTarget decode_target) {
   SbDecodeTargetRunInGlesContext(provider, &PrivateDecodeTargetReleaser,

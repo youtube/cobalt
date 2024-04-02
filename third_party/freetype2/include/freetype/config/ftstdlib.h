@@ -173,7 +173,7 @@
 #define ft_strtol  strtol
 
 #if defined( STARBOARD )
-static SB_C_INLINE char*
+static inline char*
 ft_getenv( const char* name )
 {
   return NULL;

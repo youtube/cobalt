@@ -42,10 +42,7 @@
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "net/base/net_errors.h"
-
-#if defined(SB_USE_SB_MICROPHONE)
 #include "starboard/system.h"
-#endif  // defined(SB_USE_SB_MICROPHONE)
 
 namespace cobalt {
 namespace speech {

@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/window.h"
+#ifndef STARBOARD_SHARED_TESTING_NO_INLINE_H_
+#define STARBOARD_SHARED_TESTING_NO_INLINE_H_
+#if defined(__GNUC__)
+#define SB_TEST_FORCE_NO_INLINE __attribute__((noinline))
+#elif defined(_MSC_VER)
+#define SB_TEST_FORCE_NO_INLINE __declspec(noinline)
+#else
+#error "Your compiler is not supported"
+#endif
 
-bool SbWindowGetOnScreenKeyboardBoundingRect(SbWindow window,
-                                             SbWindowRect* bounding_rect) {
-  // Stub.
-  return true;
-}
+#endif  // STARBOARD_SHARED_TESTING_NO_INLINE_H_
