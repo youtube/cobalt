@@ -224,29 +224,21 @@ int open(const char* path, int oflag, ...) {
 
   int sbfile_flags = 0;
   int access_mode_flag = 0;
-  int access_mode_count = 0;
 
-  if (oflag & O_RDWR) {
-    access_mode_flag |= kSbFileRead | kSbFileWrite;
-    oflag &= ~O_RDWR;
-    access_mode_count++;
-  }
-  if (oflag & O_WRONLY) {
-    access_mode_flag |= kSbFileWrite;
-    oflag &= ~O_WRONLY;
-    access_mode_count++;
-  }
-  if (oflag & O_RDONLY) {
+  if ((oflag & O_ACCMODE) == O_RDONLY) {
     access_mode_flag |= kSbFileRead;
-    oflag &= ~O_RDONLY;
-    access_mode_count++;
-    if (!oflag) {
+    if (oflag == O_RDONLY) {
       sbfile_flags = kSbFileOpenOnly;
     }
-  }
-  // Applications shall specify exactly one of the first three file access
-  // modes.
-  if (access_mode_count != 1) {
+  } else if ((oflag & O_ACCMODE) == O_WRONLY) {
+    access_mode_flag |= kSbFileWrite;
+    oflag &= ~O_WRONLY;
+  } else if ((oflag & O_ACCMODE) == O_RDWR) {
+    access_mode_flag |= kSbFileRead | kSbFileWrite;
+    oflag &= ~O_RDWR;
+  } else {
+    // Applications shall specify exactly one of the first three file access
+    // modes.
     out_error = kSbFileErrorFailed;
     return -1;
   }

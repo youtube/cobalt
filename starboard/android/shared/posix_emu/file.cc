@@ -26,14 +26,6 @@
 using starboard::android::shared::IsAndroidAssetPath;
 using starboard::android::shared::OpenAndroidAsset;
 
-///////////////////////////////////////////////////////////////////////////////
-// Implementations below exposed externally in pure C for emulation.
-///////////////////////////////////////////////////////////////////////////////
-
-extern "C" {
-int __real_close(int fd);
-int __real_open(const char* path, int oflag, ...);
-
 static int gen_fd() {
   static int fd = 100;
   fd++;
@@ -94,14 +86,52 @@ static FdOrAAsset file_db_get(int fd, bool erase) {
   return file;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Implementations below exposed externally in pure C for emulation.
+///////////////////////////////////////////////////////////////////////////////
+
+extern "C" {
+int __real_close(int fildes);
+off_t __real_lseek(int fildes, off_t offset, int whence);
+int __real_open(const char* path, int oflag, ...);
+int __real_read(int fildes, void* buf, size_t nbyte);
+
+int __wrap_close(int fildes) {
+  if (fildes < 0) {
+    return -1;
+  }
+
+  FdOrAAsset file = file_db_get(fildes, true);
+  if (file.is_aasset && !file.asset) {
+    return -1;
+  } else if (file.is_aasset) {
+    AAsset_close(file.asset);
+    return 0;
+  }
+
+  return __real_close(file.fd);
+}
+
+off_t __wrap_lseek(int fildes, off_t offset, int whence) {
+  if (fildes < 0) {
+    return -1;
+  }
+
+  FdOrAAsset file = file_db_get(fildes, /*erase=*/false);
+  if (file.is_aasset) {
+    return AAsset_seek64(file.asset, offset, whence);
+  } else {
+    return __real_lseek(file.fd, offset, whence);
+  }
+}
+
 int __wrap_open(const char* path, int oflag, ...) {
   if (!IsAndroidAssetPath(path)) {
     va_list args;
     va_start(args, oflag);
     int fd;
-    mode_t mode;
     if (oflag & O_CREAT) {
-      mode = va_arg(args, mode_t);
+      mode_t mode = va_arg(args, int);
       fd = __real_open(path, oflag, mode);
     } else {
       fd = __real_open(path, oflag);
@@ -109,7 +139,7 @@ int __wrap_open(const char* path, int oflag, ...) {
     if (fd < 0) {
       return fd;
     }
-    FdOrAAsset file = {/*is_aasset=*/false, fd, nullptr};
+    FdOrAAsset file = {/*is_aasset=*/false, fd, NULL};
     return file_db_put(file);
   }
 
@@ -125,43 +155,39 @@ int __wrap_open(const char* path, int oflag, ...) {
     return file_db_put(file);
   }
 
-  std::string fallback_path = "";
   // We don't package most font files in Cobalt content and fallback to the
   // system font file of the same name.
-  const std::string fonts_xml("fonts.xml");
-  const std::string system_fonts_dir("/system/fonts/");
-  const std::string cobalt_fonts_dir("/cobalt/assets/fonts/");
+  const char fonts_xml[] = "fonts.xml";
+  const char system_fonts_dir[] = "/system/fonts/";
+  const char cobalt_fonts_dir[] = "/cobalt/assets/fonts/";
 
-  // Fonts fallback to the system fonts.
-  if (path.compare(0, cobalt_fonts_dir.length(), cobalt_fonts_dir) == 0) {
-    std::string file_name = path.substr(cobalt_fonts_dir.length());
-    // fonts.xml doesn't fallback.
-    if (file_name != fonts_xml) {
-      fallback_path = system_fonts_dir + file_name;
-      int mode = S_IRUSR | S_IWUSR;
-      int fd = open(fallback_path.c_str(), oflag, mode);
-      FdOrAAsset file = {/*is_aasset=*/false, fd, nullptr};
-      return file_db_put(file);
-    }
+  char path_substr[strlen(cobalt_fonts_dir) + 1];
+  strncpy(path_substr, path, strlen(cobalt_fonts_dir));
+  // Fonts fallback to the system fonts and fonts.xml doesn't fallback.
+  if (strcmp(path_substr, cobalt_fonts_dir) == 0 &&
+      strcmp(path_substr, fonts_xml) != 0) {
+    char file_name[strlen(system_fonts_dir) + strlen(path_substr) + 1];
+    strcpy(file_name, system_fonts_dir);  // NOLINT
+    strcat(file_name, path_substr);       // NOLINT
+    int fd = __real_open(file_name, oflag);
+    FdOrAAsset file = {/*is_aasset=*/false, fd, NULL};
+    return file_db_put(file);
   }
 
   return -1;
 }
 
-int __wrap_close(int fd) {
-  if (fd < 0) {
+int __wrap_read(int fildes, void* buf, size_t nbyte) {
+  if (fildes < 0) {
     return -1;
   }
 
-  FdOrAAsset file = file_db_get(fd, true);
-  if (file.is_aasset && !file.asset) {
-    return -1;
-  } else if (file.is_aasset) {
-    AAsset_close(file.asset);
-    return 0;
+  FdOrAAsset file = file_db_get(fildes, /*erase=*/false);
+  if (file.is_aasset) {
+    return AAsset_read(file.asset, buf, nbyte);
+  } else {
+    return __real_read(file.fd, buf, nbyte);
   }
-
-  return __real_close(file.fd);
 }
 
 }  // extern "C"
