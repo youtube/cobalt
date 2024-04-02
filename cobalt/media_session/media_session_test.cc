@@ -56,6 +56,8 @@ class MockCallbackFunction : public MediaSession::MediaSessionActionHandler {
       Run, ReturnValue(const MediaSessionActionDetails& action_details));
 };
 
+const int kSessionStateChangeTimeoutCount = 100;
+
 class MockMediaSessionClient : public MediaSessionClient {
  public:
   explicit MockMediaSessionClient(MediaSession* media_session)
@@ -68,19 +70,25 @@ class MockMediaSessionClient : public MediaSessionClient {
     MediaSessionClient::OnMediaSessionStateChanged(session_state);
   }
   void WaitForSessionStateChange() {
+    base::RunLoop().RunUntilIdle();
     size_t current_change_count = session_change_count_;
+    int timeout_counter = 0;
     while (GetMediaSession()->IsChangeTaskQueuedForTesting()) {
+      ++timeout_counter;
+      ASSERT_TRUE(timeout_counter < kSessionStateChangeTimeoutCount);
       base::RunLoop().RunUntilIdle();
       if (current_change_count != session_change_count_) {
         break;
       }
-      SbThreadSleep(1 * base::Time::kMicrosecondsPerMillisecond);
+      task_environment_.AdvanceClock(base::TimeDelta(base::Milliseconds(10)));
     }
   }
   MediaSessionState GetMediaSessionState() const { return session_state_; }
   size_t GetMediaSessionChangeCount() const { return session_change_count_; }
   MediaSessionState session_state_;
   size_t session_change_count_ = 0;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 class MockMediaSession : public MediaSession {
@@ -108,9 +116,6 @@ MATCHER_P(SeekNoOffset, action, "") {
 }
 
 TEST(MediaSessionTest, MediaSessionTest) {
-  base::test::SingleThreadTaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
@@ -128,9 +133,6 @@ TEST(MediaSessionTest, MediaSessionTest) {
 }
 
 TEST(MediaSessionTest, ActualPlaybackState) {
-  base::test::SingleThreadTaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
@@ -193,9 +195,6 @@ TEST(MediaSessionTest, ActualPlaybackState) {
 }
 
 TEST(MediaSessionTest, NullActionClears) {
-  base::test::SingleThreadTaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::DEFAULT};
-
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
@@ -226,6 +225,7 @@ TEST(MediaSessionTest, NullActionClears) {
                    .to_ulong());
   session->mock_session_client()->InvokeAction(
       kCobaltExtensionMediaSessionActionPlay);
+  session->mock_session_client()->WaitForSessionStateChange();
 
   session->SetActionHandler(kMediaSessionActionPlay, null_holder);
   session->mock_session_client()->WaitForSessionStateChange();
@@ -235,14 +235,12 @@ TEST(MediaSessionTest, NullActionClears) {
                    .to_ulong());
   session->mock_session_client()->InvokeAction(
       kCobaltExtensionMediaSessionActionPlay);
+  session->mock_session_client()->WaitForSessionStateChange();
 
   EXPECT_GE(session->mock_session_client()->GetMediaSessionChangeCount(), 3);
 }
 
 TEST(MediaSessionTest, AvailableActions) {
-  base::test::SingleThreadTaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-
   MediaSessionState state;
 
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
@@ -348,9 +346,6 @@ TEST(MediaSessionTest, AvailableActions) {
 }
 
 TEST(MediaSessionTest, InvokeAction) {
-  base::test::SingleThreadTaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
@@ -366,12 +361,10 @@ TEST(MediaSessionTest, InvokeAction) {
       &details, kCobaltExtensionMediaSessionActionSeekto);
   details.seek_time = 1.2;
   session->mock_session_client()->InvokeAction(details);
+  session->mock_session_client()->WaitForSessionStateChange();
 }
 
 TEST(MediaSessionTest, SeekDetails) {
-  base::test::SingleThreadTaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
@@ -388,17 +381,20 @@ TEST(MediaSessionTest, SeekDetails) {
       .WillOnce(Return(CallbackResult<void>()));
   session->mock_session_client()->InvokeAction(
       kCobaltExtensionMediaSessionActionSeekforward);
+  session->mock_session_client()->WaitForSessionStateChange();
 
   EXPECT_CALL(cf, Run(SeekNoOffset(kMediaSessionActionSeekbackward)))
       .WillOnce(Return(CallbackResult<void>()));
   session->mock_session_client()->InvokeAction(
       kCobaltExtensionMediaSessionActionSeekbackward);
+  session->mock_session_client()->WaitForSessionStateChange();
 
   EXPECT_CALL(cf, Run(SeekTime(1.2))).WillOnce(Return(CallbackResult<void>()));
   CobaltExtensionMediaSessionActionDetailsInit(
       &details, kCobaltExtensionMediaSessionActionSeekto);
   details.seek_time = 1.2;
   session->mock_session_client()->InvokeAction(details);
+  session->mock_session_client()->WaitForSessionStateChange();
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekforward, 3.4)))
       .WillOnce(Return(CallbackResult<void>()));
@@ -406,6 +402,7 @@ TEST(MediaSessionTest, SeekDetails) {
       &details, kCobaltExtensionMediaSessionActionSeekforward);
   details.seek_offset = 3.4;
   session->mock_session_client()->InvokeAction(details);
+  session->mock_session_client()->WaitForSessionStateChange();
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekbackward, 5.6)))
       .WillOnce(Return(CallbackResult<void>()));
@@ -413,15 +410,11 @@ TEST(MediaSessionTest, SeekDetails) {
       &details, kCobaltExtensionMediaSessionActionSeekbackward);
   details.seek_offset = 5.6;
   session->mock_session_client()->InvokeAction(details);
-
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_GE(session->mock_session_client()->GetMediaSessionChangeCount(), 0);
 }
 
 TEST(MediaSessionTest, PositionState) {
-  base::test::SingleThreadTaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
@@ -533,9 +526,6 @@ TEST(MediaSessionTest, PositionState) {
 }
 
 TEST(MediaSessionTest, Metadata) {
-  base::test::SingleThreadTaskEnvironment task_environment{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);

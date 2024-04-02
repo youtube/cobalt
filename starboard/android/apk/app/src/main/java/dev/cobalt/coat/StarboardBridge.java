@@ -647,6 +647,12 @@ public class StarboardBridge {
         playbackState, actions, positionMs, speed, title, artist, album, artwork, duration);
   }
 
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public void deactivateMediaSession() {
+    cobaltMediaSession.deactivateMediaSession();
+  }
+
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
   @SuppressWarnings("unused")
   @UsedByNative
