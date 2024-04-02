@@ -23,9 +23,9 @@ runs:
         echo "WORKFLOW=${WORKFLOW}" >> $GITHUB_ENV
 
         # Boot loader env
-        if [ "${COBALT_BOOTLOADER}" != "null" ]; then
+        if [ "${COBALT_EVERGREEN_LOADER}" != "null" ]; then
           echo "LOADER_CONFIG=${{ matrix.config }}" >> $GITHUB_ENV
-          echo "LOADER_PLATFORM=${COBALT_BOOTLOADER}" >> $GITHUB_ENV
+          echo "LOADER_PLATFORM=${COBALT_EVERGREEN_LOADER}" >> $GITHUB_ENV
         fi
 
         # Dimension env

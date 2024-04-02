@@ -68,12 +68,12 @@ class MEDIA_EXPORT SourceBufferStream {
   SourceBufferStream(const std::string& mime_type,
                      const VideoDecoderConfig& video_config,
                      MediaLog* media_log);
-#else  // defined (STARBOARD)
+#else  // defined(STARBOARD)
   SourceBufferStream(const AudioDecoderConfig& audio_config,
                      MediaLog* media_log);
   SourceBufferStream(const VideoDecoderConfig& video_config,
                      MediaLog* media_log);
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
 
   SourceBufferStream(const TextTrackConfig& text_config, MediaLog* media_log);
 
@@ -196,7 +196,7 @@ class MEDIA_EXPORT SourceBufferStream {
     memory_limit_ = memory_limit;
     memory_override_ = true;
   }
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
 
  private:
   friend class SourceBufferStreamTest;
@@ -416,7 +416,7 @@ class MEDIA_EXPORT SourceBufferStream {
 
   const std::string mime_type_;
   bool memory_override_ = false;
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
 
   // Used to report log messages that can help the web developer figure out what
   // is wrong with the content.

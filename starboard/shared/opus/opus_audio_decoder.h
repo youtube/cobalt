@@ -54,6 +54,8 @@ class OpusAudioDecoder
  private:
   static constexpr int kMinimumBuffersToDecode = 2;
 
+  void InitializeCodec();
+  void TeardownCodec();
   void DecodePendingBuffers();
   bool DecodeInternal(const scoped_refptr<InputBuffer>& input_buffer);
   static const int kMaxOpusFramesPerAU = 9600;
