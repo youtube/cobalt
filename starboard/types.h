@@ -23,8 +23,6 @@
 #ifndef STARBOARD_TYPES_H_
 #define STARBOARD_TYPES_H_
 
-#include "starboard/configuration.h"
-
 // The C library used must provide these headers to be standard conforming.
 
 #include <float.h>
@@ -35,9 +33,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#if SB_HAS(SYS_TYPES_H)
-#include <sys/types.h>
-#endif  // SB_HAS(SYS_TYPES_H)
+#include "starboard/configuration.h"
 
 #ifdef __cplusplus
 extern "C" {

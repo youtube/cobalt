@@ -28,9 +28,6 @@
 // Any system headers listed here that are not provided by the platform will be
 // emulated in starboard/types.h.
 
-// Whether the current platform provides the standard header sys/types.h.
-#define SB_HAS_SYS_TYPES_H 1
-
 // Whether the current platform provides ssize_t.
 #define SB_HAS_SSIZE_T 1
 
