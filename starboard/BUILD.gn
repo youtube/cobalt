@@ -124,7 +124,7 @@ group("starboard_group") {
     }
 
     if (sb_is_evergreen) {
-      # public_deps += [ "//starboard/elf_loader:sabi_string" ]
+      public_deps += [ "//starboard/elf_loader:sabi_string" ]
     } else {
       data_deps = [ ":starboard($starboard_toolchain)" ]
     }

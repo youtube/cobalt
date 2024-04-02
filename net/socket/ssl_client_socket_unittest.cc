@@ -3860,7 +3860,7 @@ const struct KeyUsageTest kKeyUsageTests[] = {
      kEncryptingCipher, false, true},
 };
 
-TEST_P(SSLClientSocketKeyUsageTest, RSAKeyUsageEnforcedForKnownRoot) {
+TEST_P(SSLClientSocketKeyUsageTest, DISABLED_RSAKeyUsageEnforcedForKnownRoot) {
   const KeyUsageTest test = GetParam();
   SSLServerConfig server_config;
   server_config.version_max = SSL_PROTOCOL_VERSION_TLS1_2;

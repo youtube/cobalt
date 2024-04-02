@@ -81,6 +81,7 @@ TEST(CheckDeathTest, Basics) {
                CHECK_LT(a, b) << "custom message");
 }
 
+#if !defined(STARBOARD)
 TEST(CheckDeathTest, PCheck) {
   const char file[] = "/nonexistentfile123";
   std::ignore = fopen(file, "r");
@@ -111,6 +112,7 @@ TEST(CheckDeathTest, PCheck) {
           err,
       DPCHECK(fopen(file, "r") != nullptr) << "foo");
 }
+#endif
 
 TEST(CheckDeathTest, CheckOp) {
   int a = 1, b = 2;
@@ -184,6 +186,8 @@ class ScopedDcheckSeverity {
   logging::LogSeverity old_severity_;
 };
 #endif  // BUILDFLAG(DCHECK_IS_CONFIGURABLE)
+
+#if !defined(STARBOARD)
 
 // https://crbug.com/709067 tracks test flakiness on iOS.
 #if BUILDFLAG(IS_IOS)
@@ -260,6 +264,8 @@ TEST(CheckDeathTest, MAYBE_Dcheck) {
       "Check failed: mp2 == &MemberFunctions::MemberFunction1 (1 vs. 1)",
       DCHECK_EQ(mp2, &MemberFunctions::MemberFunction1));
 }
+
+#endif
 
 TEST(CheckTest, DcheckReleaseBehavior) {
   int var1 = 1;

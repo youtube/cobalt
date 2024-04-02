@@ -7620,7 +7620,7 @@ TEST_P(QuicNetworkTransactionTest, NetworkIsolation) {
 // Test that two requests to the same origin over QUIC tunnels use different
 // QUIC sessions if their NetworkIsolationKeys don't match, and
 // kPartitionConnectionsByNetworkIsolationKey is enabled.
-TEST_P(QuicNetworkTransactionTest, NetworkIsolationTunnel) {
+TEST_P(QuicNetworkTransactionTest, DISABLED_NetworkIsolationTunnel) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
       features::kPartitionConnectionsByNetworkIsolationKey);

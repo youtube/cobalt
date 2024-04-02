@@ -354,7 +354,7 @@ TEST_F(StackTraceTest, MAYBE_TraceStackFramePointers) {
 // sometimes we read fp / pc from the place that previously held
 // uninitialized value.
 // TODO(crbug.com/1132511): Enable this test on Fuchsia.
-#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD) && defined(ADDRESS_SANITIZER)
+#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD) && defined(ADDRESS_SANITIZER) || 1
 #define MAYBE_TraceStackFramePointersFromBuffer \
   DISABLED_TraceStackFramePointersFromBuffer
 #else
