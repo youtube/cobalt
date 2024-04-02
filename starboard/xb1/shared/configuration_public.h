@@ -62,8 +62,4 @@
 
 // --- Platform Specific Quirks ----------------------------------------------
 
-// The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only
-// when this macro is defined.
-#define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
-
 #endif  // STARBOARD_XB1_SHARED_CONFIGURATION_PUBLIC_H_

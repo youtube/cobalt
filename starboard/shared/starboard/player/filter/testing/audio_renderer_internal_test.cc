@@ -382,8 +382,12 @@ TEST_F(AudioRendererTest, SunnyDay) {
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
 
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#if SB_API_VERSION >= 16 || SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
+#if SB_API_VERSION >= 16
+  if (!kSbHas16BitAudioSamples)
+    return;
+#endif
   if (HasAsyncAudioFramesReporting()) {
     SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
@@ -465,7 +469,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION >= 16 || SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 
 TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   if (HasAsyncAudioFramesReporting()) {

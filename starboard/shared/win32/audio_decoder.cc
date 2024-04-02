@@ -61,12 +61,7 @@ AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
       drm_system_(drm_system),
       sample_type_((audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
                     audio_stream_info.codec == kSbMediaAudioCodecEac3)
-                       ?
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-                       kSbMediaAudioSampleTypeInt16
-#else
-                       kSbMediaAudioSampleTypeInt16Deprecated
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+                       ? kSbMediaAudioSampleTypeInt16
                        : kSbMediaAudioSampleTypeFloat32),
       stream_ended_(false) {
   SB_DCHECK(audio_stream_info.codec == kSbMediaAudioCodecAac ||

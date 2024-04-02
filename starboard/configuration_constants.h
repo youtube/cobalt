@@ -153,4 +153,9 @@ SB_EXPORT extern const uint32_t kSbUserMaxSignedIn;
 SB_EXPORT extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
 #endif
 
+#if SB_API_VERSION > 15
+// Platform can use MediaAudioSampleTypeInt16
+SB_EXPORT extern const bool kSbHas16BitAudioSamples;
+#endif
+
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_

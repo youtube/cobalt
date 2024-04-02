@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration.h"
 
 namespace starboard {
 namespace shared {
@@ -130,6 +131,26 @@ bool OpusAudioDecoder::DecodeInternal(
       audio_stream_info_.number_of_channels * frames_per_au_ *
           starboard::media::GetBytesPerSample(GetSampleType()));
 
+#if SB_API_VERSION >= 16
+  const char* kDecodeFunctionName = kSbHas16BitAudioSamples
+                                        ? "opus_multistream_decode"
+                                        : "opus_multistream_decode_float";
+  int decoded_frames =
+      kSbHas16BitAudioSamples
+          ? opus_multistream_decode(
+                decoder_,
+                static_cast<const unsigned char*>(input_buffer->data()),
+                input_buffer->size(),
+                reinterpret_cast<opus_int16*>(decoded_audio->data()),
+                frames_per_au_, 0)
+          : opus_multistream_decode_float(
+                decoder_,
+                static_cast<const unsigned char*>(input_buffer->data()),
+                input_buffer->size(),
+                reinterpret_cast<float*>(decoded_audio->data()), frames_per_au_,
+                0);
+#else
+
 #if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode";
   int decoded_frames = opus_multistream_decode(
@@ -143,6 +164,8 @@ bool OpusAudioDecoder::DecodeInternal(
       input_buffer->size(), reinterpret_cast<float*>(decoded_audio->data()),
       frames_per_au_, 0);
 #endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+
+#endif
   if (decoded_frames == OPUS_BUFFER_TOO_SMALL &&
       frames_per_au_ < kMaxOpusFramesPerAU) {
     frames_per_au_ = kMaxOpusFramesPerAU;
@@ -260,11 +283,19 @@ bool OpusAudioDecoder::is_valid() const {
 
 SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
   SB_DCHECK(BelongsToCurrentThread());
+#if SB_API_VERSION >= 16
+  if (kSbHas16BitAudioSamples) {
+    return kSbMediaAudioSampleTypeInt16;
+  } else {
+    return kSbMediaAudioSampleTypeFloat32;
+  }
+#else  // SB_API_VERSION >= 16
 #if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeInt16;
 #else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeFloat32;
 #endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION >= 16
 }
 
 }  // namespace opus

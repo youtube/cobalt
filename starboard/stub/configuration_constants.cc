@@ -135,3 +135,6 @@ const uint32_t kSbUserMaxSignedIn = 1;
 // The maximum size the cache directory is allowed to use in bytes.
 const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
 #endif
+
+// Platform can use MediaAudioSampleTypeInt16
+SB_EXPORT extern const bool kSbHas16BitAudioSamples = false;

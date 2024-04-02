@@ -48,12 +48,6 @@
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
-// --- Media Configuration ---------------------------------------------------
-
-// The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only
-// when this macro is defined.
-#undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is

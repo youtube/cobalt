@@ -135,9 +135,7 @@ typedef enum SbMediaAudioCodingType {
 typedef enum SbMediaAudioSampleType {
   kSbMediaAudioSampleTypeInt16Deprecated,
   kSbMediaAudioSampleTypeFloat32,
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   kSbMediaAudioSampleTypeInt16 = kSbMediaAudioSampleTypeInt16Deprecated,
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 } SbMediaAudioSampleType;
 
 // Possible audio frame storage types.
