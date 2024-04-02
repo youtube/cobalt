@@ -326,12 +326,34 @@ struct CompileAssert {};
 #error "You can't define SB_IS_WCHAR_T_SIGNED and SB_IS_WCHAR_T_UNSIGNED."
 #endif
 
+#if SB_API_VERSION < 16
 #if !defined(SB_C_FORCE_INLINE)
 #error "Your platform must define SB_C_FORCE_INLINE."
 #endif
+#else  //  SB_API_VERSION < 16
+#if defined(SB_C_FORCE_INLINE)
+#error "Your platform must not define SB_C_FORCE_INLINE"
+#else  // defined(SB_C_FORCE_INLINE)
+#if SB_IS(COMPILER_GCC)
+#define SB_C_FORCE_INLINE inline __attribute__((always_inline))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_C_FORCE_INLINE __forceinline
+#else  // Fallback to standard keyword with no enforcing
+#define SB_C_FORCE_INLINE inline
+#endif
+#endif  // defined(SB_C_FORCE_INLINE)
+#endif  // SB_API_VERSION < 16
 
+#if SB_API_VERSION < 16
 #if !defined(SB_C_INLINE)
 #error "Your platform must define SB_C_INLINE."
+#endif
+#else
+#if defined(SB_C_INLINE)
+#error "Your platform should not define SB_C_INLINE, it is deprecated."
+#else
+#define SB_C_INLINE inline
+#endif
 #endif
 
 #if !defined(SB_EXPORT_PLATFORM)

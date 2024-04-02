@@ -35,9 +35,9 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 // Gets the path to the storage file.
-static SB_C_INLINE bool GetStorageFilePath(const char* name,
-                                           char* out_path,
-                                           int path_size) {
+static inline bool GetStorageFilePath(const char* name,
+                                      char* out_path,
+                                      int path_size) {
   bool success = GetHomeDirectory(out_path, path_size);
   if (!success) {
     return false;
