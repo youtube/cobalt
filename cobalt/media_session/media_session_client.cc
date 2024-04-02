@@ -212,6 +212,28 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
   PostDelayedTaskForMaybeFreezeCallback();
 }
 
+void MediaSessionClient::InvokeAction(
+    const CobaltExtensionMediaSessionAction& action) {
+  std::unique_ptr<CobaltExtensionMediaSessionActionDetails> details(
+      new CobaltExtensionMediaSessionActionDetails());
+  CobaltExtensionMediaSessionActionDetailsInit(details.get(), action);
+  DCHECK(media_session_->task_runner_);
+  media_session_->task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&MediaSessionClient::InvokeActionInternal,
+                                AsWeakPtr(), base::Passed(&details)));
+}
+
+void MediaSessionClient::InvokeAction(
+    const CobaltExtensionMediaSessionActionDetails& details) {
+  std::unique_ptr<CobaltExtensionMediaSessionActionDetails> details_ptr(
+      new CobaltExtensionMediaSessionActionDetails(details));
+  DCHECK(media_session_->task_runner_);
+  media_session_->task_runner_->PostTask(
+      FROM_HERE, base::Bind(&MediaSessionClient::InvokeActionInternal,
+                            AsWeakPtr(), base::Passed(&details_ptr)));
+}
+
+
 void MediaSessionClient::RunMaybeFreezeCallback(int sequence_number) {
   if (sequence_number != sequence_number_) return;
 
@@ -233,14 +255,8 @@ void MediaSessionClient::InvokeActionInternal(
          details->action == kCobaltExtensionMediaSessionActionSeekto);
   DCHECK(!details->fast_seek ||
          details->action == kCobaltExtensionMediaSessionActionSeekto);
-
-  DCHECK(media_session_->task_runner_);
-  if (!media_session_->task_runner_->BelongsToCurrentThread()) {
-    media_session_->task_runner_->PostTask(
-        FROM_HERE, base::Bind(&MediaSessionClient::InvokeActionInternal,
-                              AsWeakPtr(), base::Passed(&details)));
-    return;
-  }
+  CHECK(media_session_->task_runner_);
+  CHECK(media_session_->task_runner_->BelongsToCurrentThread());
 
   MediaSession::ActionMap::iterator it = media_session_->action_map_.find(
       ConvertMediaSessionAction(details->action));
