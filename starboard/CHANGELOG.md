@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed config for `SB_HAS_SSIZE_T`
+`ssize_t` is defined POSIX `<sys/types.h>`, so the config is redundant with
+`SB_HAS_SYS_TYPES_H`.
+
 ## Removed configs for `SB_EXPORT_PLATFORM` and `SB_IMPORT_PLATFORM`
 These are auto-detected based on compilers, platforms can optionally override.
 

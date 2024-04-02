@@ -23,8 +23,6 @@
 #ifndef STARBOARD_TYPES_H_
 #define STARBOARD_TYPES_H_
 
-#include "starboard/configuration.h"
-
 // The C library used must provide these headers to be standard conforming.
 
 #include <float.h>
@@ -34,6 +32,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "starboard/configuration.h"
 
 #if SB_HAS(SYS_TYPES_H)
 #include <sys/types.h>
@@ -45,7 +45,7 @@ extern "C" {
 
 // --- Standard Include Emulation ----------------------------------------------
 
-#if !SB_HAS(SSIZE_T)
+#if !SB_HAS(SYS_TYPES_H)
 #if SB_IS(32_BIT)
 typedef int32_t ssize_t;
 #define SSIZE_MAX INT_MAX
@@ -53,7 +53,7 @@ typedef int32_t ssize_t;
 typedef int64_t ssize_t;
 #define SSIZE_MAX LONG_MAX
 #endif
-#endif  // !SB_HAS(SSIZE_T)
+#endif  // !SB_HAS(SYS_TYPES_H)
 
 #if defined(_MSC_VER)
 #pragma warning(push)

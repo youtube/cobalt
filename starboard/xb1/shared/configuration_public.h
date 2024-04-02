@@ -26,9 +26,6 @@
 // Whether the current platform provides the standard header sys/types.h.
 #define SB_HAS_SYS_TYPES_H 0
 
-// Whether the current platform provides ssize_t.
-#define SB_HAS_SSIZE_T 0
-
 #if !defined(__WCHAR_MAX__)
 #include <wchar.h>
 #define __WCHAR_MAX__ WCHAR_MAX
