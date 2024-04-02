@@ -83,7 +83,7 @@ typedef void (*SbSocketWaiterCallback)(SbSocketWaiter waiter,
 #define kSbSocketWaiterInvalid ((SbSocketWaiter)NULL)
 
 // Returns whether the given socket handle is valid.
-static SB_C_INLINE bool SbSocketWaiterIsValid(SbSocketWaiter watcher) {
+static inline bool SbSocketWaiterIsValid(SbSocketWaiter watcher) {
   return watcher != kSbSocketWaiterInvalid;
 }
 

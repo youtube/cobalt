@@ -105,20 +105,17 @@ static_library("ffmpeg_dispatch_sources") {
   public_configs = [ "//starboard/build/config:starboard_implementation" ]
 }
 
-if (!use_cobalt_customizations) {
-  target(gtest_target_type, "ffmpeg_demuxer_test") {
-    testonly = true
-    sources = [ "ffmpeg_demuxer_test.cc" ]
-    configs += [ "//starboard/build/config:starboard_implementation" ]
-    deps = [
-      ":ffmpeg_dispatch_sources",
-
-      # "//cobalt/test:run_all_unittests",
-      "//starboard:starboard_group",
-      "//starboard/common",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-    data_deps = [ "//third_party/chromium/media/test/data:media_testdata" ]
-  }
+target(gtest_target_type, "ffmpeg_demuxer_test") {
+  testonly = true
+  sources = [ "ffmpeg_demuxer_test.cc" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+  deps = [
+    ":ffmpeg_dispatch_sources",
+    "//cobalt/test:run_all_unittests",
+    "//starboard:starboard_group",
+    "//starboard/common",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+  data_deps = [ "//media/test/data:media_testdata" ]
 }

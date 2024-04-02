@@ -25,10 +25,10 @@
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
+#include "media/base/demuxer.h"
 #include "starboard/extension/demuxer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/chromium/media/base/demuxer.h"
 
 namespace cobalt {
 namespace media {

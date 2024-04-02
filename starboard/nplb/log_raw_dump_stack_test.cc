@@ -18,23 +18,25 @@
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#include "starboard/shared/testing/no_inline.h"
+
 namespace starboard {
 namespace nplb {
 namespace {
 
-SB_C_NOINLINE void DumpMoreStack() {
+SB_TEST_FORCE_NO_INLINE void DumpMoreStack() {
   SbLogRawDumpStack(0);
 }
 
-SB_C_NOINLINE void DumpEvenMoreStack() {
+SB_TEST_FORCE_NO_INLINE void DumpEvenMoreStack() {
   DumpMoreStack();
 }
 
-SB_C_NOINLINE void DumpStackBigTime() {
+SB_TEST_FORCE_NO_INLINE void DumpStackBigTime() {
   DumpEvenMoreStack();
 }
 
-SB_C_NOINLINE void IShouldBeSkipped() {
+SB_TEST_FORCE_NO_INLINE void IShouldBeSkipped() {
   SbLogRawDumpStack(1);
 }
 

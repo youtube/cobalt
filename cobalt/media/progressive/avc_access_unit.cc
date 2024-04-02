@@ -18,8 +18,8 @@
 
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/progressive/progressive_parser.h"
-#include "third_party/chromium/media/base/decoder_buffer.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/timestamp_constants.h"
 
 namespace cobalt {
 namespace media {

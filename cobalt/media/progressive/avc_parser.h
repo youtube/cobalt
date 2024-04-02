@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "cobalt/media/progressive/progressive_parser.h"
-#include "third_party/chromium/media/base/media_log.h"
+#include "media/base/media_log.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 

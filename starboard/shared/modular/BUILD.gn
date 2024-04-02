@@ -20,6 +20,8 @@ source_set("starboard_layer_posix_abi_wrappers") {
     "starboard_layer_posix_mmap_abi_wrappers.h",
     "starboard_layer_posix_pthread_abi_wrappers.cc",
     "starboard_layer_posix_pthread_abi_wrappers.h",
+    "starboard_layer_posix_stat_abi_wrappers.cc",
+    "starboard_layer_posix_stat_abi_wrappers.h",
     "starboard_layer_posix_time_abi_wrappers.cc",
     "starboard_layer_posix_time_abi_wrappers.h",
   ]
@@ -35,6 +37,7 @@ if (sb_is_modular && !sb_is_evergreen &&
     sources = [
       "cobalt_layer_posix_mmap_abi_wrappers.cc",
       "cobalt_layer_posix_pthread_abi_wrappers.cc",
+      "cobalt_layer_posix_stat_abi_wrappers.cc",
       "cobalt_layer_posix_time_abi_wrappers.cc",
     ]
   }

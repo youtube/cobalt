@@ -39,7 +39,7 @@ config("media_config_public") {
     "//third_party/abseil-cpp",
     "..",
     "cobalt",
-    "../../skia",
+    "//third_party/skia",
   ]
 }
 

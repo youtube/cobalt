@@ -27,7 +27,7 @@ const int64_t kStorageSize = 1025;
 const int64_t kStorageSize2 = kStorageSize * 2 + kStorageOffset;
 
 // Deletes the storage.
-static SB_C_INLINE void ClearStorageRecord() {
+static inline void ClearStorageRecord() {
 #if SB_API_VERSION < 16
   SbStorageDeleteRecord(SbUserGetCurrent(), NULL);
 #else
@@ -36,7 +36,7 @@ static SB_C_INLINE void ClearStorageRecord() {
 }
 
 // Deletes the named storage record.
-static SB_C_INLINE void ClearStorageRecord(const char* name) {
+static inline void ClearStorageRecord(const char* name) {
 #if SB_API_VERSION < 16
   SbStorageDeleteRecord(SbUserGetCurrent(), name);
 #else
@@ -45,7 +45,7 @@ static SB_C_INLINE void ClearStorageRecord(const char* name) {
 }
 
 // Opens the storage record, validating that it is valid.
-static SB_C_INLINE SbStorageRecord OpenStorageRecord() {
+static inline SbStorageRecord OpenStorageRecord() {
 #if SB_API_VERSION < 16
   SbStorageRecord record = SbStorageOpenRecord(SbUserGetCurrent(), NULL);
 #else
@@ -56,7 +56,7 @@ static SB_C_INLINE SbStorageRecord OpenStorageRecord() {
 }
 
 // Opens the named storage record, validating that it is valid.
-static SB_C_INLINE SbStorageRecord OpenStorageRecord(const char* name) {
+static inline SbStorageRecord OpenStorageRecord(const char* name) {
 #if SB_API_VERSION < 16
   SbStorageRecord record = SbStorageOpenRecord(SbUserGetCurrent(), name);
 #else
@@ -68,9 +68,9 @@ static SB_C_INLINE SbStorageRecord OpenStorageRecord(const char* name) {
 
 // Writes a standard pattern of |size| bytes into the given open storage
 // |record|.
-static SB_C_INLINE void WriteStorageRecord(SbStorageRecord record,
-                                           int64_t size,
-                                           int64_t pattern_offset = 0) {
+static inline void WriteStorageRecord(SbStorageRecord record,
+                                      int64_t size,
+                                      int64_t pattern_offset = 0) {
   char* data = new char[size];
   for (int64_t i = 0; i < size; ++i) {
     data[i] = static_cast<char>((i + pattern_offset + 2) % 0xFF);
@@ -83,7 +83,7 @@ static SB_C_INLINE void WriteStorageRecord(SbStorageRecord record,
 // Ensures that the storage record is initialized with the
 // standard pattern for exactly |length| bytes.
 
-static SB_C_INLINE void InitializeStorageRecord(int64_t length) {
+static inline void InitializeStorageRecord(int64_t length) {
   ClearStorageRecord();
   SbStorageRecord record = OpenStorageRecord();
   WriteStorageRecord(record, length);
@@ -93,11 +93,11 @@ static SB_C_INLINE void InitializeStorageRecord(int64_t length) {
 // Checks a buffer of |total| size for the expected pattern (written in
 // WriteStorageRecord) to start at |offset| and continue for |length|, and the
 // rest of the buffer, before and after, should be set to 0.
-static SB_C_INLINE void CheckStorageBuffer(char* data,
-                                           int64_t offset,
-                                           int64_t length,
-                                           int64_t total,
-                                           int64_t pattern_offset = 0) {
+static inline void CheckStorageBuffer(char* data,
+                                      int64_t offset,
+                                      int64_t length,
+                                      int64_t total,
+                                      int64_t pattern_offset = 0) {
   for (int64_t i = 0; i < offset; ++i) {
     EXPECT_EQ(0, data[i]) << "i = " << i;
   }
@@ -117,12 +117,12 @@ static SB_C_INLINE void CheckStorageBuffer(char* data,
 // |offset| and reporting the buffer size as |length|, checks that the number of
 // read bytes is |expected_length| and then checks the buffer for the expected
 // pattern written in WriteStorageRecord over the expected range of the buffer.
-static SB_C_INLINE void ReadAndCheckStorage(SbStorageRecord record,
-                                            int64_t offset,
-                                            int64_t expected_length,
-                                            int64_t length,
-                                            int64_t total,
-                                            int64_t pattern_offset = 0) {
+static inline void ReadAndCheckStorage(SbStorageRecord record,
+                                       int64_t offset,
+                                       int64_t expected_length,
+                                       int64_t length,
+                                       int64_t total,
+                                       int64_t pattern_offset = 0) {
   char* data = new char[total];
   memset(data, 0, total);
   EXPECT_EQ(expected_length,

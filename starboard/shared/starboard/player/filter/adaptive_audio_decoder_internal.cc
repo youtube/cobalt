@@ -44,7 +44,12 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
 }
 
 AdaptiveAudioDecoder::~AdaptiveAudioDecoder() {
-  Reset();
+  SB_DCHECK(BelongsToCurrentThread());
+
+  if (audio_decoder_) {
+    TeardownAudioDecoder();
+  }
+  ResetInternal();
 }
 
 void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
@@ -150,15 +155,7 @@ void AdaptiveAudioDecoder::Reset() {
     resampler_.reset();
     channel_mixer_.reset();
   }
-  CancelPendingJobs();
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
-  pending_input_buffers_.clear();
-  pending_consumed_cb_ = nullptr;
-  flushing_ = false;
-  stream_ended_ = false;
-  first_output_received_ = false;
+  ResetInternal();
 }
 
 void AdaptiveAudioDecoder::InitializeAudioDecoder(
@@ -186,6 +183,18 @@ void AdaptiveAudioDecoder::TeardownAudioDecoder() {
   audio_decoder_.reset();
   resampler_.reset();
   channel_mixer_.reset();
+}
+
+void AdaptiveAudioDecoder::ResetInternal() {
+  CancelPendingJobs();
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
+  pending_input_buffers_.clear();
+  pending_consumed_cb_ = nullptr;
+  flushing_ = false;
+  stream_ended_ = false;
+  first_output_received_ = false;
 }
 
 void AdaptiveAudioDecoder::OnDecoderOutput() {

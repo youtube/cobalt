@@ -46,14 +46,46 @@ typedef struct StarboardExtensionLoaderAppMetricsApi {
   // This specifies the version of the API that is implemented.
   uint32_t version;
 
-  // The fields below this point were added in version 1 or later.
-
   // The accessors and mutators below are assumed to be called from the same
   // thread: Cobalt's application thread.
 
-  void (*SetCrashpadInstallationStatus)(CrashpadInstallationStatus status);
+  // The fields below this point were added in version 1 or later.
 
+  void (*SetCrashpadInstallationStatus)(CrashpadInstallationStatus status);
   CrashpadInstallationStatus (*GetCrashpadInstallationStatus)();
+
+  // The fields below this point were added in version 2 or later.
+
+  void (*SetElfLibraryStoredCompressed)(bool compressed);
+  bool (*GetElfLibraryStoredCompressed)();
+
+  // Records the number of microseconds it took for the ELF dynamic shared
+  // library to be loaded. If the library is stored as a compressed file then
+  // the decompression duration (see mutator and accessor below) is considered
+  // to be contained within this ELF load duration.
+  void (*SetElfLoadDurationMicroseconds)(int64_t microseconds);
+
+  // Returns the number of microseconds it took for the ELF dynamic shared
+  // library to be loaded, or -1 if this value was not set.
+  int64_t (*GetElfLoadDurationMicroseconds)();
+
+  // Records the number of microseconds it took for the ELF dynamic shared
+  // library, stored as a compressed file, to be decompressed.
+  void (*SetElfDecompressionDurationMicroseconds)(int64_t microseconds);
+
+  // Returns the number of microseconds it took for the ELF dynamic shared
+  // library, stored as a compressed file, to be decompressed, or -1 if this
+  // value was not set.
+  int64_t (*GetElfDecompressionDurationMicroseconds)();
+
+  // Updates the extension such that GetMaxSampledUsedCpuBytesDuringElfLoad()
+  // will return |bytes| iff |bytes| is greater than the value
+  // GetMaxSampledUsedCpuBytesDuringElfLoad() was previously set to return.
+  void (*RecordUsedCpuBytesDuringElfLoad)(int64_t bytes);
+
+  // Returns the greatest value of used CPU bytes that was recorded by a caller
+  // using RecordUsedCpuBytesDuringElfLoad(), or -1 if no value was recorded.
+  int64_t (*GetMaxSampledUsedCpuBytesDuringElfLoad)();
 
 } StarboardExtensionLoaderAppMetricsApi;
 

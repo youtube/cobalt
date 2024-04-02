@@ -123,7 +123,7 @@ typedef struct SbFileInfo {
 #define kSbFileInvalid (SbFile) NULL
 
 // Returns whether the given file handle is valid.
-static SB_C_INLINE bool SbFileIsValid(SbFile file) {
+static inline bool SbFileIsValid(SbFile file) {
   return file != kSbFileInvalid;
 }
 
@@ -244,10 +244,12 @@ SB_EXPORT bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info);
 // |path|: The absolute path of the file, symlink, or directory to be deleted.
 SB_EXPORT bool SbFileDelete(const char* path);
 
+#if SB_API_VERSION < 16
 // Indicates whether a file or directory exists at |path|.
 //
 // |path|: The absolute path of the file or directory being checked.
 SB_EXPORT bool SbFileExists(const char* path);
+#endif  // SB_API_VERSION < 16
 
 // Indicates whether SbFileOpen() with the given |flags| is allowed for |path|.
 //

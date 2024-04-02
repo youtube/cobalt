@@ -21,8 +21,8 @@
 
 #include "base/strings/stringprintf.h"
 #include "cobalt/media/base/endian_util.h"
+#include "media/formats/mp4/es_descriptor.h"
 #include "starboard/types.h"
-#include "third_party/chromium/media/formats/mp4/es_descriptor.h"
 
 namespace cobalt {
 namespace media {
