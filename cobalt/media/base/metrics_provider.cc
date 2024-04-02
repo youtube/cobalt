@@ -16,6 +16,8 @@
 
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/time/time.h"
 
 namespace cobalt {
 namespace media {
@@ -120,6 +122,45 @@ std::string MediaMetricsProvider::GetUMANameForAVStream(
 bool MediaMetricsProvider::IsInitialized() const {
   ScopedLock scoped_lock(mutex_);
   return media_info_.has_value();
+}
+
+void MediaMetricsProvider::StartTrackingAction(WebMediaPlayerAction action) {
+  DCHECK(IsInitialized());
+  DCHECK(!IsActionCurrentlyTracked(action));
+  ScopedLock scoped_lock(mutex_);
+
+  tracked_actions_start_times_[action] = clock_->NowTicks();
+}
+
+void MediaMetricsProvider::EndTrackingAction(WebMediaPlayerAction action) {
+  DCHECK(IsInitialized());
+  DCHECK(IsActionCurrentlyTracked(action));
+  ScopedLock scoped_lock(mutex_);
+
+  auto duration = clock_->NowTicks() - tracked_actions_start_times_[action];
+  ReportActionLatencyUMA(action, duration);
+  tracked_actions_start_times_.erase(action);
+}
+
+bool MediaMetricsProvider::IsActionCurrentlyTracked(
+    WebMediaPlayerAction action) {
+  DCHECK(IsInitialized());
+  ScopedLock scoped_lock(mutex_);
+  return tracked_actions_start_times_.find(action) !=
+         tracked_actions_start_times_.end();
+}
+
+void MediaMetricsProvider::ReportActionLatencyUMA(
+    WebMediaPlayerAction action, const base::TimeDelta& action_duration) {
+  switch (action) {
+    case WebMediaPlayerAction::SEEK:
+      UMA_HISTOGRAM_TIMES("Cobalt.Media.WebMediaPlayer.Seek.Timing",
+                          action_duration);
+      break;
+    case WebMediaPlayerAction::UNKNOWN_ACTION:
+    default:
+      break;
+  }
 }
 
 }  // namespace media
