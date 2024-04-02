@@ -17,7 +17,7 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/tracing_buildflags.h"
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
 #include "third_party/perfetto/include/perfetto/protozero/scattered_heap_buffer.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
 #include "third_party/perfetto/protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
@@ -235,7 +235,7 @@ union BASE_EXPORT TraceValue {
   RAW_PTR_EXCLUSION ConvertableToTraceFormat* as_convertable;
   // This field is not a raw_ptr<> because it was filtered by the rewriter for:
   // #union
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   RAW_PTR_EXCLUSION protozero::HeapBuffered<
       perfetto::protos::pbzero::DebugAnnotation>* as_proto;
 #endif
@@ -348,7 +348,7 @@ union BASE_EXPORT TraceValue {
     using ValueType = typename InnerType<T>::type;
     static const unsigned char value = Helper<ValueType>::kType;
   };
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   template <typename T>
   struct TypeFor<T,
                  typename std::enable_if<
@@ -363,7 +363,7 @@ union BASE_EXPORT TraceValue {
   // initialize a TraceValue instance. This is useful to restrict template
   // instantiation to only the appropriate type (see TraceArguments
   // constructors below).
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   template <typename T,
             class = std::enable_if_t<
                 HasHelperSupport<typename InnerType<T>::type>::value ||
@@ -397,7 +397,7 @@ union BASE_EXPORT TraceValue {
     Helper<ValueType>::SetValue(this, std::forward<T>(value));
   }
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   template <class T>
   typename std::enable_if<
       !HasHelperSupport<typename InnerType<T>::type>::value &&
@@ -710,7 +710,7 @@ class BASE_EXPORT TraceArguments {
     for (size_t n = 0; n < size_; ++n) {
       if (types_[n] == TRACE_VALUE_TYPE_CONVERTABLE)
         delete values_[n].as_convertable;
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
       if (types_[n] == TRACE_VALUE_TYPE_PROTO)
         delete values_[n].as_proto;
 #endif

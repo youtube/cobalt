@@ -234,7 +234,7 @@ class TRIVIAL_ABI scoped_refptr {
 
   constexpr scoped_refptr() = default;
 
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
   constexpr scoped_refptr(T* p) : ptr_(p) {
     if (ptr_)
       AddRef(ptr_);

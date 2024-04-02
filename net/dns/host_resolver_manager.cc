@@ -125,7 +125,7 @@
 #endif
 
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
-#if defined(USE_HACKY_COBALT_CHANGES) && !defined(COMPILER_MSVC)
+#if defined(COBALT_PENDING_CLEAN_UP) && !defined(COMPILER_MSVC)
 #include <net/if.h>
 #endif
 #include "net/base/sys_addrinfo.h"
@@ -231,7 +231,7 @@ bool HaveOnlyLoopbackAddresses() {
   return false;
 #elif BUILDFLAG(IS_ANDROID)
   return android::HaveOnlyLoopbackAddresses();
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(USE_HACKY_COBALT_CHANGES)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(COBALT_PENDING_CLEAN_UP)
   struct ifaddrs* interface_addr = nullptr;
   int rv = getifaddrs(&interface_addr);
   if (rv != 0) {

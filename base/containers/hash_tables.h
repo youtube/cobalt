@@ -1,7 +1,7 @@
 #ifndef BASE_CONTAINERS_HASH_MAP_H_
 #define BASE_CONTAINERS_HASH_MAP_H_
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
 #error "TODO: Remove these"
 #endif
 

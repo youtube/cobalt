@@ -30,7 +30,7 @@
 // Similarly, just pull in the minimal header necessary on non-Windows platforms
 // to help with build performance.
 struct sockaddr;
-#if BUILDFLAG(IS_WIN) || defined(USE_HACKY_COBALT_CHANGES) && defined(COMPILER_MSVC)
+#if BUILDFLAG(IS_WIN) || defined(COBALT_PENDING_CLEAN_UP) && defined(COMPILER_MSVC)
 typedef int socklen_t;
 #else
 #include <sys/socket.h>

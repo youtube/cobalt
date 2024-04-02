@@ -228,7 +228,7 @@
 #define HAS_FEATURE(FEATURE) 0
 #endif
 
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 #if defined(COMPILER_MSVC)
 // MSVC_SUPPRESS_WARNING disables warning |n| for the remainder of the line and
 // for the next line of the source file.
@@ -449,7 +449,7 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #define FALLTHROUGH
 #endif
 
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
 #define ALLOW_UNUSED_TYPE
 #define WARN_UNUSED_RESULT
 #endif

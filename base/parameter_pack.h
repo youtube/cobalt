@@ -38,7 +38,7 @@ inline constexpr size_t count(std::initializer_list<T> ilist, T value) {
 
 constexpr size_t pack_npos = static_cast<size_t>(-1);
 
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
 template <typename... Ts>
 struct ParameterPack;
 

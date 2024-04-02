@@ -438,7 +438,7 @@ bool ServiceWorkerContext::WaitForAsynchronousExtensions(
     if (registration->done_event()->TimedWait(
             base::TimeDelta::FromMilliseconds(100)))
       break;
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
     base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
 #endif
     base::RunLoop().RunUntilIdle();

@@ -12,7 +12,7 @@
 
 namespace switches {
 
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 extern const char kFontFormat[];
 #endif
 extern const char kDisableBestEffortTasks[];

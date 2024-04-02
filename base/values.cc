@@ -878,7 +878,7 @@ size_t Value::List::size() const {
 }
 // TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
 // all Cobalt toolchains.
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
 Value::List::iterator Value::List::begin() {
   return iterator(storage_.data(), storage_.data() + storage_.size());
 }
@@ -982,7 +982,7 @@ void Value::List::clear() {
 
 // TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
 // all Cobalt toolchains.
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
 Value::List::iterator Value::List::erase(iterator pos) {
   auto next_it = storage_.erase(storage_.begin() + (pos - begin()));
   return iterator(storage_.data(),
@@ -1158,7 +1158,7 @@ Value::List&& Value::List::Append(List&& value) && {
 
 // TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
 // all Cobalt toolchains.
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
 Value::List::iterator Value::List::Insert(const_iterator pos, Value&& value) {
   auto inserted_it =
       storage_.insert(storage_.begin() + (pos - begin()), std::move(value));

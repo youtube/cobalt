@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-#if !defined(USE_HACKY_COBALT_CHANGES)
+#if !defined(COBALT_PENDING_CLEAN_UP)
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/allocator/partition_allocator/partition_alloc_config.h"
 #include "base/allocator/partition_allocator/shim/allocator_shim.h"

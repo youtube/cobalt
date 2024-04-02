@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
 #error Many definitions in this file should instead be defined in disk_cache.cc
 #endif
 
@@ -366,7 +366,7 @@ BackendResult CreateCacheBackend(net::CacheType type,
 
 void FlushCacheThreadForTesting() {
   // For simple backend.
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   SimpleBackendImpl::FlushWorkerPoolForTesting();
   base::ThreadPoolInstance::GetInstance()->FlushForTesting();
 #endif

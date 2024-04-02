@@ -8,7 +8,7 @@
 
 namespace switches {
 
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 // Setting this switch defines which font format(s) Cobalt will load locally.
 // Values include 'ttf', 'ttf-preferred', 'woff2', and 'woff2-preferred'.
 // Values with 'preferred' can load all types of fonts but prioritize the

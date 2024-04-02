@@ -38,7 +38,7 @@ ScriptLoaderFactory::ScriptLoaderFactory(
     : fetcher_factory_(fetcher_factory),
       load_thread_("ResourceLoader"),
       is_suspended_(false) {
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   base::Thread::Options options(base::MessagePumpType::DEFAULT,
                                 kLoadThreadStackSize);
   options.priority = loader_thread_priority;

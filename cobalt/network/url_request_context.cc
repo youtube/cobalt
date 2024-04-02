@@ -161,7 +161,7 @@ URLRequestContext::URLRequestContext(
           net::NetLog::Get(), /*quick_check_enabled=*/true));
 
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   // TODO: Confirm this is not needed.
   // ack decimation significantly increases download bandwidth on low-end
   // android devices.
@@ -259,7 +259,7 @@ URLRequestContext::URLRequestContext(
             base::Unretained(this)));
   }
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   // TODO: Determine if this is needed.
   url_request_context_builder->SetProtocolHandler(
       url::kDataScheme, std::make_unique<net::DataProtocolHandler>());

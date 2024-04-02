@@ -42,7 +42,7 @@ AnimatedImageTracker::AnimatedImageTracker(
           base::StringPrintf("Count.%s.AnimatedImage.DecodingOverruns", name),
           0, "Number of overruns from decoding animated images") {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::RecordImage()");
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   base::Thread::Options options(base::MessagePumpType::DEFAULT,
                                 0 /* default stack size */);
   options.priority = animated_image_decode_thread_priority;

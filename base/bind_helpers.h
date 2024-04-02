@@ -1,7 +1,7 @@
 #ifndef BASE_BIND_HELPERS_
 #define BASE_BIND_HELPERS_
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
 #error "TODO: Remove these"
 #endif
 

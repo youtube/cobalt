@@ -564,7 +564,7 @@ TEST(GURLTest, Replacements) {
     ApplyReplacementsFunc* apply_replacements;
     const char* expected;
   } replace_cases[] = {
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
       {"http://www.google.com/foo/bar.html?foo#bar",
        
            +[](const GURL& url) {

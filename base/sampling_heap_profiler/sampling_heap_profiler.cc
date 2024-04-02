@@ -4,7 +4,7 @@
 
 #include "base/sampling_heap_profiler/sampling_heap_profiler.h"
 
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
 #include <string.h>
 #endif
 
@@ -12,7 +12,7 @@
 #include <cmath>
 #include <utility>
 
-#if !defined(USE_HACKY_COBALT_CHANGES)
+#if !defined(COBALT_PENDING_CLEAN_UP)
 #include "base/allocator/partition_allocator/partition_alloc.h"
 #include "base/allocator/partition_allocator/shim/allocator_shim.h"
 #endif

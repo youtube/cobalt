@@ -5,7 +5,7 @@
 #ifndef BASE_TRACE_EVENT_TRACE_EVENT_H_
 #define BASE_TRACE_EVENT_TRACE_EVENT_H_
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
 #error "base/trace_event/ should be reverted to use perfetto."
 #endif
 

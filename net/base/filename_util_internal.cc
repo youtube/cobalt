@@ -320,7 +320,7 @@ base::FilePath GenerateFileNameImpl(
 
 #if BUILDFLAG(IS_WIN)
   base::FilePath generated_name(base::AsWStringPiece(file_name));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(USE_HACKY_COBALT_CHANGES)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(COBALT_PENDING_CLEAN_UP)
   base::FilePath generated_name(
       base::SysWideToNativeMB(base::UTF16ToWide(file_name)));
 #endif

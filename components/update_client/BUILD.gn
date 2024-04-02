@@ -88,7 +88,7 @@ static_library("update_client") {
     "utils.h",
   ]
 
-  if (use_hacky_cobalt_changes) {
+  if (cobalt_pending_clean_up) {
     sources -= [
       "protocol_parser_json.cc",
       "update_checker.cc",
@@ -126,7 +126,7 @@ static_library("test_support") {
     "unzip/unzip_impl_cobalt.h",
   ]
 
-  if (use_hacky_cobalt_changes) {
+  if (cobalt_pending_clean_up) {
     sources -= [
       "net/network_impl_cobalt.cc",
       "net/url_request_post_interceptor.cc",
@@ -214,7 +214,7 @@ target(gtest_target_type, "update_client_test") {
     "utils_unittest.cc",
   ]
 
-  if (use_hacky_cobalt_changes) {
+  if (cobalt_pending_clean_up) {
     sources -= [
       "crx_downloader_unittest.cc",
       "ping_manager_unittest.cc",

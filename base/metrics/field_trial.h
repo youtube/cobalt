@@ -230,7 +230,7 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // If the group's name is empty, a string version containing the group number
   // is used as the group name. This causes a winner to be chosen if none was.
   const std::string& group_name();
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
   int group () { return 0; }
 #endif
 

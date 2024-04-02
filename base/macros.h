@@ -1,7 +1,7 @@
 #ifndef BASE_MACROS_H_
 #define BASE_MACROS_H_
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
 #error "remove these"
 #endif
 

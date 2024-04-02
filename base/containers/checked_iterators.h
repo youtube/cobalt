@@ -34,7 +34,7 @@ class CheckedContiguousIterator {
 // TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
 // all Cobalt toolchains.
 #if (defined(_LIBCPP_VERSION) && !BUILDFLAG(IS_NACL)) || \
-    defined(USE_HACKY_COBALT_CHANGES)
+    defined(COBALT_PENDING_CLEAN_UP)
   // Required to be able to get to the underlying pointer without triggering
   // CHECK failures.
   template <typename Ptr>
@@ -274,7 +274,7 @@ struct pointer_traits<::base::CheckedContiguousIterator<T>> {
 }  // namespace std
 // TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
 // all Cobalt toolchains.
-#elif defined(USE_HACKY_COBALT_CHANGES)
+#elif defined(COBALT_PENDING_CLEAN_UP)
 // Specialize std::pointer_traits so that we can obtain the underlying raw
 // pointer without resulting in CHECK failures. The important bit is the
 // `to_address(pointer)` overload, which is the standard blessed way to

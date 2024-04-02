@@ -18,7 +18,7 @@
 
 namespace base {
 
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 // Test to see if a set or map contains a particular key.
 // Returns true if the key is in the collection.
 template <typename Collection, typename Key>
