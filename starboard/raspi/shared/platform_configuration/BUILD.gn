@@ -47,7 +47,7 @@ config("common_flags") {
     "EGL_static",
     "GLESv2_static",
   ]
-  if (use_hacky_cobalt_changes) {
+  if (cobalt_pending_clean_up) {
     cflags = [ "-Wno-multichar" ]
   }
 }

@@ -4,7 +4,7 @@
 
 #include "base/logging.h"
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
 #ifdef BASE_CHECK_H_
 #error "logging.h should not include check.h"
 #endif

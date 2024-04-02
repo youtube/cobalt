@@ -3580,7 +3580,7 @@ test("base_unittests") {
       "files/memory_mapped_file_unittest.cc",
     ]
 
-    if (is_win && use_hacky_cobalt_changes) {
+    if (is_win && cobalt_pending_clean_up) {
       sources -= [
         "power_monitor/battery_state_sampler_unittest.cc",
         "profiler/stack_sampling_profiler_unittest.cc",

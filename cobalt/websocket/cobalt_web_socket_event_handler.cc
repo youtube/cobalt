@@ -73,7 +73,7 @@ void CobaltWebSocketEventHandler::OnDataFrame(bool fin,
   if (type != net::WebSocketFrameHeader::kOpCodeContinuation) {
     DCHECK_EQ(message_type_, type);
   }
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   frame_data_.push_back(std::make_pair(std::move(payload), buffer_size));
 #endif
   if (fin) {

@@ -32,7 +32,7 @@ struct hb_set_t;
 struct wl_gpu;
 struct wl_shm;
 struct wl_surface;
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 struct SbPlayerPrivate;
 struct SbWindowPrivate;
 struct SbUiNavItemPrivate;
@@ -120,7 +120,7 @@ inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_shm> = true;
 template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_surface> = true;
 
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<SbPlayerPrivate> = true;
 template <>

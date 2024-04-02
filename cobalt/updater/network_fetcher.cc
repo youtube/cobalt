@@ -233,7 +233,7 @@ void NetworkFetcher::CreateUrlFetcher(
   // Request mode is kCORSModeOmitCredentials.
   const uint32 kDisableCookiesAndCacheLoadFlags =
       net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
       net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA |
 #endif
       net::LOAD_DISABLE_CACHE;

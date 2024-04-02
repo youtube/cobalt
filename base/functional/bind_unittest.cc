@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#if !defined(USE_HACKY_COBALT_CHANGES)
+#if !defined(COBALT_PENDING_CLEAN_UP)
 #include "base/allocator/partition_alloc_features.h"
 #include "base/allocator/partition_alloc_support.h"
 #include "base/allocator/partition_allocator/dangling_raw_ptr_checks.h"

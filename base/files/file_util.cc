@@ -174,7 +174,7 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFileContents(File& infile, File& outfile) {
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool retry_slow = false;
   bool res =
@@ -220,7 +220,7 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   // We open the file in binary format even if they are text files because
   // we are just comparing that bytes are exactly same in both files and not
   // doing anything smart with text formatting.
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
   // std::ifstream doesn't work on all our platforms.
   base::File file1(filename1, base::File::FLAG_OPEN | base::File::FLAG_READ);
   base::File file2(filename2, base::File::FLAG_OPEN | base::File::FLAG_READ);
@@ -274,7 +274,7 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 #endif
 }
 
-#if !defined(USE_HACKY_COBALT_CHANGES)
+#if !defined(COBALT_PENDING_CLEAN_UP)
 bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 #if BUILDFLAG(IS_WIN)
   std::ifstream file1(filename1.value().c_str(), std::ios::in);
@@ -319,7 +319,7 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 
   return true;
 }
-#endif  // !defined(USE_HACKY_COBALT_CHANGES)
+#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
 #if !defined(STARBOARD)
 bool ReadStreamToString(FILE* stream, std::string* contents) {
@@ -353,7 +353,7 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
     return absl::nullopt;
   }
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   // TODO(b/298237462): Implement ScopedFILE for Starboard.
   ScopedFILE file_stream(OpenFile(path, "rb"));
   if (!file_stream) {
@@ -391,7 +391,7 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     contents->clear();
   if (path.ReferencesParent())
     return false;
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!file.IsValid()) {
     return false;
@@ -432,7 +432,7 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
   if (!file_stream)
     return false;
   return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
-#endif  // defined(USE_HACKY_COBALT_CHANGES)
+#endif  // defined(COBALT_PENDING_CLEAN_UP)
 }
 
 bool IsDirectoryEmpty(const FilePath& dir_path) {
@@ -490,7 +490,7 @@ bool TouchFile(const FilePath& path,
   return file.SetTimes(last_accessed, last_modified);
 }
 
-#if !defined(USE_HACKY_COBALT_CHANGES)
+#if !defined(COBALT_PENDING_CLEAN_UP)
 bool CloseFile(FILE* file) {
   if (file == nullptr)
     return true;
@@ -514,7 +514,7 @@ bool TruncateFile(FILE* file) {
 #endif
   return true;
 }
-#endif  // !defined(USE_HACKY_COBALT_CHANGES)
+#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
 bool WriteFile(const FilePath& filename, span<const uint8_t> data) {
   int size = checked_cast<int>(data.size());

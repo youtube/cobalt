@@ -6,7 +6,7 @@
 #define QUICHE_COMMON_QUICHE_IP_ADDRESS_H_
 
 #include <cstdint>
-#if defined(_WIN32) && defined(USE_HACKY_COBALT_CHANGES)
+#if defined(_WIN32) && defined(COBALT_PENDING_CLEAN_UP)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"

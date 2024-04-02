@@ -36,7 +36,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
-#if defined(COMPILER_MSVC) && defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COMPILER_MSVC) && defined(COBALT_PENDING_CLEAN_UP)
 #define QUIC_FRAME_DEBUG 0
 #endif
 

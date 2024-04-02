@@ -216,12 +216,12 @@ BASE_EXPORT bool DirectoryExists(const FilePath& path);
 BASE_EXPORT bool ContentsEqual(const FilePath& filename1,
                                const FilePath& filename2);
 
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
 // Returns true if the contents of the two text files given are equal, false
 // otherwise.  This routine treats "\r\n" and "\n" as equivalent.
 BASE_EXPORT bool TextContentsEqual(const FilePath& filename1,
                                    const FilePath& filename2);
-#endif  // !defined(USE_HACKY_COBALT_CHANGES)
+#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
 // Reads the file at |path| and returns a vector of bytes on success, and
 // nullopt on error. For security reasons, a |path| containing path traversal
@@ -510,7 +510,7 @@ BASE_EXPORT bool TouchFile(const FilePath& path,
 // configured to not be propagated to child processes.
 BASE_EXPORT FILE* OpenFile(const FilePath& filename, const char* mode);
 
-#if !defined(USE_HACKY_COBALT_CHANGES)
+#if !defined(COBALT_PENDING_CLEAN_UP)
 // Closes file opened by OpenFile. Returns true on success.
 BASE_EXPORT bool CloseFile(FILE* file);
 #endif
@@ -522,11 +522,11 @@ BASE_EXPORT FILE* FileToFILE(File file, const char* mode);
 // Returns a new handle to the file underlying |file_stream|.
 BASE_EXPORT File FILEToFile(FILE* file_stream);
 
-#if !defined(USE_HACKY_COBALT_CHANGES)
+#if !defined(COBALT_PENDING_CLEAN_UP)
 // Truncates an open file to end at the location of the current file pointer.
 // This is a cross-platform analog to Windows' SetEndOfFile() function.
 BASE_EXPORT bool TruncateFile(FILE* file);
-#endif  // !defined(USE_HACKY_COBALT_CHANGES)
+#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
 // Reads at most the given number of bytes from the file into the buffer.
 // Returns the number of read bytes, or -1 on error.
@@ -707,7 +707,7 @@ BASE_EXPORT bool CopyAndDeleteDirectory(const FilePath& from_path,
                                         const FilePath& to_path);
 #endif  // BUILDFLAG(IS_WIN)
 
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 // CopyFileContentsWithSendfile will use the sendfile(2) syscall to perform a
 // file copy without moving the data between kernel and userspace. This is much

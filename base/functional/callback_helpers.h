@@ -26,7 +26,7 @@
 
 namespace base {
 
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 template <typename CallbackType>
 bool ResetAndRunIfNotNull(CallbackType* cb) {
   if (cb->is_null()) {

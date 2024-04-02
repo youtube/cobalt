@@ -20,9 +20,9 @@ import("//starboard/build/config/os_definitions.gni")
 #                     a way to show where we should be eventually using
 #                     upstream code as is.
 
-if (use_hacky_cobalt_changes) {
+if (cobalt_pending_clean_up) {
   config("hacky_build_config") {
-    defines = [ "USE_HACKY_COBALT_CHANGES" ]
+    defines = [ "COBALT_PENDING_CLEAN_UP" ]
 
     defines += [
       "BASE_HASH_NAMESPACE=std",

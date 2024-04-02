@@ -34,7 +34,7 @@ constexpr bool IsPowerOfTwo(T value) {
   return value > 0 && (value & (value - 1)) == 0;
 }
 
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 // Round up |size| to a multiple of alignment, which must be a power of two.
 inline size_t Align(size_t size, size_t alignment) {
   DCHECK(IsPowerOfTwo(alignment));
@@ -182,7 +182,7 @@ ALWAYS_INLINE constexpr
 // use `Log2Floor` and add 1 to the result.
 //
 // TODO(pkasting): When C++20 is available, replace with std::bit_xxx().
-#if defined(USE_HACKY_COBALT_CHANGES) && defined(COMPILER_MSVC)
+#if defined(COBALT_PENDING_CLEAN_UP) && defined(COMPILER_MSVC)
 #define FUNCTION_SPECIFIER ALWAYS_INLINE
 #else
 #define FUNCTION_SPECIFIER constexpr

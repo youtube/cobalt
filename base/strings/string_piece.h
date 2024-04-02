@@ -483,7 +483,7 @@ class GSL_POINTER BasicStringPiece {
     return find_last_not_of(BasicStringPiece(s), pos);
   }
 
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 // Remove once we're on C++20+
   constexpr bool starts_with(BasicStringPiece v) const noexcept {
     return rfind(v, 0) == 0;

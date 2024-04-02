@@ -1046,7 +1046,7 @@ FieldTrialList* FieldTrialList::BackupInstanceForTesting() {
 void FieldTrialList::RestoreInstanceForTesting(FieldTrialList* instance) {
   global_ = instance;
 }
-#ifdef USE_HACKY_COBALT_CHANGES
+#ifdef COBALT_PENDING_CLEAN_UP
 // TODO(b/298237462): Try to enable the below code.
 #elif !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
 

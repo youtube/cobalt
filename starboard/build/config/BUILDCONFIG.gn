@@ -17,7 +17,7 @@ assert(!_is_python2, "`python` must resolve to Python 3 when building with GN.")
 
 declare_args() {
   # Temporary gn arg for work on base/net update.
-  use_hacky_cobalt_changes = true
+  cobalt_pending_clean_up = true
 
   is_clang = true
 
@@ -172,7 +172,7 @@ default_compiler_configs = [
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
 
-if (use_hacky_cobalt_changes) {
+if (cobalt_pending_clean_up) {
   default_compiler_configs += [ "//starboard/build/config:hacky_build_config" ]
 }
 
@@ -229,7 +229,7 @@ template("target_with_platform_configs") {
     if (!has_pedantic_warnings) {
       configs += [ "//starboard/build/config:no_pedantic_warnings" ]
     }
-    if (use_hacky_cobalt_changes) {
+    if (cobalt_pending_clean_up) {
       configs += [ "//starboard/build/config:hacky_wnos" ]
     }
   }

@@ -67,7 +67,7 @@ int UpdaterMain(int argc, const char* const* argv) {
 
   g_loop.reset(new base::SingleThreadTaskExecutor(base::MessagePumpType::UI));
 
-#ifndef USE_HACKY_COBALT_CHANGES
+#ifndef COBALT_PENDING_CLEAN_UP
   DCHECK(base::ThreadTaskRunnerHandle::IsSet());
 #endif
   base::PlatformThread::SetName("UpdaterMain");

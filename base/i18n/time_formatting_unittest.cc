@@ -76,7 +76,7 @@ TEST(TimeFormattingTest, TimeFormatTimeOfDayDefault12h) {
   Time time;
   EXPECT_TRUE(Time::FromUTCExploded(kTestDateTimeExploded, &time));
   std::u16string clock24h(u"15:42");
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   std::u16string clock12h_pm(u"3:42 PM");
 #else
   std::u16string clock12h_pm(u"3:42\u202fPM");
@@ -118,7 +118,7 @@ TEST(TimeFormattingTest, TimeFormatTimeOfDayDefault24h) {
   Time time;
   EXPECT_TRUE(Time::FromUTCExploded(kTestDateTimeExploded, &time));
   std::u16string clock24h(u"15:42");
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   std::u16string clock12h_pm(u"3:42 pm");
 #else
   std::u16string clock12h_pm(u"3:42\u202fpm");
@@ -187,7 +187,7 @@ TEST(TimeFormattingTest, TimeFormatTimeOfDayDE) {
   Time time;
   EXPECT_TRUE(Time::FromUTCExploded(kTestDateTimeExploded, &time));
   std::u16string clock24h(u"15:42");
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   std::u16string clock12h_pm(u"3:42 PM");
 #else
   std::u16string clock12h_pm(u"3:42\u202fPM");
@@ -256,7 +256,7 @@ TEST(TimeFormattingTest, TimeFormatDateUS) {
   EXPECT_EQ(u"Apr 30, 2011", TimeFormatShortDate(time));
   EXPECT_EQ(u"4/30/11", TimeFormatShortDateNumeric(time));
 
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   EXPECT_EQ(u"4/30/11, 3:42:07 PM", TimeFormatShortDateAndTime(time));
   EXPECT_EQ(u"4/30/11, 3:42:07 PM " + GetShortTimeZone(time),
             TimeFormatShortDateAndTimeWithTimeZone(time));
@@ -268,7 +268,7 @@ TEST(TimeFormattingTest, TimeFormatDateUS) {
 
   EXPECT_EQ(u"April 2011", TimeFormatMonthAndYear(time));
 
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   EXPECT_EQ(u"Saturday, April 30, 2011 at 3:42:07 PM",
             TimeFormatFriendlyDateAndTime(time));
 #else
@@ -309,7 +309,7 @@ TEST(TimeFormattingTest, TimeFormatWithPattern) {
 
   i18n::SetICUDefaultLocale("en_US");
   EXPECT_EQ(u"Apr 30, 2011", TimeFormatWithPattern(time, "yMMMd"));
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   EXPECT_EQ(u"April 30, 3:42:07 PM",
             TimeFormatWithPattern(time, "MMMMdjmmss"));
 #else
@@ -319,7 +319,7 @@ TEST(TimeFormattingTest, TimeFormatWithPattern) {
 
   i18n::SetICUDefaultLocale("en_GB");
   EXPECT_EQ(u"30 Apr 2011", TimeFormatWithPattern(time, "yMMMd"));
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   EXPECT_EQ(u"30 April, 15:42:07", TimeFormatWithPattern(time, "MMMMdjmmss"));
 #else
   EXPECT_EQ(u"30 April at 15:42:07", TimeFormatWithPattern(time, "MMMMdjmmss"));
@@ -436,7 +436,7 @@ TEST(TimeFormattingTest, TimeIntervalFormat) {
   Time end_time;
   EXPECT_TRUE(Time::FromUTCExploded(kTestIntervalEndTimeExploded, &end_time));
 
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   EXPECT_EQ(
       u"Saturday, April 30 – Saturday, May 28",
       DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
@@ -452,7 +452,7 @@ TEST(TimeFormattingTest, TimeIntervalFormat) {
   };
   EXPECT_TRUE(
       Time::FromUTCExploded(kTestIntervalBeginTimeExploded, &begin_time));
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   EXPECT_EQ(
       u"Monday, May 16 – Saturday, May 28",
       DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
@@ -463,7 +463,7 @@ TEST(TimeFormattingTest, TimeIntervalFormat) {
 #endif
 
   i18n::SetICUDefaultLocale("en_GB");
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(COBALT_PENDING_CLEAN_UP)
   EXPECT_EQ(
       u"Monday 16 May – Saturday 28 May",
       DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
