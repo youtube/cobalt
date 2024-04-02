@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+## Removed configs for `SB_EXPORT_PLATFORM` and `SB_IMPORT_PLATFORM`
+These are auto-detected based on compilers, platforms can optionally override.
+
 ## Removed configs for `SB_C_FORCE_INLINE`
 This is now automatically defined based on compilers, platforms must not provide
 a definition.
