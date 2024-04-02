@@ -29,10 +29,11 @@ group("gn_all") {
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
-    "//starboard/loader_app:app_key_files_test",
     "//starboard/nplb",
-    "//starboard/nplb/nplb_evergreen_compat_tests",
   ]
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+    deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
+  }
 
   if (has_platform_targets) {
     deps += [ "//$starboard_path/platform_targets" ]
@@ -70,7 +71,8 @@ group("gn_all") {
     if (sb_is_evergreen_compatible) {
       deps += [
         "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
-        "//starboard/loader_app:slot_management_test_install($starboard_toolchain)",
+        "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
+        "//starboard/loader_app:reset_evergreen_update_test_install($starboard_toolchain)",
       ]
 
       if (current_toolchain == starboard_toolchain) {
@@ -82,6 +84,13 @@ group("gn_all") {
         ]
       }
     }
+  } else {  # !sb_is_evergreen
+    deps += [
+      "//starboard/loader_app:app_key_files_test",
+      "//starboard/loader_app:app_key_test",
+      "//starboard/loader_app:drain_file_test",
+      "//starboard/loader_app:slot_management_test",
+    ]
   }
 }
 
