@@ -120,11 +120,7 @@ target(gtest_target_type, "media_test") {
   sources = [
     "base/cval_stats_test.cc",
     "base/decoder_buffer_cache_test.cc",
-<<<<<<< HEAD
-=======
     "base/metrics_provider_test.cc",
-    "bidirectional_fit_reuse_allocator_test.cc",
->>>>>>> a712047ec57 (Add Seek Latency Telemetry (#2735))
     "file_data_source_test.cc",
     "progressive/demuxer_extension_wrapper_test.cc",
     "progressive/mock_data_source_reader.h",
