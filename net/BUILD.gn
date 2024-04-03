@@ -1405,7 +1405,7 @@ component("net") {
     sources += [ "disk_cache/blockfile/mapped_file_posix.cc" ]
   }
 
-  if (is_android || is_chromeos || is_linux || is_starboard) {
+  if (is_android || is_chromeos || is_linux) {
     sources += [
       "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
@@ -3009,7 +3009,7 @@ test("net_unittests") {
     sources += [ "base/sockaddr_util_posix_unittest.cc" ]
   }
 
-  if (is_android || is_chromeos_ash) {
+  if ((is_android || is_chromeos_ash) && !is_starboard) {
     sources += [ "base/network_change_notifier_passive_unittest.cc" ]
   }
 
