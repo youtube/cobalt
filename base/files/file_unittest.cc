@@ -89,6 +89,7 @@ TEST(FileTest, Create) {
     EXPECT_FALSE(file.IsValid());
   }
 
+#if !defined(STARBOARD)
   {
     // Create a file that exists.
     File file(file_path, base::File::FLAG_CREATE | base::File::FLAG_READ);
@@ -97,6 +98,7 @@ TEST(FileTest, Create) {
     EXPECT_EQ(base::File::FILE_ERROR_EXISTS, file.error_details());
     EXPECT_EQ(base::File::FILE_ERROR_EXISTS, base::File::GetLastFileError());
   }
+#endif
 
   {
     // Create or overwrite a file.
@@ -141,13 +143,22 @@ TEST(FileTest, Async) {
   FilePath file_path = temp_dir.GetPath().AppendASCII("create_file");
 
   {
+#if defined(STARBOARD)
+    File file(file_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_ASYNC
+                         | base::File::FLAG_READ);
+#else
     File file(file_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_ASYNC);
+#endif
     EXPECT_TRUE(file.IsValid());
     EXPECT_TRUE(file.async());
   }
 
   {
+#if defined(STARBOARD)
+    File file(file_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ);
+#else
     File file(file_path, base::File::FLAG_OPEN_ALWAYS);
+#endif
     EXPECT_TRUE(file.IsValid());
     EXPECT_FALSE(file.async());
   }

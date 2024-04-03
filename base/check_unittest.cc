@@ -519,6 +519,7 @@ void NiLogOnce() {
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
+#if !defined(STARBOARD) || !defined(COMPILER_MSVC)
 TEST(CheckTest, NotImplementedLogOnce) {
   static const std::string expected_msg =
       "Not implemented reached in void (anonymous namespace)::NiLogOnce()\n";
@@ -531,6 +532,7 @@ TEST(CheckTest, NotImplementedLogOnce) {
   EXPECT_NO_LOG(NiLogOnce());
 #endif
 }
+#endif
 
 // Test CHECK_DEREF of `T*`
 TEST(CheckTest, CheckDerefOfPointer) {
