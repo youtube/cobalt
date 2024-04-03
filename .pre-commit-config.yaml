@@ -15,12 +15,9 @@ files: |
             internal|
             precommit_hooks|
             starboard|
-            tools/lz4_compress|
             tools/metrics/actions/cobalt|
             tools/metrics/histograms/metadata/cobalt|
-            tools/raspi_image|
             tools/testing|
-            tools/windows
         )/
         | ^[^/]+$  # files in the root
     )

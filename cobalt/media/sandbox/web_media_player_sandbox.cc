@@ -31,12 +31,12 @@
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
+#include "media/base/timestamp_constants.h"
+#include "media/filters/chunk_demuxer.h"
 #include "starboard/common/file.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace media {

@@ -79,7 +79,7 @@ typedef struct SbWindowOptions {
 #define kSbWindowInvalid ((SbWindow)NULL)
 
 // Returns whether the given window handle is valid.
-static SB_C_INLINE bool SbWindowIsValid(SbWindow window) {
+static inline bool SbWindowIsValid(SbWindow window) {
   return window != kSbWindowInvalid;
 }
 
@@ -139,16 +139,20 @@ SB_EXPORT void* SbWindowGetPlatformHandle(SbWindow window);
 
 // System-triggered OnScreenKeyboard events have ticket value
 // kSbEventOnScreenKeyboardInvalidTicket.
+// TODO(b/151173891): This should be moved to the extension header
 #define kSbEventOnScreenKeyboardInvalidTicket (-1)
 
 // Defines a rectangle via a point |(x, y)| and a size |(width, height)|. This
 // structure is used as output for SbWindowGetOnScreenKeyboardBoundingRect.
+// TODO(b/151173891): This should be moved to the extension header
 typedef struct SbWindowRect {
   float x;
   float y;
   float width;
   float height;
 } SbWindowRect;
+
+#if SB_API_VERSION < 16
 
 // Return whether the current platform supports an on screen keyboard
 SB_EXPORT bool SbWindowOnScreenKeyboardIsSupported();
@@ -220,6 +224,8 @@ SB_EXPORT void SbWindowUpdateOnScreenKeyboardSuggestions(
 // returns false, then calling SbWindowUpdateOnScreenKeyboardSuggestions() will
 // be undefined.
 SB_EXPORT bool SbWindowOnScreenKeyboardSuggestionsSupported(SbWindow window);
+
+#endif  // SB_API_VERSION < 16
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -47,7 +47,7 @@ typedef union musl_pthread_cond_t {
 
 #define MUSL_PTHREAD_COND_ATTR_MAX_SIZE 40
 typedef union musl_pthread_condattr_t {
-  uint8_t cond_attr_buffer[MUSL_PTHREAD_COND_MAX_SIZE];
+  uint8_t cond_attr_buffer[MUSL_PTHREAD_COND_ATTR_MAX_SIZE];
   void* ptr;
 } musl_pthread_condattr_t;
 

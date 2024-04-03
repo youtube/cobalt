@@ -21,8 +21,6 @@
 #ifndef STARBOARD_EVERGREEN_ARM_SOFTFP_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_EVERGREEN_ARM_SOFTFP_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -51,16 +49,16 @@
 
 // --- Compiler Configuration ------------------------------------------------
 
+#if SB_API_VERSION < 16
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
+#endif  // SB_API_VERSION < 16
 
+#if SB_API_VERSION < 16
 // The platform's annotation for marking a C function as suggested to be
 // inlined.
 #define SB_C_INLINE inline
-
-// The platform's annotation for marking a C function as forcibly not
-// inlined.
-#define SB_C_NOINLINE __attribute__((noinline))
+#endif
 
 // The platform's annotation for marking a symbol as exported outside of the
 // current shared library.
@@ -69,19 +67,6 @@
 // The platform's annotation for marking a symbol as imported from outside of
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
-
-// --- I/O Configuration -----------------------------------------------------
-
-// Whether the current platform has microphone supported.
-#define SB_HAS_MICROPHONE 0
-
-// Whether the current platform implements the on screen keyboard interface.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
-// --- Decoder-only Params ---
 
 // --- Memory Configuration --------------------------------------------------
 
@@ -93,20 +78,5 @@
 
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
-
-// Specifies whether this platform supports pipe.
-#define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "Evergreen-arm builds need a GCC-like compiler (for the moment)."
-#endif
 
 #endif  // STARBOARD_EVERGREEN_ARM_SOFTFP_CONFIGURATION_PUBLIC_H_

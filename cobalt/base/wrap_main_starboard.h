@@ -93,13 +93,13 @@ void BaseEventHandler(const SbEvent* event) {
 
       stop_function();
 
-      // Force the loop to quit.
-      delete g_task_executor;
-      g_task_executor = NULL;
-
       g_run_loop->AfterRun();
       delete g_run_loop;
       g_run_loop = NULL;
+
+      // Force the loop to quit.
+      delete g_task_executor;
+      g_task_executor = NULL;
 
       // Run all at-exit tasks just before terminating.
       delete g_at_exit;
@@ -124,12 +124,16 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardBlurred:
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
+#if SB_API_VERSION >= 16
+    case kSbEventTypeReserved1:
+#else
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+#endif  // SB_API_VERSION >= 16
       event_function(event);
       break;
   }

@@ -51,7 +51,6 @@
 #include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
-#include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/base/starboard_stats_tracker.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/version_compatibility.h"
@@ -622,19 +621,83 @@ void AddCrashLogApplicationState(base::ApplicationState state) {
              << "required version, so not sending application state.";
 }
 
+void RecordLoaderAppTimeMetrics(
+    const StarboardExtensionLoaderAppMetricsApi* metrics_extension) {
+  int64_t elf_load_duration_us =
+      metrics_extension->GetElfLoadDurationMicroseconds();
+  int64_t elf_decompression_duration_us =
+      metrics_extension->GetElfDecompressionDurationMicroseconds();
+
+  if (elf_load_duration_us < 0) {
+    return;
+  }
+  if (elf_decompression_duration_us < 0) {
+    return;
+  }
+  if (elf_decompression_duration_us > elf_load_duration_us) {
+    // The decompression duration is considered to be contained within the ELF
+    // load duration, so this inequality is unexpected.
+    return;
+  }
+
+  int64_t unexplained_duration_us =
+      elf_load_duration_us - elf_decompression_duration_us;
+
+  base::UmaHistogramTimes(
+      "Cobalt.LoaderApp.ElfLoadDuration",
+      base::TimeDelta::FromMicroseconds(elf_load_duration_us));
+  base::UmaHistogramTimes(
+      "Cobalt.LoaderApp.ElfDecompressionDuration",
+      base::TimeDelta::FromMicroseconds(elf_decompression_duration_us));
+
+  // "Unexplained" just means means that we haven't yet attempted to break this
+  // chunk of time into its components. It's included here to give context for
+  // the other durations, as recommended by
+  // https://chromium.googlesource.com/chromium/src/+/lkgr/docs/speed/diagnostic_metrics.md#summation-diagnostics.
+  base::UmaHistogramTimes(
+      "Cobalt.LoaderApp.ElfLoadUnexplainedDuration",
+      base::TimeDelta::FromMicroseconds(unexplained_duration_us));
+
+  LOG(INFO) << "Recorded samples for Cobalt.LoaderApp duration metrics";
+}
+
+void RecordLoaderAppSpaceMetrics(
+    const StarboardExtensionLoaderAppMetricsApi* metrics_extension) {
+  if (metrics_extension->GetMaxSampledUsedCpuBytesDuringElfLoad() < 0) {
+    return;
+  }
+
+  base::UmaHistogramMemoryMB(
+      "Cobalt.LoaderApp.MaxSampledUsedCPUMemoryDuringELFLoad",
+      metrics_extension->GetMaxSampledUsedCpuBytesDuringElfLoad() / 1000000);
+  LOG(INFO) << "Recorded sample for "
+            << "Cobalt.LoaderApp.MaxSampledUsedCPUMemoryDuringELFLoad";
+}
+
 void RecordLoaderAppMetrics() {
   auto metrics_extension =
       static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
           SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
   if (metrics_extension &&
       strcmp(metrics_extension->name,
-             kStarboardExtensionLoaderAppMetricsName) == 0 &&
-      metrics_extension->version >= 1) {
-    base::UmaHistogramEnumeration(
-        "Cobalt.LoaderApp.CrashpadInstallationStatus",
-        metrics_extension->GetCrashpadInstallationStatus());
-    LOG(INFO) << "Recorded sample for "
-              << "Cobalt.LoaderApp.CrashpadInstallationStatus";
+             kStarboardExtensionLoaderAppMetricsName) == 0) {
+    if (metrics_extension->version >= 1) {
+      base::UmaHistogramEnumeration(
+          "Cobalt.LoaderApp.CrashpadInstallationStatus",
+          metrics_extension->GetCrashpadInstallationStatus());
+      LOG(INFO) << "Recorded sample for "
+                << "Cobalt.LoaderApp.CrashpadInstallationStatus";
+    }
+    if (metrics_extension->version >= 2) {
+      if (!metrics_extension->GetElfLibraryStoredCompressed()) {
+        // We're only interested in load performance when the ELF library is
+        // stored compressed and must therefore be decompressed at load time.
+        return;
+      }
+
+      RecordLoaderAppTimeMetrics(metrics_extension);
+      RecordLoaderAppSpaceMetrics(metrics_extension);
+    }
   }
 }
 
@@ -964,12 +1027,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
-  on_screen_keyboard_suggestions_updated_event_callback_ =
-      base::Bind(&Application::OnOnScreenKeyboardSuggestionsUpdatedEvent,
-                 base::Unretained(this));
-  event_dispatcher_.AddEventCallback(
-      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
-      on_screen_keyboard_suggestions_updated_event_callback_);
   on_caption_settings_changed_event_callback_ = base::Bind(
       &Application::OnCaptionSettingsChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(
@@ -1074,9 +1131,6 @@ Application::~Application() {
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
   event_dispatcher_.RemoveEventCallback(
-      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
-      on_screen_keyboard_suggestions_updated_event_callback_);
-  event_dispatcher_.RemoveEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
   event_dispatcher_.RemoveEventCallback(
@@ -1158,10 +1212,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::OnScreenKeyboardBlurredEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-      DispatchEventInternal(new base::OnScreenKeyboardSuggestionsUpdatedEvent(
-          *static_cast<int*>(starboard_event->data)));
-      break;
     case kSbEventTypeLink: {
       DispatchDeepLink(static_cast<const char*>(starboard_event->data),
                        starboard_event->timestamp);
@@ -1196,6 +1246,11 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeStop:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
+#if SB_API_VERSION >= 16
+    case kSbEventTypeReserved1:
+#else
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+#endif  // SB_API_VERSION >= 16
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
   }
@@ -1273,7 +1328,6 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardShown:
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
     case kSbEventTypeAccessibilitySettingsChanged:
     case kSbEventTypeInput:
     case kSbEventTypeLink:
@@ -1283,6 +1337,11 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
+#if SB_API_VERSION >= 16
+    case kSbEventTypeReserved1:
+#else
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+#endif  // SB_API_VERSION >= 16
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
@@ -1338,15 +1397,6 @@ void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
   browser_module_->OnOnScreenKeyboardBlurred(
       base::polymorphic_downcast<const base::OnScreenKeyboardBlurredEvent*>(
           event));
-}
-
-void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
-    const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser",
-               "Application::OnOnScreenKeyboardSuggestionsUpdatedEvent()");
-  browser_module_->OnOnScreenKeyboardSuggestionsUpdated(
-      base::polymorphic_downcast<
-          const base::OnScreenKeyboardSuggestionsUpdatedEvent*>(event));
 }
 
 void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {

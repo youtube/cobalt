@@ -18,7 +18,10 @@
 #include "starboard/elf_loader/lz4_file_impl.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/memory.h"
+#include "starboard/system.h"
 
 namespace starboard {
 namespace elf_loader {
@@ -76,6 +79,8 @@ bool LZ4FileImpl::Open(const char* name) {
     return false;
   }
 
+  int64_t decompression_start_time_us = CurrentMonotonicTime();
+
   size_t header_size = PeekHeaderSize();
   if (LZ4F_isError(header_size)) {
     SB_LOG(ERROR) << LZ4F_getErrorName(header_size);
@@ -106,8 +111,26 @@ bool LZ4FileImpl::Open(const char* name) {
   // uncompressed block size.
   int max_compressed_buffer_size = GetBlockSize(&frame_info);
 
-  return Decompress(file_info.size, header_size, max_compressed_buffer_size,
-                    source_bytes_hint);
+  bool result = Decompress(file_info.size, header_size,
+                           max_compressed_buffer_size, source_bytes_hint);
+
+  int64_t decompression_end_time_us = CurrentMonotonicTime();
+  int64_t decompression_duration_us =
+      decompression_end_time_us - decompression_start_time_us;
+  SB_LOG(INFO) << "Decompression took: " << decompression_duration_us / 1000
+               << " ms";
+  auto metrics_extension =
+      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
+          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
+  if (metrics_extension &&
+      strcmp(metrics_extension->name,
+             kStarboardExtensionLoaderAppMetricsName) == 0 &&
+      metrics_extension->version >= 2) {
+    metrics_extension->SetElfDecompressionDurationMicroseconds(
+        decompression_duration_us);
+  }
+
+  return result;
 }
 
 size_t LZ4FileImpl::PeekHeaderSize() {

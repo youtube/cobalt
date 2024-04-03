@@ -43,6 +43,7 @@ typedef struct PosixCondAttrPrivate {
 } PosixCondAttrPrivate;
 
 typedef struct PosixOncePrivate {
+  InitializedState initialized_state;
   pthread_once_t once;
 } PosixOncePrivate;
 
@@ -65,8 +66,8 @@ typedef struct PosixOncePrivate {
   &(reinterpret_cast<PosixCondAttrPrivate*>(            \
         (condition_attr)->cond_attr_buffer)             \
         ->cond_attr)
-#define PTHREAD_INTERNAL_ONCE(once_control) \
-  &(reinterpret_cast<PosixOncePrivate*>((once_control)->once_buffer)->once)
+#define INTERNAL_ONCE(once_control) \
+  reinterpret_cast<PosixOncePrivate*>((once_control)->once_buffer)
 
 int __abi_wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex) {
   if (!mutex) {
@@ -285,5 +286,9 @@ int __abi_wrap_pthread_once(musl_pthread_once_t* once_control,
     return EINVAL;
   }
 
-  return pthread_once(PTHREAD_INTERNAL_ONCE(once_control), init_routine);
+  if (!EnsureInitialized(&(INTERNAL_ONCE(once_control)->initialized_state))) {
+    init_routine();
+    SetInitialized(&(INTERNAL_ONCE(once_control)->initialized_state));
+  }
+  return 0;
 }

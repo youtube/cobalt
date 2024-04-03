@@ -111,6 +111,18 @@ RUN cd /tmp \
     && echo ${COBALT_CLANG_VER} >> ${COBALT_CLANG_TC_HOME}/cr_build_revision \
     && rm clang-llvmorg-${COBALT_CLANG_VER}.tgz
 
+# === Install Clang 16 toolchain for all Linux-hosted builds
+ARG CLANG_16_TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-16-init-17653-g39da55e8-2
+ARG CLANG_16_BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
+
+RUN cd /tmp \
+    && mkdir -p ${CLANG_16_TC_HOME} \
+    && curl --silent -O -J \
+        ${CLANG_16_BASE_URL}/Linux_x64/clang-llvmorg-16-init-17653-g39da55e8-2.tgz \
+    && tar xf clang-llvmorg-16-init-17653-g39da55e8-2.tgz -C ${CLANG_16_TC_HOME} \
+    && echo 16-init-17653-g39da55e8-2 >> ${CLANG_16_TC_HOME}/cr_build_revision \
+    && rm clang-llvmorg-16-init-17653-g39da55e8-2.tgz
+
 RUN git config --global --add safe.directory /code
 
 WORKDIR /code

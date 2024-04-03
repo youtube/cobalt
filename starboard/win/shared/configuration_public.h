@@ -18,8 +18,6 @@
 #ifndef STARBOARD_WIN_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_WIN_SHARED_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -53,18 +51,6 @@
 
 // --- Compiler Configuration ------------------------------------------------
 
-// The platform's annotation for forcing a C function to be inlined.
-//   https://msdn.microsoft.com/en-us/library/bw1hbe6y.aspx#Anchor_1
-#define SB_C_FORCE_INLINE __forceinline
-
-// The platform's annotation for marking a C function as suggested to be
-// inlined.
-#define SB_C_INLINE inline
-
-// The platform's annotation for marking a C function as forcibly not
-// inlined.
-#define SB_C_NOINLINE __declspec(noinline)
-
 // The platform's annotation for marking a symbol as exported outside of the
 // current shared library.
 #define SB_EXPORT_PLATFORM __declspec(dllexport)
@@ -72,20 +58,6 @@
 // The platform's annotation for marking a symbol as imported from outside of
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
-
-// --- Graphics Configuration ------------------------------------------------
-
-#define SB_HAS_VIRTUAL_REALITY 0
-
-// --- I/O Configuration -----------------------------------------------------
-
-// Whether the current platform supports on screen keyboard.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
-// --- Media Configuration ---------------------------------------------------
 
 // --- Memory Configuration --------------------------------------------------
 
@@ -97,23 +69,5 @@
 
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
-
-// Specifies whether this platform supports pipe.
-#define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Configuration ---------------------------------------
-
-// Whether or not the platform supports socket connection reset.
-#define SB_HAS_SOCKET_ERROR_CONNECTION_RESET_SUPPORT 1
-
-// --- Platform Specific Audits ----------------------------------------------
-
-// --- Platform Specific Quirks ----------------------------------------------
 
 #endif  // STARBOARD_WIN_SHARED_CONFIGURATION_PUBLIC_H_

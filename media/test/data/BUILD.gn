@@ -18,7 +18,7 @@ copy("media_testdata") {
   testonly = true
   install_content = true
   sources = [ "bear-320x240.webm" ]
-  subdir = "third_party/chromium/media/test/data"
+  subdir = "media/test/data"
   outputs = [
     "$sb_static_contents_output_data_dir/$subdir/{{source_target_relative}}",
   ]

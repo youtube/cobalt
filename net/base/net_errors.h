@@ -65,12 +65,12 @@ NET_EXPORT Error MapSystemError(logging::SystemErrorCode os_error);
 NET_EXPORT Error MapSocketError(SbSocketError error);
 
 // Gets the last socket error as a net error.
-static SB_C_INLINE Error MapLastSocketError(SbSocket socket) {
+static inline Error MapLastSocketError(SbSocket socket) {
   return MapSocketError(SbSocketGetLastError(socket));
 }
 
 // Gets the last system error as a net error.
-static SB_C_INLINE Error MapLastSystemError() {
+static inline Error MapLastSystemError() {
   return MapSystemError(SbSystemGetLastError());
 }
 #endif
