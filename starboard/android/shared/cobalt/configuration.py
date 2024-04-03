@@ -53,6 +53,15 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
 
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
+      # TODO(b/330791951): re-enable filtered base_unittests.
+      'base_unittests': [
+          'StackTraceTest.OutputToStream',
+          'StackTraceTest.TruncatedTrace',
+          'StackTraceTest.TraceStackFramePointersFromBuffer',
+          'FileTest.Length',
+          'TimeTest.FromExploded_MinMax',
+          'LapTimer.ThreadTicksUsageExample',
+      ],
       'layout_tests': [
           # Android relies of system fonts and some older Android builds do not
           # have the update (Emoji 11.0) NotoColorEmoji.ttf installed.
