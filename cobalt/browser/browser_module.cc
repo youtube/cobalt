@@ -39,7 +39,6 @@
 #include "cobalt/base/task_runner_util.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/on_screen_keyboard_extension_bridge.h"
-#include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_platform_info.h"
@@ -317,14 +316,6 @@ BrowserModule::BrowserModule(const GURL& url,
           std::make_unique<OnScreenKeyboardExtensionBridge>(
               base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)),
               on_screen_keyboard_extension);
-    } else {
-      if (OnScreenKeyboardStarboardBridge::IsSupported()) {
-        on_screen_keyboard_bridge_ =
-            std::make_unique<OnScreenKeyboardStarboardBridge>(base::Bind(
-                &BrowserModule::GetSbWindow, base::Unretained(this)));
-      } else {
-        on_screen_keyboard_bridge_ = NULL;
-      }
     }
   } else {
     on_screen_keyboard_bridge_ = NULL;
@@ -1113,15 +1104,6 @@ void BrowserModule::OnOnScreenKeyboardBlurred(
   // Only inject blurred events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardBlurredEvent(event->ticket());
-  }
-}
-
-void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
-    const base::OnScreenKeyboardSuggestionsUpdatedEvent* event) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  // Only inject updated suggestions events to the main WebModule.
-  if (web_module_) {
-    web_module_->InjectOnScreenKeyboardSuggestionsUpdatedEvent(event->ticket());
   }
 }
 

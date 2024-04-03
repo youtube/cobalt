@@ -21,7 +21,7 @@
 #include "base/time/time.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/source_buffer_metrics.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
+#include "media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {

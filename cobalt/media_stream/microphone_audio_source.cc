@@ -23,10 +23,6 @@
 #include "cobalt/speech/microphone_fake.h"
 #include "cobalt/speech/microphone_starboard.h"
 
-#if SB_USE_SB_MICROPHONE && !defined(DISABLE_MICROPHONE_IDL)
-#define ENABLE_MICROPHONE_IDL
-#endif
-
 namespace cobalt {
 namespace media_stream {
 
@@ -43,16 +39,12 @@ void MicrophoneAudioSource::EnsureSourceIsStopped() {
 std::unique_ptr<cobalt::speech::Microphone>
 MicrophoneAudioSource::CreateMicrophone(
     const cobalt::speech::Microphone::Options& options, int buffer_size_bytes) {
-#if !defined(ENABLE_MICROPHONE_IDL)
-  return std::unique_ptr<speech::Microphone>();
-#else
   std::unique_ptr<speech::Microphone> mic;
 
 #if defined(ENABLE_FAKE_MICROPHONE)
   if (options.enable_fake_microphone) {
     mic.reset(new speech::MicrophoneFake(options));
   }
-#else
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
   if (!mic) {
@@ -68,7 +60,6 @@ MicrophoneAudioSource::CreateMicrophone(
   }
 
   return mic;
-#endif  // defined(ENABLE_MICROPHONE_IDL)
 }
 
 MicrophoneAudioSource::MicrophoneAudioSource(

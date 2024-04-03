@@ -51,16 +51,16 @@
 
 // --- Attribute Configuration -----------------------------------------------
 
+#if SB_API_VERSION < 16
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
+#endif  // SB_API_VERSION < 16
 
+#if SB_API_VERSION < 16
 // The platform's annotation for marking a C function as suggested to be
 // inlined.
 #define SB_C_INLINE inline
-
-// The platform's annotation for marking a C function as forcibly not
-// inlined.
-#define SB_C_NOINLINE __attribute__((noinline))
+#endif
 
 // The platform's annotation for marking a symbol as exported outside of the
 // current shared library.
@@ -72,11 +72,6 @@
 
 // --- I/O Configuration -----------------------------------------------------
 
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
-// --- Decoder-only Params ---
-
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
@@ -85,15 +80,6 @@
 
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
-
-// Specifies whether this platform supports pipe.
-#define SB_HAS_PIPE 1
-
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "Linux builds need a GCC-like compiler (for the moment)."
-#endif
 
 // --- Media Configuration ---------------------------------------------------
 

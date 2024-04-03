@@ -22,17 +22,18 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
 #include "cobalt/media/base/drm_system.h"
+#include "cobalt/media/base/metrics_provider.h"
 #include "cobalt/media/base/sbplayer_pipeline.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
 #include "cobalt/media/progressive/data_source_reader.h"
 #include "cobalt/media/progressive/demuxer_extension_wrapper.h"
 #include "cobalt/media/progressive/progressive_demuxer.h"
+#include "media/base/bind_to_current_loop.h"
+#include "media/base/limits.h"
+#include "media/base/timestamp_constants.h"
+#include "media/filters/chunk_demuxer.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
-#include "third_party/chromium/media/base/bind_to_current_loop.h"
-#include "third_party/chromium/media/base/limits.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -353,6 +354,7 @@ void WebMediaPlayerImpl::Seek(double seconds) {
     return;
   }
 
+  media_metrics_provider_.StartTrackingAction(WebMediaPlayerAction::SEEK);
   media_log_->AddEvent<::media::MediaLogEvent::kSeek>(seconds);
 
   base::TimeDelta seek_time = ConvertSecondsToTimestamp(seconds);
@@ -629,6 +631,14 @@ void WebMediaPlayerImpl::OnPipelineSeek(::media::PipelineStatus status,
   if (is_initial_preroll) {
     const bool kEosPlayed = false;
     GetClient()->TimeChanged(kEosPlayed);
+  }
+
+  // WebMediaPlayerImpl::OnPipelineSeek() is called frequently, more than just
+  // when WebMediaPlayerImpl::Seek() is called. This helps to filter out when
+  // the pipeline seeks without being initiated by WebMediaPlayerImpl.
+  if (media_metrics_provider_.IsActionCurrentlyTracked(
+          WebMediaPlayerAction::SEEK)) {
+    media_metrics_provider_.EndTrackingAction(WebMediaPlayerAction::SEEK);
   }
 }
 
