@@ -15,6 +15,7 @@
 #ifndef MINI_CHROMIUM_BASE_BASE_WRAPPER_H_
 #define MINI_CHROMIUM_BASE_BASE_WRAPPER_H_
 
+#if !defined(OS_WIN)
 // Change the symbol name to avoid collisions with //base
 #define Alias MAlias
 
@@ -46,5 +47,7 @@
 #define c16len mc16len
 #define utf8_nextCharSafeBody mutf8_nextCharSafeBody
 
+
+#endif
 
 #endif  // MINI_CHROMIUM_BASE_BASE_WRAPPER_H_

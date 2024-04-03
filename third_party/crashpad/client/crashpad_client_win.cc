@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #include "client/crashpad_client.h"
 
 #include <windows.h>
@@ -30,7 +31,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/lock.h"
-#include "util/file/file_io.h"
 #include "util/misc/capture_context.h"
 #include "util/misc/from_pointer_cast.h"
 #include "util/misc/random_string.h"
@@ -274,8 +274,13 @@ void AddUint64(std::vector<unsigned char>* data_vector, uint64_t data) {
 //! \param[out] pipe_handle The first pipe instance corresponding for the pipe.
 void CreatePipe(std::wstring* pipe_name, ScopedFileHANDLE* pipe_instance) {
   int tries = 5;
-  std::string pipe_name_base =
-      base::StringPrintf("\\\\.\\pipe\\crashpad_%lu_", GetCurrentProcessId());
+  std::string pipe_name_base = base::StringPrintf(
+#if defined(WINDOWS_UWP)
+      "\\\\.\\pipe\\LOCAL\\crashpad_%lu_",
+#else
+      "\\\\.\\pipe\\crashpad_%lu_",
+#endif
+      GetCurrentProcessId());
   do {
     *pipe_name = base::UTF8ToUTF16(pipe_name_base + RandomString());
 

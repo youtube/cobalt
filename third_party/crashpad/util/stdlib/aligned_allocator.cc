@@ -25,10 +25,6 @@
 #include <xutility>
 #endif  // OS_POSIX
 
-#if defined(STARBOARD)
-#include "starboard/memory.h"
-#endif
-
 namespace {
 
 // Throws std::bad_alloc() by calling an internal function provided by the C++
@@ -70,7 +66,7 @@ void* AlignedAllocate(size_t alignment, size_t size) {
 }
 
 void AlignedFree(void* pointer) {
-#if defined(STARBOARD) || defined(OS_POSIX)
+#if defined(OS_POSIX)
   free(pointer);
 #elif defined(OS_WIN)
   _aligned_free(pointer);

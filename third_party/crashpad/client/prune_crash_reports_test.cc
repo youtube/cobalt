@@ -52,6 +52,7 @@ class MockDatabase : public CrashReportDatabase {
                OperationStatus(const UUID&, Metrics::CrashSkippedReason));
   MOCK_METHOD1(DeleteReport, OperationStatus(const UUID&));
   MOCK_METHOD1(RequestUpload, OperationStatus(const UUID&));
+  MOCK_METHOD1(RemoveOldReports, OperationStatus(int));
 
   // Google Mock doesn't support mocking methods with non-copyable types such as
   // unique_ptr.

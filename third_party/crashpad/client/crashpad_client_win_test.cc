@@ -18,6 +18,7 @@
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/strings/utf_string_conversions.h"
 #include "gtest/gtest.h"
 #include "test/test_paths.h"
 #include "test/scoped_temp_dir.h"
@@ -31,8 +32,11 @@ namespace test {
 namespace {
 
 void StartAndUseHandler(const base::FilePath& temp_dir) {
-  base::FilePath handler_path = TestPaths::Executable().DirName().Append(
-      FILE_PATH_LITERAL("crashpad_handler.com"));
+  std::vector<char> content_path(kSbFileMaxPath + 1);
+  ASSERT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
+                           content_path.size()));
+  base::FilePath handler_path = base::FilePath(base::UTF8ToUTF16(content_path.data()))
+      .Append(FILE_PATH_LITERAL("crashpad_handler.exe"));
 
   CrashpadClient client;
   ASSERT_TRUE(client.StartHandler(handler_path,
@@ -67,7 +71,15 @@ class StartWithInvalidHandles final : public WinMultiprocessWithTempDir {
   }
 };
 
-TEST(CrashpadClient, StartWithInvalidHandles) {
+// Second instance of this process crashes in Starboard/UWP
+// configuration. Multiprocess tests are DISABLED.
+#if defined(STARBOARD) && defined(WINDOWS_UWP)
+#define MAYBE_StartWithInvalidHandles \
+  DISABLED_StartWithInvalidHandles
+#else
+#define MAYBE_StartWithInvalidHandles StartWithInvalidHandles
+#endif
+TEST(CrashpadClient, MAYBE_StartWithInvalidHandles) {
   WinMultiprocessWithTempDir::Run<StartWithInvalidHandles>();
 }
 
@@ -90,7 +102,13 @@ class StartWithSameStdoutStderr final : public WinMultiprocessWithTempDir {
   }
 };
 
-TEST(CrashpadClient, StartWithSameStdoutStderr) {
+#if defined(STARBOARD) && defined(WINDOWS_UWP)
+#define MAYBE_StartWithSameStdoutStderr \
+  DISABLED_StartWithSameStdoutStderr
+#else
+#define MAYBE_StartWithSameStdoutStderr StartWithSameStdoutStderr
+#endif
+TEST(CrashpadClient, MAYBE_StartWithSameStdoutStderr) {
   WinMultiprocessWithTempDir::Run<StartWithSameStdoutStderr>();
 }
 
@@ -125,7 +143,7 @@ class HandlerLaunchFailureCrash : public WinMultiprocess {
   }
 };
 
-#if defined(ADDRESS_SANITIZER)
+#if defined(ADDRESS_SANITIZER) || ( defined(STARBOARD) && defined(WINDOWS_UWP) )
 // https://crbug.com/845011
 #define MAYBE_HandlerLaunchFailureCrash DISABLED_HandlerLaunchFailureCrash
 #else
@@ -155,7 +173,7 @@ class HandlerLaunchFailureDumpAndCrash : public WinMultiprocess {
   }
 };
 
-#if defined(ADDRESS_SANITIZER)
+#if defined(ADDRESS_SANITIZER) || ( defined(STARBOARD) && defined(WINDOWS_UWP) )
 // https://crbug.com/845011
 #define MAYBE_HandlerLaunchFailureDumpAndCrash \
   DISABLED_HandlerLaunchFailureDumpAndCrash
@@ -189,7 +207,14 @@ class HandlerLaunchFailureDumpWithoutCrash : public WinMultiprocess {
   }
 };
 
-TEST(CrashpadClient, HandlerLaunchFailureDumpWithoutCrash) {
+#if defined(STARBOARD) && defined(WINDOWS_UWP)
+#define MAYBE_HandlerLaunchFailureDumpWithoutCrash \
+  DISABLED_HandlerLaunchFailureDumpWithoutCrash
+#else
+#define MAYBE_HandlerLaunchFailureDumpWithoutCrash \
+  HandlerLaunchFailureDumpWithoutCrash
+#endif
+TEST(CrashpadClient, MAYBE_HandlerLaunchFailureDumpWithoutCrash) {
   WinMultiprocess::Run<HandlerLaunchFailureDumpWithoutCrash>();
 }
 

@@ -20,6 +20,9 @@ config("crashpad_config") {
   include_dirs = [ "." ]
   if (crashpad_is_win) {
     defines = [ "OS_WIN" ]
+    if (target_os == "winuwp") {
+      defines += [ "WINDOWS_UWP" ]
+    }
   }
 }
 
@@ -218,6 +221,19 @@ if (crashpad_is_in_chromium || crashpad_is_in_fuchsia) {
     deps = [
       "test:googlemock_main",
       "util:util_test",
+    ]
+  }
+} else if (crashpad_is_in_starboard) {
+  target(starboard_level_gtest_target_type, "crashpad_client_test") {
+    testonly = true
+    build_loader = false
+
+    sources = [ "//starboard/common/test_main.cc" ]
+    deps = [
+      "//starboard:starboard_with_main",
+      "//testing/gmock",
+      "//testing/gtest",
+      "client:client_test",
     ]
   }
 }
