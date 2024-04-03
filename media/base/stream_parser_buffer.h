@@ -182,6 +182,9 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   //
   // All future timestamp, decode timestamp, config id, or track id changes to
   // this buffer will be applied to the preroll buffer as well.
+  //
+  // TODO(b/331652782): integrate the setter function into the constructor to
+  // make |preroll_buffer_| immutable.
   void SetPrerollBuffer(scoped_refptr<StreamParserBuffer> preroll);
   scoped_refptr<StreamParserBuffer> preroll_buffer() { return preroll_buffer_; }
 
@@ -192,6 +195,8 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   void set_is_duration_estimated(bool is_estimated) {
     is_duration_estimated_ = is_estimated;
   }
+
+  size_t GetMemoryUsage() const override;
 
  private:
   StreamParserBuffer(std::unique_ptr<ExternalMemory> external_memory,
