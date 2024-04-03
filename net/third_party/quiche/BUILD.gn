@@ -1730,6 +1730,9 @@ source_set("quiche_tests") {
       "src/quiche/quic/core/quic_trace_visitor_test.cc",
       "src/quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
 
+      # symbolize_unimplemented.inc is reached for Starboard.
+      "src/quiche/common/platform/api/quiche_stack_trace_test.cc",
+
       # TODO: b/331437821
       "src/quiche/common/platform/api/quiche_file_utils_test.cc",
       "src/quiche/quic/tools/quic_memory_cache_backend_test.cc",
