@@ -1,25 +1,27 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "media/cast/test/receiver/audio_decoder.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/cxx17_backports.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/sys_byteorder.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/cast/cast_config.h"
-#include "media/cast/test/receiver/audio_decoder.h"
+#include "media/cast/common/encoded_frame.h"
 #include "media/cast/test/utility/audio_utility.h"
 #include "media/cast/test/utility/standalone_cast_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/openscreen/src/cast/streaming/encoded_frame.h"
 #include "third_party/opus/src/include/opus.h"
 
 namespace media {
@@ -62,7 +64,7 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
     last_frame_id_ = FrameId::first();
     decoded_frames_seen_ = 0;
 
-    if (GetParam().codec == CODEC_AUDIO_OPUS) {
+    if (GetParam().codec == Codec::kAudioOpus) {
       opus_encoder_memory_.reset(
           new uint8_t[opus_encoder_get_size(GetParam().num_channels)]);
       OpusEncoder* const opus_encoder =
@@ -83,7 +85,8 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
   void FeedMoreAudio(base::TimeDelta duration, int num_dropped_frames) {
     // Prepare a simulated EncodedFrame to feed into the AudioDecoder.
     std::unique_ptr<EncodedFrame> encoded_frame(new EncodedFrame());
-    encoded_frame->dependency = EncodedFrame::KEY;
+    encoded_frame->dependency =
+        openscreen::cast::EncodedFrame::Dependency::kKeyFrame;
     encoded_frame->frame_id = last_frame_id_ + 1 + num_dropped_frames;
     encoded_frame->referenced_frame_id = encoded_frame->frame_id;
     last_frame_id_ = encoded_frame->frame_id;
@@ -96,13 +99,13 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
     std::vector<int16_t> interleaved(num_elements);
     audio_bus->ToInterleaved<SignedInt16SampleTypeTraits>(audio_bus->frames(),
                                                           &interleaved.front());
-    if (GetParam().codec == CODEC_AUDIO_PCM16) {
+    if (GetParam().codec == Codec::kAudioPcm16) {
       encoded_frame->data.resize(num_elements * sizeof(int16_t));
       int16_t* const pcm_data =
           reinterpret_cast<int16_t*>(encoded_frame->mutable_bytes());
       for (size_t i = 0; i < interleaved.size(); ++i)
         pcm_data[i] = static_cast<int16_t>(base::HostToNet16(interleaved[i]));
-    } else if (GetParam().codec == CODEC_AUDIO_OPUS) {
+    } else if (GetParam().codec == Codec::kAudioOpus) {
       OpusEncoder* const opus_encoder =
           reinterpret_cast<OpusEncoder*>(opus_encoder_memory_.get());
       const int kOpusEncodeBufferSize = 4000;
@@ -158,7 +161,7 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
     // first two frames seen at the start (and immediately after dropped packet
     // recovery) because it introduces a tiny, significant delay.
     bool examine_signal = true;
-    if (GetParam().codec == CODEC_AUDIO_OPUS) {
+    if (GetParam().codec == Codec::kAudioOpus) {
       decoded_frames_seen_ =
           should_be_continuous ? decoded_frames_seen_ + 1 : 1;
       examine_signal = (decoded_frames_seen_ > 2) && should_be_continuous;
@@ -205,7 +208,7 @@ TEST_P(AudioDecoderTest, DecodesFramesWithVaryingDuration) {
   const int kFrameDurationMs[] = {5, 10, 20, 40, 60};
 
   const int kNumFrames = 10;
-  for (size_t i = 0; i < base::size(kFrameDurationMs); ++i)
+  for (size_t i = 0; i < std::size(kFrameDurationMs); ++i)
     for (int j = 0; j < kNumFrames; ++j)
       FeedMoreAudio(base::Milliseconds(kFrameDurationMs[i]), 0);
   WaitForAllAudioToBeDecoded();
@@ -232,10 +235,10 @@ TEST_P(AudioDecoderTest, RecoversFromDroppedFrames) {
 INSTANTIATE_TEST_SUITE_P(
     AudioDecoderTestScenarios,
     AudioDecoderTest,
-    ::testing::Values(TestScenario(CODEC_AUDIO_PCM16, 1, 8000),
-                      TestScenario(CODEC_AUDIO_PCM16, 2, 48000),
-                      TestScenario(CODEC_AUDIO_OPUS, 1, 8000),
-                      TestScenario(CODEC_AUDIO_OPUS, 2, 48000)));
+    ::testing::Values(TestScenario(Codec::kAudioPcm16, 1, 8000),
+                      TestScenario(Codec::kAudioPcm16, 2, 48000),
+                      TestScenario(Codec::kAudioOpus, 1, 8000),
+                      TestScenario(Codec::kAudioOpus, 2, 48000)));
 
 }  // namespace cast
 }  // namespace media

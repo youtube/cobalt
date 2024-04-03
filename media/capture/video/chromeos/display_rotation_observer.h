@@ -1,12 +1,13 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_CAPTURE_VIDEO_CHROMEOS_DISPLAY_ROTATION_OBSERVER_H_
 #define MEDIA_CAPTURE_VIDEO_CHROMEOS_DISPLAY_ROTATION_OBSERVER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "ui/display/display.h"
 #include "ui/display/display_observer.h"
 #include "ui/display/screen.h"
@@ -28,6 +29,10 @@ class ScreenObserverDelegate
   static scoped_refptr<ScreenObserverDelegate> Create(
       DisplayRotationObserver* observer,
       scoped_refptr<base::SingleThreadTaskRunner> display_task_runner);
+
+  ScreenObserverDelegate() = delete;
+  ScreenObserverDelegate(const ScreenObserverDelegate&) = delete;
+  ScreenObserverDelegate& operator=(const ScreenObserverDelegate&) = delete;
 
   // The user must call RemoveObserver() to drop the reference to |observer_| in
   // ScreenObserverDelegate before deleting |observer_|.
@@ -52,7 +57,7 @@ class ScreenObserverDelegate
   void SendDisplayRotation(const display::Display& display);
   void SendDisplayRotationOnCaptureThread(const display::Display& display);
 
-  DisplayRotationObserver* observer_;
+  raw_ptr<DisplayRotationObserver, ExperimentalAsh> observer_;
 
   absl::optional<display::ScopedDisplayObserver> display_observer_;
 
@@ -60,8 +65,6 @@ class ScreenObserverDelegate
   const scoped_refptr<base::SingleThreadTaskRunner> display_task_runner_;
   // The task runner on which the ScreenObserverDelegate is created.
   const scoped_refptr<base::SingleThreadTaskRunner> delegate_task_runner_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ScreenObserverDelegate);
 };
 
 }  // namespace media

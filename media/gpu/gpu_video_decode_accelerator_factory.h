@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "base/callback.h"
+#include "base/functional/callback.h"
 #include "base/threading/thread_checker.h"
 #include "build/build_config.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
@@ -38,6 +38,12 @@ class MediaLog;
 
 class MEDIA_GPU_EXPORT GpuVideoDecodeAcceleratorFactory {
  public:
+  GpuVideoDecodeAcceleratorFactory() = delete;
+  GpuVideoDecodeAcceleratorFactory(const GpuVideoDecodeAcceleratorFactory&) =
+      delete;
+  GpuVideoDecodeAcceleratorFactory& operator=(
+      const GpuVideoDecodeAcceleratorFactory&) = delete;
+
   ~GpuVideoDecodeAcceleratorFactory();
 
   // Return current GLContext.
@@ -47,15 +53,14 @@ class MEDIA_GPU_EXPORT GpuVideoDecodeAcceleratorFactory {
   // executing any GL calls. Return true on success, false otherwise.
   using MakeGLContextCurrentCallback = base::RepeatingCallback<bool(void)>;
 
-  // Bind |image| to |client_texture_id| given |texture_target|. If
-  // |can_bind_to_sampler| is true, then the image may be used as a sampler
-  // directly, otherwise a copy to a staging buffer is required.
+  // Bind |image| to |client_texture_id| given |texture_target|. On Win/Mac,
+  // marks the texture as needing binding by the decoder; on other platforms,
+  // marks the texture as *not* needing binding by the decoder.
   // Return true on success, false otherwise.
   using BindGLImageCallback =
       base::RepeatingCallback<bool(uint32_t client_texture_id,
                                    uint32_t texture_target,
-                                   const scoped_refptr<gl::GLImage>& image,
-                                   bool can_bind_to_sampler)>;
+                                   const scoped_refptr<gl::GLImage>& image)>;
 
   // Return a ContextGroup*, if one is available.
   using GetContextGroupCallback =
@@ -78,7 +83,7 @@ class MEDIA_GPU_EXPORT GpuVideoDecodeAcceleratorFactory {
  private:
   GpuVideoDecodeAcceleratorFactory(const GpuVideoDecodeGLClient& gl_client);
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   std::unique_ptr<VideoDecodeAccelerator> CreateD3D11VDA(
       const gpu::GpuDriverBugWorkarounds& workarounds,
       const gpu::GpuPreferences& gpu_preferences,
@@ -93,7 +98,8 @@ class MEDIA_GPU_EXPORT GpuVideoDecodeAcceleratorFactory {
       const gpu::GpuDriverBugWorkarounds& workarounds,
       const gpu::GpuPreferences& gpu_preferences,
       MediaLog* media_log) const;
-#elif BUILDFLAG(USE_V4L2_CODEC)
+#elif BUILDFLAG(USE_V4L2_CODEC) && \
+    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH))
   std::unique_ptr<VideoDecodeAccelerator> CreateV4L2VDA(
       const gpu::GpuDriverBugWorkarounds& workarounds,
       const gpu::GpuPreferences& gpu_preferences,
@@ -103,13 +109,13 @@ class MEDIA_GPU_EXPORT GpuVideoDecodeAcceleratorFactory {
       const gpu::GpuPreferences& gpu_preferences,
       MediaLog* media_log) const;
 #endif
-#if defined(OS_MAC)
+#if BUILDFLAG(IS_MAC)
   std::unique_ptr<VideoDecodeAccelerator> CreateVTVDA(
       const gpu::GpuDriverBugWorkarounds& workarounds,
       const gpu::GpuPreferences& gpu_preferences,
       MediaLog* media_log) const;
 #endif
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   std::unique_ptr<VideoDecodeAccelerator> CreateAndroidVDA(
       const gpu::GpuDriverBugWorkarounds& workarounds,
       const gpu::GpuPreferences& gpu_preferences,
@@ -119,8 +125,6 @@ class MEDIA_GPU_EXPORT GpuVideoDecodeAcceleratorFactory {
   const GpuVideoDecodeGLClient gl_client_;
   const AndroidOverlayMojoFactoryCB overlay_factory_cb_;
   base::ThreadChecker thread_checker_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(GpuVideoDecodeAcceleratorFactory);
 };
 
 }  // namespace media

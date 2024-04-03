@@ -1,22 +1,24 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "media/mojo/clients/mojo_cdm.h"
 
 #include <stdint.h>
 
 #include <memory>
 
-#include "base/bind.h"
-#include "base/cxx17_backports.h"
+#include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/test/test_message_loop.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/cdm_config.h"
 #include "media/base/content_decryption_module.h"
 #include "media/base/mock_filters.h"
+#include "media/cdm/clear_key_cdm_common.h"
 #include "media/cdm/default_cdm_factory.h"
-#include "media/mojo/clients/mojo_cdm.h"
 #include "media/mojo/mojom/content_decryption_module.mojom.h"
 #include "media/mojo/services/mojo_cdm_service.h"
 #include "media/mojo/services/mojo_cdm_service_context.h"
@@ -48,8 +50,6 @@ namespace media {
 
 namespace {
 
-const char kClearKeyKeySystem[] = "org.w3.clearkey";
-
 // Random key ID used to create a session.
 const uint8_t kKeyId[] = {
     // base64 equivalent is AQIDBAUGBwgJCgsMDQ4PEA
@@ -80,7 +80,7 @@ class MojoCdmTest : public ::testing::Test {
     EXPECT_CALL(*remote_cdm_, GetCdmContext())
         .WillRepeatedly(Return(&cdm_context_));
     EXPECT_CALL(cdm_context_, GetDecryptor()).WillRepeatedly(ReturnNull());
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     EXPECT_CALL(cdm_context_, RequiresMediaFoundationRenderer())
         .WillRepeatedly(ReturnPointee(&requires_media_foundation_renderer_));
 #endif
@@ -95,7 +95,7 @@ class MojoCdmTest : public ::testing::Test {
     mojo_cdm_service_ =
         std::make_unique<MojoCdmService>(&mojo_cdm_service_context_);
     mojo_cdm_service_->Initialize(
-        &cdm_factory_, kClearKeyKeySystem, CdmConfig(),
+        &cdm_factory_, {kClearKeyKeySystem, false, false, false},
         base::BindOnce(&MojoCdmTest::OnCdmServiceInitialized,
                        base::Unretained(this), expected_result));
   }
@@ -114,8 +114,11 @@ class MojoCdmTest : public ::testing::Test {
 
     mojo::Remote<mojom::ContentDecryptionModule> cdm_remote(
         cdm_receiver_->BindNewPipeAndPassRemote());
+
+    CdmConfig cdm_config = {"com.foo.bar", false, false, false};
+
     mojo_cdm_ = base::MakeRefCounted<MojoCdm>(
-        std::move(cdm_remote), std::move(cdm_context),
+        std::move(cdm_remote), std::move(cdm_context), cdm_config,
         base::BindRepeating(&MockCdmClient::OnSessionMessage,
                             base::Unretained(&cdm_client_)),
         base::BindRepeating(&MockCdmClient::OnSessionClosed,
@@ -158,7 +161,7 @@ class MojoCdmTest : public ::testing::Test {
     // order to verify that the data is passed properly.
     const CdmSessionType session_type = CdmSessionType::kTemporary;
     const EmeInitDataType data_type = EmeInitDataType::WEBM;
-    const std::vector<uint8_t> key_id(kKeyId, kKeyId + base::size(kKeyId));
+    const std::vector<uint8_t> key_id(kKeyId, kKeyId + std::size(kKeyId));
     std::string created_session_id;
 
     if (expected_result == CONNECTION_ERROR_BEFORE) {
@@ -295,7 +298,7 @@ class MojoCdmTest : public ::testing::Test {
         break;
 
       case FAILURE:
-        promise->reject(media::CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
+        promise->reject(CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
                         "Promise rejected");
         break;
 
@@ -331,7 +334,7 @@ class MojoCdmTest : public ::testing::Test {
         break;
 
       case FAILURE:
-        promise->reject(media::CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
+        promise->reject(CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
                         "Promise rejected");
         break;
 
@@ -377,7 +380,7 @@ class MojoCdmTest : public ::testing::Test {
   std::unique_ptr<mojo::Receiver<mojom::ContentDecryptionModule>> cdm_receiver_;
   scoped_refptr<ContentDecryptionModule> mojo_cdm_;
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   bool requires_media_foundation_renderer_ = false;
 #endif
 };
@@ -621,7 +624,7 @@ TEST_F(MojoCdmTest, NoDecryptor) {
   EXPECT_FALSE(decryptor);
 }
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 TEST_F(MojoCdmTest, RequiresMediaFoundationRenderer) {
   requires_media_foundation_renderer_ = true;
   Initialize(SUCCESS);

@@ -1,20 +1,17 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.media;
 
-import android.annotation.TargetApi;
 import android.media.MediaFormat;
-import android.os.Build;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.Log;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.MainDex;
 import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.MainDex;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -22,7 +19,6 @@ import java.nio.ByteOrder;
 @JNINamespace("media")
 @MainDex
 class HdrMetadata {
-    private static final String TAG = "HdrMetadata";
     private static final int MAX_CHROMATICITY = 50000; // Defined in CTA-861.3.
 
     private long mNativeJniHdrMetadata;
@@ -51,14 +47,9 @@ class HdrMetadata {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.N)
     public void addMetadataToFormat(MediaFormat format) {
         synchronized (mLock) {
             assert mNativeJniHdrMetadata != 0;
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-                Log.e(TAG, "HDR not supported before Android N");
-                return;
-            }
 
             // TODO(sandv): Use color space matrix when android has support for it.
             int colorStandard = getColorStandard();

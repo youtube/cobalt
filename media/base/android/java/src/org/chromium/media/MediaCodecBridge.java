@@ -1,11 +1,10 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.media;
 
 import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodec.CryptoInfo;
@@ -21,8 +20,8 @@ import android.view.Surface;
 import org.chromium.base.Log;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.MainDex;
 import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.MainDex;
 
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
@@ -70,8 +69,8 @@ class MediaCodecBridge {
     // be accessed from synchronized(this) blocks since MediaCodecCallback may
     // execute on an arbitrary thread.
     private boolean mUseAsyncApi;
-    private Queue<GetOutputFormatResult> mPendingFormat;
-    private GetOutputFormatResult mCurrentFormat;
+    private Queue<MediaFormatWrapper> mPendingFormat;
+    private MediaFormatWrapper mCurrentFormat;
     private boolean mPendingError;
     private boolean mPendingStart;
     private long mNativeMediaCodecBridge;
@@ -154,13 +153,10 @@ class MediaCodecBridge {
     }
 
     /** A wrapper around a MediaFormat. */
-    private static class GetOutputFormatResult {
-        private final int mStatus;
-        // May be null if mStatus is not MediaCodecStatus.OK.
+    private static class MediaFormatWrapper {
         private final MediaFormat mFormat;
 
-        private GetOutputFormatResult(int status, MediaFormat format) {
-            mStatus = status;
+        private MediaFormatWrapper(MediaFormat format) {
             mFormat = format;
         }
 
@@ -169,40 +165,66 @@ class MediaCodecBridge {
                     && mFormat.containsKey(KEY_CROP_BOTTOM) && mFormat.containsKey(KEY_CROP_TOP);
         }
 
-        @CalledByNative("GetOutputFormatResult")
-        private int status() {
-            return mStatus;
-        }
-
-        @CalledByNative("GetOutputFormatResult")
+        @CalledByNative("MediaFormatWrapper")
         private int width() {
             return formatHasCropValues()
                     ? mFormat.getInteger(KEY_CROP_RIGHT) - mFormat.getInteger(KEY_CROP_LEFT) + 1
                     : mFormat.getInteger(MediaFormat.KEY_WIDTH);
         }
 
-        @CalledByNative("GetOutputFormatResult")
+        @CalledByNative("MediaFormatWrapper")
         private int height() {
             return formatHasCropValues()
                     ? mFormat.getInteger(KEY_CROP_BOTTOM) - mFormat.getInteger(KEY_CROP_TOP) + 1
                     : mFormat.getInteger(MediaFormat.KEY_HEIGHT);
         }
 
-        @CalledByNative("GetOutputFormatResult")
+        @CalledByNative("MediaFormatWrapper")
         private int sampleRate() {
             return mFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
         }
 
-        @CalledByNative("GetOutputFormatResult")
+        @CalledByNative("MediaFormatWrapper")
         private int channelCount() {
             return mFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+        }
+
+        @CalledByNative("MediaFormatWrapper")
+        private int stride() {
+            // Missing stride means a 16x16 resolution alignment is required. See configureVideo().
+            if (!mFormat.containsKey(MediaFormat.KEY_STRIDE)) return width();
+            return mFormat.getInteger(MediaFormat.KEY_STRIDE);
+        }
+
+        @CalledByNative("MediaFormatWrapper")
+        private int yPlaneHeight() {
+            // Missing stride means a 16x16 resolution alignment is required. See configureVideo().
+            if (!mFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT)) return height();
+            return mFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT);
+        }
+
+        @CalledByNative("MediaFormatWrapper")
+        private int colorStandard() {
+            if (!mFormat.containsKey(MediaFormat.KEY_COLOR_STANDARD)) return -1;
+            return mFormat.getInteger(MediaFormat.KEY_COLOR_STANDARD);
+        }
+
+        @CalledByNative("MediaFormatWrapper")
+        private int colorRange() {
+            if (!mFormat.containsKey(MediaFormat.KEY_COLOR_RANGE)) return -1;
+            return mFormat.getInteger(MediaFormat.KEY_COLOR_RANGE);
+        }
+
+        @CalledByNative("MediaFormatWrapper")
+        private int colorTransfer() {
+            if (!mFormat.containsKey(MediaFormat.KEY_COLOR_TRANSFER)) return -1;
+            return mFormat.getInteger(MediaFormat.KEY_COLOR_TRANSFER);
         }
     }
 
     // Warning: This class may execute on an arbitrary thread for the lifetime
     // of the MediaCodec. The MediaCodecBridge methods it calls are synchronized
     // to avoid race conditions.
-    @TargetApi(Build.VERSION_CODES.M)
     class MediaCodecCallback extends MediaCodec.Callback {
         private MediaCodecBridge mMediaCodecBridge;
         MediaCodecCallback(MediaCodecBridge bridge) {
@@ -246,14 +268,9 @@ class MediaCodecBridge {
         prepareAsyncApiForRestart();
     }
 
-    // There's a Lollipop version of the setCallback() API, so we could enable
-    // it there, but since it's likely to be more stable in later SDK versions
-    // and our tests require their own Handler to pump the callbacks, we limit
-    // support to Marshmallow only.
-    @TargetApi(Build.VERSION_CODES.M)
     private void enableAsyncApi() {
         mPendingError = false;
-        mPendingFormat = new LinkedList<GetOutputFormatResult>();
+        mPendingFormat = new LinkedList<MediaFormatWrapper>();
         mPendingInputBuffers = new LinkedList<DequeueInputResult>();
         mPendingOutputBuffers = new LinkedList<DequeueOutputResult>();
         mMediaCodec.setCallback(new MediaCodecCallback(this), sCallbackHandler);
@@ -315,7 +332,7 @@ class MediaCodecBridge {
     public synchronized void onOutputFormatChanged(MediaFormat format) {
         mPendingOutputBuffers.add(
                 new DequeueOutputResult(MediaCodecStatus.OUTPUT_FORMAT_CHANGED, -1, 0, 0, 0, 0));
-        mPendingFormat.add(new GetOutputFormatResult(MediaCodecStatus.OK, format));
+        mPendingFormat.add(new MediaFormatWrapper(format));
         notifyBuffersAvailable();
     }
 
@@ -464,18 +481,27 @@ class MediaCodecBridge {
     }
 
     @CalledByNative
-    private GetOutputFormatResult getOutputFormat() {
+    private MediaFormatWrapper getOutputFormat() {
         if (mUseAsyncApi && mCurrentFormat != null) return mCurrentFormat;
 
-        MediaFormat format = null;
-        int status = MediaCodecStatus.OK;
         try {
-            format = mMediaCodec.getOutputFormat();
+            MediaFormat format = mMediaCodec.getOutputFormat();
+            if (format != null) return new MediaFormatWrapper(format);
         } catch (IllegalStateException e) {
             Log.e(TAG, "Failed to get output format", e);
-            status = MediaCodecStatus.ERROR;
         }
-        return new GetOutputFormatResult(status, format);
+        return null;
+    }
+
+    @CalledByNative
+    private MediaFormatWrapper getInputFormat() {
+        try {
+            MediaFormat format = mMediaCodec.getInputFormat();
+            if (format != null) return new MediaFormatWrapper(format);
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "Failed to get input format", e);
+        }
+        return null;
     }
 
     /** Returns null if MediaCodec throws IllegalStateException. */
@@ -669,14 +695,50 @@ class MediaCodecBridge {
         return mMediaCodec.dequeueOutputBuffer(info, timeoutUs);
     }
 
-    // TODO(sanfin): Move this out of MediaCodecBridge.
+    private static int alignDown(int size, int alignment) {
+        return size & ~(alignment - 1);
+    }
+
     boolean configureVideo(MediaFormat format, Surface surface, MediaCrypto crypto, int flags) {
         try {
             mMediaCodec.configure(format, surface, crypto, flags);
-            if (format.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
-                mMaxInputSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
-                return true;
+
+            // This is always provided by MediaFormatBuilder.
+            mMaxInputSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
+
+            if (flags != MediaCodec.CONFIGURE_FLAG_ENCODE) return true;
+
+            // Non 16x16 aligned resolutions don't work well with the MediaCodec encoder
+            // unfortunately, see https://crbug.com/1084702 for details. It seems they
+            // only work when the stride and slice height information are provided.
+            MediaFormat inputFormat = mMediaCodec.getInputFormat();
+            boolean requireAlignedResolution = !inputFormat.containsKey(MediaFormat.KEY_STRIDE)
+                    || !inputFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT);
+
+            if (!requireAlignedResolution) return true;
+
+            int currentWidth = inputFormat.getInteger(MediaFormat.KEY_WIDTH);
+            int alignedWidth = alignDown(currentWidth, 16);
+
+            int currentHeight = inputFormat.getInteger(MediaFormat.KEY_HEIGHT);
+            int alignedHeight = alignDown(currentHeight, 16);
+
+            if (alignedHeight == 0 || alignedWidth == 0) {
+                Log.e(TAG,
+                        "MediaCodec requires 16x16 alignment, which is not possible for: "
+                                + currentWidth + "x" + currentHeight);
+                return false;
             }
+
+            if (alignedWidth == currentWidth && alignedHeight == currentHeight) return true;
+
+            // We must reconfigure the MediaCodec now since setParameters() doesn't work
+            // consistently across devices and versions of Android.
+            mMediaCodec.reset();
+            format.setInteger(MediaFormat.KEY_WIDTH, alignedWidth);
+            format.setInteger(MediaFormat.KEY_HEIGHT, alignedHeight);
+            mMediaCodec.configure(format, surface, crypto, flags);
+            return true;
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Cannot configure the video codec, wrong format or surface", e);
         } catch (IllegalStateException e) {
@@ -689,7 +751,6 @@ class MediaCodecBridge {
         return false;
     }
 
-    @TargetApi(Build.VERSION_CODES.M)
     @CalledByNative
     private boolean setSurface(Surface surface) {
         try {
@@ -730,11 +791,7 @@ class MediaCodecBridge {
             case 6:
                 return AudioFormat.CHANNEL_OUT_5POINT1;
             case 8:
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    return AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
-                } else {
-                    return AudioFormat.CHANNEL_OUT_7POINT1;
-                }
+                return AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
             default:
                 return AudioFormat.CHANNEL_OUT_DEFAULT;
         }

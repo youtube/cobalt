@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,12 @@
 
 #include <vector>
 
-#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/video_color_space.h"
 #include "media/gpu/media_gpu_export.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/hdr_metadata.h"
 
 namespace media {
 
@@ -26,6 +26,9 @@ class MEDIA_GPU_EXPORT CodecPicture
     : public base::RefCountedThreadSafe<CodecPicture> {
  public:
   CodecPicture();
+
+  CodecPicture(const CodecPicture&) = delete;
+  CodecPicture& operator=(const CodecPicture&) = delete;
 
   int32_t bitstream_id() const { return bitstream_id_; }
   void set_bitstream_id(int32_t bitstream_id) { bitstream_id_ = bitstream_id; }
@@ -47,6 +50,13 @@ class MEDIA_GPU_EXPORT CodecPicture
     colorspace_ = colorspace;
   }
 
+  const absl::optional<gfx::HDRMetadata>& hdr_metadata() const {
+    return hdr_metadata_;
+  }
+  void set_hdr_metadata(const absl::optional<gfx::HDRMetadata>& hdr_metadata) {
+    hdr_metadata_ = hdr_metadata;
+  }
+
  protected:
   friend class base::RefCountedThreadSafe<CodecPicture>;
   virtual ~CodecPicture();
@@ -56,8 +66,7 @@ class MEDIA_GPU_EXPORT CodecPicture
   gfx::Rect visible_rect_;
   std::unique_ptr<DecryptConfig> decrypt_config_;
   VideoColorSpace colorspace_;
-
-  DISALLOW_COPY_AND_ASSIGN(CodecPicture);
+  absl::optional<gfx::HDRMetadata> hdr_metadata_;
 };
 
 }  // namespace media

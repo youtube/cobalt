@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -69,16 +69,20 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
+#include "base/time/time.h"
 #include "base/win/scoped_co_mem.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_handle.h"
 #include "media/audio/agc_audio_stream.h"
+#include "media/audio/system_glitch_reporter.h"
 #include "media/audio/win/audio_manager_win.h"
+#include "media/base/amplitude_peak_detector.h"
 #include "media/base/audio_converter.h"
+#include "media/base/audio_glitch_info.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/media_export.h"
 
@@ -146,6 +150,8 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   bool started() const { return started_; }
 
  private:
+  class DataDiscontinuityReporter;
+
   void SendLogMessage(const char* format, ...) PRINTF_FORMAT(2, 3);
 
   // DelegateSimpleThread::Delegate implementation.
@@ -174,8 +180,14 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   // For the selected |uwp_device_id|, generate two lists of enabled audio
   // effects and store them in |default_effect_types_| and |raw_effect_types_|.
   HRESULT GetAudioCaptureEffects(const std::string& uwp_device_id);
-  HRESULT SetCommunicationsCategoryAndRawCaptureMode();
-  HRESULT GetAudioEngineStreamFormat();
+  // Returns the native number of channels that the audio engine uses for its
+  // internal processing of shared-mode streams.
+  HRESULT GetAudioEngineNumChannels(WORD* channels);
+  // Sets communications policy and excludes any built-in audio processing,
+  // i.e., activates raw capture mode.
+  // Raw capture mode is only enabled if the native number of input channels is
+  // less than |media::kMaxConcurrentChannels| (8).
+  HRESULT SetCommunicationsCategoryAndMaybeRawCaptureMode(WORD channels);
   // Returns whether the desired format is supported or not and writes the
   // result of a failing system call to |*hr|, or S_OK if successful. If this
   // function returns false with |*hr| == S_FALSE, the OS supports a closest
@@ -190,16 +202,28 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   void MaybeReportFormatRelatedInitError(HRESULT hr) const;
 
   // AudioConverter::InputCallback implementation.
-  double ProvideInput(AudioBus* audio_bus, uint32_t frames_delayed) override;
-
-  // Detects and counts glitches based on |device_position|.
-  void UpdateGlitchCount(UINT64 device_position);
+  double ProvideInput(AudioBus* audio_bus,
+                      uint32_t frames_delayed,
+                      const AudioGlitchInfo& glitch_info) override;
 
   // Reports glitch stats and resets associated variables.
   void ReportAndResetGlitchStats();
 
   // Our creator, the audio manager needs to be notified when we close.
-  AudioManagerWin* const manager_;
+  const raw_ptr<AudioManagerWin> manager_;
+
+  // Used to aggregate and report glitch metrics to UMA (periodically) and to
+  // text logs (when a stream ends).
+  SystemGlitchReporter glitch_reporter_;
+
+  // Accumulates glitch info to be passed on to OnData().
+  media::AudioGlitchInfo::Accumulator glitch_accumulator_;
+
+  AmplitudePeakDetector peak_detector_;
+
+  // Used to track and log data discontinuity warnings from
+  // IAudioCaptureClient::GetBuffer.
+  std::unique_ptr<DataDiscontinuityReporter> data_discontinuity_reporter_;
 
   // Capturing is driven by this thread (which has no message loop).
   // All OnData() callbacks will be called from this thread.
@@ -244,7 +268,7 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   std::string device_id_;
 
   // Pointer to the object that will receive the recorded audio samples.
-  AudioInputCallback* sink_ = nullptr;
+  raw_ptr<AudioInputCallback> sink_ = nullptr;
 
   // Windows Multimedia Device (MMDevice) API interfaces.
 
@@ -306,12 +330,8 @@ class MEDIA_EXPORT WASAPIAudioInputStream
 
   // For detecting and reporting glitches.
   UINT64 expected_next_device_position_ = 0;
-  int total_glitches_ = 0;
-  UINT64 total_lost_frames_ = 0;
-  UINT64 largest_glitch_frames_ = 0;
 
   // Tracks error messages from IAudioCaptureClient::GetBuffer.
-  UINT64 num_data_discontinuity_warnings_ = 0;
   UINT64 num_timestamp_errors_ = 0;
   base::TimeTicks record_start_time_;
   base::TimeDelta time_until_first_timestamp_error_;
@@ -340,6 +360,13 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   // List of supported and active capture effects for the selected device in
   // raw (minimal) audio processing mode. Will be empty in most cases.
   std::vector<ABI::Windows::Media::Effects::AudioEffectType> raw_effect_types_;
+
+  // Will be enabled if "--use-fake-audio-capture-timestamps" has been added to
+  // the command line. This mode can be used in situations where the default
+  // capture timestamps are known to be invalid (e.g. for virtual devices) and
+  // must be emulated with local timeticks to ensure a monotonic timestamp
+  // sequence. See crbug.com/1315231 for more details.
+  bool use_fake_audio_capture_timestamps_ = false;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

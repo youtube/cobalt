@@ -1,11 +1,10 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_BASE_ANDROID_MOCK_MEDIA_CRYPTO_CONTEXT_H_
 #define MEDIA_BASE_ANDROID_MOCK_MEDIA_CRYPTO_CONTEXT_H_
 
-#include "base/macros.h"
 #include "media/base/android/media_crypto_context.h"
 #include "media/base/cdm_context.h"
 #include "media/base/media_export.h"
@@ -35,10 +34,10 @@ class MEDIA_EXPORT MockMediaCryptoContext
   MOCK_METHOD1(SetMediaCryptoReadyCB_,
                void(MediaCryptoReadyCB& media_crypto_ready_cb));
 
-  MediaCryptoReadyCB media_crypto_ready_cb;
+  MediaCryptoReadyCB media_crypto_ready_cb_;
 
-  // To be set to true when |media_crypto_ready_cb| is consumed and run.
-  bool ran_media_crypto_ready_cb = false;
+  // To be set to true when |media_crypto_ready_cb_| is consumed and run.
+  bool ran_media_crypto_ready_cb_ = false;
 
  private:
   bool has_media_crypto_context_;

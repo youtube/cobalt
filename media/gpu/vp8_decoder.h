@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,8 +10,7 @@
 
 #include <memory>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/gpu/accelerated_video_decoder.h"
 #include "media/gpu/vp8_picture.h"
 #include "media/gpu/vp8_reference_frame_vector.h"
@@ -60,7 +59,9 @@ class MEDIA_GPU_EXPORT VP8Decoder : public AcceleratedVideoDecoder {
     virtual bool OutputPicture(scoped_refptr<VP8Picture> pic) = 0;
   };
 
-  explicit VP8Decoder(std::unique_ptr<VP8Accelerator> accelerator);
+  explicit VP8Decoder(
+      std::unique_ptr<VP8Accelerator> accelerator,
+      const VideoColorSpace& container_color_space = VideoColorSpace());
 
   VP8Decoder(const VP8Decoder&) = delete;
   VP8Decoder& operator=(const VP8Decoder&) = delete;
@@ -69,13 +70,15 @@ class MEDIA_GPU_EXPORT VP8Decoder : public AcceleratedVideoDecoder {
 
   // AcceleratedVideoDecoder implementation.
   void SetStream(int32_t id, const DecoderBuffer& decoder_buffer) override;
-  bool Flush() override WARN_UNUSED_RESULT;
+  [[nodiscard]] bool Flush() override;
   void Reset() override;
-  DecodeResult Decode() override WARN_UNUSED_RESULT;
+  [[nodiscard]] DecodeResult Decode() override;
   gfx::Size GetPicSize() const override;
   gfx::Rect GetVisibleRect() const override;
   VideoCodecProfile GetProfile() const override;
   uint8_t GetBitDepth() const override;
+  VideoChromaSampling GetChromaSampling() const override;
+  absl::optional<gfx::HDRMetadata> GetHDRMetadata() const override;
   size_t GetRequiredNumOfPictures() const override;
   size_t GetNumReferenceFrames() const override;
 
@@ -110,6 +113,9 @@ class MEDIA_GPU_EXPORT VP8Decoder : public AcceleratedVideoDecoder {
   int vertical_scale_;
 
   const std::unique_ptr<VP8Accelerator> accelerator_;
+
+  // Color space provided by the container.
+  const VideoColorSpace container_color_space_;
 };
 
 }  // namespace media

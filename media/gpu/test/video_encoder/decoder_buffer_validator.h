@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 #include "media/gpu/test/bitstream_helpers.h"
 #include "media/parsers/vp8_parser.h"
 #include "media/video/h264_parser.h"
+#include "third_party/libgav1/src/src/obu_parser.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace media {
@@ -22,7 +23,8 @@ class DecoderBuffer;
 namespace test {
 class DecoderBufferValidator : public BitstreamProcessor {
  public:
-  explicit DecoderBufferValidator(const gfx::Rect& visible_rect);
+  DecoderBufferValidator(const gfx::Rect& visible_rect,
+                         size_t num_temporal_layers);
   ~DecoderBufferValidator() override;
 
   // BitstreamProcessor implementation.
@@ -37,6 +39,8 @@ class DecoderBufferValidator : public BitstreamProcessor {
 
   // The expected visible rectangle that |decoder_buffer| has.
   const gfx::Rect visible_rect_;
+  // The number of temporal layers.
+  const size_t num_temporal_layers_;
 
  private:
   // The number of detected errors by Validate().
@@ -80,13 +84,11 @@ class H264Validator : public DecoderBufferValidator {
   // The expected h264 level of |decoder_buffer|. Check if it is not
   // absl::nullopt.
   absl::optional<uint8_t> level_;
-
-  size_t num_temporal_layers_;
 };
 
 class VP8Validator : public DecoderBufferValidator {
  public:
-  explicit VP8Validator(const gfx::Rect& visible_rect);
+  VP8Validator(const gfx::Rect& visible_rect, size_t num_temporal_layers);
   ~VP8Validator() override;
 
  private:
@@ -124,13 +126,30 @@ class VP9Validator : public DecoderBufferValidator {
   const size_t max_num_spatial_layers_;
   size_t cur_num_spatial_layers_;
   std::vector<gfx::Size> spatial_layer_resolutions_;
-  const size_t num_temporal_layers_;
   int next_picture_id_;
 
   // An optional state for each specified VP9 reference buffer.
   // A nullopt indicates either keyframe not yet seen, or that a
   // buffer has been invalidated (e.g. due to sync points).
   std::array<absl::optional<BufferState>, kVp9NumRefFrames> reference_buffers_;
+};
+
+class AV1Validator : public DecoderBufferValidator {
+ public:
+  // TODO(greenjustin): Add support for more than 1 spatial and temporal layer
+  // if we need it.
+  explicit AV1Validator(const gfx::Rect& visible_rect);
+  ~AV1Validator() override = default;
+
+ private:
+  bool Validate(const DecoderBuffer& decoder_buffer,
+                const BitstreamBufferMetadata& metadata) override;
+
+  libgav1::InternalFrameBufferList buffer_list_;
+  libgav1::BufferPool buffer_pool_;
+  libgav1::DecoderState decoder_state_;
+  absl::optional<libgav1::ObuSequenceHeader> sequence_header_ = absl::nullopt;
+  uint64_t frame_num_ = 0;
 };
 }  // namespace test
 }  // namespace media

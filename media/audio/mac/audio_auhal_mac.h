@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,7 +18,6 @@
 #define MEDIA_AUDIO_MAC_AUDIO_AUHAL_MAC_H_
 
 #include <AudioUnit/AudioUnit.h>
-#include <CoreAudio/CoreAudio.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -27,21 +26,47 @@
 
 #include "base/cancelable_callback.h"
 #include "base/compiler_specific.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/mac/scoped_audio_unit.h"
+#include "media/audio/system_glitch_reporter.h"
+#include "media/base/amplitude_peak_detector.h"
 #include "media/base/audio_parameters.h"
+
+#if BUILDFLAG(IS_MAC)
+#include <CoreAudio/CoreAudio.h>
+#else
+#include "media/audio/ios/audio_private_api.h"
+#endif
 
 namespace media {
 
-class AudioManagerMac;
 class AudioPullFifo;
 
-// Implementation of AudioOuputStream for Mac OS X using the
+// A callback implementation for allowing this code to be used by both
+// AudioManagerIOS and AudioManagerMac.
+class AudioIOStreamClient {
+ public:
+  virtual void ReleaseOutputStreamUsingRealDevice(AudioOutputStream* stream,
+                                                  AudioDeviceID device_id) = 0;
+  virtual void ReleaseInputStreamUsingRealDevice(AudioInputStream* stream) = 0;
+  virtual bool MaybeChangeBufferSize(AudioDeviceID device_id,
+                                     AudioUnit audio_unit,
+                                     AudioUnitElement element,
+                                     size_t desired_buffer_size) = 0;
+#if BUILDFLAG(IS_MAC)
+  virtual base::TimeDelta GetDeferStreamStartTimeout() const = 0;
+  virtual base::SingleThreadTaskRunner* GetTaskRunner() const = 0;
+  virtual void StopAmplitudePeakTrace() = 0;
+#endif
+};
+
+// Implementation of AudioOutputStream for Apple using the
 // AUHAL Audio Unit present in OS 10.4 and later.
 // It is useful for low-latency output.
 //
@@ -66,16 +91,16 @@ class AudioPullFifo;
 // TODO(tommi): Since the callback audio thread is shared for all instances of
 // AUHALStream, one stream blocking, can cause others to be delayed.  Several
 // occurrances of this can cause a buildup of delay which forces the OS
-// to skip rendering frames. One known cause of this is the synchronzation
+// to skip rendering frames. One known cause of this is the synchronization
 // between the browser and render process in AudioSyncReader.
 // We need to fix this.
 
 class AUHALStream : public AudioOutputStream {
  public:
-  // |manager| creates this object.
+  // |client| creates this object.
   // |device| is the CoreAudio device to use for the stream.
   // It will often be the default output device.
-  AUHALStream(AudioManagerMac* manager,
+  AUHALStream(AudioIOStreamClient* client,
               const AudioParameters& params,
               AudioDeviceID device,
               const AudioManager::LogCallback& log_callback);
@@ -97,7 +122,7 @@ class AUHALStream : public AudioOutputStream {
   void GetVolume(double* volume) override;
 
   AudioDeviceID device_id() const { return device_; }
-  size_t requested_buffer_size() const { return number_of_frames_; }
+  size_t requested_buffer_size() const { return params_.frames_per_buffer(); }
   AudioUnit audio_unit() const {
     return audio_unit_ ? audio_unit_->audio_unit() : nullptr;
   }
@@ -133,29 +158,16 @@ class AUHALStream : public AudioOutputStream {
   // glitches.
   void UpdatePlayoutTimestamp(const AudioTimeStamp* timestamp);
 
-  // Called from the dtor and when the stream is reset.
-  void ReportAndResetStats();
-
   // Our creator, the audio manager needs to be notified when we close.
-  AudioManagerMac* const manager_;
+  const raw_ptr<AudioIOStreamClient> client_;
 
   const AudioParameters params_;
 
   // We may get some callbacks after AudioUnitStop() has been called.
   base::Lock lock_;
 
-  // Size of audio buffer requested at construction. The actual buffer size
-  // is given by |actual_io_buffer_frame_size_| and it can differ from the
-  // requested size.
-  const size_t number_of_frames_;
-
-  // Stores the number of frames that we actually get callbacks for.
-  // This may be different from what we ask for, so we use this for stats in
-  // order to understand how often this happens and what are the typical values.
-  size_t number_of_frames_requested_ GUARDED_BY(lock_);
-
   // Pointer to the object that will provide the audio samples.
-  AudioSourceCallback* source_ GUARDED_BY(lock_);
+  raw_ptr<AudioSourceCallback> source_ GUARDED_BY(lock_);
 
   // Holds the stream format details such as bitrate.
   AudioStreamBasicDescription output_format_;
@@ -186,11 +198,6 @@ class AUHALStream : public AudioOutputStream {
   // Current playout time.  Set by Render().
   base::TimeTicks current_playout_time_;
 
-  // Lost frames not yet reported to the provider. Increased in
-  // UpdatePlayoutTimestamp() if any lost frame since last time. Forwarded to
-  // the provider and reset in ProvideInput().
-  uint32_t current_lost_frames_;
-
   // Stores the timestamp of the previous audio buffer requested by the OS.
   // We use this in combination with |last_number_of_frames_| to detect when
   // the OS has decided to skip rendering frames (i.e. a glitch).
@@ -201,9 +208,10 @@ class AUHALStream : public AudioOutputStream {
   // NOTE: Float64 and UInt32 types are used for native API compatibility.
   Float64 last_sample_time_ GUARDED_BY(lock_);
   UInt32 last_number_of_frames_ GUARDED_BY(lock_);
-  UInt32 total_lost_frames_ GUARDED_BY(lock_);
-  UInt32 largest_glitch_frames_ GUARDED_BY(lock_);
-  int glitches_detected_ GUARDED_BY(lock_);
+
+  // Used to aggregate and report glitch metrics to UMA (periodically) and to
+  // text logs (when a stream ends).
+  SystemGlitchReporter glitch_reporter_ GUARDED_BY(lock_);
 
   // Used to defer Start() to workaround http://crbug.com/160920.
   base::CancelableOnceClosure deferred_start_cb_;
@@ -211,9 +219,13 @@ class AUHALStream : public AudioOutputStream {
   // Callback to send statistics info.
   AudioManager::LogCallback log_callback_;
 
+  [[maybe_unused]] std::unique_ptr<AmplitudePeakDetector> peak_detector_;
+
+  AudioGlitchInfo::Accumulator glitch_info_accumulator_;
+
   // Used to make sure control functions (Start(), Stop() etc) are called on the
   // right thread.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace media

@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,7 @@ struct MEDIA_EXPORT MediaUrlParams {
   MediaUrlParams(const GURL& media_url,
                  const net::SiteForCookies& site_for_cookies,
                  const url::Origin& top_frame_origin,
+                 bool has_storage_access,
                  bool allow_credentials,
                  bool is_hls);
   MediaUrlParams(const MediaUrlParams& other);
@@ -35,6 +36,9 @@ struct MEDIA_EXPORT MediaUrlParams {
 
   // Used to check for cookie content settings.
   url::Origin top_frame_origin;
+
+  // Used to check for cookie access.
+  bool has_storage_access;
 
   // True when the crossorigin mode is unspecified or set to "use-credentials",
   // false when it's "anonymous".

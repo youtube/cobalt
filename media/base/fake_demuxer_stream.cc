@@ -1,23 +1,21 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/fake_demuxer_stream.h"
 
 #include <stdint.h>
-#include <memory>
 
+#include <memory>
 #include <vector>
 
-#include "base/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/check_op.h"
-#include "base/cxx17_backports.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/notreached.h"
-#include "base/single_thread_task_runner.h"
-#include "base/threading/thread_task_runner_handle.h"
-#include "media/base/bind_to_current_loop.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/single_thread_task_runner.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/media_util.h"
@@ -54,7 +52,7 @@ FakeDemuxerStream::FakeDemuxerStream(int num_configs,
                                      bool is_encrypted,
                                      gfx::Size start_coded_size,
                                      gfx::Vector2dF coded_size_delta)
-    : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+    : task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       num_configs_(num_configs),
       num_buffers_in_one_config_(num_buffers_in_one_config),
       config_changes_(num_configs > 1),
@@ -81,11 +79,12 @@ void FakeDemuxerStream::Initialize() {
   next_read_num_ = 0;
 }
 
-void FakeDemuxerStream::Read(ReadCB read_cb) {
+// Only return one buffer at a time so we ignore the count.
+void FakeDemuxerStream::Read(uint32_t /*count*/, ReadCB read_cb) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(!read_cb_);
 
-  read_cb_ = BindToCurrentLoop(std::move(read_cb));
+  read_cb_ = base::BindPostTaskToCurrentDefault(std::move(read_cb));
 
   if (read_to_hold_ == next_read_num_)
     return;
@@ -149,14 +148,14 @@ void FakeDemuxerStream::Reset() {
   read_to_hold_ = -1;
 
   if (read_cb_)
-    std::move(read_cb_).Run(kAborted, nullptr);
+    std::move(read_cb_).Run(kAborted, {});
 }
 
 void FakeDemuxerStream::Error() {
   read_to_hold_ = -1;
 
   if (read_cb_)
-    std::move(read_cb_).Run(kError, nullptr);
+    std::move(read_cb_).Run(kError, {});
 }
 
 void FakeDemuxerStream::SeekToStart() {
@@ -189,14 +188,14 @@ void FakeDemuxerStream::DoRead() {
   if (num_buffers_left_in_current_config_ == 0) {
     // End of stream.
     if (num_configs_left_ == 0) {
-      std::move(read_cb_).Run(kOk, DecoderBuffer::CreateEOSBuffer());
+      std::move(read_cb_).Run(kOk, {DecoderBuffer::CreateEOSBuffer()});
       return;
     }
 
     // Config change.
     num_buffers_left_in_current_config_ = num_buffers_in_one_config_;
     UpdateVideoDecoderConfig();
-    std::move(read_cb_).Run(kConfigChanged, nullptr);
+    std::move(read_cb_).Run(kConfigChanged, {});
     return;
   }
 
@@ -206,9 +205,8 @@ void FakeDemuxerStream::DoRead() {
   // TODO(xhwang): Output out-of-order buffers if needed.
   if (is_encrypted_) {
     buffer->set_decrypt_config(DecryptConfig::CreateCencConfig(
-        std::string(kKeyId, kKeyId + base::size(kKeyId)),
-        std::string(kIv, kIv + base::size(kIv)),
-        std::vector<SubsampleEntry>()));
+        std::string(kKeyId, kKeyId + std::size(kKeyId)),
+        std::string(kIv, kIv + std::size(kIv)), std::vector<SubsampleEntry>()));
   }
   buffer->set_timestamp(current_timestamp_);
   buffer->set_duration(duration_);
@@ -219,7 +217,7 @@ void FakeDemuxerStream::DoRead() {
     num_configs_left_--;
 
   num_buffers_returned_++;
-  std::move(read_cb_).Run(kOk, buffer);
+  std::move(read_cb_).Run(kOk, {std::move(buffer)});
 }
 
 FakeMediaResource::FakeMediaResource(int num_video_configs,

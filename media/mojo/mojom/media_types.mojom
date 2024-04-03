@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,9 @@ module media.mojom;
 
 import "gpu/ipc/common/mailbox_holder.mojom";
 import "gpu/ipc/common/vulkan_ycbcr_info.mojom";
+import "media/mojo/mojom/audio_data.mojom";
+import "media/mojo/mojom/encryption_pattern.mojom";
+import "mojo/public/mojom/base/shared_memory.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/values.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
@@ -30,14 +33,6 @@ enum BufferingStateChangeReason;
 [Native]
 enum ChannelLayout;
 
-// See media/base/decode_status.h for descriptions.
-[Native]
-enum DecodeStatus;
-
-// See media/base/status_codes.h for descriptions.
-[Native]
-enum StatusCode;
-
 // See media/base/media_content_type.h for descriptions.
 [Native]
 enum MediaContentType;
@@ -49,10 +44,6 @@ struct MediaLogRecord;
 // See media/base/output_device_info.h for descriptions.
 [Native]
 enum OutputDeviceStatus;
-
-// See media/base/pipeline_status.h for descriptions.
-[Native]
-enum PipelineStatus;
 
 // See media/base/sample_format.h for descriptions.
 [Native]
@@ -86,12 +77,6 @@ enum VideoRotation {
   kVideoRotation270,
 };
 
-// see media/base/video_frame_metadata.h for descriptions.
-enum CopyMode {
-  kCopyToNewTexture,
-  kCopyMailboxesOnly,
-};
-
 // see third_party/blink/public/platform/web_fullscreen_video_status.h for
 // descriptions.
 [Native]
@@ -119,14 +104,6 @@ enum MediaContainerName;
 [Native]
 enum MediaStatusState;
 
-// This defines a mojo transport format for media::EncryptionPattern
-// See media/base/encryption_pattern.h for description.
-[Stable]
-struct EncryptionPattern {
-  uint32 crypt_byte_block;
-  uint32 skip_byte_block;
-};
-
 // See media/base/encryption_scheme.h for description.
 [Native]
 enum EncryptionScheme;
@@ -145,10 +122,13 @@ enum SVCScalabilityMode {
   // kUnsupportedMode is used to handle the enum differ of C++ and Mojo
   // SVCScalabilityMode in ToMojom, should not be used in other place.
   kUnsupportedMode,
+  kL1T1,
   kL1T2,
   kL1T3,
+  kL2T1Key,
   kL2T2Key,
   kL2T3Key,
+  kL3T1Key,
   kL3T2Key,
   kL3T3Key,
 };
@@ -188,6 +168,7 @@ struct AudioDecoderConfig {
   int32 codec_delay;
   AudioCodecProfile profile;
   ChannelLayout target_output_channel_layout;
+  SampleFormat target_output_sample_format;
   bool should_discard_decoder_delay;
   array<uint8> aac_extra_data;
 };
@@ -213,6 +194,16 @@ struct VideoDecoderConfig {
 [Native]
 struct SubsampleEntry;
 
+// Important events happened to the CDM. See media/cdm/cdm_document_service.h
+// for descriptions.
+[EnableIf=is_win]
+enum CdmEvent {
+  kSignificantPlayback,
+  kPlaybackError,
+  kCdmError,
+  kHardwareContextReset,
+};
+
 // See media::CdmSessionClosedReason for descriptions.
 enum CdmSessionClosedReason {
   kInternalError,
@@ -220,6 +211,14 @@ enum CdmSessionClosedReason {
   kReleaseAcknowledged,
   kHardwareContextReset,
   kResourceEvicted,
+};
+
+// This defines a mojo transport format for media::SharedImageFormatType.
+// See media/base/video_frame.h for descriptions.
+enum SharedImageFormatType {
+  kLegacy,
+  kSharedImageFormat,
+  kSharedImageFormatExternalSampler,
 };
 
 // This defines a mojo transport format for media::DecryptConfig.
@@ -287,22 +286,6 @@ struct AudioBuffer {
   array<uint8> data;
 };
 
-// This defines a mojo transport format for an interleaved, signed
-// 16-bit audio buffer.
-struct AudioDataS16 {
-  // Number of channels.
-  int32 channel_count;
-
-  // Sample rate of the buffer.
-  int32 sample_rate;
-
-  // Number of frames in the buffer.
-  int32 frame_count;
-
-  // Channel data.
-  array<int16> data;
-};
-
 // See media/base/video_frame_metadata.h for a description of fields.
 // TODO(crbug.com/657632): Remove |has_*| values and use nullable types.
 struct VideoFrameMetadata {
@@ -316,8 +299,12 @@ struct VideoFrameMetadata {
 
   gfx.mojom.Rect? capture_update_rect;
 
-  bool has_copy_mode;
-  CopyMode copy_mode;
+  gfx.mojom.Size? source_size;
+
+  gfx.mojom.Rect? region_capture_rect;
+  uint32 crop_version;
+
+  bool copy_required;
 
   bool end_of_stream;
 
@@ -341,6 +328,8 @@ struct VideoFrameMetadata {
   bool protected_video;
 
   bool hw_protected;
+
+  bool is_webgpu_compatible;
 
   mojo_base.mojom.UnguessableToken? overlay_plane_id;
 
@@ -374,8 +363,6 @@ struct VideoFrameMetadata {
   mojo_base.mojom.TimeTicks? receive_time;
 
   mojo_base.mojom.TimeDelta? wallclock_frame_duration;
-
-  uint32 hw_protected_validation_id;
 };
 
 // This defines a mojo transport format for media::VideoFrame.
@@ -403,12 +390,14 @@ struct VideoFrame {
 
   gfx.mojom.ColorSpace color_space;
   gfx.mojom.HDRMetadata? hdr_metadata;
+
+  media.mojom.SharedImageFormatType shared_image_format_type;
 };
 
 // Possible choices for storing VideoFrame data.
 union VideoFrameData {
   EosVideoFrameData eos_data;
-  SharedBufferVideoFrameData shared_buffer_data;
+  SharedMemoryVideoFrameData shared_memory_data;
   GpuMemoryBufferVideoFrameData gpu_memory_buffer_data;
   MailboxVideoFrameData mailbox_data;
 };
@@ -417,11 +406,10 @@ union VideoFrameData {
 struct EosVideoFrameData {
 };
 
-// This defines video frame data stored in a Mojo shared buffer.
-struct SharedBufferVideoFrameData {
-  // Reference to the shared memory containing the frame's data.
-  handle<shared_buffer> frame_data;
-  uint64 frame_data_size;
+// This defines video frame data for STORAGE_SHMEM VideoFrame.
+struct SharedMemoryVideoFrameData {
+  // Shared memory region for the frame data.
+  mojo_base.mojom.ReadOnlySharedMemoryRegion frame_data;
 
   // Stride and offsets for each plane. Offsets are relative to the start
   // of |frame_data|.
@@ -496,11 +484,20 @@ struct StatusData {
   uint16 code;
   string message;
   array<mojo_base.mojom.Value> frames;
-  array<StatusData> causes;
+  StatusData? cause;
   mojo_base.mojom.Value data;
+  uint64 packed_root_cause;
 };
 
-struct Status {
+struct EncoderStatus {
+  StatusData? internal;
+};
+
+struct DecoderStatus {
+  StatusData? internal;
+};
+
+struct PipelineStatus {
   StatusData? internal;
 };
 
@@ -524,16 +521,18 @@ enum InputStreamErrorCode {
   kDeviceInUse = 2,
 };
 
-// See media/base/renderer_factory_selector.h for description.
+// See media/base/renderer.h for description.
 enum RendererType {
-  kDefault = 0,          // DefaultRendererFactory
+  kRendererImpl = 0,     // RendererImplFactory
   kMojo = 1,             // MojoRendererFactory
   kMediaPlayer = 2,      // MediaPlayerRendererClientFactory
   kCourier = 3,          // CourierRendererFactory
   kFlinging = 4,         // FlingingRendererClientFactory
   kCast = 5,             // CastRendererClientFactory
   kMediaFoundation = 6,  // MediaFoundationRendererClientFactory
-  kFuchsia = 7,          // FuchsiaRendererFactory
+  // kFuchsia = 7,       // Deprecated
   kRemoting = 8,         // RemotingRendererFactory for remoting::Receiver
   kCastStreaming = 9,    // CastStreamingRendererFactory
+  kContentEmbedderDefined = 10,  // Defined by the content embedder
+  kTest= 11,             // Renderer implementations used in tests
 };

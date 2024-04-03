@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,7 +28,7 @@ TEST_F(ReentrancyCheckerTest, ReentrantUse) {
   NON_REENTRANT_SCOPE(reentrancy_checker_);
 
 #if DCHECK_IS_ON()
-  EXPECT_DEATH(UseNonReentrantScope(), "reentered");
+  EXPECT_DEATH_IF_SUPPORTED(UseNonReentrantScope(), "reentered");
 #else
   // Does nothing if DCHECKs are off.
   UseNonReentrantScope();

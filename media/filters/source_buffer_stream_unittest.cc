@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,15 +11,15 @@
 #include <string>
 #include <vector>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/time/time.h"
 #include "media/base/data_buffer.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_log.h"
@@ -68,6 +68,10 @@ MATCHER_P(ContainsTrackBufferExhaustionSkipLog, skip_milliseconds, "") {
   { EXPECT_EQ(SourceBufferStreamStatus::status_suffix, stream_->operation); }
 
 class SourceBufferStreamTest : public testing::Test {
+ public:
+  SourceBufferStreamTest(const SourceBufferStreamTest&) = delete;
+  SourceBufferStreamTest& operator=(const SourceBufferStreamTest&) = delete;
+
  protected:
   SourceBufferStreamTest() {
     video_config_ = TestVideoConfig::Normal();
@@ -503,7 +507,7 @@ class SourceBufferStreamTest : public testing::Test {
 
   void UpdateLastBufferDuration(DecodeTimestamp current_dts,
                                 BufferQueue* buffers) {
-    if (buffers->empty() || buffers->back()->duration() > base::TimeDelta())
+    if (buffers->empty() || buffers->back()->duration().is_positive())
       return;
 
     DecodeTimestamp last_dts = buffers->back()->GetDecodeTimestamp();
@@ -697,7 +701,6 @@ class SourceBufferStreamTest : public testing::Test {
   int frames_per_second_;
   int keyframes_per_second_;
   base::TimeDelta frame_duration_;
-  DISALLOW_COPY_AND_ASSIGN(SourceBufferStreamTest);
 };
 
 TEST_F(SourceBufferStreamTest, Append_SingleRange) {
@@ -2078,7 +2081,7 @@ TEST_F(SourceBufferStreamTest, Seek_InBetweenTimestamps) {
   NewCodedFrameGroupAppend(0, 10);
 
   base::TimeDelta bump = frame_duration() / 4;
-  CHECK(bump > base::TimeDelta());
+  CHECK(bump.is_positive());
 
   // Seek to buffer a little after position 5.
   stream_->Seek(5 * frame_duration() + bump);
@@ -2117,7 +2120,7 @@ TEST_F(SourceBufferStreamTest, Seek_After_TrackBuffer_Filled) {
 
 TEST_F(SourceBufferStreamTest, Seek_StartOfGroup) {
   base::TimeDelta bump = frame_duration() / 4;
-  CHECK(bump > base::TimeDelta());
+  CHECK(bump.is_positive());
 
   // Append 5 buffers at position (5 + |bump|) through 9, where the coded frame
   // group begins at position 5.
@@ -3365,10 +3368,41 @@ TEST_F(SourceBufferStreamTest, GetRemovalRange_Range) {
   EXPECT_EQ(18, bytes_removed);
 }
 
-TEST_F(SourceBufferStreamTest, ConfigChange_Basic) {
+TEST_F(SourceBufferStreamTest, IsNextBufferConfigChanged) {
+  // selected_range_ is nullptr, so return false
+  EXPECT_FALSE(stream_->IsNextBufferConfigChanged());
   VideoDecoderConfig new_config = TestVideoConfig::Large();
   ASSERT_FALSE(new_config.Matches(video_config_));
 
+  // read all buffers
+  NewCodedFrameGroupAppend("0K 10 20");
+  Seek(0);
+  CheckExpectedRangesByTimestamp("{ [0,30) }");
+  CheckExpectedBuffers("0K 10 20");
+  EXPECT_FALSE(stream_->IsNextBufferConfigChanged());
+
+  // Signal a config change.
+  stream_->UpdateVideoConfig(new_config, false);
+  NewCodedFrameGroupAppend("30K 40");
+  EXPECT_TRUE(stream_->IsNextBufferConfigChanged());
+
+  scoped_refptr<StreamParserBuffer> buffer;
+  EXPECT_STATUS_FOR_STREAM_OP(kConfigChange, GetNextBuffer(&buffer));
+  CheckVideoConfig(new_config);
+
+  // Overlap-append
+  NewCodedFrameGroupAppend(
+      "21K 41 51 61 71 81 91 101 111 121 "
+      "131K 141");
+  CheckExpectedRangesByTimestamp("{ [0,151) }");
+
+  // track_buffer has the buffers with timestamp 30 and 40
+  EXPECT_FALSE(stream_->IsNextBufferConfigChanged());
+}
+
+TEST_F(SourceBufferStreamTest, ConfigChange_Basic) {
+  VideoDecoderConfig new_config = TestVideoConfig::Large();
+  ASSERT_FALSE(new_config.Matches(video_config_));
   Seek(0);
   CheckVideoConfig(video_config_);
 
@@ -3396,6 +3430,7 @@ TEST_F(SourceBufferStreamTest, ConfigChange_Basic) {
 
   // Verify the next attempt to get a buffer will signal that a config change
   // has happened.
+  EXPECT_TRUE(stream_->IsNextBufferConfigChanged());
   EXPECT_STATUS_FOR_STREAM_OP(kConfigChange, GetNextBuffer(&buffer));
 
   // Verify that the new config is now returned.
@@ -3422,6 +3457,7 @@ TEST_F(SourceBufferStreamTest, ConfigChange_Seek) {
   CheckVideoConfig(video_config_);
   Seek(5);
   CheckVideoConfig(video_config_);
+  EXPECT_TRUE(stream_->IsNextBufferConfigChanged());
   EXPECT_STATUS_FOR_STREAM_OP(kConfigChange, GetNextBuffer(&buffer));
   CheckVideoConfig(new_config);
   CheckExpectedBuffers(5, 9, &kDataB);
@@ -3440,6 +3476,7 @@ TEST_F(SourceBufferStreamTest, ConfigChange_Seek) {
   CheckVideoConfig(new_config);
   Seek(0);
   CheckVideoConfig(new_config);
+  EXPECT_TRUE(stream_->IsNextBufferConfigChanged());
   EXPECT_STATUS_FOR_STREAM_OP(kConfigChange, GetNextBuffer(&buffer));
   CheckVideoConfig(video_config_);
   CheckExpectedBuffers(0, 4, &kDataA);
@@ -4575,6 +4612,7 @@ TEST_F(SourceBufferStreamTest, Audio_ConfigChangeWithPreroll) {
   // Verify the next attempt to get a buffer will signal that a config change
   // has happened.
   scoped_refptr<StreamParserBuffer> buffer;
+  EXPECT_TRUE(stream_->IsNextBufferConfigChanged());
   EXPECT_STATUS_FOR_STREAM_OP(kConfigChange, GetNextBuffer(&buffer));
 
   // Verify upcoming buffers will use the new config.
@@ -4829,6 +4867,7 @@ TEST_F(SourceBufferStreamTest, ConfigChange_ReSeek) {
   CheckVideoConfig(video_config_);
   SeekToTimestampMs(2030);
   CheckVideoConfig(video_config_);
+  EXPECT_TRUE(stream_->IsNextBufferConfigChanged());
   EXPECT_STATUS_FOR_STREAM_OP(kConfigChange, GetNextBuffer(&buffer));
   CheckVideoConfig(new_config);
 
@@ -4850,10 +4889,12 @@ TEST_F(SourceBufferStreamTest, ConfigChange_ReSeek) {
   SeekToTimestampMs(2000);
   CheckVideoConfig(new_config);
   ASSERT_FALSE(new_config.Matches(video_config_));
+  EXPECT_TRUE(stream_->IsNextBufferConfigChanged());
   EXPECT_STATUS_FOR_STREAM_OP(kConfigChange, GetNextBuffer(&buffer));
   CheckVideoConfig(video_config_);
   CheckExpectedBuffers("2000K 2010 2020D10");
   CheckVideoConfig(video_config_);
+  EXPECT_TRUE(stream_->IsNextBufferConfigChanged());
   EXPECT_STATUS_FOR_STREAM_OP(kConfigChange, GetNextBuffer(&buffer));
   CheckVideoConfig(new_config);
   CheckExpectedBuffers("2030K 2040 2050D10");
@@ -5066,6 +5107,62 @@ TEST_F(SourceBufferStreamTest,
   Seek(0);
   CheckExpectedBuffers("0K 10 20 30K 40 2000K 2010");
   CheckNoNextBuffer();
+}
+
+TEST_F(SourceBufferStreamTest, GetLowestPresentationTimestamp_NonMuxed) {
+  EXPECT_EQ(base::TimeDelta(), stream_->GetLowestPresentationTimestamp());
+
+  NewCodedFrameGroupAppend("100K 110K");
+  EXPECT_EQ(base::Milliseconds(100), stream_->GetLowestPresentationTimestamp());
+
+  RemoveInMs(110, 120, 120);
+  EXPECT_EQ(base::Milliseconds(100), stream_->GetLowestPresentationTimestamp());
+
+  RemoveInMs(100, 110, 120);
+  EXPECT_EQ(base::TimeDelta(), stream_->GetLowestPresentationTimestamp());
+
+  NewCodedFrameGroupAppend("100K 110K");
+  EXPECT_EQ(base::Milliseconds(100), stream_->GetLowestPresentationTimestamp());
+
+  RemoveInMs(100, 110, 120);
+  EXPECT_EQ(base::Milliseconds(110), stream_->GetLowestPresentationTimestamp());
+
+  RemoveInMs(110, 120, 120);
+  EXPECT_EQ(base::TimeDelta(), stream_->GetLowestPresentationTimestamp());
+}
+
+TEST_F(SourceBufferStreamTest, GetLowestPresentationTimestamp_Muxed) {
+  // Simulate `stream_` being one of multiple resulting from parsing and
+  // buffering a muxed bytestream. In this case, it is common for range start
+  // times across the streams in the same muxed segment to not precisely align.
+  // The frame processing algorithm indicates the segment's "coded frame group
+  // start time" to the SourceBufferStream, and the underlying range remembers
+  // this even if the corresponding actual start time in the underlying range is
+  // later than that start time. However, if the start of that range is removed,
+  // then the underlying range no longer attempts to maintain the original
+  // "coded frame group start time" as the lowest timestamp. This impacts
+  // GetLowestPresentationTimestamp(), since the underlying range start time of
+  // the first range is involved and is conditional. See also
+  // SourceBufferRange::GetStartTimestamp().
+  EXPECT_EQ(base::TimeDelta(), stream_->GetLowestPresentationTimestamp());
+
+  NewCodedFrameGroupAppend(base::Milliseconds(50), "100K 110K");
+  EXPECT_EQ(base::Milliseconds(50), stream_->GetLowestPresentationTimestamp());
+
+  RemoveInMs(110, 120, 120);
+  EXPECT_EQ(base::Milliseconds(50), stream_->GetLowestPresentationTimestamp());
+
+  RemoveInMs(100, 110, 120);
+  EXPECT_EQ(base::TimeDelta(), stream_->GetLowestPresentationTimestamp());
+
+  NewCodedFrameGroupAppend(base::Milliseconds(50), "100K 110K");
+  EXPECT_EQ(base::Milliseconds(50), stream_->GetLowestPresentationTimestamp());
+
+  RemoveInMs(100, 110, 120);
+  EXPECT_EQ(base::Milliseconds(110), stream_->GetLowestPresentationTimestamp());
+
+  RemoveInMs(110, 120, 120);
+  EXPECT_EQ(base::TimeDelta(), stream_->GetLowestPresentationTimestamp());
 }
 
 TEST_F(SourceBufferStreamTest, GetHighestPresentationTimestamp) {

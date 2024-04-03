@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -93,8 +93,8 @@ class MEDIA_EXPORT WebMListParser {
     int id_;
     int64_t size_;
     int64_t bytes_parsed_;
-    const ListElementInfo* element_info_;
-    WebMParserClient* client_;
+    raw_ptr<const ListElementInfo> element_info_;
+    raw_ptr<WebMParserClient> client_;
   };
 
   void ChangeState(State new_state);
@@ -151,7 +151,7 @@ class MEDIA_EXPORT WebMListParser {
   const int root_level_;
 
   // WebMParserClient to handle the root list.
-  WebMParserClient* const root_client_;
+  const raw_ptr<WebMParserClient> root_client_;
 
   // Stack of state for all the lists currently being parsed. Lists are
   // added and removed from this stack as they are parsed.

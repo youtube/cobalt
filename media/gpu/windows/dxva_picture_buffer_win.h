@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -191,26 +191,6 @@ class EGLStreamPictureBuffer : public DXVAPictureBuffer {
   ~EGLStreamPictureBuffer() override;
 
   bool Initialize();
-  bool ReusePictureBuffer() override;
-  bool BindSampleToTexture(DXVAVideoDecodeAccelerator* decoder,
-                           Microsoft::WRL::ComPtr<IMFSample> sample) override;
-  bool AllowOverlay() const override;
-  bool CanBindSamples() const override;
-
- private:
-  EGLStreamKHR stream_;
-
-  Microsoft::WRL::ComPtr<IMFSample> current_d3d_sample_;
-  ComD3D11Texture2D dx11_decoding_texture_;
-};
-
-// Shares the decoded texture with ANGLE without copying by using an EGL stream.
-class EGLStreamDelayedCopyPictureBuffer : public DXVAPictureBuffer {
- public:
-  explicit EGLStreamDelayedCopyPictureBuffer(const PictureBuffer& buffer);
-  ~EGLStreamDelayedCopyPictureBuffer() override;
-
-  bool Initialize(const DXVAVideoDecodeAccelerator& decoder);
   bool ReusePictureBuffer() override;
   bool BindSampleToTexture(DXVAVideoDecodeAccelerator* decoder,
                            Microsoft::WRL::ComPtr<IMFSample> sample) override;

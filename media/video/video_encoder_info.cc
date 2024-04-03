@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,25 +23,4 @@ VideoEncoderInfo::VideoEncoderInfo() = default;
 VideoEncoderInfo::VideoEncoderInfo(const VideoEncoderInfo&) = default;
 VideoEncoderInfo::~VideoEncoderInfo() = default;
 
-bool operator==(const ResolutionBitrateLimit& l,
-                const ResolutionBitrateLimit& r) {
-  return l.frame_size == r.frame_size &&
-         l.min_start_bitrate_bps == r.min_start_bitrate_bps &&
-         l.min_bitrate_bps == r.min_bitrate_bps &&
-         l.max_bitrate_bps == r.max_bitrate_bps;
-}
-
-bool operator==(const VideoEncoderInfo& l, const VideoEncoderInfo& r) {
-  for (size_t i = 0; i < VideoEncoderInfo::kMaxSpatialLayers; ++i) {
-    if (l.fps_allocation[i] != r.fps_allocation[i])
-      return false;
-  }
-
-  return l.implementation_name == r.implementation_name &&
-         l.supports_native_handle == r.supports_native_handle &&
-         l.has_trusted_rate_controller == r.has_trusted_rate_controller &&
-         l.is_hardware_accelerated == r.is_hardware_accelerated &&
-         l.supports_simulcast == r.supports_simulcast &&
-         l.resolution_bitrate_limits == r.resolution_bitrate_limits;
-}
 }  // namespace media

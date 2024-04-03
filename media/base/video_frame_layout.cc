@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "base/notreached.h"
+#include "base/numerics/checked_math.h"
 
 namespace media {
 
@@ -65,6 +66,7 @@ size_t VideoFrameLayout::NumPlanes(VideoPixelFormat format) {
     case PIXEL_FORMAT_YV12:
     case PIXEL_FORMAT_I422:
     case PIXEL_FORMAT_I444:
+    case PIXEL_FORMAT_NV12A:
     case PIXEL_FORMAT_YUV420P9:
     case PIXEL_FORMAT_YUV422P9:
     case PIXEL_FORMAT_YUV444P9:
@@ -76,6 +78,11 @@ size_t VideoFrameLayout::NumPlanes(VideoPixelFormat format) {
     case PIXEL_FORMAT_YUV444P12:
       return 3;
     case PIXEL_FORMAT_I420A:
+    case PIXEL_FORMAT_I422A:
+    case PIXEL_FORMAT_I444A:
+    case PIXEL_FORMAT_YUV420AP10:
+    case PIXEL_FORMAT_YUV422AP10:
+    case PIXEL_FORMAT_YUV444AP10:
       return 4;
     case PIXEL_FORMAT_UNKNOWN:
       // Note: PIXEL_FORMAT_UNKNOWN is used for end-of-stream frame.
@@ -166,6 +173,34 @@ bool VideoFrameLayout::operator==(const VideoFrameLayout& rhs) const {
 
 bool VideoFrameLayout::operator!=(const VideoFrameLayout& rhs) const {
   return !(*this == rhs);
+}
+
+bool VideoFrameLayout::FitsInContiguousBufferOfSize(size_t data_size) const {
+  if (is_multi_planar_) {
+    return false;
+  }
+
+  base::CheckedNumeric<size_t> required_size = 0;
+  for (const auto& plane : planes_) {
+    if (plane.offset > data_size || plane.size > data_size) {
+      return false;
+    }
+
+    // No individual plane should have a size + offset > data_size.
+    base::CheckedNumeric<size_t> plane_end = plane.size;
+    plane_end += plane.offset;
+    if (!plane_end.IsValid() || plane_end.ValueOrDie() > data_size) {
+      return false;
+    }
+
+    required_size += plane.size;
+  }
+
+  if (!required_size.IsValid() || required_size.ValueOrDie() > data_size) {
+    return false;
+  }
+
+  return true;
 }
 
 std::ostream& operator<<(std::ostream& ostream,

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -56,6 +56,14 @@ bool CompareCapability(const VideoCaptureFormat& requested,
 
   // Compare by internal pixel format to avoid conversions when possible.
   if (lhs.source_pixel_format != rhs.source_pixel_format) {
+    // Deprioritize fake formats in passthrough mode to avoid extra conversions.
+    // But do so only if the requested format is I420, because
+    // MFCaptureEngine doesn't support MJPG->I420 conversion, so fake NV12 is
+    // at least working.
+    if (requested.pixel_format == media::PIXEL_FORMAT_NV12 &&
+        lhs.maybe_fake ^ rhs.maybe_fake) {
+      return rhs.maybe_fake;
+    }
     // Choose the format with no conversion if possible.
     if (lhs.source_pixel_format == requested.pixel_format)
       return true;
@@ -87,6 +95,12 @@ bool CompareCapability(const VideoCaptureFormat& requested,
          requested.pixel_format == PIXEL_FORMAT_NV12)) {
       return false;
     }
+  }
+
+  // Always prefer non-fake format over the same mjpg-backed.
+  if (lhs.source_pixel_format == rhs.source_pixel_format &&
+      (lhs.maybe_fake ^ rhs.maybe_fake)) {
+    return rhs.maybe_fake;
   }
 
   return VideoCaptureFormat::ComparePixelFormatPreference(

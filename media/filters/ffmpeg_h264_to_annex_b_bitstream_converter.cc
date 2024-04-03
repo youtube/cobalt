@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,7 +38,7 @@ bool FFmpegH264ToAnnexBBitstreamConverter::ConvertPacket(AVPacket* packet) {
       return false;
     }
 
-    avc_config.reset(new mp4::AVCDecoderConfigurationRecord());
+    avc_config = std::make_unique<mp4::AVCDecoderConfigurationRecord>();
 
     if (!converter_.ParseConfiguration(stream_codec_parameters_->extradata,
                                        stream_codec_parameters_->extradata_size,

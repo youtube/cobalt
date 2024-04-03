@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,9 +10,9 @@
 #include <memory>
 #include <vector>
 
-#include "media/base/status.h"
 #include "media/gpu/media_gpu_export.h"
 #include "media/gpu/windows/d3d11_picture_buffer.h"
+#include "media/gpu/windows/d3d11_status.h"
 #include "media/gpu/windows/d3d11_video_processor_proxy.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -37,24 +37,24 @@ class MEDIA_GPU_EXPORT D3D11DecoderConfigurator {
       const gpu::GpuDriverBugWorkarounds& workarounds,
       const VideoDecoderConfig& config,
       uint8_t bit_depth,
+      VideoChromaSampling chroma_sampling,
       MediaLog* media_log,
       bool use_shared_handle);
 
   bool SupportsDevice(ComD3D11VideoDevice video_device);
 
   // Create the decoder's output texture.
-  StatusOr<ComD3D11Texture2D> CreateOutputTexture(ComD3D11Device device,
-                                                  gfx::Size size,
-                                                  uint32_t array_size,
-                                                  bool use_shared_handle);
+  D3D11Status::Or<ComD3D11Texture2D> CreateOutputTexture(
+      ComD3D11Device device,
+      gfx::Size size,
+      uint32_t array_size,
+      bool use_shared_handle);
 
   const D3D11_VIDEO_DECODER_DESC* DecoderDescriptor() const {
     return &decoder_desc_;
   }
   const GUID DecoderGuid() const { return decoder_guid_; }
   DXGI_FORMAT TextureFormat() const { return dxgi_format_; }
-
-  static constexpr size_t BUFFER_COUNT = 20;
 
  private:
   // Set up instances of the parameter structs for D3D11 Functions

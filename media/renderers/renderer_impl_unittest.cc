@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,15 +7,17 @@
 #include <memory>
 #include <vector>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/run_loop.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/task_environment.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/time/time.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
 #include "media/renderers/renderer_impl.h"
@@ -53,11 +55,11 @@ ACTION_P2(SetError, renderer_client, error) {
 }
 
 ACTION(PostCallback) {
-  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE, arg0);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE, arg0);
 }
 
 ACTION(PostQuitWhenIdle) {
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::RunLoop::QuitCurrentWhenIdleClosureDeprecated());
 }
 
@@ -361,8 +363,8 @@ class RendererImplTest : public ::testing::Test {
   base::SimpleTestTickClock test_tick_clock_;
 
   std::unique_ptr<StrictMock<MockDemuxer>> demuxer_;
-  StrictMock<MockVideoRenderer>* video_renderer_;
-  StrictMock<MockAudioRenderer>* audio_renderer_;
+  raw_ptr<StrictMock<MockVideoRenderer>> video_renderer_;
+  raw_ptr<StrictMock<MockAudioRenderer>> audio_renderer_;
   std::unique_ptr<RendererImpl> renderer_impl_;
   std::unique_ptr<StrictMock<MockCdmContext>> cdm_context_;
 
@@ -370,8 +372,12 @@ class RendererImplTest : public ::testing::Test {
   std::unique_ptr<StrictMock<MockDemuxerStream>> audio_stream_;
   std::unique_ptr<StrictMock<MockDemuxerStream>> video_stream_;
   std::vector<DemuxerStream*> streams_;
-  RendererClient* video_renderer_client_;
-  RendererClient* audio_renderer_client_;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #addr-of
+  RAW_PTR_EXCLUSION RendererClient* video_renderer_client_;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #addr-of
+  RAW_PTR_EXCLUSION RendererClient* audio_renderer_client_;
   VideoDecoderConfig video_decoder_config_;
   PipelineStatus initialization_status_;
   bool is_encrypted_ = false;
@@ -640,7 +646,7 @@ TEST_F(RendererImplTest, AudioVideoStreamsEnded) {
 
 TEST_F(RendererImplTest, ErrorAfterInitialize) {
   InitializeWithAudio();
-  EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(callbacks_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)));
   audio_renderer_client_->OnError(PIPELINE_ERROR_DECODE);
   base::RunLoop().RunUntilIdle();
 }
@@ -649,7 +655,7 @@ TEST_F(RendererImplTest, ErrorDuringPlaying) {
   InitializeWithAudio();
   Play();
 
-  EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(callbacks_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)));
   audio_renderer_client_->OnError(PIPELINE_ERROR_DECODE);
   base::RunLoop().RunUntilIdle();
 }
@@ -665,7 +671,7 @@ TEST_F(RendererImplTest, ErrorDuringFlush) {
         audio_renderer_client_->OnError(PIPELINE_ERROR_DECODE);
         std::move(on_done).Run();
       });
-  EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(callbacks_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)));
   EXPECT_CALL(callbacks_, OnFlushed());
   renderer_impl_->Flush(base::BindOnce(&CallbackHelper::OnFlushed,
                                        base::Unretained(&callbacks_)));
@@ -677,7 +683,7 @@ TEST_F(RendererImplTest, ErrorAfterFlush) {
   Play();
   Flush(false);
 
-  EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(callbacks_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)));
   audio_renderer_client_->OnError(PIPELINE_ERROR_DECODE);
   base::RunLoop().RunUntilIdle();
 }

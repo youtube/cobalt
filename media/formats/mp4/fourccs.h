@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,9 @@ enum FourCC {
   FOURCC_NULL = 0,
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
   FOURCC_AC3 = 0x61632d33,   // "ac-3"
+  FOURCC_DAC3 = 0x64616333,  // "dac3"
   FOURCC_EAC3 = 0x65632d33,  // "ec-3"
+  FOURCC_DEC3 = 0x64656333,  // "dec3"
 #endif
 #if BUILDFLAG(ENABLE_AV1_DECODER)
   FOURCC_AV01 = 0x61763031,  // "av01"
@@ -136,6 +138,13 @@ enum FourCC {
   FOURCC_VP09 = 0x76703039,
   FOURCC_VPCC = 0x76706343,
   FOURCC_WIDE = 0x77696465,
+#if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+  FOURCC_DTSC = 0x64747363,  // "dtsc"
+  FOURCC_DTSE = 0x64747365,  // "dtse"
+  FOURCC_DTSX = 0x64747378,  // "dtsx"
+  FOURCC_DDTS = 0x64647473,  // "ddts"
+  FOURCC_UDTS = 0x75647473,  // "udts"
+#endif                       // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
 };
 
 const inline std::string FourCCToString(FourCC fourcc) {

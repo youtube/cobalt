@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include <math.h>
 
-#include "base/bind.h"
 #include "base/check_op.h"
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/functional/bind.h"
+#include "base/task/sequenced_task_runner.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
@@ -78,7 +78,7 @@ struct InteriorNode : public Model {
 
   // Add |child| has the node for feature value |v|.
   void AddChild(FeatureValue v, std::unique_ptr<Model> child) {
-    DCHECK_EQ(children_.count(v), 0u);
+    DCHECK(!children_.contains(v));
     children_.emplace(v, std::move(child));
   }
 
@@ -139,7 +139,7 @@ void RandomTreeTrainer::Train(const LearningTask& task,
 
   // It's a little odd that we don't post training.  Perhaps we should.
   auto model = Train(task, training_data, training_idx);
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(model_cb), std::move(model)));
 }
 

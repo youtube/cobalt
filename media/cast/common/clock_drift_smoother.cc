@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@ namespace cast {
 ClockDriftSmoother::ClockDriftSmoother(base::TimeDelta time_constant)
     : time_constant_(time_constant),
       estimate_us_(0.0) {
-  DCHECK(time_constant_ > base::TimeDelta());
+  DCHECK(time_constant_.is_positive());
 }
 
 ClockDriftSmoother::~ClockDriftSmoother() = default;

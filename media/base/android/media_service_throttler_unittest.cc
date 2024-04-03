@@ -1,12 +1,14 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/android/media_service_throttler.h"
 
+#include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "media/base/android/media_server_crash_listener.h"
 #include "media/base/fake_single_thread_task_runner.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -29,6 +31,10 @@ class MediaServiceThrottlerTest : public testing::Test {
     throttler_->SetCrashListenerTaskRunnerForTesting(test_task_runner_);
     base_delay_ = throttler_->GetBaseThrottlingRateForTesting();
   }
+
+  MediaServiceThrottlerTest(const MediaServiceThrottlerTest&) = delete;
+  MediaServiceThrottlerTest& operator=(const MediaServiceThrottlerTest&) =
+      delete;
 
   void SimulateCrashes(int number_of_crashes) {
     for (int i = 0; i < number_of_crashes; ++i)
@@ -53,18 +59,15 @@ class MediaServiceThrottlerTest : public testing::Test {
 
   base::TimeTicks TestNow() { return clock_.NowTicks(); }
 
-  MediaServiceThrottler* throttler_;
+  raw_ptr<MediaServiceThrottler> throttler_;
   base::SimpleTestTickClock clock_;
 
   base::TimeDelta base_delay_;
 
   scoped_refptr<FakeSingleThreadTaskRunner> test_task_runner_;
 
-  // Necessary, or else base::ThreadTaskRunnerHandle::Get() fails.
+  // Necessary, or else base::SingleThreadTaskRunner::GetCurrentDefault() fails.
   base::test::SingleThreadTaskEnvironment task_environment_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MediaServiceThrottlerTest);
 };
 
 // Canary test case.

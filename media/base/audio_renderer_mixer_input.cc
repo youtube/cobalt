@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,17 @@
 
 #include <cmath>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_renderer_mixer.h"
 #include "media/base/audio_renderer_mixer_pool.h"
 #include "media/base/audio_timestamp_helper.h"
 
 namespace media {
+
+constexpr base::TimeDelta kFadeInDuration = base::Milliseconds(5);
 
 // TODO(dalecurtis): Merge with AudioDeviceDescription::IsDefaultDevice() once
 // that file has been moved to media/base.
@@ -65,6 +67,9 @@ void AudioRendererMixerInput::Initialize(
 
   params_ = params;
   callback_ = callback;
+
+  total_fade_in_frames_ = AudioTimestampHelper::TimeToFrames(
+      kFadeInDuration, params_.sample_rate());
 }
 
 void AudioRendererMixerInput::Start() {
@@ -102,6 +107,9 @@ void AudioRendererMixerInput::Play() {
   if (playing_ || !mixer_)
     return;
 
+  // Fading in the first few frames avoids an audible pop.
+  remaining_fade_in_frames_ = total_fade_in_frames_;
+
   mixer_->AddMixerInput(params_, this);
   playing_ = true;
 }
@@ -134,7 +142,7 @@ void AudioRendererMixerInput::GetOutputDeviceInfoAsync(
   // If we have device information for a current sink or mixer, just return it
   // immediately. Per the AudioRendererSink API contract, this must be posted.
   if (device_info_.has_value() && (sink_ || mixer_)) {
-    base::SequencedTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(info_cb), *device_info_));
     return;
   }
@@ -210,19 +218,44 @@ void AudioRendererMixerInput::SwitchOutputDevice(
                      base::RetainedRef(this), std::move(callback), new_sink));
 }
 
-double AudioRendererMixerInput::ProvideInput(AudioBus* audio_bus,
-                                             uint32_t frames_delayed) {
+double AudioRendererMixerInput::ProvideInput(
+    AudioBus* audio_bus,
+    uint32_t frames_delayed,
+    const AudioGlitchInfo& glitch_info) {
   TRACE_EVENT0("audio", "AudioRendererMixerInput::ProvideInput");
   const base::TimeDelta delay =
       AudioTimestampHelper::FramesToTime(frames_delayed, params_.sample_rate());
 
   int frames_filled =
-      callback_->Render(delay, base::TimeTicks::Now(), 0, audio_bus);
+      callback_->Render(delay, base::TimeTicks::Now(), glitch_info, audio_bus);
 
   // AudioConverter expects unfilled frames to be zeroed.
   if (frames_filled < audio_bus->frames()) {
     audio_bus->ZeroFramesPartial(frames_filled,
                                  audio_bus->frames() - frames_filled);
+  }
+
+  if (remaining_fade_in_frames_) {
+    // On MacOS, `audio_bus` might be 2ms long, and the fade needs to be applied
+    // over multiple buffers.
+    const int frames = std::min(remaining_fade_in_frames_, audio_bus->frames());
+
+    DCHECK_LE(remaining_fade_in_frames_, total_fade_in_frames_);
+    const int start_volume = total_fade_in_frames_ - remaining_fade_in_frames_;
+    DCHECK_GE(start_volume, 0);
+
+    // Apply a perfect linear fade-in. Fading-in in steps (e.g. increasing
+    // volume by 10% every 1ms over 10ms) introduces high frequency distortions.
+    for (int ch = 0; ch < audio_bus->channels(); ++ch) {
+      float* data = audio_bus->channel(ch);
+
+      for (int i = 0; i < frames; ++i)
+        data[i] *= static_cast<float>(start_volume + i) / total_fade_in_frames_;
+    }
+
+    remaining_fade_in_frames_ -= frames;
+
+    DCHECK_GE(remaining_fade_in_frames_, 0);
   }
 
   // We're reading |volume_| from the audio device thread and must avoid racing

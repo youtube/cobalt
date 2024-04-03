@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,18 +11,18 @@
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/unsafe_shared_memory_region.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
+#include "base/time/time.h"
+#include "media/base/bitstream_buffer.h"
 #include "media/base/video_bitrate_allocation.h"
 #include "media/gpu/test/bitstream_helpers.h"
 #include "media/gpu/test/video_encoder/video_encoder.h"
 #include "media/video/video_encode_accelerator.h"
-
-namespace gpu {
-class GpuMemoryBufferFactory;
-}
 
 namespace media {
 
@@ -59,7 +59,7 @@ struct VideoEncoderClientConfig {
   // without waiting for the result of the previous encodes requests.
   size_t max_outstanding_encode_requests = 1;
   // The desired bitrate in bits/second.
-  media::VideoBitrateAllocation bitrate;
+  media::VideoBitrateAllocation bitrate_allocation;
   // The desired framerate in frames/second.
   uint32_t framerate = 30.0;
   // The interval of calling VideoEncodeAccelerator::Encode(). If this is
@@ -78,7 +78,8 @@ struct VideoEncoderClientConfig {
   const bool reverse = false;
 };
 
-struct VideoEncoderStats {
+class VideoEncoderStats {
+ public:
   VideoEncoderStats();
   VideoEncoderStats(const VideoEncoderStats&);
   ~VideoEncoderStats();
@@ -86,6 +87,7 @@ struct VideoEncoderStats {
                     size_t num_temporal_layers,
                     size_t num_spatial_layers);
   uint32_t Bitrate() const;
+  uint32_t LayerBitrate(size_t spatial_idx, size_t temporal_idx) const;
   void Reset();
 
   uint32_t framerate = 0;
@@ -116,15 +118,11 @@ class VideoEncoderClient : public VideoEncodeAccelerator::Client {
 
   ~VideoEncoderClient() override;
 
-  // Return an instance of the VideoEncoderClient. The
-  // |gpu_memory_buffer_factory| will not be owned by the encoder client, the
-  // caller should guarantee it outlives the encoder client. The |event_cb| will
-  // be called whenever an event occurs (e.g. frame encoded) and should be
-  // thread-safe.
+  // Return an instance of the VideoEncoderClient. The |event_cb| will be called
+  // whenever an event occurs (e.g. frame encoded) and should be thread-safe.
   static std::unique_ptr<VideoEncoderClient> Create(
       const VideoEncoder::EventCallback& event_cb,
       std::vector<std::unique_ptr<BitstreamProcessor>> bitstream_processors,
-      gpu::GpuMemoryBufferFactory* const gpu_memory_buffer_factory,
       const VideoEncoderClientConfig& config);
 
   // Initialize the video encode accelerator for the specified |video|.
@@ -161,7 +159,7 @@ class VideoEncoderClient : public VideoEncodeAccelerator::Client {
                                size_t output_buffer_size) override;
   void BitstreamBufferReady(int32_t bitstream_buffer_id,
                             const BitstreamBufferMetadata& metadata) override;
-  void NotifyError(VideoEncodeAccelerator::Error error) override;
+  void NotifyErrorStatus(const EncoderStatus& status) override;
   void NotifyEncoderInfoChange(const VideoEncoderInfo& info) override;
 
  private:
@@ -175,7 +173,6 @@ class VideoEncoderClient : public VideoEncodeAccelerator::Client {
   VideoEncoderClient(
       const VideoEncoder::EventCallback& event_cb,
       std::vector<std::unique_ptr<BitstreamProcessor>> bitstream_processors,
-      gpu::GpuMemoryBufferFactory* const gpu_memory_buffer_factory,
       const VideoEncoderClientConfig& config);
 
   // Destroy the video encoder client.
@@ -245,7 +242,7 @@ class VideoEncoderClient : public VideoEncodeAccelerator::Client {
   VideoEncoderClientState encoder_client_state_;
 
   // The video being encoded, owned by the video encoder test environment.
-  const Video* video_ = nullptr;
+  raw_ptr<const Video> video_ = nullptr;
   // Helper used to align data and create frames from the raw video stream.
   std::unique_ptr<media::test::AlignedDataHelper> aligned_data_helper_;
 
@@ -267,14 +264,16 @@ class VideoEncoderClient : public VideoEncodeAccelerator::Client {
   // The current top spatial layer index.
   uint8_t current_top_spatial_index_ = 0;
 
+  // A map from an input VideoFrame timestamp to the time when it is enqueued
+  // into |encoder_|.
+  std::map<base::TimeDelta, base::TimeTicks> source_timestamps_;
+
   // Force a key frame on next Encode(), only accessed on the
   // |encoder_client_thread_|.
   bool force_keyframe_ = false;
 
   VideoEncoderStats current_stats_ GUARDED_BY(stats_lock_);
   mutable base::Lock stats_lock_;
-
-  gpu::GpuMemoryBufferFactory* const gpu_memory_buffer_factory_;
 
   SEQUENCE_CHECKER(test_sequence_checker_);
   SEQUENCE_CHECKER(encoder_client_sequence_checker_);

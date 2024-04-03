@@ -1,19 +1,24 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/device_monitors/device_monitor_mac.h"
 
 #include <AVFoundation/AVFoundation.h>
+
 #include <set>
 
-#include "base/bind.h"
+#include "base/containers/contains.h"
+#include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/mac/scoped_nsobject.h"
-#include "base/macros.h"
-#include "base/task_runner_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/ranges/algorithm.h"
+#import "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
+#include "media/base/mac/video_capture_device_avfoundation_helpers.h"
 
 namespace {
 
@@ -45,10 +50,7 @@ class DeviceInfo {
 class DeviceMonitorMacImpl {
  public:
   explicit DeviceMonitorMacImpl(media::DeviceMonitorMac* monitor)
-      : monitor_(monitor),
-        cached_devices_(),
-        device_arrival_(nil),
-        device_removal_(nil) {
+      : monitor_(monitor) {
     DCHECK(monitor);
     // Initialise the devices_cache_ with a not-valid entry. For the case in
     // which there is one single device in the system and we get notified when
@@ -71,13 +73,16 @@ class DeviceMonitorMacImpl {
   void ConsolidateDevicesListAndNotify(
       const std::vector<DeviceInfo>& snapshot_devices);
 
- protected:
-  media::DeviceMonitorMac* monitor_;
-  std::vector<DeviceInfo> cached_devices_;
+  media::DeviceMonitorMac* monitor() const { return monitor_; }
 
+ protected:
   // Handles to NSNotificationCenter block observers.
-  id device_arrival_;
-  id device_removal_;
+  id device_arrival_ = nil;
+  id device_removal_ = nil;
+
+ private:
+  raw_ptr<media::DeviceMonitorMac> monitor_;
+  std::vector<DeviceInfo> cached_devices_;
 };
 
 void DeviceMonitorMacImpl::ConsolidateDevicesListAndNotify(
@@ -92,7 +97,7 @@ void DeviceMonitorMacImpl::ConsolidateDevicesListAndNotify(
   std::vector<DeviceInfo>::const_iterator it;
   for (it = snapshot_devices.begin(); it != snapshot_devices.end(); ++it) {
     std::vector<DeviceInfo>::iterator cached_devices_iterator =
-        std::find(cached_devices_.begin(), cached_devices_.end(), *it);
+        base::ranges::find(cached_devices_, *it);
     if (cached_devices_iterator == cached_devices_.end()) {
       video_device_added |= ((it->type() == DeviceInfo::kVideo) ||
                              (it->type() == DeviceInfo::kMuxed));
@@ -111,12 +116,29 @@ void DeviceMonitorMacImpl::ConsolidateDevicesListAndNotify(
   // Update the cached devices with the current system snapshot.
   cached_devices_ = snapshot_devices;
 
-  if (video_device_added || video_device_removed)
+  if (video_device_added || video_device_removed) {
     monitor_->NotifyDeviceChanged(base::SystemMonitor::DEVTYPE_VIDEO_CAPTURE);
+  }
 }
 
 // Forward declaration for use by CrAVFoundationDeviceObserver.
 class SuspendObserverDelegate;
+
+BASE_FEATURE(kUseAVCaptureDeviceDiscoverySessionDeviceMonitor,
+             "UseAVCaptureDeviceDiscoverySessionDeviceMonitor",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, this feature will cache devices in DeviceMonitorMac. In this
+// case, MediaDevicesManager::OnDevicesChanged event will only be sent if
+// DeviceMonitorMac sees a difference in snapshot devices vs cached devices.
+BASE_FEATURE(kCacheResultsInDeviceMontiorMac,
+             "CacheResultsInDeviceMontiorMac",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+NSArray<AVCaptureDevice*>* ListCameras() {
+  return media::GetVideoCaptureDevices(base::FeatureList::IsEnabled(
+      kUseAVCaptureDeviceDiscoverySessionDeviceMonitor));
+}
 
 }  // namespace
 
@@ -183,7 +205,7 @@ class SuspendObserverDelegate
   void DoOnDeviceChanged(NSArray* devices);
 
   base::scoped_nsobject<CrAVFoundationDeviceObserver> suspend_observer_;
-  DeviceMonitorMacImpl* avfoundation_monitor_impl_;
+  raw_ptr<DeviceMonitorMacImpl> avfoundation_monitor_impl_;
 
   // Pegged to the "main" thread -- usually content::BrowserThread::UI.
   base::ThreadChecker main_thread_checker_;
@@ -206,9 +228,9 @@ void SuspendObserverDelegate::StartObserver(
   // Enumerate the devices in Device thread and post the observers start to be
   // done on UI thread. The devices array is retained in |device_thread| and
   // released in DoStartObserver().
-  base::PostTaskAndReplyWithResult(
-      device_thread.get(), FROM_HERE, base::BindOnce(base::RetainBlock(^{
-        return [[AVCaptureDevice devices] retain];
+  device_thread->PostTaskAndReplyWithResult(
+      FROM_HERE, base::BindOnce(base::RetainBlock(^{
+        return [ListCameras() retain];
       })),
       base::BindOnce(&SuspendObserverDelegate::DoStartObserver, this));
 }
@@ -216,19 +238,30 @@ void SuspendObserverDelegate::StartObserver(
 void SuspendObserverDelegate::OnDeviceChanged(
     const scoped_refptr<base::SingleThreadTaskRunner>& device_thread) {
   DCHECK(main_thread_checker_.CalledOnValidThread());
-  // Enumerate the devices in Device thread and post the consolidation of the
-  // new devices and the old ones to be done on main thread. The devices array
-  // is retained in |device_thread| and released in DoOnDeviceChanged().
-  PostTaskAndReplyWithResult(
-      device_thread.get(), FROM_HERE, base::BindOnce(base::RetainBlock(^{
-        return [[AVCaptureDevice devices] retain];
-      })),
-      base::BindOnce(&SuspendObserverDelegate::DoOnDeviceChanged, this));
+  if (base::FeatureList::IsEnabled(kCacheResultsInDeviceMontiorMac)) {
+    // Enumerate the devices in Device thread and post the consolidation of the
+    // new devices and the old ones to be done on main thread. The devices array
+    // is retained in |device_thread| and released in DoOnDeviceChanged().
+    device_thread->PostTaskAndReplyWithResult(
+        FROM_HERE, base::BindOnce(base::RetainBlock(^{
+          return [ListCameras() retain];
+        })),
+        base::BindOnce(&SuspendObserverDelegate::DoOnDeviceChanged, this));
+  } else {
+    // |avfoundation_monitor_impl_| might have been NULLed asynchronously before
+    // arriving at this line.
+    if (avfoundation_monitor_impl_) {
+      // Forward the event to MediaDevicesManager::OnDevicesChanged, which will
+      // enumerate the devices on its own.
+      avfoundation_monitor_impl_->monitor()->NotifyDeviceChanged(
+          base::SystemMonitor::DEVTYPE_VIDEO_CAPTURE);
+    }
+  }
 }
 
 void SuspendObserverDelegate::ResetDeviceMonitor() {
   DCHECK(main_thread_checker_.CalledOnValidThread());
-  avfoundation_monitor_impl_ = NULL;
+  avfoundation_monitor_impl_ = nullptr;
   [suspend_observer_ clearOnDeviceChangedCallback];
 }
 
@@ -253,12 +286,12 @@ void SuspendObserverDelegate::DoOnDeviceChanged(NSArray* devices) {
     base::scoped_nsobject<AVCaptureDevice> device_ptr([device retain]);
     [suspend_observer_ startObserving:device_ptr];
 
-    BOOL suspended = [device respondsToSelector:@selector(isSuspended)] &&
-                     [device isSuspended];
+    BOOL suspended = [device isSuspended];
     DeviceInfo::DeviceType device_type = DeviceInfo::kUnknown;
     if ([device hasMediaType:AVMediaTypeVideo]) {
-      if (suspended)
+      if (suspended) {
         continue;
+      }
       device_type = DeviceInfo::kVideo;
     } else if ([device hasMediaType:AVMediaTypeMuxed]) {
       device_type = suspended ? DeviceInfo::kAudio : DeviceInfo::kMuxed;
@@ -366,8 +399,9 @@ void AVFoundationMonitorImpl::OnDeviceChanged() {
   DCHECK(_mainThreadChecker.CalledOnValidThread());
   std::set<base::scoped_nsobject<AVCaptureDevice>>::iterator it =
       _monitoredDevices.begin();
-  while (it != _monitoredDevices.end())
+  while (it != _monitoredDevices.end()) {
     [self removeObservers:*(it++)];
+  }
   [super dealloc];
 }
 
@@ -375,8 +409,7 @@ void AVFoundationMonitorImpl::OnDeviceChanged() {
   DCHECK(_mainThreadChecker.CalledOnValidThread());
   DCHECK(device != nil);
   // Skip this device if there are already observers connected to it.
-  if (std::find(_monitoredDevices.begin(), _monitoredDevices.end(), device) !=
-      _monitoredDevices.end()) {
+  if (base::Contains(_monitoredDevices, device)) {
     return;
   }
   [device addObserver:self
@@ -395,7 +428,7 @@ void AVFoundationMonitorImpl::OnDeviceChanged() {
   DCHECK(device != nil);
 
   std::set<base::scoped_nsobject<AVCaptureDevice>>::iterator found =
-      std::find(_monitoredDevices.begin(), _monitoredDevices.end(), device);
+      base::ranges::find(_monitoredDevices, device);
   DCHECK(found != _monitoredDevices.end());
   [self removeObservers:*found];
   _monitoredDevices.erase(found);
@@ -410,10 +443,8 @@ void AVFoundationMonitorImpl::OnDeviceChanged() {
   DCHECK(_mainThreadChecker.CalledOnValidThread());
   // Check sanity of |device| via its -observationInfo. http://crbug.com/371271.
   if ([device observationInfo]) {
-    [device removeObserver:self
-                forKeyPath:@"suspended"];
-    [device removeObserver:self
-                forKeyPath:@"connected"];
+    [device removeObserver:self forKeyPath:@"suspended"];
+    [device removeObserver:self forKeyPath:@"connected"];
   }
 }
 
@@ -422,10 +453,12 @@ void AVFoundationMonitorImpl::OnDeviceChanged() {
                         change:(NSDictionary*)change
                        context:(void*)context {
   DCHECK(_mainThreadChecker.CalledOnValidThread());
-  if ([keyPath isEqual:@"suspended"])
+  if ([keyPath isEqual:@"suspended"]) {
     _onDeviceChangedCallback.Run();
-  if ([keyPath isEqual:@"connected"])
+  }
+  if ([keyPath isEqual:@"connected"]) {
     [self stopObserving:static_cast<AVCaptureDevice*>(context)];
+  }
 }
 
 @end  // @implementation CrAVFoundationDeviceObserver

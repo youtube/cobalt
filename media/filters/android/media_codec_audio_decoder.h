@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "media/base/android/media_codec_loop.h"
@@ -69,7 +69,7 @@
 // [Ready]       [Error]
 
 namespace base {
-class SingleThreadTaskRunner;
+class SequencedTaskRunner;
 }
 
 namespace media {
@@ -80,7 +80,7 @@ class MEDIA_EXPORT MediaCodecAudioDecoder : public AudioDecoder,
                                             public MediaCodecLoop::Client {
  public:
   explicit MediaCodecAudioDecoder(
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+      scoped_refptr<base::SequencedTaskRunner> task_runner);
 
   MediaCodecAudioDecoder(const MediaCodecAudioDecoder&) = delete;
   MediaCodecAudioDecoder& operator=(const MediaCodecAudioDecoder&) = delete;
@@ -142,7 +142,7 @@ class MEDIA_EXPORT MediaCodecAudioDecoder : public AudioDecoder,
 
   // Calls DecodeCB with |decode_status| for every frame in |input_queue| and
   // then clears it.
-  void ClearInputQueue(DecodeStatus decode_status);
+  void ClearInputQueue(DecoderStatus decode_status);
 
   // Helper method to change the state.
   void SetState(State new_state);
@@ -159,9 +159,8 @@ class MEDIA_EXPORT MediaCodecAudioDecoder : public AudioDecoder,
   // A helper function for logging.
   static const char* AsString(State state);
 
-  // Used to post tasks. This class is single threaded and every method should
-  // run on this task runner.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  // Used to post tasks.
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   State state_;
 
@@ -201,7 +200,7 @@ class MEDIA_EXPORT MediaCodecAudioDecoder : public AudioDecoder,
   // CDM related stuff.
 
   // Owned by CDM which is external to this decoder.
-  MediaCryptoContext* media_crypto_context_;
+  raw_ptr<MediaCryptoContext> media_crypto_context_;
 
   // To keep the CdmContext event callback registered.
   std::unique_ptr<CallbackRegistration> event_cb_registration_;

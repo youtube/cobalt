@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,8 +16,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/mac/scoped_nsobject.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #import "media/capture/video/mac/video_capture_device_avfoundation_mac.h"
 #include "media/capture/video/video_capture_device.h"
@@ -38,21 +37,21 @@ CAPTURE_EXPORT
   base::scoped_nsobject<NSString> _deviceName;
   // The transport type of the device (USB, PCI, etc), values are defined in
   // <IOKit/audio/IOAudioTypes.h> as kIOAudioDeviceTransportType*.
-  int32_t _transportType;
+  media::VideoCaptureTransportType _transportType;
 }
 
 - (instancetype)initWithName:(NSString*)name
-               transportType:(int32_t)transportType;
+               transportType:(media::VideoCaptureTransportType)transportType;
 
 - (NSString*)deviceName;
-- (int32_t)transportType;
+- (media::VideoCaptureTransportType)deviceTransportType;
 @end
 
 namespace media {
 
 // Called by VideoCaptureManager to open, close and start, stop Mac video
 // capture devices.
-class VideoCaptureDeviceMac
+class CAPTURE_EXPORT VideoCaptureDeviceMac
     : public VideoCaptureDevice,
       public VideoCaptureDeviceAVFoundationFrameReceiver {
  public:
@@ -74,8 +73,7 @@ class VideoCaptureDeviceMac
   void SetPhotoOptions(mojom::PhotoSettingsPtr settings,
                        SetPhotoOptionsCallback callback) override;
   // VideoFrameConsumerFeedbackObserver implementation.
-  void OnUtilizationReport(int frame_feedback_id,
-                           media::VideoCaptureFeedback feedback) override;
+  void OnUtilizationReport(media::VideoCaptureFeedback feedback) override;
 
   bool Init(VideoCaptureApi capture_api_type);
 
@@ -98,9 +96,13 @@ class VideoCaptureDeviceMac
   void ReceiveError(VideoCaptureError error,
                     const base::Location& from_here,
                     const std::string& reason) override;
+  void ReceiveCaptureConfigurationChanged() override;
 
   // Forwarder to VideoCaptureDevice::Client::OnLog().
   void LogMessage(const std::string& message);
+
+  void SetIsPortraitEffectSupportedForTesting(bool isPortraitEffectSupported);
+  void SetIsPortraitEffectActiveForTesting(bool isPortraitEffectActive);
 
   static std::string GetDeviceModelId(const std::string& device_id,
                                       VideoCaptureApi capture_api,
@@ -114,6 +116,7 @@ class VideoCaptureDeviceMac
                      const base::Location& from_here,
                      const std::string& reason);
   bool UpdateCaptureResolution();
+  void OnCaptureConfigurationChanged();
 
   // Flag indicating the internal state.
   enum InternalState { kNotInitialized, kIdle, kCapturing, kError };

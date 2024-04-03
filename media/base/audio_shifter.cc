@@ -1,4 +1,4 @@
-// Copyright (c) 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,9 +8,8 @@
 #include <cmath>
 #include <utility>
 
-#include "base/bind.h"
 #include "base/containers/circular_deque.h"
-#include "base/cxx17_backports.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_bus.h"
@@ -91,14 +90,11 @@ AudioShifter::AudioShifter(base::TimeDelta max_buffer_size,
       input_clock_smoother_(new ClockSmoother(clock_accuracy)),
       output_clock_smoother_(new ClockSmoother(clock_accuracy)),
       running_(false),
-      position_(0),
-      previous_requested_samples_(0),
       resampler_(channels,
                  1.0,
-                 96,
+                 128,
                  base::BindRepeating(&AudioShifter::ResamplerCallback,
-                                     base::Unretained(this))),
-      current_ratio_(1.0) {}
+                                     base::Unretained(this))) {}
 
 AudioShifter::~AudioShifter() = default;
 
@@ -106,6 +102,8 @@ void AudioShifter::Push(std::unique_ptr<AudioBus> input,
                         base::TimeTicks playout_time) {
   TRACE_EVENT1("audio", "AudioShifter::Push", "time (ms)",
                (playout_time - base::TimeTicks()).InMillisecondsF());
+  DCHECK_EQ(input->channels(), channels_);
+  frames_pushed_for_testing_ += input->frames();
   if (!queue_.empty()) {
     playout_time = input_clock_smoother_->Smooth(
         playout_time, base::Seconds(queue_.back().audio->frames() / rate_));
@@ -126,8 +124,8 @@ void AudioShifter::Pull(AudioBus* output,
                (playout_time - base::TimeTicks()).InMillisecondsF());
   // Add the kernel size since we incur some internal delay in resampling. All
   // resamplers incur some delay, and for the SincResampler (used by
-  // MultiChannelResampler), this is (currently) kKernelSize / 2 frames.
-  playout_time += base::Seconds(SincResampler::kKernelSize / 2 / rate_);
+  // MultiChannelResampler), this is (currently) KernelSize() / 2 frames.
+  playout_time += base::Seconds(resampler_.KernelSize() / 2 / rate_);
   playout_time = output_clock_smoother_->Smooth(
       playout_time, base::Seconds(previous_requested_samples_ / rate_));
   previous_requested_samples_ = output->frames();
@@ -200,13 +198,13 @@ void AudioShifter::Pull(AudioBus* output,
   // This is the ratio we would need to get perfect sync after
   // |adjustment_time_| has passed.
   double slow_ratio = steady_ratio + time_difference / adjustment_time_;
-  slow_ratio = base::clamp(slow_ratio, 0.9, 1.1);
+  slow_ratio = std::clamp(slow_ratio, 0.9, 1.1);
   const base::TimeDelta adjustment_time =
       base::Seconds(output->frames() / rate_);
   // This is ratio we we'd need get perfect sync at the end of the
   // current output audiobus.
   double fast_ratio = steady_ratio + time_difference / adjustment_time;
-  fast_ratio = base::clamp(fast_ratio, 0.9, 1.1);
+  fast_ratio = std::clamp(fast_ratio, 0.9, 1.1);
 
   // If the current ratio is somewhere between the slow and the fast
   // ratio, then keep it. This means we don't have to recalculate the
@@ -220,7 +218,7 @@ void AudioShifter::Pull(AudioBus* output,
       // perfect sync in the alloted time. Clamp.
       double max_ratio = std::max(fast_ratio, slow_ratio);
       double min_ratio = std::min(fast_ratio, slow_ratio);
-      current_ratio_ = base::clamp(current_ratio_, min_ratio, max_ratio);
+      current_ratio_ = std::clamp(current_ratio_, min_ratio, max_ratio);
     } else {
       // The "direction" has changed. (From speed up to slow down or
       // vice versa, so we just take the slow ratio.

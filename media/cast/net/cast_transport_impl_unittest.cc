@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,16 +10,21 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/values.h"
 #include "media/base/fake_single_thread_task_runner.h"
+#include "media/cast/common/encoded_frame.h"
 #include "media/cast/net/cast_transport_config.h"
 #include "media/cast/net/rtcp/rtcp_defines.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/openscreen/src/cast/streaming/encoded_frame.h"
+
+using Dependency = openscreen::cast::EncodedFrame::Dependency;
 
 namespace media {
 namespace cast {
@@ -34,11 +39,12 @@ class StubRtcpObserver : public RtcpObserver {
  public:
   StubRtcpObserver() = default;
 
+  StubRtcpObserver(const StubRtcpObserver&) = delete;
+  StubRtcpObserver& operator=(const StubRtcpObserver&) = delete;
+
   void OnReceivedCastMessage(const RtcpCastMessage& cast_message) final {}
   void OnReceivedRtt(base::TimeDelta round_trip_time) final {}
   void OnReceivedPli() final {}
-
-  DISALLOW_COPY_AND_ASSIGN(StubRtcpObserver);
 };
 
 }  // namespace
@@ -46,6 +52,9 @@ class StubRtcpObserver : public RtcpObserver {
 class FakePacketSender : public PacketTransport {
  public:
   FakePacketSender() : paused_(false), packets_sent_(0), bytes_sent_(0) {}
+
+  FakePacketSender(const FakePacketSender&) = delete;
+  FakePacketSender& operator=(const FakePacketSender&) = delete;
 
   bool SendPacket(PacketRef packet, base::OnceClosure cb) final {
     if (paused_) {
@@ -80,8 +89,6 @@ class FakePacketSender : public PacketTransport {
   PacketRef stored_packet_;
   int packets_sent_;
   int64_t bytes_sent_;
-
-  DISALLOW_COPY_AND_ASSIGN(FakePacketSender);
 };
 
 class CastTransportImplTest : public ::testing::Test {
@@ -121,7 +128,7 @@ class CastTransportImplTest : public ::testing::Test {
   base::SimpleTestTickClock testing_clock_;
   scoped_refptr<FakeSingleThreadTaskRunner> task_runner_;
   std::unique_ptr<CastTransportImpl> transport_sender_;
-  FakePacketSender* transport_;  // Owned by CastTransport.
+  raw_ptr<FakePacketSender> transport_;  // Owned by CastTransport.
   int num_times_logging_callback_called_;
 };
 
@@ -133,6 +140,9 @@ class TransportClient : public CastTransport::Client {
       CastTransportImplTest* cast_transport_sender_impl_test)
       : cast_transport_sender_impl_test_(cast_transport_sender_impl_test) {}
 
+  TransportClient(const TransportClient&) = delete;
+  TransportClient& operator=(const TransportClient&) = delete;
+
   void OnStatusChanged(CastTransportStatus status) final {}
   void OnLoggingEventsReceived(
       std::unique_ptr<std::vector<FrameEvent>> frame_events,
@@ -143,9 +153,7 @@ class TransportClient : public CastTransport::Client {
   void ProcessRtpPacket(std::unique_ptr<Packet> packet) final {}
 
  private:
-  CastTransportImplTest* const cast_transport_sender_impl_test_;
-
-  DISALLOW_COPY_AND_ASSIGN(TransportClient);
+  const raw_ptr<CastTransportImplTest> cast_transport_sender_impl_test_;
 };
 
 }  // namespace
@@ -154,23 +162,23 @@ void CastTransportImplTest::InitWithoutLogging() {
   transport_ = new FakePacketSender();
   transport_sender_ = std::make_unique<CastTransportImpl>(
       &testing_clock_, base::TimeDelta(),
-      std::make_unique<TransportClient>(nullptr), base::WrapUnique(transport_),
-      task_runner_);
+      std::make_unique<TransportClient>(nullptr),
+      base::WrapUnique(transport_.get()), task_runner_);
   task_runner_->RunTasks();
 }
 
 void CastTransportImplTest::InitWithOptions() {
-  std::unique_ptr<base::DictionaryValue> options(new base::DictionaryValue);
-  options->SetBoolean("disable_wifi_scan", true);
-  options->SetBoolean("media_streaming_mode", true);
-  options->SetInteger("pacer_target_burst_size", 20);
-  options->SetInteger("pacer_max_burst_size", 100);
+  base::Value::Dict options;
+  options.Set("disable_wifi_scan", true);
+  options.Set("media_streaming_mode", true);
+  options.Set("pacer_target_burst_size", 20);
+  options.Set("pacer_max_burst_size", 100);
   transport_ = new FakePacketSender();
   transport_sender_ = std::make_unique<CastTransportImpl>(
       &testing_clock_, base::TimeDelta(),
-      std::make_unique<TransportClient>(nullptr), base::WrapUnique(transport_),
-      task_runner_);
-  transport_sender_->SetOptions(*options);
+      std::make_unique<TransportClient>(nullptr),
+      base::WrapUnique(transport_.get()), task_runner_);
+  transport_sender_->SetOptions(options);
   task_runner_->RunTasks();
 }
 
@@ -178,8 +186,8 @@ void CastTransportImplTest::InitWithLogging() {
   transport_ = new FakePacketSender();
   transport_sender_ = std::make_unique<CastTransportImpl>(
       &testing_clock_, base::Milliseconds(10),
-      std::make_unique<TransportClient>(this), base::WrapUnique(transport_),
-      task_runner_);
+      std::make_unique<TransportClient>(this),
+      base::WrapUnique(transport_.get()), task_runner_);
   task_runner_->RunTasks();
 }
 
@@ -206,7 +214,7 @@ TEST_F(CastTransportImplTest, NacksCancelRetransmits) {
   fake_frame.frame_id = FrameId::first() + 1;
   fake_frame.referenced_frame_id = FrameId::first() + 1;
   fake_frame.rtp_timestamp = RtpTimeTicks().Expand(UINT32_C(1));
-  fake_frame.dependency = EncodedFrame::KEY;
+  fake_frame.dependency = Dependency::kKeyFrame;
   fake_frame.data.resize(5000, ' ');
 
   transport_sender_->InsertFrame(kVideoSsrc, fake_frame);
@@ -254,7 +262,7 @@ TEST_F(CastTransportImplTest, CancelRetransmits) {
   fake_frame.frame_id = FrameId::first() + 1;
   fake_frame.referenced_frame_id = FrameId::first() + 1;
   fake_frame.rtp_timestamp = RtpTimeTicks().Expand(UINT32_C(1));
-  fake_frame.dependency = EncodedFrame::KEY;
+  fake_frame.dependency = Dependency::kKeyFrame;
   fake_frame.data.resize(5000, ' ');
 
   transport_sender_->InsertFrame(kVideoSsrc, fake_frame);
@@ -297,7 +305,7 @@ TEST_F(CastTransportImplTest, Kickstart) {
   fake_frame.frame_id = FrameId::first() + 1;
   fake_frame.referenced_frame_id = FrameId::first() + 1;
   fake_frame.rtp_timestamp = RtpTimeTicks().Expand(UINT32_C(1));
-  fake_frame.dependency = EncodedFrame::KEY;
+  fake_frame.dependency = Dependency::kKeyFrame;
   fake_frame.data.resize(5000, ' ');
 
   transport_->SetPaused(true);
@@ -340,7 +348,7 @@ TEST_F(CastTransportImplTest, DedupRetransmissionWithAudio) {
   fake_audio.frame_id = FrameId::first() + 1;
   fake_audio.referenced_frame_id = FrameId::first() + 1;
   fake_audio.reference_time = testing_clock_.NowTicks();
-  fake_audio.dependency = EncodedFrame::KEY;
+  fake_audio.dependency = Dependency::kKeyFrame;
   fake_audio.data.resize(100, ' ');
   transport_sender_->InsertFrame(kAudioSsrc, fake_audio);
   task_runner_->Sleep(base::Milliseconds(2));
@@ -363,7 +371,7 @@ TEST_F(CastTransportImplTest, DedupRetransmissionWithAudio) {
   EncodedFrame fake_video;
   fake_video.frame_id = FrameId::first() + 1;
   fake_video.referenced_frame_id = FrameId::first() + 1;
-  fake_video.dependency = EncodedFrame::KEY;
+  fake_video.dependency = Dependency::kKeyFrame;
   fake_video.data.resize(5000, ' ');
   transport_sender_->InsertFrame(kVideoSsrc, fake_video);
   task_runner_->RunTasks();

@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "gpu/command_buffer/service/ref_counted_lock.h"
@@ -31,6 +32,10 @@ class MEDIA_GPU_EXPORT CodecBufferWaitCoordinator
   explicit CodecBufferWaitCoordinator(
       scoped_refptr<gpu::TextureOwner> texture_owner,
       scoped_refptr<gpu::RefCountedLock> drdc_lock);
+
+  CodecBufferWaitCoordinator(const CodecBufferWaitCoordinator&) = delete;
+  CodecBufferWaitCoordinator& operator=(const CodecBufferWaitCoordinator&) =
+      delete;
 
   scoped_refptr<gpu::TextureOwner> texture_owner() const {
     DCHECK(texture_owner_);
@@ -71,8 +76,6 @@ class MEDIA_GPU_EXPORT CodecBufferWaitCoordinator
   Tuneable<base::TimeDelta> max_wait_ = {
       "MediaCodecOutputBufferMaxWaitTime", base::Milliseconds(0),
       base::Milliseconds(5), base::Milliseconds(20)};
-
-  DISALLOW_COPY_AND_ASSIGN(CodecBufferWaitCoordinator);
 };
 
 }  // namespace media

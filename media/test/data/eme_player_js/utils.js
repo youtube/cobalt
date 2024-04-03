@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -56,7 +56,7 @@ Utils.createJWKData = function(keyId, key) {
 
   // Creates a JWK from raw key ID and key.
   function createJWK(keyId, key) {
-    var jwk = '{"kty":"oct","alg":"A128KW","kid":"';
+    var jwk = '{"kty":"oct","kid":"';
     jwk += Utils.base64urlEncode(Utils.convertToUint8Array(keyId));
     jwk += '","k":"';
     jwk += Utils.base64urlEncode(Utils.convertToUint8Array(key));
@@ -72,7 +72,7 @@ Utils.createJWKData = function(keyId, key) {
         jwkSet += ',';
       jwkSet += arguments[i];
     }
-    jwkSet += ']}';
+    jwkSet += '], "type":"temporary"}';
     return jwkSet;
   }
 

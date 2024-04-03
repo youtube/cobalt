@@ -1,16 +1,16 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/tuneable.h"
 
+#include <algorithm>
 #include <random>
 
-#include "base/cxx17_backports.h"
 #include "base/hash/hash.h"
 #include "base/metrics/field_trial_params.h"
-#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/time/time.h"
 #include "media/base/media_switches.h"
 
 namespace {
@@ -32,7 +32,7 @@ int GetParam<int>(const char* name,
                   int minimum_value,
                   int default_value,
                   int maximum_value) {
-  return base::clamp(
+  return std::clamp(
       base::FeatureParam<int>(&::media::kMediaOptimizer, name, default_value)
           .Get(),
       minimum_value, maximum_value);

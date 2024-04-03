@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,15 +15,15 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include <algorithm>
 #include <memory>
 
-#include "base/cxx17_backports.h"
+#include "base/containers/contains.h"
 #include "base/files/scoped_file.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "gpu/command_buffer/service/shared_image/gl_image_native_pixmap.h"
 #include "media/base/video_types.h"
 #include "media/gpu/buildflags.h"
 #include "media/gpu/chromeos/fourcc.h"
@@ -33,19 +33,14 @@
 #include "ui/gfx/native_pixmap_handle.h"
 #include "ui/gl/egl_util.h"
 #include "ui/gl/gl_bindings.h"
-#include "ui/gl/gl_image_native_pixmap.h"
-#include "ui/ozone/public/ozone_platform.h"
-#include "ui/ozone/public/surface_factory_ozone.h"
 
-#if BUILDFLAG(USE_LIBV4L2)
 // Auto-generated for dlopen libv4l2 libraries
 #include "media/gpu/v4l2/v4l2_stubs.h"
 #include "third_party/v4l-utils/lib/include/libv4l2.h"
 
-using media_gpu_v4l2::kModuleV4l2;
 using media_gpu_v4l2::InitializeStubs;
+using media_gpu_v4l2::kModuleV4l2;
 using media_gpu_v4l2::StubPathMap;
-#endif
 
 namespace media {
 
@@ -76,9 +71,7 @@ uint32_t V4L2PixFmtToDrmFormat(uint32_t format) {
 }  // namespace
 
 GenericV4L2Device::GenericV4L2Device() {
-#if BUILDFLAG(USE_LIBV4L2)
   use_libv4l2_ = false;
-#endif
 }
 
 GenericV4L2Device::~GenericV4L2Device() {
@@ -87,10 +80,10 @@ GenericV4L2Device::~GenericV4L2Device() {
 
 int GenericV4L2Device::Ioctl(int request, void* arg) {
   DCHECK(device_fd_.is_valid());
-#if BUILDFLAG(USE_LIBV4L2)
+
   if (use_libv4l2_)
     return HANDLE_EINTR(v4l2_ioctl(device_fd_.get(), request, arg));
-#endif
+
   return HANDLE_EINTR(ioctl(device_fd_.get(), request, arg));
 }
 
@@ -231,11 +224,8 @@ bool GenericV4L2Device::CanCreateEGLImageFrom(const Fourcc fourcc) const {
 #endif
   };
 
-  return std::find(
-             kEGLImageDrmFmtsSupported,
-             kEGLImageDrmFmtsSupported + base::size(kEGLImageDrmFmtsSupported),
-             V4L2PixFmtToDrmFormat(fourcc.ToV4L2PixFmt())) !=
-         kEGLImageDrmFmtsSupported + base::size(kEGLImageDrmFmtsSupported);
+  return base::Contains(kEGLImageDrmFmtsSupported,
+                        V4L2PixFmtToDrmFormat(fourcc.ToV4L2PixFmt()));
 }
 
 EGLImageKHR GenericV4L2Device::CreateEGLImage(
@@ -287,46 +277,6 @@ EGLImageKHR GenericV4L2Device::CreateEGLImage(
   glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, egl_image);
 
   return egl_image;
-}
-
-scoped_refptr<gl::GLImage> GenericV4L2Device::CreateGLImage(
-    const gfx::Size& size,
-    const Fourcc fourcc,
-    gfx::NativePixmapHandle handle) const {
-  DVLOGF(3);
-  DCHECK(CanCreateEGLImageFrom(fourcc));
-
-  size_t num_planes = handle.planes.size();
-  DCHECK_LE(num_planes, 3u);
-
-  gfx::BufferFormat buffer_format = gfx::BufferFormat::BGRA_8888;
-  switch (fourcc.ToV4L2PixFmt()) {
-    case DRM_FORMAT_ARGB8888:
-      buffer_format = gfx::BufferFormat::BGRA_8888;
-      break;
-    case DRM_FORMAT_NV12:
-      buffer_format = gfx::BufferFormat::YUV_420_BIPLANAR;
-      break;
-    case DRM_FORMAT_YVU420:
-      buffer_format = gfx::BufferFormat::YVU_420;
-      break;
-    default:
-      NOTREACHED();
-  }
-
-  scoped_refptr<gfx::NativePixmap> pixmap =
-      ui::OzonePlatform::GetInstance()
-          ->GetSurfaceFactoryOzone()
-          ->CreateNativePixmapFromHandle(0, size, buffer_format,
-                                         std::move(handle));
-
-  DCHECK(pixmap);
-
-  auto image =
-      base::MakeRefCounted<gl::GLImageNativePixmap>(size, buffer_format);
-  bool ret = image->Initialize(std::move(pixmap));
-  DCHECK(ret);
-  return image;
 }
 
 EGLBoolean GenericV4L2Device::DestroyEGLImage(EGLDisplay egl_display,
@@ -440,42 +390,34 @@ bool GenericV4L2Device::OpenDevicePath(const std::string& path, Type type) {
   if (!device_fd_.is_valid())
     return false;
 
-#if BUILDFLAG(USE_LIBV4L2)
-  if (type == Type::kEncoder &&
-      HANDLE_EINTR(v4l2_fd_open(device_fd_.get(), V4L2_DISABLE_CONVERSION)) !=
-          -1) {
-    DVLOGF(3) << "Using libv4l2 for " << path;
-    use_libv4l2_ = true;
+  if (V4L2Device::UseLibV4L2()) {
+    if (type == Type::kEncoder &&
+        HANDLE_EINTR(v4l2_fd_open(device_fd_.get(), V4L2_DISABLE_CONVERSION)) !=
+            -1) {
+      DVLOGF(3) << "Using libv4l2 for " << path;
+      use_libv4l2_ = true;
+    }
   }
-#endif
   return true;
 }
 
 void GenericV4L2Device::CloseDevice() {
   DVLOGF(3);
-#if BUILDFLAG(USE_LIBV4L2)
   if (use_libv4l2_ && device_fd_.is_valid())
     v4l2_close(device_fd_.release());
-#endif
   device_fd_.reset();
 }
 
 // static
 bool GenericV4L2Device::PostSandboxInitialization() {
-#if BUILDFLAG(USE_LIBV4L2)
-  static const base::FilePath::CharType kV4l2Lib[] =
-#if defined(ARCH_CPU_64_BITS)
-      FILE_PATH_LITERAL("/usr/lib64/libv4l2.so");
-#else
-      FILE_PATH_LITERAL("/usr/lib/libv4l2.so");
-#endif  // defined(ARCH_CPU_64_BITS)
-  StubPathMap paths;
-  paths[kModuleV4l2].push_back(kV4l2Lib);
+  if (V4L2Device::UseLibV4L2()) {
+    StubPathMap paths;
+    paths[kModuleV4l2].push_back(V4L2Device::kLibV4l2Path);
 
-  return InitializeStubs(paths);
-#else
-  return true;
-#endif
+    return InitializeStubs(paths);
+  } else {
+    return true;
+  }
 }
 
 void GenericV4L2Device::EnumerateDevicesForType(Type type) {
@@ -556,8 +498,7 @@ std::string GenericV4L2Device::GetDevicePathFor(Type type, uint32_t pixfmt) {
   const Devices& devices = GetDevicesForType(type);
 
   for (const auto& device : devices) {
-    if (std::find(device.second.begin(), device.second.end(), pixfmt) !=
-        device.second.end())
+    if (base::Contains(device.second, pixfmt))
       return device.first;
   }
 

@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,14 +6,15 @@
 
 #include <memory>
 
-#include "base/bind.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/test_simple_task_runner.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -56,6 +57,9 @@ class TaskServiceClient {
         count_(0u) {
     DCHECK(task_service);
   }
+
+  TaskServiceClient(const TaskServiceClient&) = delete;
+  TaskServiceClient& operator=(const TaskServiceClient&) = delete;
 
   bool Bind() { return task_service()->BindInstance(); }
 
@@ -114,16 +118,17 @@ class TaskServiceClient {
   }
 
   base::Lock lock_;
-  TaskService* task_service_;
+  raw_ptr<TaskService> task_service_;
   std::unique_ptr<base::WaitableEvent> wait_task_event_;
   size_t count_;
-
-  DISALLOW_COPY_AND_ASSIGN(TaskServiceClient);
 };
 
 class MidiTaskServiceTest : public ::testing::Test {
  public:
   MidiTaskServiceTest() = default;
+
+  MidiTaskServiceTest(const MidiTaskServiceTest&) = delete;
+  MidiTaskServiceTest& operator=(const MidiTaskServiceTest&) = delete;
 
  protected:
   TaskService* task_service() { return &task_service_; }
@@ -134,7 +139,8 @@ class MidiTaskServiceTest : public ::testing::Test {
     ResetEvent();
     task_runner_ = new base::TestSimpleTaskRunner();
     thread_task_runner_handle_ =
-        std::make_unique<base::ThreadTaskRunnerHandle>(task_runner_);
+        std::make_unique<base::SingleThreadTaskRunner::CurrentDefaultHandle>(
+            task_runner_);
   }
 
   void TearDown() override {
@@ -143,10 +149,9 @@ class MidiTaskServiceTest : public ::testing::Test {
   }
 
   scoped_refptr<base::TestSimpleTaskRunner> task_runner_;
-  std::unique_ptr<base::ThreadTaskRunnerHandle> thread_task_runner_handle_;
+  std::unique_ptr<base::SingleThreadTaskRunner::CurrentDefaultHandle>
+      thread_task_runner_handle_;
   TaskService task_service_;
-
-  DISALLOW_COPY_AND_ASSIGN(MidiTaskServiceTest);
 };
 
 // Tests if posted tasks without calling BindInstance() are ignored.

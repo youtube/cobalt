@@ -1,16 +1,18 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_REMOTING_STREAM_PROVIDER_H_
 #define MEDIA_REMOTING_STREAM_PROVIDER_H_
 
-#include "base/functional/callback_forward.h"
 #include "base/containers/circular_deque.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/sequenced_task_runner_helpers.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner_helpers.h"
+#include "base/task/single_thread_task_runner.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
@@ -43,16 +45,18 @@ class StreamProvider final : public Demuxer {
  public:
   StreamProvider(
       ReceiverController* receiver_controller,
-      const scoped_refptr<base::SingleThreadTaskRunner>& media_task_runner);
+      const scoped_refptr<base::SequencedTaskRunner>& media_task_runner);
 
   // Demuxer implementation.
   std::vector<DemuxerStream*> GetAllStreams() override;
   std::string GetDisplayName() const override;
+  DemuxerType GetDemuxerType() const override;
   void Initialize(DemuxerHost* host, PipelineStatusCallback status_cb) override;
   void AbortPendingReads() override;
   void StartWaitingForSeek(base::TimeDelta seek_time) override;
   void CancelPendingSeek(base::TimeDelta seek_time) override;
   void Seek(base::TimeDelta time, PipelineStatusCallback status_cb) override;
+  bool IsSeekable() const override;
   void Stop() override;
   base::TimeDelta GetStartTime() const override;
   base::Time GetTimelineOffset() const override;
@@ -65,6 +69,7 @@ class StreamProvider final : public Demuxer {
   void OnSelectedVideoTrackChanged(const std::vector<MediaTrack::Id>& track_ids,
                                    base::TimeDelta curr_time,
                                    TrackChangeCB change_completed_cb) override;
+  void SetPlaybackRate(double rate) override {}
 
  protected:
   // Deletion is only allowed via Destroy().
@@ -86,7 +91,7 @@ class StreamProvider final : public Demuxer {
         openscreen::cast::RpcMessenger* rpc_messenger,
         Type type,
         int32_t handle,
-        const scoped_refptr<base::SingleThreadTaskRunner>& media_task_runner,
+        const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
         base::OnceCallback<void(MediaStream::UniquePtr)> callback);
 
     // In order to destroy members in the right thread, MediaStream has to use
@@ -97,14 +102,14 @@ class StreamProvider final : public Demuxer {
         openscreen::cast::RpcMessenger* rpc_messenger,
         Type type,
         int32_t remote_handle,
-        const scoped_refptr<base::SingleThreadTaskRunner>& media_task_runner);
+        const scoped_refptr<base::SequencedTaskRunner>& media_task_runner);
 
     // DemuxerStream implementation.
-    void Read(ReadCB read_cb) override;
+    void Read(uint32_t count, ReadCB read_cb) override;
     AudioDecoderConfig audio_decoder_config() override;
     VideoDecoderConfig video_decoder_config() override;
     DemuxerStream::Type type() const override;
-    Liveness liveness() const override;
+    StreamLiveness liveness() const override;
     bool SupportsConfigChanges() override;
 
     void Initialize(base::OnceClosure init_done_cb);
@@ -169,9 +174,9 @@ class StreamProvider final : public Demuxer {
     void OnError(const std::string& error);
 
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
-    scoped_refptr<base::SingleThreadTaskRunner> media_task_runner_;
+    scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
 
-    openscreen::cast::RpcMessenger* const rpc_messenger_;
+    const raw_ptr<openscreen::cast::RpcMessenger> rpc_messenger_;
     const Type type_;
     const int remote_handle_;
     const int rpc_handle_;
@@ -246,9 +251,9 @@ class StreamProvider final : public Demuxer {
   void CompleteInitialize();
 
   scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
-  scoped_refptr<base::SingleThreadTaskRunner> media_task_runner_;
-  ReceiverController* const receiver_controller_;
-  openscreen::cast::RpcMessenger* const rpc_messenger_;
+  scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
+  const raw_ptr<ReceiverController> receiver_controller_;
+  const raw_ptr<openscreen::cast::RpcMessenger> rpc_messenger_;
   MediaStream::UniquePtr audio_stream_;
   MediaStream::UniquePtr video_stream_;
   bool has_audio_{false};

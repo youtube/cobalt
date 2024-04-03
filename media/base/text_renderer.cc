@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,12 +8,12 @@
 
 #include <utility>
 
-#include "base/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/check_op.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
-#include "base/single_thread_task_runner.h"
-#include "media/base/bind_to_current_loop.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/single_thread_task_runner.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer.h"
 #include "media/base/text_cue.h"
@@ -104,7 +104,7 @@ void TextRenderer::AddTextStream(DemuxerStream* text_stream,
   DCHECK(pending_eos_set_.find(text_stream) ==
          pending_eos_set_.end());
 
-  AddTextTrackDoneCB done_cb = BindToCurrentLoop(
+  AddTextTrackDoneCB done_cb = base::BindPostTaskToCurrentDefault(
       base::BindOnce(&TextRenderer::OnAddTextTrackDone,
                      weak_factory_.GetWeakPtr(), text_stream));
 
@@ -127,6 +127,14 @@ void TextRenderer::RemoveTextStream(DemuxerStream* text_stream) {
 bool TextRenderer::HasTracks() const {
   DCHECK(task_runner_->BelongsToCurrentThread());
   return !text_track_state_map_.empty();
+}
+
+void TextRenderer::OnBuffersRead(DemuxerStream* text_stream,
+                                 DemuxerStream::Status status,
+                                 DemuxerStream::DecoderBufferVector buffers) {
+  DCHECK_LE(buffers.size(), 1u) << "TextRenderer only reads a single-buffer.";
+  BufferReady(text_stream, status,
+              buffers.empty() ? nullptr : std::move(buffers[0]));
 }
 
 void TextRenderer::BufferReady(DemuxerStream* stream,
@@ -311,8 +319,8 @@ void TextRenderer::Read(
   state->read_state = TextTrackState::kReadPending;
   ++pending_read_count_;
 
-  text_stream->Read(base::BindOnce(&TextRenderer::BufferReady,
-                                   weak_factory_.GetWeakPtr(), text_stream));
+  text_stream->Read(1, base::BindOnce(&TextRenderer::OnBuffersRead,
+                                      weak_factory_.GetWeakPtr(), text_stream));
 }
 
 TextRenderer::TextTrackState::TextTrackState(std::unique_ptr<TextTrack> tt)

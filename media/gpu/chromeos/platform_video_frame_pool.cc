@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,8 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "base/task/post_task.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/trace_event/trace_event.h"
 #include "media/base/video_util.h"
 #include "media/gpu/chromeos/gpu_buffer_layout.h"
 #include "media/gpu/chromeos/platform_video_frame_utils.h"
@@ -20,34 +21,40 @@ namespace media {
 namespace {
 
 // The default method to create frames.
-scoped_refptr<VideoFrame> DefaultCreateFrame(
-    gpu::GpuMemoryBufferFactory* gpu_memory_buffer_factory,
+CroStatus::Or<scoped_refptr<VideoFrame>> DefaultCreateFrame(
     VideoPixelFormat format,
     const gfx::Size& coded_size,
     const gfx::Rect& visible_rect,
     const gfx::Size& natural_size,
     bool use_protected,
+    bool use_linear_buffers,
     base::TimeDelta timestamp) {
-  scoped_refptr<VideoFrame> frame = CreateGpuMemoryBufferVideoFrame(
-      gpu_memory_buffer_factory, format, coded_size, visible_rect, natural_size,
-      timestamp,
-      use_protected ? gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE
-                    : gfx::BufferUsage::SCANOUT_VDA_WRITE);
-  if (frame && use_protected) {
-    media::VideoFrameMetadata frame_metadata;
-    frame_metadata.protected_video = true;
-    frame_metadata.hw_protected = true;
-    frame->set_metadata(frame_metadata);
+  if (use_protected && use_linear_buffers) {
+    VLOGF(1) << "Linear buffers are unsupported when |use_protected| is true.";
+    return CroStatus::Codes::kFailedToCreateVideoFrame;
   }
+
+  scoped_refptr<VideoFrame> frame = CreateGpuMemoryBufferVideoFrame(
+      format, coded_size, visible_rect, natural_size, timestamp,
+      use_protected
+          ? gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE
+          : (use_linear_buffers ? gfx::BufferUsage::SCANOUT_CPU_READ_WRITE
+                                : gfx::BufferUsage::SCANOUT_VDA_WRITE));
+  if (!frame)
+    return CroStatus::Codes::kFailedToCreateVideoFrame;
+
+  // A SCANOUT usage was requested for the allocated |frame|, so there's a
+  // possibility that it can be promoted to overlay, mark it so.
+  frame->metadata().allow_overlay = true;
+  frame->metadata().protected_video = use_protected;
+  frame->metadata().hw_protected = use_protected;
   return frame;
 }
 
 }  // namespace
 
-PlatformVideoFramePool::PlatformVideoFramePool(
-    gpu::GpuMemoryBufferFactory* gpu_memory_buffer_factory)
-    : create_frame_cb_(base::BindRepeating(&DefaultCreateFrame)),
-      gpu_memory_buffer_factory_(gpu_memory_buffer_factory) {
+PlatformVideoFramePool::PlatformVideoFramePool()
+    : create_frame_cb_(base::BindRepeating(&DefaultCreateFrame)) {
   DVLOGF(4);
   weak_this_ = weak_this_factory_.GetWeakPtr();
 }
@@ -97,14 +104,25 @@ scoped_refptr<VideoFrame> PlatformVideoFramePool::GetFrame() {
     // with (10, 20), 100x100 we cannot (even though it's contained in the
     // former). Hence the use of GetRectSizeFromOrigin() to calculate the
     // visible rect for |new_frame|.
-    scoped_refptr<VideoFrame> new_frame =
-        create_frame_cb_.Run(gpu_memory_buffer_factory_, format, coded_size,
-                             gfx::Rect(GetRectSizeFromOrigin(visible_rect_)),
-                             coded_size, use_protected_, base::TimeDelta());
-    if (!new_frame)
+    //
+    // TODO(b/230370976): after https://crrev.com/c/3597211,
+    // PlatformVideoFramePool doesn't use a GpuMemoryBufferFactory for
+    // allocating dma-bufs which means DRM framebuffers won't be created for a
+    // dma-buf at allocation time (instead, it will be created at the moment of
+    // creating a SharedImage). That means that we probably don't need to take
+    // the |visible_rect_| into account for IsSameFormat_Locked() any more which
+    // implies that we can create |new_frame| using gfx::Rect(coded_size) as
+    // the visible rectangle.
+    CHECK(use_linear_buffers_.has_value());
+    CroStatus::Or<scoped_refptr<VideoFrame>> new_frame = create_frame_cb_.Run(
+        format, coded_size, gfx::Rect(GetRectSizeFromOrigin(visible_rect_)),
+        coded_size, use_protected_, *use_linear_buffers_, base::TimeDelta());
+    if (!new_frame.has_value()) {
+      // TODO(crbug.com/c/1103510) Push the error up instead of dropping it.
       return nullptr;
+    }
 
-    InsertFreeFrame_Locked(std::move(new_frame));
+    InsertFreeFrame_Locked(std::move(new_frame).value());
   }
 
   DCHECK(!free_frames_.empty());
@@ -122,43 +140,41 @@ scoped_refptr<VideoFrame> PlatformVideoFramePool::GetFrame() {
       base::BindOnce(&PlatformVideoFramePool::OnFrameReleasedThunk, weak_this_,
                      parent_task_runner_, std::move(origin_frame)));
 
-  // Clear all metadata before returning to client, in case origin frame has any
-  // unrelated metadata.
-  wrapped_frame->clear_metadata();
-
-  // We need to put this metadata in the wrapped frame if we are in protected
-  // mode.
-  if (use_protected_) {
-    media::VideoFrameMetadata frame_metadata;
-    frame_metadata.protected_video = true;
-    frame_metadata.hw_protected = true;
-    wrapped_frame->set_metadata(frame_metadata);
-  }
+  DCHECK_EQ(wrapped_frame->metadata().protected_video, use_protected_);
+  DCHECK_EQ(wrapped_frame->metadata().hw_protected, use_protected_);
 
   return wrapped_frame;
 }
 
-StatusOr<GpuBufferLayout> PlatformVideoFramePool::Initialize(
+PlatformVideoFramePool* PlatformVideoFramePool::AsPlatformVideoFramePool() {
+  return this;
+}
+
+CroStatus::Or<GpuBufferLayout> PlatformVideoFramePool::Initialize(
     const Fourcc& fourcc,
     const gfx::Size& coded_size,
     const gfx::Rect& visible_rect,
     const gfx::Size& natural_size,
     size_t max_num_frames,
-    bool use_protected) {
+    bool use_protected,
+    bool use_linear_buffers) {
   DVLOGF(4);
   base::AutoLock auto_lock(lock_);
+
+  CHECK(!use_linear_buffers_ || *use_linear_buffers_ == use_linear_buffers);
+  use_linear_buffers_ = use_linear_buffers;
 
   // Only support the Fourcc that could map to VideoPixelFormat.
   VideoPixelFormat format = fourcc.ToVideoPixelFormat();
   if (format == PIXEL_FORMAT_UNKNOWN) {
     VLOGF(1) << "Unsupported fourcc: " << fourcc.ToString();
-    return Status(StatusCode::kInvalidArgument);
+    return CroStatus::Codes::kFourccUnknownFormat;
   }
 
 #if !BUILDFLAG(USE_CHROMEOS_PROTECTED_MEDIA)
   if (use_protected) {
     VLOGF(1) << "Protected buffers unsupported";
-    return Status(StatusCode::kInvalidArgument);
+    return CroStatus::Codes::kProtectedContentUnsupported;
   }
 #endif
 
@@ -174,31 +190,31 @@ StatusOr<GpuBufferLayout> PlatformVideoFramePool::Initialize(
   // hardware overlay purposes. The caveat is that different visible rectangles
   // can map to the same framebuffer size, i.e., all the visible rectangles with
   // the same bottom-right corner map to the same framebuffer size.
+  //
+  // TODO(b/230370976): after https://crrev.com/c/3597211,
+  // PlatformVideoFramePool doesn't use a GpuMemoryBufferFactory for allocating
+  // dma-bufs which means DRM framebuffers won't be created for a dma-buf at
+  // allocation time (instead, it will be created at the moment of creating a
+  // SharedImage). That means that we probably don't need to take the
+  // |visible_rect| into account for IsSameFormat_Locked() any more.
   if (!IsSameFormat_Locked(format, coded_size, visible_rect, use_protected)) {
     DVLOGF(4) << "The video frame format is changed. Clearing the pool.";
     free_frames_.clear();
-
-    // Create a temporary frame in order to know VideoFrameLayout that
-    // VideoFrame that will be allocated in GetFrame() has.
-    auto frame = create_frame_cb_.Run(gpu_memory_buffer_factory_, format,
-                                      coded_size, visible_rect, natural_size,
-                                      use_protected, base::TimeDelta());
-    if (!frame) {
-      VLOGF(1) << "Failed to create video frame " << format << " (fourcc "
-               << fourcc.ToString() << ")";
-      return Status(StatusCode::kInvalidArgument);
-    }
+    auto maybe_frame = create_frame_cb_.Run(
+        format, coded_size, visible_rect, natural_size, use_protected,
+        *use_linear_buffers_, base::TimeDelta());
+    if (!maybe_frame.has_value())
+      return std::move(maybe_frame).error();
+    auto frame = std::move(maybe_frame).value();
     frame_layout_ = GpuBufferLayout::Create(fourcc, frame->coded_size(),
                                             frame->layout().planes(),
                                             frame->layout().modifier());
-    if (!frame_layout_) {
-      VLOGF(1) << "Failed to create the layout (fourcc=" << fourcc.ToString()
-               << ", coded_size=" << frame->coded_size().ToString() << ")";
-      return Status(StatusCode::kInvalidArgument);
-    }
+    if (!frame_layout_)
+      return CroStatus::Codes::kFailedToGetFrameLayout;
   }
 
   DCHECK(frame_layout_);
+
   visible_rect_ = visible_rect;
   natural_size_ = natural_size;
   max_num_frames_ = max_num_frames;
@@ -210,6 +226,12 @@ StatusOr<GpuBufferLayout> PlatformVideoFramePool::Initialize(
     std::move(frame_available_cb_).Run();
 
   return *frame_layout_;
+}
+
+void PlatformVideoFramePool::SetCustomFrameAllocator(
+    DmabufVideoFramePool::CreateFrameCB allocator) {
+  base::AutoLock auto_lock(lock_);
+  create_frame_cb_ = allocator;
 }
 
 bool PlatformVideoFramePool::IsExhausted() {
@@ -257,11 +279,20 @@ void PlatformVideoFramePool::ReleaseAllFrames() {
   weak_this_ = weak_this_factory_.GetWeakPtr();
 }
 
+absl::optional<GpuBufferLayout> PlatformVideoFramePool::GetGpuBufferLayout() {
+  DCHECK(parent_task_runner_->RunsTasksInCurrentSequence());
+  base::AutoLock auto_lock(lock_);
+  return frame_layout_;
+}
+
 // static
 void PlatformVideoFramePool::OnFrameReleasedThunk(
     absl::optional<base::WeakPtr<PlatformVideoFramePool>> pool,
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     scoped_refptr<VideoFrame> origin_frame) {
+  TRACE_EVENT2("media", "PlatformVideoFramePool::OnFrameReleasedThunk",
+               "frame_id", origin_frame->unique_id(), "frame",
+               origin_frame->AsHumanReadableString());
   DCHECK(pool);
   DVLOGF(4);
 
@@ -272,6 +303,9 @@ void PlatformVideoFramePool::OnFrameReleasedThunk(
 
 void PlatformVideoFramePool::OnFrameReleased(
     scoped_refptr<VideoFrame> origin_frame) {
+  TRACE_EVENT2("media", "PlatformVideoFramePool::OnFrameReleased", "frame_id",
+               origin_frame->unique_id(), "frame",
+               origin_frame->AsHumanReadableString());
   DCHECK(parent_task_runner_->RunsTasksInCurrentSequence());
   DVLOGF(4);
   base::AutoLock auto_lock(lock_);

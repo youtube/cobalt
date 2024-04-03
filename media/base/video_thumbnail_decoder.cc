@@ -1,10 +1,10 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/video_thumbnail_decoder.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_frame.h"
@@ -36,7 +36,7 @@ void VideoThumbnailDecoder::Start(VideoFrameCallback video_frame_callback) {
       base::DoNothing());
 }
 
-void VideoThumbnailDecoder::OnVideoDecoderInitialized(Status status) {
+void VideoThumbnailDecoder::OnVideoDecoderInitialized(DecoderStatus status) {
   if (!status.is_ok()) {
     NotifyComplete(nullptr);
     return;
@@ -50,7 +50,7 @@ void VideoThumbnailDecoder::OnVideoDecoderInitialized(Status status) {
                                   weak_factory_.GetWeakPtr()));
 }
 
-void VideoThumbnailDecoder::OnVideoBufferDecoded(Status status) {
+void VideoThumbnailDecoder::OnVideoBufferDecoded(DecoderStatus status) {
   if (!status.is_ok()) {
     NotifyComplete(nullptr);
     return;
@@ -62,7 +62,7 @@ void VideoThumbnailDecoder::OnVideoBufferDecoded(Status status) {
                                   weak_factory_.GetWeakPtr()));
 }
 
-void VideoThumbnailDecoder::OnEosBufferDecoded(Status status) {
+void VideoThumbnailDecoder::OnEosBufferDecoded(DecoderStatus status) {
   if (!status.is_ok())
     NotifyComplete(nullptr);
 }

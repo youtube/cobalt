@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -370,7 +370,7 @@ void VideoCaptureDeviceFuchsia::ProcessNewFrame(
 
   ++frames_received_;
   float frame_rate =
-      (timestamp > base::TimeDelta())
+      (timestamp.is_positive())
           ? static_cast<float>(frames_received_) / timestamp.InSecondsF()
           : 0.0;
   VideoCaptureFormat capture_format(output_size, frame_rate, PIXEL_FORMAT_I420);

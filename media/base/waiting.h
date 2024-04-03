@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,8 +37,12 @@ enum class WaitingReason {
   // from a key frame, which can typically be accomplished by a pipeline seek.
   kDecoderStateLost,
 
+  // The playback cannot proceed because the secure output surface is gone. This
+  // can happen when user backgrounds the page when it's playing secure content.
+  kSecureSurfaceLost,
+
   // Must be assigned with the last enum value above.
-  kMaxValue = kDecoderStateLost,
+  kMaxValue = kSecureSurfaceLost,
 };
 
 // Callback to notify waiting state and the reason.

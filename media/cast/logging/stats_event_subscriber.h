@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,17 +14,14 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/tick_clock.h"
+#include "base/time/time.h"
+#include "base/values.h"
 #include "media/cast/logging/logging_defines.h"
 #include "media/cast/logging/raw_event_subscriber.h"
 #include "media/cast/logging/receiver_time_offset_estimator.h"
-
-namespace base {
-class DictionaryValue;
-class ListValue;
-}
 
 namespace media {
 namespace cast {
@@ -53,12 +50,17 @@ class StatsEventSubscriber final : public RawEventSubscriber {
   // The inner dictionary consists of string - double entries, where the string
   // describes the name of the stat, and the double describes
   // the value of the stat. See CastStat and StatsMap below.
-  std::unique_ptr<base::DictionaryValue> GetStats() const;
+  base::Value::Dict GetStats() const;
 
   // Resets stats in this object.
   void Reset();
 
+  static constexpr char kAudioStatsDictKey[] = "audio";
+  static constexpr char kVideoStatsDictKey[] = "video";
+
  private:
+  // TODO(b/268543775): Replace friend class declarations with public getters
+  // for tests.
   friend class StatsEventSubscriberTest;
   FRIEND_TEST_ALL_PREFIXES(StatsEventSubscriberTest, EmptyStats);
   FRIEND_TEST_ALL_PREFIXES(StatsEventSubscriberTest, CaptureEncode);
@@ -108,7 +110,7 @@ class StatsEventSubscriber final : public RawEventSubscriber {
 
     void Reset();
 
-    std::unique_ptr<base::ListValue> GetHistogram() const;
+    base::Value::List GetHistogram() const;
 
    private:
     int64_t min_;
@@ -243,10 +245,10 @@ class StatsEventSubscriber final : public RawEventSubscriber {
   const EventMediaType event_media_type_;
 
   // Not owned by this class.
-  const base::TickClock* const clock_;
+  const raw_ptr<const base::TickClock> clock_;
 
   // Not owned by this class.
-  ReceiverTimeOffsetEstimator* const offset_estimator_;
+  const raw_ptr<ReceiverTimeOffsetEstimator> offset_estimator_;
 
   FrameStatsMap frame_stats_;
   PacketStatsMap packet_stats_;

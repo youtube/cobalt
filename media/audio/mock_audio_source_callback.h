@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,6 @@
 
 #include <stdint.h>
 
-#include "base/macros.h"
 #include "base/time/time.h"
 #include "media/audio/audio_io.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -24,7 +23,10 @@ class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
   ~MockAudioSourceCallback() override;
 
   MOCK_METHOD4(OnMoreData,
-               int(base::TimeDelta, base::TimeTicks, int, AudioBus*));
+               int(base::TimeDelta,
+                   base::TimeTicks,
+                   const AudioGlitchInfo& glitch_info,
+                   AudioBus*));
   MOCK_METHOD1(OnError, void(ErrorType));
 };
 

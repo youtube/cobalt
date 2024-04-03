@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 
 #include <memory>
 
-#include "base/cxx17_backports.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/system/system_monitor.h"
@@ -40,10 +39,15 @@ const std::vector<DeviceCategoryToType>& GetDeviceCategoryToType() {
 // Manages the device notification handles for SystemMessageWindowWin.
 class SystemMessageWindowWin::DeviceNotifications {
  public:
+  DeviceNotifications() = delete;
+
   explicit DeviceNotifications(HWND hwnd)
-      : notifications_(base::size(GetDeviceCategoryToType())) {
+      : notifications_(std::size(GetDeviceCategoryToType())) {
     Register(hwnd);
   }
+
+  DeviceNotifications(const DeviceNotifications&) = delete;
+  DeviceNotifications& operator=(const DeviceNotifications&) = delete;
 
   ~DeviceNotifications() { Unregister(); }
 
@@ -83,8 +87,6 @@ class SystemMessageWindowWin::DeviceNotifications {
 
  private:
   std::vector<HDEVNOTIFY> notifications_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(DeviceNotifications);
 };
 
 SystemMessageWindowWin::SystemMessageWindowWin() {

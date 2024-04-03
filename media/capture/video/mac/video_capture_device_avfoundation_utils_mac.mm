@@ -1,19 +1,21 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/capture/video/mac/video_capture_device_avfoundation_utils_mac.h"
 
+#import <IOKit/audio/IOAudioTypes.h>
+
 #include "base/mac/mac_util.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
+#include "media/base/mac/video_capture_device_avfoundation_helpers.h"
 #include "media/base/media_switches.h"
 #include "media/capture/video/mac/video_capture_device_avfoundation_mac.h"
 #include "media/capture/video/mac/video_capture_device_factory_mac.h"
 #include "media/capture/video/mac/video_capture_device_mac.h"
 #include "media/capture/video_capture_types.h"
-#include "services/video_capture/public/uma/video_capture_service_event.h"
 
 namespace media {
 namespace {
@@ -81,12 +83,9 @@ void MaybeWriteUma(int number_of_devices, int number_of_suspended_devices) {
     return;
   }
   static int attempt_since_process_start_counter = 0;
-  static int device_count_at_last_attempt = 0;
   static bool has_seen_zero_device_count = false;
   const int attempt_count_since_process_start =
       ++attempt_since_process_start_counter;
-  const int retry_count =
-      media::VideoCaptureDeviceFactoryMac::GetGetDevicesInfoRetryCount();
   const int device_count = number_of_devices + number_of_suspended_devices;
   UMA_HISTOGRAM_COUNTS_1M("Media.VideoCapture.MacBook.NumberOfDevices",
                           device_count);
@@ -101,46 +100,16 @@ void MaybeWriteUma(int number_of_devices, int number_of_suspended_devices) {
       has_seen_zero_device_count = true;
     }
   }
-
-  if (attempt_count_since_process_start == 1) {
-    if (retry_count == 0) {
-      video_capture::uma::LogMacbookRetryGetDeviceInfosEvent(
-          device_count == 0
-              ? video_capture::uma::
-                    AVF_RECEIVED_ZERO_INFOS_FIRST_TRY_FIRST_ATTEMPT
-              : video_capture::uma::
-                    AVF_RECEIVED_NONZERO_INFOS_FIRST_TRY_FIRST_ATTEMPT);
-    } else {
-      video_capture::uma::LogMacbookRetryGetDeviceInfosEvent(
-          device_count == 0
-              ? video_capture::uma::AVF_RECEIVED_ZERO_INFOS_RETRY
-              : video_capture::uma::AVF_RECEIVED_NONZERO_INFOS_RETRY);
-    }
-    // attempt count > 1
-  } else if (retry_count == 0) {
-    video_capture::uma::LogMacbookRetryGetDeviceInfosEvent(
-        device_count == 0
-            ? video_capture::uma::
-                  AVF_RECEIVED_ZERO_INFOS_FIRST_TRY_NONFIRST_ATTEMPT
-            : video_capture::uma::
-                  AVF_RECEIVED_NONZERO_INFOS_FIRST_TRY_NONFIRST_ATTEMPT);
-  }
-  if (attempt_count_since_process_start > 1 &&
-      device_count != device_count_at_last_attempt) {
-    video_capture::uma::LogMacbookRetryGetDeviceInfosEvent(
-        device_count == 0
-            ? video_capture::uma::AVF_DEVICE_COUNT_CHANGED_FROM_POSITIVE_TO_ZERO
-            : video_capture::uma::
-                  AVF_DEVICE_COUNT_CHANGED_FROM_ZERO_TO_POSITIVE);
-  }
-  device_count_at_last_attempt = device_count;
 }
 
 base::scoped_nsobject<NSDictionary> GetDeviceNames() {
   // At this stage we already know that AVFoundation is supported and the whole
   // library is loaded and initialised, by the device monitoring.
   NSMutableDictionary* deviceNames = [[NSMutableDictionary alloc] init];
-  NSArray* devices = [AVCaptureDevice devices];
+
+  NSArray<AVCaptureDevice*>* devices = GetVideoCaptureDevices(
+      base::FeatureList::IsEnabled(media::kUseAVCaptureDeviceDiscoverySession));
+
   int number_of_suspended_devices = 0;
   for (AVCaptureDevice* device in devices) {
     if ([device hasMediaType:AVMediaTypeVideo] ||
@@ -149,10 +118,18 @@ base::scoped_nsobject<NSDictionary> GetDeviceNames() {
         ++number_of_suspended_devices;
         continue;
       }
+
+      // Transport types are defined for Audio devices and reused for video.
+      int transport_type = [device transportType];
+      VideoCaptureTransportType device_transport_type =
+          (transport_type == kIOAudioDeviceTransportTypeBuiltIn ||
+           transport_type == kIOAudioDeviceTransportTypeUSB)
+              ? VideoCaptureTransportType::MACOSX_USB_OR_BUILT_IN
+              : VideoCaptureTransportType::OTHER_TRANSPORT;
       DeviceNameAndTransportType* nameAndTransportType =
           [[[DeviceNameAndTransportType alloc]
                initWithName:[device localizedName]
-              transportType:[device transportType]] autorelease];
+              transportType:device_transport_type] autorelease];
       deviceNames[[device uniqueID]] = nameAndTransportType;
     }
   }
@@ -169,7 +146,7 @@ std::string MacFourCCToString(OSType fourcc) {
   return arr;
 }
 
-void ExtractBaseAddressAndLength(char** base_address,
+bool ExtractBaseAddressAndLength(char** base_address,
                                  size_t* length,
                                  CMSampleBufferRef sample_buffer) {
   CMBlockBufferRef block_buffer = CMSampleBufferGetDataBuffer(sample_buffer);
@@ -182,6 +159,7 @@ void ExtractBaseAddressAndLength(char** base_address,
   // Expect the (M)JPEG data to be available as a contiguous reference, i.e.
   // not covered by multiple memory blocks.
   DCHECK_EQ(length_at_offset, *length);
+  return status == noErr && length_at_offset == *length;
 }
 
 base::scoped_nsobject<NSDictionary> GetVideoCaptureDeviceNames() {
@@ -207,5 +185,9 @@ gfx::Size GetSampleBufferSize(CMSampleBufferRef sample_buffer) {
       CMVideoFormatDescriptionGetDimensions(format_description);
   return gfx::Size(dimensions.width, dimensions.height);
 }
+
+BASE_FEATURE(kUseAVCaptureDeviceDiscoverySession,
+             "UseAVCaptureDeviceDiscoverySession",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace media

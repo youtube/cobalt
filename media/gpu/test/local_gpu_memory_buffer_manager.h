@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "media/gpu/media_gpu_export.h"
 #include "ui/gfx/buffer_types.h"
@@ -42,8 +43,6 @@ class MEDIA_GPU_EXPORT LocalGpuMemoryBufferManager
       gfx::BufferUsage usage,
       gpu::SurfaceHandle surface_handle,
       base::WaitableEvent* shutdown_event) override;
-  void SetDestructionSyncToken(gfx::GpuMemoryBuffer* buffer,
-                               const gpu::SyncToken& sync_token) override;
   void CopyGpuMemoryBufferAsync(
       gfx::GpuMemoryBufferHandle buffer_handle,
       base::UnsafeSharedMemoryRegion memory_region,
@@ -67,7 +66,7 @@ class MEDIA_GPU_EXPORT LocalGpuMemoryBufferManager
                                  gfx::BufferUsage usage);
 
  private:
-  gbm_device* gbm_device_;
+  raw_ptr<gbm_device, ExperimentalAsh> gbm_device_;
 };
 
 }  // namespace media

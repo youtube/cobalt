@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -40,10 +40,10 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/free_deleter.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/default_tick_clock.h"
 #include "base/trace_event/trace_event.h"
 #include "media/audio/alsa/alsa_util.h"
@@ -164,7 +164,7 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       stop_stream_(false),
       wrapper_(wrapper),
       manager_(manager),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       playback_handle_(nullptr),
       frames_per_packet_(packet_size_ / bytes_per_frame_),
       state_(kCreated),
@@ -257,10 +257,11 @@ void AlsaPcmOutputStream::Close() {
 
   // Shutdown the audio device.
   if (playback_handle_) {
-    if (alsa_util::CloseDevice(wrapper_, playback_handle_) < 0) {
+    int res =
+        alsa_util::CloseDevice(wrapper_, playback_handle_.ExtractAsDangling());
+    if (res < 0) {
       LOG(WARNING) << "Unable to close audio device. Leaking handle.";
     }
-    playback_handle_ = nullptr;
 
     // Release the buffer.
     buffer_.reset();
@@ -541,10 +542,13 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
     next_fill_time = base::Milliseconds(10);
   }
 
-  task_runner_->PostDelayedTask(FROM_HERE,
-                                base::BindOnce(&AlsaPcmOutputStream::WriteTask,
-                                               weak_factory_.GetWeakPtr()),
-                                next_fill_time);
+  task_runner_->PostDelayedTaskAt(
+      base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
+      base::BindOnce(&AlsaPcmOutputStream::WriteTask,
+                     weak_factory_.GetWeakPtr()),
+      next_fill_time.is_zero() ? base::TimeTicks()
+                               : base::TimeTicks::Now() + next_fill_time,
+      base::subtle::DelayPolicy::kPrecise);
 }
 
 std::string AlsaPcmOutputStream::FindDeviceForChannels(uint32_t channels) {
@@ -787,7 +791,7 @@ int AlsaPcmOutputStream::RunDataCallback(base::TimeDelta delay,
   TRACE_EVENT0("audio", "AlsaPcmOutputStream::RunDataCallback");
 
   if (source_callback_)
-    return source_callback_->OnMoreData(delay, delay_timestamp, 0, audio_bus);
+    return source_callback_->OnMoreData(delay, delay_timestamp, {}, audio_bus);
 
   return 0;
 }

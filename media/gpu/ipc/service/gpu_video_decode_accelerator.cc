@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,15 @@
 #include <memory>
 #include <vector>
 
-#include "base/bind.h"
-#include "base/bind_post_task.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
-#include "base/single_thread_task_runner.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "gpu/command_buffer/common/command_buffer.h"
 #include "gpu/config/gpu_preferences.h"
@@ -59,21 +60,40 @@ static bool MakeDecoderContextCurrent(
   return true;
 }
 
-static bool BindImage(const base::WeakPtr<gpu::CommandBufferStub>& stub,
-                      uint32_t client_texture_id,
-                      uint32_t texture_target,
-                      const scoped_refptr<gl::GLImage>& image,
-                      bool can_bind_to_sampler) {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
+static bool BindDecoderManagedImage(
+    const base::WeakPtr<gpu::CommandBufferStub>& stub,
+    uint32_t client_texture_id,
+    uint32_t texture_target,
+    const scoped_refptr<gl::GLImage>& image) {
   if (!stub) {
     DLOG(ERROR) << "Stub is gone; won't BindImage().";
     return false;
   }
 
   gpu::DecoderContext* command_decoder = stub->decoder_context();
-  command_decoder->BindImage(client_texture_id, texture_target, image.get(),
-                             can_bind_to_sampler);
+  command_decoder->AttachImageToTextureWithDecoderBinding(
+      client_texture_id, texture_target, image.get());
   return true;
 }
+#else
+static bool BindClientManagedImage(
+    const base::WeakPtr<gpu::CommandBufferStub>& stub,
+    uint32_t client_texture_id,
+    uint32_t texture_target,
+    const scoped_refptr<gl::GLImage>& image) {
+  if (!stub) {
+    DLOG(ERROR) << "Stub is gone; won't BindImage().";
+    return false;
+  }
+
+  gpu::DecoderContext* command_decoder = stub->decoder_context();
+  command_decoder->AttachImageToTextureWithClientBinding(
+      client_texture_id, texture_target, image.get());
+
+  return true;
+}
+#endif
 
 static gpu::gles2::ContextGroup* GetContextGroup(
     const base::WeakPtr<gpu::CommandBufferStub>& stub) {
@@ -198,7 +218,7 @@ class GpuVideoDecodeAccelerator::MessageFilter
                                   base::Unretained(owner_)));
   }
 
-  GpuVideoDecodeAccelerator* owner_;
+  raw_ptr<GpuVideoDecodeAccelerator> owner_;
   const scoped_refptr<base::SequencedTaskRunner> owner_task_runner_;
   const bool decode_on_io_;
   mojo::AssociatedReceiver<mojom::GpuAcceleratedVideoDecoder> receiver_{this};
@@ -270,7 +290,7 @@ GpuVideoDecodeAccelerator::GpuVideoDecodeAccelerator(
       texture_target_(0),
       pixel_format_(PIXEL_FORMAT_UNKNOWN),
       textures_per_buffer_(0),
-      child_task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      child_task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       io_task_runner_(io_task_runner),
       overlay_factory_cb_(overlay_factory_cb) {
   DCHECK(stub_);
@@ -279,7 +299,16 @@ GpuVideoDecodeAccelerator::GpuVideoDecodeAccelerator(
       base::BindRepeating(&GetGLContext, stub_->AsWeakPtr());
   gl_client_.make_context_current =
       base::BindRepeating(&MakeDecoderContextCurrent, stub_->AsWeakPtr());
-  gl_client_.bind_image = base::BindRepeating(&BindImage, stub_->AsWeakPtr());
+  // The semantics of |bind_image| vary per-platform: On Windows and Apple it
+  // must mark the image as needing binding by the decoder, while on other
+  // platforms it must mark the image as *not* needing binding by the decoder.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
+  gl_client_.bind_image =
+      base::BindRepeating(&BindDecoderManagedImage, stub_->AsWeakPtr());
+#else
+  gl_client_.bind_image =
+      base::BindRepeating(&BindClientManagedImage, stub_->AsWeakPtr());
+#endif
   gl_client_.get_context_group =
       base::BindRepeating(&GetContextGroup, stub_->AsWeakPtr());
   gl_client_.create_abstract_texture =
@@ -311,7 +340,8 @@ GpuVideoDecodeAccelerator::GetCapabilities(
       gpu_preferences, workarounds);
 }
 
-void GpuVideoDecodeAccelerator::NotifyInitializationComplete(Status status) {
+void GpuVideoDecodeAccelerator::NotifyInitializationComplete(
+    DecoderStatus status) {
   decoder_client_->OnInitializationComplete(status.is_ok());
 }
 
@@ -419,7 +449,7 @@ bool GpuVideoDecodeAccelerator::Initialize(
         client) {
   DCHECK(!video_decode_accelerator_);
 
-#if !defined(OS_WIN)
+#if !BUILDFLAG(IS_WIN)
   // Ensure we will be able to get a GL context at all before initializing
   // non-Windows VDAs.
   if (!gl_client_.make_context_current.Run())
@@ -458,7 +488,7 @@ bool GpuVideoDecodeAccelerator::Initialize(
   // Attempt to set up performing decoding tasks on IO thread, if supported by
   // the VDA.
   bool decode_on_io =
-      video_decode_accelerator_->TryToSetupDecodeOnSeparateThread(
+      video_decode_accelerator_->TryToSetupDecodeOnSeparateSequence(
           weak_factory_for_io_.GetWeakPtr(), io_task_runner_);
 
   // Bind the receiver on the IO thread. We wait here for it to be bound
@@ -468,7 +498,7 @@ bool GpuVideoDecodeAccelerator::Initialize(
   return filter_->Bind(std::move(receiver), io_task_runner_);
 }
 
-// Runs on IO thread if VDA::TryToSetupDecodeOnSeparateThread() succeeded,
+// Runs on IO thread if VDA::TryToSetupDecodeOnSeparateSequence() succeeded,
 // otherwise on the main thread.
 void GpuVideoDecodeAccelerator::OnDecode(BitstreamBuffer bitstream_buffer) {
   DCHECK(video_decode_accelerator_);

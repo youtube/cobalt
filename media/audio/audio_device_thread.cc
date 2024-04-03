@@ -1,10 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/audio/audio_device_thread.h"
 
 #include <limits>
+#include <ostream>
 
 #include "base/check_op.h"
 #include "base/system/sys_info.h"
@@ -42,7 +43,7 @@ void AudioDeviceThread::Callback::InitializeOnAudioThread() {
 AudioDeviceThread::AudioDeviceThread(Callback* callback,
                                      base::SyncSocket::ScopedHandle socket,
                                      const char* thread_name,
-                                     base::ThreadPriority thread_priority)
+                                     base::ThreadType thread_type)
     : callback_(callback),
       thread_name_(thread_name),
       socket_(std::move(socket)) {
@@ -55,8 +56,8 @@ AudioDeviceThread::AudioDeviceThread(Callback* callback,
   constexpr size_t kStackSize = 0;  // Default.
 #endif
 
-  CHECK(base::PlatformThread::CreateWithPriority(
-      kStackSize, this, &thread_handle_, thread_priority));
+  CHECK(base::PlatformThread::CreateWithType(kStackSize, this, &thread_handle_,
+                                             thread_type));
 
   DCHECK(!thread_handle_.is_null());
 }
@@ -68,9 +69,11 @@ AudioDeviceThread::~AudioDeviceThread() {
   base::PlatformThread::Join(thread_handle_);
 }
 
+#if BUILDFLAG(IS_APPLE)
 base::TimeDelta AudioDeviceThread::GetRealtimePeriod() {
   return callback_->buffer_duration();
 }
+#endif
 
 void AudioDeviceThread::ThreadMain() {
   base::PlatformThread::SetName(thread_name_);

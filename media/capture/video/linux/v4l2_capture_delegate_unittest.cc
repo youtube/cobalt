@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,9 +8,9 @@
 #include "base/files/file_enumerator.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/run_loop.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/task_environment.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #include "media/capture/video/linux/v4l2_capture_delegate.h"
 #include "media/capture/video/mock_video_capture_device_client.h"
@@ -94,12 +94,14 @@ static void SetControlsToMaxValues(int device_fd) {
   auto_focus.value = false;
   special_camera_controls.push_back(auto_focus);
 
-  struct v4l2_ext_controls ext_controls = {};
-  ext_controls.ctrl_class = V4L2_CID_CAMERA_CLASS;
-  ext_controls.count = special_camera_controls.size();
-  ext_controls.controls = special_camera_controls.data();
-  if (HANDLE_EINTR(ioctl(device_fd, VIDIOC_S_EXT_CTRLS, &ext_controls)) < 0)
+  struct v4l2_ext_controls camera_ext_controls = {};
+  camera_ext_controls.ctrl_class = V4L2_CID_CAMERA_CLASS;
+  camera_ext_controls.count = special_camera_controls.size();
+  camera_ext_controls.controls = special_camera_controls.data();
+  if (HANDLE_EINTR(ioctl(device_fd, VIDIOC_S_EXT_CTRLS, &camera_ext_controls)) <
+      0) {
     DPLOG(ERROR) << "VIDIOC_S_EXT_CTRLS";
+  }
 
   for (const auto& control : kControls) {
     std::vector<struct v4l2_ext_control> camera_controls;
@@ -180,7 +182,7 @@ class V4L2CaptureDelegateTest : public ::testing::Test {
         delegate_(std::make_unique<V4L2CaptureDelegate>(
             v4l2_.get(),
             device_descriptor_,
-            base::ThreadTaskRunnerHandle::Get(),
+            base::SingleThreadTaskRunner::GetCurrentDefault(),
             50,
             0)) {}
   ~V4L2CaptureDelegateTest() override = default;
@@ -194,7 +196,7 @@ class V4L2CaptureDelegateTest : public ::testing::Test {
 }  // anonymous namespace
 
 // Fails on Linux, see crbug/732355
-#if defined(OS_LINUX)
+#if BUILDFLAG(IS_LINUX)
 #define MAYBE_CreateAndDestroyAndVerifyControls \
   DISABLED_CreateAndDestroyAndVerifyControls
 #else

@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,8 @@ namespace media {
 
 const char* GetScalabilityModeName(SVCScalabilityMode scalability_mode) {
   switch (scalability_mode) {
+    case SVCScalabilityMode::kL1T1:
+      return "L1T1";
     case SVCScalabilityMode::kL1T2:
       return "L1T2";
     case SVCScalabilityMode::kL1T3:
@@ -56,6 +58,8 @@ const char* GetScalabilityModeName(SVCScalabilityMode scalability_mode) {
       return "S3T2h";
     case SVCScalabilityMode::kS3T3h:
       return "S3T3h";
+    case SVCScalabilityMode::kL2T1Key:
+      return "L2T1_KEY";
     case SVCScalabilityMode::kL2T2Key:
       return "L2T2_KEY";
     case SVCScalabilityMode::kL2T2KeyShift:
@@ -64,6 +68,8 @@ const char* GetScalabilityModeName(SVCScalabilityMode scalability_mode) {
       return "L2T3_KEY";
     case SVCScalabilityMode::kL2T3KeyShift:
       return "L2T3_KEY_SHIFT";
+    case SVCScalabilityMode::kL3T1Key:
+      return "L3T1_KEY";
     case SVCScalabilityMode::kL3T2Key:
       return "L3T2_KEY";
     case SVCScalabilityMode::kL3T2KeyShift:

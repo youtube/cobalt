@@ -1,11 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/mock_audio_renderer_sink.h"
 
-#include "base/bind.h"
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/functional/bind.h"
+#include "base/task/sequenced_task_runner.h"
 
 namespace media {
 MockAudioRendererSink::MockAudioRendererSink()
@@ -20,7 +20,7 @@ MockAudioRendererSink::MockAudioRendererSink(const std::string& device_id,
           device_id,
           device_status,
           AudioParameters(AudioParameters::AUDIO_FAKE,
-                          CHANNEL_LAYOUT_STEREO,
+                          ChannelLayoutConfig::Stereo(),
                           AudioParameters::kTelephoneSampleRate,
                           1)) {}
 
@@ -50,7 +50,7 @@ OutputDeviceInfo MockAudioRendererSink::GetOutputDeviceInfo() {
 
 void MockAudioRendererSink::GetOutputDeviceInfoAsync(
     OutputDeviceInfoCB info_cb) {
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(info_cb), output_device_info_));
 }
 
