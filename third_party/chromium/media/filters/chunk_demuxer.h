@@ -43,9 +43,9 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
 #if defined(STARBOARD)
   ChunkDemuxerStream(const std::string& mime_type, Type type, MediaTrack::Id media_track_id);
-#else  // defined (STARBOARD)
+#else  // defined(STARBOARD)
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
   ~ChunkDemuxerStream() override;
 
   // ChunkDemuxerStream control methods.
@@ -134,14 +134,10 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   std::string mime_type() const override { return mime_type_; }
   size_t GetStreamMemoryLimit();
   void SetStreamMemoryLimitOverride(size_t memory_limit);
-#endif  // defined (STARBOARD)
-
-#if defined(STARBOARD)
   void Read(int max_number_of_buffers_to_read, ReadCB read_cb) override;
-#else  // defined (STARBOARD)
+#else  // defined(STARBOARD)
   void Read(ReadCB read_cb) override;
-#endif  // defined (STARBOARD)
-
+#endif  // defined(STARBOARD)
   Type type() const override;
   Liveness liveness() const override;
   AudioDecoderConfig audio_decoder_config() override;
@@ -193,7 +189,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   const std::string mime_type_;
   int max_number_of_buffers_to_read_{1};
   bool pending_config_change_ {false};
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
 
   // Specifies the type of the stream.
   const Type type_;
@@ -295,7 +291,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Special version of AddId() that retains the |mime_type| from the web app.
   Status AddId(const std::string& id, const std::string& mime_type)
       WARN_UNUSED_RESULT;
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
 
   // Notifies a caller via |tracks_updated_cb| that the set of media tracks
   // for a given |id| has changed. This callback must be set before any calls to
@@ -394,7 +390,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
 #if defined(STARBOARD)
   base::TimeDelta GetWriteHead(const std::string& id) const;
-
   void SetSourceBufferStreamMemoryLimit(const std::string& guid, size_t limit);
   size_t GetSourceBufferStreamMemoryLimit(const std::string& guid);
 #endif  // defined(STARBOARD)
@@ -600,7 +595,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
 #if defined(STARBOARD)
   std::map<std::string, std::string> id_to_mime_map_;
-#endif  // defined (STARBOARD)
+#endif  // defined(STARBOARD)
 };
 
 }  // namespace media
