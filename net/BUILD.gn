@@ -3072,6 +3072,15 @@ test("net_unittests") {
     ]
   }
 
+  if (is_starboard) {
+    data_deps += [
+      ":net_unittest_files",
+      ":third_party_unittest_files",
+      "//cobalt/network:copy_ssl_certificates",
+      "//third_party/icu:icudata",
+    ]
+  }
+
   if (is_linux || is_chromeos) {
     sources += [ "tools/quic/quic_simple_server_test.cc" ]
   }
