@@ -128,6 +128,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'graphics_system_test',
         'js_profiler_test',
         'layout_test',
+        'layout_tests',
         'loader_test',
         'math_test',
         'media_capture_test',
@@ -156,9 +157,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'xhr_test',
         'zip_unittests',
     ]
-    # return [
-    #     'layout_tests',
-    # ]
 
   def GetTestBlackBoxTargets(self):
     return [

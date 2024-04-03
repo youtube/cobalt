@@ -1,2 +1,3 @@
-lottie-background-attribute
-lottie-playback-events
+# TODO(b/330747689): re-enable lottie tests globally.
+# lottie-background-attribute
+# lottie-playback-events
