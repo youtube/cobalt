@@ -36,8 +36,6 @@ _MODULAR_BUILD_FILTERED_TESTS = {
     'player_filter_tests': [test_filter.FILTER_ALL],
     'net_unittests': [
         'VersionIncludeStreamDependencySequence/QuicNetworkTransactionTest.NetworkIsolationTunnel*',
-        'SchemeHostPortMatcherRuleTest.SchemeHostPortMatcherHostnamePatternRule_PunnyCodeHostname',
-        'ProxySpecificationUtilTest.ProxyUriToProxyServer',
     ],
 }
 
