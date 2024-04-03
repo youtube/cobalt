@@ -147,6 +147,8 @@ void AdaptiveAudioDecoder::Reset() {
 
   if (audio_decoder_) {
     audio_decoder_->Reset();
+    resampler_.reset();
+    channel_mixer_.reset();
   }
   CancelPendingJobs();
   while (!decoded_audios_.empty()) {
