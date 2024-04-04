@@ -66,4 +66,40 @@ std::string Point::ToString() const {
   return base::StringPrintf("%d,%d", x(), y());
 }
 
+Point ScaleToCeiledPoint(const Point& point, float x_scale, float y_scale) {
+  if (x_scale == 1.f && y_scale == 1.f)
+    return point;
+  return ToCeiledPoint(ScalePoint(gfx::PointF(point), x_scale, y_scale));
+}
+
+Point ScaleToCeiledPoint(const Point& point, float scale) {
+  if (scale == 1.f)
+    return point;
+  return ToCeiledPoint(ScalePoint(gfx::PointF(point), scale, scale));
+}
+
+Point ScaleToFlooredPoint(const Point& point, float x_scale, float y_scale) {
+  if (x_scale == 1.f && y_scale == 1.f)
+    return point;
+  return ToFlooredPoint(ScalePoint(gfx::PointF(point), x_scale, y_scale));
+}
+
+Point ScaleToFlooredPoint(const Point& point, float scale) {
+  if (scale == 1.f)
+    return point;
+  return ToFlooredPoint(ScalePoint(gfx::PointF(point), scale, scale));
+}
+
+Point ScaleToRoundedPoint(const Point& point, float x_scale, float y_scale) {
+  if (x_scale == 1.f && y_scale == 1.f)
+    return point;
+  return ToRoundedPoint(ScalePoint(gfx::PointF(point), x_scale, y_scale));
+}
+
+Point ScaleToRoundedPoint(const Point& point, float scale) {
+  if (scale == 1.f)
+    return point;
+  return ToRoundedPoint(ScalePoint(gfx::PointF(point), scale, scale));
+}
+
 }  // namespace gfx

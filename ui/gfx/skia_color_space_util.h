@@ -7,7 +7,11 @@
 
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkM44.h"
+#if defined(STARBOARD)
+#include "third_party/skia/include/third_party/skcms/skcms.h"
+#else  // defined(STARBOARD)
 #include "third_party/skia/modules/skcms/skcms.h"
+#endif  // defined(STARBOARD)
 #include "ui/gfx/color_space_export.h"
 
 namespace gfx {
