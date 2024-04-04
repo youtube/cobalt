@@ -196,6 +196,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     using MftVideoDecoder = ::starboard::xb1::shared::VideoDecoderUwp;
+    using ExtendedResourcesManager = shared::uwp::ExtendedResourcesManager;
 
     const auto output_mode = creation_parameters.output_mode();
     const auto is_hdr_video =
@@ -208,6 +209,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          MftVideoDecoder::IsHardwareAv1DecoderSupported())) {
       video_render_algorithm->reset(
           new VideoRenderAlgorithmImpl(std::bind(GetRefreshRate)));
+      // The memory heap for gpu decoders isn't used by hw decoders.
+      // Release it.
+      ExtendedResourcesManager::GetInstance()->ReleaseBuffersHeap();
       video_decoder->reset(new MftVideoDecoder(
           video_codec, output_mode,
           creation_parameters.decode_target_graphics_context_provider(),
