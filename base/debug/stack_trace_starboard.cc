@@ -174,7 +174,7 @@ size_t CollectStackTrace(void** trace, size_t count) {
   for (size_t i = 1; i < count; ++i) {
     trace[i - 1] = trace[i];
   }
-  return count - 1;
+  return count;
 }
 
 void StackTrace::PrintWithPrefix(const char* prefix_string) const {
