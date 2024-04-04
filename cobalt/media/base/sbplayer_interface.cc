@@ -89,7 +89,6 @@ void DefaultSbPlayerInterface::WriteSamples(
   SbPlayerWriteSample2(player, sample_type, sample_infos,
                        number_of_sample_infos);
 #endif  // SB_API_VERSION >= 15
-  // media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_WRITESAMPLES);
 }
 
 void DefaultSbPlayerInterface::WriteSamples(
