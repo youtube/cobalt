@@ -18,6 +18,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 #define STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 
+#include <memory>
 #include <vector>
 
 #include "starboard/atomic.h"
@@ -441,7 +442,7 @@ class Application {
   SbThread thread_;
 
   // CommandLine instance initialized in |Run|.
-  scoped_ptr<CommandLine> command_line_;
+  std::unique_ptr<CommandLine> command_line_;
 
   // The deep link included in the Start event sent to Cobalt. Initially NULL,
   // derived classes may set it during initialization using |SetStartLink|.
