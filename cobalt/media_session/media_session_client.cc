@@ -220,7 +220,7 @@ void MediaSessionClient::InvokeAction(
   DCHECK(media_session_->task_runner_);
   media_session_->task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&MediaSessionClient::InvokeActionInternal,
-                                AsWeakPtr(), base::Passed(&details)));
+                                AsWeakPtr(), std::move(details)));
 }
 
 void MediaSessionClient::InvokeAction(
@@ -229,8 +229,8 @@ void MediaSessionClient::InvokeAction(
       new CobaltExtensionMediaSessionActionDetails(details));
   DCHECK(media_session_->task_runner_);
   media_session_->task_runner_->PostTask(
-      FROM_HERE, base::Bind(&MediaSessionClient::InvokeActionInternal,
-                            AsWeakPtr(), base::Passed(&details_ptr)));
+      FROM_HERE, base::BindOnce(&MediaSessionClient::InvokeActionInternal,
+                                AsWeakPtr(), std::move(details_ptr)));
 }
 
 
