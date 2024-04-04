@@ -84,7 +84,9 @@ class GEOMETRY_EXPORT Vector2dF {
 
   std::string ToString() const;
 
+#if !defined(STARBOARD)
   void WriteIntoTrace(perfetto::TracedValue) const;
+#endif  // !defined(STARBOARD)
 
  private:
   float x_;
