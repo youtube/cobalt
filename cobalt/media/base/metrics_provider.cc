@@ -150,7 +150,7 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SbPlayer.Destroy.Timing", action_duration,
           base::TimeDelta::FromMicroseconds(500),
-          base::TimeDelta::FromMicroseconds(25000), 50);
+          base::TimeDelta::FromMicroseconds(40000), 50);
       break;
     case MediaAction::UNKNOWN_ACTION:
     default:
