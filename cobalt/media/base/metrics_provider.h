@@ -42,8 +42,8 @@ enum class MediaAction : uint8_t {
   UNKNOWN_ACTION,
   WEBMEDIAPLAYER_SEEK,
   SBPLAYER_CREATE,
-  SBPLAYER_DESTROY,
   SBPLAYER_CREATE_URL_PLAYER,
+  SBPLAYER_DESTROY,
 };
 
 class MediaMetricsProvider {
