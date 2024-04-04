@@ -65,10 +65,10 @@ _FILTERED_TESTS = {
         'PlayerComponentsTests/*',
     ],
 
-    # TODO: b/330792170 - Fix remaning failing win32 tests.
-    'net_unittests': [ test_filter.FILTER_ALL ],
-    'renderer_test': [ test_filter.FILTER_ALL ],
-    'network_test': [ test_filter.FILTER_ALL ],
+    # TODO: b/330792170 - Fix remaining failing win32 tests.
+    'net_unittests': [test_filter.FILTER_ALL],
+    'renderer_test': [test_filter.FILTER_ALL],
+    'network_test': [test_filter.FILTER_ALL],
 }
 
 # pylint: enable=line-too-long
