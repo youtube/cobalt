@@ -40,7 +40,7 @@ NOINLINE Type HideValueFromCompiler(Type value) {
 #if defined(__GNUC__)
   // In a GCC compatible compiler (GCC or Clang), make this compiler barrier
   // more robust.
-  __asm__ volatile ("" : "+r" (value));
+  __asm__ volatile("" : "+r"(value));
 #endif  // __GNUC__
   return value;
 }
@@ -54,8 +54,7 @@ void OverflowTestsSoftExpectTrue(bool overflow_detected) {
     BUILDFLAG(IS_APPLE)
     // Sadly, on Linux, Android, and OSX we don't have a good story yet. Don't
     // fail the test, but report.
-    printf("Platform has overflow: %s\n",
-           !overflow_detected ? "yes." : "no.");
+    printf("Platform has overflow: %s\n", !overflow_detected ? "yes." : "no.");
 #else
     // Otherwise, fail the test. (Note: EXPECT are ok in subfunctions, ASSERT
     // aren't).
@@ -64,9 +63,10 @@ void OverflowTestsSoftExpectTrue(bool overflow_detected) {
   }
 }
 
-#if BUILDFLAG(IS_APPLE) || defined(ADDRESS_SANITIZER) ||      \
-    defined(THREAD_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    BUILDFLAG(IS_HWASAN) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) || 1
+#if BUILDFLAG(IS_APPLE) || defined(ADDRESS_SANITIZER) ||                \
+    defined(THREAD_SANITIZER) || defined(MEMORY_SANITIZER) ||           \
+    BUILDFLAG(IS_HWASAN) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) || \
+    SB_IS(EVERGREEN)
 #define MAYBE_NewOverflow DISABLED_NewOverflow
 #else
 #define MAYBE_NewOverflow NewOverflow
