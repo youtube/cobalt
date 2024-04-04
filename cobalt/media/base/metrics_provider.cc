@@ -117,6 +117,13 @@ void MediaMetricsProvider::EndTrackingAction(MediaAction action) {
   ScopedLock scoped_lock(mutex_);
 
   auto duration = clock_->NowTicks() - tracked_actions_start_times_[action];
+  std::string action_type = "dont care";
+  if (action == MediaAction::SBPLAYER_CREATE)
+    action_type = "CREATE";
+  else if (action == MediaAction::SBPLAYER_DESTROY)
+    action_type = "DESTROY";
+  LOG(INFO) << "YO THOR! IT TOOK " << base::TimeDelta(duration).InMicroseconds()
+            << " microseconds FOR ACTION:" << action_type;
   ReportActionLatencyUMA(action, duration);
   tracked_actions_start_times_.erase(action);
 }
