@@ -1,9 +1,11 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef UI_GFX_WIN_MSG_UTIL_H_
 #define UI_GFX_WIN_MSG_UTIL_H_
+
+#include <ostream>
 
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"

@@ -1,22 +1,29 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "ui/gfx/android/android_surface_control_compat.h"
 
 #include <android/data_space.h>
+#include <android/hdr_metadata.h>
 #include <dlfcn.h>
 
 #include "base/android/build_info.h"
 #include "base/atomic_sequence_num.h"
-#include "base/bind.h"
-#include "base/bind_post_task.h"
+#include "base/containers/flat_set.h"
 #include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
+#include "base/functional/bind.h"
 #include "base/hash/md5_constexpr.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/synchronization/lock.h"
 #include "base/system/sys_info.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "ui/gfx/color_space.h"
 
@@ -32,6 +39,7 @@ using pASurfaceControl_createFromWindow =
     ASurfaceControl* (*)(ANativeWindow* parent, const char* name);
 using pASurfaceControl_create = ASurfaceControl* (*)(ASurfaceControl* parent,
                                                      const char* name);
+using pASurfaceControl_fromJava = ASurfaceControl* (*)(JNIEnv*, jobject);
 using pASurfaceControl_release = void (*)(ASurfaceControl*);
 
 // ASurfaceTransaction enums
@@ -39,12 +47,6 @@ enum {
   ASURFACE_TRANSACTION_TRANSPARENCY_TRANSPARENT = 0,
   ASURFACE_TRANSACTION_TRANSPARENCY_TRANSLUCENT = 1,
   ASURFACE_TRANSACTION_TRANSPARENCY_OPAQUE = 2,
-};
-
-// ANativeWindow_FrameRateCompatibility enums
-enum {
-  ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_DEFAULT = 0,
-  ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_FIXED_SOURCE = 1
 };
 
 // ASurfaceTransaction
@@ -97,11 +99,26 @@ using pASurfaceTransaction_setBufferDataSpace =
     void (*)(ASurfaceTransaction* transaction,
              ASurfaceControl* surface,
              uint64_t data_space);
+using pASurfaceTransaction_setHdrMetadata_cta861_3 =
+    void (*)(ASurfaceTransaction* transaction,
+             ASurfaceControl* surface,
+             struct AHdrMetadata_cta861_3* metadata);
+using pASurfaceTransaction_setHdrMetadata_smpte2086 =
+    void (*)(ASurfaceTransaction* transaction,
+             ASurfaceControl* surface,
+             struct AHdrMetadata_smpte2086* metadata);
+using pASurfaceTransaction_setExtendedRangeBrightness =
+    void (*)(ASurfaceTransaction* transaction,
+             ASurfaceControl* surface_control,
+             float currentBufferRatio,
+             float desiredRatio);
 using pASurfaceTransaction_setFrameRate =
     void (*)(ASurfaceTransaction* transaction,
              ASurfaceControl* surface_control,
              float frameRate,
              int8_t compatibility);
+using pASurfaceTransaction_setFrameTimeline =
+    void (*)(ASurfaceTransaction* transaction, int64_t vsync_id);
 using pASurfaceTransaction_reparent = void (*)(ASurfaceTransaction*,
                                                ASurfaceControl* surface_control,
                                                ASurfaceControl* new_parent);
@@ -118,6 +135,10 @@ using pASurfaceTransactionStats_releaseASurfaceControls =
     void (*)(ASurfaceControl** surface_controls);
 using pASurfaceTransactionStats_getPreviousReleaseFenceFd =
     int (*)(ASurfaceTransactionStats* stats, ASurfaceControl* surface_control);
+using pASurfaceTransaction_setEnableBackPressure =
+    void (*)(ASurfaceTransaction* transaction,
+             ASurfaceControl* surface_control,
+             bool enable_back_pressure);
 }
 
 namespace gfx {
@@ -155,9 +176,9 @@ struct SurfaceControlMethods {
   void InitWithStubs() {
     struct TransactionStub {
       ASurfaceTransaction_OnComplete on_complete = nullptr;
-      void* on_complete_ctx = nullptr;
+      raw_ptr<void> on_complete_ctx = nullptr;
       ASurfaceTransaction_OnCommit on_commit = nullptr;
-      void* on_commit_ctx = nullptr;
+      raw_ptr<void> on_commit_ctx = nullptr;
     };
 
     ASurfaceTransaction_createFn = []() {
@@ -212,6 +233,7 @@ struct SurfaceControlMethods {
 
     LOAD_FUNCTION(main_dl_handle, ASurfaceControl_createFromWindow);
     LOAD_FUNCTION(main_dl_handle, ASurfaceControl_create);
+    LOAD_FUNCTION_MAYBE(main_dl_handle, ASurfaceControl_fromJava);
     LOAD_FUNCTION(main_dl_handle, ASurfaceControl_release);
 
     LOAD_FUNCTION(main_dl_handle, ASurfaceTransaction_create);
@@ -230,7 +252,12 @@ struct SurfaceControlMethods {
     LOAD_FUNCTION(main_dl_handle, ASurfaceTransaction_setBufferTransparency);
     LOAD_FUNCTION(main_dl_handle, ASurfaceTransaction_setDamageRegion);
     LOAD_FUNCTION(main_dl_handle, ASurfaceTransaction_setBufferDataSpace);
+    LOAD_FUNCTION(main_dl_handle, ASurfaceTransaction_setHdrMetadata_cta861_3);
+    LOAD_FUNCTION(main_dl_handle, ASurfaceTransaction_setHdrMetadata_smpte2086);
+    LOAD_FUNCTION_MAYBE(main_dl_handle,
+                        ASurfaceTransaction_setExtendedRangeBrightness);
     LOAD_FUNCTION_MAYBE(main_dl_handle, ASurfaceTransaction_setFrameRate);
+    LOAD_FUNCTION_MAYBE(main_dl_handle, ASurfaceTransaction_setFrameTimeline);
 
     LOAD_FUNCTION(main_dl_handle, ASurfaceTransactionStats_getPresentFenceFd);
     LOAD_FUNCTION(main_dl_handle, ASurfaceTransactionStats_getLatchTime);
@@ -239,6 +266,8 @@ struct SurfaceControlMethods {
                   ASurfaceTransactionStats_releaseASurfaceControls);
     LOAD_FUNCTION(main_dl_handle,
                   ASurfaceTransactionStats_getPreviousReleaseFenceFd);
+    LOAD_FUNCTION_MAYBE(main_dl_handle,
+                        ASurfaceTransaction_setEnableBackPressure);
   }
 
   ~SurfaceControlMethods() = default;
@@ -247,6 +276,7 @@ struct SurfaceControlMethods {
   // Surface methods.
   pASurfaceControl_createFromWindow ASurfaceControl_createFromWindowFn;
   pASurfaceControl_create ASurfaceControl_createFn;
+  pASurfaceControl_fromJava ASurfaceControl_fromJavaFn;
   pASurfaceControl_release ASurfaceControl_releaseFn;
 
   // Transaction methods.
@@ -268,7 +298,17 @@ struct SurfaceControlMethods {
   pASurfaceTransaction_setDamageRegion ASurfaceTransaction_setDamageRegionFn;
   pASurfaceTransaction_setBufferDataSpace
       ASurfaceTransaction_setBufferDataSpaceFn;
+  pASurfaceTransaction_setHdrMetadata_cta861_3
+      ASurfaceTransaction_setHdrMetadata_cta861_3Fn;
+  pASurfaceTransaction_setHdrMetadata_smpte2086
+      ASurfaceTransaction_setHdrMetadata_smpte2086Fn;
+  pASurfaceTransaction_setExtendedRangeBrightness
+      ASurfaceTransaction_setExtendedRangeBrightnessFn;
+
   pASurfaceTransaction_setFrameRate ASurfaceTransaction_setFrameRateFn;
+  pASurfaceTransaction_setFrameTimeline ASurfaceTransaction_setFrameTimelineFn;
+  pASurfaceTransaction_setEnableBackPressure
+      ASurfaceTransaction_setEnableBackPressureFn;
 
   // TransactionStats methods.
   pASurfaceTransactionStats_getPresentFenceFd
@@ -311,18 +351,103 @@ int32_t OverlayTransformToWindowTransform(gfx::OverlayTransform transform) {
   return ANATIVEWINDOW_TRANSFORM_IDENTITY;
 }
 
+// Remove this and use ADataSpace when SDK will roll. Note, this doesn't define
+// any new data spaces, just defines a primary(standard)/transfer/range
+// separately.
+enum DataSpace : uint64_t {
+  // Primaries
+  STANDARD_BT709 = 1 << 16,
+  STANDARD_BT601_625 = 2 << 16,
+  STANDARD_BT601_525 = 4 << 16,
+  STANDARD_BT2020 = 6 << 16,
+  // Transfer functions
+  TRANSFER_LINEAR = 1 << 22,
+  TRANSFER_SRGB = 2 << 22,
+  TRANSFER_SMPTE_170M = 3 << 22,
+  TRANSFER_ST2084 = 7 << 22,
+  TRANSFER_HLG = 8 << 22,
+  // Ranges;
+  RANGE_FULL = 1 << 27,
+  RANGE_LIMITED = 2 << 27,
+  RANGE_EXTENDED = 3 << 27,
+  RANGE_MASK = 7 << 27,
+
+  ADATASPACE_DCI_P3 = 155844608
+};
+
+absl::optional<uint64_t> GetDataSpaceStandard(
+    const gfx::ColorSpace& color_space) {
+  switch (color_space.GetPrimaryID()) {
+    case gfx::ColorSpace::PrimaryID::BT709:
+      return DataSpace::STANDARD_BT709;
+    case gfx::ColorSpace::PrimaryID::BT470BG:
+      return DataSpace::STANDARD_BT601_625;
+    case gfx::ColorSpace::PrimaryID::SMPTE170M:
+      return DataSpace::STANDARD_BT601_525;
+    case gfx::ColorSpace::PrimaryID::BT2020:
+      return DataSpace::STANDARD_BT2020;
+    default:
+      return absl::nullopt;
+  }
+}
+
+absl::optional<uint64_t> GetDataSpaceTransfer(
+    const gfx::ColorSpace& color_space) {
+  switch (color_space.GetTransferID()) {
+    case gfx::ColorSpace::TransferID::SMPTE170M:
+      return DataSpace::TRANSFER_SMPTE_170M;
+    case gfx::ColorSpace::TransferID::LINEAR_HDR:
+      return DataSpace::TRANSFER_LINEAR;
+    case gfx::ColorSpace::TransferID::PQ:
+      return DataSpace::TRANSFER_ST2084;
+    case gfx::ColorSpace::TransferID::HLG:
+      return DataSpace::TRANSFER_HLG;
+    // We use SRGB for BT709. See |ColorSpace::GetTransferFunction()| for
+    // details.
+    case gfx::ColorSpace::TransferID::BT709:
+      return DataSpace::TRANSFER_SRGB;
+    default:
+      return absl::nullopt;
+  }
+}
+
+absl::optional<uint64_t> GetDataSpaceRange(const gfx::ColorSpace& color_space) {
+  switch (color_space.GetRangeID()) {
+    case gfx::ColorSpace::RangeID::FULL:
+      return DataSpace::RANGE_FULL;
+    case gfx::ColorSpace::RangeID::LIMITED:
+      return DataSpace::RANGE_LIMITED;
+    default:
+      return absl::nullopt;
+  };
+}
+
 uint64_t ColorSpaceToADataSpace(const gfx::ColorSpace& color_space) {
   if (!color_space.IsValid() || color_space == gfx::ColorSpace::CreateSRGB())
     return ADATASPACE_SRGB;
 
-  if (color_space == gfx::ColorSpace::CreateSCRGBLinear())
+  if (color_space == gfx::ColorSpace::CreateSRGBLinear())
     return ADATASPACE_SCRGB_LINEAR;
 
   if (color_space == gfx::ColorSpace::CreateDisplayP3D65())
     return ADATASPACE_DISPLAY_P3;
 
-  // TODO(khushalsagar): Check if we can support BT2020 using
-  // ADATASPACE_BT2020_PQ.
+  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
+      base::android::SDK_VERSION_S) {
+    if (color_space == gfx::ColorSpace::CreateExtendedSRGB()) {
+      return DataSpace::STANDARD_BT709 | DataSpace::TRANSFER_SRGB |
+             DataSpace::RANGE_EXTENDED;
+    }
+
+    auto standard = GetDataSpaceStandard(color_space);
+    auto transfer = GetDataSpaceTransfer(color_space);
+    auto range = GetDataSpaceRange(color_space);
+
+    // Data space is set of the flags, so check if all components are valid.
+    if (standard && transfer && range)
+      return standard.value() | transfer.value() | range.value();
+  }
+
   return ADATASPACE_UNKNOWN;
 }
 
@@ -377,6 +502,16 @@ uint64_t GetTraceIdForTransaction(int transaction_id) {
   return kMask ^ transaction_id;
 }
 
+base::Lock& GetGlobalLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+
+base::flat_set<int>& GetGlobalPendingCompleteCallbackIds() {
+  static base::NoDestructor<base::flat_set<int>> set;
+  return *set;
+}
+
 // Note that the framework API states that this callback can be dispatched on
 // any thread (in practice it should be a binder thread).
 void OnTransactionCompletedOnAnyThread(void* context,
@@ -388,6 +523,17 @@ void OnTransactionCompletedOnAnyThread(void* context,
   TRACE_EVENT_WITH_FLOW0(
       "toplevel.flow", "gfx::SurfaceControlTransaction completed",
       GetTraceIdForTransaction(ack_ctx->id), TRACE_EVENT_FLAG_FLOW_IN);
+
+  bool dump = false;
+  {
+    base::AutoLock lock(GetGlobalLock());
+    size_t num_removed =
+        GetGlobalPendingCompleteCallbackIds().erase(ack_ctx->id);
+    dump = !num_removed;
+  }
+  if (dump) {
+    base::debug::DumpWithoutCrashing(base::Location::Current(), base::Days(1));
+  }
 
   std::move(ack_ctx->callback).Run(std::move(transaction_stats));
   delete ack_ctx;
@@ -450,6 +596,23 @@ bool SurfaceControl::SupportsOnCommit() {
              nullptr;
 }
 
+bool SurfaceControl::SupportsSetFrameTimeline() {
+  return IsSupported() &&
+         SurfaceControlMethods::Get().ASurfaceTransaction_setFrameTimelineFn !=
+             nullptr;
+}
+
+bool SurfaceControl::SupportsSurfacelessControl() {
+  return IsSupported() &&
+         !!SurfaceControlMethods::Get().ASurfaceControl_fromJavaFn;
+}
+
+bool SurfaceControl::SupportsSetEnableBackPressure() {
+  return IsSupported() &&
+         SurfaceControlMethods::Get()
+                 .ASurfaceTransaction_setEnableBackPressureFn != nullptr;
+}
+
 void SurfaceControl::SetStubImplementationForTesting() {
   SurfaceControlMethods::GetImpl(/*load_functions=*/false).InitWithStubs();
 }
@@ -485,6 +648,19 @@ SurfaceControl::Surface::Surface(ANativeWindow* parent, const char* name) {
   surface_ = owned_surface_;
 }
 
+SurfaceControl::Surface::Surface(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& j_surface_control) {
+  CHECK(SupportsSurfacelessControl());
+  owned_surface_ = SurfaceControlMethods::Get().ASurfaceControl_fromJavaFn(
+      env, j_surface_control.obj());
+  if (!owned_surface_) {
+    LOG(ERROR) << "Failed to obtain ASurfaceControl from java";
+    return;
+  }
+  surface_ = owned_surface_;
+}
+
 SurfaceControl::Surface::~Surface() {
   if (owned_surface_)
     SurfaceControlMethods::Get().ASurfaceControl_releaseFn(owned_surface_);
@@ -512,31 +688,45 @@ SurfaceControl::Transaction::Transaction()
 }
 
 SurfaceControl::Transaction::~Transaction() {
-  if (transaction_)
-    SurfaceControlMethods::Get().ASurfaceTransaction_deleteFn(transaction_);
+  DestroyIfNeeded();
+}
+
+void SurfaceControl::Transaction::DestroyIfNeeded() {
+  if (!transaction_)
+    return;
+  if (need_to_apply_)
+    SurfaceControlMethods::Get().ASurfaceTransaction_applyFn(transaction_);
+  SurfaceControlMethods::Get().ASurfaceTransaction_deleteFn(transaction_);
+  transaction_ = nullptr;
 }
 
 SurfaceControl::Transaction::Transaction(Transaction&& other)
     : id_(other.id_),
       transaction_(other.transaction_),
       on_commit_cb_(std::move(other.on_commit_cb_)),
-      on_complete_cb_(std::move(other.on_complete_cb_)) {
+      on_complete_cb_(std::move(other.on_complete_cb_)),
+      need_to_apply_(other.need_to_apply_) {
   other.transaction_ = nullptr;
   other.id_ = 0;
+  other.need_to_apply_ = false;
 }
 
 SurfaceControl::Transaction& SurfaceControl::Transaction::operator=(
     Transaction&& other) {
-  if (transaction_)
-    SurfaceControlMethods::Get().ASurfaceTransaction_deleteFn(transaction_);
+  if (this == &other)
+    return *this;
+
+  DestroyIfNeeded();
 
   transaction_ = other.transaction_;
   id_ = other.id_;
   on_commit_cb_ = std::move(other.on_commit_cb_);
   on_complete_cb_ = std::move(other.on_complete_cb_);
+  need_to_apply_ = other.need_to_apply_;
 
   other.transaction_ = nullptr;
   other.id_ = 0;
+  other.need_to_apply_ = false;
   return *this;
 }
 
@@ -557,6 +747,13 @@ void SurfaceControl::Transaction::SetBuffer(const Surface& surface,
   SurfaceControlMethods::Get().ASurfaceTransaction_setBufferFn(
       transaction_, surface.surface(), buffer,
       fence_fd.is_valid() ? fence_fd.release() : -1);
+  // In T OS, setBuffer call setOnComplete internally, so Apply() is required to
+  // decrease ref count of SurfaceControl.
+  // TODO(crbug.com/1395271): remove this if AOSP fix the issue
+  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
+      base::android::SDK_VERSION_T) {
+    need_to_apply_ = true;
+  }
 }
 
 void SurfaceControl::Transaction::SetGeometry(const Surface& surface,
@@ -590,6 +787,12 @@ void SurfaceControl::Transaction::SetCrop(const Surface& surface,
       transaction_, surface.surface(), RectToARect(rect));
 }
 
+void SurfaceControl::Transaction::SetFrameTimelineId(int64_t vsync_id) {
+  CHECK(SurfaceControlMethods::Get().ASurfaceTransaction_setFrameTimelineFn);
+  SurfaceControlMethods::Get().ASurfaceTransaction_setFrameTimelineFn(
+      transaction_, vsync_id);
+}
+
 void SurfaceControl::Transaction::SetOpaque(const Surface& surface,
                                             bool opaque) {
   int8_t transparency = opaque ? ASURFACE_TRANSACTION_TRANSPARENCY_OPAQUE
@@ -607,7 +810,11 @@ void SurfaceControl::Transaction::SetDamageRect(const Surface& surface,
 
 void SurfaceControl::Transaction::SetColorSpace(
     const Surface& surface,
-    const gfx::ColorSpace& color_space) {
+    const gfx::ColorSpace& color_space,
+    const absl::optional<HDRMetadata>& metadata) {
+  // Metadata shouldn't exist for SDR color spaces.
+  DCHECK(!metadata || color_space.IsHDR());
+
   auto data_space = ColorSpaceToADataSpace(color_space);
 
   // Log the data space in crash keys for debugging crbug.com/997592.
@@ -619,6 +826,59 @@ void SurfaceControl::Transaction::SetColorSpace(
 
   SurfaceControlMethods::Get().ASurfaceTransaction_setBufferDataSpaceFn(
       transaction_, surface.surface(), data_space);
+
+  const bool extended_range =
+      (data_space & DataSpace::RANGE_MASK) == DataSpace::RANGE_EXTENDED;
+
+  // Set the HDR metadata for not extended SRGB case.
+  if (metadata && !extended_range) {
+    AHdrMetadata_cta861_3 cta861_3 = {
+        .maxContentLightLevel =
+            static_cast<float>(metadata->max_content_light_level),
+        .maxFrameAverageLightLevel =
+            static_cast<float>(metadata->max_frame_average_light_level)};
+
+    const auto& primaries = metadata->color_volume_metadata.primaries;
+    AHdrMetadata_smpte2086 smpte2086 = {
+        .displayPrimaryRed = {.x = primaries.fRX, .y = primaries.fRY},
+        .displayPrimaryGreen = {.x = primaries.fGX, .y = primaries.fGY},
+        .displayPrimaryBlue = {.x = primaries.fBX, .y = primaries.fBY},
+        .whitePoint = {.x = primaries.fWX, .y = primaries.fWY},
+        .maxLuminance = metadata->color_volume_metadata.luminance_max,
+        .minLuminance = metadata->color_volume_metadata.luminance_min};
+
+    SurfaceControlMethods::Get().ASurfaceTransaction_setHdrMetadata_cta861_3Fn(
+        transaction_, surface.surface(), &cta861_3);
+    SurfaceControlMethods::Get().ASurfaceTransaction_setHdrMetadata_smpte2086Fn(
+        transaction_, surface.surface(), &smpte2086);
+  } else {
+    SurfaceControlMethods::Get().ASurfaceTransaction_setHdrMetadata_cta861_3Fn(
+        transaction_, surface.surface(), nullptr);
+    SurfaceControlMethods::Get().ASurfaceTransaction_setHdrMetadata_smpte2086Fn(
+        transaction_, surface.surface(), nullptr);
+  }
+
+  // Set brightness points for extended range.
+  if (extended_range) {
+    CHECK(metadata);
+    CHECK(metadata->extended_range_brightness);
+    CHECK(SurfaceControlMethods::Get()
+              .ASurfaceTransaction_setExtendedRangeBrightnessFn);
+    SurfaceControlMethods::Get()
+        .ASurfaceTransaction_setExtendedRangeBrightnessFn(
+            transaction_, surface.surface(),
+            metadata->extended_range_brightness->current_buffer_ratio,
+            metadata->extended_range_brightness->desired_ratio);
+  } else {
+    // If extended range brightness is supported, we need reset it to default
+    // values.
+    if (SurfaceControlMethods::Get()
+            .ASurfaceTransaction_setExtendedRangeBrightnessFn) {
+      SurfaceControlMethods::Get()
+          .ASurfaceTransaction_setExtendedRangeBrightnessFn(
+              transaction_, surface.surface(), 1.0f, 1.0f);
+    }
+  }
 }
 
 void SurfaceControl::Transaction::SetFrameRate(const Surface& surface,
@@ -663,10 +923,12 @@ void SurfaceControl::Transaction::Apply() {
 
   PrepareCallbacks();
   SurfaceControlMethods::Get().ASurfaceTransaction_applyFn(transaction_);
+  need_to_apply_ = false;
 }
 
 ASurfaceTransaction* SurfaceControl::Transaction::GetTransaction() {
   PrepareCallbacks();
+  need_to_apply_ = false;
   return transaction_;
 }
 
@@ -678,6 +940,9 @@ void SurfaceControl::Transaction::PrepareCallbacks() {
 
     SurfaceControlMethods::Get().ASurfaceTransaction_setOnCommitFn(
         transaction_, ack_ctx, &OnTransactiOnCommittedOnAnyThread);
+    // setOnCommit and setOnComplete increase ref count of SurfaceControl and
+    // Apply() is required to decrease the ref count.
+    need_to_apply_ = true;
   }
 
   if (on_complete_cb_) {
@@ -685,9 +950,26 @@ void SurfaceControl::Transaction::PrepareCallbacks() {
     ack_ctx->callback = std::move(on_complete_cb_);
     ack_ctx->id = id_;
 
+    bool dump = false;
+    {
+      base::AutoLock lock(GetGlobalLock());
+      auto result = GetGlobalPendingCompleteCallbackIds().insert(id_);
+      dump = !result.second;
+    }
+    if (dump) {
+      base::debug::DumpWithoutCrashing(base::Location::Current(),
+                                       base::Days(1));
+    }
     SurfaceControlMethods::Get().ASurfaceTransaction_setOnCompleteFn(
         transaction_, ack_ctx, &OnTransactionCompletedOnAnyThread);
+    need_to_apply_ = true;
   }
+}
+
+void SurfaceControl::Transaction::SetEnableBackPressure(const Surface& surface,
+                                                        bool enable) {
+  SurfaceControlMethods::Get().ASurfaceTransaction_setEnableBackPressureFn(
+      transaction_, surface.surface(), enable);
 }
 
 }  // namespace gfx

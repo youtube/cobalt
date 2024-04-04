@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,11 +10,13 @@
 #include <memory>
 #include <string>
 
-#include "base/containers/mru_cache.h"
+#include "base/containers/lru_cache.h"
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_piece.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/utf16.h"
@@ -175,12 +177,12 @@ class FallbackFontEntry {
   FontRenderParams font_params_;
 
   // Font code points coverage.
-  FcCharSet* charset_;
+  raw_ptr<FcCharSet> charset_;
 };
 
 using FallbackFontEntries = std::vector<FallbackFontEntry>;
 using FallbackFontEntriesCache =
-    base::MRUCache<FallbackFontKey, FallbackFontEntries>;
+    base::LRUCache<FallbackFontKey, FallbackFontEntries>;
 
 // The fallback font cache is a mapping from a font to the potential fallback
 // fonts with their codepoint coverage.
@@ -194,7 +196,7 @@ FallbackFontEntriesCache* GetFallbackFontEntriesCacheInstance() {
 // The fallback fonts cache is a mapping from a font family name to its
 // potential fallback fonts.
 using FallbackFontList = std::vector<Font>;
-using FallbackFontListCache = base::MRUCache<std::string, FallbackFontList>;
+using FallbackFontListCache = base::LRUCache<std::string, FallbackFontList>;
 
 FallbackFontListCache* GetFallbackFontListCacheInstance() {
   constexpr int kFallbackCacheSize = 64;
@@ -414,7 +416,7 @@ class CachedFont {
   FallbackFontData fallback_font_;
   // supported_characters_ is owned by the parent
   // FcFontSet and should never be freed.
-  FcCharSet* supported_characters_;
+  raw_ptr<FcCharSet> supported_characters_;
 };
 
 class CachedFontSet {
@@ -501,7 +503,7 @@ class CachedFontSet {
     }
   }
 
-  FcFontSet* font_set_;  // Owned by this object.
+  raw_ptr<FcFontSet> font_set_;  // Owned by this object.
   // CachedFont has a FcCharset* which points into the FcFontSet.
   // If the FcFontSet is ever destroyed, the fallback list
   // must be cleared first.

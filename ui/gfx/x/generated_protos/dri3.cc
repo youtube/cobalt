@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,6 +40,7 @@
 
 #include "dri3.h"
 
+#include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xcbext.h>
 
@@ -850,6 +851,50 @@ std::unique_ptr<Dri3::BuffersFromPixmapReply> detail::ReadReply<
   DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
+}
+
+Future<void> Dri3::SetDRMDeviceInUse(
+    const Dri3::SetDRMDeviceInUseRequest& request) {
+  if (!connection_->Ready() || !present())
+    return {};
+
+  WriteBuffer buf;
+
+  auto& window = request.window;
+  auto& drmMajor = request.drmMajor;
+  auto& drmMinor = request.drmMinor;
+
+  // major_opcode
+  uint8_t major_opcode = info_.major_opcode;
+  buf.Write(&major_opcode);
+
+  // minor_opcode
+  uint8_t minor_opcode = 9;
+  buf.Write(&minor_opcode);
+
+  // length
+  // Caller fills in length for writes.
+  Pad(&buf, sizeof(uint16_t));
+
+  // window
+  buf.Write(&window);
+
+  // drmMajor
+  buf.Write(&drmMajor);
+
+  // drmMinor
+  buf.Write(&drmMinor);
+
+  Align(&buf, 4);
+
+  return connection_->SendRequest<void>(&buf, "Dri3::SetDRMDeviceInUse", false);
+}
+
+Future<void> Dri3::SetDRMDeviceInUse(const Window& window,
+                                     const uint32_t& drmMajor,
+                                     const uint32_t& drmMinor) {
+  return Dri3::SetDRMDeviceInUse(
+      Dri3::SetDRMDeviceInUseRequest{window, drmMajor, drmMinor});
 }
 
 }  // namespace x11

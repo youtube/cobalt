@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,14 @@
 
 #include <string>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
 #include "ui/gfx/gfx_export.h"
 #include "ui/gfx/native_widget_types.h"
+
+#if BUILDFLAG(IS_APPLE)
+#include <CoreText/CoreText.h>
+#endif
 
 namespace gfx {
 
@@ -59,9 +63,9 @@ class GFX_EXPORT Font {
   Font(const Font& other);
   Font& operator=(const Font& other);
 
-#if defined(OS_APPLE)
-  // Creates a font from the specified native font.
-  explicit Font(NativeFont native_font);
+#if BUILDFLAG(IS_APPLE)
+  // Creates a font from the specified CTFontRef.
+  explicit Font(CTFontRef ct_font);
 #endif
 
   // Constructs a Font object with the specified PlatformFont object. The Font
@@ -116,11 +120,10 @@ class GFX_EXPORT Font {
   // Returns an object describing how the font should be rendered.
   const FontRenderParams& GetFontRenderParams() const;
 
-#if defined(OS_APPLE)
-  // Returns the native font handle.
-  // Lifetime lore:
-  // Mac:     The object is owned by the system and should not be released.
-  NativeFont GetNativeFont() const;
+#if BUILDFLAG(IS_APPLE)
+  // Returns the CTFontRef. This is owned by the gfx::Font as per the standard
+  // "get" idiom.
+  CTFontRef GetCTFont() const;
 #endif
 
   // Raw access to the underlying platform font implementation.

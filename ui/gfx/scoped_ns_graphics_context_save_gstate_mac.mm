@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,14 +10,19 @@
 
 namespace gfx {
 
+struct ScopedNSGraphicsContextSaveGState::ObjCStorage {
+  NSGraphicsContext* context_;  // weak
+};
+
 ScopedNSGraphicsContextSaveGState::ScopedNSGraphicsContextSaveGState()
-    : context_([NSGraphicsContext currentContext]) {
+    : objc_storage_(std::make_unique<ObjCStorage>()) {
+  objc_storage_->context_ = NSGraphicsContext.currentContext;
   [NSGraphicsContext saveGraphicsState];
 }
 
 ScopedNSGraphicsContextSaveGState::~ScopedNSGraphicsContextSaveGState() {
   [NSGraphicsContext restoreGraphicsState];
-  DCHECK_EQ(context_, [NSGraphicsContext currentContext]);
+  DCHECK_EQ(objc_storage_->context_, NSGraphicsContext.currentContext);
 }
 
 }  // namespace gfx

@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 
 #include "base/check_op.h"
 #include "base/gtest_prod_util.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/geometry_skia_export.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/geometry/transform_operation.h"
@@ -99,7 +100,7 @@ class GEOMETRY_SKIA_EXPORT TransformOperations {
   void AppendSkewX(SkScalar x);
   void AppendSkewY(SkScalar y);
   void AppendSkew(SkScalar x, SkScalar y);
-  void AppendPerspective(SkScalar depth);
+  void AppendPerspective(absl::optional<SkScalar> depth);
   void AppendMatrix(const Transform& matrix);
   void AppendIdentity();
   void Append(const TransformOperation& operation);

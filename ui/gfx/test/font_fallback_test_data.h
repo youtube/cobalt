@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,18 +18,16 @@ struct FallbackFontTestCase {
   FallbackFontTestCase(UScriptCode script_arg,
                        std::string language_tag_arg,
                        std::u16string text_arg,
-                       std::vector<std::string> fallback_fonts_arg,
-                       bool is_win10_arg = false);
+                       std::vector<std::string> fallback_fonts_arg);
   FallbackFontTestCase(const FallbackFontTestCase& other);
   ~FallbackFontTestCase();
   UScriptCode script;
   std::string language_tag;
   std::u16string text;
   std::vector<std::string> fallback_fonts;
-  bool is_win10 = false;
 };
 
-extern std::vector<FallbackFontTestCase> kGetFontFallbackTests;
+extern const std::vector<FallbackFontTestCase> kGetFontFallbackTests;
 
 }  // namespace gfx
 

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/macros.h"
 #include "third_party/icu/source/common/unicode/ubidi.h"
 #include "third_party/icu/source/common/unicode/uscript.h"
 #include "ui/gfx/render_text.h"
@@ -281,11 +280,15 @@ class GFX_EXPORT RenderTextHarfBuzz : public RenderText {
   // resulting shaping has fewer missing glyphs than the existing shape, then
   // write |font_params| and the resulting ShapeOutput to that run. Remove all
   // runs with no missing glyphs from |in_out_runs| (the caller, ShapeRuns, will
-  // terminate when no runs with missing glyphs remain).
+  // terminate when no runs with missing glyphs remain). Runs that were shaped
+  // during this function call will be returned in |sucessfully_shaped_runs| if
+  // a vector is passed in for that parameter.
   void ShapeRunsWithFont(
       const std::u16string& text,
       const internal::TextRunHarfBuzz::FontParams& font_params,
-      std::vector<internal::TextRunHarfBuzz*>* in_out_runs);
+      std::vector<internal::TextRunHarfBuzz*>* in_out_runs,
+      std::vector<internal::TextRunHarfBuzz*>* sucessfully_shaped_runs =
+          nullptr);
 
   // Itemize |text| into runs in |out_run_list|, shape the runs, and populate
   // |out_run_list|'s visual <-> logical maps.
