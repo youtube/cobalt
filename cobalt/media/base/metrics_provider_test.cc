@@ -66,11 +66,31 @@ TEST_F(MediaMetricsProviderTest, SupportsTrackingMultipleActions) {
 TEST_F(MediaMetricsProviderTest, SbPlayerCreate) {
   metrics_.StartTrackingAction(MediaAction::SBPLAYER_CREATE);
 
-  clock_.Advance(base::TimeDelta::FromMicroseconds(500));
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
   metrics_.EndTrackingAction(MediaAction::SBPLAYER_CREATE);
 
   histogram_tester_.ExpectUniqueSample(
-      std::string(kUmaPrefix) + "SbPlayer.Create.Timing", 1100, 1);
+      std::string(kUmaPrefix) + "SbPlayer.Create.Timing", 570, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerCreateUrlPlayer) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_CREATE_URL_PLAYER);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(670));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_CREATE_URL_PLAYER);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.CreateUrlPlayer.Timing", 670, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerDestroy) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_DESTROY);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(1570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_DESTROY);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.Destroy.Timing", 1570, 1);
 }
 
 
