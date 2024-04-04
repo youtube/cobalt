@@ -73,7 +73,7 @@ class URLFetcherDataSource : public DataSource,
 
   // DataSource methods.
   void Read(int64 position, int size, uint8* data,
-            const ReadCB& read_cb) override;
+            const ReadCB read_cb) override;
   void Stop() override;
   void Abort() override {}
   bool GetSize(int64* size_out) override;
@@ -105,8 +105,7 @@ class URLFetcherDataSource : public DataSource,
 
   void CreateNewFetcher();
   void UpdateDownloadingStatus(bool is_downloading);
-  void Read_Locked(uint64 position, size_t size, uint8* data,
-                   const ReadCB& read_cb);
+  void Read_Locked(uint64 position, size_t size, uint8* data, ReadCB read_cb);
   void ProcessPendingRead_Locked();
   void TryToSendRequest_Locked();
 

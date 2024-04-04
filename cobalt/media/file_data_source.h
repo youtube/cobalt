@@ -35,8 +35,7 @@ class FileDataSource : public DataSource {
   explicit FileDataSource(const GURL& file_url);
 
   // DataSource methods.
-  void Read(int64 position, int size, uint8* data,
-            const ReadCB& read_cb) override;
+  void Read(int64 position, int size, uint8* data, ReadCB read_cb) override;
   void Stop() override {}
   void Abort() override {}
   bool GetSize(int64* size_out) override;
