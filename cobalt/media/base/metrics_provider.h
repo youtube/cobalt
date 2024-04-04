@@ -94,7 +94,7 @@ class MediaMetricsProvider {
  private:
   // Media player action latency data.
   const base::TickClock* clock_;
-  base::small_map<std::map<MediaAction, base::TimeTicks>, 2>
+  base::small_map<std::map<MediaAction, base::TimeTicks>, 5>
       tracked_actions_start_times_;
 
   // UMA pipeline packaged data
