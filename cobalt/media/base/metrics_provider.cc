@@ -138,19 +138,19 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SbPlayer.Create.Timing", action_duration,
           base::TimeDelta::FromMicroseconds(100),
-          base::TimeDelta::FromMilliseconds(5000), 50);
+          base::TimeDelta::FromMicroseconds(5000), 50);
       break;
     case MediaAction::SBPLAYER_CREATE_URL_PLAYER:
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SbPlayer.CreateUrlPlayer.Timing", action_duration,
           base::TimeDelta::FromMicroseconds(100),
-          base::TimeDelta::FromMilliseconds(5000), 50);
+          base::TimeDelta::FromMicroseconds(5000), 50);
       break;
     case MediaAction::SBPLAYER_DESTROY:
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SbPlayer.Destroy.Timing", action_duration,
           base::TimeDelta::FromMicroseconds(100),
-          base::TimeDelta::FromMilliseconds(100000), 50);
+          base::TimeDelta::FromMicroseconds(100000), 50);
       break;
     case MediaAction::UNKNOWN_ACTION:
     default:
