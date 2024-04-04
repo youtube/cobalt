@@ -66,15 +66,8 @@ class MediaMetricsProvider {
         ::media::PipelineStatus::PIPELINE_OK;
   };
 
-  struct MediaInfo {
-    explicit MediaInfo(bool is_mse) : is_mse{is_mse} {};
-    const bool is_mse;
-  };
-
-
  public:
   // based on mojom::MediaMetricsProvider
-  void Initialize(bool is_mse);
   void OnError(const ::media::PipelineStatus status);
   void SetHasAudio(::media::AudioCodec audio_codec);
   void SetHasVideo(::media::VideoCodec video_codec);
@@ -91,7 +84,6 @@ class MediaMetricsProvider {
 
  private:
   std::string GetUMANameForAVStream(const PipelineInfo& player_info) const;
-  bool IsInitialized() const;
 
   void ReportActionLatencyUMA(WebMediaPlayerAction action,
                               const base::TimeDelta& action_duration);
@@ -104,9 +96,6 @@ class MediaMetricsProvider {
 
   // UMA pipeline packaged data
   PipelineInfo uma_info_;
-
-  // The values below are only set if `Initialize` has been called.
-  absl::optional<MediaInfo> media_info_;
 
   starboard::Mutex mutex_;
 };
