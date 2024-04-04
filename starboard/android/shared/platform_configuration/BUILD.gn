@@ -165,7 +165,9 @@ config("platform_configuration") {
   if (!is_native_target_build) {
     ldflags += [
       "-Wl,--wrap=close",
+      "-Wl,--wrap=lseek",
       "-Wl,--wrap=open",
+      "-Wl,--wrap=read",
       "-Wl,--wrap=stat",
     ]
   }
