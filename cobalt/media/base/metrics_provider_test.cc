@@ -40,7 +40,6 @@ class MediaMetricsProviderTest : public ::testing::Test {
 };
 
 TEST_F(MediaMetricsProviderTest, ReportsSeekLatency) {
-  metrics_.Initialize(true);
   metrics_.StartTrackingAction(WebMediaPlayerAction::SEEK);
 
   clock_.Advance(base::TimeDelta::FromMilliseconds(100));
@@ -51,7 +50,6 @@ TEST_F(MediaMetricsProviderTest, ReportsSeekLatency) {
 }
 
 TEST_F(MediaMetricsProviderTest, SupportsTrackingMultipleActions) {
-  metrics_.Initialize(true);
   metrics_.StartTrackingAction(WebMediaPlayerAction::SEEK);
   metrics_.StartTrackingAction(WebMediaPlayerAction::UNKNOWN_ACTION);
 
