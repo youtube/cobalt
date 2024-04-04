@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "base/functional/callback_forward.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "media/base/demuxer_stream.h"
 #include "media/mojo/mojom/demuxer_stream.mojom.h"
@@ -38,7 +38,7 @@ class MojoDemuxerStreamImpl : public mojom::DemuxerStream {
   // InitializeCallback and ReadCallback are defined in
   // mojom::DemuxerStream.
   void Initialize(InitializeCallback callback) override;
-  void Read(ReadCallback callback) override;
+  void Read(uint32_t count, ReadCallback callback) override;
   void EnableBitstreamConverter() override;
 
   // Sets an error handler that will be called if a connection error occurs on
@@ -53,12 +53,12 @@ class MojoDemuxerStreamImpl : public mojom::DemuxerStream {
 
   void OnBufferReady(ReadCallback callback,
                      Status status,
-                     scoped_refptr<DecoderBuffer> buffer);
+                     media::DemuxerStream::DecoderBufferVector buffers);
 
   mojo::Receiver<mojom::DemuxerStream> receiver_;
 
   // See constructor.  We do not own |stream_|.
-  media::DemuxerStream* stream_;
+  raw_ptr<media::DemuxerStream> stream_;
 
   std::unique_ptr<MojoDecoderBufferWriter> mojo_decoder_buffer_writer_;
 

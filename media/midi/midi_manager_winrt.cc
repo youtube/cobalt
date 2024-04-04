@@ -1,8 +1,9 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/midi/midi_manager_winrt.h"
+#include "base/memory/raw_ptr.h"
 
 #pragma warning(disable : 4467)
 
@@ -26,7 +27,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/scoped_generic.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -196,12 +197,12 @@ template <typename InterfaceType>
 struct MidiPort {
   MidiPort() = default;
 
+  MidiPort(const MidiPort&) = delete;
+  MidiPort& operator=(const MidiPort&) = delete;
+
   uint32_t index;
   WRL::ComPtr<InterfaceType> handle;
   EventRegistrationToken token_MessageReceived;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MidiPort);
 };
 
 }  // namespace
@@ -439,11 +440,11 @@ class MidiManagerWinrt::MidiPortManager {
  protected:
   // Points to the MidiService instance, which is expected to outlive the
   // MidiPortManager instance.
-  MidiService* midi_service_;
+  raw_ptr<MidiService> midi_service_;
 
   // Points to the MidiManagerWinrt instance, which is safe to be accessed
   // from tasks that are invoked by TaskService.
-  MidiManagerWinrt* midi_manager_;
+  raw_ptr<MidiManagerWinrt> midi_manager_;
 
  private:
   // DeviceWatcher callbacks:
@@ -637,6 +638,9 @@ class MidiManagerWinrt::MidiInPortManager final
   MidiInPortManager(MidiManagerWinrt* midi_manager)
       : MidiPortManager(midi_manager) {}
 
+  MidiInPortManager(const MidiInPortManager&) = delete;
+  MidiInPortManager& operator=(const MidiInPortManager&) = delete;
+
  private:
   // MidiPortManager overrides:
   bool RegisterOnMessageReceived(Win::Devices::Midi::IMidiInPort* handle,
@@ -730,8 +734,6 @@ class MidiManagerWinrt::MidiInPortManager final
 
     midi_manager_->ReceiveMidiData(port->index, &data[0], data.size(), time);
   }
-
-  DISALLOW_COPY_AND_ASSIGN(MidiInPortManager);
 };
 
 class MidiManagerWinrt::MidiOutPortManager final
@@ -743,6 +745,9 @@ class MidiManagerWinrt::MidiOutPortManager final
   MidiOutPortManager(MidiManagerWinrt* midi_manager)
       : MidiPortManager(midi_manager) {}
 
+  MidiOutPortManager(const MidiOutPortManager&) = delete;
+  MidiOutPortManager& operator=(const MidiOutPortManager&) = delete;
+
  private:
   // MidiPortManager overrides:
   void AddPort(mojom::PortInfo info) final {
@@ -752,8 +757,6 @@ class MidiManagerWinrt::MidiOutPortManager final
   void SetPortState(uint32_t port_index, PortState state) final {
     midi_manager_->SetOutputPortState(port_index, state);
   }
-
-  DISALLOW_COPY_AND_ASSIGN(MidiOutPortManager);
 };
 
 namespace {
@@ -818,16 +821,6 @@ void MidiManagerWinrt::InitializeOnComRunner() {
   base::AutoLock auto_lock(lazy_init_member_lock_);
 
   DCHECK(service()->task_service()->IsOnTaskRunner(kComTaskRunner));
-
-  bool preload_success = base::win::ResolveCoreWinRTDelayload() &&
-                         ScopedHString::ResolveCoreWinRTStringDelayload();
-  if (!preload_success) {
-    service()->task_service()->PostBoundTask(
-        kDefaultTaskRunner,
-        base::BindOnce(&MidiManagerWinrt::CompleteInitialization,
-                       base::Unretained(this), Result::INITIALIZATION_ERROR));
-    return;
-  }
 
   port_manager_in_ = std::make_unique<MidiInPortManager>(this);
   port_manager_out_ = std::make_unique<MidiOutPortManager>(this);

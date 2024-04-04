@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,9 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/power_monitor/power_observer.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -19,7 +18,6 @@ namespace media {
 // task runner is given, on which suspend and resume notification callbacks are
 // run. It also provides a function to check if we are suspending on the task
 // runner.
-// Note that on Linux suspend/resume information is not supported.
 class MEDIA_EXPORT PowerObserverHelper : public base::PowerSuspendObserver {
  public:
   PowerObserverHelper(scoped_refptr<base::SequencedTaskRunner> task_runner,

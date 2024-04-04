@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,12 +13,12 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
-#include "base/macros.h"
 #include "base/time/time.h"
 #include "media/base/encryption_pattern.h"
 #include "media/base/encryption_scheme.h"
 #include "media/base/media_export.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -78,6 +78,26 @@ class MEDIA_EXPORT MediaCodecBridge {
   // INFO_OUTPUT_FORMAT_CHANGED. Returns MEDIA_CODEC_ERROR if an error occurs,
   // or MEDIA_CODEC_OK otherwise.
   virtual MediaCodecStatus GetOutputChannelCount(int* channel_count) = 0;
+
+  // Fills in |color_space| with the color space of the decoded video.  This
+  // is valid after DequeueOutputBuffer() signals a format change.  Will return
+  // MEDIA_CODEC_OK on success, with |color_space| initialized, or
+  // MEDIA_CODEC_ERROR with |color_space| unmodified otherwise.
+  virtual MediaCodecStatus GetOutputColorSpace(
+      gfx::ColorSpace* color_space) = 0;
+
+  // Fills in |stride| with required Y-plane stride in the encoder's input
+  // buffer. Returns MEDIA_CODEC_OK on success, with |stride| initialized, or
+  // MEDIA_CODEC_ERROR with |stride| unmodified otherwise.
+  // Fills in |slice_height| with required Y-plane height in the encoder's input
+  // buffer. (i.e. the number of rows that must be skipped to get from the top
+  // of the Y plane to the top of the UV plane in the bytebuffer.)
+  // Fills in |encoded_size| with actual size the encoder was configured for,
+  // which may differ if the codec requires 16x16 aligned resolutions.
+  // (see MediaFormat#KEY_STRIDE for more details)
+  virtual MediaCodecStatus GetInputFormat(int* stride,
+                                          int* slice_height,
+                                          gfx::Size* encoded_size) = 0;
 
   // Submits a byte array to the given input buffer. Call this after getting an
   // available buffer from DequeueInputBuffer(). If |data| is NULL, it assumes

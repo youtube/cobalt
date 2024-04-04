@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,23 +12,23 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
-#include "base/memory/ref_counted.h"
-#include "base/memory/weak_ptr.h"
-#include "base/single_thread_task_runner.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/time/time.h"
 #include "media/base/bitrate.h"
-#include "media/base/bitstream_buffer.h"
+#include "media/base/encoder_status.h"
 #include "media/base/media_export.h"
 #include "media/base/svc_scalability_mode.h"
 #include "media/base/video_bitrate_allocation.h"
 #include "media/base/video_codecs.h"
-#include "media/base/video_frame.h"
-#include "media/video/h264_parser.h"
+#include "media/base/video_types.h"
 #include "media/video/video_encoder_info.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/gfx/color_space.h"
 
 namespace media {
 
 class BitstreamBuffer;
+class MediaLog;
 class VideoFrame;
 
 //  Metadata for a H264 bitstream buffer.
@@ -39,6 +39,12 @@ class VideoFrame;
 struct MEDIA_EXPORT H264Metadata final {
   uint8_t temporal_idx = 0;
   bool layer_sync = false;
+};
+
+// Metadata for H265 bitstream buffer.
+//  |temporal_idx|  indicates the temporal index of this frame.
+struct MEDIA_EXPORT H265Metadata final {
+  uint8_t temporal_idx = 0;
 };
 
 //  Metadata for a VP8 bitstream buffer.
@@ -87,11 +93,21 @@ struct MEDIA_EXPORT Vp9Metadata final {
   std::vector<uint8_t> p_diffs;
 };
 
+// Metadata for an AV1 bitstream buffer.
+struct MEDIA_EXPORT Av1Metadata final {
+  Av1Metadata();
+  ~Av1Metadata();
+  Av1Metadata(const Av1Metadata&);
+  // The temporal index for this frame.
+  uint8_t temporal_idx = 0;
+};
+
 //  Metadata associated with a bitstream buffer.
 //  |payload_size| is the byte size of the used portion of the buffer.
 //  |key_frame| is true if this delivered frame is a keyframe.
 //  |timestamp| is the same timestamp as in VideoFrame passed to Encode().
-//  |vp8|, if set, contains metadata specific to VP8. See above.
+//  |qp| is the quantizer value, default invalid qp value is -1 following
+//  webrtc::EncodedImage.
 struct MEDIA_EXPORT BitstreamBufferMetadata final {
   BitstreamBufferMetadata();
   BitstreamBufferMetadata(const BitstreamBufferMetadata& other);
@@ -105,17 +121,37 @@ struct MEDIA_EXPORT BitstreamBufferMetadata final {
   size_t payload_size_bytes;
   bool key_frame;
   base::TimeDelta timestamp;
+  int32_t qp = -1;
+
+  bool end_of_picture() const;
+  absl::optional<uint8_t> spatial_idx() const;
 
   // |h264|, |vp8| or |vp9| may be set, but not multiple of them. Presumably,
   // it's also possible for none of them to be set.
   absl::optional<H264Metadata> h264;
   absl::optional<Vp8Metadata> vp8;
   absl::optional<Vp9Metadata> vp9;
+  absl::optional<Av1Metadata> av1;
+  absl::optional<H265Metadata> h265;
+
+  // Some platforms may adjust the encoding size to meet hardware requirements.
+  // If not set, the encoded size is the same as configured.
+  absl::optional<gfx::Size> encoded_size;
+
+  // Some platforms may adjust the color space.
+  absl::optional<gfx::ColorSpace> encoded_color_space;
 };
 
 // Video encoder interface.
 class MEDIA_EXPORT VideoEncodeAccelerator {
  public:
+  // Bitmask values for supported rate control modes.
+  enum SupportedRateControlMode : uint8_t {
+    kNoMode = 0,  // for uninitialized profiles only
+    kConstantMode = 0b0001,
+    kVariableMode = 0b0010,
+  };
+
   // Specification of an encoding profile supported by an encoder.
   struct MEDIA_EXPORT SupportedProfile {
     SupportedProfile();
@@ -124,6 +160,7 @@ class MEDIA_EXPORT VideoEncodeAccelerator {
         const gfx::Size& max_resolution,
         uint32_t max_framerate_numerator = 0u,
         uint32_t max_framerate_denominator = 1u,
+        SupportedRateControlMode rc_modes = kConstantMode,
         const std::vector<SVCScalabilityMode>& scalability_modes = {});
     SupportedProfile(const SupportedProfile& other);
     SupportedProfile& operator=(const SupportedProfile& other) = default;
@@ -133,7 +170,9 @@ class MEDIA_EXPORT VideoEncodeAccelerator {
     gfx::Size max_resolution;
     uint32_t max_framerate_numerator{0};
     uint32_t max_framerate_denominator{0};
+    SupportedRateControlMode rate_control_modes = kNoMode;
     std::vector<SVCScalabilityMode> scalability_modes;
+    bool is_software_codec = false;
   };
   using SupportedProfiles = std::vector<SupportedProfile>;
   using FlushCallback = base::OnceCallback<void(bool)>;
@@ -169,6 +208,10 @@ class MEDIA_EXPORT VideoEncodeAccelerator {
     // kShmem if a video frame has a shared memory.
     // kGpuMemoryBuffer if a video frame has a GpuMemoryBuffer.
     enum class StorageType { kShmem, kGpuMemoryBuffer };
+
+    // Used to require a certain encoder type is selected. The default is that
+    // hardware is required.
+    enum class EncoderType { kHardware, kSoftware, kNoPreference };
 
     struct MEDIA_EXPORT SpatialLayer {
       // The encoder dimension of the spatial layer.
@@ -267,6 +310,10 @@ class MEDIA_EXPORT VideoEncodeAccelerator {
     // This flag forces the encoder to use low latency mode, suitable for
     // RTC use cases.
     bool require_low_delay = true;
+
+    // Indicates what type of encoder is required. Useful when OS software
+    // encoders may be present and/or superior to built-in encoders.
+    EncoderType required_encoder_type = EncoderType::kHardware;
   };
 
   // Interface for clients that use VideoEncodeAccelerator. These callbacks will
@@ -304,7 +351,9 @@ class MEDIA_EXPORT VideoEncodeAccelerator {
     // Error notification callback. Note that errors in Initialize() will not be
     // reported here, but will instead be indicated by a false return value
     // there.
-    virtual void NotifyError(Error error) = 0;
+    virtual void NotifyError(Error error);
+
+    virtual void NotifyErrorStatus(const EncoderStatus& status);
 
     // Call VideoEncoderInfo of the VEA is changed.
     virtual void NotifyEncoderInfoChange(const VideoEncoderInfo& info);
@@ -329,8 +378,11 @@ class MEDIA_EXPORT VideoEncodeAccelerator {
   //  |config| contains the initialization parameters.
   //  |client| is the client of this video encoder.  The provided pointer must
   //  be valid until Destroy() is called.
+  //  |media_log| is used to report error messages.
   // TODO(sheu): handle resolution changes.  http://crbug.com/249944
-  virtual bool Initialize(const Config& config, Client* client) = 0;
+  virtual bool Initialize(const Config& config,
+                          Client* client,
+                          std::unique_ptr<MediaLog> media_log) = 0;
 
   // Encodes the given frame.
   // The storage type of |frame| must be the |storage_type| if it is specified
@@ -393,7 +445,7 @@ class MEDIA_EXPORT VideoEncodeAccelerator {
   virtual bool IsGpuFrameResizeSupported();
 
  protected:
-  // Do not delete directly; use Destroy() or own it with a scoped_ptr, which
+  // Do not delete directly; use Destroy() or own it with a unique_ptr, which
   // will Destroy() it properly by default.
   virtual ~VideoEncodeAccelerator();
 };
@@ -402,6 +454,7 @@ MEDIA_EXPORT bool operator==(const VideoEncodeAccelerator::SupportedProfile& l,
                              const VideoEncodeAccelerator::SupportedProfile& r);
 MEDIA_EXPORT bool operator==(const Vp8Metadata& l, const Vp8Metadata& r);
 MEDIA_EXPORT bool operator==(const Vp9Metadata& l, const Vp9Metadata& r);
+MEDIA_EXPORT bool operator==(const Av1Metadata& l, const Av1Metadata& r);
 MEDIA_EXPORT bool operator==(const BitstreamBufferMetadata& l,
                              const BitstreamBufferMetadata& r);
 MEDIA_EXPORT bool operator==(
@@ -409,6 +462,39 @@ MEDIA_EXPORT bool operator==(
     const VideoEncodeAccelerator::Config::SpatialLayer& r);
 MEDIA_EXPORT bool operator==(const VideoEncodeAccelerator::Config& l,
                              const VideoEncodeAccelerator::Config& r);
+
+MEDIA_EXPORT inline VideoEncodeAccelerator::SupportedRateControlMode operator|(
+    VideoEncodeAccelerator::SupportedRateControlMode lhs,
+    VideoEncodeAccelerator::SupportedRateControlMode rhs) {
+  return static_cast<VideoEncodeAccelerator::SupportedRateControlMode>(
+      static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs));
+}
+
+MEDIA_EXPORT inline VideoEncodeAccelerator::SupportedRateControlMode&
+operator|=(VideoEncodeAccelerator::SupportedRateControlMode& lhs,
+           VideoEncodeAccelerator::SupportedRateControlMode rhs) {
+  lhs = lhs | rhs;
+  return lhs;
+}
+
+MEDIA_EXPORT inline VideoEncodeAccelerator::SupportedRateControlMode operator&(
+    VideoEncodeAccelerator::SupportedRateControlMode lhs,
+    VideoEncodeAccelerator::SupportedRateControlMode rhs) {
+  return static_cast<VideoEncodeAccelerator::SupportedRateControlMode>(
+      static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs));
+}
+
+MEDIA_EXPORT inline VideoEncodeAccelerator::SupportedRateControlMode&
+operator&=(VideoEncodeAccelerator::SupportedRateControlMode& lhs,
+           VideoEncodeAccelerator::SupportedRateControlMode rhs) {
+  lhs = lhs & rhs;
+  return lhs;
+}
+
+// TODO(b/275663480): Remove this function once we replace UMAs in client
+// with UKM.
+MEDIA_EXPORT VideoEncodeAccelerator::Error
+ConvertStatusToVideoEncodeAcceleratorError(const EncoderStatus& status);
 }  // namespace media
 
 namespace std {

@@ -1,18 +1,20 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/gpu/chromeos/image_processor_with_pool.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/task/sequenced_task_runner.h"
+#include "media/base/media_serializers.h"
 #include "media/gpu/chromeos/gpu_buffer_layout.h"
 #include "media/gpu/macros.h"
 
 namespace media {
 
 // static
-StatusOr<std::unique_ptr<ImageProcessorWithPool>>
+CroStatus::Or<std::unique_ptr<ImageProcessorWithPool>>
 ImageProcessorWithPool::Create(
     std::unique_ptr<ImageProcessor> image_processor,
     DmabufVideoFramePool* const frame_pool,
@@ -20,10 +22,15 @@ ImageProcessorWithPool::Create(
     bool use_protected,
     const scoped_refptr<base::SequencedTaskRunner> task_runner) {
   const ImageProcessor::PortConfig& config = image_processor->output_config();
-  StatusOr<GpuBufferLayout> status_or_layout =
-      frame_pool->Initialize(config.fourcc, config.size, config.visible_rect,
-                             config.size, num_frames, use_protected);
-  if (status_or_layout.has_error()) {
+
+  const gfx::Size coded_size = config.size;
+  DCHECK(gfx::Rect(coded_size).Contains(config.visible_rect));
+  const gfx::Size natural_size = config.visible_rect.size();
+
+  CroStatus::Or<GpuBufferLayout> status_or_layout = frame_pool->Initialize(
+      config.fourcc, coded_size, config.visible_rect, natural_size, num_frames,
+      use_protected, image_processor->needs_linear_output_buffers());
+  if (!status_or_layout.has_value()) {
     VLOGF(1) << "Failed to initialize the pool.";
     return std::move(status_or_layout).error();
   }
@@ -32,7 +39,9 @@ ImageProcessorWithPool::Create(
   if (layout.size() != config.size) {
     VLOGF(1) << "Failed to request frame with correct size. "
              << config.size.ToString() << " != " << layout.size().ToString();
-    return Status(StatusCode::kInvalidArgument);
+    return CroStatus(CroStatus::Codes::kInvalidLayoutSize)
+        .WithData("expected_size", config.size)
+        .WithData("actual_size", layout.size());
   }
 
   return base::WrapUnique<ImageProcessorWithPool>(new ImageProcessorWithPool(

@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,11 @@
 #include <utility>
 #include <vector>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/macros.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
@@ -51,6 +51,9 @@ class FakeTextTrack : public TextTrack {
 class TextRendererTest : public testing::Test {
  public:
   TextRendererTest() = default;
+
+  TextRendererTest(const TextRendererTest&) = delete;
+  TextRendererTest& operator=(const TextRendererTest&) = delete;
 
   void CreateTextRenderer() {
     DCHECK(!text_renderer_);
@@ -201,9 +204,6 @@ class TextRendererTest : public testing::Test {
   TextTracks text_tracks_;
 
   std::unique_ptr<TextRenderer> text_renderer_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(TextRendererTest);
 };
 
 TEST_F(TextRendererTest, CreateTextRendererNoInit) {

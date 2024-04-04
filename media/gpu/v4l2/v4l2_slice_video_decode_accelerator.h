@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,12 +15,13 @@
 
 #include "base/containers/queue.h"
 #include "base/files/scoped_file.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "gpu/command_buffer/service/shared_image/gl_image_native_pixmap.h"
 #include "media/gpu/chromeos/fourcc.h"
 #include "media/gpu/decode_surface_handler.h"
 #include "media/gpu/gpu_video_decode_accelerator_helpers.h"
@@ -75,9 +76,9 @@ class MEDIA_GPU_EXPORT V4L2SliceVideoDecodeAccelerator
   void Flush() override;
   void Reset() override;
   void Destroy() override;
-  bool TryToSetupDecodeOnSeparateThread(
+  bool TryToSetupDecodeOnSeparateSequence(
       const base::WeakPtr<Client>& decode_client,
-      const scoped_refptr<base::SingleThreadTaskRunner>& decode_task_runner)
+      const scoped_refptr<base::SequencedTaskRunner>& decode_task_runner)
       override;
 
   static VideoDecodeAccelerator::SupportedProfiles GetSupportedProfiles();
@@ -140,6 +141,13 @@ class MEDIA_GPU_EXPORT V4L2SliceVideoDecodeAccelerator
 
   // Input format V4L2 fourccs this class supports.
   static const uint32_t supported_input_fourccs_[];
+
+  static scoped_refptr<gpu::GLImageNativePixmap> CreateGLImage(
+      const gfx::Size& size,
+      const Fourcc fourcc,
+      gfx::NativePixmapHandle handle,
+      GLenum target,
+      GLuint texture_id);
 
   //
   // Below methods are used by accelerator implementations.
@@ -380,7 +388,7 @@ class MEDIA_GPU_EXPORT V4L2SliceVideoDecodeAccelerator
   const scoped_refptr<base::SingleThreadTaskRunner> child_task_runner_;
 
   // Task runner Decode() and PictureReady() run on.
-  scoped_refptr<base::SingleThreadTaskRunner> decode_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> decode_task_runner_;
 
   // WeakPtr<> pointing to |this| for use in posting tasks from the decoder or
   // device worker threads back to the child thread.
@@ -403,11 +411,6 @@ class MEDIA_GPU_EXPORT V4L2SliceVideoDecodeAccelerator
   scoped_refptr<base::SingleThreadTaskRunner> decoder_thread_task_runner_;
 
   scoped_refptr<V4L2Queue> input_queue_;
-  // Set to true by CreateInputBuffers() if the codec driver supports requests
-  bool supports_requests_ = false;
-  // Stores the media file descriptor if request API is used
-  base::ScopedFD media_fd_;
-
   scoped_refptr<V4L2Queue> output_queue_;
   // Buffers that have been allocated but are awaiting an ImportBuffer
   // or AssignDmabufs event.
@@ -419,7 +422,7 @@ class MEDIA_GPU_EXPORT V4L2SliceVideoDecodeAccelerator
   // an image processor in ALLOCATE mode in which case the index of the IP
   // buffer may not match the one of the decoder.
   std::map<int32_t, int32_t> decoded_buffer_map_;
-  // FIFO queue of requests, only used if supports_requests_ == true.
+  // FIFO queue of requests.
   std::queue<base::ScopedFD> requests_;
 
   VideoCodecProfile video_profile_;
@@ -460,6 +463,9 @@ class MEDIA_GPU_EXPORT V4L2SliceVideoDecodeAccelerator
 
   // Codec-specific software decoder in use.
   std::unique_ptr<AcceleratedVideoDecoder> decoder_;
+
+  // The visible rect of the frames in the output queue.
+  gfx::Rect visible_rect_;
 
   // Surfaces queued to device to keep references to them while decoded.
   std::queue<scoped_refptr<V4L2DecodeSurface>> surfaces_at_device_;

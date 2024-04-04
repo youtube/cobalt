@@ -1,13 +1,13 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/task_environment.h"
 #include "base/threading/thread.h"
 #include "media/learning/mojo/mojo_learning_task_controller_service.h"
@@ -113,10 +113,11 @@ class MojoLearningTaskControllerServiceTest : public ::testing::Test {
   // Mojo stuff.
   base::test::TaskEnvironment task_environment_;
 
-  FakeLearningTaskController* controller_raw_ = nullptr;
-
-  // The learner under test.
+  // The learner under test. Must outlive `controller_raw_`
   std::unique_ptr<MojoLearningTaskControllerService> service_;
+
+  // Raw controller. Owned by `service_`.
+  raw_ptr<FakeLearningTaskController> controller_raw_ = nullptr;
 };
 
 TEST_F(MojoLearningTaskControllerServiceTest, BeginComplete) {

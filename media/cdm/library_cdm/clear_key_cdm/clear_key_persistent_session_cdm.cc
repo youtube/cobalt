@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,8 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "media/base/cdm_promise.h"
 #include "media/cdm/json_web_key.h"

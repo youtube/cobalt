@@ -1,11 +1,12 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/filters/offloading_video_decoder.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/task_environment.h"
@@ -71,6 +72,10 @@ class OffloadingVideoDecoderTest : public testing::Test {
             base::test::TaskEnvironment::MainThreadType::DEFAULT,
             base::test::TaskEnvironment::ThreadPoolExecutionMode::QUEUED) {}
 
+  OffloadingVideoDecoderTest(const OffloadingVideoDecoderTest&) = delete;
+  OffloadingVideoDecoderTest& operator=(const OffloadingVideoDecoderTest&) =
+      delete;
+
   void CreateWrapper(int offload_width, VideoCodec codec) {
     decoder_ = new testing::StrictMock<MockOffloadableVideoDecoder>();
     offloading_decoder_ = std::make_unique<OffloadingVideoDecoder>(
@@ -82,7 +87,7 @@ class OffloadingVideoDecoderTest : public testing::Test {
     EXPECT_CALL(*this, InitDone(success))
         .WillOnce(VerifyOn(task_env_.GetMainThreadTaskRunner()));
     return base::BindOnce(
-        [](base::OnceCallback<void(bool)> cb, Status status) {
+        [](base::OnceCallback<void(bool)> cb, DecoderStatus status) {
           std::move(cb).Run(status.is_ok());
         },
         base::BindOnce(&OffloadingVideoDecoderTest::InitDone,
@@ -96,7 +101,7 @@ class OffloadingVideoDecoderTest : public testing::Test {
                                base::Unretained(this));
   }
 
-  VideoDecoder::DecodeCB ExpectDecodeCB(StatusCode status) {
+  VideoDecoder::DecodeCB ExpectDecodeCB(DecoderStatus status) {
     EXPECT_CALL(*this, DecodeDone(HasStatusCode(status)))
         .WillOnce(VerifyOn(task_env_.GetMainThreadTaskRunner()));
     return base::BindOnce(&OffloadingVideoDecoderTest::DecodeDone,
@@ -123,7 +128,7 @@ class OffloadingVideoDecoderTest : public testing::Test {
     VideoDecoder::OutputCB output_cb;
     EXPECT_CALL(*decoder_, Initialize_(_, false, nullptr, _, _, _))
         .WillOnce(DoAll(VerifyOn(task_env_.GetMainThreadTaskRunner()),
-                        RunOnceCallback<3>(OkStatus()),
+                        RunOnceCallback<3>(DecoderStatus::Codes::kOk),
                         SaveArg<4>(&output_cb)));
     offloading_decoder_->Initialize(config, false, nullptr, ExpectInitCB(true),
                                     ExpectOutputCB(), base::NullCallback());
@@ -133,9 +138,9 @@ class OffloadingVideoDecoderTest : public testing::Test {
     EXPECT_CALL(*decoder_, Decode_(_, _))
         .WillOnce(DoAll(VerifyOn(task_env_.GetMainThreadTaskRunner()),
                         RunOnceClosure(base::BindOnce(output_cb, nullptr)),
-                        RunOnceCallback<1>(DecodeStatus::OK)));
+                        RunOnceCallback<1>(DecoderStatus::Codes::kOk)));
     offloading_decoder_->Decode(DecoderBuffer::CreateEOSBuffer(),
-                                ExpectDecodeCB(DecodeStatus::OK));
+                                ExpectDecodeCB(DecoderStatus::Codes::kOk));
     task_env_.RunUntilIdle();
 
     // Reset so we can call Initialize() again.
@@ -165,7 +170,7 @@ class OffloadingVideoDecoderTest : public testing::Test {
                                     ExpectOutputCB(), base::NullCallback());
     EXPECT_CALL(*decoder_, Initialize_(_, false, nullptr, _, _, _))
         .WillOnce(DoAll(VerifyNotOn(task_env_.GetMainThreadTaskRunner()),
-                        RunOnceCallback<3>(OkStatus()),
+                        RunOnceCallback<3>(DecoderStatus::Codes::kOk),
                         SaveArg<4>(&output_cb)));
     task_env_.RunUntilIdle();
 
@@ -174,11 +179,11 @@ class OffloadingVideoDecoderTest : public testing::Test {
 
     // Verify decode works and is called on the right thread.
     offloading_decoder_->Decode(DecoderBuffer::CreateEOSBuffer(),
-                                ExpectDecodeCB(DecodeStatus::OK));
+                                ExpectDecodeCB(DecoderStatus::Codes::kOk));
     EXPECT_CALL(*decoder_, Decode_(_, _))
         .WillOnce(DoAll(VerifyNotOn(task_env_.GetMainThreadTaskRunner()),
                         RunOnceClosure(base::BindOnce(output_cb, nullptr)),
-                        RunOnceCallback<1>(DecodeStatus::OK)));
+                        RunOnceCallback<1>(DecoderStatus::Codes::kOk)));
     task_env_.RunUntilIdle();
 
     // Reset so we can call Initialize() again.
@@ -191,16 +196,13 @@ class OffloadingVideoDecoderTest : public testing::Test {
 
   MOCK_METHOD1(InitDone, void(bool));
   MOCK_METHOD1(OutputDone, void(scoped_refptr<VideoFrame>));
-  MOCK_METHOD1(DecodeDone, void(Status));
+  MOCK_METHOD1(DecodeDone, void(DecoderStatus));
   MOCK_METHOD0(ResetDone, void(void));
 
   base::test::TaskEnvironment task_env_;
   std::unique_ptr<OffloadingVideoDecoder> offloading_decoder_;
-  testing::StrictMock<MockOffloadableVideoDecoder>* decoder_ =
+  raw_ptr<testing::StrictMock<MockOffloadableVideoDecoder>> decoder_ =
       nullptr;  // Owned by |offloading_decoder_|.
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(OffloadingVideoDecoderTest);
 };
 
 TEST_F(OffloadingVideoDecoderTest, NoOffloadingTooSmall) {
@@ -251,7 +253,8 @@ TEST_F(OffloadingVideoDecoderTest, OffloadingAfterNoOffloading) {
       .WillOnce(VerifyNotOn(task_env_.GetMainThreadTaskRunner()));
   EXPECT_CALL(*decoder_, Initialize_(_, false, nullptr, _, _, _))
       .WillOnce(DoAll(VerifyOn(task_env_.GetMainThreadTaskRunner()),
-                      RunOnceCallback<3>(OkStatus()), SaveArg<4>(&output_cb)));
+                      RunOnceCallback<3>(DecoderStatus::Codes::kOk),
+                      SaveArg<4>(&output_cb)));
   task_env_.RunUntilIdle();
 }
 
@@ -278,7 +281,8 @@ TEST_F(OffloadingVideoDecoderTest, ParallelizedOffloading) {
       base::NullCallback());
   EXPECT_CALL(*decoder_, Initialize_(_, false, nullptr, _, _, _))
       .WillOnce(DoAll(VerifyNotOn(task_env_.GetMainThreadTaskRunner()),
-                      RunOnceCallback<3>(OkStatus()), SaveArg<4>(&output_cb)));
+                      RunOnceCallback<3>(DecoderStatus::Codes::kOk),
+                      SaveArg<4>(&output_cb)));
   task_env_.RunUntilIdle();
 
   // When offloading decodes should be parallelized.
@@ -298,7 +302,7 @@ TEST_F(OffloadingVideoDecoderTest, ParallelizedOffloading) {
       .Times(2)
       .WillRepeatedly(DoAll(VerifyNotOn(task_env_.GetMainThreadTaskRunner()),
                             RunClosure(base::BindRepeating(output_cb, nullptr)),
-                            RunOnceCallback<1>(DecodeStatus::OK)));
+                            RunOnceCallback<1>(DecoderStatus::Codes::kOk)));
   EXPECT_CALL(*this, DecodeDone(IsOkStatus()))
       .Times(2)
       .WillRepeatedly(VerifyOn(task_env_.GetMainThreadTaskRunner()));
@@ -329,7 +333,8 @@ TEST_F(OffloadingVideoDecoderTest, ParallelizedOffloadingResetAbortsDecodes) {
       base::NullCallback());
   EXPECT_CALL(*decoder_, Initialize_(_, false, nullptr, _, _, _))
       .WillOnce(DoAll(VerifyNotOn(task_env_.GetMainThreadTaskRunner()),
-                      RunOnceCallback<3>(OkStatus()), SaveArg<4>(&output_cb)));
+                      RunOnceCallback<3>(DecoderStatus::Codes::kOk),
+                      SaveArg<4>(&output_cb)));
   task_env_.RunUntilIdle();
 
   // When offloading decodes should be parallelized.
@@ -346,7 +351,7 @@ TEST_F(OffloadingVideoDecoderTest, ParallelizedOffloadingResetAbortsDecodes) {
                      base::Unretained(this)));
 
   EXPECT_CALL(*decoder_, Decode_(_, _)).Times(0);
-  EXPECT_CALL(*this, DecodeDone(HasStatusCode(StatusCode::kAborted)))
+  EXPECT_CALL(*this, DecodeDone(HasStatusCode(DecoderStatus::Codes::kAborted)))
       .Times(2)
       .WillRepeatedly(VerifyOn(task_env_.GetMainThreadTaskRunner()));
   offloading_decoder_->Reset(ExpectResetCB());

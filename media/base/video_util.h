@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,9 @@
 
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+#include "media/base/encoder_status.h"
 #include "media/base/media_export.h"
-#include "media/base/status.h"
 #include "media/base/video_types.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "ui/gfx/geometry/rect.h"
@@ -24,6 +24,7 @@ class TimeDelta;
 }
 
 namespace gpu {
+struct Capabilities;
 namespace raster {
 class RasterInterface;
 }  // namespace raster
@@ -84,8 +85,16 @@ MEDIA_EXPORT gfx::Rect ComputeLetterboxRegion(const gfx::Rect& bounds,
 // have color distortions around the edges in a letterboxed video frame. Note
 // that, in cases where ComputeLetterboxRegion() would return a 1x1-sized Rect,
 // this function could return either a 0x0-sized Rect or a 2x2-sized Rect.
+// Note that calling this function with `bounds` that already have the aspect
+// ratio of `content` is not guaranteed to be a no-op (for context, see
+// https://crbug.com/1323367).
 MEDIA_EXPORT gfx::Rect ComputeLetterboxRegionForI420(const gfx::Rect& bounds,
                                                      const gfx::Size& content);
+
+// Shrinks the given |rect| by the minimum amount necessary to align its corners
+// to even-numbered coordinates. |rect| is assumed to have bounded limit values,
+// and may have negative bounds.
+MEDIA_EXPORT gfx::Rect MinimallyShrinkRectForI420(const gfx::Rect& rect);
 
 // Return a scaled |size| whose area is less than or equal to |target|, where
 // one of its dimensions is equal to |target|'s.  The aspect ratio of |size| is
@@ -148,21 +157,23 @@ MEDIA_EXPORT scoped_refptr<VideoFrame> ConvertToMemoryMappedFrame(
 // media::ConvertAndScaleFrame and put it into a new class
 // media:FrameSizeAndFormatConverter.
 MEDIA_EXPORT scoped_refptr<VideoFrame> ReadbackTextureBackedFrameToMemorySync(
-    const VideoFrame& txt_frame,
+    VideoFrame& txt_frame,
     gpu::raster::RasterInterface* ri,
     GrDirectContext* gr_context,
+    const gpu::Capabilities& caps,
     VideoFramePool* pool = nullptr);
 
 // Synchronously reads a single plane. |src_rect| is relative to the plane,
 // which may be smaller than |frame| due to subsampling.
 MEDIA_EXPORT bool ReadbackTexturePlaneToMemorySync(
-    const VideoFrame& src_frame,
+    VideoFrame& src_frame,
     size_t src_plane,
     gfx::Rect& src_rect,
     uint8_t* dest_pixels,
     size_t dest_stride,
     gpu::raster::RasterInterface* ri,
-    GrDirectContext* gr_context);
+    GrDirectContext* gr_context,
+    const gpu::Capabilities& caps);
 
 // Converts a frame with I420A format into I420 by dropping alpha channel.
 MEDIA_EXPORT scoped_refptr<VideoFrame> WrapAsI420VideoFrame(
@@ -184,21 +195,25 @@ MEDIA_EXPORT scoped_refptr<VideoFrame> WrapAsI420VideoFrame(
 // 3. |dst_frame|'s coded size (both width and height) should be larger than or
 // equal to the visible size, since the visible region in both frames should be
 // identical.
-MEDIA_EXPORT bool I420CopyWithPadding(const VideoFrame& src_frame,
-                                      VideoFrame* dst_frame) WARN_UNUSED_RESULT;
+[[nodiscard]] MEDIA_EXPORT bool I420CopyWithPadding(const VideoFrame& src_frame,
+                                                    VideoFrame* dst_frame);
 
 // Copy pixel data from |src_frame| to |dst_frame| applying scaling and pixel
 // format conversion as needed. Both frames need to be mappabale and have either
 // I420 or NV12 pixel format.
-MEDIA_EXPORT Status ConvertAndScaleFrame(const VideoFrame& src_frame,
-                                         VideoFrame& dst_frame,
-                                         std::vector<uint8_t>& tmp_buf)
-    WARN_UNUSED_RESULT;
+[[nodiscard]] MEDIA_EXPORT EncoderStatus
+ConvertAndScaleFrame(const VideoFrame& src_frame,
+                     VideoFrame& dst_frame,
+                     std::vector<uint8_t>& tmp_buf);
 
 // Converts kRGBA_8888_SkColorType and kBGRA_8888_SkColorType to the appropriate
 // ARGB, XRGB, ABGR, or XBGR format.
 MEDIA_EXPORT VideoPixelFormat
 VideoPixelFormatFromSkColorType(SkColorType sk_color_type, bool is_opaque);
+
+// Get SkColor suitable type for various formats and planes.
+MEDIA_EXPORT SkColorType SkColorTypeForPlane(VideoPixelFormat format,
+                                             size_t plane);
 
 // Backs a VideoFrame with a SkImage. The created frame takes a ref on the
 // provided SkImage to make this operation zero copy. Only works with CPU

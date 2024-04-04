@@ -1,6 +1,8 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "media/filters/video_renderer_algorithm.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -8,18 +10,17 @@
 #include <cmath>
 #include <tuple>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/cxx17_backports.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/simple_test_tick_clock.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/media_util.h"
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_frame_pool.h"
 #include "media/base/wall_clock_time_source.h"
-#include "media/filters/video_renderer_algorithm.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -38,6 +39,9 @@ class TickGenerator {
         hertz_(hertz),
         microseconds_per_tick_(base::Time::kMicrosecondsPerSecond / hertz),
         base_time_(base_timestamp) {}
+
+  TickGenerator(const TickGenerator&) = delete;
+  TickGenerator& operator=(const TickGenerator&) = delete;
 
   base::TimeDelta interval(int tick_count) const {
     return base::Microseconds(tick_count * microseconds_per_tick_);
@@ -64,21 +68,19 @@ class TickGenerator {
   const double hertz_;
   const double microseconds_per_tick_;
   base::TimeTicks base_time_;
-
-  DISALLOW_COPY_AND_ASSIGN(TickGenerator);
 };
 
 class VideoRendererAlgorithmTest : public testing::Test {
  public:
   VideoRendererAlgorithmTest()
-      : tick_clock_(new base::SimpleTestTickClock()),
+      : tick_clock_(std::make_unique<base::SimpleTestTickClock>()),
+        time_source_(tick_clock_.get()),
         algorithm_(base::BindRepeating(&WallClockTimeSource::GetWallClockTimes,
                                        base::Unretained(&time_source_)),
                    &media_log_) {
     // Always start the TickClock at a non-zero value since null values have
     // special connotations.
     tick_clock_->Advance(base::Microseconds(10000));
-    time_source_.SetTickClockForTesting(tick_clock_.get());
   }
 
   VideoRendererAlgorithmTest(const VideoRendererAlgorithmTest&) = delete;
@@ -1414,10 +1416,10 @@ TEST_F(VideoRendererAlgorithmTest, VariablePlaybackRateCadence) {
   TickGenerator display_tg(tick_clock_->NowTicks(), 60);
 
   const double kPlaybackRates[] = {1.0, 2, 0.215, 0.5, 1.0, 3.15};
-  const bool kTestRateHasCadence[base::size(kPlaybackRates)] = {
+  const bool kTestRateHasCadence[std::size(kPlaybackRates)] = {
       true, true, true, true, true, false};
 
-  for (size_t i = 0; i < base::size(kPlaybackRates); ++i) {
+  for (size_t i = 0; i < std::size(kPlaybackRates); ++i) {
     const double playback_rate = kPlaybackRates[i];
     SCOPED_TRACE(base::StringPrintf("Playback Rate: %.03f", playback_rate));
     time_source_.SetPlaybackRate(playback_rate);
@@ -1448,11 +1450,11 @@ TEST_F(VideoRendererAlgorithmTest, UglyTimestampsHaveCadence) {
   // Run throught ~1.6 seconds worth of frames.
   bool cadence_detected = false;
   base::TimeDelta timestamp;
-  for (size_t i = 0; i < base::size(kBadTimestampsMs) * 2; ++i) {
+  for (size_t i = 0; i < std::size(kBadTimestampsMs) * 2; ++i) {
     while (EffectiveFramesQueued() < 3) {
       algorithm_.EnqueueFrame(CreateFrame(timestamp));
-      timestamp += base::Milliseconds(
-          kBadTimestampsMs[i % base::size(kBadTimestampsMs)]);
+      timestamp +=
+          base::Milliseconds(kBadTimestampsMs[i % std::size(kBadTimestampsMs)]);
     }
 
     size_t frames_dropped = 0;
@@ -1483,11 +1485,11 @@ TEST_F(VideoRendererAlgorithmTest, VariableFrameRateNoCadence) {
   bool cadence_detected = false;
   bool cadence_turned_off = false;
   base::TimeDelta timestamp;
-  for (size_t i = 0; i < base::size(kBadTimestampsMs);) {
+  for (size_t i = 0; i < std::size(kBadTimestampsMs);) {
     while (EffectiveFramesQueued() < 3) {
       algorithm_.EnqueueFrame(CreateFrame(timestamp));
-      timestamp += base::Milliseconds(
-          kBadTimestampsMs[i % base::size(kBadTimestampsMs)]);
+      timestamp +=
+          base::Milliseconds(kBadTimestampsMs[i % std::size(kBadTimestampsMs)]);
       ++i;
     }
 

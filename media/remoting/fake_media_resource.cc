@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,13 +34,14 @@ FakeDemuxerStream::FakeDemuxerStream(bool is_audio) {
                              rect, size, std::vector<uint8_t>(),
                              EncryptionScheme::kUnencrypted);
   }
-  ON_CALL(*this, Read(_))
+  ON_CALL(*this, Read)
       .WillByDefault(Invoke(this, &FakeDemuxerStream::FakeRead));
 }
 
 FakeDemuxerStream::~FakeDemuxerStream() = default;
 
-void FakeDemuxerStream::FakeRead(ReadCB read_cb) {
+// Only return one buffer at a time so we ignore the count.
+void FakeDemuxerStream::FakeRead(uint32_t /*count*/, ReadCB read_cb) {
   if (buffer_queue_.empty()) {
     // Silent return to simulate waiting for buffer available.
     pending_read_cb_ = std::move(read_cb);
@@ -48,7 +49,7 @@ void FakeDemuxerStream::FakeRead(ReadCB read_cb) {
   }
   scoped_refptr<DecoderBuffer> buffer = buffer_queue_.front();
   buffer_queue_.pop_front();
-  std::move(read_cb).Run(kOk, buffer);
+  std::move(read_cb).Run(kOk, {std::move(buffer)});
 }
 
 AudioDecoderConfig FakeDemuxerStream::audio_decoder_config() {
@@ -63,8 +64,8 @@ DemuxerStream::Type FakeDemuxerStream::type() const {
   return type_;
 }
 
-DemuxerStream::Liveness FakeDemuxerStream::liveness() const {
-  return LIVENESS_UNKNOWN;
+StreamLiveness FakeDemuxerStream::liveness() const {
+  return StreamLiveness::kUnknown;
 }
 
 bool FakeDemuxerStream::SupportsConfigChanges() {
@@ -92,7 +93,7 @@ void FakeDemuxerStream::CreateFakeFrame(size_t size,
   if (!pending_read_cb_) {
     buffer_queue_.push_back(input_buffer);
   } else {
-    std::move(pending_read_cb_).Run(kOk, input_buffer);
+    std::move(pending_read_cb_).Run(kOk, {std::move(input_buffer)});
   }
 }
 

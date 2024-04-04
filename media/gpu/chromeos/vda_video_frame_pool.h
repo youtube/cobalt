@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,9 @@
 #include "base/containers/queue.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/video_frame.h"
+#include "media/gpu/chromeos/chromeos_status.h"
 #include "media/gpu/chromeos/dmabuf_video_frame_pool.h"
 #include "media/gpu/chromeos/fourcc.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -36,7 +37,7 @@ class VdaVideoFramePool : public DmabufVideoFramePool {
    public:
     // Callback for returning the layout of requested buffer.
     using NotifyLayoutChangedCb =
-        base::OnceCallback<void(absl::optional<GpuBufferLayout>)>;
+        base::OnceCallback<void(CroStatus::Or<GpuBufferLayout>)>;
     // Callback for importing available frames to this pool.
     using ImportFrameCb =
         base::RepeatingCallback<void(scoped_refptr<VideoFrame>)>;
@@ -60,22 +61,25 @@ class VdaVideoFramePool : public DmabufVideoFramePool {
   ~VdaVideoFramePool() override;
 
   // DmabufVideoFramePool implementation.
-  StatusOr<GpuBufferLayout> Initialize(const Fourcc& fourcc,
-                                       const gfx::Size& coded_size,
-                                       const gfx::Rect& visible_rect,
-                                       const gfx::Size& natural_size,
-                                       size_t max_num_frames,
-                                       bool use_protected) override;
+  CroStatus::Or<GpuBufferLayout> Initialize(const Fourcc& fourcc,
+                                            const gfx::Size& coded_size,
+                                            const gfx::Rect& visible_rect,
+                                            const gfx::Size& natural_size,
+                                            size_t max_num_frames,
+                                            bool use_protected,
+                                            bool use_linear_buffers) override;
   scoped_refptr<VideoFrame> GetFrame() override;
   bool IsExhausted() override;
   void NotifyWhenFrameAvailable(base::OnceClosure cb) override;
   void ReleaseAllFrames() override;
+  absl::optional<GpuBufferLayout> GetGpuBufferLayout() override;
 
  private:
   // Update the layout of the buffers. |vda_| calls this as
   // NotifyLayoutChangedCb.
-  void OnRequestFramesDone(base::WaitableEvent* done,
-                           absl::optional<GpuBufferLayout> layout);
+  static void OnRequestFramesDone(base::WaitableEvent* done,
+                                  CroStatus::Or<GpuBufferLayout>* layout,
+                                  CroStatus::Or<GpuBufferLayout> layout_value);
 
   // Thunk to post ImportFrame() to |task_runner|.
   // Because this thunk may be called in any thread, We don't want to

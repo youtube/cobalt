@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,7 @@
 
 #include <stdint.h>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/gpu/vaapi/vaapi_picture.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gl/gl_implementation.h"
@@ -33,7 +32,6 @@ class MEDIA_GPU_EXPORT VaapiPictureFactory {
   enum VaapiImplementation {
     kVaapiImplementationNone = 0,
     kVaapiImplementationDrm,
-    kVaapiImplementationX11,
     kVaapiImplementationAngle,
   };
 

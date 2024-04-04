@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,9 +18,8 @@
 #include <algorithm>
 #include <deque>
 
-#include "base/cxx17_backports.h"
 #include "base/logging.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "media/cast/constants.h"
@@ -44,9 +43,9 @@ class AdaptiveCongestionControl final : public CongestionControl {
   // CongestionControl implementation.
   void UpdateRtt(base::TimeDelta rtt) final;
   void UpdateTargetPlayoutDelay(base::TimeDelta delay) final;
-  void SendFrameToTransport(FrameId frame_id,
-                            size_t frame_size_in_bits,
-                            base::TimeTicks when) final;
+  void WillSendFrameToTransport(FrameId frame_id,
+                                size_t frame_size_in_bytes,
+                                base::TimeTicks when) final;
   void AckFrame(FrameId frame_id, base::TimeTicks when) final;
   void AckLaterFrames(std::vector<FrameId> received_frames,
                       base::TimeTicks when) final;
@@ -84,7 +83,7 @@ class AdaptiveCongestionControl final : public CongestionControl {
   base::TimeTicks EstimatedSendingTime(FrameId frame_id,
                                        double estimated_bitrate);
 
-  const base::TickClock* const clock_;  // Not owned by this class.
+  const raw_ptr<const base::TickClock> clock_;  // Not owned by this class.
   const int max_bitrate_configured_;
   const int min_bitrate_configured_;
   const double max_frame_rate_;
@@ -118,9 +117,9 @@ class FixedCongestionControl final : public CongestionControl {
   // CongestionControl implementation.
   void UpdateRtt(base::TimeDelta rtt) final {}
   void UpdateTargetPlayoutDelay(base::TimeDelta delay) final {}
-  void SendFrameToTransport(FrameId frame_id,
-                            size_t frame_size_in_bits,
-                            base::TimeTicks when) final {}
+  void WillSendFrameToTransport(FrameId frame_id,
+                                size_t frame_size_in_bytes,
+                                base::TimeTicks when) final {}
   void AckFrame(FrameId frame_id, base::TimeTicks when) final {}
   void AckLaterFrames(std::vector<FrameId> received_frames,
                       base::TimeTicks when) final {}
@@ -319,14 +318,15 @@ void AdaptiveCongestionControl::AckLaterFrames(
   }
 }
 
-void AdaptiveCongestionControl::SendFrameToTransport(FrameId frame_id,
-                                                     size_t frame_size_in_bits,
-                                                     base::TimeTicks when) {
+void AdaptiveCongestionControl::WillSendFrameToTransport(
+    FrameId frame_id,
+    size_t frame_size_in_bytes,
+    base::TimeTicks when) {
   last_enqueued_frame_ = frame_id;
   FrameStats* frame_stats = GetFrameStats(frame_id);
   DCHECK(frame_stats);
   frame_stats->enqueue_time = when;
-  frame_stats->frame_size_in_bits = frame_size_in_bits;
+  frame_stats->frame_size_in_bits = frame_size_in_bytes * 8;
 }
 
 base::TimeTicks AdaptiveCongestionControl::EstimatedSendingTime(
@@ -427,8 +427,8 @@ int AdaptiveCongestionControl::GetBitrate(base::TimeTicks playout_time,
   TRACE_COUNTER_ID1("cast.stream", "Empty Buffer Fraction", this,
                     empty_buffer_fraction);
 
-  return base::clamp(bits_per_second, min_bitrate_configured_,
-                     max_bitrate_configured_);
+  return std::clamp(bits_per_second, min_bitrate_configured_,
+                    max_bitrate_configured_);
 }
 
 }  // namespace cast

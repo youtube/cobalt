@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,14 @@
 #define MEDIA_BASE_FAKE_AUDIO_WORKER_H_
 
 #include "base/functional/callback_forward.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/media_export.h"
 
 namespace base {
-class SingleThreadTaskRunner;
 class TimeDelta;
 class TimeTicks;
-}
+}  // namespace base
 
 namespace media {
 class AudioParameters;
@@ -34,7 +33,7 @@ class MEDIA_EXPORT FakeAudioWorker {
   // thread that invokes the Start/Stop methods.
   // |params| is used to determine the frequency of callbacks.
   FakeAudioWorker(
-      const scoped_refptr<base::SingleThreadTaskRunner>& worker_task_runner,
+      const scoped_refptr<base::SequencedTaskRunner>& worker_task_runner,
       const AudioParameters& params);
 
   FakeAudioWorker(const FakeAudioWorker&) = delete;

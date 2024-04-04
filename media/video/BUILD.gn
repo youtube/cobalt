@@ -1,4 +1,4 @@
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -16,6 +16,7 @@ source_set("video") {
   ]
 
   sources = [
+    "bit_reader_macros.h",
     "gpu_memory_buffer_video_frame_pool.cc",
     "gpu_memory_buffer_video_frame_pool.h",
     "gpu_video_accelerator_factories.cc",
@@ -30,6 +31,8 @@ source_set("video") {
     "h264_poc.h",
     "half_float_maker.cc",
     "half_float_maker.h",
+    "offloading_video_encoder.cc",
+    "offloading_video_encoder.h",
     "picture.cc",
     "picture.h",
     "renderable_gpu_memory_buffer_video_frame_pool.cc",
@@ -53,10 +56,12 @@ source_set("video") {
       "h265_nalu_parser.cc",
       "h265_nalu_parser.h",
     ]
-    if (enable_platform_hevc_decoding) {
+    if (enable_hevc_parser_and_hw_decoder) {
       sources += [
         "h265_parser.cc",
         "h265_parser.h",
+        "h265_poc.cc",
+        "h265_poc.h",
       ]
     }
   }
@@ -75,6 +80,15 @@ source_set("video") {
   ]
 
   configs += [ "//media:subcomponent_config" ]
+
+  if (enable_libaom) {
+    sources += [
+      "av1_video_encoder.cc",
+      "av1_video_encoder.h",
+    ]
+
+    public_deps += [ "//third_party/libaom" ]
+  }
 
   if (media_use_libvpx) {
     sources += [
@@ -132,6 +146,7 @@ source_set("unit_tests") {
     "h264_parser_unittest.cc",
     "h264_poc_unittest.cc",
     "half_float_maker_unittest.cc",
+    "offloading_video_encoder_unittest.cc",
     "renderable_gpu_memory_buffer_video_frame_pool_unittest.cc",
     "software_video_encoder_test.cc",
     "video_encode_accelerator_adapter_test.cc",
@@ -139,8 +154,11 @@ source_set("unit_tests") {
   ]
   if (enable_platform_hevc) {
     sources += [ "h265_nalu_parser_unittest.cc" ]
-    if (enable_platform_hevc_decoding) {
-      sources += [ "h265_parser_unittest.cc" ]
+    if (enable_hevc_parser_and_hw_decoder) {
+      sources += [
+        "h265_parser_unittest.cc",
+        "h265_poc_unittest.cc",
+      ]
     }
   }
 
@@ -155,6 +173,7 @@ source_set("unit_tests") {
     "//media:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/libvpx:libvpx",
     "//third_party/libyuv:libyuv",
     "//ui/gfx",
   ]
@@ -169,7 +188,7 @@ fuzzer_test("media_h264_parser_fuzzer") {
   ]
 }
 
-if (enable_platform_hevc_decoding) {
+if (enable_hevc_parser_and_hw_decoder) {
   fuzzer_test("media_h265_parser_fuzzer") {
     sources = [ "h265_parser_fuzzertest.cc" ]
     deps = [

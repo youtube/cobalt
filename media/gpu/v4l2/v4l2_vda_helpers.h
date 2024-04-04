@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/video_codecs.h"
 #include "media/gpu/chromeos/fourcc.h"
 #include "media/gpu/chromeos/image_processor.h"
@@ -18,6 +19,9 @@ namespace media {
 
 class V4L2Device;
 class H264Parser;
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+class H265Parser;
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 
 // Helper static methods to be shared between V4L2VideoDecodeAccelerator and
 // V4L2SliceVideoDecodeAccelerator. This avoids some code duplication between
@@ -40,7 +44,7 @@ absl::optional<Fourcc> FindImageProcessorOutputFormat(V4L2Device* ip_device);
 // the input coded size for the IP).
 // |ip_output_coded_size| is the coded size of the output buffers that the IP
 // must produce.
-// |visible_size| is the visible size of both the input and output buffers.
+// |visible_rect| is the visible area of both the input and output buffers.
 // |output_storage_type| indicates what type of VideoFrame is used for output.
 // |nb_buffers| is the exact number of output buffers that the IP must create.
 // |image_processor_output_mode| specifies whether the IP must allocate its
@@ -53,7 +57,7 @@ std::unique_ptr<ImageProcessor> CreateImageProcessor(
     const Fourcc ip_output_format,
     const gfx::Size& vda_output_coded_size,
     const gfx::Size& ip_output_coded_size,
-    const gfx::Size& visible_size,
+    const gfx::Rect& visible_rect,
     VideoFrame::StorageType output_storage_type,
     size_t nb_buffers,
     scoped_refptr<V4L2Device> image_processor_device,
@@ -114,6 +118,31 @@ class H264InputBufferFragmentSplitter : public InputBufferFragmentSplitter {
   // Set if we have a pending incomplete frame in the input buffer.
   bool partial_frame_pending_ = false;
 };
+
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+// Splitter for HEVC, making sure to properly report when a partial frame
+// may be pending.
+class HEVCInputBufferFragmentSplitter : public InputBufferFragmentSplitter {
+ public:
+  explicit HEVCInputBufferFragmentSplitter();
+  ~HEVCInputBufferFragmentSplitter() override;
+
+  bool AdvanceFrameFragment(const uint8_t* data,
+                            size_t size,
+                            size_t* endpos) override;
+  void Reset() override;
+  bool IsPartialFramePending() const override;
+
+ private:
+  // For HEVC decode, hardware requires that we send it frame-sized chunks.
+  // We'll need to parse the stream.
+  std::unique_ptr<H265Parser> h265_parser_;
+  // Set if we have a pending incomplete frame in the input buffer.
+  bool partial_frame_pending_ = false;
+  // Set if we have pending slice data in the input buffer.
+  bool slice_data_pending_ = false;
+};
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 
 }  // namespace v4l2_vda_helpers
 }  // namespace media

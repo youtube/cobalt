@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,9 +10,9 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
+#include "media/audio/audio_handler.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -21,7 +21,7 @@ class AudioBus;
 
 // This class provides the input from wav file format.  See
 // https://ccrma.stanford.edu/courses/422/projects/WaveFormat/
-class MEDIA_EXPORT WavAudioHandler {
+class MEDIA_EXPORT WavAudioHandler : public AudioHandler {
  public:
   // Supported audio format.
   enum class AudioFormat : uint16_t {
@@ -33,7 +33,7 @@ class MEDIA_EXPORT WavAudioHandler {
   WavAudioHandler(const WavAudioHandler&) = delete;
   WavAudioHandler& operator=(const WavAudioHandler&) = delete;
 
-  virtual ~WavAudioHandler();
+  ~WavAudioHandler() override;
 
   // Create a WavAudioHandler using |wav_data|. If |wav_data| cannot be parsed
   // correctly, the returned scoped_ptr will be null. The underlying memory for
@@ -41,25 +41,25 @@ class MEDIA_EXPORT WavAudioHandler {
   static std::unique_ptr<WavAudioHandler> Create(
       const base::StringPiece wav_data);
 
-  // Returns true when cursor points to the end of the track.
-  bool AtEnd(size_t cursor) const;
-
-  // Copies the audio data to |bus| starting from the |cursor| and in
-  // the case of success stores the number of written bytes in
-  // |bytes_written|. |bytes_written| should not be NULL. Returns false if the
-  // operation was unsuccessful. Returns true otherwise.
-  bool CopyTo(AudioBus* bus, size_t cursor, size_t* bytes_written) const;
+  // AudioHandler:
+  bool Initialize() override;
+  int GetNumChannels() const override;
+  int GetSampleRate() const override;
+  base::TimeDelta GetDuration() const override;
+  bool AtEnd() const override;
+  bool CopyTo(AudioBus* bus, size_t* frames_written) override;
+  void Reset() override;
 
   // Accessors.
-  const base::StringPiece& data() const { return data_; }
-  int num_channels() const { return static_cast<int>(num_channels_); }
-  int sample_rate() const { return static_cast<int>(sample_rate_); }
-  int bits_per_sample() const { return static_cast<int>(bits_per_sample_); }
+  const base::StringPiece& data() const { return audio_data_; }
   AudioFormat audio_format() const { return audio_format_; }
-  int total_frames() const { return static_cast<int>(total_frames_); }
 
-  // Returns the duration of the entire audio chunk.
-  base::TimeDelta GetDuration() const;
+  int total_frames_for_testing() const {
+    return static_cast<int>(total_frames_);
+  }
+  int bits_per_sample_for_testing() const {
+    return static_cast<int>(bits_per_sample_);
+  }
 
  private:
   // Note: It is preferred to pass |audio_data| by value here.
@@ -70,12 +70,14 @@ class MEDIA_EXPORT WavAudioHandler {
                   AudioFormat audio_format);
 
   // Data part of the |wav_data_|.
-  const base::StringPiece data_;
+  const base::StringPiece audio_data_;
   const uint16_t num_channels_;
   const uint32_t sample_rate_;
   const uint16_t bits_per_sample_;
   const AudioFormat audio_format_;
   uint32_t total_frames_;
+
+  size_t cursor_ = 0;
 };
 
 }  // namespace media

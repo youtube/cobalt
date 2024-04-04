@@ -1,11 +1,10 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <vector>
 
-#include "base/bind.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
 #include "base/time/time.h"
 #include "media/base/media_util.h"
 #include "media/base/stream_parser_buffer.h"
@@ -23,12 +22,14 @@ class EsParserMpeg1AudioTest : public EsParserTestBase,
  public:
   EsParserMpeg1AudioTest();
 
+  EsParserMpeg1AudioTest(const EsParserMpeg1AudioTest&) = delete;
+  EsParserMpeg1AudioTest& operator=(const EsParserMpeg1AudioTest&) = delete;
+
  protected:
   bool Process(const std::vector<Packet>& pes_packets, bool force_timing);
 
  private:
   NullMediaLog media_log_;
-  DISALLOW_COPY_AND_ASSIGN(EsParserMpeg1AudioTest);
 };
 
 EsParserMpeg1AudioTest::EsParserMpeg1AudioTest() {

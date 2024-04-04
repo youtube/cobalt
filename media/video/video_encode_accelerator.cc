@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,8 @@
 
 #include <inttypes.h>
 
-#include "base/callback.h"
+#include "base/functional/callback.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -16,6 +17,10 @@ namespace media {
 Vp9Metadata::Vp9Metadata() = default;
 Vp9Metadata::~Vp9Metadata() = default;
 Vp9Metadata::Vp9Metadata(const Vp9Metadata&) = default;
+
+Av1Metadata::Av1Metadata() = default;
+Av1Metadata::~Av1Metadata() = default;
+Av1Metadata::Av1Metadata(const Av1Metadata&) = default;
 
 BitstreamBufferMetadata::BitstreamBufferMetadata()
     : payload_size_bytes(0), key_frame(false) {}
@@ -32,6 +37,20 @@ BitstreamBufferMetadata::BitstreamBufferMetadata(size_t payload_size_bytes,
       key_frame(key_frame),
       timestamp(timestamp) {}
 BitstreamBufferMetadata::~BitstreamBufferMetadata() = default;
+
+bool BitstreamBufferMetadata::end_of_picture() const {
+  if (vp9) {
+    return vp9->end_of_picture;
+  }
+  return true;
+}
+
+absl::optional<uint8_t> BitstreamBufferMetadata::spatial_idx() const {
+  if (vp9) {
+    return vp9->spatial_idx;
+  }
+  return absl::nullopt;
+}
 
 VideoEncodeAccelerator::Config::Config()
     : input_format(PIXEL_FORMAT_UNKNOWN),
@@ -93,6 +112,19 @@ std::string VideoEncodeAccelerator::Config::AsHumanReadableString() const {
     str += base::StringPrintf(", is_constrained_h264: %u", is_constrained_h264);
   }
 
+  str += ", required_encoder_type: ";
+  switch (required_encoder_type) {
+    case EncoderType::kHardware:
+      str += "hardware";
+      break;
+    case EncoderType::kSoftware:
+      str += "software";
+      break;
+    case EncoderType::kNoPreference:
+      str += "no-preference";
+      break;
+  }
+
   if (spatial_layers.empty())
     return str;
 
@@ -106,31 +138,40 @@ std::string VideoEncodeAccelerator::Config::AsHumanReadableString() const {
         sl.num_of_temporal_layers);
   }
 
+  str += ", InterLayerPredMode::";
   switch (inter_layer_pred) {
     case Config::InterLayerPredMode::kOff:
-      str += base::StringPrintf(", InterLayerPredMode::kOff");
+      str += "kOff";
       break;
     case Config::InterLayerPredMode::kOn:
-      str += base::StringPrintf(", InterLayerPredMode::kOn");
+      str += "kOn";
       break;
     case Config::InterLayerPredMode::kOnKeyPic:
-      str += base::StringPrintf(", InterLayerPredMode::kOnKeyPic");
-      break;
-    default:
-      str += base::StringPrintf(", Unknown InterLayerPredMode");
+      str += "kOnKeyPic";
       break;
   }
+
   return str;
 }
 
 bool VideoEncodeAccelerator::Config::HasTemporalLayer() const {
-  return std::any_of(
-      spatial_layers.begin(), spatial_layers.end(),
-      [](const SpatialLayer& sl) { return sl.num_of_temporal_layers > 1u; });
+  return base::ranges::any_of(spatial_layers, [](const SpatialLayer& sl) {
+    return sl.num_of_temporal_layers > 1u;
+  });
 }
 
 bool VideoEncodeAccelerator::Config::HasSpatialLayer() const {
   return spatial_layers.size() > 1u;
+}
+
+void VideoEncodeAccelerator::Client::NotifyError(Error error) {
+  NOTREACHED() << "NotifyError() must be implemented if it doesn't "
+               << "implement NotifyErrorStatus()";
+}
+
+void VideoEncodeAccelerator::Client::NotifyErrorStatus(
+    const EncoderStatus& status) {
+  NotifyError(ConvertStatusToVideoEncodeAcceleratorError(status));
 }
 
 void VideoEncodeAccelerator::Client::NotifyEncoderInfoChange(
@@ -148,11 +189,13 @@ VideoEncodeAccelerator::SupportedProfile::SupportedProfile(
     const gfx::Size& max_resolution,
     uint32_t max_framerate_numerator,
     uint32_t max_framerate_denominator,
+    SupportedRateControlMode rc_modes,
     const std::vector<SVCScalabilityMode>& scalability_modes)
     : profile(profile),
       max_resolution(max_resolution),
       max_framerate_numerator(max_framerate_numerator),
       max_framerate_denominator(max_framerate_denominator),
+      rate_control_modes(rc_modes),
       scalability_modes(scalability_modes) {}
 
 VideoEncodeAccelerator::SupportedProfile::SupportedProfile(
@@ -171,7 +214,7 @@ bool VideoEncodeAccelerator::IsFlushSupported() {
 }
 
 bool VideoEncodeAccelerator::IsGpuFrameResizeSupported() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
   // TODO(crbug.com/1166889) Add proper method overrides in
   // MojoVideoEncodeAccelerator and other subclasses that might return true.
   return true;
@@ -193,11 +236,17 @@ bool operator==(const VideoEncodeAccelerator::SupportedProfile& l,
          l.max_resolution == r.max_resolution &&
          l.max_framerate_numerator == r.max_framerate_numerator &&
          l.max_framerate_denominator == r.max_framerate_denominator &&
-         l.scalability_modes == r.scalability_modes;
+         l.rate_control_modes == r.rate_control_modes &&
+         l.scalability_modes == r.scalability_modes &&
+         l.is_software_codec == r.is_software_codec;
 }
 
 bool operator==(const H264Metadata& l, const H264Metadata& r) {
   return l.temporal_idx == r.temporal_idx && l.layer_sync == r.layer_sync;
+}
+
+bool operator==(const H265Metadata& l, const H265Metadata& r) {
+  return l.temporal_idx == r.temporal_idx;
 }
 
 bool operator==(const Vp8Metadata& l, const Vp8Metadata& r) {
@@ -217,11 +266,16 @@ bool operator==(const Vp9Metadata& l, const Vp9Metadata& r) {
          l.p_diffs == r.p_diffs;
 }
 
+bool operator==(const Av1Metadata& l, const Av1Metadata& r) {
+  return l.temporal_idx == r.temporal_idx;
+}
+
 bool operator==(const BitstreamBufferMetadata& l,
                 const BitstreamBufferMetadata& r) {
   return l.payload_size_bytes == r.payload_size_bytes &&
          l.key_frame == r.key_frame && l.timestamp == r.timestamp &&
-         l.vp8 == r.vp8 && l.vp9 == r.vp9;
+         l.vp8 == r.vp8 && l.vp9 == r.vp9 && l.h264 == r.h264 &&
+         l.av1 == r.av1 && l.h265 == r.h265;
 }
 
 bool operator==(const VideoEncodeAccelerator::Config::SpatialLayer& l,
@@ -243,6 +297,38 @@ bool operator==(const VideoEncodeAccelerator::Config& l,
          l.storage_type == r.storage_type && l.content_type == r.content_type &&
          l.spatial_layers == r.spatial_layers &&
          l.inter_layer_pred == r.inter_layer_pred;
+}
+
+VideoEncodeAccelerator::Error ConvertStatusToVideoEncodeAcceleratorError(
+    const EncoderStatus& status) {
+  CHECK(!status.is_ok());
+  switch (status.code()) {
+    case EncoderStatus::Codes::kOk:
+      NOTREACHED();
+      break;
+    case EncoderStatus::Codes::kEncoderInitializeNeverCompleted:
+    case EncoderStatus::Codes::kEncoderInitializeTwice:
+    case EncoderStatus::Codes::kEncoderIllegalState:
+      return VideoEncodeAccelerator::Error::kIllegalStateError;
+    case EncoderStatus::Codes::kEncoderUnsupportedProfile:
+    case EncoderStatus::Codes::kEncoderUnsupportedCodec:
+    case EncoderStatus::Codes::kEncoderUnsupportedConfig:
+    case EncoderStatus::Codes::kEncoderInitializationError:
+    case EncoderStatus::Codes::kUnsupportedFrameFormat:
+    case EncoderStatus::Codes::kInvalidInputFrame:
+    case EncoderStatus::Codes::kInvalidOutputBuffer:
+      return VideoEncodeAccelerator::Error::kInvalidArgumentError;
+    case EncoderStatus::Codes::kEncoderFailedEncode:
+    case EncoderStatus::Codes::kEncoderFailedFlush:
+    case EncoderStatus::Codes::kEncoderMojoConnectionError:
+    case EncoderStatus::Codes::kScalingError:
+    case EncoderStatus::Codes::kFormatConversionError:
+    case EncoderStatus::Codes::kEncoderHardwareDriverError:
+    case EncoderStatus::Codes::kSystemAPICallError:
+      return VideoEncodeAccelerator::Error::kPlatformFailureError;
+  }
+  NOTREACHED();
+  return VideoEncodeAccelerator::Error::kPlatformFailureError;
 }
 }  // namespace media
 

@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -60,8 +60,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       }
 
       case media::H264NALU::kSEIMessage: {
-        media::H264SEIMessage sei_msg;
-        res = parser.ParseSEI(&sei_msg);
+        media::H264SEI sei;
+        res = parser.ParseSEI(&sei);
         break;
       }
 

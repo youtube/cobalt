@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,9 +8,9 @@
 #include <map>
 #include <set>
 
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
+#include "build/build_config.h"
 #include "media/gpu/command_buffer_helper.h"
 
 namespace media {
@@ -20,6 +20,11 @@ class FakeCommandBufferHelper : public CommandBufferHelper {
   explicit FakeCommandBufferHelper(
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
+  FakeCommandBufferHelper(const FakeCommandBufferHelper&) = delete;
+  FakeCommandBufferHelper& operator=(const FakeCommandBufferHelper&) = delete;
+
+  void WaitForSyncToken(gpu::SyncToken sync_token,
+                        base::OnceClosure done_cb) override;
   // Signal stub destruction. All textures will be deleted.  Listeners will
   // be notified that we have a current context unless one calls ContextLost
   // before this.
@@ -37,9 +42,16 @@ class FakeCommandBufferHelper : public CommandBufferHelper {
   // Test whether a texture exists (has not been destroyed).
   bool HasTexture(GLuint service_id);
 
+#if !BUILDFLAG(IS_ANDROID)
   // CommandBufferHelper implementation.
   gl::GLContext* GetGLContext() override;
   gpu::SharedImageStub* GetSharedImageStub() override;
+#if BUILDFLAG(IS_WIN)
+  gpu::DXGISharedHandleManager* GetDXGISharedHandleManager() override;
+#endif
+
+  gpu::MemoryTypeTracker* GetMemoryTypeTracker() override;
+  gpu::SharedImageManager* GetSharedImageManager() override;
   bool HasStub() override;
   bool MakeContextCurrent() override;
   std::unique_ptr<gpu::SharedImageRepresentationFactoryRef> Register(
@@ -53,19 +65,21 @@ class FakeCommandBufferHelper : public CommandBufferHelper {
                        GLenum type) override;
   void DestroyTexture(GLuint service_id) override;
   void SetCleared(GLuint service_id) override;
-  bool BindImage(GLuint service_id,
-                 gl::GLImage* image,
-                 bool client_managed) override;
-  gpu::Mailbox CreateMailbox(GLuint service_id) override;
-  void ProduceTexture(const gpu::Mailbox& mailbox, GLuint service_id) override;
-  void WaitForSyncToken(gpu::SyncToken sync_token,
-                        base::OnceClosure done_cb) override;
-  void SetWillDestroyStubCB(WillDestroyStubCB will_destroy_stub_cb) override;
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
+  bool BindDecoderManagedImage(GLuint service_id, gl::GLImage* image) override;
+#else
+  bool BindClientManagedImage(GLuint service_id, gl::GLImage* image) override;
+#endif
+  gpu::Mailbox CreateLegacyMailbox(GLuint service_id) override;
+  void AddWillDestroyStubCB(WillDestroyStubCB callback) override;
   bool IsPassthrough() const override;
   bool SupportsTextureRectangle() const override;
+#endif
 
  private:
   ~FakeCommandBufferHelper() override;
+
+  bool BindImageInternal(GLuint service_id, gl::GLImage* image);
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
@@ -77,9 +91,7 @@ class FakeCommandBufferHelper : public CommandBufferHelper {
   std::set<GLuint> service_ids_;
   std::map<gpu::SyncToken, base::OnceClosure> waits_;
 
-  WillDestroyStubCB will_destroy_stub_cb_;
-
-  DISALLOW_COPY_AND_ASSIGN(FakeCommandBufferHelper);
+  std::vector<WillDestroyStubCB> will_destroy_stub_callbacks_;
 };
 
 }  // namespace media

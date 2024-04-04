@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,11 @@
 
 #include <numeric>
 
-#include "base/callback.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/ranges/algorithm.h"
 #include "base/synchronization/waitable_event.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_log.h"
@@ -17,6 +18,7 @@
 #include "media/base/media_util.h"
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
+#include "media/filters/dav1d_video_decoder.h"
 #include "media/filters/ffmpeg_video_decoder.h"
 #include "media/filters/vpx_video_decoder.h"
 #include "media/gpu/macros.h"
@@ -34,6 +36,13 @@ std::unique_ptr<VideoDecoder> CreateDecoder(
     VideoCodec codec,
     std::unique_ptr<MediaLog>* media_log) {
   std::unique_ptr<VideoDecoder> decoder;
+
+  if (codec == VideoCodec::kAV1) {
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
+    *media_log = std::make_unique<NullMediaLog>();
+    decoder = std::make_unique<Dav1dVideoDecoder>(media_log->get());
+#endif
+  }
 
   if (codec == VideoCodec::kVP8 || codec == VideoCodec::kVP9) {
 #if BUILDFLAG(ENABLE_LIBVPX)
@@ -87,7 +96,7 @@ bool BitstreamValidator::Initialize(const VideoDecoderConfig& decoder_config) {
   bool success = false;
   base::WaitableEvent initialized;
   VideoDecoder::InitCB init_done = base::BindOnce(
-      [](bool* result, base::WaitableEvent* initialized, Status status) {
+      [](bool* result, base::WaitableEvent* initialized, DecoderStatus status) {
         *result = true;
         if (!status.is_ok()) {
           LOG(ERROR) << "Failed decoder initialization ("
@@ -154,14 +163,13 @@ BitstreamValidator::~BitstreamValidator() {
 
 void BitstreamValidator::ConstructSpatialIndices(
     const std::vector<gfx::Size>& spatial_layer_resolutions) {
-  SEQUENCE_CHECKER(validator_thread_sequence_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(validator_thread_sequence_checker_);
   CHECK(!spatial_layer_resolutions.empty());
   CHECK_LE(spatial_layer_resolutions.size(), spatial_layer_resolutions_.size());
 
   original_spatial_indices_.resize(spatial_layer_resolutions.size());
-  auto begin = std::find(spatial_layer_resolutions_.begin(),
-                         spatial_layer_resolutions_.end(),
-                         spatial_layer_resolutions.front());
+  auto begin = base::ranges::find(spatial_layer_resolutions_,
+                                  spatial_layer_resolutions.front());
   CHECK(begin != spatial_layer_resolutions_.end());
   uint8_t sid_offset = begin - spatial_layer_resolutions_.begin();
   for (size_t i = 0; i < spatial_layer_resolutions.size(); ++i) {
@@ -228,6 +236,10 @@ void BitstreamValidator::ProcessBitstreamTask(
     const H264Metadata& metadata = *bitstream->metadata.h264;
     should_decode = metadata.temporal_idx <= *temporal_layer_index_to_decode_;
     should_flush = frame_index == last_frame_index_;
+  } else if (bitstream->metadata.vp8) {
+    const Vp8Metadata& metadata = *bitstream->metadata.vp8;
+    should_decode = metadata.temporal_idx <= *temporal_layer_index_to_decode_;
+    should_flush = frame_index == last_frame_index_;
   }
 
   if (should_flush) {
@@ -264,14 +276,14 @@ void BitstreamValidator::ProcessBitstreamTask(
   }
 }
 
-void BitstreamValidator::DecodeDone(int64_t timestamp, Status status) {
+void BitstreamValidator::DecodeDone(int64_t timestamp, DecoderStatus status) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(validator_thread_sequence_checker_);
   if (!status.is_ok()) {
     base::AutoLock lock(validator_lock_);
     if (!decode_error_) {
       decode_error_ = true;
       LOG(ERROR) << "DecodeStatus is not OK, status="
-                 << GetDecodeStatusString(status.code());
+                 << static_cast<int>(status.code());
     }
   }
   if (timestamp == kEOSTimeStamp) {
@@ -280,16 +292,6 @@ void BitstreamValidator::DecodeDone(int64_t timestamp, Status status) {
     validator_cv_.Signal();
     return;
   }
-
-  // This validator and |decoder_| don't use bitstream any more. Release here,
-  // so that a caller can use the bitstream buffer and proceed.
-  auto it = decoding_buffers_.Peek(timestamp);
-  if (it == decoding_buffers_.end()) {
-    // This occurs when VerifyfOutputFrame() is called before DecodeDone() and
-    // the entry has been deleted.
-    return;
-  }
-  it->second.second.reset();
 }
 
 void BitstreamValidator::OutputFrameProcessed() {

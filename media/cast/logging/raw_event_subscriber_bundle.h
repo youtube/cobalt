@@ -1,12 +1,11 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_CAST_LOGGING_RAW_EVENT_SUBSCRIBER_BUNDLE_H_
 #define MEDIA_CAST_LOGGING_RAW_EVENT_SUBSCRIBER_BUNDLE_H_
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/cast/logging/encoding_event_subscriber.h"
 #include "media/cast/logging/stats_event_subscriber.h"
 

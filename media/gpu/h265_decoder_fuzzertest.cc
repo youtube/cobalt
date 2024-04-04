@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_codecs.h"
+#include "media/base/video_types.h"
 #include "media/gpu/h265_decoder.h"
 
 namespace {
@@ -25,11 +26,15 @@ class FakeH265Accelerator : public media::H265Decoder::H265Accelerator {
     return new media::H265Picture();
   }
 
-  Status SubmitFrameMetadata(const media::H265SPS* sps,
-                             const media::H265PPS* pps,
-                             const media::H265SliceHeader* slice_hdr,
-                             const media::H265Picture::Vector& ref_pic_list,
-                             scoped_refptr<media::H265Picture> pic) override {
+  Status SubmitFrameMetadata(
+      const media::H265SPS* sps,
+      const media::H265PPS* pps,
+      const media::H265SliceHeader* slice_hdr,
+      const media::H265Picture::Vector& ref_pic_list,
+      const media::H265Picture::Vector& ref_pic_set_lt_curr,
+      const media::H265Picture::Vector& ref_pic_set_st_curr_after,
+      const media::H265Picture::Vector& ref_pic_set_st_curr_before,
+      scoped_refptr<media::H265Picture> pic) override {
     return Status::kOk;
   }
   Status SubmitSlice(
@@ -38,6 +43,9 @@ class FakeH265Accelerator : public media::H265Decoder::H265Accelerator {
       const media::H265SliceHeader* slice_hdr,
       const media::H265Picture::Vector& ref_pic_list0,
       const media::H265Picture::Vector& ref_pic_list1,
+      const media::H265Picture::Vector& ref_pic_set_lt_curr,
+      const media::H265Picture::Vector& ref_pic_set_st_curr_after,
+      const media::H265Picture::Vector& ref_pic_set_st_curr_before,
       scoped_refptr<media::H265Picture> pic,
       const uint8_t* data,
       size_t size,
@@ -54,6 +62,9 @@ class FakeH265Accelerator : public media::H265Decoder::H265Accelerator {
   Status SetStream(base::span<const uint8_t> stream,
                    const media::DecryptConfig* decrypt_config) override {
     return Status::kOk;
+  }
+  bool IsChromaSamplingSupported(media::VideoChromaSampling format) override {
+    return format == media::VideoChromaSampling::k420;
   }
 };
 

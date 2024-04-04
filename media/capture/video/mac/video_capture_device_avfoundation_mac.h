@@ -1,18 +1,22 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_CAPTURE_VIDEO_MAC_VIDEO_CAPTURE_DEVICE_AVFOUNDATION_MAC_H_
 #define MEDIA_CAPTURE_VIDEO_MAC_VIDEO_CAPTURE_DEVICE_AVFOUNDATION_MAC_H_
 
+#include "base/memory/raw_ptr.h"
+
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>
 #include "base/functional/callback_forward.h"
+#include "base/task/single_thread_task_runner.h"
 
 #include "base/mac/scoped_dispatch_object.h"
 #include "base/mac/scoped_nsobject.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
+#include "base/time/time.h"
 #include "media/capture/video/mac/sample_buffer_transformer_mac.h"
 #include "media/capture/video/video_capture_device.h"
 #include "media/capture/video_capture_types.h"
@@ -54,6 +58,9 @@ class CAPTURE_EXPORT VideoCaptureDeviceAVFoundationFrameReceiver {
   virtual void ReceiveError(VideoCaptureError error,
                             const base::Location& from_here,
                             const std::string& reason) = 0;
+
+  // Forwarder to VideoCaptureDevice::Client::OnCaptureConfigurationChanged().
+  virtual void ReceiveCaptureConfigurationChanged() = 0;
 };
 
 // When this feature is enabled, the capturer can be configured using
@@ -62,7 +69,7 @@ class CAPTURE_EXPORT VideoCaptureDeviceAVFoundationFrameReceiver {
 // the capturer. These are available either when the camera supports it and
 // kAVFoundationCaptureV2ZeroCopy is enabled or when kInCaptureConvertToNv12 is
 // used to convert frames to NV12.
-CAPTURE_EXPORT extern const base::Feature kInCapturerScaling;
+CAPTURE_EXPORT BASE_DECLARE_FEATURE(kInCapturerScaling);
 
 // Find the best capture format from |formats| for the specified dimensions and
 // frame rate. Returns an element of |formats|, or nil.
@@ -78,11 +85,10 @@ FindBestCaptureFormat(NSArray<AVCaptureDeviceFormat*>* formats,
 // "next generation" moniker.
 CAPTURE_EXPORT
 @interface VideoCaptureDeviceAVFoundation
-    : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate> {
+    : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate,
+                AVCapturePhotoCaptureDelegate> {
  @private
   // The following attributes are set via -setCaptureHeight:width:frameRate:.
-  int _frameWidth;
-  int _frameHeight;
   float _frameRate;
 
   // The capture format that best matches the above attributes.
@@ -97,12 +103,14 @@ CAPTURE_EXPORT
   base::Lock _lock;
   // Used to avoid UAF in -captureOutput.
   base::Lock _destructionLock;
-  media::VideoCaptureDeviceAVFoundationFrameReceiver* _frameReceiver
+  raw_ptr<media::VideoCaptureDeviceAVFoundationFrameReceiver> _frameReceiver
       GUARDED_BY(_lock);  // weak.
   bool _capturedFirstFrame GUARDED_BY(_lock);
   bool _capturedFrameSinceLastStallCheck GUARDED_BY(_lock);
   std::unique_ptr<base::WeakPtrFactory<VideoCaptureDeviceAVFoundation>>
       _weakPtrFactoryForStallCheck;
+  // Timestamp offset to subtract from all frames, to avoid leaking uptime.
+  base::TimeDelta start_timestamp_;
 
   // Used to rate-limit crash reports for https://crbug.com/1168112.
   bool _hasDumpedForFrameSizeMismatch;
@@ -125,17 +133,22 @@ CAPTURE_EXPORT
   std::vector<std::unique_ptr<media::SampleBufferTransformer>>
       _scaledFrameTransformers;
 
-  // An AVDataOutput specialized for taking pictures out of |captureSession_|.
-  base::scoped_nsobject<AVCaptureStillImageOutput> _stillImageOutput;
-  size_t _takePhotoStartedCount;
-  size_t _takePhotoPendingCount;
-  size_t _takePhotoCompletedCount;
-  bool _stillImageOutputWarmupCompleted;
+  // On macOS 10.15 or later, this has type AVCapturePhotoOutput.
+  // On earlier versions, this has type AVCaptureStillImageOutput.
+  // You say tomato, I say potato.
+  base::scoped_nsobject<id> _photoOutput;
+  // Only accessed on the main thread. The takePhoto() operation is considered
+  // pending until we're ready to take another photo, which involves a PostTask
+  // back to the main thread after the photo was taken.
+  size_t _pendingTakePhotos;
   std::unique_ptr<base::WeakPtrFactory<VideoCaptureDeviceAVFoundation>>
       _weakPtrFactoryForTakePhoto;
 
   // For testing.
-  base::RepeatingCallback<void()> _onStillImageOutputStopped;
+  base::RepeatingCallback<void()> _onPhotoOutputStopped;
+  bool _forceLegacyStillImageApi;
+  absl::optional<bool> _isPortraitEffectSupportedForTesting;
+  absl::optional<bool> _isPortraitEffectActiveForTesting;
 
   scoped_refptr<base::SingleThreadTaskRunner> _mainThreadTaskRunner;
 }
@@ -201,8 +214,9 @@ CAPTURE_EXPORT
 // formats. This implementation recognizes NV12.
 + (media::VideoPixelFormat)FourCCToChromiumPixelFormat:(FourCharCode)code;
 
-- (void)setOnStillImageOutputStoppedForTesting:
-    (base::RepeatingCallback<void()>)onStillImageOutputStopped;
+- (void)setOnPhotoOutputStoppedForTesting:
+    (base::RepeatingCallback<void()>)onPhotoOutputStopped;
+- (void)setForceLegacyStillImageApiForTesting:(bool)forceLegacyApi;
 
 // Use the below only for test.
 - (void)callLocked:(base::OnceClosure)lambda;
@@ -217,6 +231,17 @@ CAPTURE_EXPORT
                    captureFormat:(const media::VideoCaptureFormat&)captureFormat
                       colorSpace:(const gfx::ColorSpace&)colorSpace
                        timestamp:(const base::TimeDelta)timestamp;
+
+// Returns whether the format supports the Portrait Effect feature or not.
+- (bool)isPortraitEffectSupported;
+
+// Returns whether the Portrait Effect is active on a device or not.
+- (bool)isPortraitEffectActive;
+
+- (void)setIsPortraitEffectSupportedForTesting:
+    (bool)isPortraitEffectSupportedForTesting;
+- (void)setIsPortraitEffectActiveForTesting:
+    (bool)isPortraitEffectActiveForTesting;
 
 @end
 

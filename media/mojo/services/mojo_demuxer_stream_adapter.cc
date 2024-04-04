@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/numerics/safe_conversions.h"
 #include "media/base/decoder_buffer.h"
@@ -23,8 +23,7 @@ MojoDemuxerStreamAdapter::MojoDemuxerStreamAdapter(
     mojo::PendingRemote<mojom::DemuxerStream> demuxer_stream,
     base::OnceClosure stream_ready_cb)
     : demuxer_stream_(std::move(demuxer_stream)),
-      stream_ready_cb_(std::move(stream_ready_cb)),
-      type_(UNKNOWN) {
+      stream_ready_cb_(std::move(stream_ready_cb)) {
   DVLOG(1) << __func__;
   demuxer_stream_->Initialize(base::BindOnce(
       &MojoDemuxerStreamAdapter::OnStreamReady, weak_factory_.GetWeakPtr()));
@@ -34,13 +33,14 @@ MojoDemuxerStreamAdapter::~MojoDemuxerStreamAdapter() {
   DVLOG(1) << __func__;
 }
 
-void MojoDemuxerStreamAdapter::Read(ReadCB read_cb) {
+void MojoDemuxerStreamAdapter::Read(uint32_t count, ReadCB read_cb) {
   DVLOG(3) << __func__;
   // We shouldn't be holding on to a previous callback if a new Read() came in.
   DCHECK(!read_cb_);
 
   read_cb_ = std::move(read_cb);
-  demuxer_stream_->Read(base::BindOnce(&MojoDemuxerStreamAdapter::OnBufferReady,
+  demuxer_stream_->Read(count,
+                        base::BindOnce(&MojoDemuxerStreamAdapter::OnBufferReady,
                                        weak_factory_.GetWeakPtr()));
 }
 
@@ -88,44 +88,56 @@ void MojoDemuxerStreamAdapter::OnStreamReady(
 
 void MojoDemuxerStreamAdapter::OnBufferReady(
     Status status,
-    mojom::DecoderBufferPtr buffer,
+    std::vector<mojom::DecoderBufferPtr> batch_buffers,
     const absl::optional<AudioDecoderConfig>& audio_config,
     const absl::optional<VideoDecoderConfig>& video_config) {
-  DVLOG(3) << __func__;
+  DVLOG(3) << __func__ << ": status=" << status
+           << ", batch_buffers.size=" << batch_buffers.size();
   DCHECK(read_cb_);
   DCHECK_NE(type_, UNKNOWN);
 
   if (status == kConfigChanged) {
     UpdateConfig(std::move(audio_config), std::move(video_config));
-    std::move(read_cb_).Run(kConfigChanged, nullptr);
+    std::move(read_cb_).Run(kConfigChanged, {});
     return;
   }
 
   if (status == kAborted) {
-    std::move(read_cb_).Run(kAborted, nullptr);
+    std::move(read_cb_).Run(kAborted, {});
     return;
   }
 
   DCHECK_EQ(status, kOk);
-  mojo_decoder_buffer_reader_->ReadDecoderBuffer(
-      std::move(buffer), base::BindOnce(&MojoDemuxerStreamAdapter::OnBufferRead,
-                                        weak_factory_.GetWeakPtr()));
+  status_ = status;
+  actual_read_count_ = batch_buffers.size();
+  for (mojom::DecoderBufferPtr& buffer : batch_buffers) {
+    mojo_decoder_buffer_reader_->ReadDecoderBuffer(
+        std::move(buffer),
+        base::BindOnce(&MojoDemuxerStreamAdapter::OnBufferRead,
+                       weak_factory_.GetWeakPtr()));
+  }
 }
 
 void MojoDemuxerStreamAdapter::OnBufferRead(
     scoped_refptr<DecoderBuffer> buffer) {
   if (!buffer) {
-    std::move(read_cb_).Run(kAborted, nullptr);
+    std::move(read_cb_).Run(kAborted, {});
+    buffer_queue_.clear();
     return;
   }
 
-  std::move(read_cb_).Run(kOk, buffer);
+  buffer_queue_.push_back(buffer);
+  if (buffer_queue_.size() == actual_read_count_) {
+    std::move(read_cb_).Run(status_, buffer_queue_);
+    actual_read_count_ = 0;
+    buffer_queue_.clear();
+  }
 }
 
 void MojoDemuxerStreamAdapter::UpdateConfig(
     const absl::optional<AudioDecoderConfig>& audio_config,
     const absl::optional<VideoDecoderConfig>& video_config) {
-  DCHECK_NE(type_, UNKNOWN);
+  DCHECK_NE(type_, Type::UNKNOWN);
 
   switch(type_) {
     case AUDIO:

@@ -1,17 +1,16 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/cast/net/udp_transport_impl.h"
 
-#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "base/bind.h"
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
@@ -30,6 +29,9 @@ class MockPacketReceiver final : public UdpTransportReceiver {
  public:
   MockPacketReceiver(const base::RepeatingClosure& callback)
       : packet_callback_(callback) {}
+
+  MockPacketReceiver(const MockPacketReceiver&) = delete;
+  MockPacketReceiver& operator=(const MockPacketReceiver&) = delete;
 
   bool ReceivedPacket(std::unique_ptr<Packet> packet) {
     packet_ = std::move(packet);
@@ -54,8 +56,6 @@ class MockPacketReceiver final : public UdpTransportReceiver {
  private:
   base::RepeatingClosure packet_callback_;
   std::unique_ptr<Packet> packet_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockPacketReceiver);
 };
 
 void SendPacket(UdpTransportImpl* transport, Packet packet) {
@@ -119,12 +119,10 @@ TEST_F(UdpTransportImplTest, PacketSenderSendAndReceive) {
   std::unique_ptr<Packet> received_packet =
       packet_receiver_on_sender.TakePacket();
   EXPECT_TRUE(received_packet);
-  EXPECT_TRUE(
-      std::equal(packet.begin(), packet.end(), received_packet->begin()));
+  EXPECT_TRUE(base::ranges::equal(packet, *received_packet));
   received_packet = packet_receiver_on_receiver.TakePacket();
   EXPECT_TRUE(received_packet);
-  EXPECT_TRUE(
-      std::equal(packet.begin(), packet.end(), (*received_packet).begin()));
+  EXPECT_TRUE(base::ranges::equal(packet, *received_packet));
 }
 
 // Test the sending/receiving functions as a UdpTransport.
@@ -153,12 +151,13 @@ TEST_F(UdpTransportImplTest, UdpTransportSendAndReceive) {
   std::unique_ptr<Packet> received_packet =
       packet_receiver_on_sender.TakePacket();
   EXPECT_TRUE(received_packet);
-  EXPECT_TRUE(
-      std::equal(packet.begin(), packet.end(), received_packet->begin()));
+  EXPECT_TRUE(base::ranges::equal(packet, *received_packet));
   received_packet = packet_receiver_on_receiver.TakePacket();
   EXPECT_TRUE(received_packet);
-  EXPECT_TRUE(
-      std::equal(packet.begin(), packet.end(), (*received_packet).begin()));
+  EXPECT_TRUE(base::ranges::equal(packet, *received_packet));
+
+  send_transport_->StopReceiving();
+  recv_transport_->StopReceiving();
 }
 
 }  // namespace cast

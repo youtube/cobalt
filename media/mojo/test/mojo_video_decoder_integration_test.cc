@@ -1,30 +1,30 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include <stdint.h>
 
 #include <memory>
 #include <vector>
 
-#include <stdint.h>
-
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/cxx17_backports.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "gpu/command_buffer/common/mailbox_holder.h"
-#include "media/base/decode_status.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/decoder_status.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/media_log.h"
 #include "media/base/mock_media_log.h"
+#include "media/base/simple_sync_token_client.h"
 #include "media/base/test_helpers.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
@@ -131,9 +131,9 @@ class MockVideoDecoder : public VideoDecoder {
       if (buffer->data_size() == kErrorDataSize) {
         // This size buffer indicates that decoder should return an error.
         // |decode_cb| must not be called from the same stack.
-        base::ThreadTaskRunnerHandle::Get()->PostTask(
-            FROM_HERE,
-            base::BindOnce(std::move(decode_cb), DecodeStatus::DECODE_ERROR));
+        base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE, base::BindOnce(std::move(decode_cb),
+                                      DecoderStatus::Codes::kFailed));
         return;
       }
       if (buffer->decrypt_config()) {
@@ -152,14 +152,15 @@ class MockVideoDecoder : public VideoDecoder {
     }
 
     // |decode_cb| must not be called from the same stack.
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(decode_cb), DecodeStatus::OK));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(decode_cb), DecoderStatus::Codes::kOk));
   }
 
   void DoReset(base::OnceClosure& reset_cb) {
     // |reset_cb| must not be called from the same stack.
-    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                  std::move(reset_cb));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(reset_cb));
   }
 
   base::WeakPtr<MockVideoDecoder> GetWeakPtr() {
@@ -182,19 +183,22 @@ class FakeMojoMediaClient : public MojoMediaClient {
   explicit FakeMojoMediaClient(CreateVideoDecoderCB create_video_decoder_cb)
       : create_video_decoder_cb_(std::move(create_video_decoder_cb)) {}
 
+  FakeMojoMediaClient(const FakeMojoMediaClient&) = delete;
+  FakeMojoMediaClient& operator=(const FakeMojoMediaClient&) = delete;
+
   std::unique_ptr<VideoDecoder> CreateVideoDecoder(
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
       MediaLog* media_log,
       mojom::CommandBufferIdPtr command_buffer_id,
       RequestOverlayInfoCB request_overlay_info_cb,
-      const gfx::ColorSpace& target_color_space) override {
+      const gfx::ColorSpace& target_color_space,
+      mojo::PendingRemote<stable::mojom::StableVideoDecoder> oop_video_decoder)
+      override {
     return create_video_decoder_cb_.Run(media_log);
   }
 
  private:
   CreateVideoDecoderCB create_video_decoder_cb_;
-
-  DISALLOW_COPY_AND_ASSIGN(FakeMojoMediaClient);
 };
 
 }  // namespace
@@ -205,6 +209,11 @@ class MojoVideoDecoderIntegrationTest : public ::testing::Test {
       : mojo_media_client_(base::BindRepeating(
             &MojoVideoDecoderIntegrationTest::CreateVideoDecoder,
             base::Unretained(this))) {}
+
+  MojoVideoDecoderIntegrationTest(const MojoVideoDecoderIntegrationTest&) =
+      delete;
+  MojoVideoDecoderIntegrationTest& operator=(
+      const MojoVideoDecoderIntegrationTest&) = delete;
 
   void TearDown() override {
     if (client_) {
@@ -221,8 +230,9 @@ class MojoVideoDecoderIntegrationTest : public ::testing::Test {
   mojo::PendingRemote<mojom::VideoDecoder> CreateRemoteVideoDecoder() {
     mojo::PendingRemote<mojom::VideoDecoder> remote_video_decoder;
     mojo::MakeSelfOwnedReceiver(
-        std::make_unique<MojoVideoDecoderService>(&mojo_media_client_,
-                                                  &mojo_cdm_service_context_),
+        std::make_unique<MojoVideoDecoderService>(
+            &mojo_media_client_, &mojo_cdm_service_context_,
+            mojo::PendingRemote<stable::mojom::StableVideoDecoder>()),
         remote_video_decoder.InitWithNewPipeAndPassReceiver());
     return remote_video_decoder;
   }
@@ -232,8 +242,9 @@ class MojoVideoDecoderIntegrationTest : public ::testing::Test {
     // TODO(sandersd): Pass a GpuVideoAcceleratorFactories so that the cache can
     // be tested.
     client_ = std::make_unique<MojoVideoDecoder>(
-        base::ThreadTaskRunnerHandle::Get(), nullptr, &client_media_log_,
-        CreateRemoteVideoDecoder(), RequestOverlayInfoCB(), gfx::ColorSpace());
+        base::SingleThreadTaskRunner::GetCurrentDefault(), nullptr,
+        &client_media_log_, CreateRemoteVideoDecoder(), RequestOverlayInfoCB(),
+        gfx::ColorSpace());
     if (writer_capacity_)
       client_->set_writer_capacity_for_testing(writer_capacity_);
   }
@@ -242,9 +253,9 @@ class MojoVideoDecoderIntegrationTest : public ::testing::Test {
     CreateClient();
 
     EXPECT_CALL(*decoder_, DoInitialize(_))
-        .WillOnce(RunOnceCallback<0>(OkStatus()));
+        .WillOnce(RunOnceCallback<0>(DecoderStatus::Codes::kOk));
 
-    Status result = OkStatus();
+    DecoderStatus result = DecoderStatus::Codes::kOk;
     StrictMock<base::MockCallback<VideoDecoder::InitCB>> init_cb;
     EXPECT_CALL(init_cb, Run(_)).WillOnce(SaveArg<0>(&result));
 
@@ -256,10 +267,10 @@ class MojoVideoDecoderIntegrationTest : public ::testing::Test {
     return result.is_ok();
   }
 
-  Status Decode(scoped_refptr<DecoderBuffer> buffer,
-                VideoFrame::ReleaseMailboxCB release_cb =
-                    VideoFrame::ReleaseMailboxCB()) {
-    Status result(DecodeStatus::DECODE_ERROR);
+  DecoderStatus Decode(scoped_refptr<DecoderBuffer> buffer,
+                       VideoFrame::ReleaseMailboxCB release_cb =
+                           VideoFrame::ReleaseMailboxCB()) {
+    DecoderStatus result(DecoderStatus::Codes::kFailed);
 
     if (!buffer->end_of_stream()) {
       decoder_->release_mailbox_cb = std::move(release_cb);
@@ -312,9 +323,8 @@ class MojoVideoDecoderIntegrationTest : public ::testing::Test {
     const uint8_t kFakeIv[DecryptConfig::kDecryptionKeySize] = {0};
     buffer->set_decrypt_config(DecryptConfig::CreateCencConfig(
         std::string(reinterpret_cast<const char*>(kFakeKeyId),
-                    base::size(kFakeKeyId)),
-        std::string(reinterpret_cast<const char*>(kFakeIv),
-                    base::size(kFakeIv)),
+                    std::size(kFakeKeyId)),
+        std::string(reinterpret_cast<const char*>(kFakeIv), std::size(kFakeIv)),
         {}));
 
     return buffer;
@@ -341,7 +351,7 @@ class MojoVideoDecoderIntegrationTest : public ::testing::Test {
 
   // MediaLog that the service has provided to |decoder_|. This should be
   // proxied to |client_media_log_|.
-  MediaLog* decoder_media_log_ = nullptr;
+  raw_ptr<MediaLog> decoder_media_log_ = nullptr;
 
  private:
   // Passes |decoder_| to the service.
@@ -360,8 +370,6 @@ class MojoVideoDecoderIntegrationTest : public ::testing::Test {
 
   // Provides |decoder_| to the service.
   FakeMojoMediaClient mojo_media_client_;
-
-  DISALLOW_COPY_AND_ASSIGN(MojoVideoDecoderIntegrationTest);
 };
 
 TEST_F(MojoVideoDecoderIntegrationTest, CreateAndDestroy) {}
@@ -392,7 +400,7 @@ TEST_F(MojoVideoDecoderIntegrationTest, InitializeFailNoDecoder) {
 
   StrictMock<base::MockCallback<VideoDecoder::InitCB>> init_cb;
   EXPECT_CALL(init_cb,
-              Run(HasStatusCode(StatusCode::kMojoDecoderNoWrappedDecoder)));
+              Run(HasStatusCode(DecoderStatus::Codes::kFailedToCreateDecoder)));
 
   // Clear |decoder_| so that Initialize() should fail.
   decoder_owner_.reset();
@@ -407,7 +415,7 @@ TEST_F(MojoVideoDecoderIntegrationTest, InitializeFailNoCdm) {
   StrictMock<base::MockCallback<VideoDecoder::InitCB>> init_cb;
   EXPECT_CALL(
       init_cb,
-      Run(HasStatusCode(StatusCode::kDecoderMissingCdmForEncryptedContent)));
+      Run(HasStatusCode(DecoderStatus::Codes::kUnsupportedEncryptionMode)));
 
   // CdmContext* (3rd parameter) is not provided but the VideoDecoderConfig
   // specifies encrypted video, so Initialize() should fail.
@@ -458,6 +466,12 @@ TEST_F(MojoVideoDecoderIntegrationTest, Release) {
   Mock::VerifyAndClearExpectations(&output_cb_);
 
   EXPECT_CALL(release_cb, Run(_));
+  gpu::SyncToken release_sync_token(gpu::CommandBufferNamespace::GPU_IO,
+                                    gpu::CommandBufferId(),
+                                    /*release_count=*/1u);
+  release_sync_token.SetVerifyFlush();
+  SimpleSyncTokenClient client(release_sync_token);
+  frame->UpdateReleaseSyncToken(&client);
   frame = nullptr;
   RunUntilIdle();
 }
@@ -533,66 +547,33 @@ TEST_F(MojoVideoDecoderIntegrationTest, ResetDuringDecode_ChunkedWrite) {
   RunUntilIdle();
 }
 
-TEST_F(MojoVideoDecoderIntegrationTest, InitialPlaybackUMASuccess) {
-  base::HistogramTester histogram_tester_;
-  const int frames_to_decode = kMojoDecoderInitialPlaybackFrameCount;
-
+TEST_F(MojoVideoDecoderIntegrationTest, CanReadWithoutStallingAfterReset) {
   ASSERT_TRUE(Initialize());
 
   StrictMock<base::MockCallback<VideoDecoder::DecodeCB>> decode_cb;
+  StrictMock<base::MockCallback<base::OnceClosure>> reset_cb;
 
-  EXPECT_CALL(*decoder_, DidGetReleaseMailboxCB()).Times(AnyNumber());
-  EXPECT_CALL(output_cb_, Run(_)).Times(frames_to_decode);
-  EXPECT_CALL(*decoder_, Decode_(_, _)).Times(frames_to_decode);
+  EXPECT_CALL(*decoder_, DidGetReleaseMailboxCB()).Times(AtLeast(0));
+  EXPECT_CALL(output_cb_, Run(_)).Times(1);
+  EXPECT_CALL(*decoder_, CanReadWithoutStalling())
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(*decoder_, Decode_(_, _)).Times(1);
+  EXPECT_CALL(*decoder_, Reset_(_));
 
-  EXPECT_CALL(decode_cb, Run(IsOkStatus())).Times(frames_to_decode);
+  EXPECT_TRUE(client_->CanReadWithoutStalling());
 
-  for (int i = 0; i < frames_to_decode - 1; i++)
-    client_->Decode(CreateKeyframe(i * 16), decode_cb.Get());
-
-  RunUntilIdle();
-  histogram_tester_.ExpectBucketCount(
-      kMojoVideoDecoderInitialPlaybackSuccessCodecCounterUMA, 1, 0);
+  InSequence s;  // Make sure all callbacks are fired in order.
+  EXPECT_CALL(decode_cb, Run(_)).Times(1);
+  EXPECT_CALL(reset_cb, Run());
 
   client_->Decode(CreateKeyframe(0), decode_cb.Get());
+  RunUntilIdle();
+
+  EXPECT_FALSE(client_->CanReadWithoutStalling());
+  client_->Reset(reset_cb.Get());
 
   RunUntilIdle();
-  histogram_tester_.ExpectBucketCount(
-      kMojoVideoDecoderInitialPlaybackSuccessCodecCounterUMA, 1, 1);
-}
-
-TEST_F(MojoVideoDecoderIntegrationTest, InitialPlaybackUMAError) {
-  base::HistogramTester histogram_tester_;
-  const int frames_to_decode = kMojoDecoderInitialPlaybackFrameCount;
-
-  ASSERT_TRUE(Initialize());
-
-  StrictMock<base::MockCallback<VideoDecoder::DecodeCB>> decode_cb;
-
-  EXPECT_CALL(*decoder_, DidGetReleaseMailboxCB()).Times(AnyNumber());
-  EXPECT_CALL(output_cb_, Run(_)).Times(frames_to_decode - 1);
-  EXPECT_CALL(*decoder_, Decode_(_, _)).Times(frames_to_decode);
-
-  EXPECT_CALL(decode_cb, Run(IsOkStatus())).Times(frames_to_decode - 1);
-
-  EXPECT_CALL(decode_cb, Run(IsDecodeErrorStatus())).Times(1);
-
-  for (int i = 0; i < frames_to_decode - 1; i++)
-    client_->Decode(CreateKeyframe(i * 16), decode_cb.Get());
-
-  RunUntilIdle();
-  histogram_tester_.ExpectBucketCount(
-      kMojoVideoDecoderInitialPlaybackErrorCodecCounterUMA, 1, 0);
-  histogram_tester_.ExpectBucketCount(
-      kMojoVideoDecoderInitialPlaybackSuccessCodecCounterUMA, 1, 0);
-
-  client_->Decode(CreateErrorFrame(0), decode_cb.Get());
-
-  RunUntilIdle();
-  histogram_tester_.ExpectBucketCount(
-      kMojoVideoDecoderInitialPlaybackErrorCodecCounterUMA, 1, 1);
-  histogram_tester_.ExpectBucketCount(
-      kMojoVideoDecoderInitialPlaybackSuccessCodecCounterUMA, 1, 0);
+  EXPECT_TRUE(client_->CanReadWithoutStalling());
 }
 
 }  // namespace media

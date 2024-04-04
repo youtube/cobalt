@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,14 +9,13 @@
 
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/numerics/safe_conversions.h"
 #include "media/base/audio_buffer.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_frame.h"
 #include "media/mojo/common/media_type_converters.h"
 #include "media/mojo/common/mojo_decoder_buffer_converter.h"
-#include "media/mojo/common/mojo_shared_buffer_video_frame.h"
 #include "media/mojo/mojom/decryptor.mojom.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 

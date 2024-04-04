@@ -1,15 +1,18 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/capture/video/video_capture_device.h"
 
 #include "base/command_line.h"
-#include "base/cxx17_backports.h"
+#include "base/containers/contains.h"
+#include "base/functional/callback.h"
 #include "base/i18n/timezone.h"
 #include "base/strings/string_util.h"
+#include "base/token.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
+#include "media/capture/mojom/video_capture_types.mojom.h"
 
 namespace media {
 
@@ -57,7 +60,40 @@ VideoCaptureDevice::Client::Buffer::~Buffer() = default;
 VideoCaptureDevice::Client::Buffer& VideoCaptureDevice::Client::Buffer::
 operator=(VideoCaptureDevice::Client::Buffer&& other) = default;
 
+void VideoCaptureDevice::Client::OnIncomingCapturedData(
+    const uint8_t* data,
+    int length,
+    const VideoCaptureFormat& frame_format,
+    const gfx::ColorSpace& color_space,
+    int clockwise_rotation,
+    bool flip_y,
+    base::TimeTicks reference_time,
+    base::TimeDelta timestamp) {
+  OnIncomingCapturedData(data, length, frame_format, color_space,
+                         clockwise_rotation, flip_y, reference_time, timestamp,
+                         /*frame_feedback_id=*/0);
+}
+
+void VideoCaptureDevice::Client::OnIncomingCapturedGfxBuffer(
+    gfx::GpuMemoryBuffer* buffer,
+    const VideoCaptureFormat& frame_format,
+    int clockwise_rotation,
+    base::TimeTicks reference_time,
+    base::TimeDelta timestamp) {
+  OnIncomingCapturedGfxBuffer(buffer, frame_format, clockwise_rotation,
+                              reference_time, timestamp,
+                              /*frame_feedback_id=*/0);
+}
+
 VideoCaptureDevice::~VideoCaptureDevice() = default;
+
+void VideoCaptureDevice::Crop(
+    const base::Token& crop_id,
+    uint32_t crop_version,
+    base::OnceCallback<void(media::mojom::CropRequestResult)> callback) {
+  std::move(callback).Run(
+      media::mojom::CropRequestResult::kUnsupportedCaptureDevice);
+}
 
 void VideoCaptureDevice::GetPhotoState(GetPhotoStateCallback callback) {}
 
@@ -70,7 +106,7 @@ void VideoCaptureDevice::TakePhoto(TakePhotoCallback callback) {}
 PowerLineFrequency VideoCaptureDevice::GetPowerLineFrequencyForLocation() {
   const std::string current_country = base::CountryCodeForCurrentTimezone();
   if (current_country.empty())
-    return PowerLineFrequency::FREQUENCY_DEFAULT;
+    return PowerLineFrequency::kDefault;
   // Sorted out list of countries with 60Hz power line frequency, from
   // http://en.wikipedia.org/wiki/Mains_electricity_by_country
   const char* countries_using_60Hz[] = {
@@ -78,21 +114,18 @@ PowerLineFrequency VideoCaptureDevice::GetPowerLineFrequencyForLocation() {
       "CR", "CU", "DO", "EC", "FM", "GT", "GU", "GY", "HN", "HT", "JP",
       "KN", "KR", "KY", "MS", "MX", "NI", "PA", "PE", "PF", "PH", "PR",
       "PW", "SA", "SR", "SV", "TT", "TW", "UM", "US", "VG", "VI", "VE"};
-  const char** countries_using_60Hz_end =
-      countries_using_60Hz + base::size(countries_using_60Hz);
-  if (std::find(countries_using_60Hz, countries_using_60Hz_end,
-                current_country) == countries_using_60Hz_end) {
-    return PowerLineFrequency::FREQUENCY_50HZ;
+  if (!base::Contains(countries_using_60Hz, current_country)) {
+    return PowerLineFrequency::k50Hz;
   }
-  return PowerLineFrequency::FREQUENCY_60HZ;
+  return PowerLineFrequency::k60Hz;
 }
 
 // static
 PowerLineFrequency VideoCaptureDevice::GetPowerLineFrequency(
     const VideoCaptureParams& params) {
   switch (params.power_line_frequency) {
-    case PowerLineFrequency::FREQUENCY_50HZ:  // fall through
-    case PowerLineFrequency::FREQUENCY_60HZ:
+    case PowerLineFrequency::k50Hz:  // fall through
+    case PowerLineFrequency::k60Hz:
       return params.power_line_frequency;
     default:
       return GetPowerLineFrequencyForLocation();

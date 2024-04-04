@@ -46,18 +46,25 @@ bear-vp8-webvtt.webm as a 'subt' handler type.
 Just the first initialization segment of bear-1280x720_av_frag.mp4, modified to
 have the mvhd version 0 32-bit duration field set to all 1's.
 
+#### bear-1280x720.ivf
+
+VP8 video stream from bear-1280x720.mp4 in ivf container.
+
 #### negative-audio-timestamps.avi
 A truncated audio/video file with audio packet timestamps of -1. We need to ensure that these packets aren't dropped.
 
 #### noise-xhe-aac.mp4
+#### noise-xhe-aac-mono.mp4
 Fragmented mp4 of noise encoded with xHE-AAC, from xHE-AAC samples in [Android
-CTS](https://android.googlesource.com/platform/cts/+/master/tests/tests/media/res/raw),
+CTS](https://android.googlesource.com/platform/cts/+/master/tests/tests/media/decoder/res/raw),
 using ffmpeg version 4.2.2 (where nofillin lets audio nonkeyframes in input be
 indicated the same in output, unlike more recent tip-of-tree ffmpeg's operation
 with this option) to remux, unfortunately with empty MOOV not giving real
 duration:
 ```
 ffmpeg -fflags nofillin -i noise_2ch_48khz_aot42_19_lufs_mp4.m4a -acodec copy -t 1 -movflags frag_keyframe+empty_moov+default_base_moof noise-xhe-aac.mp4
+ffmpeg -fflags nofillin -i noise_1ch_29_4khz_aot42_19_lufs_drc_config_change_mp4.m4a -acodec copy -t 1 -movflags frag_keyframe+empty_moov+default_base_moof noise-xhe-aac-mono.mp4
+ffmpeg -fflags nofillin -i noise_2ch_44_1khz_aot42_19_lufs_config_change_mp4.m4a -acodec copy -t 1 -movflags frag_keyframe+empty_moov+default_base_moof noise-xhe-aac-44kHz.mp4
 ```
 
 ### FLAC
@@ -191,6 +198,12 @@ The video license is [libaom LICENSE].
 The first frame of blackwhite\_yuv444p.mp4 coded in AV1 by the following command.
 `ffmpeg -i blackwhite_yuv444p.mp4 -strict -2 -vcodec av1 -vframes 1 blackwhite_yuv444p-frame.av1.ivf`
 
+#### blackwhite_yuv444p_av1.mp4
+`ffmpeg -i blackwhite_yuv444p-frame.av1.ivf -y -vcodec copy blackwhite_yuv444p_av1.mp4`
+
+#### blackwhite_yuv444p_av1.webm
+`ffmpeg -i blackwhite_yuv444p-frame.av1.ivf -y -vcodec copy blackwhite_yuv444p_av1.webm`
+
 #### av1-film\_grain.ivf
 AV1 data where film grain feature is used.
 This is the same as av1-1-b8-23-film\_grain-50.ivf in [libaom test vectors].
@@ -240,6 +253,10 @@ the media data doesn't start at time 0.
 
 #### bear-320x240_corrupted_after_init_segment.webm
 bear-320x240.webm's initialization segment followed by "CORRUPTED\n"
+
+#### mono_cpe.adts
+Technically not corrupt since ffmpeg explicitly allows this stereo track to say
+it's mono. First second of audio from test clip on https://crbug.com/1282058.
 
 ### Live
 
@@ -809,25 +826,6 @@ ffmpeg -i red-green.mp4 -vcodec copy -vbsf h264_mp4toannexb -an red-green.h264
 
 ## Misc Test Files
 
-### resolution_change_500frames
-
-#### resolution_change_500frames-vp8.ivf
-#### resolution_change_500frames-vp9.ivf
-Dumped compressed stream of videos on
-[http://crosvideo.appspot.com](http://crosvideo.appspot.com) manually
-changing resolutions at random. Those contain 144p, 240p, 360p, 480p, 720p, and
-1080p frames. Those frame sizes can be found by
-```
-ffprobe -show_frames resolution_change_500frames.vp8
-```
-
-#### switch_1080p_720p_240frames
-#### switch_1080p_720p_240frames.h264
-Extract 240 frames using ffmpeg from
-http://commondatastorage.googleapis.com/chromiumos-test-assets-public/MSE/switch_1080p_720p.mp4.
-
-The frame sizes change between 1080p and 720p every 24 frames.
-
 ### VEA test files:
 
 #### bear_320x192_40frames.yuv.webm
@@ -975,6 +973,11 @@ bear-320x180-10bit-frame-1.hevc: B
 bear-320x180-10bit-frame-2.hevc: B
 bear-320x180-10bit-frame-3.hevc: P
 
+#### bear-1280x720-hevc-10bit-hdr10.hevc
+AnnexB version of bear-1280x720-hevc-10bit-hdr10.mp4 created using the following command:
+`ffmpeg -i bear-1280x720-hevc-10bit-hdr10.mp4 -c:v copy -bsf hevc_mp4toannexb bear-1280x720-hevc-10bit-hdr10.hevc',
+used by h265_parser_unittest.cc.
+
 #### blackwhite\_yuv444p-frame.hevc
 The first frame of blackwhite_yuv444p.mp4 coded in HEVC by the following command.
 `ffmpeg -i blackwhite_yuv444p.mp4 -vcodec hevc -vframes 1 blackwhite_yuv444p-frame.hevc`
@@ -1116,15 +1119,17 @@ present.
 ### MP4 files with AC3 and EAC3 audio
 
 #### bear-ac3-only-frag.mp4
-AC3 audio in framented MP4, generated with
+AC3 audio in framented MP4, generated with bento4 by the following command:
 ```
-ffmpeg -i bear.ac3 -acodec copy -movflags frag_keyframe bear-ac3-only-frag.mp4
+mp4mux --track bear.ac3 bear-ac3-only.mp4
+mp4fragment bear-ac3-only.mp4 bear-ac3-only-frag.mp4
 ```
 
 #### bear-eac3-only-frag.mp4
-EAC3 audio in framented MP4, generated with
+EAC3 audio in framented MP4, generated with bento4 by the following command:
 ```
-ffmpeg -i bear.eac3 -acodec copy -movflags frag_keyframe bear-eac3-only-frag.mp4
+mp4mux --track bear.eac3 bear-eac3-only.mp4
+mp4fragment bear-eac3-only.mp4 bear-eac3-only-frag.mp4
 ```
 
 ### Mpeg2ts stream with AAC HE audio that uses SBR
@@ -1175,6 +1180,54 @@ This is bear-320x240-v-2frames_frag-hevc.mp4, with manually updated
 tfhd.default_sample_flags: s/0x01010000/0x02000000 (second frame is sync-sample,
 doesn't depend on other frames, mismatches compressed h265 second frame's
 nonkeyframe-ness).
+
+#### bear-1280x720-hevc.mp4
+HEVC video stream with 8-bit main profile, generated with
+```
+ffmpeg -i bear-1280x720.mp4 -vcodec hevc bear-1280x720-hevc.mp4
+```
+
+#### bear-1280x720-hevc-10bit.mp4
+HEVC video stream with 10-bit main10 profile, generated with
+```
+ffmpeg -i bear-1280x720.mp4 -vcodec hevc -pix_fmt yuv420p10le bear-1280x720-hevc-10bit.mp4
+```
+
+#### bear-1280x720-hevc-10bit-422.mp4
+HEVC video stream with 10-bit 422 range extension profile, generated with
+```
+ffmpeg -i bear-1280x720.mp4 -vcodec libx265 -pix_fmt yuv422p10le bear-1280x720-hevc-10bit-422.mp4
+```
+
+#### bear-1280x720-hevc-10bit-444.mp4
+HEVC video stream with 10-bit 444 range extension profile, generated with
+```
+ffmpeg -i bear-1280x720.mp4 -vcodec libx265 -pix_fmt yuv444p10le bear-1280x720-hevc-10bit-444.mp4
+```
+
+#### bear-1280x720-hevc-12bit-420.mp4
+HEVC video stream with 12-bit 420 range extension profile, generated with
+```
+ffmpeg -i bear-1280x720.mp4 -vcodec libx265 -pix_fmt yuv420p12le bear-1280x720-hevc-12bit-420.mp4
+```
+
+#### bear-1280x720-hevc-12bit-422.mp4
+HEVC video stream with 12-bit 422 range extension profile, generated with
+```
+ffmpeg -i bear-1280x720.mp4 -vcodec libx265 -pix_fmt yuv422p12le bear-1280x720-hevc-12bit-422.mp4
+```
+
+#### bear-1280x720-hevc-12bit-444.mp4
+HEVC video stream with 12-bit 444 range extension profile, generated with
+```
+ffmpeg -i bear-1280x720.mp4 -vcodec libx265 -pix_fmt yuv444p12le bear-1280x720-hevc-12bit-444.mp4
+```
+
+#### bear-1280x720-hevc-10bit-hdr10.mp4
+HEVC video stream with HDR10 metadata included, generated with
+````
+ffmpeg -i bear-1280x720.mp4 -vcodec libx265 -x265-params colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display="G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,500)":max-cll=1000,400 -pix_fmt yuv420p10le bear-1280x720-hevc-10bit-hdr10.mp4 // nocheck
+````
 
 ### Multi-track MP4 file
 
@@ -1233,3 +1286,56 @@ https://people.xiph.org/~greg/opus_testvectors/
 
 [libaom test vectors]: https://aomedia.googlesource.com/aom/+/master/test/test_vectors.cc
 [libaom LICENSE]: https://source.chromium.org/chromium/chromium/src/+/main:media/test/data/licenses/AOM-LICENSE
+
+
+### DTS Audio
+
+#### dts.bin
+A single DTS Coherent Acoustics audio frame
+
+#### dtsx.bin
+A single DTS:X P2 Coherent Acoustics audio frame
+
+#### bear_dtsc.mp4
+Moov box with track of DTS Coherent Acoustics Audio, no mdat box.
+
+Generated using the following commands:
+```
+# start with ~1 second long PCM 2 channel audio and extend to three seconds
+ffmpeg -i bear_pcm.wav -y bear.ts
+ffmpeg -i "concat:bear.ts|bear.ts|bear.ts" -c copy bear2.wav
+# make a 6 channel WAV
+ffmpeg -i bear2.wav -i bear2.wav -i bear2.wav -ar 48000 -filter_complex 'amerge=inputs=3' -y bear6.wav
+ffmpeg -i bear6.wav -c:a dtsS -movflags frag_keyframe -y bear_dtsc.mp4
+# truncate to size of moov box (truncate -s)
+```
+
+#### bear_dtse.mp4
+Moov box with track of DTS Express Audio, no mdat box.
+
+Generated using the following commands:
+```
+# start with ~1 second long PCM 2 channel audio and extend to three seconds
+ffmpeg -i bear_pcm.wav -y bear.ts
+ffmpeg -i "concat:bear.ts|bear.ts|bear.ts" -c copy bear2.wav
+# make a 6 channel WAV
+ffmpeg -i bear2.wav -i bear2.wav -i bear2.wav -ar 48000 -filter_complex 'amerge=inputs=3' -y bear6.wav
+# create DTS CA, DTS Express, DTS:X P2 mp4 files
+ffmpeg -i bear6.wav -c:a dtsS -b:a 255000 -movflags frag_keyframe -y bear_dtse.mp4
+# truncate to size of moov box (truncate -s)
+```
+
+#### bear_dtsx.mp4
+Moov box with track of DTS:X Profile 2 Audio, no mdat box.
+
+Generated using the following commands:
+```
+# start with ~1 second long PCM 2 channel audio and extend to three seconds
+ffmpeg -i bear_pcm.wav -y bear.ts
+ffmpeg -i "concat:bear.ts|bear.ts|bear.ts" -c copy bear2.wav
+# make a 6 channel WAV
+ffmpeg -i bear2.wav -i bear2.wav -i bear2.wav -ar 48000 -filter_complex 'amerge=inputs=3' -y bear6.wav
+# create DTS CA, DTS Express, DTS:X P2 mp4 files
+ffmpeg -i bear6.wav -c:a dtsxS -b:a 160000 -movflags frag_keyframe -y bear_dtsx.mp4
+# truncate to size of moov box (truncate -s)
+```

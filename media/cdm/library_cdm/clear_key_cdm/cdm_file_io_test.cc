@@ -1,14 +1,14 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/cdm/library_cdm/clear_key_cdm/cdm_file_io_test.h"
 
+#include <algorithm>
 #include <limits>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/cxx17_backports.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 
@@ -18,13 +18,13 @@ namespace media {
 
 const uint8_t kData[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                          0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
-const uint32_t kDataSize = base::size(kData);
+const uint32_t kDataSize = std::size(kData);
 
 const uint8_t kBigData[] = {
     0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa,
     0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
     0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00};
-const uint32_t kBigDataSize = base::size(kBigData);
+const uint32_t kBigDataSize = std::size(kBigData);
 
 // Must be > kReadSize in cdm_file_io_impl.cc.
 const uint32_t kLargeDataSize = 20 * 1024 + 7;
@@ -33,11 +33,11 @@ const uint32_t kLargeDataSize = 20 * 1024 + 7;
 
 // |test_name| is also used as the file name. File name validity tests relies
 // on this to work.
-#define START_TEST_CASE(test_name)                      \
-  do {                                                  \
-    std::unique_ptr<FileIOTest> test_case(              \
-        new FileIOTest(create_file_io_cb_, test_name)); \
-    CREATE_FILE_IO  // Create FileIO for each test case.
+#define START_TEST_CASE(test_name)                                   \
+  do {                                                               \
+    auto test_case =                                                 \
+        std::make_unique<FileIOTest>(create_file_io_cb_, test_name); \
+  CREATE_FILE_IO  // Create FileIO for each test case.
 
 #define ADD_TEST_STEP(type, status, data, data_size)                          \
   test_case->AddTestStep(FileIOTest::type, cdm::FileIOClient::Status::status, \

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #ifndef MEDIA_GPU_VAAPI_VAAPI_COMMON_H_
@@ -12,9 +12,9 @@
 #include "media/gpu/vp9_picture.h"
 #include "media/media_buildflags.h"
 
-#if BUILDFLAG(ENABLE_PLATFORM_HEVC_DECODING)
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 #include "media/gpu/h265_dpb.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 
 namespace media {
 
@@ -26,6 +26,9 @@ class VaapiH264Picture : public H264Picture {
  public:
   explicit VaapiH264Picture(scoped_refptr<VASurface> va_surface);
 
+  VaapiH264Picture(const VaapiH264Picture&) = delete;
+  VaapiH264Picture& operator=(const VaapiH264Picture&) = delete;
+
   VaapiH264Picture* AsVaapiH264Picture() override;
 
   scoped_refptr<VASurface> va_surface() const { return va_surface_; }
@@ -36,11 +39,9 @@ class VaapiH264Picture : public H264Picture {
 
  private:
   scoped_refptr<VASurface> va_surface_;
-
-  DISALLOW_COPY_AND_ASSIGN(VaapiH264Picture);
 };
 
-#if BUILDFLAG(ENABLE_PLATFORM_HEVC_DECODING)
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 class VaapiH265Picture : public H265Picture {
  public:
   explicit VaapiH265Picture(scoped_refptr<VASurface> va_surface);
@@ -59,11 +60,14 @@ class VaapiH265Picture : public H265Picture {
  private:
   scoped_refptr<VASurface> va_surface_;
 };
-#endif  // BUILDFLAG(ENABLE_PLATFORM_HEVC_DECODING)
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 
 class VaapiVP8Picture : public VP8Picture {
  public:
   explicit VaapiVP8Picture(scoped_refptr<VASurface> va_surface);
+
+  VaapiVP8Picture(const VaapiVP8Picture&) = delete;
+  VaapiVP8Picture& operator=(const VaapiVP8Picture&) = delete;
 
   VaapiVP8Picture* AsVaapiVP8Picture() override;
 
@@ -75,13 +79,14 @@ class VaapiVP8Picture : public VP8Picture {
 
  private:
   scoped_refptr<VASurface> va_surface_;
-
-  DISALLOW_COPY_AND_ASSIGN(VaapiVP8Picture);
 };
 
 class VaapiVP9Picture : public VP9Picture {
  public:
   explicit VaapiVP9Picture(scoped_refptr<VASurface> va_surface);
+
+  VaapiVP9Picture(const VaapiVP9Picture&) = delete;
+  VaapiVP9Picture& operator=(const VaapiVP9Picture&) = delete;
 
   VaapiVP9Picture* AsVaapiVP9Picture() override;
 
@@ -95,8 +100,6 @@ class VaapiVP9Picture : public VP9Picture {
   scoped_refptr<VP9Picture> CreateDuplicate() override;
 
   scoped_refptr<VASurface> va_surface_;
-
-  DISALLOW_COPY_AND_ASSIGN(VaapiVP9Picture);
 };
 
 class VaapiAV1Picture : public AV1Picture {

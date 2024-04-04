@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 
 #include "base/big_endian.h"
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "media/base/fake_single_thread_task_runner.h"
 #include "media/cast/net/pacing/paced_sender.h"
@@ -43,6 +42,9 @@ class TestPacketSender : public PacketTransport {
  public:
   TestPacketSender() : bytes_sent_(0) {}
 
+  TestPacketSender(const TestPacketSender&) = delete;
+  TestPacketSender& operator=(const TestPacketSender&) = delete;
+
   bool SendPacket(PacketRef packet, base::OnceClosure cb) final {
     EXPECT_FALSE(expected_packet_sizes_.empty());
     size_t expected_packet_size = expected_packet_sizes_.front();
@@ -52,8 +54,7 @@ class TestPacketSender : public PacketTransport {
 
     // Parse for the packet ID and confirm it is the next one we expect.
     EXPECT_LE(kSize1, packet->data.size());
-    base::BigEndianReader reader(reinterpret_cast<char*>(&packet->data[0]),
-                                 packet->data.size());
+    base::BigEndianReader reader(packet->data);
     bool success = reader.Skip(14);
     uint16_t packet_id = 0xffff;
     success &= reader.ReadU16(&packet_id);
@@ -86,11 +87,13 @@ class TestPacketSender : public PacketTransport {
   base::circular_deque<int> expected_packet_sizes_;
   base::circular_deque<uint16_t> expected_packet_ids_;
   int64_t bytes_sent_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestPacketSender);
 };
 
 class PacedSenderTest : public ::testing::Test {
+ public:
+  PacedSenderTest(const PacedSenderTest&) = delete;
+  PacedSenderTest& operator=(const PacedSenderTest&) = delete;
+
  protected:
   PacedSenderTest() {
     testing_clock_.Advance(base::Milliseconds(kStartMillisecond));
@@ -168,8 +171,6 @@ class PacedSenderTest : public ::testing::Test {
   TestPacketSender mock_transport_;
   scoped_refptr<FakeSingleThreadTaskRunner> task_runner_;
   std::unique_ptr<PacedSender> paced_sender_;
-
-  DISALLOW_COPY_AND_ASSIGN(PacedSenderTest);
 };
 
 }  // namespace

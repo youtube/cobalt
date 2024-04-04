@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include <limits>
 #include <memory>
 
-#include "base/cxx17_backports.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
@@ -44,9 +44,9 @@ struct TrackRunInfo {
   int64_t sample_start_offset;
 
   bool is_audio;
-  const AudioSampleEntry* audio_description;
-  const VideoSampleEntry* video_description;
-  const SampleGroupDescription* track_sample_encryption_group;
+  raw_ptr<const AudioSampleEntry> audio_description;
+  raw_ptr<const VideoSampleEntry> video_description;
+  raw_ptr<const SampleGroupDescription> track_sample_encryption_group;
 
   // Stores sample encryption entries, which is populated from 'senc' box if it
   // is available, otherwise will try to load from cenc auxiliary information.
@@ -424,42 +424,27 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
       }
 
       // Avoid allocating insane sample counts for invalid media.
-      const size_t max_sample_count =
+      size_t max_sample_count =
           GetDemuxerMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer) /
           sizeof(decltype(tri.samples)::value_type);
+
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+      // The fuzzer frequently gets stuck running out of memory on long useless
+      // chains of empty TRUN values. Histogram analysis shows large in the wild
+      // sample counts, so we can't limit more than the memory limit above.
+      max_sample_count = std::min(size_t{10000}, max_sample_count);
+#endif
+
       RCHECK_MEDIA_LOGGED(
           base::strict_cast<size_t>(trun.sample_count) <= max_sample_count,
           media_log_, "Metadata overhead exceeds storage limit.");
       tri.samples.resize(trun.sample_count);
-
-      int empty_sample_count = 0;
-      int empty_samples_in_sequence_count = 0;
-
-      UMA_HISTOGRAM_COUNTS_1M("Media.MSE.Mp4TrunSampleCount",
-                              trun.sample_count);
 
       for (size_t k = 0; k < trun.sample_count; k++) {
         if (!PopulateSampleInfo(*trex, traf.header, trun, edit_list_offset, k,
                                 &tri.samples[k], traf.sdtp.sample_depends_on(k),
                                 tri.is_audio, media_log_)) {
           return false;
-        }
-
-        UMA_HISTOGRAM_COUNTS_1M("Media.MSE.Mp4SampleSize", tri.samples[k].size);
-
-        if (tri.samples[k].size == 0) {
-          empty_sample_count++;
-          empty_samples_in_sequence_count++;
-        }
-
-        // Report the number of consecutive zero-sized samples seen in a
-        // sequence. Can report counts for 1 or more such sequences within the
-        // same trun, and a sequence can be as short as just 1 empty sample.
-        if (empty_samples_in_sequence_count &&
-            (tri.samples[k].size != 0 || k == trun.sample_count - 1)) {
-          UMA_HISTOGRAM_COUNTS_1M("Media.MSE.Mp4ConsecutiveEmptySamples",
-                                  empty_samples_in_sequence_count);
-          empty_samples_in_sequence_count = 0;
         }
 
         RCHECK(std::numeric_limits<int64_t>::max() - tri.samples[k].duration >
@@ -481,9 +466,6 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
         is_sample_to_group_valid = sample_to_group_itr.Advance();
       }
 
-      UMA_HISTOGRAM_COUNTS_1M("Media.MSE.Mp4EmptySamplesInTRun",
-                              empty_sample_count);
-
       if (sample_encryption_entries_count > 0) {
         RCHECK(sample_encryption_entries_count >=
                sample_count_sum + trun.sample_count);
@@ -500,7 +482,10 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
           // If we don't have a per-sample IV, get the constant IV.
           bool is_encrypted = index == 0 ? track_encryption->is_encrypted
                                          : info_entry->is_encrypted;
-#if 0
+
+          // TODO(crbug.com/1336055): Investigate if this is a hardware or
+          // cast-related limitation.
+#if BUILDFLAG(IS_CASTOS)
           // On Chromecast, we only support setting the pattern values in the
           // 'tenc' box for the track (not varying on per sample group basis).
           // Thus we need to verify that the settings in the sample group
@@ -519,7 +504,7 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
                                 "sample group does not match that in the tenc "
                                 "box . This is not currently supported.");
           }
-#endif  // BUILDFLAG(IS_CHROMECAST)
+#endif  // BUILDFLAG(IS_CASTOS)
           if (is_encrypted && !iv_size) {
             const uint8_t constant_iv_size =
                 index == 0 ? track_encryption->default_constant_iv_size

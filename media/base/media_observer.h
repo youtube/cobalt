@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -66,12 +66,19 @@ class MEDIA_EXPORT MediaObserver {
   // Remote Playback API spec: https://w3c.github.io/remote-playback
   virtual void OnRemotePlaybackDisabled(bool disabled) = 0;
 
+  // Called when the browser requests to start Media Remoting when the video is
+  // not the dominant visible content.
+  virtual void OnMediaRemotingRequested() = 0;
+
   // Called on Android, whenever we detect that we are playing back HLS.
   virtual void OnHlsManifestDetected() = 0;
 
   // Called when the media is playing/paused.
   virtual void OnPlaying() = 0;
   virtual void OnPaused() = 0;
+
+  // Called when the media is frozen.
+  virtual void OnFrozen() = 0;
 
   // Called when the data source is asynchronously initialized.
   virtual void OnDataSourceInitialized(const GURL& url_after_redirects) = 0;

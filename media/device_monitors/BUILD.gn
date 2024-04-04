@@ -1,4 +1,4 @@
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -29,6 +29,7 @@ source_set("device_monitors") {
   }
 
   if (is_mac) {
+    deps += [ "//media/base/mac" ]
     sources += [
       "device_monitor_mac.h",
       "device_monitor_mac.mm",

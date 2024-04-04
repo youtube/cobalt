@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -92,7 +92,8 @@ void AudioBufferConverter::ResetTimestampState() {
 }
 
 double AudioBufferConverter::ProvideInput(AudioBus* audio_bus,
-                                          uint32_t frames_delayed) {
+                                          uint32_t frames_delayed,
+                                          const AudioGlitchInfo& glitch_info) {
   DCHECK(is_flushing_ || input_frames_ >= audio_bus->frames());
 
   int requested_frames_left = audio_bus->frames();
@@ -140,14 +141,14 @@ void AudioBufferConverter::ResetConverter(const AudioBuffer& buffer) {
   Flush();
   audio_converter_.reset();
   input_params_.Reset(
-      input_params_.format(), buffer.channel_layout(), buffer.sample_rate(),
+      input_params_.format(), {buffer.channel_layout(), buffer.channel_count()},
+      buffer.sample_rate(),
       // If resampling is needed and the FIFO disabled, the AudioConverter will
       // always request SincResampler::kDefaultRequestSize frames.  Otherwise it
       // will use the output frame size.
       buffer.sample_rate() == output_params_.sample_rate()
           ? output_params_.frames_per_buffer()
           : SincResampler::kDefaultRequestSize);
-  input_params_.set_channels_for_discrete(buffer.channel_count());
 
   io_sample_rate_ratio_ = static_cast<double>(input_params_.sample_rate()) /
                           output_params_.sample_rate();

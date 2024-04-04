@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,20 +8,20 @@
 #include <utility>
 #include <vector>
 
-#include "base/bind.h"
 #include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/task_environment.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "media/base/media_util.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer_client.h"
 #include "media/base/test_helpers.h"
+#include "media/cast/openscreen/remoting_proto_enum_utils.h"
+#include "media/cast/openscreen/remoting_proto_utils.h"
 #include "media/remoting/fake_media_resource.h"
 #include "media/remoting/fake_remoter.h"
-#include "media/remoting/proto_enum_utils.h"
-#include "media/remoting/proto_utils.h"
 #include "media/remoting/renderer_controller.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -94,6 +94,7 @@ class RendererClientImpl final : public RendererClient {
 
   // RendererClient implementation.
   void OnError(PipelineStatus status) override {}
+  void OnFallback(PipelineStatus status) override {}
   void OnEnded() override {}
   MOCK_METHOD1(OnStatisticsUpdate, void(const PipelineStatistics& stats));
   MOCK_METHOD2(OnBufferingStateChange,
@@ -361,9 +362,9 @@ class CourierRendererTest : public testing::Test {
     controller_->OnMetadataChanged(DefaultMetadata());
 
     RewireSendMessageCallbackToSink();
-    renderer_ =
-        std::make_unique<CourierRenderer>(base::ThreadTaskRunnerHandle::Get(),
-                                          controller_->GetWeakPtr(), nullptr);
+    renderer_ = std::make_unique<CourierRenderer>(
+        base::SingleThreadTaskRunner::GetCurrentDefault(),
+        controller_->GetWeakPtr(), nullptr);
     renderer_->clock_ = &clock_;
     clock_.Advance(base::Seconds(1));
 
@@ -449,7 +450,7 @@ class CourierRendererTest : public testing::Test {
   void IssuesBufferingStateRpc(BufferingState state) {
     absl::optional<
         openscreen::cast::RendererClientOnBufferingStateChange::State>
-        pb_state = ToProtoMediaBufferingState(state);
+        pb_state = media::cast::ToProtoMediaBufferingState(state);
     if (!pb_state.has_value())
       return;
     std::unique_ptr<openscreen::cast::RpcMessage> rpc(
@@ -665,7 +666,8 @@ TEST_F(CourierRendererTest, OnAudioConfigChange) {
       rpc->mutable_rendererclient_onaudioconfigchange_rpc();
   openscreen::cast::AudioDecoderConfig* proto_audio_config =
       audio_config_change_message->mutable_audio_decoder_config();
-  ConvertAudioDecoderConfigToProto(kNewAudioConfig, proto_audio_config);
+  media::cast::ConvertAudioDecoderConfigToProto(kNewAudioConfig,
+                                                proto_audio_config);
   OnReceivedRpc(std::move(rpc));
   RunPendingTasks();
   ASSERT_TRUE(render_client_->audio_decoder_config().Matches(kNewAudioConfig));
@@ -689,7 +691,8 @@ TEST_F(CourierRendererTest, OnVideoConfigChange) {
       rpc->mutable_rendererclient_onvideoconfigchange_rpc();
   openscreen::cast::VideoDecoderConfig* proto_video_config =
       video_config_change_message->mutable_video_decoder_config();
-  ConvertVideoDecoderConfigToProto(kNewVideoConfig, proto_video_config);
+  media::cast::ConvertVideoDecoderConfigToProto(kNewVideoConfig,
+                                                proto_video_config);
   OnReceivedRpc(std::move(rpc));
   RunPendingTasks();
   ASSERT_TRUE(render_client_->video_decoder_config().Matches(kNewVideoConfig));

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,8 @@
 
 #include <memory>
 
-#include "base/bind.h"
 #include "base/files/file_path.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
 #include "base/synchronization/waitable_event.h"
 #include "media/base/test_data_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -22,7 +21,7 @@ namespace media {
 class BlockingUrlProtocolTest : public testing::Test {
  public:
   BlockingUrlProtocolTest()
-      : url_protocol_(new BlockingUrlProtocol(
+      : url_protocol_(std::make_unique<BlockingUrlProtocol>(
             &data_source_,
             base::BindRepeating(&BlockingUrlProtocolTest::OnDataSourceError,
                                 base::Unretained(this)))) {

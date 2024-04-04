@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,8 @@
 #define MEDIA_FILTERS_DAV1D_VIDEO_DECODER_H_
 
 #include "base/functional/callback_forward.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/sequence_checker.h"
 #include "media/base/supported_video_decoder_config.h"
@@ -43,7 +44,6 @@ class MEDIA_EXPORT Dav1dVideoDecoder : public OffloadableVideoDecoder {
                   const WaitingCB& waiting_cb) override;
   void Decode(scoped_refptr<DecoderBuffer> buffer, DecodeCB decode_cb) override;
   void Reset(base::OnceClosure reset_cb) override;
-  bool IsOptimizedForRTC() const override;
 
   // OffloadableVideoDecoder implementation.
   void Detach() override;
@@ -66,7 +66,7 @@ class MEDIA_EXPORT Dav1dVideoDecoder : public OffloadableVideoDecoder {
   scoped_refptr<VideoFrame> BindImageToVideoFrame(const Dav1dPicture* img);
 
   // Used to report error messages to the client.
-  MediaLog* const media_log_ = nullptr;
+  const raw_ptr<MediaLog> media_log_ = nullptr;
 
   // Indicates if the decoder is being wrapped by OffloadVideoDecoder; controls
   // whether callbacks are bound to the current loop on calls.
@@ -90,7 +90,9 @@ class MEDIA_EXPORT Dav1dVideoDecoder : public OffloadableVideoDecoder {
 
   // The allocated decoder; null before Initialize() and anytime after
   // CloseDecoder().
-  Dav1dContext* dav1d_decoder_ = nullptr;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #addr-of
+  RAW_PTR_EXCLUSION Dav1dContext* dav1d_decoder_ = nullptr;
 };
 
 // Helper class for creating a Dav1dVideoDecoder which will offload all AV1

@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -484,8 +484,8 @@ bool FillAV1SliceParameters(
     if (!safe_va_slice_data_end.AssignIfValid(&va_slice_data_end) ||
         va_slice_data_end > data.size()) {
       DLOG(ERROR) << "Invalid tile offset and size"
-                  << ", offset=" << va_tile_param.slice_data_size
-                  << ", size=" << va_tile_param.slice_data_offset
+                  << ", offset=" << va_tile_param.slice_data_offset
+                  << ", size=" << va_tile_param.slice_data_size
                   << ", entire data size=" << data.size();
       return false;
     }
@@ -531,9 +531,7 @@ unsigned int GetFormatForColorConfig(libgav1::ColorConfig color_config) {
 Av1Decoder::Av1Decoder(std::unique_ptr<IvfParser> ivf_parser,
                        const VaapiDevice& va_device,
                        SharedVASurface::FetchPolicy fetch_policy)
-    : VideoDecoder::VideoDecoder(std::move(ivf_parser),
-                                 va_device,
-                                 fetch_policy),
+    : VideoDecoder::VideoDecoder(va_device, fetch_policy),
       buffer_pool_(std::make_unique<libgav1::BufferPool>(
           /*on_frame_buffer_size_changed=*/nullptr,
           /*get_frame_buffer=*/nullptr,
@@ -541,7 +539,8 @@ Av1Decoder::Av1Decoder(std::unique_ptr<IvfParser> ivf_parser,
           /*callback_private_data=*/nullptr)),
       state_(std::make_unique<libgav1::DecoderState>()),
       ref_frames_(kAv1NumRefFrames),
-      display_surfaces_(kAv1NumRefFrames) {}
+      display_surfaces_(kAv1NumRefFrames),
+      ivf_parser_(std::move(ivf_parser)) {}
 
 Av1Decoder::~Av1Decoder() {
   // We destroy the state explicitly to ensure it's destroyed before the
@@ -661,17 +660,20 @@ VideoDecoder::Result Av1Decoder::DecodeNextFrame() {
       libgav1::ColorConfig color_config =
           current_sequence_header_.value().color_config;
       va_config_ = std::make_unique<ScopedVAConfig>(
-          va_device_, new_profile, GetFormatForColorConfig(color_config));
+          *va_device_, new_profile, GetFormatForColorConfig(color_config));
     }
 
-    ref_frames_.clear();
-    display_surfaces_.clear();
+    for (auto& frame : ref_frames_)
+      frame.reset();
+
+    for (auto& display_surface : display_surfaces_)
+      display_surface.reset();
 
     const gfx::Size new_frame_size(
         base::strict_cast<int>(current_sequence_header_->max_frame_width),
         base::strict_cast<int>(current_sequence_header_->max_frame_height));
     if (!va_context_ || va_context_->size() != new_frame_size) {
-      va_context_ = std::make_unique<ScopedVAContext>(va_device_, *va_config_,
+      va_context_ = std::make_unique<ScopedVAContext>(*va_device_, *va_config_,
                                                       new_frame_size);
     }
   }
@@ -707,7 +709,7 @@ VideoDecoder::Result Av1Decoder::DecodeNextFrame() {
   attribute.value.type = VAGenericValueTypeInteger;
   attribute.value.value.i = VA_SURFACE_ATTRIB_USAGE_HINT_DECODER;
   scoped_refptr<SharedVASurface> surface = SharedVASurface::Create(
-      va_device_, va_config_->va_rt_format(), va_context_->size(), attribute);
+      *va_device_, va_config_->va_rt_format(), va_context_->size(), attribute);
 
   // Set up buffer for pic parameters
   VADecPictureParameterBufferAV1 pic_parameters;
@@ -770,8 +772,9 @@ VideoDecoder::Result Av1Decoder::DecodeNextFrame() {
   scoped_refptr<SharedVASurface> film_grain_surface;
   if (current_frame_header.film_grain_params.apply_grain) {
     pic_parameters.current_frame = surface->id();
-    film_grain_surface = SharedVASurface::Create(
-        va_device_, va_config_->va_rt_format(), va_context_->size(), attribute);
+    film_grain_surface =
+        SharedVASurface::Create(*va_device_, va_config_->va_rt_format(),
+                                va_context_->size(), attribute);
     pic_parameters.current_display_picture = film_grain_surface->id();
   } else {
     pic_parameters.current_frame = surface->id();
@@ -850,7 +853,7 @@ VideoDecoder::Result Av1Decoder::DecodeNextFrame() {
   std::vector<VABufferID> buffers;
   VABufferID buffer_id;
   VAStatus res = vaCreateBuffer(
-      va_device_.display(), va_context_->id(), VAPictureParameterBufferType,
+      va_device_->display(), va_context_->id(), VAPictureParameterBufferType,
       sizeof(VADecPictureParameterBufferAV1), 1u, &pic_parameters, &buffer_id);
   VA_LOG_ASSERT(res, "vaCreateBuffer");
   buffers.push_back(buffer_id);
@@ -870,27 +873,27 @@ VideoDecoder::Result Av1Decoder::DecodeNextFrame() {
   // Set up a buffer for the slice parameters for each slice.
   for (auto& slice_param : slice_params) {
     res = vaCreateBuffer(
-        va_device_.display(), va_context_->id(), VASliceParameterBufferType,
+        va_device_->display(), va_context_->id(), VASliceParameterBufferType,
         sizeof(VASliceParameterBufferAV1), 1u, &slice_param, &buffer_id);
     VA_LOG_ASSERT(res, "vaCreateBuffer");
     buffers.push_back(buffer_id);
   }
 
   // Set up the slice data buffer.
-  res = vaCreateBuffer(va_device_.display(), va_context_->id(),
+  res = vaCreateBuffer(va_device_->display(), va_context_->id(),
                        VASliceDataBufferType, ivf_frame_header_.frame_size, 1u,
                        const_cast<uint8_t*>(ivf_frame_data_), &buffer_id);
   VA_LOG_ASSERT(res, "vaCreateBuffer");
   buffers.push_back(buffer_id);
 
-  res = vaBeginPicture(va_device_.display(), va_context_->id(), surface->id());
+  res = vaBeginPicture(va_device_->display(), va_context_->id(), surface->id());
   VA_LOG_ASSERT(res, "vaBeginPicture");
 
-  res = vaRenderPicture(va_device_.display(), va_context_->id(), buffers.data(),
-                        buffers.size());
+  res = vaRenderPicture(va_device_->display(), va_context_->id(),
+                        buffers.data(), buffers.size());
   VA_LOG_ASSERT(res, "vaRenderPicture");
 
-  res = vaEndPicture(va_device_.display(), va_context_->id());
+  res = vaEndPicture(va_device_->display(), va_context_->id());
   VA_LOG_ASSERT(res, "vaEndPicture");
 
   if (current_frame_header.film_grain_params.apply_grain) {
@@ -903,7 +906,7 @@ VideoDecoder::Result Av1Decoder::DecodeNextFrame() {
                         current_frame, last_decoded_surface_);
 
   for (auto id : buffers) {
-    vaDestroyBuffer(va_device_.display(), id);
+    vaDestroyBuffer(va_device_->display(), id);
   }
   buffers.clear();
 

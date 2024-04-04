@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,9 +10,8 @@
 
 #include <memory>
 
-#include "base/functional/callback_forward.h"
 #include "base/containers/span.h"
-#include "base/macros.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "gpu/config/gpu_info.h"
 #include "third_party/skia/include/core/SkImageInfo.h"

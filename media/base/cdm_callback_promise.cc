@@ -1,11 +1,11 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/cdm_callback_promise.h"
 
-#include "base/functional/callback_helpers.h"
 #include "base/check.h"
+#include "base/functional/callback_helpers.h"
 
 namespace media {
 

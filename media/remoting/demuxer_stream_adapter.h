@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,8 +11,9 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/video_decoder_config.h"
@@ -63,7 +64,7 @@ class DemuxerStreamAdapter {
   //                   be shut down.
   DemuxerStreamAdapter(
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
-      scoped_refptr<base::SingleThreadTaskRunner> media_task_runner,
+      scoped_refptr<base::SequencedTaskRunner> media_task_runner,
       const std::string& name,
       DemuxerStream* demuxer_stream,
       const openscreen::WeakPtr<openscreen::cast::RpcMessenger>& rpc_messenger,
@@ -104,7 +105,7 @@ class DemuxerStreamAdapter {
 
   // Indicates whether there is data waiting to be written to the mojo data
   // pipe.
-  bool is_data_pending() const { return !pending_frame_.empty(); }
+  bool is_data_pending() const { return !!pending_frame_; }
 
  private:
   friend class MockDemuxerStreamAdapter;
@@ -120,22 +121,33 @@ class DemuxerStreamAdapter {
   void SendReadAck();
 
   // Callback function when retrieving data from demuxer.
+  void OnNewBuffersRead(DemuxerStream::Status status,
+                        DemuxerStream::DecoderBufferVector buffers_queue);
   void OnNewBuffer(DemuxerStream::Status status,
                    scoped_refptr<DecoderBuffer> input);
+
   // Write the current frame into the mojo data pipe. OnFrameWritten() will be
-  // called when the writing has finished.
+  // called when the writing has finished. OnWrittenFrameRead() will be called
+  // once the mojo call completes. TryCompleteFrameWrite() will be called
+  // following both of the above.
   void WriteFrame();
   void OnFrameWritten(bool success);
+  void OnWrittenFrameRead();
+  void TryCompleteFrameWrite();
   void ResetPendingFrame();
 
   // Callback function when a fatal runtime error occurs.
   void OnFatalError(StopTrigger stop_trigger);
 
-  // Helper to deregister the renderer from the RPC messenger.
+  // Helpers to register/deregister the adapter with the RPC messenger. These
+  // must be called on the media thread to dereference the weak pointer to
+  // this, which if contains a valid RPC messenger pointer will result in a
+  // jump to the main thread.
+  void RegisterForRpcMessaging();
   void DeregisterFromRpcMessaging();
 
   const scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
-  const scoped_refptr<base::SingleThreadTaskRunner> media_task_runner_;
+  const scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
 
   // Name of demuxer stream. Debug only.
   const std::string name_;
@@ -150,7 +162,7 @@ class DemuxerStreamAdapter {
   const int rpc_handle_;
 
   // Demuxer stream and stream type.
-  DemuxerStream* const demuxer_stream_;
+  const raw_ptr<DemuxerStream> demuxer_stream_;
   const DemuxerStream::Type type_;
 
   // Run by OnFatalError to propagate StopTriggers back to the
@@ -171,6 +183,11 @@ class DemuxerStreamAdapter {
   // valid handle while in reading state.
   int read_until_callback_handle_;
 
+  // Used for synchronization and validation of writing and reading both the
+  // writing of a frame to the mojo pipe and the acknowledgement of its reading.
+  bool was_pending_frame_written_ = false;
+  bool was_pending_frame_read_ = false;
+
   // Current frame count issued by RPC_DS_READUNTIL RPC message. It should send
   // all frame data with count id smaller than |read_until_count_| before
   // sending RPC_DS_READUNTIL_CALLBACK back to receiver.
@@ -185,8 +202,7 @@ class DemuxerStreamAdapter {
 
   // Frame buffer and its information that is currently in process of writing to
   // Mojo data pipe.
-  std::vector<uint8_t> pending_frame_;
-  bool pending_frame_is_eos_;
+  scoped_refptr<media::DecoderBuffer> pending_frame_;
 
   // Keeps latest demuxer stream status and audio/video decoder config.
   DemuxerStream::Status media_status_;

@@ -1,11 +1,10 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_BASE_FRAME_RATE_ESTIMATOR_H_
 #define MEDIA_BASE_FRAME_RATE_ESTIMATOR_H_
 
-#include "base/macros.h"
 #include "media/base/media_export.h"
 #include "media/base/moving_average.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"

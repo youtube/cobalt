@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,8 +10,8 @@
 #include "base/cancelable_callback.h"
 #include "base/compiler_specific.h"
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
@@ -52,7 +52,7 @@ class MEDIA_EXPORT SilentSinkSuspender
   // AudioRendererSink::RenderCallback implementation.
   int Render(base::TimeDelta delay,
              base::TimeTicks delay_timestamp,
-             int prior_frames_skipped,
+             const AudioGlitchInfo& glitch_info,
              AudioBus* dest) override;
   void OnRenderError() override;
 
@@ -74,7 +74,7 @@ class MEDIA_EXPORT SilentSinkSuspender
   void TransitionSinks(bool use_fake_sink);
 
   // Actual RenderCallback providing audio data to the output device.
-  AudioRendererSink::RenderCallback* const callback_;
+  const raw_ptr<AudioRendererSink::RenderCallback> callback_;
 
   // Parameters used to construct |sink_|.
   const AudioParameters params_;

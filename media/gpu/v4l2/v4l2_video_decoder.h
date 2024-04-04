@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,23 +12,25 @@
 #include <utility>
 #include <vector>
 
-#include "base/functional/callback_forward.h"
-#include "base/containers/mru_cache.h"
+#include "base/containers/lru_cache.h"
 #include "base/containers/queue.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "media/base/cdm_context.h"
 #include "media/base/supported_video_decoder_config.h"
 #include "media/base/video_aspect_ratio.h"
 #include "media/base/video_types.h"
+#include "media/gpu/chromeos/chromeos_status.h"
 #include "media/gpu/chromeos/gpu_buffer_layout.h"
 #include "media/gpu/chromeos/video_decoder_pipeline.h"
 #include "media/gpu/media_gpu_export.h"
 #include "media/gpu/v4l2/v4l2_device.h"
+#include "media/gpu/v4l2/v4l2_status.h"
 #include "media/gpu/v4l2/v4l2_video_decoder_backend.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
@@ -67,19 +69,25 @@ class MEDIA_GPU_EXPORT V4L2VideoDecoder
   bool IsPlatformDecoder() const override;
   // VideoDecoderMixin implementation, specific part.
   void ApplyResolutionChange() override;
+  size_t GetMaxOutputFramePoolSize() const override;
 
   // V4L2VideoDecoderBackend::Client implementation
   void OnBackendError() override;
   bool IsDecoding() const override;
   void InitiateFlush() override;
   void CompleteFlush() override;
+  void RestartStream() override;
   void ChangeResolution(gfx::Size pic_size,
                         gfx::Rect visible_rect,
-                        size_t num_output_frames) override;
+                        size_t num_codec_reference_frames,
+                        uint8_t bit_depth) override;
   void OutputFrame(scoped_refptr<VideoFrame> frame,
                    const gfx::Rect& visible_rect,
+                   const VideoColorSpace& color_space,
                    base::TimeDelta timestamp) override;
   DmabufVideoFramePool* GetVideoFramePool() const override;
+
+  void SetDmaIncoherentV4L2(bool incoherent) override;
 
  private:
   friend class V4L2VideoDecoderTest;
@@ -128,8 +136,14 @@ class MEDIA_GPU_EXPORT V4L2VideoDecoder
   // Setup format for output queue. This function sets output format on output
   // queue that is supported by a v4l2 driver, can be allocatable by
   // VideoFramePool and can be composited by chrome. This also updates format
-  // in VideoFramePool. Return true if the setup is successful.
-  bool SetupOutputFormat(const gfx::Size& size, const gfx::Rect& visible_rect);
+  // in VideoFramePool.
+  // Return CroStatus::Codes::kOk if the setup is successful.
+  // Return CroStatus::Codes::kResetRequired if the setup is aborted.
+  // Return CroStatus::Codes::kFailedToChangeResolution if other error occurs.
+  CroStatus SetupOutputFormat(const gfx::Size& size,
+                              const gfx::Rect& visible_rect,
+                              size_t num_codec_reference_frames,
+                              uint8_t bit_depth);
 
   // Start streaming V4L2 input and (if |start_output_queue| is true) output
   // queues. Attempt to start |device_poll_thread_| after streaming starts.
@@ -142,16 +156,21 @@ class MEDIA_GPU_EXPORT V4L2VideoDecoder
 
   // After the pipeline finished flushing frames, reconfigure the resolution
   // setting of V4L2 device and the frame pool.
-  void ContinueChangeResolution(const gfx::Size& pic_size,
-                                const gfx::Rect& visible_rect,
-                                const size_t num_output_frames);
+  // Return CroStatus::Codes::kOk if the process is done successfully.
+  // Return CroStatus::Codes::kResetRequired if the process is aborted by reset.
+  // Return CroStatus::Codes::kFailedToChangeResolution if any error occurs.
+  CroStatus ContinueChangeResolution(const gfx::Size& pic_size,
+                                     const gfx::Rect& visible_rect,
+                                     size_t num_codec_reference_frames,
+                                     uint8_t bit_depth);
+  void OnChangeResolutionDone(CroStatus status);
 
   // Change the state and check the state transition is valid.
   void SetState(State new_state);
 
   // Continue backend initialization. Decoder will not take a hardware context
   // until InitializeBackend() is called.
-  StatusCode InitializeBackend();
+  V4L2Status InitializeBackend();
 
   // Pages with multiple V4L2VideoDecoder instances might run out of memory
   // (e.g. b/170870476) or crash (e.g. crbug.com/1109312). To avoid that and
@@ -176,20 +195,16 @@ class MEDIA_GPU_EXPORT V4L2VideoDecoder
   // State of the instance.
   State state_ = State::kUninitialized;
 
-  // Number of output frames requested to |frame_pool_|.
-  // The default value is only used at the first time of
-  // DmabufVideoFramePool::Initialize() during Initialize().
-  size_t num_output_frames_ = 1;
-
   // Aspect ratio from config to use for output frames.
   VideoAspectRatio aspect_ratio_;
 
   // Callbacks passed from Initialize().
   OutputCB output_cb_;
 
-  // Hold onto profile passed in from Initialize() so that
+  // Hold onto profile and color space passed in from Initialize() so that
   // it is available for InitializeBackend().
   VideoCodecProfile profile_ = VIDEO_CODEC_PROFILE_UNKNOWN;
+  VideoColorSpace color_space_;
 
   // V4L2 input and output queue.
   scoped_refptr<V4L2Queue> input_queue_;
@@ -199,10 +214,14 @@ class MEDIA_GPU_EXPORT V4L2VideoDecoder
 
   SEQUENCE_CHECKER(decoder_sequence_checker_);
 
-  // |weak_this_| must be dereferenced and invalidated on
+  // Whether or not our V4L2Queues should be requested with
+  // V4L2_MEMORY_FLAG_NON_COHERENT
+  bool incoherent_ = false;
+
+  // |weak_this_for_polling_| must be dereferenced and invalidated on
   // |decoder_task_runner_|.
-  base::WeakPtr<V4L2VideoDecoder> weak_this_;
-  base::WeakPtrFactory<V4L2VideoDecoder> weak_this_factory_;
+  base::WeakPtr<V4L2VideoDecoder> weak_this_for_polling_;
+  base::WeakPtrFactory<V4L2VideoDecoder> weak_this_for_polling_factory_;
 };
 
 }  // namespace media
