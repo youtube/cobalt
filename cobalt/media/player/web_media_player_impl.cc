@@ -236,7 +236,6 @@ void WebMediaPlayerImpl::LoadUrl(const GURL& url) {
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
   StartPipeline(url);
-  media_metrics_provider_.Initialize(false);
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -263,7 +262,6 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
   state_.is_media_source = true;
   StartPipeline(chunk_demuxer_.get());
-  media_metrics_provider_.Initialize(true);
 }
 
 void WebMediaPlayerImpl::LoadProgressive(
@@ -303,7 +301,6 @@ void WebMediaPlayerImpl::LoadProgressive(
 
   state_.is_progressive = true;
   StartPipeline(progressive_demuxer_.get());
-  media_metrics_provider_.Initialize(false);
 }
 
 void WebMediaPlayerImpl::CancelLoad() {

@@ -24,22 +24,9 @@ namespace media {
 
 using starboard::ScopedLock;
 
-MediaMetricsProvider::~MediaMetricsProvider() {
-  if (!IsInitialized()) return;
-  ReportPipelineUMA();
-}
-
-void MediaMetricsProvider::Initialize(bool is_mse) {
-  if (IsInitialized()) {
-    return;
-  }
-
-  ScopedLock scoped_lock(mutex_);
-  media_info_.emplace(MediaInfo(is_mse));
-}
+MediaMetricsProvider::~MediaMetricsProvider() { ReportPipelineUMA(); }
 
 void MediaMetricsProvider::OnError(const ::media::PipelineStatus status) {
-  DCHECK(IsInitialized());
   ScopedLock scoped_lock(mutex_);
   uma_info_.last_pipeline_status = status;
 }
@@ -68,7 +55,6 @@ void MediaMetricsProvider::SetHaveEnough() {
 
 void MediaMetricsProvider::SetIsEME() {
   ScopedLock scoped_lock(mutex_);
-  // This may be called before Initialize().
   uma_info_.is_eme = true;
 }
 
@@ -119,13 +105,7 @@ std::string MediaMetricsProvider::GetUMANameForAVStream(
   return uma_name;
 }
 
-bool MediaMetricsProvider::IsInitialized() const {
-  ScopedLock scoped_lock(mutex_);
-  return media_info_.has_value();
-}
-
 void MediaMetricsProvider::StartTrackingAction(WebMediaPlayerAction action) {
-  DCHECK(IsInitialized());
   DCHECK(!IsActionCurrentlyTracked(action));
   ScopedLock scoped_lock(mutex_);
 
@@ -133,7 +113,6 @@ void MediaMetricsProvider::StartTrackingAction(WebMediaPlayerAction action) {
 }
 
 void MediaMetricsProvider::EndTrackingAction(WebMediaPlayerAction action) {
-  DCHECK(IsInitialized());
   DCHECK(IsActionCurrentlyTracked(action));
   ScopedLock scoped_lock(mutex_);
 
@@ -144,7 +123,6 @@ void MediaMetricsProvider::EndTrackingAction(WebMediaPlayerAction action) {
 
 bool MediaMetricsProvider::IsActionCurrentlyTracked(
     WebMediaPlayerAction action) {
-  DCHECK(IsInitialized());
   ScopedLock scoped_lock(mutex_);
   return tracked_actions_start_times_.find(action) !=
          tracked_actions_start_times_.end();
