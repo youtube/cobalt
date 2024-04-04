@@ -69,9 +69,15 @@ const int64_t kReleaseTimeoutUsec = 1'000'000;
 // To make playback more smooth it is better to increase the output queue size
 // up to 30-50 frames, but it should not exceed memory budgetd.
 // Compromise value was found out experimentally.
-// 400 Mb leaves enough memory for stable working of the rest system.
-// Just in case to be more sure we reduce this value down to 380 Mb.
-const uint64_t kFrameBuffersPoolMemorySize = 380 * 1024 * 1024;
+// In XBOX ONE S/Base 400 Mb leaves enough memory for stable working of the rest
+// system. Just in case to be more sure we reduce this value down to 380 Mb. In
+// Sereies devices (if to use gpu based decoders) the max available frame size
+// size is 4K instead of 2K. On the other hand the memory budget is greater than
+// for Base/S. So we can use more memory for output queue.
+const uint64_t kFrameBuffersPoolMemorySizeForXB1 = 380 * 1024 * 1024;
+// +8 extra frames 4K HDR DXGI_FORMAT_R10G10B10A2_UNORM
+const uint64_t kFrameBuffersPoolMemorySizeForXBSeries =
+    kFrameBuffersPoolMemorySizeForXB1 + 8 * 16588800;
 
 bool IsExtendedResourceModeRequired() {
   if (!::starboard::xb1::shared::CanAcquire()) {
@@ -173,6 +179,10 @@ void ExtendedResourcesManager::Quit() {
   pending_extended_resources_release_.store(true);
 }
 
+void ExtendedResourcesManager::ReleaseBuffersHeap() {
+  d3d12FrameBuffersHeap_.Reset();
+}
+
 bool ExtendedResourcesManager::GetD3D12Objects(
     Microsoft::WRL::ComPtr<ID3D12Device>* device,
     Microsoft::WRL::ComPtr<ID3D12Heap>* buffer_heap,
@@ -262,8 +272,13 @@ bool ExtendedResourcesManager::GetD3D12ObjectsInternal() {
     SB_DCHECK(d3d12queue_);
   }
   if (!d3d12FrameBuffersHeap_) {
+    const bool isSeries = ::starboard::shared::uwp::GetXboxType() ==
+                              ::starboard::shared::uwp::kXboxSeriesS ||
+                          ::starboard::shared::uwp::GetXboxType() ==
+                              ::starboard::shared::uwp::kXboxSeriesX;
     D3D12_HEAP_DESC heap_desc;
-    heap_desc.SizeInBytes = kFrameBuffersPoolMemorySize;
+    heap_desc.SizeInBytes = isSeries ? kFrameBuffersPoolMemorySizeForXBSeries
+                                     : kFrameBuffersPoolMemorySizeForXB1;
     heap_desc.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
     heap_desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
     heap_desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
