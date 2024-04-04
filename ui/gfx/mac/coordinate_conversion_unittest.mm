@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 #include <memory>
 
 #import "base/mac/scoped_objc_class_swizzler.h"
-#include "base/macros.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #include "ui/gfx/geometry/rect.h"

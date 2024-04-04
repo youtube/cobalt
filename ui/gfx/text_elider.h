@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
+#include "base/memory/raw_ref.h"
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/gfx_export.h"
@@ -62,10 +62,10 @@ class GFX_EXPORT StringSlicer {
 
  private:
   // The text to be sliced.
-  const std::u16string& text_;
+  const raw_ref<const std::u16string, DanglingUntriaged> text_;
 
   // Ellipsis string to use.
-  const std::u16string& ellipsis_;
+  const raw_ref<const std::u16string, DanglingUntriaged> ellipsis_;
 
   // If true, the middle of the string will be elided.
   const bool elide_in_middle_;

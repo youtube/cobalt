@@ -1,13 +1,14 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "ui/gfx/android/android_surface_control_compat.h"
 
-#include "base/callback.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace gfx {
@@ -24,8 +25,8 @@ class SurfaceControlTransactionTest : public testing::Test {
     CallbackContext(bool* called, bool* destroyed)
         : called(called), destroyed(destroyed) {}
     ~CallbackContext() { *destroyed = true; }
-    bool* called;
-    bool* destroyed;
+    raw_ptr<bool> called;
+    raw_ptr<bool> destroyed;
   };
 
   SurfaceControl::Transaction::OnCompleteCb CreateOnCompleteCb(
@@ -52,8 +53,8 @@ class SurfaceControlTransactionTest : public testing::Test {
 
   void RunRemainingTasks() {
     base::RunLoop runloop;
-    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                  runloop.QuitClosure());
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, runloop.QuitClosure());
     runloop.Run();
   }
 
@@ -69,10 +70,10 @@ TEST_F(SurfaceControlTransactionTest, CallbackCalledAfterApply) {
   gfx::SurfaceControl::Transaction transaction;
   transaction.SetOnCompleteCb(
       CreateOnCompleteCb(&on_complete_called, &on_complete_destroyed),
-      base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault());
   transaction.SetOnCommitCb(
       CreateOnCommitCb(&on_commit_called, &on_commit_destroyed),
-      base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 
   // Nothing should have been called yet.
   EXPECT_FALSE(on_complete_called);
@@ -100,10 +101,10 @@ TEST_F(SurfaceControlTransactionTest, CallbackDestroyedWithoutApply) {
     SurfaceControl::Transaction transaction;
     transaction.SetOnCompleteCb(
         CreateOnCompleteCb(&on_complete_called, &on_complete_destroyed),
-        base::ThreadTaskRunnerHandle::Get());
+        base::SingleThreadTaskRunner::GetCurrentDefault());
     transaction.SetOnCommitCb(
         CreateOnCommitCb(&on_commit_called, &on_commit_destroyed),
-        base::ThreadTaskRunnerHandle::Get());
+        base::SingleThreadTaskRunner::GetCurrentDefault());
 
     // Nothing should have been called yet.
     EXPECT_FALSE(on_complete_called);
@@ -127,10 +128,10 @@ TEST_F(SurfaceControlTransactionTest, CallbackSetupAfterGetTransaction) {
   gfx::SurfaceControl::Transaction transaction;
   transaction.SetOnCompleteCb(
       CreateOnCompleteCb(&on_complete_called, &on_complete_destroyed),
-      base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault());
   transaction.SetOnCommitCb(
       CreateOnCommitCb(&on_commit_called, &on_commit_destroyed),
-      base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 
   // Nothing should have been called yet.
   EXPECT_FALSE(on_complete_called);

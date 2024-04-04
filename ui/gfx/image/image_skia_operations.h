@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,8 +46,10 @@ class GFX_EXPORT ImageSkiaOperations {
   // because it tiles the original image, so your coordinates can extend
   // outside the bounds of the original image.
   static ImageSkia CreateTiledImage(const ImageSkia& image,
-                                    int src_x, int src_y,
-                                    int dst_w, int dst_h);
+                                    int src_x,
+                                    int src_y,
+                                    int dst_w,
+                                    int dst_h);
 
   // Shift an image's HSL values. The shift values are in the range of 0-1,
   // with the option to specify -1 for 'no change'. The shift values are
@@ -118,6 +120,24 @@ class GFX_EXPORT ImageSkiaOperations {
   static ImageSkia CreateImageWithCircleBackground(int radius,
                                                    SkColor color,
                                                    const ImageSkia& image);
+
+  // Creates an image with a rounded rect background of the specified `size`,
+  // `color`, and `radius`.
+  static ImageSkia CreateImageWithRoundRectBackground(float size,
+                                                      int radius,
+                                                      SkColor color,
+                                                      const ImageSkia& image);
+
+  // Creates an image with a roundrect clip path with `radius`.
+  static ImageSkia CreateImageWithRoundRectClip(int radius,
+                                                const ImageSkia& image);
+
+  // Returns an image of `size` that contains as much of `image` as possible
+  // without distorting the `image`. That result is clipped to a roundrect with
+  // radius `border_radius`.
+  static ImageSkia CreateCroppedCenteredRoundRectImage(const Size& size,
+                                                       int border_radius,
+                                                       const ImageSkia& image);
 
  private:
   ImageSkiaOperations();  // Class for scoping only.

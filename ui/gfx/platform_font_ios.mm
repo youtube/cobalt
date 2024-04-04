@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,20 @@
 
 namespace gfx {
 
+#if BUILDFLAG(USE_BLINK)
+
+namespace {
+
+std::string GetFamilyNameFromTypeface(sk_sp<SkTypeface> typeface) {
+  SkString family;
+  typeface->getFamilyName(&family);
+  return family.c_str();
+}
+
+}  // namespace
+
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 // PlatformFontIOS, public:
 
@@ -31,16 +45,29 @@ PlatformFontIOS::PlatformFontIOS() {
   CalculateMetrics();
 }
 
-PlatformFontIOS::PlatformFontIOS(NativeFont native_font) {
-  std::string font_name = base::SysNSStringToUTF8([native_font fontName]);
-  InitWithNameSizeAndStyle(font_name, [native_font pointSize],
-                           Font::NORMAL, Font::Weight::NORMAL);
+PlatformFontIOS::PlatformFontIOS(CTFontRef ct_font) {
+  UIFont* font = base::mac::CFToNSCast(ct_font);
+  std::string font_name = base::SysNSStringToUTF8([font fontName]);
+  InitWithNameSizeAndStyle(font_name, [font pointSize], Font::NORMAL,
+                           Font::Weight::NORMAL);
 }
 
 PlatformFontIOS::PlatformFontIOS(const std::string& font_name, int font_size) {
   InitWithNameSizeAndStyle(font_name, font_size, Font::NORMAL,
                            Font::Weight::NORMAL);
 }
+
+#if BUILDFLAG(USE_BLINK)
+PlatformFontIOS::PlatformFontIOS(
+    sk_sp<SkTypeface> typeface,
+    int font_size_pixels,
+    const absl::optional<FontRenderParams>& params) {
+  InitWithNameSizeAndStyle(GetFamilyNameFromTypeface(typeface),
+                           font_size_pixels,
+                           (typeface->isItalic() ? Font::ITALIC : Font::NORMAL),
+                           FontWeightFromInt(typeface->fontStyle().weight()));
+}
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // PlatformFontIOS, PlatformFont implementation:
@@ -81,7 +108,8 @@ const std::string& PlatformFontIOS::GetFontName() const {
 }
 
 std::string PlatformFontIOS::GetActualFontName() const {
-  return base::SysNSStringToUTF8([GetNativeFont() familyName]);
+  UIFont* font = base::mac::CFToNSCast(GetCTFont());
+  return base::SysNSStringToUTF8(font.familyName);
 }
 
 int PlatformFontIOS::GetFontSize() const {
@@ -94,13 +122,14 @@ const FontRenderParams& PlatformFontIOS::GetFontRenderParams() {
   return params;
 }
 
-NativeFont PlatformFontIOS::GetNativeFont() const {
-  return [UIFont fontWithName:base::SysUTF8ToNSString(font_name_)
-                         size:font_size_];
+CTFontRef PlatformFontIOS::GetCTFont() const {
+  UIFont* font = [UIFont fontWithName:base::SysUTF8ToNSString(font_name_)
+                                 size:font_size_];
+  return base::mac::NSToCFCast(font);
 }
 
 sk_sp<SkTypeface> PlatformFontIOS::GetNativeSkTypeface() const {
-  return SkMakeTypefaceFromCTFont(base::mac::NSToCFCast(GetNativeFont()));
+  return SkMakeTypefaceFromCTFont(GetCTFont());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +154,7 @@ void PlatformFontIOS::InitWithNameSizeAndStyle(const std::string& font_name,
 }
 
 void PlatformFontIOS::CalculateMetrics() {
-  UIFont* font = GetNativeFont();
+  UIFont* font = base::mac::CFToNSCast(GetCTFont());
   height_ = font.lineHeight;
   ascent_ = font.ascender;
   cap_height_ = font.capHeight;
@@ -141,8 +170,8 @@ PlatformFont* PlatformFont::CreateDefault() {
 }
 
 // static
-PlatformFont* PlatformFont::CreateFromNativeFont(NativeFont native_font) {
-  return new PlatformFontIOS(native_font);
+PlatformFont* PlatformFont::CreateFromCTFont(CTFontRef ct_font) {
+  return new PlatformFontIOS(ct_font);
 }
 
 // static
@@ -150,5 +179,17 @@ PlatformFont* PlatformFont::CreateFromNameAndSize(const std::string& font_name,
                                                   int font_size) {
   return new PlatformFontIOS(font_name, font_size);
 }
+
+#if BUILDFLAG(USE_BLINK)
+
+// static
+PlatformFont* PlatformFont::CreateFromSkTypeface(
+    sk_sp<SkTypeface> typeface,
+    int font_size_pixels,
+    const absl::optional<FontRenderParams>& params) {
+  return new PlatformFontIOS(typeface, font_size_pixels, params);
+}
+
+#endif
 
 }  // namespace gfx

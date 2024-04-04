@@ -7,7 +7,9 @@ include_rules = [
   "+third_party/harfbuzz-ng",
   "+third_party/skia",
   "+third_party/test_fonts",
+  "+ui/base/ui_base_features.h",
   "+ui/ios",
+  "+ui/linux",
   "+ui/ozone/buildflags.h",
 
   "-testing/gmock",

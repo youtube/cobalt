@@ -1,11 +1,12 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef UI_GFX_MAC_IO_SURFACE_H_
 #define UI_GFX_MAC_IO_SURFACE_H_
 
-#include <IOSurface/IOSurface.h>
+#include <IOKit/IOReturn.h>
+#include <IOSurface/IOSurfaceRef.h>
 #include <mach/mach.h>
 
 #include "base/mac/scoped_cftyperef.h"
