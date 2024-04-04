@@ -14,7 +14,13 @@
 
 #include "starboard/common/file.h"
 
+#ifdef _WIN32
+#include <sys/socket.h>
+#else
+#include <unistd.h>
+#endif
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <cstring>
 #include <string>
@@ -39,6 +45,23 @@ bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
 }
 
 }  // namespace
+
+ssize_t ReadAll(int fd, char* data, int size) {
+  if (fd < 0 || size < 0) {
+    return -1;
+  }
+  ssize_t bytes_read = 0;
+  ssize_t rv;
+  do {
+    rv = read(fd, data + bytes_read, size - bytes_read);
+    if (rv <= 0) {
+      break;
+    }
+    bytes_read += rv;
+  } while (bytes_read < size);
+
+  return bytes_read ? bytes_read : rv;
+}
 
 void RecordFileWriteStat(int write_file_result) {
   auto& stats_tracker = StatsTrackerContainer::GetInstance()->stats_tracker();

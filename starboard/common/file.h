@@ -22,7 +22,11 @@
 
 #include "starboard/file.h"
 
+#include <sys/types.h>
+
 namespace starboard {
+
+ssize_t ReadAll(int fd, char* data, int size);
 
 void RecordFileWriteStat(int write_file_result);
 

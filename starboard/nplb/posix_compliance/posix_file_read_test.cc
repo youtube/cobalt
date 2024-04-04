@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "starboard/common/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -38,14 +39,14 @@ class PosixRead {
   }
 };
 
-// class PosixReadAll {
-//  public:
-//   static int Read(int file, char* data, int size) {
-//     return SbFileReadAll(file, data, size);
-//   }
-// };
+class PosixReadAll {
+ public:
+  static int Read(int file, char* data, int size) {
+    return ReadAll(file, data, size);
+  }
+};
 
-typedef testing::Types<PosixRead /*, PosixReadAll*/> PosixFileReadTestTypes;
+typedef testing::Types<PosixRead, PosixReadAll> PosixFileReadTestTypes;
 
 template <typename T, size_t n>
 size_t array_size(const T (&)[n]) {
