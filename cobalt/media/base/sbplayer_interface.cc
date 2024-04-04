@@ -82,8 +82,6 @@ void DefaultSbPlayerInterface::WriteSamples(
     SbPlayer player, SbMediaType sample_type,
     const SbPlayerSampleInfo* sample_infos, int number_of_sample_infos) {
   DCHECK(!IsEnhancedAudioExtensionEnabled());
-  // media_metrics_provider_.StartTrackingAction(
-  //     MediaAction::SBPLAYER_WRITESAMPLES);
 #if SB_API_VERSION >= 15
   SbPlayerWriteSamples(player, sample_type, sample_infos,
                        number_of_sample_infos);
