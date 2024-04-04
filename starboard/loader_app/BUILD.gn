@@ -47,7 +47,8 @@ if (!sb_is_modular && sb_is_evergreen_compatible &&
   }
 }
 
-if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
+if (!sb_is_modular && sb_is_evergreen_compatible &&
+    sb_evergreen_compatible_package &&
     current_toolchain == starboard_toolchain) {
   copy("copy_loader_app_content") {
     install_content = true
@@ -254,7 +255,6 @@ static_library("installation_manager") {
   ]
 }
 
-# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(gtest_target_type, "installation_manager_test") {
     testonly = true
@@ -293,7 +293,6 @@ if (!sb_is_modular && sb_is_evergreen_compatible &&
   }
 }
 
-# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (!sb_is_modular && sb_is_evergreen_compatible &&
     current_toolchain == starboard_toolchain) {
   target(starboard_level_gtest_target_type, "slot_management_test") {
@@ -347,7 +346,6 @@ static_library("reset_evergreen_update") {
   deps = [ "//starboard:starboard_group" ]
 }
 
-# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (!sb_is_modular && sb_is_evergreen_compatible &&
     current_toolchain == starboard_toolchain) {
   target(gtest_target_type, "reset_evergreen_update_test") {

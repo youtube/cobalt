@@ -19,6 +19,7 @@ config("update_client_config") {
   ]
 }
 
+if (sb_is_evergreen) {
 static_library("update_client") {
   sources = [
     "action_runner.cc",
@@ -240,23 +241,21 @@ target(gtest_target_type, "cobalt_slot_management_test") {
     "//components/prefs:test_support",
     "//crypto",
     "//net:test_support",
-    "//starboard/loader_app:app_key_files",
-    "//starboard/loader_app:drain_file",
-    "//starboard/loader_app:drain_file_helper",
-    "//starboard/loader_app:installation_manager",
     "//testing/gmock",
     "//testing/gtest",
-
-    # TODO: b/296919440 - Make this a data dep 
-    # "//starboard/loader_app($starboard_toolchain)",
   ]
-  # This makes no sense, the loader we actually need is an entirel different
+  # This makes no sense, the loader we actually need is an entirely different
   # build config. E.g. the 
   #   slot_management_test gets built for evergreen-arm-hardfp
   #   corresponding loader_app gets built for raspi-2
-  # data_deps = [
-  #  "//starboard/loader_app($starboard_toolchain)"
-  #]
+  data_deps = [
+   "//starboard/loader_app($starboard_toolchain)",
+    "//starboard/loader_app:app_key_files($starboard_toolchain)",
+    "//starboard/loader_app:drain_file($starboard_toolchain)",
+    "//starboard/loader_app:drain_file_helper($starboard_toolchain)",
+    "//starboard/loader_app:installation_manager($starboard_toolchain)",
+  ]
 }
 
+}
 }

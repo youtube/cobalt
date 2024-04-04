@@ -29,10 +29,13 @@ group("gn_all") {
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
+
+    # This is confusing , the nplb tests are under starboard folder but are expected to be  built with cobalt toolchain.
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
   ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (!sb_is_modular && sb_is_evergreen_compatible &&
+      current_toolchain == starboard_toolchain) {
     deps += [ "//starboard/loader_app:app_key_files_test" ]
   }
 

@@ -58,69 +58,68 @@ static_library("updater") {
 }
 
 if (sb_is_evergreen) {
+  target(final_executable_type, "updater_sandbox") {
+    sources = [
+      "updater.cc",
+      "updater.h",
+      "updater_sandbox.cc",
+    ]
 
-target(final_executable_type, "updater_sandbox") {
-  sources = [
-    "updater.cc",
-    "updater.h",
-    "updater_sandbox.cc",
-  ]
+    deps = [
+      ":updater",
+      "//base",
+      "//cobalt/debug:console_command_manager",
+      "//cobalt/network",
+      "//components/crx_file",
+      "//components/prefs",
+      "//components/update_client",
+      "//starboard:starboard_group",
+    ]
+  }
 
-  deps = [
-    ":updater",
-    "//base",
-    "//cobalt/debug:console_command_manager",
-    "//cobalt/network",
-    "//components/crx_file",
-    "//components/prefs",
-    "//components/update_client",
-    "//starboard:starboard_group",
-  ]
-}
+  target(final_executable_type, "crash_sandbox") {
+    sources = [ "crash_sandbox.cc" ]
+    deps = [ "//starboard:starboard_group" ]
+  }
 
-target(final_executable_type, "crash_sandbox") {
-  sources = [ "crash_sandbox.cc" ]
-  deps = [ "//starboard:starboard_group", ]
-}
+  target(final_executable_type, "noop_sandbox") {
+    sources = [ "noop_sandbox.cc" ]
+    deps = [
+      "//base",
+      "//starboard:starboard_group",
+    ]
+  }
 
-target(final_executable_type, "noop_sandbox") {
-  sources = [ "noop_sandbox.cc" ]
-  deps = [
-    "//base",
-    "//starboard:starboard_group",
-  ]
-}
+  target(final_executable_type, "one_app_only_sandbox") {
+    sources = [ "one_app_only_sandbox.cc" ]
+    deps = [
+      "//base",
+      "//cobalt/base",
+      "//cobalt/browser",
+      "//cobalt/browser:browser_switches",
+      "//net",
+      "//starboard:starboard_group",
+    ]
 
-target(final_executable_type, "one_app_only_sandbox") {
-  sources = [ "one_app_only_sandbox.cc" ]
-  deps = [
-    "//base",
-    "//cobalt/base",
-    "//cobalt/browser",
-    "//cobalt/browser:browser_switches",
-    "//net",
-    "//starboard:starboard_group",
-    "//starboard/loader_app:app_key",
-  ]
-}
+    data_deps = [ "//starboard/loader_app:app_key" ]
+  }
 
-target(gtest_target_type, "updater_test") {
-  testonly = true
-  has_pedantic_warnings = true
+  target(gtest_target_type, "updater_test") {
+    testonly = true
+    has_pedantic_warnings = true
 
-  sources = [
-    "//starboard/common/test_main.cc",
-    "configurator_test.cc",
-    "utils_test.cc",
-  ]
+    sources = [
+      "//starboard/common/test_main.cc",
+      "configurator_test.cc",
+      "utils_test.cc",
+    ]
 
-  deps = [
-    ":updater",
-    "//base",
-    "//components/update_client",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-}
-
+    deps = [
+      ":updater",
+      "//base",
+      "//components/update_client",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }
