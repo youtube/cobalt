@@ -40,28 +40,39 @@ class MediaMetricsProviderTest : public ::testing::Test {
 };
 
 TEST_F(MediaMetricsProviderTest, ReportsSeekLatency) {
-  metrics_.StartTrackingAction(WebMediaPlayerAction::SEEK);
+  metrics_.StartTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
 
   clock_.Advance(base::TimeDelta::FromMilliseconds(100));
-  metrics_.EndTrackingAction(WebMediaPlayerAction::SEEK);
+  metrics_.EndTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
 
   histogram_tester_.ExpectUniqueSample(
       std::string(kUmaPrefix) + "WebMediaPlayer.Seek.Timing", 100, 1);
 }
 
 TEST_F(MediaMetricsProviderTest, SupportsTrackingMultipleActions) {
-  metrics_.StartTrackingAction(WebMediaPlayerAction::SEEK);
-  metrics_.StartTrackingAction(WebMediaPlayerAction::UNKNOWN_ACTION);
+  metrics_.StartTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
+  metrics_.StartTrackingAction(MediaAction::UNKNOWN_ACTION);
 
   clock_.Advance(base::TimeDelta::FromMilliseconds(100));
-  metrics_.EndTrackingAction(WebMediaPlayerAction::UNKNOWN_ACTION);
+  metrics_.EndTrackingAction(MediaAction::UNKNOWN_ACTION);
 
   clock_.Advance(base::TimeDelta::FromMilliseconds(1000));
-  metrics_.EndTrackingAction(WebMediaPlayerAction::SEEK);
+  metrics_.EndTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
 
   histogram_tester_.ExpectUniqueSample(
       std::string(kUmaPrefix) + "WebMediaPlayer.Seek.Timing", 1100, 1);
 }
+
+TEST_F(MediaMetricsProviderTest, SbPlayerCreate) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_CREATE);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(500));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_CREATE);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.Create.Timing", 1100, 1);
+}
+
 
 }  // namespace
 }  // namespace media

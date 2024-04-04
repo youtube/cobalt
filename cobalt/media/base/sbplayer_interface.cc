@@ -45,9 +45,12 @@ SbPlayer DefaultSbPlayerInterface::Create(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func, SbPlayerErrorFunc player_error_func,
     void* context, SbDecodeTargetGraphicsContextProvider* context_provider) {
-  return SbPlayerCreate(window, creation_param, sample_deallocate_func,
-                        decoder_status_func, player_status_func,
-                        player_error_func, context, context_provider);
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_CREATE);
+  auto player = SbPlayerCreate(window, creation_param, sample_deallocate_func,
+                               decoder_status_func, player_status_func,
+                               player_error_func, context, context_provider);
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_CREATE);
+  return player;
 }
 
 SbPlayerOutputMode DefaultSbPlayerInterface::GetPreferredOutputMode(
@@ -56,7 +59,9 @@ SbPlayerOutputMode DefaultSbPlayerInterface::GetPreferredOutputMode(
 }
 
 void DefaultSbPlayerInterface::Destroy(SbPlayer player) {
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_DESTROY);
   SbPlayerDestroy(player);
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_DESTROY);
 }
 
 void DefaultSbPlayerInterface::Seek(SbPlayer player,
@@ -77,6 +82,8 @@ void DefaultSbPlayerInterface::WriteSamples(
     SbPlayer player, SbMediaType sample_type,
     const SbPlayerSampleInfo* sample_infos, int number_of_sample_infos) {
   DCHECK(!IsEnhancedAudioExtensionEnabled());
+  media_metrics_provider_.StartTrackingAction(
+      MediaAction::SBPLAYER_WRITESAMPLES);
 #if SB_API_VERSION >= 15
   SbPlayerWriteSamples(player, sample_type, sample_infos,
                        number_of_sample_infos);
@@ -84,6 +91,7 @@ void DefaultSbPlayerInterface::WriteSamples(
   SbPlayerWriteSample2(player, sample_type, sample_infos,
                        number_of_sample_infos);
 #endif  // SB_API_VERSION >= 15
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_WRITESAMPLES);
 }
 
 void DefaultSbPlayerInterface::WriteSamples(
@@ -139,9 +147,14 @@ SbPlayer DefaultSbPlayerInterface::CreateUrlPlayer(
     SbPlayerEncryptedMediaInitDataEncounteredCB
         encrypted_media_init_data_encountered_cb,
     SbPlayerErrorFunc player_error_func, void* context) {
-  return SbUrlPlayerCreate(url, window, player_status_func,
-                           encrypted_media_init_data_encountered_cb,
-                           player_error_func, context);
+  media_metrics_provider_.StartTrackingAction(
+      MediaAction::SBPLAYER_CREATE_URLPLAYER);
+  auto player = SbUrlPlayerCreate(url, window, player_status_func,
+                                  encrypted_media_init_data_encountered_cb,
+                                  player_error_func, context);
+  media_metrics_provider_.EndTrackingAction(
+      MediaAction::SBPLAYER_CREATE_URLPLAYER);
+  return player;
 }
 
 void DefaultSbPlayerInterface::SetUrlPlayerDrmSystem(SbPlayer player,
