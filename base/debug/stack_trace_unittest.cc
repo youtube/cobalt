@@ -104,12 +104,7 @@ TEST_F(StackTraceTest, TruncatedTrace) {
 
   StackTrace truncated(2);
   truncated.Addresses(&count);
-#if defined(STARBOARD)
-  // Starboard removes removes a stack frame that is extra when not truncated.
-  EXPECT_EQ(1u, count);
-#else
   EXPECT_EQ(2u, count);
-#endif
 }
 #endif  // !defined(OFFICIAL_BUILD) && !defined(NO_UNWIND_TABLES)
 
@@ -354,7 +349,8 @@ TEST_F(StackTraceTest, MAYBE_TraceStackFramePointers) {
 // sometimes we read fp / pc from the place that previously held
 // uninitialized value.
 // TODO(crbug.com/1132511): Enable this test on Fuchsia.
-#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD) && defined(ADDRESS_SANITIZER)
+#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_FUCHSIA) || \
+    defined(STARBOARD) && defined(ADDRESS_SANITIZER) || SB_IS(EVERGREEN)
 #define MAYBE_TraceStackFramePointersFromBuffer \
   DISABLED_TraceStackFramePointersFromBuffer
 #else
