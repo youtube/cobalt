@@ -62,7 +62,7 @@ FileDataSource::FileDataSource(const GURL& file_url) {
 }
 
 void FileDataSource::Read(int64 position, int size, uint8* data,
-                          const ReadCB& read_cb) {
+                          ReadCB read_cb) {
   DCHECK_GE(position, 0);
   DCHECK_GE(size, 0);
 

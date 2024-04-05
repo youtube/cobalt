@@ -79,7 +79,7 @@ URLFetcherDataSource::~URLFetcherDataSource() {
 }
 
 void URLFetcherDataSource::Read(int64 position, int size, uint8* data,
-                                const ReadCB& read_cb) {
+                                ReadCB read_cb) {
   DCHECK_GE(position, 0);
   DCHECK_GE(size, 0);
 
@@ -377,7 +377,7 @@ void URLFetcherDataSource::UpdateDownloadingStatus(bool is_downloading) {
 }
 
 void URLFetcherDataSource::Read_Locked(uint64 position, size_t size,
-                                       uint8* data, const ReadCB& read_cb) {
+                                       uint8* data, ReadCB read_cb) {
   lock_.AssertAcquired();
 
   DCHECK(data);
