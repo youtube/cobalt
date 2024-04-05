@@ -60,10 +60,21 @@ base::Optional<Moveto> Moveto::FromValue(const base::Value* value) {
     }
   }
 
-  absl::optional<int> xoffset = dictionary_value->FindInt(kXoffsetKey);
-  absl::optional<int> yoffset = dictionary_value->FindInt(kYoffsetKey);
-
-  return Moveto(element, xoffset.value_or(0), yoffset.value_or(0));
+  base::Optional<int> xoffset;
+  {
+    absl::optional<int> value = dictionary_value->FindInt(kXoffsetKey);
+    if (value) {
+      xoffset = value.value();
+    }
+  }
+  base::Optional<int> yoffset;
+  {
+    absl::optional<int> value = dictionary_value->FindInt(kYoffsetKey);
+    if (value) {
+      yoffset = value.value();
+    }
+  }
+  return Moveto(element, xoffset, yoffset);
 }
 
 }  // namespace protocol
