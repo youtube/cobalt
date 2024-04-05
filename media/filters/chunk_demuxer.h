@@ -186,6 +186,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   std::pair<SourceBufferStreamStatus, DemuxerStream::DecoderBufferVector>
   GetPendingBuffers_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
+#if defined(STARBOARD)
+  const std::string mime_type_;
+  bool pending_config_change_ {false};
+#endif  // defined(STARBOARD)
+
   // Specifies the type of the stream.
   const Type type_;
 
