@@ -362,6 +362,11 @@ static_library("starboard_platform_sources") {
   }
 
   if (sb_is_evergreen_compatible) {
+    sources += [
+      "//starboard/shared/starboard/loader_app_metrics.cc",
+      "//starboard/shared/starboard/loader_app_metrics.h",
+    ]
+
     public_deps += [
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:evergreen_config",
