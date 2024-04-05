@@ -130,6 +130,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   void UnmarkEndOfStream();
 
   // DemuxerStream methods.
+#if defined(STARBOARD)
+  std::string mime_type() const override { return mime_type_; }
+  size_t GetStreamMemoryLimit();
+  void SetStreamMemoryLimitOverride(size_t memory_limit);
+#endif  // defined(STARBOARD)
   void Read(uint32_t count, ReadCB read_cb) override;
   Type type() const override;
   StreamLiveness liveness() const override;

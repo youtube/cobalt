@@ -127,6 +127,7 @@ class MEDIA_EXPORT DecoderBuffer
   // |external_memory| is owned by DecoderBuffer until it is destroyed.
   static scoped_refptr<DecoderBuffer> FromExternalMemory(
       std::unique_ptr<ExternalMemory> external_memory);
+#endif  // !defined(STARBOARD)
 
   // Create a DecoderBuffer indicating we've reached end of stream.
   //

@@ -78,8 +78,12 @@ void ChunkDemuxerStream::AbortReads() {
   DVLOG(1) << "ChunkDemuxerStream::AbortReads()";
   base::AutoLock auto_lock(lock_);
   ChangeState_Locked(RETURNING_ABORT_FOR_READS);
-  if (read_cb_)
+  if (read_cb_) {
+#if defined(STARBOARD)
+    pending_config_change_ = false;
+#endif // defined(STARBOARD)
     std::move(read_cb_).Run(kAborted, {});
+  }
 }
 
 void ChunkDemuxerStream::CompletePendingReadIfPossible() {
@@ -303,6 +307,10 @@ void ChunkDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
 
   read_cb_ = base::BindPostTaskToCurrentDefault(std::move(read_cb));
   requested_buffer_count_ = count;
+
+#if defined(STARBOARD)
+  max_number_of_buffers_to_read_ = count;
+#endif  // defined(STARBOARD)
 
   if (!is_enabled_) {
     DVLOG(1) << "Read from disabled stream, returning EOS";
@@ -979,6 +987,39 @@ bool ChunkDemuxer::EvictCodedFrames(const std::string& id,
   }
   return itr->second->EvictCodedFrames(currentMediaTime, newDataSize);
 }
+
+#if defined(STARBOARD)
+base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(IsValidId_Locked(id));
+
+  auto iter = id_to_streams_map_.find(id);
+  if (iter == id_to_streams_map_.end() ||
+      iter->second.empty()) {
+    // Handled just in case.
+    SB_NOTREACHED();
+    return base::TimeDelta();
+  }
+
+  return iter->second[0]->GetWriteHead();
+}
+
+void ChunkDemuxer::SetSourceBufferStreamMemoryLimit(const std::string& id,
+                                                    size_t limit) {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(source_state_map_.find(id) != source_state_map_.end());
+  source_state_map_[id]->SetSourceBufferStreamMemoryLimit(limit);
+}
+
+size_t ChunkDemuxer::GetSourceBufferStreamMemoryLimit(const std::string& id) {
+
+  base::AutoLock auto_lock(lock_);
+  if (source_state_map_.find(id) == source_state_map_.end()) {
+    return 0;
+  }
+  return source_state_map_[id]->GetSourceBufferStreamMemoryLimit();
+}
+#endif  // defined(STARBOARD)
 
 bool ChunkDemuxer::AppendToParseBuffer(const std::string& id,
                                        const uint8_t* data,
