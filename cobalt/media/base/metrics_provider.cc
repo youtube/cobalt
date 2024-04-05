@@ -105,14 +105,14 @@ std::string MediaMetricsProvider::GetUMANameForAVStream(
   return uma_name;
 }
 
-void MediaMetricsProvider::StartTrackingAction(WebMediaPlayerAction action) {
+void MediaMetricsProvider::StartTrackingAction(MediaAction action) {
   DCHECK(!IsActionCurrentlyTracked(action));
   ScopedLock scoped_lock(mutex_);
 
   tracked_actions_start_times_[action] = clock_->NowTicks();
 }
 
-void MediaMetricsProvider::EndTrackingAction(WebMediaPlayerAction action) {
+void MediaMetricsProvider::EndTrackingAction(MediaAction action) {
   DCHECK(IsActionCurrentlyTracked(action));
   ScopedLock scoped_lock(mutex_);
 
@@ -121,21 +121,38 @@ void MediaMetricsProvider::EndTrackingAction(WebMediaPlayerAction action) {
   tracked_actions_start_times_.erase(action);
 }
 
-bool MediaMetricsProvider::IsActionCurrentlyTracked(
-    WebMediaPlayerAction action) {
+bool MediaMetricsProvider::IsActionCurrentlyTracked(MediaAction action) {
   ScopedLock scoped_lock(mutex_);
   return tracked_actions_start_times_.find(action) !=
          tracked_actions_start_times_.end();
 }
 
 void MediaMetricsProvider::ReportActionLatencyUMA(
-    WebMediaPlayerAction action, const base::TimeDelta& action_duration) {
+    MediaAction action, const base::TimeDelta& action_duration) {
   switch (action) {
-    case WebMediaPlayerAction::SEEK:
+    case MediaAction::WEBMEDIAPLAYER_SEEK:
       UMA_HISTOGRAM_TIMES("Cobalt.Media.WebMediaPlayer.Seek.Timing",
                           action_duration);
       break;
-    case WebMediaPlayerAction::UNKNOWN_ACTION:
+    case MediaAction::SBPLAYER_CREATE:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbPlayer.Create.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(100),
+          base::TimeDelta::FromMicroseconds(1500), 50);
+      break;
+    case MediaAction::SBPLAYER_CREATE_URL_PLAYER:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbPlayer.CreateUrlPlayer.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(100),
+          base::TimeDelta::FromMicroseconds(1500), 50);
+      break;
+    case MediaAction::SBPLAYER_DESTROY:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbPlayer.Destroy.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(500),
+          base::TimeDelta::FromMicroseconds(40000), 50);
+      break;
+    case MediaAction::UNKNOWN_ACTION:
     default:
       break;
   }

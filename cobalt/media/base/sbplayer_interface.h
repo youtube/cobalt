@@ -17,6 +17,7 @@
 
 #include "base/time/time.h"
 #include "cobalt/media/base/cval_stats.h"
+#include "cobalt/media/base/metrics_provider.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/player.h"
 
@@ -94,6 +95,7 @@ class SbPlayerInterface {
     cval_stats_.Enable(should_enable);
   }
   CValStats cval_stats_;
+  MediaMetricsProvider media_metrics_provider_;
 };
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {

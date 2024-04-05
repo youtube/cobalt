@@ -196,6 +196,39 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.SbPlayer.Create.Timing"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the creation of SbPlayer.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SbPlayer.CreateUrlPlayer.Timing"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the creation of an SbPlayer::UrlPlayer.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SbPlayer.Destroy.Timing"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for the destruction of SbPlayer.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.MediaDevices.MicCreationSucceeded" enum="Boolean"
     expires_after="never">
 <!-- expires-never: Needed for long-term tracking of device mic support. -->

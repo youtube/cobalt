@@ -38,9 +38,12 @@ using VideoCodec = ::media::VideoCodec;
 using PipelineStatus = ::media::PipelineStatus;
 using VideoDecoderType = ::media::VideoDecoderType;
 
-enum class WebMediaPlayerAction : uint8_t {
+enum class MediaAction : uint8_t {
   UNKNOWN_ACTION,
-  SEEK,
+  WEBMEDIAPLAYER_SEEK,
+  SBPLAYER_CREATE,
+  SBPLAYER_CREATE_URL_PLAYER,
+  SBPLAYER_DESTROY,
 };
 
 class MediaMetricsProvider {
@@ -78,20 +81,20 @@ class MediaMetricsProvider {
   void ReportPipelineUMA();
 
   // Used to record the latency of an action in the WebMediaPlayer.
-  void StartTrackingAction(WebMediaPlayerAction action);
-  void EndTrackingAction(WebMediaPlayerAction action);
-  bool IsActionCurrentlyTracked(WebMediaPlayerAction action);
+  void StartTrackingAction(MediaAction action);
+  void EndTrackingAction(MediaAction action);
+  bool IsActionCurrentlyTracked(MediaAction action);
 
  private:
   std::string GetUMANameForAVStream(const PipelineInfo& player_info) const;
 
-  void ReportActionLatencyUMA(WebMediaPlayerAction action,
+  void ReportActionLatencyUMA(MediaAction action,
                               const base::TimeDelta& action_duration);
 
  private:
   // Media player action latency data.
   const base::TickClock* clock_;
-  base::small_map<std::map<WebMediaPlayerAction, base::TimeTicks>, 2>
+  base::small_map<std::map<MediaAction, base::TimeTicks>, 5>
       tracked_actions_start_times_;
 
   // UMA pipeline packaged data
