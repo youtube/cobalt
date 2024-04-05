@@ -5,39 +5,31 @@ default_stages: [commit]
 default_language_version:
     python: python3
 
+files: |
+    (?x)^(
+        (
+            .github|
+            cobalt|
+            docker|
+            glimp|
+            internal|
+            precommit_hooks|
+            starboard|
+            tools/metrics/actions/cobalt|
+            tools/metrics/histograms/metadata/cobalt|
+            tools/testing|
+        )/
+        | ^[^/]+$  # files in the root
+    )
 exclude: |
     (?x)^(
         (
-            base|
-            build|
-            buildtools|
             cobalt/updater|
-            components/crash/core/common|
-            components/metrics_services_manager|
-            components/metrics|
-            components/prefs|
-            components/ukm|
-            components/variations|
-            components/version_info|
-            crypto|
-            extensions/buildflags|
             glimp/include|
-            net|
             internal/kokoro/third-party|
             internal/starboard/shared/playstation/glimp/shaders|
-            testing|
-            third_party|
-            tools/gyp|
-            tools/python|
-            ui|
-            url
         )/
         |
-        components/update_client/((?!cobalt).)*$
-        |
-        # Ignore everything under tools/metrics _except_ Cobalt files. We
-        # need those validated to keep the telemetry/metrics pipeline working.
-        tools/metrics/((?!cobalt\/).)*$|
         .*_pb2\.py$ |
         .*\.pb\.cc$ |
         .*\.pb\.h$ |
@@ -207,7 +199,7 @@ repos:
         files: '.*\.gni?$'
     -   id: meta-validate
         name: Validate METADATA files
-        entry: python -m tools.metadata.validate
+        entry: python -m cobalt.tools.metadata.validate
         language: python
         additional_dependencies:
           - "protobuf"

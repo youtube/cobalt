@@ -1,3 +1,4 @@
+#if SB_API_VERSION < 16
 #include <errno.h>
 #include <stdlib.h>
 
@@ -39,3 +40,4 @@ int *__errno_location(void) {
 }
 
 weak_alias(__errno_location, ___errno_location);
+#endif

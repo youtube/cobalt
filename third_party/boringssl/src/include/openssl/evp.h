@@ -936,7 +936,10 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_set_ec_param_enc(EVP_PKEY_CTX *ctx,
 // EVP_PKEY_set1_tls_encodedpoint replaces |pkey| with a public key encoded by
 // |in|. It returns one on success and zero on error.
 //
-// This function only works on X25519 keys.
+// If |pkey| is an EC key, the format is an X9.62 point and |pkey| must already
+// have an EC group configured. If it is an X25519 key, it is the 32-byte X25519
+// public key representation. This function is not supported for other key types
+// and will fail.
 OPENSSL_EXPORT int EVP_PKEY_set1_tls_encodedpoint(EVP_PKEY *pkey,
                                                   const uint8_t *in,
                                                   size_t len);
@@ -946,7 +949,10 @@ OPENSSL_EXPORT int EVP_PKEY_set1_tls_encodedpoint(EVP_PKEY *pkey,
 // |OPENSSL_free| to release this buffer. The function returns the length of the
 // buffer on success and zero on error.
 //
-// This function only works on X25519 keys.
+// If |pkey| is an EC key, the format is an X9.62 point with uncompressed
+// coordinates. If it is an X25519 key, it is the 32-byte X25519 public key
+// representation. This function is not supported for other key types and will
+// fail.
 OPENSSL_EXPORT size_t EVP_PKEY_get1_tls_encodedpoint(const EVP_PKEY *pkey,
                                                      uint8_t **out_ptr);
 
@@ -1048,29 +1054,6 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_set_dsa_paramgen_q_bits(EVP_PKEY_CTX *ctx,
 
 #define EVPerr(function, reason) \
   ERR_put_error(ERR_LIB_EVP, 0, reason, __FILE__, __LINE__)
-
-
-// Private structures.
-
-struct evp_pkey_st {
-  CRYPTO_refcount_t references;
-
-  // type contains one of the EVP_PKEY_* values or NID_undef and determines
-  // which element (if any) of the |pkey| union is valid.
-  int type;
-
-  union {
-    void *ptr;
-    RSA *rsa;
-    DSA *dsa;
-    DH *dh;
-    EC_KEY *ec;
-  } pkey;
-
-  // ameth contains a pointer to a method table that contains many ASN.1
-  // methods for the key type.
-  const EVP_PKEY_ASN1_METHOD *ameth;
-} /* EVP_PKEY */;
 
 
 #if defined(__cplusplus)

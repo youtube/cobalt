@@ -52,6 +52,7 @@
 #if SB_API_VERSION >= 16
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
@@ -160,7 +161,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileCanOpen);
   REGISTER_SYMBOL(SbFileClose);
   REGISTER_SYMBOL(SbFileDelete);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileExists);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
   REGISTER_SYMBOL(SbFileGetPathInfo);
@@ -397,32 +400,40 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);
   REGISTER_SYMBOL(SbUserGetSignedIn);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowGetOnScreenKeyboardBoundingRect);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowHideOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowIsOnScreenKeyboardShown);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowSetOnScreenKeyboardKeepFocus);
   REGISTER_SYMBOL(SbWindowShowOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
+#endif  // SB_API_VERSION < 16
 
 #if SB_API_VERSION >= 16
   // POSIX APIs
+  REGISTER_SYMBOL(__errno_location);
   REGISTER_SYMBOL(accept);
   REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(connect);
-  REGISTER_SYMBOL(errno);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeaddrinfo);
@@ -491,6 +502,9 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
+  map_["pthread_once"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
+  map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
 
 #if defined(_MSC_VER)

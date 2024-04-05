@@ -54,7 +54,7 @@ void* ThreadFunc(void* context) {
 
   delete thread_params;
 
-#if !SB_HAS_QUIRK(THREAD_AFFINITY_UNSUPPORTED)
+#if defined(_GNU_SOURCE)  // sched_setaffinity is a GNU extension
   if (SbThreadIsValidAffinity(affinity)) {
     cpu_set_t cpu_set;
     CPU_ZERO(&cpu_set);

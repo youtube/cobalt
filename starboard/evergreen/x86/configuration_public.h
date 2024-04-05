@@ -21,8 +21,6 @@
 #ifndef STARBOARD_EVERGREEN_X86_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_EVERGREEN_X86_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -51,16 +49,13 @@
 
 // --- Compiler Configuration ------------------------------------------------
 
+#if SB_API_VERSION < 16
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
 
 // The platform's annotation for marking a C function as suggested to be
 // inlined.
 #define SB_C_INLINE inline
-
-// The platform's annotation for marking a C function as forcibly not
-// inlined.
-#define SB_C_NOINLINE __attribute__((noinline))
 
 // The platform's annotation for marking a symbol as exported outside of the
 // current shared library.
@@ -70,29 +65,12 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- Decoder-only Params ---
+#endif  // SB_API_VERSION < 16
 
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
-
-// --- Network Configuration -------------------------------------------------
-
-// Specifies whether this platform supports pipe.
-#define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "evergreen-x86 builds need a GCC-like compiler (for the moment)."
-#endif
 
 #endif  // STARBOARD_EVERGREEN_X86_CONFIGURATION_PUBLIC_H_

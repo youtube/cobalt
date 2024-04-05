@@ -65,6 +65,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void InitializeAudioDecoder(const media::AudioStreamInfo& audio_stream_info);
   void TeardownAudioDecoder();
   void OnDecoderOutput();
+  void ResetInternal();
 
   const uint32_t initial_samples_per_second_;
   const SbDrmSystem drm_system_;

@@ -515,9 +515,24 @@ TEST(ExtensionTest, LoaderAppMetrics) {
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_GE(extension_api->version, 1u);
+  EXPECT_LE(extension_api->version, 2u);
   EXPECT_NE(extension_api->SetCrashpadInstallationStatus, nullptr);
   EXPECT_NE(extension_api->GetCrashpadInstallationStatus, nullptr);
+
+  if (extension_api->version >= 2) {
+    EXPECT_NE(extension_api->SetElfLibraryStoredCompressed, nullptr);
+    EXPECT_NE(extension_api->GetElfLibraryStoredCompressed, nullptr);
+
+    EXPECT_NE(extension_api->SetElfLoadDurationMicroseconds, nullptr);
+    EXPECT_NE(extension_api->GetElfLoadDurationMicroseconds, nullptr);
+
+    EXPECT_NE(extension_api->SetElfDecompressionDurationMicroseconds, nullptr);
+    EXPECT_NE(extension_api->GetElfDecompressionDurationMicroseconds, nullptr);
+
+    EXPECT_NE(extension_api->RecordUsedCpuBytesDuringElfLoad, nullptr);
+    EXPECT_NE(extension_api->GetMaxSampledUsedCpuBytesDuringElfLoad, nullptr);
+  }
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

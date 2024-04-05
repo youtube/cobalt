@@ -16,28 +16,17 @@
 
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/time/time.h"
 
 namespace cobalt {
 namespace media {
 
 using starboard::ScopedLock;
 
-MediaMetricsProvider::~MediaMetricsProvider() {
-  if (!IsInitialized()) return;
-  ReportPipelineUMA();
-}
-
-void MediaMetricsProvider::Initialize(bool is_mse) {
-  if (IsInitialized()) {
-    return;
-  }
-
-  ScopedLock scoped_lock(mutex_);
-  media_info_.emplace(MediaInfo(is_mse));
-}
+MediaMetricsProvider::~MediaMetricsProvider() { ReportPipelineUMA(); }
 
 void MediaMetricsProvider::OnError(const ::media::PipelineStatus status) {
-  DCHECK(IsInitialized());
   ScopedLock scoped_lock(mutex_);
   uma_info_.last_pipeline_status = status;
 }
@@ -66,7 +55,6 @@ void MediaMetricsProvider::SetHaveEnough() {
 
 void MediaMetricsProvider::SetIsEME() {
   ScopedLock scoped_lock(mutex_);
-  // This may be called before Initialize().
   uma_info_.is_eme = true;
 }
 
@@ -117,9 +105,57 @@ std::string MediaMetricsProvider::GetUMANameForAVStream(
   return uma_name;
 }
 
-bool MediaMetricsProvider::IsInitialized() const {
+void MediaMetricsProvider::StartTrackingAction(MediaAction action) {
+  DCHECK(!IsActionCurrentlyTracked(action));
   ScopedLock scoped_lock(mutex_);
-  return media_info_.has_value();
+
+  tracked_actions_start_times_[action] = clock_->NowTicks();
+}
+
+void MediaMetricsProvider::EndTrackingAction(MediaAction action) {
+  DCHECK(IsActionCurrentlyTracked(action));
+  ScopedLock scoped_lock(mutex_);
+
+  auto duration = clock_->NowTicks() - tracked_actions_start_times_[action];
+  ReportActionLatencyUMA(action, duration);
+  tracked_actions_start_times_.erase(action);
+}
+
+bool MediaMetricsProvider::IsActionCurrentlyTracked(MediaAction action) {
+  ScopedLock scoped_lock(mutex_);
+  return tracked_actions_start_times_.find(action) !=
+         tracked_actions_start_times_.end();
+}
+
+void MediaMetricsProvider::ReportActionLatencyUMA(
+    MediaAction action, const base::TimeDelta& action_duration) {
+  switch (action) {
+    case MediaAction::WEBMEDIAPLAYER_SEEK:
+      UMA_HISTOGRAM_TIMES("Cobalt.Media.WebMediaPlayer.Seek.Timing",
+                          action_duration);
+      break;
+    case MediaAction::SBPLAYER_CREATE:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbPlayer.Create.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(100),
+          base::TimeDelta::FromMicroseconds(1500), 50);
+      break;
+    case MediaAction::SBPLAYER_CREATE_URL_PLAYER:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbPlayer.CreateUrlPlayer.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(100),
+          base::TimeDelta::FromMicroseconds(1500), 50);
+      break;
+    case MediaAction::SBPLAYER_DESTROY:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbPlayer.Destroy.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(500),
+          base::TimeDelta::FromMicroseconds(40000), 50);
+      break;
+    case MediaAction::UNKNOWN_ACTION:
+    default:
+      break;
+  }
 }
 
 }  // namespace media

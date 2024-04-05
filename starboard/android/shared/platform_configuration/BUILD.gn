@@ -162,6 +162,9 @@ config("platform_configuration") {
     # Wrapper synchronizes punch-out video bounds with the UI frame.
     "-Wl,--wrap=eglSwapBuffers",
   ]
+  if (!is_native_target_build) {
+    ldflags += [ "-Wl,--wrap=stat" ]
+  }
 }
 
 config("size") {

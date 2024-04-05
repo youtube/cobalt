@@ -1,0 +1,286 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+config("media_config") {
+  include_dirs = [ "//third_party/abseil-cpp" ]
+  if (is_win) {
+    cflags = [
+      "/wd4267",  # Conversion from 'size_t' to 'type', possible loss of data.
+      "/wd4715",  # Not all control paths return a value.
+
+      # Conversion from 'size_t' to 'int' requires a narrowing conversion.
+      "/wd4838",
+    ]
+  } else {
+    cflags_cc = [
+      "-Wno-conversion",
+      "-Wno-unused-parameter",
+      "-Wno-unused-variable",
+    ]
+  }
+
+  defines = [ "MEDIA_IMPLEMENTATION" ]
+}
+
+config("media_config_public") {
+  # TODO: Make include_dirs other than the first one private.
+  include_dirs = [
+    "//third_party/abseil-cpp",
+    "..",
+    "cobalt",
+    "//third_party/skia",
+  ]
+}
+
+config("external_config") {
+  include_dirs = [
+    "//third_party/abseil-cpp",
+    "..",
+    "cobalt",
+    "../../skia",
+  ]
+}
+
+component("media") {
+  sources = [
+    "base/audio_codecs.cc",
+    "base/audio_codecs.h",
+    "base/audio_decoder_config.cc",
+    "base/audio_decoder_config.h",
+    "base/audio_timestamp_helper.cc",
+    "base/audio_timestamp_helper.h",
+    "base/bit_reader.cc",
+    "base/bit_reader.h",
+    "base/bit_reader_core.cc",
+    "base/bit_reader_core.h",
+    "base/byte_queue.cc",
+    "base/byte_queue.h",
+    "base/channel_layout.cc",
+    "base/channel_layout.h",
+    "base/decoder_buffer.cc",
+    "base/decoder_buffer.h",
+    "base/decrypt_config.cc",
+    "base/decrypt_config.h",
+    "base/demuxer.cc",
+    "base/demuxer.h",
+    "base/demuxer_memory_limit.h",
+    "base/demuxer_memory_limit_starboard.cc",
+    "base/demuxer_stream.cc",
+    "base/demuxer_stream.h",
+    "base/encryption_pattern.cc",
+    "base/encryption_pattern.h",
+    "base/encryption_scheme.cc",
+    "base/encryption_scheme.h",
+    "base/media_log.h",
+    "base/media_resource.cc",
+    "base/media_resource.h",
+    "base/media_track.cc",
+    "base/media_track.h",
+    "base/media_tracks.cc",
+    "base/media_tracks.h",
+    "base/media_url_params.cc",
+    "base/media_url_params.h",
+    "base/media_util.cc",
+    "base/media_util.h",
+    "base/mime_util.cc",
+    "base/mime_util.h",
+    "base/mime_util_internal.cc",
+    "base/mime_util_internal.h",
+    "base/pipeline_status.cc",
+    "base/pipeline_status.h",
+    "base/ranges.cc",
+    "base/ranges.h",
+    "base/sample_format.cc",
+    "base/sample_format.h",
+    "base/starboard_utils.cc",
+    "base/starboard_utils.h",
+    "base/stream_parser.cc",
+    "base/stream_parser.h",
+    "base/stream_parser_buffer.cc",
+    "base/stream_parser_buffer.h",
+    "base/supported_types.cc",
+    "base/supported_types.h",
+    "base/text_track_config.cc",
+    "base/text_track_config.h",
+    "base/video_aspect_ratio.cc",
+    "base/video_aspect_ratio.h",
+    "base/video_codecs.cc",
+    "base/video_codecs.h",
+    "base/video_color_space.cc",
+    "base/video_color_space.h",
+    "base/video_decoder_config.cc",
+    "base/video_decoder_config.h",
+    "base/video_transformation.cc",
+    "base/video_transformation.h",
+    "filters/chunk_demuxer.cc",
+    "filters/chunk_demuxer.h",
+    "filters/frame_processor.cc",
+    "filters/frame_processor.h",
+    "filters/h264_bitstream_buffer.cc",
+    "filters/h264_bitstream_buffer.h",
+    "filters/h264_to_annex_b_bitstream_converter.cc",
+    "filters/h264_to_annex_b_bitstream_converter.h",
+    "filters/source_buffer_range.cc",
+    "filters/source_buffer_range.h",
+    "filters/source_buffer_state.cc",
+    "filters/source_buffer_state.h",
+    "filters/source_buffer_stream.cc",
+    "filters/source_buffer_stream.h",
+    "filters/stream_parser_factory.cc",
+    "filters/stream_parser_factory.h",
+    "formats/common/offset_byte_queue.cc",
+    "formats/common/offset_byte_queue.h",
+    "formats/mp4/aac.cc",
+    "formats/mp4/aac.h",
+    "formats/mp4/avc.cc",
+    "formats/mp4/avc.h",
+    "formats/mp4/bitstream_converter.cc",
+    "formats/mp4/bitstream_converter.h",
+    "formats/mp4/box_definitions.cc",
+    "formats/mp4/box_definitions.h",
+    "formats/mp4/box_reader.cc",
+    "formats/mp4/box_reader.h",
+    "formats/mp4/dolby_vision.cc",
+    "formats/mp4/dolby_vision.h",
+    "formats/mp4/es_descriptor.cc",
+    "formats/mp4/es_descriptor.h",
+    "formats/mp4/fourccs.h",
+    "formats/mp4/hevc.cc",
+    "formats/mp4/hevc.h",
+    "formats/mp4/mp4_stream_parser.cc",
+    "formats/mp4/mp4_stream_parser.h",
+    "formats/mp4/rcheck.h",
+    "formats/mp4/sample_to_group_iterator.cc",
+    "formats/mp4/sample_to_group_iterator.h",
+    "formats/mp4/track_run_iterator.cc",
+    "formats/mp4/track_run_iterator.h",
+    "formats/mpeg/adts_constants.cc",
+    "formats/mpeg/adts_constants.h",
+    "formats/mpeg/adts_stream_parser.cc",
+    "formats/mpeg/adts_stream_parser.h",
+    "formats/mpeg/mpeg1_audio_stream_parser.cc",
+    "formats/mpeg/mpeg1_audio_stream_parser.h",
+    "formats/mpeg/mpeg_audio_stream_parser_base.cc",
+    "formats/mpeg/mpeg_audio_stream_parser_base.h",
+    "formats/webcodecs/webcodecs_encoded_chunk_stream_parser.cc",
+    "formats/webcodecs/webcodecs_encoded_chunk_stream_parser.h",
+    "formats/webm/webm_audio_client.cc",
+    "formats/webm/webm_audio_client.h",
+    "formats/webm/webm_cluster_parser.cc",
+    "formats/webm/webm_cluster_parser.h",
+    "formats/webm/webm_colour_parser.cc",
+    "formats/webm/webm_colour_parser.h",
+    "formats/webm/webm_constants.cc",
+    "formats/webm/webm_constants.h",
+    "formats/webm/webm_content_encodings.cc",
+    "formats/webm/webm_content_encodings.h",
+    "formats/webm/webm_content_encodings_client.cc",
+    "formats/webm/webm_content_encodings_client.h",
+    "formats/webm/webm_crypto_helpers.cc",
+    "formats/webm/webm_crypto_helpers.h",
+    "formats/webm/webm_info_parser.cc",
+    "formats/webm/webm_info_parser.h",
+    "formats/webm/webm_parser.cc",
+    "formats/webm/webm_parser.h",
+    "formats/webm/webm_projection_parser.cc",
+    "formats/webm/webm_projection_parser.h",
+    "formats/webm/webm_stream_parser.cc",
+    "formats/webm/webm_stream_parser.h",
+    "formats/webm/webm_tracks_parser.cc",
+    "formats/webm/webm_tracks_parser.h",
+    "formats/webm/webm_video_client.cc",
+    "formats/webm/webm_video_client.h",
+    "formats/webm/webm_webvtt_parser.cc",
+    "formats/webm/webm_webvtt_parser.h",
+    "video/h264_bit_reader.cc",
+    "video/h264_bit_reader.h",
+    "video/h264_parser.cc",
+    "video/h264_parser.h",
+    "video/h265_nalu_parser.cc",
+    "video/h265_nalu_parser.h",
+    "video/h265_parser.cc",
+    "video/h265_parser.h",
+  ]
+
+  sources += [
+    "cobalt/base/bind_post_task.h",
+    "cobalt/base/check.h",
+    "cobalt/base/check_op.h",
+    "cobalt/base/cxx17_backports.h",
+    "cobalt/base/hash/md5.h",
+    "cobalt/base/notreached.h",
+    "cobalt/base/types/strong_alias.h",
+    "cobalt/net/cookies/site_for_cookies.h",
+
+    #"cobalt/ui/gfx/hdr_metadata.cc",
+    "//ui/gfx/color_space.h",
+    "//ui/gfx/color_space_export.h",
+    "//ui/gfx/geometry/point.cc",
+    "//ui/gfx/geometry/point.h",
+    "//ui/gfx/geometry/point3_f.h",
+    "//ui/gfx/geometry/point_base.h",
+    "//ui/gfx/geometry/point_f.cc",
+    "//ui/gfx/geometry/point_f.h",
+    "//ui/gfx/geometry/rect.h",
+    "//ui/gfx/geometry/rect_base.h",
+    "//ui/gfx/geometry/rect_base_impl.h",
+    "//ui/gfx/geometry/size.h",
+    "//ui/gfx/geometry/size_base.h",
+    "//ui/gfx/geometry/size_f.h",
+    "//ui/gfx/geometry/vector2d.h",
+    "//ui/gfx/geometry/vector2d_f.h",
+    "//ui/gfx/hdr_metadata.h",
+    "//ui/gfx/native_pixmap_handle.h",
+  ]
+
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [
+    "//starboard/build/config:speed",
+    ":media_config",
+  ]
+
+  public_configs = [ ":media_config_public" ]
+
+  all_dependent_configs = [ ":external_config" ]
+
+  deps = [
+    "//base",
+    "//build:chromecast_buildflags",
+    "//build:chromeos_buildflags",
+    "//net",
+    "//starboard:starboard_group",
+    "//third_party/abseil-cpp/absl/types:optional",
+    "//url",
+  ]
+}
+
+target(gtest_target_type, "chromium_media_test") {
+  testonly = true
+
+  sources = [
+    "base/starboard_utils_test.cc",
+    "test/run_all_unittests.cc",
+  ]
+
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+
+  deps = [
+    ":media",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

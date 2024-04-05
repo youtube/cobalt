@@ -42,6 +42,11 @@ typedef struct PosixCondAttrPrivate {
   pthread_condattr_t cond_attr;
 } PosixCondAttrPrivate;
 
+typedef struct PosixOncePrivate {
+  InitializedState initialized_state;
+  pthread_once_t once;
+} PosixOncePrivate;
+
 #define INTERNAL_MUTEX(mutex_var) \
   reinterpret_cast<PosixMutexPrivate*>((mutex_var)->mutex_buffer)
 #define PTHREAD_INTERNAL_MUTEX(mutex_var) \
@@ -61,6 +66,8 @@ typedef struct PosixCondAttrPrivate {
   &(reinterpret_cast<PosixCondAttrPrivate*>(            \
         (condition_attr)->cond_attr_buffer)             \
         ->cond_attr)
+#define INTERNAL_ONCE(once_control) \
+  reinterpret_cast<PosixOncePrivate*>((once_control)->once_buffer)
 
 int __abi_wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex) {
   if (!mutex) {
@@ -271,4 +278,17 @@ int __abi_wrap_pthread_condattr_setclock(musl_pthread_condattr_t* attr,
   SB_DCHECK(false) << "pthread_condattr_setclock unsupported";
   return EINVAL;
 #endif
+}
+
+int __abi_wrap_pthread_once(musl_pthread_once_t* once_control,
+                            void (*init_routine)(void)) {
+  if (!once_control || !init_routine) {
+    return EINVAL;
+  }
+
+  if (!EnsureInitialized(&(INTERNAL_ONCE(once_control)->initialized_state))) {
+    init_routine();
+    SetInitialized(&(INTERNAL_ONCE(once_control)->initialized_state));
+  }
+  return 0;
 }

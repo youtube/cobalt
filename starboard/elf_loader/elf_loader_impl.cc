@@ -24,8 +24,10 @@
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/elf_loader/lz4_file_impl.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
+#include "starboard/system.h"
 
 namespace starboard {
 namespace elf_loader {
@@ -160,6 +162,21 @@ bool ElfLoaderImpl::Load(const char* name,
   }
 
   SB_DLOG(INFO) << "Applied relocations";
+
+  auto metrics_extension =
+      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
+          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
+  if (metrics_extension &&
+      strcmp(metrics_extension->name,
+             kStarboardExtensionLoaderAppMetricsName) == 0 &&
+      metrics_extension->version >= 2) {
+    // CPU memory use is likely the highest at this point of the ELF loading
+    // process, and observations support this. This value is therefore recorded
+    // here in an attempt to efficiently approximate the maximum CPU memory used
+    // at any point during loading of the ELF dynamic shared library.
+    metrics_extension->RecordUsedCpuBytesDuringElfLoad(
+        SbSystemGetUsedCPUMemory());
+  }
 
   program_table_->PublishEvergreenInfo(name);
   SB_DLOG(INFO) << "Published Evergreen Info";

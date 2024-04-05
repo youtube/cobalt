@@ -35,7 +35,7 @@ template("lz4_compress_install_target") {
                              "install_target_name",
                            ])
 
-    tool = "//tools/lz4_compress"
+    tool = "//cobalt/tools/lz4_compress"
 
     outputs = [ "$sb_install_output_dir/$install_subdir/$dest_name" ]
 

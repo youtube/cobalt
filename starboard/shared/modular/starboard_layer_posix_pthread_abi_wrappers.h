@@ -47,9 +47,15 @@ typedef union musl_pthread_cond_t {
 
 #define MUSL_PTHREAD_COND_ATTR_MAX_SIZE 40
 typedef union musl_pthread_condattr_t {
-  uint8_t cond_attr_buffer[MUSL_PTHREAD_COND_MAX_SIZE];
+  uint8_t cond_attr_buffer[MUSL_PTHREAD_COND_ATTR_MAX_SIZE];
   void* ptr;
 } musl_pthread_condattr_t;
+
+#define MUSL_PTHREAD_ONCE_MAX_SIZE 64
+typedef union musl_pthread_once_t {
+  uint8_t once_buffer[MUSL_PTHREAD_ONCE_MAX_SIZE];
+  void* ptr;
+} musl_pthread_once_t;
 
 SB_EXPORT int __abi_wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex);
 SB_EXPORT int __abi_wrap_pthread_mutex_init(
@@ -79,6 +85,8 @@ SB_EXPORT int __abi_wrap_pthread_condattr_setclock(
     musl_pthread_condattr_t* attr,
     clockid_t clock_id);
 
+SB_EXPORT int __abi_wrap_pthread_once(musl_pthread_once_t* once_control,
+                                      void (*init_routine)(void));
 #ifdef __cplusplus
 }  // extern "C"
 #endif

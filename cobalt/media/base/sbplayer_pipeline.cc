@@ -24,11 +24,11 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/startup_timer.h"
+#include "media/base/bind_to_current_loop.h"
+#include "media/base/channel_layout.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "third_party/chromium/media/base/bind_to_current_loop.h"
-#include "third_party/chromium/media/base/channel_layout.h"
 
 namespace cobalt {
 namespace media {

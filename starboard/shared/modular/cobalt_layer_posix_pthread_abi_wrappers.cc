@@ -117,6 +117,13 @@ int __abi_wrap_pthread_condattr_setclock(pthread_condattr_t* attr,
 int pthread_condattr_setclock(pthread_condattr_t* attr, clockid_t clock_id) {
   return __abi_wrap_pthread_condattr_setclock(attr, clock_id);
 }
+
+int __abi_wrap_pthread_once(pthread_once_t* once_control,
+                            void (*init_routine)(void));
+
+int pthread_once(pthread_once_t* once_control, void (*init_routine)(void)) {
+  return __abi_wrap_pthread_once(once_control, init_routine);
+}
 }
 
 #endif  // SB_API_VERSION >= 16

@@ -104,7 +104,8 @@ static void set_errno() {
   // code constants, but the constants are all prefixed with WSA. So in Winsock
   // applications the WSAEWOULDBLOCK error code would be returned, while in UNIX
   // applications the EWOULDBLOCK error code would be returned.
-  // The errno values in a WIN32 are a subset of the values for errno in UNIX systems.
+  // The errno values in a WIN32 are a subset of the values for errno in UNIX
+  // systems.
   switch (winsockError) {
     case WSAEINTR:  // Interrupted function call
       sockError = EINTR;
@@ -379,7 +380,7 @@ int sb_sendto(int sockfd,
   }
 
   int iResult = sendto(socket_handle, reinterpret_cast<const char*>(buf), len,
-                      flags, dest_addr, dest_len);
+                       flags, dest_addr, dest_len);
   if (iResult == SOCKET_ERROR) {
     set_errno();
   }
@@ -398,8 +399,7 @@ int sb_recvfrom(int sockfd,
   }
 
   int iResult = recvfrom(socket_handle, reinterpret_cast<char*>(buf), len,
-                         flags,
-                        address, address_len);
+                         flags, address, address_len);
   if (iResult == SOCKET_ERROR) {
     set_errno();
   }
@@ -444,6 +444,10 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
     }
   }
   return 0;
+}
+
+int* sb_errno_location() {
+  return &errno;
 }
 
 }  // extern "C"

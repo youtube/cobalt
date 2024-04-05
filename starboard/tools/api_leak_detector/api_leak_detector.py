@@ -87,13 +87,13 @@ _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 
 # Allowed POSIX symbols in Starboard 16
 _ALLOWED_SB16_POSIX_SYMBOLS = [
+    '__errno_location',
     'accept',
     'bind',
     'calloc',
     'connect',
     'clock_gettime',
     'close',
-    'errno',
     'free',
     'freeifaddrs',
     'freeaddrinfo',
@@ -119,6 +119,23 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'munmap',
     'mprotect',
     'msync',
+    'stat',
+    'pthread_cond_broadcast',
+    'pthread_cond_destroy',
+    'pthread_cond_init',
+    'pthread_cond_signal',
+    'pthread_cond_timedwait',
+    'pthread_cond_wait',
+    'pthread_condattr_destroy'
+    'pthread_condattr_getclock',
+    'pthread_condattr_init',
+    'pthread_condattr_setclock',
+    'pthread_mutex_destroy',
+    'pthread_mutex_init',
+    'pthread_mutex_lock',
+    'pthread_mutex_unlock',
+    'pthread_mutex_trylock',
+    'pthread_once',
 ]
 
 

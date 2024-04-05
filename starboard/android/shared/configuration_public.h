@@ -23,8 +23,6 @@
 #ifndef STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
 
-// --- Architecture Configuration --------------------------------------------
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -53,16 +51,13 @@
 
 // --- Compiler Configuration ------------------------------------------------
 
+#if SB_API_VERSION < 16
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
 
 // The platform's annotation for marking a C function as suggested to be
 // inlined.
 #define SB_C_INLINE inline
-
-// The platform's annotation for marking a C function as forcibly not
-// inlined.
-#define SB_C_NOINLINE __attribute__((noinline))
 
 // The platform's annotation for marking a symbol as exported outside of the
 // current shared library.
@@ -72,11 +67,7 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// --- I/O Configuration -----------------------------------------------------
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 1
-
-// --- Decoder-only Params ---
+#endif  // SB_API_VERSION < 16
 
 // --- Memory Configuration --------------------------------------------------
 
@@ -88,28 +79,5 @@
 
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
-
-// Specifies whether this platform supports pipe.
-#define SB_HAS_PIPE 1
-
-// --- Thread Configuration --------------------------------------------------
-
-// --- Tuneable Parameters ---------------------------------------------------
-
-// --- User Configuration ----------------------------------------------------
-
-// --- Platform Specific Configuration ---------------------------------------
-
-// --- Platform Specific Audits ----------------------------------------------
-
-#if !defined(__GNUC__)
-#error "Android builds need a GCC-like compiler (for the moment)."
-#endif
-
-// --- Platform Specific Quirks ----------------------------------------------
-
-// Indicates that there is no support for alignment at greater than 16 bytes for
-// items on the stack.
-#define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
 
 #endif  // STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_

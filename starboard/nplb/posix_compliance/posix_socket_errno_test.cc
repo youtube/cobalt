@@ -25,19 +25,19 @@ namespace starboard {
 namespace nplb {
 namespace {
 
- TEST(PosixErrnoTest, CreateInvalidSocket) {
+TEST(PosixErrnoTest, CreateInvalidSocket) {
   EXPECT_FALSE(socket(-1, SOCK_STREAM, 0) == 0);
   EXPECT_TRUE(errno == EAFNOSUPPORT);
   SB_DLOG(INFO) << "Failed to create invalid socket, errno = "
-                << strerror(EAFNOSUPPORT);
- }
+                << strerror(errno);
+}
 
 TEST(PosixErrnoTest, AcceptInvalidSocket) {
   int invalid_socket_fd = -1;
   EXPECT_FALSE(accept(invalid_socket_fd, NULL, NULL) == 0);
   EXPECT_TRUE(errno == EBADF);
   SB_DLOG(INFO) << "Failed to accept invalid socket, errno = "
-                << strerror(EBADF);
+                << strerror(errno);
 }
 
 TEST(PosixErrnoTest, ConnectUnavailableAddress) {
@@ -58,7 +58,8 @@ TEST(PosixErrnoTest, ConnectUnavailableAddress) {
   connect(socket_fd, (struct sockaddr*)&address, sizeof(address));
 
   EXPECT_TRUE(errno == ECONNREFUSED || errno == EADDRNOTAVAIL);
-  SB_DLOG(INFO) << "Failed to connect to unavailable address, errno = " << strerror(errno);
+  SB_DLOG(INFO) << "Failed to connect to unavailable address, errno = "
+                << strerror(errno);
 
   close(socket_fd);
 }
@@ -81,7 +82,8 @@ TEST(PosixErrnoTest, ConnectToInvalidAddress) {
               sizeof(struct sockaddr));
   EXPECT_TRUE(connect_result == -1);
   EXPECT_TRUE(errno == EADDRNOTAVAIL || errno == ETIMEDOUT);
-  SB_DLOG(INFO) << "Failed to connect to invalid address, errno = " << strerror(errno);
+  SB_DLOG(INFO) << "Failed to connect to invalid address, errno = "
+                << strerror(errno);
 
   EXPECT_TRUE(close(socket_fd) == 0);
 }
@@ -95,7 +97,7 @@ TEST(PosixErrnoTest, SendBeforeConnect) {
 
   EXPECT_TRUE(result == -1 && errno == ENOTCONN);
   SB_DLOG(INFO) << "Failed to send before connect socket, errno = "
-                << strerror(ENOTCONN);
+                << strerror(errno);
 
   close(socket_fd);
 }

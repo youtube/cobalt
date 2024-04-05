@@ -23,7 +23,6 @@
 #include "base/command_line.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/metrics/user_metrics.h"
 #include "base/optional.h"
@@ -49,7 +48,6 @@
 #include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
-#include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/base/starboard_stats_tracker.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/version_compatibility.h"
@@ -58,6 +56,7 @@
 #include "cobalt/base/window_size_changed_event.h"
 #include "cobalt/browser/client_hint_headers.h"
 #include "cobalt/browser/device_authentication.h"
+#include "cobalt/browser/loader_app_metrics.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/browser/switches.h"
@@ -619,22 +618,6 @@ void AddCrashLogApplicationState(base::ApplicationState state) {
              << "required version, so not sending application state.";
 }
 
-void RecordLoaderAppMetrics() {
-  auto metrics_extension =
-      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
-          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
-  if (metrics_extension &&
-      strcmp(metrics_extension->name,
-             kStarboardExtensionLoaderAppMetricsName) == 0 &&
-      metrics_extension->version >= 1) {
-    base::UmaHistogramEnumeration(
-        "Cobalt.LoaderApp.CrashpadInstallationStatus",
-        metrics_extension->GetCrashpadInstallationStatus());
-    LOG(INFO) << "Recorded sample for "
-              << "Cobalt.LoaderApp.CrashpadInstallationStatus";
-  }
-}
-
 }  // namespace
 
 // Static user logs
@@ -961,12 +944,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
-  on_screen_keyboard_suggestions_updated_event_callback_ =
-      base::Bind(&Application::OnOnScreenKeyboardSuggestionsUpdatedEvent,
-                 base::Unretained(this));
-  event_dispatcher_.AddEventCallback(
-      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
-      on_screen_keyboard_suggestions_updated_event_callback_);
   on_caption_settings_changed_event_callback_ = base::Bind(
       &Application::OnCaptionSettingsChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(
@@ -1041,7 +1018,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   AddCrashLogApplicationState(base::kApplicationStateStarted);
-  RecordLoaderAppMetrics();
+  RecordLoaderAppMetrics(
+      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
+          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName)));
 }
 
 Application::~Application() {
@@ -1070,9 +1049,6 @@ Application::~Application() {
   event_dispatcher_.RemoveEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
-  event_dispatcher_.RemoveEventCallback(
-      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
-      on_screen_keyboard_suggestions_updated_event_callback_);
   event_dispatcher_.RemoveEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
@@ -1155,10 +1131,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::OnScreenKeyboardBlurredEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-      DispatchEventInternal(new base::OnScreenKeyboardSuggestionsUpdatedEvent(
-          *static_cast<int*>(starboard_event->data)));
-      break;
     case kSbEventTypeLink: {
       DispatchDeepLink(static_cast<const char*>(starboard_event->data),
                        starboard_event->timestamp);
@@ -1193,6 +1165,11 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeStop:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
+#if SB_API_VERSION >= 16
+    case kSbEventTypeReserved1:
+#else
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+#endif  // SB_API_VERSION >= 16
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
   }
@@ -1270,7 +1247,6 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardShown:
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
     case kSbEventTypeAccessibilitySettingsChanged:
     case kSbEventTypeInput:
     case kSbEventTypeLink:
@@ -1280,6 +1256,11 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
+#if SB_API_VERSION >= 16
+    case kSbEventTypeReserved1:
+#else
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+#endif  // SB_API_VERSION >= 16
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
@@ -1335,15 +1316,6 @@ void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
   browser_module_->OnOnScreenKeyboardBlurred(
       base::polymorphic_downcast<const base::OnScreenKeyboardBlurredEvent*>(
           event));
-}
-
-void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
-    const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser",
-               "Application::OnOnScreenKeyboardSuggestionsUpdatedEvent()");
-  browser_module_->OnOnScreenKeyboardSuggestionsUpdated(
-      base::polymorphic_downcast<
-          const base::OnScreenKeyboardSuggestionsUpdatedEvent*>(event));
 }
 
 void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {
