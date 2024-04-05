@@ -85,6 +85,7 @@ MP4StreamParser::MP4StreamParser(const std::set<int>& audio_object_types,
       audio_object_types_(audio_object_types),
       has_sbr_(has_sbr),
       has_flac_(has_flac),
+      has_iamf_(has_iamf),
       num_empty_samples_skipped_(0),
       num_invalid_conversions_(0),
       num_video_keyframe_mismatches_(0) {}
@@ -1011,9 +1012,15 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   StreamParserBuffer::Type buffer_type = audio ? DemuxerStream::AUDIO :
       DemuxerStream::VIDEO;
 
+#if defined(STARBOARD)
+  scoped_refptr<StreamParserBuffer> stream_buf =
+      StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(), is_keyframe,
+                                   buffer_type, runs_->track_id());
+#else   // defined(STARBOARD)
   auto stream_buf = StreamParserBuffer::FromExternalMemory(
       std::make_unique<ExternalMemoryAdapter>(std::move(frame_buf)),
       is_keyframe, buffer_type, runs_->track_id());
+#endif  // defined(STARBOARD)
 
   if (decrypt_config)
     stream_buf->set_decrypt_config(std::move(decrypt_config));
