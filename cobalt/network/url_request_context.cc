@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -115,6 +116,44 @@ const char kQUICToggleCommandLongHelp[] =
     "enabled or not. The new value will apply for new streams.";
 #endif  // defined(ENABLE_DEBUGGER)
 
+class CobaltCookieAccessDelegate : public net::CookieAccessDelegate {
+ public:
+  bool ShouldTreatUrlAsTrustworthy(const GURL& url) const override {
+    // TODO: Consider checking if URL is trustworthy.
+    return true;
+  }
+
+  net::CookieAccessSemantics GetAccessSemantics(
+      const net::CanonicalCookie& cookie) const override {
+    return net::CookieAccessSemantics::LEGACY;
+  }
+
+  bool ShouldIgnoreSameSiteRestrictions(
+      const GURL& url,
+      const net::SiteForCookies& site_for_cookies) const override {
+    return false;
+  }
+
+  absl::optional<net::FirstPartySetMetadata>
+  ComputeFirstPartySetMetadataMaybeAsync(
+      const net::SchemefulSite& site, const net::SchemefulSite* top_frame_site,
+      const std::set<net::SchemefulSite>& party_context,
+      base::OnceCallback<void(net::FirstPartySetMetadata)> callback)
+      const override {
+    return net::FirstPartySetMetadata();
+  }
+
+  absl::optional<base::flat_map<net::SchemefulSite, net::FirstPartySetEntry>>
+  FindFirstPartySetEntries(
+      const base::flat_set<net::SchemefulSite>& sites,
+      base::OnceCallback<
+          void(base::flat_map<net::SchemefulSite, net::FirstPartySetEntry>)>
+          callback) const override {
+    return std::vector<
+        std::pair<net::SchemefulSite, net::FirstPartySetEntry>>();
+  }
+};
+
 }  // namespace
 
 URLRequestContext::URLRequestContext(
@@ -142,11 +181,15 @@ URLRequestContext::URLRequestContext(
         new PersistentCookieStore(storage_manager, network_task_runner);
   }
 
-  url_request_context_builder->SetCookieStore(
-      std::unique_ptr<net::CookieStore>(new net::CookieMonster(
-          persistent_cookie_store_,
-          base::TimeDelta::FromInternalValue(0) /* channel_id_service */,
-          net::NetLog::Get())));
+  {
+    auto cookie_store = std::make_unique<net::CookieMonster>(
+        persistent_cookie_store_,
+        base::TimeDelta::FromInternalValue(0) /* channel_id_service */,
+        net::NetLog::Get());
+    cookie_store->SetCookieAccessDelegate(
+        std::make_unique<CobaltCookieAccessDelegate>());
+    url_request_context_builder->SetCookieStore(std::move(cookie_store));
+  }
 
   url_request_context_builder->set_enable_brotli(true);
   base::Optional<net::ProxyConfig> proxy_config;
