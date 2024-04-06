@@ -350,16 +350,16 @@ int64_t AutoMem::SumAllMemoryOfType(
 
 void AutoMem::ConstructSettings(const math::Size& ui_resolution,
                                 const AutoMemSettings& command_line_settings,
-                                const AutoMemSettings& build_settings) {
+                                const AutoMemSettings& config_settings) {
   TRACE_EVENT0("cobalt::browser", "AutoMem::ConstructSettings()");
-  max_cpu_bytes_ = CreateCpuSetting(command_line_settings, build_settings);
-  max_gpu_bytes_ = CreateGpuSetting(command_line_settings, build_settings);
+  max_cpu_bytes_ = CreateCpuSetting(command_line_settings, config_settings);
+  max_gpu_bytes_ = CreateGpuSetting(command_line_settings, config_settings);
 
   // Set the encoded image cache capacity
   encoded_image_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
       switches::kEncodedImageCacheSizeInBytes,
       command_line_settings.cobalt_encoded_image_cache_size_in_bytes,
-      build_settings.cobalt_encoded_image_cache_size_in_bytes,
+      config_settings.cobalt_encoded_image_cache_size_in_bytes,
       kDefaultEncodedImageCacheSize);
   EnsureValuePositive(encoded_image_cache_size_in_bytes_.get());
 
@@ -367,7 +367,7 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   image_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
       switches::kImageCacheSizeInBytes,
       command_line_settings.cobalt_image_cache_size_in_bytes,
-      build_settings.cobalt_image_cache_size_in_bytes,
+      config_settings.cobalt_image_cache_size_in_bytes,
       CalculateImageCacheSize(
           ui_resolution,
           loader::image::ImageDecoder::AllowDecodingToMultiPlane()));
@@ -384,14 +384,14 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
       CreateMemorySetting<IntSetting, int64_t>(
           switches::kRemoteTypefaceCacheSizeInBytes,
           command_line_settings.remote_typeface_cache_capacity_in_bytes,
-          build_settings.remote_typeface_cache_capacity_in_bytes,
+          config_settings.remote_typeface_cache_capacity_in_bytes,
           kDefaultRemoteTypeFaceCacheSize);
   EnsureValuePositive(remote_typeface_cache_size_in_bytes_.get());
 
   // Skia atlas texture dimensions.
   skia_atlas_texture_dimensions_.reset(new SkiaGlyphAtlasTextureSetting());
   SetMemorySetting(command_line_settings.skia_texture_atlas_dimensions,
-                   build_settings.skia_texture_atlas_dimensions,
+                   config_settings.skia_texture_atlas_dimensions,
                    CalculateSkiaGlyphAtlasTextureSize(ui_resolution),
                    skia_atlas_texture_dimensions_.get());
   EnsureValuePositive(skia_atlas_texture_dimensions_.get());
@@ -405,7 +405,7 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   skia_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
       switches::kSkiaCacheSizeInBytes,
       command_line_settings.skia_cache_size_in_bytes,
-      build_settings.skia_cache_size_in_bytes,
+      config_settings.skia_cache_size_in_bytes,
       CalculateSkiaCacheSize(ui_resolution));
   // Skia always uses gpu memory, when enabled.
   skia_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
@@ -417,7 +417,7 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
       CreateMemorySetting<IntSetting, int64_t>(
           switches::kOffscreenTargetCacheSizeInBytes,
           command_line_settings.offscreen_target_cache_size_in_bytes,
-          build_settings.offscreen_target_cache_size_in_bytes,
+          config_settings.offscreen_target_cache_size_in_bytes,
           CalculateOffscreenTargetCacheSizeInBytes(ui_resolution));
   offscreen_target_cache_size_in_bytes_->set_memory_scaling_function(
       MakeLinearMemoryScaler(0.25, 1.0));

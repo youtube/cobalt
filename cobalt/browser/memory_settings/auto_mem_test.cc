@@ -123,14 +123,14 @@ TEST(AutoMem, SkiaGlyphAtlasTextureSize) {
                                           config_settings_with_default);
 
   // Expect that when the skia_atlas_texture_dimensions is specified in the
-  // build settings that it will bind to the auto-set value (computed from
+  // config settings that it will bind to the auto-set value (computed from
   // CalculateSkiaGlyphAtlasTextureSize(...)).
   EXPECT_MEMORY_SETTING(auto_mem.skia_atlas_texture_dimensions(),
                         MemorySetting::kAutoSet, MemorySetting::kGPU,
                         CalculateSkiaGlyphAtlasTextureSize(kResolution1080p));
 
   // Expect that when the skia_atlas_texture_dimensions is specified in the
-  // build settings that it will bind to the final value.
+  // config settings that it will bind to the final value.
   EXPECT_MEMORY_SETTING(auto_mem_with_default.skia_atlas_texture_dimensions(),
                         MemorySetting::kBuildSetting, MemorySetting::kGPU,
                         TextureDimensions(1234, 5678, 2));

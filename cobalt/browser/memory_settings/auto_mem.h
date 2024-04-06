@@ -41,7 +41,7 @@ class AutoMem {
 
   void ConstructSettings(const math::Size& ui_resolution,
                          const AutoMemSettings& command_line_settings,
-                         const AutoMemSettings& build_settings);
+                         const AutoMemSettings& config_settings);
 
   const IntSetting* encoded_image_cache_size_in_bytes() const;
   const IntSetting* image_cache_size_in_bytes() const;
