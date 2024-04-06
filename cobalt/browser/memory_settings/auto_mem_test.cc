@@ -61,7 +61,7 @@ TEST(AutoMem, CommandLineOverrides) {
   command_line_settings.offscreen_target_cache_size_in_bytes = 5678;
 
   for (int i = 0; i <= 1; ++i) {
-    AutoMemSettings build_settings = GetDefaultBuildSettings();
+    AutoMemSettings build_settings = GetDefaultConfigSettings();
 
     AutoMem auto_mem;
     auto_mem.ConstructSettings(kResolution1080p, command_line_settings,
