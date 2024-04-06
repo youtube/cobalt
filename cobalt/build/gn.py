@@ -28,7 +28,7 @@ _BUILD_TYPES = ['debug', 'devel', 'qa', 'gold']
 
 
 def main(out_directory: str, platform: str, build_type: str,
-         overwrite_args: bool, gn_gen_args: List[str]):
+         overwrite_args: bool, modular: bool, gn_gen_args: List[str]):
   platform_path = PLATFORMS[platform]
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
@@ -39,6 +39,8 @@ def main(out_directory: str, platform: str, build_type: str,
     shutil.copy(src_args_gn_file, dst_args_gn_file)
     with open(dst_args_gn_file, 'a', encoding='utf-8') as f:
       f.write(f'build_type = "{build_type}"\n')
+      if modular:
+        f.write('build_with_separate_cobalt_toolchain = true\n')
   else:
     print(f'{dst_args_gn_file} already exists.' +
           ' Running ninja will regenerate build files automatically.')
@@ -90,10 +92,25 @@ if __name__ == '__main__':
       default=False,
       action='store_true',
       help='Pass this flag to disable the header dependency gn check.')
+  parser.add_argument(
+      '--modular',
+      default=None,
+      action='store_true',
+      help='Pass this flag to build linux modularly.')
+
   script_args, gen_args = parser.parse_known_args()
 
   if not script_args.no_check:
     gen_args.append('--check')
+
+  # --modular flag is added as a convenience for devs to build
+  # modularly on linux. Note that linux crosstool builds dont
+  # build modularly.
+  if script_args.modular:
+    modular_flag_set_correctly = 'linux' in script_args.platform \
+    and not 'crosstool' in script_args.platform
+    assert modular_flag_set_correctly, \
+      'Modular flag should be set only for linux platforms'
 
   if script_args.out_directory:
     builds_out_directory = script_args.out_directory
@@ -104,4 +121,4 @@ if __name__ == '__main__':
         builds_directory, f'{script_args.platform}_{script_args.build_type}')
 
   main(builds_out_directory, script_args.platform, script_args.build_type,
-       script_args.overwrite_args, gen_args)
+       script_args.overwrite_args, script_args.modular, gen_args)
