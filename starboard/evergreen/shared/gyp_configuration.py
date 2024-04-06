@@ -16,6 +16,7 @@
 import os
 
 from starboard.build import platform_configuration
+from starboard.tools.testing import test_filter
 
 
 class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
@@ -32,17 +33,5 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
         'crx_file_test',
         'updater_test',
     })
-    return [test for test in tests if test not in self.__FORBIDDEN_TESTS]
-
-  __FORBIDDEN_TESTS = [  # pylint: disable=invalid-name
-      # elf_loader_test and installation_manager_test are explicitly tests that
-      # validate the correctness of the underlying platform. We should not be
-      # running these tests in Evergreen mode, and instead will rely on the
-      # platform to test this directly instead.
-      'elf_loader_test',
-      'installation_manager_test',
-  ]
-
-  def GetTestBlackBoxTargets(self):
-    tests = super().GetTestBlackBoxTargets()
-    return [test for test in tests if test not in self.__FORBIDDEN_TESTS]
+    tests += test_filter.EVERGREEN_TESTS
+    return tests

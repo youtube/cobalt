@@ -13,9 +13,6 @@
 # limitations under the License.
 """Starboard win-win32 Platform Test Filters."""
 
-import logging
-import os
-
 from starboard.shared.win32 import test_filters as shared_test_filters
 from starboard.tools.testing import test_filter
 
@@ -82,23 +79,7 @@ class WinWin32TestFilters(shared_test_filters.TestFilters):
     Returns:
       A list of initialized TestFilter objects.
     """
-    if os.environ.get('COBALT_WIN_BUILDBOT_DISABLE_TESTS', '0') == '1':
-      logging.error('COBALT_WIN_BUILDBOT_DISABLE_TESTS=1, Tests are disabled.')
-      return [test_filter.DISABLE_TESTING]
-    else:
-      filters = super().GetTestFilters()
-      _FILTERED_TESTS.update(test_filter.EVERGREEN_ONLY_TESTS)
-      for target, tests in _FILTERED_TESTS.items():
-        filters.extend(test_filter.TestFilter(target, test) for test in tests)
-      if os.environ.get('EXPERIMENTAL_CI', '0') == '1':
-        # Disable these tests in the experimental CI due to pending failures.
-        experimental_filtered_tests = {
-            'drain_file_test': [
-                'DrainFileTest.SunnyDay',
-                'DrainFileTest.SunnyDayPrepareDirectory',
-                'DrainFileTest.RainyDayDrainFileAlreadyExists'
-            ]
-        }
-        for target, tests in experimental_filtered_tests.items():
-          filters.extend(test_filter.TestFilter(target, test) for test in tests)
-      return filters
+    filters = super().GetTestFilters()
+    for target, tests in _FILTERED_TESTS.items():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters

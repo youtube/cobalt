@@ -60,7 +60,6 @@ class Xb1TestFilters(shared_test_filters.TestFilters):
       return [test_filter.DISABLE_TESTING]
 
     filters = super().GetTestFilters()
-    _FILTERED_TESTS.update(test_filter.EVERGREEN_ONLY_TESTS)
     for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
