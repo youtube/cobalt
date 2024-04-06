@@ -118,9 +118,9 @@ TEST(AutoMemSettingsTest, InitialState) {
   EXPECT_FALSE(settings.max_cpu_in_bytes);
   EXPECT_FALSE(settings.max_gpu_in_bytes);
 
-  AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
-  EXPECT_EQ(AutoMemSettings::kTypeBuild, build_settings.type);
-  EXPECT_FALSE(build_settings.max_cpu_in_bytes);
+  AutoMemSettings config_settings(AutoMemSettings::kTypeConfig);
+  EXPECT_EQ(AutoMemSettings::kTypeConfig, config_settings.type);
+  EXPECT_FALSE(config_settings.max_cpu_in_bytes);
 }
 
 // Tests the expectation that numerous string variations (whole numbers vs

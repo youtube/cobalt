@@ -29,7 +29,7 @@ namespace memory_settings {
 
 struct AutoMemSettings {
   enum Type {
-    kTypeBuild,
+    kTypeConfig,
     kTypeCommandLine,
   };
 

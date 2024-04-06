@@ -101,7 +101,8 @@ class BrowserModule {
     Options()
         : command_line_auto_mem_settings(
               memory_settings::AutoMemSettings::kTypeCommandLine),
-          build_auto_mem_settings(memory_settings::AutoMemSettings::kTypeBuild),
+          config_api_auto_mem_settings(
+              memory_settings::AutoMemSettings::kTypeConfig),
           enable_splash_screen_on_reloads(true) {}
     renderer::RendererModule::Options renderer_module_options;
     WebModule::Options web_module_options;
@@ -109,7 +110,7 @@ class BrowserModule {
     persistent_storage::PersistentSettings* persistent_settings;
     WebModuleCreatedCallback web_module_created_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
-    memory_settings::AutoMemSettings build_auto_mem_settings;
+    memory_settings::AutoMemSettings config_api_auto_mem_settings;
     base::Optional<GURL> fallback_splash_screen_url;
     std::map<std::string, GURL> fallback_splash_screen_topic_map;
     base::Optional<cssom::ViewportSize> requested_viewport_size;

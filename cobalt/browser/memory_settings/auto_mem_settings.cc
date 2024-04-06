@@ -189,7 +189,7 @@ bool Set(const base::CommandLine& command_line,
 }  // namespace
 
 AutoMemSettings GetDefaultConfigSettings() {
-  AutoMemSettings settings(AutoMemSettings::kTypeBuild);
+  AutoMemSettings settings(AutoMemSettings::kTypeConfig);
   configuration::Configuration* config =
       configuration::Configuration::GetInstance();
 
