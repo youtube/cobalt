@@ -132,7 +132,7 @@ TEST(AutoMem, SkiaGlyphAtlasTextureSize) {
   // Expect that when the skia_atlas_texture_dimensions is specified in the
   // config settings that it will bind to the final value.
   EXPECT_MEMORY_SETTING(auto_mem_with_default.skia_atlas_texture_dimensions(),
-                        MemorySetting::kBuildSetting, MemorySetting::kGPU,
+                        MemorySetting::kStarboardAPI, MemorySetting::kGPU,
                         TextureDimensions(1234, 5678, 2));
 }
 
@@ -155,7 +155,7 @@ TEST(AutoMem, SkiaCacheSizeInBytes) {
                         CalculateSkiaCacheSize(kResolution1080p));
 
   EXPECT_MEMORY_SETTING(auto_mem_with_skia_cache.skia_cache_size_in_bytes(),
-                        MemorySetting::kBuildSetting, MemorySetting::kGPU,
+                        MemorySetting::kStarboardAPI, MemorySetting::kGPU,
                         1234);
 }
 

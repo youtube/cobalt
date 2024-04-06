@@ -38,10 +38,9 @@ base::CommandLine MakeCommandLine(const std::string& name,
 void TestParseInt(const base::Optional<int64_t>& expected,
                   const std::string& value, const std::string& name,
                   base::Optional<int64_t>* setting) {
-#define TEST_EXTRAS                            \
-  "expected=" << expected.value() << ", "      \
-              << "name=\"" << name << "\", "   \
-              << "value=\"" << value << "\", " \
+#define TEST_EXTRAS                                                      \
+  "expected=" << expected.value() << ", " << "name=\"" << name << "\", " \
+              << "value=\"" << value << "\", "                           \
               << "setting=" << setting->value()
 
   if (!expected) {
