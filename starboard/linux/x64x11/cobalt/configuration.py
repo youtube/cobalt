@@ -13,17 +13,10 @@
 # limitations under the License.
 """Starboard Linux x64x11 Cobalt configuration."""
 
-import os
-
 from starboard.linux.shared.cobalt import configuration as shared_configuration
 from starboard.tools.testing import test_filter
 
 _FILTERED_TESTS = {}
-if os.getenv('MODULAR_BUILD', '0') == '1':
-  # TODO: b/303845477 Re-enable.
-  _FILTERED_TESTS['blackbox'] = [
-      'wasm_basic_test',
-  ]
 
 
 class CobaltLinuxX64X11SkiaConfiguration(
