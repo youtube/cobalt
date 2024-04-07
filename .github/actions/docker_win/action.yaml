@@ -12,7 +12,7 @@ runs:
       shell: bash
     - name: Get docker file changes
       id: changed-files
-      uses: tj-actions/changed-files@8953e851a137075e59e84b5c15fbeb3617e82f15 # v32.1.1
+      uses: tj-actions/changed-files@2d756ea4c53f7f6b397767d8723b3a10a9f35bf2 # v44
       with:
         files_ignore: third_party/**
         files: |
