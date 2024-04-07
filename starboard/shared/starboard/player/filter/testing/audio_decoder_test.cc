@@ -379,6 +379,40 @@ class AudioDecoderTest
     }
   }
 
+  void WaitForDecoderInRunningState() {
+    // Write multiple inputs to avoid reset codec too soon after start.
+    const size_t kMaxNumberOfInputsToWrite = 50;
+    size_t start_index = 0;
+    size_t number_of_inputs_to_write = std::min(
+        kMaxNumberOfInputsToWrite, dmp_reader_.number_of_audio_buffers());
+
+    // Wait for at least one output available to ensure codec is in running
+    // state.
+    ASSERT_NO_FATAL_FAILURE(WriteSingleInput(start_index));
+    ++start_index;
+    --number_of_inputs_to_write;
+
+    while (number_of_inputs_to_write > 0) {
+      Event event = kError;
+      ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
+      if (event == kConsumed) {
+        ASSERT_NO_FATAL_FAILURE(WriteSingleInput(start_index));
+        ++start_index;
+        --number_of_inputs_to_write;
+        continue;
+      }
+      if (event == kError) {
+        FAIL();
+      }
+      ASSERT_EQ(kOutput, event);
+      scoped_refptr<DecodedAudio> decoded_audio;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
+      ASSERT_TRUE(decoded_audio);
+      ASSERT_FALSE(decoded_audio->is_end_of_stream());
+      break;
+    }
+  }
+
   scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {
     auto input_buffer = testing::GetAudioInputBuffer(&dmp_reader_, index);
     auto iter = invalid_inputs_.find(index);
@@ -848,6 +882,94 @@ TEST_P(AudioDecoderTest, PartialAudio) {
     EXPECT_NEAR(reference_decoded_audio->frames() - frames_per_access_unit / 2,
                 partial_decoded_audio->frames(), kEpsilonInFrames);
   }
+}
+
+TEST_P(AudioDecoderTest, ResetAfterEndOfStream) {
+  ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));
+  WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+
+  ResetDecoder();
+  WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  ASSERT_TRUE(decoded_audios_.empty());
+}
+
+TEST_P(AudioDecoderTest, ResetAfterEndOfStreamWithSingleInput) {
+  ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));
+  WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  int decoded_audio_frames_before_reset = GetTotalFrames(decoded_audios_);
+
+  ResetDecoder();
+
+  ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));
+  WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  ASSERT_FALSE(decoded_audios_.empty());
+  ASSERT_NO_FATAL_FAILURE(AssertOutputFormatValid());
+
+  int decoded_audio_frames_after_reset = GetTotalFrames(decoded_audios_);
+  ASSERT_EQ(decoded_audio_frames_before_reset,
+            decoded_audio_frames_after_reset);
+}
+
+TEST_P(AudioDecoderTest, ResetAfterEndOfStreamWithMultipleInputs) {
+  const size_t kMaxNumberOfInputsToWrite = 5;
+  const size_t number_of_inputs_to_write = std::min(
+      kMaxNumberOfInputsToWrite, dmp_reader_.number_of_audio_buffers());
+
+  ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(0, number_of_inputs_to_write));
+  WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  int decoded_audio_frames_before_reset = GetTotalFrames(decoded_audios_);
+
+  ResetDecoder();
+
+  ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(0, number_of_inputs_to_write));
+  WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  ASSERT_FALSE(decoded_audios_.empty());
+  ASSERT_NO_FATAL_FAILURE(AssertOutputFormatValid());
+
+  int decoded_audio_frames_after_reset = GetTotalFrames(decoded_audios_);
+  ASSERT_EQ(decoded_audio_frames_before_reset,
+            decoded_audio_frames_after_reset);
+}
+
+TEST_P(AudioDecoderTest, ResetInRunningStateWithInput) {
+  const size_t kMaxNumberOfInputsToWrite = 5;
+  const size_t number_of_inputs_to_write = std::min(
+      kMaxNumberOfInputsToWrite, dmp_reader_.number_of_audio_buffers());
+
+  ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(0, number_of_inputs_to_write));
+  WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  int decoded_audio_frames_before_reset = GetTotalFrames(decoded_audios_);
+  ResetDecoder();
+
+  WaitForDecoderInRunningState();
+
+  ResetDecoder();
+  ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(0, number_of_inputs_to_write));
+  WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  ASSERT_FALSE(decoded_audios_.empty());
+  ASSERT_NO_FATAL_FAILURE(AssertOutputFormatValid());
+
+  int decoded_audio_frames_after_reset = GetTotalFrames(decoded_audios_);
+  ASSERT_EQ(decoded_audio_frames_before_reset,
+            decoded_audio_frames_after_reset);
+}
+
+TEST_P(AudioDecoderTest, ResetInRunningStateWithEndOfStream) {
+  WaitForDecoderInRunningState();
+
+  ResetDecoder();
+  WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  ASSERT_TRUE(decoded_audios_.empty());
+  ASSERT_NO_FATAL_FAILURE(AssertOutputFormatValid());
 }
 
 INSTANTIATE_TEST_CASE_P(
