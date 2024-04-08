@@ -19,7 +19,6 @@
 #include "starboard/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
@@ -249,7 +248,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   }
 
   // Ensure the event is deleted unless it is released.
-  scoped_ptr<Event> scoped_event(event);
+  std::unique_ptr<Event> scoped_event(event);
 
   // Ensure that we go through the the appropriate lifecycle events based on
   // the current state. If intermediate events need to be processed, use
@@ -409,7 +408,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
 
 bool Application::HandleEventAndUpdateState(Application::Event* event) {
   // Ensure the event is deleted unless it is released.
-  scoped_ptr<Event> scoped_event(event);
+  std::unique_ptr<Event> scoped_event(event);
 
   // Call OnSuspend() and OnResume() before the event as needed.
   if (scoped_event->event->type == kSbEventTypeUnfreeze &&
