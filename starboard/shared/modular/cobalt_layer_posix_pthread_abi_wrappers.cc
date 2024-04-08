@@ -160,6 +160,31 @@ pthread_t __abi_wrap_pthread_self();
 pthread_t pthread_self() {
   return __abi_wrap_pthread_self();
 }
+
+int __abi_wrap_pthread_key_create(pthread_key_t* key,
+                                  void (*destructor)(void*));
+
+int pthread_key_create(pthread_key_t* key, void (*destructor)(void*)) {
+  return __abi_wrap_pthread_key_create(key, destructor);
+}
+
+int __abi_wrap_pthread_key_delete(pthread_key_t key);
+
+int pthread_key_delete(pthread_key_t key) {
+  return __abi_wrap_pthread_key_delete(key);
+}
+
+void* __abi_wrap_pthread_getspecific(pthread_key_t key);
+
+void* pthread_getspecific(pthread_key_t key) {
+  return __abi_wrap_pthread_getspecific(key);
+}
+
+int __abi_wrap_pthread_setspecific(pthread_key_t key, const void* value);
+
+int pthread_setspecific(pthread_key_t key, const void* value) {
+  return __abi_wrap_pthread_setspecific(key, value);
+}
 }
 
 #endif  // SB_API_VERSION >= 16

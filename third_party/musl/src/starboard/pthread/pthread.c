@@ -172,4 +172,27 @@ pthread_t pthread_self() {
 int pthread_equal(pthread_t t1, pthread_t t2) {
   return SbThreadIsEqual(t1, t2);
 }
+
+int pthread_key_create(pthread_key_t* key, void (*destructor)(void*)) {
+  SbThreadLocalKey sb_key = SbThreadCreateLocalKey(destructor);
+  if (SbThreadIsValidLocalKey(sb_key)) {
+    *key = sb_key;
+    return 0;
+  }
+  return -1;
+}
+
+int pthread_key_delete(pthread_key_t key) {
+  SbThreadDestroyLocalKey((SbThreadLocalKey)key);
+  return 0;
+}
+
+void* pthread_getspecific(pthread_key_t key) {
+  return SbThreadGetLocalValue((SbThreadLocalKey)key);
+}
+
+int pthread_setspecific(pthread_key_t key, const void* value) {
+  return SbThreadSetLocalValue((SbThreadLocalKey)key, value)? 0: -1;
+}
+
 #endif  // SB_API_VERSION < 16
