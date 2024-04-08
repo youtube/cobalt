@@ -42,6 +42,10 @@ typedef struct PosixCondAttrPrivate {
   pthread_condattr_t cond_attr;
 } PosixCondAttrPrivate;
 
+typedef struct PosixAttrPrivate {
+  pthread_attr_t attr;
+} PosixAttrPrivate;
+
 typedef struct PosixOncePrivate {
   InitializedState initialized_state;
   pthread_once_t once;
@@ -66,6 +70,11 @@ typedef struct PosixOncePrivate {
   &(reinterpret_cast<PosixCondAttrPrivate*>(            \
         (condition_attr)->cond_attr_buffer)             \
         ->cond_attr)
+#define PTHREAD_INTERNAL_ATTR(condition_attr) \
+  &(reinterpret_cast<PosixAttrPrivate*>((attr)->attr_buffer)->attr)
+#define CONST_PTHREAD_INTERNAL_ATTR(condition_attr) \
+  &(reinterpret_cast<const PosixAttrPrivate*>((attr)->attr_buffer)->attr)
+
 #define INTERNAL_ONCE(once_control) \
   reinterpret_cast<PosixOncePrivate*>((once_control)->once_buffer)
 
@@ -291,4 +300,29 @@ int __abi_wrap_pthread_once(musl_pthread_once_t* once_control,
     SetInitialized(&(INTERNAL_ONCE(once_control)->initialized_state));
   }
   return 0;
+}
+
+int __abi_wrap_pthread_create(musl_pthread_t* thread,
+                              const musl_pthread_attr_t* attr,
+                              void* (*start_routine)(void*),
+                              void* arg) {
+  return pthread_create(reinterpret_cast<pthread_t*>(thread),
+                        CONST_PTHREAD_INTERNAL_ATTR(attr), start_routine, arg);
+}
+
+int __abi_wrap_pthread_join(musl_pthread_t thread, void** value_ptr) {
+  return pthread_join(reinterpret_cast<pthread_t>(thread), value_ptr);
+}
+
+int __abi_wrap_pthread_detach(musl_pthread_t thread) {
+  return pthread_detach(reinterpret_cast<pthread_t>(thread));
+}
+
+int __abi_wrap_pthread_equal(musl_pthread_t t1, musl_pthread_t t2) {
+  return pthread_equal(reinterpret_cast<pthread_t>(t1),
+                       reinterpret_cast<pthread_t>(t2));
+}
+
+musl_pthread_t __abi_wrap_pthread_self() {
+  return reinterpret_cast<musl_pthread_t>(pthread_self());
 }
