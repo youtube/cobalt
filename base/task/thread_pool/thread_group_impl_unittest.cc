@@ -1340,7 +1340,11 @@ INSTANTIATE_TEST_SUITE_P(ReclaimType,
 TEST_F(ThreadGroupImplBlockingTest, MaximumWorkersTest) {
   CreateAndStartThreadGroup();
 
+#ifdef STARBOARD
+  const size_t kMaxNumberOfWorkers = kSbMaxThreads;
+#else
   constexpr size_t kMaxNumberOfWorkers = 256;
+#endif
   constexpr size_t kNumExtraTasks = 10;
 
   TestWaitableEvent early_blocking_threads_running;
@@ -1647,7 +1651,11 @@ INSTANTIATE_TEST_SUITE_P(WillBlock,
 // Verify that worker detachment doesn't race with worker cleanup, regression
 // test for https://crbug.com/810464.
 TEST_F(ThreadGroupImplImplStartInBodyTest, RacyCleanup) {
+#ifdef STARBOARD
+  const size_t kLocalMaxTasks = kSbMaxThreads;
+#else
   constexpr size_t kLocalMaxTasks = 256;
+#endif  // STARBOARD
   constexpr TimeDelta kReclaimTimeForRacyCleanupTest = Milliseconds(10);
 
   thread_group_->Start(kLocalMaxTasks, kLocalMaxTasks,

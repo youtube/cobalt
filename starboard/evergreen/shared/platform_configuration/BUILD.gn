@@ -48,7 +48,6 @@ config("platform_configuration") {
     # references, and remove this macro.
     "IN_MEMORY_UPDATES",
   ]
-  defines += []
 
   if (use_asan) {
     ldflags += [
