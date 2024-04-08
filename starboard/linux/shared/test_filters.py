@@ -17,32 +17,13 @@ import os
 
 from starboard.tools import paths
 from starboard.tools.testing import test_filter
-
-
 # pylint: disable=line-too-long
-_MODULAR_BUILD_FILTERED_TESTS = {
-    'nplb': [
-        'MultiplePlayerTests/*/*sintel_329_ec3_dmp*',
-        'MultiplePlayerTests/*/*sintel_381_ac3_dmp*',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_329_ec3_dmp_*',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_381_ac3_dmp_*',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_329_ec3_dmp_*',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_381_ac3_dmp_*',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
-    ],
-    'player_filter_tests': [test_filter.FILTER_ALL],
-}
-
 _FILTERED_TESTS = {
     'nplb': [
         # TODO(b/286249595): This test crashes when coverage is enabled.
         'SbMemoryMapTest.CanChangeMemoryProtection'
     ],
 }
-if os.getenv('MODULAR_BUILD', '0') == '1':
-  _FILTERED_TESTS = _MODULAR_BUILD_FILTERED_TESTS
 
 # Conditionally disables tests that require ipv6
 if os.getenv('IPV6_AVAILABLE', '1') == '0':
