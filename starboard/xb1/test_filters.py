@@ -25,6 +25,8 @@ _FILTERED_TESTS = {
         # Enable multiplayer tests once it's supported.
         'MultiplePlayerTests/*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*',
+        # TODO: b/333412348
+        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
     ],
     'player_filter_tests': [
         'PlayerComponentsTests/PlayerComponentsTest.*',
@@ -38,6 +40,16 @@ _FILTERED_TESTS = {
         'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/*c3*',
         'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/*c3*',
         'AudioDecoderTests/AudioDecoderTest.SingleInputHEAAC/*c3*',
+        # TODO: b/333416764
+        'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/type_ipv6_filter_ipv6',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
+        'SbSocketAddressTypes/SbSocketResolveTest.SunnyDayFiltered/filter_ipv6_type_ipv6',
+        # TODO: b/333412348
+        'VideoDecoderTests/VideoDecoderTest.SingleInput/beneath_the_canopy_248_vp9_dmp_DecodeToTexture',
+        'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/beneath_the_canopy_248_vp9_dmp_DecodeToTexture',
+        'VideoDecoderTests/VideoDecoderTest.MultipleResets/beneath_the_canopy_248_vp9_dmp_DecodeToTexture',
     ],
 }
 
