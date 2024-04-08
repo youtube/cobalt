@@ -31,13 +31,6 @@ int __abi_wrap_stat(const char* path, struct musl_stat* musl_info) {
   musl_info->st_mtim.tv_nsec = 0;
   musl_info->st_ctim.tv_sec = stat_info.st_ctime;
   musl_info->st_ctim.tv_nsec = 0;
-#elif defined(__APPLE__)
-  musl_info->st_atim.tv_sec = 0;
-  musl_info->st_atim.tv_nsec = 0;
-  musl_info->st_mtim.tv_sec = 0;
-  musl_info->st_mtim.tv_nsec = 0;
-  musl_info->st_ctim.tv_sec = 0;
-  musl_info->st_ctim.tv_nsec = 0;
 #else
   musl_info->st_atim.tv_sec = stat_info.st_atim.tv_sec;
   musl_info->st_atim.tv_nsec = stat_info.st_atim.tv_nsec;
