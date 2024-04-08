@@ -66,9 +66,9 @@ group("gn_all") {
   }
 
   if (!sb_is_evergreen) {
-    deps += [ "//third_party/lz4_lib:lz4" ]
-
     if (sb_is_evergreen_compatible) {
+      deps += [ "//third_party/lz4_lib:lz4" ]
+
       deps += [
         "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
         "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
