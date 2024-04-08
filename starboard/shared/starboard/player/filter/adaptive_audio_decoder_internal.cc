@@ -199,6 +199,8 @@ void AdaptiveAudioDecoder::ResetInternal() {
   flushing_ = false;
   stream_ended_ = false;
   first_output_received_ = false;
+  first_input_written_ = false;
+  output_format_checked_ = false;
 }
 
 void AdaptiveAudioDecoder::OnDecoderOutput() {
