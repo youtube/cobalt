@@ -69,4 +69,8 @@ config("platform_configuration") {
     # Enable GNU extensions to get prototypes like ffsl.
     "_GNU_SOURCE=1",
   ]
+
+  if (!cobalt_fastbuild) {
+    ldflags += [ "/DEBUG:FULL" ]
+  }
 }

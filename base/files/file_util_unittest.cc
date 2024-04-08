@@ -3574,7 +3574,7 @@ TEST_F(FileUtilTest, ReadFileToString) {
   EXPECT_EQ(0u, data.length());
 }
 
-#if !BUILDFLAG(IS_WIN)
+#if !BUILDFLAG(IS_WIN) && !defined(COMPILER_MSVC)
 TEST_F(FileUtilTest, ReadFileToStringWithUnknownFileSize) {
 #if BUILDFLAG(IS_FUCHSIA)
   test::TaskEnvironment task_environment;

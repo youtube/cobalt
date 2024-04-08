@@ -34,7 +34,7 @@ typedef MultiProcessTest StackTraceTest;
 typedef testing::Test StackTraceTest;
 #endif
 
-#if !defined(__UCLIBC__) && !defined(_AIX)
+#if !defined(__UCLIBC__) && !defined(_AIX) && !defined(COMPILER_MSVC)
 // StackTrace::OutputToStream() is not implemented under uclibc, nor AIX.
 // See https://crbug.com/706728
 

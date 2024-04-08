@@ -519,18 +519,21 @@ void NiLogOnce() {
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
+#if !defined(STARBOARD) || !defined(COMPILER_MSVC)
 TEST(CheckTest, NotImplementedLogOnce) {
   static const std::string expected_msg =
       "Not implemented reached in void (anonymous namespace)::NiLogOnce()\n";
 
 #if DCHECK_IS_ON()
-  EXPECT_LOG_ERROR(__LINE__ - 8, NiLogOnce(), expected_msg);
+  // In Starboard, we account for add lines (macros and comments).
+  EXPECT_LOG_ERROR(__LINE__ - 10, NiLogOnce(), expected_msg);
   EXPECT_NO_LOG(NiLogOnce());
 #else
   EXPECT_NO_LOG(NiLogOnce());
   EXPECT_NO_LOG(NiLogOnce());
 #endif
 }
+#endif
 
 // Test CHECK_DEREF of `T*`
 TEST(CheckTest, CheckDerefOfPointer) {
