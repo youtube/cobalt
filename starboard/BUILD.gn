@@ -67,8 +67,6 @@ group("gn_all") {
 
   if (!sb_is_evergreen) {
     if (sb_is_evergreen_compatible) {
-      deps += [ "//third_party/lz4_lib:lz4" ]
-
       deps += [
         "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
         "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
@@ -76,7 +74,10 @@ group("gn_all") {
       ]
 
       if (current_toolchain == starboard_toolchain) {
-        deps += [ "//third_party/crashpad/client" ]
+        deps += [
+          "//third_party/crashpad/client",
+          "//third_party/lz4_lib:lz4",
+        ]
         data_deps = [
           "//starboard/loader_app($starboard_toolchain)",
           "//third_party/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
