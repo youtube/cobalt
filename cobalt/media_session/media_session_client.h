@@ -61,19 +61,10 @@ class MediaSessionClient : public base::SupportsWeakPtr<MediaSessionClient> {
   // Invokes a given media session action
   // https://wicg.github.io/mediasession/#actions-model
   // Can be invoked from any thread.
-  void InvokeAction(CobaltExtensionMediaSessionAction action) {
-    std::unique_ptr<CobaltExtensionMediaSessionActionDetails> details(
-        new CobaltExtensionMediaSessionActionDetails());
-    CobaltExtensionMediaSessionActionDetailsInit(details.get(), action);
-    InvokeActionInternal(std::move(details));
-  }
+  void InvokeAction(const CobaltExtensionMediaSessionAction& action);
 
   // Invokes a given media session action that takes additional details.
-  void InvokeAction(CobaltExtensionMediaSessionActionDetails details) {
-    std::unique_ptr<CobaltExtensionMediaSessionActionDetails> details_ptr(
-        new CobaltExtensionMediaSessionActionDetails(details));
-    InvokeActionInternal(std::move(details_ptr));
-  }
+  void InvokeAction(const CobaltExtensionMediaSessionActionDetails& details);
 
   // Invoked on the browser thread when any metadata, position state, playback
   // state, or supported session actions change.
