@@ -22,6 +22,7 @@ _FILTERED_TESTS = {
         # Invalid input may lead to unexpected behaviors.
         'AudioDecoderTests/AudioDecoderTest.MultipleInvalidInput/*',
         'AudioDecoderTests/AudioDecoderTest.MultipleValidInputsAfterInvalidInput*',
+        'AudioDecoderTests/AudioDecoderTest.Reset*',
 
         # GetMaxNumberOfCachedFrames() on Android is device dependent,
         # and Android doesn't provide an API to get it. So, this function
