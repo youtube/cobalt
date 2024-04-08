@@ -2067,7 +2067,7 @@ void BrowserModule::ApplyAutoMemSettings() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ApplyAutoMemSettings()");
   auto_mem_.ConstructSettings(GetViewportSize().width_height(),
                               options_.command_line_auto_mem_settings,
-                              options_.build_auto_mem_settings);
+                              options_.config_api_auto_mem_settings);
 
   // Web Module options.
   options_.web_module_options.encoded_image_cache_capacity =
