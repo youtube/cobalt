@@ -19,9 +19,6 @@
 FILTER_ALL = 'FILTER_ALL'
 DISABLE_TESTING = 'DISABLE_TESTING'
 
-# TODO(b/309493306): Deprecated, will be removed
-EVERGREEN_ONLY_TESTS = {}
-
 # Tests added for Evergreen only
 EVERGREEN_TESTS = [
     'app_key_test', 'app_key_files_test', 'drain_file_test',
