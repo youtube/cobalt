@@ -38,7 +38,7 @@ runs:
         set -x
         docker_tag="${{ steps.meta.outputs.tags }}"
         docker_tag="${docker_tag%.1[+,-]}"
-        echo "DOCKER_TAG=${docker_tag}" >> $GITHUB_ENV
+        echo "DOCKER_TAG=${docker_tag}" | head -n 1 >> $GITHUB_ENV
       shell: bash
     # We need to set docker tag properly for pull requests.  In those scenarios where no docker related files
     # were changed we need to use an existing image (e.g. main).  In cases where docker image is rebuilt we have
