@@ -11,28 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
 
-#include <../ucrt/sys/stat.h>
+#include <sys/stat.h>
 
-#include <direct.h>
-
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#define S_ISLNK(mode) 0  // Windows doesn't support symbolic links
-#define S_ISDIR(mode) (((mode) & _S_IFMT) == (_S_IFDIR))
-
-typedef int mode_t;
-
-int sb_mkdir(const char* path, mode_t mode);
-#undef mkdir
-#define mkdir sb_mkdir
-
-#ifdef __cplusplus
+int sb_mkdir(const char* path, mode_t mode) {
+  return _mkdir(path);
 }
-#endif  // __cplusplus
 
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
+}  // extern "C"
