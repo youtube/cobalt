@@ -261,7 +261,16 @@ public class CobaltMediaSession
     }
     if (deactivating) {
       // Suspending lands here.
-      Log.i(TAG, "MediaSession release");
+      deactivateMediaSession();
+    }
+  }
+
+  public void deactivateMediaSession() {
+    Log.i(TAG, "MediaSession release");
+    if (mediaSession != null) {
+      if (mediaSession.isActive()) {
+        mediaSession.setActive(false);
+      }
       mediaSession.release();
       mediaSession = null;
     }
