@@ -249,7 +249,12 @@ void NetworkModule::RestartDialService() {
 }
 
 void NetworkModule::OnRestartDialService(base::WaitableEvent* creation_event) {
-  dial_service_.reset(new DialService());
+  // A new DialService instance cannot be created if any already exists
+  // since they will use the same address and it will cause some socket errors.
+  // Destroy existing service first.
+  dial_service_.reset();
+  // Create new dial service
+  dial_service_ = std::make_unique<DialService>();
   dial_service_proxy_->ReplaceDialService(dial_service_->AsWeakPtr());
   creation_event->Signal();
 }
