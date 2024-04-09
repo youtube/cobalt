@@ -46,8 +46,11 @@ void ScriptDebuggerAgent::Thaw(JSONObject agent_state) {
                                               base::Unretained(this)));
   }
   std::string script_debugger_state;
-  if (agent_state) {
-    script_debugger_state = *agent_state->FindString(kScriptDebuggerState);
+  if (!agent_state.empty()) {
+    auto* state_ptr = agent_state.FindString(kScriptDebuggerState);
+    if (state_ptr) {
+      script_debugger_state = *state_ptr;
+    }
   }
   script_debugger_->Attach(script_debugger_state);
 }
@@ -56,9 +59,9 @@ JSONObject ScriptDebuggerAgent::Freeze() {
   for (auto domain : supported_domains_) {
     dispatcher_->RemoveDomain(domain);
   }
-  JSONObject agent_state(new base::Value::Dict());
+  JSONObject agent_state;
   std::string script_debugger_state = script_debugger_->Detach();
-  agent_state->Set(kScriptDebuggerState, script_debugger_state);
+  agent_state.Set(kScriptDebuggerState, script_debugger_state);
   return agent_state;
 }
 
@@ -68,12 +71,12 @@ absl::optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
   // Use an internal ID to store the pending command until we get a response.
   int command_id = ++last_command_id_;
 
-  JSONObject message(new base::Value::Dict());
-  message->Set(kId, command_id);
-  message->Set(kMethod, command.GetMethod());
+  JSONObject message;
+  message.Set(kId, command_id);
+  message.Set(kMethod, command.GetMethod());
   JSONObject params = JSONParse(command.GetParams());
-  if (params) {
-    message->Set(kParams, std::move(*params));
+  if (!params.empty()) {
+    message.Set(kParams, std::move(params));
   }
 
   // Store the pending command before dispatching it so that we can find it if
@@ -99,8 +102,8 @@ void ScriptDebuggerAgent::SendCommandResponse(
 
   // Strip the internal ID from the response, and get its value.
   int command_id = 0;
-  command_id = *response->FindInt(kId);
-  response->Remove(kId);
+  command_id = *response.FindInt(kId);
+  response.Remove(kId);
 
   // Use the stripped ID to lookup the command it's a response for.
   auto iter = pending_commands_.find(command_id);
@@ -116,14 +119,14 @@ void ScriptDebuggerAgent::SendEvent(const std::string& json_event) {
   JSONObject event = JSONParse(json_event);
 
   std::string method;
-  method = *event->FindString(kMethod);
+  method = *(event.FindString(kMethod));
 
   JSONObject params;
   base::Value value(base::Value::Type::DICT);
   base::Value::Dict* dict_value = value.GetIfDict();
-  if (event->Find(kParams)->is_dict()) {
-    dict_value = event->FindDict(kParams);
-    params.reset(base::Value::ToUniquePtrValue(std::move(value))->GetIfDict());
+  if (event.Find(kParams)->is_dict()) {
+    dict_value = event.FindDict(kParams);
+    params = dict_value->Clone();
   }
 
   dispatcher_->SendEvent(method, params);

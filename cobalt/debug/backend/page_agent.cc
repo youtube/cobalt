@@ -65,15 +65,15 @@ void PageAgent::Reload(Command command) {
 void PageAgent::GetResourceTree(Command command) {
   if (!EnsureEnabled(&command)) return;
 
-  JSONObject response(std::make_unique<base::Value::Dict>());
+  JSONObject response;
   base::Value::Dict frame;
   frame.Set("id", "Cobalt");
   frame.Set("loaderId", "Cobalt");
   frame.Set("mimeType", "text/html");
   frame.Set("securityOrigin", window_->document()->url());
   frame.Set("url", window_->document()->url());
-  response->Set("result.frameTree.frame", std::move(frame));
-  response->Set("result.frameTree.resources", base::Value::List());
+  response.Set("result.frameTree.frame", std::move(frame));
+  response.Set("result.frameTree.resources", base::Value::List());
   command.SendResponse(response);
 }
 
@@ -83,8 +83,8 @@ void PageAgent::SetOverlayMessage(Command command) {
   std::string message;
   JSONObject params = JSONParse(command.GetParams());
   bool got_message = false;
-  if (params) {
-    std::string* message_ptr = params->FindString("message");
+  if (!params.empty()) {
+    std::string* message_ptr = params.FindString("message");
     if (message_ptr) {
       message = *message_ptr;
       got_message = true;

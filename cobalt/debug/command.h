@@ -99,9 +99,9 @@ class Command {
 
   void SendErrorResponse(ErrorCode error_code,
                          const std::string& error_message) {
-    JSONObject error_response(new base::Value::Dict());
-    error_response->Set("error.code", error_code);
-    error_response->Set("error.message", error_message);
+    JSONObject error_response;
+    error_response.Set("error.code", error_code);
+    error_response.Set("error.message", error_message);
     SendResponse(error_response);
   }
 
