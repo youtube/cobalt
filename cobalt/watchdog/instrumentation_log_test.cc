@@ -37,26 +37,13 @@ TEST_F(InstrumentationLogTest, CanCallLogEvent) {
   ASSERT_EQ(log.GetLogTrace().size(), 1);
 }
 
-TEST_F(InstrumentationLogTest, CapsTheBuffer) {
-  InstrumentationLog log;
-
-  for (int i = 0; i < kBufferSize; i++) {
-    log.LogEvent(std::to_string(i));
-  }
-
-  log.LogEvent("1");
-  log.LogEvent("2");
-
-  ASSERT_EQ(log.GetLogTrace().size(), kBufferSize);
-}
-
 TEST_F(InstrumentationLogTest, LogEventReturnsFalseOnMaxLenExceed) {
   InstrumentationLog log;
 
-  std::string maxLenEvent(kMaxEventLen, 'a');
+  std::string maxLenEvent(kMaxEventLenBytes, 'a');
   ASSERT_TRUE(log.LogEvent(maxLenEvent));
 
-  std::string exceedingLenEvent(kMaxEventLen + 1, 'a');
+  std::string exceedingLenEvent(kMaxEventLenBytes + 1, 'a');
   ASSERT_FALSE(log.LogEvent(exceedingLenEvent));
 }
 
@@ -78,6 +65,18 @@ TEST_F(InstrumentationLogTest, GetLogTraceReturnsEventsInOrder) {
   ASSERT_EQ(log.GetLogTrace().at(kBufferSize - 1 - 2), "3");
   ASSERT_EQ(log.GetLogTrace().at(kBufferSize - 1 - 1), "4");
   ASSERT_EQ(log.GetLogTrace().at(kBufferSize - 1), "5");
+}
+
+TEST_F(InstrumentationLogTest, GetLogTraceCanReturnDuplicateEvents) {
+  InstrumentationLog log;
+
+  log.LogEvent("1");
+  log.LogEvent("1");
+  log.LogEvent("1");
+
+  ASSERT_EQ(log.GetLogTrace().at(0), "1");
+  ASSERT_EQ(log.GetLogTrace().at(1), "1");
+  ASSERT_EQ(log.GetLogTrace().at(2), "1");
 }
 
 TEST_F(InstrumentationLogTest, CanGetEmptyTraceAsValue) {

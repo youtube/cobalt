@@ -21,15 +21,13 @@ namespace cobalt {
 namespace watchdog {
 
 bool InstrumentationLog::LogEvent(const std::string& event) {
-  if (event.length() > kMaxEventLen) {
-    SB_DLOG(ERROR) << "[Watchdog] Log event exceeds max: " << kMaxEventLen;
+  if (event.length() > kMaxEventLenBytes) {
+    SB_DLOG(ERROR) << "[Watchdog] Log event exceeds max: " << kMaxEventLenBytes;
     return false;
   }
 
   starboard::ScopedLock scoped_lock(buffer_mutex_);
-  if (buffer_.CurrentIndex() == 0 || event != **(buffer_.End())) {
-    buffer_.SaveToBuffer(event);
-  }
+  buffer_.SaveToBuffer(event);
 
   return true;
 }

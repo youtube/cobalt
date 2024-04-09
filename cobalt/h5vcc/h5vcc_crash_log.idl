@@ -116,7 +116,7 @@ interface H5vccCrashLog {
   // Max event length is 256. Ring buffer size is 128.
   boolean logEvent(DOMString event);
 
-  // Returns a snapshot(a "logTrace") of ring buffer of log events.
+  // Returns a snapshot (a "logTrace") of ring buffer of log events.
   // This can be used to read a logTrace at arbitrary moment,
   // without any violation.
   sequence<DOMString> getLogTrace();

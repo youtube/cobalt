@@ -199,7 +199,9 @@ script::Sequence<std::string> H5vccCrashLog::GetLogTrace() {
 
 void H5vccCrashLog::ClearLog() {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) watchdog->ClearLog();
+  if (watchdog) {
+    watchdog->ClearLog();
+  }
 }
 
 }  // namespace h5vcc

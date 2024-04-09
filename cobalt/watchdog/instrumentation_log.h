@@ -26,7 +26,7 @@ namespace cobalt {
 namespace watchdog {
 
 constexpr int kBufferSize = 128;
-constexpr int kMaxEventLen = 256;
+constexpr int kMaxEventLenBytes = 256;
 
 // Wrapper class on top of base::RingBuffer for tracking log events emitted
 // through logEvent() h5vcc API. There's an optimization: identical sequential

@@ -653,6 +653,41 @@ TEST_F(WatchdogTest, CanClearLog) {
   ASSERT_EQ(watchdog_->GetLogTrace().size(), 0);
 }
 
+TEST_F(WatchdogTest, ViolationContainsLogTrace) {
+  watchdog_->Register("test-name", "test-desc", base::kApplicationStateStarted,
+                      kWatchdogMonitorFrequency);
+  watchdog_->Ping("test-name", "test-ping");
+
+  watchdog_->LogEvent("1");
+  watchdog_->LogEvent("2");
+  watchdog_->LogEvent("3");
+
+  SbThreadSleep(kWatchdogSleepDuration);
+
+  std::string json = watchdog_->GetWatchdogViolations();
+  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
+  base::Value* violations =
+      violations_map->FindKey("test-name")->FindKey("violations");
+  base::Value* logTrace = violations->GetList()[0].FindKey("logTrace");
+
+  ASSERT_EQ(logTrace->GetList().size(), 3);
+}
+
+TEST_F(WatchdogTest, ViolationContainsEmptyLogTrace) {
+  watchdog_->Register("test-name", "test-desc", base::kApplicationStateStarted,
+                      kWatchdogMonitorFrequency);
+  watchdog_->Ping("test-name", "test-ping");
+
+  SbThreadSleep(kWatchdogSleepDuration);
+
+  std::string json = watchdog_->GetWatchdogViolations();
+  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
+  base::Value* violations =
+      violations_map->FindKey("test-name")->FindKey("violations");
+  base::Value* logTrace = violations->GetList()[0].FindKey("logTrace");
+
+  ASSERT_EQ(logTrace->GetList().size(), 0);
+}
 
 }  // namespace watchdog
 }  // namespace cobalt
