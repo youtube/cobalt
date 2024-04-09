@@ -19,7 +19,9 @@
 namespace starboard {
 namespace shared {
 
-const void* GetPlatformServiceApi();
+#define kSoftMicPlatformServiceName "com.google.youtube.tv.SoftMic"
+
+const void* GetSoftMicPlatformServiceApi();
 
 }  // namespace shared
 }  // namespace starboard
