@@ -129,12 +129,17 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'pthread_condattr_getclock',
     'pthread_condattr_init',
     'pthread_condattr_setclock',
+    'pthread_create',
+    'pthread_detach',
+    'pthread_equal',
+    'pthread_join',
     'pthread_mutex_destroy',
     'pthread_mutex_init',
     'pthread_mutex_lock',
     'pthread_mutex_unlock',
     'pthread_mutex_trylock',
     'pthread_once',
+    'pthread_self',
     'mkdir',
 ]
 
