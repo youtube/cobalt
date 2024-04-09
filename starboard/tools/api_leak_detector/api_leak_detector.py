@@ -136,6 +136,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'pthread_mutex_unlock',
     'pthread_mutex_trylock',
     'pthread_once',
+    'mkdir',
 ]
 
 

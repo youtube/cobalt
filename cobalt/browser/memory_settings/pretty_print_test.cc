@@ -74,7 +74,7 @@ TEST(MemorySettingsPrettyPrint, GeneratePrettyPrintTable) {
 
 TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithUnsetGpuMemory) {
   IntSetting cpu_memory_setting("max_cpu_memory");
-  cpu_memory_setting.set_value(MemorySetting::kBuildSetting, 256 * 1024 * 1024);
+  cpu_memory_setting.set_value(MemorySetting::kStarboardAPI, 256 * 1024 * 1024);
   IntSetting gpu_memory_setting("max_gpu_memory");
 
   std::string actual_output =
@@ -87,16 +87,16 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithUnsetGpuMemory) {
   // clang-format off
   EXPECT_TRUE(HasTokensInOrder(
       actual_output, {"MEMORY", "SOURCE", "TOTAL", "SETTINGS CONSUME", "\n",
-                      "max_cpu_memory", "Build", "256.0 MB", "128.0 MB", "\n",
+                      "max_cpu_memory", "Starboard API", "256.0 MB", "128.0 MB", "\n",
                       "max_gpu_memory", "Unset", "<UNKNOWN>", "0.0 MB", "\n"}));
   // clang-format on
 }
 
 TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithGpuMemory) {
   IntSetting cpu_memory_setting("max_cpu_memory");
-  cpu_memory_setting.set_value(MemorySetting::kBuildSetting, 256 * 1024 * 1024);
+  cpu_memory_setting.set_value(MemorySetting::kStarboardAPI, 256 * 1024 * 1024);
   IntSetting gpu_memory_setting("max_gpu_memory");
-  gpu_memory_setting.set_value(MemorySetting::kBuildSetting, 64 * 1024 * 1024);
+  gpu_memory_setting.set_value(MemorySetting::kStarboardAPI, 64 * 1024 * 1024);
 
   std::string actual_output =
       GenerateMemoryTable(false,               // No color.
@@ -108,14 +108,14 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithGpuMemory) {
   // clang-format off
   EXPECT_TRUE(HasTokensInOrder(
       actual_output, {"MEMORY", "SOURCE", "TOTAL", "SETTINGS CONSUME", "\n",
-                      "max_cpu_memory", "Build", "256.0 MB", "128.0 MB", "\n",
-                      "max_gpu_memory", "Build", "64.0 MB", "22.5 MB", "\n"}));
+                      "max_cpu_memory", "Starboard API", "256.0 MB", "128.0 MB", "\n",
+                      "max_gpu_memory", "Starboard API", "64.0 MB", "22.5 MB", "\n"}));
   // clang-format on
 }
 
 TEST(MemorySettingsPrettyPrint, GenerateMemoryWithInvalidGpuMemoryConsumption) {
   IntSetting cpu_memory_setting("max_cpu_memory");
-  cpu_memory_setting.set_value(MemorySetting::kBuildSetting, 256 * 1024 * 1024);
+  cpu_memory_setting.set_value(MemorySetting::kStarboardAPI, 256 * 1024 * 1024);
   IntSetting gpu_memory_setting("max_gpu_memory");
   gpu_memory_setting.set_value(MemorySetting::kStarboardAPI, 0);
 
@@ -130,7 +130,7 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryWithInvalidGpuMemoryConsumption) {
   // clang-format off
   EXPECT_TRUE(HasTokensInOrder(
       actual_output, {"MEMORY", "SOURCE", "TOTAL", "SETTINGS CONSUME", "\n",
-                      "max_cpu_memory", "Build", "256.0 MB", "128.0 MB", "\n",
+                      "max_cpu_memory", "Starboard API", "256.0 MB", "128.0 MB", "\n",
                       "max_gpu_memory", "Starboard API", "<UNKNOWN>", "16.0 MB", "\n"  // NOLINT(whitespace/line_length)
                      }));
   // clang-format on

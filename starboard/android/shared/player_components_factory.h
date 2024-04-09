@@ -70,6 +70,11 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 // video distortion on some platforms.
 constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 
+// By default, Cobalt recreates MediaCodec when Reset() during Seek().
+// Set the following variable to true to force it Flush() MediaCodec
+// during Seek().
+constexpr bool kForceFlushDecoderDuringReset = false;
+
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
@@ -221,12 +226,28 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       }
     }
 
+    bool enable_flush_during_seek = false;
+    if (!creation_parameters.video_mime().empty()) {
+      MimeType video_mime_type(creation_parameters.video_mime());
+      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+        enable_flush_during_seek =
+            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+      }
+    }
+
+    if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
+      SB_LOG(INFO)
+          << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
+          << " audio passthrough decoder during Reset().";
+      enable_flush_during_seek = true;
+    }
+
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
     scoped_ptr<AudioRendererPassthrough> audio_renderer;
-    audio_renderer.reset(
-        new AudioRendererPassthrough(creation_parameters.audio_stream_info(),
-                                     creation_parameters.drm_system()));
+    audio_renderer.reset(new AudioRendererPassthrough(
+        creation_parameters.audio_stream_info(),
+        creation_parameters.drm_system(), enable_flush_during_seek));
     if (!audio_renderer->is_valid()) {
       return scoped_ptr<PlayerComponents>();
     }
@@ -297,7 +318,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     MimeType video_mime_type(video_mime);
     if (!video_mime.empty()) {
       if (!video_mime_type.is_valid() ||
-          !video_mime_type.ValidateBoolParameter("tunnelmode")) {
+          !video_mime_type.ValidateBoolParameter("tunnelmode") ||
+          !video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
         *error_message =
             "Invalid video MIME: '" + std::string(video_mime) + "'";
         return false;
@@ -358,13 +380,30 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << tunnel_mode_audio_session_id << '.';
     }
 
+    bool enable_flush_during_seek =
+        video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+    SB_LOG(INFO) << "Flush MediaCodec during Reset(): "
+                 << (enable_flush_during_seek ? "enabled. " : "disabled. ")
+                 << "Video mime parameter \"enableflushduringseek\" value: "
+                 << video_mime_type.GetParamStringValue("enableflushduringseek",
+                                                        "<not provided>")
+                 << ".";
+
+    if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
+      SB_LOG(INFO)
+          << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
+          << " audio decoder during Reset().";
+      enable_flush_during_seek = true;
+    }
+
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
       using starboard::shared::starboard::media::AudioStreamInfo;
-      auto decoder_creator = [](const AudioStreamInfo& audio_stream_info,
-                                SbDrmSystem drm_system) {
+      auto decoder_creator = [enable_flush_during_seek](
+                                 const AudioStreamInfo& audio_stream_info,
+                                 SbDrmSystem drm_system) {
         bool use_libopus_decoder =
             audio_stream_info.codec == kSbMediaAudioCodecOpus &&
             !SbDrmSystemIsValid(drm_system) && !kForcePlatformOpusDecoder;
@@ -376,8 +415,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          scoped_ptr<AudioDecoder> audio_decoder_impl(
-              new AudioDecoder(audio_stream_info, drm_system));
+          scoped_ptr<AudioDecoder> audio_decoder_impl(new AudioDecoder(
+              audio_stream_info, drm_system, enable_flush_during_seek));
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoderBase>();
           }
@@ -470,6 +509,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       int max_video_input_size,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
+    bool enable_flush_during_seek = false;
     if (!creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
       // missing or invalid it defaults to Little Endian.
@@ -480,6 +520,16 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           video_mime_type.GetParamStringValue("hdrinfoendianness",
                                               /*default=*/"little");
       force_big_endian_hdr_metadata = hdr_info_endianness == "big";
+
+      video_mime_type.ValidateBoolParameter("enableflushduringseek");
+      enable_flush_during_seek =
+          video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+    }
+    if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
+      SB_LOG(INFO)
+          << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
+          << " video decoder during Reset().";
+      enable_flush_during_seek = true;
     }
 
     scoped_ptr<VideoDecoder> video_decoder(new VideoDecoder(
@@ -489,7 +539,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         kForceResetSurfaceUnderTunnelMode, force_big_endian_hdr_metadata,
-        max_video_input_size, error_message));
+        max_video_input_size, enable_flush_during_seek, error_message));
     if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
         video_decoder->is_decoder_created()) {
       return video_decoder.Pass();

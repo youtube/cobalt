@@ -69,9 +69,10 @@ int sb_setsockopt(int socket,
                   int option_len);
 #define setsockopt sb_setsockopt
 
+// //
 // http://refspecs.linux-foundation.org/LSB_4.0.0/LSB-Core-generic/LSB-Core-generic/baselib---errno-location.html
-int* sb_errno_location(void);
-#define __errno_location sb_errno_location
+// int* sb_errno_location(void);
+// #define __errno_location sb_errno_location
 
 #ifdef __cplusplus
 }

@@ -145,12 +145,12 @@ SbPlayer DefaultSbPlayerInterface::CreateUrlPlayer(
         encrypted_media_init_data_encountered_cb,
     SbPlayerErrorFunc player_error_func, void* context) {
   media_metrics_provider_.StartTrackingAction(
-      MediaAction::SBPLAYER_CREATE_URLPLAYER);
+      MediaAction::SBPLAYER_CREATE_URL_PLAYER);
   auto player = SbUrlPlayerCreate(url, window, player_status_func,
                                   encrypted_media_init_data_encountered_cb,
                                   player_error_func, context);
   media_metrics_provider_.EndTrackingAction(
-      MediaAction::SBPLAYER_CREATE_URLPLAYER);
+      MediaAction::SBPLAYER_CREATE_URL_PLAYER);
   return player;
 }
 

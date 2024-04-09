@@ -14,11 +14,14 @@
 """Starboard Linux X64 X11 platform configuration."""
 
 from starboard.linux.shared import gyp_configuration as shared_configuration
+from starboard.tools.testing import test_filter
 
 
 class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
   """Starboard Linux X64 X11 platform configuration."""
-  pass
+
+  def GetTestTargets(self):
+    return test_filter.EVERGREEN_COMPATIBLE_TESTS + super().GetTestTargets()
 
 
 def CreatePlatformConfig():

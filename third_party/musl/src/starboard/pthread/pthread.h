@@ -108,7 +108,22 @@ typedef union pthread_condattr_t {
   void* ptr;
 } pthread_condattr_t;
 
+// Max size of the native conditional attribute type.
+#define MUSL_PTHREAD_ATTR_MAX_SIZE 80
+
+// An opaque handle to a native attribute type with reserved memory
+// buffer aligned at void  pointer type.
+typedef union pthread_attr_t {
+  // Reserved memory in which the implementation should map its
+  // native attribute type.
+  uint8_t attr_buffer[MUSL_PTHREAD_ATTR_MAX_SIZE];
+
+  // Guarantees alignment of the type to a void pointer.
+  void* ptr;
+} pthread_attr_t;
+
 typedef int clockid_t;
+typedef void* pthread_t;
 
 // Max size of the pthread_once_t type.
 #define MUSL_PTHREAD_ONCE_MAX_SIZE 64
@@ -160,6 +175,15 @@ int pthread_condattr_init(pthread_condattr_t* attr);
 int pthread_condattr_setclock(pthread_condattr_t* attr, clockid_t clock_id);
 
 int pthread_once(pthread_once_t* once_control, void (*init_routine)(void));
+
+int pthread_create(pthread_t* thread,
+                   const pthread_attr_t* attr,
+                   void* (*start_routine)(void*),
+                   void* arg);
+int pthread_join(pthread_t thread, void** value_ptr);
+int pthread_detach(pthread_t thread);
+pthread_t pthread_self();
+int pthread_equal(pthread_t t1, pthread_t t2);
 
 #ifdef __cplusplus
 }  // extern "C"

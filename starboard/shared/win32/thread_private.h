@@ -104,6 +104,14 @@ class SbThreadPrivate {
 // Obtains the current thread's SbThreadPrivate* from thread-local storage.
 SbThreadPrivate* GetCurrentSbThreadPrivate();
 
+class ThreadCreateInfo {
+ public:
+  SbThreadPrivate thread_private_;
+  SbThreadEntryPoint entry_point_;
+  void* user_context_;
+  std::string name_;
+};
+
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard

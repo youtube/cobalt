@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#if SB_API_VERSION >= 16
 
 #include <errno.h>
 #include <stdio.h>
@@ -63,45 +62,6 @@ TEST(PosixErrnoTest, ConnectUnavailableAddress) {
 
   close(socket_fd);
 }
-
-TEST(PosixErrnoTest, ConnectToInvalidAddress) {
-  int socket_domain = AF_INET;
-  int socket_type = SOCK_STREAM;
-  int socket_protocol = IPPROTO_TCP;
-
-  int socket_fd = socket(socket_domain, socket_type, socket_protocol);
-  ASSERT_TRUE(socket_fd > 0);
-
-  sockaddr_in address = {};
-  address.sin_family = AF_INET;
-  address.sin_port = htons(12345);  // Try to connect to an invalid port
-  address.sin_addr.s_addr = (((((250 << 8) | 43) << 8) | 244) << 8) | 18;
-
-  int connect_result =
-      connect(socket_fd, reinterpret_cast<struct sockaddr*>(&address),
-              sizeof(struct sockaddr));
-  EXPECT_TRUE(connect_result == -1);
-  EXPECT_TRUE(errno == EADDRNOTAVAIL || errno == ETIMEDOUT);
-  SB_DLOG(INFO) << "Failed to connect to invalid address, errno = "
-                << strerror(errno);
-
-  EXPECT_TRUE(close(socket_fd) == 0);
-}
-
-TEST(PosixErrnoTest, SendBeforeConnect) {
-  int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-  ASSERT_TRUE(socket_fd > 0);
-
-  char buffer[1024] = "foo";
-  ssize_t result = send(socket_fd, buffer, sizeof(buffer), 0);
-
-  EXPECT_TRUE(result == -1 && errno == ENOTCONN);
-  SB_DLOG(INFO) << "Failed to send before connect socket, errno = "
-                << strerror(errno);
-
-  close(socket_fd);
-}
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 16

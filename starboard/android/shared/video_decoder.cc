@@ -357,6 +357,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool force_reset_surface_under_tunnel_mode,
                            bool force_big_endian_hdr_metadata,
                            int max_video_input_size,
+                           bool enable_flush_during_seek,
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -374,7 +375,8 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       surface_condition_variable_(surface_destroy_mutex_),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
-      number_of_preroll_frames_(kInitialPrerollFrameCount) {
+      number_of_preroll_frames_(kInitialPrerollFrameCount),
+      enable_flush_during_seek_(enable_flush_during_seek) {
   SB_DCHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -599,16 +601,28 @@ void VideoDecoder::WriteEndOfStream() {
 void VideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  TeardownCodec();
+  // If fail to flush |media_decoder_|, then re-create |media_decoder_|.
+  if (!enable_flush_during_seek_ || !media_decoder_->Flush()) {
+    TeardownCodec();
+
+    input_buffer_written_ = 0;
+
+    // If the codec is kSbMediaVideoCodecAv1,
+    // set video_fps_ to 0 will call InitializeCodec(),
+    // which we do not need if flush the codec.
+    video_fps_ = 0;
+  }
   CancelPendingJobs();
+
+  // TODO(b/291959069): After flush |media_decoder_|, the output buffers
+  // may have invalid frames. Reset |output_format_| to null here to skip max
+  // output buffers check.
+  decoded_output_frames_ = 0;
+  output_format_ = starboard::nullopt;
 
   tunnel_mode_prerolling_.store(true);
   tunnel_mode_frame_rendered_.store(false);
-  input_buffer_written_ = 0;
-  decoded_output_frames_ = 0;
-  output_format_ = starboard::nullopt;
   end_of_stream_written_ = false;
-  video_fps_ = 0;
   pending_input_buffers_.clear();
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside

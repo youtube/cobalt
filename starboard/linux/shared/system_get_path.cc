@@ -46,7 +46,7 @@ bool GetCacheDirectory(char* out_path, int path_size) {
     out_path[0] = '\0';
     return false;
   }
-  return SbDirectoryCreate(out_path);
+  return mkdir(out_path, 0700) == 0 || SbDirectoryCanOpen(out_path);
 }
 
 // Gets the path to the storage directory, using the home directory.
@@ -62,7 +62,7 @@ bool GetStorageDirectory(char* out_path, int path_size) {
     out_path[0] = '\0';
     return false;
   }
-  return SbDirectoryCreate(out_path);
+  return mkdir(out_path, 0700) == 0 || SbDirectoryCanOpen(out_path);
 }
 
 // Places up to |path_size| - 1 characters of the path to the current
@@ -214,7 +214,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (starboard::strlcat(path.data(), "/cobalt", kPathSize) >= kPathSize) {
         return false;
       }
-      if (!SbDirectoryCreate(path.data())) {
+      if (mkdir(path.data(), 0700) != 0 && !SbDirectoryCanOpen(path.data())) {
         return false;
       }
       break;
@@ -227,14 +227,14 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (starboard::strlcat(path.data(), "/log", kPathSize) >= kPathSize) {
         return false;
       }
-      SbDirectoryCreate(path.data());
+      mkdir(path.data(), 0700);
       break;
 
     case kSbSystemPathTempDirectory:
       if (!GetTemporaryDirectory(path.data(), kPathSize)) {
         return false;
       }
-      SbDirectoryCreate(path.data());
+      mkdir(path.data(), 0700);
       break;
 
 #if SB_API_VERSION < 14

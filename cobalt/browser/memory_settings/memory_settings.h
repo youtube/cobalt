@@ -45,7 +45,6 @@ class MemorySetting {
   enum SourceType {
     kUnset,
     kStarboardAPI,
-    kBuildSetting,
     kCmdLine,
     kAutoSet,
     kAutosetConstrained

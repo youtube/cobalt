@@ -40,4 +40,4 @@ int *__errno_location(void) {
 }
 
 weak_alias(__errno_location, ___errno_location);
-#endif
+#endif // SB_API_VERSION < 16

@@ -100,11 +100,10 @@ static void set_errno() {
   int sockError = 0;
 
   // The error codes returned by Windows Sockets are similar to UNIX socket
-  // error
-  // code constants, but the constants are all prefixed with WSA. So in Winsock
-  // applications the WSAEWOULDBLOCK error code would be returned, while in UNIX
-  // applications the EWOULDBLOCK error code would be returned.
-  // The errno values in a WIN32 are a subset of the values for errno in UNIX
+  // error code constants, but the constants are all prefixed with WSA. So in
+  // Winsock applications the WSAEWOULDBLOCK error code would be returned, while
+  // in UNIX applications the EWOULDBLOCK error code would be returned. The
+  // errno values in a WIN32 are a subset of the values for errno in UNIX
   // systems.
   switch (winsockError) {
     case WSAEINTR:  // Interrupted function call
@@ -275,11 +274,11 @@ int close(int fd) {
   if (!handle.is_file && handle.socket == INVALID_SOCKET) {
     return -1;
   } else if (!handle.is_file) {
-    int iResult = closesocket(handle.socket);
-    if (iResult == SOCKET_ERROR) {
+    int result = closesocket(handle.socket);
+    if (result == SOCKET_ERROR) {
       set_errno();
     }
-    return iResult;
+    return result;
   }
 
   // This is then a file handle, so use Windows `_close` API.
@@ -292,11 +291,11 @@ int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
     return -1;
   }
 
-  int iResult = bind(socket_handle, address, address_len);
-  if (iResult == SOCKET_ERROR) {
+  int result = bind(socket_handle, address, address_len);
+  if (result == SOCKET_ERROR) {
     set_errno();
   }
-  return iResult;
+  return result;
 }
 
 int sb_listen(int socket, int backlog) {
@@ -305,11 +304,11 @@ int sb_listen(int socket, int backlog) {
     return -1;
   }
 
-  int iResult = listen(socket_handle, backlog);
-  if (iResult == SOCKET_ERROR) {
+  int result = listen(socket_handle, backlog);
+  if (result == SOCKET_ERROR) {
     set_errno();
   }
-  return iResult;
+  return result;
 }
 
 int sb_accept(int socket, sockaddr* addr, int* addrlen) {
@@ -334,11 +333,11 @@ int sb_connect(int socket, sockaddr* name, int namelen) {
     return -1;
   }
 
-  int iResult = connect(socket_handle, name, namelen);
-  if (iResult == SOCKET_ERROR) {
+  int result = connect(socket_handle, name, namelen);
+  if (result == SOCKET_ERROR) {
     set_errno();
   }
-  return iResult;
+  return result;
 }
 
 int sb_send(int sockfd, const void* buf, size_t len, int flags) {
@@ -347,12 +346,12 @@ int sb_send(int sockfd, const void* buf, size_t len, int flags) {
     return -1;
   }
 
-  int iResult =
+  int result =
       send(socket_handle, reinterpret_cast<const char*>(buf), len, flags);
-  if (iResult == SOCKET_ERROR) {
+  if (result == SOCKET_ERROR) {
     set_errno();
   }
-  return iResult;
+  return result;
 }
 
 int sb_recv(int sockfd, void* buf, size_t len, int flags) {
@@ -361,11 +360,11 @@ int sb_recv(int sockfd, void* buf, size_t len, int flags) {
     return -1;
   }
 
-  int iResult = recv(socket_handle, reinterpret_cast<char*>(buf), len, flags);
-  if (iResult == SOCKET_ERROR) {
+  int result = recv(socket_handle, reinterpret_cast<char*>(buf), len, flags);
+  if (result == SOCKET_ERROR) {
     set_errno();
   }
-  return iResult;
+  return result;
 }
 
 int sb_sendto(int sockfd,
@@ -379,12 +378,12 @@ int sb_sendto(int sockfd,
     return -1;
   }
 
-  int iResult = sendto(socket_handle, reinterpret_cast<const char*>(buf), len,
-                       flags, dest_addr, dest_len);
-  if (iResult == SOCKET_ERROR) {
+  int result = sendto(socket_handle, reinterpret_cast<const char*>(buf), len,
+                      flags, dest_addr, dest_len);
+  if (result == SOCKET_ERROR) {
     set_errno();
   }
-  return iResult;
+  return result;
 }
 
 int sb_recvfrom(int sockfd,
@@ -398,12 +397,12 @@ int sb_recvfrom(int sockfd,
     return -1;
   }
 
-  int iResult = recvfrom(socket_handle, reinterpret_cast<char*>(buf), len,
-                         flags, address, address_len);
-  if (iResult == SOCKET_ERROR) {
+  int result = recvfrom(socket_handle, reinterpret_cast<char*>(buf), len, flags,
+                        address, address_len);
+  if (result == SOCKET_ERROR) {
     set_errno();
   }
-  return iResult;
+  return result;
 }
 
 int sb_setsockopt(int socket,
@@ -417,13 +416,13 @@ int sb_setsockopt(int socket,
     return -1;
   }
 
-  int iResult =
+  int result =
       setsockopt(handle.socket, level, option_name,
                  reinterpret_cast<const char*>(option_value), option_len);
-  if (iResult == SOCKET_ERROR) {
+  if (result == SOCKET_ERROR) {
     set_errno();
   }
-  return iResult;
+  return result;
 }
 
 int sb_fcntl(int fd, int cmd, ... /*arg*/) {

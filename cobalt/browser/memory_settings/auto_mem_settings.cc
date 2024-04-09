@@ -188,8 +188,8 @@ bool Set(const base::CommandLine& command_line,
 }
 }  // namespace
 
-AutoMemSettings GetDefaultBuildSettings() {
-  AutoMemSettings settings(AutoMemSettings::kTypeBuild);
+AutoMemSettings GetDefaultConfigSettings() {
+  AutoMemSettings settings(AutoMemSettings::kTypeConfig);
   configuration::Configuration* config =
       configuration::Configuration::GetInstance();
 

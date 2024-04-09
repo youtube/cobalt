@@ -715,7 +715,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   options.persistent_settings = persistent_settings_.get();
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
-  options.build_auto_mem_settings = memory_settings::GetDefaultBuildSettings();
+  options.config_api_auto_mem_settings =
+      memory_settings::GetDefaultConfigSettings();
   options.fallback_splash_screen_url = fallback_splash_screen_url;
 
   ParseFallbackSplashScreenTopics(fallback_splash_screen_url,

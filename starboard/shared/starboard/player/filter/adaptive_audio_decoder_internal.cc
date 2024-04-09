@@ -80,6 +80,9 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(input_buffers.front()->audio_stream_info().codec !=
             kSbMediaAudioCodecNone);
 
+  if (!first_input_written_) {
+    first_input_written_ = true;
+  }
   if (!audio_decoder_) {
     InitializeAudioDecoder(input_buffers.front()->audio_stream_info());
     if (audio_decoder_) {
@@ -118,7 +121,7 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(!pending_consumed_cb_);
 
   stream_ended_ = true;
-  if (audio_decoder_) {
+  if (first_input_written_) {
     audio_decoder_->WriteEndOfStream();
   } else {
     decoded_audios_.push(new DecodedAudio);
@@ -183,6 +186,7 @@ void AdaptiveAudioDecoder::TeardownAudioDecoder() {
   audio_decoder_.reset();
   resampler_.reset();
   channel_mixer_.reset();
+  first_input_written_ = false;
 }
 
 void AdaptiveAudioDecoder::ResetInternal() {

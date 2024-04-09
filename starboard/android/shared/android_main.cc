@@ -183,7 +183,8 @@ std::string ExtractCertificatesToFileSystem() {
 
   std::string file_system_path(file_system_path_buffer.data());
   file_system_path.append(std::string(kSbFileSepString) + "certs");
-  if (!SbDirectoryCreate(file_system_path.c_str())) {
+  if (mkdir(file_system_path.c_str(), 0700) &&
+      !SbDirectoryCanOpen(file_system_path.c_str())) {
     SB_LOG(WARNING) << "Failed to create new dir for CA certificates";
     return "";
   }

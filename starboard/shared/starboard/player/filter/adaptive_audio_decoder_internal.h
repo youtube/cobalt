@@ -90,6 +90,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   bool stream_ended_ = false;
   bool first_output_received_ = false;
   bool output_format_checked_ = false;
+  bool first_input_written_ = false;
 };
 
 }  // namespace filter
