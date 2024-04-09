@@ -196,7 +196,7 @@ void* Send(CobaltExtensionPlatformService service,
   return static_cast<void*>(ptr);
 }
 
-const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
+const CobaltExtensionPlatformServiceApi kSoftMicPlatformServiceApi = {
     kCobaltExtensionPlatformServiceName,
     1,  // API version that's implemented.
     &Has,
@@ -206,8 +206,8 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
 
 }  // namespace
 
-const void* GetPlatformServiceApi() {
-  return &kPlatformServiceApi;
+const void* GetSoftMicPlatformServiceApi() {
+  return &kSoftMicPlatformServiceApi;
 }
 
 }  // namespace shared

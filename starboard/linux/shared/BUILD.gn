@@ -78,6 +78,8 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/shared/media_is_video_supported.cc",
     "//starboard/linux/shared/netlink.cc",
     "//starboard/linux/shared/netlink.h",
+    "//starboard/linux/shared/platform_service.cc",
+    "//starboard/linux/shared/platform_service.h",
     "//starboard/linux/shared/player_components_factory.cc",
     "//starboard/linux/shared/routes.cc",
     "//starboard/linux/shared/routes.h",
