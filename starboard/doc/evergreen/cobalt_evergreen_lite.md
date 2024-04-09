@@ -97,7 +97,6 @@ Cobalt Evergreen currently supports the following
 
 Target Architectures:
 
-*   `x86_32`
 *   `x86_64`
 *   `armv7 32`
 *   `armv8 64`
