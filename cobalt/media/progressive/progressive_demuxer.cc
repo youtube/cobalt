@@ -49,8 +49,7 @@ ProgressiveDemuxerStream::ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer,
   DCHECK(demuxer_);
 }
 
-void ProgressiveDemuxerStream::Read(int max_number_of_buffers_to_read,
-                                    ReadCB read_cb) {
+void ProgressiveDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
   TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Read()");
   DCHECK(!read_cb.is_null());
 
