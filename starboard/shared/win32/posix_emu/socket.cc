@@ -444,9 +444,4 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
   }
   return 0;
 }
-
-int* sb_errno_location() {
-  return &errno;
-}
-
 }  // extern "C"

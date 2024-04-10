@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
@@ -33,6 +34,8 @@ TEST(SbSystemGetErrorStringTest, SunnyDay) {
   {
     char name[128] = {0};
     int len = SbSystemGetErrorString(error, name, SB_ARRAY_SIZE_INT(name));
+    SB_DLOG(INFO) << "Error string: " << name;
+
     EXPECT_LT(0, len);
     EXPECT_LT(0, strlen(name));
     if (len < SB_ARRAY_SIZE_INT(name)) {
