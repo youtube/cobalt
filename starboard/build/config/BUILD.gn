@@ -358,7 +358,7 @@ config("apple_cpp20_config") {
 }
 
 config("linux_host_cpp_config") {
-  cflags_cc = [ "-std=gnu++14" ]  # Maybe switch back to 17, we'll seeeeeeeeeeee
+  cflags_cc = [ "-std=gnu++14" ]
 }
 
 config("linux_non_modular_cpp17_config") {
