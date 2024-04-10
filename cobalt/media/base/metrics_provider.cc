@@ -62,15 +62,17 @@ void MediaMetricsProvider::ReportPipelineUMA() {
   ScopedLock scoped_lock(mutex_);
   if (uma_info_.has_video && uma_info_.has_audio) {
     base::UmaHistogramExactLinear(
-        GetUMANameForAVStream(uma_info_), uma_info_.last_pipeline_status,
+        GetUMANameForAVStream(uma_info_), uma_info_.last_pipeline_status.code(),
         PipelineStatus::Codes::PIPELINE_STATUS_MAX + 1);
   } else if (uma_info_.has_audio) {
     base::UmaHistogramExactLinear(
-        "Cobalt.Media.PipelineStatus.AudioOnly", uma_info_.last_pipeline_status,
+        "Cobalt.Media.PipelineStatus.AudioOnly",
+        uma_info_.last_pipeline_status.code(),
         PipelineStatus::Codes::PIPELINE_STATUS_MAX + 1);
   } else if (uma_info_.has_video) {
     base::UmaHistogramExactLinear(
-        "Cobalt.Media.PipelineStatus.VideoOnly", uma_info_.last_pipeline_status,
+        "Cobalt.Media.PipelineStatus.VideoOnly",
+        uma_info_.last_pipeline_status.code(),
         PipelineStatus::Codes::PIPELINE_STATUS_MAX + 1);
   } else {
     // Note: This metric can be recorded as a result of normal operation with
@@ -78,7 +80,7 @@ void MediaMetricsProvider::ReportPipelineUMA() {
     // creates a source buffer or appends data, PIPELINE_OK will be recorded.
     base::UmaHistogramExactLinear(
         "Cobalt.Media.PipelineStatus.Unsupported",
-        uma_info_.last_pipeline_status,
+        uma_info_.last_pipeline_status.code(),
         PipelineStatus::Codes::PIPELINE_STATUS_MAX + 1);
   }
 
