@@ -49,7 +49,6 @@ TEST(LapTimer, UsageExample) {
   EXPECT_TRUE(timer.IsWarmedUp());
 }
 
-
 #if !BUILDFLAG(IS_IOS) && !defined(COBALT_PENDING_CLEAN_UP)
 // iOS simulator does not support using ThreadTicks.
 TEST(LapTimer, ThreadTicksUsageExample) {
