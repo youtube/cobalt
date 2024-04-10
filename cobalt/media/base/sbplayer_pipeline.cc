@@ -21,10 +21,10 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/startup_timer.h"
-#include "media/base/bind_to_current_loop.h"
 #include "media/base/channel_layout.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
@@ -398,7 +398,7 @@ void SbPlayerPipeline::Seek(TimeDelta time, const SeekCB& seek_cb) {
     return;
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  demuxer_->Seek(time, BindToCurrentLoop(base::Bind(
+  demuxer_->Seek(time, BindPostTaskToCurrentDefault(base::Bind(
                            &SbPlayerPipeline::OnDemuxerSeeked, this)));
 }
 
@@ -651,7 +651,7 @@ void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
   demuxer_->Initialize(
-      this, BindToCurrentLoop(
+      this, BindPostTaskToCurrentDefault(
                 base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this)));
 
   started_ = true;
@@ -966,7 +966,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
       content_size_change_cb_.Run();
     }
     if (is_encrypted) {
-      RunSetDrmSystemReadyCB(::media::BindToCurrentLoop(
+      RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
           base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
       return;
     }
