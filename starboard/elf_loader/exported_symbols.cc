@@ -501,6 +501,7 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
   map_["clock_gettime"] =
       reinterpret_cast<const void*>(&__abi_wrap_clock_gettime);
+  map_["fstat"] = reinterpret_cast<const void*>(&__abi_wrap_fstat);
   map_["gettimeofday"] =
       reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);

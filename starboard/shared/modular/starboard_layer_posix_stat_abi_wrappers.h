@@ -75,6 +75,7 @@ struct musl_stat {
 #endif
 };
 
+SB_EXPORT int __abi_wrap_fstat(int fildes, struct musl_stat* info);
 SB_EXPORT int __abi_wrap_stat(const char* path, struct musl_stat* info);
 
 #ifdef __cplusplus
