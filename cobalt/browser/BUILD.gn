@@ -94,7 +94,10 @@ target(final_executable_type, "cobalt") {
 ##############################
 
 config("bindings_includes") {
-  include_dirs = [ _generated_source_output_dir ]
+  include_dirs = [
+    "//third_party/skia",
+    _generated_source_output_dir,
+  ]
 }
 
 source_set("browser_switches") {
@@ -230,6 +233,8 @@ static_library("browser") {
   } else {
     deps += cobalt_platform_dependencies
   }
+
+  include_dirs = [ "//third_party/skia" ]
 }
 
 target(gtest_target_type, "browser_test") {

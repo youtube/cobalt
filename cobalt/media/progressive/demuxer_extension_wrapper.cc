@@ -188,8 +188,7 @@ DemuxerExtensionStream::DemuxerExtensionStream(
       << "Audio config is not valid!";
 }
 
-void DemuxerExtensionStream::Read(int max_number_of_buffers_to_read,
-                                  ReadCB read_cb) {
+void DemuxerExtensionStream::Read(uint32_t count, ReadCB read_cb) {
   DCHECK(!read_cb.is_null());
   base::AutoLock auto_lock(lock_);
   if (stopped_) {

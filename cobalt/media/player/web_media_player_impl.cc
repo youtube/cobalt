@@ -666,10 +666,10 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
         WebMediaPlayer::kNetworkStateFormatError,
         message.empty()
             ? base::StringPrintf("Ready state have nothing. Error: (%d)",
-                                 static_cast<int>(error))
+                                 static_cast<int>(error.code()))
             : base::StringPrintf(
                   "Ready state have nothing: Error: (%d), Message: %s",
-                  static_cast<int>(error), message.c_str()));
+                  static_cast<int>(error.code()), message.c_str()));
     return;
   }
 
