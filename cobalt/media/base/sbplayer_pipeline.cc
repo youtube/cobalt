@@ -998,7 +998,7 @@ void SbPlayerPipeline::OnDemuxerStopped() {
 void SbPlayerPipeline::OnDemuxerStreamRead(
     DemuxerStream::Type type, int max_number_buffers_to_read,
     DemuxerStream::Status status,
-    const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
+    const std::vector<scoped_refptr<DecoderBuffer>> buffers) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
