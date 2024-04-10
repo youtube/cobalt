@@ -19,9 +19,9 @@
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/memory/ref_counted.h"
+#include "base/task/bind_post_task.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/wrap_main.h"
-#include "cobalt/media/base/bind_to_loop.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/progressive/progressive_demuxer.h"
 #include "cobalt/media/sandbox/fuzzer_app.h"
@@ -34,7 +34,6 @@ namespace sandbox {
 namespace {
 
 using base::Bind;
-using ::media::BindToCurrentLoop;
 using ::media::DecoderBuffer;
 using ::media::Demuxer;
 using ::media::DemuxerHost;
@@ -97,9 +96,9 @@ class DemuxerFuzzer : DemuxerHost {
       error_occurred_ = true;
       return;
     }
-    audio_stream->Read(BindToCurrentLoop(
+    audio_stream->Read(BindPostTaskToCurrentDefault(
         Bind(&DemuxerFuzzer::ReadCB, base::Unretained(this), audio_stream)));
-    video_stream->Read(BindToCurrentLoop(
+    video_stream->Read(BindPostTaskToCurrentDefault(
         Bind(&DemuxerFuzzer::ReadCB, base::Unretained(this), video_stream)));
   }
 
@@ -117,7 +116,7 @@ class DemuxerFuzzer : DemuxerHost {
       }
     }
     DCHECK(!error_occurred_);
-    stream->Read(BindToCurrentLoop(
+    stream->Read(BindPostTaskToCurrentDefault(
         Bind(&DemuxerFuzzer::ReadCB, base::Unretained(this), stream)));
   }
 
