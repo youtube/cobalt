@@ -67,17 +67,8 @@ _FILTERED_TESTS = {
 
     # TODO: b/330792170 - Fix remaining failing win32 tests.
     'net_unittests': [
-        'CanonicalCookieTest.CreateSanitizedCookie_Logic',
-        'CookieMonster/CookieStoreTest/0.CookieOrdering',
-        'CookieMonster/CookieStoreTest/0.GetAllCookiesWithAccessSemanticsAsync',
-        'CookieMonster/CookieStoreChangeGlobalTest/0.InsertMany',
-        'CookieMonsterTest.TestPriorityAwareGarbageCollectionNonSecure',
-        'CookieMonsterTest.TestPriorityAwareGarbageCollectionSecure',
-        'CookieMonsterTest.TestPriorityAwareGarbageCollectionMixed',
-        'CookieMonsterTest.GetAllCookiesForURL',
         'CookieMonsterTest.InheritCreationDate',
-        'CookieMonsterTest.DeletePartitionedCookie',
-        'CookieMonsterTest.CookieListOrdering',
+        'FileStreamTest.UseFileHandle',  # Fails on github but not locally.
         'UDPSocketTest.PartialRecv',
         'UDPSocketTest.ConnectRandomBind',
         'UDPSocketTest.ConnectFail',
