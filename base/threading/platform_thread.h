@@ -111,10 +111,6 @@ enum class ThreadType : int {
   // latency sensitive. The underlying platform will try to be economic
   // in its usage of resources for this thread, if possible.
   kResourceEfficient,
-  // Default type. The thread priority or quality of service will be set to
-  // platform default. In Chrome, this is suitable for handling user
-  // interactions (input), only display and audio can get a higher priority.
-  kDefault,
   // Suitable for threads which are critical to compositing the foreground
   // content.
   kCompositing,
@@ -123,6 +119,10 @@ enum class ThreadType : int {
   // Suitable for low-latency, glitch-resistant audio.
   kRealtimeAudio,
   kMaxValue = kRealtimeAudio,
+  // Default type. The thread priority or quality of service will be set to
+  // platform default. In Chrome, this is suitable for handling user
+  // interactions (input), only display and audio can get a higher priority.
+  kDefault = kSbThreadNoPriority,
 };
 
 // Cross-platform mapping of physical thread priorities. Used by tests to verify
