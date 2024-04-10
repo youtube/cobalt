@@ -86,10 +86,6 @@ _FILTERED_TESTS = {
         'EmbeddedTestServerTestInstantiation/EmbeddedTestServerTest.ConnectionListenerComplete/0',
         'PartitionedCookiesURLRequestHttpJobTest.PrivacyMode/0',
     ],
-    'renderer_test': [
-        'RendererPipelineTest.FLAKY_RasterizerSubmitCalledAtExpectedFrequencyAfterSinglePipelineSubmit',  # pylint: disable=line-too-long
-        'RendererPipelineTest.FLAKY_RasterizerSubmitCalledAtExpectedFrequencyAfterManyPipelineSubmits',  # pylint: disable=line-too-long
-    ],
 }
 
 # pylint: enable=line-too-long
