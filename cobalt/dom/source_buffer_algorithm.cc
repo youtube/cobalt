@@ -24,6 +24,9 @@
 
 namespace cobalt {
 namespace dom {
+namespace {
+using ::media::StreamParser;
+}  // namespace
 
 SourceBufferAppendAlgorithm::SourceBufferAppendAlgorithm(
     MediaSource* media_source, ::media::ChunkDemuxer* chunk_demuxer,
@@ -69,9 +72,15 @@ void SourceBufferAppendAlgorithm::Process(bool* finished) {
                "append_size", append_size);
 
   metrics_->StartTracking(SourceBufferMetricsAction::APPEND_BUFFER);
-  succeeded_ = chunk_demuxer_->AppendData(
-      id_, buffer_, append_size, append_window_start_, append_window_end_,
-      &timestamp_offset_);
+  succeeded_ = chunk_demuxer_->AppendToParseBuffer(id_, buffer_, append_size);
+  StreamParser::ParseStatus result =
+      StreamParser::ParseStatus::kSuccessHasMoreData;
+  while (succeeded_ &&
+         result == StreamParser::ParseStatus::kSuccessHasMoreData) {
+    result = chunk_demuxer_->RunSegmentParserLoop(
+        id_, append_window_start_, append_window_end_, &timestamp_offset_);
+  }
+  succeeded_ &= result == StreamParser::ParseStatus::kSuccess;
   update_timestamp_offset_cb_.Run(timestamp_offset_);
   metrics_->EndTracking(SourceBufferMetricsAction::APPEND_BUFFER,
                         succeeded_ ? append_size : 0);
