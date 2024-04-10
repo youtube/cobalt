@@ -184,14 +184,14 @@ Information about the current media playback state.
 
 #### Members
 
-*   `SbTime current_media_timestamp`
+*   `int64_t current_media_timestamp`
 
     The position of the playback head, as precisely as possible, in
     microseconds.
-*   `SbTime duration`
+*   `int64_t duration`
 
     The known duration of the currently playing media stream, in microseconds.
-*   `SbTime start_date`
+*   `int64_t start_date`
 
     The result of getStartDate for the currently playing media stream, in
     microseconds since the epoch of January 1, 1601 UTC.
@@ -242,9 +242,9 @@ Information about the samples to be written into SbPlayerWriteSamples().
 *   `int buffer_size`
 
     Size of the data pointed to by `buffer`.
-*   `SbTime timestamp`
+*   `int64_t timestamp`
 
-    The timestamp of the sample in SbTime.
+    The timestamp of the sample in microseconds since Windows epoch UTC.
 *   `SbPlayerSampleSideData* side_data`
 
     Points to an array of side data for the input, when available.
@@ -325,13 +325,13 @@ SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player)
 
 ### SbPlayerGetMaximumNumberOfSamplesPerWrite
 
-Writes a single sample of the given media type to `player`'s input stream. Its
-data may be passed in via more than one buffers. The lifetime of
-`sample_buffers`, `sample_buffer_sizes`, `video_sample_info`, and
-`sample_drm_info` (as well as member `subsample_mapping` contained inside it)
-are not guaranteed past the call to SbPlayerWriteSample. That means that before
-returning, the implementation must synchronously copy any information it wants
-to retain from those structures.
+Returns the maximum number of samples that can be written in a single call to
+SbPlayerWriteSamples(). Returning a value greater than one can improve
+performance by allowing SbPlayerWriteSamples() to write multiple samples in one
+call.
+
+Note that this feature is currently disabled in Cobalt where
+SbPlayerWriteSamples() will always be called with one sample.
 
 `player`: The player for which the number is retrieved. `sample_type`: The type
 of sample for which the number is retrieved. See the `SbMediaType` enum in
@@ -465,7 +465,7 @@ sequence of whole NAL Units for video, or a complete audio frame. `sample_infos`
 cannot be assumed to live past the call into SbPlayerWriteSamples(), so it must
 be copied if its content will be used after SbPlayerWriteSamples() returns.
 `number_of_sample_infos`: Specify the number of samples contained inside
-`sample_infos`. It has to be at least one, and less than the return value of
+`sample_infos`. It has to be at least one, and at most the return value of
 SbPlayerGetMaximumNumberOfSamplesPerWrite().
 
 #### Declaration
@@ -473,3 +473,4 @@ SbPlayerGetMaximumNumberOfSamplesPerWrite().
 ```
 void SbPlayerWriteSample2(SbPlayer player, SbMediaType sample_type, const SbPlayerSampleInfo *sample_infos, int number_of_sample_infos)
 ```
+

@@ -10,7 +10,8 @@ Provides functionality to handle Window creation and management.
 ### kSbEventOnScreenKeyboardInvalidTicket
 
 System-triggered OnScreenKeyboard events have ticket value
-kSbEventOnScreenKeyboardInvalidTicket.
+kSbEventOnScreenKeyboardInvalidTicket. TODO(b/151173891): This should be moved
+to the extension header
 
 ### kSbWindowInvalid
 
@@ -52,6 +53,7 @@ Options that can be requested at window creation time.
 
 Defines a rectangle via a point `(x, y)` and a size `(width, height)`. This
 structure is used as output for SbWindowGetOnScreenKeyboardBoundingRect.
+TODO(b/151173891): This should be moved to the extension header
 
 #### Members
 
@@ -328,3 +330,4 @@ hidden.
 ```
 void SbWindowUpdateOnScreenKeyboardSuggestions(SbWindow window, const char *suggestions[], int num_suggestions, int ticket)
 ```
+

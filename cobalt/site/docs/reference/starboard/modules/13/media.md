@@ -177,7 +177,7 @@ output.
 
     The type of audio connector. Will be the empty `kSbMediaAudioConnectorNone`
     if this device cannot provide this information.
-*   `SbTime latency`
+*   `int64_t latency`
 
     The expected latency of audio over this output, in microseconds, or `0` if
     this device cannot provide this information.
@@ -449,7 +449,7 @@ return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
 `key_system` is `com.widevine.alpha; invalid_attribute="invalid_value"`.
 Currently the only attribute has to be supported is `encryptionscheme`. It
 reflects the value passed to `encryptionScheme` encryptionScheme of
-MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/,](https://wicg.github.io/encrypted-media-encryption-scheme/,),) which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
+MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/](https://wicg.github.io/encrypted-media-encryption-scheme/)/) , which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
 not a valid value for `encryptionscheme` and the implementation should return
 `kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
 `encryptionscheme` is set to "". The implementation should return
@@ -517,7 +517,7 @@ int SbMediaGetAudioOutputCount()
 ### SbMediaGetBufferAlignment
 
 The media buffer will be allocated using the returned alignment. Set this to a
-larger value may increase the memory consumption of media buffers.`type`: the
+larger value may increase the memory consumption of media buffers. `type`: the
 media type of the stream (audio or video).
 
 #### Declaration
@@ -532,7 +532,7 @@ When the media stack needs more memory to store media buffers, it will allocate
 extra memory in units returned by SbMediaGetBufferAllocationUnit. This can
 return 0, in which case the media stack will allocate extra memory on demand.
 When SbMediaGetInitialBufferCapacity and this function both return 0, the media
-stack will allocate individual buffers directly using SbMemory functions.
+stack will allocate individual buffers directly using malloc functions.
 
 #### Declaration
 
@@ -542,26 +542,26 @@ int SbMediaGetBufferAllocationUnit()
 
 ### SbMediaGetBufferGarbageCollectionDurationThreshold
 
-Specifies the duration threshold of media source garbage collection. When the
-accumulated duration in a source buffer exceeds this value, the media source
-implementation will try to eject existing buffers from the cache. This is
-usually triggered when the video being played has a simple content and the
-encoded data is small. In such case this can limit how much is allocated for the
-book keeping data of the media buffers and avoid OOM of system heap. This should
-return 170 seconds for most of the platforms. But it can be further reduced on
-systems with extremely low memory.
+Specifies the duration threshold of media source garbage collection in
+microseconds. When the accumulated duration in a source buffer exceeds this
+value, the media source implementation will try to eject existing buffers from
+the cache. This is usually triggered when the video being played has a simple
+content and the encoded data is small. In such case this can limit how much is
+allocated for the book keeping data of the media buffers and avoid OOM of system
+heap. This should return 170 seconds for most of the platforms. But it can be
+further reduced on systems with extremely low memory.
 
 #### Declaration
 
 ```
-SbTime SbMediaGetBufferGarbageCollectionDurationThreshold()
+int64_t SbMediaGetBufferGarbageCollectionDurationThreshold()
 ```
 
 ### SbMediaGetBufferPadding
 
 Extra bytes allocated at the end of a media buffer to ensure that the buffer can
 be use optimally by specific instructions like SIMD. Set to 0 to remove any
-padding.`type`: the media type of the stream (audio or video).
+padding. `type`: the media type of the stream (audio or video).
 
 #### Declaration
 
@@ -573,10 +573,10 @@ int SbMediaGetBufferPadding(SbMediaType type)
 
 Returns SbMediaBufferStorageType of type `SbMediaStorageTypeMemory` or
 `SbMediaStorageTypeFile`. For memory storage, the media buffers will be stored
-in main memory allocated by SbMemory functions. For file storage, the media
+in main memory allocated by malloc functions. For file storage, the media
 buffers will be stored in a temporary file in the system cache folder acquired
 by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory". Note that when
-its value is "file" the media stack will still allocate memory to cache the the
+its value is "file" the media stack will still allocate memory to cache the
 buffers in use.
 
 #### Declaration
@@ -676,7 +676,7 @@ bool SbMediaIsBufferPoolAllocateOnDemand()
 ### SbMediaIsBufferUsingMemoryPool
 
 If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media buffer
-pools should be allocated on demand, as opposed to using SbMemory* functions.
+pools should be allocated on demand, as opposed to using malloc functions.
 
 #### Declaration
 
@@ -689,15 +689,16 @@ bool SbMediaIsBufferUsingMemoryPool()
 Communicate to the platform how far past `current_playback_position` the app
 will write audio samples. The app will write all samples between
 `current_playback_position` and `current_playback_position` + `duration`, as
-soon as they are available. The app may sometimes write more samples than that,
-but the app only guarantees to write `duration` past `current_playback_position`
-in general. The platform is responsible for guaranteeing that when only
-`duration` audio samples are written at a time, no playback issues occur (such
-as transient or indefinite hanging). The platform may assume `duration` >= 0.5
-seconds.
+soon as they are available (during is in microseconds). The app may sometimes
+write more samples than that, but the app only guarantees to write `duration`
+past `current_playback_position` in general. The platform is responsible for
+guaranteeing that when only `duration` audio samples are written at a time, no
+playback issues occur (such as transient or indefinite hanging). The platform
+may assume `duration` >= 0.5 seconds.
 
 #### Declaration
 
 ```
-void SbMediaSetAudioWriteDuration(SbTime duration)
+void SbMediaSetAudioWriteDuration(int64_t duration)
 ```
+

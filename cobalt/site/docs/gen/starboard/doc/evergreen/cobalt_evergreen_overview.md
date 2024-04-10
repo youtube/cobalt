@@ -308,8 +308,8 @@ instructions available [here](cobalt_evergreen_reference_port_raspi2.md).
 
 1. Build the `crashpad_database_util` target and deploy it onto the device.
 ```
-$ cobalt/build/gn.py -p <partner_port_name> -c qa
-$ ninja -C out/<partner_port_name>_qa crashpad_database_util
+$ gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa"'
+$ ninja -C out/<partner_port_name>_qa native_target/crashpad_database_util
 ```
 2. Remove the existing state for crashpad as it throttles uploads to 1 per hour:
 ```

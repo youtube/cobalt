@@ -98,7 +98,7 @@ Book: /youtube/cobalt/_book.yaml
     SDIV and UDIV hardware division in ARM mode.
 *   `bool has_aes`
 
-    ###### Arm 64 feature flags
+    Arm 64 feature flags
 
     AES instructions.
 *   `bool has_crc32`
@@ -259,3 +259,4 @@ fields in `features` are invalid.
 ```
 bool SbCPUFeaturesGet(SbCPUFeatures *features)
 ```
+

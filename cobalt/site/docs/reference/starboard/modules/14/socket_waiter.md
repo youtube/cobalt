@@ -202,15 +202,15 @@ SbSocketWaiterWakeUp() it not called by that time.
 The return value indicates the reason that the socket waiter exited. This
 function should only be called on the thread that waits on this waiter.
 
-`duration`: The minimum amount of time after which the socket waiter should exit
-if it is not woken up before then. As with SbThreadSleep() (see thread.h), this
-function may wait longer than `duration`, such as if the timeout expires while a
-callback is being fired.
+`duration`: The minimum amount of time in microseconds after which the socket
+waiter should exit if it is not woken up before then. As with SbThreadSleep()
+(see thread.h), this function may wait longer than `duration`, such as if the
+timeout expires while a callback is being fired.
 
 #### Declaration
 
 ```
-SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter, SbTime duration)
+SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter, int64_t duration)
 ```
 
 ### SbSocketWaiterWakeUp
@@ -235,3 +235,4 @@ next 7 times they are called.
 ```
 void SbSocketWaiterWakeUp(SbSocketWaiter waiter)
 ```
+

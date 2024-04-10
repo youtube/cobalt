@@ -260,3 +260,4 @@ has already been read from the device is discarded.
 ```
 int SbMicrophoneRead(SbMicrophone microphone, void *out_audio_data, int audio_data_size)
 ```
+

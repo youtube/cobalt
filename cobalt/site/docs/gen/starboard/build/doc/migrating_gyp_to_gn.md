@@ -266,8 +266,8 @@ This [document](./gn_migrate_stub_to_platform.md) outlines a step by step
 process for converting the stub platform's GN files to GN files that will be
 able to be built for your platform.
 
-[cobalt_porting_guide]: https://cobalt.dev/starboard/porting.html
-[dev_setup_linux]: https://cobalt.dev/development/setup-linux.html
+[cobalt_porting_guide]: https://developers.google.com/youtube/cobalt/docs/starboard/porting
+[dev_setup_linux]: https://developers.google.com/youtube/cobalt/docs/development/setup-linux
 [gn_check_tool]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs/reference.md#cmd_check
 [gn_doc_home]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs
 [gn_format_tool]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs/reference.md#cmd_format
