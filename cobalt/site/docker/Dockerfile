@@ -13,11 +13,12 @@
 # limitations under the License.
 
 ARG FROM_IMAGE
-FROM ${FROM_IMAGE:-gcr.io/cloud-marketplace-containers/google/debian10}
+FROM ${FROM_IMAGE:-gcr.io/cloud-marketplace-containers/google/debian11}
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         curl \
+        ca-certificates \
         doxygen \
         git \
         python3 \
