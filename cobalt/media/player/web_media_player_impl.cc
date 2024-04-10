@@ -674,7 +674,7 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
   }
 
   std::string default_message;
-  switch (error) {
+  switch (error.code()) {
     case ::media::PIPELINE_OK:
       NOTREACHED() << "PIPELINE_OK isn't an error!";
       break;

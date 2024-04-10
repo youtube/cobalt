@@ -165,6 +165,9 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   // Demuxer implementation:
   std::vector<::media::DemuxerStream*> GetAllStreams() override;
   std::string GetDisplayName() const override;
+  ::media::DemuxerType GetDemuxerType() const override {
+    return ::media::DemuxerType::kProgressiveDemuxer;
+  }
   void Initialize(::media::DemuxerHost* host,
                   ::media::PipelineStatusCallback status_cb) override;
   void AbortPendingReads() override;
@@ -172,6 +175,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   void CancelPendingSeek(base::TimeDelta seek_time) override;
   void Seek(base::TimeDelta time,
             ::media::PipelineStatusCallback status_cb) override;
+  bool IsSeekable() const override { return true; }
   void Stop() override;
   base::TimeDelta GetStartTime() const override;
   base::Time GetTimelineOffset() const override;
@@ -182,6 +186,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   void OnSelectedVideoTrackChanged(
       const std::vector<::media::MediaTrack::Id>& track_ids,
       base::TimeDelta curr_time, TrackChangeCB change_completed_cb) override;
+  void SetPlaybackRate(double rate) override { NOTREACHED(); }
 
   absl::optional<::media::container_names::MediaContainerName>
   GetContainerForMetrics() const override {

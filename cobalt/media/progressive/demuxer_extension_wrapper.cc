@@ -541,7 +541,7 @@ void DemuxerExtensionWrapper::OnInitializeDone(
   } else {
     LOG(ERROR) << "Initialization failed with status " << status;
   }
-  std::move(status_cb).Run(static_cast<PipelineStatus>(status));
+  std::move(status_cb).Run(static_cast<PipelineStatus::Codes>(status));
 }
 
 void DemuxerExtensionWrapper::AbortPendingReads() {}
