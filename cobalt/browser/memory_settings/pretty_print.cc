@@ -193,9 +193,6 @@ std::string StringifySourceType(const MemorySetting& setting) {
     case MemorySetting::kStarboardAPI: {
       return "Starboard API";
     }
-    case MemorySetting::kBuildSetting: {
-      return "Build";
-    }
     case MemorySetting::kCmdLine: {
       return "CmdLine";
     }

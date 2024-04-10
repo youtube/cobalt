@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Added standard POSIX mkdir API and deprecated SbDirectoryCreate.
+The directory API SbDirectoryCreate has been deprecated and the standard API `mkdir`
+can be used from `dirent.h` instead.
+
 ## Removed configs for `SB_EXPORT_PLATFORM` and `SB_IMPORT_PLATFORM`
 These are auto-detected based on compilers, platforms can optionally override.
 
