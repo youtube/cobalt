@@ -113,6 +113,8 @@ class MediaDecoder
 
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
+  bool Flush();
+
  private:
   struct Event {
     enum Type {

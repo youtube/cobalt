@@ -184,7 +184,8 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
       path += kSbFileSepString;
       path += dir;
       if (!FileExists(path.c_str())) {
-        EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+        EXPECT_TRUE(mkdir(path.c_str(), 0700) == 0 ||
+                    SbDirectoryCanOpen(path.c_str()));
 
         if (out_top_created_dir.empty()) {
           // This new dir should be recursively deleted during cleanup.

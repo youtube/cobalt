@@ -351,7 +351,7 @@ void WebMediaPlayerImpl::Seek(double seconds) {
     return;
   }
 
-  media_metrics_provider_.StartTrackingAction(WebMediaPlayerAction::SEEK);
+  media_metrics_provider_.StartTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
   media_log_->AddEvent<::media::MediaLogEvent::kSeek>(seconds);
 
   base::TimeDelta seek_time = ConvertSecondsToTimestamp(seconds);
@@ -634,8 +634,8 @@ void WebMediaPlayerImpl::OnPipelineSeek(::media::PipelineStatus status,
   // when WebMediaPlayerImpl::Seek() is called. This helps to filter out when
   // the pipeline seeks without being initiated by WebMediaPlayerImpl.
   if (media_metrics_provider_.IsActionCurrentlyTracked(
-          WebMediaPlayerAction::SEEK)) {
-    media_metrics_provider_.EndTrackingAction(WebMediaPlayerAction::SEEK);
+          MediaAction::WEBMEDIAPLAYER_SEEK)) {
+    media_metrics_provider_.EndTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
   }
 }
 

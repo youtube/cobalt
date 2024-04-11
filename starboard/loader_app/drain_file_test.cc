@@ -48,7 +48,7 @@ class DrainFileTest : public ::testing::Test {
     // Use dedicated dir for testing to avoid meddling with other files.
     starboard::strlcat(temp_dir_.data(), kSbFileSepString, kSbFileMaxPath);
     starboard::strlcat(temp_dir_.data(), "df", kSbFileMaxPath);
-    ASSERT_TRUE(SbDirectoryCreate(temp_dir_.data()));
+    ASSERT_TRUE(EnsureDirectoryExists(temp_dir_.data()));
   }
 
   void TearDown() override { DrainFileClearForApp(GetTempDir(), ""); }
@@ -58,6 +58,10 @@ class DrainFileTest : public ::testing::Test {
   bool FileExists(const char* path) {
     struct stat info;
     return stat(path, &info) == 0;
+  }
+
+  bool EnsureDirectoryExists(const char* path) {
+    return mkdir(path, 0700) == 0 || SbDirectoryCanOpen(path);
   }
 
  private:
@@ -230,7 +234,7 @@ TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
   dir.append(kSbFileSepString);
   dir.append("to_delete");
 
-  EXPECT_TRUE(SbDirectoryCreate(dir.c_str()));
+  EXPECT_TRUE(EnsureDirectoryExists(dir.c_str()));
   EXPECT_TRUE(FileExists(dir.c_str()));
 
   // Create a file with the app key in the name.

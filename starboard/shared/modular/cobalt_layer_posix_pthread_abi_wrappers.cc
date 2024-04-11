@@ -124,6 +124,42 @@ int __abi_wrap_pthread_once(pthread_once_t* once_control,
 int pthread_once(pthread_once_t* once_control, void (*init_routine)(void)) {
   return __abi_wrap_pthread_once(once_control, init_routine);
 }
+
+int __abi_wrap_pthread_create(pthread_t* thread,
+                              const pthread_attr_t* attr,
+                              void* (*start_routine)(void*),
+                              void* arg);
+
+int pthread_create(pthread_t* thread,
+                   const pthread_attr_t* attr,
+                   void* (*start_routine)(void*),
+                   void* arg) {
+  return __abi_wrap_pthread_create(thread, attr, start_routine, arg);
+}
+
+int __abi_wrap_pthread_join(pthread_t thread, void** value_ptr);
+
+int pthread_join(pthread_t thread, void** value_ptr) {
+  return __abi_wrap_pthread_join(thread, value_ptr);
+}
+
+int __abi_wrap_pthread_detach(pthread_t thread);
+
+int pthread_detach(pthread_t thread) {
+  return __abi_wrap_pthread_detach(thread);
+}
+
+int __abi_wrap_pthread_equal(pthread_t t1, pthread_t t2);
+
+int pthread_equal(pthread_t t1, pthread_t t2) {
+  return __abi_wrap_pthread_equal(t1, t2);
+}
+
+pthread_t __abi_wrap_pthread_self();
+
+pthread_t pthread_self() {
+  return __abi_wrap_pthread_self();
+}
 }
 
 #endif  // SB_API_VERSION >= 16

@@ -28,22 +28,13 @@ namespace sbwin32 = starboard::shared::win32;
 using sbwin32::DebugLogWinError;
 using sbwin32::GetThreadSubsystemSingleton;
 using sbwin32::SbThreadPrivate;
+using sbwin32::ThreadCreateInfo;
 using sbwin32::ThreadSubsystemSingleton;
 using sbwin32::wchar_tToUTF8;
-
-namespace {
 
 void ResetWinError() {
   SetLastError(0);
 }
-
-class ThreadCreateInfo {
- public:
-  SbThreadPrivate thread_private_;
-  SbThreadEntryPoint entry_point_;
-  void* user_context_;
-  std::string name_;
-};
 
 int RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton) {
   int num_destructors_called = 0;
@@ -111,6 +102,8 @@ void CallThreadLocalDestructorsMultipleTimes() {
 
   SB_DCHECK(num_tls_objects_remaining == 0) << "Dangling objects in TLS exist.";
 }
+
+namespace {
 
 unsigned ThreadTrampoline(void* thread_create_info_context) {
   std::unique_ptr<ThreadCreateInfo> info(
