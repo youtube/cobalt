@@ -26,21 +26,20 @@ JSONObject JSONParse(const std::string& json, std::string* parse_error) {
       base::JSONReader::ReadAndReturnValueWithError(json);
   if (result.has_value()) {
     DCHECK(result.value().is_dict());
-    return JSONObject(std::make_unique<base::Value::Dict>(
-        std::move(result.value().GetDict())));
+    return JSONObject(std::move(result.value().GetDict()));
   } else if (parse_error) {
     *parse_error = result.error().message;
   }
   // Scoped pointer may be NULL - caller must check.
-  return JSONObject(nullptr);
+  return JSONObject();
 }
 
 JSONObject JSONParse(const std::string& json) { return JSONParse(json, NULL); }
 
 std::string JSONStringify(const JSONObject& json_object) {
-  if (!json_object) return "{}";
+  if (json_object.empty()) return "{}";
   std::string json;
-  base::JSONWriter::Write(*(json_object.get()), &json);
+  base::JSONWriter::Write(json_object, &json);
   return json;
 }
 }  // namespace debug

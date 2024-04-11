@@ -42,7 +42,7 @@ TracingController::TracingController(DebugDispatcher* dispatcher,
 
 void TracingController::Thaw(JSONObject agent_state) {}
 
-JSONObject TracingController::Freeze() { return nullptr; }
+JSONObject TracingController::Freeze() { return JSONObject(); }
 
 void TracingController::End(Command command) {}
 
