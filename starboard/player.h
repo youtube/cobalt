@@ -379,7 +379,6 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   video will never adapt to resolution higher than 1920x1080 or frame per
 //   second higher than 15 fps. When the maximums are unknown, this will be set
 //   to NULL.
-
 //
 // |sample_deallocator_func|: If not |NULL|, the player calls this function
 //   on an internal thread to free the sample buffers passed into
@@ -419,7 +418,6 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // If |NULL| is passed to any of the callbacks (|sample_deallocator_func|,
 // |decoder_status_func|, |player_status_func|, or |player_error_func| if it
 // applies), then |kSbPlayerInvalid| must be returned.
-
 SB_EXPORT SbPlayer
 SbPlayerCreate(SbWindow window,
                const SbPlayerCreationParam* creation_param,
@@ -489,7 +487,6 @@ SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 //   when SbPlayerSeek was called. To be very specific, once SbPlayerSeek has
 //   been called with ticket X, a client should ignore all
 //   |SbPlayerDecoderStatusFunc| calls that do not pass in ticket X.
-
 #if SB_API_VERSION >= 15
 SB_EXPORT void SbPlayerSeek(SbPlayer player,
                             SbTime seek_to_timestamp,
