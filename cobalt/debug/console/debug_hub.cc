@@ -158,8 +158,8 @@ void DebugHub::OnDebugClientEvent(const std::string& method,
 void DebugHub::OnDebugClientDetach(const std::string& reason) {
   DLOG(INFO) << "Debugger detached: " + reason;
   const std::string method = "Inspector.detached";
-  JSONObject params(new base::Value::Dict());
-  params->Set("reason", reason);
+  JSONObject params;
+  params.Set("reason", reason);
   on_event_->DispatchEvent(method, JSONStringify(params));
 }
 

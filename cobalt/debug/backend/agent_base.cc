@@ -14,6 +14,8 @@
 
 #include "cobalt/debug/backend/agent_base.h"
 
+#include <utility>
+
 #include "base/values.h"
 
 namespace cobalt {
@@ -43,10 +45,10 @@ AgentBase::AgentBase(const std::string& domain, const std::string& script_file,
 
 void AgentBase::Thaw(JSONObject agent_state) {
   dispatcher_->AddDomain(domain_, commands_.Bind());
-  if (!agent_state) return;
+  if (agent_state.empty()) return;
 
   // Restore state
-  if (agent_state->FindBool(kEnabled).value_or(false)) {
+  if (agent_state.FindBool(kEnabled).value_or(false)) {
     Enable(Command::IgnoreResponse(domain_ + ".enable"));
   }
 }
@@ -54,9 +56,9 @@ void AgentBase::Thaw(JSONObject agent_state) {
 JSONObject AgentBase::Freeze() {
   dispatcher_->RemoveDomain(domain_);
 
-  JSONObject agent_state(new base::Value::Dict());
-  agent_state->Set(kEnabled, Value(enabled_));
-  return agent_state;
+  base::Value::Dict agent_state;
+  agent_state.Set(kEnabled, Value(enabled_));
+  return std::move(agent_state);
 }
 
 bool AgentBase::EnsureEnabled(Command* command) {
