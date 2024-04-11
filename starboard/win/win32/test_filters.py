@@ -66,9 +66,17 @@ _FILTERED_TESTS = {
     ],
 
     # TODO: b/330792170 - Fix remaining failing win32 tests.
-    'net_unittests': [test_filter.FILTER_ALL],
-    'renderer_test': [test_filter.FILTER_ALL],
-    'network_test': [test_filter.FILTER_ALL],
+    'net_unittests': [
+        'CookieMonsterTest.InheritCreationDate',
+        'FileStreamTest.UseFileHandle',  # Fails on github but not locally.
+        'UDPSocketTest.PartialRecv',
+        'UDPSocketTest.ConnectRandomBind',
+        'UDPSocketTest.ConnectFail',
+        'UDPSocketTest.LimitConnectFail',
+        'UDPSocketTest.ReadWithSocketOptimization',  # This test crashes.
+        'EmbeddedTestServerTestInstantiation/EmbeddedTestServerTest.ConnectionListenerComplete/0',
+        'PartitionedCookiesURLRequestHttpJobTest.PrivacyMode/0',
+    ],
 }
 
 # pylint: enable=line-too-long
