@@ -34,14 +34,14 @@ class PosixFileReadTest : public testing::Test {};
 
 class PosixRead {
  public:
-  static int Read(int file, void* buf, size_t nbyte) {
+  static ssize_t Read(int file, void* buf, size_t nbyte) {
     return read(file, buf, nbyte);
   }
 };
 
 class PosixReadAll {
  public:
-  static int Read(int file, char* data, int size) {
+  static ssize_t Read(int file, void* data, int size) {
     return ReadAll(file, data, size);
   }
 };

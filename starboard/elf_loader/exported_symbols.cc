@@ -52,6 +52,7 @@
 #include "starboard/mutex.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
+#include "starboard/shared/modular/starboard_layer_posix_file_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
@@ -505,6 +506,7 @@ ExportedSymbols::ExportedSymbols() {
   map_["gettimeofday"] =
       reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
+  map_["lseek"] = reinterpret_cast<const void*>(&__abi_wrap_lseek);
   map_["mmap"] = reinterpret_cast<const void*>(&__abi_wrap_mmap);
   map_["pthread_cond_broadcast"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_broadcast);
@@ -560,6 +562,7 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
   map_["pthread_setname_np"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
+  map_["read"] = reinterpret_cast<const void*>(&__abi_wrap_read);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
   map_["accept"] = reinterpret_cast<const void*>(&__abi_wrap_accept);

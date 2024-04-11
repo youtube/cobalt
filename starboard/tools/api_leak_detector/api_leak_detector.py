@@ -97,6 +97,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'free',
     'freeifaddrs',
     'freeaddrinfo',
+    'fstat',
     'gettimeofday',
     'getifaddrs',
     'getaddrinfo',

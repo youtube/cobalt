@@ -46,14 +46,17 @@ bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
 
 }  // namespace
 
-ssize_t ReadAll(int fd, char* data, int size) {
+ssize_t ReadAll(int fd, void* data, int size) {
   if (fd < 0 || size < 0) {
     return -1;
   }
   ssize_t bytes_read = 0;
   ssize_t rv;
   do {
-    rv = read(fd, data + bytes_read, size - bytes_read);
+    // Needs to cast void* to char* as MSVC returns error for pointer
+    // arithmetic.
+    rv =
+        read(fd, reinterpret_cast<char*>(data) + bytes_read, size - bytes_read);
     if (rv <= 0) {
       break;
     }
