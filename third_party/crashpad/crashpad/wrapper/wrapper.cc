@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/crashpad/wrapper/wrapper.h"
+#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
 #include <sys/stat.h>
 
@@ -31,7 +31,7 @@
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
-#include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
+#include "third_party/crashpad/crashpad/snapshot/sanitized/sanitization_information.h"
 
 using starboard::kSystemPropertyMaxLength;
 

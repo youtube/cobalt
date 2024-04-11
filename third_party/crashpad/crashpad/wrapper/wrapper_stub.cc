@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/crashpad/wrapper/wrapper.h"
+#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
 namespace third_party {
 namespace crashpad {
