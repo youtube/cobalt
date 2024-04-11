@@ -222,7 +222,6 @@ static void set_errno() {
       break;
   }
 
-  _set_errno(0);
   _set_errno(sockError);
   SB_DLOG(INFO) << "Encounter socket error: " << sockError;
 }

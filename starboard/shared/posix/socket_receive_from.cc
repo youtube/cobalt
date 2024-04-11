@@ -49,6 +49,7 @@ int SbSocketReceiveFrom(SbSocket socket,
       int result = getpeername(socket->socket_fd, sock_addr.sockaddr(),
                                &sock_addr.length);
       if (result < 0) {
+        errno = SbSystemGetLastError();
         SB_LOG(ERROR) << __FUNCTION__
                       << ": getpeername failed, errno = " << errno;
         socket->error = sbposix::TranslateSocketErrno(errno);
@@ -56,6 +57,7 @@ int SbSocketReceiveFrom(SbSocket socket,
       }
 
       if (!sock_addr.ToSbSocketAddress(out_source)) {
+        errno = EINVAL;
         SB_LOG(FATAL) << __FUNCTION__ << ": Bad TCP source address.";
         socket->error = kSbSocketErrorFailed;
         return -1;
@@ -84,6 +86,7 @@ int SbSocketReceiveFrom(SbSocket socket,
     if (bytes_read >= 0) {
       if (out_source) {
         if (!sock_addr.ToSbSocketAddress(out_source)) {
+          errno = EINVAL;
           SB_LOG(FATAL) << __FUNCTION__ << ": Bad UDP source address.";
           socket->error = kSbSocketErrorFailed;
           return -1;

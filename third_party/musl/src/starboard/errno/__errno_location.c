@@ -4,7 +4,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/once.h"
-#include "starboard/system.h"
+// #include "starboard/system.h"
 #include "starboard/thread.h"
 
 static SbThreadLocalKey g_errno_key = kSbThreadLocalKeyInvalid;
@@ -21,6 +21,8 @@ void initialize_errno_key(void) {
 // This key will then by used by every thread to set, and get, their instance of
 // errno from thread-local storage.
 
+// This function does not take much effect in musl, use SbSystemGetLastError to set
+// errno instead.
 int *__errno_location(void) {
   SB_DCHECK(SbOnce(&g_errno_once, &initialize_errno_key));
 
@@ -41,8 +43,5 @@ int *__errno_location(void) {
 }
 
 weak_alias(__errno_location, ___errno_location);
-
-#undef errno
-#define errno SbSystemGetLastError()
 
 #endif // SB_API_VERSION < 16

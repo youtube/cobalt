@@ -36,6 +36,7 @@ SbSocket SbSocketAccept(SbSocket socket) {
 
   int socket_fd = HANDLE_EINTR(accept(socket->socket_fd, NULL, NULL));
   if (socket_fd < 0) {
+    errno = SbSystemGetLastError();
     socket->error = sbposix::TranslateSocketErrno(errno);
     return kSbSocketInvalid;
   }
@@ -43,6 +44,7 @@ SbSocket SbSocketAccept(SbSocket socket) {
   // All Starboard sockets are non-blocking, so let's ensure it.
   if (!sbposix::SetNonBlocking(socket_fd)) {
     // Something went wrong, we'll clean up and return failure.
+    errno = SbSystemGetLastError();
     socket->error = sbposix::TranslateSocketErrno(errno);
     HANDLE_EINTR(close(socket_fd));
     return kSbSocketInvalid;

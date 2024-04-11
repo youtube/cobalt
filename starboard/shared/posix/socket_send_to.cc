@@ -51,6 +51,7 @@ int SbSocketSendTo(SbSocket socket,
       return static_cast<int>(bytes_written);
     }
 
+    errno = SbSystemGetLastError();
     if (errno != EAGAIN && errno != EWOULDBLOCK) {
       SB_LOG(ERROR) << "send failed, errno = " << errno;
     }
@@ -68,6 +69,7 @@ int SbSocketSendTo(SbSocket socket,
     socklen_t sockaddr_length = 0;
     if (destination) {
       if (!sock_addr.FromSbSocketAddress(destination)) {
+        errno = EINVAL;
         SB_LOG(FATAL) << "Invalid destination passed to UDP send.";
         socket->error = kSbSocketErrorFailed;
         return -1;

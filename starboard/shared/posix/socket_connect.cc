@@ -25,17 +25,20 @@ namespace sbposix = starboard::shared::posix;
 
 SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress* address) {
   if (!SbSocketIsValid(socket)) {
+    errno = EBADF;
     return kSbSocketErrorFailed;
   }
 
   sbposix::SockAddr sock_addr;
   if (!sock_addr.FromSbSocketAddress(address)) {
+    errno = EINVAL;
     SB_LOG(ERROR) << __FUNCTION__ << ": Invalid address";
     return (socket->error = kSbSocketErrorFailed);
   }
 
   SB_DCHECK(socket->socket_fd >= 0);
   if (address->type != socket->address_type) {
+    errno = EINVAL;
     SB_LOG(ERROR) << __FUNCTION__ << ": Incompatible addresses: "
                   << "socket type = " << socket->address_type
                   << ", argument type = " << address->type;
@@ -44,13 +47,15 @@ SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress* address) {
 
   int result = HANDLE_EINTR(
       connect(socket->socket_fd, sock_addr.sockaddr(), sock_addr.length));
-  if (result != 0 && errno == EINPROGRESS) {
-    return (socket->error = kSbSocketPending);
-  }
 
   if (result != 0) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": connect failed: " << errno;
-    return (socket->error = kSbSocketErrorFailed);
+    errno = SbSystemGetLastError();
+    if (errno == EINPROGRESS) {
+      return (socket->error = kSbSocketPending);
+    } else {
+      SB_LOG(ERROR) << __FUNCTION__ << ": connect failed: " << errno;
+      return (socket->error = kSbSocketErrorFailed);
+    }
   }
 
   return (socket->error = kSbSocketOk);

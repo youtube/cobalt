@@ -61,6 +61,7 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
 
   int socket_fd = ::socket(socket_domain, socket_type, socket_protocol);
   if (socket_fd < 0) {
+    errno = SbSystemGetLastError();
     return kSbSocketInvalid;
   }
 
@@ -77,8 +78,11 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
 #if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
   // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
   int optval_set = 1;
-  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
-             reinterpret_cast<void*>(&optval_set), sizeof(int));
+  if (setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
+                 reinterpret_cast<void*>(&optval_set), sizeof(int)) < 0) {
+    errno = SbSystemGetLastError();
+  }
+
 #endif
 
   return new SbSocketPrivate(address_type, protocol, socket_fd);

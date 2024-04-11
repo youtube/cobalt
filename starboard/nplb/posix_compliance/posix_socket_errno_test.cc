@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <errno.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -25,7 +26,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixErrnoTest, CreateInvalidSocket) {
-  EXPECT_FALSE(socket(-1, SOCK_STREAM, 0) == 0);
+  EXPECT_FALSE(socket(-1, SOCK_STREAM, IPPROTO_TCP) == 0);
   EXPECT_TRUE(errno == EAFNOSUPPORT);
   SB_DLOG(INFO) << "Failed to create invalid socket, errno = "
                 << strerror(errno);
@@ -40,7 +41,7 @@ TEST(PosixErrnoTest, AcceptInvalidSocket) {
 }
 
 TEST(PosixErrnoTest, ConnectUnavailableAddress) {
-  int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+  int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_TRUE(socket_fd > 0);
 
   sockaddr_in6 address = {};
@@ -56,7 +57,8 @@ TEST(PosixErrnoTest, ConnectUnavailableAddress) {
   // Attempt to connect to an address where we expect connection to be refused
   connect(socket_fd, (struct sockaddr*)&address, sizeof(address));
 
-  EXPECT_TRUE(errno == ECONNREFUSED || errno == EADDRNOTAVAIL);
+  EXPECT_TRUE(errno == ECONNREFUSED || errno == EADDRNOTAVAIL ||
+              errno == EINPROGRESS);
   SB_DLOG(INFO) << "Failed to connect to unavailable address, errno = "
                 << strerror(errno);
 

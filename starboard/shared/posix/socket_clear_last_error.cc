@@ -18,9 +18,11 @@
 
 bool SbSocketClearLastError(SbSocket socket) {
   if (!SbSocketIsValid(socket)) {
+    errno = EBADF;
     return false;
   }
 
+  errno = 0;
   socket->error = kSbSocketOk;
   return true;
 }
