@@ -38,8 +38,4 @@ if (false) {
       deps = [ ":gn_all" ]
     }
   }
-
-  group("media") {
-    deps = [ "//media" ]
-  }
 }
