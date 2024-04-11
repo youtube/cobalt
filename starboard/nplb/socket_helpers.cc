@@ -57,7 +57,11 @@ void InitializePortNumberForTests() {
 
 int GetPortNumberForTests() {
 #if defined(SB_SOCKET_OVERRIDE_PORT_FOR_TESTS)
-  return SB_SOCKET_OVERRIDE_PORT_FOR_TESTS;
+  static int incremental = 0;
+  if (incremental + SB_SOCKET_OVERRIDE_PORT_FOR_TESTS == 65535) {
+    incremental = 0;
+  }
+  return SB_SOCKET_OVERRIDE_PORT_FOR_TESTS + ++incremental;
 #else
   SbOnce(&valid_port_once_control, &InitializePortNumberForTests);
   return port_number_for_tests;
