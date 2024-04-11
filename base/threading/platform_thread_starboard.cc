@@ -76,7 +76,23 @@ bool CreateThread(size_t stack_size,
 }
 
 inline SbThreadPriority toSbPriority(ThreadType priority) {
-  return static_cast<SbThreadPriority>(priority);
+  switch (priority) {
+    case ThreadType::kBackground:
+      return kSbThreadPriorityLowest;
+    case ThreadType::kUtility:
+      return kSbThreadPriorityLow;
+    case ThreadType::kResourceEfficient:
+      return kSbThreadPriorityNormal;
+    case ThreadType::kDefault:
+      return kSbThreadNoPriority;
+    case ThreadType::kCompositing:
+      return kSbThreadPriorityHigh;
+    case ThreadType::kDisplayCritical:
+      return kSbThreadPriorityHighest;
+    case ThreadType::kRealtimeAudio:
+      return kSbThreadPriorityRealTime;
+  };
+  NOTREACHED();
 }
 }  // namespace
 
