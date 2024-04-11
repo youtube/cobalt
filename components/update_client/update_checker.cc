@@ -18,9 +18,9 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/strings/stringprintf.h"
-#include "base/task/post_task.h"
 #include "base/threading/thread_checker.h"
 #include "base/threading/thread_task_runner_handle.h"
+#include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #if defined(STARBOARD)
 #include "cobalt/updater/utils.h"
@@ -155,7 +155,7 @@ void UpdateCheckerImpl::CheckForUpdates(
   ids_checked_ = ids_checked;
   update_check_callback_ = std::move(update_check_callback);
 
-  base::PostTaskWithTraitsAndReply(
+  base::ThreadPool::PostTaskAndReply(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&UpdateCheckerImpl::ReadUpdaterStateAttributes,
                      base::Unretained(this)),
@@ -380,7 +380,7 @@ void UpdateCheckerImpl::UpdateCheckSucceeded(
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(update_check_callback_),
-                     base::make_optional<ProtocolParser::Results>(results),
+                     absl::make_optional<ProtocolParser::Results>(results),
                      ErrorCategory::kNone, 0, retry_after_sec));
 }
 

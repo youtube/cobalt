@@ -139,7 +139,7 @@ TEST_F(NetFetcherTest, DISABLED_LocalFetch) {
   run_loop.Run();
 
   std::string loaded_text = fetcher_handler_mock.data();
-  printf("%s\n", loaded_text.c_str());
+  LOG(INFO) << loaded_text.c_str();
 }
 
 }  // namespace loader
