@@ -540,15 +540,15 @@ Sets the `SO_KEEPALIVE`, or equivalent, option to `value` on `socket`. The
 return value indicates whether the option was actually set.
 
 `socket`: The SbSocket for which the option is set. `value`: If set to `true`,
-then `period` specifies the minimum time (SbTime) is always in microseconds)
-between keep-alive packets. If set to `false`, `period` is ignored. `period`:
-The time between keep-alive packets. This value is only relevant if `value` is
-`true`.
+then `period` specifies the minimum time in microseconds between keep-alive
+packets. If set to `false`, `period` is ignored. `period`: The time in
+microseconds between keep-alive packets. This value is only relevant if `value`
+is `true`.
 
 #### Declaration
 
 ```
-bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, SbTime period)
+bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, int64_t period)
 ```
 
 ### SbSocketSetTcpNoDelay
@@ -583,3 +583,4 @@ option.
 ```
 bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value)
 ```
+

@@ -4,8 +4,7 @@ Book: /youtube/cobalt/_book.yaml
 # Starboard Module Reference: `event.h`
 
 Defines the event system that wraps the Starboard main loop and entry point.
-
-## The Starboard Application Lifecycle
+The Starboard Application Lifecycle
 
 ```
                * ----------
@@ -313,7 +312,7 @@ Structure representing a Starboard event and its data.
 #### Members
 
 *   `SbEventType type`
-*   `SbTimeMonotonic timestamp`
+*   `int64_t timestamp`
 *   `void * data`
 
 ### SbEventStartData
@@ -399,7 +398,7 @@ of microseconds to wait before calling the `callback` function. Set `delay` to
 #### Declaration
 
 ```
-SbEventId SbEventSchedule(SbEventCallback callback, void *context, SbTime delay)
+SbEventId SbEventSchedule(SbEventCallback callback, void *context, int64_t delay)
 ```
 
 ### SbRunStarboardMain
@@ -412,3 +411,4 @@ event loop with the application event handler.
 ```
 int SbRunStarboardMain(int argc, char **argv, SbEventHandleCallback callback)
 ```
+

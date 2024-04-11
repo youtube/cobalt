@@ -108,3 +108,4 @@ Overloaded functions for Atomic8.
 ```
 static SbAtomic8 SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8 *ptr, SbAtomic8 old_value, SbAtomic8 new_value)
 ```
+

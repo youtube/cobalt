@@ -40,7 +40,7 @@ SB_MUTEX_MAX_SIZE and aligned at void pointer type.
 #### Definition
 
 ```
-typedef union SbMutex  SbMutex
+typedef union SbMutex SbMutex
 ```
 
 ## Functions
@@ -125,3 +125,4 @@ held by the current thread.
 ```
 bool SbMutexRelease(SbMutex *mutex)
 ```
+

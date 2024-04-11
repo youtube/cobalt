@@ -10,8 +10,7 @@ image formats and SbDecodeTargetFormats are supported or not.
 
 All functions in this module are safe to call from any thread at any point in
 time.
-
-## SbImageIsDecodeSupported and SbImageDecode Example
+SbImageIsDecodeSupported and SbImageDecode Example
 
 ```
 SbDecodeTargetProvider* provider = GetProviderFromSomewhere();
@@ -26,6 +25,7 @@ if (!SbImageIsDecodeSupported(mime_type, format)) {
 
 SbDecodeTarget result_target = SbImageDecode(provider, data, data_size,
                                              mime_type, format);
+
 ```
 
 ## Functions
@@ -75,3 +75,4 @@ indefinitely.
 ```
 bool SbImageIsDecodeSupported(const char *mime_type, SbDecodeTargetFormat format)
 ```
+

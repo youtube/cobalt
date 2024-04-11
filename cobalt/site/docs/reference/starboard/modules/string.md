@@ -127,21 +127,6 @@ be formatted. `arguments`: Variable arguments used in the string.
 int SbStringFormatWide(wchar_t *out_buffer, size_t buffer_size, const wchar_t *format, va_list arguments)
 ```
 
-### SbStringFormatWideF
-
-An inline wrapper of SbStringFormatWide that converts from ellipsis to
-`va_args`.
-
-`out_buffer`: The location where the formatted string is stored. `buffer_size`:
-The size of `out_buffer`. `format`: A string that specifies how the data should
-be formatted. `...`: Arguments used in the string.
-
-#### Declaration
-
-```
-static int SbStringFormatWideF(wchar_t *out_buffer, size_t buffer_size, const wchar_t *format,...)
-```
-
 ### SbStringScan
 
 Scans `buffer` for `pattern`, placing the extracted values in `arguments`. The
@@ -172,3 +157,4 @@ Values matching `pattern` that were extracted from `buffer`.
 ```
 static int SbStringScanF(const char *buffer, const char *pattern,...)
 ```
+

@@ -10,7 +10,8 @@ Provides functionality to handle Window creation and management.
 ### kSbEventOnScreenKeyboardInvalidTicket
 
 System-triggered OnScreenKeyboard events have ticket value
-kSbEventOnScreenKeyboardInvalidTicket.
+kSbEventOnScreenKeyboardInvalidTicket. TODO(b/151173891): This should be moved
+to the extension header
 
 ### kSbWindowInvalid
 
@@ -52,6 +53,7 @@ Options that can be requested at window creation time.
 
 Defines a rectangle via a point `(x, y)` and a size `(width, height)`. This
 structure is used as output for SbWindowGetOnScreenKeyboardBoundingRect.
+TODO(b/151173891): This should be moved to the extension header
 
 #### Members
 
@@ -95,6 +97,20 @@ that would be created to back that window.
 
 ## Functions
 
+### SbWindowBlurOnScreenKeyboard
+
+Blur the on screen keyboard. Fire kSbEventTypeOnScreenKeyboardBlurred.
+kSbEventTypeOnScreenKeyboardBlurred has data `ticket`. Calling
+SbWindowBlurOnScreenKeyboard() when the keyboard is already blurred is
+permitted. Calling SbWindowBlurOnScreenKeyboard while the on screen keyboard is
+not showing does nothing and does not fire any event.
+
+#### Declaration
+
+```
+void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket)
+```
+
 ### SbWindowCreate
 
 Creates and returns a new system window with the given `options`, which may be
@@ -135,6 +151,20 @@ Destroys `window`, reclaiming associated resources.
 bool SbWindowDestroy(SbWindow window)
 ```
 
+### SbWindowFocusOnScreenKeyboard
+
+Focus the on screen keyboard. Fire kSbEventTypeOnScreenKeyboardFocused.
+kSbEventTypeOnScreenKeyboardFocused has data `ticket`. Calling
+SbWindowFocusOnScreenKeyboard() when the keyboard is already focused is
+permitted. Calling SbWindowFocusOnScreenKeyboard while the on screen keyboard is
+not showing does nothing and does not fire any event.
+
+#### Declaration
+
+```
+void SbWindowFocusOnScreenKeyboard(SbWindow window, int ticket)
+```
+
 ### SbWindowGetDiagonalSizeInInches
 
 Gets the size of the diagonal between two opposing screen corners.
@@ -146,6 +176,18 @@ is.
 
 ```
 float SbWindowGetDiagonalSizeInInches(SbWindow window)
+```
+
+### SbWindowGetOnScreenKeyboardBoundingRect
+
+Get the rectangle of the on screen keyboard in screen pixel coordinates. Return
+`true` if successful. Return `false` if the on screen keyboard is not showing.
+If the function returns `false`, then `rect` will not have been modified.
+
+#### Declaration
+
+```
+bool SbWindowGetOnScreenKeyboardBoundingRect(SbWindow window, SbWindowRect *bounding_rect)
 ```
 
 ### SbWindowGetPlatformHandle
@@ -176,6 +218,29 @@ then `size` will not have been modified.
 bool SbWindowGetSize(SbWindow window, SbWindowSize *size)
 ```
 
+### SbWindowHideOnScreenKeyboard
+
+Hide the on screen keyboard. Fire kSbEventTypeWindowSizeChange and
+kSbEventTypeOnScreenKeyboardHidden if necessary.
+kSbEventTypeOnScreenKeyboardHidden has data `ticket`. Calling
+SbWindowHideOnScreenKeyboard() when the keyboard is already hidden is permitted.
+
+#### Declaration
+
+```
+void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket)
+```
+
+### SbWindowIsOnScreenKeyboardShown
+
+Determine if the on screen keyboard is shown.
+
+#### Declaration
+
+```
+bool SbWindowIsOnScreenKeyboardShown(SbWindow window)
+```
+
 ### SbWindowIsValid
 
 Returns whether the given window handle is valid.
@@ -184,6 +249,28 @@ Returns whether the given window handle is valid.
 
 ```
 static bool SbWindowIsValid(SbWindow window)
+```
+
+### SbWindowOnScreenKeyboardIsSupported
+
+Return whether the current platform supports an on screen keyboard
+
+#### Declaration
+
+```
+bool SbWindowOnScreenKeyboardIsSupported()
+```
+
+### SbWindowOnScreenKeyboardSuggestionsSupported
+
+Determine if the on screen keyboard has suggestions implemented. If this returns
+false, then calling SbWindowUpdateOnScreenKeyboardSuggestions() will be
+undefined.
+
+#### Declaration
+
+```
+bool SbWindowOnScreenKeyboardSuggestionsSupported(SbWindow window)
 ```
 
 ### SbWindowSetDefaultOptions
@@ -198,3 +285,49 @@ Sets the default options for system windows.
 ```
 void SbWindowSetDefaultOptions(SbWindowOptions *options)
 ```
+
+### SbWindowSetOnScreenKeyboardKeepFocus
+
+Notify the system that `keepFocus` has been set for the OnScreenKeyboard.
+`keepFocus` true indicates that the user may not navigate focus off of the
+OnScreenKeyboard via input; focus may only be moved via events sent by the app.
+`keepFocus` false indicates that the user may navigate focus off of the
+OnScreenKeyboard via input. `keepFocus` is initialized to false in the
+OnScreenKeyboard constructor.
+
+#### Declaration
+
+```
+void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow window, bool keep_focus)
+```
+
+### SbWindowShowOnScreenKeyboard
+
+Show the on screen keyboard and populate the input with text `input_text`. Fire
+kSbEventTypeWindowSizeChange and kSbEventTypeOnScreenKeyboardShown if necessary.
+kSbEventTypeOnScreenKeyboardShown has data `ticket`. The passed in `input_text`
+will never be NULL, but may be an empty string. Calling
+SbWindowShowOnScreenKeyboard() when the keyboard is already shown is permitted,
+and the input will be replaced with `input_text`. Showing the on screen keyboard
+does not give it focus.
+
+#### Declaration
+
+```
+void SbWindowShowOnScreenKeyboard(SbWindow window, const char *input_text, int ticket)
+```
+
+### SbWindowUpdateOnScreenKeyboardSuggestions
+
+Update the on screen keyboard custom suggestions. Fire
+kSbEventTypeOnScreenKeyboardSuggestionsUpdated.
+kSbEventTypeOnScreenKeyboardSuggestionsUpdated has data `ticket`. The
+suggestions should remain up-to-date when the keyboard is shown after being
+hidden.
+
+#### Declaration
+
+```
+void SbWindowUpdateOnScreenKeyboardSuggestions(SbWindow window, const char *suggestions[], int num_suggestions, int ticket)
+```
+
