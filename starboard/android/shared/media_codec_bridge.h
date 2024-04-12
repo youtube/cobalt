@@ -198,6 +198,7 @@ class MediaCodecBridge {
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
   void SetPlaybackRate(double playback_rate);
+  bool Start();
   jint Flush();
   FrameSize GetOutputSize();
   AudioOutputFormatResult GetAudioOutputFormat();

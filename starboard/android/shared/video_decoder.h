@@ -71,6 +71,7 @@ class VideoDecoder
                bool force_reset_surface_under_tunnel_mode,
                bool force_big_endian_hdr_metadata,
                int max_input_size,
+               bool enable_flush_during_seek,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -150,6 +151,8 @@ class VideoDecoder
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
+
+  const bool enable_flush_during_seek_;
 
   // Force resetting the video surface after tunnel mode playback, which
   // prevents video distortion on some devices.
