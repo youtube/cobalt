@@ -29,3 +29,10 @@ component("color_space") {
   include_dirs = [ "//third_party/skia" ]
   defines = [ "COLOR_SPACE_IMPLEMENTATION" ]
 }
+
+component("gfx") {
+  public_deps = [
+    ":color_space",
+    "geometry:geometry",
+  ]
+}
