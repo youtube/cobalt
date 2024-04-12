@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sched.h>
+
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
@@ -47,7 +49,7 @@ class CountingThread : public AbstractTestThread {
     while (CurrentPosixTime() < end_time) {
       if (GetCount() >= end_count)
         return true;
-      SbThreadYield();
+      sched_yield();
     }
     return false;
   }

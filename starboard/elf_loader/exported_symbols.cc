@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <sched.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -388,8 +389,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSetLocalValue);
   REGISTER_SYMBOL(SbThreadSetName);
   REGISTER_SYMBOL(SbThreadSleep);
-  REGISTER_SYMBOL(SbThreadYield);
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
   REGISTER_SYMBOL(SbTimeGetNow);
@@ -455,6 +456,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(sched_yield);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);

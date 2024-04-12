@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sched.h>
+
 #include "starboard/common/spin_lock.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
@@ -21,7 +22,7 @@ void SpinLockAcquire(SbAtomic32* atomic) {
   while (SbAtomicAcquire_CompareAndSwap(atomic, kSpinLockStateReleased,
                                         kSpinLockStateAcquired) ==
          kSpinLockStateAcquired) {
-    SbThreadYield();
+    sched_yield();
   }
 }
 

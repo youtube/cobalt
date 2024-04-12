@@ -15,6 +15,8 @@
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
 
+#include <sched.h>
+
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 
 #include "starboard/thread.h"
@@ -90,7 +92,7 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
     }
 
     // Just being polite.
-    SbThreadYield();
+    sched_yield();
   }
   EXPECT_FALSE(accepted_socket_fd >= 0);
 

@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated `SbThreadYield`
+Replaced the `SbThreadYield` with the POSIX sched_yield() defined in the
+`<sched.h>` header.
+
 ### x86 ABI removed for Evergreen
 The x86 platform configurations, builds and ABI are no longer supported for
 Evergreen.
