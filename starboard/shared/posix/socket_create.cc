@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/socket.h"
-
 #include <errno.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #include "starboard/common/log.h"
+#include "starboard/common/socket.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/set_non_blocking_internal.h"
 #include "starboard/shared/posix/socket_internal.h"
@@ -61,7 +60,6 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
 
   int socket_fd = ::socket(socket_domain, socket_type, socket_protocol);
   if (socket_fd < 0) {
-    errno = SbSystemGetLastError();
     return kSbSocketInvalid;
   }
 
@@ -78,11 +76,8 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
 #if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
   // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
   int optval_set = 1;
-  if (setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
-                 reinterpret_cast<void*>(&optval_set), sizeof(int)) < 0) {
-    errno = SbSystemGetLastError();
-  }
-
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
+             reinterpret_cast<void*>(&optval_set), sizeof(int));
 #endif
 
   return new SbSocketPrivate(address_type, protocol, socket_fd);

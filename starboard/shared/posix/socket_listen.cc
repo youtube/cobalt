@@ -48,7 +48,6 @@ SbSocketError SbSocketListen(SbSocket socket) {
 #endif
   int result = listen(socket->socket_fd, kMaxConn);
   if (result != 0) {
-    errno = SbSystemGetLastError();
     return (socket->error = sbposix::TranslateSocketErrno(errno));
   }
 

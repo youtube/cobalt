@@ -389,7 +389,7 @@ int accept(int socket, struct sockaddr* addr, socklen_t* addrlen) {
   value->is_file = false;
   value->socket = SbSocketAccept(fileOrSock->socket);
   if (!SbSocketIsValid(value->socket)){
-    errno = EBADF;
+    errno = SbSystemGetLastError();
     free(value);
     return -1;
   }
@@ -439,7 +439,12 @@ ssize_t send(int sockfd, const void* buf, size_t len, int flags) {
     return -1;
   }
 
-  return SbSocketSendTo(fileOrSock->socket, buf, len, NULL);
+  int result = SbSocketSendTo(fileOrSock->socket, buf, len, NULL);
+  if(result == -1) {
+    errno = SbSystemGetLastError();
+  }
+
+  return result;
 }
 
 ssize_t sendto(int sockfd, const void* buf, size_t len, int flags,
@@ -462,7 +467,12 @@ ssize_t sendto(int sockfd, const void* buf, size_t len, int flags,
   SbSocketAddress local_address = {0};
   ConvertSocketAddressPosixToSb(dest_addr, &local_address);
 
-  return SbSocketSendTo(fileOrSock->socket, buf, len, dest_addr == NULL? NULL: &local_address);
+  int result = SbSocketSendTo(fileOrSock->socket, buf, len, dest_addr == NULL? NULL: &local_address);
+  if(result == -1) {
+    errno = SbSystemGetLastError();
+  }
+
+  return result;
 }
 
 ssize_t recv(int sockfd, void* buf, size_t len, int flags) {
@@ -480,7 +490,12 @@ ssize_t recv(int sockfd, void* buf, size_t len, int flags) {
     return -1;
   }
 
-  return SbSocketReceiveFrom(fileOrSock->socket, buf, len, NULL);
+  int result = SbSocketReceiveFrom(fileOrSock->socket, buf, len, NULL);
+  if(result == -1) {
+    errno = SbSystemGetLastError();
+  }
+
+  return result;
 }
 
 ssize_t recvfrom(int sockfd,
@@ -505,7 +520,12 @@ ssize_t recvfrom(int sockfd,
   SbSocketAddress local_address = {0};
   ConvertSocketAddressPosixToSb(address, &local_address);
 
-  return SbSocketReceiveFrom(fileOrSock->socket, buf, len, address == NULL? NULL: &local_address);
+  int result = SbSocketReceiveFrom(fileOrSock->socket, buf, len, address == NULL? NULL: &local_address);
+  if(result == -1) {
+    errno = SbSystemGetLastError();
+  }
+
+  return result;
 }
 
 int getsockname(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict addrlen){

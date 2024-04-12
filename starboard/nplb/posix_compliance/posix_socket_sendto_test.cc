@@ -73,8 +73,7 @@ TEST(PosixSocketSendtoTest, RainyDayUnconnectedSocket) {
       sendto(socket_fd, buf, sizeof(buf), kSendFlags, NULL, 0);
   EXPECT_FALSE(bytes_written >= 0);
 
-  // TODO: check errno: EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET ||
-  // errno == EPIPE);
+  EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE);
 
   EXPECT_TRUE(close(socket_fd) == 0);
 }
@@ -107,8 +106,8 @@ TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
   void* thread_result;
   EXPECT_TRUE(SbThreadJoin(send_thread, &thread_result));
 
-  // TODO: errno: EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno
-  // == EPIPE);
+  EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
+              errno == EINPROGRESS);
 
   // Clean up the server socket.
   EXPECT_TRUE(close(server_socket_fd) == 0);
@@ -141,9 +140,8 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketUntilBlocking) {
 
     if (result < 0) {
       // If we didn't get a socket, it should be pending.
-      // TODO: export errno
-      // EXPECT_TRUE(errno == EINPROGRESS || errno == EAGAIN || errno ==
-      // EWOULDBLOCK);
+      EXPECT_TRUE(errno == EINPROGRESS || errno == EAGAIN ||
+                  errno == EWOULDBLOCK);
       break;
     }
 
@@ -189,9 +187,7 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
     result = sendto(client_socket_fd, buff, sizeof(buff), kSendFlags, NULL, 0);
 
     if (result < 0) {
-      // TODO: errno:
-      // EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno ==
-      // EPIPE);
+      EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE);
       SB_DLOG(INFO) << "Failed to send, errno = " << errno;
       break;
     }

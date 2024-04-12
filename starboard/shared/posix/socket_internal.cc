@@ -73,7 +73,6 @@ bool SetBooleanSocketOption(SbSocket socket,
   int result =
       setsockopt(socket->socket_fd, level, option_code, &on, sizeof(on));
   if (result != 0) {
-    errno = SbSystemGetLastError();
     SB_LOG(ERROR) << "Failed to set " << option_name << " on socket "
                   << socket->socket_fd << ", errno = " << errno;
     socket->error = TranslateSocketErrno(errno);
@@ -98,7 +97,6 @@ bool SetIntegerSocketOption(SbSocket socket,
   int result =
       setsockopt(socket->socket_fd, level, option_code, &value, sizeof(value));
   if (result != 0) {
-    errno = SbSystemGetLastError();
     SB_LOG(ERROR) << "Failed to set " << option_name << " on socket "
                   << socket->socket_fd << ", errno = " << errno;
     socket->error = TranslateSocketErrno(errno);

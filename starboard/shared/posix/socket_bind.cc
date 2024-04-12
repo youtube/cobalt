@@ -64,7 +64,6 @@ SbSocketError SbSocketBind(SbSocket socket,
   int result = HANDLE_EINTR(
       bind(socket->socket_fd, sock_addr.sockaddr(), sock_addr.length));
   if (result != 0) {
-    errno = SbSystemGetLastError();
     SB_LOG(ERROR) << __FUNCTION__ << ": Bind failed. errno=" << errno;
     return (socket->error = sbposix::TranslateSocketErrno(errno));
   }

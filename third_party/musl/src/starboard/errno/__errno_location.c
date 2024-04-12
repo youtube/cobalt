@@ -4,7 +4,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/once.h"
-// #include "starboard/system.h"
 #include "starboard/thread.h"
 
 static SbThreadLocalKey g_errno_key = kSbThreadLocalKeyInvalid;
