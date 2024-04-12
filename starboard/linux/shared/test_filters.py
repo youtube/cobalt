@@ -38,11 +38,6 @@ _MODULAR_BUILD_FILTERED_TESTS = {
         'VersionIncludeStreamDependencySequence/QuicNetworkTransactionTest.NetworkIsolationTunnel*',
         'SchemeHostPortMatcherRuleTest.SchemeHostPortMatcherHostnamePatternRule_PunnyCodeHostname',
         'ProxySpecificationUtilTest.ProxyUriToProxyServer',
-
-        # TODO: b/331437821 - These pass locally and fail on GitHub.
-        'QuicMemoryCacheBackendTest.UsesOriginalUrl',
-        'QuicMemoryCacheBackendTest.ReadsCacheDir',
-        'QuicMemoryCacheBackendTest.UsesOriginalUrlOnly',
     ],
 }
 
@@ -50,12 +45,6 @@ _FILTERED_TESTS = {
     'nplb': [
         # TODO(b/286249595): This test crashes when coverage is enabled.
         'SbMemoryMapTest.CanChangeMemoryProtection'
-    ],
-    'net_unittests': [
-        # TODO: b/331437821 - These pass locally and fail on GitHub.
-        'QuicMemoryCacheBackendTest.UsesOriginalUrl',
-        'QuicMemoryCacheBackendTest.ReadsCacheDir',
-        'QuicMemoryCacheBackendTest.UsesOriginalUrlOnly',
     ],
 }
 if os.getenv('MODULAR_BUILD', '0') == '1':
