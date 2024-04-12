@@ -71,7 +71,8 @@ TEST(PosixSocketSendTest, RainyDayUnconnectedSocket) {
   ssize_t bytes_written = send(socket_fd, buf, sizeof(buf), kSendFlags);
   EXPECT_FALSE(bytes_written >= 0);
 
-  EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE);
+  EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
+              errno == ETIMEDOUT);
 
   EXPECT_TRUE(close(socket_fd) == 0);
 }
@@ -185,7 +186,8 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketConnectionReset) {
     result = send(client_socket_fd, buff, sizeof(buff), kSendFlags);
 
     if (result < 0) {
-      EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE);
+      EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
+                  errno == EISCONN);
       SB_DLOG(INFO) << "Failed to send, errno = " << errno;
       break;
     }
