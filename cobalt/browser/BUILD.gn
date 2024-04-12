@@ -233,8 +233,6 @@ static_library("browser") {
   } else {
     deps += cobalt_platform_dependencies
   }
-
-  include_dirs = [ "//third_party/skia" ]
 }
 
 target(gtest_target_type, "browser_test") {

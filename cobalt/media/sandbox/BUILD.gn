@@ -26,8 +26,7 @@ target(final_executable_type, "media_sandbox") {
     "//cobalt/media",
     "//media",
     "//starboard:starboard_group",
-    "//ui/gfx:color_space",
-    "//ui/gfx/geometry:geometry",
+    "//ui/gfx:gfx",
   ]
 }
 
@@ -61,8 +60,7 @@ target(final_executable_type, "web_media_player_sandbox") {
     "//cobalt/trace_event",
     "//media",
     "//starboard:starboard_group",
-    "//ui/gfx:color_space",
-    "//ui/gfx/geometry:geometry",
+    "//ui/gfx:gfx",
     "//url",
   ]
 
