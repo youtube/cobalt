@@ -1405,7 +1405,7 @@ component("net") {
     sources += [ "disk_cache/blockfile/mapped_file_posix.cc" ]
   }
 
-  if (false) {
+  if (is_android || is_chromeos || is_linux) {
     sources += [
       "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
@@ -3009,7 +3009,7 @@ test("net_unittests") {
     sources += [ "base/sockaddr_util_posix_unittest.cc" ]
   }
 
-  if (is_android || is_chromeos_ash) {
+  if ((is_android || is_chromeos_ash) && !is_starboard) {
     sources += [ "base/network_change_notifier_passive_unittest.cc" ]
   }
 
@@ -3069,6 +3069,15 @@ test("net_unittests") {
     data += [
       "tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
+    ]
+  }
+
+  if (is_starboard) {
+    data_deps += [
+      ":net_unittest_files",
+      ":third_party_unittest_files",
+      "//cobalt/network:copy_ssl_certificates",
+      "//third_party/icu:icudata",
     ]
   }
 

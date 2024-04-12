@@ -97,7 +97,7 @@ void OverlayAgent::HighlightNode(Command command) {
   JSONObject rects_response = dispatcher_->RunScriptCommand(
       "Overlay._highlightNodeRects", command.GetParams());
   const Value* highlight_rects =
-      rects_response->FindByDottedPath("result.highlightRects");
+      rects_response.FindByDottedPath("result.highlightRects");
   if (!highlight_rects) {
     command.SendErrorResponse(Command::kInvalidParams,
                               "Can't get node highlights.");
@@ -119,7 +119,7 @@ void OverlayAgent::HighlightRect(Command command) {
   if (!EnsureEnabled(&command)) return;
 
   JSONObject params = JSONParse(command.GetParams());
-  render_layer_->SetFrontLayer(RenderHighlightRect(params.get()));
+  render_layer_->SetFrontLayer(RenderHighlightRect(&params));
   command.SendResponse();
 }
 

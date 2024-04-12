@@ -19,12 +19,21 @@
 FILTER_ALL = 'FILTER_ALL'
 DISABLE_TESTING = 'DISABLE_TESTING'
 
-EVERGREEN_ONLY_TESTS = {
-    'elf_loader_test': {FILTER_ALL},
-    'installation_manager_test': {FILTER_ALL},
-    'reset_evergreen_update_test': {FILTER_ALL},
-    'slot_management_test': {FILTER_ALL},
-}
+# Tests added for Evergreen only
+EVERGREEN_TESTS = [
+    'app_key_test', 'app_key_files_test', 'drain_file_test',
+    'slot_management_test'
+]
+
+# Tests that can only be run on Evergreen compatible host platforms, as set
+# by sb_is_evergreen_compatible GN config flag.
+EVERGREEN_COMPATIBLE_TESTS = [
+    # TODO(b/292138589): Fails on various linux configs.
+    # 'nplb_evergreen_compat_tests',
+    'elf_loader_test',
+    'installation_manager_test',
+    'reset_evergreen_update_test',
+]
 
 
 class TestFilter(object):

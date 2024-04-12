@@ -172,11 +172,6 @@ void OnMediaSessionStateChanged(
   jint playback_state = CobaltExtensionPlaybackStateToPlaybackState(
       session_state.actual_playback_state);
 
-  SbOnce(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
-
-  SbMutexRelease(&mutex);
-
   jlong playback_state_actions = MediaSessionActionsToPlaybackStateActions(
       session_state.available_actions);
 
@@ -271,6 +266,9 @@ void DestroyMediaSessionClientCallback() {
   g_update_platform_playback_state_callback = NULL;
 
   SbMutexRelease(&mutex);
+
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("deactivateMediaSession", "()V");
 }
 
 }  // namespace

@@ -129,7 +129,7 @@ void DebugDispatcher::DispatchCommand(Command command) {
   // same time as it registered its domain command handler).
   JSONObject response =
       RunScriptCommand(command.GetMethod(), command.GetParams());
-  if (response) {
+  if (!response.empty()) {
     command.SendResponse(response);
   } else {
     DLOG(WARNING) << "Command not implemented: " << command.GetMethod();
@@ -212,18 +212,18 @@ JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
   std::string json_result;
   bool success = script_runner_->RunCommand(method, json_params, &json_result);
 
-  JSONObject response(std::make_unique<base::Value::Dict>());
+  JSONObject response;
   if (success) {
     JSONObject result = JSONParse(json_result);
-    if (result) {
-      response->Set("result", std::move(*result.release()));
+    if (!result.empty()) {
+      response.Set("result", std::move(result));
     }
   } else if (json_result.empty()) {
     // Unimplemented commands aren't successful, and |json_result| is empty.
-    response.reset();
+    response.clear();
   } else {
     // On error, |json_result| is the error message.
-    response->Set("error.message", json_result);
+    response.Set("error.message", json_result);
   }
   return response;
 }

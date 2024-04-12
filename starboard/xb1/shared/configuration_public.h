@@ -49,15 +49,6 @@
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
-// --- Compiler Configuration ------------------------------------------------
-
-// The platform's annotation for marking a symbol as exported outside of the
-// current shared library.
-#define SB_EXPORT_PLATFORM __declspec(dllexport)
-// The platform's annotation for marking a symbol as imported from outside of
-// the current linking unit.
-#define SB_IMPORT_PLATFORM __declspec(dllimport)
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies the platform can map

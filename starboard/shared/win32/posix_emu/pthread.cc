@@ -13,11 +13,24 @@
 // limitations under the License.
 
 #include <errno.h>
+#include <process.h>
 #include <pthread.h>
 #include <cstdint>
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/win32/thread_private.h"
+
+using starboard::shared::win32::GetCurrentSbThreadPrivate;
+using starboard::shared::win32::GetThreadSubsystemSingleton;
+using starboard::shared::win32::SbThreadPrivate;
+using starboard::shared::win32::ThreadCreateInfo;
+using starboard::shared::win32::ThreadSubsystemSingleton;
+
+void CallThreadLocalDestructorsMultipleTimes();
+void ResetWinError();
+int RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton);
+int CountTlsObjectsRemaining(ThreadSubsystemSingleton* singleton);
 
 extern "C" {
 
@@ -154,6 +167,106 @@ int pthread_once(pthread_once_t* once_control, void (*init_routine)(void)) {
   return InitOnceExecuteOnce(once_control, OnceTrampoline, init_routine, NULL)
              ? 0
              : -1;
+}
+
+static unsigned ThreadTrampoline(void* thread_create_info_context) {
+  std::unique_ptr<ThreadCreateInfo> info(
+      static_cast<ThreadCreateInfo*>(thread_create_info_context));
+
+  ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
+  SbThreadSetLocalValue(singleton->thread_private_key_, &info->thread_private_);
+  SbThreadSetName(info->name_.c_str());
+
+  void* result = info->entry_point_(info->user_context_);
+
+  CallThreadLocalDestructorsMultipleTimes();
+
+  SbMutexAcquire(&info->thread_private_.mutex_);
+  info->thread_private_.result_ = result;
+  info->thread_private_.result_is_valid_ = true;
+  SbConditionVariableSignal(&info->thread_private_.condition_);
+  while (info->thread_private_.wait_for_join_) {
+    SbConditionVariableWait(&info->thread_private_.condition_,
+                            &info->thread_private_.mutex_);
+  }
+  SbMutexRelease(&info->thread_private_.mutex_);
+
+  return 0;
+}
+
+int pthread_create(pthread_t* thread,
+                   const pthread_attr_t* attr,
+                   void* (*start_routine)(void*),
+                   void* arg) {
+  if (start_routine == NULL) {
+    return -1;
+  }
+  ThreadCreateInfo* info = new ThreadCreateInfo();
+
+  info->entry_point_ = start_routine;
+  info->user_context_ = arg;
+  info->thread_private_.wait_for_join_ = true;
+
+  // Create the thread suspended, and then resume once ThreadCreateInfo::handle_
+  // has been set, so that it's always valid in the ThreadCreateInfo
+  // destructor.
+  uintptr_t handle =
+      _beginthreadex(NULL, 0, ThreadTrampoline, info, CREATE_SUSPENDED, NULL);
+  SB_DCHECK(handle);
+  info->thread_private_.handle_ = reinterpret_cast<HANDLE>(handle);
+  ResetWinError();
+
+  ResumeThread(info->thread_private_.handle_);
+
+  *thread = &info->thread_private_;
+  return 0;
+}
+
+int pthread_join(pthread_t thread, void** value_ptr) {
+  if (thread == NULL) {
+    return -1;
+  }
+
+  SbThreadPrivate* thread_private = static_cast<SbThreadPrivate*>(thread);
+
+  SbMutexAcquire(&thread_private->mutex_);
+  if (!thread_private->wait_for_join_) {
+    // Thread has already been detached.
+    SbMutexRelease(&thread_private->mutex_);
+    return -1;
+  }
+  while (!thread_private->result_is_valid_) {
+    SbConditionVariableWait(&thread_private->condition_,
+                            &thread_private->mutex_);
+  }
+  thread_private->wait_for_join_ = false;
+  SbConditionVariableSignal(&thread_private->condition_);
+  if (value_ptr != NULL) {
+    *value_ptr = thread_private->result_;
+  }
+  SbMutexRelease(&thread_private->mutex_);
+  return 0;
+}
+
+int pthread_detach(pthread_t thread) {
+  if (thread == NULL) {
+    return -1;
+  }
+  SbThreadPrivate* thread_private = static_cast<SbThreadPrivate*>(thread);
+
+  SbMutexAcquire(&thread_private->mutex_);
+  thread_private->wait_for_join_ = false;
+  SbConditionVariableSignal(&thread_private->condition_);
+  SbMutexRelease(&thread_private->mutex_);
+  return 0;
+}
+
+pthread_t pthread_self() {
+  return GetCurrentSbThreadPrivate();
+}
+
+int pthread_equal(pthread_t t1, pthread_t t2) {
+  return t1 == t2;
 }
 
 }  // extern "C"

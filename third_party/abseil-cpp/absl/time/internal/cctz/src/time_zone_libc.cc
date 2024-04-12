@@ -162,7 +162,15 @@ bool make_time(const civil_second& cs, int is_dst, std::time_t* t, int* off) {
   tm.tm_min = cs.minute();
   tm.tm_sec = cs.second();
   tm.tm_isdst = is_dst;
+#if defined(STARBOARD)
+  EzTimeExploded exploded = {tm.tm_sec,  tm.tm_min,  tm.tm_hour,
+                             tm.tm_mday, tm.tm_mon,  tm.tm_year,
+                             tm.tm_wday, tm.tm_yday, tm.tm_isdst};
+  EzTimeT secs = EzTimeTImplode(&exploded, EzTimeZone::kEzTimeZoneLocal);
+  *t = static_cast<std::time_t>(secs);
+#else
   *t = std::mktime(&tm);
+#endif
   if (*t == std::time_t{-1}) {
     std::tm tm2;
     const std::tm* tmp = local_time(t, &tm2);

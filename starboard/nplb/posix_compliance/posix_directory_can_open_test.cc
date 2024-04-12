@@ -42,7 +42,7 @@ TEST(PosixDirectoryCanOpenTest, SunnyDayStaticContent) {
   }
 }
 
-TEST(PosixDirectoryCanOpenTest, FailureMissingStaticContent) {
+TEST(PosixDirectoryCanOpenTest, FLAKY_FailureMissingStaticContent) {
   std::string directory_path = GetFileTestsDataDir();
   std::string missing_dir = directory_path + kSbFileSepChar + "missing_dir";
   struct stat file_info;

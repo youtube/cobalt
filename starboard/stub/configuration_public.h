@@ -48,16 +48,6 @@
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
-// --- Compiler Configuration ------------------------------------------------
-
-// The platform's annotation for marking a symbol as exported outside of the
-// current shared library.
-#define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
-
-// The platform's annotation for marking a symbol as imported from outside of
-// the current linking unit.
-#define SB_IMPORT_PLATFORM
-
 // --- Media Configuration ---------------------------------------------------
 
 // The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only

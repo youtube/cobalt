@@ -5,6 +5,7 @@
 #include "quiche_platform_impl/quiche_file_utils_impl.h"
 
 #if defined(STARBOARD)
+#include "starboard/common/log.h"
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -143,7 +144,7 @@ bool EnumerateDirectoryImpl(absl::string_view path,
     if (!SbDirectoryGetNext(dir.get(), entry.data(), entry.size())) {
       break;
     }
-    std::string filename(entry.begin(), entry.end());
+    std::string filename(entry.data());
     if (filename == "." || filename == "..") {
       continue;
     }

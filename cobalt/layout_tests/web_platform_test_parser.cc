@@ -104,7 +104,8 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
   if (precondition) {
     // Evaluate the javascript precondition. Enumerate the web platform tests
     // only if the precondition is true.
-    base::test::TaskEnvironment task_env_;
+    base::test::SingleThreadTaskEnvironment task_environment_{
+        base::test::TaskEnvironment::TimeSource::MOCK_TIME};
     std::unique_ptr<script::JavaScriptEngine> engine =
         script::JavaScriptEngine::CreateEngine();
     scoped_refptr<script::GlobalEnvironment> global_environment =

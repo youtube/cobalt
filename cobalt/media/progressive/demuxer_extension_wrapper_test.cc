@@ -80,7 +80,7 @@ class MockDataSource : public DataSource {
     // interact with callbacks and/or output parameters.
     ON_CALL(*this, Read(_, _, _, _))
         .WillByDefault(Invoke(+[](int64_t position, int size, uint8_t* data,
-                                  const DataSource::ReadCB& read_cb) {
+                                  DataSource::ReadCB read_cb) {
           memset(data, 0, size);
           read_cb.Run(size);
         }));
@@ -93,7 +93,7 @@ class MockDataSource : public DataSource {
   ~MockDataSource() override = default;
 
   MOCK_METHOD4(Read, void(int64_t position, int size, uint8_t* data,
-                          const DataSource::ReadCB& read_cb));
+                          DataSource::ReadCB read_cb));
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD0(Abort, void());
   MOCK_METHOD1(GetSize, bool(int64_t* size_out));

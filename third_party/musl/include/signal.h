@@ -1,11 +1,15 @@
 #ifndef _SIGNAL_H
 #define _SIGNAL_H
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <features.h>
+#if defined(STARBOARD)
+#include <pthread.h>
+#endif
 
 #if defined(_POSIX_SOURCE) || defined(_POSIX_C_SOURCE) \
  || defined(_XOPEN_SOURCE) || defined(_GNU_SOURCE) \
@@ -19,8 +23,10 @@ extern "C" {
 #define __NEED_pid_t
 #define __NEED_uid_t
 #define __NEED_struct_timespec
+#if !defined(STARBOARD)
 #define __NEED_pthread_t
 #define __NEED_pthread_attr_t
+#endif
 #define __NEED_time_t
 #define __NEED_clock_t
 #define __NEED_sigset_t

@@ -3,14 +3,6 @@ Book: /youtube/cobalt/_book.yaml
 
 # Starboard Configuration Reference Guide
 
-## Compiler Configuration
-
-| Properties |
-| :--- |
-| **`SB_EXPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as exported outside of the current shared library.<br><br>The default value in the Stub implementation is <br>`__attribute__((visibility("default")))` |
-| **`SB_IMPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as imported from outside of the current linking unit. |
-
-
 ## Media Configuration
 
 | Properties |
@@ -30,7 +22,6 @@ Book: /youtube/cobalt/_book.yaml
 | Properties |
 | :--- |
 | **`SB_HAS_IPV6`**<br><br>Specifies whether this platform supports IPV6.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_PIPE`**<br><br>Specifies whether this platform supports pipe.<br><br>The default value in the Stub implementation is `1` |
 
 
 ## System Header Configuration

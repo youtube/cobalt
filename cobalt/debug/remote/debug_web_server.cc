@@ -209,23 +209,23 @@ void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
 
   // Parse the json string to get id, method and params.
   JSONObject json_object = JSONParse(json);
-  if (!json_object) {
+  if (json_object.empty()) {
     return SendErrorResponseOverWebSocket(websocket_id_, "Error parsing JSON");
   }
-  absl::optional<int> id = json_object->FindInt(kIdField);
+  absl::optional<int> id = json_object.FindInt(kIdField);
   if (!id.has_value()) {
     return SendErrorResponseOverWebSocket(0, "Missing request id");
   }
-  std::string* method = json_object->FindString(kMethodField);
+  std::string* method = json_object.FindString(kMethodField);
   if (!method) {
     return SendErrorResponseOverWebSocket(id.value(), "Missing method");
   }
   // Parameters are optional.
-  const base::Value* params_value = json_object->Find(kParamsField);
+  const base::Value* params_value = json_object.Find(kParamsField);
   std::string json_params;
-  if (json_object->Remove(kParamsField) && params_value->is_dict()) {
-    JSONObject params(std::make_unique<base::Value::Dict>());
-    DCHECK(params);
+  if (json_object.Remove(kParamsField) && params_value->is_dict()) {
+    JSONObject params;
+    DCHECK(!params.empty());
     json_params = JSONStringify(params);
   }
 
@@ -242,9 +242,9 @@ void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
 void DebugWebServer::SendErrorResponseOverWebSocket(
     int id, const std::string& message) {
   DCHECK_GE(websocket_id_, 0);
-  JSONObject response(std::make_unique<base::Value::Dict>());
-  response->Set(kIdField, id);
-  response->Set(kErrorField, message);
+  JSONObject response;
+  response.Set(kIdField, id);
+  response.Set(kErrorField, message);
   server_->SendOverWebSocket(websocket_id_, JSONStringify(response),
                              kNetworkTrafficAnnotation);
 }
@@ -252,8 +252,8 @@ void DebugWebServer::SendErrorResponseOverWebSocket(
 void DebugWebServer::OnDebuggerResponse(
     int id, const base::Optional<std::string>& response) {
   JSONObject response_object = JSONParse(response.value());
-  DCHECK(response_object);
-  response_object->Set(kIdField, id);
+  DCHECK(!response_object.empty());
+  response_object.Set(kIdField, id);
   server_->SendOverWebSocket(websocket_id_, JSONStringify(response_object),
                              kNetworkTrafficAnnotation);
 }
@@ -275,9 +275,9 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
     return;
   }
 
-  JSONObject event(std::make_unique<base::Value::Dict>());
-  event->Set(kMethodField, method);
-  event->Set(kParamsField, std::move(*JSONParse(json_params)));
+  JSONObject event;
+  event.Set(kMethodField, method);
+  event.Set(kParamsField, std::move(JSONParse(json_params)));
   server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
                              kNetworkTrafficAnnotation);
 }
@@ -294,9 +294,9 @@ void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
   }
 
   DLOG(INFO) << "Got detach event: " << reason;
-  JSONObject event(std::make_unique<base::Value::Dict>());
-  event->Set(kMethodField, kDetached);
-  event->Set(kDetachReasonField, reason);
+  JSONObject event;
+  event.Set(kMethodField, kDetached);
+  event.Set(kDetachReasonField, reason);
   server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
                              kNetworkTrafficAnnotation);
 }

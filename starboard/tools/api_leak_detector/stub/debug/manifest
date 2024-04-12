@@ -87,16 +87,9 @@ mbsrtowcs
 open
 poll
 printf
-pthread_cond_broadcast
-pthread_cond_destroy
-pthread_cond_signal
-pthread_cond_wait
 pthread_getspecific
 pthread_key_create
 pthread_key_delete
-pthread_mutex_lock
-pthread_mutex_unlock
-pthread_once
 pthread_setspecific
 putc
 putwc

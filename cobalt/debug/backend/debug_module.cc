@@ -38,7 +38,7 @@ constexpr char kTracingController[] = "TracingController";
 // NULL or it doesn't hold a state for the agent.
 JSONObject RemoveAgentState(const std::string& agent_name,
                             base::Value::Dict* state_dict) {
-  if (state_dict == nullptr) {
+  if (!state_dict) {
     return JSONObject();
   }
 
@@ -47,9 +47,8 @@ JSONObject RemoveAgentState(const std::string& agent_name,
     return JSONObject();
   }
 
-  std::unique_ptr<base::Value::Dict> dictionary_value =
-      std::make_unique<base::Value::Dict>(std::move(value->GetDict()));
-  if (!dictionary_value) {
+  base::Value::Dict dictionary_value = std::move(value->GetDict());
+  if (dictionary_value.empty()) {
     DLOG(ERROR) << "Unexpected state type for " << agent_name;
     return JSONObject();
   }
@@ -59,8 +58,8 @@ JSONObject RemoveAgentState(const std::string& agent_name,
 
 void StoreAgentState(base::Value::Dict* state_dict,
                      const std::string& agent_name, JSONObject agent_state) {
-  if (agent_state) {
-    state_dict->Set(agent_name, std::move(*agent_state.release()));
+  if (!agent_state.empty()) {
+    state_dict->Set(agent_name, std::move(agent_state));
   }
 }
 
@@ -178,9 +177,9 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   // Restore the agents with their state from before navigation. Do this
   // unconditionally to give the agents a place to initialize themselves whether
   // or not state is being restored.
-  base::Value::Dict* agents_state =
-      data.debugger_state == nullptr ? nullptr
-                                     : data.debugger_state->agents_state.get();
+  base::Value::Dict* agents_state = data.debugger_state == nullptr
+                                        ? nullptr
+                                        : &(data.debugger_state->agents_state);
   cobalt_agent_->Thaw(RemoveAgentState(kCobaltAgent, agents_state));
   script_debugger_agent_->Thaw(
       RemoveAgentState(kScriptDebuggerAgent, agents_state));
@@ -200,10 +199,9 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
   DCHECK(!is_frozen_);
   is_frozen_ = true;
 
-  std::unique_ptr<DebuggerState> debugger_state(new DebuggerState());
+  auto debugger_state = std::make_unique<DebuggerState>();
 
-  debugger_state->agents_state.reset(new base::Value::Dict());
-  base::Value::Dict* agents_state = debugger_state->agents_state.get();
+  base::Value::Dict* agents_state = &(debugger_state->agents_state);
   StoreAgentState(agents_state, kCobaltAgent, cobalt_agent_->Freeze());
   StoreAgentState(agents_state, kScriptDebuggerAgent,
                   script_debugger_agent_->Freeze());
@@ -221,7 +219,7 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
   // agents might send as part of being frozen.
   debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
 
-  return debugger_state;
+  return std::move(debugger_state);
 }
 
 void DebugModule::SendEvent(const std::string& method,

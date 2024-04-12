@@ -52,13 +52,10 @@
 #if SB_API_VERSION < 16
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
-#endif  // SB_API_VERSION < 16
 
-#if SB_API_VERSION < 16
 // The platform's annotation for marking a C function as suggested to be
 // inlined.
 #define SB_C_INLINE inline
-#endif
 
 // The platform's annotation for marking a symbol as exported outside of the
 // current shared library.
@@ -67,6 +64,8 @@
 // The platform's annotation for marking a symbol as imported from outside of
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
+
+#endif  // SB_API_VERSION < 16
 
 // --- Memory Configuration --------------------------------------------------
 

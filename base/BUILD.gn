@@ -1240,8 +1240,7 @@ component("base") {
 
   # Allow more direct string conversions on platforms with native utf8
   # strings
-  if (is_apple || is_chromeos || is_castos || is_cast_android || is_fuchsia ||
-      is_starboard) {
+  if (is_apple || is_chromeos || is_castos || is_cast_android || is_fuchsia) {
     defines += [ "SYSTEM_NATIVE_UTF8" ]
   }
 
@@ -3667,6 +3666,14 @@ test("base_unittests") {
 
   public_deps = [ ":base_unittests_bundle_data" ]
 
+  if (is_starboard){
+    data_deps += [
+      ":base_unittests_bundle_data",
+      "//cobalt/network:copy_ssl_certificates",
+      "//third_party/icu:icudata",
+    ]
+  }
+
   if (!is_ios && !is_starboard) {
     sources += [ "allocator/partition_allocator/tagging_unittest.cc" ]
   }
@@ -3806,8 +3813,7 @@ test("base_unittests") {
 
   # Allow more direct string conversions on platforms with native utf8
   # strings
-  if (is_apple || is_chromeos || is_castos || is_cast_android || is_fuchsia ||
-      is_starboard) {
+  if (is_apple || is_chromeos || is_castos || is_cast_android || is_fuchsia) {
     defines += [ "SYSTEM_NATIVE_UTF8" ]
   }
 

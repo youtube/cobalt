@@ -18,6 +18,7 @@
 #define STARBOARD_COMMON_THREAD_H_
 
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "starboard/common/scoped_ptr.h"
@@ -74,7 +75,7 @@ class Thread {
   atomic_bool* joined_bool();
 
   struct Data;
-  scoped_ptr<Data> d_;
+  std::unique_ptr<Data> d_;
 
   Thread(const Thread&) = delete;
   void operator=(const Thread&) = delete;
