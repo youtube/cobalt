@@ -96,6 +96,13 @@ void RequestSender::SendInternal() {
                        static_cast<int>(ProtocolError::URL_FETCHER_FAILED),
                        std::string(), std::string(), 0));
   }
+  LOG(INFO) << "==============================================================";
+  LOG(INFO) << "POST REQUEST:";
+  LOG(INFO) << "URL: " << url;
+  LOG(INFO) << "request_body: " << request_body_;
+  for (auto header : request_extra_headers_) {
+      LOG(INFO) << "header: " << header.first << " -> " << header.second;
+  }
   network_fetcher_->PostRequest(
       url, request_body_, request_extra_headers_,
       base::BindOnce(&RequestSender::OnResponseStarted, base::Unretained(this)),
@@ -186,6 +193,9 @@ void RequestSender::OnNetworkFetcherComplete(
   int retry_after_sec = -1;
   if (original_url.SchemeIsCryptographic() && error > 0)
     retry_after_sec = base::saturated_cast<int>(xheader_retry_after_sec);
+
+  LOG(INFO) << "=============================================================";
+  LOG(INFO) << "Response body: " << *response_body;
 
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(&RequestSender::SendInternalComplete,

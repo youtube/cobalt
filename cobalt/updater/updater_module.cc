@@ -103,30 +103,41 @@ void Observer::OnEvent(Events event, const std::string& id) {
   if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
     auto status_iterator =
         component_to_updater_status_map.find(crx_update_item_.state);
+    LOG(INFO) << "==============================component_to_updater_status_map";
+    for (auto item : component_to_updater_status_map) {
+      LOG(INFO) << "first: " << item.first;
+      LOG(INFO) << "second: " << item.second;
+    }
+    LOG(INFO) << "==============================";
     if (status_iterator == component_to_updater_status_map.end()) {
+      LOG(INFO) << "==============================DEBUG 1";
       status = "Status is unknown.";
     } else if (crx_update_item_.state == ComponentState::kUpToDate &&
                updater_configurator_->GetPreviousUpdaterStatus().compare(
                    updater_status_string_map.find(UpdaterStatus::kUpdated)
                        ->second) == 0) {
+                        LOG(INFO) << "==============================DEBUG 2";
       status = std::string(
           updater_status_string_map.find(UpdaterStatus::kUpdated)->second);
     } else {
+      LOG(INFO) << "==============================DEBUG 3";
       status = std::string(
           updater_status_string_map.find(status_iterator->second)->second);
     }
     if (crx_update_item_.state == ComponentState::kUpdateError) {
+      LOG(INFO) << "==============================DEBUG 4";
       status +=
           ", error code is " + std::to_string(crx_update_item_.error_code);
     }
     if (updater_notification_ext_ != nullptr) {
+      LOG(INFO) << "==============================DEBUG 5";
       updater_notification_ext_->UpdaterState(
           ComponentStateToCobaltExtensionUpdaterNotificationState(
               crx_update_item_.state),
           GetCurrentEvergreenVersion().c_str());
     }
   } else {
-    status = "No status available";
+    status = "Yoohooooo!";
   }
   updater_configurator_->SetUpdaterStatus(status);
   LOG(INFO) << "Updater status is " << status;
