@@ -37,23 +37,23 @@ namespace watchdog {
 // whether or not Watchdog is enabled. When disabled, Watchdog behaves like a
 // stub except that persistent settings can still be get/set. Requires a
 // restart to take effect.
-const char kPersistentSettingWatchdogEnable[] =
+constexpr char kPersistentSettingWatchdogEnable[] =
     "kPersistentSettingWatchdogEnable";
-const bool kDefaultSettingWatchdogEnable = true;
+constexpr bool kDefaultSettingWatchdogEnable = true;
 
 // Persistent setting name and default setting for the boolean that controls
 // whether or not a Watchdog violation will trigger a crash.
-const char kPersistentSettingWatchdogCrash[] =
+constexpr char kPersistentSettingWatchdogCrash[] =
     "kPersistentSettingWatchdogCrash";
-const bool kDefaultSettingWatchdogCrash = false;
+constexpr bool kDefaultSettingWatchdogCrash = false;
 
 // Persistent setting name and default setting for the boolean that controls
 // whether or not LogTrace API is enabled. When disabled, all LogTrace methods
 // behave like a stub except for persistent settings itself. Requires a
 // restart to take effect.
-const char kPersistentSettingLogtraceEnable[] =
+constexpr char kPersistentSettingLogtraceEnable[] =
     "kPersistentSettingLogtraceEnable";
-const bool kDefaultSettingLogtraceEnable = true;
+constexpr bool kDefaultSettingLogtraceEnable = true;
 
 // Client to monitor
 typedef struct Client {
