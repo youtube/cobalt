@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This is a test app for Evergreen that does nothing.
-
+#if SB_API_VERSION < 16
 #include <unistd.h>
 
-#include "base/time/time.h"
-#include "starboard/event.h"
-#include "starboard/system.h"
 #include "starboard/thread.h"
 
-void SbEventHandle(const SbEvent* event) {
-  // No-op app. Exit after 1s.
-  usleep(1 * base::Time::kMicrosecondsPerSecond);
-  SbSystemRequestStop(0);
+int usleep(useconds_t useconds) {
+  SbThreadSleep(useconds);
+  return 0;
 }
+
+#endif  // SB_API_VERSION < 16

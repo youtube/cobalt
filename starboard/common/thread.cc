@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <unistd.h>
+
 #include "starboard/common/thread.h"
 
 #include "starboard/common/atomic.h"
@@ -65,7 +67,7 @@ void Thread::Start(const Options& options) {
 }
 
 void Thread::Sleep(int64_t microseconds) {
-  SbThreadSleep(microseconds);
+  usleep(microseconds);
 }
 
 void Thread::SleepMilliseconds(int value) {

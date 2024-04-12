@@ -14,6 +14,8 @@
 
 #include "cobalt/watchdog/watchdog.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <sstream>
 #include <utility>
@@ -823,7 +825,7 @@ void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
 
   if (starboard::CurrentMonotonicTime() >
       time_last_delayed_microseconds_ + delay_wait_time_microseconds_) {
-    SbThreadSleep(delay_sleep_time_microseconds_);
+    usleep(delay_sleep_time_microseconds_);
     time_last_delayed_microseconds_ = starboard::CurrentMonotonicTime();
   }
 }

@@ -17,6 +17,7 @@
 #include "internal.h"
 
 #if defined(STARBOARD)
+#include <unistd.h>
 
 #include <openssl/mem.h>
 
@@ -70,7 +71,7 @@ void EnsureInitialized(struct CRYPTO_STATIC_MUTEX* lock) {
     return;
   }
   while (SbAtomicNoBarrier_Load(&lock->initialized) != kInitialized) {
-    SbThreadSleep(1000);  // 1ms
+    usleep(1000);  // 1ms
   }
 }
 

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <sched.h>
+#include <unistd.h>
 
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
@@ -32,7 +33,7 @@ class CountingThread : public AbstractTestThread {
   void Run() override {
     while (!stop_.load()) {
       counter_.increment();
-      SbThreadSleep(1000);
+      usleep(1000);
     }
   }
 

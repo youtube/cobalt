@@ -17,6 +17,8 @@
 #if defined(STARBOARD)
 #include "starboard/thread.h"
 
+#include <unistd.h>
+
 #include <atomic>
 #include <ctime>
 #include <sched.h>
@@ -35,7 +37,7 @@ ABSL_ATTRIBUTE_WEAK void ABSL_INTERNAL_C_SYMBOL(AbslInternalSpinLockDelay)(
   } else if (loop == 1) {
     sched_yield();
   } else {
-    SbThreadSleep(loop);
+    usleep(loop);
   }
 }
 

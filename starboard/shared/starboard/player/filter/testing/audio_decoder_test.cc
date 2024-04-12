@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <deque>
 #include <functional>
@@ -166,7 +168,7 @@ class AudioDecoderTest
           return;
         }
       }
-      SbThreadSleep(1000);
+      usleep(1000);
     }
     *event = kError;
   }
