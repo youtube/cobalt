@@ -45,7 +45,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   ChunkDemuxerStream(const ChunkDemuxerStream&) = delete;
   ChunkDemuxerStream& operator=(const ChunkDemuxerStream&) = delete;
-
+  
   ~ChunkDemuxerStream() override;
 
   // ChunkDemuxerStream control methods.
