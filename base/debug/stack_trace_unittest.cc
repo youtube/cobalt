@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <limits>
 #include <sstream>
 #include <string>
@@ -33,7 +34,7 @@ typedef MultiProcessTest StackTraceTest;
 typedef testing::Test StackTraceTest;
 #endif
 
-#if !defined(__UCLIBC__) && !defined(_AIX)
+#if !defined(__UCLIBC__) && !defined(_AIX) && !defined(COMPILER_MSVC)
 // StackTrace::OutputToStream() is not implemented under uclibc, nor AIX.
 // See https://crbug.com/706728
 
@@ -104,12 +105,7 @@ TEST_F(StackTraceTest, TruncatedTrace) {
 
   StackTrace truncated(2);
   truncated.Addresses(&count);
-#if defined(STARBOARD)
-  // Starboard removes removes a stack frame that is extra when not truncated.
-  EXPECT_EQ(1u, count);
-#else
   EXPECT_EQ(2u, count);
-#endif
 }
 #endif  // !defined(OFFICIAL_BUILD) && !defined(NO_UNWIND_TABLES)
 
@@ -280,6 +276,9 @@ NOINLINE static std::unique_ptr<StackBuffer> CopyCurrentStackAndRewritePointers(
       reinterpret_cast<const uint8_t*>(__builtin_frame_address(0));
   uintptr_t original_stack_end = GetStackEnd();
   size_t stack_size = original_stack_end - reinterpret_cast<uintptr_t>(fp);
+  // On some platforms, stack_size overflows due to the reinterpret_cast.
+  const size_t max_stack_size = 102400;
+  stack_size = std::min(stack_size, max_stack_size);
   auto buffer = std::make_unique<StackBuffer>(stack_size);
   *out_fp = reinterpret_cast<uintptr_t>(
       CopyFunction::CopyStackContentsAndRewritePointers(
@@ -354,7 +353,8 @@ TEST_F(StackTraceTest, MAYBE_TraceStackFramePointers) {
 // sometimes we read fp / pc from the place that previously held
 // uninitialized value.
 // TODO(crbug.com/1132511): Enable this test on Fuchsia.
-#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD) && defined(ADDRESS_SANITIZER)
+#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_FUCHSIA) || \
+    defined(STARBOARD) && defined(ADDRESS_SANITIZER) || SB_IS(EVERGREEN)
 #define MAYBE_TraceStackFramePointersFromBuffer \
   DISABLED_TraceStackFramePointersFromBuffer
 #else

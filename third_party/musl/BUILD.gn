@@ -366,6 +366,7 @@ static_library("c_internal") {
     "src/multibyte/wcstombs.c",
     "src/multibyte/wctob.c",
     "src/network/inet_ntop.c",
+    "src/network/inet_pton.c",
     "src/network/htonl.c",
     "src/network/htons.c",
     "src/network/ntohl.c",

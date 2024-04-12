@@ -5,12 +5,12 @@
 #ifndef COMPONENTS_CRX_FILE_ID_UTIL_H_
 #define COMPONENTS_CRX_FILE_ID_UTIL_H_
 
+#include "base/strings/string_piece.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
 #include <string>
-
-#include "base/strings/string_piece.h"
 
 namespace base {
 class FilePath;

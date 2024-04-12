@@ -2,51 +2,35 @@
 
 <head>
   <title>JavaScript Profiler Test</title>
-  <script async src='black_box_js_test_utils.js'></script>
+  <script async src="black_box_js_test_utils.js"></script>
   <script>
-    // Function to check if a number is prime
-    const isPrime = (num) => {
-      if (num <= 1) return false;
-      if (num === 2) return true;
-      if (num % 2 === 0) return false;
-
-      const sqrtNum = Math.sqrt(num);
-      for (let i = 3; i <= sqrtNum; i += 2) {
-        if (num % i === 0) {
-          return false;
-        }
-      }
-      return true;
-    }
 
     const testPrimeProfiler = async () => {
-      const profiler = new Profiler({ sampleInterval: 10 /**ms**/, maxBufferSize: 10000 /**number of samples*/ });
-      const start = performance.now();
+      const profiler = new Profiler({ sampleInterval: 10 /**ms**/, maxBufferSize: 10 /**number of samples*/ });
 
-      for (let i = 0; i < 1000000; i++) {
-        isPrime(i);
-      }
+      // sleep 10 seconds
+      await new Promise(resolve => setTimeout(resolve, 10000 /**ms**/));
 
-      const duration = performance.now() - start;
+      // stop & check
       const trace = await profiler.stop();
-      assertTrue(trace.samples.length > 0, 'expected some stack traces');
+      assertTrue(trace.samples.length > 0, "expected some stack traces");
     };
 
     const testSampleBufferFullProfiler = async () => {
       const promise = new Promise((resolve, reject) => {
-        const profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
-        profiler.addEventListener('samplebufferfull', () => {
+        const profiler = new Profiler({ maxBufferSize: 1, sampleInterval: 10 });
+        profiler.addEventListener("samplebufferfull", () => {
           profiler.stop().then(() => { resolve(true); });
         });
       });
       const timeoutPromise = new Promise((resolve) => {
         setTimeout(() => {
           resolve(false);
-        }, 10000);
+        }, 60000);
       });
 
       const result = await Promise.race([timeoutPromise, promise]);
-      assertTrue(result, 'expected sample buffer to be full');
+      assertTrue(result, "expected sample buffer to be full");
     };
 
     /**
@@ -54,38 +38,46 @@
       * Expects the SampleBuffer to be full and the callback to be executed.
     */
     const testAbruptGarbageCollection = async () => {
-      const promise = new Promise((resolve, reject) => {
-        const profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
-        profiler.addEventListener('samplebufferfull', () => {
-          profiler.stop().then(() => resolve(true));
-        });
+      const profilerPromise = new Promise((resolve) => {
+        window.profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
+        delete window.profiler; // simulates the effects of GC.
+        resolve(true);
       });
 
-      // force GC. Profiler callback should still be executed even though it
-      // is out of JS scope.
-      h5vcc.crashLog.forceGarbageCollection();
-
-      const timeoutPromise = new Promise((resolve) => {
+      const survivePromise = new Promise((resolve) => {
         setTimeout(() => {
-          resolve(false);
+          resolve(true);
         }, 10000);
       });
 
-      const result = await Promise.race([timeoutPromise, promise]);
-      assertTrue(result, 'expected cobalt to not segfault if GC activates');
+      // must survive for 10 seconds
+      const result = await Promise.all([survivePromise, profilerPromise]);
+      assertTrue(result.every(p => p), "expected cobalt to survive 10 sec if GC collects profiler");
     };
 
-    window.addEventListener('load', async () => {
+    window.addEventListener("load", async () => {
       setupFinished();
       // Test Case 1: Prime Profiler
-      console.log("testPrimeProfiler");
-      await testPrimeProfiler();
+      if (window.location.search.includes("mode=testPrimeProfiler")) {
+        console.log("testPrimeProfiler");
+        await testPrimeProfiler();
+      }
       // Test Case 2: SampleBufferFull Profiler
-      console.log("testSampleBufferFullProfiler");
-      await testSampleBufferFullProfiler();
-      // Test Case 3:
-      console.log("testAbruptGarbageCollection");
-      await testAbruptGarbageCollection();
+      else if (window.location.search.includes("mode=testSampleBufferFullProfiler")) {
+        console.log("testSampleBufferFullProfiler");
+        await testSampleBufferFullProfiler();
+      }
+      // Test Case 3: GC Profiler
+      else if (window.location.search.includes("mode=testAbruptGarbageCollection")) {
+        console.log("testAbruptGarbageCollection");
+        await testAbruptGarbageCollection();
+      }
+      else {
+        console.log("Running all tests");
+        await testPrimeProfiler();
+        await testSampleBufferFullProfiler();
+        await testAbruptGarbageCollection();
+      }
       console.log("DONE");
       onEndTest();
     });

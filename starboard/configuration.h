@@ -326,6 +326,7 @@ struct CompileAssert {};
 #error "You can't define SB_IS_WCHAR_T_SIGNED and SB_IS_WCHAR_T_UNSIGNED."
 #endif
 
+// SB_C_FORCE_INLINE annotation for forcing a C function to be inlined.
 #if SB_API_VERSION < 16
 #if !defined(SB_C_FORCE_INLINE)
 #error "Your platform must define SB_C_FORCE_INLINE."
@@ -356,13 +357,39 @@ struct CompileAssert {};
 #endif
 #endif
 
+// SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries.
+#if SB_API_VERSION < 16
 #if !defined(SB_EXPORT_PLATFORM)
 #error "Your platform must define SB_EXPORT_PLATFORM."
 #endif
+#else                             // SB_API_VERSION >= 16
+#if !defined(SB_EXPORT_PLATFORM)  // auto-configure
+#if SB_IS(COMPILER_GCC)
+#define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_EXPORT_PLATFORM __declspec(dllexport)
+#else  // Fallback to standard keyword with no enforcing
+#error "Could not determine compiler, you must define SB_EXPORT_PLATFORM."
+#endif
+#endif  // !defined(SB_EXPORT_PLATFORM)
+#endif  // SB_API_VERSION >= 16
 
+// SB_IMPORT_PLATFORM annotates symbols as imported from shared libraries.
+#if SB_API_VERSION < 16
 #if !defined(SB_IMPORT_PLATFORM)
 #error "Your platform must define SB_IMPORT_PLATFORM."
 #endif
+#else                             // SB_API_VERSION >= 16
+#if !defined(SB_IMPORT_PLATFORM)  // auto-configure
+#if SB_IS(COMPILER_GCC)
+#define SB_IMPORT_PLATFORM
+#elif SB_IS(COMPILER_MSVC)
+#define SB_IMPORT_PLATFORM __declspec(dllimport)
+#else  // Fallback to standard keyword with no enforcing
+#error "Could not determine compiler, you must define SB_IMPORT_PLATFORM."
+#endif
+#endif  // !defined(SB_IMPORT_PLATFORM)
+#endif  // SB_API_VERSION >= 16
 
 // --- Derived Configuration -------------------------------------------------
 

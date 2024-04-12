@@ -16,6 +16,8 @@
 
 #include <../ucrt/sys/stat.h>
 
+#include <direct.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -23,6 +25,12 @@ extern "C" {
 #define S_ISLNK(mode) 0  // Windows doesn't support symbolic links
 #define S_ISDIR(mode) (((mode) & _S_IFMT) == (_S_IFDIR))
 #define S_ISREG(mode) (((mode) & _S_IFMT) == (_S_IFREG))
+
+typedef int mode_t;
+
+int sb_mkdir(const char* path, mode_t mode);
+#undef mkdir
+#define mkdir sb_mkdir
 
 #ifdef __cplusplus
 }

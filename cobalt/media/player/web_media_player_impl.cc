@@ -236,7 +236,6 @@ void WebMediaPlayerImpl::LoadUrl(const GURL& url) {
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
   StartPipeline(url);
-  media_metrics_provider_.Initialize(false);
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -263,7 +262,6 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
   state_.is_media_source = true;
   StartPipeline(chunk_demuxer_.get());
-  media_metrics_provider_.Initialize(true);
 }
 
 void WebMediaPlayerImpl::LoadProgressive(
@@ -303,7 +301,6 @@ void WebMediaPlayerImpl::LoadProgressive(
 
   state_.is_progressive = true;
   StartPipeline(progressive_demuxer_.get());
-  media_metrics_provider_.Initialize(false);
 }
 
 void WebMediaPlayerImpl::CancelLoad() {
@@ -354,7 +351,7 @@ void WebMediaPlayerImpl::Seek(double seconds) {
     return;
   }
 
-  media_metrics_provider_.StartTrackingAction(WebMediaPlayerAction::SEEK);
+  media_metrics_provider_.StartTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
   media_log_->AddEvent<::media::MediaLogEvent::kSeek>(seconds);
 
   base::TimeDelta seek_time = ConvertSecondsToTimestamp(seconds);
@@ -637,8 +634,8 @@ void WebMediaPlayerImpl::OnPipelineSeek(::media::PipelineStatus status,
   // when WebMediaPlayerImpl::Seek() is called. This helps to filter out when
   // the pipeline seeks without being initiated by WebMediaPlayerImpl.
   if (media_metrics_provider_.IsActionCurrentlyTracked(
-          WebMediaPlayerAction::SEEK)) {
-    media_metrics_provider_.EndTrackingAction(WebMediaPlayerAction::SEEK);
+          MediaAction::WEBMEDIAPLAYER_SEEK)) {
+    media_metrics_provider_.EndTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
   }
 }
 

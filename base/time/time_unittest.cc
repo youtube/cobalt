@@ -29,6 +29,7 @@
 #include "starboard/common/time.h"
 #include "starboard/types.h"
 #include "base/test/time_helpers.h"
+#include "starboard/client_porting/eztime/eztime.h"
 #elif BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
 #elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS)
@@ -40,6 +41,19 @@
 namespace base {
 
 namespace {
+
+#if defined(STARBOARD)
+time_t sb_mktime(struct tm *tm) {
+  if (tm == nullptr) {
+    return -1;
+  }
+  EzTimeExploded exploded = {tm->tm_sec,  tm->tm_min,  tm->tm_hour,
+                             tm->tm_mday, tm->tm_mon,  tm->tm_year,
+                             tm->tm_wday, tm->tm_yday, tm->tm_isdst};
+  EzTimeT secs = EzTimeTImplode(&exploded, EzTimeZone::kEzTimeZoneLocal);
+  return static_cast<time_t>(secs);
+}
+#endif
 
 #if BUILDFLAG(IS_FUCHSIA)
 // Hawaii does not observe daylight saving time, which is useful for having a
@@ -205,7 +219,11 @@ class TimeTest : public testing::Test {
       -1            // DST in effect, -1 tells mktime to figure it out
     };
 
+#if defined(STARBOARD)
+    time_t converted_time = sb_mktime(&local_comparison_tm);
+#else
     time_t converted_time = mktime(&local_comparison_tm);
+#endif
     ASSERT_GT(converted_time, 0);
     comparison_time_local_ = Time::FromTimeT(converted_time);
 

@@ -24,13 +24,13 @@ const char kValueKey[] = "value";
 }  // namespace
 
 base::Optional<Keys> Keys::FromValue(const base::Value* value) {
-  if (!value->is_dict()) {
+  const base::Value::Dict* dictionary = value->GetIfDict();
+  if (!dictionary) {
     return base::nullopt;
   }
-  const base::Value::Dict* dictionary = value->GetIfDict();
 
   const base::Value::List* list = dictionary->FindList(kValueKey);
-  if (list) {
+  if (!list) {
     return base::nullopt;
   }
 

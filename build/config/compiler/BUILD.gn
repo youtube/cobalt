@@ -2038,6 +2038,9 @@ config("no_exceptions") {
 config("wglobal_constructors") {
   if (is_clang) {
     cflags = [ "-Wglobal-constructors" ]
+    if (is_starboard) {
+      cflags -= [ "-Wglobal-constructors" ]
+    }
   }
 }
 

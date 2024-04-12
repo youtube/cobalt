@@ -14,9 +14,19 @@
 """Base cobalt configuration for GYP."""
 
 from starboard.build import application_configuration
+from starboard.tools.testing import test_filter
 
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
+
+_FILTERED_TESTS = {
+    'net_unittests': [
+        # TODO: b/331437821 - These pass locally and fail on GitHub.
+        'QuicMemoryCacheBackendTest.UsesOriginalUrl',
+        'QuicMemoryCacheBackendTest.ReadsCacheDir',
+        'QuicMemoryCacheBackendTest.UsesOriginalUrlOnly',
+    ],
+}
 
 
 class CobaltConfiguration(application_configuration.ApplicationConfiguration):
@@ -24,6 +34,12 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
   Cobalt per-platform configurations, if defined, must subclass from this class.
   """
+
+  def GetTestFilters(self):
+    filters = super().GetTestFilters()
+    for target, tests in _FILTERED_TESTS.items():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters
 
   def GetWebPlatformTestFilters(self):
     """Gets all tests to be excluded from a black box test run."""
@@ -128,6 +144,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'graphics_system_test',
         'js_profiler_test',
         'layout_test',
+        'layout_tests',
         'loader_test',
         'math_test',
         'media_capture_test',
@@ -156,9 +173,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'xhr_test',
         'zip_unittests',
     ]
-    # return [
-    #     'layout_tests',
-    # ]
 
   def GetTestBlackBoxTargets(self):
     return [

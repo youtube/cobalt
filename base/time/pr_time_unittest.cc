@@ -11,9 +11,26 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/eztime/eztime.h"
+#endif
+
 using base::Time;
 
 namespace {
+
+#if defined(STARBOARD)
+time_t sb_mktime(struct tm *tm) {
+  if (tm == nullptr) {
+    return -1;
+  }
+  EzTimeExploded exploded = {tm->tm_sec,  tm->tm_min,  tm->tm_hour,
+                             tm->tm_mday, tm->tm_mon,  tm->tm_year,
+                             tm->tm_wday, tm->tm_yday, tm->tm_isdst};
+  EzTimeT secs = EzTimeTImplode(&exploded, EzTimeZone::kEzTimeZoneLocal);
+  return static_cast<time_t>(secs);
+}
+#endif
 
 // time_t representation of 15th Oct 2007 12:45:00 PDT
 PRTime comparison_time_pdt = 1192477500 * Time::kMicrosecondsPerSecond;
@@ -42,8 +59,13 @@ class PRTimeTest : public testing::Test {
       0,            // day of year (ignored, output only)
       -1            // DST in effect, -1 tells mktime to figure it out
     };
+#if defined(STARBOARD)
+    comparison_time_local_ =
+        sb_mktime(&local_comparison_tm) * Time::kMicrosecondsPerSecond;
+#else
     comparison_time_local_ =
         mktime(&local_comparison_tm) * Time::kMicrosecondsPerSecond;
+#endif
     ASSERT_GT(comparison_time_local_, 0);
 
     const int microseconds = 441381;
@@ -58,8 +80,13 @@ class PRTimeTest : public testing::Test {
       0,            // day of year (ignored, output only)
       -1            // DST in effect, -1 tells mktime to figure it out
     };
+#if defined(STARBOARD)
+    comparison_time_local_2_ =
+        sb_mktime(&local_comparison_tm_2) * Time::kMicrosecondsPerSecond;
+#else
     comparison_time_local_2_ =
         mktime(&local_comparison_tm_2) * Time::kMicrosecondsPerSecond;
+#endif
     ASSERT_GT(comparison_time_local_2_, 0);
     comparison_time_local_2_ += microseconds;
   }
