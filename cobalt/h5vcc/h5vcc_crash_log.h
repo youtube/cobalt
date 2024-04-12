@@ -59,6 +59,12 @@ class H5vccCrashLog : public script::Wrappable {
 
   void SetPersistentSettingWatchdogCrash(bool can_trigger_crash);
 
+  bool LogEvent(const std::string& event);
+
+  script::Sequence<std::string> GetLogTrace();
+
+  void ClearLog();
+
   DEFINE_WRAPPABLE_TYPE(H5vccCrashLog);
 
  private:
