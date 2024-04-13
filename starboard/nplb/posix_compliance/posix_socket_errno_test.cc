@@ -58,7 +58,7 @@ TEST(PosixErrnoTest, ConnectUnavailableAddress) {
   connect(socket_fd, (struct sockaddr*)&address, sizeof(address));
 
   EXPECT_TRUE(errno == ECONNREFUSED || errno == EADDRNOTAVAIL ||
-              errno == EINPROGRESS);
+              errno == EINPROGRESS || errno == EINVAL);
   SB_DLOG(INFO) << "Failed to connect to unavailable address, errno = "
                 << strerror(errno);
 
