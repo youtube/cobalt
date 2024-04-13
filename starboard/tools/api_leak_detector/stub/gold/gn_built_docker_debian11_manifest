@@ -25,7 +25,6 @@ __ctype_toupper_loc
 __cxa_atexit
 __cxa_finalize
 __duplocale
-__errno_location
 __freelocale
 __fxstat64
 __gmon_start__
