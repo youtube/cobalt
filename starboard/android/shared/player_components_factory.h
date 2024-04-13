@@ -227,7 +227,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     }
 
     bool enable_flush_during_seek = false;
-    if (!creation_parameters.video_mime().empty()) {
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
+        !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
       if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
         enable_flush_during_seek =
@@ -511,7 +512,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek = false;
-    if (!creation_parameters.video_mime().empty()) {
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
+        !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
       // missing or invalid it defaults to Little Endian.
       MimeType video_mime_type(creation_parameters.video_mime());
