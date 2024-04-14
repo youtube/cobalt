@@ -19,7 +19,7 @@
 namespace starboard {
 namespace shared {
 
-#define kSoftMicPlatformServiceName "com.google.youtube.tv.SoftMic"
+const char* const kSoftMicPlatformServiceName = "com.google.youtube.tv.SoftMic";
 
 const void* GetSoftMicPlatformServiceApi();
 

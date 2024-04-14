@@ -72,13 +72,11 @@ CobaltExtensionPlatformService Open(void* context,
         reinterpret_cast<const CobaltPlatformServiceApi*>(
             platform_service_registry.at(name)());
 
-    char* service_name = new char[strlen(name) + 1];
-    snprintf(service_name, strlen(name) + 1, "%s", name);
-
     service = new CobaltExtensionPlatformServicePrivate(
-        {context, receive_callback, service_name});
+        {context, receive_callback, (std::string)name});
 
-    service->platform_service_impl = api->Open(context, receive_callback);
+    service->platform_service_impl = std::unique_ptr<PlatformServiceImpl>(
+        api->Open(context, receive_callback));
     SB_LOG(INFO) << "Open() created service: " << name;
   }
 
@@ -107,8 +105,8 @@ void Close(CobaltExtensionPlatformService service) {
 
   const CobaltPlatformServiceApi* api =
       reinterpret_cast<const CobaltPlatformServiceApi*>(
-          platform_service_registry.at(service->name)());
-  api->Close(service->platform_service_impl);
+          platform_service_registry.at(service->name.c_str())());
+  api->Close(service->platform_service_impl.get());
 
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
@@ -122,9 +120,9 @@ void* Send(CobaltExtensionPlatformService service,
 
   const CobaltPlatformServiceApi* api =
       reinterpret_cast<const CobaltPlatformServiceApi*>(
-          platform_service_registry.at(service->name)());
-  return api->Send(service->platform_service_impl, data, length, output_length,
-                   invalid_state);
+          platform_service_registry.at(service->name.c_str())());
+  return api->Send(service->platform_service_impl.get(), data, length,
+                   output_length, invalid_state);
 }
 
 const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {

@@ -30,6 +30,14 @@ namespace shared {
 namespace {
 typedef struct SoftMicPlatformServiceImpl : public PlatformServiceImpl {
   // Define additional data field.
+  // variable_1, variable_2,...
+  SoftMicPlatformServiceImpl(void* context,
+                             ReceiveMessageCallback receive_callback)
+      : PlatformServiceImpl(context, receive_callback) {}
+
+  // Default constructor
+  SoftMicPlatformServiceImpl() = default;
+
 } SoftMicPlatformServiceImpl;
 
 const char kGetMicSupport[] = "\"getMicSupport\"";
@@ -49,17 +57,14 @@ bool Has(const char* name) {
 PlatformServiceImpl* Open(void* context,
                           ReceiveMessageCallback receive_callback) {
   SB_DCHECK(context);
-
-  PlatformServiceImpl* impl;
-
   SB_LOG(INFO) << "Open() service created: " << kSoftMicPlatformServiceName;
-  SoftMicPlatformServiceImpl* soft_mic_impl =
-      new SoftMicPlatformServiceImpl({context, receive_callback});
 
-  return soft_mic_impl;
+  return new SoftMicPlatformServiceImpl(context, receive_callback);
 }
 
 void Close(PlatformServiceImpl* service) {
+  // Function Close shouldn't manually delete PlatformServiceImpl pointer,
+  // because it is managed by unique_ptr in Platform Service.
   SB_LOG(INFO) << "Perform actions before gracefully shutting down the service";
 }
 
