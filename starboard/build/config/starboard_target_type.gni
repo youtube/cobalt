@@ -51,9 +51,9 @@ template("starboard_platform_target") {
     ]
     if (sb_is_evergreen_compatible &&
         current_toolchain == starboard_toolchain) {
-      public_deps += [ "//third_party/crashpad/wrapper" ]
+      public_deps += [ "//third_party/crashpad/crashpad/wrapper" ]
     } else {
-      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+      public_deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
     }
     if (!sb_is_evergreen) {
       public_deps += [ "//$starboard_path:starboard_platform" ]

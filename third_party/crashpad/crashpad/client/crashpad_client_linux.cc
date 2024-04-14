@@ -45,7 +45,7 @@
 #define LOG_MESSAGE_DEFINED
 #undef LogMessage
 #endif
-#include "third_party/crashpad/wrapper/proto/crashpad_annotations.pb.h"
+#include "third_party/crashpad/crashpad/wrapper/proto/crashpad_annotations.pb.h"
 #ifdef LOG_MESSAGE_DEFINED
 #define LogMessage MLogMessage
 #endif

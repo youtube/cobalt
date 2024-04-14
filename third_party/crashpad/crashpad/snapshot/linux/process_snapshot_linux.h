@@ -45,7 +45,7 @@
 #if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 #include "snapshot/module_snapshot_evergreen.h"
 #include "starboard/elf_loader/evergreen_info.h"
-#include "third_party/crashpad/util/linux/exception_handler_protocol.h"
+#include "third_party/crashpad/crashpad/util/linux/exception_handler_protocol.h"
 #endif
 
 namespace crashpad {

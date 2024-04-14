@@ -465,7 +465,7 @@ static_library("starboard_platform") {
       "//starboard/loader_app:pending_restart",
     ]
 
-    deps += [ "//third_party/crashpad/wrapper" ]
+    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
   }
 
   if (sb_evergreen_compatible_use_libunwind) {

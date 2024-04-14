@@ -35,7 +35,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:evergreen_info",
       "//starboard/elf_loader:sabi_string",
-      "//third_party/crashpad/wrapper",
+      "//third_party/crashpad/crashpad/wrapper",
     ]
   }
 }
@@ -73,7 +73,7 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
     install_content = true
     sources = [ "$root_out_dir/native_target/crashpad_handler" ]
     outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
-    deps = [ "//third_party/crashpad/handler:crashpad_handler(//starboard/android/arm/toolchain:native_target)" ]
+    deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//starboard/android/arm/toolchain:native_target)" ]
   }
 }
 
@@ -288,9 +288,9 @@ static_library("slot_management") {
   ]
 
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-    deps += [ "//third_party/crashpad/wrapper" ]
+    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
   } else {
-    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
   }
 }
 if (sb_is_evergreen) {
