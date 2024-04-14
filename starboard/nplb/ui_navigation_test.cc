@@ -16,6 +16,7 @@
 #include "starboard/ui_navigation.h"
 #else
 #include "starboard/extension/ui_navigation.h"
+#include "starboard/system.h"
 #endif  // SB_API_VERSION
 #include "testing/gtest/include/gtest/gtest.h"
 
