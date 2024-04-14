@@ -30,6 +30,14 @@ namespace shared {
 namespace {
 typedef struct SoftMicPlatformServiceImpl : public PlatformServiceImpl {
   // Define additional data field.
+  // variable_1, variable_2,...
+  SoftMicPlatformServiceImpl(void* context,
+                             ReceiveMessageCallback receive_callback)
+      : PlatformServiceImpl(context, receive_callback) {}
+
+  // Default constructor
+  SoftMicPlatformServiceImpl() = default;
+
 } SoftMicPlatformServiceImpl;
 
 const char kGetMicSupport[] = "\"getMicSupport\"";
@@ -51,7 +59,7 @@ PlatformServiceImpl* Open(void* context,
   SB_DCHECK(context);
   SB_LOG(INFO) << "Open() service created: " << kSoftMicPlatformServiceName;
 
-  return new SoftMicPlatformServiceImpl({context, receive_callback});
+  return new SoftMicPlatformServiceImpl(context, receive_callback);
 }
 
 void Close(PlatformServiceImpl* service) {

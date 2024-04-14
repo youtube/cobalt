@@ -23,6 +23,11 @@
 typedef struct PlatformServiceImpl {
   void* context;
   ReceiveMessageCallback receive_callback;
+
+  PlatformServiceImpl(void* context, ReceiveMessageCallback receive_callback)
+      : context(context), receive_callback(receive_callback) {}
+
+  PlatformServiceImpl() = default;
 } PlatformServiceImpl;
 
 typedef struct CobaltPlatformServiceApi {
