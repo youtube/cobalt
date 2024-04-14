@@ -178,6 +178,7 @@ target(gtest_target_type, "loader_test") {
 
   sources = [
     "blob_fetcher_test.cc",
+    "fetcher_cache_test.cc",
     "fetcher_factory_test.cc",
     "fetcher_test.h",
     "file_fetcher_test.cc",
@@ -204,6 +205,7 @@ target(gtest_target_type, "loader_test") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/ots:ots",
+    "//url",
   ]
 
   data_deps = [ ":copy_loader_test_data" ]
