@@ -49,17 +49,14 @@ bool Has(const char* name) {
 PlatformServiceImpl* Open(void* context,
                           ReceiveMessageCallback receive_callback) {
   SB_DCHECK(context);
-
-  PlatformServiceImpl* impl;
-
   SB_LOG(INFO) << "Open() service created: " << kSoftMicPlatformServiceName;
-  SoftMicPlatformServiceImpl* soft_mic_impl =
-      new SoftMicPlatformServiceImpl({context, receive_callback});
 
-  return soft_mic_impl;
+  return new SoftMicPlatformServiceImpl({context, receive_callback});
 }
 
 void Close(PlatformServiceImpl* service) {
+  // Function Close shouldn't manually delete PlatformServiceImpl pointer,
+  // because it is managed by unique_ptr in Platform Service.
   SB_LOG(INFO) << "Perform actions before gracefully shutting down the service";
 }
 

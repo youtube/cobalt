@@ -15,6 +15,9 @@
 #ifndef STARBOARD_LINUX_SHARED_PLATFORM_SERVICE_H_
 #define STARBOARD_LINUX_SHARED_PLATFORM_SERVICE_H_
 
+#include <memory>
+#include <string>
+
 #include "starboard/extension/platform_service.h"
 
 typedef struct PlatformServiceImpl {
@@ -44,6 +47,8 @@ typedef struct CobaltPlatformServiceApi {
                                ReceiveMessageCallback receive_callback);
 
   // Perform operations before closing the service passed in as |service|.
+  // Function Close shouldn't manually delete PlatformServiceImpl pointer,
+  // because it is managed by unique_ptr in Platform Service.
   void (*Close)(PlatformServiceImpl* service);
 
   // Send |data| of length |length| to |service|. If there is a synchronous
@@ -64,8 +69,8 @@ typedef struct CobaltPlatformServiceApi {
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;
   ReceiveMessageCallback receive_callback;
-  const char* name;
-  PlatformServiceImpl* platform_service_impl;
+  std::string name;
+  std::unique_ptr<PlatformServiceImpl> platform_service_impl;
 } CobaltExtensionPlatformServicePrivate;
 
 // Well-defined value for an invalid |PlatformServiceImpl|.
