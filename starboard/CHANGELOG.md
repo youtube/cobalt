@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Added standard POSIX stat API and deprecated SbDirectoryCanOpen.
+The directory API SbDirectoryCanOpen has been deprecated and the standard API `stat` can
+be used from `sys/stat.h` instead.
+
 ### Added standard POSIX mkdir API and deprecated SbDirectoryCreate.
 The directory API SbDirectoryCreate has been deprecated and the standard API `mkdir`
 can be used from `dirent.h` instead.

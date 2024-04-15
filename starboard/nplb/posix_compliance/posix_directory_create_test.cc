@@ -38,15 +38,15 @@ TEST(PosixDirectoryCreateTest, SunnyDay) {
 
   const std::string& path = dir.filename();
 
-  EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
+  struct stat info;
+  EXPECT_FALSE(stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
   EXPECT_TRUE(mkdir(path.c_str(), 0700) == 0 ||
-              SbDirectoryCanOpen(path.c_str()));
-  EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
+              stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
+  EXPECT_TRUE(stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
 
   // Should return true if called redundantly.
   EXPECT_TRUE(mkdir(path.c_str(), 0700) == 0 ||
-              SbDirectoryCanOpen(path.c_str()));
-  EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
+              stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
 }
 
 TEST(PosixDirectoryCreateTest, SunnyDayTrailingSeparators) {
@@ -54,10 +54,10 @@ TEST(PosixDirectoryCreateTest, SunnyDayTrailingSeparators) {
 
   std::string path = dir.filename() + kManyFileSeparators.c_str();
 
-  EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
+  struct stat info;
+  EXPECT_FALSE(stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
   EXPECT_TRUE(mkdir(path.c_str(), 0700) == 0 ||
-              SbDirectoryCanOpen(path.c_str()));
-  EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
+              stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
 }
 
 TEST(PosixDirectoryCreateTest, SunnyDayTempDirectory) {
@@ -65,10 +65,10 @@ TEST(PosixDirectoryCreateTest, SunnyDayTempDirectory) {
   bool system_path_success = SbSystemGetPath(kSbSystemPathTempDirectory,
                                              temp_path.data(), kSbFileMaxPath);
   ASSERT_TRUE(system_path_success);
-  EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
+  struct stat info;
+  EXPECT_TRUE(stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));
   EXPECT_TRUE(mkdir(temp_path.data(), 0700) == 0 ||
-              SbDirectoryCanOpen(temp_path.data()));
-  EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
+              stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));
 }
 
 TEST(PosixDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
@@ -80,10 +80,10 @@ TEST(PosixDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
       temp_path.data(), kManyFileSeparators.c_str(), kSbFileMaxPath);
   ASSERT_LT(new_size, kSbFileMaxPath);
 
-  EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
+  struct stat info;
+  EXPECT_TRUE(stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));
   EXPECT_TRUE(mkdir(temp_path.data(), 0700) == 0 ||
-              SbDirectoryCanOpen(temp_path.data()));
-  EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
+              stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));
 }
 
 TEST(PosixDirectoryCreateTest, FailureEmptyPath) {
@@ -94,19 +94,11 @@ TEST(PosixDirectoryCreateTest, FailureNonexistentParent) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
   std::string path = dir.filename() + kSbFileSepString + "test";
 
-  EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
+  struct stat info;
+  EXPECT_FALSE(stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
   EXPECT_FALSE(mkdir(path.c_str(), 0700) == 0 ||
-               SbDirectoryCanOpen(path.c_str()));
-  EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
+               stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
 }
-
-// TEST(PosixDirectoryCreateTest, FailureNotAbsolute) {
-//   const char* kPath = "hallo";
-
-//   EXPECT_FALSE(SbDirectoryCanOpen(kPath));
-//   EXPECT_FALSE(mkdir(kPath, 0700) == 0 || SbDirectoryCanOpen(kPath));
-//   EXPECT_FALSE(SbDirectoryCanOpen(kPath));
-// }
 
 }  // namespace
 }  // namespace nplb

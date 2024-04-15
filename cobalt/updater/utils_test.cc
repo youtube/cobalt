@@ -14,6 +14,8 @@
 
 #include "cobalt/updater/utils.h"
 
+#include <sys/stat.h>
+
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -99,7 +101,8 @@ const CobaltExtensionInstallationManagerApi kStubInstallationManagerApi = {
 };
 
 bool EnsureDirectoryExists(const char* path){
-  return mkdir(path, 0700) == 0 || SbDirectoryCanOpen(path);
+  struct stat info;
+  return mkdir(path, 0700) == 0 || (stat(path, &info) == 0 && S_ISDIR(info.st_mode));
 }
 
 class UtilsTest : public testing::Test {

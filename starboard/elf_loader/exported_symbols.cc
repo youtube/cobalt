@@ -142,7 +142,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCanOpen);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryClose);
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCreate);
