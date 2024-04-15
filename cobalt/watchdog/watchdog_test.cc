@@ -101,7 +101,7 @@ class WatchdogTest : public testing::Test {
 
   watchdog::Watchdog* watchdog_;
   base::test::ScopedTaskEnvironment scoped_task_environment_;
-  base::WaitableEvent test_done_ = {
+  base::WaitableEvent task_done_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
@@ -725,13 +725,11 @@ TEST_F(WatchdogTest, WatchdogMethodsAreNoopWhenWatchdogIsDisabled) {
   persistent_settings->ValidatePersistentSettings();
 
   base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) { test_done->Signal(); },
-      persistent_settings.get(), &test_done_);
+      [](base::WaitableEvent* task_done) { task_done->Signal(); }, &task_done_);
   persistent_settings->SetPersistentSetting(
       kPersistentSettingWatchdogEnable, std::make_unique<base::Value>(false),
       std::move(closure), true);
-  test_done_.Wait();
+  task_done_.Wait();
 
   watchdog_ = new watchdog::Watchdog();
   watchdog_->InitializeCustom(persistent_settings.get(),
@@ -763,13 +761,11 @@ TEST_F(WatchdogTest, LogtraceMethodsAreNoopWhenLogtraceIsDisabled) {
   persistent_settings->ValidatePersistentSettings();
 
   base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) { test_done->Signal(); },
-      persistent_settings.get(), &test_done_);
+      [](base::WaitableEvent* task_done) { task_done->Signal(); }, &task_done_);
   persistent_settings->SetPersistentSetting(
       kPersistentSettingLogtraceEnable, std::make_unique<base::Value>(false),
       std::move(closure), true);
-  test_done_.Wait();
+  task_done_.Wait();
 
   watchdog_ = new watchdog::Watchdog();
   watchdog_->InitializeCustom(persistent_settings.get(),
@@ -797,6 +793,8 @@ TEST_F(WatchdogTest, PersistentSettingsTakeEffectOnRestart) {
                               std::string(kWatchdogViolationsJson),
                               kWatchdogMonitorFrequency);
 
+  ASSERT_TRUE(watchdog_->GetPersistentSettingWatchdogEnable());
+  ASSERT_FALSE(watchdog_->GetPersistentSettingWatchdogCrash());
   ASSERT_TRUE(watchdog_->GetPersistentSettingLogtraceEnable());
 
   // set persistent setting to the opposite value
@@ -807,6 +805,13 @@ TEST_F(WatchdogTest, PersistentSettingsTakeEffectOnRestart) {
   ASSERT_TRUE(watchdog_->GetPersistentSettingWatchdogEnable());
   ASSERT_FALSE(watchdog_->GetPersistentSettingWatchdogCrash());
   ASSERT_TRUE(watchdog_->GetPersistentSettingLogtraceEnable());
+
+  // wait for all setter tasks to complete
+  base::OnceClosure closure = base::BindOnce(
+      [](base::WaitableEvent* task_done) { task_done->Signal(); }, &task_done_);
+  persistent_settings->message_loop()->task_runner()->PostTask(
+      FROM_HERE, std::move(closure));
+  task_done_.Wait();
 
   watchdog_->Uninitialize();
   delete watchdog_;
