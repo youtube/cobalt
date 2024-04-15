@@ -119,6 +119,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'munmap',
     'mprotect',
     'msync',
+    'mkdir',
     'stat',
     'pthread_cond_broadcast',
     'pthread_cond_destroy',
@@ -141,7 +142,10 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'pthread_mutex_trylock',
     'pthread_once',
     'pthread_self',
-    'mkdir',
+    'pthread_getspecific',
+    'pthread_key_create',
+    'pthread_key_delete',
+    'pthread_setspecific',
 ]
 
 

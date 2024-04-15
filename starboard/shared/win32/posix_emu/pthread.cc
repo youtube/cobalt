@@ -19,6 +19,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/win32/thread_local_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 
 using starboard::shared::win32::GetCurrentSbThreadPrivate;
@@ -26,6 +27,9 @@ using starboard::shared::win32::GetThreadSubsystemSingleton;
 using starboard::shared::win32::SbThreadPrivate;
 using starboard::shared::win32::ThreadCreateInfo;
 using starboard::shared::win32::ThreadSubsystemSingleton;
+using starboard::shared::win32::TlsInternalFree;
+using starboard::shared::win32::TlsInternalGetValue;
+using starboard::shared::win32::TlsInternalSetValue;
 
 void CallThreadLocalDestructorsMultipleTimes();
 void ResetWinError();
@@ -267,6 +271,47 @@ pthread_t pthread_self() {
 
 int pthread_equal(pthread_t t1, pthread_t t2) {
   return t1 == t2;
+}
+
+int pthread_key_create(pthread_key_t* key, void (*dtor)(void*)) {
+  ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
+  *key = SbThreadCreateLocalKeyInternal(dtor, singleton);
+  return 0;
+}
+
+int pthread_key_delete(pthread_key_t key) {
+  if (!key) {
+    return -1;
+  }
+  // To match pthreads, the thread local pointer for the key is set to null
+  // so that a supplied destructor doesn't run.
+  SbThreadSetLocalValue(reinterpret_cast<SbThreadLocalKey>(key), nullptr);
+  DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
+  ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
+
+  SbMutexAcquire(&singleton->mutex_);
+  singleton->thread_local_keys_.erase(tls_index);
+  SbMutexRelease(&singleton->mutex_);
+
+  TlsInternalFree(tls_index);
+  free(key);
+  return 0;
+}
+
+void* pthread_getspecific(pthread_key_t key) {
+  if (!key) {
+    return NULL;
+  }
+  DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
+  return TlsInternalGetValue(tls_index);
+}
+
+int pthread_setspecific(pthread_key_t key, const void* value) {
+  if (!key) {
+    return -1;
+  }
+  DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
+  return TlsInternalSetValue(tls_index, const_cast<void*>(value)) ? 0 : -1;
 }
 
 }  // extern "C"
