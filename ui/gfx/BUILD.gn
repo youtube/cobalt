@@ -16,11 +16,12 @@ component("color_space") {
   sources = [
     "//skia/ext/skcolorspace_primaries.cc",
     "//skia/ext/skcolorspace_primaries.h",
-    "color_space.cc",
     "color_space.h",
     "color_space_export.h",
     "hdr_metadata.cc",
     "hdr_metadata.h",
+    "skia_color_space_util.cc",
+    "skia_color_space_util.h",
   ]
   deps = [
     "//base",

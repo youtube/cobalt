@@ -39,7 +39,9 @@ SkTransferFnsApproximatelyCancel(const skcms_TransferFunction& a,
 bool COLOR_SPACE_EXPORT
 SkTransferFnIsApproximatelyIdentity(const skcms_TransferFunction& fn);
 
+#if !defined(STARBOARD)
 bool COLOR_SPACE_EXPORT SkM44IsApproximatelyIdentity(const SkM44& m);
+#endif // !defined(STARBOARD)
 
 SkM44 COLOR_SPACE_EXPORT SkM44FromRowMajor3x3(const float* scale);
 
