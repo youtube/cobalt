@@ -71,7 +71,11 @@ bool IsSupportedHdrMetadata(const gfx::HdrMetadataType& hdr_metadata_type) {
       return true;
 
     case gfx::HdrMetadataType::kSmpteSt2086:
+#if defined(STARBOARD)
+      return false;
+#else  // defined(STARBOARD)
       return base::FeatureList::IsEnabled(kSupportSmpteSt2086HdrMetadata);
+#endif  // defined(STARBOARD)
 
     case gfx::HdrMetadataType::kSmpteSt2094_10:
     case gfx::HdrMetadataType::kSmpteSt2094_40:

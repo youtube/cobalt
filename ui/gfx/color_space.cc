@@ -20,11 +20,7 @@
 #include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "third_party/skia/include/core/SkM44.h"
-#if defined(STARBOARD)
-#include "third_party/skia/include/third_party/skcms/skcms.h"
-#else  // defined(STARBOARD)
 #include "third_party/skia/modules/skcms/skcms.h"
-#endif  // defined(STARBOARD)
 #include "ui/gfx/display_color_spaces.h"
 #include "ui/gfx/icc_profile.h"
 #include "ui/gfx/skia_color_space_util.h"
