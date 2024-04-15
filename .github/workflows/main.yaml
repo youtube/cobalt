@@ -149,7 +149,7 @@ jobs:
         id: set-docker-tag-output
         run: |
           echo $DOCKER_TAG
-          echo "docker_tag=$DOCKER_TAG"  >> $GITHUB_ENV
+          echo "docker_tag=$DOCKER_TAG" | head -n 1  >> $GITHUB_ENV
     outputs:
       docker_tag: ${{env.docker_tag}}
 
