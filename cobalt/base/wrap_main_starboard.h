@@ -93,6 +93,7 @@ void BaseEventHandler(const SbEvent* event) {
 
       stop_function();
 
+      g_run_loop->Quit();
       g_run_loop->AfterRun();
       delete g_run_loop;
       g_run_loop = NULL;
