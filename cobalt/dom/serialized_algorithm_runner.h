@@ -85,11 +85,16 @@ class SerializedAlgorithmRunner {
     class ScopedLockWhenRequired {
      public:
       ScopedLockWhenRequired(bool synchronization_required,
-                             const starboard::Mutex& mutex)
-          : synchronization_required_(synchronization_required), mutex_(mutex) {
+                             const starboard::Mutex& mutex,
+                             SbThreadId* thread_id_acquired_mutex)
+          : synchronization_required_(synchronization_required),
+            mutex_(mutex),
+            thread_id_acquired_mutex_(thread_id_acquired_mutex) {
+        DCHECK(thread_id_acquired_mutex_);
+
         if (synchronization_required_) {
           // Crash if we are trying to re-acquire again on the same thread.
-          CHECK_NE(acquired_thread_id_, SbThreadGetId());
+          CHECK_NE(*thread_id_acquired_mutex_, SbThreadGetId());
 
           int64_t start_usec = starboard::CurrentMonotonicTime();
           int64_t wait_interval_usec =
@@ -110,13 +115,13 @@ class SerializedAlgorithmRunner {
             CHECK_LT(starboard::CurrentMonotonicTime() - start_usec,
                      1 * base::Time::kMicrosecondsPerSecond);
           }
-          acquired_thread_id_ = SbThreadGetId();
+          *thread_id_acquired_mutex_ = SbThreadGetId();
         }
       }
       ~ScopedLockWhenRequired() {
         if (synchronization_required_) {
-          CHECK_EQ(acquired_thread_id_, SbThreadGetId());
-          acquired_thread_id_ = kSbThreadInvalidId;
+          CHECK_EQ(*thread_id_acquired_mutex_, SbThreadGetId());
+          *thread_id_acquired_mutex_ = kSbThreadInvalidId;
           mutex_.Release();
         }
       }
@@ -124,7 +129,7 @@ class SerializedAlgorithmRunner {
      private:
       const bool synchronization_required_;
       const starboard::Mutex& mutex_;
-      SbThreadId acquired_thread_id_ = kSbThreadInvalidId;
+      SbThreadId* thread_id_acquired_mutex_;
     };
 
     Handle(bool synchronization_required,
@@ -134,6 +139,7 @@ class SerializedAlgorithmRunner {
     // threads as `Abort()` can be called from any thread.
     const bool synchronization_required_;
     starboard::Mutex mutex_;
+    SbThreadId thread_id_acquired_mutex_ = kSbThreadInvalidId;
     std::unique_ptr<SerializedAlgorithm> algorithm_;
     bool aborted_ = false;
     bool finished_ = false;
@@ -167,7 +173,8 @@ template <typename SerializedAlgorithm>
 void SerializedAlgorithmRunner<SerializedAlgorithm>::Handle::Abort() {
   TRACE_EVENT0("cobalt::dom", "SerializedAlgorithmRunner::Handle::Abort()");
 
-  ScopedLockWhenRequired scoped_lock(synchronization_required_, mutex_);
+  ScopedLockWhenRequired scoped_lock(synchronization_required_, mutex_,
+                                     &thread_id_acquired_mutex_);
 
   DCHECK(!aborted_);  // Abort() cannot be called twice.
 
@@ -192,7 +199,8 @@ void SerializedAlgorithmRunner<SerializedAlgorithm>::Handle::Process(
 
   DCHECK(finished);
 
-  ScopedLockWhenRequired scoped_lock(synchronization_required_, mutex_);
+  ScopedLockWhenRequired scoped_lock(synchronization_required_, mutex_,
+                                     &thread_id_acquired_mutex_);
 
   DCHECK(!finished_);
   DCHECK(!finalized_);
@@ -212,7 +220,8 @@ void SerializedAlgorithmRunner<
     SerializedAlgorithm>::Handle::FinalizeIfNotAborted() {
   TRACE_EVENT0("cobalt::dom", "SerializedAlgorithmRunner::Handle::Finalize()");
 
-  ScopedLockWhenRequired scoped_lock(synchronization_required_, mutex_);
+  ScopedLockWhenRequired scoped_lock(synchronization_required_, mutex_,
+                                     &thread_id_acquired_mutex_);
 
   DCHECK(!finalized_);
 
