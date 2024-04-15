@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/common/atomic.h"
+#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
