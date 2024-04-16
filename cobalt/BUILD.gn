@@ -40,6 +40,7 @@ group("gn_all") {
     "//cobalt/renderer/sandbox:scaling_text_sandbox",
     "//cobalt/speech/sandbox:speech_sandbox",
     "//cobalt/ui_navigation/scroll_engine:scroll_engine_tests",
+    "//cobalt/watchdog:watchdog_test",
     "//cobalt/web:web_test",
     "//cobalt/web_animations:web_animations_test",
     "//cobalt/webdriver:webdriver_test",
