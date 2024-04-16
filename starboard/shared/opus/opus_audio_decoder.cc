@@ -133,19 +133,19 @@ bool OpusAudioDecoder::DecodeInternal(
       audio_stream_info_.number_of_channels * frames_per_au_ *
           starboard::media::GetBytesPerSample(GetSampleType()));
 
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#if SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode";
   int decoded_frames = opus_multistream_decode(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(),
       reinterpret_cast<opus_int16*>(decoded_audio->data()), frames_per_au_, 0);
-#else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#else   // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(), reinterpret_cast<float*>(decoded_audio->data()),
       frames_per_au_, 0);
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   if (decoded_frames == OPUS_BUFFER_TOO_SMALL &&
       frames_per_au_ < kMaxOpusFramesPerAU) {
     frames_per_au_ = kMaxOpusFramesPerAU;
@@ -274,11 +274,11 @@ bool OpusAudioDecoder::is_valid() const {
 
 SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
   SB_DCHECK(BelongsToCurrentThread());
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#if SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeInt16;
-#else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#else   // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeFloat32;
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 }
 
 }  // namespace opus

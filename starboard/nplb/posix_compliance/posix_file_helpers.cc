@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "starboard/configuration_constants.h"
+#include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/shared/posix/file_internal.h"
 #include "starboard/system.h"

@@ -16,7 +16,7 @@ third_party {
   }
   identifier {
     type: "UpstreamSubdir"
-    value: "third_party/crashpad/crashpad"
+    value: "third_party/crashpad"
   }
   last_upgrade_date {
     year: 2023

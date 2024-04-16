@@ -75,13 +75,13 @@ group("gn_all") {
 
       if (current_toolchain == starboard_toolchain) {
         deps += [
-          "//third_party/crashpad/client",
+          "//third_party/crashpad/crashpad/client",
           "//third_party/lz4_lib:lz4",
         ]
         data_deps = [
           "//starboard/loader_app($starboard_toolchain)",
-          "//third_party/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
-          "//third_party/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
+          "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+          "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
         ]
       }
     }
@@ -151,9 +151,10 @@ group("starboard_group") {
     if (!sb_is_modular || sb_is_evergreen) {
       if (sb_is_evergreen_compatible &&
           current_toolchain == starboard_toolchain) {
-        public_deps += [ "//third_party/crashpad/wrapper" ]
+        public_deps += [ "//third_party/crashpad/crashpad/wrapper" ]
       } else {
-        public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+        public_deps +=
+            [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
       }
     }
 

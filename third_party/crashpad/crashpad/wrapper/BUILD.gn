@@ -26,8 +26,8 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     ]
 
     deps = [
-      # "//starboard/elf_loader:evergreen_info",
-      "//third_party/crashpad/client",
+      "//starboard/elf_loader:evergreen_info",
+      "//third_party/crashpad/crashpad/client",
     ]
   }
 }

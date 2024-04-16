@@ -16,6 +16,7 @@
 
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/nplb/audio_sink_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

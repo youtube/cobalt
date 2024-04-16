@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/crashpad/wrapper/wrapper.h"
+#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
 #include <sys/stat.h>
 
@@ -31,7 +31,7 @@
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
-#include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
+#include "third_party/crashpad/crashpad/snapshot/sanitized/sanitization_information.h"
 
 using starboard::kSystemPropertyMaxLength;
 
@@ -89,7 +89,10 @@ base::FilePath GetDatabasePath() {
   std::string crashpad_directory_path(cache_directory_path.data());
   crashpad_directory_path.push_back(kSbFileSepChar);
   crashpad_directory_path.append("crashpad_database");
-  if (mkdir(crashpad_directory_path.c_str(), 0700) != 0 && !SbDirectoryCanOpen(crashpad_directory_path.c_str())) {
+  struct stat info;
+  if (mkdir(crashpad_directory_path.c_str(), 0700) != 0 &&
+      !(stat(crashpad_directory_path.c_str(), &info) == 0 &&
+        S_ISDIR(info.st_mode))) {
     LOG(ERROR) << "Couldn't create directory for crashpad database";
     return base::FilePath("");
   }

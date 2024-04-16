@@ -14,6 +14,8 @@
 
 static_library("watchdog") {
   sources = [
+    "instrumentation_log.cc",
+    "instrumentation_log.h",
     "watchdog.cc",
     "watchdog.h",
   ]
@@ -29,7 +31,10 @@ static_library("watchdog") {
 target(gtest_target_type, "watchdog_test") {
   testonly = true
 
-  sources = [ "watchdog_test.cc" ]
+  sources = [
+    "instrumentation_log_test.cc",
+    "watchdog_test.cc",
+  ]
 
   deps = [
     ":watchdog",

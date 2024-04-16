@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_EVERGREEN_X86_ATOMIC_PUBLIC_H_
-#define STARBOARD_EVERGREEN_X86_ATOMIC_PUBLIC_H_
+#include <sched.h>
+#include <windows.h>
 
-#include "starboard/atomic.h"
-#include "starboard/shared/gcc/atomic_gcc_public.h"
+extern "C" {
 
-#endif  // STARBOARD_EVERGREEN_X86_ATOMIC_PUBLIC_H_
+int sched_yield() {
+  Sleep(0);
+  return 0;
+}
+}

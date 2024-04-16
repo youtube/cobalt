@@ -20,13 +20,13 @@
 #include "util/linux/exception_information.h"
 
 #if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-#include "third_party/crashpad/util/linux/exception_handler_protocol.h"
+#include "third_party/crashpad/crashpad/util/linux/exception_handler_protocol.h"
 // TODO(b/201538792): resolve conflict between mini_chromium and base functions.
 #ifdef LogMessage
 #define LOG_MESSAGE_DEFINED
 #undef LogMessage
 #endif
-#include "third_party/crashpad/wrapper/proto/crashpad_annotations.pb.h"
+#include "third_party/crashpad/crashpad/wrapper/proto/crashpad_annotations.pb.h"
 #ifdef LOG_MESSAGE_DEFINED
 #define LogMessage MLogMessage
 #endif

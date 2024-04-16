@@ -51,6 +51,11 @@ typedef struct PosixOncePrivate {
   pthread_once_t once;
 } PosixOncePrivate;
 
+typedef struct PosixThreadLocalKeyPrivate {
+  // The underlying thread-local variable handle.
+  pthread_key_t key;
+} PosixThreadLocalKeyPrivate;
+
 #define INTERNAL_MUTEX(mutex_var) \
   reinterpret_cast<PosixMutexPrivate*>((mutex_var)->mutex_buffer)
 #define PTHREAD_INTERNAL_MUTEX(mutex_var) \
@@ -325,4 +330,43 @@ int __abi_wrap_pthread_equal(musl_pthread_t t1, musl_pthread_t t2) {
 
 musl_pthread_t __abi_wrap_pthread_self() {
   return reinterpret_cast<musl_pthread_t>(pthread_self());
+}
+
+int __abi_wrap_pthread_key_create(musl_pthread_key_t* key,
+                                  void (*destructor)(void*)) {
+  PosixThreadLocalKeyPrivate* private_key = new PosixThreadLocalKeyPrivate();
+  if (pthread_key_create(&private_key->key, destructor) != 0) {
+    delete private_key;
+    return -1;
+  }
+  *key = private_key;
+  return 0;
+}
+
+int __abi_wrap_pthread_key_delete(musl_pthread_key_t key) {
+  if (!key) {
+    return -1;
+  }
+
+  int res = pthread_key_delete(
+      reinterpret_cast<PosixThreadLocalKeyPrivate*>(key)->key);
+  delete reinterpret_cast<PosixThreadLocalKeyPrivate*>(key);
+  return res;
+}
+
+void* __abi_wrap_pthread_getspecific(musl_pthread_key_t key) {
+  if (!key) {
+    return NULL;
+  }
+
+  return pthread_getspecific(
+      reinterpret_cast<PosixThreadLocalKeyPrivate*>(key)->key);
+}
+
+int __abi_wrap_pthread_setspecific(musl_pthread_key_t key, const void* value) {
+  if (!key) {
+    return -1;
+  }
+  return pthread_setspecific(
+      reinterpret_cast<PosixThreadLocalKeyPrivate*>(key)->key, value);
 }

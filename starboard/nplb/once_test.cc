@@ -14,9 +14,11 @@
 
 // Broadcast is Sunny Day tested in most of the other SbConditionVariable tests.
 
-#include "starboard/once.h"
+#include <sched.h>
+
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/thread_helpers.h"
+#include "starboard/once.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -84,7 +86,7 @@ void* RunSbOnceEntryPoint(void* context) {
     SbMutexRelease(&run_sbonce_context->mutex);
   }
 
-  SbThreadYield();
+  sched_yield();
   static const int kIterationCount = 3;
   for (int i = 0; i < kIterationCount; ++i) {
     SbOnce(&run_sbonce_context->once_control, &IncrementGlobalValue);

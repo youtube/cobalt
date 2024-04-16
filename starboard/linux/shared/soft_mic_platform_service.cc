@@ -20,22 +20,25 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/extension/platform_service.h"
+#include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/application.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
-#include "starboard/elf_loader/evergreen_config.h"
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
-
-typedef struct CobaltExtensionPlatformServicePrivate {
-  void* context;
-  ReceiveMessageCallback receive_callback;
-} CobaltExtensionPlatformServicePrivate;
 
 // Omit namespace linux due to symbol name conflict.
 namespace starboard {
 namespace shared {
 
 namespace {
+typedef struct SoftMicPlatformServiceImpl : public PlatformServiceImpl {
+  // Define additional data field.
+  // variable_1, variable_2,...
+  SoftMicPlatformServiceImpl(void* context,
+                             ReceiveMessageCallback receive_callback)
+      : PlatformServiceImpl(context, receive_callback) {}
+
+  // Default constructor.
+  SoftMicPlatformServiceImpl() = default;
+
+} SoftMicPlatformServiceImpl;
 
 const char kGetMicSupport[] = "\"getMicSupport\"";
 const char kNotifySearchActive[] = "\"notifySearchActive\"";
@@ -48,51 +51,24 @@ const char kJSONFalse[] = "false";
 
 bool Has(const char* name) {
   // Check if platform has service name.
-  return strcmp(name, "com.google.youtube.tv.SoftMic") == 0;
+  return strcmp(name, kSoftMicPlatformServiceName) == 0;
 }
 
-CobaltExtensionPlatformService Open(void* context,
-                                    const char* name,
-                                    ReceiveMessageCallback receive_callback) {
+PlatformServiceImpl* Open(void* context,
+                          ReceiveMessageCallback receive_callback) {
   SB_DCHECK(context);
+  SB_LOG(INFO) << "Open() service created: " << kSoftMicPlatformServiceName;
 
-  CobaltExtensionPlatformService service;
-
-  if (!Has(name)) {
-    SB_LOG(ERROR) << "Open() service name does not exist: " << name;
-    service = kCobaltExtensionPlatformServiceInvalid;
-  } else {
-    SB_LOG(INFO) << "Open() service created: " << name;
-    service =
-        new CobaltExtensionPlatformServicePrivate({context, receive_callback});
-  }
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  const bool is_evergreen = elf_loader::EvergreenConfig::GetInstance() != NULL;
-#else
-  const bool is_evergreen = false;
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
-
-  // The name parameter memory is allocated in h5vcc_platform_service::Open()
-  // with new[] and must be deallocated here.
-  // If we are in an Evergreen build, the name parameter must be deallocated
-  // with free (), since new[] will map to malloc()
-  // in an Evergreen build.
-  if (is_evergreen) {
-    free((void*)name);  // NOLINT
-  } else {
-    delete[] name;
-  }
-
-  return service;
+  return new SoftMicPlatformServiceImpl(context, receive_callback);
 }
 
-void Close(CobaltExtensionPlatformService service) {
-  SB_LOG(INFO) << "Close() Service.";
-  delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
+void Close(PlatformServiceImpl* service) {
+  // Function Close shouldn't manually delete PlatformServiceImpl pointer,
+  // because it is managed by unique_ptr in Platform Service.
+  SB_LOG(INFO) << "Perform actions before gracefully shutting down the service";
 }
 
-void* Send(CobaltExtensionPlatformService service,
+void* Send(PlatformServiceImpl* service,
            void* data,
            uint64_t length,
            uint64_t* output_length,
@@ -169,10 +145,9 @@ void* Send(CobaltExtensionPlatformService service,
     // Here we are synchronously calling the receive_callback() from within
     // Send() which is unnecessary. Implementations should prioritize
     // returning from Send() ASAP to avoid blocking the JavaScript thread.
-    static_cast<CobaltExtensionPlatformServicePrivate*>(service)
-        ->receive_callback(service->context,
-                           static_cast<const void*>(response.c_str()),
-                           response.length());
+    static_cast<PlatformServiceImpl*>(service)->receive_callback(
+        service->context, static_cast<const void*>(response.c_str()),
+        response.length());
 
     valid_message_received = true;
   } else if (strcmp(message, kNotifySearchActive) == 0) {
@@ -196,8 +171,8 @@ void* Send(CobaltExtensionPlatformService service,
   return static_cast<void*>(ptr);
 }
 
-const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
-    kCobaltExtensionPlatformServiceName,
+const CobaltPlatformServiceApi kSoftMicPlatformServiceApi = {
+    kSoftMicPlatformServiceName,
     1,  // API version that's implemented.
     &Has,
     &Open,
@@ -206,8 +181,8 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
 
 }  // namespace
 
-const void* GetPlatformServiceApi() {
-  return &kPlatformServiceApi;
+const void* GetSoftMicPlatformServiceApi() {
+  return &kSoftMicPlatformServiceApi;
 }
 
 }  // namespace shared

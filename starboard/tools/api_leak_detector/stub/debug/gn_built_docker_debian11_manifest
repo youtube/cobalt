@@ -92,10 +92,6 @@ ntohs
 open
 poll
 printf
-pthread_getspecific
-pthread_key_create
-pthread_key_delete
-pthread_setspecific
 putc
 putwc
 read

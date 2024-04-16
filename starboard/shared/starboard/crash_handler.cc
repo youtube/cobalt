@@ -17,7 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/memory.h"
-#include "third_party/crashpad/wrapper/wrapper.h"
+#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
 namespace starboard {
 namespace common {
