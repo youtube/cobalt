@@ -207,7 +207,6 @@ void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_EQ(connection_id, websocket_id_) << "Mismatched WebSocket ID";
 
-  // Parse the json string to get id, method and params.
   JSONObject json_object = JSONParse(json);
   if (json_object.empty()) {
     return SendErrorResponseOverWebSocket(websocket_id_, "Error parsing JSON");
@@ -221,12 +220,11 @@ void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
     return SendErrorResponseOverWebSocket(id.value(), "Missing method");
   }
   // Parameters are optional.
-  const base::Value* params_value = json_object.Find(kParamsField);
   std::string json_params;
-  if (json_object.Remove(kParamsField) && params_value->is_dict()) {
-    JSONObject params;
-    DCHECK(!params.empty());
-    json_params = JSONStringify(params);
+  const base::Value::Dict* params = json_object.FindDict(kParamsField);
+  if (params && !params->empty()) {
+    json_params = JSONStringify(*params);
+    json_object.Remove(kParamsField);
   }
 
   if (!debug_client_ || !debug_client_->IsAttached()) {
@@ -251,8 +249,12 @@ void DebugWebServer::SendErrorResponseOverWebSocket(
 
 void DebugWebServer::OnDebuggerResponse(
     int id, const base::Optional<std::string>& response) {
-  JSONObject response_object = JSONParse(response.value());
-  DCHECK(!response_object.empty());
+  std::string parse_error;
+  JSONObject response_object = JSONParse(response.value(), &parse_error);
+  DCHECK(parse_error.empty());
+  if (!parse_error.empty()) {
+    DLOG(ERROR) << "Parse response error: " << parse_error;
+  }
   response_object.Set(kIdField, id);
   server_->SendOverWebSocket(websocket_id_, JSONStringify(response_object),
                              kNetworkTrafficAnnotation);
