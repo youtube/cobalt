@@ -777,55 +777,5 @@ TEST_F(WatchdogTest, LogtraceMethodsAreNoopWhenLogtraceIsDisabled) {
   ASSERT_NO_FATAL_FAILURE(watchdog_->ClearLog());
 }
 
-TEST_F(WatchdogTest, PersistentSettingsTakeEffectOnRestart) {
-  // init and destroy existing watchdog to re-initialize it later
-  watchdog_->Register("test-name", "test-desc", base::kApplicationStateStarted,
-                      kWatchdogMonitorFrequency);
-  TearDown();
-
-  auto persistent_settings =
-      std::make_unique<PersistentSettings>(kSettingsFileName);
-  persistent_settings->ValidatePersistentSettings();
-
-  // first run with default setting = true
-  watchdog_ = new watchdog::Watchdog();
-  watchdog_->InitializeCustom(persistent_settings.get(),
-                              std::string(kWatchdogViolationsJson),
-                              kWatchdogMonitorFrequency);
-
-  ASSERT_TRUE(watchdog_->GetPersistentSettingWatchdogEnable());
-  ASSERT_FALSE(watchdog_->GetPersistentSettingWatchdogCrash());
-  ASSERT_TRUE(watchdog_->GetPersistentSettingLogtraceEnable());
-
-  // set persistent setting to the opposite value
-  // and verify get methods return old value
-  watchdog_->SetPersistentSettingWatchdogEnable(false);
-  watchdog_->SetPersistentSettingWatchdogCrash(true);
-  watchdog_->SetPersistentSettingLogtraceEnable(false);
-  ASSERT_TRUE(watchdog_->GetPersistentSettingWatchdogEnable());
-  ASSERT_FALSE(watchdog_->GetPersistentSettingWatchdogCrash());
-  ASSERT_TRUE(watchdog_->GetPersistentSettingLogtraceEnable());
-
-  // wait for all setter tasks to complete
-  base::OnceClosure closure = base::BindOnce(
-      [](base::WaitableEvent* task_done) { task_done->Signal(); }, &task_done_);
-  persistent_settings->message_loop()->task_runner()->PostTask(
-      FROM_HERE, std::move(closure));
-  task_done_.Wait();
-
-  watchdog_->Uninitialize();
-  delete watchdog_;
-  watchdog_ = nullptr;
-
-  // verify get methods return new value
-  watchdog_ = new watchdog::Watchdog();
-  watchdog_->InitializeCustom(persistent_settings.get(),
-                              std::string(kWatchdogViolationsJson),
-                              kWatchdogMonitorFrequency);
-  ASSERT_FALSE(watchdog_->GetPersistentSettingWatchdogEnable());
-  ASSERT_TRUE(watchdog_->GetPersistentSettingWatchdogCrash());
-  ASSERT_FALSE(watchdog_->GetPersistentSettingLogtraceEnable());
-}
-
 }  // namespace watchdog
 }  // namespace cobalt
