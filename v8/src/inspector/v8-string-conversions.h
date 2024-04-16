@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <string>
-#include <cstdint>
 
 // Conversion routines between UT8 and UTF16, used by string-16.{h,cc}. You may
 // want to use string-16.h directly rather than these.

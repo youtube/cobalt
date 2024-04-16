@@ -30,7 +30,7 @@
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
-#include "third_party/v8/include/v8-profiler.h"
+#include "v8/include/v8-profiler.h"
 
 namespace cobalt {
 namespace js_profiler {
