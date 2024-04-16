@@ -199,6 +199,19 @@ bool DeleteFile(const FilePath &path) {
   return DeleteFile(path, recursive);
 }
 
+bool DieFileDie(const FilePath& file, bool recurse) {
+  // There is no need to workaround Windows problems on POSIX.
+  // Just pass-through.
+  if (recurse)
+    return DeletePathRecursively(file);
+  return DeleteFile(file);
+}
+
+bool EvictFileFromSystemCache(const FilePath& file) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
 bool ReplaceFile(const FilePath& from_path,
                  const FilePath& to_path,
                  File::Error* error) {
