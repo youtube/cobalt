@@ -19,6 +19,12 @@ config("platform_configuration") {
   cflags = []
 
   defines = []
+
+  include_dirs = [
+    # POSIX emulation headers - these need to come *before* system include_dirs.
+    "//starboard/android/shared/posix_emu/include",
+  ]
+
   ldflags = [
     # The NDK default "ld" is actually the gold linker for all architectures
     # except arm64 (aarch64) where it"s the bfd linker. Don"t use either of
