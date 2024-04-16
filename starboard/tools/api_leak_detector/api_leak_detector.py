@@ -119,6 +119,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'mprotect',
     'msync',
     'mkdir',
+    'sched_yield',
     'stat',
     'pthread_cond_broadcast',
     'pthread_cond_destroy',

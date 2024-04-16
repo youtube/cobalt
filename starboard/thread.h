@@ -190,8 +190,10 @@ SB_EXPORT bool SbThreadJoin(SbThread thread, void** out_return);
 // |thread|: The thread to be detached.
 SB_EXPORT void SbThreadDetach(SbThread thread);
 
+#if SB_API_VERSION < 16
 // Yields the currently executing thread, so another thread has a chance to run.
 SB_EXPORT void SbThreadYield();
+#endif
 
 // Sleeps the currently executing thread.
 //

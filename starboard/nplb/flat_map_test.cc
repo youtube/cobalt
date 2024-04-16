@@ -14,6 +14,7 @@
 
 #include "starboard/common/flat_map.h"
 
+#include <sched.h>
 #include <map>
 #include <sstream>
 #include <string>
@@ -565,7 +566,7 @@ template <typename MapIntType>  // FlatMap<int, int> or std::map<int, int>
 int64_t PerfTestFind(const MapIntType& map,
                      const std::vector<int>& search_queries_data,
                      size_t query_count) {
-  SbThreadYield();  // Stabilizes time
+  sched_yield();  // Stabilizes time
   int64_t start_time = GetThreadTimeMonotonicNow();
   size_t index = 0;
   const size_t n = search_queries_data.size();

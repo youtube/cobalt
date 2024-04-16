@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_INTERNAL_H_
 
+#include <sched.h>
+
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
@@ -49,7 +51,7 @@ static inline bool EnsureInitialized(InitializedState* state) {
     // If the current state is that we are being initialized, spin until
     // initialization is complete, then return.
     do {
-      SbThreadYield();
+      sched_yield();
     } while (SbAtomicAcquire_Load(state) != INITIALIZED_STATE_INITIALIZED);
   } else {
     SB_DCHECK(original == INITIALIZED_STATE_INITIALIZED)

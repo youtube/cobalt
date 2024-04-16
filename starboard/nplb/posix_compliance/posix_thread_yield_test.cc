@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/time.h"
-#include "starboard/nplb/thread_helpers.h"
-#include "starboard/thread.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include <pthread.h>
+#include <sched.h>
 
-#if SB_API_VERSION < 16
+#include "starboard/common/time.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
@@ -34,7 +34,7 @@ const int kLoops = 10000;
 
 void* YieldingEntryPoint(void* context) {
   for (int i = 0; i < kLoops; ++i) {
-    SbThreadYield();
+    sched_yield();
   }
 
   int64_t* end_time = static_cast<int64_t*>(context);
@@ -44,7 +44,7 @@ void* YieldingEntryPoint(void* context) {
 
 void* UnyieldingEntryPoint(void* context) {
   for (int i = 0; i < kLoops; ++i) {
-    DoNotYield();
+    posix::DoNotYield();
   }
 
   int64_t* end_time = static_cast<int64_t*>(context);
@@ -52,46 +52,35 @@ void* UnyieldingEntryPoint(void* context) {
   return NULL;
 }
 
-TEST(SbThreadYieldTest, SunnyDay) {
-  SbThreadYield();
+TEST(PosixThreadYieldTest, SunnyDay) {
+  sched_yield();
   // Well, my work here is done.
 }
 
-// Okay, okay, I'm not sure how else to test this other than to try to make sure
-// that a thread that yields generally gets more CPU time than one that doesn't.
-//
-// I did test that racing Unyielding threads against each other causes this test
-// to fail regularly. By rerunning the test kTrials times, and by swapping which
-// thread gets started first, I hope to make this inherently flaky test not
-// flaky.
-//
-// Note: This test may still be flaky, but it should be a lot less flaky than
-// before. If this test starts flaking again, tag it with FLAKY_ again.
-TEST(SbThreadYieldTest, SunnyDayRace) {
+TEST(PosixThreadYieldTest, SunnyDayRace) {
   const int kTrials = 20;
   int passes = 0;
   for (int trial = 0; trial < kTrials; ++trial) {
-    // Pin to CPU 0 to make sure the threads don't get distributed onto other
-    // cores.
-    SbThreadAffinity affinity = 0;
     // We want enough racers such that the threads must contend for cpu time,
     // and enough data for the averages to be consistently divergent.
     const int64_t kRacers = 32;
-    SbThread threads[kRacers];
+    pthread_t threads[kRacers];
     int64_t end_times[kRacers] = {0};
     for (int i = 0; i < kRacers; ++i) {
-      threads[i] = SbThreadCreate(
-          0, kSbThreadNoPriority, affinity, true, NULL,
-          (IsYielder(trial, i) ? YieldingEntryPoint : UnyieldingEntryPoint),
-          &(end_times[i]));
+      pthread_t thread;
+      EXPECT_EQ(pthread_create(&threads[i], NULL,
+                               (IsYielder(trial, i) ? YieldingEntryPoint
+                                                    : UnyieldingEntryPoint),
+                               &(end_times[i])),
+                0);
     }
 
     for (int i = 0; i < kRacers; ++i) {
-      EXPECT_TRUE(SbThreadIsValid(threads[i])) << "thread = " << threads[i];
+      EXPECT_TRUE(threads[i] != 0) << "thread = " << threads[i];
     }
 
     for (int i = 0; i < kRacers; ++i) {
-      EXPECT_TRUE(SbThreadJoin(threads[i], NULL));
+      EXPECT_EQ(pthread_join(threads[i], NULL), 0);
     }
 
     // On average, Unyielders should finish sooner than Yielders.
@@ -120,5 +109,3 @@ TEST(SbThreadYieldTest, SunnyDayRace) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION < 16
