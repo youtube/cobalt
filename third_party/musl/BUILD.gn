@@ -371,6 +371,7 @@ static_library("c_internal") {
     "src/network/htons.c",
     "src/network/ntohl.c",
     "src/network/ntohs.c",
+    "src/network/res_init.c",
     "src/prng/rand.c",
 
     # Starboardized implementations

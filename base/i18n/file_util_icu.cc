@@ -14,6 +14,7 @@
 #include "base/i18n/icu_string_conversions.h"
 #include "base/i18n/string_compare.h"
 #include "base/memory/singleton.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
@@ -305,6 +306,11 @@ bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
              *collator, WideToUTF16(SysNativeMBToWide(a.value())),
              WideToUTF16(SysNativeMBToWide(b.value()))) == UCOL_LESS;
 #endif
+}
+#else
+bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
+  NOTIMPLEMENTED();
+  return false;
 }
 #endif
 
