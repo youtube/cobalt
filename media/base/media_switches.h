@@ -452,10 +452,12 @@ enum class kCrosGlobalMediaControlsPinOptions {
   kHeuristic,
 };
 
+#if !defined(STARBOARD)
 // Feature param used to force default pin/unpin for global media controls in
 // CrOS.
 MEDIA_EXPORT extern const base::FeatureParam<kCrosGlobalMediaControlsPinOptions>
     kCrosGlobalMediaControlsPinParam;
+#endif  // !defined(STARBOARD)
 
 // Return bitmask of audio formats supported by EDID.
 MEDIA_EXPORT uint32_t GetPassthroughAudioFormats();

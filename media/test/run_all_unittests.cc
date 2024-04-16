@@ -71,3 +71,5 @@ int main(int argc, char** argv) {
       argc, argv,
       base::BindOnce(&TestSuiteNoAtExit::Run, base::Unretained(&test_suite)));
 }
+
+#endif  // defined(STARBOARD)
