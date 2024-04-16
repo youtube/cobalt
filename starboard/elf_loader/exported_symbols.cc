@@ -114,6 +114,9 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
 #endif  // SB_API_VERSION < 16
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(kSbCanMapExecutableMemory);
+#endif
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);

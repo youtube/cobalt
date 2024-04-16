@@ -3,13 +3,6 @@ Book: /youtube/cobalt/_book.yaml
 
 # Starboard Configuration Reference Guide
 
-## Memory Configuration
-
-| Properties |
-| :--- |
-| **`SB_CAN_MAP_EXECUTABLE_MEMORY`**<br><br>Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is required for platforms that want to JIT.<br><br>The default value in the Stub implementation is `1` |
-
-
 ## Network Configuration
 
 | Properties |
