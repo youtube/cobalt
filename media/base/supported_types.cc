@@ -15,7 +15,7 @@
 #include "media/base/media_client.h"
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
-#if defined(STARBOARD)
+#if !defined(STARBOARD)
 #include "ui/display/display_switches.h"
 #endif  // !defined(STARBOARD)
 #include "ui/gfx/hdr_metadata.h"
