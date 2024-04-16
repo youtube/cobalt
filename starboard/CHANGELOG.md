@@ -175,6 +175,15 @@ deprecated.
 ### Deprecated SbStringScan and SbStringScanF
 The APIs defined in `starboard/string.h` are deprecated and the standard API `vsscanf` and `sscanf` are used instead.
 
+### Deprecated SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
+
+`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES` can no longer be used to enable the
+use of `kSbMediaAudioSampleTypeInt16`.  The platform has to support AudioSink in
+float sample and is verified by nplb test.  The enum value of
+`kSbMediaAudioSampleTypeInt16Deprecated` was kept so the platform may still
+choose to implement int16 sample support.  It will be removed in a future
+version.
+
 ## Version 15
 
 ### SbMemoryReporter is no longer used

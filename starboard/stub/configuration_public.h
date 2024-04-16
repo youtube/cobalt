@@ -50,9 +50,11 @@
 
 // --- Media Configuration ---------------------------------------------------
 
+#if SB_API_VERSION <= 15
 // The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only
 // when this macro is defined.
 #undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
+#endif  // SB_API_VERSION <= 15
 
 // --- Memory Configuration --------------------------------------------------
 
