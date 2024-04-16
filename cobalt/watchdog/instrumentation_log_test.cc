@@ -92,9 +92,9 @@ TEST_F(InstrumentationLogTest, CanGetLogTraceAsValue) {
   log.LogEvent("2");
   log.LogEvent("3");
 
-  ASSERT_EQ(log.GetLogTraceAsValue().GetList().at(0).GetString(), "1");
-  ASSERT_EQ(log.GetLogTraceAsValue().GetList().at(1).GetString(), "2");
-  ASSERT_EQ(log.GetLogTraceAsValue().GetList().at(2).GetString(), "3");
+  ASSERT_EQ(log.GetLogTraceAsValue().GetList()[0].GetString(), "1");
+  ASSERT_EQ(log.GetLogTraceAsValue().GetList()[1].GetString(), "2");
+  ASSERT_EQ(log.GetLogTraceAsValue().GetList()[2].GetString(), "3");
 }
 
 TEST_F(InstrumentationLogTest, CanClearLog) {

@@ -685,12 +685,16 @@ TEST_F(WatchdogTest, ViolationContainsLogTrace) {
   SbThreadSleep(kWatchdogSleepDuration);
 
   std::string json = watchdog_->GetWatchdogViolations();
-  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
-  base::Value* violations =
-      violations_map->FindKey("test-name")->FindKey("violations");
-  base::Value* logTrace = violations->GetList()[0].FindKey("logTrace");
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  ASSERT_TRUE(violations_map_optional.has_value());
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  base::Value::List* violations =
+      violations_map.FindDict("test-name")->FindList("violations");
+  base::Value::List* logTrace = (*violations)[0].GetDict().FindList("logTrace");
 
-  ASSERT_EQ(logTrace->GetList().size(), 3);
+  ASSERT_EQ(logTrace->size(), 3);
 }
 
 TEST_F(WatchdogTest, ViolationContainsEmptyLogTrace) {
@@ -701,12 +705,16 @@ TEST_F(WatchdogTest, ViolationContainsEmptyLogTrace) {
   SbThreadSleep(kWatchdogSleepDuration);
 
   std::string json = watchdog_->GetWatchdogViolations();
-  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
-  base::Value* violations =
-      violations_map->FindKey("test-name")->FindKey("violations");
-  base::Value* logTrace = violations->GetList()[0].FindKey("logTrace");
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  ASSERT_TRUE(violations_map_optional.has_value());
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  base::Value::List* violations =
+      violations_map.FindDict("test-name")->FindList("violations");
+  base::Value::List* logTrace = (*violations)[0].GetDict().FindList("logTrace");
 
-  ASSERT_EQ(logTrace->GetList().size(), 0);
+  ASSERT_EQ(logTrace->size(), 0);
 }
 
 }  // namespace watchdog

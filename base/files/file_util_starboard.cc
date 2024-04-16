@@ -148,8 +148,8 @@ bool AbsolutePath(FilePath* path) {
 bool DeleteFile(const FilePath &path, bool recursive) {
   internal::AssertBlockingAllowed();
   const char *path_str = path.value().c_str();
-  struct stat info;
-  bool directory = stat(path_str, &info) == 0 && S_ISDIR(info.st_mode);
+  struct ::stat info;
+  bool directory = ::stat(path_str, &info) == 0 && S_ISDIR(info.st_mode);
   if (!recursive || !directory) {
     return SbFileDelete(path_str);
   }
@@ -378,9 +378,9 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
       continue;
     }
     
-    struct stat info;
+    struct ::stat info;
     if (mkdir(i->value().c_str(), 0700) != 0 &&
-        !(stat(i->value().c_str(), &info) == 0 && S_ISDIR(info.st_mode))){
+        !(::stat(i->value().c_str(), &info) == 0 && S_ISDIR(info.st_mode))){
       if (error)
         *error = File::OSErrorToFileError(SbSystemGetLastError());
       return false;
