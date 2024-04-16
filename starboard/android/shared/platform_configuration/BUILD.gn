@@ -163,7 +163,13 @@ config("platform_configuration") {
     "-Wl,--wrap=eglSwapBuffers",
   ]
   if (!is_native_target_build) {
-    ldflags += [ "-Wl,--wrap=stat" ]
+    ldflags += [
+      "-Wl,--wrap=close",
+      "-Wl,--wrap=lseek",
+      "-Wl,--wrap=open",
+      "-Wl,--wrap=read",
+      "-Wl,--wrap=stat",
+    ]
   }
 }
 

@@ -222,11 +222,51 @@ int open(const char* path, int oflag, ...) {
   memset(value, 0, sizeof(struct FileOrSocket));
   value->is_file = true;
 
-  // TODO: b/302715109 map posix flags to SB file flags
-  int open_flags = 0;
-  // O_APPEND, O_ASYNC, O_CLOEXEC, O_CREAT, O_DIRECT, O_DIRECTORY, O_DSYNC
-  // O_EXCL, O_LARGEFILE, O_NOATIME, O_NOCTTY, O_NOFOLLOW,
-  // O_NONBLOCK or O_NDELAY, O_PATH, O_SYNC, O_TMPFILE, O_TRUNC
+  int sbfile_flags = 0;
+  int access_mode_flag = 0;
+
+  if ((oflag & O_ACCMODE) == O_RDONLY) {
+    access_mode_flag |= kSbFileRead;
+    if (oflag == O_RDONLY) {
+      sbfile_flags = kSbFileOpenOnly;
+    }
+  } else if ((oflag & O_ACCMODE) == O_WRONLY) {
+    access_mode_flag |= kSbFileWrite;
+    oflag &= ~O_WRONLY;
+  } else if ((oflag & O_ACCMODE) == O_RDWR) {
+    access_mode_flag |= kSbFileRead | kSbFileWrite;
+    oflag &= ~O_RDWR;
+  } else {
+    // Applications shall specify exactly one of the first three file access
+    // modes.
+    out_error = kSbFileErrorFailed;
+    return -1;
+  }
+
+  if (oflag & O_CREAT && oflag & O_EXCL) {
+    sbfile_flags = kSbFileCreateOnly;
+    oflag &= ~(O_CREAT|O_EXCL);
+  }
+  if (oflag & O_CREAT && oflag & O_TRUNC) {
+    sbfile_flags = kSbFileCreateAlways;
+    oflag &= ~(O_CREAT|O_TRUNC);
+  }
+  if (oflag & O_CREAT) {
+    sbfile_flags = kSbFileOpenAlways;
+    oflag &= ~O_CREAT;
+  }
+  if (oflag & O_TRUNC) {
+    sbfile_flags = kSbFileOpenTruncated;
+    oflag &= ~O_TRUNC;
+  }
+
+  // SbFileOpen does not support any other combination of flags.
+  if (oflag || !sbfile_flags) {
+    out_error = kSbFileErrorFailed;
+    return -1;
+  }
+
+  int open_flags = sbfile_flags | access_mode_flag;
 
   value->file = SbFileOpen(path, open_flags, &out_created, &out_error);
   if (!SbFileIsValid(value->file)){
