@@ -118,7 +118,8 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   // Demuxer implementation.
   std::string GetDisplayName() const override { return "ProgressiveDemuxer"; }
   ::media::DemuxerType GetDemuxerType() const override {
-    return ::media::DemuxerType::kProgressiveDemuxer;
+    // kFFmpegDemuxer is used in Chromium media for progressive demuxing.
+    return ::media::DemuxerType::kFFmpegDemuxer;
   }
   void Initialize(DemuxerHost* host, PipelineStatusCallback status_cb) override;
   void AbortPendingReads() override {}

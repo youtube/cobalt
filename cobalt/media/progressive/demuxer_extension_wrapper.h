@@ -166,7 +166,8 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   std::vector<::media::DemuxerStream*> GetAllStreams() override;
   std::string GetDisplayName() const override;
   ::media::DemuxerType GetDemuxerType() const override {
-    return ::media::DemuxerType::kProgressiveDemuxer;
+    // kFFmpegDemuxer is used in Chromium media for progressive demuxing.
+    return ::media::DemuxerType::kFFmpegDemuxer;
   }
   void Initialize(::media::DemuxerHost* host,
                   ::media::PipelineStatusCallback status_cb) override;
