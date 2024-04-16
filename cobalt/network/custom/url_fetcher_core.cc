@@ -931,13 +931,9 @@ void URLFetcherCore::RetryOrCompleteUrlFetch() {
   initiator_.reset();
   url_request_data_key_ = NULL;
   url_request_create_data_callback_.Reset();
-  bool posted = delegate_task_runner_->PostTask(
+  delegate_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&URLFetcherCore::OnCompletedURLRequest, this, backoff_delay));
-
-  // If the delegate message loop does not exist any more, then the delegate
-  // should be gone too.
-  DCHECK(posted || !delegate_);
 }
 
 void URLFetcherCore::CancelRequestAndInformDelegate(int result) {

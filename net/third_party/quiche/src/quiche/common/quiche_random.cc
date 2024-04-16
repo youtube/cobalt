@@ -31,13 +31,18 @@ inline uint64_t Xoshiro256PlusPlusRotLeft(uint64_t x, int k) {
 }
 
 #if defined(STARBOARD)
+void ThreadLocalDestructor(void* value) {
+  if (value) {
+    delete [] static_cast<uint64_t*>(value);
+  }
+}
 
 uint64_t Xoshiro256PlusPlus() {
   static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
   static SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
   
   auto InitThreadLocalKey = [](){
-    s_thread_local_key = SbThreadCreateLocalKey(NULL);
+    s_thread_local_key = SbThreadCreateLocalKey(ThreadLocalDestructor);
     DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
   };
   
