@@ -35,7 +35,7 @@ typedef struct SoftMicPlatformServiceImpl : public PlatformServiceImpl {
                              ReceiveMessageCallback receive_callback)
       : PlatformServiceImpl(context, receive_callback) {}
 
-  // Default constructor
+  // Default constructor.
   SoftMicPlatformServiceImpl() = default;
 
 } SoftMicPlatformServiceImpl;
