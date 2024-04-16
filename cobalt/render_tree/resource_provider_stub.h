@@ -28,8 +28,8 @@
 #include "cobalt/render_tree/lottie_animation.h"
 #include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "third_party/ots/include/opentype-sanitiser.h"
-#include "third_party/ots/include/ots-memory-stream.h"
+#include "third_party/ots/src/include/opentype-sanitiser.h"
+#include "third_party/ots/src/include/ots-memory-stream.h"
 
 namespace cobalt {
 namespace render_tree {
