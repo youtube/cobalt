@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### x86 ABI removed for Evergreen
+The x86 platform configurations, builds and ABI are no longer supported for
+Evergreen.
+
 ### Added standard POSIX stat API and deprecated SbDirectoryCanOpen.
 The directory API SbDirectoryCanOpen has been deprecated and the standard API `stat` can
 be used from `sys/stat.h` instead.

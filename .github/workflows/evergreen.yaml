@@ -67,12 +67,3 @@ jobs:
       platform: evergreen-arm64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-  evergreen-x86:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-x86
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true

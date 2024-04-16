@@ -155,7 +155,6 @@ Only if necessary, create a customized SABI configuration for your architecture.
 Note, we do not anticipate that you will need to make a new configuration for
 your platform unless it is not one of our supported architectures:
 
-*   x86\_32
 *   x86\_64
 *   arm32
 *   arm64
@@ -226,7 +225,6 @@ Cobalt Evergreen currently supports the following
 
 Target Architectures:
 
-*   x86\_32
 *   x86\_64
 *   armv7 32
 *   armv8 64
@@ -415,7 +413,6 @@ toolchains, are compatible.
 Note that Cobalt already provides default SABI files for the following
 architectures:
 
-*   x86\_32
 *   x86\_64
 *   arm v7 (32-bit)
 *   arm v8 (64-bit)
