@@ -102,6 +102,11 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'xhr/WebPlatformTest.Run/XMLHttpRequest_status_error_htm',
         'xhr/WebPlatformTest.Run/XMLHttpRequest_response_json_htm',
         'xhr/WebPlatformTest.Run/XMLHttpRequest_send_redirect_to_non_cors_htm',
+
+        # pylint: disable=line-too-long
+        # b/332367155
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_constants_002_html',
+        'service_workers/WebPlatformTest.Run/service_workers_service_worker_register_wait_forever_in_install_worker_https_html',
     ]
     return filters
 
