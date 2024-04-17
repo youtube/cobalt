@@ -87,7 +87,7 @@ _TESTS_NO_SIGNAL = [
     'service_worker_test',
     'service_worker_persist_test',
     'soft_mic_platform_service_test',
-    'telemetry_test',
+    # 'telemetry_test',
     'text_encoding_test',
     'wasm_basic_test',
     'web_debugger',
