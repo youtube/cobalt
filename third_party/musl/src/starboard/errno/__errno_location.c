@@ -1,3 +1,4 @@
+#if SB_API_VERSION < 16
 #include <errno.h>
 #include <stdlib.h>
 
@@ -19,6 +20,8 @@ void initialize_errno_key(void) {
 // This key will then by used by every thread to set, and get, their instance of
 // errno from thread-local storage.
 
+// This function does not take much effect in musl, use SbSystemGetLastError to set
+// errno instead.
 int *__errno_location(void) {
   SB_DCHECK(SbOnce(&g_errno_once, &initialize_errno_key));
 
@@ -39,3 +42,5 @@ int *__errno_location(void) {
 }
 
 weak_alias(__errno_location, ___errno_location);
+
+#endif // SB_API_VERSION < 16
