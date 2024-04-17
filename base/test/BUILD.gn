@@ -367,7 +367,9 @@ source_set("test_support_perf") {
   public_configs = [ ":perf_test_config" ]
 }
 
-static_library("run_all_unittests") {
+# TODO: b/315170518 - Revert to static library after fixing
+# symbol visibility issues for windows based modular platform builds.
+source_set("run_all_unittests") {
   testonly = true
   sources = [ "run_all_unittests.cc" ]
   deps = [ ":test_support" ]
@@ -408,6 +410,7 @@ shared_library("immediate_crash_test_helper") {
 }
 }
 
+if (!use_cobalt_customizations) {
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
   install_target = false
@@ -416,6 +419,7 @@ shared_library("test_shared_library") {
   sources = [ "test_shared_library.cc" ]
 
   deps = [ ":native_library_test_utils" ]
+}
 }
 
 if (!use_cobalt_customizations) {
