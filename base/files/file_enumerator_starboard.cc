@@ -14,6 +14,8 @@
 
 #include "base/files/file_enumerator.h"
 
+#include <sys/stat.h>
+
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
@@ -123,10 +125,11 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     info.filename_ = FilePath(filename);
 
     FilePath full_name = source.Append(filename);
+    struct stat file_info;
     // TODO: Make sure this follows symlinks on relevant platforms.
-    if (!SbFileGetPathInfo(full_name.value().c_str(), &info.sb_info_)) {
+    if (stat(full_name.value().c_str(), &file_info) != 0) {
       DPLOG(ERROR) << "Couldn't SbFileGetInfo on " << full_name.value();
-      memset(&info.sb_info_, 0, sizeof(info.sb_info_));
+      memset(&file_info, 0, sizeof(file_info));
     }
     return info;
   };

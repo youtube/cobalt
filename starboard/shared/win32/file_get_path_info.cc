@@ -57,6 +57,7 @@ bool IsRootDirectory(std::wstring wpath) {
 
 }  // namespace
 
+#if SB_API_VERSION < 16
 bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
   using starboard::shared::win32::CStringToWString;
   using starboard::shared::win32::NormalizeWin32Path;
@@ -102,3 +103,4 @@ bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
 
   return true;
 }
+#endif  // SB_API_VERSION < 16

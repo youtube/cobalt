@@ -229,6 +229,7 @@ SB_EXPORT bool SbFileFlush(SbFile file);
 //   variable is not touched if the operation is not successful.
 SB_EXPORT bool SbFileGetInfo(SbFile file, SbFileInfo* out_info);
 
+#if SB_API_VERSION < 16
 // Retrieves information about the file at |path|. The return value indicates
 // whether the file information was retrieved successfully.
 //
@@ -236,6 +237,7 @@ SB_EXPORT bool SbFileGetInfo(SbFile file, SbFileInfo* out_info);
 // |out_info|: The variable into which the retrieved data is placed. This
 //   variable is not touched if the operation is not successful.
 SB_EXPORT bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info);
+#endif  // SB_API_VERSION < 16
 
 // Deletes the regular file, symlink, or empty directory at |path|. This
 // function is used primarily to clean up after unit tests. On some platforms,
