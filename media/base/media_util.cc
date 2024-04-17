@@ -32,7 +32,7 @@ AudioParameters::Format ConvertAudioCodecToBitstreamFormat(AudioCodec codec) {
 
 bool MediaTraceIsEnabled() {
 #if defined(STARBOARD)
-  return false;
+  return true;
 #else  // defined(STARBOARD)
   bool enable_decode_traces = false;
   TRACE_EVENT_CATEGORY_GROUP_ENABLED("media", &enable_decode_traces);

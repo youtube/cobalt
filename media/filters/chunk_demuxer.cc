@@ -122,12 +122,8 @@ void ChunkDemuxerStream::AbortReads() {
   DVLOG(1) << "ChunkDemuxerStream::AbortReads()";
   base::AutoLock auto_lock(lock_);
   ChangeState_Locked(RETURNING_ABORT_FOR_READS);
-  if (read_cb_) {
-#if defined(STARBOARD)
-    pending_config_change_ = false;
-#endif // defined(STARBOARD)
+  if (read_cb_)
     std::move(read_cb_).Run(kAborted, {});
-  }
 }
 
 void ChunkDemuxerStream::CompletePendingReadIfPossible() {
@@ -464,76 +460,6 @@ void ChunkDemuxerStream::ChangeState_Locked(State state) {
 
 ChunkDemuxerStream::~ChunkDemuxerStream() = default;
 
-#if defined(STARBOARD)
-void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
-  lock_.AssertAcquired();
-  DCHECK(read_cb_);
-
-  DemuxerStream::Status status = DemuxerStream::kAborted;
-  std::vector<scoped_refptr<DecoderBuffer>> buffers;
-  base::TimeDelta write_head = write_head_;
-
-  if (pending_config_change_) {
-    status = kConfigChanged;
-    std::move(read_cb_).Run(status, buffers);
-    pending_config_change_ = false;
-    return;
-  }
-
-  if (state_ == RETURNING_DATA_FOR_READS) {
-    for (int i = 0; i < requested_buffer_count_; i++) {
-      scoped_refptr<StreamParserBuffer> buffer;
-      SourceBufferStreamStatus stream_status = stream_->GetNextBuffer(&buffer);
-      if (stream_status == SourceBufferStreamStatus::kSuccess) {
-        DVLOG(2) << __func__ << ": found kOk, type " << type_ << ", dts "
-                 << buffer->GetDecodeTimestamp().InSecondsF() << ", pts "
-                 << buffer->timestamp().InSecondsF() << ", dur "
-                 << buffer->duration().InSecondsF() << ", key "
-                 << buffer->is_key_frame();
-        write_head = std::max(write_head, buffer->timestamp());
-        buffers.push_back(std::move(buffer));
-        status = DemuxerStream::kOk;
-      } else if (stream_status == SourceBufferStreamStatus::kEndOfStream) {
-        buffer = StreamParserBuffer::CreateEOSBuffer();
-        DVLOG(2) << __func__ << ": found kOk with EOS buffer, type "
-                 << type_;
-        buffers.push_back(std::move(buffer));
-        status = DemuxerStream::kOk;
-        break;
-      } else if (stream_status == SourceBufferStreamStatus::kConfigChange) {
-        DVLOG(2) << __func__ << ": returning kConfigChange, type " << type_;
-        status = kConfigChanged;
-        break;
-      } else if (stream_status == SourceBufferStreamStatus::kNeedBuffer) {
-        if (buffers.empty())
-          return;
-        else
-          break;
-      }
-    }
-
-    if (status == kConfigChanged && !buffers.empty()) {
-      pending_config_change_ = true;
-      status = kOk;
-    }
-
-  } else if (state_ == RETURNING_ABORT_FOR_READS) {
-    status = DemuxerStream::kAborted;
-    DVLOG(2) << __func__ << ": returning kAborted, type " << type_;
-  } else if (state_ == SHUTDOWN) {
-    status = DemuxerStream::kOk;
-    buffers.push_back(std::move(StreamParserBuffer::CreateEOSBuffer()));
-    DVLOG(2) << __func__ << ": returning kOk with EOS buffer, type " << type_;
-  } else if (state_ == UNINITIALIZED) {
-    NOTREACHED();
-    return;
-  }
-
-  DCHECK_LE(write_head_, write_head);
-  write_head_ = write_head;
-  std::move(read_cb_).Run(status, buffers);
-}
-#else // defined(STARBOARD)
 void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
   lock_.AssertAcquired();
   DCHECK(read_cb_);
@@ -637,7 +563,6 @@ ChunkDemuxerStream::GetPendingBuffers_Locked() {
            << ", out_size=" << output_buffers.size();
   return {SourceBufferStreamStatus::kSuccess, std::move(output_buffers)};
 }
-#endif // defined(STARBOARD)
 
 ChunkDemuxer::ChunkDemuxer(
     base::OnceClosure open_cb,
