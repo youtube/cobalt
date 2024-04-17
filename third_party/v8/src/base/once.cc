@@ -6,15 +6,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#elif defined(V8_OS_STARBOARD)
-#include "starboard/thread.h"
 #else
 #include <sched.h>
-#endif
-
-#if defined(STARBOARD)
-#include "starboard/thread.h"
-#define sched_yield SbThreadYield
 #endif
 
 namespace v8 {
@@ -51,8 +44,6 @@ void CallOnceImpl(OnceType* once, std::function<void()> init_func) {
            ONCE_STATE_EXECUTING_FUNCTION) {
 #ifdef _WIN32
       ::Sleep(0);
-#elif defined(V8_OS_STARBOARD)
-      SbThreadYield();
 #else
       sched_yield();
 #endif

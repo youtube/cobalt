@@ -382,7 +382,6 @@ TEST_F(AudioRendererTest, SunnyDay) {
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
 
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   if (HasAsyncAudioFramesReporting()) {
     SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
@@ -393,7 +392,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   // Resets |audio_renderer_sink_|, so all the gtest codes need to be below
   // this line.
-  ResetToFormat(kSbMediaAudioSampleTypeInt16,
+  ResetToFormat(kSbMediaAudioSampleTypeInt16Deprecated,
                 kSbMediaAudioFrameStorageTypeInterleaved);
 
   {
@@ -465,7 +464,6 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 
 TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   if (HasAsyncAudioFramesReporting()) {

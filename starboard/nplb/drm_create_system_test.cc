@@ -14,6 +14,7 @@
 
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/drm.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"

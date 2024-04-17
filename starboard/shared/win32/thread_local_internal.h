@@ -17,6 +17,7 @@
 
 #include <windows.h>
 
+#include "starboard/shared/win32/thread_private.h"
 #include "starboard/thread.h"
 
 namespace starboard {

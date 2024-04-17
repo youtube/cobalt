@@ -32,7 +32,7 @@
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/thread.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
-#include "third_party/crashpad/wrapper/wrapper.h"  // nogncheck
+#include "third_party/crashpad/crashpad/wrapper/wrapper.h"  // nogncheck
 #endif
 
 namespace starboard {
@@ -183,8 +183,10 @@ std::string ExtractCertificatesToFileSystem() {
 
   std::string file_system_path(file_system_path_buffer.data());
   file_system_path.append(std::string(kSbFileSepString) + "certs");
+  struct stat fileinfo;
   if (mkdir(file_system_path.c_str(), 0700) &&
-      !SbDirectoryCanOpen(file_system_path.c_str())) {
+      !(stat(file_system_path.c_str(), &fileinfo) == 0 &&
+        S_ISDIR(fileinfo.st_mode))) {
     SB_LOG(WARNING) << "Failed to create new dir for CA certificates";
     return "";
   }

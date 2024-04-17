@@ -245,17 +245,6 @@ const char* kSabiJsonIdArm64 =
     "short\":2,\"target_arch\":\"arm64\",\"target_arch_sub\":\"v8a\",\"word_"
     "size\":64}";
 
-const char* kSabiJsonIdX86 =
-    "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
-    "\"alignment_int\":4,\"alignment_llong\":8,\"alignment_long\":4,"
-    "\"alignment_pointer\":4,\"alignment_short\":2,\"calling_convention\":"
-    "\"sysv\",\"endianness\":\"little\",\"floating_point_abi\":\"\",\"floating_"
-    "point_fpu\":\"\",\"sb_api_version\":16,\"signedness_of_char\":\"signed\","
-    "\"signedness_of_enum\":\"signed\",\"size_of_char\":1,\"size_of_double\":8,"
-    "\"size_of_enum\":4,\"size_of_float\":4,\"size_of_int\":4,\"size_of_"
-    "llong\":8,\"size_of_long\":4,\"size_of_pointer\":4,\"size_of_short\":2,"
-    "\"target_arch\":\"x86\",\"target_arch_sub\":\"\",\"word_size\":32}";
-
 const char* kSabiJsonIdX64Sysv =
     "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
     "\"alignment_int\":4,\"alignment_llong\":8,\"alignment_long\":8,"
@@ -285,7 +274,9 @@ TEST_F(SabiTest, VerifySABI) {
   sabi_set.insert(kSabiJsonIdArmHardfp);
   sabi_set.insert(kSabiJsonIdArmSoftfp);
   sabi_set.insert(kSabiJsonIdArm64);
+#if SB_API_VERSION < 16
   sabi_set.insert(kSabiJsonIdX86);
+#endif
   sabi_set.insert(kSabiJsonIdX64Sysv);
 
   ASSERT_NE(sabi_set.find(SB_SABI_JSON_ID), sabi_set.end())
@@ -299,7 +290,9 @@ TEST_F(SabiTest, VerifySABI) {
       << std::endl
       << "  starboard/sabi/arm64/sabi-v" << SB_API_VERSION << ".json"
       << std::endl
+#if SB_API_VERSION < 16
       << "  starboard/sabi/x86/sabi-v" << SB_API_VERSION << ".json" << std::endl
+#endif
       << "  starboard/sabi/x64/sysv/sabi-v" << SB_API_VERSION << ".json"
       << std::endl;
 }

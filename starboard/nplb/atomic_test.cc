@@ -14,6 +14,8 @@
 
 // Adapted from base's atomicops_unittest.
 
+#include <sched.h>
+
 #include "starboard/common/atomic.h"
 #include "starboard/memory.h"
 #include "starboard/thread.h"
@@ -321,7 +323,7 @@ void SetData(SbAtomicType* state,
   // (out_data). The paired Release_Store is above in the initialization
   // clause.
   while (atomic::Acquire_Load(state) == kInitializing) {
-    SbThreadYield();
+    sched_yield();
   }
 }
 

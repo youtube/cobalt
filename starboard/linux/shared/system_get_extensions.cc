@@ -15,18 +15,24 @@
 #include "starboard/system.h"
 
 #include "starboard/common/string.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/elf_loader/evergreen_config.h"
+#endif
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/demuxer.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/extension/loader_app_metrics.h"
+#endif
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/time_zone.h"
+#include "starboard/linux/shared/configuration.h"
 #include "starboard/linux/shared/ifa.h"
-#include "starboard/linux/shared/soft_mic_platform_service.h"
+#include "starboard/linux/shared/platform_service.h"
 #include "starboard/linux/shared/time_zone.h"
 #include "starboard/shared/enhanced_audio/enhanced_audio.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
@@ -34,11 +40,9 @@
 #include "starboard/shared/posix/memory_mapped_file.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/crash_handler.h"
-#include "starboard/shared/starboard/loader_app_metrics.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
-#include "starboard/elf_loader/evergreen_config.h"
+#include "starboard/shared/starboard/loader_app_metrics.h"
 #endif
-#include "starboard/linux/shared/configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -88,8 +92,10 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::shared::GetIfaApi();
   }
 #endif  // SB_API_VERSION < 14
+#if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
     return starboard::shared::starboard::GetLoaderAppMetricsApi();
   }
+#endif
   return NULL;
 }

@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <sched.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -142,7 +143,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCanOpen);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryClose);
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCreate);
@@ -387,8 +390,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSetLocalValue);
   REGISTER_SYMBOL(SbThreadSetName);
   REGISTER_SYMBOL(SbThreadSleep);
-  REGISTER_SYMBOL(SbThreadYield);
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
   REGISTER_SYMBOL(SbTimeGetNow);
@@ -455,6 +458,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(sched_yield);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);
@@ -503,6 +507,12 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_equal);
   map_["pthread_join"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_join);
+  map_["pthread_getspecific"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_getspecific);
+  map_["pthread_key_create"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_key_create);
+  map_["pthread_key_delete"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_key_delete);
   map_["pthread_mutex_destroy"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_destroy);
   map_["pthread_mutex_init"] =
@@ -517,6 +527,8 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
   map_["pthread_self"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_self);
+  map_["pthread_setspecific"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
 
