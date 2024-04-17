@@ -35,7 +35,10 @@ TEST_F(LoaderAppMetricsTest, VerifyLoaderAppMetricsExtension) {
   auto extension = static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
       SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
 
-  ASSERT_TRUE(extension != nullptr);
+  ASSERT_TRUE(extension != nullptr)
+      << "Please update your platform's SbSystemGetExtension() implementation "
+      << "to return the shared instance of this extension. The linux reference "
+      << "platform can be used as an example.";
 
   // Since Evergreen-compatible platforms are expected to just wire up the
   // shared implementation of the extension, it's reasonable to expect them to
