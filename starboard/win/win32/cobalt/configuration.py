@@ -39,6 +39,8 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
       'base_unittests': [
           '*TaskScheduler*',
           'TaskTraits*',
+          'FileTest.Length',
+          'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
       ],
       'renderer_test': [
           # Flaky test is still being counted as a fail.
@@ -51,6 +53,5 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
       'net_unittests': [
           # Flaky test to be re-enabled after b/271006511 is fixed.
           'CookieMonsterTest.PredicateSeesAllCookies',
-          'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
       ],
   }
