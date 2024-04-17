@@ -19,7 +19,6 @@
 
 namespace sh
 {
-
 const char *getBasicString(TBasicType t)
 {
     switch (t)

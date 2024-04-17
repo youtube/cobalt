@@ -625,14 +625,12 @@ egl::Error DisplayWGL::initializeD3DDevice()
     {
         return egl::EglNotInitialized() << "Could not retrieve D3D11CreateDevice address.";
     }
-
     HRESULT result = d3d11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0,
                                        D3D11_SDK_VERSION, &mD3D11Device, nullptr, nullptr);
     if (FAILED(result))
     {
         return egl::EglNotInitialized() << "Could not create D3D11 device, " << gl::FmtHR(result);
     }
-
     return registerD3DDevice(mD3D11Device, &mD3D11DeviceHandle);
 }
 

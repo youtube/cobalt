@@ -242,6 +242,7 @@ class TType
         }
         return static_cast<char>('A' + sizeKey - 10);
     }
+
     const char *getMangledName() const;
 
     bool sameNonArrayType(const TType &right) const;
