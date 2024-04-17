@@ -205,9 +205,8 @@ void WebSocketImpl::OnClose(bool was_clean, int error_code,
 
   std::uint16_t close_code = static_cast<std::uint16_t>(error_code);
 
-  DLOG(INFO) << "WebSocket is closing."
-             << " code[" << close_code << "] reason[" << close_reason << "]"
-             << " was_clean: " << was_clean;
+  DLOG(INFO) << "WebSocket is closing." << " code[" << close_code << "] reason["
+             << close_reason << "]" << " was_clean: " << was_clean;
 
   // Queue the deletion of |websocket_channel_|.  We would do it here, but this
   // function may be called as a callback *by* |websocket_channel_|;

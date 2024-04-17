@@ -119,12 +119,12 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
         &result);
 
     if (!success) {
-      DLOG(ERROR) << "Failed to evaluate precondition: "
-                  << "\"" << precondition << "\"";
+      DLOG(ERROR) << "Failed to evaluate precondition: " << "\"" << precondition
+                  << "\"";
       // Continue to enumerate tests like normal.
     } else if (result != "true") {
-      DLOG(WARNING) << "Skipping Web Platform Tests for "
-                    << "\"" << top_level << "\"";
+      DLOG(WARNING) << "Skipping Web Platform Tests for " << "\"" << top_level
+                    << "\"";
       return std::vector<WebPlatformTestInfo>();
     }
   }
