@@ -327,6 +327,7 @@ class ResourceProviderStub : public ResourceProvider {
   }
 
   void LoadAdditionalFonts() override {}
+  void ClearAdditionalFonts() override {}
 
   scoped_refptr<Typeface> CreateTypefaceFromRawData(
       std::unique_ptr<RawTypefaceDataVector> raw_data,
@@ -347,7 +348,7 @@ class ResourceProviderStub : public ResourceProvider {
     return base::WrapRefCounted(new TypefaceStub(NULL));
   }
 
-  float GetTextWidth(const base::char16* text_buffer, size_t text_length,
+  float GetTextWidth(const char16_t* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
                      FontProvider* font_provider,
                      FontVector* maybe_used_fonts) override {
@@ -364,7 +365,7 @@ class ResourceProviderStub : public ResourceProvider {
   // Creates a glyph buffer, which is populated with shaped text, and used to
   // render that text.
   scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
-      const base::char16* text_buffer, size_t text_length,
+      const char16_t* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       FontProvider* font_provider) override {
     render_tree::GlyphIndex glyph_index;

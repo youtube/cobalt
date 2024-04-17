@@ -2848,6 +2848,42 @@ OPENSSL_EXPORT SSL_CTX *SSL_set_SSL_CTX(SSL *ssl, SSL_CTX *ctx);
 // protocols over a single port. This is used, for example, to negotiate
 // HTTP/2.
 
+// SSL_add_application_settings configures |ssl| to enable ALPS with ALPN
+// protocol |proto|, sending an ALPS value of |settings|. It returns one on
+// success and zero on error. If |proto| is negotiated via ALPN and the peer
+// supports ALPS, |settings| will be sent to the peer. The peer's ALPS value can
+// be retrieved with |SSL_get0_peer_application_settings|.
+//
+// On the client, this function should be called before the handshake, once for
+// each supported ALPN protocol which uses ALPS. |proto| must be included in the
+// client's ALPN configuration (see |SSL_CTX_set_alpn_protos| and
+// |SSL_set_alpn_protos|). On the server, ALPS can be preconfigured for each
+// protocol as in the client, or configuration can be deferred to the ALPN
+// callback (see |SSL_CTX_set_alpn_select_cb|), in which case only the selected
+// protocol needs to be configured.
+//
+// ALPS can be independently configured from 0-RTT, however changes in protocol
+// settings will fallback to 1-RTT to negotiate the new value, so it is
+// recommended for |settings| to be relatively stable.
+OPENSSL_EXPORT int SSL_add_application_settings(SSL *ssl, const uint8_t *proto,
+                                                size_t proto_len,
+                                                const uint8_t *settings,
+                                                size_t settings_len);
+
+// SSL_get0_peer_application_settings sets |*out_data| and |*out_len| to a
+// buffer containing the peer's ALPS value, or the empty string if ALPS was not
+// negotiated. Note an empty string could also indicate the peer sent an empty
+// settings value. Use |SSL_has_application_settings| to check if ALPS was
+// negotiated. The output buffer is owned by |ssl| and is valid until the next
+// time |ssl| is modified.
+OPENSSL_EXPORT void SSL_get0_peer_application_settings(const SSL *ssl,
+                                                       const uint8_t **out_data,
+                                                       size_t *out_len);
+
+// SSL_has_application_settings returns one if ALPS was negotiated on this
+// connection and zero otherwise.
+OPENSSL_EXPORT int SSL_has_application_settings(const SSL *ssl);
+
 // SSL_CTX_set_alpn_protos sets the client ALPN protocol list on |ctx| to
 // |protos|. |protos| must be in wire-format (i.e. a series of non-empty, 8-bit
 // length-prefixed strings), or the empty string to disable ALPN. It returns
@@ -3512,6 +3548,33 @@ OPENSSL_EXPORT int SSL_set_quic_early_data_context(SSL *ssl,
                                                    const uint8_t *context,
                                                    size_t context_len);
 
+OPENSSL_EXPORT void SSL_set_quic_use_legacy_codepoint(SSL *ssl, int use_legacy);
+OPENSSL_EXPORT void SSL_set_enable_ech_grease(SSL *ssl, int enable);
+OPENSSL_EXPORT int SSL_set1_ech_config_list(SSL *ssl,
+                                            const uint8_t *ech_config_list,
+                                            size_t ech_config_list_len);
+OPENSSL_EXPORT int SSL_process_quic_post_handshake(SSL *ssl);
+
+OPENSSL_EXPORT void SSL_get0_ech_retry_configs(
+    const SSL *ssl, const uint8_t **out_retry_configs,
+    size_t *out_retry_configs_len);
+
+OPENSSL_EXPORT int SSL_set_quic_early_data_context(SSL *ssl,
+                                                   const uint8_t *context,
+                                                   size_t context_len);
+OPENSSL_EXPORT int SSL_set_handshake_hints(SSL *ssl, const uint8_t *hints,
+                                           size_t hints_len);
+OPENSSL_EXPORT int SSL_can_release_private_key(const SSL *ssl);
+
+// SSL_ECH_KEYS_new returns a newly-allocated |SSL_ECH_KEYS| or NULL on error.
+OPENSSL_EXPORT SSL_ECH_KEYS *SSL_ECH_KEYS_new(void);
+
+// SSL_ECH_KEYS_up_ref increments the reference count of |keys|.
+OPENSSL_EXPORT void SSL_ECH_KEYS_up_ref(SSL_ECH_KEYS *keys);
+
+// SSL_ECH_KEYS_free releases memory associated with |keys|.
+OPENSSL_EXPORT void SSL_ECH_KEYS_free(SSL_ECH_KEYS *keys);
+// OPENSSL_EXPORT int SSL_serialize_capabilities(const SSL *ssl, CBB *out);
 
 // Early data.
 //
@@ -3610,6 +3673,12 @@ OPENSSL_EXPORT int SSL_early_data_accepted(const SSL *ssl);
 // |SSL_ERROR_EARLY_DATA_REJECTED|.
 OPENSSL_EXPORT void SSL_reset_early_data_reject(SSL *ssl);
 
+// SSL_export_early_keying_material behaves like |SSL_export_keying_material|,
+// but it uses the early exporter. The operation will fail if |ssl| did not
+// negotiate TLS 1.3 or 0-RTT.
+OPENSSL_EXPORT int SSL_export_early_keying_material(
+    SSL *ssl, uint8_t *out, size_t out_len, const char *label, size_t label_len,
+    const uint8_t *context, size_t context_len);
 // SSL_get_ticket_age_skew returns the difference, in seconds, between the
 // client-sent ticket age and the server-computed value in TLS 1.3 server
 // connections which resumed a session.
@@ -3841,6 +3910,42 @@ OPENSSL_EXPORT int SSL_CTX_set1_ech_keys(SSL_CTX *ctx, SSL_ECH_KEYS *keys);
 // SSL_ech_accepted returns one if |ssl| negotiated ECH and zero otherwise.
 OPENSSL_EXPORT int SSL_ech_accepted(const SSL *ssl);
 
+// SSL_CTX_set1_ech_keys configures |ctx| to use |keys| to decrypt encrypted
+// ClientHellos. It returns one on success, and zero on failure. If |keys| does
+// not contain any retry configs, this function will fail. Retry configs are
+// marked as such when they are added to |keys| with |SSL_ECH_KEYS_add|.
+//
+// Once |keys| has been passed to this function, it is immutable. Unlike most
+// |SSL_CTX| configuration functions, this function may be called even if |ctx|
+// already has associated connections on multiple threads. This may be used to
+// rotate keys in a long-lived server process.
+//
+// The configured ECHConfig values should also be advertised out-of-band via DNS
+// (see draft-ietf-dnsop-svcb-https). Before advertising an ECHConfig in DNS,
+// deployments should ensure all instances of the service are configured with
+// the ECHConfig and corresponding private key.
+//
+// Only the most recent fully-deployed ECHConfigs should be advertised in DNS.
+// |keys| may contain a newer set if those ECHConfigs are mid-deployment. It
+// should also contain older sets, until the DNS change has rolled out and the
+// old records have expired from caches.
+//
+// If there is a mismatch, |SSL| objects associated with |ctx| will complete the
+// handshake using the cleartext ClientHello and send updated ECHConfig values
+// to the client. The client will then retry to recover, but with a latency
+// penalty. This recovery flow depends on the public name in the ECHConfig.
+// Before advertising an ECHConfig in DNS, deployments must ensure all instances
+// of the service can present a valid certificate for the public name.
+//
+// BoringSSL negotiates ECH before certificate selection callbacks are called,
+// including |SSL_CTX_set_select_certificate_cb|. If ECH is negotiated, the
+// reported |SSL_CLIENT_HELLO| structure and |SSL_get_servername| function will
+// transparently reflect the inner ClientHello. Callers should select parameters
+// based on these values to correctly handle ECH as well as the recovery flow.
+OPENSSL_EXPORT int SSL_CTX_set1_ech_keys(SSL_CTX *ctx, SSL_ECH_KEYS *keys);
+
+// SSL_ech_accepted returns one if |ssl| negotiated ECH and zero otherwise.
+OPENSSL_EXPORT int SSL_ech_accepted(const SSL *ssl);
 
 // Alerts.
 //
@@ -5462,6 +5567,8 @@ BSSL_NAMESPACE_END
 
 #endif
 
+OPENSSL_EXPORT int SSL_serialize_capabilities(const SSL *ssl, CBB *out);
+
 #define SSL_R_APP_DATA_IN_HANDSHAKE 100
 #define SSL_R_ATTEMPT_TO_REUSE_SESSION_IN_DIFFERENT_CONTEXT 101
 #define SSL_R_BAD_ALERT 102
@@ -5717,5 +5824,7 @@ BSSL_NAMESPACE_END
 #define SSL_R_TLSV1_ALERT_CERTIFICATE_REQUIRED 1116
 #define SSL_R_TLSV1_ALERT_NO_APPLICATION_PROTOCOL 1120
 #define SSL_R_TLSV1_ALERT_ECH_REQUIRED 1121
+
+#define SSL_R_TLSV1_CERTIFICATE_REQUIRED SSL_R_TLSV1_ALERT_CERTIFICATE_REQUIRED
 
 #endif  // OPENSSL_HEADER_SSL_H

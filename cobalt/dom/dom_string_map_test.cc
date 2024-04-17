@@ -43,7 +43,7 @@ class DOMStringMapTest : public ::testing::Test {
 
 DOMStringMapTest::DOMStringMapTest()
     : document_(new Document(&html_element_context_)),
-      element_(new Element(document_, base::Token("element"))),
+      element_(new Element(document_, base_token::Token("element"))),
       dom_string_map_(new DOMStringMap(element_)) {}
 
 TEST_F(DOMStringMapTest, InvalidPrefix) {

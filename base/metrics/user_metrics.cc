@@ -1,17 +1,20 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/metrics/user_metrics.h"
 
+#include <stddef.h>
+
 #include <vector>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
-#include "base/macros.h"
+#include "base/ranges/algorithm.h"
 #include "base/threading/thread_checker.h"
-#include "starboard/types.h"
+#include "base/time/time.h"
+#include "base/trace_event/base_tracing.h"
 
 namespace base {
 namespace {
@@ -28,19 +31,30 @@ void RecordAction(const UserMetricsAction& action) {
 }
 
 void RecordComputedAction(const std::string& action) {
+  RecordComputedActionAt(action, TimeTicks::Now());
+}
+
+void RecordComputedActionSince(const std::string& action,
+                               TimeDelta time_since) {
+  RecordComputedActionAt(action, TimeTicks::Now() - time_since);
+}
+
+void RecordComputedActionAt(const std::string& action, TimeTicks action_time) {
+  TRACE_EVENT_INSTANT1("ui", "UserEvent", TRACE_EVENT_SCOPE_GLOBAL, "action",
+                       action);
   if (!g_task_runner.Get()) {
     DCHECK(g_callbacks.Get().empty());
     return;
   }
 
   if (!g_task_runner.Get()->BelongsToCurrentThread()) {
-    g_task_runner.Get()->PostTask(FROM_HERE,
-                                  BindOnce(&RecordComputedAction, action));
+    g_task_runner.Get()->PostTask(
+        FROM_HERE, BindOnce(&RecordComputedActionAt, action, action_time));
     return;
   }
 
   for (const ActionCallback& callback : g_callbacks.Get()) {
-    callback.Run(action);
+    callback.Run(action, action_time);
   }
 }
 
@@ -55,12 +69,9 @@ void RemoveActionCallback(const ActionCallback& callback) {
   DCHECK(g_task_runner.Get());
   DCHECK(g_task_runner.Get()->BelongsToCurrentThread());
   std::vector<ActionCallback>* callbacks = g_callbacks.Pointer();
-  for (size_t i = 0; i < callbacks->size(); ++i) {
-    if ((*callbacks)[i].Equals(callback)) {
-      callbacks->erase(callbacks->begin() + i);
-      return;
-    }
-  }
+  const auto i = ranges::find(*callbacks, callback);
+  if (i != callbacks->end())
+    callbacks->erase(i);
 }
 
 void SetRecordActionTaskRunner(
@@ -68,6 +79,12 @@ void SetRecordActionTaskRunner(
   DCHECK(task_runner->BelongsToCurrentThread());
   DCHECK(!g_task_runner.Get() || g_task_runner.Get()->BelongsToCurrentThread());
   g_task_runner.Get() = task_runner;
+}
+
+scoped_refptr<SingleThreadTaskRunner> GetRecordActionTaskRunner() {
+  if (g_task_runner.IsCreated())
+    return g_task_runner.Get();
+  return nullptr;
 }
 
 }  // namespace base

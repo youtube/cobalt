@@ -44,8 +44,8 @@ PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
   if (entry_type.empty()) return kInvalid;
 
   for (size_t i = 0; i < arraysize(PerformanceEntry::kEntryTypeString); ++i) {
-    if (base::LowerCaseEqualsASCII(entry_type,
-                                   PerformanceEntry::kEntryTypeString[i])) {
+    if (base::EqualsCaseInsensitiveASCII(
+            entry_type, PerformanceEntry::kEntryTypeString[i])) {
       return static_cast<PerformanceEntry::EntryType>(i);
     }
   }

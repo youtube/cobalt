@@ -1,27 +1,29 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/test/test_shortcut_win.h"
 
 #include <windows.h>
+
 #include <objbase.h>
 #include <shlobj.h>
 #include <propkey.h>
 #include <wrl/client.h>
 
+#include <string>
+
 #include "base/files/file_path.h"
-#include "base/strings/string16.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/scoped_propvariant.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 namespace win {
 
-void ValidatePathsAreEqual(const base::FilePath& expected_path,
-                           const base::FilePath& actual_path) {
+void ValidatePathsAreEqual(const FilePath& expected_path,
+                           const FilePath& actual_path) {
   wchar_t long_expected_path_chars[MAX_PATH] = {0};
   wchar_t long_actual_path_chars[MAX_PATH] = {0};
 
@@ -33,22 +35,23 @@ void ValidatePathsAreEqual(const base::FilePath& expected_path,
   }
 
   // Proceed with LongPathName matching which will also confirm the paths exist.
-  EXPECT_NE(0U, ::GetLongPathName(
-      expected_path.value().c_str(), long_expected_path_chars, MAX_PATH))
-          << "Failed to get LongPathName of " << expected_path.value();
-  EXPECT_NE(0U, ::GetLongPathName(
-      actual_path.value().c_str(), long_actual_path_chars, MAX_PATH))
-          << "Failed to get LongPathName of " << actual_path.value();
+  EXPECT_NE(0U, ::GetLongPathName(expected_path.value().c_str(),
+                                  long_expected_path_chars, MAX_PATH))
+      << "Failed to get LongPathName of " << expected_path.value();
+  EXPECT_NE(0U, ::GetLongPathName(actual_path.value().c_str(),
+                                  long_actual_path_chars, MAX_PATH))
+      << "Failed to get LongPathName of " << actual_path.value();
 
-  base::FilePath long_expected_path(long_expected_path_chars);
-  base::FilePath long_actual_path(long_actual_path_chars);
+  FilePath long_expected_path(long_expected_path_chars);
+  FilePath long_actual_path(long_actual_path_chars);
   EXPECT_FALSE(long_expected_path.empty());
   EXPECT_FALSE(long_actual_path.empty());
 
-  EXPECT_EQ(long_expected_path, long_actual_path);
+  EXPECT_TRUE(base::FilePath::CompareEqualIgnoreCase(long_expected_path.value(),
+                                                     long_actual_path.value()));
 }
 
-void ValidateShortcut(const base::FilePath& shortcut_path,
+void ValidateShortcut(const FilePath& shortcut_path,
                       const ShortcutProperties& properties) {
   Microsoft::WRL::ComPtr<IShellLink> i_shell_link;
   Microsoft::WRL::ComPtr<IPersistFile> i_persist_file;
@@ -69,53 +72,50 @@ void ValidateShortcut(const base::FilePath& shortcut_path,
   if (FAILED(hr))
     return;
 
-  EXPECT_TRUE(
-      SUCCEEDED(hr = i_shell_link.CopyTo(i_persist_file.GetAddressOf())));
+  EXPECT_TRUE(SUCCEEDED(hr = i_shell_link.As(&i_persist_file)));
   if (FAILED(hr))
     return;
 
   // Load the shortcut.
-  EXPECT_TRUE(SUCCEEDED(hr = i_persist_file->Load(
-      shortcut_path.value().c_str(), 0))) << "Failed to load shortcut at "
-                                          << shortcut_path.value();
+  EXPECT_TRUE(
+      SUCCEEDED(hr = i_persist_file->Load(shortcut_path.value().c_str(), 0)))
+      << "Failed to load shortcut at " << shortcut_path.value();
   if (FAILED(hr))
     return;
 
   if (properties.options & ShortcutProperties::PROPERTIES_TARGET) {
     EXPECT_TRUE(SUCCEEDED(
         i_shell_link->GetPath(read_target, MAX_PATH, NULL, SLGP_SHORTPATH)));
-    ValidatePathsAreEqual(properties.target, base::FilePath(read_target));
+    ValidatePathsAreEqual(properties.target, FilePath(read_target));
   }
 
   if (properties.options & ShortcutProperties::PROPERTIES_WORKING_DIR) {
     EXPECT_TRUE(SUCCEEDED(
         i_shell_link->GetWorkingDirectory(read_working_dir, MAX_PATH)));
-    ValidatePathsAreEqual(properties.working_dir,
-                          base::FilePath(read_working_dir));
+    ValidatePathsAreEqual(properties.working_dir, FilePath(read_working_dir));
   }
 
   if (properties.options & ShortcutProperties::PROPERTIES_ARGUMENTS) {
-    EXPECT_TRUE(SUCCEEDED(
-        i_shell_link->GetArguments(read_arguments, MAX_PATH)));
+    EXPECT_TRUE(
+        SUCCEEDED(i_shell_link->GetArguments(read_arguments, MAX_PATH)));
     EXPECT_EQ(properties.arguments, read_arguments);
   }
 
   if (properties.options & ShortcutProperties::PROPERTIES_DESCRIPTION) {
-    EXPECT_TRUE(SUCCEEDED(
-        i_shell_link->GetDescription(read_description, MAX_PATH)));
+    EXPECT_TRUE(
+        SUCCEEDED(i_shell_link->GetDescription(read_description, MAX_PATH)));
     EXPECT_EQ(properties.description, read_description);
   }
 
   if (properties.options & ShortcutProperties::PROPERTIES_ICON) {
     EXPECT_TRUE(SUCCEEDED(
         i_shell_link->GetIconLocation(read_icon, MAX_PATH, &read_icon_index)));
-    ValidatePathsAreEqual(properties.icon, base::FilePath(read_icon));
+    ValidatePathsAreEqual(properties.icon, FilePath(read_icon));
     EXPECT_EQ(properties.icon_index, read_icon_index);
   }
 
   Microsoft::WRL::ComPtr<IPropertyStore> property_store;
-  EXPECT_TRUE(
-      SUCCEEDED(hr = i_shell_link.CopyTo(property_store.GetAddressOf())));
+  EXPECT_TRUE(SUCCEEDED(hr = i_shell_link.As(&property_store)));
   if (FAILED(hr))
     return;
 

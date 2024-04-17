@@ -98,12 +98,12 @@ class SplashScreen : public LifecycleObserver {
 
   std::unique_ptr<WebModule> web_module_;
 
-  // The splash screen runs on this message loop.
-  base::MessageLoop* const self_message_loop_;
+  // The splash screen runs on this task runner.
+  base::SequencedTaskRunner* const task_runner_;
 
   // This is called by Shutdown (via window.close) or after
   // the time limit has been exceeded.
-  base::CancelableCallback<void(base::TimeDelta)>
+  base::CancelableRepeatingCallback<void(base::TimeDelta)>
       on_splash_screen_shutdown_complete_;
 
   // True if SplashScreen::Shutdown() has been called.

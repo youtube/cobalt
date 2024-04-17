@@ -20,7 +20,7 @@ namespace dom {
 const char HTMLAudioElement::kTagName[] = "audio";
 
 HTMLAudioElement::HTMLAudioElement(Document* document)
-    : HTMLMediaElement(document, base::Token(kTagName)) {}
+    : HTMLMediaElement(document, base_token::Token(kTagName)) {}
 
 }  // namespace dom
 }  // namespace cobalt

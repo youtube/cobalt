@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,16 +8,14 @@
 #include <string>
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 
-namespace net {
-
 // Utility functions for encoding/decoding structures used by Certificate
 // Transparency to/from the TLS wire format encoding.
-namespace ct {
+namespace net::ct {
 
 struct DigitallySigned;
 struct MerkleTreeLeaf;
@@ -64,7 +62,9 @@ NET_EXPORT_PRIVATE bool EncodeV1SCTSignedData(
 // Encodes the data signed by a Signed Tree Head (STH) |signed_tree_head| into
 // |output|. The signature included in the |signed_tree_head| can then be
 // verified over these bytes.
-NET_EXPORT_PRIVATE void EncodeTreeHeadSignature(
+// Returns true if the data could be encoded successfully, false
+// otherwise.
+NET_EXPORT_PRIVATE bool EncodeTreeHeadSignature(
     const SignedTreeHead& signed_tree_head,
     std::string* output);
 
@@ -86,15 +86,15 @@ NET_EXPORT_PRIVATE bool DecodeSignedCertificateTimestamp(
     scoped_refptr<ct::SignedCertificateTimestamp>* output);
 
 // Serializes a Signed Certificate Timestamp (SCT) into |output|.
-NET_EXPORT void EncodeSignedCertificateTimestamp(
+// Returns true if the SCT could be encoded successfully, false
+// otherwise.
+NET_EXPORT bool EncodeSignedCertificateTimestamp(
     const scoped_refptr<ct::SignedCertificateTimestamp>& input,
     std::string* output);
 
 // Writes an SCTList into |output|, containing a single |sct|.
-NET_EXPORT_PRIVATE bool EncodeSCTListForTesting(const base::StringPiece& sct,
+NET_EXPORT_PRIVATE bool EncodeSCTListForTesting(base::StringPiece sct,
                                                 std::string* output);
-}  // namespace ct
-
-}  // namespace net
+}  // namespace net::ct
 
 #endif  // NET_CERT_CT_SERIALIZATION_H_

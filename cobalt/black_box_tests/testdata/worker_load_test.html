@@ -22,48 +22,22 @@
 
 <body>
   <script>
-    var window_onerror_count = 0;
-    var worker_onerror_count = 0;
-    window.onerror = (message, filename, lineno, colno, error) => {
-      ++window_onerror_count;
-      console.log('window got onerror', message);
-      notReached();
-    }
-
-    // This worker is blocked because the URL can't resolve.
-    try {
-      var blocked_worker = new Worker('..:/blocked_worker.js');
-      notReached();
-    } catch (error) {
-      console.log(error);
-      assertEqual('SyntaxError', error.name);
-    }
-
-    // This worker is blocked because the script does not exist.
-    try {
-      var nonexisting_worker = new Worker('nonexisting_worker.js');
-      nonexisting_worker.onerror = function (event) {
-        ++worker_onerror_count;
-        console.log(event.message);
-        if (event.message.includes('nonexisting_worker.js')) {
-          assertIncludes('aborted or failed with code 404', event.message);
-          assertIncludes('/testdata/nonexisting_worker.js', event.filename);
-        } else {
-          notReached();
-        }
-        if (worker_onerror_count == 1) {
-          window.setTimeout(
-            () => {
-              assertEqual(1, worker_onerror_count);
-              assertEqual(0, window_onerror_count);
-              onEndTest();
-            }, 250);
-
-        }
-      };
-    } catch (error) {
-      // The error is thrown asynchronously after the Worker constructor.
-      notReached();
-    }
+    window.addEventListener('error', notReached);
+    const workerOnError = (filename, resolve) => event => {
+      assertIncludes(filename, event.message);
+      assertIncludes('aborted or failed with code 404', event.message);
+      assertIncludes(filename, event.filename);
+      resolve();
+    };
+    Promise.all([
+      new Promise(resolve => {
+        const worker = new Worker('..:/blocked_worker.js');
+        worker.addEventListener('error', workerOnError('blocked_worker.js', resolve));
+      }),
+      new Promise(resolve => {
+        const worker = new Worker('nonexisting_worker.js');
+        worker.addEventListener('error', workerOnError('nonexisting_worker.js', resolve));
+      }),
+    ]).then(onEndTest).catch(notReached);
   </script>
 </body>

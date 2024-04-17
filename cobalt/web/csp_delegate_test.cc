@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "base/strings/stringprintf.h"
+#include "base/test/task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/web/csp_delegate_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -91,6 +92,8 @@ class CspDelegateTest : public ::testing::TestWithParam<ResourcePair> {
   virtual void SetUp();
   std::unique_ptr<CspDelegateSecure> csp_delegate_;
   StrictMock<MockViolationReporter>* mock_reporter_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 // TODO: Combine this with the one in xml_http_request_test.
@@ -167,6 +170,9 @@ INSTANTIATE_TEST_CASE_P(CanLoad, CspDelegateTest, ValuesIn(s_params),
                         ResourcePairName);
 
 TEST(CspDelegateFactoryTest, Secure) {
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::SingleThreadTaskEnvironment::MainThreadType::IO,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   CspDelegate::Options options;
   options.enforcement_type = kCspEnforcementEnable;
   std::unique_ptr<CspDelegate> delegate =
@@ -175,6 +181,9 @@ TEST(CspDelegateFactoryTest, Secure) {
 }
 
 TEST(CspDelegateFactoryTest, InsecureBlocked) {
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::SingleThreadTaskEnvironment::MainThreadType::IO,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::string output;
   {
     // Capture the output, because we should get a FATAL log and we don't
@@ -192,6 +201,9 @@ TEST(CspDelegateFactoryTest, InsecureBlocked) {
 }
 
 TEST(CspDelegateFactoryTest, InsecureAllowed) {
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::SingleThreadTaskEnvironment::MainThreadType::IO,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   // This only compiles because this test is a friend of CspDelegateFactory,
   // otherwise GetInsecureAllowedToken is private.
   CspDelegate::Options options;

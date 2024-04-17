@@ -21,7 +21,7 @@ namespace cssom {
 
 typedef struct {
   KeywordValue::Value key;
-  KeywordValue *value;
+  scoped_refptr<KeywordValue> value;
   const char *name;
 } Keywords;
 

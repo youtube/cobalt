@@ -37,7 +37,7 @@ class UIEvent : public web::Event {
   // Creates an event with its "initialized flag" unset.
   explicit UIEvent(UninitializedFlag uninitialized_flag);
 
-  UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+  UIEvent(base_token::Token type, Bubbles bubbles, Cancelable cancelable,
           const scoped_refptr<Window>& view);
 
   // Web API: UIEvent
@@ -55,9 +55,9 @@ class UIEvent : public web::Event {
   DEFINE_WRAPPABLE_TYPE(UIEvent);
 
  protected:
-  explicit UIEvent(base::Token type);
-  explicit UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
-                   const scoped_refptr<Window>& view,
+  explicit UIEvent(base_token::Token type);
+  explicit UIEvent(base_token::Token type, Bubbles bubbles,
+                   Cancelable cancelable, const scoped_refptr<Window>& view,
                    const UIEventInit& init_dict);
 
   ~UIEvent() override {}

@@ -1,15 +1,16 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef URL_SCHEME_HOST_PORT_H_
 #define URL_SCHEME_HOST_PORT_H_
 
+#include <stdint.h>
+
 #include <string>
 
+#include "base/component_export.h"
 #include "base/strings/string_piece.h"
-#include "starboard/types.h"
-#include "url/url_export.h"
 
 class GURL;
 
@@ -48,9 +49,9 @@ struct Parsed;
 //   these constructs.
 //
 // * SchemeHostPort has no notion of the Origin concept (RFC 6454), and in
-//   particular, it has no notion of a "unique" Origin. If you need to take
-//   uniqueness into account (and, if you're making security-relevant decisions
-//   then you absolutely do), please use 'url::Origin' instead.
+//   particular, it has no notion of an opaque Origin. If you need to take
+//   opaque origins into account (and, if you're making security-relevant
+//   decisions then you absolutely do), please use 'url::Origin' instead.
 //
 // Usage:
 //
@@ -70,8 +71,8 @@ struct Parsed;
 //     tuple.port(); // 443
 //
 //     GURL url("https://example.com/");
-//     tuple.Equals(url::SchemeHostPort(url)); // true
-class URL_EXPORT SchemeHostPort {
+//     tuple == url::SchemeHostPort(url); // true
+class COMPONENT_EXPORT(URL) SchemeHostPort {
  public:
   // Creates an invalid (scheme, host, port) tuple, which represents an invalid
   // or non-standard URL.
@@ -79,8 +80,8 @@ class URL_EXPORT SchemeHostPort {
 
   // Creates a (scheme, host, port) tuple. |host| must be a canonicalized
   // A-label (that is, '☃.net' must be provided as 'xn--n3h.net'). |scheme|
-  // must be a standard scheme. |port| must not be 0, unless |scheme| does not
-  // support ports (e.g. 'file'). In that case, |port| must be 0.
+  // must be a standard scheme. |port| must be 0 if |scheme| does not support
+  // ports (e.g. 'file').
   //
   // Copies the data in |scheme| and |host|.
   SchemeHostPort(base::StringPiece scheme,
@@ -110,14 +111,8 @@ class URL_EXPORT SchemeHostPort {
   // Copyable and movable.
   SchemeHostPort(const SchemeHostPort&) = default;
   SchemeHostPort& operator=(const SchemeHostPort&) = default;
-  SchemeHostPort(SchemeHostPort&&) = default;
-  SchemeHostPort& operator=(SchemeHostPort&&) = default;
-#if defined(STARBOARD)
-  // Cobalt's compiler can not generate operator== by default yet.
-  bool operator==(const SchemeHostPort& rhs) const {
-    return scheme_ == rhs.scheme_ && host_ == rhs.host_ && port_ == rhs.port_;
-  }
-#endif
+  SchemeHostPort(SchemeHostPort&&) noexcept = default;
+  SchemeHostPort& operator=(SchemeHostPort&&) noexcept = default;
 
   ~SchemeHostPort();
 
@@ -127,18 +122,21 @@ class URL_EXPORT SchemeHostPort {
   const std::string& host() const { return host_; }
   const std::string& scheme() const { return scheme_; }
   uint16_t port() const { return port_; }
-  bool IsInvalid() const;
+  bool IsValid() const;
 
   // Serializes the SchemeHostPort tuple to a canonical form.
   //
   // While this string form resembles the Origin serialization specified in
   // Section 6.2 of RFC 6454, it is important to note that invalid
   // SchemeHostPort tuples serialize to the empty string, rather than being
-  // serialized as a unique Origin.
+  // serialized as would an opaque Origin.
   std::string Serialize() const;
 
   // Efficiently returns what GURL(Serialize()) would return, without needing to
-  // re-parse the URL.
+  // re-parse the URL. Note: this still performs allocations to copy data into
+  // GURL, so please avoid using this method if you only need to work on
+  // schemes, hosts, or ports individually.
+  // For example, see crrev.com/c/3637099/comments/782360d0_e14757be.
   GURL GetURL() const;
 
   // Two SchemeHostPort objects are "equal" iff their schemes, hosts, and ports
@@ -146,9 +144,14 @@ class URL_EXPORT SchemeHostPort {
   //
   // Note that this comparison is _not_ the same as an origin-based comparison.
   // In particular, invalid SchemeHostPort objects match each other (and
-  // themselves). Unique origins, on the other hand, would not.
-  bool Equals(const SchemeHostPort& other) const;
-
+  // themselves). Opaque origins, on the other hand, would not.
+  bool operator==(const SchemeHostPort& other) const {
+    return port_ == other.port() && scheme_ == other.scheme() &&
+           host_ == other.host();
+  }
+  bool operator!=(const SchemeHostPort& other) const {
+    return !(*this == other);
+  }
   // Allows SchemeHostPort to be used as a key in STL (for example, a std::set
   // or std::map).
   bool operator<(const SchemeHostPort& other) const;
@@ -158,8 +161,12 @@ class URL_EXPORT SchemeHostPort {
 
   std::string scheme_;
   std::string host_;
-  uint16_t port_;
+  uint16_t port_ = 0;
 };
+
+COMPONENT_EXPORT(URL)
+std::ostream& operator<<(std::ostream& out,
+                         const SchemeHostPort& scheme_host_port);
 
 }  // namespace url
 

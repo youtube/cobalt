@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,9 @@
 #include <zircon/rights.h>
 
 #include "base/bits.h"
+#include "base/check_op.h"
 #include "base/fuchsia/fuchsia_logging.h"
-#include "base/process/process_metrics.h"
-#include "starboard/types.h"
+#include "base/memory/page_size.h"
 
 namespace base {
 namespace subtle {
@@ -39,19 +39,6 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Take(
                                                        mode, size));
 
   return PlatformSharedMemoryRegion(std::move(handle), mode, size, guid);
-}
-
-// static
-PlatformSharedMemoryRegion
-PlatformSharedMemoryRegion::TakeFromSharedMemoryHandle(
-    const SharedMemoryHandle& handle,
-    Mode mode) {
-  CHECK(mode == Mode::kReadOnly || mode == Mode::kUnsafe);
-  if (!handle.IsValid())
-    return {};
-
-  return Take(zx::vmo(handle.GetHandle()), mode, handle.GetSize(),
-              handle.GetGUID());
 }
 
 zx::unowned_vmo PlatformSharedMemoryRegion::GetPlatformHandle() const {
@@ -108,46 +95,34 @@ bool PlatformSharedMemoryRegion::ConvertToUnsafe() {
   return true;
 }
 
-bool PlatformSharedMemoryRegion::MapAtInternal(off_t offset,
-                                               size_t size,
-                                               void** memory,
-                                               size_t* mapped_size) const {
-  bool write_allowed = mode_ != Mode::kReadOnly;
-  uintptr_t addr;
-  zx_status_t status = zx::vmar::root_self()->map(
-      0, handle_, offset, size,
-      ZX_VM_FLAG_PERM_READ | (write_allowed ? ZX_VM_FLAG_PERM_WRITE : 0),
-      &addr);
-  if (status != ZX_OK) {
-    ZX_DLOG(ERROR, status) << "zx_vmar_map";
-    return false;
-  }
-
-  *memory = reinterpret_cast<void*>(addr);
-  *mapped_size = size;
-  return true;
-}
-
 // static
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
                                                               size_t size) {
   if (size == 0)
     return {};
 
-  size_t rounded_size = bits::Align(size, GetPageSize());
-  if (rounded_size > static_cast<size_t>(std::numeric_limits<int>::max()))
+  // Aligning may overflow so check that the result doesn't decrease.
+  size_t rounded_size = bits::AlignUp(size, GetPageSize());
+  if (rounded_size < size ||
+      rounded_size > static_cast<size_t>(std::numeric_limits<int>::max())) {
     return {};
+  }
 
   CHECK_NE(mode, Mode::kReadOnly) << "Creating a region in read-only mode will "
                                      "lead to this region being non-modifiable";
 
   zx::vmo vmo;
-  zx_status_t status =
-      zx::vmo::create(rounded_size, ZX_VMO_NON_RESIZABLE, &vmo);
+  zx_status_t status = zx::vmo::create(rounded_size, 0, &vmo);
   if (status != ZX_OK) {
     ZX_DLOG(ERROR, status) << "zx_vmo_create";
     return {};
   }
+
+  // TODO(crbug.com/991805): Take base::Location from the caller and use it to
+  // generate the name here.
+  constexpr char kVmoName[] = "cr-shared-memory-region";
+  status = vmo.set_property(ZX_PROP_NAME, kVmoName, strlen(kVmoName));
+  ZX_DCHECK(status == ZX_OK, status);
 
   const int kNoExecFlags = ZX_DEFAULT_VMO_RIGHTS & ~ZX_RIGHT_EXECUTE;
   status = vmo.replace(kNoExecFlags, &vmo);
@@ -162,24 +137,28 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
 
 // static
 bool PlatformSharedMemoryRegion::CheckPlatformHandlePermissionsCorrespondToMode(
-    PlatformHandle handle,
+    PlatformSharedMemoryHandle handle,
     Mode mode,
     size_t size) {
   zx_info_handle_basic_t basic = {};
   zx_status_t status = handle->get_info(ZX_INFO_HANDLE_BASIC, &basic,
                                         sizeof(basic), nullptr, nullptr);
-  if (status != ZX_OK) {
-    ZX_DLOG(ERROR, status) << "zx_object_get_info";
+  ZX_CHECK(status == ZX_OK, status) << "zx_object_get_info";
+
+  if (basic.type != ZX_OBJ_TYPE_VMO) {
+    // TODO(crbug.com/838365): convert to DLOG when bug fixed.
+    LOG(ERROR) << "Received zircon handle is not a VMO";
     return false;
   }
 
-  bool is_read_only = (basic.rights & kNoWriteOrExec) == basic.rights;
+  bool is_read_only = (basic.rights & (ZX_RIGHT_WRITE | ZX_RIGHT_EXECUTE)) == 0;
   bool expected_read_only = mode == Mode::kReadOnly;
 
   if (is_read_only != expected_read_only) {
-    DLOG(ERROR) << "VMO object has wrong access rights: it is"
-                << (is_read_only ? " " : " not ") << "read-only but it should"
-                << (expected_read_only ? " " : " not ") << "be";
+    // TODO(crbug.com/838365): convert to DLOG when bug fixed.
+    LOG(ERROR) << "VMO object has wrong access rights: it is"
+               << (is_read_only ? " " : " not ") << "read-only but it should"
+               << (expected_read_only ? " " : " not ") << "be";
     return false;
   }
 

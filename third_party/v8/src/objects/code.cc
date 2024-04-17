@@ -849,7 +849,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     if (interpreter::Bytecodes::IsSwitch(iterator.current_bytecode())) {
       os << " {";
       bool first_entry = true;
-      for (const auto& entry : iterator.GetJumpTableTargetOffsets()) {
+      for (auto entry : iterator.GetJumpTableTargetOffsets()) {
         if (first_entry) {
           first_entry = false;
         } else {

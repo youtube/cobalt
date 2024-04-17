@@ -52,7 +52,7 @@ scoped_refptr<HTMLElement> CreateHTMLElementT(Document* document) {
 template <typename T>
 scoped_refptr<HTMLElement> CreateHTMLElementWithTagNameT(
     const std::string& local_name, Document* document) {
-  return new T(document, base::Token(local_name));
+  return new T(document, base_token::Token(local_name));
 }
 
 bool IsValidAsciiChar(char32_t c) {
@@ -97,7 +97,7 @@ bool IsBlacklistedTag(const char* tag, int length) {
 
 // Follows naming spec at
 // https://html.spec.whatwg.org/multipage/custom-elements.html#valid-custom-element-name
-bool IsValidCustomElementName(base::Token tag_name) {
+bool IsValidCustomElementName(base_token::Token tag_name) {
   // Consider adding support for customElements.define in order to
   // formally register CustomElements rather than filter out errors
   // for all potential custom names.
@@ -169,7 +169,7 @@ HTMLElementFactory::HTMLElementFactory() {
 HTMLElementFactory::~HTMLElementFactory() {}
 
 scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElement(
-    Document* document, base::Token tag_name) {
+    Document* document, base_token::Token tag_name) {
   TagNameToCreateHTMLElementTCallbackMap::const_iterator iter =
       tag_name_to_create_html_element_t_callback_map_.find(tag_name);
   if (iter != tag_name_to_create_html_element_t_callback_map_.end()) {
@@ -188,16 +188,16 @@ scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElement(
 
 template <typename T>
 void HTMLElementFactory::RegisterHTMLElementWithSingleTagName() {
-  tag_name_to_create_html_element_t_callback_map_[base::Token(T::kTagName)] =
-      base::Bind(&CreateHTMLElementT<T>);
+  tag_name_to_create_html_element_t_callback_map_[base_token::Token(
+      T::kTagName)] = base::Bind(&CreateHTMLElementT<T>);
 }
 
 template <typename T>
 void HTMLElementFactory::RegisterHTMLElementWithMultipleTagName() {
   for (int i = 0; i < T::kTagNameCount; i++) {
     std::string tag_name = T::kTagNames[i];
-    tag_name_to_create_html_element_t_callback_map_[base::Token(tag_name)] =
-        base::Bind(&CreateHTMLElementWithTagNameT<T>, tag_name);
+    tag_name_to_create_html_element_t_callback_map_[base_token::Token(
+        tag_name)] = base::Bind(&CreateHTMLElementWithTagNameT<T>, tag_name);
   }
 }
 

@@ -29,7 +29,8 @@ class MachineIdProvider {
   static std::string GetMachineId();
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(MachineIdProvider);
+  MachineIdProvider() = delete;
+  MachineIdProvider(const MachineIdProvider&) = delete;
 };
 
 }  //  namespace metrics

@@ -137,7 +137,7 @@ class MediaSource : public web::EventTarget {
  private:
   void SetReadyState(MediaSourceReadyState ready_state);
   bool IsUpdating() const;
-  void ScheduleEvent(base::Token event_name);
+  void ScheduleEvent(base_token::Token event_name);
 
   // Set to true to offload SourceBuffer buffer append and removal algorithms to
   // a non-web thread.

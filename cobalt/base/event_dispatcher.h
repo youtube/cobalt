@@ -30,7 +30,7 @@ typedef Callback<void(const Event*)> EventCallback;
 // A base class for sending events to a set of registered listeners.
 // Event producers will call DispatchEvent and each callback will be called.
 // The recipient of the callback is responsible for re-posting to an appropriate
-// message loop. No other work should be done on the thread that receives
+// task runner. No other work should be done on the thread that receives
 // the callback.
 class EventDispatcher {
  public:

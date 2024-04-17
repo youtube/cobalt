@@ -3144,6 +3144,10 @@ int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg) {
   return 1;
 }
 
+SSL_SESSION *SSL_SESSION_copy_without_early_data(SSL_SESSION *session) {
+  return nullptr;
+}
+
 namespace fips202205 {
 
 // (References are to SP 800-52r2):

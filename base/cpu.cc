@@ -1,26 +1,46 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/cpu.h"
 
+#include <inttypes.h>
 #include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <algorithm>
+#include <sstream>
 #include <utility>
 
-#include "starboard/types.h"
-
-#include "starboard/common/string.h"
-
-#include "starboard/memory.h"
-
-#include "base/macros.h"
+#include "base/no_destructor.h"
 #include "build/build_config.h"
 
-#if defined(ARCH_CPU_ARM_FAMILY) && (defined(OS_ANDROID) || defined(OS_LINUX))
+#if defined(ARCH_CPU_ARM_FAMILY) && \
+    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+#include <asm/hwcap.h>
+#include <sys/auxv.h>
+
 #include "base/files/file_util.h"
+#include "base/numerics/checked_math.h"
+#include "base/ranges/algorithm.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+
+// Temporary definitions until a new hwcap.h is pulled in everywhere.
+// https://crbug.com/1265965
+#ifndef HWCAP2_MTE
+#define HWCAP2_MTE (1 << 18)
+#define HWCAP2_BTI (1 << 17)
+#endif
+
+struct ProcCpuInfo {
+  std::string brand;
+  uint8_t implementer = 0;
+  uint32_t part_number = 0;
+};
 #endif
 
 #if defined(ARCH_CPU_X86_FAMILY)
@@ -32,29 +52,50 @@
 
 namespace base {
 
-CPU::CPU()
-  : signature_(0),
-    type_(0),
-    family_(0),
-    model_(0),
-    stepping_(0),
-    ext_model_(0),
-    ext_family_(0),
-    has_mmx_(false),
-    has_sse_(false),
-    has_sse2_(false),
-    has_sse3_(false),
-    has_ssse3_(false),
-    has_sse41_(false),
-    has_sse42_(false),
-    has_popcnt_(false),
-    has_avx_(false),
-    has_avx2_(false),
-    has_aesni_(false),
-    has_non_stop_time_stamp_counter_(false),
-    cpu_vendor_("unknown") {
-  Initialize();
+#if defined(ARCH_CPU_X86_FAMILY)
+namespace internal {
+
+X86ModelInfo ComputeX86FamilyAndModel(const std::string& vendor,
+                                      int signature) {
+  X86ModelInfo results;
+  results.family = (signature >> 8) & 0xf;
+  results.model = (signature >> 4) & 0xf;
+  results.ext_family = 0;
+  results.ext_model = 0;
+
+  // The "Intel 64 and IA-32 Architectures Developer's Manual: Vol. 2A"
+  // specifies the Extended Model is defined only when the Base Family is
+  // 06h or 0Fh.
+  // The "AMD CPUID Specification" specifies that the Extended Model is
+  // defined only when Base Family is 0Fh.
+  // Both manuals define the display model as
+  // {ExtendedModel[3:0],BaseModel[3:0]} in that case.
+  if (results.family == 0xf ||
+      (results.family == 0x6 && vendor == "GenuineIntel")) {
+    results.ext_model = (signature >> 16) & 0xf;
+    results.model += results.ext_model << 4;
+  }
+  // Both the "Intel 64 and IA-32 Architectures Developer's Manual: Vol. 2A"
+  // and the "AMD CPUID Specification" specify that the Extended Family is
+  // defined only when the Base Family is 0Fh.
+  // Both manuals define the display family as {0000b,BaseFamily[3:0]} +
+  // ExtendedFamily[7:0] in that case.
+  if (results.family == 0xf) {
+    results.ext_family = (signature >> 20) & 0xff;
+    results.family += results.ext_family;
+  }
+
+  return results;
 }
+
+}  // namespace internal
+#endif  // defined(ARCH_CPU_X86_FAMILY)
+
+CPU::CPU(bool require_branding) {
+  Initialize(require_branding);
+}
+CPU::CPU() : CPU(true) {}
+CPU::CPU(CPU&&) = default;
 
 namespace {
 
@@ -83,59 +124,95 @@ void __cpuid(int cpu_info[4], int info_type) {
 }
 
 #endif
+#endif  // !defined(COMPILER_MSVC)
 
-// _xgetbv returns the value of an Intel Extended Control Register (XCR).
+// xgetbv returns the value of an Intel Extended Control Register (XCR).
 // Currently only XCR0 is defined by Intel so |xcr| should always be zero.
-uint64_t _xgetbv(uint32_t xcr) {
+uint64_t xgetbv(uint32_t xcr) {
+#if defined(COMPILER_MSVC)
+  return _xgetbv(xcr);
+#else
   uint32_t eax, edx;
 
   __asm__ volatile (
     "xgetbv" : "=a"(eax), "=d"(edx) : "c"(xcr));
   return (static_cast<uint64_t>(edx) << 32) | eax;
+#endif  // defined(COMPILER_MSVC)
 }
 
-#endif  // !defined(COMPILER_MSVC)
 #endif  // ARCH_CPU_X86_FAMILY
 
-#if defined(ARCH_CPU_ARM_FAMILY) && (defined(OS_ANDROID) || defined(OS_LINUX))
-std::string* CpuInfoBrand() {
-  static std::string* brand = []() {
+#if defined(ARCH_CPU_ARM_FAMILY) && \
+    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+StringPairs::const_iterator FindFirstProcCpuKey(const StringPairs& pairs,
+                                                StringPiece key) {
+  return ranges::find_if(pairs, [key](const StringPairs::value_type& pair) {
+    return TrimWhitespaceASCII(pair.first, base::TRIM_ALL) == key;
+  });
+}
+
+// Parses information about the ARM processor. Note that depending on the CPU
+// package, processor configuration, and/or kernel version, this may only
+// report information about the processor on which this thread is running. This
+// can happen on heterogeneous-processor SoCs like Snapdragon 808, which has 4
+// Cortex-A53 and 2 Cortex-A57. Unfortunately there is not a universally
+// reliable way to examine the CPU part information for all cores.
+const ProcCpuInfo& ParseProcCpu() {
+  static const NoDestructor<ProcCpuInfo> info([]() {
     // This function finds the value from /proc/cpuinfo under the key "model
     // name" or "Processor". "model name" is used in Linux 3.8 and later (3.7
     // and later for arm64) and is shown once per CPU. "Processor" is used in
     // earler versions and is shown only once at the top of /proc/cpuinfo
     // regardless of the number CPUs.
-    const char kModelNamePrefix[] = "model name\t: ";
-    const char kProcessorPrefix[] = "Processor\t: ";
+    const char kModelNamePrefix[] = "model name";
+    const char kProcessorPrefix[] = "Processor";
 
-    std::string contents;
-    ReadFileToString(FilePath("/proc/cpuinfo"), &contents);
-    DCHECK(!contents.empty());
+    std::string cpuinfo;
+    ReadFileToString(FilePath("/proc/cpuinfo"), &cpuinfo);
+    DCHECK(!cpuinfo.empty());
 
-    std::istringstream iss(contents);
-    std::string line;
-    while (std::getline(iss, line)) {
-      if (line.compare(0, strlen(kModelNamePrefix),
-                       kModelNamePrefix) == 0)
-        return new std::string(
-            line.substr(strlen(kModelNamePrefix)));
-      if (line.compare(0, strlen(kProcessorPrefix),
-                       kProcessorPrefix) == 0)
-        return new std::string(
-            line.substr(strlen(kProcessorPrefix)));
+    ProcCpuInfo info;
+
+    StringPairs pairs;
+    if (!SplitStringIntoKeyValuePairs(cpuinfo, ':', '\n', &pairs)) {
+      NOTREACHED();
+      return info;
     }
 
-    return new std::string();
-  }();
+    auto model_name = FindFirstProcCpuKey(pairs, kModelNamePrefix);
+    if (model_name == pairs.end())
+      model_name = FindFirstProcCpuKey(pairs, kProcessorPrefix);
+    if (model_name != pairs.end()) {
+      info.brand =
+          std::string(TrimWhitespaceASCII(model_name->second, TRIM_ALL));
+    }
 
-  return brand;
+    auto implementer_string = FindFirstProcCpuKey(pairs, "CPU implementer");
+    if (implementer_string != pairs.end()) {
+      // HexStringToUInt() handles the leading whitespace on the value.
+      uint32_t implementer;
+      HexStringToUInt(implementer_string->second, &implementer);
+      if (!CheckedNumeric<uint32_t>(implementer)
+               .AssignIfValid(&info.implementer)) {
+        info.implementer = 0;
+      }
+    }
+
+    auto part_number_string = FindFirstProcCpuKey(pairs, "CPU part");
+    if (part_number_string != pairs.end())
+      HexStringToUInt(part_number_string->second, &info.part_number);
+
+    return info;
+  }());
+
+  return *info;
 }
-#endif  // defined(ARCH_CPU_ARM_FAMILY) && (defined(OS_ANDROID) ||
-        // defined(OS_LINUX))
+#endif  // defined(ARCH_CPU_ARM_FAMILY) && (BUILDFLAG(IS_ANDROID) ||
+        // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
 
 }  // namespace
 
-void CPU::Initialize() {
+void CPU::Initialize(bool require_branding) {
 #if defined(ARCH_CPU_X86_FAMILY)
   int cpu_info[4] = {-1};
   // This array is used to temporarily hold the vendor name and then the brand
@@ -155,7 +232,7 @@ void CPU::Initialize() {
   int num_ids = cpu_info[0];
   std::swap(cpu_info[2], cpu_info[3]);
   static constexpr size_t kVendorNameSize = 3 * sizeof(cpu_info[1]);
-  static_assert(kVendorNameSize < arraysize(cpu_string),
+  static_assert(kVendorNameSize < std::size(cpu_string),
                 "cpu_string too small");
   memcpy(cpu_string, &cpu_info[1], kVendorNameSize);
   cpu_string[kVendorNameSize] = '\0';
@@ -170,11 +247,13 @@ void CPU::Initialize() {
     }
     signature_ = cpu_info[0];
     stepping_ = cpu_info[0] & 0xf;
-    model_ = ((cpu_info[0] >> 4) & 0xf) + ((cpu_info[0] >> 12) & 0xf0);
-    family_ = (cpu_info[0] >> 8) & 0xf;
     type_ = (cpu_info[0] >> 12) & 0x3;
-    ext_model_ = (cpu_info[0] >> 16) & 0xf;
-    ext_family_ = (cpu_info[0] >> 20) & 0xff;
+    internal::X86ModelInfo results =
+        internal::ComputeX86FamilyAndModel(cpu_vendor_, signature_);
+    family_ = results.family;
+    model_ = results.model;
+    ext_family_ = results.ext_family;
+    ext_model_ = results.ext_model;
     has_mmx_ =   (cpu_info[3] & 0x00800000) != 0;
     has_sse_ =   (cpu_info[3] & 0x02000000) != 0;
     has_sse2_ =  (cpu_info[3] & 0x04000000) != 0;
@@ -183,6 +262,13 @@ void CPU::Initialize() {
     has_sse41_ = (cpu_info[2] & 0x00080000) != 0;
     has_sse42_ = (cpu_info[2] & 0x00100000) != 0;
     has_popcnt_ = (cpu_info[2] & 0x00800000) != 0;
+
+    // "Hypervisor Present Bit: Bit 31 of ECX of CPUID leaf 0x1."
+    // See https://lwn.net/Articles/301888/
+    // This is checking for any hypervisor. Hypervisors may choose not to
+    // announce themselves. Hypervisors trap CPUID and sometimes return
+    // different results to underlying hardware.
+    is_running_in_vm_ = (static_cast<uint32_t>(cpu_info[2]) & 0x80000000) != 0;
 
     // AVX instructions will generate an illegal instruction exception unless
     //   a) they are supported by the CPU,
@@ -198,26 +284,30 @@ void CPU::Initialize() {
         (cpu_info[2] & 0x10000000) != 0 &&
         (cpu_info[2] & 0x04000000) != 0 /* XSAVE */ &&
         (cpu_info[2] & 0x08000000) != 0 /* OSXSAVE */ &&
-        (_xgetbv(0) & 6) == 6 /* XSAVE enabled by kernel */;
+        (xgetbv(0) & 6) == 6 /* XSAVE enabled by kernel */;
     has_aesni_ = (cpu_info[2] & 0x02000000) != 0;
+    has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
     has_avx2_ = has_avx_ && (cpu_info7[1] & 0x00000020) != 0;
+
+    has_pku_ = (cpu_info7[2] & 0x00000010) != 0;
   }
 
   // Get the brand string of the cpu.
-  __cpuid(cpu_info, 0x80000000);
-  const int max_parameter = cpu_info[0];
+  __cpuid(cpu_info, static_cast<int>(0x80000000));
+  const uint32_t max_parameter = static_cast<uint32_t>(cpu_info[0]);
 
-  static constexpr int kParameterStart = 0x80000002;
-  static constexpr int kParameterEnd = 0x80000004;
-  static constexpr int kParameterSize = kParameterEnd - kParameterStart + 1;
-  static_assert(kParameterSize * sizeof(cpu_info) + 1 == arraysize(cpu_string),
+  static constexpr uint32_t kParameterStart = 0x80000002;
+  static constexpr uint32_t kParameterEnd = 0x80000004;
+  static constexpr uint32_t kParameterSize =
+      kParameterEnd - kParameterStart + 1;
+  static_assert(kParameterSize * sizeof(cpu_info) + 1 == std::size(cpu_string),
                 "cpu_string has wrong size");
 
   if (max_parameter >= kParameterEnd) {
     size_t i = 0;
-    for (int parameter = kParameterStart; parameter <= kParameterEnd;
+    for (uint32_t parameter = kParameterStart; parameter <= kParameterEnd;
          ++parameter) {
-      __cpuid(cpu_info, parameter);
+      __cpuid(cpu_info, static_cast<int>(parameter));
       memcpy(&cpu_string[i], cpu_info, sizeof(cpu_info));
       i += sizeof(cpu_info);
     }
@@ -225,18 +315,58 @@ void CPU::Initialize() {
     cpu_brand_ = cpu_string;
   }
 
-  static constexpr int kParameterContainingNonStopTimeStampCounter = 0x80000007;
+  static constexpr uint32_t kParameterContainingNonStopTimeStampCounter =
+      0x80000007;
   if (max_parameter >= kParameterContainingNonStopTimeStampCounter) {
-    __cpuid(cpu_info, kParameterContainingNonStopTimeStampCounter);
+    __cpuid(cpu_info,
+            static_cast<int>(kParameterContainingNonStopTimeStampCounter));
     has_non_stop_time_stamp_counter_ = (cpu_info[3] & (1 << 8)) != 0;
   }
-#elif defined(ARCH_CPU_ARM_FAMILY) && (defined(OS_ANDROID) || defined(OS_LINUX))
-  cpu_brand_ = *CpuInfoBrand();
+
+  if (!has_non_stop_time_stamp_counter_ && is_running_in_vm_) {
+    int cpu_info_hv[4] = {};
+    __cpuid(cpu_info_hv, 0x40000000);
+    if (cpu_info_hv[1] == 0x7263694D &&  // Micr
+        cpu_info_hv[2] == 0x666F736F &&  // osof
+        cpu_info_hv[3] == 0x76482074) {  // t Hv
+      // If CPUID says we have a variant TSC and a hypervisor has identified
+      // itself and the hypervisor says it is Microsoft Hyper-V, then treat
+      // TSC as invariant.
+      //
+      // Microsoft Hyper-V hypervisor reports variant TSC as there are some
+      // scenarios (eg. VM live migration) where the TSC is variant, but for
+      // our purposes we can treat it as invariant.
+      has_non_stop_time_stamp_counter_ = true;
+    }
+  }
+#elif defined(ARCH_CPU_ARM_FAMILY)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  if (require_branding) {
+    const ProcCpuInfo& info = ParseProcCpu();
+    cpu_brand_ = info.brand;
+    implementer_ = info.implementer;
+    part_number_ = info.part_number;
+  }
+
+#if defined(ARCH_CPU_ARM64)
+  // Check for Armv8.5-A BTI/MTE support, exposed via HWCAP2
+  unsigned long hwcap2 = getauxval(AT_HWCAP2);
+  has_mte_ = hwcap2 & HWCAP2_MTE;
+  has_bti_ = hwcap2 & HWCAP2_BTI;
+#endif
+
+#elif BUILDFLAG(IS_WIN)
+  // Windows makes high-resolution thread timing information available in
+  // user-space.
+  has_non_stop_time_stamp_counter_ = true;
+#endif
 #endif
 }
 
+#if defined(ARCH_CPU_X86_FAMILY)
 CPU::IntelMicroArchitecture CPU::GetIntelMicroArchitecture() const {
   if (has_avx2()) return AVX2;
+  if (has_fma3()) return FMA3;
   if (has_avx()) return AVX;
   if (has_sse42()) return SSE42;
   if (has_sse41()) return SSE41;
@@ -245,6 +375,13 @@ CPU::IntelMicroArchitecture CPU::GetIntelMicroArchitecture() const {
   if (has_sse2()) return SSE2;
   if (has_sse()) return SSE;
   return PENTIUM;
+}
+#endif
+
+const CPU& CPU::GetInstanceNoAllocation() {
+  static const base::NoDestructor<const CPU> cpu(CPU(false));
+
+  return *cpu;
 }
 
 }  // namespace base

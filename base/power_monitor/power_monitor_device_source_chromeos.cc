@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,8 +33,29 @@ void PowerMonitorDeviceSource::HandleSystemResumed() {
   ProcessPowerEvent(RESUME_EVENT);
 }
 
-bool PowerMonitorDeviceSource::IsOnBatteryPowerImpl() {
+bool PowerMonitorDeviceSource::IsOnBatteryPower() {
   return g_on_battery;
+}
+
+// static
+void PowerMonitorDeviceSource::ThermalEventReceived(
+    PowerThermalObserver::DeviceThermalState state) {
+  if (!PowerMonitor::IsInitialized()) {
+    PowerMonitor::Initialize(std::make_unique<PowerMonitorDeviceSource>());
+  }
+  PowerMonitor::SetCurrentThermalState(state);
+
+  ProcessThermalEvent(state);
+}
+
+PowerThermalObserver::DeviceThermalState
+PowerMonitorDeviceSource::GetCurrentThermalState() {
+  return current_thermal_state_;
+}
+
+void PowerMonitorDeviceSource::SetCurrentThermalState(
+    PowerThermalObserver::DeviceThermalState state) {
+  current_thermal_state_ = state;
 }
 
 }  // namespace base

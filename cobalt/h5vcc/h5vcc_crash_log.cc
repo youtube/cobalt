@@ -22,6 +22,8 @@
 #include "base/atomicops.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 

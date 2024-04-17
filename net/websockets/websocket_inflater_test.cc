@@ -1,16 +1,16 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/websockets/websocket_inflater.h"
 
+#include <stdint.h>
 #include <string>
 #include <vector>
 
 #include "net/base/io_buffer.h"
 #include "net/websockets/websocket_deflater.h"
 #include "net/websockets/websocket_test_util.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -101,8 +101,8 @@ TEST(WebSocketInflaterTest, MultipleAddBytesCalls) {
   std::string input("\xf2\x48\xcd\xc9\xc9\x07\x00", 7);
   scoped_refptr<IOBufferWithSize> actual;
 
-  for (size_t i = 0; i < input.size(); ++i) {
-    ASSERT_TRUE(inflater.AddBytes(&input[i], 1));
+  for (char& c : input) {
+    ASSERT_TRUE(inflater.AddBytes(&c, 1));
   }
   ASSERT_TRUE(inflater.Finish());
   actual = inflater.GetOutput(5);
@@ -195,7 +195,7 @@ TEST(WebSocketInflaterTest, LargeRandomDeflateInflate) {
   for (size_t i = 0; i < size; ++i)
     input.push_back(static_cast<char>(generator.Generate()));
 
-  ASSERT_TRUE(deflater.AddBytes(&input[0], input.size()));
+  ASSERT_TRUE(deflater.AddBytes(input.data(), input.size()));
   ASSERT_TRUE(deflater.Finish());
 
   compressed = deflater.GetOutput(deflater.CurrentOutputSize());

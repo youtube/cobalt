@@ -26,12 +26,12 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/network/network_module.h"
 #include "components/update_client/network.h"
-#include "net/url_request/url_fetcher_delegate.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
 
 namespace base {
 
 class FilePath;
-class SingleThreadTaskRunner;
+class SequencedTaskRunner;
 
 }  // namespace base
 
@@ -127,7 +127,7 @@ class NetworkFetcher : public update_client::NetworkFetcher,
 
   static constexpr int kMaxRetriesOnNetworkChange = 3;
 
-  scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_;
 
   std::unique_ptr<net::URLFetcher> url_fetcher_;
 

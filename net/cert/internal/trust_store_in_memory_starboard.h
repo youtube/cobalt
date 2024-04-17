@@ -18,7 +18,7 @@
 #include <unordered_set>
 
 #include "base/strings/string_piece.h"
-#include "net/cert/internal/trust_store_in_memory.h"
+#include "net/cert/pki/trust_store_in_memory.h"
 #include "starboard/common/mutex.h"
 
 namespace net {
@@ -32,8 +32,8 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
   // TrustStore implementation:
   void SyncGetIssuersOf(const ParsedCertificate* cert,
                         ParsedCertificateList* issuers) override;
-  void GetTrust(const scoped_refptr<ParsedCertificate>& cert,
-                CertificateTrust* trust) const override;
+  CertificateTrust GetTrust(const ParsedCertificate* cert,
+                                    base::SupportsUserData* debug_data) override;
 
   // Returns true if the trust store contains the given ParsedCertificate
   // (matches by DER).
@@ -51,7 +51,7 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
 
   // Given a certificate's canonical name, try to load this cert from trusted
   // certs on disk if it is found.
-  scoped_refptr<ParsedCertificate> TryLoadCert(
+  std::shared_ptr<const ParsedCertificate> TryLoadCert(
       const base::StringPiece& cert_name) const;
 
   // The memory trust store can be accessed by multiple threads, in Chromium,
@@ -66,3 +66,4 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
 }  // namespace net
 
 #endif  // NET_CERT_INTERNAL_TRUST_STORE_IN_MEMORY_STARBOARD_H_
+

@@ -1,9 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_UPLOAD_FILE_ELEMENT_READER_H_
 #define NET_BASE_UPLOAD_FILE_ELEMENT_READER_H_
+
+#include <stdint.h>
 
 #include <memory>
 
@@ -11,13 +13,11 @@
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_element_reader.h"
-#include "starboard/types.h"
 
 namespace base {
 class TaskRunner;
@@ -36,7 +36,7 @@ class NET_EXPORT UploadFileElementReader : public UploadElementReader {
   // only used as the return value for path().
   // |task_runner| is used to perform file operations. It must not be NULL.
   //
-  // TODO(mmenke): Remove |task_runner| argument, and use the TaskScheduler
+  // TODO(mmenke): Remove |task_runner| argument, and use the ThreadPool
   // instead.
   UploadFileElementReader(base::TaskRunner* task_runner,
                           base::File file,
@@ -54,6 +54,8 @@ class NET_EXPORT UploadFileElementReader : public UploadElementReader {
                           uint64_t range_length,
                           const base::Time& expected_modification_time);
 
+  UploadFileElementReader(const UploadFileElementReader&) = delete;
+  UploadFileElementReader& operator=(const UploadFileElementReader&) = delete;
   ~UploadFileElementReader() override;
 
   const base::FilePath& path() const { return path_; }
@@ -117,20 +119,18 @@ class NET_EXPORT UploadFileElementReader : public UploadElementReader {
   const uint64_t range_length_;
   const base::Time expected_modification_time_;
   std::unique_ptr<FileStream> file_stream_;
-  uint64_t content_length_;
-  uint64_t bytes_remaining_;
+  uint64_t content_length_ = 0;
+  uint64_t bytes_remaining_ = 0;
 
   // File information. Only valid during GET_FILE_INFO_COMPLETE state.
   base::File::Info file_info_;
 
-  State next_state_;
+  State next_state_ = State::IDLE;
   CompletionOnceCallback pending_callback_;
   // True if Init() was called while an async operation was in progress.
-  bool init_called_while_operation_pending_;
+  bool init_called_while_operation_pending_ = false;
 
-  base::WeakPtrFactory<UploadFileElementReader> weak_ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(UploadFileElementReader);
+  base::WeakPtrFactory<UploadFileElementReader> weak_ptr_factory_{this};
 };
 
 }  // namespace net

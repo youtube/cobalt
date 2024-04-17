@@ -15,6 +15,7 @@
 #ifndef COBALT_SCRIPT_V8C_WRAPPER_PRIVATE_H_
 #define COBALT_SCRIPT_V8C_WRAPPER_PRIVATE_H_
 
+#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/wrappable.h"

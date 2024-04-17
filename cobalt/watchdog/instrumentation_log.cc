@@ -48,7 +48,7 @@ base::Value InstrumentationLog::GetLogTraceAsValue() {
 
   starboard::ScopedLock scoped_lock(buffer_mutex_);
   for (auto it = buffer_.Begin(); it; ++it) {
-    log_trace_value.GetList().emplace_back(**it);
+    log_trace_value.GetList().Append(**it);
   }
 
   return log_trace_value;

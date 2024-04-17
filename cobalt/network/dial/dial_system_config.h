@@ -61,7 +61,7 @@ class DialSystemConfig {
   std::string manufacturer_name_;
   std::string model_name_;
 
-  DISALLOW_COPY_AND_ASSIGN(DialSystemConfig);
+  // DISALLOW_COPY_AND_ASSIGN(DialSystemConfig);
   mutable base::Lock lock_;
 };
 

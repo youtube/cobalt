@@ -1,12 +1,11 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MAC_SCOPED_TYPEREF_H_
 #define BASE_MAC_SCOPED_TYPEREF_H_
 
-#include "base/compiler_specific.h"
-#include "base/logging.h"
+#include "base/check.h"
 #include "base/memory/scoped_policy.h"
 
 namespace base {
@@ -51,10 +50,10 @@ struct ScopedTypeRefTraits;
 template<typename T, typename Traits = ScopedTypeRefTraits<T>>
 class ScopedTypeRef {
  public:
-  typedef T element_type;
+  using element_type = __unsafe_unretained T;
 
   explicit constexpr ScopedTypeRef(
-      __unsafe_unretained T object = Traits::InvalidValue(),
+      element_type object = Traits::InvalidValue(),
       base::scoped_policy::OwnershipPolicy policy = base::scoped_policy::ASSUME)
       : object_(object) {
     if (object_ && policy == base::scoped_policy::RETAIN)
@@ -92,12 +91,16 @@ class ScopedTypeRef {
   // This is to be used only to take ownership of objects that are created
   // by pass-by-pointer create functions. To enforce this, require that the
   // object be reset to NULL before this may be used.
-  T* InitializeInto() WARN_UNUSED_RESULT {
+  [[nodiscard]] element_type* InitializeInto() {
     DCHECK(!object_);
     return &object_;
   }
 
-  void reset(__unsafe_unretained T object = Traits::InvalidValue(),
+  void reset(const ScopedTypeRef<T, Traits>& that) {
+    reset(that.get(), base::scoped_policy::RETAIN);
+  }
+
+  void reset(element_type object = Traits::InvalidValue(),
              base::scoped_policy::OwnershipPolicy policy =
                  base::scoped_policy::ASSUME) {
     if (object && policy == base::scoped_policy::RETAIN)
@@ -107,16 +110,24 @@ class ScopedTypeRef {
     object_ = object;
   }
 
-  bool operator==(__unsafe_unretained T that) const { return object_ == that; }
+  bool operator==(const ScopedTypeRef& that) const {
+    return object_ == that.object_;
+  }
 
-  bool operator!=(__unsafe_unretained T that) const { return object_ != that; }
+  bool operator!=(const ScopedTypeRef& that) const {
+    return object_ != that.object_;
+  }
 
-  operator T() const __attribute((ns_returns_not_retained)) { return object_; }
+  operator element_type() const __attribute__((ns_returns_not_retained)) {
+    return object_;
+  }
 
-  T get() const __attribute((ns_returns_not_retained)) { return object_; }
+  element_type get() const __attribute__((ns_returns_not_retained)) {
+    return object_;
+  }
 
   void swap(ScopedTypeRef& that) {
-    __unsafe_unretained T temp = that.object_;
+    element_type temp = that.object_;
     that.object_ = object_;
     object_ = temp;
   }
@@ -124,14 +135,14 @@ class ScopedTypeRef {
   // ScopedTypeRef<>::release() is like std::unique_ptr<>::release.  It is NOT
   // a wrapper for Release().  To force a ScopedTypeRef<> object to call
   // Release(), use ScopedTypeRef<>::reset().
-  T release() __attribute((ns_returns_not_retained)) WARN_UNUSED_RESULT {
-    __unsafe_unretained T temp = object_;
+  [[nodiscard]] element_type release() {
+    element_type temp = object_;
     object_ = Traits::InvalidValue();
     return temp;
   }
 
  private:
-  __unsafe_unretained T object_;
+  element_type object_;
 };
 
 }  // namespace base

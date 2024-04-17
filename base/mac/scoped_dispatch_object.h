@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <dispatch/dispatch.h>
 
 #include "base/mac/scoped_typeref.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -26,7 +25,7 @@ struct ScopedDispatchObjectTraits {
   }
 };
 
-}  // namepsace internal
+}  // namespace internal
 
 template <typename T>
 using ScopedDispatchObject =

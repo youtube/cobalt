@@ -20,6 +20,13 @@ _FILTERED_TESTS = {
         'MemoryReportingTest.CapturesOperatorDeleteNothrow',
         'SbAudioSinkTest.*', 'SbDrmTest.AnySupportedKeySystems'
     ],
+    'net_unittests': [
+        'VersionIncludeStreamDependencySequence/' +
+        'QuicNetworkTransactionTest.NetworkIsolationTunnel*',
+        'SchemeHostPortMatcherRuleTest.' +
+        'SchemeHostPortMatcherHostnamePatternRule_PunnyCodeHostname',
+        'ProxySpecificationUtilTest.ProxyUriToProxyServer',
+    ],
 
     # player_filter_tests test the platform's Starboard implementation of
     # the filter-based player, which is not exposed through the Starboard

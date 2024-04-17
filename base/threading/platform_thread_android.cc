@@ -1,60 +1,87 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/threading/platform_thread.h"
 
 #include <errno.h>
+#include <stddef.h>
 #include <sys/prctl.h>
-#include <sys/resource.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "base/android/jni_android.h"
+#include "base/base_jni_headers/ThreadUtils_jni.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
-#include "jni/ThreadUtils_jni.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
 namespace internal {
 
-// - BACKGROUND corresponds to Android's PRIORITY_BACKGROUND = 10 value and can
+// - kRealtimeAudio corresponds to Android's PRIORITY_AUDIO = -16 value.
+// - kDisplay corresponds to Android's PRIORITY_DISPLAY = -4 value.
+// - kBackground corresponds to Android's PRIORITY_BACKGROUND = 10 value and can
 // result in heavy throttling and force the thread onto a little core on
 // big.LITTLE devices.
-// - DISPLAY corresponds to Android's PRIORITY_DISPLAY = -4 value.
-// - REALTIME_AUDIO corresponds to Android's PRIORITY_AUDIO = -16 value.
-const ThreadPriorityToNiceValuePair kThreadPriorityToNiceValueMap[4] = {
-    {ThreadPriority::BACKGROUND, 10},
-    {ThreadPriority::NORMAL, 0},
-    {ThreadPriority::DISPLAY, -4},
-    {ThreadPriority::REALTIME_AUDIO, -16},
+const ThreadPriorityToNiceValuePairForTest
+    kThreadPriorityToNiceValueMapForTest[5] = {
+        {ThreadPriorityForTest::kRealtimeAudio, -16},
+        {ThreadPriorityForTest::kDisplay, -4},
+        {ThreadPriorityForTest::kNormal, 0},
+        {ThreadPriorityForTest::kUtility, 1},
+        {ThreadPriorityForTest::kBackground, 10},
 };
 
-bool SetCurrentThreadPriorityForPlatform(ThreadPriority priority) {
+// - kBackground corresponds to Android's PRIORITY_BACKGROUND = 10 value and can
+// result in heavy throttling and force the thread onto a little core on
+// big.LITTLE devices.
+// - kUtility corresponds to Android's THREAD_PRIORITY_LESS_FAVORABLE = 1 value.
+// - kCompositing and kDisplayCritical corresponds to Android's PRIORITY_DISPLAY
+// = -4 value.
+// - kRealtimeAudio corresponds to Android's PRIORITY_AUDIO = -16 value.
+const ThreadTypeToNiceValuePair kThreadTypeToNiceValueMap[7] = {
+    {ThreadType::kBackground, 10},       {ThreadType::kUtility, 1},
+    {ThreadType::kResourceEfficient, 0}, {ThreadType::kDefault, 0},
+    {ThreadType::kCompositing, -4},      {ThreadType::kDisplayCritical, -4},
+    {ThreadType::kRealtimeAudio, -16},
+};
+
+bool CanSetThreadTypeToRealtimeAudio() {
+  return true;
+}
+
+bool SetCurrentThreadTypeForPlatform(ThreadType thread_type,
+                                     MessagePumpType pump_type_hint) {
   // On Android, we set the Audio priority through JNI as Audio priority
   // will also allow the process to run while it is backgrounded.
-  if (priority == ThreadPriority::REALTIME_AUDIO) {
+  if (thread_type == ThreadType::kRealtimeAudio) {
     JNIEnv* env = base::android::AttachCurrentThread();
     Java_ThreadUtils_setThreadPriorityAudio(env, PlatformThread::CurrentId());
+    return true;
+  }
+  // Recent versions of Android (O+) up the priority of the UI thread
+  // automatically.
+  if (thread_type == ThreadType::kCompositing &&
+      pump_type_hint == MessagePumpType::UI &&
+      GetCurrentThreadNiceValue() <=
+          ThreadTypeToNiceValue(ThreadType::kCompositing)) {
     return true;
   }
   return false;
 }
 
-bool GetCurrentThreadPriorityForPlatform(ThreadPriority* priority) {
-  DCHECK(priority);
-  *priority = ThreadPriority::NORMAL;
+absl::optional<ThreadPriorityForTest>
+GetCurrentThreadPriorityForPlatformForTest() {
   JNIEnv* env = base::android::AttachCurrentThread();
   if (Java_ThreadUtils_isThreadPriorityAudio(
       env, PlatformThread::CurrentId())) {
-    *priority = ThreadPriority::REALTIME_AUDIO;
-    return true;
+    return absl::make_optional(ThreadPriorityForTest::kRealtimeAudio);
   }
-  return false;
+  return absl::nullopt;
 }
 
 }  // namespace internal

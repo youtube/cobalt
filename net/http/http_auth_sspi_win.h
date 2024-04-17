@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,8 @@
 #ifndef NET_HTTP_HTTP_AUTH_SSPI_WIN_H_
 #define NET_HTTP_HTTP_AUTH_SSPI_WIN_H_
 
+#include "base/memory/raw_ptr.h"
+
 // security.h needs to be included for CredHandle. Unfortunately CredHandle
 // is a typedef and can't be forward declared.
 #define SECURITY_WIN32 1
@@ -16,11 +18,11 @@
 
 #include <string>
 
-#include "base/strings/string16.h"
 #include "net/base/completion_once_callback.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
-#include "starboard/types.h"
+#include "net/http/http_auth_mechanism.h"
 
 namespace net {
 
@@ -29,15 +31,33 @@ class HttpAuthChallengeTokenizer;
 // SSPILibrary is introduced so unit tests can mock the calls to Windows' SSPI
 // implementation. The default implementation simply passes the arguments on to
 // the SSPI implementation provided by Secur32.dll.
-// NOTE(cbentzel): I considered replacing the Secur32.dll with a mock DLL, but
-// decided that it wasn't worth the effort as this is unlikely to be performance
-// sensitive code.
-class SSPILibrary {
+//
+// A single SSPILibrary can only be used with a single security package. Hence
+// the package is bound at construction time. Overridable SSPI methods exclude
+// the security package parameter since it is implicit.
+class NET_EXPORT_PRIVATE SSPILibrary {
  public:
+  explicit SSPILibrary(const wchar_t* package) : package_name_(package) {}
   virtual ~SSPILibrary() {}
 
+  // Determines the maximum token length in bytes for a particular SSPI package.
+  //
+  // |library| and |max_token_length| must be non-nullptr pointers to valid
+  // objects.
+  //
+  // If the return value is OK, |*max_token_length| contains the maximum token
+  // length in bytes.
+  //
+  // If the return value is ERR_UNSUPPORTED_AUTH_SCHEME, |package| is not an
+  // known SSPI authentication scheme on this system. |*max_token_length| is not
+  // changed.
+  //
+  // If the return value is ERR_UNEXPECTED, there was an unanticipated problem
+  // in the underlying SSPI call. The details are logged, and
+  // |*max_token_length| is not changed.
+  Error DetermineMaxTokenLength(ULONG* max_token_length);
+
   virtual SECURITY_STATUS AcquireCredentialsHandle(LPWSTR pszPrincipal,
-                                                   LPWSTR pszPackage,
                                                    unsigned long fCredentialUse,
                                                    void* pvLogonId,
                                                    void* pvAuthData,
@@ -59,23 +79,35 @@ class SSPILibrary {
                                                     unsigned long* contextAttr,
                                                     PTimeStamp ptsExpiry) = 0;
 
-  virtual SECURITY_STATUS QuerySecurityPackageInfo(LPWSTR pszPackageName,
-                                                   PSecPkgInfoW *pkgInfo) = 0;
+  virtual SECURITY_STATUS QueryContextAttributesEx(PCtxtHandle phContext,
+                                                   ULONG ulAttribute,
+                                                   PVOID pBuffer,
+                                                   ULONG cbBuffer) = 0;
+
+  virtual SECURITY_STATUS QuerySecurityPackageInfo(PSecPkgInfoW* pkgInfo) = 0;
 
   virtual SECURITY_STATUS FreeCredentialsHandle(PCredHandle phCredential) = 0;
 
   virtual SECURITY_STATUS DeleteSecurityContext(PCtxtHandle phContext) = 0;
 
   virtual SECURITY_STATUS FreeContextBuffer(PVOID pvContextBuffer) = 0;
+
+ protected:
+  // Security package used with DetermineMaxTokenLength(),
+  // QuerySecurityPackageInfo(), AcquireCredentialsHandle(). All of these must
+  // be consistent.
+  const std::wstring package_name_;
+  ULONG max_token_length_ = 0;
+
+  bool is_supported_ = true;
 };
 
 class SSPILibraryDefault : public SSPILibrary {
  public:
-  SSPILibraryDefault() {}
+  explicit SSPILibraryDefault(const wchar_t* package) : SSPILibrary(package) {}
   ~SSPILibraryDefault() override {}
 
   SECURITY_STATUS AcquireCredentialsHandle(LPWSTR pszPrincipal,
-                                           LPWSTR pszPackage,
                                            unsigned long fCredentialUse,
                                            void* pvLogonId,
                                            void* pvAuthData,
@@ -97,8 +129,12 @@ class SSPILibraryDefault : public SSPILibrary {
                                             unsigned long* contextAttr,
                                             PTimeStamp ptsExpiry) override;
 
-  SECURITY_STATUS QuerySecurityPackageInfo(LPWSTR pszPackageName,
-                                           PSecPkgInfoW* pkgInfo) override;
+  SECURITY_STATUS QueryContextAttributesEx(PCtxtHandle phContext,
+                                           ULONG ulAttribute,
+                                           PVOID pBuffer,
+                                           ULONG cbBuffer) override;
+
+  SECURITY_STATUS QuerySecurityPackageInfo(PSecPkgInfoW* pkgInfo) override;
 
   SECURITY_STATUS FreeCredentialsHandle(PCredHandle phCredential) override;
 
@@ -107,75 +143,45 @@ class SSPILibraryDefault : public SSPILibrary {
   SECURITY_STATUS FreeContextBuffer(PVOID pvContextBuffer) override;
 };
 
-class NET_EXPORT_PRIVATE HttpAuthSSPI {
+class NET_EXPORT_PRIVATE HttpAuthSSPI : public HttpAuthMechanism {
  public:
-  HttpAuthSSPI(SSPILibrary* sspi_library,
-               const std::string& scheme,
-               const SEC_WCHAR* security_package,
-               ULONG max_token_length);
-  ~HttpAuthSSPI();
+  HttpAuthSSPI(SSPILibrary* sspi_library, HttpAuth::Scheme scheme);
+  ~HttpAuthSSPI() override;
 
-  bool NeedsIdentity() const;
-
-  bool AllowsExplicitCredentials() const;
-
+  // HttpAuthMechanism implementation:
+  bool Init(const NetLogWithSource& net_log) override;
+  bool NeedsIdentity() const override;
+  bool AllowsExplicitCredentials() const override;
   HttpAuth::AuthorizationResult ParseChallenge(
-      HttpAuthChallengeTokenizer* tok);
-
-  // Generates an authentication token.
-  //
-  // The return value is an error code. The authentication token will be
-  // returned in |*auth_token|. If the result code is not |OK|, the value of
-  // |*auth_token| is unspecified.
-  //
-  // If the operation cannot be completed synchronously, |ERR_IO_PENDING| will
-  // be returned and the real result code will be passed to the completion
-  // callback.  Otherwise the result code is returned immediately from this
-  // call.
-  //
-  // If the HttpAuthSPPI object is deleted before completion then the callback
-  // will not be called.
-  //
-  // If no immediate result is returned then |auth_token| must remain valid
-  // until the callback has been called.
-  //
-  // |spn| is the Service Principal Name of the server that the token is
-  // being generated for.
-  //
-  // If this is the first round of a multiple round scheme, credentials are
-  // obtained using |*credentials|. If |credentials| is NULL, the default
-  // credentials are used instead.
+      HttpAuthChallengeTokenizer* tok) override;
   int GenerateAuthToken(const AuthCredentials* credentials,
                         const std::string& spn,
                         const std::string& channel_bindings,
                         std::string* auth_token,
-                        CompletionOnceCallback callback);
-
-  // Delegation is allowed on the Kerberos ticket. This allows certain servers
-  // to act as the user, such as an IIS server retrieving data from a
-  // Kerberized MSSQL server.
-  void Delegate();
+                        const NetLogWithSource& net_log,
+                        CompletionOnceCallback callback) override;
+  void SetDelegation(HttpAuth::DelegationType delegation_type) override;
 
  private:
-  int OnFirstRound(const AuthCredentials* credentials);
+  int OnFirstRound(const AuthCredentials* credentials,
+                   const NetLogWithSource& net_log);
 
   int GetNextSecurityToken(const std::string& spn,
                            const std::string& channing_bindings,
                            const void* in_token,
                            int in_token_len,
+                           const NetLogWithSource& net_log,
                            void** out_token,
                            int* out_token_len);
 
   void ResetSecurityContext();
 
-  SSPILibrary* library_;
-  std::string scheme_;
-  const SEC_WCHAR* security_package_;
+  raw_ptr<SSPILibrary> library_;
+  HttpAuth::Scheme scheme_;
   std::string decoded_server_auth_token_;
-  ULONG max_token_length_;
   CredHandle cred_;
   CtxtHandle ctxt_;
-  bool can_delegate_;
+  HttpAuth::DelegationType delegation_type_;
 };
 
 // Splits |combined| into domain and username.
@@ -183,28 +189,10 @@ class NET_EXPORT_PRIVATE HttpAuthSSPI {
 // will contain "bar".
 // If |combined| is of form "bar", |domain| will be empty and |user| will
 // contain "bar".
-// |domain| and |user| must be non-NULL.
-NET_EXPORT_PRIVATE void SplitDomainAndUser(const base::string16& combined,
-                                           base::string16* domain,
-                                           base::string16* user);
-
-// Determines the maximum token length in bytes for a particular SSPI package.
-//
-// |library| and |max_token_length| must be non-NULL pointers to valid objects.
-//
-// If the return value is OK, |*max_token_length| contains the maximum token
-// length in bytes.
-//
-// If the return value is ERR_UNSUPPORTED_AUTH_SCHEME, |package| is not an
-// known SSPI authentication scheme on this system. |*max_token_length| is not
-// changed.
-//
-// If the return value is ERR_UNEXPECTED, there was an unanticipated problem
-// in the underlying SSPI call. The details are logged, and |*max_token_length|
-// is not changed.
-NET_EXPORT_PRIVATE int DetermineMaxTokenLength(SSPILibrary* library,
-                                               const std::wstring& package,
-                                               ULONG* max_token_length);
+// |domain| and |user| must be non-nullptr.
+NET_EXPORT_PRIVATE void SplitDomainAndUser(const std::u16string& combined,
+                                           std::u16string* domain,
+                                           std::u16string* user);
 
 }  // namespace net
 

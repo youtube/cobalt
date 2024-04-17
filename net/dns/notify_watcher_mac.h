@@ -1,27 +1,31 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DNS_NOTIFY_WATCHER_MAC_H_
 #define NET_DNS_NOTIFY_WATCHER_MAC_H_
 
-#include "base/callback.h"
-#include "base/macros.h"
-#include "base/message_loop/message_pump_for_io.h"
+#include <memory>
+
+#include "base/files/file_descriptor_watcher_posix.h"
+#include "base/functional/callback.h"
 
 namespace net {
 
 // Watches for notifications from Libnotify and delivers them to a Callback.
 // After failure the watch is cancelled and will have to be restarted.
-class NotifyWatcherMac : public base::MessagePumpForIO::FdWatcher {
+class NotifyWatcherMac {
  public:
   // Called on received notification with true on success and false on error.
-  typedef base::Callback<void(bool succeeded)> CallbackType;
+  typedef base::RepeatingCallback<void(bool succeeded)> CallbackType;
 
   NotifyWatcherMac();
 
+  NotifyWatcherMac(const NotifyWatcherMac&) = delete;
+  NotifyWatcherMac& operator=(const NotifyWatcherMac&) = delete;
+
   // When deleted, automatically cancels.
-  ~NotifyWatcherMac() override;
+  virtual ~NotifyWatcherMac();
 
   // Registers for notifications for |key|. Returns true if succeeds. If so,
   // will deliver asynchronous notifications and errors to |callback|.
@@ -31,16 +35,13 @@ class NotifyWatcherMac : public base::MessagePumpForIO::FdWatcher {
   void Cancel();
 
  private:
-  // MessagePumpForIO::FdWatcher:
-  void OnFileCanReadWithoutBlocking(int fd) override;
-  void OnFileCanWriteWithoutBlocking(int fd) override {}
+  // Called by |watcher_| when |notify_fd_| can be read without blocking.
+  void OnFileCanReadWithoutBlocking();
 
   int notify_fd_;
   int notify_token_;
   CallbackType callback_;
-  base::MessagePumpForIO::FdWatchController watcher_;
-
-  DISALLOW_COPY_AND_ASSIGN(NotifyWatcherMac);
+  std::unique_ptr<base::FileDescriptorWatcher::Controller> watcher_;
 };
 
 }  // namespace net

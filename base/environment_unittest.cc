@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,7 @@ namespace {
 
 // PATH env variable is not set on Fuchsia by default, while PWD is not set on
 // Windows.
-#if defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA)
 constexpr char kValidEnvironmentVariable[] = "PWD";
 #else
 constexpr char kValidEnvironmentVariable[] = "PATH";
@@ -98,80 +98,5 @@ TEST_F(EnvironmentTest, UnSetVar) {
   // And check that the variable has been unset.
   EXPECT_FALSE(env->HasVar(kFooUpper));
 }
-
-#if defined(OS_WIN)
-
-TEST_F(EnvironmentTest, AlterEnvironment) {
-  const wchar_t empty[] = L"\0";
-  const wchar_t a2[] = L"A=2\0";
-  EnvironmentMap changes;
-  string16 e;
-
-  e = AlterEnvironment(empty, changes);
-  EXPECT_EQ(0, e[0]);
-
-  changes[L"A"] = L"1";
-  e = AlterEnvironment(empty, changes);
-  EXPECT_EQ(string16(L"A=1\0\0", 5), e);
-
-  changes.clear();
-  changes[L"A"] = string16();
-  e = AlterEnvironment(empty, changes);
-  EXPECT_EQ(string16(L"\0\0", 2), e);
-
-  changes.clear();
-  e = AlterEnvironment(a2, changes);
-  EXPECT_EQ(string16(L"A=2\0\0", 5), e);
-
-  changes.clear();
-  changes[L"A"] = L"1";
-  e = AlterEnvironment(a2, changes);
-  EXPECT_EQ(string16(L"A=1\0\0", 5), e);
-
-  changes.clear();
-  changes[L"A"] = string16();
-  e = AlterEnvironment(a2, changes);
-  EXPECT_EQ(string16(L"\0\0", 2), e);
-}
-
-#else
-
-TEST_F(EnvironmentTest, AlterEnvironment) {
-  const char* const empty[] = {nullptr};
-  const char* const a2[] = {"A=2", nullptr};
-  EnvironmentMap changes;
-  std::unique_ptr<char* []> e;
-
-  e = AlterEnvironment(empty, changes);
-  EXPECT_TRUE(e[0] == nullptr);
-
-  changes["A"] = "1";
-  e = AlterEnvironment(empty, changes);
-  EXPECT_EQ(std::string("A=1"), e[0]);
-  EXPECT_TRUE(e[1] == nullptr);
-
-  changes.clear();
-  changes["A"] = std::string();
-  e = AlterEnvironment(empty, changes);
-  EXPECT_TRUE(e[0] == nullptr);
-
-  changes.clear();
-  e = AlterEnvironment(a2, changes);
-  EXPECT_EQ(std::string("A=2"), e[0]);
-  EXPECT_TRUE(e[1] == nullptr);
-
-  changes.clear();
-  changes["A"] = "1";
-  e = AlterEnvironment(a2, changes);
-  EXPECT_EQ(std::string("A=1"), e[0]);
-  EXPECT_TRUE(e[1] == nullptr);
-
-  changes.clear();
-  changes["A"] = std::string();
-  e = AlterEnvironment(a2, changes);
-  EXPECT_TRUE(e[0] == nullptr);
-}
-
-#endif
 
 }  // namespace base

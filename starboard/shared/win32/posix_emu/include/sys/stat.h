@@ -24,6 +24,7 @@ extern "C" {
 
 #define S_ISLNK(mode) 0  // Windows doesn't support symbolic links
 #define S_ISDIR(mode) (((mode) & _S_IFMT) == (_S_IFDIR))
+#define S_ISREG(mode) (((mode) & _S_IFMT) == (_S_IFREG))
 
 typedef int mode_t;
 

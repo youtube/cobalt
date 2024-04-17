@@ -10,7 +10,7 @@
 #include <utility>
 
 #include "base/bind.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/macros.h"
 #include "base/metrics/histogram_macros.h"
@@ -233,14 +233,14 @@ base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
 }
 
 size_t ChunkDemuxerStream::GetStreamMemoryLimit() {
-  DCHECK(stream_);
   base::AutoLock auto_lock(lock_);
+  DCHECK(stream_);
   return stream_->memory_limit();
 }
 
 void ChunkDemuxerStream::SetStreamMemoryLimitOverride(size_t memory_limit) {
-  DCHECK(stream_);
   base::AutoLock auto_lock(lock_);
+  DCHECK(stream_);
   stream_->set_memory_limit_override(memory_limit);
 }
 #endif  // defined(STARBOARD)

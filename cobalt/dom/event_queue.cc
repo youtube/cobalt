@@ -15,6 +15,7 @@
 #include "cobalt/dom/event_queue.h"
 
 #include "base/bind.h"
+#include "base/check.h"
 #include "base/logging.h"
 #include "base/threading/thread_task_runner_handle.h"
 
@@ -23,16 +24,16 @@ namespace dom {
 
 EventQueue::EventQueue(web::EventTarget* event_target)
     : event_target_(event_target),
-      message_loop_(base::ThreadTaskRunnerHandle::Get()) {
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
   DCHECK(event_target_);
-  DCHECK(message_loop_);
+  DCHECK(task_runner_);
 }
 
 void EventQueue::Enqueue(const scoped_refptr<web::Event>& event) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (events_.empty()) {
-    message_loop_->PostTask(
+    task_runner_->PostTask(
         FROM_HERE, base::Bind(&EventQueue::DispatchEvents, AsWeakPtr()));
   }
 
@@ -46,7 +47,7 @@ void EventQueue::Enqueue(const scoped_refptr<web::Event>& event) {
 }
 
 void EventQueue::CancelAllEvents() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   events_.clear();
 }
@@ -57,7 +58,7 @@ void EventQueue::TraceMembers(script::Tracer* tracer) {
 }
 
 void EventQueue::DispatchEvents() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(firing_events_.empty());
 
   // Make sure that the event_target_ stays alive for the duration of

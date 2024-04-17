@@ -52,7 +52,7 @@ digraph URLRequestRoot {
 
 
     ## HttpTransaction, subclasses, and generative classes.
-    HttpTransactionFactory;
+    HttpTransactionFactory [style=dashed];
     HttpCache;
     HttpNetworkLayer;
     HttpTransaction [style=dashed];
@@ -81,11 +81,10 @@ digraph URLRequestRoot {
     }
 
     ## HttpStreamFactory and related.
-    HttpStreamFactoryImpl;
-    HttpStreamRequest [style=dashed];
+    HttpStreamFactory;
+    HttpStreamRequest;
     HttpStream [style=dashed];
-    HttpStreamFactoryImpl_Request [label="HttpStreamFactoryImpl::Request"];
-    HttpStreamFactoryImpl_Job [label="HttpStreamFactoryImpl::Job"];
+    HttpStreamFactory_Job [label="HttpStreamFactory::Job"];
     HttpStreamRequest_Delegate
 	[label="HttpStreamRequest::Delegate",style=dashed];
     HttpBasicStream;
@@ -95,25 +94,23 @@ digraph URLRequestRoot {
 
     HttpNetworkTransaction -> HttpStreamRequest_Delegate
 	[style=dashed, arrowhead="empty"];
-    HttpStreamFactoryImpl_Request -> HttpStreamRequest
-	[style=dashed, arrowhead="empty"];
     { HttpBasicStream, QuicHttpStream, SpdyHttpStream } -> HttpStream
 	[style=dashed, arrowhead="empty"];
 
     HttpStreamRequest -> HttpNetworkTransaction [arrowhead="diamond"];
     HttpStream -> HttpNetworkTransaction [arrowhead="diamond"];
     HttpBasicState -> HttpBasicStream [arrowhead=diamond];
-    HttpStreamFactoryImpl_Job -> HttpStreamFactoryImpl_Request
+    HttpStreamFactory_Job -> HttpStreamRequest
 	[arrowhead="diamond",taillabel="1..*"];
 
-    HttpStreamRequest_Delegate -> HttpStreamFactoryImpl_Request
+    HttpStreamRequest_Delegate -> HttpStreamRequest
         [arrowhead=odiamond];
-    HttpStreamFactoryImpl_Job -> HttpStreamFactoryImpl_Job
+    HttpStreamFactory_Job -> HttpStreamFactory_Job
         [arrowhead=odiamond, label="blocking_job_\nwaiting_job_"];
 
     subgraph {
 	rank=same;
-	HttpStreamFactoryImpl -> HttpStreamRequest [arrowhead=veevee];
+	HttpStreamFactory -> HttpStreamRequest [arrowhead=veevee];
     }
     subgraph {
 	rank=same;
@@ -136,6 +133,7 @@ digraph URLRequestRoot {
     ConnectJob_Delegate [label="ConnectJob::Delegate",style=dashed];
 
     StreamSocket [style=dashed];
+    TransportClientSocket [style=dashed];
     TCPClientSocket;
     StreamSocket_Others [label="...other socket types..."];
 
@@ -148,12 +146,16 @@ digraph URLRequestRoot {
     ClientSocketPoolBaseHelper -> ConnectJob_Delegate
 	[arrowhead=empty, style=dashed];
     StreamSocket -> Socket [arrowhead=empty, style=dashed];
-    { TCPClientSocket, StreamSocket_Others } -> StreamSocket
+    TCPClientSocket -> TransportClientSocket
+        [arrowhead=empty, style=dashed];
+    TransportClientSocket -> StreamSocket
+        [arrowhead=empty, style=dashed];
+    StreamSocket_Others -> StreamSocket
 	[arrowhead=empty, style=dashed];
     {SSLConnectJob, TransportConnectJob, ConnectJob_Others} -> ConnectJob
 	[style=dashed, arrowhead=empty];
 
-    ClientSocketHandle -> HttpStreamFactoryImpl_Job [arrowhead="diamond"];
+    ClientSocketHandle -> HttpStreamFactory_Job [arrowhead="diamond"];
     ClientSocketHandle -> HttpBasicState [arrowhead="diamond"];
     ClientSocketPoolBaseHelper -> ClientSocketPoolBase [arrowhead=diamond];
     ClientSocketPoolBase -> TransportClientSocketPool
@@ -177,7 +179,7 @@ digraph URLRequestRoot {
     }
     subgraph {
 	rank=same;
-	HttpStreamFactoryImpl_Job -> ClientSocketHandle [arrowhead=veevee];
+	HttpStreamFactory_Job -> ClientSocketHandle [arrowhead=veevee];
     }
     subgraph {
         rank=same;

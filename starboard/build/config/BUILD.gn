@@ -15,6 +15,71 @@
 import("//build/config/compiler/compiler.gni")
 import("//starboard/build/config/os_definitions.gni")
 
+# TODO: b/319085130 - This macro is only used temporarily to enable compilation
+#                     of upstream libraries being updated in Cobalt. Use it as
+#                     a way to show where we should be eventually using
+#                     upstream code as is.
+
+if (cobalt_pending_clean_up) {
+  config("hacky_build_config") {
+    defines = [ "COBALT_PENDING_CLEAN_UP" ]
+
+    defines += [
+      "BASE_HASH_NAMESPACE=std",
+      "BASE_HASH_USE_HASH_STRUCT",
+    ]
+  }
+
+  config("hacky_wnos") {
+    if (is_clang) {
+      cflags = [
+        "-Wno-psabi",
+        "-Wno-shorten-64-to-32",
+        "-Wno-unknown-warning-option",
+        "-Wno-array-parameter",
+        "-Wno-unknown-attributes",
+        "-Wno-bitwise-instead-of-logical",
+        "-Wno-c++20-extensions",
+        "-Wno-c++98-compat-extra-semi",
+        "-Wno-delete-non-abstract-non-virtual-dtor",
+        "-Wno-deprecated-copy",
+        "-Wno-extra-semi",
+        "-Wno-ignored-qualifiers",
+        "-Wno-implicit-fallthrough",
+        "-Wno-invalid-noreturn",
+        "-Wno-macro-redefined",
+        "-Wno-mismatched-tags",
+        "-Wno-missing-braces",
+        "-Wno-null-pointer-subtraction",
+        "-Wno-pessimizing-move",
+        "-Wno-reorder-ctor",
+        "-Wno-self-assign-overloaded",
+        "-Wno-self-assign",
+        "-Wno-shadow",
+        "-Wno-sign-compare",
+        "-Wno-sometimes-uninitialized",
+        "-Wno-tautological-unsigned-zero-compare",
+        "-Wno-unreachable-code-break",
+        "-Wno-unreachable-code-loop-increment",
+        "-Wno-unreachable-code-return",
+        "-Wno-unreachable-code",
+        "-Wno-unused-but-set-parameter",
+        "-Wno-unused-but-set-variable",
+        "-Wno-unused-function",
+        "-Wno-unused-label",
+        "-Wno-unused-local-typedef",
+        "-Wno-unused-private-field",
+        "-Wno-unused-variable",
+        "-Wno-unused-command-line-argument",
+        "-Wno-unused-private-field",
+        "-Wno-deprecated-declarations",
+        "-Wno-inconsistent-missing-override",
+        "-Wno-return-type",
+      ]
+    }
+  }
+}
+
 config("base") {
   defines = [ "USE_COBALT_CUSTOMIZATIONS" ]
 
@@ -62,7 +127,8 @@ config("base") {
 }
 
 config("host") {
-  if (current_toolchain == host_toolchain) {
+  if (current_toolchain == host_toolchain &&
+      current_toolchain != default_toolchain) {
     if (is_linux) {
       ldflags = [ "-pthread" ]
       configs = [ ":linux_host_cpp_config" ]

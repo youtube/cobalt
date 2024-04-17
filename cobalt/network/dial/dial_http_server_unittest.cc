@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "base/strings/string_split.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "cobalt/network/dial/dial_service.h"
 #include "cobalt/network/dial/dial_service_handler.h"
 #include "cobalt/network/dial/dial_test_helpers.h"
@@ -37,8 +37,8 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_server_properties.h"
-#include "net/http/http_server_properties_impl.h"
 #include "net/http/transport_security_state.h"
+#include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/server/http_server_request_info.h"
 #include "net/socket/client_socket_factory.h"
@@ -102,9 +102,9 @@ class DialHttpServerTest : public testing::Test {
   std::unique_ptr<HttpNetworkTransaction> client_;
   scoped_refptr<MockServiceHandler> handler_;
   std::unique_ptr<ResponseData> test_response_;
-  // The task environment mainly gives us an IO message loop that's needed for
+  // The task environment mainly gives us an IO task runner that's needed for
   // TCP connection.
-  base::test::ScopedTaskEnvironment scoped_task_env_;
+  base::test::TaskEnvironment scoped_task_env_;
   HttpServerProperties* http_server_properties_;
 
   // The following instances are usually stored in URLRequestContextStorage
@@ -113,35 +113,35 @@ class DialHttpServerTest : public testing::Test {
   SSLConfigService* ssl_config_service_;
   ProxyResolutionService* proxy_resolution_service_;
   TransportSecurityState* transport_security_state_;
-  MultiLogCTVerifier* cert_transparency_verifier_;
   CTPolicyEnforcer* ct_policy_enforcer_;
   CertVerifier* cert_verifier_;
   HostResolver* host_resolver_;
+  net::QuicContext quic_context_;
 
   DialHttpServerTest()
-      : scoped_task_env_(
-            base::test::ScopedTaskEnvironment::MainThreadType::IO) {
+      : scoped_task_env_(base::test::TaskEnvironment::MainThreadType::IO) {
     handler_ = new MockServiceHandler("Foo");
   }
 
   void InitHttpClientLibrary() {
-    HttpNetworkSession::Params params;
-    HttpNetworkSession::Context context;
+    net::HttpNetworkSessionParams params;
+    net::HttpNetworkSessionContext context;
     context.proxy_resolution_service = proxy_resolution_service_ =
-        ProxyResolutionService::CreateDirect().release();
+        net::ConfiguredProxyResolutionService::CreateDirect().release();
     context.http_server_properties = http_server_properties_ =
-        new net::HttpServerPropertiesImpl();
+        new net::HttpServerProperties();
     context.ssl_config_service = ssl_config_service_ =
         new net::SSLConfigServiceDefaults();
     context.transport_security_state = transport_security_state_ =
         new TransportSecurityState();
-    context.cert_transparency_verifier = cert_transparency_verifier_ =
-        new MultiLogCTVerifier();
     context.ct_policy_enforcer = ct_policy_enforcer_ =
         new net::DefaultCTPolicyEnforcer();
     context.host_resolver = host_resolver_ = new MockHostResolver();
     context.cert_verifier = cert_verifier_ =
-        net::CertVerifier::CreateDefault().release();
+        net::CertVerifier::CreateDefault(nullptr).release();
+    context.quic_context = &quic_context_;
+    context.client_socket_factory =
+        net::ClientSocketFactory::GetDefaultFactory();
     session_.reset(new HttpNetworkSession(params, context));
     client_.reset(new HttpNetworkTransaction(net::RequestPriority::MEDIUM,
                                              session_.get()));
@@ -166,7 +166,6 @@ class DialHttpServerTest : public testing::Test {
     delete ssl_config_service_;
     delete proxy_resolution_service_;
     delete transport_security_state_;
-    delete cert_transparency_verifier_;
     delete ct_policy_enforcer_;
     delete cert_verifier_;
     delete host_resolver_;

@@ -5,20 +5,20 @@ description:
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "70.0.3538.110"  # from https://chromereleases.googleblog.com/2018/11/stable-channel-update-for-desktop_19.html
+    value: "114.0.5735.331"  # from https://chromereleases.googleblog.com/2023/08/long-term-support-channel-update-for_23.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/src.git"
-    version: "ec3092c8d21e20e39698f5272c8a7f71c3ee88a2"
+    version: "fed499399d3f44d3a7957549d493bf30a5d8c867"
   }
   identifier {
     type: "UpstreamSubdir"
     value: "crypto"
   }
   last_upgrade_date {
-    year: 2018
-    month: 8
-    day: 28
+    year: 2023
+    month: 11
+    day: 1
   }
 }

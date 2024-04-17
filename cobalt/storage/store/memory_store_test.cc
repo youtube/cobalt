@@ -33,7 +33,7 @@ class MemoryStoreTest : public ::testing::Test {
       : origin1_(GURL("https://www.example1.com")),
         origin2_(GURL("https://www.example2.com")) {
     base::Time current_time = base::Time::FromInternalValue(12345);
-    expiration_time_ = current_time + base::TimeDelta::FromDays(1);
+    expiration_time_ = current_time + base::Days(1);
 
     Cookie* cookie = storage_proto_.add_cookies();
     cookie->set_name("name");
@@ -55,23 +55,25 @@ class MemoryStoreTest : public ::testing::Test {
 
     memory_store_.Initialize(storage_data_);
 
-    cookie_.reset(new net::CanonicalCookie(
+    cookie_ = net::CanonicalCookie::CreateUnsafeCookieForTesting(
         "name", "value", "domain", "/path/foo", current_time, expiration_time_,
-        current_time, true /* secure */, true /* http_only */,
-        net::CookieSameSite::DEFAULT_MODE, net::COOKIE_PRIORITY_DEFAULT));
+        current_time, current_time, true /* secure */, true /* http_only */,
+        net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
+        false /* same_party */);
 
-    last_access_time_ = current_time + base::TimeDelta::FromDays(50);
+    last_access_time_ = current_time + base::Days(50);
 
-    updated_cookie_.reset(new net::CanonicalCookie(
+    updated_cookie_ = net::CanonicalCookie::CreateUnsafeCookieForTesting(
         "name", "value", "domain", "/path/foo", current_time, expiration_time_,
-        current_time, true /* secure */, true /* http_only */,
-        net::CookieSameSite::DEFAULT_MODE, net::COOKIE_PRIORITY_DEFAULT));
+        current_time, current_time, true /* secure */, true /* http_only */,
+        net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
+        false);
 
-    new_cookie_.reset(new net::CanonicalCookie(
+    new_cookie_ = net::CanonicalCookie::CreateUnsafeCookieForTesting(
         "name1", "value2", "domain2", "/path/foo2", current_time,
-        expiration_time_, current_time, false /* secure */,
-        false /* http_only */, net::CookieSameSite::DEFAULT_MODE,
-        net::COOKIE_PRIORITY_DEFAULT));
+        expiration_time_, current_time, current_time, false /* secure */,
+        false /* http_only */, net::CookieSameSite::NO_RESTRICTION,
+        net::COOKIE_PRIORITY_DEFAULT, false);
   }
   ~MemoryStoreTest() {}
 
@@ -102,6 +104,7 @@ TEST_F(MemoryStoreTest, GetAllCookies) {
   memory_store_.GetAllCookies(&cookies);
 
   EXPECT_EQ(cookies.size(), 1);
+  EXPECT_TRUE(cookies[0]);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*cookie_));
 }
 
@@ -110,6 +113,7 @@ TEST_F(MemoryStoreTest, AddCookie) {
   memory_store_.GetAllCookies(&cookies);
 
   EXPECT_EQ(cookies.size(), 1);
+  EXPECT_TRUE(cookies[0]);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*cookie_));
   cookies.clear();
 
@@ -117,7 +121,9 @@ TEST_F(MemoryStoreTest, AddCookie) {
 
   memory_store_.GetAllCookies(&cookies);
   EXPECT_EQ(cookies.size(), 2);
+  EXPECT_TRUE(cookies[0]);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*cookie_));
+  EXPECT_TRUE(cookies[1]);
   EXPECT_TRUE(cookies[1]->IsEquivalent(*new_cookie_));
   cookies.clear();
 }
@@ -130,6 +136,7 @@ TEST_F(MemoryStoreTest, UpdateCookieAccessTime) {
 
   EXPECT_EQ(cookies.size(), 1);
 
+  EXPECT_TRUE(cookies[0]);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*updated_cookie_));
 }
 

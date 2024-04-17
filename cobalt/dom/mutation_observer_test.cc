@@ -15,7 +15,7 @@
 #include <memory>
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
+#include "base/test/task_environment.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/mutation_observer_init.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
@@ -94,7 +94,8 @@ class MutationObserverTest : public ::testing::Test {
   DebuggerHooksMock debugger_hooks_;
   test::EmptyDocument empty_document_;
   MutationCallbackMock callback_mock_;
-  base::MessageLoop message_loop_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 TEST_F(MutationObserverTest, CreateAttributeMutationRecord) {

@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/media/progressive/progressive_parser.h"
 #include "media/base/decoder_buffer.h"
@@ -115,7 +115,7 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   typedef ::media::VideoDecoderConfig VideoDecoderConfig;
 
   ProgressiveDemuxer(
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
       DataSource* data_source, MediaLog* const media_log);
   ~ProgressiveDemuxer() override;
 
@@ -163,7 +163,9 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   const VideoDecoderConfig& VideoConfig();
 
   // Provide access to ProgressiveDemuxerStream.
-  bool MessageLoopBelongsToCurrentThread() const;
+  bool RunsTasksInCurrentSequence() const {
+    return task_runner_->RunsTasksInCurrentSequence();
+  }
 
  private:
   void ParseConfigDone(PipelineStatusCallback status_cb, PipelineStatus status);
@@ -177,7 +179,7 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   void IssueNextRequest();
   void SeekTask(base::TimeDelta time, PipelineStatusCallback cb);
 
-  scoped_refptr<base::SingleThreadTaskRunner> message_loop_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   DemuxerHost* host_;
 
   // Thread on which all blocking operations are executed.

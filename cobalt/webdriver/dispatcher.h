@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "base/callback.h"
@@ -151,7 +152,7 @@ class WebDriverDispatcher {
 
   // Use the number of components in the registered path as a key to speed up
   // lookup, which is otherwise done linearly.
-  typedef base::hash_multimap<int, CommandMapping> CommandMappingLookup;
+  typedef std::unordered_multimap<int, CommandMapping> CommandMappingLookup;
   CommandMappingLookup command_lookup_;
 };
 

@@ -423,8 +423,8 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
     LOG(INFO) << "Algorithm offloading enabled.";
     offload_algorithm_runner_.reset(
         new OffloadAlgorithmRunner<SourceBufferAlgorithm>(
-            algorithm_process_thread_->message_loop()->task_runner(),
-            base::ThreadTaskRunnerHandle::Get()));
+            algorithm_process_thread_->task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault()));
   } else {
     LOG(INFO) << "Algorithm offloading disabled.";
   }
@@ -703,7 +703,7 @@ bool MediaSource::IsUpdating() const {
   return false;
 }
 
-void MediaSource::ScheduleEvent(base::Token event_name) {
+void MediaSource::ScheduleEvent(base_token::Token event_name) {
   scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_.Enqueue(event);

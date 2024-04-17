@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,14 +12,20 @@
 namespace url {
 
 // We treat slashes and backslashes the same for IE compatibility.
-inline bool IsURLSlash(base::char16 ch) {
+inline bool IsURLSlash(char16_t ch) {
   return ch == '/' || ch == '\\';
+}
+inline bool IsURLSlash(char ch) {
+  return IsURLSlash(static_cast<char16_t>(ch));
 }
 
 // Returns true if we should trim this character from the URL because it is a
 // space or a control character.
-inline bool ShouldTrimFromURL(base::char16 ch) {
+inline bool ShouldTrimFromURL(char16_t ch) {
   return ch <= ' ';
+}
+inline bool ShouldTrimFromURL(char ch) {
+  return ShouldTrimFromURL(static_cast<char16_t>(ch));
 }
 
 // Given an already-initialized begin index and length, this shrinks the range
@@ -67,12 +73,11 @@ void ParsePathInternal(const char* spec,
                        Component* filepath,
                        Component* query,
                        Component* ref);
-void ParsePathInternal(const base::char16* spec,
+void ParsePathInternal(const char16_t* spec,
                        const Component& path,
                        Component* filepath,
                        Component* query,
                        Component* ref);
-
 
 // Given a spec and a pointer to the character after the colon following the
 // scheme, this parses it and fills in the structure, Every item in the parsed
@@ -81,7 +86,7 @@ void ParseAfterScheme(const char* spec,
                       int spec_len,
                       int after_scheme,
                       Parsed* parsed);
-void ParseAfterScheme(const base::char16* spec,
+void ParseAfterScheme(const char16_t* spec,
                       int spec_len,
                       int after_scheme,
                       Parsed* parsed);

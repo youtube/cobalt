@@ -1,40 +1,30 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/ssl/openssl_ssl_util.h"
 
 #include <errno.h>
+
 #include <utility>
 
-#include "base/bind.h"
-#include "base/callback.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "crypto/openssl_util.h"
 #include "net/base/net_errors.h"
 #include "net/cert/x509_util.h"
+#include "net/log/net_log_with_source.h"
 #include "net/ssl/ssl_connection_status_flags.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define net_err SbSystemGetLastError()
-#else
-#define net_err errno
-#endif
-
 namespace net {
 
-SslSetClearMask::SslSetClearMask()
-    : set_mask(0),
-      clear_mask(0) {
-}
+SslSetClearMask::SslSetClearMask() = default;
 
 void SslSetClearMask::ConfigureFlag(long flag, bool state) {
   (state ? set_mask : clear_mask) |= flag;
@@ -98,8 +88,8 @@ int MapOpenSSLErrorSSL(uint32_t error_code) {
     case SSL_R_SSLV3_ALERT_CERTIFICATE_EXPIRED:
     case SSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN:
     case SSL_R_TLSV1_ALERT_ACCESS_DENIED:
+    case SSL_R_TLSV1_ALERT_CERTIFICATE_REQUIRED:
     case SSL_R_TLSV1_ALERT_UNKNOWN_CA:
-    case SSL_R_TLSV1_CERTIFICATE_REQUIRED:
       return ERR_BAD_SSL_CLIENT_AUTH_CERT;
     case SSL_R_SSLV3_ALERT_DECOMPRESSION_FAILURE:
       return ERR_SSL_DECOMPRESSION_FAILURE_ALERT;
@@ -109,14 +99,14 @@ int MapOpenSSLErrorSSL(uint32_t error_code) {
       return ERR_SSL_DECRYPT_ERROR_ALERT;
     case SSL_R_TLSV1_UNRECOGNIZED_NAME:
       return ERR_SSL_UNRECOGNIZED_NAME_ALERT;
-    case SSL_R_BAD_DH_P_LENGTH:
-      return ERR_SSL_WEAK_SERVER_EPHEMERAL_DH_KEY;
     case SSL_R_SERVER_CERT_CHANGED:
       return ERR_SSL_SERVER_CERT_CHANGED;
     case SSL_R_WRONG_VERSION_ON_EARLY_DATA:
       return ERR_WRONG_VERSION_ON_EARLY_DATA;
     case SSL_R_TLS13_DOWNGRADE:
       return ERR_TLS13_DOWNGRADE_DETECTED;
+    case SSL_R_ECH_REJECTED:
+      return ERR_ECH_NOT_NEGOTIATED;
     // SSL_R_SSLV3_ALERT_HANDSHAKE_FAILURE may be returned from the server after
     // receiving ClientHello if there's no common supported cipher. Map that
     // specific case to ERR_SSL_VERSION_OR_CIPHER_MISMATCH to match the NSS
@@ -129,28 +119,28 @@ int MapOpenSSLErrorSSL(uint32_t error_code) {
       }
       return ERR_SSL_PROTOCOL_ERROR;
     }
+    case SSL_R_KEY_USAGE_BIT_INCORRECT:
+      return ERR_SSL_KEY_USAGE_INCOMPATIBLE;
     default:
       return ERR_SSL_PROTOCOL_ERROR;
   }
 }
 
-std::unique_ptr<base::Value> NetLogOpenSSLErrorCallback(
-    int net_error,
-    int ssl_error,
-    const OpenSSLErrorInfo& error_info,
-    NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetInteger("net_error", net_error);
-  dict->SetInteger("ssl_error", ssl_error);
+base::Value::Dict NetLogOpenSSLErrorParams(int net_error,
+                                           int ssl_error,
+                                           const OpenSSLErrorInfo& error_info) {
+  base::Value::Dict dict;
+  dict.Set("net_error", net_error);
+  dict.Set("ssl_error", ssl_error);
   if (error_info.error_code != 0) {
-    dict->SetInteger("error_lib", ERR_GET_LIB(error_info.error_code));
-    dict->SetInteger("error_reason", ERR_GET_REASON(error_info.error_code));
+    dict.Set("error_lib", ERR_GET_LIB(error_info.error_code));
+    dict.Set("error_reason", ERR_GET_REASON(error_info.error_code));
   }
-  if (error_info.file != NULL)
-    dict->SetString("file", error_info.file);
+  if (error_info.file != nullptr)
+    dict.Set("file", error_info.file);
   if (error_info.line != 0)
-    dict->SetInteger("line", error_info.line);
-  return std::move(dict);
+    dict.Set("line", error_info.line);
+  return dict;
 }
 
 }  // namespace
@@ -184,15 +174,9 @@ int MapOpenSSLErrorWithDetails(int err,
     case SSL_ERROR_EARLY_DATA_REJECTED:
       return ERR_EARLY_DATA_REJECTED;
     case SSL_ERROR_SYSCALL:
-      LOG(ERROR) << "OpenSSL SYSCALL error, earliest error code in "
-                    "error queue: "
-                 << ERR_peek_error()
-#if defined(STARBOARD)
-                 << ", SbSystemError: "
-#else
-                 << ", errno: "
-#endif
-                 << net_err;
+      PLOG(ERROR) << "OpenSSL SYSCALL error, earliest error code in "
+                     "error queue: "
+                  << ERR_peek_error();
       return ERR_FAILED;
     case SSL_ERROR_SSL:
       // Walk down the error stack to find an SSL or net error.
@@ -223,12 +207,14 @@ int MapOpenSSLErrorWithDetails(int err,
   }
 }
 
-NetLogParametersCallback CreateNetLogOpenSSLErrorCallback(
-    int net_error,
-    int ssl_error,
-    const OpenSSLErrorInfo& error_info) {
-  return base::Bind(&NetLogOpenSSLErrorCallback,
-                    net_error, ssl_error, error_info);
+void NetLogOpenSSLError(const NetLogWithSource& net_log,
+                        NetLogEventType type,
+                        int net_error,
+                        int ssl_error,
+                        const OpenSSLErrorInfo& error_info) {
+  net_log.AddEvent(type, [&] {
+    return NetLogOpenSSLErrorParams(net_error, ssl_error, error_info);
+  });
 }
 
 int GetNetSSLVersion(SSL* ssl) {

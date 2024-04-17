@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,9 +8,7 @@
 #include "net/der/parse_values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
-namespace der {
-namespace test {
+namespace net::der::test {
 
 TEST(ParserTest, ConsumesAllBytesOfTLV) {
   const uint8_t der[] = {0x04 /* OCTET STRING */, 0x00};
@@ -63,6 +61,92 @@ TEST(ParserTest, FailsIfLengthOverlapsAnotherTLV) {
   Tag tag;
   Input value;
   ASSERT_FALSE(inner_sequence.ReadTagAndValue(&tag, &value));
+}
+
+TEST(ParserTest, ReadOptionalTagPresent) {
+  // DER encoding of 2 top-level TLV values:
+  // INTEGER { 1 }
+  // OCTET_STRING { `02` }
+  const uint8_t der[] = {0x02, 0x01, 0x01, 0x04, 0x01, 0x02};
+  Parser parser((Input(der)));
+
+  Input value;
+  bool present;
+  ASSERT_TRUE(parser.ReadOptionalTag(kInteger, &value, &present));
+  ASSERT_TRUE(present);
+  const uint8_t expected_int_value[] = {0x01};
+  ASSERT_EQ(Input(expected_int_value), value);
+
+  Tag tag;
+  ASSERT_TRUE(parser.ReadTagAndValue(&tag, &value));
+  ASSERT_EQ(kOctetString, tag);
+  const uint8_t expected_octet_string_value[] = {0x02};
+  ASSERT_EQ(Input(expected_octet_string_value), value);
+
+  ASSERT_FALSE(parser.HasMore());
+}
+
+TEST(ParserTest, ReadOptionalTag2Present) {
+  // DER encoding of 2 top-level TLV values:
+  // INTEGER { 1 }
+  // OCTET_STRING { `02` }
+  const uint8_t der[] = {0x02, 0x01, 0x01, 0x04, 0x01, 0x02};
+  Parser parser((Input(der)));
+
+  absl::optional<Input> optional_value;
+  ASSERT_TRUE(parser.ReadOptionalTag(kInteger, &optional_value));
+  ASSERT_TRUE(optional_value.has_value());
+  const uint8_t expected_int_value[] = {0x01};
+  ASSERT_EQ(Input(expected_int_value), *optional_value);
+
+  Tag tag;
+  Input value;
+  ASSERT_TRUE(parser.ReadTagAndValue(&tag, &value));
+  ASSERT_EQ(kOctetString, tag);
+  const uint8_t expected_octet_string_value[] = {0x02};
+  ASSERT_EQ(Input(expected_octet_string_value), value);
+
+  ASSERT_FALSE(parser.HasMore());
+}
+
+TEST(ParserTest, ReadOptionalTagNotPresent) {
+  // DER encoding of 1 top-level TLV value:
+  // OCTET_STRING { `02` }
+  const uint8_t der[] = {0x04, 0x01, 0x02};
+  Parser parser((Input(der)));
+
+  Input value;
+  bool present;
+  ASSERT_TRUE(parser.ReadOptionalTag(kInteger, &value, &present));
+  ASSERT_FALSE(present);
+
+  Tag tag;
+  ASSERT_TRUE(parser.ReadTagAndValue(&tag, &value));
+  ASSERT_EQ(kOctetString, tag);
+  const uint8_t expected_octet_string_value[] = {0x02};
+  ASSERT_EQ(Input(expected_octet_string_value), value);
+
+  ASSERT_FALSE(parser.HasMore());
+}
+
+TEST(ParserTest, ReadOptionalTag2NotPresent) {
+  // DER encoding of 1 top-level TLV value:
+  // OCTET_STRING { `02` }
+  const uint8_t der[] = {0x04, 0x01, 0x02};
+  Parser parser((Input(der)));
+
+  absl::optional<Input> optional_value;
+  ASSERT_TRUE(parser.ReadOptionalTag(kInteger, &optional_value));
+  ASSERT_FALSE(optional_value.has_value());
+
+  Tag tag;
+  Input value;
+  ASSERT_TRUE(parser.ReadTagAndValue(&tag, &value));
+  ASSERT_EQ(kOctetString, tag);
+  const uint8_t expected_octet_string_value[] = {0x02};
+  ASSERT_EQ(Input(expected_octet_string_value), value);
+
+  ASSERT_FALSE(parser.HasMore());
 }
 
 TEST(ParserTest, CanSkipOptionalTagAtEndOfInput) {
@@ -258,14 +342,14 @@ TEST(ParserTest, ReadBitString) {
   const uint8_t der[] = {0x03, 0x03, 0x01, 0xAA, 0xBE};
   Parser parser((Input(der)));
 
-  BitString bit_string;
-  ASSERT_TRUE(parser.ReadBitString(&bit_string));
+  absl::optional<BitString> bit_string = parser.ReadBitString();
+  ASSERT_TRUE(bit_string.has_value());
   EXPECT_FALSE(parser.HasMore());
 
-  EXPECT_EQ(1u, bit_string.unused_bits());
-  ASSERT_EQ(2u, bit_string.bytes().Length());
-  EXPECT_EQ(0xAA, bit_string.bytes().UnsafeData()[0]);
-  EXPECT_EQ(0xBE, bit_string.bytes().UnsafeData()[1]);
+  EXPECT_EQ(1u, bit_string->unused_bits());
+  ASSERT_EQ(2u, bit_string->bytes().Length());
+  EXPECT_EQ(0xAA, bit_string->bytes().UnsafeData()[0]);
+  EXPECT_EQ(0xBE, bit_string->bytes().UnsafeData()[1]);
 }
 
 // Tries reading a BIT STRING. This should fail because the tag is not for a
@@ -274,10 +358,8 @@ TEST(ParserTest, ReadBitStringBadTag) {
   const uint8_t der[] = {0x05, 0x03, 0x01, 0xAA, 0xBE};
   Parser parser((Input(der)));
 
-  BitString bit_string;
-  EXPECT_FALSE(parser.ReadBitString(&bit_string));
+  absl::optional<BitString> bit_string = parser.ReadBitString();
+  EXPECT_FALSE(bit_string.has_value());
 }
 
-}  // namespace test
-}  // namespace der
-}  // namespace net
+}  // namespace net::der::test

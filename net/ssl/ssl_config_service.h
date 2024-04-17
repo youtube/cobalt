@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,60 @@
 
 #include <vector>
 
-#include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
 #include "net/base/net_export.h"
 #include "net/ssl/ssl_config.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
-// The interface for retrieving the SSL configuration.  This interface
+struct NET_EXPORT SSLContextConfig {
+  SSLContextConfig();
+  SSLContextConfig(const SSLContextConfig&);
+  SSLContextConfig(SSLContextConfig&&);
+  ~SSLContextConfig();
+  SSLContextConfig& operator=(const SSLContextConfig&);
+  SSLContextConfig& operator=(SSLContextConfig&&);
+
+  // EncryptedClientHelloEnabled returns whether ECH is enabled.
+  bool EncryptedClientHelloEnabled() const;
+
+  // Returns whether insecure hashes are allowed in TLS handshakes.
+  bool InsecureHashesInTLSHandshakesEnabled() const;
+
+  // The minimum and maximum protocol versions that are enabled.
+  // (Use the SSL_PROTOCOL_VERSION_xxx enumerators defined in ssl_config.h.)
+  // SSL 2.0/3.0 and TLS 1.0/1.1 are not supported. If version_max <
+  // version_min, it means no protocol versions are enabled.
+  uint16_t version_min = kDefaultSSLVersionMin;
+  uint16_t version_max = kDefaultSSLVersionMax;
+
+  // A list of cipher suites which should be explicitly prevented from being
+  // used in addition to those disabled by the net built-in policy.
+  //
+  // Though cipher suites are sent in TLS as "uint8_t CipherSuite[2]", in
+  // big-endian form, they should be declared in host byte order, with the
+  // first uint8_t occupying the most significant byte.
+  // Ex: To disable TLS_RSA_WITH_RC4_128_MD5, specify 0x0004, while to
+  // disable TLS_ECDH_ECDSA_WITH_RC4_128_SHA, specify 0xC002.
+  std::vector<uint16_t> disabled_cipher_suites;
+
+  // If false, disables post-quantum key agreement in TLS connections.
+  bool post_quantum_enabled = true;
+
+  // If false, disables TLS Encrypted ClientHello (ECH). If true, the feature
+  // may be enabled or disabled, depending on feature flags. If querying whether
+  // ECH is enabled, use `EncryptedClientHelloEnabled` instead.
+  bool ech_enabled = true;
+
+  // If specified, controls whether insecure hashes are allowed in TLS
+  // handshakes. If `absl::nullopt`, this is determined by feature flags.
+  absl::optional<bool> insecure_hash_override;
+
+  // ADDING MORE HERE? Don't forget to update `SSLContextConfigsAreEqual`.
+};
+
+// The interface for retrieving global SSL configuration.  This interface
 // does not cover setting the SSL configuration, as on some systems, the
 // SSLConfigService objects may not have direct access to the configuration, or
 // live longer than the configuration preferences.
@@ -23,27 +69,18 @@ class NET_EXPORT SSLConfigService {
   // Observer is notified when SSL config settings have changed.
   class NET_EXPORT Observer {
    public:
-    // Notify observers if SSL settings have changed.  We don't check all of the
-    // data in SSLConfig, just those that qualify as a user config change.
-    // The following settings are considered user changes:
-    //     version_min
-    //     version_max
-    //     tls13_variant
-    //     disabled_cipher_suites
-    //     channel_id_enabled
-    //     false_start_enabled
-    //     require_ecdhe
-    virtual void OnSSLConfigChanged() = 0;
+    // Notify observers if SSL settings have changed.
+    virtual void OnSSLContextConfigChanged() = 0;
 
    protected:
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
   };
 
   SSLConfigService();
   virtual ~SSLConfigService();
 
   // May not be thread-safe, should only be called on the IO thread.
-  virtual void GetSSLConfig(SSLConfig* config) = 0;
+  virtual SSLContextConfig GetSSLContextConfig() = 0;
 
   // Returns true if connections to |hostname| can reuse, or are permitted to
   // reuse, connections on which a client cert has been negotiated. Note that
@@ -77,20 +114,22 @@ class NET_EXPORT SSLConfigService {
   // Remove an observer of this service.
   void RemoveObserver(Observer* observer);
 
-  // Calls the OnSSLConfigChanged method of registered observers. Should only be
-  // called on the IO thread.
-  void NotifySSLConfigChange();
+  // Calls the OnSSLContextConfigChanged method of registered observers. Should
+  // only be called on the IO thread.
+  void NotifySSLContextConfigChange();
 
-  // Checks if the config-service managed fields in two SSLConfigs are the same.
-  static bool SSLConfigsAreEqualForTesting(const net::SSLConfig& config1,
-                                           const net::SSLConfig& config2);
+  // Checks if the config-service managed fields in two SSLContextConfigs are
+  // the same.
+  static bool SSLContextConfigsAreEqualForTesting(
+      const SSLContextConfig& config1,
+      const SSLContextConfig& config2);
 
  protected:
   // Process before/after config update. If |force_notification| is true,
-  // NotifySSLConfigChange will be called regardless of whether |orig_config|
-  // and |new_config| are equal.
-  void ProcessConfigUpdate(const SSLConfig& orig_config,
-                           const SSLConfig& new_config,
+  // NotifySSLContextConfigChange will be called regardless of whether
+  // |orig_config| and |new_config| are equal.
+  void ProcessConfigUpdate(const SSLContextConfig& orig_config,
+                           const SSLContextConfig& new_config,
                            bool force_notification);
 
  private:

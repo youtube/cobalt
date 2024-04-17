@@ -1,37 +1,46 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TRACE_EVENT_PROCESS_MEMORY_DUMP_H_
 #define BASE_TRACE_EVENT_PROCESS_MEMORY_DUMP_H_
 
+#include <stddef.h>
+
 #include <map>
 #include <unordered_map>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/gtest_prod_util.h"
 #include "base/trace_event/heap_profiler_allocation_context.h"
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // Define COUNT_RESIDENT_BYTES_SUPPORTED if platform supports counting of the
 // resident memory.
-#if !defined(OS_NACL)
+#if !BUILDFLAG(IS_NACL)
 #define COUNT_RESIDENT_BYTES_SUPPORTED
 #endif
 
+namespace perfetto {
+namespace protos {
+namespace pbzero {
+class MemoryTrackerSnapshot;
+}
+}  // namespace protos
+}  // namespace perfetto
+
 namespace base {
 
-class SharedMemory;
 class UnguessableToken;
 
 namespace trace_event {
 
+class TraceEventMemoryOverhead;
 class TracedValue;
 
 // ProcessMemoryDump is as a strongly typed container which holds the dumps
@@ -68,17 +77,22 @@ class BASE_EXPORT ProcessMemoryDump {
   // |start_address| and |mapped_size|. |mapped_size| is specified in bytes. The
   // value returned is valid only if the given range is currently mmapped by the
   // process. The |start_address| must be page-aligned.
-  static size_t CountResidentBytes(void* start_address, size_t mapped_size);
+  static absl::optional<size_t> CountResidentBytes(void* start_address,
+                                                   size_t mapped_size);
 
   // The same as above, but the given mapped range should belong to the
   // shared_memory's mapped region.
-  static base::Optional<size_t> CountResidentBytesInSharedMemory(
+  static absl::optional<size_t> CountResidentBytesInSharedMemory(
       void* start_address,
       size_t mapped_size);
 #endif
 
   explicit ProcessMemoryDump(const MemoryDumpArgs& dump_args);
   ProcessMemoryDump(ProcessMemoryDump&&);
+
+  ProcessMemoryDump(const ProcessMemoryDump&) = delete;
+  ProcessMemoryDump& operator=(const ProcessMemoryDump&) = delete;
+
   ~ProcessMemoryDump();
 
   ProcessMemoryDump& operator=(ProcessMemoryDump&&);
@@ -176,16 +190,15 @@ class BASE_EXPORT ProcessMemoryDump {
                                    const MemoryAllocatorDumpGuid& target,
                                    int importance);
 
-  // Creates ownership edges for memory backed by base::SharedMemory. Handles
-  // the case of cross process sharing and importnace of ownership for the case
-  // with and without the base::SharedMemory dump provider. The new version
-  // should just use global dumps created by SharedMemoryTracker and this
-  // function handles the transition until we get SharedMemory IDs through mojo
-  // channel crbug.com/713763. The weak version creates a weak global dump.
+  // Creates ownership edges for shared memory. Handles the case of cross
+  // process sharing and importance of ownership for the case with and without
+  // the shared memory dump provider. This handles both shared memory from both
+  // legacy base::SharedMemory as well as current base::SharedMemoryMapping. The
+  // weak version creates a weak global dump.
   // |client_local_dump_guid| The guid of the local dump created by the client
   // of base::SharedMemory.
-  // |shared_memory_guid| The ID of the base::SharedMemory that is assigned
-  // globally, used to create global dump edges in the new model.
+  // |shared_memory_guid| The ID of the shared memory that is assigned globally,
+  // used to create global dump edges in the new model.
   // |importance| Importance of the global dump edges to say if the current
   // process owns the memory segment.
   void CreateSharedMemoryOwnershipEdge(
@@ -225,6 +238,10 @@ class BASE_EXPORT ProcessMemoryDump {
   // dumps.
   void SerializeAllocatorDumpsInto(TracedValue* value) const;
 
+  void SerializeAllocatorDumpsInto(
+      perfetto::protos::pbzero::MemoryTrackerSnapshot* memory_snapshot,
+      const base::ProcessId pid) const;
+
   const MemoryDumpArgs& dump_args() const { return dump_args_; }
 
  private:
@@ -241,7 +258,7 @@ class BASE_EXPORT ProcessMemoryDump {
   const UnguessableToken& process_token() const { return process_token_; }
   void set_process_token_for_testing(UnguessableToken token) {
     process_token_ = token;
-  };
+  }
 
   // Returns the Guid of the dump for the given |absolute_name| for
   // for the given process' token. |process_token| is used to disambiguate GUIDs
@@ -254,7 +271,7 @@ class BASE_EXPORT ProcessMemoryDump {
       int importance,
       bool is_weak);
 
-  MemoryAllocatorDump* GetBlackHoleMad();
+  MemoryAllocatorDump* GetBlackHoleMad(const std::string& absolute_name);
 
   UnguessableToken process_token_;
   AllocatorDumpsMap allocator_dumps_;
@@ -273,8 +290,6 @@ class BASE_EXPORT ProcessMemoryDump {
   // When set to true, the DCHECK(s) for invalid dump creations on the
   // background mode are disabled for testing.
   static bool is_black_hole_non_fatal_for_testing_;
-
-  DISALLOW_COPY_AND_ASSIGN(ProcessMemoryDump);
 };
 
 }  // namespace trace_event

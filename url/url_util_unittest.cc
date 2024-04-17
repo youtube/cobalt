@@ -1,11 +1,16 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/macros.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
+#include "url/url_util.h"
+
+#include <stddef.h>
+
+#include "base/strings/string_piece.h"
+#include "build/build_config.h"
+#include "testing/gtest/include/gtest/gtest-message.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_canon.h"
 #include "url/url_canon_stdstring.h"
@@ -17,13 +22,14 @@ namespace url {
 class URLUtilTest : public testing::Test {
  public:
   URLUtilTest() = default;
-  ~URLUtilTest() override {
-    // Reset any added schemes.
-    Shutdown();
-  }
+
+  URLUtilTest(const URLUtilTest&) = delete;
+  URLUtilTest& operator=(const URLUtilTest&) = delete;
+
+  ~URLUtilTest() override = default;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(URLUtilTest);
+  ScopedSchemeRegistryForTests scoped_registry_;
 };
 
 TEST_F(URLUtilTest, FindAndCompareScheme) {
@@ -92,10 +98,25 @@ TEST_F(URLUtilTest, IsReferrerScheme) {
 }
 
 TEST_F(URLUtilTest, AddReferrerScheme) {
-  const char kFooScheme[] = "foo";
+  static const char kFooScheme[] = "foo";
   EXPECT_FALSE(IsReferrerScheme(kFooScheme, Component(0, strlen(kFooScheme))));
+
+  url::ScopedSchemeRegistryForTests scoped_registry;
   AddReferrerScheme(kFooScheme, url::SCHEME_WITH_HOST);
   EXPECT_TRUE(IsReferrerScheme(kFooScheme, Component(0, strlen(kFooScheme))));
+}
+
+TEST_F(URLUtilTest, ShutdownCleansUpSchemes) {
+  static const char kFooScheme[] = "foo";
+  EXPECT_FALSE(IsReferrerScheme(kFooScheme, Component(0, strlen(kFooScheme))));
+
+  {
+    url::ScopedSchemeRegistryForTests scoped_registry;
+    AddReferrerScheme(kFooScheme, url::SCHEME_WITH_HOST);
+    EXPECT_TRUE(IsReferrerScheme(kFooScheme, Component(0, strlen(kFooScheme))));
+  }
+
+  EXPECT_FALSE(IsReferrerScheme(kFooScheme, Component(0, strlen(kFooScheme))));
 }
 
 TEST_F(URLUtilTest, GetStandardSchemeType) {
@@ -120,6 +141,15 @@ TEST_F(URLUtilTest, GetStandardSchemeType) {
   EXPECT_FALSE(GetStandardSchemeType(kFooScheme,
                                      Component(0, strlen(kFooScheme)),
                                      &scheme_type));
+}
+
+TEST_F(URLUtilTest, GetStandardSchemes) {
+  std::vector<std::string> expected = {
+      kHttpsScheme, kHttpScheme, kFileScheme,       kFtpScheme,
+      kWssScheme,   kWsScheme,   kFileSystemScheme, "foo",
+  };
+  AddStandardScheme("foo", url::SCHEME_WITHOUT_AUTHORITY);
+  EXPECT_EQ(expected, GetStandardSchemes());
 }
 
 TEST_F(URLUtilTest, ReplaceComponents) {
@@ -199,71 +229,82 @@ TEST_F(URLUtilTest, DecodeURLEscapeSequences) {
   struct DecodeCase {
     const char* input;
     const char* output;
-    DecodeURLResult result;
   } decode_cases[] = {
-      {"hello, world", "hello, world", DecodeURLResult::kAsciiOnly},
+      {"hello, world", "hello, world"},
       {"%01%02%03%04%05%06%07%08%09%0a%0B%0C%0D%0e%0f/",
-       "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0B\x0C\x0D\x0e\x0f/",
-       DecodeURLResult::kAsciiOnly},
+       "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0B\x0C\x0D\x0e\x0f/"},
       {"%10%11%12%13%14%15%16%17%18%19%1a%1B%1C%1D%1e%1f/",
-       "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1B\x1C\x1D\x1e\x1f/",
-       DecodeURLResult::kAsciiOnly},
+       "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1B\x1C\x1D\x1e\x1f/"},
       {"%20%21%22%23%24%25%26%27%28%29%2a%2B%2C%2D%2e%2f/",
-       " !\"#$%&'()*+,-.//", DecodeURLResult::kAsciiOnly},
-      {"%30%31%32%33%34%35%36%37%38%39%3a%3B%3C%3D%3e%3f/", "0123456789:;<=>?/",
-       DecodeURLResult::kAsciiOnly},
-      {"%40%41%42%43%44%45%46%47%48%49%4a%4B%4C%4D%4e%4f/", "@ABCDEFGHIJKLMNO/",
-       DecodeURLResult::kAsciiOnly},
+       " !\"#$%&'()*+,-.//"},
+      {"%30%31%32%33%34%35%36%37%38%39%3a%3B%3C%3D%3e%3f/",
+       "0123456789:;<=>?/"},
+      {"%40%41%42%43%44%45%46%47%48%49%4a%4B%4C%4D%4e%4f/",
+       "@ABCDEFGHIJKLMNO/"},
       {"%50%51%52%53%54%55%56%57%58%59%5a%5B%5C%5D%5e%5f/",
-       "PQRSTUVWXYZ[\\]^_/", DecodeURLResult::kAsciiOnly},
-      {"%60%61%62%63%64%65%66%67%68%69%6a%6B%6C%6D%6e%6f/", "`abcdefghijklmno/",
-       DecodeURLResult::kAsciiOnly},
+       "PQRSTUVWXYZ[\\]^_/"},
+      {"%60%61%62%63%64%65%66%67%68%69%6a%6B%6C%6D%6e%6f/",
+       "`abcdefghijklmno/"},
       {"%70%71%72%73%74%75%76%77%78%79%7a%7B%7C%7D%7e%7f/",
-       "pqrstuvwxyz{|}~\x7f/", DecodeURLResult::kAsciiOnly},
-      // Test un-UTF-8-ization.
-      {"%e4%bd%a0%e5%a5%bd", "\xe4\xbd\xa0\xe5\xa5\xbd",
-       DecodeURLResult::kUTF8},
+       "pqrstuvwxyz{|}~\x7f/"},
+      {"%e4%bd%a0%e5%a5%bd", "\xe4\xbd\xa0\xe5\xa5\xbd"},
   };
 
-  for (size_t i = 0; i < arraysize(decode_cases); i++) {
+  for (size_t i = 0; i < std::size(decode_cases); i++) {
     const char* input = decode_cases[i].input;
-    RawCanonOutputT<base::char16> output;
-    EXPECT_EQ(decode_cases[i].result,
-              DecodeURLEscapeSequences(input, strlen(input), &output));
+    RawCanonOutputT<char16_t> output;
+    DecodeURLEscapeSequences(input, strlen(input),
+                             DecodeURLMode::kUTF8OrIsomorphic, &output);
+    EXPECT_EQ(decode_cases[i].output, base::UTF16ToUTF8(std::u16string(
+                                          output.data(), output.length())));
+
+    RawCanonOutputT<char16_t> output_utf8;
+    DecodeURLEscapeSequences(input, strlen(input), DecodeURLMode::kUTF8,
+                             &output_utf8);
     EXPECT_EQ(decode_cases[i].output,
-              base::UTF16ToUTF8(base::string16(output.data(),
-                                               output.length())));
+              base::UTF16ToUTF8(
+                  std::u16string(output_utf8.data(), output_utf8.length())));
   }
 
   // Our decode should decode %00
   const char zero_input[] = "%00";
-  RawCanonOutputT<base::char16> zero_output;
-  DecodeURLEscapeSequences(zero_input, strlen(zero_input), &zero_output);
-  EXPECT_NE("%00", base::UTF16ToUTF8(
-      base::string16(zero_output.data(), zero_output.length())));
+  RawCanonOutputT<char16_t> zero_output;
+  DecodeURLEscapeSequences(zero_input, strlen(zero_input), DecodeURLMode::kUTF8,
+                           &zero_output);
+  EXPECT_NE("%00", base::UTF16ToUTF8(std::u16string(zero_output.data(),
+                                                    zero_output.length())));
 
   // Test the error behavior for invalid UTF-8.
-  {
-    const char invalid_input[] = "%e4%a0%e5%a5%bd";
-    const base::char16 invalid_expected[6] = {0x00e4, 0x00a0, 0x00e5,
-                                              0x00a5, 0x00bd, 0};
-    RawCanonOutputT<base::char16> invalid_output;
-    EXPECT_EQ(DecodeURLResult::kIsomorphic,
-              DecodeURLEscapeSequences(invalid_input, strlen(invalid_input),
-                                       &invalid_output));
-    EXPECT_EQ(base::string16(invalid_expected),
-              base::string16(invalid_output.data(), invalid_output.length()));
-  }
-  {
-    const char invalid_input[] = "%e4%a0%e5%bd";
-    const base::char16 invalid_expected[5] = {0x00e4, 0x00a0, 0x00e5, 0x00bd,
-                                              0};
-    RawCanonOutputT<base::char16> invalid_output;
-    EXPECT_EQ(DecodeURLResult::kIsomorphic,
-              DecodeURLEscapeSequences(invalid_input, strlen(invalid_input),
-                                       &invalid_output));
-    EXPECT_EQ(base::string16(invalid_expected),
-              base::string16(invalid_output.data(), invalid_output.length()));
+  struct Utf8DecodeCase {
+    const char* input;
+    std::vector<char16_t> expected_iso;
+    std::vector<char16_t> expected_utf8;
+  } utf8_decode_cases[] = {
+      // %e5%a5%bd is a valid UTF-8 sequence. U+597D
+      {"%e4%a0%e5%a5%bd",
+       {0x00e4, 0x00a0, 0x00e5, 0x00a5, 0x00bd, 0},
+       {0xfffd, 0x597d, 0}},
+      {"%e5%a5%bd%e4%a0",
+       {0x00e5, 0x00a5, 0x00bd, 0x00e4, 0x00a0, 0},
+       {0x597d, 0xfffd, 0}},
+      {"%e4%a0%e5%bd",
+       {0x00e4, 0x00a0, 0x00e5, 0x00bd, 0},
+       {0xfffd, 0xfffd, 0}},
+  };
+
+  for (const auto& test : utf8_decode_cases) {
+    const char* input = test.input;
+    RawCanonOutputT<char16_t> output_iso;
+    DecodeURLEscapeSequences(input, strlen(input),
+                             DecodeURLMode::kUTF8OrIsomorphic, &output_iso);
+    EXPECT_EQ(std::u16string(test.expected_iso.data()),
+              std::u16string(output_iso.data(), output_iso.length()));
+
+    RawCanonOutputT<char16_t> output_utf8;
+    DecodeURLEscapeSequences(input, strlen(input), DecodeURLMode::kUTF8,
+                             &output_utf8);
+    EXPECT_EQ(std::u16string(test.expected_utf8.data()),
+              std::u16string(output_utf8.data(), output_utf8.length()));
   }
 }
 
@@ -291,7 +332,7 @@ TEST_F(URLUtilTest, TestEncodeURIComponent) {
      "pqrstuvwxyz%7B%7C%7D~%7F"},
   };
 
-  for (size_t i = 0; i < arraysize(encode_cases); i++) {
+  for (size_t i = 0; i < std::size(encode_cases); i++) {
     const char* input = encode_cases[i].input;
     RawCanonOutputT<char> buffer;
     EncodeURIComponent(input, strlen(input), &buffer);
@@ -354,6 +395,7 @@ TEST_F(URLUtilTest, TestResolveRelativeWithNonStandardBase) {
       {"about:blank", "#id42", true, "about:blank#id42"},
       {"about:blank", " #id42", true, "about:blank#id42"},
       {"about:blank#oldfrag", "#newfrag", true, "about:blank#newfrag"},
+      {"about:blank", " #id:42", true, "about:blank#id:42"},
       // A surprising side effect of allowing fragments to resolve against
       // any URL scheme is we might break javascript: URLs by doing so...
       {"javascript:alert('foo#bar')", "#badfrag", true,
@@ -368,7 +410,7 @@ TEST_F(URLUtilTest, TestResolveRelativeWithNonStandardBase) {
       // adding the requested dot doesn't seem wrong either.
       {"aaa://a\\", "aaa:.", true, "aaa://a\\."}};
 
-  for (size_t i = 0; i < arraysize(resolve_non_standard_cases); i++) {
+  for (size_t i = 0; i < std::size(resolve_non_standard_cases); i++) {
     const ResolveRelativeCase& test_data = resolve_non_standard_cases[i];
     Parsed base_parsed;
     ParsePathURL(test_data.base, strlen(test_data.base), false, &base_parsed);
@@ -457,6 +499,45 @@ TEST_F(URLUtilTest, PotentiallyDanglingMarkup) {
   }
 }
 
+TEST_F(URLUtilTest, PotentiallyDanglingMarkupAfterReplacement) {
+  // Parse a URL with potentially dangling markup.
+  Parsed original_parsed;
+  RawCanonOutput<32> original;
+  const char* url = "htt\nps://example.com/<path";
+  Canonicalize(url, strlen(url), false, nullptr, &original, &original_parsed);
+  ASSERT_TRUE(original_parsed.potentially_dangling_markup);
+
+  // Perform a replacement, and validate that the potentially_dangling_markup
+  // flag carried over to the new Parsed object.
+  Replacements<char> replacements;
+  replacements.ClearRef();
+  Parsed replaced_parsed;
+  RawCanonOutput<32> replaced;
+  ReplaceComponents(original.data(), original.length(), original_parsed,
+                    replacements, nullptr, &replaced, &replaced_parsed);
+  EXPECT_TRUE(replaced_parsed.potentially_dangling_markup);
+}
+
+TEST_F(URLUtilTest, PotentiallyDanglingMarkupAfterSchemeOnlyReplacement) {
+  // Parse a URL with potentially dangling markup.
+  Parsed original_parsed;
+  RawCanonOutput<32> original;
+  const char* url = "http://example.com/\n/<path";
+  Canonicalize(url, strlen(url), false, nullptr, &original, &original_parsed);
+  ASSERT_TRUE(original_parsed.potentially_dangling_markup);
+
+  // Perform a replacement, and validate that the potentially_dangling_markup
+  // flag carried over to the new Parsed object.
+  Replacements<char> replacements;
+  const char* new_scheme = "https";
+  replacements.SetScheme(new_scheme, Component(0, strlen(new_scheme)));
+  Parsed replaced_parsed;
+  RawCanonOutput<32> replaced;
+  ReplaceComponents(original.data(), original.length(), original_parsed,
+                    replacements, nullptr, &replaced, &replaced_parsed);
+  EXPECT_TRUE(replaced_parsed.potentially_dangling_markup);
+}
+
 TEST_F(URLUtilTest, TestDomainIs) {
   const struct {
     const char* canonicalized_host;
@@ -497,6 +578,54 @@ TEST_F(URLUtilTest, TestDomainIs) {
     EXPECT_EQ(
         test_case.expected_domain_is,
         DomainIs(test_case.canonicalized_host, test_case.lower_ascii_domain));
+  }
+}
+
+namespace {
+absl::optional<std::string> CanonicalizeSpec(base::StringPiece spec,
+                                             bool trim_path_end) {
+  std::string canonicalized;
+  StdStringCanonOutput output(&canonicalized);
+  Parsed parsed;
+  if (!Canonicalize(spec.data(), spec.size(), trim_path_end,
+                    /*charset_converter=*/nullptr, &output, &parsed)) {
+    return {};
+  }
+  output.Complete();  // Must be called before string is used.
+  return canonicalized;
+}
+}  // namespace
+
+#if BUILDFLAG(IS_WIN)
+// Regression test for https://crbug.com/1252658.
+TEST_F(URLUtilTest, TestCanonicalizeWindowsPathWithLeadingNUL) {
+  auto PrefixWithNUL = [](std::string&& s) -> std::string { return '\0' + s; };
+  EXPECT_EQ(CanonicalizeSpec(PrefixWithNUL("w:"), /*trim_path_end=*/false),
+            absl::make_optional("file:///W:"));
+  EXPECT_EQ(CanonicalizeSpec(PrefixWithNUL("\\\\server\\share"),
+                             /*trim_path_end=*/false),
+            absl::make_optional("file://server/share"));
+}
+#endif
+
+TEST_F(URLUtilTest, TestCanonicalizeIdempotencyWithLeadingControlCharacters) {
+  std::string spec = "_w:";
+  // Loop over all C0 control characters and the space character.
+  for (char c = '\0'; c <= ' '; c++) {
+    SCOPED_TRACE(testing::Message() << "c: " << c);
+
+    // Overwrite the first character of `spec`. Note that replacing the first
+    // character with NUL will not change the length!
+    spec[0] = c;
+
+    for (bool trim_path_end : {false, true}) {
+      SCOPED_TRACE(testing::Message() << "trim_path_end: " << trim_path_end);
+
+      absl::optional<std::string> canonicalized =
+          CanonicalizeSpec(spec, trim_path_end);
+      ASSERT_TRUE(canonicalized);
+      EXPECT_EQ(canonicalized, CanonicalizeSpec(*canonicalized, trim_path_end));
+    }
   }
 }
 

@@ -18,6 +18,8 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/logging.h"
+#include "cobalt/base/task_runner_util.h"
 #include "components/prefs/json_pref_store.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
@@ -41,7 +43,7 @@ void PersistentSettings::WillDestroyCurrentMessageLoop() {
 PersistentSettings::PersistentSettings(const std::string& file_name)
     : thread_("PersistentSettings") {
   if (!thread_.Start()) return;
-  DCHECK(message_loop());
+  DCHECK(task_runner());
 
   std::vector<char> storage_dir(kSbFileMaxPath, 0);
   SbSystemGetPath(kSbSystemPathCacheDirectory, storage_dir.data(),
@@ -50,30 +52,30 @@ PersistentSettings::PersistentSettings(const std::string& file_name)
       std::string(storage_dir.data()) + kSbFileSepString + file_name;
   LOG(INFO) << "Persistent settings file path: " << persistent_settings_file_;
 
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&PersistentSettings::InitializePrefStore,
-                            base::Unretained(this)));
+  task_runner()->PostTask(FROM_HERE,
+                          base::Bind(&PersistentSettings::InitializePrefStore,
+                                     base::Unretained(this)));
   pref_store_initialized_.Wait();
   destruction_observer_added_.Wait();
 }
 
 PersistentSettings::~PersistentSettings() {
-  DCHECK(message_loop());
+  DCHECK(task_runner());
   DCHECK(thread_.IsRunning());
 
   // Wait for all previously posted tasks to finish.
-  thread_.message_loop()->task_runner()->WaitForFence();
+  base::task_runner_util::WaitForFence(thread_.task_runner(), FROM_HERE);
   thread_.Stop();
 }
 
 void PersistentSettings::InitializePrefStore() {
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
   // Register as a destruction observer to shut down the thread once all
-  // pending tasks have been executed and the message loop is about to be
+  // pending tasks have been executed and the task runner is about to be
   // destroyed. This allows us to safely stop the thread, drain the task queue,
-  // then destroy the internal components before the message loop is reset.
+  // then destroy the internal components before the task runner is reset.
   // No posted tasks will be executed once the thread is stopped.
-  base::MessageLoopCurrent::Get()->AddDestructionObserver(this);
+  base::CurrentThread::Get()->AddDestructionObserver(this);
   {
     base::AutoLock auto_lock(pref_store_lock_);
     pref_store_ = base::MakeRefCounted<JsonPrefStore>(
@@ -89,17 +91,17 @@ void PersistentSettings::InitializePrefStore() {
 }
 
 void PersistentSettings::ValidatePersistentSettings() {
-  message_loop()->task_runner()->PostTask(
+  task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&PersistentSettings::ValidatePersistentSettingsHelper,
                      base::Unretained(this)));
 }
 
 void PersistentSettings::ValidatePersistentSettingsHelper() {
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
   if (!validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(true),
+    pref_store_->SetValue(kValidated, base::Value(true),
                           WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     CommitPendingWrite(false);
     validated_initial_settings_ = true;
@@ -110,37 +112,32 @@ bool PersistentSettings::GetPersistentSettingAsBool(const std::string& key,
                                                     bool default_setting) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  const base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_bool()) return result->GetBool();
-  return default_setting;
+  absl::optional<bool> result = persistent_settings.FindBool(key);
+  return result.value_or(default_setting);
 }
 
 int PersistentSettings::GetPersistentSettingAsInt(const std::string& key,
                                                   int default_setting) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  const base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_int()) return result->GetInt();
-  return default_setting;
+  absl::optional<int> result = persistent_settings.FindInt(key);
+  return result.value_or(default_setting);
 }
 
 double PersistentSettings::GetPersistentSettingAsDouble(
     const std::string& key, double default_setting) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  const base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_double()) {
-    return result->GetDouble();
-  }
-  return default_setting;
+  absl::optional<double> result = persistent_settings.FindDouble(key);
+  return result.value_or(default_setting);
 }
 
 std::string PersistentSettings::GetPersistentSettingAsString(
     const std::string& key, const std::string& default_setting) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  const base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_string()) return result->GetString();
+  const std::string* result = persistent_settings.FindString(key);
+  if (result) return *result;
   return default_setting;
 }
 
@@ -148,24 +145,27 @@ std::vector<base::Value> PersistentSettings::GetPersistentSettingAsList(
     const std::string& key) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_list()) {
-    return std::move(result->TakeList());
+  const base::Value::List* result = persistent_settings.FindList(key);
+  std::vector<base::Value> values;
+  if (result) {
+    for (const auto& value : *result) {
+      values.emplace_back(value.Clone());
+    }
   }
-  return std::vector<base::Value>();
+  return values;
 }
 
 base::flat_map<std::string, std::unique_ptr<base::Value>>
 PersistentSettings::GetPersistentSettingAsDictionary(const std::string& key) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  base::Value* result = persistent_settings->FindKey(key);
+  base::Value::Dict* result = persistent_settings.FindDict(key);
   base::flat_map<std::string, std::unique_ptr<base::Value>> dict;
-  if (result && result->is_dict()) {
-    for (const auto& key_value : result->DictItems()) {
+  if (result) {
+    for (base::Value::Dict::iterator it = result->begin(); it != result->end();
+         ++it) {
       dict.insert(std::make_pair(
-          key_value.first,
-          std::make_unique<base::Value>(std::move(key_value.second))));
+          it->first, base::Value::ToUniquePtrValue(std::move(it->second))));
     }
     return dict;
   }
@@ -179,7 +179,7 @@ void PersistentSettings::SetPersistentSetting(
     LOG(ERROR) << "Cannot set protected persistent setting: " << key;
     return;
   }
-  message_loop()->task_runner()->PostTask(
+  task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&PersistentSettings::SetPersistentSettingHelper,
                                 base::Unretained(this), key, std::move(value),
                                 std::move(closure), blocking));
@@ -188,12 +188,13 @@ void PersistentSettings::SetPersistentSetting(
 void PersistentSettings::SetPersistentSettingHelper(
     const std::string& key, std::unique_ptr<base::Value> value,
     base::OnceClosure closure, bool blocking) {
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
   if (validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(false),
+    pref_store_->SetValue(kValidated, base::Value(false),
                           WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    pref_store_->SetValue(key, std::move(value),
+    pref_store_->SetValue(key,
+                          base::Value::FromUniquePtrValue(std::move(value)),
                           WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     CommitPendingWrite(blocking);
   } else {
@@ -205,7 +206,7 @@ void PersistentSettings::SetPersistentSettingHelper(
 void PersistentSettings::RemovePersistentSetting(const std::string& key,
                                                  base::OnceClosure closure,
                                                  bool blocking) {
-  message_loop()->task_runner()->PostTask(
+  task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&PersistentSettings::RemovePersistentSettingHelper,
                      base::Unretained(this), key, std::move(closure),
@@ -214,10 +215,10 @@ void PersistentSettings::RemovePersistentSetting(const std::string& key,
 
 void PersistentSettings::RemovePersistentSettingHelper(
     const std::string& key, base::OnceClosure closure, bool blocking) {
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
   if (validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(false),
+    pref_store_->SetValue(kValidated, base::Value(false),
                           WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     pref_store_->RemoveValue(key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     CommitPendingWrite(blocking);
@@ -228,7 +229,7 @@ void PersistentSettings::RemovePersistentSettingHelper(
 }
 
 void PersistentSettings::DeletePersistentSettings(base::OnceClosure closure) {
-  message_loop()->task_runner()->PostTask(
+  task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&PersistentSettings::DeletePersistentSettingsHelper,
                      base::Unretained(this), std::move(closure)));
@@ -236,7 +237,7 @@ void PersistentSettings::DeletePersistentSettings(base::OnceClosure closure) {
 
 void PersistentSettings::DeletePersistentSettingsHelper(
     base::OnceClosure closure) {
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
   if (validated_initial_settings_) {
     starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
     base::AutoLock auto_lock(pref_store_lock_);

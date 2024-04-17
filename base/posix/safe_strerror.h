@@ -1,14 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_POSIX_SAFE_STRERROR_H_
 #define BASE_POSIX_SAFE_STRERROR_H_
 
+#include <stddef.h>
+
 #include <string>
 
 #include "base/base_export.h"
-#include "starboard/types.h"
 
 namespace base {
 

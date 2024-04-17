@@ -5,7 +5,7 @@
 #include "components/variations/variations_request_scheduler_mobile.h"
 
 #include "base/bind.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/pref_names.h"

@@ -59,10 +59,10 @@ std::string FetchInternal::DecodeFromUTF8(
     // Input is already UTF-8. Just strip the byte order mark if it's present.
     const base::StringPiece kUtf8ByteOrderMarkStringPiece(
         base::kUtf8ByteOrderMark);
-    if (input.starts_with(kUtf8ByteOrderMarkStringPiece)) {
+    if (input.rfind(kUtf8ByteOrderMarkStringPiece, 0) == 0) {
       input = input.substr(kUtf8ByteOrderMarkStringPiece.length());
     }
-    return input.as_string();
+    return std::string(input);
   }
 
   // Only UTF-8 is supported.

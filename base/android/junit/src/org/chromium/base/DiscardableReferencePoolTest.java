@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,6 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.DiscardableReferencePool.DiscardableReference;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.RetryOnFailure;
 
 import java.lang.ref.WeakReference;
 
@@ -43,11 +42,63 @@ public class DiscardableReferencePoolTest {
         Assert.assertNull(discardableReference.get());
 
         // The object is not (strongly) reachable anymore, so the weak reference may or may not be
-        // null (it could be if a GC has happened since the pool was drained).
-        // After an explicit GC call it definitely should be null.
-        Runtime.getRuntime().gc();
+        // null (it could be if a GC has happened since the pool was drained). It should be
+        // eligible for garbage collection.
+        Assert.assertTrue(GarbageCollectionTestUtils.canBeGarbageCollected(weakReference));
+    }
 
-        Assert.assertNull(weakReference.get());
+    @Test
+    public void testRemoveAfterDrainDoesNotThrow() {
+        DiscardableReferencePool pool = new DiscardableReferencePool();
+
+        Object object = new Object();
+        WeakReference<Object> weakReference = new WeakReference<>(object);
+
+        DiscardableReference<Object> discardableReference = pool.put(object);
+        Assert.assertEquals(object, discardableReference.get());
+
+        // Release the strong reference.
+        object = null;
+
+        pool.drain();
+
+        // Shouldn't throw any exception.
+        pool.remove(discardableReference);
+
+        // The discardable reference should be null now.
+        Assert.assertNull(discardableReference.get());
+
+        // The object is not (strongly) reachable anymore, so the weak reference may or may not be
+        // null (it could be if a GC has happened since the pool was drained). It should be
+        // eligible for garbage collection.
+        Assert.assertTrue(GarbageCollectionTestUtils.canBeGarbageCollected(weakReference));
+    }
+
+    @Test
+    public void testDrainAfterRemoveDoesNotThrow() {
+        DiscardableReferencePool pool = new DiscardableReferencePool();
+
+        Object object = new Object();
+        WeakReference<Object> weakReference = new WeakReference<>(object);
+
+        DiscardableReference<Object> discardableReference = pool.put(object);
+        Assert.assertEquals(object, discardableReference.get());
+
+        // Release the strong reference.
+        object = null;
+
+        pool.remove(discardableReference);
+
+        // Shouldn't throw any exception.
+        pool.drain();
+
+        // The discardable reference should be null now.
+        Assert.assertNull(discardableReference.get());
+
+        // The object is not (strongly) reachable anymore, so the weak reference may or may not be
+        // null (it could be if a GC has happened since the pool was drained). It should be
+        // eligible for garbage collection.
+        Assert.assertTrue(GarbageCollectionTestUtils.canBeGarbageCollected(weakReference));
     }
 
     /**
@@ -55,7 +106,6 @@ public class DiscardableReferencePoolTest {
      * garbage collected.
      */
     @Test
-    @RetryOnFailure
     public void testReferenceGCd() {
         DiscardableReferencePool pool = new DiscardableReferencePool();
 
@@ -71,10 +121,8 @@ public class DiscardableReferencePoolTest {
         discardableReference = null;
 
         // The object is not (strongly) reachable anymore, so the weak reference may or may not be
-        // null (it could be if a GC has happened since the pool was drained).
-        // After an explicit GC call it definitely should be null.
-        Runtime.getRuntime().gc();
-
-        Assert.assertNull(weakReference.get());
+        // null (it could be if a GC has happened since the pool was drained). It should be
+        // eligible for garbage collection.
+        Assert.assertTrue(GarbageCollectionTestUtils.canBeGarbageCollected(weakReference));
     }
 }

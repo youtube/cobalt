@@ -23,10 +23,10 @@
 #include "cobalt/speech/microphone_fake.h"
 #include "cobalt/speech/url_fetcher_fake.h"
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
+#include "cobalt/network/custom/url_fetcher.h"
 #include "cobalt/speech/microphone_manager.h"
 #include "cobalt/speech/microphone_starboard.h"
 #include "cobalt/speech/speech_recognition_error.h"
-#include "net/url_request/url_fetcher.h"
 
 namespace cobalt {
 namespace speech {

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,18 @@
 
 #include <string>
 
+#include "base/hash/md5.h"
 #include "base/logging.h"
-#include "base/md5.h"
+#include "base/memory/ptr_util.h"
 #include "base/rand_util.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_string_util.h"
 #include "net/base/url_util.h"
+#include "net/dns/host_resolver.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_challenge_tokenizer.h"
 #include "net/http/http_auth_scheme.h"
@@ -76,65 +79,43 @@ std::string HttpAuthHandlerDigest::FixedNonceGenerator::GenerateNonce() const {
 }
 
 HttpAuthHandlerDigest::Factory::Factory()
-    : nonce_generator_(new DynamicNonceGenerator()) {
-}
+    : nonce_generator_(std::make_unique<DynamicNonceGenerator>()) {}
 
 HttpAuthHandlerDigest::Factory::~Factory() = default;
 
 void HttpAuthHandlerDigest::Factory::set_nonce_generator(
-    const NonceGenerator* nonce_generator) {
-  nonce_generator_.reset(nonce_generator);
+    std::unique_ptr<const NonceGenerator> nonce_generator) {
+  nonce_generator_ = std::move(nonce_generator);
 }
 
 int HttpAuthHandlerDigest::Factory::CreateAuthHandler(
     HttpAuthChallengeTokenizer* challenge,
     HttpAuth::Target target,
     const SSLInfo& ssl_info,
-    const GURL& origin,
+    const NetworkAnonymizationKey& network_anonymization_key,
+    const url::SchemeHostPort& scheme_host_port,
     CreateReason reason,
     int digest_nonce_count,
     const NetLogWithSource& net_log,
+    HostResolver* host_resolver,
     std::unique_ptr<HttpAuthHandler>* handler) {
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
-  std::unique_ptr<HttpAuthHandler> tmp_handler(
+  auto tmp_handler = base::WrapUnique(
       new HttpAuthHandlerDigest(digest_nonce_count, nonce_generator_.get()));
-  if (!tmp_handler->InitFromChallenge(challenge, target, ssl_info, origin,
-                                      net_log))
+  if (!tmp_handler->InitFromChallenge(challenge, target, ssl_info,
+                                      network_anonymization_key,
+                                      scheme_host_port, net_log)) {
     return ERR_INVALID_RESPONSE;
-  handler->swap(tmp_handler);
+  }
+  *handler = std::move(tmp_handler);
   return OK;
 }
 
-HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
-    HttpAuthChallengeTokenizer* challenge) {
-  // Even though Digest is not connection based, a "second round" is parsed
-  // to differentiate between stale and rejected responses.
-  // Note that the state of the current handler is not mutated - this way if
-  // there is a rejection the realm hasn't changed.
-  if (!base::LowerCaseEqualsASCII(challenge->scheme(), kDigestAuthScheme))
-    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
-
-  HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
-
-  // Try to find the "stale" value, and also keep track of the realm
-  // for the new challenge.
-  std::string original_realm;
-  while (parameters.GetNext()) {
-    if (base::LowerCaseEqualsASCII(parameters.name(), "stale")) {
-      if (base::LowerCaseEqualsASCII(parameters.value(), "true"))
-        return HttpAuth::AUTHORIZATION_RESULT_STALE;
-    } else if (base::LowerCaseEqualsASCII(parameters.name(), "realm")) {
-      original_realm = parameters.value();
-    }
-  }
-  return (original_realm_ != original_realm) ?
-      HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM :
-      HttpAuth::AUTHORIZATION_RESULT_REJECT;
-}
-
-bool HttpAuthHandlerDigest::Init(HttpAuthChallengeTokenizer* challenge,
-                                 const SSLInfo& ssl_info) {
+bool HttpAuthHandlerDigest::Init(
+    HttpAuthChallengeTokenizer* challenge,
+    const SSLInfo& ssl_info,
+    const NetworkAnonymizationKey& network_anonymization_key) {
   return ParseChallenge(challenge);
 }
 
@@ -152,18 +133,43 @@ int HttpAuthHandlerDigest::GenerateAuthTokenImpl(
   std::string path;
   GetRequestMethodAndPath(request, &method, &path);
 
-  *auth_token = AssembleCredentials(method, path, *credentials,
-                                    cnonce, nonce_count_);
+  *auth_token =
+      AssembleCredentials(method, path, *credentials, cnonce, nonce_count_);
   return OK;
 }
 
+HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallengeImpl(
+    HttpAuthChallengeTokenizer* challenge) {
+  // Even though Digest is not connection based, a "second round" is parsed
+  // to differentiate between stale and rejected responses.
+  // Note that the state of the current handler is not mutated - this way if
+  // there is a rejection the realm hasn't changed.
+  if (challenge->auth_scheme() != kDigestAuthScheme)
+    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
+
+  HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
+
+  // Try to find the "stale" value, and also keep track of the realm
+  // for the new challenge.
+  std::string original_realm;
+  while (parameters.GetNext()) {
+    if (base::EqualsCaseInsensitiveASCII(parameters.name_piece(), "stale")) {
+      if (base::EqualsCaseInsensitiveASCII(parameters.value_piece(), "true"))
+        return HttpAuth::AUTHORIZATION_RESULT_STALE;
+    } else if (base::EqualsCaseInsensitiveASCII(parameters.name_piece(),
+                                                "realm")) {
+      original_realm = parameters.value();
+    }
+  }
+  return (original_realm_ != original_realm) ?
+      HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM :
+      HttpAuth::AUTHORIZATION_RESULT_REJECT;
+}
+
 HttpAuthHandlerDigest::HttpAuthHandlerDigest(
-    int nonce_count, const NonceGenerator* nonce_generator)
-    : stale_(false),
-      algorithm_(ALGORITHM_UNSPECIFIED),
-      qop_(QOP_UNSPECIFIED),
-      nonce_count_(nonce_count),
-      nonce_generator_(nonce_generator) {
+    int nonce_count,
+    const NonceGenerator* nonce_generator)
+    : nonce_count_(nonce_count), nonce_generator_(nonce_generator) {
   DCHECK(nonce_generator_);
 }
 
@@ -200,7 +206,7 @@ bool HttpAuthHandlerDigest::ParseChallenge(
   realm_ = original_realm_ = nonce_ = domain_ = opaque_ = std::string();
 
   // FAIL -- Couldn't match auth-scheme.
-  if (!base::LowerCaseEqualsASCII(challenge->scheme(), kDigestAuthScheme))
+  if (challenge->auth_scheme() != kDigestAuthScheme)
     return false;
 
   HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
@@ -208,8 +214,8 @@ bool HttpAuthHandlerDigest::ParseChallenge(
   // Loop through all the properties.
   while (parameters.GetNext()) {
     // FAIL -- couldn't parse a property.
-    if (!ParseChallengeProperty(parameters.name(),
-                                parameters.value()))
+    if (!ParseChallengeProperty(parameters.name_piece(),
+                                parameters.value_piece()))
       return false;
   }
 
@@ -224,40 +230,45 @@ bool HttpAuthHandlerDigest::ParseChallenge(
   return true;
 }
 
-bool HttpAuthHandlerDigest::ParseChallengeProperty(const std::string& name,
-                                                   const std::string& value) {
-  if (base::LowerCaseEqualsASCII(name, "realm")) {
+bool HttpAuthHandlerDigest::ParseChallengeProperty(base::StringPiece name,
+                                                   base::StringPiece value) {
+  if (base::EqualsCaseInsensitiveASCII(name, "realm")) {
     std::string realm;
     if (!ConvertToUtf8AndNormalize(value, kCharsetLatin1, &realm))
       return false;
     realm_ = realm;
-    original_realm_ = value;
-  } else if (base::LowerCaseEqualsASCII(name, "nonce")) {
-    nonce_ = value;
-  } else if (base::LowerCaseEqualsASCII(name, "domain")) {
-    domain_ = value;
-  } else if (base::LowerCaseEqualsASCII(name, "opaque")) {
-    opaque_ = value;
-  } else if (base::LowerCaseEqualsASCII(name, "stale")) {
+    original_realm_ = std::string(value);
+  } else if (base::EqualsCaseInsensitiveASCII(name, "nonce")) {
+    nonce_ = std::string(value);
+  } else if (base::EqualsCaseInsensitiveASCII(name, "domain")) {
+    domain_ = std::string(value);
+  } else if (base::EqualsCaseInsensitiveASCII(name, "opaque")) {
+    opaque_ = std::string(value);
+  } else if (base::EqualsCaseInsensitiveASCII(name, "stale")) {
     // Parse the stale boolean.
-    stale_ = base::LowerCaseEqualsASCII(value, "true");
-  } else if (base::LowerCaseEqualsASCII(name, "algorithm")) {
+    stale_ = base::EqualsCaseInsensitiveASCII(value, "true");
+  } else if (base::EqualsCaseInsensitiveASCII(name, "algorithm")) {
     // Parse the algorithm.
-    if (base::LowerCaseEqualsASCII(value, "md5")) {
+    if (base::EqualsCaseInsensitiveASCII(value, "md5")) {
       algorithm_ = ALGORITHM_MD5;
-    } else if (base::LowerCaseEqualsASCII(value, "md5-sess")) {
+    } else if (base::EqualsCaseInsensitiveASCII(value, "md5-sess")) {
       algorithm_ = ALGORITHM_MD5_SESS;
     } else {
       DVLOG(1) << "Unknown value of algorithm";
       return false;  // FAIL -- unsupported value of algorithm.
     }
-  } else if (base::LowerCaseEqualsASCII(name, "qop")) {
+  } else if (base::EqualsCaseInsensitiveASCII(name, "qop")) {
     // Parse the comma separated list of qops.
     // auth is the only supported qop, and all other values are ignored.
-    HttpUtil::ValuesIterator qop_values(value.begin(), value.end(), ',');
+    //
+    // TODO(https://crbug.com/820198): Remove this copy when
+    // HttpUtil::ValuesIterator can take a StringPiece.
+    std::string value_str(value);
+    HttpUtil::ValuesIterator qop_values(value_str.begin(), value_str.end(),
+                                        ',');
     qop_ = QOP_UNSPECIFIED;
     while (qop_values.GetNext()) {
-      if (base::LowerCaseEqualsASCII(qop_values.value(), "auth")) {
+      if (base::EqualsCaseInsensitiveASCII(qop_values.value_piece(), "auth")) {
         qop_ = QOP_AUTH;
         break;
       }

@@ -1,10 +1,9 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <vector>
 
-#include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/mac/scoped_nsobject.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,8 +23,7 @@ TEST(ScopedNSObjectTest, ScopedNSObject) {
     base::scoped_nsobject<NSObject> p3 = p1;
     ASSERT_EQ(p1.get(), p3.get());
     ASSERT_EQ(2u, [p1 retainCount]);
-    {
-      base::mac::ScopedNSAutoreleasePool pool;
+    @autoreleasepool {
       p3 = p1;
     }
     ASSERT_EQ(p1.get(), p3.get());
@@ -46,8 +44,7 @@ TEST(ScopedNSObjectTest, ScopedNSObject) {
 
   base::scoped_nsobject<NSObject> p6 = p1;
   ASSERT_EQ(3u, [p6 retainCount]);
-  {
-    base::mac::ScopedNSAutoreleasePool pool;
+  @autoreleasepool {
     p6.autorelease();
     ASSERT_EQ(nil, p6.get());
     ASSERT_EQ(3u, [p1 retainCount]);
@@ -97,6 +94,25 @@ TEST(ScopedNSObjectTest, ScopedNSObjectFreeFunctions) {
   swap(p1, p2);
   ASSERT_EQ(o2, p1.get());
   ASSERT_EQ(o1, p2.get());
+}
+
+TEST(ScopedNSObjectTest, ResetWithAnotherScopedNSObject) {
+  base::scoped_nsobject<id> p1([[NSObject alloc] init]);
+  id o1 = p1.get();
+
+  id o2 = nil;
+  {
+    base::scoped_nsobject<id> p2([[NSObject alloc] init]);
+    o2 = p2.get();
+    p1.reset(p2);
+    EXPECT_EQ(2u, [p1 retainCount]);
+  }
+
+  EXPECT_NE(o1, p1.get());
+  EXPECT_EQ(o2, p1.get());
+  EXPECT_NE(p1.get(), nil);
+
+  EXPECT_EQ(1u, [p1 retainCount]);
 }
 
 }  // namespace

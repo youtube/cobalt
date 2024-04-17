@@ -1,19 +1,19 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TRACE_EVENT_MEMORY_DUMP_MANAGER_H_
 #define BASE_TRACE_EVENT_MEMORY_DUMP_MANAGER_H_
 
+#include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <unordered_set>
 #include <vector>
 
-#include "base/atomicops.h"
-#include "base/containers/hash_tables.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/base_export.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
 #include "base/trace_event/memory_allocator_dump.h"
@@ -21,9 +21,6 @@
 #include "base/trace_event/memory_dump_request_args.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "base/trace_event/trace_event.h"
-#include "starboard/types.h"
-
-#if !defined(STARBOARD)
 
 namespace base {
 
@@ -43,7 +40,8 @@ class BASE_EXPORT MemoryDumpManager {
   using RequestGlobalDumpFunction =
       RepeatingCallback<void(MemoryDumpType, MemoryDumpLevelOfDetail)>;
 
-  static const char* const kTraceCategory;
+  static constexpr const char* const kTraceCategory =
+      TRACE_DISABLED_BY_DEFAULT("memory-infra");
 
   // This value is returned as the tracing id of the child processes by
   // GetTracingProcessId() when tracing is not enabled.
@@ -51,6 +49,9 @@ class BASE_EXPORT MemoryDumpManager {
 
   static MemoryDumpManager* GetInstance();
   static std::unique_ptr<MemoryDumpManager> CreateInstanceForTesting();
+
+  MemoryDumpManager(const MemoryDumpManager&) = delete;
+  MemoryDumpManager& operator=(const MemoryDumpManager&) = delete;
 
   // Invoked once per process to listen to trace begin / end events.
   // Initialization can happen after (Un)RegisterMemoryDumpProvider() calls
@@ -117,7 +118,7 @@ class BASE_EXPORT MemoryDumpManager {
   // thread on which CreateProcessDump() was called. This method should only be
   // used by the memory-infra service while creating a global memory dump.
   void CreateProcessDump(const MemoryDumpRequestArgs& args,
-                         const ProcessMemoryDumpCallback& callback);
+                         ProcessMemoryDumpCallback callback);
 
   // Lets tests see if a dump provider is registered.
   bool IsDumpProviderRegisteredForTesting(MemoryDumpProvider*);
@@ -137,12 +138,14 @@ class BASE_EXPORT MemoryDumpManager {
   // allocator registered (which is currently the case for Mac OS).
   const char* system_allocator_pool_name() const {
     return kSystemAllocatorPoolName;
-  };
+  }
 
   // When set to true, calling |RegisterMemoryDumpProvider| is a no-op.
   void set_dumper_registrations_ignored_for_testing(bool ignored) {
     dumper_registrations_ignored_for_testing_ = ignored;
   }
+
+  scoped_refptr<SequencedTaskRunner> GetDumpThreadTaskRunner();
 
  private:
   friend std::default_delete<MemoryDumpManager>;  // For the testing instance.
@@ -161,6 +164,9 @@ class BASE_EXPORT MemoryDumpManager {
         const MemoryDumpProviderInfo::OrderedSet& dump_providers,
         ProcessMemoryDumpCallback callback,
         scoped_refptr<SequencedTaskRunner> dump_thread_task_runner);
+    ProcessMemoryDumpAsyncState(const ProcessMemoryDumpAsyncState&) = delete;
+    ProcessMemoryDumpAsyncState& operator=(const ProcessMemoryDumpAsyncState&) =
+        delete;
     ~ProcessMemoryDumpAsyncState();
 
     // A ProcessMemoryDump to collect data from MemoryDumpProviders.
@@ -188,9 +194,6 @@ class BASE_EXPORT MemoryDumpManager {
     // threads outside of the lock_ to avoid races when disabling tracing.
     // It is immutable for all the duration of a tracing session.
     const scoped_refptr<SequencedTaskRunner> dump_thread_task_runner;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(ProcessMemoryDumpAsyncState);
   };
 
   static const int kMaxConsecutiveFailuresCount;
@@ -202,7 +205,8 @@ class BASE_EXPORT MemoryDumpManager {
   static void SetInstanceForTesting(MemoryDumpManager* instance);
 
   // Lazily initializes dump_thread_ and returns its TaskRunner.
-  scoped_refptr<base::SequencedTaskRunner> GetOrCreateBgTaskRunnerLocked();
+  scoped_refptr<base::SequencedTaskRunner> GetOrCreateBgTaskRunnerLocked()
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Calls InvokeOnMemoryDump() for the each MDP that belongs to the current
   // task runner and switches to the task runner of the next MDP. Handles
@@ -236,13 +240,13 @@ class BASE_EXPORT MemoryDumpManager {
 
   // An ordered set of registered MemoryDumpProviderInfo(s), sorted by task
   // runner affinity (MDPs belonging to the same task runners are adjacent).
-  MemoryDumpProviderInfo::OrderedSet dump_providers_;
+  MemoryDumpProviderInfo::OrderedSet dump_providers_ GUARDED_BY(lock_);
 
   // Function provided by the embedder to handle global dump requests.
   RequestGlobalDumpFunction request_dump_function_;
 
   // True when current process coordinates the periodic dump triggering.
-  bool is_coordinator_;
+  bool is_coordinator_ GUARDED_BY(lock_) = false;
 
   // Protects from concurrent accesses to the local state, eg: to guard against
   // disabling logging while dumping on another thread.
@@ -250,21 +254,17 @@ class BASE_EXPORT MemoryDumpManager {
 
   // Thread used for MemoryDumpProviders which don't specify a task runner
   // affinity.
-  std::unique_ptr<Thread> dump_thread_;
+  std::unique_ptr<Thread> dump_thread_ GUARDED_BY(lock_);
 
   // The unique id of the child process. This is created only for tracing and is
   // expected to be valid only when tracing is enabled.
-  uint64_t tracing_process_id_;
+  uint64_t tracing_process_id_ = kInvalidTracingProcessId;
 
   // When true, calling |RegisterMemoryDumpProvider| is a no-op.
-  bool dumper_registrations_ignored_for_testing_;
-
-  DISALLOW_COPY_AND_ASSIGN(MemoryDumpManager);
+  bool dumper_registrations_ignored_for_testing_ = false;
 };
 
 }  // namespace trace_event
 }  // namespace base
-
-#endif  // #if !defined(STARBOARD)
 
 #endif  // BASE_TRACE_EVENT_MEMORY_DUMP_MANAGER_H_

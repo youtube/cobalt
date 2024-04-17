@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/accessibility.h"
@@ -462,6 +463,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(stat);
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);
