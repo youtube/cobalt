@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,14 @@
 
 #include <memory>
 
-#include "base/bind.h"
+#include "base/containers/contains.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/sequenced_task_runner.h"
 #include "base/synchronization/atomic_flag.h"
-#include "base/task/post_task.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
-#include "media/base/bind_to_current_loop.h"
+#include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_frame.h"
 
@@ -26,13 +27,16 @@ class CancellationHelper {
       : cancellation_flag_(std::make_unique<base::AtomicFlag>()),
         decoder_(std::move(decoder)) {}
 
+  CancellationHelper(const CancellationHelper&) = delete;
+  CancellationHelper& operator=(const CancellationHelper&) = delete;
+
   // Safe to call from any thread.
   void Cancel() { cancellation_flag_->Set(); }
 
   void Decode(scoped_refptr<DecoderBuffer> buffer,
               VideoDecoder::DecodeCB decode_cb) {
     if (cancellation_flag_->IsSet()) {
-      std::move(decode_cb).Run(DecodeStatus::ABORTED);
+      std::move(decode_cb).Run(DecoderStatus::Codes::kAborted);
       return;
     }
 
@@ -54,8 +58,6 @@ class CancellationHelper {
  private:
   std::unique_ptr<base::AtomicFlag> cancellation_flag_;
   std::unique_ptr<OffloadableVideoDecoder> decoder_;
-
-  DISALLOW_COPY_AND_ASSIGN(CancellationHelper);
 };
 
 OffloadingVideoDecoder::OffloadingVideoDecoder(
@@ -77,10 +79,6 @@ OffloadingVideoDecoder::~OffloadingVideoDecoder() {
     offload_task_runner_->DeleteSoon(FROM_HERE, std::move(helper_));
 }
 
-bool OffloadingVideoDecoder::IsOptimizedForRTC() const {
-  return helper_->decoder()->IsOptimizedForRTC();
-}
-
 VideoDecoderType OffloadingVideoDecoder::GetDecoderType() const {
   // This call is expected to be static and safe to call from any thread.
   return helper_->decoder()->GetDecoderType();
@@ -98,8 +96,7 @@ void OffloadingVideoDecoder::Initialize(const VideoDecoderConfig& config,
   const bool disable_offloading =
       config.is_encrypted() ||
       config.coded_size().width() < min_offloading_width_ ||
-      std::find(supported_codecs_.begin(), supported_codecs_.end(),
-                config.codec()) == supported_codecs_.end();
+      !base::Contains(supported_codecs_, config.codec());
 
   if (initialized_) {
     initialized_ = false;
@@ -131,8 +128,8 @@ void OffloadingVideoDecoder::Initialize(const VideoDecoderConfig& config,
 
   // Offloaded decoders expect asynchronous execution of callbacks; even if we
   // aren't currently using the offload thread.
-  InitCB bound_init_cb = BindToCurrentLoop(std::move(init_cb));
-  OutputCB bound_output_cb = BindToCurrentLoop(output_cb);
+  InitCB bound_init_cb = base::BindPostTaskToCurrentDefault(std::move(init_cb));
+  OutputCB bound_output_cb = base::BindPostTaskToCurrentDefault(output_cb);
 
   // If we're not offloading just pass through to the wrapped decoder.
   if (disable_offloading) {
@@ -162,7 +159,8 @@ void OffloadingVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
   DCHECK(buffer);
   DCHECK(decode_cb);
 
-  DecodeCB bound_decode_cb = BindToCurrentLoop(std::move(decode_cb));
+  DecodeCB bound_decode_cb =
+      base::BindPostTaskToCurrentDefault(std::move(decode_cb));
   if (!offload_task_runner_) {
     helper_->decoder()->Decode(std::move(buffer), std::move(bound_decode_cb));
     return;
@@ -177,7 +175,8 @@ void OffloadingVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
 void OffloadingVideoDecoder::Reset(base::OnceClosure reset_cb) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  base::OnceClosure bound_reset_cb = BindToCurrentLoop(std::move(reset_cb));
+  base::OnceClosure bound_reset_cb =
+      base::BindPostTaskToCurrentDefault(std::move(reset_cb));
   if (!offload_task_runner_) {
     helper_->Reset(std::move(bound_reset_cb));
   } else {

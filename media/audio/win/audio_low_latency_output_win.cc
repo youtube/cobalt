@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,15 +12,15 @@
 #include <climits>
 #include <memory>
 
-#include "base/callback.h"
 #include "base/command_line.h"
-#include "base/cxx17_backports.h"
+#include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/win/scoped_propvariant.h"
@@ -29,8 +29,9 @@
 #include "media/audio/win/audio_session_event_listener_win.h"
 #include "media/audio/win/avrt_wrapper_win.h"
 #include "media/audio/win/core_audio_util_win.h"
+#include "media/base/amplitude_peak_detector.h"
+#include "media/base/audio_glitch_info.h"
 #include "media/base/audio_sample_types.h"
-#include "media/base/bind_to_current_loop.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
@@ -88,7 +89,9 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(
     AudioManager::LogCallback log_callback)
     : creating_thread_id_(base::PlatformThread::CurrentId()),
       manager_(manager),
+      glitch_reporter_(SystemGlitchReporter::StreamType::kRender),
       format_(),
+      params_(params),
       opened_(false),
       volume_(1.0),
       packet_size_frames_(0),
@@ -102,6 +105,10 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(
       source_(nullptr),
       log_callback_(std::move(log_callback)) {
   DCHECK(manager_);
+#if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+  if (params.format() == AudioParameters::AUDIO_BITSTREAM_DTS)
+    DCHECK_EQ(GetShareMode(), AUDCLNT_SHAREMODE_EXCLUSIVE);
+#endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
 
   // The empty string is used to indicate a default device and the
   // |device_role_| member controls whether that's the default or default
@@ -138,13 +145,28 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(
   format_.Samples.wValidBitsPerSample = format->wBitsPerSample;
   format_.dwChannelMask = CoreAudioUtil::GetChannelConfig(device_id, eRender);
   format_.SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
-  SendLogMessage("%s => (audio engine format=[%s])", __func__,
-                 CoreAudioUtil::WaveFormatToString(&format_).c_str());
 
   // Store size (in different units) of audio packets which we expect to
   // get from the audio endpoint device in each render event.
   packet_size_frames_ = params.frames_per_buffer();
   packet_size_bytes_ = params.GetBytesPerBuffer(kSampleFormatF32);
+
+#if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+  if (params.format() == AudioParameters::AUDIO_BITSTREAM_DTS) {
+    format_.SubFormat = KSDATAFORMAT_SUBTYPE_IEC61937_DTS;
+    format->wBitsPerSample = 16;
+    format->nChannels = 2;
+    format_.dwChannelMask = KSAUDIO_SPEAKER_STEREO;
+    format_.Samples.wValidBitsPerSample = format->wBitsPerSample;
+    format->nBlockAlign = (format->wBitsPerSample / 8) * format->nChannels;
+    format->nAvgBytesPerSec = format->nSamplesPerSec * format->nBlockAlign;
+    packet_size_frames_ = 512;
+    packet_size_bytes_ = params.GetBytesPerBuffer(kSampleFormatS16);
+  }
+#endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+  SendLogMessage("%s => (audio engine format=[%s])", __func__,
+                 CoreAudioUtil::WaveFormatToString(&format_).c_str());
+
   SendLogMessage("%s => (packet size=[%zu bytes/%zu audio frames/%.3f ms])",
                  __func__, packet_size_bytes_, packet_size_frames_,
                  params.GetBufferDuration().InMillisecondsF());
@@ -175,6 +197,8 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(
 
 WASAPIAudioOutputStream::~WASAPIAudioOutputStream() {
   DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+
+  StopAudioSessionEventListener();
 }
 
 bool WASAPIAudioOutputStream::Open() {
@@ -303,10 +327,7 @@ bool WASAPIAudioOutputStream::Open() {
     return false;
   }
 
-  session_listener_ = std::make_unique<AudioSessionEventListener>(
-      audio_client_.Get(), BindToCurrentLoop(base::BindOnce(
-                               &WASAPIAudioOutputStream::OnDeviceChanged,
-                               weak_factory_.GetWeakPtr())));
+  StartAudioSessionEventListener();
 
   opened_ = true;
   return true;
@@ -367,11 +388,17 @@ void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
   last_position_ = 0;
   last_qpc_position_ = 0;
 
+  // Recreate `peak_detector_` everytime we create a new `render_thread_`, to
+  // avoid ThreadChecker DCHECKs.
+  peak_detector_ = std::make_unique<AmplitudePeakDetector>(base::BindRepeating(
+      &AudioManager::TraceAmplitudePeak, base::Unretained(manager_),
+      /*trace_start=*/false));
+
   // Create and start the thread that will drive the rendering by waiting for
   // render events.
   render_thread_ = std::make_unique<base::DelegateSimpleThread>(
       this, "wasapi_render_thread",
-      base::SimpleThread::Options(base::ThreadPriority::REALTIME_AUDIO));
+      base::SimpleThread::Options(base::ThreadType::kRealtimeAudio));
   render_thread_->Start();
   if (!render_thread_->HasBeenStarted()) {
     RecordAudioFailure(kStartFailureHistogram, GetLastError());
@@ -446,7 +473,7 @@ void WASAPIAudioOutputStream::Close() {
   DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
   SendLogMessage("%s()", __func__);
 
-  session_listener_.reset();
+  StopAudioSessionEventListener();
 
   // It is valid to call Close() before calling open or Start().
   // It is also valid to call Close() after Start() has been called.
@@ -462,6 +489,10 @@ void WASAPIAudioOutputStream::Close() {
 void WASAPIAudioOutputStream::Flush() {}
 
 void WASAPIAudioOutputStream::SetVolume(double volume) {
+#if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+  if (params_.format() == AudioParameters::AUDIO_BITSTREAM_DTS)
+    return;
+#endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
   SendLogMessage("%s({volume=%.2f})", __func__, volume);
   float volume_float = static_cast<float>(volume);
   if (volume_float < 0.0f || volume_float > 1.0f) {
@@ -491,8 +522,8 @@ void WASAPIAudioOutputStream::Run() {
   // Enable MMCSS to ensure that this thread receives prioritized access to
   // CPU resources.
   DWORD task_index = 0;
-  HANDLE mm_task = avrt::AvSetMmThreadCharacteristics(L"Pro Audio",
-                                                      &task_index);
+  HANDLE mm_task =
+      avrt::AvSetMmThreadCharacteristics(L"Pro Audio", &task_index);
   bool mmcss_is_ok =
       (mm_task && avrt::AvSetMmThreadPriority(mm_task, AVRT_PRIORITY_CRITICAL));
   if (!mmcss_is_ok) {
@@ -508,8 +539,8 @@ void WASAPIAudioOutputStream::Run() {
 
   bool playing = true;
   bool error = false;
-  HANDLE wait_array[] = { stop_render_event_.Get(),
-                          audio_samples_render_event_.Get() };
+  HANDLE wait_array[] = {stop_render_event_.Get(),
+                         audio_samples_render_event_.Get()};
   UINT64 device_frequency = 0;
 
   // The device frequency is the frequency generated by the hardware clock in
@@ -527,7 +558,7 @@ void WASAPIAudioOutputStream::Run() {
   // is signaled. An error event can also break the main thread loop.
   while (playing && !error) {
     // Wait for a close-down event, stream-switch event or a new render event.
-    DWORD wait_result = WaitForMultipleObjects(base::size(wait_array),
+    DWORD wait_result = WaitForMultipleObjects(std::size(wait_array),
                                                wait_array, FALSE, INFINITE);
 
     switch (wait_result) {
@@ -583,8 +614,7 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
     // Get the padding value which represents the amount of rendering
     // data that is queued up to play in the endpoint buffer.
     hr = audio_client_->GetCurrentPadding(&num_queued_frames);
-    num_available_frames =
-        endpoint_buffer_size_frames_ - num_queued_frames;
+    num_available_frames = endpoint_buffer_size_frames_ - num_queued_frames;
     if (FAILED(hr)) {
       RecordAudioFailure(kRenderFailureHistogram, hr);
       LOG(ERROR) << "WAOS::" << __func__
@@ -629,8 +659,7 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
   for (size_t n = 0; n < num_packets; ++n) {
     // Grab all available space in the rendering endpoint buffer
     // into which the client can write a data packet.
-    hr = audio_render_client_->GetBuffer(packet_size_frames_,
-                                         &audio_data);
+    hr = audio_render_client_->GetBuffer(packet_size_frames_, &audio_data);
     if (FAILED(hr)) {
       RecordAudioFailure(kRenderFailureHistogram, hr);
       LOG(ERROR) << "WAOS::" << __func__
@@ -648,6 +677,8 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
     UINT64 qpc_position = 0;
     base::TimeDelta delay;
     base::TimeTicks delay_timestamp;
+    // Stores glitch info to be passed on to OnMoreData().
+    AudioGlitchInfo::Accumulator glitch_info_accumulator;
     hr = audio_clock_->GetPosition(&position, &qpc_position);
     if (SUCCEEDED(hr)) {
       // Number of frames already played out through the speaker.
@@ -675,16 +706,17 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
         const int64_t qpc_position_diff_us =
             qpc_position_us - last_qpc_position_us;
 
-        if (qpc_position_diff_us - position_diff_us > buffer_duration_us / 2) {
-          ++num_glitches_detected_;
+        const int64_t gap_duration_us = qpc_position_diff_us - position_diff_us;
 
-          base::TimeDelta glitch_duration =
-              base::Microseconds(qpc_position_diff_us - position_diff_us);
-
-          if (glitch_duration > largest_glitch_)
-            largest_glitch_ = glitch_duration;
-
-          cumulative_audio_lost_ += glitch_duration;
+        // TODO(crbug.com/1417946): Investigate precisely what gap duration
+        // should be counted as a glitch.
+        bool is_glitch = gap_duration_us > buffer_duration_us / 2;
+        glitch_reporter_.UpdateStats(is_glitch
+                                         ? base::Microseconds(gap_duration_us)
+                                         : base::TimeDelta());
+        if (is_glitch) {
+          glitch_info_accumulator.Add(
+              {.duration = base::Microseconds(gap_duration_us), .count = 1});
         }
       }
 
@@ -715,21 +747,47 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
     // Read a data packet from the registered client source and
     // deliver a delay estimate in the same callback to the client.
 
-    int frames_filled =
-        source_->OnMoreData(delay, delay_timestamp, 0, audio_bus_.get());
+#if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+    if (params_.format() == AudioParameters::AUDIO_BITSTREAM_DTS) {
+      std::unique_ptr<AudioBus> audio_bus(
+          AudioBus::WrapMemory(params_, audio_data));
+      audio_bus_->set_is_bitstream_format(true);
+      int frames_filled = source_->OnMoreData(
+          delay, delay_timestamp, glitch_info_accumulator.GetAndReset(),
+          audio_bus.get());
+
+      // During pause/seek, keep the pipeline filled with zero'ed frames.
+      if (!frames_filled) {
+        memset(audio_data, 0, packet_size_frames_);
+      }
+
+      peak_detector_->FindPeak(audio_bus_.get());
+
+      // Release the buffer space acquired in the GetBuffer() call.
+      // Render silence if we were not able to fill up the buffer totally.
+      audio_render_client_->ReleaseBuffer(packet_size_frames_, 0);
+      num_written_frames_ += packet_size_frames_;
+      return true;
+    }
+#endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+    int frames_filled = source_->OnMoreData(
+        delay, delay_timestamp, glitch_info_accumulator.GetAndReset(),
+        audio_bus_.get());
     uint32_t num_filled_bytes = frames_filled * format_.Format.nBlockAlign;
     DCHECK_LE(num_filled_bytes, packet_size_bytes_);
-
     audio_bus_->Scale(volume_);
 
     // We skip clipping since that occurs at the shared memory boundary.
     audio_bus_->ToInterleaved<Float32SampleTypeTraitsNoClip>(
         frames_filled, reinterpret_cast<float*>(audio_data));
 
+    peak_detector_->FindPeak(audio_bus_.get());
+
     // Release the buffer space acquired in the GetBuffer() call.
     // Render silence if we were not able to fill up the buffer totally.
-    DWORD flags = (num_filled_bytes < packet_size_bytes_) ?
-        AUDCLNT_BUFFERFLAGS_SILENT : 0;
+    DWORD flags = (num_filled_bytes < packet_size_bytes_)
+                      ? AUDCLNT_BUFFERFLAGS_SILENT
+                      : 0;
     audio_render_client_->ReleaseBuffer(packet_size_frames_, flags);
 
     num_written_frames_ += packet_size_frames_;
@@ -778,8 +836,8 @@ HRESULT WASAPIAudioOutputStream::ExclusiveModeInitialization(
       // Calculate new aligned periodicity. Each unit of reference time
       // is 100 nanoseconds.
       REFERENCE_TIME aligned_buffer_duration = static_cast<REFERENCE_TIME>(
-          (10000000.0 * aligned_buffer_size / format_.Format.nSamplesPerSec)
-          + 0.5);
+          (10000000.0 * aligned_buffer_size / format_.Format.nSamplesPerSec) +
+          0.5);
 
       // It is possible to re-activate and re-initialize the audio client
       // at this stage but we bail out with an error code instead and
@@ -825,6 +883,7 @@ void WASAPIAudioOutputStream::StopThread() {
     }
 
     render_thread_.reset();
+    peak_detector_.reset();
 
     // Ensure that we don't quit the main thread loop immediately next
     // time Start() is called.
@@ -835,28 +894,66 @@ void WASAPIAudioOutputStream::StopThread() {
 }
 
 void WASAPIAudioOutputStream::ReportAndResetStats() {
-  // Even if there aren't any glitches, we want to record it to get a feel for
-  // how often we get no glitches vs the alternative.
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Media.Audio.Render.Glitches",
-                              num_glitches_detected_, 1, 999999, 100);
-  // Don't record these unless there actually was a glitch, though.
-  if (num_glitches_detected_ != 0) {
-    UMA_HISTOGRAM_COUNTS_1M("Media.Audio.Render.LostFramesInMs",
-                            cumulative_audio_lost_.InMilliseconds());
-    UMA_HISTOGRAM_COUNTS_1M("Media.Audio.Render.LargestGlitchMs",
-                            largest_glitch_.InMilliseconds());
-  }
+  SystemGlitchReporter::Stats stats =
+      glitch_reporter_.GetLongTermStatsAndReset();
   SendLogMessage(
       "%s => (num_glitches_detected=[%d], cumulative_audio_lost=[%llu ms], "
       "largest_glitch=[%llu ms])",
-      __func__, num_glitches_detected_, cumulative_audio_lost_.InMilliseconds(),
-      largest_glitch_.InMilliseconds());
-  num_glitches_detected_ = 0;
-  cumulative_audio_lost_ = base::TimeDelta();
-  largest_glitch_ = base::TimeDelta();
+      __func__, stats.glitches_detected,
+      stats.total_glitch_duration.InMilliseconds(),
+      stats.largest_glitch_duration.InMilliseconds());
+}
+
+void WASAPIAudioOutputStream::StartAudioSessionEventListener() {
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+
+  if (session_listener_) {
+    // Already started listening!
+    return;
+  }
+
+  HRESULT hr = audio_client_->GetService(IID_PPV_ARGS(&audio_session_control_));
+  if (FAILED(hr)) {
+    DLOG(ERROR) << "Failed to get IAudioSessionControl service: " << std::hex
+                << hr;
+    return;
+  }
+
+  session_listener_ = Microsoft::WRL::Make<AudioSessionEventListener>(
+      base::BindPostTaskToCurrentDefault(
+          base::BindOnce(&WASAPIAudioOutputStream::OnDeviceChanged,
+                         weak_factory_.GetWeakPtr())));
+
+  hr = audio_session_control_->RegisterAudioSessionNotification(
+      session_listener_.Get());
+
+  DLOG_IF(ERROR, FAILED(hr))
+      << "IAudioSessionControl::RegisterAudioSessionNotification() failed: "
+      << std::hex << hr;
+}
+
+void WASAPIAudioOutputStream::StopAudioSessionEventListener() {
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+
+  if (!session_listener_) {
+    // Already stopped listening!
+    return;
+  }
+
+  HRESULT hr = audio_session_control_->UnregisterAudioSessionNotification(
+      session_listener_.Get());
+
+  DLOG_IF(ERROR, FAILED(hr))
+      << "IAudioSessionControl::UnregisterAudioSessionNotification() failed: "
+      << std::hex << hr;
+
+  audio_session_control_.Reset();
+  session_listener_.Reset();
 }
 
 void WASAPIAudioOutputStream::OnDeviceChanged() {
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+
   device_changed_ = true;
   if (source_)
     source_->OnError(AudioSourceCallback::ErrorType::kDeviceChange);

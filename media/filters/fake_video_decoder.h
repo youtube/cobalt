@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,10 +9,9 @@
 
 #include <list>
 
-#include "base/bind.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "media/base/callback_holder.h"
@@ -102,7 +101,9 @@ class FakeVideoDecoder : public VideoDecoder {
   virtual scoped_refptr<VideoFrame> MakeVideoFrame(const DecoderBuffer& buffer);
 
   // Callback for updating |total_bytes_decoded_|.
-  void OnFrameDecoded(int buffer_size, DecodeCB decode_cb, Status status);
+  void OnFrameDecoded(int buffer_size,
+                      DecodeCB decode_cb,
+                      DecoderStatus status);
 
   // Runs |decode_cb| or puts it to |held_decode_callbacks_| depending on
   // current value of |hold_decode_|.

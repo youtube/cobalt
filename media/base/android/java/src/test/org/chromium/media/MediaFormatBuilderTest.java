@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@ import static org.junit.Assert.assertTrue;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaFormat;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -18,14 +19,14 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.testing.local.LocalRobolectricTestRunner;
+import org.chromium.base.test.BaseRobolectricTestRunner;
 
 import java.nio.ByteBuffer;
 
 /**
  * Tests for MediaFormatBuilder.
  */
-@RunWith(LocalRobolectricTestRunner.class)
+@RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class MediaFormatBuilderTest {
     private static final String VIDEO_DECODER_MIME = MediaFormat.MIMETYPE_VIDEO_AVC;
@@ -63,6 +64,11 @@ public class MediaFormatBuilderTest {
     @Before
     public void setUp() {
         ContextUtils.initApplicationContextForTests(RuntimeEnvironment.application);
+    }
+
+    @After
+    public void tearDown() {
+        ContextUtils.clearApplicationContextForTests();
     }
 
     @Test

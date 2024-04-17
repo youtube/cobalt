@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,11 +41,6 @@ GFX_EXPORT const Font& GetDefaultSystemFont();
 // Returns the specified Windows system font, suitable for drawing on screen
 // elements.
 GFX_EXPORT const Font& GetSystemFont(SystemFont system_font);
-
-// Applies a font adjustment to an existing native font.
-GFX_EXPORT NativeFont
-AdjustExistingSystemFont(NativeFont existing_font,
-                         const FontAdjustment& font_adjustment);
 
 // Computes and returns the adjusted size of a font, subject to the global
 // minimum size. |lf_height| is the height as reported by the LOGFONT structure,

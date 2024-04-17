@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/time/time.h"
 #include "media/base/android/media_codec_bridge_impl.h"
 #include "media/base/android/media_codec_util.h"
 #include "media/base/decoder_buffer.h"
@@ -104,14 +105,6 @@ static const size_t kDecodedAudioLengthInBytes = 9216u;
 }  // namespace
 
 namespace media {
-
-#define SKIP_TEST_IF_MEDIA_CODEC_IS_NOT_AVAILABLE()               \
-  do {                                                            \
-    if (!MediaCodecUtil::IsMediaCodecAvailable()) {               \
-      VLOG(0) << "Could not run test - not supported on device."; \
-      return;                                                     \
-    }                                                             \
-  } while (0)
 
 #define SKIP_TEST_IF_HW_H264_IS_NOT_AVAILABLE()                        \
   do {                                                                 \
@@ -224,7 +217,6 @@ void H264Validate(const uint8_t* frame, size_t size) {
 
 void EncodeMediaFrame(MediaCodecBridge* media_codec,
                       const uint8_t* src_data,
-                      const size_t src_size,
                       const int width,
                       const int height,
                       const base::TimeDelta input_timestamp) {
@@ -238,13 +230,30 @@ void EncodeMediaFrame(MediaCodecBridge* media_codec,
   status = media_codec->GetInputBuffer(input_buf_index, &buffer, &capacity);
   ASSERT_EQ(MEDIA_CODEC_OK, status);
 
+  int stride, yplane_height;
+  gfx::Size encoded_size;
+  status = media_codec->GetInputFormat(&stride, &yplane_height, &encoded_size);
+  ASSERT_EQ(MEDIA_CODEC_OK, status);
+
+  const gfx::Size uv_plane_size = VideoFrame::PlaneSizeInSamples(
+      PIXEL_FORMAT_NV12, VideoFrame::kUVPlane, encoded_size);
+  const size_t src_size =
+      // size of Y-plane plus padding till UV-plane
+      stride * yplane_height +
+      // size of all UV-plane lines but the last one
+      (uv_plane_size.height() - 1) * stride +
+      // size of the very last line in UV-plane (it's not padded to full stride)
+      uv_plane_size.width() * 2;
+  ASSERT_LE(src_size, capacity);
+
   // Convert to NV12 because H264 encoder is created with color format
   // COLOR_FormatYUV420SemiPlanar, both in main code path and unittest here.
   bool converted =
       !libyuv::I420ToNV12(src_data, width, src_data + width * height, width / 2,
                           src_data + width * height * 5 / 4, width / 2, buffer,
-                          width, buffer + width * height, width, width, height);
-  ASSERT_TRUE(converted == true);
+                          stride, buffer + stride * yplane_height, stride,
+                          encoded_size.width(), encoded_size.height());
+  ASSERT_TRUE(converted);
 
   status = media_codec->QueueInputBuffer(input_buf_index, nullptr, src_size,
                                          input_timestamp);
@@ -287,8 +296,6 @@ AudioDecoderConfig NewAudioConfig(
 }
 
 TEST(MediaCodecBridgeTest, CreateH264Decoder) {
-  SKIP_TEST_IF_MEDIA_CODEC_IS_NOT_AVAILABLE();
-
   VideoCodecConfig config;
   config.codec = VideoCodec::kH264;
   config.codec_type = CodecType::kAny;
@@ -298,8 +305,6 @@ TEST(MediaCodecBridgeTest, CreateH264Decoder) {
 }
 
 TEST(MediaCodecBridgeTest, DoNormal) {
-  SKIP_TEST_IF_MEDIA_CODEC_IS_NOT_AVAILABLE();
-
   std::unique_ptr<media::MediaCodecBridge> media_codec =
       MediaCodecBridgeImpl::CreateAudioDecoder(NewAudioConfig(AudioCodec::kMP3),
                                                nullptr);
@@ -355,8 +360,6 @@ TEST(MediaCodecBridgeTest, DoNormal) {
 }
 
 TEST(MediaCodecBridgeTest, InvalidVorbisHeader) {
-  SKIP_TEST_IF_MEDIA_CODEC_IS_NOT_AVAILABLE();
-
   // The first byte of the header is not 0x02.
   std::vector<uint8_t> invalid_first_byte = {{0x00, 0xff, 0xff, 0xff, 0xff}};
   ASSERT_THAT(
@@ -375,8 +378,6 @@ TEST(MediaCodecBridgeTest, InvalidVorbisHeader) {
 }
 
 TEST(MediaCodecBridgeTest, InvalidOpusHeader) {
-  SKIP_TEST_IF_MEDIA_CODEC_IS_NOT_AVAILABLE();
-
   std::vector<uint8_t> dummy_extra_data = {{0, 0}};
 
   // Codec Delay is < 0.
@@ -493,8 +494,8 @@ TEST(MediaCodecBridgeTest, H264VideoEncodeAndValidate) {
   for (int frame = 0; frame < num_frames && frame < 3; frame++) {
     input_timestamp +=
         base::Microseconds(base::Time::kMicrosecondsPerSecond / frame_rate);
-    EncodeMediaFrame(media_codec.get(), frame_data.get(), frame_size, width,
-                     height, input_timestamp);
+    EncodeMediaFrame(media_codec.get(), frame_data.get(), width, height,
+                     input_timestamp);
   }
 
   // Reuest key frame and encode 3 more frames. The second key frame should
@@ -503,8 +504,8 @@ TEST(MediaCodecBridgeTest, H264VideoEncodeAndValidate) {
   for (int frame = 0; frame < num_frames && frame < 3; frame++) {
     input_timestamp +=
         base::Microseconds(base::Time::kMicrosecondsPerSecond / frame_rate);
-    EncodeMediaFrame(media_codec.get(), frame_data.get(), frame_size, width,
-                     height, input_timestamp);
+    EncodeMediaFrame(media_codec.get(), frame_data.get(), width, height,
+                     input_timestamp);
   }
 }
 

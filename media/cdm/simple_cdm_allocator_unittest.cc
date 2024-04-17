@@ -1,11 +1,10 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <stdint.h>
 #include <memory>
 
-#include "base/macros.h"
 #include "media/base/video_frame.h"
 #include "media/cdm/api/content_decryption_module.h"
 #include "media/cdm/cdm_helpers.h"
@@ -20,6 +19,9 @@ class TestCdmBuffer final : public cdm::Buffer {
   static TestCdmBuffer* Create(uint32_t capacity) {
     return new TestCdmBuffer(capacity);
   }
+
+  TestCdmBuffer(const TestCdmBuffer&) = delete;
+  TestCdmBuffer& operator=(const TestCdmBuffer&) = delete;
 
   // cdm::Buffer implementation.
   void Destroy() override {
@@ -42,8 +44,6 @@ class TestCdmBuffer final : public cdm::Buffer {
 
   std::vector<uint8_t> buffer_;
   uint32_t size_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestCdmBuffer);
 };
 
 class SimpleCdmAllocatorTest : public testing::Test {

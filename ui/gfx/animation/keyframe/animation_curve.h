@@ -1,4 +1,4 @@
-// Copyright 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,13 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/time/time.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/animation/keyframe/keyframe_animation_export.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/transform.h"
-#include "ui/gfx/geometry/transform_operations.h"
 
 namespace gfx {
 class TransformOperations;
@@ -61,6 +61,8 @@ class GFX_KEYFRAME_ANIMATION_EXPORT AnimationCurve {
   virtual base::TimeDelta TickInterval() const;
 };
 
+// |target_| field is not a raw_ptr<> because it was filtered by the rewriter
+// for: #constexpr-ctor-field-initializer, #macro
 #define DECLARE_ANIMATION_CURVE_BODY(T, Name)                                \
  public:                                                                     \
   static const Name##AnimationCurve* To##Name##AnimationCurve(               \
@@ -77,15 +79,19 @@ class GFX_KEYFRAME_ANIMATION_EXPORT AnimationCurve {
   virtual T GetValue(base::TimeDelta t) const = 0;                           \
   void Tick(base::TimeDelta t, int property_id,                              \
             gfx::KeyframeModel* keyframe_model) const override;              \
-  void set_target(Target* target) { target_ = target; }                      \
+  void set_target(Target* target) {                                          \
+    target_ = target;                                                        \
+  }                                                                          \
   int Type() const override;                                                 \
   const char* TypeName() const override;                                     \
                                                                              \
  protected:                                                                  \
-  Target* target() const { return target_; }                                 \
+  Target* target() const {                                                   \
+    return target_;                                                          \
+  }                                                                          \
                                                                              \
  private:                                                                    \
-  Target* target_ = nullptr;
+  RAW_PTR_EXCLUSION Target* target_ = nullptr;
 
 class GFX_KEYFRAME_ANIMATION_EXPORT ColorAnimationCurve
     : public AnimationCurve {

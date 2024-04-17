@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -70,6 +70,11 @@ class MEDIA_GPU_EXPORT CodecOutputBufferRenderer
   }
 
   gfx::Size size() const { return output_buffer_->size(); }
+
+  // Color space of the image.
+  const gfx::ColorSpace& color_space() const {
+    return output_buffer_->color_space();
+  }
 
   bool was_tex_image_bound() const { return was_tex_image_bound_; }
 

@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,8 +23,11 @@ class MockVideoFrameReceiver : public VideoFrameReceiver {
                VideoCaptureDevice::Client::Buffer::ScopedAccessPermission>*
                buffer_read_permission,
            const gfx::Size&));
+  MOCK_METHOD0(OnCaptureConfigurationChanged, void());
   MOCK_METHOD1(OnError, void(media::VideoCaptureError error));
   MOCK_METHOD1(OnFrameDropped, void(media::VideoCaptureFrameDropReason reason));
+  MOCK_METHOD0(OnFrameWithEmptyRegionCapture, void());
+  MOCK_METHOD1(OnNewCropVersion, void(uint32_t));
   MOCK_METHOD1(OnLog, void(const std::string& message));
   MOCK_METHOD1(OnBufferRetired, void(int buffer_id));
   MOCK_METHOD0(OnStarted, void());

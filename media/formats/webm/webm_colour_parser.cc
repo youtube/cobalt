@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,27 +7,7 @@
 #include "base/check.h"
 #include "base/logging.h"
 #include "media/formats/webm/webm_constants.h"
-
-#if defined(STARBOARD)
-
-// Taken from mkvmuxer.h as is to avoid introducing the whole libwebm library.
-namespace mkvmuxer {
-
-class Colour {
- public:
-  enum Range {
-    kUnspecifiedCr = 0,
-    kBroadcastRange = 1,
-    kFullRange = 2,
-    kMcTcDefined = 3,  // Defined by MatrixCoefficients/TransferCharacteristics.
-  };
-};
-
-}  // namespace mkvmuxer
-
-#else // defined(STARBOARD)
 #include "third_party/libwebm/source/mkvmuxer/mkvmuxer.h"
-#endif // defined(STARBOARD)
 
 namespace media {
 
@@ -40,28 +20,28 @@ WebMColorVolumeMetadataParser::~WebMColorVolumeMetadataParser() = default;
 bool WebMColorVolumeMetadataParser::OnFloat(int id, double val) {
   switch (id) {
     case kWebMIdPrimaryRChromaticityX:
-      color_volume_metadata_.primary_r.set_x(val);
+      color_volume_metadata_.primaries.fRX = val;
       break;
     case kWebMIdPrimaryRChromaticityY:
-      color_volume_metadata_.primary_r.set_y(val);
+      color_volume_metadata_.primaries.fRY = val;
       break;
     case kWebMIdPrimaryGChromaticityX:
-      color_volume_metadata_.primary_g.set_x(val);
+      color_volume_metadata_.primaries.fGX = val;
       break;
     case kWebMIdPrimaryGChromaticityY:
-      color_volume_metadata_.primary_g.set_y(val);
+      color_volume_metadata_.primaries.fGY = val;
       break;
     case kWebMIdPrimaryBChromaticityX:
-      color_volume_metadata_.primary_b.set_x(val);
+      color_volume_metadata_.primaries.fBX = val;
       break;
     case kWebMIdPrimaryBChromaticityY:
-      color_volume_metadata_.primary_b.set_y(val);
+      color_volume_metadata_.primaries.fBY = val;
       break;
     case kWebMIdWhitePointChromaticityX:
-      color_volume_metadata_.white_point.set_x(val);
+      color_volume_metadata_.primaries.fWX = val;
       break;
     case kWebMIdWhitePointChromaticityY:
-      color_volume_metadata_.white_point.set_y(val);
+      color_volume_metadata_.primaries.fWY = val;
       break;
     case kWebMIdLuminanceMax:
       color_volume_metadata_.luminance_max = val;

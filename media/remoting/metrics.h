@@ -1,13 +1,13 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_REMOTING_METRICS_H_
 #define MEDIA_REMOTING_METRICS_H_
 
-#include "base/macros.h"
 #include "base/time/time.h"
 #include "media/base/pipeline_metadata.h"
+#include "media/mojo/mojom/remoting_common.mojom.h"
 #include "media/remoting/triggers.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
@@ -63,6 +63,7 @@ class SessionMetricsRecorder {
   // session ends.
   void WillStartSession(StartTrigger trigger);
   void DidStartSession();
+  void StartSessionFailed(mojom::RemotingStartFailReason reason);
   void WillStopSession(StopTrigger trigger);
 
   // These may be called before, during, or after a remoting session.
@@ -116,7 +117,7 @@ class SessionMetricsRecorder {
 
   // Last known disabled playback state. This can change before/after a remoting
   // session as well as during one.
-  bool remote_playback_is_disabled_ = false;
+  absl::optional<bool> remote_playback_is_disabled_;
 
   bool did_record_pixel_rate_support_ = false;
   bool did_record_compatibility_ = false;

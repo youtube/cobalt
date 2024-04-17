@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,8 +40,17 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
                              is_key_frame, type, track_id));
 }
 
+scoped_refptr<StreamParserBuffer> StreamParserBuffer::FromExternalMemory(
+    std::unique_ptr<ExternalMemory> external_memory,
+    bool is_key_frame,
+    Type type,
+    TrackId track_id) {
+  return base::WrapRefCounted(new StreamParserBuffer(
+      std::move(external_memory), is_key_frame, type, track_id));
+}
+
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
-  if (decode_timestamp_ == kNoDecodeTimestamp())
+  if (decode_timestamp_ == kNoDecodeTimestamp)
     return DecodeTimestamp::FromPresentationTime(timestamp());
   return decode_timestamp_;
 }
@@ -52,6 +61,18 @@ void StreamParserBuffer::SetDecodeTimestamp(DecodeTimestamp timestamp) {
     preroll_buffer_->SetDecodeTimestamp(timestamp);
 }
 
+StreamParserBuffer::StreamParserBuffer(
+    std::unique_ptr<ExternalMemory> external_memory,
+    bool is_key_frame,
+    Type type,
+    TrackId track_id)
+    : DecoderBuffer(std::move(external_memory)),
+      type_(type),
+      track_id_(track_id) {
+  set_duration(kNoTimestamp);
+  set_is_key_frame(is_key_frame);
+}
+
 StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
                                        int data_size,
                                        const uint8_t* side_data,
@@ -60,7 +81,7 @@ StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
                                        Type type,
                                        TrackId track_id)
     : DecoderBuffer(data, data_size, side_data, side_data_size),
-      decode_timestamp_(kNoDecodeTimestamp()),
+      decode_timestamp_(kNoDecodeTimestamp),
       config_id_(kInvalidConfigId),
       type_(type),
       track_id_(track_id),

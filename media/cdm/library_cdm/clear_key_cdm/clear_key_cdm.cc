@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,12 +10,11 @@
 #include <sstream>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/cxx17_backports.h"
 #include "base/files/file.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -26,6 +25,7 @@
 #include "media/base/encryption_pattern.h"
 #include "media/cdm/api/content_decryption_module_ext.h"
 #include "media/cdm/cdm_type_conversion.h"
+#include "media/cdm/clear_key_cdm_common.h"
 #include "media/cdm/json_web_key.h"
 #include "media/cdm/library_cdm/cdm_host_proxy.h"
 #include "media/cdm/library_cdm/cdm_host_proxy_impl.h"
@@ -46,27 +46,8 @@ static base::AtExitManager g_at_exit_manager;
 #endif  // CLEAR_KEY_CDM_USE_FFMPEG_DECODER
 
 const char kClearKeyCdmVersion[] = "0.1.0.1";
-const char kExternalClearKeyKeySystem[] = "org.chromium.externalclearkey";
 
 // Variants of External Clear Key key system to test different scenarios.
-const char kExternalClearKeyDecryptOnlyKeySystem[] =
-    "org.chromium.externalclearkey.decryptonly";
-const char kExternalClearKeyMessageTypeTestKeySystem[] =
-    "org.chromium.externalclearkey.messagetypetest";
-const char kExternalClearKeyFileIOTestKeySystem[] =
-    "org.chromium.externalclearkey.fileiotest";
-const char kExternalClearKeyOutputProtectionTestKeySystem[] =
-    "org.chromium.externalclearkey.outputprotectiontest";
-const char kExternalClearKeyPlatformVerificationTestKeySystem[] =
-    "org.chromium.externalclearkey.platformverificationtest";
-const char kExternalClearKeyCrashKeySystem[] =
-    "org.chromium.externalclearkey.crash";
-const char kExternalClearKeyVerifyCdmHostTestKeySystem[] =
-    "org.chromium.externalclearkey.verifycdmhosttest";
-const char kExternalClearKeyStorageIdTestKeySystem[] =
-    "org.chromium.externalclearkey.storageidtest";
-const char kExternalClearKeyDifferentGuidTestKeySystem[] =
-    "org.chromium.externalclearkey.differentguid";
 
 const int64_t kMsPerSecond = 1000;
 const int64_t kMaxTimerDelayMs = 5 * kMsPerSecond;
@@ -169,16 +150,19 @@ void* CreateCdmInstance(int cdm_interface_version,
   }
 
   std::string key_system_string(key_system, key_system_size);
-  if (key_system_string != kExternalClearKeyKeySystem &&
-      key_system_string != kExternalClearKeyDecryptOnlyKeySystem &&
-      key_system_string != kExternalClearKeyMessageTypeTestKeySystem &&
-      key_system_string != kExternalClearKeyFileIOTestKeySystem &&
-      key_system_string != kExternalClearKeyOutputProtectionTestKeySystem &&
-      key_system_string != kExternalClearKeyPlatformVerificationTestKeySystem &&
-      key_system_string != kExternalClearKeyCrashKeySystem &&
-      key_system_string != kExternalClearKeyVerifyCdmHostTestKeySystem &&
-      key_system_string != kExternalClearKeyStorageIdTestKeySystem &&
-      key_system_string != kExternalClearKeyDifferentGuidTestKeySystem) {
+  if (key_system_string != media::kExternalClearKeyKeySystem &&
+      key_system_string != media::kExternalClearKeyDecryptOnlyKeySystem &&
+      key_system_string != media::kExternalClearKeyMessageTypeTestKeySystem &&
+      key_system_string != media::kExternalClearKeyFileIOTestKeySystem &&
+      key_system_string !=
+          media::kExternalClearKeyOutputProtectionTestKeySystem &&
+      key_system_string !=
+          media::kExternalClearKeyPlatformVerificationTestKeySystem &&
+      key_system_string != media::kExternalClearKeyCrashKeySystem &&
+      key_system_string != media::kExternalClearKeyVerifyCdmHostTestKeySystem &&
+      key_system_string != media::kExternalClearKeyStorageIdTestKeySystem &&
+      key_system_string !=
+          media::kExternalClearKeyDifferentCdmTypeTestKeySystem) {
     DVLOG(1) << "Unsupported key system:" << key_system_string;
     return nullptr;
   }
@@ -316,7 +300,7 @@ class CdmVideoFrameAdapter : public cdm::VideoFrame_2 {
   }
 
  private:
-  cdm::VideoFrame* const video_frame_ = nullptr;
+  const raw_ptr<cdm::VideoFrame> video_frame_ = nullptr;
 };
 
 }  // namespace
@@ -324,8 +308,8 @@ class CdmVideoFrameAdapter : public cdm::VideoFrame_2 {
 template <typename HostInterface>
 ClearKeyCdm::ClearKeyCdm(HostInterface* host, const std::string& key_system)
     : host_interface_version_(HostInterface::kVersion),
-      cdm_host_proxy_(new CdmHostProxyImpl<HostInterface>(host)),
-      cdm_(new ClearKeyPersistentSessionCdm(
+      cdm_host_proxy_(std::make_unique<CdmHostProxyImpl<HostInterface>>(host)),
+      cdm_(base::MakeRefCounted<ClearKeyPersistentSessionCdm>(
           cdm_host_proxy_.get(),
           base::BindRepeating(&ClearKeyCdm::OnSessionMessage,
                               base::Unretained(this)),
@@ -379,12 +363,11 @@ void ClearKeyCdm::CreateSessionAndGenerateRequest(
     return;
   }
 
-  std::unique_ptr<media::NewSessionCdmPromise> promise(
-      new media::CdmCallbackPromise<std::string>(
-          base::BindOnce(&ClearKeyCdm::OnSessionCreated, base::Unretained(this),
-                         promise_id),
-          base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
-                         promise_id)));
+  auto promise = std::make_unique<CdmCallbackPromise<std::string>>(
+      base::BindOnce(&ClearKeyCdm::OnSessionCreated, base::Unretained(this),
+                     promise_id),
+      base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
+                     promise_id));
   cdm_->CreateSessionAndGenerateRequest(
       ToMediaSessionType(session_type), ToEmeInitDataType(init_data_type),
       std::vector<uint8_t>(init_data, init_data + init_data_size),
@@ -415,12 +398,11 @@ void ClearKeyCdm::LoadSession(uint32_t promise_id,
   DCHECK(allow_persistent_state_);
   std::string web_session_str(session_id, session_id_length);
 
-  std::unique_ptr<media::NewSessionCdmPromise> promise(
-      new media::CdmCallbackPromise<std::string>(
-          base::BindOnce(&ClearKeyCdm::OnSessionCreated, base::Unretained(this),
-                         promise_id),
-          base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
-                         promise_id)));
+  auto promise = std::make_unique<CdmCallbackPromise<std::string>>(
+      base::BindOnce(&ClearKeyCdm::OnSessionCreated, base::Unretained(this),
+                     promise_id),
+      base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
+                     promise_id));
   cdm_->LoadSession(ToMediaSessionType(session_type),
                     std::move(web_session_str), std::move(promise));
 }
@@ -434,12 +416,11 @@ void ClearKeyCdm::UpdateSession(uint32_t promise_id,
   std::string web_session_str(session_id, session_id_length);
   std::vector<uint8_t> response_vector(response, response + response_size);
 
-  std::unique_ptr<media::SimpleCdmPromise> promise(
-      new media::CdmCallbackPromise<>(
-          base::BindOnce(&ClearKeyCdm::OnUpdateSuccess, base::Unretained(this),
-                         promise_id, web_session_str),
-          base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
-                         promise_id)));
+  auto promise = std::make_unique<CdmCallbackPromise<>>(
+      base::BindOnce(&ClearKeyCdm::OnUpdateSuccess, base::Unretained(this),
+                     promise_id, web_session_str),
+      base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
+                     promise_id));
 
   cdm_->UpdateSession(session_id, response_vector, std::move(promise));
 }
@@ -490,12 +471,11 @@ void ClearKeyCdm::CloseSession(uint32_t promise_id,
   DVLOG(1) << __func__;
   std::string web_session_str(session_id, session_id_length);
 
-  std::unique_ptr<media::SimpleCdmPromise> promise(
-      new media::CdmCallbackPromise<>(
-          base::BindOnce(&ClearKeyCdm::OnPromiseResolved,
-                         base::Unretained(this), promise_id),
-          base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
-                         promise_id)));
+  auto promise = std::make_unique<CdmCallbackPromise<>>(
+      base::BindOnce(&ClearKeyCdm::OnPromiseResolved, base::Unretained(this),
+                     promise_id),
+      base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
+                     promise_id));
   cdm_->CloseSession(std::move(web_session_str), std::move(promise));
 }
 
@@ -505,12 +485,11 @@ void ClearKeyCdm::RemoveSession(uint32_t promise_id,
   DVLOG(1) << __func__;
   std::string web_session_str(session_id, session_id_length);
 
-  std::unique_ptr<media::SimpleCdmPromise> promise(
-      new media::CdmCallbackPromise<>(
-          base::BindOnce(&ClearKeyCdm::OnPromiseResolved,
-                         base::Unretained(this), promise_id),
-          base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
-                         promise_id)));
+  auto promise = std::make_unique<CdmCallbackPromise<>>(
+      base::BindOnce(&ClearKeyCdm::OnPromiseResolved, base::Unretained(this),
+                     promise_id),
+      base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
+                     promise_id));
   cdm_->RemoveSession(std::move(web_session_str), std::move(promise));
 }
 
@@ -518,12 +497,11 @@ void ClearKeyCdm::SetServerCertificate(uint32_t promise_id,
                                        const uint8_t* server_certificate_data,
                                        uint32_t server_certificate_data_size) {
   DVLOG(1) << __func__;
-  std::unique_ptr<media::SimpleCdmPromise> promise(
-      new media::CdmCallbackPromise<>(
-          base::BindOnce(&ClearKeyCdm::OnPromiseResolved,
-                         base::Unretained(this), promise_id),
-          base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
-                         promise_id)));
+  auto promise = std::make_unique<CdmCallbackPromise<>>(
+      base::BindOnce(&ClearKeyCdm::OnPromiseResolved, base::Unretained(this),
+                     promise_id),
+      base::BindOnce(&ClearKeyCdm::OnPromiseFailed, base::Unretained(this),
+                     promise_id));
   cdm_->SetServerCertificate(
       std::vector<uint8_t>(
           server_certificate_data,
@@ -556,9 +534,9 @@ void ClearKeyCdm::TimerExpired(void* context) {
   ScheduleNextTimer();
 }
 
-static void CopyDecryptResults(media::Decryptor::Status* status_copy,
+static void CopyDecryptResults(Decryptor::Status* status_copy,
                                scoped_refptr<DecoderBuffer>* buffer_copy,
-                               media::Decryptor::Status status,
+                               Decryptor::Status status,
                                scoped_refptr<DecoderBuffer> buffer) {
   *status_copy = status;
   *buffer_copy = std::move(buffer);
@@ -588,13 +566,14 @@ cdm::Status ClearKeyCdm::Decrypt(const cdm::InputBuffer_2& encrypted_buffer,
 
 cdm::Status ClearKeyCdm::InitializeAudioDecoder(
     const cdm::AudioDecoderConfig_2& audio_decoder_config) {
-  if (key_system_ == kExternalClearKeyDecryptOnlyKeySystem)
+  if (key_system_ == kExternalClearKeyDecryptOnlyKeySystem) {
     return cdm::kInitializationError;
+  }
 
 #if defined(CLEAR_KEY_CDM_USE_FFMPEG_DECODER)
   if (!audio_decoder_) {
     audio_decoder_ =
-        std::make_unique<media::FFmpegCdmAudioDecoder>(cdm_host_proxy_.get());
+        std::make_unique<FFmpegCdmAudioDecoder>(cdm_host_proxy_.get());
   }
 
   if (!audio_decoder_->Initialize(audio_decoder_config))
@@ -613,8 +592,9 @@ cdm::Status ClearKeyCdm::InitializeVideoDecoder(
 
 cdm::Status ClearKeyCdm::InitializeVideoDecoder(
     const cdm::VideoDecoderConfig_3& video_decoder_config) {
-  if (key_system_ == kExternalClearKeyDecryptOnlyKeySystem)
+  if (key_system_ == kExternalClearKeyDecryptOnlyKeySystem) {
     return cdm::kInitializationError;
+  }
 
   if (!video_decoder_) {
     video_decoder_ =
@@ -755,20 +735,22 @@ cdm::Status ClearKeyCdm::DecryptToMediaDecoderBuffer(
   }
 
   // Callback is called synchronously, so we can use variables on the stack.
-  media::Decryptor::Status status = media::Decryptor::kError;
+  Decryptor::Status status = Decryptor::kError;
   // The CDM does not care what the stream type is. Pass kVideo
   // for both audio and video decryption.
   cdm_->GetCdmContext()->GetDecryptor()->Decrypt(
-      media::Decryptor::kVideo, std::move(buffer),
+      Decryptor::kVideo, std::move(buffer),
       base::BindOnce(&CopyDecryptResults, &status, decrypted_buffer));
 
-  if (status == media::Decryptor::kError)
+  if (status == Decryptor::kError) {
     return cdm::kDecryptError;
+  }
 
-  if (status == media::Decryptor::kNoKey)
+  if (status == Decryptor::kNoKey) {
     return cdm::kNoKey;
+  }
 
-  DCHECK_EQ(status, media::Decryptor::kSuccess);
+  DCHECK_EQ(status, Decryptor::kSuccess);
   return cdm::kSuccess;
 }
 
@@ -828,7 +810,7 @@ void ClearKeyCdm::OnQueryOutputProtectionStatus(
   }
   const uint8_t kDummyKeyId[] = {'d', 'u', 'm', 'm', 'y'};
   std::vector<cdm::KeyInformation> keys_vector = {
-      {kDummyKeyId, base::size(kDummyKeyId), key_status, 0}};
+      {kDummyKeyId, std::size(kDummyKeyId), key_status, 0}};
   cdm_host_proxy_->OnSessionKeysChange(last_session_id_.data(),
                                        last_session_id_.length(), false,
                                        keys_vector.data(), keys_vector.size());

@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,11 @@
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/unguessable_token.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
+#include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/ipc/common/gpu_channel.mojom.h"
 #include "media/base/media_export.h"
@@ -77,8 +77,10 @@ class MEDIA_EXPORT GpuVideoAcceleratorFactories {
     kUnknown,
   };
 
-  // Return whether GPU encoding/decoding is enabled.
-  virtual bool IsGpuVideoAcceleratorEnabled() = 0;
+  // Return whether GPU decoding is enabled.
+  virtual bool IsGpuVideoDecodeAcceleratorEnabled() = 0;
+  // Return whether GPU encoding is enabled.
+  virtual bool IsGpuVideoEncodeAcceleratorEnabled() = 0;
 
   // Return the channel token, or an empty token if the channel is unusable.
   // |cb| could be called re-entrantly. This function is not thread safe.
@@ -158,9 +160,6 @@ class MEDIA_EXPORT GpuVideoAcceleratorFactories {
   // May be called on any thread.
   virtual void NotifyEncoderSupportKnown(base::OnceClosure callback) = 0;
 
-  // Caller owns returned pointer, but should call Destroy() on it (instead of
-  // directly deleting) for proper destruction, as per the
-  // VideoEncodeAccelerator interface.
   virtual std::unique_ptr<VideoEncodeAccelerator>
   CreateVideoEncodeAccelerator() = 0;
 
@@ -200,6 +199,8 @@ class MEDIA_EXPORT GpuVideoAcceleratorFactories {
   virtual scoped_refptr<base::SequencedTaskRunner> GetTaskRunner() = 0;
 
   virtual viz::RasterContextProvider* GetMediaContextProvider() = 0;
+
+  virtual const gpu::Capabilities* ContextCapabilities() = 0;
 
   // Sets or gets the current pipeline rendering color space.
   virtual void SetRenderingColorSpace(const gfx::ColorSpace& color_space) = 0;

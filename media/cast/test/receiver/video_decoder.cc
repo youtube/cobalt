@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,16 +7,17 @@
 #include <stdint.h>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/values.h"
 #include "media/base/video_frame_pool.h"
 #include "media/base/video_util.h"
 #include "media/cast/cast_environment.h"
+#include "media/cast/common/encoded_frame.h"
+#include "media/cast/common/openscreen_conversion_helpers.h"
 #include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
@@ -35,6 +36,9 @@ class VideoDecoder::ImplBase
       : cast_environment_(cast_environment),
         codec_(codec),
         operational_status_(STATUS_UNINITIALIZED) {}
+
+  ImplBase(const ImplBase&) = delete;
+  ImplBase& operator=(const ImplBase&) = delete;
 
   OperationalStatus InitializationResult() const { return operational_status_; }
 
@@ -63,7 +67,7 @@ class VideoDecoder::ImplBase
       return;
     }
     decoded_frame->set_timestamp(
-        encoded_frame->rtp_timestamp.ToTimeDelta(kVideoFrequency));
+        ToTimeDelta(encoded_frame->rtp_timestamp, kVideoFrequency));
 
     std::unique_ptr<FrameEvent> decode_event(new FrameEvent());
     decode_event->timestamp = cast_environment_->Clock()->NowTicks();
@@ -98,20 +102,16 @@ class VideoDecoder::ImplBase
 
  private:
   FrameId last_frame_id_;
-
-  DISALLOW_COPY_AND_ASSIGN(ImplBase);
 };
 
 class VideoDecoder::Vp8Impl final : public VideoDecoder::ImplBase {
  public:
   explicit Vp8Impl(const scoped_refptr<CastEnvironment>& cast_environment)
-      : ImplBase(cast_environment, CODEC_VIDEO_VP8) {
+      : ImplBase(cast_environment, Codec::kVideoVp8) {
     if (ImplBase::operational_status_ != STATUS_UNINITIALIZED)
       return;
 
     vpx_codec_dec_cfg_t cfg = {0};
-    // TODO(miu): Revisit this for typical multi-core desktop use case.  This
-    // feels like it should be 4 or 8.
     cfg.threads = 1;
 
     DCHECK(vpx_codec_get_caps(vpx_codec_vp8_dx()) & VPX_CODEC_CAP_POSTPROC);
@@ -122,6 +122,9 @@ class VideoDecoder::Vp8Impl final : public VideoDecoder::ImplBase {
     }
     ImplBase::operational_status_ = STATUS_INITIALIZED;
   }
+
+  Vp8Impl(const Vp8Impl&) = delete;
+  Vp8Impl& operator=(const Vp8Impl&) = delete;
 
  private:
   ~Vp8Impl() final {
@@ -155,35 +158,36 @@ class VideoDecoder::Vp8Impl final : public VideoDecoder::ImplBase {
         video_frame_pool_.CreateFrame(PIXEL_FORMAT_I420, frame_size,
                                       gfx::Rect(frame_size), frame_size,
                                       base::TimeDelta());
-    libyuv::I420Copy(image->planes[VPX_PLANE_Y], image->stride[VPX_PLANE_Y],
-                     image->planes[VPX_PLANE_U], image->stride[VPX_PLANE_U],
-                     image->planes[VPX_PLANE_V], image->stride[VPX_PLANE_V],
-                     decoded_frame->visible_data(media::VideoFrame::kYPlane),
-                     decoded_frame->stride(media::VideoFrame::kYPlane),
-                     decoded_frame->visible_data(media::VideoFrame::kUPlane),
-                     decoded_frame->stride(media::VideoFrame::kUPlane),
-                     decoded_frame->visible_data(media::VideoFrame::kVPlane),
-                     decoded_frame->stride(media::VideoFrame::kVPlane),
-                     frame_size.width(), frame_size.height());
+    libyuv::I420Copy(
+        image->planes[VPX_PLANE_Y], image->stride[VPX_PLANE_Y],
+        image->planes[VPX_PLANE_U], image->stride[VPX_PLANE_U],
+        image->planes[VPX_PLANE_V], image->stride[VPX_PLANE_V],
+        decoded_frame->GetWritableVisibleData(media::VideoFrame::kYPlane),
+        decoded_frame->stride(media::VideoFrame::kYPlane),
+        decoded_frame->GetWritableVisibleData(media::VideoFrame::kUPlane),
+        decoded_frame->stride(media::VideoFrame::kUPlane),
+        decoded_frame->GetWritableVisibleData(media::VideoFrame::kVPlane),
+        decoded_frame->stride(media::VideoFrame::kVPlane), frame_size.width(),
+        frame_size.height());
     return decoded_frame;
   }
 
   // VPX decoder context (i.e., an instantiation).
   vpx_codec_ctx_t context_;
-
-  DISALLOW_COPY_AND_ASSIGN(Vp8Impl);
 };
 
-#ifndef OFFICIAL_BUILD
 // A fake video decoder that always output 2x2 black frames.
 class VideoDecoder::FakeImpl final : public VideoDecoder::ImplBase {
  public:
   explicit FakeImpl(const scoped_refptr<CastEnvironment>& cast_environment)
-      : ImplBase(cast_environment, CODEC_VIDEO_FAKE), last_decoded_id_(-1) {
+      : ImplBase(cast_environment, Codec::kVideoFake), last_decoded_id_(-1) {
     if (ImplBase::operational_status_ != STATUS_UNINITIALIZED)
       return;
     ImplBase::operational_status_ = STATUS_INITIALIZED;
   }
+
+  FakeImpl(const FakeImpl&) = delete;
+  FakeImpl& operator=(const FakeImpl&) = delete;
 
  private:
   ~FakeImpl() final = default;
@@ -192,38 +196,32 @@ class VideoDecoder::FakeImpl final : public VideoDecoder::ImplBase {
     // Make sure this is a JSON string.
     if (!len || data[0] != '{')
       return nullptr;
-    std::unique_ptr<base::Value> values(base::JSONReader::ReadDeprecated(
-        base::StringPiece(reinterpret_cast<char*>(data), len)));
+    absl::optional<base::Value> values = base::JSONReader::Read(
+        base::StringPiece(reinterpret_cast<char*>(data), len));
     if (!values || !values->is_dict())
       return nullptr;
 
-    int id = values->FindIntKey("id").value_or(0);
+    int id = values->GetDict().FindInt("id").value_or(0);
     DCHECK(id == last_decoded_id_ + 1);
     last_decoded_id_ = id;
     return media::VideoFrame::CreateBlackFrame(gfx::Size(2, 2));
   }
 
   int last_decoded_id_;
-
-  DISALLOW_COPY_AND_ASSIGN(FakeImpl);
 };
-#endif
 
 VideoDecoder::VideoDecoder(
     const scoped_refptr<CastEnvironment>& cast_environment,
     Codec codec)
     : cast_environment_(cast_environment) {
   switch (codec) {
-#ifndef OFFICIAL_BUILD
-    case CODEC_VIDEO_FAKE:
+    case Codec::kVideoFake:
       impl_ = new FakeImpl(cast_environment);
       break;
-#endif
-    case CODEC_VIDEO_VP8:
+    case Codec::kVideoVp8:
       impl_ = new Vp8Impl(cast_environment);
       break;
-    case CODEC_VIDEO_H264:
-      // TODO(miu): Need implementation.
+    case Codec::kVideoH264:
       NOTIMPLEMENTED();
       break;
     default:

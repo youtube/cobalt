@@ -1,12 +1,11 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_FORMATS_MP2T_TS_SECTION_CAT_H_
 #define MEDIA_FORMATS_MP2T_TS_SECTION_CAT_H_
 
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
 #include "media/base/encryption_scheme.h"
 #include "media/formats/mp2t/ts_section_psi.h"
 

@@ -1,13 +1,15 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/audio/android/aaudio_output.h"
 
 #include "base/android/build_info.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "media/audio/android/aaudio_stubs.h"
 #include "media/audio/android/audio_manager_android.h"
@@ -30,7 +32,7 @@ class LOCKABLE AAudioDestructionHelper {
 
   AAudioOutputStream* GetAndLockStream() EXCLUSIVE_LOCK_FUNCTION() {
     lock_.Acquire();
-    return is_closing_ ? nullptr : output_stream_;
+    return is_closing_ ? nullptr : output_stream_.get();
   }
 
   void UnlockStream() UNLOCK_FUNCTION() { lock_.Release(); }
@@ -45,8 +47,8 @@ class LOCKABLE AAudioDestructionHelper {
 
  private:
   base::Lock lock_;
-  AAudioOutputStream* output_stream_ GUARDED_BY(lock_) = nullptr;
-  AAudioStream* aaudio_stream_ GUARDED_BY(lock_) = nullptr;
+  raw_ptr<AAudioOutputStream> output_stream_ GUARDED_BY(lock_) = nullptr;
+  raw_ptr<AAudioStream> aaudio_stream_ GUARDED_BY(lock_) = nullptr;
   bool is_closing_ GUARDED_BY(lock_) = false;
 };
 
@@ -134,10 +136,8 @@ AAudioOutputStream::~AAudioOutputStream() {
 
   // Keep |destruction_helper_| alive longer than |this|, so the |user_data|
   // bound to the callback stays valid, until the callbacks stop.
-  base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce([](std::unique_ptr<AAudioDestructionHelper>) {},
-                     std::move(destruction_helper_)),
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, base::DoNothingWithBoundArgs(std::move(destruction_helper_)),
       base::Seconds(1));
 }
 
@@ -311,7 +311,7 @@ aaudio_data_callback_result_t AAudioOutputStream::OnAudioDataRequested(
   const base::TimeDelta delay = GetDelay(delay_timestamp);
 
   const int frames_filled =
-      callback_->OnMoreData(delay, delay_timestamp, 0, audio_bus_.get());
+      callback_->OnMoreData(delay, delay_timestamp, {}, audio_bus_.get());
 
   audio_bus_->Scale(muted_ ? 0.0 : volume_);
   audio_bus_->ToInterleaved<Float32SampleTypeTraits>(

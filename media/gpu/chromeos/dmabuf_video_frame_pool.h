@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,11 @@
 #define MEDIA_GPU_CHROMEOS_DMABUF_VIDEO_FRAME_POOL_H_
 
 #include "base/memory/scoped_refptr.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "media/base/status.h"
 #include "media/base/video_frame.h"
+#include "media/gpu/chromeos/chromeos_status.h"
 #include "media/gpu/chromeos/fourcc.h"
 #include "media/gpu/chromeos/gpu_buffer_layout.h"
 #include "media/gpu/media_gpu_export.h"
@@ -18,14 +20,27 @@
 
 namespace media {
 
+// Forward declare for use in AsPlatformVideoFramePool.
+class PlatformVideoFramePool;
+
 // Interface for allocating and managing DMA-buf VideoFrame. The client should
-// set a task runner first, and guarantee both GetFrame() and the destructor are
-// executed on this task runner.
-// Note: other public methods might be called at different thread. The
-// implementation must be thread-safe.
+// set a task runner first via set_parent_task_runner(), and guarantee that
+// Initialize(), GetFrame(), GetGpuBufferLayout() and the destructor are
+// executed on this task runner. Note: other public methods might be called at
+// different thread. The implementation must be thread-safe.
 class MEDIA_GPU_EXPORT DmabufVideoFramePool {
  public:
   using DmabufId = const std::vector<base::ScopedFD>*;
+
+  using CreateFrameCB =
+      base::RepeatingCallback<CroStatus::Or<scoped_refptr<VideoFrame>>(
+          VideoPixelFormat,
+          const gfx::Size&,
+          const gfx::Rect&,
+          const gfx::Size&,
+          bool,
+          bool,
+          base::TimeDelta)>;
 
   // Get the identifier of Dmabuf-backed |frame|. Calling this method with the
   // frames backed by the same Dmabuf should return the same result.
@@ -40,17 +55,23 @@ class MEDIA_GPU_EXPORT DmabufVideoFramePool {
   virtual void set_parent_task_runner(
       scoped_refptr<base::SequencedTaskRunner> parent_task_runner);
 
+  // Allows downcasting to an implementation of DmabufVideoFramePool safely
+  // since it has custom behavior that VaapiVideoDecoder needs to take
+  // advantage of.
+  virtual PlatformVideoFramePool* AsPlatformVideoFramePool();
+
   // Sets the parameters of allocating frames and the maximum number of frames
   // which can be allocated.
-  // Returns a valid GpuBufferLayout if the initialization is successful.
-  // Returns StatusCode::kAborted if the initialization process is aborted.
-  // Returns StatusCode::kInvalidArgument if any other error occurs.
-  virtual StatusOr<GpuBufferLayout> Initialize(const Fourcc& fourcc,
-                                               const gfx::Size& coded_size,
-                                               const gfx::Rect& visible_rect,
-                                               const gfx::Size& natural_size,
-                                               size_t max_num_frames,
-                                               bool use_protected) = 0;
+  // Returns a valid GpuBufferLayout if the initialization is successful,
+  // otherwise returns any given error from the set of CroStatus::Codes.
+  virtual CroStatus::Or<GpuBufferLayout> Initialize(
+      const Fourcc& fourcc,
+      const gfx::Size& coded_size,
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      size_t max_num_frames,
+      bool use_protected,
+      bool use_linear_buffers = false) = 0;
 
   // Returns a frame from the pool with the layout that is returned by the
   // previous Initialize() method and zero timestamp. Returns nullptr if the
@@ -72,6 +93,13 @@ class MEDIA_GPU_EXPORT DmabufVideoFramePool {
   // which will cause new ones to be allocated. This method must be called on
   // |parent_task_runner_| because it may invalidate weak ptrs.
   virtual void ReleaseAllFrames() = 0;
+
+  // Detailed information of the allocated GpuBufferLayout. Only valid after a
+  // successful Initialize() call, otherwise returns absl::nullopt.
+  virtual absl::optional<GpuBufferLayout> GetGpuBufferLayout() = 0;
+
+  // Returns true if and only if the pool is a mock pool used for testing.
+  virtual bool IsFakeVideoFramePool();
 
  protected:
   scoped_refptr<base::SequencedTaskRunner> parent_task_runner_;

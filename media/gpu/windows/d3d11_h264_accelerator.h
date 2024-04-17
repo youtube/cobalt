@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,19 +12,19 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "gpu/command_buffer/service/texture_manager.h"
-#include "media/base/status.h"
 #include "media/base/video_frame.h"
 #include "media/base/win/mf_helpers.h"
 #include "media/gpu/h264_decoder.h"
 #include "media/gpu/h264_dpb.h"
 #include "media/gpu/windows/d3d11_com_defs.h"
+#include "media/gpu/windows/d3d11_status.h"
 #include "media/gpu/windows/d3d11_video_context_wrapper.h"
 #include "media/gpu/windows/d3d11_video_decoder_client.h"
 #include "media/video/picture.h"
 #include "third_party/angle/include/EGL/egl.h"
 #include "third_party/angle/include/EGL/eglext.h"
-#include "ui/gl/gl_image.h"
 
 namespace media {
 
@@ -66,6 +66,10 @@ class D3D11H264Accelerator : public H264Decoder::H264Accelerator {
   void Reset() override;
   bool OutputPicture(scoped_refptr<H264Picture> pic) override;
 
+ private:
+  bool SubmitSliceData();
+  bool RetrieveBitstreamBuffer();
+
   // Gets a pic params struct with the constant fields set.
   void FillPicParamsWithConstants(DXVA_PicParams_H264* pic_param);
 
@@ -79,24 +83,20 @@ class D3D11H264Accelerator : public H264Decoder::H264Accelerator {
 
   // Populate the pic params with fields from the slice header structure.
   void PicParamsFromSliceHeader(DXVA_PicParams_H264* pic_param,
-                                const H264SliceHeader* pps);
+                                const H264SliceHeader* slice_hdr);
 
   void PicParamsFromPic(DXVA_PicParams_H264* pic_param, D3D11H264Picture* pic);
 
   void SetVideoDecoder(ComD3D11VideoDecoder video_decoder);
 
- private:
-  bool SubmitSliceData();
-  bool RetrieveBitstreamBuffer();
-
   // Record a failure to DVLOG and |media_log_|.
   void RecordFailure(const std::string& reason,
-                     StatusCode code,
+                     D3D11Status::Codes code,
                      HRESULT hr = S_OK) const;
-  void RecordFailure(media::Status error) const;
+  void RecordFailure(D3D11Status error) const;
 
-  D3D11VideoDecoderClient* client_;
-  MediaLog* media_log_ = nullptr;
+  raw_ptr<D3D11VideoDecoderClient> client_;
+  raw_ptr<MediaLog> media_log_ = nullptr;
 
   ComD3D11VideoDecoder video_decoder_;
   ComD3D11VideoDevice video_device_;
@@ -115,7 +115,7 @@ class D3D11H264Accelerator : public H264Decoder::H264Accelerator {
   std::vector<DXVA_Slice_H264_Short> slice_info_;
   size_t current_offset_ = 0;
   size_t bitstream_buffer_size_ = 0;
-  uint8_t* bitstream_buffer_bytes_ = nullptr;
+  raw_ptr<uint8_t, AllowPtrArithmetic> bitstream_buffer_bytes_ = nullptr;
 
   // This contains the subsamples (clear and encrypted) of the slice data
   // in D3D11_VIDEO_DECODER_BUFFER_BITSTREAM buffer.

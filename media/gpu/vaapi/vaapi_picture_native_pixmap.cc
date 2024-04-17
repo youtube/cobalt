@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,6 @@
 
 #include "media/gpu/vaapi/va_surface.h"
 #include "media/gpu/vaapi/vaapi_wrapper.h"
-#include "ui/gfx/buffer_format_util.h"
-#include "ui/gfx/gpu_memory_buffer.h"
-#include "ui/gfx/linux/native_pixmap_dmabuf.h"
-#include "ui/gfx/native_pixmap.h"
-#include "ui/gl/gl_bindings.h"
-#include "ui/gl/gl_image_native_pixmap.h"
 
 namespace media {
 

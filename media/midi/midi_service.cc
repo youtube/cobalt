@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/feature_list.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "media/midi/midi_manager.h"
 #include "media/midi/midi_switches.h"
@@ -54,7 +55,8 @@ void MidiService::StartSession(MidiManagerClient* client) {
   if (!manager_) {
     manager_ = manager_factory_->Create(this);
     DCHECK(!manager_destructor_runner_);
-    manager_destructor_runner_ = base::ThreadTaskRunnerHandle::Get();
+    manager_destructor_runner_ =
+        base::SingleThreadTaskRunner::GetCurrentDefault();
   }
   manager_->StartSession(client);
 }
@@ -70,7 +72,7 @@ bool MidiService::EndSession(MidiManagerClient* client) {
 // MIDIClientCreate starts failing with the OSStatus -50 after repeated calls
 // of MIDIClientDispose. It rarely happens, but once it starts, it will never
 // get back to be sane. See https://crbug.com/718140.
-#if !defined(OS_MAC)
+#if !BUILDFLAG(IS_MAC)
   if (!manager_->HasOpenSession()) {
     // MidiManager for each platform should be able to shutdown correctly even
     // if following destruction happens in the middle of StartInitialization().
@@ -103,7 +105,7 @@ scoped_refptr<base::SingleThreadTaskRunner> MidiService::GetTaskRunner(
   if (!threads_[runner_id]) {
     threads_[runner_id] = std::make_unique<base::Thread>(
         base::StringPrintf("MidiServiceThread(%zu)", runner_id));
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     threads_[runner_id]->init_com_with_mta(true);
 #endif
     threads_[runner_id]->Start();

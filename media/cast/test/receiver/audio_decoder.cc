@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,14 +8,15 @@
 
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/sys_byteorder.h"
 #include "build/build_config.h"
+#include "media/cast/common/encoded_frame.h"
 #include "third_party/opus/src/include/opus.h"
 
 namespace media {
@@ -39,6 +40,9 @@ class AudioDecoder::ImplBase
       operational_status_ = STATUS_INVALID_CONFIGURATION;
     }
   }
+
+  ImplBase(const ImplBase&) = delete;
+  ImplBase& operator=(const ImplBase&) = delete;
 
   OperationalStatus InitializationResult() const { return operational_status_; }
 
@@ -99,8 +103,6 @@ class AudioDecoder::ImplBase
 
  private:
   FrameId last_frame_id_;
-
-  DISALLOW_COPY_AND_ASSIGN(ImplBase);
 };
 
 class AudioDecoder::OpusImpl final : public AudioDecoder::ImplBase {
@@ -109,7 +111,7 @@ class AudioDecoder::OpusImpl final : public AudioDecoder::ImplBase {
            int num_channels,
            int sampling_rate)
       : ImplBase(cast_environment,
-                 CODEC_AUDIO_OPUS,
+                 Codec::kAudioOpus,
                  num_channels,
                  sampling_rate),
         decoder_memory_(new uint8_t[opus_decoder_get_size(num_channels)]),
@@ -127,6 +129,9 @@ class AudioDecoder::OpusImpl final : public AudioDecoder::ImplBase {
     }
     ImplBase::operational_status_ = STATUS_INITIALIZED;
   }
+
+  OpusImpl(const OpusImpl&) = delete;
+  OpusImpl& operator=(const OpusImpl&) = delete;
 
  private:
   ~OpusImpl() final = default;
@@ -148,7 +153,6 @@ class AudioDecoder::OpusImpl final : public AudioDecoder::ImplBase {
     // Copy interleaved samples from |buffer_| into a new AudioBus (where
     // samples are stored in planar format, for each channel).
     audio_bus = AudioBus::Create(num_channels_, num_samples_decoded);
-    // TODO(miu): This should be moved into AudioBus::FromInterleaved().
     for (int ch = 0; ch < num_channels_; ++ch) {
       const float* src = buffer_.get() + ch;
       const float* const src_end = src + num_samples_decoded * num_channels_;
@@ -160,7 +164,7 @@ class AudioDecoder::OpusImpl final : public AudioDecoder::ImplBase {
   }
 
   const std::unique_ptr<uint8_t[]> decoder_memory_;
-  OpusDecoder* const opus_decoder_;
+  const raw_ptr<OpusDecoder> opus_decoder_;
   const int max_samples_per_frame_;
   const std::unique_ptr<float[]> buffer_;
 
@@ -168,8 +172,6 @@ class AudioDecoder::OpusImpl final : public AudioDecoder::ImplBase {
   // provide enough space in |buffer_| to contain 120ms of samples.  At 48 kHz,
   // then, that means 5760 samples times the number of channels.
   static const int kOpusMaxFrameDurationMillis = 120;
-
-  DISALLOW_COPY_AND_ASSIGN(OpusImpl);
 };
 
 class AudioDecoder::Pcm16Impl final : public AudioDecoder::ImplBase {
@@ -178,13 +180,16 @@ class AudioDecoder::Pcm16Impl final : public AudioDecoder::ImplBase {
             int num_channels,
             int sampling_rate)
       : ImplBase(cast_environment,
-                 CODEC_AUDIO_PCM16,
+                 Codec::kAudioPcm16,
                  num_channels,
                  sampling_rate) {
     if (ImplBase::operational_status_ != STATUS_UNINITIALIZED)
       return;
     ImplBase::operational_status_ = STATUS_INITIALIZED;
   }
+
+  Pcm16Impl(const Pcm16Impl&) = delete;
+  Pcm16Impl& operator=(const Pcm16Impl&) = delete;
 
  private:
   ~Pcm16Impl() final = default;
@@ -207,8 +212,6 @@ class AudioDecoder::Pcm16Impl final : public AudioDecoder::ImplBase {
                                                             num_samples);
     return audio_bus;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(Pcm16Impl);
 };
 
 AudioDecoder::AudioDecoder(
@@ -218,10 +221,10 @@ AudioDecoder::AudioDecoder(
     Codec codec)
     : cast_environment_(cast_environment) {
   switch (codec) {
-    case CODEC_AUDIO_OPUS:
+    case Codec::kAudioOpus:
       impl_ = new OpusImpl(cast_environment, channels, sampling_rate);
       break;
-    case CODEC_AUDIO_PCM16:
+    case Codec::kAudioPcm16:
       impl_ = new Pcm16Impl(cast_environment, channels, sampling_rate);
       break;
     default:

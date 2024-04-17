@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,22 @@ bool DataSource::AssumeFullyBuffered() const {
 int64_t DataSource::GetMemoryUsage() {
   int64_t temp;
   return GetSize(&temp) ? temp : 0;
+}
+
+void DataSource::SetPreload(media::DataSource::Preload preload) {}
+
+GURL DataSource::GetUrlAfterRedirects() const {
+  return GURL();
+}
+
+void DataSource::OnBufferingHaveEnough(bool must_cancel_netops) {}
+
+void DataSource::OnMediaPlaybackRateChanged(double playback_rate) {}
+
+void DataSource::OnMediaIsPlaying() {}
+
+const CrossOriginDataSource* DataSource::GetAsCrossOriginDataSource() const {
+  return nullptr;
 }
 
 }  // namespace media

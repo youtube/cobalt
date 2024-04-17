@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,8 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "media/base/callback_registry.h"
@@ -42,6 +41,9 @@ class MEDIA_EXPORT AesDecryptor : public ContentDecryptionModule,
                const SessionClosedCB& session_closed_cb,
                const SessionKeysChangeCB& session_keys_change_cb,
                const SessionExpirationUpdateCB& session_expiration_update_cb);
+
+  AesDecryptor(const AesDecryptor&) = delete;
+  AesDecryptor& operator=(const AesDecryptor&) = delete;
 
   // ContentDecryptionModule implementation.
   void SetServerCertificate(const std::vector<uint8_t>& certificate,
@@ -197,8 +199,6 @@ class MEDIA_EXPORT AesDecryptor : public ContentDecryptionModule,
   std::map<std::string, CdmSessionType> open_sessions_;
 
   CallbackRegistry<EventCB::RunType> event_callbacks_;
-
-  DISALLOW_COPY_AND_ASSIGN(AesDecryptor);
 };
 
 }  // namespace media

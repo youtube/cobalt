@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,9 +14,11 @@ LoopbackAudioConverter::LoopbackAudioConverter(
 
 LoopbackAudioConverter::~LoopbackAudioConverter() = default;
 
-double LoopbackAudioConverter::ProvideInput(AudioBus* audio_bus,
-                                            uint32_t frames_delayed) {
-  audio_converter_.ConvertWithDelay(frames_delayed, audio_bus);
+double LoopbackAudioConverter::ProvideInput(
+    AudioBus* audio_bus,
+    uint32_t frames_delayed,
+    const AudioGlitchInfo& glitch_info) {
+  audio_converter_.ConvertWithInfo(frames_delayed, glitch_info, audio_bus);
   return 1.0;
 }
 

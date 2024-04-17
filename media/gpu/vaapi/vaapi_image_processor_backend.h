@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "base/containers/small_map.h"
-#include "base/macros.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/gpu/chromeos/image_processor_backend.h"
 #include "media/gpu/media_gpu_export.h"
 #include "ui/gfx/gpu_memory_buffer.h"
@@ -35,10 +35,9 @@ class VaapiImageProcessorBackend : public ImageProcessorBackend {
   static std::unique_ptr<ImageProcessorBackend> Create(
       const PortConfig& input_config,
       const PortConfig& output_config,
-      const std::vector<OutputMode>& preferred_output_modes,
+      OutputMode output_mode,
       VideoRotation relative_rotation,
-      ErrorCB error_cb,
-      scoped_refptr<base::SequencedTaskRunner> backend_task_runner);
+      ErrorCB error_cb);
 
   // ImageProcessor implementation.
   void Process(scoped_refptr<VideoFrame> input_frame,
@@ -46,21 +45,20 @@ class VaapiImageProcessorBackend : public ImageProcessorBackend {
                FrameReadyCB cb) override;
   void Reset() override;
 
+  std::string type() const override;
+
  private:
-  VaapiImageProcessorBackend(
-      scoped_refptr<VaapiWrapper> vaapi_wrapper,
-      const PortConfig& input_config,
-      const PortConfig& output_config,
-      OutputMode output_mode,
-      VideoRotation relative_rotation,
-      ErrorCB error_cb,
-      scoped_refptr<base::SequencedTaskRunner> backend_task_runner);
+  VaapiImageProcessorBackend(const PortConfig& input_config,
+                             const PortConfig& output_config,
+                             OutputMode output_mode,
+                             VideoRotation relative_rotation,
+                             ErrorCB error_cb);
   ~VaapiImageProcessorBackend() override;
 
   const VASurface* GetSurfaceForVideoFrame(scoped_refptr<VideoFrame> frame,
                                            bool use_protected);
 
-  const scoped_refptr<VaapiWrapper> vaapi_wrapper_;
+  scoped_refptr<VaapiWrapper> vaapi_wrapper_;
   bool needs_context_ = false;
 
   // VASurfaces are created via importing dma-bufs into libva using

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,8 +16,6 @@ std::string AudioProcessingSettings::ToString() const {
        ", ns: ", bool_to_yes_no(noise_suppression),
        ", transient ns: ", bool_to_yes_no(transient_noise_suppression),
        ", gain control: ", bool_to_yes_no(automatic_gain_control),
-       ", analog gain control: ",
-       bool_to_yes_no(experimental_automatic_gain_control),
        ", high pass filter: ", bool_to_yes_no(high_pass_filter),
        ", multichannel capture processing: ",
        bool_to_yes_no(multi_channel_capture_processing),

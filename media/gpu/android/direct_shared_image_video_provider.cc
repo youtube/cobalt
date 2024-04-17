@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,23 +6,23 @@
 
 #include <memory>
 
-#include "base/bind.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/single_thread_task_runner.h"
-#include "base/task_runner_util.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "gpu/command_buffer/service/abstract_texture.h"
 #include "gpu/command_buffer/service/mailbox_manager.h"
-#include "gpu/command_buffer/service/shared_image_factory.h"
-#include "gpu/command_buffer/service/shared_image_video.h"
+#include "gpu/command_buffer/service/shared_image/android_video_image_backing.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "gpu/command_buffer/service/texture_manager.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
-#include "media/base/bind_to_current_loop.h"
 #include "media/base/media_switches.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "ui/gl/gl_bindings.h"
@@ -86,7 +86,8 @@ void DirectSharedImageVideoProvider::RequestImage(ImageReadyCB cb,
   // Note: `cb` is only run on successful creation, so this does not use
   // `AsyncCall()` + `Then()` to chain the callbacks.
   gpu_factory_.AsyncCall(&GpuSharedImageVideoFactory::CreateImage)
-      .WithArgs(BindToCurrentLoop(std::move(cb)), spec, GetDrDcLock());
+      .WithArgs(base::BindPostTaskToCurrentDefault(std::move(cb)), spec,
+                GetDrDcLock());
 }
 
 GpuSharedImageVideoFactory::GpuSharedImageVideoFactory(
@@ -152,7 +153,7 @@ void GpuSharedImageVideoFactory::CreateImage(
 
   TRACE_EVENT0("media", "GpuSharedImageVideoFactory::CreateVideoFrame");
 
-  if (!CreateImageInternal(spec, mailbox, codec_image, std::move(drdc_lock))) {
+  if (!CreateImageInternal(spec, mailbox, codec_image, drdc_lock)) {
     return;
   }
 
@@ -168,7 +169,8 @@ void GpuSharedImageVideoFactory::CreateImage(
   // Guarantee that the SharedImage is destroyed even if the VideoFrame is
   // dropped. Otherwise we could keep shared images we don't need alive.
   auto release_cb = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-      BindToCurrentLoop(std::move(destroy_shared_image)), gpu::SyncToken());
+      base::BindPostTaskToCurrentDefault(std::move(destroy_shared_image)),
+      gpu::SyncToken());
 
   SharedImageVideoProvider::ImageRecord record;
   record.mailbox = mailbox;
@@ -181,7 +183,8 @@ void GpuSharedImageVideoFactory::CreateImage(
   // should work with some other object that happens to be used by CodecImage,
   // and non-GL things, to hold the output buffer, etc.
   record.codec_image_holder = base::MakeRefCounted<CodecImageHolder>(
-      base::SequencedTaskRunnerHandle::Get(), std::move(codec_image));
+      base::SequencedTaskRunner::GetCurrentDefault(), std::move(codec_image),
+      std::move(drdc_lock));
 
   std::move(image_ready_cb).Run(std::move(record));
 }
@@ -211,22 +214,19 @@ bool GpuSharedImageVideoFactory::CreateImageInternal(
   }
 
   // Create a shared image.
-  // TODO(vikassoni): Hardcoding colorspace to SRGB. Figure how if media has a
-  // colorspace and wire it here.
   // TODO(vikassoni): This shared image need to be thread safe eventually for
   // webview to work with shared images.
-  auto shared_image = gpu::SharedImageVideo::Create(
-      mailbox, coded_size, gfx::ColorSpace::CreateSRGB(),
-      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, std::move(image),
-      std::move(shared_context), std::move(drdc_lock));
+  auto shared_image = gpu::AndroidVideoImageBacking::Create(
+      mailbox, coded_size, spec.color_space, kTopLeft_GrSurfaceOrigin,
+      kPremul_SkAlphaType, std::move(image), std::move(shared_context),
+      std::move(drdc_lock));
 
-  // Register it with shared image mailbox as well as legacy mailbox. This
-  // keeps |shared_image| around until its destruction cb is called.
-  // NOTE: Currently none of the video mailbox consumer uses shared image
-  // mailbox.
+  // Register it with shared image mailbox. This keeps |shared_image| around
+  // until its destruction cb is called. NOTE: Currently none of the video
+  // mailbox consumer uses shared image mailbox.
   DCHECK(stub_->channel()->gpu_channel_manager()->shared_image_manager());
   stub_->channel()->shared_image_stub()->factory()->RegisterBacking(
-      std::move(shared_image), /*allow_legacy_mailbox=*/false);
+      std::move(shared_image));
 
   return true;
 }

@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,21 +8,20 @@
 #include <utility>
 
 #include "base/run_loop.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_LINUX) || defined(OS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "base/files/file_descriptor_watcher_posix.h"
 #endif
 
-#if defined(USE_OZONE)
-#include "ui/base/ui_base_features.h"  // nogncheck
+#if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"  // nogncheck
 #endif
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "ui/events/test/keyboard_hook_monitor_utils.h"
 #endif
 
@@ -34,17 +33,15 @@ class UserInputMonitorTest : public testing::Test {
  protected:
   // testing::Test.
   void SetUp() override {
-#if defined(USE_OZONE)
-    if (features::IsUsingOzonePlatform()) {
-      if (ui::OzonePlatform::GetPlatformNameForTest() == "drm") {
-        // OzonePlatformDrm::InitializeUI hangs in tests on the DRM platform.
-        GTEST_SKIP();
-      }
-      // Initialise Ozone in single process mode, as all tests do.
-      ui::OzonePlatform::InitParams params;
-      params.single_process = true;
-      ui::OzonePlatform::InitializeForUI(params);
+#if BUILDFLAG(IS_OZONE)
+    if (ui::OzonePlatform::GetPlatformNameForTest() == "drm") {
+      // OzonePlatformDrm::InitializeUI hangs in tests on the DRM platform.
+      GTEST_SKIP();
     }
+    // Initialise Ozone in single process mode, as all tests do.
+    ui::OzonePlatform::InitParams params;
+    params.single_process = true;
+    ui::OzonePlatform::InitializeForUI(params);
 #endif
   }
 };
@@ -52,16 +49,17 @@ class UserInputMonitorTest : public testing::Test {
 }  // namespace
 
 TEST_F(UserInputMonitorTest, CreatePlatformSpecific) {
-#if defined(OS_LINUX) || defined(OS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   base::test::TaskEnvironment task_environment(
       base::test::TaskEnvironment::MainThreadType::IO);
 #else
   base::test::TaskEnvironment task_environment(
       base::test::TaskEnvironment::MainThreadType::UI);
-#endif  // defined(OS_LINUX) || defined(OS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
   std::unique_ptr<UserInputMonitor> monitor = UserInputMonitor::Create(
-      base::ThreadTaskRunnerHandle::Get(), base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 
   if (!monitor)
     return;
@@ -74,16 +72,17 @@ TEST_F(UserInputMonitorTest, CreatePlatformSpecific) {
 }
 
 TEST_F(UserInputMonitorTest, CreatePlatformSpecificWithMapping) {
-#if defined(OS_LINUX) || defined(OS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   base::test::TaskEnvironment task_environment(
       base::test::TaskEnvironment::MainThreadType::IO);
 #else
   base::test::TaskEnvironment task_environment(
       base::test::TaskEnvironment::MainThreadType::UI);
-#endif  // defined(OS_LINUX) || defined(OS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
   std::unique_ptr<UserInputMonitor> monitor = UserInputMonitor::Create(
-      base::ThreadTaskRunnerHandle::Get(), base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 
   if (!monitor)
     return;
@@ -114,7 +113,7 @@ TEST_F(UserInputMonitorTest, ReadWriteKeyPressMonitorCount) {
   EXPECT_EQ(count, ReadKeyPressMonitorCount(readonly_mapping));
 }
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 
 //
 // Windows specific scenarios which require simulating keyboard hook events.
@@ -125,7 +124,8 @@ TEST_F(UserInputMonitorTest, BlockMonitoringAfterMonitoringEnabled) {
       base::test::TaskEnvironment::MainThreadType::UI);
 
   std::unique_ptr<UserInputMonitor> monitor = UserInputMonitor::Create(
-      base::ThreadTaskRunnerHandle::Get(), base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 
   if (!monitor)
     return;
@@ -144,7 +144,8 @@ TEST_F(UserInputMonitorTest, BlockMonitoringBeforeMonitoringEnabled) {
       base::test::TaskEnvironment::MainThreadType::UI);
 
   std::unique_ptr<UserInputMonitor> monitor = UserInputMonitor::Create(
-      base::ThreadTaskRunnerHandle::Get(), base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 
   if (!monitor)
     return;
@@ -163,7 +164,8 @@ TEST_F(UserInputMonitorTest, UnblockMonitoringAfterMonitoringDisabled) {
       base::test::TaskEnvironment::MainThreadType::UI);
 
   std::unique_ptr<UserInputMonitor> monitor = UserInputMonitor::Create(
-      base::ThreadTaskRunnerHandle::Get(), base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 
   if (!monitor)
     return;
@@ -182,7 +184,8 @@ TEST_F(UserInputMonitorTest, BlockKeypressMonitoringWithSharedMemoryBuffer) {
       base::test::TaskEnvironment::MainThreadType::UI);
 
   std::unique_ptr<UserInputMonitor> monitor = UserInputMonitor::Create(
-      base::ThreadTaskRunnerHandle::Get(), base::ThreadTaskRunnerHandle::Get());
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 
   if (!monitor)
     return;
@@ -204,6 +207,6 @@ TEST_F(UserInputMonitorTest, BlockKeypressMonitoringWithSharedMemoryBuffer) {
   // Check that read only region remains valid after disable.
   EXPECT_EQ(0u, ReadKeyPressMonitorCount(readonly_mapping));
 }
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace media

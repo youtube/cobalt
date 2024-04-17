@@ -1,11 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef UI_GFX_PLATFORM_FONT_IOS_H_
 #define UI_GFX_PLATFORM_FONT_IOS_H_
 
-#include "base/macros.h"
+#include "build/blink_buildflags.h"
 #include "ui/gfx/platform_font.h"
 
 namespace gfx {
@@ -13,10 +13,17 @@ namespace gfx {
 class PlatformFontIOS : public PlatformFont {
  public:
   PlatformFontIOS();
-  explicit PlatformFontIOS(NativeFont native_font);
+  explicit PlatformFontIOS(CTFontRef ct_font);
   PlatformFontIOS(const std::string& font_name,
                   int font_size);
-
+#if BUILDFLAG(USE_BLINK)
+  // Constructs a PlatformFontIOS representing the font specified by |typeface|
+  // and the size |font_size_pixels|. Do not call this for a system-specified
+  // font; use the |SystemFontType| constructor for that.
+  PlatformFontIOS(sk_sp<SkTypeface> typeface,
+                  int font_size_pixels,
+                  const absl::optional<FontRenderParams>& params);
+#endif
   PlatformFontIOS(const PlatformFontIOS&) = delete;
   PlatformFontIOS& operator=(const PlatformFontIOS&) = delete;
 
@@ -34,7 +41,7 @@ class PlatformFontIOS : public PlatformFont {
   std::string GetActualFontName() const override;
   int GetFontSize() const override;
   const FontRenderParams& GetFontRenderParams() override;
-  NativeFont GetNativeFont() const override;
+  CTFontRef GetCTFont() const override;
   sk_sp<SkTypeface> GetNativeSkTypeface() const override;
 
  private:

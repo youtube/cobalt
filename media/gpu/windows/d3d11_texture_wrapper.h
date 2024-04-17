@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,24 +11,27 @@
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/sequence_bound.h"
 #include "gpu/command_buffer/service/mailbox_manager.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/texture_manager.h"
-#include "media/base/status.h"
 #include "media/base/video_frame.h"
 #include "media/gpu/command_buffer_helper.h"
 #include "media/gpu/media_gpu_export.h"
 #include "media/gpu/windows/d3d11_com_defs.h"
+#include "media/gpu/windows/d3d11_status.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/hdr_metadata.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
-#include "ui/gl/gl_image_dxgi.h"
 #include "ui/gl/gl_surface_egl.h"
 #include "ui/gl/scoped_binders.h"
 
 namespace media {
+
+class D3D11PictureBuffer;
 
 using CommandBufferHelperPtr = scoped_refptr<CommandBufferHelper>;
 using MailboxHolderArray = gpu::MailboxHolder[VideoFrame::kMaxPlanes];
@@ -41,29 +44,36 @@ using GetCommandBufferHelperCB =
 // processed image is no longer needed.
 class MEDIA_GPU_EXPORT Texture2DWrapper {
  public:
+  using PictureBufferGPUResourceInitDoneCB =
+      base::OnceCallback<void(scoped_refptr<media::D3D11PictureBuffer>)>;
+
   Texture2DWrapper();
   virtual ~Texture2DWrapper();
 
   // Initialize the wrapper.
-  virtual Status Init(
+  virtual D3D11Status Init(
       scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
       GetCommandBufferHelperCB get_helper_cb,
       ComD3D11Texture2D texture,
-      size_t array_size) = 0;
+      size_t array_size,
+      scoped_refptr<media::D3D11PictureBuffer> picture_buffer,
+      PictureBufferGPUResourceInitDoneCB
+          picture_buffer_gpu_resource_init_done_cb) = 0;
 
-  // If the |texture| has key mutex, it is important to acquire the key mutex
-  // before any usage or you'll get an error. This API is required to be called:
+  // "If the |texture| is shared and needs synchronization, it is important for
+  // shared image to call begin access before any usage. This API is required to
+  // be called:
   // - Before reading or writing to the texture via views on the texture or
   // other means.
   // - Before calling ProcessTexture.
-  // And need to call ProcessTexture() to release the key mutex.
-  virtual Status AcquireKeyedMutexIfNeeded() = 0;
+  // And need reset the scoped access object to end access.
+  virtual D3D11Status BeginSharedImageAccess() = 0;
 
   // Import |texture|, |array_slice| and return the mailbox(es) that can be
   // used to refer to it.
-  virtual Status ProcessTexture(const gfx::ColorSpace& input_color_space,
-                                MailboxHolderArray* mailbox_dest_out,
-                                gfx::ColorSpace* output_color_space) = 0;
+  virtual D3D11Status ProcessTexture(const gfx::ColorSpace& input_color_space,
+                                     MailboxHolderArray* mailbox_dest_out,
+                                     gfx::ColorSpace* output_color_space) = 0;
 
   virtual void SetStreamHDRMetadata(
       const gfx::HDRMetadata& stream_metadata) = 0;
@@ -78,27 +88,43 @@ class MEDIA_GPU_EXPORT Texture2DWrapper {
 class MEDIA_GPU_EXPORT DefaultTexture2DWrapper : public Texture2DWrapper {
  public:
   // Error callback for GpuResource to notify us of errors.
-  using OnErrorCB = base::OnceCallback<void(Status)>;
+  using OnErrorCB = base::OnceCallback<void(D3D11Status)>;
+
+  // Callback for setting shared image representation and resume picture buffer
+  // after gpu resource initialization.
+  using GPUResourceInitCB = base::OnceCallback<void(
+      scoped_refptr<media::D3D11PictureBuffer>,
+      std::unique_ptr<gpu::VideoDecodeImageRepresentation>)>;
 
   // While the specific texture instance can change on every call to
   // ProcessTexture, the dxgi format must be the same for all of them.
-  DefaultTexture2DWrapper(const gfx::Size& size, DXGI_FORMAT dxgi_format);
+  DefaultTexture2DWrapper(const gfx::Size& size,
+                          DXGI_FORMAT dxgi_format,
+                          ComD3D11Device device);
   ~DefaultTexture2DWrapper() override;
 
-  Status Init(scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
-              GetCommandBufferHelperCB get_helper_cb,
-              ComD3D11Texture2D in_texture,
-              size_t array_slice) override;
+  D3D11Status Init(scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
+                   GetCommandBufferHelperCB get_helper_cb,
+                   ComD3D11Texture2D in_texture,
+                   size_t array_slice,
+                   scoped_refptr<media::D3D11PictureBuffer> picture_buffer,
+                   Texture2DWrapper::PictureBufferGPUResourceInitDoneCB
+                       picture_buffer_gpu_resource_init_done_cb) override;
 
-  Status AcquireKeyedMutexIfNeeded() override;
+  D3D11Status BeginSharedImageAccess() override;
 
-  Status ProcessTexture(const gfx::ColorSpace& input_color_space,
-                        MailboxHolderArray* mailbox_dest,
-                        gfx::ColorSpace* output_color_space) override;
+  D3D11Status ProcessTexture(const gfx::ColorSpace& input_color_space,
+                             MailboxHolderArray* mailbox_dest,
+                             gfx::ColorSpace* output_color_space) override;
 
   void SetStreamHDRMetadata(const gfx::HDRMetadata& stream_metadata) override;
   void SetDisplayHDRMetadata(
       const DXGI_HDR_METADATA_HDR10& dxgi_display_metadata) override;
+  void OnGPUResourceInitDone(
+      scoped_refptr<media::D3D11PictureBuffer> picture_buffer,
+      std::unique_ptr<gpu::VideoDecodeImageRepresentation> shared_image_rep);
+
+  ComD3D11Device GetVideoDevice() { return video_device_; }
 
  private:
   // Things that are to be accessed / freed only on the main thread.  In
@@ -112,34 +138,41 @@ class MEDIA_GPU_EXPORT DefaultTexture2DWrapper : public Texture2DWrapper {
                  const std::vector<gpu::Mailbox>& mailboxes,
                  const gfx::Size& size,
                  DXGI_FORMAT dxgi_format,
+                 ComD3D11Device video_device,
                  ComD3D11Texture2D texture,
-                 size_t array_slice);
-
+                 size_t array_slice,
+                 scoped_refptr<media::D3D11PictureBuffer> picture_buffer,
+                 GPUResourceInitCB gpu_resource_init_cb);
     GpuResources(const GpuResources&) = delete;
     GpuResources& operator=(const GpuResources&) = delete;
-
     ~GpuResources();
 
    private:
     scoped_refptr<CommandBufferHelper> helper_;
-
     std::vector<std::unique_ptr<gpu::SharedImageRepresentationFactoryRef>>
         shared_images_;
+    base::WeakPtrFactory<GpuResources> weak_factory_{this};
   };
 
   // Receive an error from |gpu_resources_| and store it in |received_error_|.
-  void OnError(Status status);
+  void OnError(D3D11Status status);
 
   // The first error status that we've received from |gpu_resources_|, if any.
-  absl::optional<Status> received_error_;
+  absl::optional<D3D11Status> received_error_;
 
   gfx::Size size_;
   base::SequenceBound<GpuResources> gpu_resources_;
   MailboxHolderArray mailbox_holders_;
   DXGI_FORMAT dxgi_format_;
 
-  Microsoft::WRL::ComPtr<IDXGIKeyedMutex> keyed_mutex_;
-  bool keyed_mutex_acquired_ = false;
+  std::unique_ptr<gpu::VideoDecodeImageRepresentation> shared_image_rep_;
+  std::unique_ptr<gpu::VideoDecodeImageRepresentation::ScopedWriteAccess>
+      shared_image_access_;
+
+  ComD3D11Device video_device_;
+
+  Texture2DWrapper::PictureBufferGPUResourceInitDoneCB
+      picture_buffer_gpu_resource_init_done_cb_;
 
   base::WeakPtrFactory<DefaultTexture2DWrapper> weak_factory_{this};
 };

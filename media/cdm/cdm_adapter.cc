@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,14 +9,14 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_decoder_config.h"
@@ -144,7 +144,9 @@ void* GetCdmHost(int host_interface_version, void* user_data) {
 
 void ReportSystemCodeUMA(const std::string& key_system, uint32_t system_code) {
   base::UmaHistogramSparse(
-      "Media.EME." + GetKeySystemNameForUMA(key_system) + ".SystemCode",
+      "Media.EME." +
+          GetKeySystemNameForUMA(key_system, /*use_hw_secure_codecs=*/false) +
+          ".SystemCode",
       system_code);
 }
 
@@ -169,7 +171,6 @@ using crash_reporter::ScopedCrashKeyString;
 
 // static
 void CdmAdapter::Create(
-    const std::string& key_system,
     const CdmConfig& cdm_config,
     CreateCdmFunc create_cdm_func,
     std::unique_ptr<CdmAuxiliaryHelper> helper,
@@ -178,16 +179,15 @@ void CdmAdapter::Create(
     const SessionKeysChangeCB& session_keys_change_cb,
     const SessionExpirationUpdateCB& session_expiration_update_cb,
     CdmCreatedCB cdm_created_cb) {
-  DCHECK(!key_system.empty());
+  DCHECK(!cdm_config.key_system.empty());
   DCHECK(session_message_cb);
   DCHECK(session_closed_cb);
   DCHECK(session_keys_change_cb);
   DCHECK(session_expiration_update_cb);
 
-  scoped_refptr<CdmAdapter> cdm =
-      new CdmAdapter(key_system, cdm_config, create_cdm_func, std::move(helper),
-                     session_message_cb, session_closed_cb,
-                     session_keys_change_cb, session_expiration_update_cb);
+  scoped_refptr<CdmAdapter> cdm = new CdmAdapter(
+      cdm_config, create_cdm_func, std::move(helper), session_message_cb,
+      session_closed_cb, session_keys_change_cb, session_expiration_update_cb);
 
   // |cdm| ownership passed to the promise.
   cdm->Initialize(
@@ -195,7 +195,6 @@ void CdmAdapter::Create(
 }
 
 CdmAdapter::CdmAdapter(
-    const std::string& key_system,
     const CdmConfig& cdm_config,
     CreateCdmFunc create_cdm_func,
     std::unique_ptr<CdmAuxiliaryHelper> helper,
@@ -203,8 +202,7 @@ CdmAdapter::CdmAdapter(
     const SessionClosedCB& session_closed_cb,
     const SessionKeysChangeCB& session_keys_change_cb,
     const SessionExpirationUpdateCB& session_expiration_update_cb)
-    : key_system_(key_system),
-      cdm_config_(cdm_config),
+    : cdm_config_(cdm_config),
       create_cdm_func_(create_cdm_func),
       helper_(std::move(helper)),
       session_message_cb_(session_message_cb),
@@ -213,11 +211,11 @@ CdmAdapter::CdmAdapter(
       session_expiration_update_cb_(session_expiration_update_cb),
       cdm_origin_(helper_->GetCdmOrigin().Serialize()),
       scoped_crash_key_(&g_origin_crash_key, cdm_origin_),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       pool_(new AudioBufferMemoryPool()) {
   DVLOG(1) << __func__;
 
-  DCHECK(!key_system_.empty());
+  DCHECK(!cdm_config.key_system.empty());
   DCHECK(create_cdm_func_);
   DCHECK(helper_);
   DCHECK(session_message_cb_);
@@ -265,14 +263,15 @@ void CdmAdapter::Initialize(std::unique_ptr<media::SimpleCdmPromise> promise) {
   DVLOG(1) << __func__;
   TRACE_EVENT0("media", "CdmAdapter::Initialize");
 
-  cdm_.reset(CreateCdmInstance(key_system_));
+  cdm_.reset(CreateCdmInstance(cdm_config_.key_system));
   if (!cdm_) {
     promise->reject(CdmPromise::Exception::INVALID_STATE_ERROR, 0,
                     "Unable to create CDM.");
     return;
   }
 
-  init_promise_id_ = cdm_promise_adapter_.SavePromise(std::move(promise));
+  init_promise_id_ =
+      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
 
   if (!cdm_->Initialize(cdm_config_.allow_distinctive_identifier,
                         cdm_config_.allow_persistent_state,
@@ -304,7 +303,8 @@ void CdmAdapter::SetServerCertificate(
     return;
   }
 
-  uint32_t promise_id = cdm_promise_adapter_.SavePromise(std::move(promise));
+  uint32_t promise_id =
+      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
   cdm_->SetServerCertificate(promise_id, certificate.data(),
                              certificate.size());
 }
@@ -315,7 +315,8 @@ void CdmAdapter::GetStatusForPolicy(
   DCHECK(task_runner_->BelongsToCurrentThread());
   TRACE_EVENT0("media", "CdmAdapter::GetStatusForPolicy");
 
-  uint32_t promise_id = cdm_promise_adapter_.SavePromise(std::move(promise));
+  uint32_t promise_id =
+      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
   DVLOG(2) << __func__ << ": promise_id = " << promise_id;
   if (!cdm_->GetStatusForPolicy(promise_id,
                                 ToCdmHdcpVersion(min_hdcp_version))) {
@@ -334,7 +335,8 @@ void CdmAdapter::CreateSessionAndGenerateRequest(
   DCHECK(task_runner_->BelongsToCurrentThread());
   TRACE_EVENT0("media", "CdmAdapter::CreateSessionAndGenerateRequest");
 
-  uint32_t promise_id = cdm_promise_adapter_.SavePromise(std::move(promise));
+  uint32_t promise_id =
+      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
   DVLOG(2) << __func__ << ": promise_id = " << promise_id;
 
   cdm_->CreateSessionAndGenerateRequest(
@@ -348,7 +350,8 @@ void CdmAdapter::LoadSession(CdmSessionType session_type,
   DCHECK(task_runner_->BelongsToCurrentThread());
   TRACE_EVENT1("media", "CdmAdapter::LoadSession", "session_id", session_id);
 
-  uint32_t promise_id = cdm_promise_adapter_.SavePromise(std::move(promise));
+  uint32_t promise_id =
+      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
   DVLOG(2) << __func__ << ": session_id = " << session_id
            << ", promise_id = " << promise_id;
 
@@ -364,7 +367,8 @@ void CdmAdapter::UpdateSession(const std::string& session_id,
   DCHECK(!response.empty());
   TRACE_EVENT1("media", "CdmAdapter::UpdateSession", "session_id", session_id);
 
-  uint32_t promise_id = cdm_promise_adapter_.SavePromise(std::move(promise));
+  uint32_t promise_id =
+      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
   DVLOG(2) << __func__ << ": session_id = " << session_id
            << ", promise_id = " << promise_id;
 
@@ -378,7 +382,8 @@ void CdmAdapter::CloseSession(const std::string& session_id,
   DCHECK(!session_id.empty());
   TRACE_EVENT1("media", "CdmAdapter::CloseSession", "session_id", session_id);
 
-  uint32_t promise_id = cdm_promise_adapter_.SavePromise(std::move(promise));
+  uint32_t promise_id =
+      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
   DVLOG(2) << __func__ << ": session_id = " << session_id
            << ", promise_id = " << promise_id;
 
@@ -391,7 +396,8 @@ void CdmAdapter::RemoveSession(const std::string& session_id,
   DCHECK(!session_id.empty());
   TRACE_EVENT1("media", "CdmAdapter::RemoveSession", "session_id", session_id);
 
-  uint32_t promise_id = cdm_promise_adapter_.SavePromise(std::move(promise));
+  uint32_t promise_id =
+      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
   DVLOG(2) << __func__ << ": session_id = " << session_id
            << ", promise_id = " << promise_id;
 
@@ -733,7 +739,7 @@ void CdmAdapter::OnRejectPromise(uint32_t promise_id,
   // This is the central place for library CDM promise rejection. Cannot report
   // this in more generic classes like CdmPromise or CdmPromiseAdapter because
   // they may be used multiple times in one promise chain that involves IPC.
-  ReportSystemCodeUMA(key_system_, system_code);
+  ReportSystemCodeUMA(cdm_config_.key_system, system_code);
 
   // UMA to help track file related errors. See http://crbug.com/410630
   if (system_code == 0x27) {

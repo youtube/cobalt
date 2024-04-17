@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/posix/safe_strerror.h"
 #include "base/strings/string_number_conversions.h"
@@ -41,9 +41,7 @@ StreamBufferManager::~StreamBufferManager() {
 }
 
 void StreamBufferManager::ReserveBuffer(StreamType stream_type) {
-  // The YUV output buffer for reprocessing is not passed to client, so can be
-  // allocated by the local buffer factory without zero-copy concerns.
-  if (video_capture_use_gmb_ && stream_type != StreamType::kYUVOutput) {
+  if (CanReserveBufferFromPool(stream_type)) {
     ReserveBufferFromPool(stream_type);
   } else {
     ReserveBufferFromFactory(stream_type);
@@ -92,7 +90,7 @@ StreamBufferManager::AcquireBufferForClientById(StreamType stream_type,
         gfx::Size(format->frame_size.height(), format->frame_size.width());
   }
 
-  absl::optional<gfx::BufferFormat> gfx_format =
+  const absl::optional<gfx::BufferFormat> gfx_format =
       PixFormatVideoToGfx(format->pixel_format);
   DCHECK(gfx_format);
   const auto& original_gmb = buffer_pair.gmb;
@@ -100,6 +98,9 @@ StreamBufferManager::AcquireBufferForClientById(StreamType stream_type,
     DLOG(WARNING) << "Failed to map original buffer";
     return std::move(buffer_pair.vcd_buffer);
   }
+  base::ScopedClosureRunner unmap_original_gmb(
+      base::BindOnce([](gfx::GpuMemoryBuffer* gmb) { gmb->Unmap(); },
+                     base::Unretained(original_gmb.get())));
 
   const size_t original_width = stream_context->buffer_dimension.width();
   const size_t original_height = stream_context->buffer_dimension.height();
@@ -140,47 +141,42 @@ StreamBufferManager::AcquireBufferForClientById(StreamType stream_type,
                          static_cast<uint8_t*>(original_gmb->memory(1)),
                          original_gmb->stride(1), temp_uv_width,
                          temp_uv_height);
-    original_gmb->Unmap();
     return std::move(buffer_pair.vcd_buffer);
-  } else {
-    // We have to reserve a new buffer because the size is different.
-    Buffer rotated_buffer;
-    auto client_type = kStreamClientTypeMap[static_cast<int>(stream_type)];
-    if (!device_context_->ReserveVideoCaptureBufferFromPool(
-            client_type, format->frame_size, format->pixel_format,
-            &rotated_buffer)) {
-      DLOG(WARNING) << "Failed to reserve video capture buffer";
-      original_gmb->Unmap();
-      return std::move(buffer_pair.vcd_buffer);
-    }
-
-    absl::optional<gfx::BufferFormat> gfx_format =
-        PixFormatVideoToGfx(format->pixel_format);
-    DCHECK(gfx_format);
-    auto rotated_gmb = gmb_support_->CreateGpuMemoryBufferImplFromHandle(
-        rotated_buffer.handle_provider->GetGpuMemoryBufferHandle(),
-        format->frame_size, *gfx_format, stream_context->buffer_usage,
-        base::NullCallback());
-
-    if (!rotated_gmb || !rotated_gmb->Map()) {
-      DLOG(WARNING) << "Failed to map rotated buffer";
-      original_gmb->Unmap();
-      return std::move(buffer_pair.vcd_buffer);
-    }
-
-    libyuv::NV12ToI420Rotate(
-        static_cast<uint8_t*>(original_gmb->memory(0)), original_gmb->stride(0),
-        static_cast<uint8_t*>(original_gmb->memory(1)), original_gmb->stride(1),
-        static_cast<uint8_t*>(rotated_gmb->memory(0)), rotated_gmb->stride(0),
-        temp_u, temp_uv_height, temp_v, temp_uv_height, original_width,
-        original_height, translate_rotation(rotation));
-    libyuv::MergeUVPlane(temp_u, temp_uv_height, temp_v, temp_uv_height,
-                         static_cast<uint8_t*>(rotated_gmb->memory(1)),
-                         rotated_gmb->stride(1), temp_uv_height, temp_uv_width);
-    rotated_gmb->Unmap();
-    original_gmb->Unmap();
-    return std::move(rotated_buffer);
   }
+
+  // We have to reserve a new buffer because the size is different.
+  Buffer rotated_buffer;
+  auto client_type = kStreamClientTypeMap[static_cast<int>(stream_type)];
+  if (!device_context_->ReserveVideoCaptureBufferFromPool(
+          client_type, format->frame_size, format->pixel_format,
+          &rotated_buffer)) {
+    DLOG(WARNING) << "Failed to reserve video capture buffer";
+    return std::move(buffer_pair.vcd_buffer);
+  }
+
+  auto rotated_gmb = gmb_support_->CreateGpuMemoryBufferImplFromHandle(
+      rotated_buffer.handle_provider->GetGpuMemoryBufferHandle(),
+      format->frame_size, *gfx_format, stream_context->buffer_usage,
+      base::NullCallback());
+
+  if (!rotated_gmb || !rotated_gmb->Map()) {
+    DLOG(WARNING) << "Failed to map rotated buffer";
+    return std::move(buffer_pair.vcd_buffer);
+  }
+  base::ScopedClosureRunner unmap_rotated_gmb(
+      base::BindOnce([](gfx::GpuMemoryBuffer* gmb) { gmb->Unmap(); },
+                     base::Unretained(rotated_gmb.get())));
+
+  libyuv::NV12ToI420Rotate(
+      static_cast<uint8_t*>(original_gmb->memory(0)), original_gmb->stride(0),
+      static_cast<uint8_t*>(original_gmb->memory(1)), original_gmb->stride(1),
+      static_cast<uint8_t*>(rotated_gmb->memory(0)), rotated_gmb->stride(0),
+      temp_u, temp_uv_height, temp_v, temp_uv_height, original_width,
+      original_height, translate_rotation(rotation));
+  libyuv::MergeUVPlane(temp_u, temp_uv_height, temp_v, temp_uv_height,
+                       static_cast<uint8_t*>(rotated_gmb->memory(1)),
+                       rotated_gmb->stride(1), temp_uv_height, temp_uv_width);
+  return std::move(rotated_buffer);
 }
 
 VideoCaptureFormat StreamBufferManager::GetStreamCaptureFormat(
@@ -363,6 +359,8 @@ absl::optional<BufferInfo> StreamBufferManager::RequestBufferForCaptureRequest(
   }
   buffer_info.drm_format = drm_format;
   buffer_info.hal_pixel_format = stream_context_[stream_type]->stream->format;
+  buffer_info.modifier =
+      buffer_info.gpu_memory_buffer_handle.native_pixmap_handle.modifier;
   return buffer_info;
 }
 
@@ -415,6 +413,12 @@ int StreamBufferManager::GetBufferKey(uint64_t buffer_ipc_id) {
   return buffer_ipc_id & 0xFFFFFFFF;
 }
 
+bool StreamBufferManager::CanReserveBufferFromPool(StreamType stream_type) {
+  // The YUV output buffer for reprocessing is not passed to client, so can be
+  // allocated by the local buffer factory without zero-copy concerns.
+  return video_capture_use_gmb_ && stream_type != StreamType::kYUVOutput;
+}
+
 void StreamBufferManager::ReserveBufferFromFactory(StreamType stream_type) {
   auto& stream_context = stream_context_[stream_type];
   absl::optional<gfx::BufferFormat> gfx_format =
@@ -434,13 +438,6 @@ void StreamBufferManager::ReserveBufferFromFactory(StreamType stream_type) {
         media::VideoCaptureError::
             kCrosHalV3BufferManagerFailedToCreateGpuMemoryBuffer,
         FROM_HERE, "Failed to allocate GPU memory buffer");
-    return;
-  }
-  if (!gmb->Map()) {
-    device_context_->SetErrorState(
-        media::VideoCaptureError::
-            kCrosHalV3BufferManagerFailedToCreateGpuMemoryBuffer,
-        FROM_HERE, "Failed to map GPU memory buffer");
     return;
   }
   // All the GpuMemoryBuffers are allocated from the factory in bulk when the
@@ -482,20 +479,6 @@ void StreamBufferManager::ReserveBufferFromPool(StreamType stream_type) {
 }
 
 void StreamBufferManager::DestroyCurrentStreamsAndBuffers() {
-  for (const auto& iter : stream_context_) {
-    if (iter.second) {
-      if (!video_capture_use_gmb_) {
-        // The GMB is mapped by default only when it's allocated locally.
-        for (auto& buf : iter.second->buffers) {
-          auto& buf_pair = buf.second;
-          if (buf_pair.gmb) {
-            buf_pair.gmb->Unmap();
-          }
-        }
-        iter.second->buffers.clear();
-      }
-    }
-  }
   stream_context_.clear();
 }
 

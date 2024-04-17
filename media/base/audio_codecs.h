@@ -1,17 +1,12 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_BASE_AUDIO_CODECS_H_
 #define MEDIA_BASE_AUDIO_CODECS_H_
 
-#include <stdint.h>
-
 #include <string>
-#include <string_view>
-
 #include "media/base/media_export.h"
-#include "media/media_buildflags.h"
 
 namespace media {
 
@@ -38,14 +33,16 @@ enum class AudioCodec {
   kALAC = 15,
   kAC3 = 16,
   kMpegHAudio = 17,
-  kIAMF = 22,
+  kDTS = 18,
+  kDTSXP2 = 19,
+  kDTSE = 20,
   // DO NOT ADD RANDOM AUDIO CODECS!
   //
   // The only acceptable time to add a new codec is if there is production code
   // that uses said codec in the same CL.
 
   // Must always be equal to the largest entry ever logged.
-  kMaxValue = kIAMF,
+  kMaxValue = kDTSE,
 };
 
 enum class AudioCodecProfile {
@@ -55,9 +52,7 @@ enum class AudioCodecProfile {
   // kMaxValue to equal the new codec.
   kUnknown = 0,
   kXHE_AAC = 1,
-  kIAMF_SIMPLE = 2,
-  kIAMF_BASE = 3,
-  kMaxValue = kIAMF_BASE,
+  kMaxValue = kXHE_AAC,
 };
 
 std::string MEDIA_EXPORT GetCodecName(AudioCodec codec);
@@ -66,11 +61,6 @@ std::string MEDIA_EXPORT GetProfileName(AudioCodecProfile profile);
 MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
                                       const AudioCodec& codec);
 MEDIA_EXPORT AudioCodec StringToAudioCodec(const std::string& codec_id);
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-MEDIA_EXPORT bool ParseIamfCodecId(std::string_view codec_id,
-                                   uint8_t* primary_profilec,
-                                   uint8_t* additional_profilec);
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 
 }  // namespace media
 

@@ -1,4 +1,4 @@
-# Copyright 2013 The Chromium Authors. All rights reserved.
+# Copyright 2013 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -9,6 +9,8 @@ for more details about the presubmit API built into depot_tools.
 """
 
 import re
+
+PRESUBMIT_VERSION = '2.0.0'
 
 # This line is 'magic' in that git-cl looks for it to decide whether to
 # use Python3 instead of Python2 when running the code in this file.
@@ -54,11 +56,16 @@ def _CheckForUseOfWrongClock(input_api, output_api):
   # base::Time class.  We want to prevent these from triggerring a warning.
   base_time_konstant_pattern = r'(^|\W)Time::k\w+'
 
+  # Regular expression to detect usage of openscreen clock types, which are
+  # allowed depending on DEPS rules.
+  openscreen_time_pattern = r'(^|\W)openscreen::Clock\s*'
+
   problem_re = input_api.re.compile(
       r'(' + base_time_type_pattern + r')|(' + base_time_member_pattern + r')')
   exception_re = input_api.re.compile(
       r'(' + using_base_time_decl_pattern + r')|(' +
-      base_time_konstant_pattern + r')')
+      base_time_konstant_pattern +  r')|(' +
+      openscreen_time_pattern + r')')
   problems = []
   for f in input_api.AffectedSourceFiles(_FilterFile):
     for line_number, line in f.ChangedContents():
@@ -230,6 +237,19 @@ def _CheckForNoV4L2AggregateInitialization(input_api, output_api):
       problems)]
   return []
 
+def _CheckChangeInBundle(input_api, output_api):
+    import sys
+    old_sys_path = sys.path[:]
+    results = []
+    try:
+        sys.path.append(input_api.change.RepositoryRoot())
+        from build.ios import presubmit_support
+        results += presubmit_support.CheckBundleData(input_api, output_api,
+                                                     'unit_tests_bundle_data')
+    finally:
+        sys.path = old_sys_path
+    return results
+
 def _CheckChange(input_api, output_api):
   results = []
   results.extend(_CheckForUseOfWrongClock(input_api, output_api))
@@ -238,6 +258,7 @@ def _CheckChange(input_api, output_api):
   results.extend(_CheckForUseOfLazyInstance(input_api, output_api))
   results.extend(_CheckNoLoggingOverrideInHeaders(input_api, output_api))
   results.extend(_CheckForNoV4L2AggregateInitialization(input_api, output_api))
+  results.extend(_CheckChangeInBundle(input_api, output_api))
   return results
 
 

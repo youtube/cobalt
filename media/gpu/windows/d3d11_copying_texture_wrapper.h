@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,10 @@
 #include <memory>
 #include <vector>
 
+#include "base/task/single_thread_task_runner.h"
 #include "media/gpu/media_gpu_export.h"
-#include "media/gpu/windows/d3d11_picture_buffer.h"
+#include "media/gpu/windows/d3d11_status.h"
+#include "media/gpu/windows/d3d11_texture_wrapper.h"
 #include "media/gpu/windows/d3d11_video_processor_proxy.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -31,16 +33,19 @@ class MEDIA_GPU_EXPORT CopyingTexture2DWrapper : public Texture2DWrapper {
                           absl::optional<gfx::ColorSpace> output_color_space);
   ~CopyingTexture2DWrapper() override;
 
-  Status AcquireKeyedMutexIfNeeded() override;
+  D3D11Status BeginSharedImageAccess() override;
 
-  Status ProcessTexture(const gfx::ColorSpace& input_color_space,
-                        MailboxHolderArray* mailbox_dest,
-                        gfx::ColorSpace* output_color_space) override;
+  D3D11Status ProcessTexture(const gfx::ColorSpace& input_color_space,
+                             MailboxHolderArray* mailbox_dest,
+                             gfx::ColorSpace* output_color_space) override;
 
-  Status Init(scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
-              GetCommandBufferHelperCB get_helper_cb,
-              ComD3D11Texture2D texture,
-              size_t array_slice) override;
+  D3D11Status Init(scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
+                   GetCommandBufferHelperCB get_helper_cb,
+                   ComD3D11Texture2D texture,
+                   size_t array_slice,
+                   scoped_refptr<media::D3D11PictureBuffer> picture_buffer,
+                   PictureBufferGPUResourceInitDoneCB
+                       picture_buffer_gpu_resource_init_done_cb) override;
 
   void SetStreamHDRMetadata(const gfx::HDRMetadata& stream_metadata) override;
   void SetDisplayHDRMetadata(
