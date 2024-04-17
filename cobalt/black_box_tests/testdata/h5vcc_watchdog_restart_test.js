@@ -24,23 +24,34 @@ function doBusyLoopFor(msToSleep) {
   }
 }
 function generateViolationAndCrash() {
+  console.log("Register in test-client watchdog");
   h5vcc.crashLog.register("test-client", "", "started", 1000, 0, 'all');
   // clear whatever violations are in the cache
+  console.log("getWatchdogViolations");
   h5vcc.crashLog.getWatchdogViolations();
 
+  console.log("h5vcc.crashLog.ping");
   h5vcc.crashLog.ping("test-client", "");
-  doBusyLoopFor(1500);
+
+  console.log("doBusyLoopFor()");
+  doBusyLoopFor(3000);
+
+  console.log("h5vcc.crashLog.ping(\"test-client\", \"\");");
   h5vcc.crashLog.ping("test-client", "");
 
   // wait for periodic write(every 500ms) to save violation
-  doBusyLoopFor(600);
+  console.log("doBusyLoopFor()");
+  doBusyLoopFor(1000);
 
+  console.log("h5vcc.crashLog.triggerCrash()");
   h5vcc.crashLog.triggerCrash('null_dereference');
 }
 
 function canReadViolationAfterCrash() {
+  console.log("h5vcc.crashLog.register()");
   h5vcc.crashLog.register("test-client", "", "started", 500, 0, 'all');
 
+  console.log("h5vcc.crashLog.getWatchdogViolations()");
   let violationsJson = h5vcc.crashLog.getWatchdogViolations();
   if (!violationsJson) {
     failTest();
