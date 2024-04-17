@@ -231,7 +231,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 #if SB_API_VERSION >= 15
       audio_write_duration_local_, audio_write_duration_remote_,
 #endif  // SB_API_VERSION >= 15
-      &media_log_));
+      this));
 }
 
 void MediaModule::Suspend() {
