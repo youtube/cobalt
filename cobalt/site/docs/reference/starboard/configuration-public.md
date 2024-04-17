@@ -3,13 +3,6 @@ Book: /youtube/cobalt/_book.yaml
 
 # Starboard Configuration Reference Guide
 
-## Media Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES`**<br><br>The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only when this macro is defined.<br><br>By default, this property is undefined. |
-
-
 ## Memory Configuration
 
 | Properties |

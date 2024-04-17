@@ -40,7 +40,7 @@ directly after installing system crash handlers. On linux, for example, this
 could look like:
 
 ```
-#include "third_party/crashpad/wrapper/wrapper.h"
+#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
 int main(int argc, char** argv) {
   ...

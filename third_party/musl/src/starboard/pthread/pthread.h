@@ -58,19 +58,7 @@ typedef union pthread_mutexattr_t {
   void* ptr;
 } pthread_mutexattr_t;
 
-// Max size of the native key type.
-#define MUSL_PTHREAD_KEY_MAX_SIZE 40
-
-// An opaque handle to a native key type with reserved memory
-// buffer aligned at void  pointer type.
-typedef union pthread_key_t {
-  // Reserved memory in which the implementation should map its
-  // native key type.
-  uint8_t pthread_key[MUSL_PTHREAD_KEY_MAX_SIZE];
-
-  // Guarantees alignment of the type to a void pointer.
-  void* ptr;
-} pthread_key_t;
+typedef void* pthread_key_t;
 
 #ifdef __cplusplus
 #define PTHREAD_COND_INITIALIZER \
@@ -154,7 +142,7 @@ int pthread_mutex_lock(pthread_mutex_t* mutex);
 int pthread_mutex_unlock(pthread_mutex_t* mutex);
 int pthread_mutex_trylock(pthread_mutex_t* mutex);
 
-int pthread_key_create(pthread_key_t* key, void (*)(void* dtor));
+int pthread_key_create(pthread_key_t* key, void (*destructor)(void*));
 int pthread_key_delete(pthread_key_t key);
 void* pthread_getspecific(pthread_key_t key);
 int pthread_setspecific(pthread_key_t key, const void* value);

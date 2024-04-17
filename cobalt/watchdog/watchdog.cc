@@ -274,9 +274,10 @@ bool Watchdog::MonitorClient(void* context, Client* client,
 void Watchdog::UpdateViolationsMap(void* context, Client* client,
                                    int64_t time_delta) {
   // Gets violation dictionary with key client name from violations map.
-  auto violation_dict = (static_cast<Watchdog*>(context)->GetViolationsMap())
-                            ->GetDict()
-                            .FindDict(client->name);
+  Watchdog* watchdog_instance = static_cast<Watchdog*>(context);
+
+  auto violation_dict =
+      (watchdog_instance->GetViolationsMap())->GetDict().FindDict(client->name);
 
   // Checks if new unique violation.
   bool new_violation = false;
@@ -324,13 +325,17 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
         base::Value(std::to_string(
             (time_delta - client->time_interval_microseconds) / 1000)));
     base::Value registered_clients(base::Value::Type::LIST);
-    for (auto& it : static_cast<Watchdog*>(context)->client_map_) {
+    for (auto& it : watchdog_instance->client_map_) {
       registered_clients.GetList().Append(base::Value(it.first));
     }
-    for (auto& it : static_cast<Watchdog*>(context)->client_list_) {
+    for (auto& it : watchdog_instance->client_list_) {
       registered_clients.GetList().Append(base::Value(it->name));
     }
     violation.SetKey("registeredClients", registered_clients.Clone());
+
+    violation.SetKey(
+        "logTrace",
+        watchdog_instance->instrumentation_log_.GetLogTraceAsValue());
 
     // Adds new violation to violations map.
     if (violation_dict == nullptr) {
@@ -339,7 +344,7 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
       base::Value list(base::Value::Type::LIST);
       list.GetList().Append(violation.Clone());
       dict.SetKey("violations", list.Clone());
-      (static_cast<Watchdog*>(context)->GetViolationsMap())
+      (watchdog_instance->GetViolationsMap())
           ->SetKey(client->name, dict.Clone());
     } else {
       base::Value::List* violations = violation_dict->FindList("violations");
@@ -365,7 +370,7 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
       }
     }
   }
-  static_cast<Watchdog*>(context)->pending_write_ = true;
+  watchdog_instance->pending_write_ = true;
 
   int violations_count = 0;
   auto violation_map =
@@ -796,6 +801,16 @@ void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
       kPersistentSettingWatchdogCrash,
       std::make_unique<base::Value>(can_trigger_crash));
 }
+
+bool Watchdog::LogEvent(const std::string& event) {
+  return instrumentation_log_.LogEvent(event);
+}
+
+std::vector<std::string> Watchdog::GetLogTrace() {
+  return instrumentation_log_.GetLogTrace();
+}
+
+void Watchdog::ClearLog() { instrumentation_log_.ClearLog(); }
 
 #if defined(_DEBUG)
 // Sleeps threads for Watchdog debugging.

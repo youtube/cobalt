@@ -61,7 +61,9 @@ class DrainFileTest : public ::testing::Test {
   }
 
   bool EnsureDirectoryExists(const char* path) {
-    return mkdir(path, 0700) == 0 || SbDirectoryCanOpen(path);
+    struct stat info;
+    return mkdir(path, 0700) == 0 ||
+           (stat(path, &info) == 0 && S_ISDIR(info.st_mode));
   }
 
  private:

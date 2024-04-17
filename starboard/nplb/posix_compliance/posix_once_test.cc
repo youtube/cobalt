@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <sched.h>
 
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
@@ -83,7 +84,7 @@ void* RunPosixOnceEntryPoint(void* context) {
     pthread_mutex_unlock(&run_sbonce_context->mutex);
   }
 
-  SbThreadYield();
+  sched_yield();
   static const int kIterationCount = 3;
   for (int i = 0; i < kIterationCount; ++i) {
     pthread_once(&run_sbonce_context->once_control, &IncrementGlobalValue);

@@ -79,12 +79,12 @@ SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
                                   char* out_entry,
                                   size_t out_entry_size);
 
+#if SB_API_VERSION < 16
 // Indicates whether SbDirectoryOpen is allowed for the given |path|.
 //
 // |path|: The path to be checked.
 SB_EXPORT bool SbDirectoryCanOpen(const char* path);
 
-#if SB_API_VERSION < 16
 // Creates the directory |path|, assuming the parent directory already exists.
 // This function returns |true| if the directory now exists (even if it existed
 // before) and returns |false| if the directory does not exist.

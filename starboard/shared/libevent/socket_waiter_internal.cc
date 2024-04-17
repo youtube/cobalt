@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -71,7 +72,7 @@ SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
     }
 
     // Just being polite.
-    SbThreadYield();
+    sched_yield();
   }
 
   return kSbSocketInvalid;
