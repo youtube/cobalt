@@ -45,8 +45,10 @@ DiscardableMemoryAllocator::AllocateLockedDiscardableMemoryWithRetryOrDie(
   ReleaseFreeMemory();
 
   memory = allocator->AllocateLockedDiscardableMemory(size);
+#if !defined(COBALT_PENDING_CLEAN_UP)
   if (!memory)
     TerminateBecauseOutOfMemory(size);
+#endif
 
   return memory;
 }
