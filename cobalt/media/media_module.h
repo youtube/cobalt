@@ -42,8 +42,7 @@
 namespace cobalt {
 namespace media {
 
-class MediaModule : public ::media::MediaLog,
-                    public WebMediaPlayerFactory,
+class MediaModule : public WebMediaPlayerFactory,
                     public WebMediaPlayerDelegate {
  public:
   struct Options {
@@ -116,7 +115,7 @@ class MediaModule : public ::media::MediaLog,
   system_window::SystemWindow* system_window_;
   cobalt::render_tree::ResourceProvider* resource_provider_;
 
-  // ::media::MediaLog media_log_;
+  ::media::MediaLog media_log_;
 
   // Protect access to the list of players.
   starboard::Mutex players_lock_;
