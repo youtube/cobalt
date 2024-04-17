@@ -15,6 +15,7 @@
 #include "cobalt/webdriver/protocol/log_entry.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/logging.h"
 

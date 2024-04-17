@@ -49,7 +49,7 @@ class NET_EXPORT DialHttpServer
   void Stop();
 
   // HttpServer::Delegate implementation
-  void OnConnect(int /*conn_id*/) override{};
+  void OnConnect(int /*conn_id*/) override {};
   void OnHttpRequest(int conn_id,
                      const net::HttpServerRequestInfo& info) override;
 

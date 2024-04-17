@@ -15,6 +15,7 @@
 #include "cobalt/webdriver/protocol/element_id.h"
 
 #include <memory>
+#include <utility>
 
 namespace cobalt {
 namespace webdriver {

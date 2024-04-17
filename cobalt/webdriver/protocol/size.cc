@@ -15,6 +15,7 @@
 #include "cobalt/webdriver/protocol/size.h"
 
 #include <memory>
+#include <utility>
 
 namespace cobalt {
 namespace webdriver {
