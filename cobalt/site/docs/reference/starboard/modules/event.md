@@ -4,8 +4,7 @@ Book: /youtube/cobalt/_book.yaml
 # Starboard Module Reference: `event.h`
 
 Defines the event system that wraps the Starboard main loop and entry point.
-
-## The Starboard Application Lifecycle
+The Starboard Application Lifecycle
 
 ```
                * ----------

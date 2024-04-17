@@ -40,7 +40,7 @@ size SB_CONDITION_VARIABLE_MAX_SIZE and aligned at void pointer type.
 #### Definition
 
 ```
-typedef union SbConditionVariable  SbConditionVariable
+typedef union SbConditionVariable SbConditionVariable
 ```
 
 ## Functions
@@ -138,4 +138,3 @@ result.
 ```
 SbConditionVariableResult SbConditionVariableWaitTimed(SbConditionVariable *condition, SbMutex *mutex, SbTime timeout_duration)
 ```
-

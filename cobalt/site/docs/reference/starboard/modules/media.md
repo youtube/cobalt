@@ -466,7 +466,7 @@ return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
 `key_system` is `com.widevine.alpha; invalid_attribute="invalid_value"`.
 Currently the only attribute has to be supported is `encryptionscheme`. It
 reflects the value passed to `encryptionScheme` encryptionScheme of
-MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/,](https://wicg.github.io/encrypted-media-encryption-scheme/,),) which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
+MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/](https://wicg.github.io/encrypted-media-encryption-scheme/)/) , which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
 not a valid value for `encryptionscheme` and the implementation should return
 `kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
 `encryptionscheme` is set to "". The implementation should return
