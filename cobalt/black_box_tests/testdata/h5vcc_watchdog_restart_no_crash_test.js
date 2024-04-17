@@ -23,7 +23,7 @@ function doBusyLoopFor(msToSleep) {
   while ((Date.now() - start) < msToSleep) {
   }
 }
-function generateViolationAndCrash() {
+function generateViolation() {
   h5vcc.crashLog.register("test-client", "", "started", 1000, 0, 'all');
   // clear whatever violations are in the cache
   h5vcc.crashLog.getWatchdogViolations();
@@ -34,11 +34,9 @@ function generateViolationAndCrash() {
 
   // wait for periodic write(every 500ms) to save violation
   doBusyLoopFor(600);
-
-  h5vcc.crashLog.triggerCrash('null_dereference');
 }
 
-function canReadViolationAfterCrash() {
+function canReadViolationAfterRestart() {
   h5vcc.crashLog.register("test-client", "", "started", 500, 0, 'all');
 
   let violationsJson = h5vcc.crashLog.getWatchdogViolations();
@@ -54,9 +52,9 @@ function canReadViolationAfterCrash() {
 
 window.onkeydown = function (event) {
   if (event.keyCode === 97) {
-    generateViolationAndCrash();
+    generateViolation();
   } else if (event.keyCode === 98) {
-    canReadViolationAfterCrash();
+    canReadViolationAfterRestart();
   }
   onEndTest();
 }

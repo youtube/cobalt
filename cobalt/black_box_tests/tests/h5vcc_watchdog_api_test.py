@@ -28,7 +28,8 @@ class H5vccWatchdogApiTest(black_box_tests.BlackBoxTestCase):
 
   def test_h5vcc_watchdog_api_test(self):
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
-      url = server.GetURL(file_name='testdata/h5vcc_watchdog_api_test.html')
+      url = server.GetURL(
+          file_name='testdata/h5vcc_watchdog_violation_test.html')
       with self.CreateCobaltRunner(url=url) as runner:
         runner.WaitForJSTestsSetup()
         self.assertTrue(runner.JSTestsSucceeded())
@@ -38,14 +39,38 @@ class H5vccWatchdogApiTest(black_box_tests.BlackBoxTestCase):
       url = server.GetURL(file_name='testdata/h5vcc_watchdog_restart_test.html')
 
       # The webpage listens for NUMPAD1, NUMPAD2
-      # pylint: disable=bare-except
+      # pylint: disable=broad-exception-caught
       with self.CreateCobaltRunner(url=url) as runner:
         # Press NUMPAD1 for first Cobalt start.
         runner.WaitForJSTestsSetup()
         try:
           runner.SendKeys(keys.Keys.NUMPAD1)
-        except:
-          print('suppressing exception after killing Cobalt')
+        except Exception as e:
+          print('suppressing exception after killing Cobalt:', e)
+
+    with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
+      url = server.GetURL(file_name='testdata/h5vcc_watchdog_restart_test.html')
+
+      with self.CreateCobaltRunner(url=url) as runner:
+        runner.WaitForJSTestsSetup()
+        # Press NUMPAD2 for second Cobalt start.
+        runner.SendKeys(keys.Keys.NUMPAD2)
+        self.assertTrue(runner.JSTestsSucceeded())
+
+  def test_h5vcc_watchdog_restart_no_crash_test(self):
+    with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
+      url = server.GetURL(
+          file_name='testdata/h5vcc_watchdog_restart_no_crash_test.html')
+
+      # The webpage listens for NUMPAD1, NUMPAD2
+      # pylint: disable=broad-exception-caught
+      with self.CreateCobaltRunner(url=url) as runner:
+        # Press NUMPAD1 for first Cobalt start.
+        runner.WaitForJSTestsSetup()
+        try:
+          runner.SendKeys(keys.Keys.NUMPAD1)
+        except Exception as e:
+          print('suppressing exception after killing Cobalt:', e)
 
       with self.CreateCobaltRunner(url=url) as runner:
         runner.WaitForJSTestsSetup()
