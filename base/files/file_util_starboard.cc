@@ -289,12 +289,12 @@ bool PathIsWritable(const FilePath &path) {
 
 bool DirectoryExists(const FilePath& path) {
   internal::AssertBlockingAllowed();
-  SbFileInfo info;
-  if (!SbFileGetPathInfo(path.value().c_str(), &info)) {
+  struct stat info;
+  if (stat(path.value().c_str(), &info) != 0) {
     return false;
   }
 
-  return info.is_directory;
+  return S_ISDIR(info.st_mode);
 }
 
 bool GetTempDir(FilePath *path) {
@@ -415,32 +415,32 @@ bool NormalizeFilePath(const FilePath& path, FilePath* normalized_path) {
 
 bool IsLink(const FilePath &file_path) {
   internal::AssertBlockingAllowed();
-  SbFileInfo info;
+  struct stat info;
 
   // If we can't SbfileGetPathInfo on the file, it's safe to assume that the
   // file won't at least be a 'followable' link.
-  if (!SbFileGetPathInfo(file_path.value().c_str(), &info)) {
+  if (stat(file_path.value().c_str(), &info) != 0) {
     return false;
   }
 
-  return info.is_symbolic_link;
+  return S_ISLNK(info.st_mode);
 }
 
 bool GetFileInfo(const FilePath &file_path, File::Info *results) {
   internal::AssertBlockingAllowed();
-  SbFileInfo info;
-  if (!SbFileGetPathInfo(file_path.value().c_str(), &info)) {
+  struct stat info;
+  if (stat(file_path.value().c_str(), &info) != 0) {
     return false;
   }
 
-  results->is_directory = info.is_directory;
-  results->size = info.size;
+  results->is_directory = S_ISDIR(info.st_mode);
+  results->size = info.st_size;
   results->last_modified = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(info.last_modified));
+      base::TimeDelta::FromMicroseconds(info.st_mtim.tv_sec));
   results->last_accessed = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(info.last_accessed));
+      base::TimeDelta::FromMicroseconds(info.st_atim.tv_sec));
   results->creation_time = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(info.creation_time));
+      base::TimeDelta::FromMicroseconds(info.st_ctim.tv_sec));
   return true;
 }
 

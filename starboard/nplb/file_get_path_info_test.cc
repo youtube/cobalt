@@ -14,6 +14,8 @@
 
 // GetInfo is mostly tested in the course of other tests.
 
+#if SB_API_VERSION < 16
+
 #include <string>
 
 #include "starboard/common/time.h"
@@ -115,3 +117,4 @@ TEST(SbFileGetPathInfoTest, WorksOnStaticContentDirectories) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif  // SB_API_VERSION < 16

@@ -124,9 +124,9 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
 
     FilePath full_name = source.Append(filename);
     // TODO: Make sure this follows symlinks on relevant platforms.
-    if (!SbFileGetPathInfo(full_name.value().c_str(), &info.sb_info_)) {
+    if (stat(full_name.value().c_str(), &info.file_info_) != 0) {
       DPLOG(ERROR) << "Couldn't SbFileGetInfo on " << full_name.value();
-      memset(&info.sb_info_, 0, sizeof(info.sb_info_));
+      memset(&info.file_info_, 0, sizeof(info.file_info_));
     }
     return info;
   };
@@ -185,13 +185,13 @@ FilePath FileEnumerator::Next() {
         NOTREACHED() << "Patterns not supported in Starboard.";
         continue;
       }
-
-      if (recursive_ && file_info.sb_info_.is_directory) {
+      bool isdir = S_ISDIR(file_info.file_info_.st_mode);
+      if (recursive_ && isdir) {
         pending_paths_.push(full_path);
       }
 
-      if ((file_info.sb_info_.is_directory && (file_type_ & DIRECTORIES)) ||
-          (!file_info.sb_info_.is_directory && (file_type_ & FILES)) ||
+      if ((isdir && (file_type_ & DIRECTORIES)) ||
+          (isdir && (file_type_ & FILES)) ||
           (file_type_ & NAMES_ONLY)) {
         directory_entries_.push_back(file_info);
       }
