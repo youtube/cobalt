@@ -204,18 +204,10 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
       new_protection = PROT_READ | PROT_WRITE;
       break;
     case OS::MemoryPermission::kReadExecute:
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
       new_protection = PROT_READ | PROT_EXEC;
-#else
-      UNREACHABLE();
-#endif
       break;
     case OS::MemoryPermission::kReadWriteExecute:
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
       new_protection = PROT_READ| PROT_WRITE| PROT_EXEC;
-#else
-      UNREACHABLE();
-#endif
       break;
     default:
       SB_LOG(WARNING) << "OS::SetPermissions: Unsupported type access=" << static_cast<int>(access);
