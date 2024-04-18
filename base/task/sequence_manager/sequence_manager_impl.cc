@@ -367,7 +367,7 @@ void SequenceManagerImpl::BindToMessagePump(std::unique_ptr<MessagePump> pump) {
   }
 #endif
 
-  // On iOS and Starboard attach to the native loop when there is one.
+  // On iOS attach to the native loop when there is one.
 #if BUILDFLAG(IS_IOS) || defined(STARBOARD)
   if (settings_.message_loop_type == MessagePumpType::UI) {
     controller_->AttachToMessagePump();
