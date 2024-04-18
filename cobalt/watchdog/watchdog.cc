@@ -51,19 +51,6 @@ const int kWatchdogMaxPingInfoLength = 1024;
 // The maximum number of milliseconds old of an unfetched Watchdog violation.
 const int64_t kWatchdogMaxViolationsAge = 86400000;
 
-// Persistent setting name and default setting for the boolean that controls
-// whether or not Watchdog is enabled. When disabled, Watchdog behaves like a
-// stub except that persistent settings can still be get/set. Requires a
-// restart to take effect.
-const char kPersistentSettingWatchdogEnable[] =
-    "kPersistentSettingWatchdogEnable";
-const bool kDefaultSettingWatchdogEnable = true;
-// Persistent setting name and default setting for the boolean that controls
-// whether or not a Watchdog violation will trigger a crash.
-const char kPersistentSettingWatchdogCrash[] =
-    "kPersistentSettingWatchdogCrash";
-const bool kDefaultSettingWatchdogCrash = false;
-
 }  // namespace
 
 bool Watchdog::Initialize(
@@ -78,6 +65,7 @@ bool Watchdog::InitializeCustom(
     std::string watchdog_file_name, int64_t watchdog_monitor_frequency) {
   persistent_settings_ = persistent_settings;
   is_disabled_ = !GetPersistentSettingWatchdogEnable();
+  is_logtrace_disabled_ = !GetPersistentSettingLogtraceEnable();
 
   if (is_disabled_) return true;
 
@@ -803,14 +791,45 @@ void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
 }
 
 bool Watchdog::LogEvent(const std::string& event) {
+  if (is_logtrace_disabled_) {
+    return true;
+  }
+
   return instrumentation_log_.LogEvent(event);
 }
 
 std::vector<std::string> Watchdog::GetLogTrace() {
+  if (is_logtrace_disabled_) {
+    return {};
+  }
+
   return instrumentation_log_.GetLogTrace();
 }
 
-void Watchdog::ClearLog() { instrumentation_log_.ClearLog(); }
+void Watchdog::ClearLog() {
+  if (is_logtrace_disabled_) {
+    return;
+  }
+
+  instrumentation_log_.ClearLog();
+}
+
+bool Watchdog::GetPersistentSettingLogtraceEnable() {
+  if (!persistent_settings_) return kDefaultSettingLogtraceEnable;
+
+  // Gets the boolean that controls whether or not LogTrace is enabled.
+  return persistent_settings_->GetPersistentSettingAsBool(
+      kPersistentSettingLogtraceEnable, kDefaultSettingLogtraceEnable);
+}
+
+void Watchdog::SetPersistentSettingLogtraceEnable(bool enable_logtrace) {
+  if (!persistent_settings_) return;
+
+  // Sets the boolean that controls whether or not LogTrace is enabled.
+  persistent_settings_->SetPersistentSetting(
+      kPersistentSettingLogtraceEnable,
+      std::make_unique<base::Value>(enable_logtrace));
+}
 
 #if defined(_DEBUG)
 // Sleeps threads for Watchdog debugging.

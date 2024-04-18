@@ -20,11 +20,14 @@
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/test/scoped_task_environment.h"
 #include "starboard/common/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace watchdog {
+
+using persistent_storage::PersistentSettings;
 
 namespace {
 
@@ -36,7 +39,9 @@ const int64_t kWatchdogSleepDuration = kWatchdogMonitorFrequency * 4;
 
 class WatchdogTest : public testing::Test {
  protected:
-  WatchdogTest() {}
+  WatchdogTest()
+      : scoped_task_environment_(
+            base::test::ScopedTaskEnvironment::MainThreadType::DEFAULT) {}
 
   void SetUp() final {
     watchdog_ = new watchdog::Watchdog();
@@ -49,6 +54,8 @@ class WatchdogTest : public testing::Test {
     watchdog_->Uninitialize();
     delete watchdog_;
     watchdog_ = nullptr;
+
+    DeletePersistentSettingsFile();
   }
 
   base::Value CreateDummyViolationDict(std::string desc, int begin, int end) {
@@ -80,7 +87,23 @@ class WatchdogTest : public testing::Test {
     return violation.Clone();
   }
 
+  void DeletePersistentSettingsFile() {
+    std::vector<char> storage_dir(kSbFileMaxPath + 1, 0);
+    SbSystemGetPath(kSbSystemPathCacheDirectory, storage_dir.data(),
+                    kSbFileMaxPath);
+    std::string path =
+        std::string(storage_dir.data()) + kSbFileSepString + kSettingsFileName;
+
+    starboard::SbFileDeleteRecursive(path.c_str(), true);
+  }
+
+  const std::string kSettingsFileName = "test-settings.json";
+
   watchdog::Watchdog* watchdog_;
+  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::WaitableEvent task_done_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
 
 TEST_F(WatchdogTest, RedundantRegistersShouldFail) {
@@ -715,6 +738,70 @@ TEST_F(WatchdogTest, ViolationContainsEmptyLogTrace) {
   base::Value::List* logTrace = (*violations)[0].GetDict().FindList("logTrace");
 
   ASSERT_EQ(logTrace->size(), 0);
+}
+
+TEST_F(WatchdogTest, WatchdogMethodsAreNoopWhenWatchdogIsDisabled) {
+  // init and destroy existing watchdog to re-initialize it later
+  watchdog_->Register("test-name", "test-desc", base::kApplicationStateStarted,
+                      kWatchdogMonitorFrequency);
+  TearDown();
+
+  // PersistentSettings doesn't have interface so it's not mockable
+  auto persistent_settings =
+      std::make_unique<PersistentSettings>(kSettingsFileName);
+  persistent_settings->ValidatePersistentSettings();
+
+  base::OnceClosure closure = base::BindOnce(
+      [](base::WaitableEvent* task_done) { task_done->Signal(); }, &task_done_);
+  persistent_settings->SetPersistentSetting(
+      kPersistentSettingWatchdogEnable, std::make_unique<base::Value>(false),
+      std::move(closure), true);
+  task_done_.Wait();
+
+  watchdog_ = new watchdog::Watchdog();
+  watchdog_->InitializeCustom(persistent_settings.get(),
+                              std::string(kWatchdogViolationsJson),
+                              kWatchdogMonitorFrequency);
+
+  ASSERT_TRUE(watchdog_->Register("test-name", "test-desc",
+                                  base::kApplicationStateStarted,
+                                  kWatchdogMonitorFrequency));
+  ASSERT_TRUE(watchdog_->Ping("test-name"));
+  ASSERT_TRUE(watchdog_->PingByClient(nullptr));
+
+  SbThreadSleep(kWatchdogSleepDuration);
+
+  ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
+  ASSERT_TRUE(watchdog_->Unregister("test-name"));
+  ASSERT_TRUE(watchdog_->Unregister(""));
+}
+
+TEST_F(WatchdogTest, LogtraceMethodsAreNoopWhenLogtraceIsDisabled) {
+  // init and destroy existing watchdog to re-initialize it later
+  watchdog_->Register("test-name", "test-desc", base::kApplicationStateStarted,
+                      kWatchdogMonitorFrequency);
+  TearDown();
+
+  // PersistentSettings doesn't have interface so it's not mockable
+  auto persistent_settings =
+      std::make_unique<PersistentSettings>(kSettingsFileName);
+  persistent_settings->ValidatePersistentSettings();
+
+  base::OnceClosure closure = base::BindOnce(
+      [](base::WaitableEvent* task_done) { task_done->Signal(); }, &task_done_);
+  persistent_settings->SetPersistentSetting(
+      kPersistentSettingLogtraceEnable, std::make_unique<base::Value>(false),
+      std::move(closure), true);
+  task_done_.Wait();
+
+  watchdog_ = new watchdog::Watchdog();
+  watchdog_->InitializeCustom(persistent_settings.get(),
+                              std::string(kWatchdogViolationsJson),
+                              kWatchdogMonitorFrequency);
+
+  ASSERT_TRUE(watchdog_->LogEvent("foo"));
+  ASSERT_EQ(watchdog_->GetLogTrace().size(), 0);
+  ASSERT_NO_FATAL_FAILURE(watchdog_->ClearLog());
 }
 
 }  // namespace watchdog
