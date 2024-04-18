@@ -23,6 +23,7 @@
 #include "base/values.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
+#include "cobalt/watchdog/instrumentation_log.h"
 #include "cobalt/watchdog/singleton.h"
 #include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
@@ -107,6 +108,11 @@ class Watchdog : public Singleton<Watchdog> {
   bool GetPersistentSettingWatchdogCrash();
   void SetPersistentSettingWatchdogCrash(bool can_trigger_crash);
 
+  // LogTrace API. See instrumentation_log.h for more information.
+  bool LogEvent(const std::string& event);
+  std::vector<std::string> GetLogTrace();
+  void ClearLog();
+
 #if defined(_DEBUG)
   // Sleeps threads based off of environment variables for Watchdog debugging.
   void MaybeInjectDebugDelay(const std::string& name);
@@ -173,6 +179,8 @@ class Watchdog : public Singleton<Watchdog> {
       starboard::ConditionVariable(mutex_);
   // The frequency in microseconds of monitor loops.
   int64_t watchdog_monitor_frequency_;
+  // Captures string events emitted from Kabuki via logEvent() h5vcc API.
+  InstrumentationLog instrumentation_log_;
 
 #if defined(_DEBUG)
   starboard::Mutex delay_mutex_;

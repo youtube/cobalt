@@ -30,7 +30,7 @@ extern "C" {
 
 typedef SRWLOCK pthread_mutex_t;
 typedef unsigned int pthread_mutexattr_t;
-typedef DWORD pthread_key_t;
+typedef void* pthread_key_t;
 typedef CONDITION_VARIABLE pthread_cond_t;
 typedef unsigned int pthread_condattr_t;
 typedef INIT_ONCE pthread_once_t;
@@ -44,7 +44,7 @@ int pthread_mutex_lock(pthread_mutex_t* mutex);
 int pthread_mutex_unlock(pthread_mutex_t* mutex);
 int pthread_mutex_trylock(pthread_mutex_t* mutex);
 
-int pthread_key_create(pthread_key_t* key, void (*)(void* dtor));
+int pthread_key_create(pthread_key_t* key, void (*dtor)(void*));
 int pthread_key_delete(pthread_key_t key);
 void* pthread_getspecific(pthread_key_t key);
 int pthread_setspecific(pthread_key_t key, const void* value);

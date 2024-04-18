@@ -15,18 +15,23 @@
 #include "starboard/system.h"
 
 #include "starboard/common/string.h"
-#include "starboard/extension/configuration.h"
-#include "starboard/extension/crash_handler.h"
-#include "starboard/extension/graphics.h"
-#include "starboard/extension/time_zone.h"
-#include "starboard/shared/starboard/crash_handler.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
-
+#include "starboard/extension/configuration.h"
+#include "starboard/extension/crash_handler.h"
+#include "starboard/extension/graphics.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/extension/loader_app_metrics.h"
+#endif
+#include "starboard/extension/time_zone.h"
 #include "starboard/linux/shared/time_zone.h"
 #include "starboard/raspi/shared/configuration.h"
 #include "starboard/raspi/shared/graphics.h"
+#include "starboard/shared/starboard/crash_handler.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/shared/starboard/loader_app_metrics.h"
+#endif
 
 const void* SbSystemGetExtension(const char* name) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -53,5 +58,10 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
     return starboard::shared::GetTimeZoneApi();
   }
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
+    return starboard::shared::starboard::GetLoaderAppMetricsApi();
+  }
+#endif
   return NULL;
 }

@@ -250,7 +250,7 @@ test("url_unittests") {
     deps += [ "//third_party/icu:icuuc" ]
   }
 
-  if (!is_ios && !is_cronet_build && false) {
+  if (!is_ios && !is_cronet_build && !is_starboard) {
     sources += [
       "mojom/scheme_host_port_mojom_traits_unittest.cc",
       "mojom/url_gurl_mojom_traits_unittest.cc",

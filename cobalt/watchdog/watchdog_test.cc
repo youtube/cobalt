@@ -656,5 +656,66 @@ TEST_F(WatchdogTest, EvictOldWatchdogViolations) {
   ASSERT_EQ(watchdog_->GetWatchdogViolations({}, false), "");
 }
 
+TEST_F(WatchdogTest, CanGetLogTrace) {
+  watchdog_->LogEvent("1");
+  watchdog_->LogEvent("2");
+
+  std::vector<std::string> expected = {"1", "2"};
+  ASSERT_EQ(watchdog_->GetLogTrace(), expected);
+}
+
+TEST_F(WatchdogTest, CanClearLog) {
+  watchdog_->LogEvent("1");
+  watchdog_->LogEvent("2");
+
+  watchdog_->ClearLog();
+
+  ASSERT_EQ(watchdog_->GetLogTrace().size(), 0);
+}
+
+TEST_F(WatchdogTest, ViolationContainsLogTrace) {
+  watchdog_->Register("test-name", "test-desc", base::kApplicationStateStarted,
+                      kWatchdogMonitorFrequency);
+  watchdog_->Ping("test-name", "test-ping");
+
+  watchdog_->LogEvent("1");
+  watchdog_->LogEvent("2");
+  watchdog_->LogEvent("3");
+
+  SbThreadSleep(kWatchdogSleepDuration);
+
+  std::string json = watchdog_->GetWatchdogViolations();
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  ASSERT_TRUE(violations_map_optional.has_value());
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  base::Value::List* violations =
+      violations_map.FindDict("test-name")->FindList("violations");
+  base::Value::List* logTrace = (*violations)[0].GetDict().FindList("logTrace");
+
+  ASSERT_EQ(logTrace->size(), 3);
+}
+
+TEST_F(WatchdogTest, ViolationContainsEmptyLogTrace) {
+  watchdog_->Register("test-name", "test-desc", base::kApplicationStateStarted,
+                      kWatchdogMonitorFrequency);
+  watchdog_->Ping("test-name", "test-ping");
+
+  SbThreadSleep(kWatchdogSleepDuration);
+
+  std::string json = watchdog_->GetWatchdogViolations();
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  ASSERT_TRUE(violations_map_optional.has_value());
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  base::Value::List* violations =
+      violations_map.FindDict("test-name")->FindList("violations");
+  base::Value::List* logTrace = (*violations)[0].GetDict().FindList("logTrace");
+
+  ASSERT_EQ(logTrace->size(), 0);
+}
+
 }  // namespace watchdog
 }  // namespace cobalt

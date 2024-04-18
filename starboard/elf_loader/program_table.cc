@@ -25,12 +25,10 @@
 
 #define MAYBE_MAP_FLAG(x, from, to) (((x) & (from)) ? (to) : 0)
 
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
 #define PFLAGS_TO_PROT(x)                 \
   (MAYBE_MAP_FLAG((x), PF_X, PROT_EXEC) | \
    MAYBE_MAP_FLAG((x), PF_R, PROT_READ) | \
    MAYBE_MAP_FLAG((x), PF_W, PROT_WRITE))
-#endif
 
 namespace starboard {
 namespace elf_loader {
@@ -44,7 +42,17 @@ ProgramTable::ProgramTable(
       load_start_(NULL),
       load_size_(0),
       base_memory_address_(0),
-      memory_mapped_file_extension_(memory_mapped_file_extension) {}
+      memory_mapped_file_extension_(memory_mapped_file_extension) {
+#if SB_API_VERSION >= 16
+  SB_CHECK(kSbCanMapExecutableMemory)
+      << "This module requires executable memory support!";
+#else
+#if !SB_CAN(MAP_EXECUTABLE_MEMORY)
+  SB_CHECK(false) << "This module requires "
+                     "executable memory map support!";
+#endif
+#endif
+}
 
 bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
   if (!elf_header) {
@@ -181,12 +189,10 @@ bool ProgramTable::LoadSegments(File* elf_file) {
     Addr file_page_start = PAGE_START(file_start);
     Addr file_length = file_end - file_page_start;
 
-    SB_DLOG(INFO) << "Mapping segment: "
-                  << " file_page_start=" << file_page_start
-                  << " file_length=" << file_length << " seg_page_start=0x"
-                  << std::hex << seg_page_start;
+    SB_DLOG(INFO) << "Mapping segment: " << " file_page_start="
+                  << file_page_start << " file_length=" << file_length
+                  << " seg_page_start=0x" << std::hex << seg_page_start;
 
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
     if (file_length != 0) {
       const int prot_flags = PFLAGS_TO_PROT(phdr->p_flags);
       SB_DLOG(INFO) << "segment prot_flags=" << std::hex << prot_flags;
@@ -230,9 +236,6 @@ bool ProgramTable::LoadSegments(File* elf_file) {
         return false;
       }
     }
-#else
-    SB_CHECK(false);
-#endif
 
     // if the segment is writable, and does not end on a page boundary,
     // zero-fill it until the page limit.
@@ -248,7 +251,6 @@ bool ProgramTable::LoadSegments(File* elf_file) {
     // between them. This is done by using a private anonymous
     // map for all extra pages.
     if (seg_page_end > seg_file_end) {
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
       bool mprotect_fix =
           mprotect(reinterpret_cast<void*>(seg_file_end),
                    seg_page_end - seg_file_end, PROT_WRITE) == 0;
@@ -257,13 +259,9 @@ bool ProgramTable::LoadSegments(File* elf_file) {
         SB_LOG(ERROR) << "Failed to unprotect end of segment";
         return false;
       }
-#else
-      SB_CHECK(false);
-#endif
 
       memset(reinterpret_cast<void*>(seg_file_end), 0,
              seg_page_end - seg_file_end);
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
       mprotect(reinterpret_cast<void*>(seg_file_end),
                seg_page_end - seg_file_end, PFLAGS_TO_PROT(phdr->p_flags));
       SB_DLOG(INFO) << "mprotect_fix=" << mprotect_fix;
@@ -271,9 +269,6 @@ bool ProgramTable::LoadSegments(File* elf_file) {
         SB_LOG(ERROR) << "Failed to protect end of segment";
         return false;
       }
-#else
-      SB_CHECK(false);
-#endif
     }
   }
   return true;
@@ -356,16 +351,12 @@ int ProgramTable::AdjustMemoryProtectionOfReadOnlySegments(
     Addr seg_page_start = PAGE_START(phdr->p_vaddr) + base_memory_address_;
     Addr seg_page_end =
         PAGE_END(phdr->p_vaddr + phdr->p_memsz) + base_memory_address_;
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
     int ret = mprotect(reinterpret_cast<void*>(seg_page_start),
                        seg_page_end - seg_page_start,
                        PFLAGS_TO_PROT(phdr->p_flags) | extra_prot_flags);
     if (ret < 0) {
       return -1;
     }
-#else
-    SB_CHECK(false);
-#endif
   }
   return 0;
 }

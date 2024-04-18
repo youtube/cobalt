@@ -85,7 +85,6 @@ From `configuration_public.h`:
 The Cobalt team provides, and maintains, Starboard ABI files for the following
 architectures:
 
-*   x86\_32
 *   x86\_64
 *   ARM v7 (32-bit)
 *   ARM v8 (64-bit)

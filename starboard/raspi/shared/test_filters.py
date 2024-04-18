@@ -54,6 +54,13 @@ _FILTERED_TESTS = {
         # Filter failed tests.
         'PlayerComponentsTests/PlayerComponentsTest.*',
     ],
+    'net_unittests': [
+        'VersionIncludeStreamDependencySequence/QuicNetworkTransactionTest.NetworkIsolationTunnel*',
+        # TODO: b/332735376 Fix ICU error for "failed to open UTS46 data with error"
+        'SchemeHostPortMatcherRuleTest.SchemeHostPortMatcherHostnamePatternRule_PunnyCodeHostname',
+        'ProxySpecificationUtilTest*',
+        'ProxyServerTest.FromSchemeHostAndPort',
+    ],
 }
 
 

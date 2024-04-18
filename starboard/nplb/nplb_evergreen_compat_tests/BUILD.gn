@@ -21,6 +21,7 @@ target(gtest_target_type, "nplb_evergreen_compat_tests") {
     "crashpad_config_test.cc",
     "executable_memory_test.cc",
     "fonts_test.cc",
+    "loader_app_metrics_test.cc",
     "max_file_name_test.cc",
     "sabi_test.cc",
     "storage_test.cc",

@@ -9,6 +9,22 @@ since the version previous to it.
 
 ## Version 16
 
+### MAP_EXECUTABLE_MEMORY changed from build-time to runtime config
+SB_CAN_MAP_EXECUTABLE_MEMORY has been refactored into a run-time configuration
+constant `kSbCanMapExecutableMemory`.
+
+### Deprecated `SbThreadYield`
+Replaced the `SbThreadYield` with the POSIX sched_yield() defined in the
+`<sched.h>` header.
+
+### x86 ABI removed for Evergreen
+The x86 platform configurations, builds and ABI are no longer supported for
+Evergreen.
+
+### Added standard POSIX stat API and deprecated SbDirectoryCanOpen.
+The directory API SbDirectoryCanOpen has been deprecated and the standard API `stat` can
+be used from `sys/stat.h` instead.
+
 ### Added standard POSIX mkdir API and deprecated SbDirectoryCreate.
 The directory API SbDirectoryCreate has been deprecated and the standard API `mkdir`
 can be used from `dirent.h` instead.
@@ -162,6 +178,15 @@ deprecated.
 
 ### Deprecated SbStringScan and SbStringScanF
 The APIs defined in `starboard/string.h` are deprecated and the standard API `vsscanf` and `sscanf` are used instead.
+
+### Deprecated SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
+
+`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES` can no longer be used to enable the
+use of `kSbMediaAudioSampleTypeInt16`.  The platform has to support AudioSink in
+float sample and is verified by nplb test.  The enum value of
+`kSbMediaAudioSampleTypeInt16Deprecated` was kept so the platform may still
+choose to implement int16 sample support.  It will be removed in a future
+version.
 
 ## Version 15
 

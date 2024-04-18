@@ -49,21 +49,9 @@
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
-// --- Memory Configuration --------------------------------------------------
-
-// Whether this platform can map executable memory. Implies the platform can map
-// memory. This is required for platforms that want to JIT.
-#define SB_CAN_MAP_EXECUTABLE_MEMORY 1
-
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
-
-// --- Platform Specific Quirks ----------------------------------------------
-
-// The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only
-// when this macro is defined.
-#define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
 
 #endif  // STARBOARD_XB1_SHARED_CONFIGURATION_PUBLIC_H_

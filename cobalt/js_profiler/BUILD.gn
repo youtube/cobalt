@@ -33,7 +33,7 @@ static_library("js_profiler") {
     "//cobalt/web",
     "//media",
     "//third_party/abseil-cpp/absl/types:optional",
-    "//third_party/v8:cppgc",
+    "//v8:cppgc",
   ]
 }
 

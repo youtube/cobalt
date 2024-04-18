@@ -14,6 +14,8 @@
 
 #include "base/threading/platform_thread.h"
 
+#include <sched.h>
+
 #include "base/logging.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
@@ -113,7 +115,7 @@ PlatformThreadHandle PlatformThread::CurrentHandle() {
 
 // static
 void PlatformThread::YieldCurrentThread() {
-  SbThreadYield();
+  sched_yield();
 }
 
 // static

@@ -46,7 +46,9 @@ bool GetCacheDirectory(char* out_path, int path_size) {
     out_path[0] = '\0';
     return false;
   }
-  return mkdir(out_path, 0700) == 0 || SbDirectoryCanOpen(out_path);
+  struct stat info;
+  return mkdir(out_path, 0700) == 0 ||
+         (stat(out_path, &info) == 0 && S_ISDIR(info.st_mode));
 }
 
 // Gets the path to the storage directory, using the home directory.
@@ -62,7 +64,9 @@ bool GetStorageDirectory(char* out_path, int path_size) {
     out_path[0] = '\0';
     return false;
   }
-  return mkdir(out_path, 0700) == 0 || SbDirectoryCanOpen(out_path);
+  struct stat info;
+  return mkdir(out_path, 0700) == 0 ||
+         (stat(out_path, &info) == 0 && S_ISDIR(info.st_mode));
 }
 
 // Places up to |path_size| - 1 characters of the path to the current
@@ -214,7 +218,9 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (starboard::strlcat(path.data(), "/cobalt", kPathSize) >= kPathSize) {
         return false;
       }
-      if (mkdir(path.data(), 0700) != 0 && !SbDirectoryCanOpen(path.data())) {
+      struct stat info;
+      if (mkdir(path.data(), 0700) != 0 &&
+          !(stat(path.data(), &info) == 0 && S_ISDIR(info.st_mode))) {
         return false;
       }
       break;

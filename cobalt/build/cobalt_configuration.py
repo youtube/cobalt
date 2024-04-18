@@ -14,19 +14,9 @@
 """Base cobalt configuration for GYP."""
 
 from starboard.build import application_configuration
-from starboard.tools.testing import test_filter
 
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
-
-_FILTERED_TESTS = {
-    'net_unittests': [
-        # TODO: b/331437821 - These pass locally and fail on GitHub.
-        'QuicMemoryCacheBackendTest.UsesOriginalUrl',
-        'QuicMemoryCacheBackendTest.ReadsCacheDir',
-        'QuicMemoryCacheBackendTest.UsesOriginalUrlOnly',
-    ],
-}
 
 
 class CobaltConfiguration(application_configuration.ApplicationConfiguration):
@@ -34,12 +24,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
   Cobalt per-platform configurations, if defined, must subclass from this class.
   """
-
-  def GetTestFilters(self):
-    filters = super().GetTestFilters()
-    for target, tests in _FILTERED_TESTS.items():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
-    return filters
 
   def GetWebPlatformTestFilters(self):
     """Gets all tests to be excluded from a black box test run."""
@@ -118,6 +102,41 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'xhr/WebPlatformTest.Run/XMLHttpRequest_status_error_htm',
         'xhr/WebPlatformTest.Run/XMLHttpRequest_response_json_htm',
         'xhr/WebPlatformTest.Run/XMLHttpRequest_send_redirect_to_non_cors_htm',
+
+        # pylint: disable=line-too-long
+        # b/332367155
+        'websockets/WebPlatformTest.Run/websockets_closing_handshake_002_html',
+        'websockets/WebPlatformTest.Run/websockets_closing_handshake_004_html',
+        'websockets/WebPlatformTest.Run/websockets_binary_001_html',
+        'websockets/WebPlatformTest.Run/websockets_binary_002_html',
+        'websockets/WebPlatformTest.Run/websockets_binary_004_html',
+        'websockets/WebPlatformTest.Run/websockets_binary_005_html',
+        'websockets/WebPlatformTest.Run/websockets_constructor_006_html',
+        'websockets/WebPlatformTest.Run/websockets_constructor_009_html',
+        'websockets/WebPlatformTest.Run/websockets_constructor_013_html',
+        'websockets/WebPlatformTest.Run/websockets_constructor_022_html',
+        'websockets/WebPlatformTest.Run/websockets_cookies_001_html',
+        'websockets/WebPlatformTest.Run/websockets_cookies_006_html',
+        'websockets/WebPlatformTest.Run/websockets_extended_payload_length_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_bufferedAmount_bufferedAmount_arraybuffer_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_bufferedAmount_bufferedAmount_blob_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_bufferedAmount_bufferedAmount_getting_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_bufferedAmount_bufferedAmount_large_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_bufferedAmount_bufferedAmount_unicode_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_events_015_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_events_016_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_events_017_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_readyState_008_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_send_007_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_send_008_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_send_009_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_send_010_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_send_011_html',
+        'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_send_012_html',
+        'websockets/WebPlatformTest.Run/websockets_keeping_connection_open_001_html',
+        'websockets/WebPlatformTest.Run/websockets_opening_handshake_003_html',
+        'websockets/WebPlatformTest.Run/websockets_opening_handshake_005_html',
+        'service_workers/WebPlatformTest.Run/service_workers_service_worker_register_wait_forever_in_install_worker_https_html',
     ]
     return filters
 

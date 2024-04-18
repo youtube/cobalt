@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#if SB_API_VERSION < 16
 
 #include "starboard/directory.h"
 
@@ -29,3 +30,4 @@ bool SbDirectoryCanOpen(const char* path) {
 
   return info.is_directory;
 }
+#endif  // SB_API_VERSION < 16

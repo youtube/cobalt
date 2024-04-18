@@ -148,8 +148,8 @@ bool AbsolutePath(FilePath* path) {
 bool DeleteFile(const FilePath &path, bool recursive) {
   internal::AssertBlockingAllowed();
   const char *path_str = path.value().c_str();
-
-  bool directory = SbDirectoryCanOpen(path_str);
+  struct ::stat info;
+  bool directory = ::stat(path_str, &info) == 0 && S_ISDIR(info.st_mode);
   if (!recursive || !directory) {
     return SbFileDelete(path_str);
   }
@@ -197,6 +197,19 @@ bool DeletePathRecursively(const FilePath &path) {
 bool DeleteFile(const FilePath &path) {
   bool recursive = false;
   return DeleteFile(path, recursive);
+}
+
+bool DieFileDie(const FilePath& file, bool recurse) {
+  // There is no need to workaround Windows problems on POSIX.
+  // Just pass-through.
+  if (recurse)
+    return DeletePathRecursively(file);
+  return DeleteFile(file);
+}
+
+bool EvictFileFromSystemCache(const FilePath& file) {
+  NOTIMPLEMENTED();
+  return false;
 }
 
 bool ReplaceFile(const FilePath& from_path,
@@ -377,9 +390,10 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
     if (DirectoryExists(*i)) {
       continue;
     }
-
+    
+    struct ::stat info;
     if (mkdir(i->value().c_str(), 0700) != 0 &&
-        !SbDirectoryCanOpen(i->value().c_str())){
+        !(::stat(i->value().c_str(), &info) == 0 && S_ISDIR(info.st_mode))){
       if (error)
         *error = File::OSErrorToFileError(SbSystemGetLastError());
       return false;

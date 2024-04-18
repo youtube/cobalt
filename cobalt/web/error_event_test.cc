@@ -109,11 +109,9 @@ TEST_P(ErrorEventTestWithJavaScript, ConstructorWithEventTypeAndErrorInitDict) {
   EXPECT_EQ("rulez", result);
 
   if (!success) {
-    DLOG(ERROR) << "Failed to evaluate test: "
-                << "\"" << result << "\"";
+    DLOG(ERROR) << "Failed to evaluate test: " << "\"" << result << "\"";
   } else {
-    LOG(INFO) << "Test result : "
-              << "\"" << result << "\"";
+    LOG(INFO) << "Test result : " << "\"" << result << "\"";
   }
 }
 

@@ -19,6 +19,7 @@
 #include <linux/input.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -779,7 +780,8 @@ std::vector<InputDeviceInfo> GetInputDevices() {
     path += "/";
     path += entry.data();
 
-    if (SbDirectoryCanOpen(path.c_str())) {
+    struct stat file_info;
+    if (stat(path.c_str(), &file_info) == 0 && S_ISDIR(file_info.st_mode)) {
       // This is a subdirectory. Skip.
       continue;
     }

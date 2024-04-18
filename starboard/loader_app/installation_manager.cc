@@ -709,7 +709,9 @@ bool InstallationManager::CreateInstallationDirs() {
       return false;
     }
 
-    if (mkdir(path.data(), 0700) != 0 && !SbDirectoryCanOpen(path.data())) {
+    struct stat info;
+    if (mkdir(path.data(), 0700) != 0 &&
+        !(stat(path.data(), &info) == 0 && S_ISDIR(info.st_mode))) {
       return false;
     }
   }

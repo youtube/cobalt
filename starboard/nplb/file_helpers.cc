@@ -14,11 +14,15 @@
 
 #include "starboard/nplb/file_helpers.h"
 
+#include <sys/stat.h>
+
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -49,7 +53,8 @@ std::string GetFileTestsDataDir() {
                                kSbFileSepChar + "test" + kSbFileSepChar +
                                "starboard" + kSbFileSepChar + "nplb" +
                                kSbFileSepChar + "file_tests";
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()));
+  struct stat info;
+  SB_CHECK(stat(directory_path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
   return directory_path;
 }
 

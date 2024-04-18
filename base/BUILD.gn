@@ -1777,7 +1777,7 @@ component("base") {
       ]
     }
 
-    if (is_linux || is_chromeos) {
+    if ((is_linux || is_chromeos) && !is_starboard) {
       sources += [
         "base_paths_posix.cc",
         "debug/elf_reader.cc",

@@ -132,9 +132,9 @@ static_library("engine") {
     "//cobalt/cache",
     "//cobalt/configuration",
     "//cobalt/script",
-    "//third_party/v8",
-    "//third_party/v8:v8_libplatform",
-    "//third_party/v8/third_party/inspector_protocol:crdtp",
+    "//v8",
+    "//v8:v8_libplatform",
+    "//v8/third_party/inspector_protocol:crdtp",
   ]
 }
 
@@ -148,7 +148,7 @@ target(final_executable_type, "v8c") {
     "//cobalt/base",
     "//cobalt/script:script",
     "//cobalt/script:standalone_javascript_runner",
-    "//third_party/v8",
-    "//third_party/v8:v8_libplatform",
+    "//v8",
+    "//v8:v8_libplatform",
   ]
 }
