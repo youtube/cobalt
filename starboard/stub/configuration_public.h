@@ -56,12 +56,6 @@
 #undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
 #endif  // SB_API_VERSION <= 15
 
-// --- Memory Configuration --------------------------------------------------
-
-// Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
-// required for platforms that want to JIT.
-#define SB_CAN_MAP_EXECUTABLE_MEMORY 1
-
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.

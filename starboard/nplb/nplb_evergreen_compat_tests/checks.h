@@ -19,8 +19,10 @@
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
 
+#if SB_API_VERSION < 16
 #if !SB_CAN(MAP_EXECUTABLE_MEMORY)
 #error "Evergreen requires executable memory support!"
+#endif
 #endif
 
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
