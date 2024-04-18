@@ -21,6 +21,7 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/directory.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
@@ -70,6 +71,11 @@ void UnmodifiedOnFailureTest(SbSystemPathId id, int line) {
 bool FileExists(const char* path) {
   struct stat info;
   return stat(path, &info) == 0;
+}
+
+bool DirectoryExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
 }
 
 TEST(SbSystemGetPathTest, ReturnsRequiredPaths) {
@@ -135,10 +141,11 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     EXPECT_FALSE(FileExists(path.data()));
 
     // Create the directory and confirm it exists and can be opened.
+    struct stat info;
     EXPECT_TRUE(mkdir(path.data(), 0700) == 0 ||
-                SbDirectoryCanOpen(path.data()));
+                (DirectoryExists(path.data())));
     EXPECT_TRUE(FileExists(path.data()));
-    EXPECT_TRUE(SbDirectoryCanOpen(path.data()));
+    EXPECT_TRUE(DirectoryExists(path.data()));
     SbDirectory directory = SbDirectoryOpen(path.data(), NULL);
     EXPECT_TRUE(SbDirectoryIsValid(directory));
 

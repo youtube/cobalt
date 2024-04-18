@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,29 +40,29 @@ class RegistryOverrideManagerTest : public testing::Test {
     key.DeleteKey(fake_test_key_root_.c_str());
   }
 
-  void AssertKeyExists(const base::string16& key_path) {
+  void AssertKeyExists(const std::wstring& key_path) {
     base::win::RegKey key;
     ASSERT_EQ(ERROR_SUCCESS,
               key.Open(HKEY_CURRENT_USER, key_path.c_str(), KEY_READ))
         << key_path << " does not exist.";
   }
 
-  void AssertKeyAbsent(const base::string16& key_path) {
+  void AssertKeyAbsent(const std::wstring& key_path) {
     base::win::RegKey key;
     ASSERT_NE(ERROR_SUCCESS,
               key.Open(HKEY_CURRENT_USER, key_path.c_str(), KEY_READ))
         << key_path << " exists but it should not.";
   }
 
-  void CreateKey(const base::string16& key_path) {
+  void CreateKey(const std::wstring& key_path) {
     base::win::RegKey key;
     ASSERT_EQ(ERROR_SUCCESS,
               key.Create(HKEY_CURRENT_USER, key_path.c_str(), KEY_ALL_ACCESS));
   }
 
-  base::string16 FakeOverrideManagerPath(const base::Time& time) {
+  std::wstring FakeOverrideManagerPath(const base::Time& time) {
     return fake_test_key_root_ + L"\\" +
-           base::Int64ToString16(time.ToInternalValue());
+           base::AsWString(base::NumberToString16(time.ToInternalValue()));
   }
 
   void CreateManager(const base::Time& timestamp) {
@@ -69,7 +70,7 @@ class RegistryOverrideManagerTest : public testing::Test {
     manager_->OverrideRegistry(HKEY_CURRENT_USER);
   }
 
-  base::string16 fake_test_key_root_;
+  std::wstring fake_test_key_root_;
   std::unique_ptr<RegistryOverrideManager> manager_;
 };
 
@@ -104,15 +105,14 @@ TEST_F(RegistryOverrideManagerTest, DeleteStaleKeys) {
   base::Time kTestTime;
   EXPECT_TRUE(base::Time::FromUTCExploded(kTestTimeExploded, &kTestTime));
 
-  base::string16 path_garbage = fake_test_key_root_ + L"\\Blah";
-  base::string16 path_very_stale =
-      FakeOverrideManagerPath(kTestTime - base::TimeDelta::FromDays(100));
-  base::string16 path_stale =
-      FakeOverrideManagerPath(kTestTime - base::TimeDelta::FromDays(5));
-  base::string16 path_current =
-      FakeOverrideManagerPath(kTestTime - base::TimeDelta::FromMinutes(1));
-  base::string16 path_future =
-      FakeOverrideManagerPath(kTestTime + base::TimeDelta::FromMinutes(1));
+  std::wstring path_garbage = fake_test_key_root_ + L"\\Blah";
+  std::wstring path_very_stale =
+      FakeOverrideManagerPath(kTestTime - base::Days(100));
+  std::wstring path_stale = FakeOverrideManagerPath(kTestTime - base::Days(5));
+  std::wstring path_current =
+      FakeOverrideManagerPath(kTestTime - base::Minutes(1));
+  std::wstring path_future =
+      FakeOverrideManagerPath(kTestTime + base::Minutes(1));
 
   ASSERT_NO_FATAL_FAILURE(CreateKey(path_garbage));
   ASSERT_NO_FATAL_FAILURE(CreateKey(path_very_stale));

@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,10 @@
 #include <memory>
 
 #include "base/android/build_info.h"
+#include "base/base_jni_headers/SysUtils_jni.h"
 #include "base/process/process_metrics.h"
-#include "base/sys_info.h"
-#include "base/trace_event/trace_event.h"
-#include "jni/SysUtils_jni.h"
+#include "base/system/sys_info.h"
+#include "base/trace_event/base_tracing.h"
 
 namespace base {
 namespace android {
@@ -25,11 +25,15 @@ bool SysUtils::IsCurrentlyLowMemory() {
   return Java_SysUtils_isCurrentlyLowMemory(env);
 }
 
+// static
+int SysUtils::AmountOfPhysicalMemoryKB() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_SysUtils_amountOfPhysicalMemoryKB(env);
+}
+
 // Logs the number of minor / major page faults to tracing (and also the time to
 // collect) the metrics. Does nothing if tracing is not enabled.
-static void JNI_SysUtils_LogPageFaultCountToTracing(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jclass>& jcaller) {
+static void JNI_SysUtils_LogPageFaultCountToTracing(JNIEnv* env) {
   // This is racy, but we are OK losing data, and collecting it is potentially
   // expensive (reading and parsing a file).
   bool enabled;

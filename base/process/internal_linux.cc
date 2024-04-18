@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,15 +13,16 @@
 
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
-#include "starboard/types.h"
+#include "build/build_config.h"
 
 // Not defined on AIX by default.
-#if defined(OS_AIX)
+#if BUILDFLAG(IS_AIX)
 #define NAME_MAX 255
 #endif
 
@@ -33,7 +34,7 @@ const char kProcDir[] = "/proc";
 const char kStatFile[] = "stat";
 
 FilePath GetProcPidDir(pid_t pid) {
-  return FilePath(kProcDir).Append(IntToString(pid));
+  return FilePath(kProcDir).Append(NumberToString(pid));
 }
 
 pid_t ProcDirSlotToPid(const char* d_name) {
@@ -57,9 +58,10 @@ pid_t ProcDirSlotToPid(const char* d_name) {
 }
 
 bool ReadProcFile(const FilePath& file, std::string* buffer) {
+  DCHECK(FilePath(kProcDir).IsParent(file));
   buffer->clear();
   // Synchronously reading files in /proc is safe.
-  ThreadRestrictions::ScopedAllowIO allow_io;
+  ScopedAllowBlocking scoped_allow_blocking;
 
   if (!ReadFileToString(file, buffer)) {
     DLOG(WARNING) << "Failed to read " << file.MaybeAsASCII();
@@ -107,8 +109,8 @@ bool ParseProcStats(const std::string& stats_data,
   std::vector<std::string> other_stats = SplitString(
       stats_data.substr(close_parens_idx + 2), " ",
       base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-  for (size_t i = 0; i < other_stats.size(); ++i)
-    proc_stats->push_back(other_stats[i]);
+  for (const auto& i : other_stats)
+    proc_stats->push_back(i);
   return true;
 }
 
@@ -116,8 +118,8 @@ typedef std::map<std::string, std::string> ProcStatMap;
 void ParseProcStat(const std::string& contents, ProcStatMap* output) {
   StringPairs key_value_pairs;
   SplitStringIntoKeyValuePairs(contents, ' ', '\n', &key_value_pairs);
-  for (size_t i = 0; i < key_value_pairs.size(); ++i) {
-    output->insert(key_value_pairs[i]);
+  for (auto& i : key_value_pairs) {
+    output->insert(std::move(i));
   }
 }
 
@@ -210,10 +212,10 @@ TimeDelta GetUserCpuTimeSinceBoot() {
   if (!StringToUint64(cpu[0], &user) || !StringToUint64(cpu[1], &nice))
     return TimeDelta();
 
-  return ClockTicksToTimeDelta(user + nice);
+  return ClockTicksToTimeDelta(checked_cast<int64_t>(user + nice));
 }
 
-TimeDelta ClockTicksToTimeDelta(int clock_ticks) {
+TimeDelta ClockTicksToTimeDelta(int64_t clock_ticks) {
   // This queries the /proc-specific scaling factor which is
   // conceptually the system hertz.  To dump this value on another
   // system, try
@@ -222,10 +224,9 @@ TimeDelta ClockTicksToTimeDelta(int clock_ticks) {
   //   0000040          17         100           3   134512692
   // which means the answer is 100.
   // It may be the case that this value is always 100.
-  static const int kHertz = sysconf(_SC_CLK_TCK);
+  static const long kHertz = sysconf(_SC_CLK_TCK);
 
-  return TimeDelta::FromMicroseconds(
-      Time::kMicrosecondsPerSecond * clock_ticks / kHertz);
+  return Microseconds(Time::kMicrosecondsPerSecond * clock_ticks / kHertz);
 }
 
 }  // namespace internal

@@ -33,10 +33,13 @@ class TrackEvent : public web::Event {
  public:
   // Custom, not in any spec.
   //
-  explicit TrackEvent(const std::string& type) : Event(base::Token(type)) {}
-  TrackEvent(base::Token type, const scoped_refptr<AudioTrack>& audio_track)
+  explicit TrackEvent(const std::string& type)
+      : Event(base_token::Token(type)) {}
+  TrackEvent(base_token::Token type,
+             const scoped_refptr<AudioTrack>& audio_track)
       : Event(type), track_(audio_track) {}
-  TrackEvent(base::Token type, const scoped_refptr<VideoTrack>& video_track)
+  TrackEvent(base_token::Token type,
+             const scoped_refptr<VideoTrack>& video_track)
       : Event(type), track_(video_track) {}
 
   // Web API: TrackEvent

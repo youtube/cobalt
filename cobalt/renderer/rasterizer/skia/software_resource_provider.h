@@ -39,7 +39,7 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
     return base::GetTypeId<SoftwareResourceProvider>();
   }
 
-  void Finish() override{};
+  void Finish() override {};
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) override;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) override;
@@ -85,6 +85,7 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
       const std::string& language) override;
 
   void LoadAdditionalFonts() override;
+  void ClearAdditionalFonts() override;
 
   // This resource provider uses ots (OpenTypeSanitizer) to sanitize the raw
   // typeface data and skia to generate the typeface. It supports TrueType,
@@ -95,7 +96,7 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
       std::string* error_string) override;
 
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const base::char16* text_buffer, size_t text_length,
+      const char16_t* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       render_tree::FontProvider* font_provider) override;
 
@@ -103,7 +104,7 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
       const std::string& utf8_string,
       const scoped_refptr<render_tree::Font>& font) override;
 
-  float GetTextWidth(const base::char16* text_buffer, size_t text_length,
+  float GetTextWidth(const char16_t* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts) override;

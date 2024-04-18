@@ -52,6 +52,7 @@ skia_common("skia_library_no_asan") {
       ]
     }
   }
+  deps = [ "//base" ]
 
   # TODO(b/207398024): If this is a target we need to build, then we'll
   # need to rework the configuration framework to be able to remove this
@@ -112,7 +113,7 @@ skia_common("skia_library") {
     ":skia_library_no_asan",
     "//base",
     "//starboard/common",
-    "//third_party/freetype2",
+    "//third_party/freetype",
     "//third_party/libpng",
     "//third_party/skia/third_party/skcms",
     "//third_party/zlib",
@@ -160,7 +161,7 @@ skia_common("skia") {
     "//cobalt/renderer:renderer_headers_only",
     "//starboard:starboard_headers_only",
     "//starboard/common",
-    "//third_party/freetype2",
+    "//third_party/freetype",
     "//third_party/libxml",
   ]
 

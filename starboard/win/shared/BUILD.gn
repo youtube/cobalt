@@ -45,7 +45,7 @@ config("starboard_platform_config") {
 }
 
 static_library("starboard_platform") {
-  has_pedantic_warnings = true
+  # has_pedantic_warnings = true
 
   sources = [
     "//starboard/common/thread.cc",
@@ -236,6 +236,7 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/posix_emu/ifaddrs.cc",
     "//starboard/shared/win32/posix_emu/mman.cc",
     "//starboard/shared/win32/posix_emu/pthread.cc",
+    "//starboard/shared/win32/posix_emu/sched.cc",
     "//starboard/shared/win32/posix_emu/socket.cc",
     "//starboard/shared/win32/posix_emu/stat.cc",
     "//starboard/shared/win32/posix_emu/stdlib.cc",

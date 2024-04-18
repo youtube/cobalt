@@ -13,7 +13,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "base/bind.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/containers/contains.h"
 #include "base/cxx17_backports.h"
 #include "base/no_destructor.h"

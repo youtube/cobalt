@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,8 @@
 #include <memory>
 #include <utility>
 
-#include "base/logging.h"
+#include "base/check.h"
+#include "base/containers/span.h"
 #include "crypto/openssl_util.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
@@ -41,7 +42,7 @@ std::unique_ptr<RSAPrivateKey> RSAPrivateKey::Create(uint16_t num_bits) {
 
 // static
 std::unique_ptr<RSAPrivateKey> RSAPrivateKey::CreateFromPrivateKeyInfo(
-    const std::vector<uint8_t>& input) {
+    base::span<const uint8_t> input) {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
   CBS cbs;

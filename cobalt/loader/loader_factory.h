@@ -46,7 +46,7 @@ class LoaderFactory : public ScriptLoaderFactory {
                 render_tree::ResourceProvider* resource_provider,
                 const base::DebuggerHooks& debugger_hooks,
                 size_t encoded_image_cache_capacity,
-                base::ThreadPriority loader_thread_priority);
+                base::ThreadType loader_thread_priority);
   ~LoaderFactory();
 
   // Creates a loader that fetches and decodes an image.

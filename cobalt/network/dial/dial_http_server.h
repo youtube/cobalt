@@ -18,9 +18,10 @@
 #include <memory>
 #include <string>
 
-#include "base/callback_forward.h"
+#include "base/functional/callback_forward.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "cobalt/network/dial/dial_service_handler.h"
 #include "net/base/ip_endpoint.h"
 #include "net/http/http_status_code.h"
@@ -35,7 +36,7 @@ class DialService;
 
 // This class is created and owned by DialService and is not meant to be
 // used externally.
-// All functions run on the DialService's message loop, except for
+// All functions run on the DialService's task runner, except for
 // the callback AsyncReceivedResponse() which is eventually called
 // by a DialServiceHandler.
 // It's refcounted threadsafe so we can safely bind it to the callback we pass
@@ -48,7 +49,7 @@ class NET_EXPORT DialHttpServer
   void Stop();
 
   // HttpServer::Delegate implementation
-  void OnConnect(int /*conn_id*/) override{};
+  void OnConnect(int /*conn_id*/) override {};
   void OnHttpRequest(int conn_id,
                      const net::HttpServerRequestInfo& info) override;
 
@@ -60,7 +61,7 @@ class NET_EXPORT DialHttpServer
   }
 
   void OnWebSocketMessage(int /*connection_id*/,
-                          const std::string& /*data*/) override {}
+                          const std::string /*data*/) override {}
 
   // Return the formatted application URL
   std::string application_url() const { return server_url_ + "apps/"; }
@@ -101,7 +102,7 @@ class NET_EXPORT DialHttpServer
 
   // Message Loop of the thread that created us. We make sure http server
   // is only called on the proper thread.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(DialHttpServer);
 };

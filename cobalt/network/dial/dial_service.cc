@@ -102,25 +102,26 @@ scoped_refptr<DialServiceHandler> DialService::GetHandler(
 
   // remove '/apps/'
   const base::StringPiece kUrlPrefix("/apps/");
-  if (!path.starts_with(kUrlPrefix)) {
-    return NULL;
+  if (path.rfind(kUrlPrefix, 0) == std::string::npos) {
+    return nullptr;
   }
   path = path.substr(kUrlPrefix.size());
 
   // find the next '/', and extract the portion in between.
   size_t pos = path.find_first_of('/');
-  std::string service_path = path.substr(0, pos).as_string();
+  std::string service_path =
+      std::string(pos == std::string::npos ? path : path.substr(0, pos));
 
   // sanity check further, then extract the data.
   DCHECK_EQ(std::string::npos, service_path.find('/'));
   ServiceHandlerMap::const_iterator it = handlers_.find(service_path);
   if (it == handlers_.end()) {
-    return NULL;
+    return nullptr;
   }
   DCHECK(it->second);
 
   // for the remaining portion, extract it out as the handler path.
-  *handler_path = path.substr(pos).as_string();
+  *handler_path = std::string(pos == std::string::npos ? "" : path.substr(pos));
 
   // If the |handler_path| is empty, that means the request is "/apps/Foo", the
   // semantic equivalent of "/apps/Foo/". If we keep the |handler_path| empty,
@@ -138,9 +139,9 @@ DialServiceProxy::DialServiceProxy(
     const base::WeakPtr<DialService>& dial_service)
     : dial_service_(dial_service) {
   host_address_ = dial_service_->http_host_address();
-  // Remember the message loop we were constructed on. We'll post all our tasks
+  // Remember the task runner we were constructed on. We'll post all our tasks
   // there, to ensure thread safety when accessing dial_service_.
-  task_runner_ = base::ThreadTaskRunnerHandle::Get();
+  task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
 }
 
 DialServiceProxy::~DialServiceProxy() {}

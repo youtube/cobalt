@@ -64,6 +64,7 @@ typedef union musl_pthread_once_t {
 } musl_pthread_once_t;
 
 typedef void* musl_pthread_t;
+typedef void* musl_pthread_key_t;
 
 SB_EXPORT int __abi_wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex);
 SB_EXPORT int __abi_wrap_pthread_mutex_init(
@@ -104,6 +105,12 @@ SB_EXPORT int __abi_wrap_pthread_join(musl_pthread_t thread, void** value_ptr);
 SB_EXPORT int __abi_wrap_pthread_detach(musl_pthread_t thread);
 SB_EXPORT int __abi_wrap_pthread_equal(musl_pthread_t t1, musl_pthread_t t2);
 SB_EXPORT musl_pthread_t __abi_wrap_pthread_self();
+SB_EXPORT int __abi_wrap_pthread_key_create(musl_pthread_key_t* key,
+                                            void (*destructor)(void*));
+SB_EXPORT int __abi_wrap_pthread_key_delete(musl_pthread_key_t key);
+SB_EXPORT void* __abi_wrap_pthread_getspecific(musl_pthread_key_t key);
+SB_EXPORT int __abi_wrap_pthread_setspecific(musl_pthread_key_t key,
+                                             const void* value);
 
 #ifdef __cplusplus
 }  // extern "C"

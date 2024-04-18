@@ -15,7 +15,7 @@
 // This header defines two macros, COBALT_WRAP_SIMPLE_MAIN() and
 // COBALT_WRAP_BASE_MAIN(). Simple main is for programs that are
 // run-and-terminate, like unit tests. Base main is for programs that need a
-// main message loop, and will terminate when the quit_closure is called.
+// main task runner, and will terminate when the quit_closure is called.
 
 #ifndef COBALT_BASE_WRAP_MAIN_H_
 #define COBALT_BASE_WRAP_MAIN_H_
@@ -23,8 +23,8 @@
 #include "base/at_exit.h"
 #include "base/callback.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "cobalt/base/init_cobalt.h"
 #if defined(STARBOARD)

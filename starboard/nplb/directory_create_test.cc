@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"

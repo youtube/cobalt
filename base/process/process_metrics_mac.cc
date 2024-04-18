@@ -1,15 +1,19 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/process/process_metrics.h"
 
+#include <AvailabilityMacros.h>
+#include <libproc.h>
 #include <mach/mach.h>
+#include <mach/mach_time.h>
 #include <mach/mach_vm.h>
 #include <mach/shared_region.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <sys/sysctl.h>
 
-#include "base/containers/hash_tables.h"
 #include "base/logging.h"
 #include "base/mac/mac_util.h"
 #include "base/mac/mach_logging.h"
@@ -18,42 +22,39 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/numerics/safe_math.h"
 #include "base/process/process_metrics_iocounters.h"
-#include "starboard/types.h"
+#include "base/time/time.h"
+#include "build/build_config.h"
+
+namespace {
+
+// This is a standin for the private pm_task_energy_data_t struct.
+struct OpaquePMTaskEnergyData {
+  // Empirical size of the private struct.
+  uint8_t data[408];
+};
+
+// Sample everything but network usage, since fetching network
+// usage can hang.
+static constexpr uint8_t kPMSampleFlags = 0xff & ~0x8;
+
+}  // namespace
+
+extern "C" {
+
+// From libpmsample.dylib
+int pm_sample_task(mach_port_t task,
+                   OpaquePMTaskEnergyData* pm_energy,
+                   uint64_t mach_time,
+                   uint8_t flags);
+
+// From libpmenergy.dylib
+double pm_energy_impact(OpaquePMTaskEnergyData* pm_energy);
+
+}  // extern "C"
 
 namespace base {
 
 namespace {
-
-#if !defined(MAC_OS_X_VERSION_10_11) || \
-    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_11
-// The |phys_footprint| field was introduced in 10.11.
-struct ChromeTaskVMInfo {
-  mach_vm_size_t virtual_size;
-  integer_t region_count;
-  integer_t page_size;
-  mach_vm_size_t resident_size;
-  mach_vm_size_t resident_size_peak;
-  mach_vm_size_t device;
-  mach_vm_size_t device_peak;
-  mach_vm_size_t internal;
-  mach_vm_size_t internal_peak;
-  mach_vm_size_t external;
-  mach_vm_size_t external_peak;
-  mach_vm_size_t reusable;
-  mach_vm_size_t reusable_peak;
-  mach_vm_size_t purgeable_volatile_pmap;
-  mach_vm_size_t purgeable_volatile_resident;
-  mach_vm_size_t purgeable_volatile_virtual;
-  mach_vm_size_t compressed;
-  mach_vm_size_t compressed_peak;
-  mach_vm_size_t compressed_lifetime;
-  mach_vm_size_t phys_footprint;
-};
-#else
-using ChromeTaskVMInfo = task_vm_info;
-#endif  // MAC_OS_X_VERSION_10_11
-mach_msg_type_number_t ChromeTaskVMInfoCount =
-    sizeof(ChromeTaskVMInfo) / sizeof(natural_t);
 
 bool GetTaskInfo(mach_port_t task, task_basic_info_64* task_info_data) {
   if (task == MACH_PORT_NULL)
@@ -89,6 +90,14 @@ bool GetPowerInfo(mach_port_t task, task_power_info* power_info_data) {
   return kr == KERN_SUCCESS;
 }
 
+double GetEnergyImpactInternal(mach_port_t task, uint64_t mach_time) {
+  OpaquePMTaskEnergyData energy_info{};
+
+  if (pm_sample_task(task, &energy_info, mach_time, kPMSampleFlags) != 0)
+    return 0.0;
+  return pm_energy_impact(&energy_info);
+}
+
 }  // namespace
 
 // Getting a mach task from a pid for another process requires permissions in
@@ -102,23 +111,6 @@ std::unique_ptr<ProcessMetrics> ProcessMetrics::CreateProcessMetrics(
     ProcessHandle process,
     PortProvider* port_provider) {
   return WrapUnique(new ProcessMetrics(process, port_provider));
-}
-
-ProcessMetrics::TaskVMInfo ProcessMetrics::GetTaskVMInfo() const {
-  TaskVMInfo info;
-  ChromeTaskVMInfo task_vm_info;
-  mach_msg_type_number_t count = ChromeTaskVMInfoCount;
-  kern_return_t result =
-      task_info(TaskForPid(process_), TASK_VM_INFO,
-                reinterpret_cast<task_info_t>(&task_vm_info), &count);
-  if (result != KERN_SUCCESS)
-    return info;
-
-  info.internal = task_vm_info.internal;
-  info.compressed = task_vm_info.compressed;
-  if (count == ChromeTaskVMInfoCount)
-    info.phys_footprint = task_vm_info.phys_footprint;
-  return info;
 }
 
 #define TIME_VALUE_TO_TIMEVAL(a, r) do {  \
@@ -161,7 +153,7 @@ TimeDelta ProcessMetrics::GetCumulativeCPUUsage() {
   timeradd(&user_timeval, &task_timeval, &task_timeval);
   timeradd(&system_timeval, &task_timeval, &task_timeval);
 
-  return TimeDelta::FromMicroseconds(TimeValToMicroseconds(task_timeval));
+  return Microseconds(TimeValToMicroseconds(task_timeval));
 }
 
 int ProcessMetrics::GetPackageIdleWakeupsPerSecond() {
@@ -193,6 +185,59 @@ int ProcessMetrics::GetIdleWakeupsPerSecond() {
   return CalculateIdleWakeupsPerSecond(power_info_data.task_interrupt_wakeups);
 }
 
+int ProcessMetrics::GetEnergyImpact() {
+  uint64_t now = mach_absolute_time();
+  if (last_energy_impact_ == 0) {
+    last_energy_impact_ = GetEnergyImpactInternal(TaskForPid(process_), now);
+    last_energy_impact_time_ = now;
+    return 0;
+  }
+
+  double total_energy_impact =
+      GetEnergyImpactInternal(TaskForPid(process_), now);
+  uint64_t delta = now - last_energy_impact_time_;
+  if (delta == 0)
+    return 0;
+
+  // Scale by 100 since the histogram is integral.
+  double seconds_since_last_measurement =
+      base::TimeTicks::FromMachAbsoluteTime(delta).since_origin().InSecondsF();
+  int energy_impact = 100 * (total_energy_impact - last_energy_impact_) /
+                      seconds_since_last_measurement;
+  last_energy_impact_ = total_energy_impact;
+  last_energy_impact_time_ = now;
+
+  return energy_impact;
+}
+
+int ProcessMetrics::GetOpenFdCount() const {
+  // In order to get a true count of the open number of FDs, PROC_PIDLISTFDS
+  // is used. This is done twice: first to get the appropriate size of a
+  // buffer, and then secondly to fill the buffer with the actual FD info.
+  //
+  // The buffer size returned in the first call is an estimate, based on the
+  // number of allocated fileproc structures in the kernel. This number can be
+  // greater than the actual number of open files, since the structures are
+  // allocated in slabs. The value returned in proc_bsdinfo::pbi_nfiles is
+  // also the number of allocated fileprocs, not the number in use.
+  //
+  // However, the buffer size returned in the second call is an accurate count
+  // of the open number of descriptors. The contents of the buffer are unused.
+  int rv = proc_pidinfo(process_, PROC_PIDLISTFDS, 0, nullptr, 0);
+  if (rv < 0)
+    return -1;
+
+  std::unique_ptr<char[]> buffer(new char[static_cast<size_t>(rv)]);
+  rv = proc_pidinfo(process_, PROC_PIDLISTFDS, 0, buffer.get(), rv);
+  if (rv < 0)
+    return -1;
+  return static_cast<int>(static_cast<unsigned long>(rv) / PROC_PIDLISTFD_SIZE);
+}
+
+int ProcessMetrics::GetOpenFdSoftLimit() const {
+  return checked_cast<int>(GetMaxFds());
+}
+
 bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
   return false;
 }
@@ -202,6 +247,7 @@ ProcessMetrics::ProcessMetrics(ProcessHandle process,
     : process_(process),
       last_absolute_idle_wakeups_(0),
       last_absolute_package_idle_wakeups_(0),
+      last_energy_impact_(0),
       port_provider_(port_provider) {}
 
 mach_port_t ProcessMetrics::TaskForPid(ProcessHandle process) const {
@@ -251,7 +297,14 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
   }
   DCHECK_EQ(HOST_VM_INFO64_COUNT, count);
 
+#if defined(ARCH_CPU_ARM64) || \
+    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_16
+  // PAGE_SIZE is vm_page_size on arm or for deployment targets >= 10.16,
+  // and vm_page_size isn't constexpr.
+  DCHECK_EQ(PAGE_SIZE % 1024, 0u) << "Invalid page size";
+#else
   static_assert(PAGE_SIZE % 1024 == 0, "Invalid page size");
+#endif
   meminfo->free = saturated_cast<int>(
       PAGE_SIZE / 1024 * (vm_info.free_count - vm_info.speculative_count));
   meminfo->speculative =
@@ -271,14 +324,14 @@ MachVMRegionResult GetTopInfo(mach_port_t task,
                               mach_vm_address_t* address,
                               vm_region_top_info_data_t* info) {
   mach_msg_type_number_t info_count = VM_REGION_TOP_INFO_COUNT;
-  mach_port_t object_name;
-  kern_return_t kr = mach_vm_region(task, address, size, VM_REGION_TOP_INFO,
-                                    reinterpret_cast<vm_region_info_t>(info),
-                                    &info_count, &object_name);
   // The kernel always returns a null object for VM_REGION_TOP_INFO, but
   // balance it with a deallocate in case this ever changes. See 10.9.2
   // xnu-2422.90.20/osfmk/vm/vm_map.c vm_map_region.
-  mach_port_deallocate(task, object_name);
+  mac::ScopedMachSendRight object_name;
+  kern_return_t kr =
+      mach_vm_region(task, address, size, VM_REGION_TOP_INFO,
+                     reinterpret_cast<vm_region_info_t>(info), &info_count,
+                     mac::ScopedMachSendRight::Receiver(object_name).get());
   return ParseOutputFromMachVMRegion(kr);
 }
 
@@ -287,14 +340,14 @@ MachVMRegionResult GetBasicInfo(mach_port_t task,
                                 mach_vm_address_t* address,
                                 vm_region_basic_info_64* info) {
   mach_msg_type_number_t info_count = VM_REGION_BASIC_INFO_COUNT_64;
-  mach_port_t object_name;
-  kern_return_t kr = mach_vm_region(
-      task, address, size, VM_REGION_BASIC_INFO_64,
-      reinterpret_cast<vm_region_info_t>(info), &info_count, &object_name);
   // The kernel always returns a null object for VM_REGION_BASIC_INFO_64, but
   // balance it with a deallocate in case this ever changes. See 10.9.2
   // xnu-2422.90.20/osfmk/vm/vm_map.c vm_map_region.
-  mach_port_deallocate(task, object_name);
+  mac::ScopedMachSendRight object_name;
+  kern_return_t kr =
+      mach_vm_region(task, address, size, VM_REGION_BASIC_INFO_64,
+                     reinterpret_cast<vm_region_info_t>(info), &info_count,
+                     mac::ScopedMachSendRight::Receiver(object_name).get());
   return ParseOutputFromMachVMRegion(kr);
 }
 

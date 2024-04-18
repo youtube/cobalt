@@ -33,6 +33,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
+#include "base/strings/strcat.h"
 #include "starboard/system.h"
 
 namespace base {
@@ -79,7 +80,7 @@ void GenerateTempFileName(FilePath::StringType *in_out_template) {
 // file, leaving it open, placing the path in |out_path| and returning the open
 // SbFile.
 SbFile CreateAndOpenTemporaryFile(FilePath directory, FilePath *out_path) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   DCHECK(out_path);
   FilePath path = directory.Append(TempFileName());
   FilePath::StringType tmpdir_string = path.value();
@@ -103,7 +104,7 @@ SbFile CreateAndOpenTemporaryFileSafely(FilePath directory,
 bool CreateTemporaryDirInDirImpl(const FilePath &base_dir,
                                  const FilePath::StringType &name_tmpl,
                                  FilePath *new_dir) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   DCHECK(name_tmpl.find(kTempSubstitution) != FilePath::StringType::npos)
       << "Directory name template must contain \"XXXXXXXX\".";
 
@@ -133,6 +134,11 @@ bool CreateTemporaryDirInDirImpl(const FilePath &base_dir,
 
 }  // namespace
 
+FilePath FormatTemporaryFileName(FilePath::StringPieceType identifier) {
+  StringPiece prefix = ".com.youtube.Cobalt.XXXXXXXX";
+  return FilePath(StrCat({".", prefix, ".", identifier}));
+}
+
 bool AbsolutePath(FilePath* path) {
   // We don't have cross-platform tools for this, so we will just return true if
   // the path is already absolute.
@@ -140,10 +146,10 @@ bool AbsolutePath(FilePath* path) {
 }
 
 bool DeleteFile(const FilePath &path, bool recursive) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   const char *path_str = path.value().c_str();
-
-  bool directory = SbDirectoryCanOpen(path_str);
+  struct ::stat info;
+  bool directory = ::stat(path_str, &info) == 0 && S_ISDIR(info.st_mode);
   if (!recursive || !directory) {
     return SbFileDelete(path_str);
   }
@@ -183,8 +189,38 @@ bool DeleteFile(const FilePath &path, bool recursive) {
   return success;
 }
 
+bool DeletePathRecursively(const FilePath &path) {
+  bool recursive = true;
+  return DeleteFile(path, recursive);
+}
+
+bool DeleteFile(const FilePath &path) {
+  bool recursive = false;
+  return DeleteFile(path, recursive);
+}
+
+bool DieFileDie(const FilePath& file, bool recurse) {
+  // There is no need to workaround Windows problems on POSIX.
+  // Just pass-through.
+  if (recurse)
+    return DeletePathRecursively(file);
+  return DeleteFile(file);
+}
+
+bool EvictFileFromSystemCache(const FilePath& file) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
+bool ReplaceFile(const FilePath& from_path,
+                 const FilePath& to_path,
+                 File::Error* error) {
+  // ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+  return true;
+}
+
 bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
 
   base::File source_file(from_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!source_file.IsValid()) {
@@ -231,19 +267,28 @@ bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
   return result;
 }
 
+FILE* OpenFile(const FilePath& filename, const char* mode) {
+  return nullptr;
+}
+
 bool PathExists(const FilePath &path) {
-  AssertBlockingAllowed();
-  struct stat file_info;
-  return stat(path.value().c_str(), &file_info) == 0;
+  internal::AssertBlockingAllowed();
+  struct ::stat file_info;
+  return ::stat(path.value().c_str(), &file_info) == 0;
+}
+
+bool PathIsReadable(const FilePath &path) {
+  internal::AssertBlockingAllowed();
+  return SbFileCanOpen(path.value().c_str(), kSbFileOpenAlways | kSbFileRead);
 }
 
 bool PathIsWritable(const FilePath &path) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   return SbFileCanOpen(path.value().c_str(), kSbFileOpenAlways | kSbFileWrite);
 }
 
 bool DirectoryExists(const FilePath& path) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   SbFileInfo info;
   if (!SbFileGetPathInfo(path.value().c_str(), &info)) {
     return false;
@@ -279,20 +324,21 @@ FilePath GetHomeDir() {
   return path;
 }
 
-bool CreateTemporaryFile(FilePath *path) {
-  AssertBlockingAllowed();
-  DCHECK(path);
+ScopedFILE CreateAndOpenTemporaryStreamInDir(const FilePath& dir,
+                                             FilePath* path) {
+  ScopedFILE stream;
+  return stream;
+}
 
-  FilePath directory;
-  if (!GetTempDir(&directory)) {
-    return false;
-  }
-
-  return CreateTemporaryFileInDir(directory, path);
+File CreateAndOpenTemporaryFileInDir(const FilePath &dir, FilePath *temp_file) {
+  internal::AssertBlockingAllowed();
+  DCHECK(temp_file);
+  SbFile file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
+  return SbFileIsValid(file) ? File(std::move(file)) : File(File::GetLastFileError());
 }
 
 bool CreateTemporaryFileInDir(const FilePath &dir, FilePath *temp_file) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   DCHECK(temp_file);
   SbFile file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
   return (SbFileIsValid(file) && SbFileClose(file));
@@ -316,7 +362,7 @@ bool CreateNewTempDirectory(const FilePath::StringType &prefix,
 }
 
 bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
 
   // Fast-path: can the full path be resolved from the full path?
   if (mkdir(full_path.value().c_str(), 0700) == 0
@@ -344,9 +390,10 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
     if (DirectoryExists(*i)) {
       continue;
     }
-
+    
+    struct ::stat info;
     if (mkdir(i->value().c_str(), 0700) != 0 &&
-        !SbDirectoryCanOpen(i->value().c_str())){
+        !(::stat(i->value().c_str(), &info) == 0 && S_ISDIR(info.st_mode))){
       if (error)
         *error = File::OSErrorToFileError(SbSystemGetLastError());
       return false;
@@ -356,8 +403,18 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
   return true;
 }
 
+bool NormalizeFilePath(const FilePath& path, FilePath* normalized_path) {
+  internal::AssertBlockingAllowed();
+  // Only absolute paths are supported in Starboard.
+  if (!path.IsAbsolute()) {
+    return false;
+  }
+  *normalized_path = path;
+  return true;
+}
+
 bool IsLink(const FilePath &file_path) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   SbFileInfo info;
 
   // If we can't SbfileGetPathInfo on the file, it's safe to assume that the
@@ -370,7 +427,7 @@ bool IsLink(const FilePath &file_path) {
 }
 
 bool GetFileInfo(const FilePath &file_path, File::Info *results) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   SbFileInfo info;
   if (!SbFileGetPathInfo(file_path.value().c_str(), &info)) {
     return false;
@@ -388,7 +445,7 @@ bool GetFileInfo(const FilePath &file_path, File::Info *results) {
 }
 
 int ReadFile(const FilePath &filename, char *data, int size) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
 
   base::File file(filename, base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!file.IsValid()) {
@@ -401,7 +458,7 @@ int ReadFile(const FilePath &filename, char *data, int size) {
 }
 
 int WriteFile(const FilePath &filename, const char *data, int size) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
 
   base::File file(
       filename, base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
@@ -415,7 +472,7 @@ int WriteFile(const FilePath &filename, const char *data, int size) {
 }
 
 bool AppendToFile(const FilePath &filename, const char *data, int size) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   base::File file(filename, base::File::FLAG_OPEN | base::File::FLAG_WRITE);
   if (!file.IsValid()) {
     DLOG(ERROR) << "AppendToFile(" << filename.value() << "): Unable to open.";
@@ -431,13 +488,17 @@ bool AppendToFile(const FilePath &filename, const char *data, int size) {
   return file.WriteAtCurrentPos(data, size) == size;
 }
 
+bool AppendToFile(const FilePath& filename, StringPiece data) {
+  return AppendToFile(filename, data.data(), data.size());
+}
+
 bool HasFileBeenModifiedSince(const FileEnumerator::FileInfo &file_info,
                               const base::Time &cutoff_time) {
   return file_info.GetLastModifiedTime() >= cutoff_time;
 }
 
 bool GetCurrentDirectory(FilePath* dir) {
-  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  // ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
 
   // Not supported on Starboard.
   NOTREACHED();
@@ -445,7 +506,7 @@ bool GetCurrentDirectory(FilePath* dir) {
 }
 
 bool SetCurrentDirectory(const FilePath& path) {
-  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  // ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
 
   // Not supported on Starboard.
   NOTREACHED();
@@ -453,7 +514,7 @@ bool SetCurrentDirectory(const FilePath& path) {
 }
 
 FilePath MakeAbsoluteFilePath(const FilePath& input) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   // Only absolute paths are supported in Starboard.
   DCHECK(input.IsAbsolute());
   return input;
@@ -462,7 +523,7 @@ FilePath MakeAbsoluteFilePath(const FilePath& input) {
 namespace internal {
 
 bool MoveUnsafe(const FilePath& from_path, const FilePath& to_path) {
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   // Moving files is not supported in Starboard.
   NOTREACHED();
   return false;

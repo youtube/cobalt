@@ -1,19 +1,23 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <algorithm>
+#include <stddef.h>
+
 #include <limits>
 #include <vector>
 
-#include "base/debug/activity_tracker.h"
-#include "base/logging.h"
+#include "base/check_op.h"
+#include "base/memory/raw_ptr.h"
+#include "base/ranges/algorithm.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
-#include "starboard/types.h"
+#include "base/time/time.h"
+#include "base/time/time_override.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // -----------------------------------------------------------------------------
 // A WaitableEvent on POSIX is implemented as a wait-list. Currently we don't
@@ -52,7 +56,7 @@ void WaitableEvent::Reset() {
   kernel_->signaled_ = false;
 }
 
-void WaitableEvent::Signal() {
+void WaitableEvent::SignalImpl() {
   base::AutoLock locked(kernel_->lock_);
 
   if (kernel_->signaled_)
@@ -144,33 +148,12 @@ class SyncWaiter : public WaitableEvent::Waiter {
 
  private:
   bool fired_;
-  WaitableEvent* signaling_event_;  // The WaitableEvent which woke us
+  raw_ptr<WaitableEvent> signaling_event_;  // The WaitableEvent which woke us
   base::Lock lock_;
   base::ConditionVariable cv_;
 };
 
-void WaitableEvent::Wait() {
-  bool result = TimedWaitUntil(TimeTicks::Max());
-  DCHECK(result) << "TimedWait() should never fail with infinite timeout";
-}
-
-bool WaitableEvent::TimedWait(const TimeDelta& wait_delta) {
-  // TimeTicks takes care of overflow including the cases when wait_delta
-  // is a maximum value.
-  return TimedWaitUntil(TimeTicks::Now() + wait_delta);
-}
-
-bool WaitableEvent::TimedWaitUntil(const TimeTicks& end_time) {
-#if !defined(STARBOARD)
-  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
-      BlockingType::MAY_BLOCK);
-
-  // Record the event that this thread is blocking upon (for hang diagnosis).
-  base::debug::ScopedEventWaitActivity event_activity(this);
-#endif
-
-  const bool finite_time = !end_time.is_max();
-
+bool WaitableEvent::TimedWaitImpl(TimeDelta wait_delta) {
   kernel_->lock_.Acquire();
   if (kernel_->signaled_) {
     if (!kernel_->manual_reset_) {
@@ -184,80 +167,73 @@ bool WaitableEvent::TimedWaitUntil(const TimeTicks& end_time) {
   }
 
   SyncWaiter sw;
+  if (only_used_while_idle_) {
+    sw.cv()->declare_only_used_while_idle();
+  }
   sw.lock()->Acquire();
 
   Enqueue(&sw);
   kernel_->lock_.Release();
   // We are violating locking order here by holding the SyncWaiter lock but not
-  // the WaitableEvent lock. However, this is safe because we don't lock @lock_
+  // the WaitableEvent lock. However, this is safe because we don't lock |lock_|
   // again before unlocking it.
 
-  for (;;) {
-    const TimeTicks current_time(TimeTicks::Now());
-
-    if (sw.fired() || (finite_time && current_time >= end_time)) {
-      const bool return_value = sw.fired();
-
-      // We can't acquire @lock_ before releasing the SyncWaiter lock (because
-      // of locking order), however, in between the two a signal could be fired
-      // and @sw would accept it, however we will still return false, so the
-      // signal would be lost on an auto-reset WaitableEvent. Thus we call
-      // Disable which makes sw::Fire return false.
-      sw.Disable();
-      sw.lock()->Release();
-
-      // This is a bug that has been enshrined in the interface of
-      // WaitableEvent now: |Dequeue| is called even when |sw.fired()| is true,
-      // even though it'll always return false in that case. However, taking
-      // the lock ensures that |Signal| has completed before we return and
-      // means that a WaitableEvent can synchronise its own destruction.
-      kernel_->lock_.Acquire();
-      kernel_->Dequeue(&sw, &sw);
-      kernel_->lock_.Release();
-
-      return return_value;
-    }
-
-    if (finite_time) {
-      const TimeDelta max_wait(end_time - current_time);
-      sw.cv()->TimedWait(max_wait);
-    } else {
+  // TimeTicks takes care of overflow but we special case is_max() nonetheless
+  // to avoid invoking TimeTicksNowIgnoringOverride() unnecessarily (same for
+  // the increment step of the for loop if the condition variable returns
+  // early). Ref: https://crbug.com/910524#c7
+  const TimeTicks end_time =
+      wait_delta.is_max() ? TimeTicks::Max()
+                          : subtle::TimeTicksNowIgnoringOverride() + wait_delta;
+  for (TimeDelta remaining = wait_delta; remaining.is_positive() && !sw.fired();
+       remaining = end_time.is_max()
+                       ? TimeDelta::Max()
+                       : end_time - subtle::TimeTicksNowIgnoringOverride()) {
+    if (end_time.is_max())
       sw.cv()->Wait();
-    }
+    else
+      sw.cv()->TimedWait(remaining);
   }
+
+  // Get the SyncWaiter signaled state before releasing the lock.
+  const bool return_value = sw.fired();
+
+  // We can't acquire |lock_| before releasing the SyncWaiter lock (because of
+  // locking order), however, in between the two a signal could be fired and
+  // |sw| would accept it, however we will still return false, so the signal
+  // would be lost on an auto-reset WaitableEvent. Thus we call Disable which
+  // makes sw::Fire return false.
+  sw.Disable();
+  sw.lock()->Release();
+
+  // This is a bug that has been enshrined in the interface of WaitableEvent
+  // now: |Dequeue| is called even when |sw.fired()| is true, even though it'll
+  // always return false in that case. However, taking the lock ensures that
+  // |Signal| has completed before we return and means that a WaitableEvent can
+  // synchronise its own destruction.
+  kernel_->lock_.Acquire();
+  kernel_->Dequeue(&sw, &sw);
+  kernel_->lock_.Release();
+
+  return return_value;
 }
 
 // -----------------------------------------------------------------------------
 // Synchronous waiting on multiple objects.
 
-#if defined(STARBOARD)
-struct EventComparator
-{
-  bool operator()(const std::pair<WaitableEvent*, size_t> &a,
-             const std::pair<WaitableEvent*, size_t> &b) {
-    return a.first < b.first;
-  }
-};
-#else
 static bool  // StrictWeakOrdering
 cmp_fst_addr(const std::pair<WaitableEvent*, unsigned> &a,
              const std::pair<WaitableEvent*, unsigned> &b) {
   return a.first < b.first;
 }
-#endif
 
 // static
+// NO_THREAD_SAFETY_ANALYSIS: Complex control flow.
 size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
-                               size_t count) {
+                               size_t count) NO_THREAD_SAFETY_ANALYSIS {
   DCHECK(count) << "Cannot wait on no events";
-#if !defined(STARBOARD)
   internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
-      BlockingType::MAY_BLOCK);
-
-  // Record an event (the first) that this thread is blocking upon.
-  base::debug::ScopedEventWaitActivity event_activity(raw_waitables[0]);
-#endif  // !defined(STARBOARD)
-
+      FROM_HERE, BlockingType::MAY_BLOCK);
   // We need to acquire the locks in a globally consistent order. Thus we sort
   // the array of waitables by address. We actually sort a pairs so that we can
   // map back to the original index values later.
@@ -268,11 +244,7 @@ size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
 
   DCHECK_EQ(count, waitables.size());
 
-#if defined(STARBOARD)
-  sort(waitables.begin(), waitables.end(), EventComparator());
-#else
-  sort(waitables.begin(), waitables.end(), cmp_fst_addr);
-#endif
+  ranges::sort(waitables, cmp_fst_addr);
 
   // The set of waitables must be distinct. Since we have just sorted by
   // address, we can check this cheaply by comparing pairs of consecutive
@@ -345,9 +317,10 @@ size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
 //   was signaled with the lowest input index from the original WaitMany call.
 // -----------------------------------------------------------------------------
 // static
+// NO_THREAD_SAFETY_ANALYSIS: Complex control flow.
 size_t WaitableEvent::EnqueueMany(std::pair<WaitableEvent*, size_t>* waitables,
                                   size_t count,
-                                  Waiter* waiter) {
+                                  Waiter* waiter) NO_THREAD_SAFETY_ANALYSIS {
   size_t winner = count;
   size_t winner_index = count;
   for (size_t i = 0; i < count; ++i) {
@@ -401,8 +374,8 @@ WaitableEvent::WaitableEventKernel::~WaitableEventKernel() = default;
 bool WaitableEvent::SignalAll() {
   bool signaled_at_least_one = false;
 
-  for (auto i = kernel_->waiters_.begin(); i != kernel_->waiters_.end(); ++i) {
-    if ((*i)->Fire(this))
+  for (auto* i : kernel_->waiters_) {
+    if (i->Fire(this))
       signaled_at_least_one = true;
   }
 

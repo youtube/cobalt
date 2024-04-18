@@ -14,6 +14,7 @@
 
 #include <ifaddrs.h>
 #include <netinet/in.h>
+#include <sched.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -273,7 +274,7 @@ SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
     }
 
     // Just being polite.
-    SbThreadYield();
+    sched_yield();
   }
 
   return kSbSocketInvalid;
@@ -296,7 +297,7 @@ scoped_ptr<Socket> AcceptBySpinning(Socket* server_socket, int64_t timeout) {
     }
 
     // Just being polite.
-    SbThreadYield();
+    sched_yield();
   }
 
   return scoped_ptr<Socket>().Pass();
@@ -323,7 +324,7 @@ bool WriteBySpinning(SbSocket socket,
       return false;
     }
 
-    SbThreadYield();
+    sched_yield();
   }
 
   return true;
@@ -350,7 +351,7 @@ bool WriteBySpinning(Socket* socket,
       return false;
     }
 
-    SbThreadYield();
+    sched_yield();
   }
 
   return true;
@@ -378,7 +379,7 @@ bool ReadBySpinning(SbSocket socket,
       return false;
     }
 
-    SbThreadYield();
+    sched_yield();
   }
 
   return true;
@@ -406,7 +407,7 @@ bool ReadBySpinning(Socket* socket,
       return false;
     }
 
-    SbThreadYield();
+    sched_yield();
   }
 
   return true;

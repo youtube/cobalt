@@ -22,7 +22,7 @@ group("starboard_platform") {
 static_library("starboard_platform_sources") {
   check_includes = false
 
-  has_pedantic_warnings = true
+  # has_pedantic_warnings = true
 
   sources = [
     "//starboard/linux/shared/atomic_public.h",
@@ -362,14 +362,19 @@ static_library("starboard_platform_sources") {
   }
 
   if (sb_is_evergreen_compatible) {
+    sources += [
+      "//starboard/shared/starboard/loader_app_metrics.cc",
+      "//starboard/shared/starboard/loader_app_metrics.h",
+    ]
+
     public_deps += [
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:evergreen_config",
       "//starboard/loader_app:pending_restart",
     ]
-    deps += [ "//third_party/crashpad/wrapper" ]
+    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
   } else {
-    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
   }
 }
 

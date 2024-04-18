@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,8 +36,6 @@ namespace test5 {
 }
 namespace test6 {
 #include "net/base/registry_controlled_domains/effective_tld_names_unittest6-inc.cc"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
 }
 
 struct Expectation {
@@ -107,9 +105,9 @@ std::vector<std::string> EnumerateDafsaLanguage(const Graph& graph) {
   return language;
 }
 
-INSTANTIATE_TEST_CASE_P(LookupStringInFixedSetTest,
-                        Dafsa1Test,
-                        ::testing::ValuesIn(kBasicTestCases));
+INSTANTIATE_TEST_SUITE_P(LookupStringInFixedSetTest,
+                         Dafsa1Test,
+                         ::testing::ValuesIn(kBasicTestCases));
 
 class Dafsa3Test : public LookupStringInFixedSetTest {};
 
@@ -134,9 +132,9 @@ const Expectation kTwoByteOffsetTestCases[] = {
      -1},
 };
 
-INSTANTIATE_TEST_CASE_P(LookupStringInFixedSetTest,
-                        Dafsa3Test,
-                        ::testing::ValuesIn(kTwoByteOffsetTestCases));
+INSTANTIATE_TEST_SUITE_P(LookupStringInFixedSetTest,
+                         Dafsa3Test,
+                         ::testing::ValuesIn(kTwoByteOffsetTestCases));
 
 class Dafsa4Test : public LookupStringInFixedSetTest {};
 
@@ -167,9 +165,9 @@ const Expectation kThreeByteOffsetTestCases[] = {
      -1},
 };
 
-INSTANTIATE_TEST_CASE_P(LookupStringInFixedSetTest,
-                        Dafsa4Test,
-                        ::testing::ValuesIn(kThreeByteOffsetTestCases));
+INSTANTIATE_TEST_SUITE_P(LookupStringInFixedSetTest,
+                         Dafsa4Test,
+                         ::testing::ValuesIn(kThreeByteOffsetTestCases));
 
 class Dafsa5Test : public LookupStringInFixedSetTest {};
 
@@ -186,9 +184,9 @@ const Expectation kJoinedPrefixesTestCases[] = {
     {"aaa", -1}, {"bbb", -1}, {"aaaam", 0}, {"bbbbn", 0},
 };
 
-INSTANTIATE_TEST_CASE_P(LookupStringInFixedSetTest,
-                        Dafsa5Test,
-                        ::testing::ValuesIn(kJoinedPrefixesTestCases));
+INSTANTIATE_TEST_SUITE_P(LookupStringInFixedSetTest,
+                         Dafsa5Test,
+                         ::testing::ValuesIn(kJoinedPrefixesTestCases));
 
 class Dafsa6Test : public LookupStringInFixedSetTest {};
 
@@ -205,9 +203,9 @@ const Expectation kJoinedSuffixesTestCases[] = {
     {"aaa", -1}, {"bbb", -1}, {"maaaa", 0}, {"nbbbb", 0},
 };
 
-INSTANTIATE_TEST_CASE_P(LookupStringInFixedSetTest,
-                        Dafsa6Test,
-                        ::testing::ValuesIn(kJoinedSuffixesTestCases));
+INSTANTIATE_TEST_SUITE_P(LookupStringInFixedSetTest,
+                         Dafsa6Test,
+                         ::testing::ValuesIn(kJoinedSuffixesTestCases));
 
 // Validates that the generated DAFSA contains exactly the same information as
 // effective_tld_names_unittest1.gperf.

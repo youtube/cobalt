@@ -4,9 +4,9 @@
 
 #include "components/metrics/single_sample_metrics_factory_impl.h"
 
-#include "base/message_loop/message_loop.h"
 #include "base/metrics/dummy_histogram.h"
 #include "base/run_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/test/gtest_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/threading/thread.h"

@@ -1,16 +1,16 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MAC_FOUNDATION_UTIL_H_
 #define BASE_MAC_FOUNDATION_UTIL_H_
 
+#include <AvailabilityMacros.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <CoreText/CoreText.h>
+#include <Security/Security.h>
 
 #include <string>
-#include <vector>
-
-#include "starboard/types.h"
 
 #include "base/base_export.h"
 #include "base/logging.h"
@@ -21,52 +21,13 @@
 #import <Foundation/Foundation.h>
 @class NSFont;
 @class UIFont;
-#else  // __OBJC__
-#include <CoreFoundation/CoreFoundation.h>
-class NSBundle;
-class NSFont;
-class NSString;
-class UIFont;
 #endif  // __OBJC__
 
-#if defined(OS_IOS)
-#include <CoreText/CoreText.h>
-#else
-#include <ApplicationServices/ApplicationServices.h>
-#endif
-
-// Adapted from NSObjCRuntime.h NS_ENUM definition (used in Foundation starting
-// with the OS X 10.8 SDK and the iOS 6.0 SDK).
-#if __has_extension(cxx_strong_enums) && \
-    (defined(OS_IOS) || (defined(MAC_OS_X_VERSION_10_8) && \
-                         MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_8))
-#define CR_FORWARD_ENUM(_type, _name) enum _name : _type _name
-#else
-#define CR_FORWARD_ENUM(_type, _name) _type _name
-#endif
-
-// Adapted from NSPathUtilities.h and NSObjCRuntime.h.
-#if __LP64__ || NS_BUILD_32_LIKE_64
-typedef CR_FORWARD_ENUM(unsigned long, NSSearchPathDirectory);
-typedef unsigned long NSSearchPathDomainMask;
-#else
-typedef CR_FORWARD_ENUM(unsigned int, NSSearchPathDirectory);
-typedef unsigned int NSSearchPathDomainMask;
-#endif
-
-#if defined(OS_IOS)
-typedef struct CF_BRIDGED_TYPE(id) __SecKey* SecKeyRef;
-typedef struct CF_BRIDGED_TYPE(id) __SecPolicy* SecPolicyRef;
-#else
-typedef struct OpaqueSecKeyRef* SecKeyRef;
-typedef struct OpaqueSecPolicyRef* SecPolicyRef;
-#endif
-
 namespace base {
-
 class FilePath;
+}
 
-namespace mac {
+namespace base::mac {
 
 // Returns true if the application is running from a bundle
 BASE_EXPORT bool AmIBundled();
@@ -85,7 +46,7 @@ BASE_EXPORT void ClearAmIBundledCache();
 BASE_EXPORT bool IsBackgroundOnlyProcess();
 
 // Returns the path to a resource within the framework bundle.
-BASE_EXPORT FilePath PathForFrameworkBundleResource(CFStringRef resourceName);
+BASE_EXPORT FilePath PathForFrameworkBundleResource(const char* resource_name);
 
 // Returns the creator code associated with the CFBundleRef at bundle.
 OSType CreatorCodeForCFBundleRef(CFBundleRef bundle);
@@ -97,6 +58,8 @@ OSType CreatorCodeForCFBundleRef(CFBundleRef bundle);
 // instead of NSBundle, and because callers probably don't want the override
 // app bundle's creator code anyway.
 BASE_EXPORT OSType CreatorCodeForApplication();
+
+#if defined(__OBJC__)
 
 // Searches for directories for the given key in only the given |domain_mask|.
 // If found, fills result (which must always be non-NULL) with the
@@ -117,8 +80,13 @@ BASE_EXPORT bool GetLocalDirectory(NSSearchPathDirectory directory,
 BASE_EXPORT bool GetUserDirectory(NSSearchPathDirectory directory,
                                   FilePath* result);
 
+#endif  // __OBJC__
+
 // Returns the ~/Library directory.
 BASE_EXPORT FilePath GetUserLibraryPath();
+
+// Returns the ~/Documents directory.
+BASE_EXPORT FilePath GetUserDocumentPath();
 
 // Takes a path to an (executable) binary and tries to provide the path to an
 // application bundle containing it. It takes the outermost bundle that it can
@@ -128,7 +96,7 @@ BASE_EXPORT FilePath GetUserLibraryPath();
 BASE_EXPORT FilePath GetAppBundlePath(const FilePath& exec_name);
 
 #define TYPE_NAME_FOR_CF_TYPE_DECL(TypeCF) \
-BASE_EXPORT std::string TypeNameForCFType(TypeCF##Ref);
+  BASE_EXPORT std::string TypeNameForCFType(TypeCF##Ref)
 
 TYPE_NAME_FOR_CF_TYPE_DECL(CFArray);
 TYPE_NAME_FOR_CF_TYPE_DECL(CFBag);
@@ -148,33 +116,12 @@ TYPE_NAME_FOR_CF_TYPE_DECL(CGColor);
 TYPE_NAME_FOR_CF_TYPE_DECL(CTFont);
 TYPE_NAME_FOR_CF_TYPE_DECL(CTRun);
 
+TYPE_NAME_FOR_CF_TYPE_DECL(SecAccessControl);
+TYPE_NAME_FOR_CF_TYPE_DECL(SecCertificate);
 TYPE_NAME_FOR_CF_TYPE_DECL(SecKey);
 TYPE_NAME_FOR_CF_TYPE_DECL(SecPolicy);
 
 #undef TYPE_NAME_FOR_CF_TYPE_DECL
-
-// Retain/release calls for memory management in C++.
-BASE_EXPORT void NSObjectRetain(void* obj);
-BASE_EXPORT void NSObjectRelease(void* obj);
-
-// CFTypeRefToNSObjectAutorelease transfers ownership of a Core Foundation
-// object (one derived from CFTypeRef) to the Foundation memory management
-// system.  In a traditional managed-memory environment, cf_object is
-// autoreleased and returned as an NSObject.  In a garbage-collected
-// environment, cf_object is marked as eligible for garbage collection.
-//
-// This function should only be used to convert a concrete CFTypeRef type to
-// its equivalent "toll-free bridged" NSObject subclass, for example,
-// converting a CFStringRef to NSString.
-//
-// By calling this function, callers relinquish any ownership claim to
-// cf_object.  In a managed-memory environment, the object's ownership will be
-// managed by the innermost NSAutoreleasePool, so after this function returns,
-// callers should not assume that cf_object is valid any longer than the
-// returned NSObject.
-//
-// Returns an id, typed here for C++'s sake as a void*.
-BASE_EXPORT void* CFTypeRefToNSObjectAutorelease(CFTypeRef cf_object);
 
 // Returns the base bundle ID, which can be set by SetBaseBundleID but
 // defaults to a reasonable string. This never returns NULL. BaseBundleID
@@ -185,14 +132,13 @@ BASE_EXPORT const char* BaseBundleID();
 // make its own copy of new_base_bundle_id.
 BASE_EXPORT void SetBaseBundleID(const char* new_base_bundle_id);
 
-}  // namespace mac
-}  // namespace base
+}  // namespace base::mac
 
-#if !defined(__OBJC__)
-#define OBJC_CPP_CLASS_DECL(x) class x;
-#else  // __OBJC__
-#define OBJC_CPP_CLASS_DECL(x)
-#endif  // __OBJC__
+// These casting functions cannot be implemented in a way that will work with
+// ARC. Use the casting functions in base/mac/bridging.h instead.
+#if !defined(__has_feature) || !__has_feature(objc_arc)
+
+#if defined(__OBJC__)
 
 // Convert toll-free bridged CFTypes to NSTypes and vice-versa. This does not
 // autorelease |cf_val|. This is useful for the case where there is a CFType in
@@ -207,60 +153,56 @@ BASE_EXPORT void SetBaseBundleID(const char* new_base_bundle_id);
 // (http://www.gotw.ca/publications/mill17.htm) so the trusty combination
 // of macros and function overloading is used instead.
 
-#define CF_TO_NS_CAST_DECL(TypeCF, TypeNS) \
-OBJC_CPP_CLASS_DECL(TypeNS) \
-\
-namespace base { \
-namespace mac { \
-BASE_EXPORT TypeNS* CFToNSCast(TypeCF##Ref cf_val); \
-BASE_EXPORT TypeCF##Ref NSToCFCast(TypeNS* ns_val); \
-} \
-}
+#define CF_TO_NS_CAST_DECL(TypeCF, TypeNS)            \
+  namespace base::mac {                               \
+  BASE_EXPORT TypeNS* CFToNSCast(TypeCF##Ref cf_val); \
+  BASE_EXPORT TypeCF##Ref NSToCFCast(TypeNS* ns_val); \
+  }
 
-#define CF_TO_NS_MUTABLE_CAST_DECL(name) \
-CF_TO_NS_CAST_DECL(CF##name, NS##name) \
-OBJC_CPP_CLASS_DECL(NSMutable##name) \
-\
-namespace base { \
-namespace mac { \
-BASE_EXPORT NSMutable##name* CFToNSCast(CFMutable##name##Ref cf_val); \
-BASE_EXPORT CFMutable##name##Ref NSToCFCast(NSMutable##name* ns_val); \
-} \
-}
+#define CF_TO_NS_MUTABLE_CAST_DECL(name)                                \
+  CF_TO_NS_CAST_DECL(CF##name, NS##name)                                \
+                                                                        \
+  namespace base::mac {                                                 \
+  BASE_EXPORT NSMutable##name* CFToNSCast(CFMutable##name##Ref cf_val); \
+  BASE_EXPORT CFMutable##name##Ref NSToCFCast(NSMutable##name* ns_val); \
+  }
 
 // List of toll-free bridged types taken from:
 // http://www.cocoadev.com/index.pl?TollFreeBridged
 
-CF_TO_NS_MUTABLE_CAST_DECL(Array);
-CF_TO_NS_MUTABLE_CAST_DECL(AttributedString);
-CF_TO_NS_CAST_DECL(CFCalendar, NSCalendar);
-CF_TO_NS_MUTABLE_CAST_DECL(CharacterSet);
-CF_TO_NS_MUTABLE_CAST_DECL(Data);
-CF_TO_NS_CAST_DECL(CFDate, NSDate);
-CF_TO_NS_MUTABLE_CAST_DECL(Dictionary);
-CF_TO_NS_CAST_DECL(CFError, NSError);
-CF_TO_NS_CAST_DECL(CFLocale, NSLocale);
-CF_TO_NS_CAST_DECL(CFNumber, NSNumber);
-CF_TO_NS_CAST_DECL(CFRunLoopTimer, NSTimer);
-CF_TO_NS_CAST_DECL(CFTimeZone, NSTimeZone);
-CF_TO_NS_MUTABLE_CAST_DECL(Set);
-CF_TO_NS_CAST_DECL(CFReadStream, NSInputStream);
-CF_TO_NS_CAST_DECL(CFWriteStream, NSOutputStream);
-CF_TO_NS_MUTABLE_CAST_DECL(String);
-CF_TO_NS_CAST_DECL(CFURL, NSURL);
+CF_TO_NS_MUTABLE_CAST_DECL(Array)
+CF_TO_NS_MUTABLE_CAST_DECL(AttributedString)
+CF_TO_NS_CAST_DECL(CFCalendar, NSCalendar)
+CF_TO_NS_MUTABLE_CAST_DECL(CharacterSet)
+CF_TO_NS_MUTABLE_CAST_DECL(Data)
+CF_TO_NS_CAST_DECL(CFDate, NSDate)
+CF_TO_NS_MUTABLE_CAST_DECL(Dictionary)
+CF_TO_NS_CAST_DECL(CFError, NSError)
+CF_TO_NS_CAST_DECL(CFLocale, NSLocale)
+CF_TO_NS_CAST_DECL(CFNumber, NSNumber)
+CF_TO_NS_CAST_DECL(CFRunLoopTimer, NSTimer)
+CF_TO_NS_CAST_DECL(CFTimeZone, NSTimeZone)
+CF_TO_NS_MUTABLE_CAST_DECL(Set)
+CF_TO_NS_CAST_DECL(CFReadStream, NSInputStream)
+CF_TO_NS_CAST_DECL(CFWriteStream, NSOutputStream)
+CF_TO_NS_MUTABLE_CAST_DECL(String)
+CF_TO_NS_CAST_DECL(CFURL, NSURL)
 
-#if defined(OS_IOS)
-CF_TO_NS_CAST_DECL(CTFont, UIFont);
+#if BUILDFLAG(IS_IOS)
+CF_TO_NS_CAST_DECL(CTFont, UIFont)
 #else
-CF_TO_NS_CAST_DECL(CTFont, NSFont);
+CF_TO_NS_CAST_DECL(CTFont, NSFont)
 #endif
 
 #undef CF_TO_NS_CAST_DECL
 #undef CF_TO_NS_MUTABLE_CAST_DECL
 #undef OBJC_CPP_CLASS_DECL
 
-namespace base {
-namespace mac {
+#endif  // __OBJC__
+
+#endif  // !defined(__has_feature) || !__has_feature(objc_arc)
+
+namespace base::mac {
 
 // CFCast<>() and CFCastStrict<>() cast a basic CFTypeRef to a more
 // specific CoreFoundation type. The compatibility of the passed
@@ -284,12 +226,12 @@ T CFCast(const CFTypeRef& cf_val);
 template<typename T>
 T CFCastStrict(const CFTypeRef& cf_val);
 
-#define CF_CAST_DECL(TypeCF) \
-template<> BASE_EXPORT TypeCF##Ref \
-CFCast<TypeCF##Ref>(const CFTypeRef& cf_val);\
-\
-template<> BASE_EXPORT TypeCF##Ref \
-CFCastStrict<TypeCF##Ref>(const CFTypeRef& cf_val);
+#define CF_CAST_DECL(TypeCF)                                            \
+  template <>                                                           \
+  BASE_EXPORT TypeCF##Ref CFCast<TypeCF##Ref>(const CFTypeRef& cf_val); \
+                                                                        \
+  template <>                                                           \
+  BASE_EXPORT TypeCF##Ref CFCastStrict<TypeCF##Ref>(const CFTypeRef& cf_val)
 
 CF_CAST_DECL(CFArray);
 CF_CAST_DECL(CFBag);
@@ -310,6 +252,8 @@ CF_CAST_DECL(CTFont);
 CF_CAST_DECL(CTFontDescriptor);
 CF_CAST_DECL(CTRun);
 
+CF_CAST_DECL(SecAccessControl);
+CF_CAST_DECL(SecCertificate);
 CF_CAST_DECL(SecKey);
 CF_CAST_DECL(SecPolicy);
 
@@ -378,22 +322,39 @@ T GetValueFromDictionary(CFDictionaryRef dict, CFStringRef key) {
   return value_specific;
 }
 
+#if defined(__OBJC__)
+
+// Converts |path| to an autoreleased NSURL. Returns nil if |path| is empty.
+BASE_EXPORT NSURL* FilePathToNSURL(const FilePath& path);
+
 // Converts |path| to an autoreleased NSString. Returns nil if |path| is empty.
 BASE_EXPORT NSString* FilePathToNSString(const FilePath& path);
 
 // Converts |str| to a FilePath. Returns an empty path if |str| is nil.
 BASE_EXPORT FilePath NSStringToFilePath(NSString* str);
 
+// Converts |url| to a FilePath. Returns an empty path if |url| is nil or if
+// |url| is not of scheme "file".
+BASE_EXPORT FilePath NSURLToFilePath(NSURL* url);
+
+#endif  // __OBJC__
+
+// Converts a non-null |path| to a CFURLRef. |path| must not be empty.
+//
+// This function only uses manually-owned resources, so it does not depend on an
+// NSAutoreleasePool being set up on the current thread.
+BASE_EXPORT base::ScopedCFTypeRef<CFURLRef> FilePathToCFURL(
+    const FilePath& path);
+
 #if defined(__OBJC__)
 // Converts |range| to an NSRange, returning the new range in |range_out|.
 // Returns true if conversion was successful, false if the values of |range|
 // could not be converted to NSUIntegers.
-BASE_EXPORT bool CFRangeToNSRange(CFRange range,
-                                  NSRange* range_out) WARN_UNUSED_RESULT;
+[[nodiscard]] BASE_EXPORT bool CFRangeToNSRange(CFRange range,
+                                                NSRange* range_out);
 #endif  // defined(__OBJC__)
 
-}  // namespace mac
-}  // namespace base
+}  // namespace base::mac
 
 // Stream operations for CFTypes. They can be used with NSTypes as well
 // by using the NSToCFCast methods above.
@@ -404,5 +365,19 @@ BASE_EXPORT extern std::ostream& operator<<(std::ostream& o,
                                             const CFErrorRef err);
 BASE_EXPORT extern std::ostream& operator<<(std::ostream& o,
                                             const CFStringRef str);
+BASE_EXPORT extern std::ostream& operator<<(std::ostream& o, CFRange);
+
+#if defined(__OBJC__)
+BASE_EXPORT extern std::ostream& operator<<(std::ostream& o, id);
+BASE_EXPORT extern std::ostream& operator<<(std::ostream& o, NSRange);
+BASE_EXPORT extern std::ostream& operator<<(std::ostream& o, SEL);
+
+#if BUILDFLAG(IS_MAC)
+BASE_EXPORT extern std::ostream& operator<<(std::ostream& o, NSPoint);
+BASE_EXPORT extern std::ostream& operator<<(std::ostream& o, NSRect);
+BASE_EXPORT extern std::ostream& operator<<(std::ostream& o, NSSize);
+#endif  // IS_MAC
+
+#endif  // __OBJC__
 
 #endif  // BASE_MAC_FOUNDATION_UTIL_H_

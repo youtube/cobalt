@@ -22,7 +22,8 @@
 namespace cobalt {
 namespace input {
 
-typedef base::Callback<void(base::Token type, const dom::KeyboardEventInit&)>
+typedef base::Callback<void(base_token::Token type,
+                            const dom::KeyboardEventInit&)>
     KeyboardEventCallback;
 
 // Base class for objects that can process keyboard events.
@@ -37,7 +38,7 @@ class KeyEventHandler {
   // DispatchKeyboardEvent. Overridden versions of this function may modify the
   // incoming event and/or generate new events. Overridden versions should call
   // DispatchKeyboardEvent for each event filtered/produced.
-  virtual void HandleKeyboardEvent(base::Token type,
+  virtual void HandleKeyboardEvent(base_token::Token type,
                                    const dom::KeyboardEventInit& event);
 
  protected:
@@ -50,7 +51,7 @@ class KeyEventHandler {
   // Called to dispatch a key event. The event will either be sent to the key
   // event filter attached to this object or passed directly to the stored
   // callback function if there is no attached filter.
-  void DispatchKeyboardEvent(base::Token type,
+  void DispatchKeyboardEvent(base_token::Token type,
                              const dom::KeyboardEventInit& event) const;
 
  private:

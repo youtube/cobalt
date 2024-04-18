@@ -21,6 +21,7 @@
 
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"
+#include "base/macros.h"
 #include "cobalt/csp/directive_list.h"
 #include "cobalt/csp/parsers.h"
 #include "net/http/http_response_headers.h"

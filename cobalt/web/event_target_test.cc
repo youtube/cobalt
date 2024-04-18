@@ -64,7 +64,7 @@ class EventTargetTest : public ::testing::Test {
 TEST_F(EventTargetTest, HasEventListener) {
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   event_listener->ExpectNoHandleEventCall();
@@ -130,7 +130,7 @@ TEST_F(EventTargetTest, HasOneOrMoreAttributeEventListener) {
 
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   event_listener->ExpectNoHandleEventCall();
@@ -176,7 +176,7 @@ TEST_F(EventTargetTest, SingleEventListenerFired) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
@@ -198,7 +198,7 @@ TEST_F(EventTargetTest, SingleEventListenerNotFired) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
@@ -218,7 +218,7 @@ TEST_F(EventTargetTest, MultipleEventListeners) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listenerfired_1 =
       MockEventListener::Create();
   std::unique_ptr<MockEventListener> event_listenerfired_2 =
@@ -251,9 +251,9 @@ TEST_F(EventTargetTest, MultipleEventListeners) {
   // Check event_listener_event_types.
   const auto& types = event_target->event_listener_event_types();
   EXPECT_EQ(types.size(), 2U);
-  EXPECT_NE(types.end(), types.find(base::Token("fired")));
-  EXPECT_NE(types.end(), types.find(base::Token("notfired")));
-  EXPECT_EQ(types.end(), types.find(base::Token("foo")));
+  EXPECT_NE(types.end(), types.find(base_token::Token("fired")));
+  EXPECT_NE(types.end(), types.find(base_token::Token("notfired")));
+  EXPECT_EQ(types.end(), types.find(base_token::Token("foo")));
 
   EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
   event_listenerfired_1->ExpectHandleEventCall(event, event_target);
@@ -275,7 +275,7 @@ TEST_F(EventTargetTest, AddRemoveEventListener) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
@@ -317,7 +317,7 @@ TEST_F(EventTargetTest, AttributeListener) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> non_attribute_event_listener =
       MockEventListener::Create();
   std::unique_ptr<MockEventListener> attribute_event_listener1 =
@@ -336,7 +336,7 @@ TEST_F(EventTargetTest, AttributeListener) {
   EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
   event_target->SetAttributeEventListener(
-      base::Token("fired"),
+      base_token::Token("fired"),
       FakeScriptValue<EventListener>(attribute_event_listener1.get()));
   EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(non_attribute_async_task));
   non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
@@ -353,7 +353,7 @@ TEST_F(EventTargetTest, AttributeListener) {
   EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
   event_target->SetAttributeEventListener(
-      base::Token("fired"),
+      base_token::Token("fired"),
       FakeScriptValue<EventListener>(attribute_event_listener2.get()));
   EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(non_attribute_async_task));
   non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
@@ -367,7 +367,7 @@ TEST_F(EventTargetTest, AttributeListener) {
   EXPECT_FALSE(event->IsBeingDispatched());
 
   EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_2));
-  event_target->SetAttributeEventListener(base::Token("fired"),
+  event_target->SetAttributeEventListener(base_token::Token("fired"),
                                           FakeScriptValue<EventListener>(NULL));
   EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(non_attribute_async_task));
   non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
@@ -384,8 +384,8 @@ TEST_F(EventTargetTest, EventListenerReuse) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event_1 = new Event(base::Token("fired_1"));
-  scoped_refptr<Event> event_2 = new Event(base::Token("fired_2"));
+  scoped_refptr<Event> event_1 = new Event(base_token::Token("fired_1"));
+  scoped_refptr<Event> event_2 = new Event(base_token::Token("fired_2"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
@@ -455,7 +455,7 @@ TEST_F(EventTargetTest, StopPropagation) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listenerfired_1 =
       MockEventListener::Create();
   std::unique_ptr<MockEventListener> event_listenerfired_2 =
@@ -492,7 +492,7 @@ TEST_F(EventTargetTest, StopImmediatePropagation) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listenerfired_1 =
       MockEventListener::Create();
   std::unique_ptr<MockEventListener> event_listenerfired_2 =
@@ -535,7 +535,7 @@ TEST_F(EventTargetTest, PreventDefault) {
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired.get()),
       false);
-  event = new Event(base::Token("fired"), Event::kNotBubbles,
+  event = new Event(base_token::Token("fired"), Event::kNotBubbles,
                     Event::kNotCancelable);
   EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task));
   event_listenerfired->ExpectHandleEventCall(
@@ -545,8 +545,8 @@ TEST_F(EventTargetTest, PreventDefault) {
   EXPECT_EQ(event->target(), event_target);
   EXPECT_FALSE(event->IsBeingDispatched());
 
-  event =
-      new Event(base::Token("fired"), Event::kNotBubbles, Event::kCancelable);
+  event = new Event(base_token::Token("fired"), Event::kNotBubbles,
+                    Event::kCancelable);
   EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task));
   event_listenerfired->ExpectHandleEventCall(
       event, event_target, &MockEventListener::PreventDefault);
@@ -635,7 +635,7 @@ TEST_F(EventTargetTest, DispatchingDispatchedEvent) {
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
   scoped_refptr<Event> event = new Event(
-      base::Token("fired"), Event::kNotBubbles, Event::kNotCancelable);
+      base_token::Token("fired"), Event::kNotBubbles, Event::kNotCancelable);
 
   event->set_event_phase(Event::kAtTarget);
   EXPECT_FALSE(event->target());
@@ -660,7 +660,7 @@ TEST_F(EventTargetTest, DispatchingDispatchedEventRaisesException) {
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
   scoped_refptr<Event> event = new Event(
-      base::Token("fired"), Event::kNotBubbles, Event::kNotCancelable);
+      base_token::Token("fired"), Event::kNotBubbles, Event::kNotCancelable);
 
   event->set_event_phase(Event::kAtTarget);
   EXPECT_FALSE(event->target());
@@ -684,7 +684,7 @@ TEST_F(EventTargetTest, AddSameListenerMultipleTimes) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(event_listener.get());
@@ -709,7 +709,7 @@ TEST_F(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(event_listener.get());
@@ -720,19 +720,22 @@ TEST_F(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
   const void* async_task_1;
   EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
-  event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+  event_target->SetAttributeEventListener(base_token::Token("fired"),
+                                          script_object);
 
   const void* async_task_2;
   EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_1));
   EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
-  event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+  event_target->SetAttributeEventListener(base_token::Token("fired"),
+                                          script_object);
 
   const void* async_task_3;
   EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_2));
   EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_3));
-  event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+  event_target->SetAttributeEventListener(base_token::Token("fired"),
+                                          script_object);
 
   EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_3));
   event_listener->ExpectHandleEventCall(event, event_target);
@@ -744,7 +747,7 @@ TEST_F(EventTargetTest, SameEventListenerAsAttribute) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(event_listener.get());
@@ -761,7 +764,8 @@ TEST_F(EventTargetTest, SameEventListenerAsAttribute) {
   const void* async_task_2;
   EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
-  event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+  event_target->SetAttributeEventListener(base_token::Token("fired"),
+                                          script_object);
 
   EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
   event_listener->ExpectHandleEventCall(event, event_target);

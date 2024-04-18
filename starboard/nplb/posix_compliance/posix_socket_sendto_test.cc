@@ -17,6 +17,7 @@
 
 #include <fcntl.h>
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace nplb {

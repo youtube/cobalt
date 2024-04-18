@@ -36,7 +36,7 @@ class SourceBufferAlgorithm {
  public:
   typedef base::RepeatingCallback<void(base::TimeDelta)>
       UpdateTimestampOffsetCB;
-  typedef base::RepeatingCallback<void(base::Token)> ScheduleEventCB;
+  typedef base::RepeatingCallback<void(base_token::Token)> ScheduleEventCB;
 
   virtual ~SourceBufferAlgorithm() {}
 

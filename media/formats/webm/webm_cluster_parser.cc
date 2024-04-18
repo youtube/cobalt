@@ -242,7 +242,7 @@ base::TimeDelta WebMClusterParser::ReadOpusDuration(const uint8_t* data,
 
   int opusConfig = (data[0] & kTocConfigMask) >> 3;
   CHECK_GE(opusConfig, 0);
-  CHECK_LT(opusConfig, static_cast<int>(base::size(kOpusFrameDurationsMu)));
+  CHECK_LT(opusConfig, static_cast<int>(std::size(kOpusFrameDurationsMu)));
 
   DCHECK_GT(frame_count, 0);
   base::TimeDelta duration =

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,8 @@
 
 #include "base/debug/leak_annotations.h"
 #include "base/location.h"
-#include "base/sequenced_task_runner.h"
+#include "base/observer_list.h"
+#include "base/task/single_thread_task_runner.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter_observer.h"
 
@@ -14,13 +15,13 @@ namespace net {
 
 void URLRequestContextGetter::AddObserver(
     URLRequestContextGetterObserver* observer) {
-  DCHECK(GetNetworkTaskRunner()->RunsTasksInCurrentSequence());
+  DCHECK(GetNetworkTaskRunner()->BelongsToCurrentThread());
   observer_list_.AddObserver(observer);
 }
 
 void URLRequestContextGetter::RemoveObserver(
     URLRequestContextGetterObserver* observer) {
-  DCHECK(GetNetworkTaskRunner()->RunsTasksInCurrentSequence());
+  DCHECK(GetNetworkTaskRunner()->BelongsToCurrentThread());
   observer_list_.RemoveObserver(observer);
 }
 
@@ -29,11 +30,11 @@ URLRequestContextGetter::URLRequestContextGetter() = default;
 URLRequestContextGetter::~URLRequestContextGetter() = default;
 
 void URLRequestContextGetter::OnDestruct() const {
-  scoped_refptr<base::SequencedTaskRunner> network_task_runner =
+  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner =
       GetNetworkTaskRunner();
   DCHECK(network_task_runner.get());
   if (network_task_runner.get()) {
-    if (network_task_runner->RunsTasksInCurrentSequence()) {
+    if (network_task_runner->BelongsToCurrentThread()) {
       delete this;
     } else {
       if (!network_task_runner->DeleteSoon(FROM_HERE, this)) {
@@ -52,7 +53,7 @@ void URLRequestContextGetter::OnDestruct() const {
 }
 
 void URLRequestContextGetter::NotifyContextShuttingDown() {
-  DCHECK(GetNetworkTaskRunner()->RunsTasksInCurrentSequence());
+  DCHECK(GetNetworkTaskRunner()->BelongsToCurrentThread());
 
   // Once shutdown starts, this must always return NULL.
   DCHECK(!GetURLRequestContext());
@@ -60,23 +61,5 @@ void URLRequestContextGetter::NotifyContextShuttingDown() {
   for (auto& observer : observer_list_)
     observer.OnContextShuttingDown();
 }
-
-TrivialURLRequestContextGetter::TrivialURLRequestContextGetter(
-    URLRequestContext* context,
-    const scoped_refptr<base::SingleThreadTaskRunner>& main_task_runner)
-    : context_(context), main_task_runner_(main_task_runner) {
-}
-
-TrivialURLRequestContextGetter::~TrivialURLRequestContextGetter() = default;
-
-URLRequestContext* TrivialURLRequestContextGetter::GetURLRequestContext() {
-  return context_;
-}
-
-scoped_refptr<base::SequencedTaskRunner>
-TrivialURLRequestContextGetter::GetNetworkTaskRunner() const {
-  return main_task_runner_;
-}
-
 
 }  // namespace net

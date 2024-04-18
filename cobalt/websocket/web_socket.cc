@@ -393,7 +393,7 @@ std::string WebSocket::GetPortAsString() const {
     return resolved_url_.port();
   }
 
-  return base::IntToString(GetPort());
+  return std::to_string(GetPort());
 }
 
 void WebSocket::OnConnected(const std::string& selected_subprotocol) {
@@ -467,7 +467,8 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
     // GetOrigin() can only be called on valid urls.
     // Since origin does not contain fragments, spec() is guaranteed
     // to return an ASCII encoded string.
-    entry_script_origin_ = settings_->base_url().GetOrigin().spec();
+    entry_script_origin_ =
+        settings_->base_url().DeprecatedGetOriginAsURL().spec();
   }
 
   // Per spec:
@@ -574,7 +575,7 @@ void WebSocket::Connect(const GURL& url,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(settings_);
 
-  GURL origin_gurl = settings_->base_url().GetOrigin();
+  GURL origin_gurl = settings_->base_url().DeprecatedGetOriginAsURL();
   const std::string& origin = origin_gurl.possibly_invalid_spec();
 
   DCHECK(settings_->context());

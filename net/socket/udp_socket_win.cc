@@ -1,18 +1,24 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/udp_socket_win.h"
 
 #include <mstcpip.h>
+#include <winsock2.h>
 
-#include "base/callback.h"
+#include <memory>
+
+#include "base/check_op.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/lazy_instance.h"
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notreached.h"
 #include "base/rand_util.h"
+#include "base/task/thread_pool.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
@@ -31,16 +37,6 @@
 #include "net/socket/socket_tag.h"
 #include "net/socket/udp_net_log_parameters.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
-
-namespace {
-
-const int kBindRetries = 10;
-const int kPortStart = 1024;
-const int kPortEnd = 65535;
-
-}  // namespace
 
 namespace net {
 
@@ -52,6 +48,9 @@ namespace net {
 class UDPSocketWin::Core : public base::RefCounted<Core> {
  public:
   explicit Core(UDPSocketWin* socket);
+
+  Core(const Core&) = delete;
+  Core& operator=(const Core&) = delete;
 
   // Start watching for the end of a read or write operation.
   void WatchForRead();
@@ -77,31 +76,31 @@ class UDPSocketWin::Core : public base::RefCounted<Core> {
   class ReadDelegate : public base::win::ObjectWatcher::Delegate {
    public:
     explicit ReadDelegate(Core* core) : core_(core) {}
-    ~ReadDelegate() override {}
+    ~ReadDelegate() override = default;
 
     // base::ObjectWatcher::Delegate methods:
     void OnObjectSignaled(HANDLE object) override;
 
    private:
-    Core* const core_;
+    const raw_ptr<Core> core_;
   };
 
   class WriteDelegate : public base::win::ObjectWatcher::Delegate {
    public:
     explicit WriteDelegate(Core* core) : core_(core) {}
-    ~WriteDelegate() override {}
+    ~WriteDelegate() override = default;
 
     // base::ObjectWatcher::Delegate methods:
     void OnObjectSignaled(HANDLE object) override;
 
    private:
-    Core* const core_;
+    const raw_ptr<Core> core_;
   };
 
   ~Core();
 
   // The socket that created this object.
-  UDPSocketWin* socket_;
+  raw_ptr<UDPSocketWin> socket_;
 
   // |reader_| handles the signals from |read_watcher_|.
   ReadDelegate reader_;
@@ -112,8 +111,6 @@ class UDPSocketWin::Core : public base::RefCounted<Core> {
   base::win::ObjectWatcher read_watcher_;
   // |write_watcher_| watches for events from Write();
   base::win::ObjectWatcher write_watcher_;
-
-  DISALLOW_COPY_AND_ASSIGN(Core);
 };
 
 UDPSocketWin::Core::Core(UDPSocketWin* socket)
@@ -169,7 +166,7 @@ void UDPSocketWin::Core::WriteDelegate::OnObjectSignaled(HANDLE object) {
 }
 //-----------------------------------------------------------------------------
 
-QwaveAPI::QwaveAPI() : qwave_supported_(false) {
+QwaveApi::QwaveApi() {
   HMODULE qwave = LoadLibrary(L"qwave.dll");
   if (!qwave)
     return;
@@ -190,59 +187,55 @@ QwaveAPI::QwaveAPI() : qwave_supported_(false) {
   }
 }
 
-QwaveAPI& QwaveAPI::Get() {
-  static base::LazyInstance<QwaveAPI>::Leaky lazy_qwave =
-    LAZY_INSTANCE_INITIALIZER;
-  return lazy_qwave.Get();
+QwaveApi* QwaveApi::GetDefault() {
+  static base::LazyInstance<QwaveApi>::Leaky lazy_qwave =
+      LAZY_INSTANCE_INITIALIZER;
+  return lazy_qwave.Pointer();
 }
 
-bool QwaveAPI::qwave_supported() const {
+bool QwaveApi::qwave_supported() const {
   return qwave_supported_;
 }
-BOOL QwaveAPI::CreateHandle(PQOS_VERSION version, PHANDLE handle) {
+
+void QwaveApi::OnFatalError() {
+  // Disable everything moving forward.
+  qwave_supported_ = false;
+}
+
+BOOL QwaveApi::CreateHandle(PQOS_VERSION version, PHANDLE handle) {
   return create_handle_func_(version, handle);
 }
-BOOL QwaveAPI::CloseHandle(HANDLE handle) {
+
+BOOL QwaveApi::CloseHandle(HANDLE handle) {
   return close_handle_func_(handle);
 }
 
-BOOL QwaveAPI::AddSocketToFlow(HANDLE handle,
+BOOL QwaveApi::AddSocketToFlow(HANDLE handle,
                                SOCKET socket,
                                PSOCKADDR addr,
                                QOS_TRAFFIC_TYPE traffic_type,
                                DWORD flags,
                                PQOS_FLOWID flow_id) {
-  return add_socket_to_flow_func_(handle,
-                                  socket,
-                                  addr,
-                                  traffic_type,
-                                  flags,
+  return add_socket_to_flow_func_(handle, socket, addr, traffic_type, flags,
                                   flow_id);
 }
 
-BOOL QwaveAPI::RemoveSocketFromFlow(HANDLE handle,
+BOOL QwaveApi::RemoveSocketFromFlow(HANDLE handle,
                                     SOCKET socket,
                                     QOS_FLOWID flow_id,
                                     DWORD reserved) {
   return remove_socket_from_flow_func_(handle, socket, flow_id, reserved);
 }
 
-BOOL QwaveAPI::SetFlow(HANDLE handle,
+BOOL QwaveApi::SetFlow(HANDLE handle,
                        QOS_FLOWID flow_id,
                        QOS_SET_FLOW op,
                        ULONG size,
                        PVOID data,
                        DWORD reserved,
                        LPOVERLAPPED overlapped) {
-  return set_flow_func_(handle,
-                        flow_id,
-                        op,
-                        size,
-                        data,
-                        reserved,
-                        overlapped);
+  return set_flow_func_(handle, flow_id, op, size, data, reserved, overlapped);
 }
-
 
 //-----------------------------------------------------------------------------
 
@@ -250,22 +243,10 @@ UDPSocketWin::UDPSocketWin(DatagramSocket::BindType bind_type,
                            net::NetLog* net_log,
                            const net::NetLogSource& source)
     : socket_(INVALID_SOCKET),
-      addr_family_(0),
-      is_connected_(false),
       socket_options_(SOCKET_OPTION_MULTICAST_LOOP),
-      multicast_interface_(0),
-      multicast_time_to_live_(1),
-      bind_type_(bind_type),
-      use_non_blocking_io_(false),
-      read_iobuffer_len_(0),
-      write_iobuffer_len_(0),
-      recv_from_address_(nullptr),
-      net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::UDP_SOCKET)),
-      qos_handle_(nullptr),
-      event_pending_(this) {
+      net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::UDP_SOCKET)) {
   EnsureWinsockInit();
-  net_log_.BeginEvent(NetLogEventType::SOCKET_ALIVE,
-                      source.ToEventParametersCallback());
+  net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE, source);
 }
 
 UDPSocketWin::~UDPSocketWin() {
@@ -278,30 +259,56 @@ int UDPSocketWin::Open(AddressFamily address_family) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_EQ(socket_, INVALID_SOCKET);
 
+  auto owned_socket_count = TryAcquireGlobalUDPSocketCount();
+  if (owned_socket_count.empty())
+    return ERR_INSUFFICIENT_RESOURCES;
+
+  owned_socket_count_ = std::move(owned_socket_count);
   addr_family_ = ConvertAddressFamily(address_family);
   socket_ = CreatePlatformSocket(addr_family_, SOCK_DGRAM, IPPROTO_UDP);
-  if (socket_ == INVALID_SOCKET)
+  if (socket_ == INVALID_SOCKET) {
+    owned_socket_count_.Reset();
     return MapSystemError(WSAGetLastError());
+  }
+  ConfigureOpenedSocket();
+  return OK;
+}
+
+int UDPSocketWin::AdoptOpenedSocket(AddressFamily address_family,
+                                    SOCKET socket) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto owned_socket_count = TryAcquireGlobalUDPSocketCount();
+  if (owned_socket_count.empty()) {
+    return ERR_INSUFFICIENT_RESOURCES;
+  }
+
+  owned_socket_count_ = std::move(owned_socket_count);
+  addr_family_ = ConvertAddressFamily(address_family);
+  socket_ = socket;
+  ConfigureOpenedSocket();
+  return OK;
+}
+
+void UDPSocketWin::ConfigureOpenedSocket() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!use_non_blocking_io_) {
-    core_ = new Core(this);
+    core_ = base::MakeRefCounted<Core>(this);
   } else {
     read_write_event_.Set(WSACreateEvent());
     WSAEventSelect(socket_, read_write_event_.Get(), FD_READ | FD_WRITE);
   }
-  return OK;
 }
 
 void UDPSocketWin::Close() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  owned_socket_count_.Reset();
+
   if (socket_ == INVALID_SOCKET)
     return;
 
-  if (qos_handle_) {
-    GetQwaveAPI().CloseHandle(qos_handle_);
-    dscp_manager_ = nullptr;
-    qos_handle_ = NULL;
-  }
+  // Remove socket_ from the QoS subsystem before we invalidate it.
+  dscp_manager_ = nullptr;
 
   // Zero out any pending read/write callback state.
   read_callback_.Reset();
@@ -344,7 +351,7 @@ int UDPSocketWin::GetPeerAddress(IPEndPoint* address) const {
     SockaddrStorage storage;
     if (getpeername(socket_, storage.addr, &storage.addr_len))
       return MapSystemError(WSAGetLastError());
-    std::unique_ptr<IPEndPoint> remote_address(new IPEndPoint());
+    auto remote_address = std::make_unique<IPEndPoint>();
     if (!remote_address->FromSockAddr(storage.addr, storage.addr_len))
       return ERR_ADDRESS_INVALID;
     remote_address_ = std::move(remote_address);
@@ -365,14 +372,14 @@ int UDPSocketWin::GetLocalAddress(IPEndPoint* address) const {
     SockaddrStorage storage;
     if (getsockname(socket_, storage.addr, &storage.addr_len))
       return MapSystemError(WSAGetLastError());
-    std::unique_ptr<IPEndPoint> local_address(new IPEndPoint());
+    auto local_address = std::make_unique<IPEndPoint>();
     if (!local_address->FromSockAddr(storage.addr, storage.addr_len))
       return ERR_ADDRESS_INVALID;
     local_address_ = std::move(local_address);
-    net_log_.AddEvent(NetLogEventType::UDP_LOCAL_ADDRESS,
-                      CreateNetLogUDPConnectCallback(
-                          local_address_.get(),
-                          NetworkChangeNotifier::kInvalidNetworkHandle));
+    net_log_.AddEvent(NetLogEventType::UDP_LOCAL_ADDRESS, [&] {
+      return CreateNetLogUDPConnectParams(*local_address_,
+                                          handles::kInvalidNetworkHandle);
+    });
   }
 
   *address = *local_address_;
@@ -446,18 +453,21 @@ int UDPSocketWin::SendToOrWrite(IOBuffer* buf,
     return nwrite;
 
   if (address)
-    send_to_address_.reset(new IPEndPoint(*address));
+    send_to_address_ = std::make_unique<IPEndPoint>(*address);
   write_callback_ = std::move(callback);
   return ERR_IO_PENDING;
 }
 
 int UDPSocketWin::Connect(const IPEndPoint& address) {
   DCHECK_NE(socket_, INVALID_SOCKET);
-  net_log_.BeginEvent(
-      NetLogEventType::UDP_CONNECT,
-      CreateNetLogUDPConnectCallback(
-          &address, NetworkChangeNotifier::kInvalidNetworkHandle));
-  int rv = InternalConnect(address);
+  net_log_.BeginEvent(NetLogEventType::UDP_CONNECT, [&] {
+    return CreateNetLogUDPConnectParams(address,
+                                        handles::kInvalidNetworkHandle);
+  });
+  int rv = SetMulticastOptions();
+  if (rv != OK)
+    return rv;
+  rv = InternalConnect(address);
   net_log_.EndEventWithNetErrorCode(NetLogEventType::UDP_CONNECT, rv);
   is_connected_ = (rv == OK);
   return rv;
@@ -467,31 +477,22 @@ int UDPSocketWin::InternalConnect(const IPEndPoint& address) {
   DCHECK(!is_connected());
   DCHECK(!remote_address_.get());
 
-  int rv = 0;
-  if (bind_type_ == DatagramSocket::RANDOM_BIND) {
-    // Construct IPAddress of appropriate size (IPv4 or IPv6) of 0s,
-    // representing INADDR_ANY or in6addr_any.
-    size_t addr_size = (address.GetSockAddrFamily() == AF_INET)
-                           ? IPAddress::kIPv4AddressSize
-                           : IPAddress::kIPv6AddressSize;
-    rv = RandomBind(IPAddress::AllZeros(addr_size));
-  }
-  // else connect() does the DatagramSocket::DEFAULT_BIND
-
-  if (rv < 0) {
-    base::UmaHistogramSparse("Net.UdpSocketRandomBindErrorCode", -rv);
-    return rv;
-  }
+  // Always do a random bind.
+  // Ignore failures, which may happen if the socket was already bound.
+  DWORD randomize_port_value = 1;
+  setsockopt(socket_, SOL_SOCKET, SO_RANDOMIZE_PORT,
+             reinterpret_cast<const char*>(&randomize_port_value),
+             sizeof(randomize_port_value));
 
   SockaddrStorage storage;
   if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_ADDRESS_INVALID;
 
-  rv = connect(socket_, storage.addr, storage.addr_len);
+  int rv = connect(socket_, storage.addr, storage.addr_len);
   if (rv < 0)
     return MapSystemError(WSAGetLastError());
 
-  remote_address_.reset(new IPEndPoint(address));
+  remote_address_ = std::make_unique<IPEndPoint>(address);
 
   if (dscp_manager_)
     dscp_manager_->PrepareForSend(*remote_address_.get());
@@ -516,7 +517,7 @@ int UDPSocketWin::Bind(const IPEndPoint& address) {
   return rv;
 }
 
-int UDPSocketWin::BindToNetwork(NetworkChangeNotifier::NetworkHandle network) {
+int UDPSocketWin::BindToNetwork(handles::NetworkHandle network) {
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
 }
@@ -600,6 +601,13 @@ int UDPSocketWin::SetBroadcast(bool broadcast) {
   int rv = setsockopt(socket_, SOL_SOCKET, SO_BROADCAST,
                       reinterpret_cast<const char*>(&value), sizeof(value));
   return rv == 0 ? OK : MapSystemError(WSAGetLastError());
+}
+
+int UDPSocketWin::AllowAddressSharingForMulticast() {
+  // When proper multicast groups are used, Windows further defines the address
+  // resuse option (SO_REUSEADDR) to ensure all listening sockets can receive
+  // all incoming messages for the multicast group.
+  return AllowAddressReuse();
 }
 
 void UDPSocketWin::DoReadCallback(int rv) {
@@ -741,12 +749,11 @@ void UDPSocketWin::LogRead(int result,
   }
 
   if (net_log_.IsCapturing()) {
-    net_log_.AddEvent(
-        NetLogEventType::UDP_BYTES_RECEIVED,
-        CreateNetLogUDPDataTranferCallback(result, bytes, address));
+    NetLogUDPDataTransfer(net_log_, NetLogEventType::UDP_BYTES_RECEIVED, result,
+                          bytes, address);
   }
 
-  NetworkActivityMonitor::GetInstance()->IncrementBytesReceived(result);
+  activity_monitor::IncrementBytesReceived(result);
 }
 
 void UDPSocketWin::LogWrite(int result,
@@ -758,12 +765,9 @@ void UDPSocketWin::LogWrite(int result,
   }
 
   if (net_log_.IsCapturing()) {
-    net_log_.AddEvent(
-        NetLogEventType::UDP_BYTES_SENT,
-        CreateNetLogUDPDataTranferCallback(result, bytes, address));
+    NetLogUDPDataTransfer(net_log_, NetLogEventType::UDP_BYTES_SENT, result,
+                          bytes, address);
   }
-
-  NetworkActivityMonitor::GetInstance()->IncrementBytesSent(result);
 }
 
 int UDPSocketWin::InternalRecvFromOverlapped(IOBuffer* buf,
@@ -780,7 +784,6 @@ int UDPSocketWin::InternalRecvFromOverlapped(IOBuffer* buf,
   DWORD flags = 0;
   DWORD num;
   CHECK_NE(INVALID_SOCKET, socket_);
-  AssertEventNotSignaled(core_->read_overlapped_.hEvent);
   int rv = WSARecvFrom(socket_, &read_buffer, 1, &num, &flags, storage.addr,
                        &storage.addr_len, &core_->read_overlapped_, nullptr);
   if (rv == 0) {
@@ -839,7 +842,6 @@ int UDPSocketWin::InternalSendToOverlapped(IOBuffer* buf,
 
   DWORD flags = 0;
   DWORD num;
-  AssertEventNotSignaled(core_->write_overlapped_.hEvent);
   int rv = WSASendTo(socket_, &write_buffer, 1, &num, flags, addr,
                      storage.addr_len, &core_->write_overlapped_, nullptr);
   if (rv == 0) {
@@ -1005,20 +1007,8 @@ int UDPSocketWin::DoBind(const IPEndPoint& address) {
   return MapSystemError(last_error);
 }
 
-int UDPSocketWin::RandomBind(const IPAddress& address) {
-  DCHECK_EQ(bind_type_, DatagramSocket::RANDOM_BIND);
-
-  for (int i = 0; i < kBindRetries; ++i) {
-    int rv = DoBind(IPEndPoint(
-        address, static_cast<uint16_t>(base::RandInt(kPortStart, kPortEnd))));
-    if (rv != ERR_ADDRESS_IN_USE)
-      return rv;
-  }
-  return DoBind(IPEndPoint(address, 0));
-}
-
-QwaveAPI& UDPSocketWin::GetQwaveAPI() {
-  return QwaveAPI::Get();
+QwaveApi* UDPSocketWin::GetQwaveApi() const {
+  return QwaveApi::GetDefault();
 }
 
 int UDPSocketWin::JoinGroup(const IPAddress& group_address) const {
@@ -1033,7 +1023,7 @@ int UDPSocketWin::JoinGroup(const IPAddress& group_address) const {
       ip_mreq mreq;
       mreq.imr_interface.s_addr = htonl(multicast_interface_);
       memcpy(&mreq.imr_multiaddr, group_address.bytes().data(),
-                   IPAddress::kIPv4AddressSize);
+             IPAddress::kIPv4AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                           reinterpret_cast<const char*>(&mreq),
                           sizeof(mreq));
@@ -1047,7 +1037,7 @@ int UDPSocketWin::JoinGroup(const IPAddress& group_address) const {
       ipv6_mreq mreq;
       mreq.ipv6mr_interface = multicast_interface_;
       memcpy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
-                   IPAddress::kIPv6AddressSize);
+             IPAddress::kIPv6AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
                           reinterpret_cast<const char*>(&mreq),
                           sizeof(mreq));
@@ -1073,7 +1063,7 @@ int UDPSocketWin::LeaveGroup(const IPAddress& group_address) const {
       ip_mreq mreq;
       mreq.imr_interface.s_addr = htonl(multicast_interface_);
       memcpy(&mreq.imr_multiaddr, group_address.bytes().data(),
-                   IPAddress::kIPv4AddressSize);
+             IPAddress::kIPv4AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IP, IP_DROP_MEMBERSHIP,
                           reinterpret_cast<const char*>(&mreq), sizeof(mreq));
       if (rv)
@@ -1086,7 +1076,7 @@ int UDPSocketWin::LeaveGroup(const IPAddress& group_address) const {
       ipv6_mreq mreq;
       mreq.ipv6mr_interface = multicast_interface_;
       memcpy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
-                   IPAddress::kIPv6AddressSize);
+             IPAddress::kIPv6AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IPV6, IP_DROP_MEMBERSHIP,
                           reinterpret_cast<const char*>(&mreq), sizeof(mreq));
       if (rv)
@@ -1180,28 +1170,27 @@ int UDPSocketWin::SetDiffServCodePoint(DiffServCodePoint dscp) {
   if (!is_connected())
     return ERR_SOCKET_NOT_CONNECTED;
 
-  QwaveAPI& qos(GetQwaveAPI());
+  QwaveApi* api = GetQwaveApi();
 
-  if (!qos.qwave_supported())
+  if (!api->qwave_supported())
     return ERR_NOT_IMPLEMENTED;
 
-  if (!qos_handle_) {
-    QOS_VERSION version;
-    version.MajorVersion = 1;
-    version.MinorVersion = 0;
-    qos.CreateHandle(&version, &qos_handle_);
-    if (!qos_handle_)
-      return ERR_NOT_IMPLEMENTED;
-  }
-
   if (!dscp_manager_)
-    dscp_manager_ = std::make_unique<DscpManager>(qos, socket_, qos_handle_);
+    dscp_manager_ = std::make_unique<DscpManager>(api, socket_);
 
   dscp_manager_->Set(dscp);
   if (remote_address_)
     return dscp_manager_->PrepareForSend(*remote_address_.get());
 
   return OK;
+}
+
+int UDPSocketWin::SetIPv6Only(bool ipv6_only) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (is_connected()) {
+    return ERR_SOCKET_IS_CONNECTED;
+  }
+  return net::SetIPv6Only(socket_, ipv6_only);
 }
 
 void UDPSocketWin::DetachFromThread() {
@@ -1219,43 +1208,19 @@ void UDPSocketWin::ApplySocketTag(const SocketTag& tag) {
   CHECK(tag == SocketTag());
 }
 
-void UDPSocketWin::SetWriteAsyncEnabled(bool enabled) {}
-bool UDPSocketWin::WriteAsyncEnabled() {
-  return false;
+DscpManager::DscpManager(QwaveApi* api, SOCKET socket)
+    : api_(api), socket_(socket) {
+  RequestHandle();
 }
-void UDPSocketWin::SetMaxPacketSize(size_t max_packet_size) {}
-void UDPSocketWin::SetWriteMultiCoreEnabled(bool enabled) {}
-void UDPSocketWin::SetSendmmsgEnabled(bool enabled) {}
-void UDPSocketWin::SetWriteBatchingActive(bool active) {}
-
-int UDPSocketWin::WriteAsync(
-    DatagramBuffers buffers,
-    CompletionOnceCallback callback,
-    const NetworkTrafficAnnotationTag& traffic_annotation) {
-  NOTIMPLEMENTED();
-  return ERR_NOT_IMPLEMENTED;
-}
-
-int UDPSocketWin::WriteAsync(
-    const char* buffer,
-    size_t buf_len,
-    CompletionOnceCallback callback,
-    const NetworkTrafficAnnotationTag& traffic_annotation) {
-  NOTIMPLEMENTED();
-  return ERR_NOT_IMPLEMENTED;
-}
-
-DatagramBuffers UDPSocketWin::GetUnwrittenBuffers() {
-  DatagramBuffers result;
-  NOTIMPLEMENTED();
-  return result;
-}
-DscpManager::DscpManager(QwaveAPI& qos, SOCKET socket, HANDLE qos_handle)
-    : qos_(qos), socket_(socket), qos_handle_(qos_handle) {}
 
 DscpManager::~DscpManager() {
+  if (!qos_handle_)
+    return;
+
   if (flow_id_ != 0)
-    qos_.RemoveSocketFromFlow(qos_handle_, NULL, flow_id_, 0);
+    api_->RemoveSocketFromFlow(qos_handle_, NULL, flow_id_, 0);
+
+  api_->CloseHandle(qos_handle_);
 }
 
 void DscpManager::Set(DiffServCodePoint dscp) {
@@ -1263,10 +1228,11 @@ void DscpManager::Set(DiffServCodePoint dscp) {
     return;
 
   dscp_value_ = dscp;
+
   // TODO(zstein): We could reuse the flow when the value changes
   // by calling QOSSetFlow with the new traffic type and dscp value.
-  if (flow_id_ != 0) {
-    qos_.RemoveSocketFromFlow(qos_handle_, NULL, flow_id_, 0);
+  if (flow_id_ != 0 && qos_handle_) {
+    api_->RemoveSocketFromFlow(qos_handle_, NULL, flow_id_, 0);
     configured_.clear();
     flow_id_ = 0;
   }
@@ -1278,6 +1244,12 @@ int DscpManager::PrepareForSend(const IPEndPoint& remote_address) {
     return OK;
   }
 
+  if (!api_->qwave_supported())
+    return ERR_NOT_IMPLEMENTED;
+
+  if (!qos_handle_)
+    return ERR_INVALID_HANDLE;  // The closest net error to try again later.
+
   if (configured_.find(remote_address) != configured_.end())
     return OK;
 
@@ -1285,7 +1257,7 @@ int DscpManager::PrepareForSend(const IPEndPoint& remote_address) {
   if (!remote_address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_ADDRESS_INVALID;
 
-  // We won't try again if we get an error.
+  // We won't try this address again if we get an error.
   configured_.emplace(remote_address);
 
   // We don't need to call SetFlow if we already have a qos flow.
@@ -1293,14 +1265,18 @@ int DscpManager::PrepareForSend(const IPEndPoint& remote_address) {
 
   const QOS_TRAFFIC_TYPE traffic_type = DscpToTrafficType(dscp_value_);
 
-  if (!qos_.AddSocketToFlow(qos_handle_, socket_, storage.addr, traffic_type,
-                            QOS_NON_ADAPTIVE_FLOW, &flow_id_)) {
-    DWORD err = GetLastError();
+  if (!api_->AddSocketToFlow(qos_handle_, socket_, storage.addr, traffic_type,
+                             QOS_NON_ADAPTIVE_FLOW, &flow_id_)) {
+    DWORD err = ::GetLastError();
     if (err == ERROR_DEVICE_REINITIALIZATION_NEEDED) {
-      qos_.CloseHandle(qos_handle_);
+      // Reset. PrepareForSend is called for every packet.  Once RequestHandle
+      // completes asynchronously the next PrepareForSend call will re-register
+      // the address with the new QoS Handle.  In the meantime, sends will
+      // continue without DSCP.
+      RequestHandle();
+      configured_.clear();
       flow_id_ = 0;
-      qos_handle_ = 0;
-      dscp_value_ = DSCP_NO_CHANGE;
+      return ERR_INVALID_HANDLE;
     }
     return MapSystemError(err);
   }
@@ -1309,11 +1285,58 @@ int DscpManager::PrepareForSend(const IPEndPoint& remote_address) {
     DWORD buf = dscp_value_;
     // This requires admin rights, and may fail, if so we ignore it
     // as AddSocketToFlow should still do *approximately* the right thing.
-    qos_.SetFlow(qos_handle_, flow_id_, QOSSetOutgoingDSCPValue, sizeof(buf),
-                 &buf, 0, nullptr);
+    api_->SetFlow(qos_handle_, flow_id_, QOSSetOutgoingDSCPValue, sizeof(buf),
+                  &buf, 0, nullptr);
   }
 
   return OK;
+}
+
+void DscpManager::RequestHandle() {
+  if (handle_is_initializing_)
+    return;
+
+  if (qos_handle_) {
+    api_->CloseHandle(qos_handle_);
+    qos_handle_ = nullptr;
+  }
+
+  handle_is_initializing_ = true;
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock()},
+      base::BindOnce(&DscpManager::DoCreateHandle, api_),
+      base::BindOnce(&DscpManager::OnHandleCreated, api_,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+HANDLE DscpManager::DoCreateHandle(QwaveApi* api) {
+  QOS_VERSION version;
+  version.MajorVersion = 1;
+  version.MinorVersion = 0;
+
+  HANDLE handle = nullptr;
+
+  // No access to net_log_ so swallow any errors here.
+  api->CreateHandle(&version, &handle);
+  return handle;
+}
+
+void DscpManager::OnHandleCreated(QwaveApi* api,
+                                  base::WeakPtr<DscpManager> dscp_manager,
+                                  HANDLE handle) {
+  if (!handle)
+    api->OnFatalError();
+
+  if (!dscp_manager) {
+    api->CloseHandle(handle);
+    return;
+  }
+
+  DCHECK(dscp_manager->handle_is_initializing_);
+  DCHECK(!dscp_manager->qos_handle_);
+
+  dscp_manager->qos_handle_ = handle;
+  dscp_manager->handle_is_initializing_ = false;
 }
 
 }  // namespace net

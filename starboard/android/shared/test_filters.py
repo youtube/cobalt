@@ -92,9 +92,6 @@ _FILTERED_TESTS = {
 
         # TODO: b/280432564 Make this test work on lab devices consistently.
         'SbAudioSinkTest.ContinuousAppend',
-
-        # TODO: b/333760574
-        'SbPlayerTest.MultiPlayer',
     ],
 }
 # pylint: enable=line-too-long

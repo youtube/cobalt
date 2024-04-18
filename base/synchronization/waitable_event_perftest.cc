@@ -1,65 +1,87 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/waitable_event.h"
 
-#include <numeric>
+#include <string>
 
 #include "base/threading/simple_thread.h"
+#include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "testing/perf/perf_test.h"
+#include "testing/perf/perf_result_reporter.h"
 
 namespace base {
 
 namespace {
 
+constexpr char kMetricPrefixWaitableEvent[] = "WaitableEvent.";
+constexpr char kMetricWaitTime[] = "wait_time_per_sample";
+constexpr char kMetricSignalTime[] = "signal_time_per_sample";
+constexpr char kMetricElapsedCycles[] = "elapsed_cycles";
+constexpr char kStorySingleThread[] = "single_thread_1000_samples";
+constexpr char kStoryMultiThreadWaiter[] = "multi_thread_1000_samples_waiter";
+constexpr char kStoryMultiThreadSignaler[] =
+    "multi_thread_1000_samples_signaler";
+constexpr char kStoryTimedThroughput[] = "timed_throughput";
+
+perf_test::PerfResultReporter SetUpReporter(const std::string& story_name) {
+  perf_test::PerfResultReporter reporter(kMetricPrefixWaitableEvent,
+                                         story_name);
+  reporter.RegisterImportantMetric(kMetricWaitTime, "ns");
+  reporter.RegisterImportantMetric(kMetricSignalTime, "ns");
+  reporter.RegisterImportantMetric(kMetricElapsedCycles, "count");
+  return reporter;
+}
+
 class TraceWaitableEvent {
  public:
-  TraceWaitableEvent(size_t samples)
-      : event_(WaitableEvent::ResetPolicy::AUTOMATIC,
-               WaitableEvent::InitialState::NOT_SIGNALED),
-        samples_(samples) {
-    signal_times_.reserve(samples);
-    wait_times_.reserve(samples);
-  }
+  TraceWaitableEvent() = default;
+
+  TraceWaitableEvent(const TraceWaitableEvent&) = delete;
+  TraceWaitableEvent& operator=(const TraceWaitableEvent&) = delete;
 
   ~TraceWaitableEvent() = default;
 
   void Signal() {
-    TimeTicks start = TimeTicks::Now();
+    ElapsedTimer timer;
     event_.Signal();
-    signal_times_.push_back(TimeTicks::Now() - start);
+    total_signal_time_ += timer.Elapsed();
+    ++signal_samples_;
   }
 
   void Wait() {
-    TimeTicks start = TimeTicks::Now();
+    ElapsedTimer timer;
     event_.Wait();
-    wait_times_.push_back(TimeTicks::Now() - start);
+    total_wait_time_ += timer.Elapsed();
+    ++wait_samples_;
   }
 
   bool TimedWaitUntil(const TimeTicks& end_time) {
-    TimeTicks start = TimeTicks::Now();
-    bool signaled = event_.TimedWaitUntil(end_time);
-    wait_times_.push_back(TimeTicks::Now() - start);
+    ElapsedTimer timer;
+    const bool signaled = event_.TimedWait(end_time - timer.Begin());
+    total_wait_time_ += timer.Elapsed();
+    ++wait_samples_;
     return signaled;
   }
 
   bool IsSignaled() { return event_.IsSignaled(); }
 
-  const std::vector<TimeDelta>& signal_times() const { return signal_times_; }
-  const std::vector<TimeDelta>& wait_times() const { return wait_times_; }
-  size_t samples() const { return samples_; }
+  TimeDelta total_signal_time() const { return total_signal_time_; }
+  TimeDelta total_wait_time() const { return total_wait_time_; }
+  size_t signal_samples() const { return signal_samples_; }
+  size_t wait_samples() const { return wait_samples_; }
 
  private:
-  WaitableEvent event_;
+  WaitableEvent event_{WaitableEvent::ResetPolicy::AUTOMATIC};
 
-  std::vector<TimeDelta> signal_times_;
-  std::vector<TimeDelta> wait_times_;
+  TimeDelta total_signal_time_;
+  TimeDelta total_wait_time_;
 
-  const size_t samples_;
-
-  DISALLOW_COPY_AND_ASSIGN(TraceWaitableEvent);
+  size_t signal_samples_ = 0U;
+  size_t wait_samples_ = 0U;
 };
 
 class SignalerThread : public SimpleThread {
@@ -68,6 +90,9 @@ class SignalerThread : public SimpleThread {
       : SimpleThread("WaitableEventPerfTest signaler"),
         waiter_(waiter),
         signaler_(signaler) {}
+
+  SignalerThread(const SignalerThread&) = delete;
+  SignalerThread& operator=(const SignalerThread&) = delete;
 
   ~SignalerThread() override = default;
 
@@ -85,28 +110,26 @@ class SignalerThread : public SimpleThread {
   void RequestStop() { stop_event_.Signal(); }
 
  private:
-  WaitableEvent stop_event_{WaitableEvent::ResetPolicy::MANUAL,
-                            WaitableEvent::InitialState::NOT_SIGNALED};
-  TraceWaitableEvent* waiter_;
-  TraceWaitableEvent* signaler_;
-  DISALLOW_COPY_AND_ASSIGN(SignalerThread);
+  WaitableEvent stop_event_;
+  raw_ptr<TraceWaitableEvent> waiter_;
+  raw_ptr<TraceWaitableEvent> signaler_;
 };
 
 void PrintPerfWaitableEvent(const TraceWaitableEvent* event,
-                            const std::string& modifier,
-                            const std::string& trace) {
-  TimeDelta signal_time = std::accumulate(
-      event->signal_times().begin(), event->signal_times().end(), TimeDelta());
-  TimeDelta wait_time = std::accumulate(event->wait_times().begin(),
-                                        event->wait_times().end(), TimeDelta());
-  perf_test::PrintResult(
-      "signal_time", modifier, trace,
-      static_cast<size_t>(signal_time.InNanoseconds()) / event->samples(),
-      "ns/sample", true);
-  perf_test::PrintResult(
-      "wait_time", modifier, trace,
-      static_cast<size_t>(wait_time.InNanoseconds()) / event->samples(),
-      "ns/sample", true);
+                            const std::string& story_name,
+                            size_t* elapsed_cycles = nullptr) {
+  auto reporter = SetUpReporter(story_name);
+  reporter.AddResult(
+      kMetricSignalTime,
+      static_cast<size_t>(event->total_signal_time().InNanoseconds()) /
+          event->signal_samples());
+  reporter.AddResult(
+      kMetricWaitTime,
+      static_cast<size_t>(event->total_wait_time().InNanoseconds()) /
+          event->wait_samples());
+  if (elapsed_cycles) {
+    reporter.AddResult(kMetricElapsedCycles, *elapsed_cycles);
+  }
 }
 
 }  // namespace
@@ -114,21 +137,21 @@ void PrintPerfWaitableEvent(const TraceWaitableEvent* event,
 TEST(WaitableEventPerfTest, SingleThread) {
   const size_t kSamples = 1000;
 
-  TraceWaitableEvent event(kSamples);
+  TraceWaitableEvent event;
 
   for (size_t i = 0; i < kSamples; ++i) {
     event.Signal();
     event.Wait();
   }
 
-  PrintPerfWaitableEvent(&event, "", "singlethread-1000-samples");
+  PrintPerfWaitableEvent(&event, kStorySingleThread);
 }
 
 TEST(WaitableEventPerfTest, MultipleThreads) {
   const size_t kSamples = 1000;
 
-  TraceWaitableEvent waiter(kSamples);
-  TraceWaitableEvent signaler(kSamples);
+  TraceWaitableEvent waiter;
+  TraceWaitableEvent signaler;
 
   // The other thread will wait and signal on the respective opposite events.
   SignalerThread thread(&signaler, &waiter);
@@ -146,19 +169,17 @@ TEST(WaitableEventPerfTest, MultipleThreads) {
 
   thread.Join();
 
-  PrintPerfWaitableEvent(&waiter, "_waiter", "multithread-1000-samples");
-  PrintPerfWaitableEvent(&signaler, "_signaler", "multithread-1000-samples");
+  PrintPerfWaitableEvent(&waiter, kStoryMultiThreadWaiter);
+  PrintPerfWaitableEvent(&signaler, kStoryMultiThreadSignaler);
 }
 
 TEST(WaitableEventPerfTest, Throughput) {
-  // Reserve a lot of sample space.
-  const size_t kCapacity = 500000;
-  TraceWaitableEvent event(kCapacity);
+  TraceWaitableEvent event;
 
   SignalerThread thread(nullptr, &event);
   thread.Start();
 
-  TimeTicks end_time = TimeTicks::Now() + TimeDelta::FromSeconds(1);
+  const TimeTicks end_time = TimeTicks::Now() + Seconds(1);
   size_t count = 0;
   while (event.TimedWaitUntil(end_time)) {
     ++count;
@@ -167,12 +188,7 @@ TEST(WaitableEventPerfTest, Throughput) {
   thread.RequestStop();
   thread.Join();
 
-  perf_test::PrintResult("counts", "", "throughput", count, "signals", true);
-  PrintPerfWaitableEvent(&event, "", "throughput");
-
-  // Make sure that allocation didn't happen during the test.
-  EXPECT_LE(event.signal_times().capacity(), kCapacity);
-  EXPECT_LE(event.wait_times().capacity(), kCapacity);
+  PrintPerfWaitableEvent(&event, kStoryTimedThroughput, &count);
 }
 
 }  // namespace base

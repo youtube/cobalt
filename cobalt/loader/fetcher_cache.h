@@ -24,8 +24,8 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/loader/loader.h"
-#include "net/base/linked_hash_map.h"
 #include "net/http/http_response_headers.h"
+#include "net/third_party/quiche/src/quiche/common/quiche_linked_hash_map.h"
 #include "starboard/thread.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -42,6 +42,16 @@ class FetcherCache : public base::RefCountedThreadSafe<FetcherCache> {
   Loader::FetcherCreator GetFetcherCreator(
       const GURL& url, const Loader::FetcherCreator& real_fetcher_creator);
   void NotifyResourceRequested(const std::string& url);
+  size_t size() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    CHECK_EQ(thread_id_, SbThreadGetId());
+    return total_size_;
+  }
+  size_t capacity() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    CHECK_EQ(thread_id_, SbThreadGetId());
+    return capacity_;
+  }
 
   // To signal the imminent destruction of this object.  If everything is
   // working as expected, there shouldn't be any other reference of this object,
@@ -71,7 +81,7 @@ class FetcherCache : public base::RefCountedThreadSafe<FetcherCache> {
   const size_t capacity_;
   size_t total_size_ = 0;
 
-  net::linked_hash_map<std::string, CacheEntry*> cache_entries_;
+  quiche::QuicheLinkedHashMap<std::string, CacheEntry*> cache_entries_;
 
   base::CVal<base::cval::SizeInBytes, base::CValPublic> memory_size_in_bytes_;
   base::CVal<int, base::CValPublic> count_resources_cached_;

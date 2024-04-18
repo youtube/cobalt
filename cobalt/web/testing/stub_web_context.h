@@ -19,8 +19,8 @@
 #include <string>
 #include <utility>
 
-#include "base/message_loop/message_loop.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/task_environment.h"
 #include "cobalt/js_profiler/profiler_group.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
@@ -62,7 +62,22 @@ class StubWebContext final : public Context {
         network_module_.get(),
         URL::MakeBlobResolverCallback(blob_registry_.get())));
   }
-  ~StubWebContext() final { blob_registry_.reset(); }
+
+  ~StubWebContext() final {
+    network_module_.reset();
+    environment_settings_.reset();
+    blob_registry_.reset();
+
+    // Ensure that global_environment_ is null before it's destroyed.
+    scoped_refptr<script::GlobalEnvironment> global_environment(
+        std::move(global_environment_));
+    DCHECK(!global_environment_);
+    global_environment = nullptr;
+
+    javascript_engine_.reset();
+    fetcher_factory_.reset();
+    script_loader_factory_.reset();
+  }
 
   void AddEnvironmentSettingsChangeObserver(
       Context::EnvironmentSettingsChangeObserver* observer) final {}
@@ -71,8 +86,8 @@ class StubWebContext final : public Context {
 
   // WebInstance
   //
-  base::MessageLoop* message_loop() const final {
-    return base::MessageLoop::current();
+  base::SequencedTaskRunner* task_runner() const final {
+    return base::SequencedTaskRunner::GetCurrentDefault();
   }
   void ShutDownJavaScriptEngine() final { NOTREACHED(); }
   loader::FetcherFactory* fetcher_factory() const final {
@@ -220,8 +235,6 @@ class StubWebContext final : public Context {
   // Name of the web instance.
   const std::string name_;
 
-  base::test::ScopedTaskEnvironment env_;
-
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   std::unique_ptr<Blob::Registry> blob_registry_;
   std::unique_ptr<loader::ScriptLoaderFactory> script_loader_factory_;
@@ -236,6 +249,10 @@ class StubWebContext final : public Context {
   UserAgentPlatformInfo* platform_info_ = nullptr;
   scoped_refptr<worker::ServiceWorkerObject> service_worker_object_;
   MockUserAgentPlatformInfo mock_platform_info_;
+
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::DEFAULT,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 }  // namespace testing

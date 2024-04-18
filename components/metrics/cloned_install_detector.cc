@@ -10,11 +10,10 @@
 
 #include "base/bind.h"
 #include "base/location.h"
+#include "base/task/thread_pool.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/metrics_hashes.h"
-#include "base/single_thread_task_runner.h"
-#include "base/task/post_task.h"
-#include "base/task_runner_util.h"
+#include "base/task/single_thread_task_runner.h"
 #include "components/metrics/machine_id_provider.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -54,13 +53,16 @@ ClonedInstallDetector::~ClonedInstallDetector() {
 }
 
 void ClonedInstallDetector::CheckForClonedInstall(PrefService* local_state) {
-  base::PostTaskWithTraitsAndReplyWithResult(
+  if (!MachineIdProvider::HasId())
+    return;
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE,
       {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::Bind(&MachineIdProvider::GetMachineId),
-      base::Bind(&ClonedInstallDetector::SaveMachineId,
-                 weak_ptr_factory_.GetWeakPtr(), local_state));
+      base::BindOnce(&MachineIdProvider::GetMachineId),
+      base::BindOnce(&ClonedInstallDetector::SaveMachineId,
+                     weak_ptr_factory_.GetWeakPtr(), local_state));
 }
 
 void ClonedInstallDetector::SaveMachineId(PrefService* local_state,

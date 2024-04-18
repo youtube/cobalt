@@ -32,9 +32,9 @@ class MouseEvent : public UIEventWithKeyState {
  public:
   explicit MouseEvent(const std::string& type);
   MouseEvent(const std::string& type, const MouseEventInit& init_dict);
-  MouseEvent(base::Token type, const scoped_refptr<Window>& view,
+  MouseEvent(base_token::Token type, const scoped_refptr<Window>& view,
              const MouseEventInit& init_dict);
-  MouseEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+  MouseEvent(base_token::Token type, Bubbles bubbles, Cancelable cancelable,
              const scoped_refptr<Window>& view,
              const MouseEventInit& init_dict);
 

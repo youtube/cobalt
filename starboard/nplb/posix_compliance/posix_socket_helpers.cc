@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sched.h>
+
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
+
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace nplb {
@@ -107,7 +111,7 @@ int PosixSocketCreateAndConnect(int server_domain,
 #endif
     {
       // Just being polite.
-      SbThreadYield();
+      sched_yield();
     }
   }
 

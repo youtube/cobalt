@@ -1,49 +1,52 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/cookies/cookie_store.h"
 
-#include "base/bind.h"
-#include "base/callback.h"
-#include "net/cookies/cookie_options.h"
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 
 namespace net {
 
+CookieStore::CookieStore() = default;
+
 CookieStore::~CookieStore() = default;
+
+// Default implementation which returns a default vector of UNKNOWN
+// CookieAccessSemantics.
+void CookieStore::GetAllCookiesWithAccessSemanticsAsync(
+    GetAllCookiesWithAccessSemanticsCallback callback) {
+  GetAllCookiesCallback adapted_callback = base::BindOnce(
+      [](CookieStore::GetAllCookiesWithAccessSemanticsCallback
+             original_callback,
+         const CookieList& cookies) {
+        std::vector<CookieAccessSemantics> default_access_semantics_list;
+        default_access_semantics_list.assign(cookies.size(),
+                                             CookieAccessSemantics::UNKNOWN);
+        std::move(original_callback)
+            .Run(cookies, default_access_semantics_list);
+      },
+      std::move(callback));
+  GetAllCookiesAsync(std::move(adapted_callback));
+}
 
 void CookieStore::DeleteAllAsync(DeleteCallback callback) {
   DeleteAllCreatedInTimeRangeAsync(CookieDeletionInfo::TimeRange(),
                                    std::move(callback));
 }
 
-void CookieStore::SetForceKeepSessionState() {
-  // By default, do nothing.
+void CookieStore::SetCookieAccessDelegate(
+    std::unique_ptr<CookieAccessDelegate> delegate) {
+  cookie_access_delegate_ = std::move(delegate);
 }
 
-void CookieStore::GetAllCookiesForURLAsync(const GURL& url,
-                                           GetCookieListCallback callback) {
-  CookieOptions options;
-  options.set_include_httponly();
-  options.set_same_site_cookie_mode(
-      CookieOptions::SameSiteCookieMode::INCLUDE_STRICT_AND_LAX);
-  options.set_do_not_update_access_time();
-  GetCookieListWithOptionsAsync(url, options, std::move(callback));
+absl::optional<bool> CookieStore::SiteHasCookieInOtherPartition(
+    const net::SchemefulSite& site,
+    const absl::optional<CookiePartitionKey>& partition_key) const {
+  return absl::nullopt;
 }
-
-void CookieStore::SetChannelIDServiceID(int id) {
-  DCHECK_EQ(-1, channel_id_service_id_);
-  channel_id_service_id_ = id;
-}
-
-int CookieStore::GetChannelIDServiceID() {
-  return channel_id_service_id_;
-}
-
-void CookieStore::DumpMemoryStats(
-    base::trace_event::ProcessMemoryDump* pmd,
-    const std::string& parent_absolute_name) const {}
-
-CookieStore::CookieStore() : channel_id_service_id_(-1) {}
 
 }  // namespace net

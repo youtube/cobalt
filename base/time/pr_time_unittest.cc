@@ -1,24 +1,36 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if defined(STARBOARD)
-#include "base/test/time_helpers.h"
-#else
+#include <stdint.h>
 #include <time.h>
-#endif
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
 #include "base/third_party/nspr/prtime.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/eztime/eztime.h"
+#endif
 
 using base::Time;
 
 namespace {
+
+#if defined(STARBOARD)
+time_t sb_mktime(struct tm *tm) {
+  if (tm == nullptr) {
+    return -1;
+  }
+  EzTimeExploded exploded = {tm->tm_sec,  tm->tm_min,  tm->tm_hour,
+                             tm->tm_mday, tm->tm_mon,  tm->tm_year,
+                             tm->tm_wday, tm->tm_yday, tm->tm_isdst};
+  EzTimeT secs = EzTimeTImplode(&exploded, EzTimeZone::kEzTimeZoneLocal);
+  return static_cast<time_t>(secs);
+}
+#endif
 
 // time_t representation of 15th Oct 2007 12:45:00 PDT
 PRTime comparison_time_pdt = 1192477500 * Time::kMicrosecondsPerSecond;
@@ -32,12 +44,6 @@ PRTime comparison_time_2 = INT64_C(1373275692441381);   // represented as GMT
 class PRTimeTest : public testing::Test {
  protected:
   void SetUp() override {
-#if defined(STARBOARD)
-    Time local_time = base::test::time_helpers::TestDateToTime(
-        base::test::time_helpers::kTimeZoneLocal);
-    comparison_time_local_ =
-        (local_time - Time::UnixEpoch()).ToInternalValue();
-#else
     // Use mktime to get a time_t, and turn it into a PRTime by converting
     // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
     // must be a time guaranteed to be outside of a DST fallback hour in
@@ -53,8 +59,13 @@ class PRTimeTest : public testing::Test {
       0,            // day of year (ignored, output only)
       -1            // DST in effect, -1 tells mktime to figure it out
     };
+#if defined(STARBOARD)
+    comparison_time_local_ =
+        sb_mktime(&local_comparison_tm) * Time::kMicrosecondsPerSecond;
+#else
     comparison_time_local_ =
         mktime(&local_comparison_tm) * Time::kMicrosecondsPerSecond;
+#endif
     ASSERT_GT(comparison_time_local_, 0);
 
     const int microseconds = 441381;
@@ -69,11 +80,15 @@ class PRTimeTest : public testing::Test {
       0,            // day of year (ignored, output only)
       -1            // DST in effect, -1 tells mktime to figure it out
     };
+#if defined(STARBOARD)
+    comparison_time_local_2_ =
+        sb_mktime(&local_comparison_tm_2) * Time::kMicrosecondsPerSecond;
+#else
     comparison_time_local_2_ =
         mktime(&local_comparison_tm_2) * Time::kMicrosecondsPerSecond;
+#endif
     ASSERT_GT(comparison_time_local_2_, 0);
     comparison_time_local_2_ += microseconds;
-#endif
   }
 
   PRTime comparison_time_local_;
@@ -87,16 +102,19 @@ class PRTimeTest : public testing::Test {
 
 // Tests the PR_ParseTimeString nspr helper function for
 // a variety of time strings.
+
+// Tests the PR_ParseTimeString nspr helper function for
+// a variety of time strings.
 TEST_F(PRTimeTest, ParseTimeTest1) {
   time_t current_time = 0;
   time(&current_time);
 
   struct tm local_time = {};
   char time_buf[64] = {};
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   localtime_s(&local_time, &current_time);
-  asctime_s(time_buf, arraysize(time_buf), &local_time);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+  asctime_s(time_buf, std::size(time_buf), &local_time);
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   localtime_r(&current_time, &local_time);
   asctime_r(&local_time, time_buf);
 #endif
@@ -108,7 +126,7 @@ TEST_F(PRTimeTest, ParseTimeTest1) {
   EXPECT_EQ(PR_SUCCESS, result);
   EXPECT_EQ(current_time64, parsed_time);
 }
-#endif  // !defined(STARBOARD)
+#endif
 
 TEST_F(PRTimeTest, ParseTimeTest2) {
   PRTime parsed_time = 0;
@@ -226,7 +244,6 @@ TEST_F(PRTimeTest, ParseTimeTest15) {
   EXPECT_EQ(comparison_time_2-1, parsed_time);
 }
 
-#if !defined(STARBOARD)
 // Fractional seconds, local timezone.
 TEST_F(PRTimeTest, ParseTimeTest16) {
   PRTime parsed_time = 0;
@@ -235,7 +252,6 @@ TEST_F(PRTimeTest, ParseTimeTest16) {
   EXPECT_EQ(PR_SUCCESS, result);
   EXPECT_EQ(comparison_time_local_2_, parsed_time);
 }
-#endif
 
 // "Z" (=GMT) timezone.
 TEST_F(PRTimeTest, ParseTimeTest17) {

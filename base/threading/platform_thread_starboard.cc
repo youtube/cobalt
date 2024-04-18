@@ -14,6 +14,8 @@
 
 #include "base/threading/platform_thread.h"
 
+#include <sched.h>
+
 #include "base/logging.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
@@ -31,8 +33,9 @@ struct ThreadParams {
 void* ThreadFunc(void* params) {
   ThreadParams* thread_params = static_cast<ThreadParams*>(params);
   PlatformThread::Delegate* delegate = thread_params->delegate;
+  absl::optional<ScopedDisallowSingleton> disallow_singleton;
   if (!thread_params->joinable) {
-    base::ThreadRestrictions::SetSingletonAllowed(false);
+    disallow_singleton.emplace();
   }
 
   delete thread_params;
@@ -74,8 +77,24 @@ bool CreateThread(size_t stack_size,
   return false;
 }
 
-inline SbThreadPriority toSbPriority(ThreadPriority priority) {
-  return static_cast<SbThreadPriority>(priority);
+inline SbThreadPriority toSbPriority(ThreadType priority) {
+  switch (priority) {
+    case ThreadType::kBackground:
+      return kSbThreadPriorityLowest;
+    case ThreadType::kUtility:
+      return kSbThreadPriorityLow;
+    case ThreadType::kResourceEfficient:
+      return kSbThreadPriorityNormal;
+    case ThreadType::kDefault:
+      return kSbThreadNoPriority;
+    case ThreadType::kCompositing:
+      return kSbThreadPriorityHigh;
+    case ThreadType::kDisplayCritical:
+      return kSbThreadPriorityHighest;
+    case ThreadType::kRealtimeAudio:
+      return kSbThreadPriorityRealTime;
+  };
+  NOTREACHED();
 }
 }  // namespace
 
@@ -96,7 +115,7 @@ PlatformThreadHandle PlatformThread::CurrentHandle() {
 
 // static
 void PlatformThread::YieldCurrentThread() {
-  SbThreadYield();
+  sched_yield();
 }
 
 // static
@@ -116,19 +135,21 @@ const char* PlatformThread::GetName() {
 }
 
 // static
-bool PlatformThread::CreateWithPriority(size_t stack_size,
+bool PlatformThread::CreateWithType(size_t stack_size,
                                         Delegate* delegate,
                                         PlatformThreadHandle* thread_handle,
-                                        ThreadPriority priority) {
+                                        ThreadType priority,
+                                        MessagePumpType /* pump_type_hint */) {
   return CreateThread(stack_size, toSbPriority(priority), kSbThreadNoAffinity,
                       true /* joinable thread */, NULL, delegate,
                       thread_handle);
 }
 
 // static
-bool PlatformThread::CreateNonJoinableWithPriority(size_t stack_size,
+bool PlatformThread::CreateNonJoinableWithType(size_t stack_size,
                                                    Delegate* delegate,
-                                                   ThreadPriority priority) {
+                                                   ThreadType priority,
+                                                   MessagePumpType /* pump_type_hint */) {
   return CreateThread(stack_size, toSbPriority(priority), kSbThreadNoAffinity,
                       false /* joinable thread */, NULL, delegate, NULL);
 }
@@ -138,7 +159,7 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   // Joining another thread may block the current thread for a long time, since
   // the thread referred to by |thread_handle| may still be running long-lived /
   // blocking tasks.
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
   SbThreadJoin(thread_handle.platform_handle(), NULL);
 }
 
@@ -146,18 +167,23 @@ void PlatformThread::Detach(PlatformThreadHandle thread_handle) {
   SbThreadDetach(thread_handle.platform_handle());
 }
 
-void PlatformThread::SetCurrentThreadPriority(ThreadPriority priority) {
+void internal::SetCurrentThreadTypeImpl(ThreadType /* thread_type */, MessagePumpType /*pump_type_hint*/) {
   NOTIMPLEMENTED();
-}
-
-ThreadPriority PlatformThread::GetCurrentThreadPriority() {
-  NOTIMPLEMENTED();
-  return ThreadPriority::NORMAL;
 }
 
 // static
-bool PlatformThread::CanIncreaseThreadPriority(ThreadPriority priority) {
+bool PlatformThread::CanChangeThreadType(ThreadType /* from */, ThreadType /* to */) {
   return false;
+}
+
+size_t PlatformThread::GetDefaultThreadStackSize() {
+  return 0;
+}
+
+// static
+ThreadPriorityForTest PlatformThread::GetCurrentThreadPriorityForTest() {
+  NOTIMPLEMENTED();
+  return ThreadPriorityForTest::kNormal;
 }
 
 }  // namespace base

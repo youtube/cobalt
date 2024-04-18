@@ -19,6 +19,7 @@
 
 #include "base/containers/hash_tables.h"
 #include "base/files/file_path.h"
+#include "base/macros.h"
 #include "cobalt/base/log_message_handler.h"
 
 namespace cobalt {

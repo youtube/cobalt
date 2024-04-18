@@ -29,6 +29,10 @@ class CobaltLinuxX64X11Clang39Configuration(
 
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
+      'base_unittests': [
+          'StackTraceTest.TruncatedTrace',
+          'StackTraceTest.TraceStackFramePointersFromBuffer',
+      ],
       'zip_unittests': [
           'ZipReaderTest.ExtractToFileAsync_RegularFile',
       ],

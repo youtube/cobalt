@@ -21,9 +21,8 @@
 
 #include "base/synchronization/waitable_event.h"
 #include "base/test/mock_callback.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "base/threading/platform_thread.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/time/time.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
 #include "media/base/demuxer.h"
@@ -81,7 +80,7 @@ class MockDataSource : public DataSource {
     // interact with callbacks and/or output parameters.
     ON_CALL(*this, Read(_, _, _, _))
         .WillByDefault(Invoke(+[](int64_t position, int size, uint8_t* data,
-                                  const DataSource::ReadCB& read_cb) {
+                                  DataSource::ReadCB read_cb) {
           memset(data, 0, size);
           read_cb.Run(size);
         }));
@@ -94,7 +93,7 @@ class MockDataSource : public DataSource {
   ~MockDataSource() override = default;
 
   MOCK_METHOD4(Read, void(int64_t position, int size, uint8_t* data,
-                          const DataSource::ReadCB& read_cb));
+                          DataSource::ReadCB read_cb));
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD0(Abort, void());
   MOCK_METHOD1(GetSize, bool(int64_t* size_out));
@@ -255,8 +254,8 @@ class DemuxerExtensionWrapperTest : public ::testing::Test {
   }
 
   // This must be deleted last.
-  base::test::ScopedTaskEnvironment task_environment_{
-      base::test::ScopedTaskEnvironment::MainThreadType::MOCK_TIME};
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::DEFAULT};
   // This is necessary in order to allocate DecoderBuffers. This is done
   // internally in DemuxerExtensionWrapper.
   DecoderBufferAllocator allocator_;
@@ -295,7 +294,7 @@ TEST_F(DemuxerExtensionWrapperTest, SuccessfullyInitializes) {
 
   std::unique_ptr<DemuxerExtensionWrapper> demuxer_wrapper =
       DemuxerExtensionWrapper::Create(
-          &data_source, base::SequencedTaskRunnerHandle::Get(), &api);
+          &data_source, base::SequencedTaskRunner::GetCurrentDefault(), &api);
 
   ASSERT_THAT(demuxer_wrapper, NotNull());
 
@@ -360,7 +359,7 @@ TEST_F(DemuxerExtensionWrapperTest, ProvidesAudioAndVideoStreams) {
 
   std::unique_ptr<DemuxerExtensionWrapper> demuxer_wrapper =
       DemuxerExtensionWrapper::Create(
-          &data_source, base::SequencedTaskRunnerHandle::Get(), &api);
+          &data_source, base::SequencedTaskRunner::GetCurrentDefault(), &api);
 
   ASSERT_THAT(demuxer_wrapper, NotNull());
 
@@ -445,7 +444,7 @@ TEST_F(DemuxerExtensionWrapperTest, ReadsAudioData) {
 
   std::unique_ptr<DemuxerExtensionWrapper> demuxer_wrapper =
       DemuxerExtensionWrapper::Create(
-          &data_source, base::SequencedTaskRunnerHandle::Get(), &api);
+          &data_source, base::SequencedTaskRunner::GetCurrentDefault(), &api);
 
   ASSERT_THAT(demuxer_wrapper, NotNull());
 
@@ -585,7 +584,7 @@ TEST_F(DemuxerExtensionWrapperTest, ReadsVideoData) {
 
   std::unique_ptr<DemuxerExtensionWrapper> demuxer_wrapper =
       DemuxerExtensionWrapper::Create(
-          &data_source, base::SequencedTaskRunnerHandle::Get(), &api);
+          &data_source, base::SequencedTaskRunner::GetCurrentDefault(), &api);
 
   ASSERT_THAT(demuxer_wrapper, NotNull());
 

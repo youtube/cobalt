@@ -16,7 +16,11 @@
 // this is hooked up to something.
 
 #include <fcntl.h>
+#include <sched.h>
+
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
+
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace nplb {
@@ -95,7 +99,7 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
     }
 
     // Just being polite.
-    SbThreadYield();
+    sched_yield();
   }
   EXPECT_FALSE(accepted_socket_fd >= 0);
 

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sched.h>
 #include <algorithm>
 #include <numeric>
 #include <random>
@@ -263,7 +264,7 @@ class CompareExchangeThread : public TestThread {
           // 1 in 3 chance of yielding.
           // Attempt to cause more contention by giving other threads a chance
           // to run.
-          SbThreadYield();
+          sched_yield();
         }
 
         const T prev_value = atomic_value_->load();
@@ -402,7 +403,7 @@ class IncrementAndDecrementThread : public TestThread {
         // 1 in 3 chance of yielding.
         // Attempt to cause more contention by giving other threads a chance
         // to run.
-        SbThreadYield();
+        sched_yield();
       }
       T prev_value = 0;
       if (operation_sequence_[i]) {
@@ -471,7 +472,7 @@ class FetchAddSubThread : public TestThread {
         // 1 in 3 chance of yielding.
         // Attempt to cause more contention by giving other threads a chance
         // to run.s
-        SbThreadYield();
+        sched_yield();
       }
 
       if (std::rand() % 2 == 0) {

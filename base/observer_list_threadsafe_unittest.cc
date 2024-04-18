@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,22 +7,25 @@
 #include <memory>
 #include <vector>
 
-#include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
-#include "base/sequenced_task_runner.h"
-#include "base/single_thread_task_runner.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/task/post_task.h"
-#include "base/task/task_scheduler/task_scheduler.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
+#include "base/test/bind.h"
+#include "base/test/task_environment.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace {
@@ -59,58 +62,37 @@ class AddInObserve : public Foo {
 
   void Observe(int x) override {
     if (to_add_) {
-      observer_list->AddObserver(to_add_);
+      observer_list->AddObserver(to_add_.get());
       to_add_ = nullptr;
     }
   }
 
-  ObserverListThreadSafe<Foo>* observer_list;
-  Foo* to_add_;
+  raw_ptr<ObserverListThreadSafe<Foo>> observer_list;
+  raw_ptr<Foo> to_add_;
 };
 
-// A thread for use in the ThreadSafeObserver test which will add and remove
+// A task for use in the ThreadSafeObserver test which will add and remove
 // itself from the notification list repeatedly.
-class AddRemoveThread : public PlatformThread::Delegate, public Foo {
+class AddRemoveThread : public Foo {
  public:
-  AddRemoveThread(ObserverListThreadSafe<Foo>* list,
-                  bool notify,
-                  WaitableEvent* ready)
+  AddRemoveThread(ObserverListThreadSafe<Foo>* list, bool notify)
       : list_(list),
-        loop_(nullptr),
+        task_runner_(ThreadPool::CreateSingleThreadTaskRunner(
+            {},
+            SingleThreadTaskRunnerThreadMode::DEDICATED)),
         in_list_(false),
         start_(Time::Now()),
-        count_observes_(0),
-        count_addtask_(0),
-        do_notifies_(notify),
-        ready_(ready),
-        weak_factory_(this) {}
-
-  ~AddRemoveThread() override = default;
-
-  void ThreadMain() override {
-    loop_ = new MessageLoop();  // Fire up a message loop.
-    loop_->task_runner()->PostTask(
+        do_notifies_(notify) {
+    task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&AddRemoveThread::AddTask, weak_factory_.GetWeakPtr()));
-    ready_->Signal();
-    // After ready_ is signaled, loop_ is only accessed by the main test thread
-    // (i.e. not this thread) in particular by Quit() which causes Run() to
-    // return, and we "control" loop_ again.
-    RunLoop run_loop;
-    quit_loop_ = run_loop.QuitClosure();
-    run_loop.Run();
-    delete loop_;
-#if !SB_IS(COMPILER_MSVC)
-    loop_ = reinterpret_cast<MessageLoop*>(0xdeadbeef);
-#endif
-    delete this;
   }
+
+  ~AddRemoveThread() override = default;
 
   // This task just keeps posting to itself in an attempt to race with the
   // notifier.
   void AddTask() {
-    count_addtask_++;
-
     if ((Time::Now() - start_).InMilliseconds() > kThreadRunTime) {
       VLOG(1) << "DONE!";
       return;
@@ -125,65 +107,61 @@ class AddRemoveThread : public PlatformThread::Delegate, public Foo {
       list_->Notify(FROM_HERE, &Foo::Observe, 10);
     }
 
-    loop_->task_runner()->PostTask(
+    SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&AddRemoveThread::AddTask, weak_factory_.GetWeakPtr()));
   }
 
-  // This function is only callable from the main thread.
-  void Quit() { std::move(quit_loop_).Run(); }
-
   void Observe(int x) override {
-    count_observes_++;
-
     // If we're getting called after we removed ourselves from the list, that is
     // very bad!
-    DCHECK(in_list_);
+    EXPECT_TRUE(in_list_);
 
     // This callback should fire on the appropriate thread
-    EXPECT_EQ(loop_, MessageLoop::current());
+    EXPECT_TRUE(task_runner_->BelongsToCurrentThread());
 
     list_->RemoveObserver(this);
     in_list_ = false;
   }
 
  private:
-  ObserverListThreadSafe<Foo>* list_;
-  MessageLoop* loop_;
+  raw_ptr<ObserverListThreadSafe<Foo>> list_;
+  scoped_refptr<SingleThreadTaskRunner> task_runner_;
   bool in_list_;  // Are we currently registered for notifications.
                   // in_list_ is only used on |this| thread.
   Time start_;    // The time we started the test.
 
-  int count_observes_;  // Number of times we observed.
-  int count_addtask_;   // Number of times thread AddTask was called
   bool do_notifies_;    // Whether these threads should do notifications.
-  WaitableEvent* ready_;
 
-  base::OnceClosure quit_loop_;
-
-  base::WeakPtrFactory<AddRemoveThread> weak_factory_;
+  base::WeakPtrFactory<AddRemoveThread> weak_factory_{this};
 };
 
 }  // namespace
 
 TEST(ObserverListThreadSafeTest, BasicTest) {
-  MessageLoop loop;
+  using List = ObserverListThreadSafe<Foo>;
+  test::TaskEnvironment task_environment;
 
-  scoped_refptr<ObserverListThreadSafe<Foo>> observer_list(
-      new ObserverListThreadSafe<Foo>);
+  scoped_refptr<List> observer_list(new List);
   Adder a(1);
   Adder b(-1);
   Adder c(1);
   Adder d(-1);
 
-  observer_list->AddObserver(&a);
-  observer_list->AddObserver(&b);
+  List::AddObserverResult result;
+
+  result = observer_list->AddObserver(&a);
+  EXPECT_EQ(result, List::AddObserverResult::kBecameNonEmpty);
+  result = observer_list->AddObserver(&b);
+  EXPECT_EQ(result, List::AddObserverResult::kWasAlreadyNonEmpty);
 
   observer_list->Notify(FROM_HERE, &Foo::Observe, 10);
   RunLoop().RunUntilIdle();
 
-  observer_list->AddObserver(&c);
-  observer_list->AddObserver(&d);
+  result = observer_list->AddObserver(&c);
+  EXPECT_EQ(result, List::AddObserverResult::kWasAlreadyNonEmpty);
+  result = observer_list->AddObserver(&d);
+  EXPECT_EQ(result, List::AddObserverResult::kWasAlreadyNonEmpty);
 
   observer_list->Notify(FROM_HERE, &Foo::Observe, 10);
   observer_list->RemoveObserver(&c);
@@ -196,18 +174,22 @@ TEST(ObserverListThreadSafeTest, BasicTest) {
 }
 
 TEST(ObserverListThreadSafeTest, RemoveObserver) {
-  MessageLoop loop;
+  using List = ObserverListThreadSafe<Foo>;
+  test::TaskEnvironment task_environment;
 
-  scoped_refptr<ObserverListThreadSafe<Foo>> observer_list(
-      new ObserverListThreadSafe<Foo>);
+  scoped_refptr<List> observer_list(new List);
   Adder a(1), b(1);
 
   // A workaround for the compiler bug. See http://crbug.com/121960.
   EXPECT_NE(&a, &b);
 
+  List::RemoveObserverResult result;
+
   // Should do nothing.
-  observer_list->RemoveObserver(&a);
-  observer_list->RemoveObserver(&b);
+  result = observer_list->RemoveObserver(&a);
+  EXPECT_EQ(result, List::RemoveObserverResult::kWasOrBecameEmpty);
+  result = observer_list->RemoveObserver(&b);
+  EXPECT_EQ(result, List::RemoveObserverResult::kWasOrBecameEmpty);
 
   observer_list->Notify(FROM_HERE, &Foo::Observe, 10);
   RunLoop().RunUntilIdle();
@@ -218,64 +200,17 @@ TEST(ObserverListThreadSafeTest, RemoveObserver) {
   observer_list->AddObserver(&a);
 
   // Should also do nothing.
-  observer_list->RemoveObserver(&b);
+  result = observer_list->RemoveObserver(&b);
+  EXPECT_EQ(result, List::RemoveObserverResult::kRemainsNonEmpty);
 
   observer_list->Notify(FROM_HERE, &Foo::Observe, 10);
   RunLoop().RunUntilIdle();
 
   EXPECT_EQ(10, a.total);
   EXPECT_EQ(0, b.total);
-}
 
-TEST(ObserverListThreadSafeTest, WithoutSequence) {
-  scoped_refptr<ObserverListThreadSafe<Foo>> observer_list(
-      new ObserverListThreadSafe<Foo>);
-
-  Adder a(1), b(1), c(1);
-
-  // No sequence, so these should not be added.
-  observer_list->AddObserver(&a);
-  observer_list->AddObserver(&b);
-
-  {
-    // Add c when there's a sequence.
-    MessageLoop loop;
-    observer_list->AddObserver(&c);
-
-    observer_list->Notify(FROM_HERE, &Foo::Observe, 10);
-    RunLoop().RunUntilIdle();
-
-    EXPECT_EQ(0, a.total);
-    EXPECT_EQ(0, b.total);
-    EXPECT_EQ(10, c.total);
-
-    // Now add a when there's a sequence.
-    observer_list->AddObserver(&a);
-
-    // Remove c when there's a sequence.
-    observer_list->RemoveObserver(&c);
-
-    // Notify again.
-    observer_list->Notify(FROM_HERE, &Foo::Observe, 20);
-    RunLoop().RunUntilIdle();
-
-    EXPECT_EQ(20, a.total);
-    EXPECT_EQ(0, b.total);
-    EXPECT_EQ(10, c.total);
-  }
-
-  // Removing should always succeed with or without a sequence.
-  observer_list->RemoveObserver(&a);
-
-  // Notifying should not fail but should also be a no-op.
-  MessageLoop loop;
-  observer_list->AddObserver(&b);
-  observer_list->Notify(FROM_HERE, &Foo::Observe, 30);
-  RunLoop().RunUntilIdle();
-
-  EXPECT_EQ(20, a.total);
-  EXPECT_EQ(30, b.total);
-  EXPECT_EQ(10, c.total);
+  result = observer_list->RemoveObserver(&a);
+  EXPECT_EQ(result, List::RemoveObserverResult::kWasOrBecameEmpty);
 }
 
 class FooRemover : public Foo {
@@ -288,8 +223,8 @@ class FooRemover : public Foo {
   void Observe(int x) override {
     std::vector<Foo*> tmp;
     tmp.swap(foos_);
-    for (auto it = tmp.begin(); it != tmp.end(); ++it) {
-      list_->RemoveObserver(*it);
+    for (auto* it : tmp) {
+      list_->RemoveObserver(it);
     }
   }
 
@@ -299,7 +234,7 @@ class FooRemover : public Foo {
 };
 
 TEST(ObserverListThreadSafeTest, RemoveMultipleObservers) {
-  MessageLoop loop;
+  test::TaskEnvironment task_environment;
   scoped_refptr<ObserverListThreadSafe<Foo>> observer_list(
       new ObserverListThreadSafe<Foo>);
 
@@ -322,7 +257,7 @@ TEST(ObserverListThreadSafeTest, RemoveMultipleObservers) {
 // observer threads will also trigger notifications to all observers.
 static void ThreadSafeObserverHarness(int num_threads,
                                       bool cross_thread_notifies) {
-  MessageLoop loop;
+  test::TaskEnvironment task_environment;
 
   scoped_refptr<ObserverListThreadSafe<Foo>> observer_list(
       new ObserverListThreadSafe<Foo>);
@@ -332,27 +267,13 @@ static void ThreadSafeObserverHarness(int num_threads,
   observer_list->AddObserver(&a);
   observer_list->AddObserver(&b);
 
-  std::vector<AddRemoveThread*> threaded_observer;
-  std::vector<base::PlatformThreadHandle> threads(num_threads);
-  std::vector<std::unique_ptr<base::WaitableEvent>> ready;
+  std::vector<std::unique_ptr<AddRemoveThread>> threaded_observer;
   threaded_observer.reserve(num_threads);
-  ready.reserve(num_threads);
   for (int index = 0; index < num_threads; index++) {
-    ready.push_back(std::make_unique<WaitableEvent>(
-        WaitableEvent::ResetPolicy::MANUAL,
-        WaitableEvent::InitialState::NOT_SIGNALED));
-    threaded_observer.push_back(new AddRemoveThread(
-        observer_list.get(), cross_thread_notifies, ready.back().get()));
-    EXPECT_TRUE(
-        PlatformThread::Create(0, threaded_observer.back(), &threads[index]));
+    threaded_observer.push_back(std::make_unique<AddRemoveThread>(
+        observer_list.get(), cross_thread_notifies));
   }
   ASSERT_EQ(static_cast<size_t>(num_threads), threaded_observer.size());
-  ASSERT_EQ(static_cast<size_t>(num_threads), ready.size());
-
-  // This makes sure that threaded_observer has gotten to set loop_, so that we
-  // can call Quit() below safe-ish-ly.
-  for (int i = 0; i < num_threads; ++i)
-    ready[i]->Wait();
 
   Time start = Time::Now();
   while (true) {
@@ -364,19 +285,10 @@ static void ThreadSafeObserverHarness(int num_threads,
     RunLoop().RunUntilIdle();
   }
 
-  for (int index = 0; index < num_threads; index++) {
-    threaded_observer[index]->Quit();
-    PlatformThread::Join(threads[index]);
-  }
+  task_environment.RunUntilIdle();
 }
 
-#if defined(OS_FUCHSIA)
-// TODO(crbug.com/738275): This is flaky on Fuchsia.
-#define MAYBE_CrossThreadObserver DISABLED_CrossThreadObserver
-#else
-#define MAYBE_CrossThreadObserver CrossThreadObserver
-#endif
-TEST(ObserverListThreadSafeTest, MAYBE_CrossThreadObserver) {
+TEST(ObserverListThreadSafeTest, CrossThreadObserver) {
   // Use 7 observer threads.  Notifications only come from the main thread.
   ThreadSafeObserverHarness(7, false);
 }
@@ -387,14 +299,14 @@ TEST(ObserverListThreadSafeTest, CrossThreadNotifications) {
   ThreadSafeObserverHarness(3, true);
 }
 
-TEST(ObserverListThreadSafeTest, OutlivesMessageLoop) {
-  MessageLoop* loop = new MessageLoop;
+TEST(ObserverListThreadSafeTest, OutlivesTaskEnvironment) {
+  absl::optional<test::TaskEnvironment> task_environment(absl::in_place);
   scoped_refptr<ObserverListThreadSafe<Foo>> observer_list(
       new ObserverListThreadSafe<Foo>);
 
   Adder a(1);
   observer_list->AddObserver(&a);
-  delete loop;
+  task_environment.reset();
   // Test passes if we don't crash here.
   observer_list->Notify(FROM_HERE, &Foo::Observe, 1);
 }
@@ -406,6 +318,9 @@ class SequenceVerificationObserver : public Foo {
   explicit SequenceVerificationObserver(
       scoped_refptr<SequencedTaskRunner> task_runner)
       : task_runner_(std::move(task_runner)) {}
+  SequenceVerificationObserver(const SequenceVerificationObserver&) = delete;
+  SequenceVerificationObserver& operator=(const SequenceVerificationObserver&) =
+      delete;
   ~SequenceVerificationObserver() override = default;
 
   void Observe(int x) override {
@@ -417,36 +332,36 @@ class SequenceVerificationObserver : public Foo {
  private:
   const scoped_refptr<SequencedTaskRunner> task_runner_;
   bool called_on_valid_sequence_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(SequenceVerificationObserver);
 };
 
 }  // namespace
 
 // Verify that observers are notified on the correct sequence.
 TEST(ObserverListThreadSafeTest, NotificationOnValidSequence) {
-  test::ScopedTaskEnvironment scoped_task_environment;
+  test::TaskEnvironment task_environment;
 
-  auto task_runner_1 = CreateSequencedTaskRunnerWithTraits(TaskTraits());
-  auto task_runner_2 = CreateSequencedTaskRunnerWithTraits(TaskTraits());
+  auto task_runner_1 = ThreadPool::CreateSequencedTaskRunner({});
+  auto task_runner_2 = ThreadPool::ThreadPool::CreateSequencedTaskRunner({});
 
   auto observer_list = MakeRefCounted<ObserverListThreadSafe<Foo>>();
 
   SequenceVerificationObserver observer_1(task_runner_1);
   SequenceVerificationObserver observer_2(task_runner_2);
 
-  task_runner_1->PostTask(FROM_HERE,
-                          BindOnce(&ObserverListThreadSafe<Foo>::AddObserver,
-                                   observer_list, Unretained(&observer_1)));
-  task_runner_2->PostTask(FROM_HERE,
-                          BindOnce(&ObserverListThreadSafe<Foo>::AddObserver,
-                                   observer_list, Unretained(&observer_2)));
+  task_runner_1->PostTask(
+      FROM_HERE,
+      BindOnce(base::IgnoreResult(&ObserverListThreadSafe<Foo>::AddObserver),
+               observer_list, Unretained(&observer_1)));
+  task_runner_2->PostTask(
+      FROM_HERE,
+      BindOnce(base::IgnoreResult(&ObserverListThreadSafe<Foo>::AddObserver),
+               observer_list, Unretained(&observer_2)));
 
-  TaskScheduler::GetInstance()->FlushForTesting();
+  ThreadPoolInstance::Get()->FlushForTesting();
 
   observer_list->Notify(FROM_HERE, &Foo::Observe, 1);
 
-  TaskScheduler::GetInstance()->FlushForTesting();
+  ThreadPoolInstance::Get()->FlushForTesting();
 
   EXPECT_TRUE(observer_1.called_on_valid_sequence());
   EXPECT_TRUE(observer_2.called_on_valid_sequence());
@@ -455,7 +370,7 @@ TEST(ObserverListThreadSafeTest, NotificationOnValidSequence) {
 // Verify that when an observer is added to a NOTIFY_ALL ObserverListThreadSafe
 // from a notification, it is itself notified.
 TEST(ObserverListThreadSafeTest, AddObserverFromNotificationNotifyAll) {
-  test::ScopedTaskEnvironment scoped_task_environment;
+  test::TaskEnvironment task_environment;
   auto observer_list = MakeRefCounted<ObserverListThreadSafe<Foo>>();
 
   Adder observer_added_from_notification(1);
@@ -480,6 +395,10 @@ class RemoveWhileNotificationIsRunningObserver : public Foo {
                               WaitableEvent::InitialState::NOT_SIGNALED),
         barrier_(WaitableEvent::ResetPolicy::AUTOMATIC,
                  WaitableEvent::InitialState::NOT_SIGNALED) {}
+  RemoveWhileNotificationIsRunningObserver(
+      const RemoveWhileNotificationIsRunningObserver&) = delete;
+  RemoveWhileNotificationIsRunningObserver& operator=(
+      const RemoveWhileNotificationIsRunningObserver&) = delete;
   ~RemoveWhileNotificationIsRunningObserver() override = default;
 
   void Observe(int x) override {
@@ -494,8 +413,6 @@ class RemoveWhileNotificationIsRunningObserver : public Foo {
  private:
   WaitableEvent notification_running_;
   WaitableEvent barrier_;
-
-  DISALLOW_COPY_AND_ASSIGN(RemoveWhileNotificationIsRunningObserver);
 };
 
 }  // namespace
@@ -512,14 +429,15 @@ TEST(ObserverListThreadSafeTest, RemoveWhileNotificationIsRunning) {
                         WaitableEvent::InitialState::NOT_SIGNALED);
 
   // This must be after the declaration of |barrier| so that tasks posted to
-  // TaskScheduler can safely use |barrier|.
-  test::ScopedTaskEnvironment scoped_task_environment;
+  // ThreadPool can safely use |barrier|.
+  test::TaskEnvironment task_environment;
 
-  CreateSequencedTaskRunnerWithTraits({MayBlock()})
+  ThreadPool::CreateSequencedTaskRunner({MayBlock()})
       ->PostTask(FROM_HERE,
-                 base::BindOnce(&ObserverListThreadSafe<Foo>::AddObserver,
+                 base::BindOnce(base::IgnoreResult(
+                                    &ObserverListThreadSafe<Foo>::AddObserver),
                                 observer_list, Unretained(&observer)));
-  TaskScheduler::GetInstance()->FlushForTesting();
+  ThreadPoolInstance::Get()->FlushForTesting();
 
   observer_list->Notify(FROM_HERE, &Foo::Observe, 1);
   observer.WaitForNotificationRunning();
@@ -528,9 +446,50 @@ TEST(ObserverListThreadSafeTest, RemoveWhileNotificationIsRunning) {
   observer.Unblock();
 }
 
+TEST(ObserverListThreadSafeTest, AddRemoveWithPendingNotifications) {
+  test::TaskEnvironment task_environment;
+
+  scoped_refptr<ObserverListThreadSafe<Foo>> observer_list(
+      new ObserverListThreadSafe<Foo>);
+  Adder a(1);
+  Adder b(1);
+
+  observer_list->AddObserver(&a);
+  observer_list->AddObserver(&b);
+
+  // Remove observer `a` while there is a pending notification for observer `a`.
+  observer_list->Notify(FROM_HERE, &Foo::Observe, 10);
+  observer_list->RemoveObserver(&a);
+  RunLoop().RunUntilIdle();
+  observer_list->AddObserver(&a);
+
+  EXPECT_EQ(0, a.total);
+  EXPECT_EQ(10, b.total);
+
+  // Remove and re-adding observer `a` while there is a pending notification for
+  // observer `a`. The notification to `a` must not be executed since it was
+  // sent before the removal of `a`.
+  observer_list->Notify(FROM_HERE, &Foo::Observe, 10);
+  observer_list->RemoveObserver(&a);
+  observer_list->AddObserver(&a);
+  RunLoop().RunUntilIdle();
+
+  EXPECT_EQ(0, a.total);
+  EXPECT_EQ(20, b.total);
+
+  // Observer `a` and `b` are present and should both receive a notification.
+  observer_list->RemoveObserver(&a);
+  observer_list->AddObserver(&a);
+  observer_list->Notify(FROM_HERE, &Foo::Observe, 10);
+  RunLoop().RunUntilIdle();
+
+  EXPECT_EQ(10, a.total);
+  EXPECT_EQ(30, b.total);
+}
+
 // Same as ObserverListTest.Existing, but for ObserverListThreadSafe
 TEST(ObserverListThreadSafeTest, Existing) {
-  MessageLoop loop;
+  test::TaskEnvironment task_environment;
   scoped_refptr<ObserverListThreadSafe<Foo>> observer_list(
       new ObserverListThreadSafe<Foo>(ObserverListPolicy::EXISTING_ONLY));
   Adder a(1);

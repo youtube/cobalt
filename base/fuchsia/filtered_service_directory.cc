@@ -1,64 +1,43 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/fuchsia/filtered_service_directory.h"
 
-#include <lib/fdio/util.h>
-#include <lib/zx/channel.h>
+#include <lib/async/default.h>
+#include <utility>
 
-#include "base/bind.h"
-#include "base/fuchsia/component_context.h"
 #include "base/fuchsia/fuchsia_logging.h"
-#include "starboard/types.h"
+#include "base/functional/bind.h"
+#include "base/strings/string_piece.h"
 
 namespace base {
-namespace fuchsia {
 
 FilteredServiceDirectory::FilteredServiceDirectory(
-    ComponentContext* component_context)
-    : component_context_(component_context) {
-  zx::channel server_channel;
-  zx_status_t status =
-      zx::channel::create(0, &server_channel, &directory_client_channel_);
-  ZX_CHECK(status == ZX_OK, status) << "zx_channel_create()";
+    std::shared_ptr<sys::ServiceDirectory> directory)
+    : directory_(directory) {}
 
-  service_directory_ =
-      std::make_unique<ServiceDirectory>(std::move(server_channel));
+FilteredServiceDirectory::~FilteredServiceDirectory() = default;
+
+zx_status_t FilteredServiceDirectory::AddService(StringPiece service_name) {
+  return outgoing_directory_.AddPublicService(
+      std::make_unique<vfs::Service>(
+          [this, service_name = std::string(service_name)](
+              zx::channel channel, async_dispatcher_t* dispatcher) {
+            DCHECK_EQ(dispatcher, async_get_default_dispatcher());
+            directory_->Connect(service_name, std::move(channel));
+          }),
+      std::string(service_name));
 }
 
-FilteredServiceDirectory::~FilteredServiceDirectory() {
-  service_directory_->RemoveAllServices();
-}
-
-void FilteredServiceDirectory::AddService(const char* service_name) {
-  service_directory_->AddService(
-      service_name,
-      base::BindRepeating(&FilteredServiceDirectory::HandleRequest,
-                          base::Unretained(this), service_name));
-}
-
-zx::channel FilteredServiceDirectory::ConnectClient() {
-  zx::channel server_channel;
-  zx::channel client_channel;
-  zx_status_t status = zx::channel::create(0, &server_channel, &client_channel);
-  ZX_CHECK(status == ZX_OK, status) << "zx_channel_create()";
-
-  // ServiceDirectory puts public services under ./public . Connect to that
+zx_status_t FilteredServiceDirectory::ConnectClient(
+    fidl::InterfaceRequest<fuchsia::io::Directory> dir_request) {
+  // sys::OutgoingDirectory puts public services under ./svc . Connect to that
   // directory and return client handle for the connection,
-  status = fdio_service_connect_at(directory_client_channel_.get(), "public",
-                                   server_channel.release());
-  ZX_CHECK(status == ZX_OK, status) << "fdio_service_connect_at()";
-
-  return client_channel;
+  return outgoing_directory_.GetOrCreateDirectory("svc")->Serve(
+      fuchsia::io::OpenFlags::RIGHT_READABLE |
+          fuchsia::io::OpenFlags::RIGHT_WRITABLE,
+      dir_request.TakeChannel());
 }
 
-void FilteredServiceDirectory::HandleRequest(const char* service_name,
-                                             zx::channel channel) {
-  component_context_->ConnectToService(
-      FidlInterfaceRequest::CreateFromChannelUnsafe(service_name,
-                                                    std::move(channel)));
-}
-
-}  // namespace fuchsia
 }  // namespace base

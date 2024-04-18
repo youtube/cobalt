@@ -8,10 +8,9 @@
 #include "base/bind_post_task.h"
 #include "base/callback.h"
 #include "base/location.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 
 // Helpers for using base::BindPostTask() with the TaskRunner for the current
-// sequence, ie. base::SequencedTaskRunnerHandle::Get().
+// sequence, ie.base::SequencedTaskRunner::GetCurrentDefault().
 
 namespace media {
 
@@ -20,14 +19,14 @@ namespace media {
 template <typename... Args>
 inline base::RepeatingCallback<void(Args...)> BindToCurrentLoop(
     base::RepeatingCallback<void(Args...)> cb) {
-  return base::BindPostTask(base::SequencedTaskRunnerHandle::Get(),
+  return base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
                             std::move(cb), FROM_HERE);
 }
 
 template <typename... Args>
 inline base::OnceCallback<void(Args...)> BindToCurrentLoop(
     base::OnceCallback<void(Args...)> cb) {
-  return base::BindPostTask(base::SequencedTaskRunnerHandle::Get(),
+  return base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
                             std::move(cb), FROM_HERE);
 }
 

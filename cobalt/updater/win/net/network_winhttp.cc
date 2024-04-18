@@ -9,7 +9,7 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
@@ -50,7 +50,7 @@ void CrackUrl(const GURL& url,
 }  // namespace
 
 NetworkFetcherWinHTTP::NetworkFetcherWinHTTP(const HINTERNET& session_handle)
-    : main_thread_task_runner_(base::ThreadTaskRunnerHandle::Get()),
+    : main_thread_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       session_handle_(session_handle) {}
 
 NetworkFetcherWinHTTP::~NetworkFetcherWinHTTP() {}

@@ -1,12 +1,12 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/spdy/http2_push_promise_index.h"
 
-#include <algorithm>
 #include <utility>
 
+#include "base/ranges/algorithm.h"
 #include "base/trace_event/memory_usage_estimator.h"
 
 namespace net {
@@ -62,11 +62,8 @@ size_t Http2PushPromiseIndex::CountStreamsForSession(
     const Delegate* delegate) const {
   DCHECK(delegate);
 
-  return std::count_if(unclaimed_pushed_streams_.begin(),
-                       unclaimed_pushed_streams_.end(),
-                       [&delegate](const UnclaimedPushedStream& entry) {
-                         return entry.delegate == delegate;
-                       });
+  return base::ranges::count(unclaimed_pushed_streams_, delegate,
+                             &UnclaimedPushedStream::delegate);
 }
 
 spdy::SpdyStreamId Http2PushPromiseIndex::FindStream(
@@ -111,16 +108,6 @@ void Http2PushPromiseIndex::ClaimPushedStream(
     }
     ++it;
   }
-}
-
-size_t Http2PushPromiseIndex::EstimateMemoryUsage() const {
-  return base::trace_event::EstimateMemoryUsage(unclaimed_pushed_streams_);
-}
-
-size_t Http2PushPromiseIndex::UnclaimedPushedStream::EstimateMemoryUsage()
-    const {
-  return base::trace_event::EstimateMemoryUsage(url) +
-         sizeof(spdy::SpdyStreamId) + sizeof(Delegate*);
 }
 
 bool Http2PushPromiseIndex::CompareByUrl::operator()(

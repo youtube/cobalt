@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,18 +11,21 @@
 
 #include "base/compiler_specific.h"
 #include "base/mac/scoped_cftyperef.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_config_watcher_mac.h"
-#include "starboard/types.h"
 
 namespace net {
 
 class NetworkChangeNotifierMac: public NetworkChangeNotifier {
  public:
   NetworkChangeNotifierMac();
+  NetworkChangeNotifierMac(const NetworkChangeNotifierMac&) = delete;
+  NetworkChangeNotifierMac& operator=(const NetworkChangeNotifierMac&) = delete;
   ~NetworkChangeNotifierMac() override;
 
   // NetworkChangeNotifier implementation:
@@ -34,6 +37,8 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
    public:
     explicit Forwarder(NetworkChangeNotifierMac* net_config_watcher)
         : net_config_watcher_(net_config_watcher) {}
+    Forwarder(const Forwarder&) = delete;
+    Forwarder& operator=(const Forwarder&) = delete;
 
     // NetworkConfigWatcherMac::Delegate implementation:
     void Init() override;
@@ -42,13 +47,10 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
     void OnNetworkConfigChange(CFArrayRef changed_keys) override;
 
    private:
-    NetworkChangeNotifierMac* const net_config_watcher_;
-    DISALLOW_COPY_AND_ASSIGN(Forwarder);
+    const raw_ptr<NetworkChangeNotifierMac> net_config_watcher_;
   };
 
  private:
-  class DnsConfigServiceThread;
-
   // Called on the main thread on startup, afterwards on the notifier thread.
   static ConnectionType CalculateConnectionType(SCNetworkConnectionFlags flags);
 
@@ -67,8 +69,8 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
 
   // These must be constructed before config_watcher_ to ensure
   // the lock is in a valid state when Forwarder::Init is called.
-  ConnectionType connection_type_;
-  bool connection_type_initialized_;
+  ConnectionType connection_type_ = CONNECTION_UNKNOWN;
+  bool connection_type_initialized_ = false;
   mutable base::Lock connection_type_lock_;
   mutable base::ConditionVariable initial_connection_type_cv_;
   base::ScopedCFTypeRef<SCNetworkReachabilityRef> reachability_;
@@ -76,10 +78,6 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
 
   Forwarder forwarder_;
   std::unique_ptr<const NetworkConfigWatcherMac> config_watcher_;
-
-  std::unique_ptr<DnsConfigServiceThread> dns_config_service_thread_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };
 
 }  // namespace net

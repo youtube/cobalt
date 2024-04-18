@@ -15,6 +15,7 @@
 #include "cobalt/debug/remote/debug_web_server.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -111,15 +112,15 @@ DebugWebServer::DebugWebServer(
   DETACH_FROM_THREAD(thread_checker_);
   const size_t stack_size = 0;
   http_server_thread_.StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, stack_size));
-  http_server_thread_.message_loop()->task_runner()->PostTask(
+      base::Thread::Options(base::MessagePumpType::IO, stack_size));
+  http_server_thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&DebugWebServer::StartServer,
                             base::Unretained(this), port, listen_ip));
 }
 
 DebugWebServer::~DebugWebServer() {
   // Destroy the server on its own thread then stop the thread.
-  http_server_thread_.message_loop()->task_runner()->PostTask(
+  http_server_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&DebugWebServer::StopServer, base::Unretained(this)));
   http_server_thread_.Stop();
@@ -202,60 +203,58 @@ void DebugWebServer::OnClose(int connection_id) {
   }
 }
 
-void DebugWebServer::OnWebSocketMessage(int connection_id,
-                                        const std::string& json) {
+void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_EQ(connection_id, websocket_id_) << "Mismatched WebSocket ID";
 
-  // Parse the json string to get id, method and params.
   JSONObject json_object = JSONParse(json);
-  if (!json_object) {
+  if (json_object.empty()) {
     return SendErrorResponseOverWebSocket(websocket_id_, "Error parsing JSON");
   }
-  int id = 0;
-  if (!json_object->GetInteger(kIdField, &id)) {
-    return SendErrorResponseOverWebSocket(id, "Missing request id");
+  absl::optional<int> id = json_object.FindInt(kIdField);
+  if (!id.has_value()) {
+    return SendErrorResponseOverWebSocket(0, "Missing request id");
   }
-  std::string method;
-  if (!json_object->GetString(kMethodField, &method)) {
-    return SendErrorResponseOverWebSocket(id, "Missing method");
+  std::string* method = json_object.FindString(kMethodField);
+  if (!method) {
+    return SendErrorResponseOverWebSocket(id.value(), "Missing method");
   }
   // Parameters are optional.
-  std::unique_ptr<base::Value> params_value;
   std::string json_params;
-  if (json_object->Remove(kParamsField, &params_value)) {
-    base::DictionaryValue* params_dictionary = NULL;
-    params_value->GetAsDictionary(&params_dictionary);
-    params_value.release();
-    JSONObject params(params_dictionary);
-    DCHECK(params);
-    json_params = JSONStringify(params);
+  const base::Value::Dict* params = json_object.FindDict(kParamsField);
+  if (params && !params->empty()) {
+    json_params = JSONStringify(*params);
+    json_object.Remove(kParamsField);
   }
 
   if (!debug_client_ || !debug_client_->IsAttached()) {
-    return SendErrorResponseOverWebSocket(id, "Debugger is not connected.");
+    return SendErrorResponseOverWebSocket(id.value(),
+                                          "Debugger is not connected.");
   }
-
-  debug_client_->SendCommand(method, json_params,
+  debug_client_->SendCommand(*method, json_params,
                              base::Bind(&DebugWebServer::OnDebuggerResponse,
-                                        base::Unretained(this), id));
+                                        base::Unretained(this), id.value()));
 }
 
 void DebugWebServer::SendErrorResponseOverWebSocket(
     int id, const std::string& message) {
   DCHECK_GE(websocket_id_, 0);
-  JSONObject response(new base::DictionaryValue());
-  response->SetInteger(kIdField, id);
-  response->SetString(kErrorField, message);
+  JSONObject response;
+  response.Set(kIdField, id);
+  response.Set(kErrorField, message);
   server_->SendOverWebSocket(websocket_id_, JSONStringify(response),
                              kNetworkTrafficAnnotation);
 }
 
 void DebugWebServer::OnDebuggerResponse(
     int id, const base::Optional<std::string>& response) {
-  JSONObject response_object = JSONParse(response.value());
-  DCHECK(response_object);
-  response_object->SetInteger(kIdField, id);
+  std::string parse_error;
+  JSONObject response_object = JSONParse(response.value(), &parse_error);
+  DCHECK(parse_error.empty());
+  if (!parse_error.empty()) {
+    DLOG(ERROR) << "Parse response error: " << parse_error;
+  }
+  response_object.Set(kIdField, id);
   server_->SendOverWebSocket(websocket_id_, JSONStringify(response_object),
                              kNetworkTrafficAnnotation);
 }
@@ -269,16 +268,17 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
 
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
-  if (base::MessageLoop::current() != http_server_thread_.message_loop()) {
-    http_server_thread_.message_loop()->task_runner()->PostTask(
+  if (base::SequencedTaskRunner::GetCurrentDefault() !=
+      http_server_thread_.task_runner()) {
+    http_server_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientEvent,
                               base::Unretained(this), method, json_params));
     return;
   }
 
-  JSONObject event(new base::DictionaryValue());
-  event->SetString(kMethodField, method);
-  event->Set(kParamsField, JSONParse(json_params));
+  JSONObject event;
+  event.Set(kMethodField, method);
+  event.Set(kParamsField, std::move(JSONParse(json_params)));
   server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
                              kNetworkTrafficAnnotation);
 }
@@ -286,17 +286,18 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
 void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
-  if (base::MessageLoop::current() != http_server_thread_.message_loop()) {
-    http_server_thread_.message_loop()->task_runner()->PostTask(
+  if (base::SequencedTaskRunner::GetCurrentDefault() !=
+      http_server_thread_.task_runner()) {
+    http_server_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientDetach,
                               base::Unretained(this), reason));
     return;
   }
 
   DLOG(INFO) << "Got detach event: " << reason;
-  JSONObject event(new base::DictionaryValue());
-  event->SetString(kMethodField, kDetached);
-  event->SetString(kDetachReasonField, reason);
+  JSONObject event;
+  event.Set(kMethodField, kDetached);
+  event.Set(kDetachReasonField, reason);
   server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
                              kNetworkTrafficAnnotation);
 }

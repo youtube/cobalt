@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,13 +37,12 @@
 
 #include "base/files/file_path.h"
 #include "base/files/important_file_writer.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "net/base/net_export.h"
 #include "net/http/transport_security_state.h"
-
-#if !defined(STARBOARD)
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class SequencedTaskRunner;
@@ -60,44 +59,49 @@ class NET_EXPORT TransportSecurityPersister
     : public TransportSecurityState::Delegate,
       public base::ImportantFileWriter::DataSerializer {
  public:
+  // Create a TransportSecurityPersister with state |state| on background runner
+  // |background_runner|. |data_path| points to the file to hold the transport
+  // security state data on disk.
   TransportSecurityPersister(
       TransportSecurityState* state,
-      const base::FilePath& profile_path,
-      const scoped_refptr<base::SequencedTaskRunner>& background_runner);
+      const scoped_refptr<base::SequencedTaskRunner>& background_runner,
+      const base::FilePath& data_path);
+
+  TransportSecurityPersister(const TransportSecurityPersister&) = delete;
+  TransportSecurityPersister& operator=(const TransportSecurityPersister&) =
+      delete;
+
   ~TransportSecurityPersister() override;
 
   // Called by the TransportSecurityState when it changes its state.
   void StateIsDirty(TransportSecurityState*) override;
+  // Called when the TransportSecurityState should be written immediately.
+  // |callback| is called after data is persisted.
+  void WriteNow(TransportSecurityState* state,
+                base::OnceClosure callback) override;
 
   // ImportantFileWriter::DataSerializer:
   //
   // Serializes |transport_security_state_| into |*output|. Returns true if
-  // all STS, PKP, and Expect_CT states were serialized correctly.
+  // all STS states were serialized correctly.
   //
   // The serialization format is JSON; the JSON represents a dictionary of
-  // host:DomainState pairs (host is a string). The DomainState contains
-  // the STS and PKP states and is represented as a dictionary containing
-  // the following keys and value types (not all keys will always be
-  // present):
+  // host:DomainState pairs (host is a string). The DomainState contains the STS
+  // states and is represented as a dictionary containing the following keys and
+  // value types (not all keys will always be present):
   //
   //     "sts_include_subdomains": true|false
-  //     "pkp_include_subdomains": true|false
   //     "created": double
   //     "expiry": double
-  //     "dynamic_spki_hashes_expiry": double
   //     "mode": "default"|"force-https"
   //             legacy value synonyms "strict" = "force-https"
   //                                   "pinning-only" = "default"
   //             legacy value "spdy-only" is unused and ignored
-  //     "static_spki_hashes": list of strings
-  //         legacy key synonym "preloaded_spki_hashes"
-  //     "bad_static_spki_hashes": list of strings
-  //         legacy key synonym "bad_preloaded_spki_hashes"
-  //     "dynamic_spki_hashes": list of strings
-  //     "dynamic_spki_hashes_expiry": double
   //     "report-uri": string
   //     "sts_observed": double
-  //     "pkp_observed": double
+  //
+  // Legacy data (see https://crbug.com/1232560) may also contain a top-level
+  // "expect_ct" key, which will be deleted when read:
   //     "expect_ct": dictionary with keys:
   //         "expect_ct_expiry": double
   //         "expect_ct_observed": double
@@ -109,28 +113,22 @@ class NET_EXPORT TransportSecurityPersister
   // The reason for hashing them is so that the stored state does not
   // trivially reveal a user's browsing history to an attacker reading the
   // serialized state on disk.
-  bool SerializeData(std::string* data) override;
+  absl::optional<std::string> SerializeData() override;
 
   // Clears any existing non-static entries, and then re-populates
   // |transport_security_state_|.
-  //
-  // Sets |*dirty| to true if the new state differs from the persisted
-  // state; false otherwise.
-  bool LoadEntries(const std::string& serialized, bool* dirty);
+  void LoadEntries(const std::string& serialized);
 
  private:
-  // Populates |state| from the JSON string |serialized|. Returns true if
-  // all entries were parsed and deserialized correctly.
-  //
-  // Sets |*dirty| to true if the new state differs from the persisted
-  // state; false otherwise.
-  static bool Deserialize(const std::string& serialized,
-                          bool* dirty,
-                          TransportSecurityState* state);
+  // Populates |state| from the JSON string |serialized|.
+  static void Deserialize(const std::string& serialized,
+                          TransportSecurityState* state,
+                          bool& contains_legacy_expect_ct_data);
 
   void CompleteLoad(const std::string& state);
+  void OnWriteFinished(base::OnceClosure callback);
 
-  TransportSecurityState* transport_security_state_;
+  raw_ptr<TransportSecurityState> transport_security_state_;
 
   // Helper for safely writing the data.
   base::ImportantFileWriter writer_;
@@ -138,13 +136,9 @@ class NET_EXPORT TransportSecurityPersister
   scoped_refptr<base::SequencedTaskRunner> foreground_runner_;
   scoped_refptr<base::SequencedTaskRunner> background_runner_;
 
-  base::WeakPtrFactory<TransportSecurityPersister> weak_ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(TransportSecurityPersister);
+  base::WeakPtrFactory<TransportSecurityPersister> weak_ptr_factory_{this};
 };
 
 }  // namespace net
-
-#endif  // !defined(STARBOARD)
 
 #endif  // NET_HTTP_TRANSPORT_SECURITY_PERSISTER_H_

@@ -4,20 +4,16 @@ description:
 
 third_party {
   url {
-    type: LOCAL_SOURCE
-    value: "/third_party/chromium/net_mirror"
-  }
-  url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/net"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "c89878e71fe83c7a28a240642b4288396010bcdc"
+  version: "114.0.5735.331"
   last_upgrade_date {
-    year: 2018
-    month: 10
-    day: 9
+    year: 2023
+    month: 9
+    day: 12
   }
   local_modifications:
-    '11/22/21 - Replaced original BUILD.gn file with a port of existing GYP file.'
+    '11/22/21  Replaced original BUILD.gn file with a port of existing GYP file.'
     'Original BUILD.gn file renamed to BUILD.gn.orig.'
 }

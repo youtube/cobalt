@@ -37,8 +37,8 @@
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
-#include "third_party/crashpad/wrapper/annotations.h"
-#include "third_party/crashpad/wrapper/wrapper.h"
+#include "third_party/crashpad/crashpad/wrapper/annotations.h"
+#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
 namespace {
 

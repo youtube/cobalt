@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/callback.h"
@@ -19,11 +20,9 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/task_runner_util.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/time/default_clock.h"
 #include "base/values.h"
 #include "components/prefs/pref_filter.h"
@@ -84,8 +83,7 @@ PersistentPrefStore::PrefReadError HandleReadErrors(
         // TODO(erikkay) if we keep this error checking for very long, we may
         // want to differentiate between recent and long ago errors.
         bool bad_existed = base::PathExists(bad);
-        base::CopyFile(path, bad);
-        base::DeleteFile(path, false);
+        base::Move(path, bad);
         return bad_existed ? PersistentPrefStore::PREF_READ_ERROR_JSON_REPEAT
                            : PersistentPrefStore::PREF_READ_ERROR_JSON_PARSE;
     }
@@ -139,7 +137,6 @@ JsonPrefStore::JsonPrefStore(
     scoped_refptr<base::SequencedTaskRunner> file_task_runner)
     : path_(pref_filename),
       file_task_runner_(std::move(file_task_runner)),
-      prefs_(new base::DictionaryValue()),
       read_only_(false),
       writer_(pref_filename, file_task_runner_),
       pref_filter_(std::move(pref_filter)),
@@ -155,8 +152,12 @@ bool JsonPrefStore::GetValue(const std::string& key,
                              const base::Value** result) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  base::Value* tmp = nullptr;
-  if (!prefs_->Get(key, &tmp))
+#if defined(STARBOARD)
+  const base::Value* tmp = prefs_.Find(key);
+#else
+  const base::Value* tmp = prefs_.FindByDottedPath(key);
+#endif
+  if (!tmp)
     return false;
 
   if (result)
@@ -164,8 +165,8 @@ bool JsonPrefStore::GetValue(const std::string& key,
   return true;
 }
 
-std::unique_ptr<base::DictionaryValue> JsonPrefStore::GetValues() const {
-  return prefs_->CreateDeepCopy();
+base::Value::Dict JsonPrefStore::GetValues() const {
+  return prefs_.Clone();
 }
 
 void JsonPrefStore::AddObserver(PrefStore::Observer* observer) {
@@ -183,7 +184,7 @@ void JsonPrefStore::RemoveObserver(PrefStore::Observer* observer) {
 bool JsonPrefStore::HasObservers() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  return observers_.might_have_observers();
+  return !observers_.empty();
 }
 
 bool JsonPrefStore::IsInitializationComplete() const {
@@ -196,42 +197,54 @@ bool JsonPrefStore::GetMutableValue(const std::string& key,
                                     base::Value** result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  return prefs_->Get(key, result);
+#if defined(STARBOARD)
+  base::Value* tmp = prefs_.Find(key);
+#else
+  base::Value* tmp = prefs_.FindByDottedPath(key);
+#endif
+  if (!tmp)
+    return false;
+
+  if (result)
+    *result = tmp;
+  return true;
 }
 
 void JsonPrefStore::SetValue(const std::string& key,
-                             std::unique_ptr<base::Value> value,
+                             base::Value value,
                              uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  DCHECK(value);
-  base::Value* old_value = nullptr;
-  prefs_->Get(key, &old_value);
-  if (!old_value || !value->Equals(old_value)) {
 #if defined(STARBOARD)
-    // Value::DictionaryValue::Set creates a nested dictionary treating a URL
-    // key as a path, SetKey avoids this.
-    prefs_->SetKey(key, base::Value::FromUniquePtrValue(std::move(value)));
+  base::Value* old_value = prefs_.Find(key);
 #else
-    prefs_->Set(key, std::move(value));
+  base::Value* old_value = prefs_.FindByDottedPath(key);
+#endif
+  if (!old_value || value != *old_value) {
+#if defined(STARBOARD)
+    prefs_.Set(key, std::move(value));
+#else
+    prefs_.SetByDottedPath(key, std::move(value));
 #endif
     ReportValueChanged(key, flags);
   }
 }
 
 void JsonPrefStore::SetValueSilently(const std::string& key,
-                                     std::unique_ptr<base::Value> value,
+                                     base::Value value,
                                      uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  DCHECK(value);
-  base::Value* old_value = nullptr;
-  prefs_->Get(key, &old_value);
-  if (!old_value || !value->Equals(old_value)) {
 #if defined(STARBOARD)
-    prefs_->SetKey(key, base::Value::FromUniquePtrValue(std::move(value)));
+  base::Value* old_value = prefs_.Find(key);
 #else
-    prefs_->Set(key, std::move(value));
+  base::Value* old_value = prefs_.FindByDottedPath(key);
+#endif
+  if (!old_value || value != *old_value) {
+#if defined(STARBOARD)
+    prefs_.Set(key, std::move(value));
+#else
+    prefs_.SetByDottedPath(key, std::move(value));
 #endif
     ScheduleWrite(flags);
   }
@@ -240,7 +253,11 @@ void JsonPrefStore::SetValueSilently(const std::string& key,
 void JsonPrefStore::RemoveValue(const std::string& key, uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (prefs_->RemovePath({key})) {
+#if defined(STARBOARD)
+  if (prefs_.Remove(key)) {
+#else
+  if (prefs_.RemoveByDottedPath(key)) {
+#endif
     ReportValueChanged(key, flags);
   }
 }
@@ -249,7 +266,11 @@ void JsonPrefStore::RemoveValueSilently(const std::string& key,
                                         uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  prefs_->RemovePath({key});
+#if defined(STARBOARD)
+  prefs_.Remove(key);
+#else
+  prefs_.RemoveByDottedPath(key);
+#endif
   ScheduleWrite(flags);
 }
 
@@ -280,9 +301,9 @@ void JsonPrefStore::ReadPrefsAsync(ReadErrorDelegate* error_delegate) {
   error_delegate_.reset(error_delegate);
 
   // Weakly binds the read task so that it doesn't kick in during shutdown.
-  base::PostTaskAndReplyWithResult(
-      file_task_runner_.get(), FROM_HERE, base::Bind(&ReadPrefsFromDisk, path_),
-      base::Bind(&JsonPrefStore::OnFileRead, AsWeakPtr()));
+  file_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE, base::BindOnce(&ReadPrefsFromDisk, path_),
+      base::BindOnce(&JsonPrefStore::OnFileRead, AsWeakPtr()));
 }
 
 void JsonPrefStore::CommitPendingWrite(
@@ -330,6 +351,16 @@ void JsonPrefStore::ReportValueChanged(const std::string& key, uint32_t flags) {
   ScheduleWrite(flags);
 }
 
+void JsonPrefStore::PerformPreserializationTasks() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  pending_lossy_write_ = false;
+  if (pref_filter_) {
+    OnWriteCallbackPair callbacks = pref_filter_->FilterSerializeData(prefs_);
+    if (!callbacks.first.is_null() || !callbacks.second.is_null())
+      RegisterOnNextWriteSynchronousCallbacks(std::move(callbacks));
+  }
+}
+
 void JsonPrefStore::RunOrScheduleNextSuccessfulWriteCallback(
     bool write_success) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -366,7 +397,7 @@ void JsonPrefStore::RegisterOnNextSuccessfulWriteReply(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(on_next_successful_write_reply_.is_null());
 
-  on_next_successful_write_reply_ = on_next_successful_write_reply;
+  on_next_successful_write_reply_ = std::move(on_next_successful_write_reply);
 
   // If there are pending callbacks, avoid erasing them; the reply will be used
   // as we set |on_next_successful_write_reply_|. Otherwise, setup a reply with
@@ -374,12 +405,13 @@ void JsonPrefStore::RegisterOnNextSuccessfulWriteReply(
   if (!has_pending_write_reply_) {
     has_pending_write_reply_ = true;
     writer_.RegisterOnNextWriteCallbacks(
-        base::Closure(),
+        base::OnceClosure(),
         base::Bind(
             &PostWriteCallback, base::Callback<void(bool success)>(),
-            base::Bind(&JsonPrefStore::RunOrScheduleNextSuccessfulWriteCallback,
-                       AsWeakPtr()),
-            base::SequencedTaskRunnerHandle::Get()));
+            base::Bind(
+                &JsonPrefStore::RunOrScheduleNextSuccessfulWriteCallback,
+                AsWeakPtr()),
+            base::SequencedTaskRunner::GetCurrentDefault()));
   }
 }
 
@@ -390,12 +422,13 @@ void JsonPrefStore::RegisterOnNextWriteSynchronousCallbacks(
   has_pending_write_reply_ = true;
 
   writer_.RegisterOnNextWriteCallbacks(
-      callbacks.first,
+      std::move(callbacks.first),
       base::Bind(
-          &PostWriteCallback, callbacks.second,
-          base::Bind(&JsonPrefStore::RunOrScheduleNextSuccessfulWriteCallback,
-                     AsWeakPtr()),
-          base::SequencedTaskRunnerHandle::Get()));
+          &PostWriteCallback, std::move(callbacks.second),
+          base::Bind(
+              &JsonPrefStore::RunOrScheduleNextSuccessfulWriteCallback,
+              AsWeakPtr()),
+          base::SequencedTaskRunner::GetCurrentDefault()));
 }
 
 void JsonPrefStore::ClearMutableValues() {
@@ -412,8 +445,7 @@ void JsonPrefStore::OnFileRead(std::unique_ptr<ReadResult> read_result) {
 
   DCHECK(read_result);
 
-  std::unique_ptr<base::DictionaryValue> unfiltered_prefs(
-      new base::DictionaryValue);
+  base::Value::Dict unfiltered_prefs;
 
   read_error_ = read_result->error;
 
@@ -430,8 +462,8 @@ void JsonPrefStore::OnFileRead(std::unique_ptr<ReadResult> read_result) {
         break;
       case PREF_READ_ERROR_NONE:
         DCHECK(read_result->value);
-        unfiltered_prefs.reset(
-            static_cast<base::DictionaryValue*>(read_result->value.release()));
+        DCHECK(read_result->value->is_dict());
+        unfiltered_prefs = std::move(*read_result->value).TakeDict();
         break;
       case PREF_READ_ERROR_NO_FILE:
         // If the file just doesn't exist, maybe this is first run.  In any case
@@ -468,31 +500,32 @@ JsonPrefStore::~JsonPrefStore() {
   CommitPendingWrite();
 }
 
-bool JsonPrefStore::SerializeData(std::string* output) {
+absl::optional<std::string> JsonPrefStore::SerializeData() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   pending_lossy_write_ = false;
 
   if (pref_filter_) {
     OnWriteCallbackPair callbacks =
-        pref_filter_->FilterSerializeData(prefs_.get());
+        pref_filter_->FilterSerializeData(prefs_);
     if (!callbacks.first.is_null() || !callbacks.second.is_null())
       RegisterOnNextWriteSynchronousCallbacks(callbacks);
   }
 
-  JSONStringValueSerializer serializer(output);
+  std::string output;
+  JSONStringValueSerializer serializer(&output);
   // Not pretty-printing prefs shrinks pref file size by ~30%. To obtain
   // readable prefs for debugging purposes, you can dump your prefs into any
   // command-line or online JSON pretty printing tool.
   serializer.set_pretty_print(false);
-  bool success = serializer.Serialize(*prefs_);
+  bool success = serializer.Serialize(prefs_);
   DCHECK(success);
-  return success;
+  return output;
 }
 
 void JsonPrefStore::FinalizeFileRead(
     bool initialization_successful,
-    std::unique_ptr<base::DictionaryValue> prefs,
+    base::Value::Dict prefs,
     bool schedule_write) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 

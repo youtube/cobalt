@@ -1,9 +1,8 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright 2009 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/disk_cache/blockfile/bitmap.h"
-#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(BitmapTest, OverAllocate) {
@@ -20,7 +19,7 @@ TEST(BitmapTest, DefaultConstructor) {
   disk_cache::Bitmap map;
   EXPECT_EQ(0, map.Size());
   EXPECT_EQ(0, map.ArraySize());
-  EXPECT_TRUE(NULL == map.GetMap());
+  EXPECT_TRUE(nullptr == map.GetMap());
 }
 
 TEST(BitmapTest, Basics) {

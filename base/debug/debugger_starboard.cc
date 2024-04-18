@@ -14,7 +14,7 @@
 
 #include "base/debug/stack_trace.h"
 
-#include "base/logging.h"
+#include "base/notreached.h"
 #include "starboard/system.h"
 
 namespace base {
@@ -33,9 +33,11 @@ bool BeingDebugged() {
 #endif
 }
 
-void BreakDebugger() {
+void BreakDebuggerAsyncSafe() {
   SbSystemBreakIntoDebugger();
 }
+
+void VerifyDebugger() {}
 
 }  // namespace debug
 }  // namespace base

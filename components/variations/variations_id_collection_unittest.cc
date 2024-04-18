@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "base/message_loop/message_loop.h"
 #include "base/metrics/field_trial.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/variations/variations_associated_data.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

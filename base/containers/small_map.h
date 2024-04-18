@@ -1,23 +1,23 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_CONTAINERS_SMALL_MAP_H_
 #define BASE_CONTAINERS_SMALL_MAP_H_
 
+#include <stddef.h>
+
 #include <limits>
 #include <map>
 #include <new>
-#include <string>
 #include <utility>
 
-#include "base/containers/hash_tables.h"
-#include "base/logging.h"
-#include "starboard/types.h"
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/memory/raw_ptr.h"
 
-namespace {
-constexpr size_t kUsingFullMapSentinel = std::numeric_limits<size_t>::max();
-}  // namespace
+inline constexpr size_t kUsingFullMapSentinel =
+    std::numeric_limits<size_t>::max();
 
 namespace base {
 
@@ -50,7 +50,7 @@ namespace base {
 //
 // We define default overrides for the common map types to avoid this
 // double-compare, but you should be aware of this if you use your own operator<
-// for your map and supply yor own version of == to the small_map. You can use
+// for your map and supply your own version of == to the small_map. You can use
 // regular operator== by just doing:
 //
 //   base::small_map<std::map<MyKey, MyValue>, 4, std::equal_to<KyKey>>
@@ -66,8 +66,8 @@ namespace base {
 //              Once the map grows beyond this size, the map type will be used
 //              instead.
 // EqualKey:  A functor which tests two keys for equality. If the wrapped map
-//            type has a "key_equal" member (hash_map does), then that will be
-//            used by default. If the wrapped map type has a strict weak
+//            type has a "key_equal" member (unordered_map does), then that will
+//            be used by default. If the wrapped map type has a strict weak
 //            ordering "key_compare" (std::map does), that will be used to
 //            implement equality by default.
 // MapInit: A functor that takes a NormalMap* and uses it to initialize the map.
@@ -131,31 +131,8 @@ struct select_equal_key {
   };
 };
 
-// Provide overrides to use operator== for key compare for the "normal" map and
-// hash map types. If you override the default comparator or allocator for a
-// map or hash_map, or use another type of map, this won't get used.
-//
-// If we switch to using std::unordered_map for base::hash_map, then the
-// hash_map specialization can be removed.
-template <typename KeyType, typename ValueType>
-struct select_equal_key<std::map<KeyType, ValueType>, false> {
-  struct equal_key {
-    bool operator()(const KeyType& left, const KeyType& right) {
-      return left == right;
-    }
-  };
-};
-template <typename KeyType, typename ValueType>
-struct select_equal_key<base::hash_map<KeyType, ValueType>, false> {
-  struct equal_key {
-    bool operator()(const KeyType& left, const KeyType& right) {
-      return left == right;
-    }
-  };
-};
-
 // Partial template specialization handles case where M::key_equal exists, e.g.,
-// hash_map<>.
+// unordered_map<>.
 template <typename M>
 struct select_equal_key<M, true> {
   typedef typename M::key_equal equal_key;
@@ -225,7 +202,7 @@ class small_map {
       return *this;
     }
 
-    inline iterator operator++(int unused) {
+    inline iterator operator++(int /*unused*/) {
       iterator result(*this);
       ++(*this);
       return result;
@@ -240,14 +217,14 @@ class small_map {
       return *this;
     }
 
-    inline iterator operator--(int unused) {
+    inline iterator operator--(int /*unused*/) {
       iterator result(*this);
       --(*this);
       return result;
     }
 
     inline value_type* operator->() const {
-      return array_iter_ ? array_iter_ : map_iter_.operator->();
+      return array_iter_ ? array_iter_.get() : map_iter_.operator->();
     }
 
     inline value_type& operator*() const {
@@ -266,9 +243,6 @@ class small_map {
       return !(*this == other);
     }
 
-    bool operator==(const const_iterator& other) const;
-    bool operator!=(const const_iterator& other) const;
-
    private:
     friend class small_map;
     friend class const_iterator;
@@ -276,7 +250,7 @@ class small_map {
     inline explicit iterator(const typename NormalMap::iterator& init)
         : array_iter_(nullptr), map_iter_(init) {}
 
-    value_type* array_iter_;
+    raw_ptr<value_type, AllowPtrArithmetic> array_iter_;
     typename NormalMap::iterator map_iter_;
   };
 
@@ -305,7 +279,7 @@ class small_map {
       return *this;
     }
 
-    inline const_iterator operator++(int unused) {
+    inline const_iterator operator++(int /*unused*/) {
       const_iterator result(*this);
       ++(*this);
       return result;
@@ -320,14 +294,14 @@ class small_map {
       return *this;
     }
 
-    inline const_iterator operator--(int unused) {
+    inline const_iterator operator--(int /*unused*/) {
       const_iterator result(*this);
       --(*this);
       return result;
     }
 
     inline const value_type* operator->() const {
-      return array_iter_ ? array_iter_ : map_iter_.operator->();
+      return array_iter_ ? array_iter_.get() : map_iter_.operator->();
     }
 
     inline const value_type& operator*() const {
@@ -353,7 +327,7 @@ class small_map {
         const typename NormalMap::const_iterator& init)
         : array_iter_(nullptr), map_iter_(init) {}
 
-    const value_type* array_iter_;
+    raw_ptr<const value_type, AllowPtrArithmetic> array_iter_;
     typename NormalMap::const_iterator map_iter_;
   };
 
@@ -513,7 +487,7 @@ class small_map {
       return iterator(map_.erase(position.map_iter_));
     }
 
-    size_t i = position.array_iter_ - array_;
+    size_t i = static_cast<size_t>(position.array_iter_ - array_);
     // TODO(crbug.com/817982): When we have a checked iterator, this CHECK might
     // not be necessary.
     CHECK_LE(i, size_);
@@ -625,24 +599,6 @@ class small_map {
     }
   }
 };
-
-template <typename NormalMap,
-          size_t kArraySize,
-          typename EqualKey,
-          typename Functor>
-inline bool small_map<NormalMap, kArraySize, EqualKey, Functor>::iterator::
-operator==(const const_iterator& other) const {
-  return other == *this;
-}
-
-template <typename NormalMap,
-          size_t kArraySize,
-          typename EqualKey,
-          typename Functor>
-inline bool small_map<NormalMap, kArraySize, EqualKey, Functor>::iterator::
-operator!=(const const_iterator& other) const {
-  return other != *this;
-}
 
 }  // namespace base
 

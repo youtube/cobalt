@@ -1,34 +1,24 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/nqe/socket_watcher.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
-#include "net/base/address_list.h"
 #include "net/base/ip_address.h"
 
-namespace net {
-
-namespace nqe {
-
-namespace internal {
+namespace net::nqe::internal {
 
 namespace {
 
-// Generate a compact representation for the first IP in |address_list|. For
-// IPv4, all 32 bits are used and for IPv6, the first 64 bits are used as the
-// remote host identifier.
-base::Optional<IPHash> CalculateIPHash(const AddressList& address_list) {
-  if (address_list.empty())
-    return base::nullopt;
-
-  const IPAddress& ip_addr = address_list.front().address();
-
+// Generate a compact representation for |ip_addr|. For IPv4, all 32 bits
+// are used and for IPv6, the first 64 bits are used as the remote host
+// identifier.
+absl::optional<IPHash> CalculateIPHash(const IPAddress& ip_addr) {
   IPAddressBytes bytes = ip_addr.bytes();
 
   // For IPv4, the first four bytes are taken. For IPv6, the first 8 bytes are
@@ -55,7 +45,7 @@ base::Optional<IPHash> CalculateIPHash(const AddressList& address_list) {
 
 SocketWatcher::SocketWatcher(
     SocketPerformanceWatcherFactory::Protocol protocol,
-    const AddressList& address_list,
+    const IPAddress& address,
     base::TimeDelta min_notification_interval,
     bool allow_rtt_private_address,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
@@ -68,11 +58,9 @@ SocketWatcher::SocketWatcher(
       should_notify_rtt_callback_(should_notify_rtt_callback),
       rtt_notifications_minimum_interval_(min_notification_interval),
       run_rtt_callback_(allow_rtt_private_address ||
-                        (!address_list.empty() &&
-                         address_list.front().address().IsPubliclyRoutable())),
+                        address.IsPubliclyRoutable()),
       tick_clock_(tick_clock),
-      first_quic_rtt_notification_received_(false),
-      host_(CalculateIPHash(address_list)) {
+      host_(CalculateIPHash(address)) {
   DCHECK(tick_clock_);
   DCHECK(last_rtt_notification_.is_null());
 }
@@ -80,7 +68,7 @@ SocketWatcher::SocketWatcher(
 SocketWatcher::~SocketWatcher() = default;
 
 bool SocketWatcher::ShouldNotifyUpdatedRTT() const {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!run_rtt_callback_)
     return false;
@@ -104,9 +92,12 @@ bool SocketWatcher::ShouldNotifyUpdatedRTT() const {
 }
 
 void SocketWatcher::OnUpdatedRTTAvailable(const base::TimeDelta& rtt) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (rtt <= base::TimeDelta())
+  // tcp_socket_posix may sometimes report RTT as 1 microsecond when the RTT was
+  // actually invalid. See:
+  // https://cs.chromium.org/chromium/src/net/socket/tcp_socket_posix.cc?rcl=7ad660e34f2a996e381a85b2a515263003b0c171&l=106.
+  if (rtt <= base::Microseconds(1))
     return;
 
   if (!first_quic_rtt_notification_received_ &&
@@ -120,15 +111,11 @@ void SocketWatcher::OnUpdatedRTTAvailable(const base::TimeDelta& rtt) {
   last_rtt_notification_ = tick_clock_->NowTicks();
   task_runner_->PostTask(
       FROM_HERE,
-      base::Bind(updated_rtt_observation_callback_, protocol_, rtt, host_));
+      base::BindOnce(updated_rtt_observation_callback_, protocol_, rtt, host_));
 }
 
 void SocketWatcher::OnConnectionChanged() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-}  // namespace internal
-
-}  // namespace nqe
-
-}  // namespace net
+}  // namespace net::nqe::internal

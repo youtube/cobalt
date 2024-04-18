@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,22 +6,25 @@
 
 #include <utility>
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
+#include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/format_macros.h"
-#include "base/logging.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "net/base/completion_repeating_callback.h"
+#include "net/base/host_port_pair.h"
+#include "net/base/isolation_info.h"
 #include "net/base/net_errors.h"
+#include "net/base/request_priority.h"
 #include "net/log/net_log_capture_mode.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_source_type.h"
 #include "net/proxy_resolution/dhcp_pac_file_fetcher.h"
-#include "net/proxy_resolution/dhcp_pac_file_fetcher_factory.h"
 #include "net/proxy_resolution/pac_file_fetcher.h"
 #include "net/url_request/url_request_context.h"
 
@@ -29,18 +32,15 @@ namespace net {
 
 namespace {
 
-bool LooksLikePacScript(const base::string16& script) {
+bool LooksLikePacScript(const std::u16string& script) {
   // Note: this is only an approximation! It may not always work correctly,
   // however it is very likely that legitimate scripts have this exact string,
   // since they must minimally define a function of this name. Conversely, a
   // file not containing the string is not likely to be a PAC script.
   //
   // An exact test would have to load the script in a javascript evaluator.
-  return script.find(base::ASCIIToUTF16("FindProxyForURL")) !=
-         base::string16::npos;
+  return script.find(u"FindProxyForURL") != std::u16string::npos;
 }
-
-}  // anonymous namespace
 
 // This is the hard-coded location used by the DNS portion of web proxy
 // auto-discovery.
@@ -54,15 +54,21 @@ bool LooksLikePacScript(const base::string16& script) {
 //
 // For more details, also check out this comment:
 // http://code.google.com/p/chromium/issues/detail?id=18575#c20
-namespace {
 const char kWpadUrl[] = "http://wpad/wpad.dat";
 const int kQuickCheckDelayMs = 1000;
-};  // namespace
 
-std::unique_ptr<base::Value> PacFileDecider::PacSource::NetLogCallback(
-    const GURL* effective_pac_url,
-    NetLogCaptureMode /* capture_mode */) const {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+}  // namespace
+
+PacFileDataWithSource::PacFileDataWithSource() = default;
+PacFileDataWithSource::~PacFileDataWithSource() = default;
+PacFileDataWithSource::PacFileDataWithSource(const PacFileDataWithSource&) =
+    default;
+PacFileDataWithSource& PacFileDataWithSource::operator=(
+    const PacFileDataWithSource&) = default;
+
+base::Value::Dict PacFileDecider::PacSource::NetLogParams(
+    const GURL& effective_pac_url) const {
+  base::Value::Dict dict;
   std::string source;
   switch (type) {
     case PacSource::WPAD_DHCP:
@@ -70,15 +76,15 @@ std::unique_ptr<base::Value> PacFileDecider::PacSource::NetLogCallback(
       break;
     case PacSource::WPAD_DNS:
       source = "WPAD DNS: ";
-      source += effective_pac_url->possibly_invalid_spec();
+      source += effective_pac_url.possibly_invalid_spec();
       break;
     case PacSource::CUSTOM:
       source = "Custom PAC URL: ";
-      source += effective_pac_url->possibly_invalid_spec();
+      source += effective_pac_url.possibly_invalid_spec();
       break;
   }
-  dict->SetString("source", source);
-  return std::move(dict);
+  dict.Set("source", source);
+  return dict;
 }
 
 PacFileDecider::PacFileDecider(PacFileFetcher* pac_file_fetcher,
@@ -86,13 +92,8 @@ PacFileDecider::PacFileDecider(PacFileFetcher* pac_file_fetcher,
                                NetLog* net_log)
     : pac_file_fetcher_(pac_file_fetcher),
       dhcp_pac_file_fetcher_(dhcp_pac_file_fetcher),
-      current_pac_source_index_(0u),
-      pac_mandatory_(false),
-      next_state_(STATE_NONE),
-      net_log_(
-          NetLogWithSource::Make(net_log, NetLogSourceType::PAC_FILE_DECIDER)),
-      fetch_pac_bytes_(false),
-      quick_check_enabled_(true) {}
+      net_log_(NetLogWithSource::Make(net_log,
+                                      NetLogSourceType::PAC_FILE_DECIDER)) {}
 
 PacFileDecider::~PacFileDecider() {
   if (next_state_ != STATE_NONE)
@@ -113,7 +114,7 @@ int PacFileDecider::Start(const ProxyConfigWithAnnotation& config,
 
   // Save the |wait_delay| as a non-negative value.
   wait_delay_ = wait_delay;
-  if (wait_delay_ < base::TimeDelta())
+  if (wait_delay_.is_negative())
     wait_delay_ = base::TimeDelta();
 
   pac_mandatory_ = config.value().pac_mandatory();
@@ -140,13 +141,8 @@ void PacFileDecider::OnShutdown() {
   if (next_state_ == STATE_NONE)
     return;
 
-  CompletionOnceCallback callback = std::move(callback_);
-
   // Just cancel any pending work.
   Cancel();
-
-  if (callback)
-    std::move(callback).Run(ERR_CONTEXT_SHUT_DOWN);
 }
 
 const ProxyConfigWithAnnotation& PacFileDecider::effective_config() const {
@@ -154,7 +150,7 @@ const ProxyConfigWithAnnotation& PacFileDecider::effective_config() const {
   return effective_config_;
 }
 
-const scoped_refptr<PacFileData>& PacFileDecider::script_data() const {
+const PacFileDataWithSource& PacFileDecider::script_data() const {
   DCHECK_EQ(STATE_NONE, next_state_);
   return script_data_;
 }
@@ -264,34 +260,45 @@ int PacFileDecider::DoQuickCheck() {
     return OK;
   }
 
-  quick_check_start_time_ = base::Time::Now();
   std::string host = current_pac_source().url.host();
-  HostResolver::RequestInfo reqinfo(HostPortPair(host, 80));
-  reqinfo.set_host_resolver_flags(HOST_RESOLVER_SYSTEM_ONLY);
+
+  HostResolver::ResolveHostParameters parameters;
+  // We use HIGHEST here because proxy decision blocks doing any other requests.
+  parameters.initial_priority = HIGHEST;
+  // Only resolve via the system resolver for maximum compatibility with DNS
+  // suffix search paths, because for security, we are relying on suffix search
+  // paths rather than WPAD-standard DNS devolution.
+  parameters.source = HostResolverSource::SYSTEM;
+
+  // For most users, the WPAD DNS query will have no results. Allowing the query
+  // to go out via LLMNR or mDNS (which usually have no quick negative response)
+  // would therefore typically result in waiting the full timeout before
+  // `quick_check_timer_` fires. Given that a lot of Chrome requests could be
+  // blocked on completing these checks, it is better to avoid multicast
+  // resolution for WPAD.
+  // See crbug.com/1176970.
+  parameters.avoid_multicast_resolution = true;
+
+  HostResolver* host_resolver =
+      pac_file_fetcher_->GetRequestContext()->host_resolver();
+  resolve_request_ = host_resolver->CreateRequest(
+      HostPortPair(host, 80),
+      pac_file_fetcher_->isolation_info().network_anonymization_key(), net_log_,
+      parameters);
+
   CompletionRepeatingCallback callback = base::BindRepeating(
       &PacFileDecider::OnIOCompletion, base::Unretained(this));
 
   next_state_ = STATE_QUICK_CHECK_COMPLETE;
-  quick_check_timer_.Start(
-      FROM_HERE, base::TimeDelta::FromMilliseconds(kQuickCheckDelayMs),
-      base::BindRepeating(callback, ERR_NAME_NOT_RESOLVED));
+  quick_check_timer_.Start(FROM_HERE, base::Milliseconds(kQuickCheckDelayMs),
+                           base::BindOnce(callback, ERR_NAME_NOT_RESOLVED));
 
-  HostResolver* host_resolver =
-      pac_file_fetcher_->GetRequestContext()->host_resolver();
-
-  // We use HIGHEST here because proxy decision blocks doing any other requests.
-  return host_resolver->Resolve(reqinfo, HIGHEST, &wpad_addresses_, callback,
-                                &request_, net_log_);
+  return resolve_request_->Start(callback);
 }
 
 int PacFileDecider::DoQuickCheckComplete(int result) {
   DCHECK(quick_check_enabled_);
-  base::TimeDelta delta = base::Time::Now() - quick_check_start_time_;
-  if (result == OK)
-    UMA_HISTOGRAM_TIMES("Net.WpadQuickCheckSuccess", delta);
-  else
-    UMA_HISTOGRAM_TIMES("Net.WpadQuickCheckFailure", delta);
-  request_.reset();
+  resolve_request_.reset();
   quick_check_timer_.Stop();
   if (result != OK)
     return TryToFallbackPacSource(result);
@@ -309,10 +316,9 @@ int PacFileDecider::DoFetchPacScript() {
   GURL effective_pac_url;
   DetermineURL(pac_source, &effective_pac_url);
 
-  net_log_.BeginEvent(
-      NetLogEventType::PAC_FILE_DECIDER_FETCH_PAC_SCRIPT,
-      base::Bind(&PacSource::NetLogCallback, base::Unretained(&pac_source),
-                 &effective_pac_url));
+  net_log_.BeginEvent(NetLogEventType::PAC_FILE_DECIDER_FETCH_PAC_SCRIPT, [&] {
+    return pac_source.NetLogParams(effective_pac_url);
+  });
 
   if (pac_source.type == PacSource::WPAD_DHCP) {
     if (!dhcp_pac_file_fetcher_) {
@@ -322,7 +328,7 @@ int PacFileDecider::DoFetchPacScript() {
 
     return dhcp_pac_file_fetcher_->Fetch(
         &pac_script_,
-        base::Bind(&PacFileDecider::OnIOCompletion, base::Unretained(this)),
+        base::BindOnce(&PacFileDecider::OnIOCompletion, base::Unretained(this)),
         net_log_, NetworkTrafficAnnotationTag(traffic_annotation_));
   }
 
@@ -333,7 +339,7 @@ int PacFileDecider::DoFetchPacScript() {
 
   return pac_file_fetcher_->Fetch(
       effective_pac_url, &pac_script_,
-      base::Bind(&PacFileDecider::OnIOCompletion, base::Unretained(this)),
+      base::BindOnce(&PacFileDecider::OnIOCompletion, base::Unretained(this)),
       NetworkTrafficAnnotationTag(traffic_annotation_));
 }
 
@@ -366,12 +372,13 @@ int PacFileDecider::DoVerifyPacScriptComplete(int result) {
   const PacSource& pac_source = current_pac_source();
 
   // Extract the current script data.
+  script_data_.from_auto_detect = pac_source.type != PacSource::CUSTOM;
   if (fetch_pac_bytes_) {
-    script_data_ = PacFileData::FromUTF16(pac_script_);
+    script_data_.data = PacFileData::FromUTF16(pac_script_);
   } else {
-    script_data_ = pac_source.type == PacSource::CUSTOM
-                       ? PacFileData::FromURL(pac_source.url)
-                       : PacFileData::ForAutoDetect();
+    script_data_.data = pac_source.type == PacSource::CUSTOM
+                            ? PacFileData::FromURL(pac_source.url)
+                            : PacFileData::ForAutoDetect();
   }
 
   // Let the caller know which automatic setting we ended up initializing the
@@ -473,7 +480,7 @@ void PacFileDecider::Cancel() {
 
   switch (next_state_) {
     case STATE_QUICK_CHECK_COMPLETE:
-      request_.reset();
+      resolve_request_.reset();
       break;
     case STATE_WAIT_COMPLETE:
       wait_timer_.Stop();
@@ -491,7 +498,7 @@ void PacFileDecider::Cancel() {
   if (dhcp_pac_file_fetcher_)
     dhcp_pac_file_fetcher_->Cancel();
 
-  DCHECK(!request_);
+  DCHECK(!resolve_request_);
 
   DidComplete();
 }

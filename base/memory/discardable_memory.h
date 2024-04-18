@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,14 +6,14 @@
 #define BASE_MEMORY_DISCARDABLE_MEMORY_H_
 
 #include "base/base_export.h"
-#include "base/compiler_specific.h"
+#include "build/build_config.h"
 
 namespace base {
 
 namespace trace_event {
 class MemoryAllocatorDump;
 class ProcessMemoryDump;
-}
+}  // namespace trace_event
 
 // Discardable memory is used to cache large objects without worrying about
 // blowing out memory, both on mobile devices where there is no swap, and
@@ -48,8 +48,8 @@ class BASE_EXPORT DiscardableMemory {
 
   // Locks the memory so that it will not be purged by the system. Returns
   // true on success. If the return value is false then this object should be
-  // discarded and a new one should be created.
-  virtual bool Lock() WARN_UNUSED_RESULT = 0;
+  // destroyed and a new one should be created.
+  [[nodiscard]] virtual bool Lock() = 0;
 
   // Unlocks the memory so that it can be purged by the system. Must be called
   // after every successful lock call.
@@ -58,6 +58,10 @@ class BASE_EXPORT DiscardableMemory {
   // Returns the memory address held by this object. The object must be locked
   // before calling this.
   virtual void* data() const = 0;
+
+  // Forces the memory to be purged, such that any following Lock() will fail.
+  // The object must be unlocked before calling this.
+  virtual void DiscardForTesting() = 0;
 
   // Handy method to simplify calling data() with a reinterpret_cast.
   template<typename T> T* data_as() const {
@@ -72,6 +76,9 @@ class BASE_EXPORT DiscardableMemory {
       const char* name,
       trace_event::ProcessMemoryDump* pmd) const = 0;
 };
+
+enum class DiscardableMemoryBacking { kSharedMemory, kMadvFree };
+BASE_EXPORT DiscardableMemoryBacking GetDiscardableMemoryBacking();
 
 }  // namespace base
 

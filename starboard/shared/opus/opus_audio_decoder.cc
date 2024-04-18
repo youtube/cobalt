@@ -51,6 +51,9 @@ OpusAudioDecoder::OpusAudioDecoder(const AudioStreamInfo& audio_stream_info)
 }
 
 OpusAudioDecoder::~OpusAudioDecoder() {
+  if (is_valid()) {
+    opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
+  }
   TeardownCodec();
 }
 
@@ -130,19 +133,19 @@ bool OpusAudioDecoder::DecodeInternal(
       audio_stream_info_.number_of_channels * frames_per_au_ *
           starboard::media::GetBytesPerSample(GetSampleType()));
 
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#if SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode";
   int decoded_frames = opus_multistream_decode(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(),
       reinterpret_cast<opus_int16*>(decoded_audio->data()), frames_per_au_, 0);
-#else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#else   // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(), reinterpret_cast<float*>(decoded_audio->data()),
       frames_per_au_, 0);
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   if (decoded_frames == OPUS_BUFFER_TOO_SMALL &&
       frames_per_au_ < kMaxOpusFramesPerAU) {
     frames_per_au_ = kMaxOpusFramesPerAU;
@@ -218,8 +221,9 @@ void OpusAudioDecoder::InitializeCodec() {
 }
 
 void OpusAudioDecoder::TeardownCodec() {
-  if (decoder_) {
+  if (is_valid()) {
     opus_multistream_decoder_destroy(decoder_);
+    decoder_ = NULL;
   }
 }
 
@@ -241,9 +245,19 @@ scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
 void OpusAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  TeardownCodec();
-  InitializeCodec();
+  if (is_valid()) {
+    int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
+    if (error != OPUS_OK) {
+      SB_LOG(ERROR) << "Failed to reset OpusAudioDecoder with error: "
+                    << opus_strerror(error);
 
+      // If fail to reset opus decoder, re-create it.
+      TeardownCodec();
+      InitializeCodec();
+    }
+  }
+
+  frames_per_au_ = kMaxOpusFramesPerAU;
   stream_ended_ = false;
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
@@ -260,11 +274,11 @@ bool OpusAudioDecoder::is_valid() const {
 
 SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
   SB_DCHECK(BelongsToCurrentThread());
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#if SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeInt16;
-#else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#else   // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeFloat32;
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 }
 
 }  // namespace opus

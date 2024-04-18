@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -124,14 +124,14 @@ struct NextCharUTF8 {
   base_icu::UChar32 operator()(const char** p, const char* end) {
     base_icu::UChar32 c;
     int offset = 0;
-    CBU8_NEXT(*p, offset, end - *p, c);
+    CBU8_NEXT(reinterpret_cast<const uint8_t*>(*p), offset, end - *p, c);
     *p += offset;
     return c;
   }
 };
 
 struct NextCharUTF16 {
-  base_icu::UChar32 operator()(const char16** p, const char16* end) {
+  base_icu::UChar32 operator()(const char16_t** p, const char16_t* end) {
     base_icu::UChar32 c;
     int offset = 0;
     CBU16_NEXT(*p, offset, end - *p, c);

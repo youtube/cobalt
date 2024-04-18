@@ -24,8 +24,8 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
-#include "base/task_runner.h"
-#include "base/task_runner_util.h"
+#include "base/task/task_runner.h"
+// #include "base/task_runner_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "starboard/types.h"
@@ -39,14 +39,14 @@
 
 namespace net {
 
-FileStream::Context::Context(const scoped_refptr<base::TaskRunner>& task_runner)
+FileStream::Context::Context(scoped_refptr<base::TaskRunner> task_runner)
     : async_in_progress_(false),
       orphaned_(false),
       task_runner_(task_runner) {
 }
 
 FileStream::Context::Context(base::File file,
-                             const scoped_refptr<base::TaskRunner>& task_runner)
+                             scoped_refptr<base::TaskRunner> task_runner)
     : file_(std::move(file)),
       async_in_progress_(false),
       orphaned_(false),
@@ -60,8 +60,8 @@ int FileStream::Context::Read(IOBuffer* in_buf,
   DCHECK(!async_in_progress_);
 
   scoped_refptr<IOBuffer> buf = in_buf;
-  const bool posted = base::PostTaskAndReplyWithResult(
-      task_runner_.get(), FROM_HERE,
+  const bool posted = task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&Context::ReadFileImpl, base::Unretained(this), buf,
                      buf_len),
       base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
@@ -78,8 +78,8 @@ int FileStream::Context::Write(IOBuffer* in_buf,
   DCHECK(!async_in_progress_);
 
   scoped_refptr<IOBuffer> buf = in_buf;
-  const bool posted = base::PostTaskAndReplyWithResult(
-      task_runner_.get(), FROM_HERE,
+  const bool posted = task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&Context::WriteFileImpl, base::Unretained(this), buf,
                      buf_len),
       base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),

@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/media_decoder.h"
 
+#include <sched.h>
+
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -552,7 +554,7 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
     SB_LOG(INFO) << "|" << action_name << "| failed with status: "
                  << GetNameForMediaCodecStatus(status)
                  << ", will try again after a delay.";
-    SbThreadYield();
+    sched_yield();
   } else {
     SB_LOG(ERROR) << "|" << action_name << "| failed with status: "
                   << GetNameForMediaCodecStatus(status) << ".";

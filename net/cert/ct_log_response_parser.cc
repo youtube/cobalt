@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,11 +14,8 @@
 #include "base/values.h"
 #include "net/cert/ct_serialization.h"
 #include "net/cert/signed_tree_head.h"
-#include "starboard/memory.h"
 
-namespace net {
-
-namespace ct {
+namespace net::ct {
 
 namespace {
 
@@ -76,14 +73,8 @@ struct JsonConsistencyProof {
 };
 
 bool ConvertIndividualProofNode(const base::Value* value, std::string* result) {
-  std::string b64_encoded_node;
-  if (!value->GetAsString(&b64_encoded_node))
-    return false;
-
-  if (!ConvertSHA256RootHash(b64_encoded_node, result))
-    return false;
-
-  return true;
+  const std::string* b64_encoded_node = value->GetIfString();
+  return b64_encoded_node && ConvertSHA256RootHash(*b64_encoded_node, result);
 }
 
 void JsonConsistencyProof::RegisterJSONConverter(
@@ -109,7 +100,8 @@ bool FillSignedTreeHead(const base::Value& json_signed_tree_head,
   signed_tree_head->timestamp = base::Time::FromJsTime(parsed_sth.timestamp);
   signed_tree_head->signature = parsed_sth.signature;
   memcpy(signed_tree_head->sha256_root_hash,
-               parsed_sth.sha256_root_hash.c_str(), kSthRootHashLength);
+         parsed_sth.sha256_root_hash.c_str(),
+         kSthRootHashLength);
   return true;
 }
 
@@ -121,9 +113,8 @@ bool FillConsistencyProof(const base::Value& json_consistency_proof,
     return false;
   }
 
-  const base::DictionaryValue* dict_value = NULL;
-  if (!json_consistency_proof.GetAsDictionary(&dict_value) ||
-      !dict_value->FindKey("consistency")) {
+  const base::Value::Dict* dict_value = json_consistency_proof.GetIfDict();
+  if (!dict_value || !dict_value->Find("consistency")) {
     return false;
   }
 
@@ -135,6 +126,4 @@ bool FillConsistencyProof(const base::Value& json_consistency_proof,
   return true;
 }
 
-}  // namespace ct
-
-}  // namespace net
+}  // namespace net::ct

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,10 +10,9 @@
 #include <utility>
 #include <vector>
 
-#include "base/callback_forward.h"
 #include "base/component_export.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/task/task_traits.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/log/net_log_with_source.h"
@@ -41,29 +40,40 @@ class COMPONENT_EXPORT(NET_EXTRAS) SQLitePersistentCookieStore
   // origin is secure.
   typedef std::pair<std::string, bool> CookieOrigin;
 
+  // Port number to use for cookies whose source port is unknown at the time of
+  // database migration to V13. The value -1 comes from url::PORT_UNSPECIFIED.
+  static const int kDefaultUnknownPort = -1;
+
   // All blocking database accesses will be performed on
   // |background_task_runner|, while |client_task_runner| is used to invoke
-  // callbacks.
+  // callbacks. If |enable_exclusive_access| is set to true then sqlite will
+  // be asked to open the database with flag `exclusive=1`. In practice, this is
+  // only respected on Windows.
   SQLitePersistentCookieStore(
       const base::FilePath& path,
       const scoped_refptr<base::SequencedTaskRunner>& client_task_runner,
       const scoped_refptr<base::SequencedTaskRunner>& background_task_runner,
       bool restore_old_session_cookies,
-      CookieCryptoDelegate* crypto_delegate);
+      CookieCryptoDelegate* crypto_delegate,
+      bool enable_exclusive_access);
+
+  SQLitePersistentCookieStore(const SQLitePersistentCookieStore&) = delete;
+  SQLitePersistentCookieStore& operator=(const SQLitePersistentCookieStore&) =
+      delete;
 
   // Deletes the cookies whose origins match those given in |cookies|.
   void DeleteAllInList(const std::list<CookieOrigin>& cookies);
 
   // CookieMonster::PersistentCookieStore:
-  void Load(const LoadedCallback& loaded_callback,
+  void Load(LoadedCallback loaded_callback,
             const NetLogWithSource& net_log) override;
   void LoadCookiesForKey(const std::string& key,
-                         const LoadedCallback& callback) override;
+                         LoadedCallback callback) override;
   void AddCookie(const CanonicalCookie& cc) override;
   void UpdateCookieAccessTime(const CanonicalCookie& cc) override;
   void DeleteCookie(const CanonicalCookie& cc) override;
   void SetForceKeepSessionState() override;
-  void SetBeforeFlushCallback(base::RepeatingClosure callback) override;
+  void SetBeforeCommitCallback(base::RepeatingClosure callback) override;
   void Flush(base::OnceClosure callback) override;
 
   // Returns how many operations are currently queued. For test use only;
@@ -73,19 +83,17 @@ class COMPONENT_EXPORT(NET_EXTRAS) SQLitePersistentCookieStore
 
  private:
   ~SQLitePersistentCookieStore() override;
-  void CompleteLoad(const LoadedCallback& callback,
+  void CompleteLoad(LoadedCallback callback,
                     std::vector<std::unique_ptr<CanonicalCookie>> cookie_list);
   void CompleteKeyedLoad(
       const std::string& key,
-      const LoadedCallback& callback,
+      LoadedCallback callback,
       std::vector<std::unique_ptr<CanonicalCookie>> cookie_list);
 
   class Backend;
 
   const scoped_refptr<Backend> backend_;
   NetLogWithSource net_log_;
-
-  DISALLOW_COPY_AND_ASSIGN(SQLitePersistentCookieStore);
 };
 
 }  // namespace net

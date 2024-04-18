@@ -15,7 +15,6 @@
 #include "base/message_loop/message_pump_ui_starboard.h"
 
 #include "base/logging.h"
-#include "base/run_loop.h"
 #include "base/time/time.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
@@ -60,7 +59,9 @@ void MessagePumpUIStarboard::RunOneAndReschedule(bool delayed) {
   }
 
   if (!delayed_work_time.is_null()) {
-    ScheduleDelayedWork(delayed_work_time);
+    Delegate::NextWorkInfo next_work_info;
+    next_work_info.delayed_run_time = delayed_work_time;
+    ScheduleDelayedWork(next_work_info);
   }
 }
 
@@ -72,24 +73,18 @@ void MessagePumpUIStarboard::Run(Delegate* delegate) {
   NOTREACHED();
 }
 
-void MessagePumpUIStarboard::Start(Delegate* delegate) {
-  run_loop_.reset(new base::RunLoop());
-  delegate_ = delegate;
+void MessagePumpUIStarboard::Attach(Delegate* delegate) {
+  // Since the Looper is controlled by the UI thread or JavaHandlerThread, we
+  // can't use Run() like we do on other platforms or we would prevent Java
+  // tasks from running. Instead we create and initialize a run loop here, then
+  // return control back to the Looper.
 
-  // Since the RunLoop was just created above, BeforeRun should be guaranteed to
-  // return true (it only returns false if the RunLoop has been Quit already).
-  // Note that Cobalt does not actually call RunLoop::Start() because
-  // Starboard manages its own pump.
-  run_loop_->BeforeRun();
+  SetDelegate(delegate);
 }
 
 void MessagePumpUIStarboard::Quit() {
   delegate_ = NULL;
   CancelAll();
-  if (run_loop_) {
-    run_loop_->AfterRun();
-    run_loop_.reset();
-  }
 }
 
 void MessagePumpUIStarboard::ScheduleWork() {
@@ -104,10 +99,10 @@ void MessagePumpUIStarboard::ScheduleWork() {
 }
 
 void MessagePumpUIStarboard::ScheduleDelayedWork(
-    const base::TimeTicks& delayed_work_time) {
+    const Delegate::NextWorkInfo& next_work_info) {
   base::TimeDelta delay;
-  if (!delayed_work_time.is_null()) {
-    delay = delayed_work_time - base::TimeTicks::Now();
+  if (!next_work_info.delayed_run_time.is_null()) {
+    delay = next_work_info.delayed_run_time - base::TimeTicks::Now();
 
     if (delay <= base::TimeDelta()) {
       delay = base::TimeDelta();
@@ -176,18 +171,11 @@ bool MessagePumpUIStarboard::RunOne(TimeTicks* out_delayed_work_time) {
   }
 
   // Do immediate work.
-  bool did_work = delegate_->DoWork();
-
-  // Do all delayed work. Unlike Chromium, we drain all due delayed work before
-  // going back to the loop. See message_pump_io_starboard.cc for more
-  // information.
-  while (delegate_ && delegate_->DoDelayedWork(out_delayed_work_time)) {
-    did_work = true;
-  }
+  Delegate::NextWorkInfo next_work_info = delegate_->DoWork();
 
   // If we did work, and we still have a delegate, return true, so we will be
   // called again.
-  if (did_work) {
+  if (next_work_info.is_immediate()) {
     return !!delegate_;
   }
 
@@ -200,6 +188,10 @@ bool MessagePumpUIStarboard::RunOne(TimeTicks* out_delayed_work_time) {
   // go to sleep. ScheduleWork or ScheduleDelayedWork will be called if new work
   // is scheduled.
   return delegate_->DoIdleWork();
+}
+
+MessagePump::Delegate* MessagePumpForUI::SetDelegate(Delegate* delegate) {
+  return std::exchange(delegate_, delegate);
 }
 
 }  // namespace base

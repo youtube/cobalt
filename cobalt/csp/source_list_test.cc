@@ -269,8 +269,7 @@ TEST_F(SourceListTest, TestInsecureLocalhostInsecureV4) {
   EXPECT_TRUE(source_list.Matches(GURL("http://localhost/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://localhost:80/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://locaLHost/")));
-  EXPECT_TRUE(source_list.Matches(GURL("http://localhost.localdomain/")));
-  EXPECT_TRUE(source_list.Matches(GURL("http://localhost.locaLDomain/")));
+  // Don't test for localhost.localdomain, see https://crbug.com/40159050
   EXPECT_TRUE(source_list.Matches(GURL("http://127.0.0.1/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://127.0.0.1:80/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://127.0.1.0/")));
@@ -286,10 +285,7 @@ TEST_F(SourceListTest, TestInsecureLocalhostInsecureV6) {
   std::string sources = "'cobalt-insecure-localhost'";
   ParseSourceList(&source_list, sources);
 
-  EXPECT_TRUE(source_list.Matches(GURL("http://localhost6/")));
-  EXPECT_TRUE(source_list.Matches(GURL("http://localhost6:80/")));
-  EXPECT_TRUE(source_list.Matches(GURL("http://localhost6.localdomain6/")));
-  EXPECT_TRUE(source_list.Matches(GURL("http://localhost6.localdomain6:80/")));
+  // Don't test for localhost6, see https://crbug.com/40159050
   EXPECT_TRUE(source_list.Matches(GURL("http://[::1]/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://[::1]:80/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://[0:0:0:0:0:0:0:1]/")));

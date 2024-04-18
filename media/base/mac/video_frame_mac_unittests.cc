@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "base/bind.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "media/base/video_frame.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
