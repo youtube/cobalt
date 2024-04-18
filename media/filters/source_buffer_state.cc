@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,8 +6,10 @@
 
 #include <set>
 
-#include "base/functional/callback_helpers.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/functional/callback_helpers.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -15,6 +17,7 @@
 #include "media/base/media_track.h"
 #include "media/base/media_tracks.h"
 #include "media/base/mime_util.h"
+#include "media/base/stream_parser.h"
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/frame_processor.h"
 #include "media/filters/source_buffer_stream.h"
@@ -76,10 +79,6 @@ unsigned GetMSEBufferSizeLimitIfExists(base::StringPiece switch_string) {
 Ranges<base::TimeDelta> SourceBufferState::ComputeRangesIntersection(
     const RangesList& active_ranges,
     bool ended) {
-  // TODO(servolk): Perhaps this can be removed in favor of blink implementation
-  // (MediaSource::buffered)? Currently this is only used on Android and for
-  // updating DemuxerHost's buffered ranges during AppendData() as well as
-  // SourceBuffer.buffered property implementation.
   // Implementation of HTMLMediaElement.buffered algorithm in MSE spec.
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#dom-htmlmediaelement.buffered
 
@@ -205,12 +204,17 @@ void SourceBufferState::SetParseWarningCallback(
   frame_processor_->SetParseWarningCallback(std::move(parse_warning_cb));
 }
 
-bool SourceBufferState::Append(const uint8_t* data,
-                               size_t length,
-                               base::TimeDelta append_window_start,
-                               base::TimeDelta append_window_end,
-                               base::TimeDelta* timestamp_offset) {
-  append_in_progress_ = true;
+bool SourceBufferState::AppendToParseBuffer(const uint8_t* data,
+                                            size_t length) {
+  return stream_parser_->AppendToParseBuffer(data, length);
+}
+
+StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
+    base::TimeDelta append_window_start,
+    base::TimeDelta append_window_end,
+    base::TimeDelta* timestamp_offset) {
+  DCHECK(!new_configs_possible_);
+  new_configs_possible_ = true;
   DCHECK(timestamp_offset);
   DCHECK(!timestamp_offset_during_append_);
   append_window_start_during_append_ = append_window_start;
@@ -219,16 +223,18 @@ bool SourceBufferState::Append(const uint8_t* data,
 
   // TODO(wolenetz): Curry and pass a NewBuffersCB here bound with append window
   // and timestamp offset pointer. See http://crbug.com/351454.
-  bool result = stream_parser_->Parse(data, length);
-  if (!result) {
+  StreamParser::ParseStatus result =
+      stream_parser_->Parse(StreamParser::kMaxPendingBytesPerParse);
+
+  if (result == StreamParser::ParseStatus::kFailed) {
     MEDIA_LOG(ERROR, media_log_)
-        << __func__ << ": stream parsing failed. Data size=" << length
-        << " append_window_start=" << append_window_start.InSecondsF()
+        << __func__ << ": stream parsing failed. append_window_start="
+        << append_window_start.InSecondsF()
         << " append_window_end=" << append_window_end.InSecondsF();
   }
 
   timestamp_offset_during_append_ = nullptr;
-  append_in_progress_ = false;
+  new_configs_possible_ = false;
   return result;
 }
 
@@ -237,7 +243,8 @@ bool SourceBufferState::AppendChunks(
     base::TimeDelta append_window_start,
     base::TimeDelta append_window_end,
     base::TimeDelta* timestamp_offset) {
-  append_in_progress_ = true;
+  DCHECK(!new_configs_possible_);
+  new_configs_possible_ = true;
   DCHECK(timestamp_offset);
   DCHECK(!timestamp_offset_during_append_);
   append_window_start_during_append_ = append_window_start;
@@ -253,7 +260,7 @@ bool SourceBufferState::AppendChunks(
   }
 
   timestamp_offset_during_append_ = nullptr;
-  append_in_progress_ = false;
+  new_configs_possible_ = false;
   return result;
 }
 
@@ -381,6 +388,29 @@ Ranges<base::TimeDelta> SourceBufferState::GetBufferedRanges(
     ranges_list.push_back(it.second->GetBufferedRanges(duration));
 
   return ComputeRangesIntersection(ranges_list, ended);
+}
+
+base::TimeDelta SourceBufferState::GetLowestPresentationTimestamp() const {
+  base::TimeDelta min_pts = kInfiniteDuration;
+
+  for (const auto& it : audio_streams_) {
+    min_pts = std::min(min_pts, it.second->GetLowestPresentationTimestamp());
+  }
+
+  for (const auto& it : video_streams_) {
+    min_pts = std::min(min_pts, it.second->GetLowestPresentationTimestamp());
+  }
+
+  for (const auto& it : text_streams_) {
+    min_pts = std::min(min_pts, it.second->GetLowestPresentationTimestamp());
+  }
+
+  DCHECK_LE(base::TimeDelta(), min_pts);
+  if (min_pts == kInfiniteDuration) {
+    return base::TimeDelta();
+  }
+
+  return min_pts;
 }
 
 base::TimeDelta SourceBufferState::GetHighestPresentationTimestamp() const {
@@ -636,9 +666,9 @@ bool SourceBufferState::OnNewConfigs(
     return false;
   }
 
-  // MSE spec allows new configs to be emitted only during Append, but not
-  // during Flush or parser reset operations.
-  CHECK(append_in_progress_);
+  // MSE spec allows new configs to be emitted only during
+  // RunSegmentParserLoop(), but not during Flush or parser reset operations.
+  CHECK(new_configs_possible_);
 
   bool success = true;
 
@@ -662,8 +692,8 @@ bool SourceBufferState::OnNewConfigs(
                << " config: " << audio_config.AsHumanReadableString();
       DCHECK(audio_config.IsValidConfig());
 
-      const auto& it = std::find(expected_acodecs.begin(),
-                                 expected_acodecs.end(), audio_config.codec());
+      const auto& it =
+          base::ranges::find(expected_acodecs, audio_config.codec());
       if (it == expected_acodecs.end()) {
         MEDIA_LOG(ERROR, media_log_) << "Audio stream codec "
                                      << GetCodecName(audio_config.codec())
@@ -718,39 +748,34 @@ bool SourceBufferState::OnNewConfigs(
                << " config: " << video_config.AsHumanReadableString();
       DCHECK(video_config.IsValidConfig());
 
-      if (video_config.codec() == VideoCodec::kHEVC) {
-#if BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_HEVC)
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-        if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-                switches::kLacrosEnablePlatformEncryptedHevc)) {
-          NOTREACHED() << "MSE parser must not emit HEVC tracks on runtime "
-                          "configurations that do not support HEVC playback "
-                          "via platform.";
-          return false;
-        }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-        // HEVC is only supported through EME under this build flag, so
-        // require the config to be for an encrypted track. Even so,
-        // conditionally allow clear HEVC if cmdline has test override.
-        if (video_config.encryption_scheme() ==
-                EncryptionScheme::kUnencrypted &&
-            !base::CommandLine::ForCurrentProcess()->HasSwitch(
-                switches::kEnableClearHevcForTesting)) {
+#if BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
+      // When ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION is true, in general
+      // encrypted Dolby Vision is allowed while clear Dolby Vision is not.
+      if (video_config.codec() == VideoCodec::kDolbyVision) {
+        // If `kPlatformEncryptedDolbyVision` is disabled, encrypted Dolby
+        // Vision is also not allowed, so just return false.
+        if (!base::FeatureList::IsEnabled(kPlatformEncryptedDolbyVision)) {
           MEDIA_LOG(ERROR, media_log_)
-              << "MSE playback of HEVC on is only supported via platform "
-                 "decryptor, but the provided HEVC "
-                 "track is not encrypted.";
+              << "MSE playback of DolbyVision is not supported because "
+                 "kPlatformEncryptedDolbyVision feature is disabled.";
           return false;
         }
-#elif !BUILDFLAG(ENABLE_PLATFORM_HEVC)
-        NOTREACHED()
-            << "MSE parser must not emit HEVC tracks on build configurations "
-               "that do not support HEVC playback via platform.";
-#endif  // BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_HEVC)
-      }
 
-      const auto& it = std::find(expected_vcodecs.begin(),
-                                 expected_vcodecs.end(), video_config.codec());
+        // If `kAllowClearDolbyVisionInMseWhenPlatformEncryptedDvEnabled` is
+        // specified which force allow Dolby Vision in Media Source.
+        if (!base::FeatureList::IsEnabled(
+                kAllowClearDolbyVisionInMseWhenPlatformEncryptedDvEnabled) &&
+            !video_config.is_encrypted()) {
+          MEDIA_LOG(ERROR, media_log_)
+              << "MSE playback of DolbyVision is only supported via platform "
+                 "decryptor, but the provided DV track is not encrypted.";
+          return false;
+        }
+      }
+#endif  // BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
+
+      const auto& it =
+          base::ranges::find(expected_vcodecs, video_config.codec());
       if (it == expected_vcodecs.end()) {
         MEDIA_LOG(ERROR, media_log_) << "Video stream codec "
                                      << GetCodecName(video_config.codec())
@@ -1014,10 +1039,9 @@ bool SourceBufferState::OnNewBuffers(
   DCHECK(timestamp_offset_during_append_);
   DCHECK(parsing_media_segment_);
 
-  for (const auto& it : buffer_queue_map) {
-    const StreamParser::BufferQueue& bufq = it.second;
-    DCHECK(!bufq.empty());
-    media_segment_has_data_for_track_[it.first] = true;
+  for (const auto& [track_id, buffer_queue] : buffer_queue_map) {
+    DCHECK(!buffer_queue.empty());
+    media_segment_has_data_for_track_[track_id] = true;
   }
 
   const base::TimeDelta timestamp_offset_before_processing =
@@ -1030,12 +1054,11 @@ bool SourceBufferState::OnNewBuffers(
       timestamp_offset_before_processing;
   if (generate_timestamps_flag()) {
     base::TimeDelta min_end_timestamp = kNoTimestamp;
-    for (const auto& it : buffer_queue_map) {
-      const StreamParser::BufferQueue& bufq = it.second;
-      DCHECK(!bufq.empty());
+    for (const auto& [track_id, buffer_queue] : buffer_queue_map) {
+      DCHECK(!buffer_queue.empty());
       if (min_end_timestamp == kNoTimestamp ||
-          EndTimestamp(bufq) < min_end_timestamp) {
-        min_end_timestamp = EndTimestamp(bufq);
+          EndTimestamp(buffer_queue) < min_end_timestamp) {
+        min_end_timestamp = EndTimestamp(buffer_queue);
         DCHECK_NE(kNoTimestamp, min_end_timestamp);
       }
     }

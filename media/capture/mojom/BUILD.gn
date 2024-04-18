@@ -1,4 +1,4 @@
-# Copyright 2016 The Chromium Authors. All rights reserved.
+# Copyright 2016 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -138,6 +138,11 @@ mojom("image_capture") {
   # scramble these messages.
   scramble_message_ids = false
   webui_module_path = "/media/capture/mojom"
+  use_typescript_sources = true
+
+  # Since these are exposed to layout tests, they need legacy bindings as
+  # well.
+  generate_legacy_js_bindings = true
 }
 
 source_set("image_capture_types") {

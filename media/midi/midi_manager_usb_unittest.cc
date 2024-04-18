@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,13 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "base/cxx17_backports.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/task_environment.h"
@@ -96,7 +98,7 @@ class FakeUsbMidiDevice : public UsbMidiDevice {
   std::string manufacturer_;
   std::string product_name_;
   std::string device_version_;
-  Logger* logger_;
+  raw_ptr<Logger> logger_;
 };
 
 class FakeMidiManagerClient : public MidiManagerClient {
@@ -155,7 +157,7 @@ class FakeMidiManagerClient : public MidiManagerClient {
   std::vector<mojom::PortInfo> output_ports_;
 
  private:
-  Logger* logger_;
+  raw_ptr<Logger> logger_;
 };
 
 class TestUsbMidiDeviceFactory : public UsbMidiDevice::Factory {
@@ -222,8 +224,12 @@ class MidiManagerFactoryForTesting : public midi::MidiService::ManagerFactory {
   }
 
  private:
-  TestUsbMidiDeviceFactory* device_factory_ = nullptr;
-  MidiManagerUsbForTesting* manager_ = nullptr;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION TestUsbMidiDeviceFactory* device_factory_ = nullptr;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION MidiManagerUsbForTesting* manager_ = nullptr;
 };
 
 class MidiManagerUsbTest : public ::testing::Test {
@@ -281,12 +287,12 @@ class MidiManagerUsbTest : public ::testing::Test {
 
   MidiManagerUsb* manager() { return factory_->manager(); }
 
-  MidiManagerFactoryForTesting* factory_;
   std::unique_ptr<FakeMidiManagerClient> client_;
   Logger logger_;
 
  private:
-  std::unique_ptr<MidiService> service_;
+  std::unique_ptr<MidiService> service_;  // Must outlive `factory_`.
+  raw_ptr<MidiManagerFactoryForTesting> factory_;
   base::test::SingleThreadTaskEnvironment task_environment_;
 };
 
@@ -563,7 +569,7 @@ TEST_F(MidiManagerUsbTest, Receive) {
   RunCallbackUntilCallbackInvoked(true, &devices);
   EXPECT_EQ(Result::OK, GetInitializationResult());
 
-  manager()->ReceiveUsbMidiData(device_raw, 2, data, base::size(data),
+  manager()->ReceiveUsbMidiData(device_raw, 2, data, std::size(data),
                                 base::TimeTicks());
   Finalize();
 

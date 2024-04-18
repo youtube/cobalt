@@ -1,11 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_BASE_LOOPBACK_AUDIO_CONVERTER_H_
 #define MEDIA_BASE_LOOPBACK_AUDIO_CONVERTER_H_
 
-#include "base/macros.h"
 #include "media/base/audio_converter.h"
 
 namespace media {
@@ -16,7 +15,8 @@ namespace media {
 // use converted audio from AudioOutputStreams as input to an AudioConverter.
 // For example, this allows converting multiple streams into a common format and
 // using the converted audio as input to another AudioConverter (i.e. a mixer).
-class LoopbackAudioConverter : public AudioConverter::InputCallback {
+class MEDIA_EXPORT LoopbackAudioConverter
+    : public AudioConverter::InputCallback {
  public:
   LoopbackAudioConverter(const AudioParameters& input_params,
                          const AudioParameters& output_params,
@@ -38,7 +38,9 @@ class LoopbackAudioConverter : public AudioConverter::InputCallback {
   bool empty() { return audio_converter_.empty(); }
 
  private:
-  double ProvideInput(AudioBus* audio_bus, uint32_t frames_delayed) override;
+  double ProvideInput(AudioBus* audio_bus,
+                      uint32_t frames_delayed,
+                      const AudioGlitchInfo& glitch_info) override;
 
   AudioConverter audio_converter_;
 };

@@ -1,15 +1,13 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.media;
 
-import android.annotation.TargetApi;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.opengl.GLES20;
-import android.os.Build;
 import android.util.SparseArray;
 
 import org.chromium.base.Log;
@@ -30,8 +28,6 @@ import java.util.concurrent.locks.ReentrantLock;
  **/
 @JNINamespace("media")
 @SuppressWarnings("deprecation")
-// TODO: is this class only used on ICS MR1 (or some later version) and above?
-@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
 public class VideoCaptureCamera
         extends VideoCapture implements android.hardware.Camera.PreviewCallback {
     private static final String TAG = "VideoCapture";
@@ -920,7 +916,7 @@ public class VideoCaptureCamera
             if (!mIsRunning) {
                 return;
             }
-            if (data.length == mExpectedFrameSize) {
+            if (data != null && data.length == mExpectedFrameSize) {
                 VideoCaptureJni.get().onFrameAvailable(mNativeVideoCaptureDeviceAndroid,
                         VideoCaptureCamera.this, data, mExpectedFrameSize, getCameraRotation());
             } else {
@@ -930,7 +926,7 @@ public class VideoCaptureCamera
             }
         } finally {
             mPreviewBufferLock.unlock();
-            if (camera != null) {
+            if (camera != null && data != null) {
                 camera.addCallbackBuffer(data);
             }
         }

@@ -1,13 +1,12 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_AUDIO_AUDIO_SYSTEM_TEST_UTIL_H_
 #define MEDIA_AUDIO_AUDIO_SYSTEM_TEST_UTIL_H_
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/macros.h"
 #include "base/run_loop.h"
 #include "base/threading/thread_checker.h"
 #include "media/audio/audio_device_description.h"
@@ -28,6 +27,12 @@ namespace media {
 class AudioSystemCallbackExpectations {
  public:
   AudioSystemCallbackExpectations() = default;
+
+  AudioSystemCallbackExpectations(const AudioSystemCallbackExpectations&) =
+      delete;
+  AudioSystemCallbackExpectations& operator=(
+      const AudioSystemCallbackExpectations&) = delete;
+
   AudioSystem::OnAudioParamsCallback GetAudioParamsCallback(
       const base::Location& location,
       base::OnceClosure on_cb_received,
@@ -85,7 +90,6 @@ class AudioSystemCallbackExpectations {
                   const absl::optional<std::string>& result_id);
 
   THREAD_CHECKER(thread_checker_);
-  DISALLOW_COPY_AND_ASSIGN(AudioSystemCallbackExpectations);
 };
 
 // Template test case to test AudioSystem implementations.
@@ -101,18 +105,18 @@ class AudioSystemTestTemplate : public T {
 
   void SetUp() override {
     T::SetUp();
-    input_params_ =
-        AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_MONO,
-                        AudioParameters::kTelephoneSampleRate,
-                        AudioParameters::kTelephoneSampleRate / 10);
-    output_params_ =
-        AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_MONO,
-                        AudioParameters::kTelephoneSampleRate,
-                        AudioParameters::kTelephoneSampleRate / 20);
-    default_output_params_ =
-        AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_MONO,
-                        AudioParameters::kTelephoneSampleRate,
-                        AudioParameters::kTelephoneSampleRate / 30);
+    input_params_ = AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
+                                    ChannelLayoutConfig::Mono(),
+                                    AudioParameters::kTelephoneSampleRate,
+                                    AudioParameters::kTelephoneSampleRate / 10);
+    output_params_ = AudioParameters(
+        AudioParameters::AUDIO_PCM_LINEAR, ChannelLayoutConfig::Mono(),
+        AudioParameters::kTelephoneSampleRate,
+        AudioParameters::kTelephoneSampleRate / 20);
+    default_output_params_ = AudioParameters(
+        AudioParameters::AUDIO_PCM_LINEAR, ChannelLayoutConfig::Mono(),
+        AudioParameters::kTelephoneSampleRate,
+        AudioParameters::kTelephoneSampleRate / 30);
     audio_manager()->SetInputStreamParameters(input_params_);
     audio_manager()->SetOutputStreamParameters(output_params_);
     audio_manager()->SetDefaultOutputStreamParameters(default_output_params_);

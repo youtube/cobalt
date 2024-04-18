@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,11 +13,10 @@
 #include <vector>
 
 #include "base/android/scoped_java_ref.h"
-#include "base/callback.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/sequenced_task_runner_helpers.h"
+#include "base/task/sequenced_task_runner_helpers.h"
 #include "media/base/android/android_util.h"
 #include "media/base/android/media_crypto_context.h"
 #include "media/base/android/media_crypto_context_impl.h"
@@ -58,11 +57,6 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
 
   using MediaCryptoReadyCB = MediaCryptoContext::MediaCryptoReadyCB;
 
-  // Checks whether MediaDRM is available and usable, including for decoding.
-  // All other static methods check IsAvailable() or equivalent internally.
-  // There is no need to check IsAvailable() explicitly before calling them.
-  static bool IsAvailable();
-
   // Checks whether |key_system| is supported.
   static bool IsKeySystemSupported(const std::string& key_system);
 
@@ -71,10 +65,6 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
   static bool IsKeySystemSupportedWithType(
       const std::string& key_system,
       const std::string& container_mime_type);
-
-  // Whether per-origin provisioning (setting "origin" property on MediaDrm) is
-  // supported or not. If false, per-device provisioning is used.
-  static bool IsPerOriginProvisioningSupported();
 
   // Returns true if this device supports per-application provisioning, false
   // otherwise.
@@ -99,6 +89,9 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
       const std::string& origin_id,
       SecurityLevel security_level,
       CreateFetcherCB create_fetcher_cb);
+
+  MediaDrmBridge(const MediaDrmBridge&) = delete;
+  MediaDrmBridge& operator=(const MediaDrmBridge&) = delete;
 
   // ContentDecryptionModule implementation.
   void SetServerCertificate(
@@ -149,7 +142,9 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
   void ResolvePromise(uint32_t promise_id);
   void ResolvePromiseWithSession(uint32_t promise_id,
                                  const std::string& session_id);
-  void RejectPromise(uint32_t promise_id, const std::string& error_message);
+  void RejectPromise(uint32_t promise_id,
+                     CdmPromise::Exception exception_code,
+                     const std::string& error_message);
 
   // Registers a callback which will be called when MediaCrypto is ready.
   // Can be called on any thread. Only one callback should be registered.
@@ -343,8 +338,6 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
 
   // NOTE: Weak pointers must be invalidated before all other member variables.
   base::WeakPtrFactory<MediaDrmBridge> weak_factory_{this};
-
-  DISALLOW_COPY_AND_ASSIGN(MediaDrmBridge);
 };
 
 }  // namespace media

@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/process_memory_dump.h"
@@ -96,6 +97,8 @@ uint32_t GetGbmUsage(gfx::BufferUsage usage) {
 
 class GpuMemoryBufferImplGbm : public gfx::GpuMemoryBuffer {
  public:
+  GpuMemoryBufferImplGbm() = delete;
+
   GpuMemoryBufferImplGbm(gfx::BufferFormat format, gbm_bo* buffer_object)
       : format_(format), buffer_object_(buffer_object), mapped_(false) {
     handle_.type = gfx::NATIVE_PIXMAP;
@@ -111,6 +114,9 @@ class GpuMemoryBufferImplGbm : public gfx::GpuMemoryBuffer {
           base::ScopedFD(gbm_bo_get_plane_fd(buffer_object, i))));
     }
   }
+
+  GpuMemoryBufferImplGbm(const GpuMemoryBufferImplGbm&) = delete;
+  GpuMemoryBufferImplGbm& operator=(const GpuMemoryBufferImplGbm&) = delete;
 
   ~GpuMemoryBufferImplGbm() override {
     if (mapped_) {
@@ -198,10 +204,6 @@ class GpuMemoryBufferImplGbm : public gfx::GpuMemoryBuffer {
     return handle;
   }
 
-  ClientBuffer AsClientBuffer() override {
-    return reinterpret_cast<ClientBuffer>(this);
-  }
-
   void OnMemoryDump(
       base::trace_event::ProcessMemoryDump* pmd,
       const base::trace_event::MemoryAllocatorDumpGuid& buffer_dump_guid,
@@ -215,16 +217,15 @@ class GpuMemoryBufferImplGbm : public gfx::GpuMemoryBuffer {
 
  private:
   struct MappedPlane {
-    void* addr;
-    void* mapped_data;
+    raw_ptr<void, ExperimentalAsh> addr;
+    raw_ptr<void, ExperimentalAsh> mapped_data;
   };
 
   gfx::BufferFormat format_;
-  gbm_bo* buffer_object_;
+  raw_ptr<gbm_bo, ExperimentalAsh> buffer_object_;
   gfx::GpuMemoryBufferHandle handle_;
   bool mapped_;
   std::vector<MappedPlane> mapped_planes_;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(GpuMemoryBufferImplGbm);
 };
 
 }  // namespace
@@ -277,10 +278,6 @@ LocalGpuMemoryBufferManager::CreateGpuMemoryBuffer(
 
   return std::make_unique<GpuMemoryBufferImplGbm>(format, buffer_object);
 }
-
-void LocalGpuMemoryBufferManager::SetDestructionSyncToken(
-    gfx::GpuMemoryBuffer* buffer,
-    const gpu::SyncToken& sync_token) {}
 
 void LocalGpuMemoryBufferManager::CopyGpuMemoryBufferAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,

@@ -1,12 +1,12 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "media/base/audio_timestamp_helper.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include "base/cxx17_backports.h"
-#include "media/base/audio_timestamp_helper.h"
 #include "media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -25,6 +25,9 @@ class AudioTimestampHelperTest : public ::testing::Test {
   AudioTimestampHelperTest() : helper_(kDefaultSampleRate) {
     helper_.SetBaseTimestamp(base::TimeDelta());
   }
+
+  AudioTimestampHelperTest(const AudioTimestampHelperTest&) = delete;
+  AudioTimestampHelperTest& operator=(const AudioTimestampHelperTest&) = delete;
 
   // Adds frames to the helper and returns the current timestamp in
   // microseconds.
@@ -47,9 +50,6 @@ class AudioTimestampHelperTest : public ::testing::Test {
 
  protected:
   AudioTimestampHelper helper_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(AudioTimestampHelperTest);
 };
 
 TEST_F(AudioTimestampHelperTest, FramesToTime) {
@@ -132,7 +132,7 @@ TEST_F(AudioTimestampHelperTest, GetDuration) {
 
   int frame_count = 5;
   int64_t expected_durations[] = {113, 113, 114, 113, 113, 114};
-  for (size_t i = 0; i < base::size(expected_durations); ++i) {
+  for (size_t i = 0; i < std::size(expected_durations); ++i) {
     base::TimeDelta duration = helper_.GetFrameDuration(frame_count);
     EXPECT_EQ(expected_durations[i], duration.InMicroseconds());
 

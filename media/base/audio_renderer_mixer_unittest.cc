@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,12 +12,13 @@
 #include <tuple>
 #include <vector>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/cxx17_backports.h"
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/task_environment.h"
 #include "base/threading/platform_thread.h"
+#include "base/time/time.h"
 #include "media/base/audio_renderer_mixer_input.h"
 #include "media/base/audio_renderer_mixer_pool.h"
 #include "media/base/fake_audio_render_callback.h"
@@ -33,7 +34,7 @@ const int kOddMixerInputs = 7;
 const int kMixerCycles = 3;
 
 // Parameters used for testing.
-const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
+constexpr ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
 const int kHighLatencyBufferSize = 8192;
 const int kLowLatencyBufferSize = 256;
 
@@ -60,13 +61,15 @@ class AudioRendererMixerTest
     const int* const sample_rates = std::get<0>(GetParam());
     size_t sample_rates_count = std::get<1>(GetParam());
     for (size_t i = 0; i < sample_rates_count; ++i)
-      input_parameters_.push_back(
-          AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
-                          sample_rates[i], kHighLatencyBufferSize));
+      input_parameters_.emplace_back(
+          AudioParameters::AUDIO_PCM_LINEAR,
+          ChannelLayoutConfig::FromLayout<kChannelLayout>(), sample_rates[i],
+          kHighLatencyBufferSize);
 
     // Create output parameters based on test parameters.
     output_parameters_ =
-        AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY, kChannelLayout,
+        AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                        ChannelLayoutConfig::FromLayout<kChannelLayout>(),
                         std::get<2>(GetParam()), kLowLatencyBufferSize);
 
     sink_ = new MockAudioRendererSink();
@@ -84,7 +87,12 @@ class AudioRendererMixerTest
         output_parameters_.frames_per_buffer());
     expected_callback_ = std::make_unique<FakeAudioRenderCallback>(
         step, output_parameters_.sample_rate());
+
+    expected_callback_->set_needs_fade_in(true);
   }
+
+  AudioRendererMixerTest(const AudioRendererMixerTest&) = delete;
+  AudioRendererMixerTest& operator=(const AudioRendererMixerTest&) = delete;
 
   AudioRendererMixer* GetMixer(const base::UnguessableToken& owner_token,
                                const AudioParameters& params,
@@ -163,12 +171,12 @@ class AudioRendererMixerTest
 
     // Render actual audio data.
     int frames = mixer_callback_->Render(
-        base::TimeDelta(), base::TimeTicks::Now(), 0, audio_bus_.get());
+        base::TimeDelta(), base::TimeTicks::Now(), {}, audio_bus_.get());
     if (frames != audio_bus_->frames())
       return false;
 
     // Render expected audio data (without scaling).
-    expected_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(), 0,
+    expected_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(), {},
                                expected_audio_bus_.get());
 
     if (half_fill_) {
@@ -332,6 +340,44 @@ class AudioRendererMixerTest
       mixer_inputs_[i]->Stop();
   }
 
+  // Verify that glitch info is being propagated properly.
+  void GlitchInfoTest(int inputs) {
+    InitializeInputs(inputs);
+
+    // Play() all mixer inputs and ensure we get the right values.
+    for (auto& mixer_input : mixer_inputs_) {
+      mixer_input->Start();
+      mixer_input->Play();
+    }
+
+    AudioGlitchInfo glitch_info{.duration = base::Milliseconds(100),
+                                .count = 123};
+    AudioGlitchInfo expected_glitch_info;
+
+    for (int i = 0; i < kMixerCycles; ++i) {
+      expected_glitch_info += glitch_info;
+      mixer_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(),
+                              glitch_info, audio_bus_.get());
+    }
+
+    // If the output buffer duration is not divisible by all the input buffer
+    // durations, all glitch info will not necessarily have been propagated yet.
+    // We call Render with empty glitch info a few more times to flush out any
+    // remaining glitch info.
+    for (int i = 0; i < kMixerCycles; ++i) {
+      mixer_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(), {},
+                              audio_bus_.get());
+    }
+
+    for (auto& callback : fake_callbacks_) {
+      EXPECT_EQ(callback->cumulative_glitch_info(), expected_glitch_info);
+    }
+
+    for (auto& mixer_input : mixer_inputs_) {
+      mixer_input->Stop();
+    }
+  }
+
   scoped_refptr<AudioRendererMixerInput> CreateMixerInput() {
     auto input = base::MakeRefCounted<AudioRendererMixerInput>(
         this, base::UnguessableToken::Create(),
@@ -349,7 +395,7 @@ class AudioRendererMixerTest
   base::test::TaskEnvironment task_env_;
   scoped_refptr<MockAudioRendererSink> sink_;
   std::unique_ptr<AudioRendererMixer> mixer_;
-  AudioRendererSink::RenderCallback* mixer_callback_;
+  raw_ptr<AudioRendererSink::RenderCallback> mixer_callback_;
   std::vector<AudioParameters> input_parameters_;
   AudioParameters output_parameters_;
   std::unique_ptr<AudioBus> audio_bus_;
@@ -359,9 +405,6 @@ class AudioRendererMixerTest
   std::unique_ptr<FakeAudioRenderCallback> expected_callback_;
   double epsilon_;
   bool half_fill_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(AudioRendererMixerTest);
 };
 
 class AudioRendererMixerBehavioralTest : public AudioRendererMixerTest {};
@@ -447,6 +490,11 @@ TEST_P(AudioRendererMixerTest, ManyInputMixedStopPlayOdd) {
   MixedStopPlayTest(kOddMixerInputs);
 }
 
+// Check that AudioGlitchInfo is propagated.
+TEST_P(AudioRendererMixerTest, PropagatesAudioGlitchInfo) {
+  GlitchInfoTest(kMixerInputs);
+}
+
 TEST_P(AudioRendererMixerBehavioralTest, OnRenderError) {
   InitializeInputs(kMixerInputs);
   for (size_t i = 0; i < mixer_inputs_.size(); ++i) {
@@ -495,7 +543,7 @@ TEST_P(AudioRendererMixerBehavioralTest, MixerPausesStream) {
   const base::TimeDelta kSleepTime = base::Milliseconds(100);
   base::TimeTicks start_time = base::TimeTicks::Now();
   while (!pause_event.IsSignaled()) {
-    mixer_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(), 0,
+    mixer_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(), {},
                             audio_bus_.get());
     base::PlatformThread::Sleep(kSleepTime);
     ASSERT_TRUE(base::TimeTicks::Now() - start_time < kTestTimeout);
@@ -511,7 +559,7 @@ TEST_P(AudioRendererMixerBehavioralTest, MixerPausesStream) {
   // Ensure once the input is paused the sink eventually pauses.
   start_time = base::TimeTicks::Now();
   while (!pause_event.IsSignaled()) {
-    mixer_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(), 0,
+    mixer_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(), {},
                             audio_bus_.get());
     base::PlatformThread::Sleep(kSleepTime);
     ASSERT_TRUE(base::TimeTicks::Now() - start_time < kTestTimeout);
@@ -535,19 +583,19 @@ INSTANTIATE_TEST_SUITE_P(
 
         // Downsampling, multuple input sample rates.
         std::make_tuple(static_cast<const int* const>(kTestInput3Rates),
-                        base::size(kTestInput3Rates),
+                        std::size(kTestInput3Rates),
                         kTestInput3Rates[0],
                         0.01),
 
         // Upsampling, multiple sinput sample rates.
         std::make_tuple(static_cast<const int* const>(kTestInput3Rates),
-                        base::size(kTestInput3Rates),
+                        std::size(kTestInput3Rates),
                         kTestInput3Rates[2],
                         0.01),
 
         // Both downsampling and upsampling, multiple input sample rates
         std::make_tuple(static_cast<const int* const>(kTestInput3Rates),
-                        base::size(kTestInput3Rates),
+                        std::size(kTestInput3Rates),
                         kTestInput3Rates[1],
                         0.01)));
 

@@ -1,10 +1,8 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/filters/h264_bitstream_buffer.h"
-
-#include <cstring>
 
 #include "base/bits.h"
 #include "base/sys_byteorder.h"
@@ -47,7 +45,7 @@ void H264BitstreamBuffer::FlushReg() {
   if (bits_in_reg == 0)
     return;
 
-  size_t bytes_in_reg = base::bits::AlignUp(bits_in_reg, 8) / 8;
+  size_t bytes_in_reg = base::bits::AlignUp(bits_in_reg, size_t{8}) / 8;
   reg_ <<= (kRegBitSize - bits_in_reg);
 
   // Convert to MSB and append as such to the stream.

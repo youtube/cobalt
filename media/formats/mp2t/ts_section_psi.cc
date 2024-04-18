@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/logging.h"
 #include "media/base/bit_reader.h"
+#include "media/base/byte_queue.h"
 #include "media/formats/mp2t/mp2t_common.h"
 
 static bool IsCrcValid(const uint8_t* buf, int size) {
@@ -77,7 +78,7 @@ bool TsSectionPsi::Parse(bool payload_unit_start_indicator,
     return true;
 
   // Add the data to the parser state.
-  psi_byte_queue_.Push(buf, size);
+  RCHECK(psi_byte_queue_.Push(buf, size));  // Can fail if allocation fails.
   int raw_psi_size;
   const uint8_t* raw_psi;
   psi_byte_queue_.Peek(&raw_psi, &raw_psi_size);

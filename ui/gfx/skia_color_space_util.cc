@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <cmath>
 #include <vector>
 
-#include "base/cxx17_backports.h"
+#include "base/check.h"
 
 namespace gfx {
 
@@ -20,7 +20,7 @@ float SkTransferFnEvalUnclamped(const skcms_TransferFunction& fn, float x) {
 
 float SkTransferFnEval(const skcms_TransferFunction& fn, float x) {
   float fn_at_x_unclamped = SkTransferFnEvalUnclamped(fn, x);
-  return base::clamp(fn_at_x_unclamped, 0.0f, 1.0f);
+  return std::clamp(fn_at_x_unclamped, 0.0f, 1.0f);
 }
 
 skcms_TransferFunction SkTransferFnInverse(const skcms_TransferFunction& fn) {
@@ -80,17 +80,29 @@ bool SkTransferFnIsApproximatelyIdentity(const skcms_TransferFunction& a) {
   return true;
 }
 
-bool SkMatrixIsApproximatelyIdentity(const skia::Matrix44& m) {
+#if !defined(STARBOARD)
+bool SkM44IsApproximatelyIdentity(const SkM44& m) {
   const float kEpsilon = 1.f / 256.f;
   for (int i = 0; i < 4; ++i) {
     for (int j = 0; j < 4; ++j) {
       float identity_value = i == j ? 1 : 0;
-      float value = m.get(i, j);
+      float value = m.rc(i, j);
       if (std::abs(identity_value - value) > kEpsilon)
         return false;
     }
   }
   return true;
+}
+#endif // !defined(STARBOARD)
+
+SkM44 SkM44FromRowMajor3x3(const float* data) {
+  DCHECK(data);
+  // clang-format off
+  return SkM44(data[0], data[1], data[2], 0,
+               data[3], data[4], data[5], 0,
+               data[6], data[7], data[8], 0,
+               0, 0, 0, 1);
+  // clang-format on
 }
 
 }  // namespace gfx

@@ -1,11 +1,10 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_GPU_V4L2_V4L2_VIDEO_DECODER_DELEGATE_VP8_H_
 #define MEDIA_GPU_V4L2_V4L2_VIDEO_DECODER_DELEGATE_VP8_H_
 
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "media/gpu/vp8_decoder.h"
 

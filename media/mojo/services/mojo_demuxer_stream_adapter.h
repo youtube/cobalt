@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,12 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/video_decoder_config.h"
 #include "media/mojo/mojom/demuxer_stream.mojom.h"
+#include "media/mojo/services/media_mojo_export.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -25,7 +25,7 @@ class MojoDecoderBufferReader;
 // that is part of a Pipeline in a remote application. Roughly speaking, it
 // takes a mojo::Remote<mojom::DemuxerStream> and exposes it as a DemuxerStream
 // for use by media components.
-class MojoDemuxerStreamAdapter : public DemuxerStream {
+class MEDIA_MOJO_EXPORT MojoDemuxerStreamAdapter : public DemuxerStream {
  public:
   // |demuxer_stream| is connected to the mojom::DemuxerStream that |this|
   // will
@@ -43,7 +43,7 @@ class MojoDemuxerStreamAdapter : public DemuxerStream {
   ~MojoDemuxerStreamAdapter() override;
 
   // DemuxerStream implementation.
-  void Read(ReadCB read_cb) override;
+  void Read(uint32_t count, ReadCB read_cb) override;
   AudioDecoderConfig audio_decoder_config() override;
   VideoDecoderConfig video_decoder_config() override;
   Type type() const override;
@@ -59,7 +59,7 @@ class MojoDemuxerStreamAdapter : public DemuxerStream {
   // The callback from |demuxer_stream_| that a read operation has completed.
   // |read_cb| is a callback from the client who invoked Read() on |this|.
   void OnBufferReady(Status status,
-                     mojom::DecoderBufferPtr buffer,
+                     std::vector<mojom::DecoderBufferPtr> batch_buffers,
                      const absl::optional<AudioDecoderConfig>& audio_config,
                      const absl::optional<VideoDecoderConfig>& video_config);
 
@@ -83,7 +83,12 @@ class MojoDemuxerStreamAdapter : public DemuxerStream {
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
 
-  Type type_;
+  Type type_ = Type::UNKNOWN;
+  Status status_ = Status::kOk;
+
+  size_t actual_read_count_ = 0;
+
+  DemuxerStream::DecoderBufferVector buffer_queue_;
 
   std::unique_ptr<MojoDecoderBufferReader> mojo_decoder_buffer_reader_;
 

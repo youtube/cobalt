@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,7 @@ namespace media {
 // Important: Use an odd buffer size here so SIMD issues are caught.
 const int kOutFrameSize = 441;
 const int kOutSampleRate = 44100;
-const ChannelLayout kOutChannelLayout = CHANNEL_LAYOUT_STEREO;
+constexpr ChannelLayout kOutChannelLayout = CHANNEL_LAYOUT_STEREO;
 const int kOutChannelCount = 2;
 
 static scoped_refptr<AudioBuffer> MakeTestBuffer(int sample_rate,
@@ -38,7 +38,7 @@ class AudioBufferConverterTest : public ::testing::Test {
         expected_output_frames_(0.0),
         output_frames_(0),
         output_params_(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                       kOutChannelLayout,
+                       ChannelLayoutConfig::FromLayout<kOutChannelLayout>(),
                        kOutSampleRate,
                        kOutFrameSize) {
     audio_buffer_converter_ =
@@ -114,8 +114,8 @@ TEST_F(AudioBufferConverterTest, Upsample) {
 
 // Test resampling a buffer smaller than the SincResampler's kernel size.
 TEST_F(AudioBufferConverterTest, Resample_TinyBuffer) {
-  AddInput(MakeTestBuffer(
-      48000, CHANNEL_LAYOUT_STEREO, 2, SincResampler::kKernelSize - 1));
+  AddInput(MakeTestBuffer(48000, CHANNEL_LAYOUT_STEREO, 2,
+                          SincResampler::kMinKernelSize - 1));
   ConsumeAllOutput();
 }
 
@@ -208,8 +208,7 @@ TEST_F(AudioBufferConverterTest, ResetThenConvert) {
 TEST_F(AudioBufferConverterTest, DiscreteChannelLayout) {
   output_params_ =
       AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                      CHANNEL_LAYOUT_DISCRETE, kOutSampleRate, 512);
-  output_params_.set_channels_for_discrete(2);
+                      {CHANNEL_LAYOUT_DISCRETE, 2}, kOutSampleRate, 512);
   audio_buffer_converter_ =
       std::make_unique<AudioBufferConverter>(output_params_);
   AddInput(MakeTestBuffer(kOutSampleRate, CHANNEL_LAYOUT_STEREO, 2, 512));
@@ -217,10 +216,10 @@ TEST_F(AudioBufferConverterTest, DiscreteChannelLayout) {
 }
 
 TEST_F(AudioBufferConverterTest, LargeBuffersResampling) {
-  output_params_ = AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                                   kOutChannelLayout,
-                                   kOutSampleRate,
-                                   2048);
+  output_params_ =
+      AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                      ChannelLayoutConfig::FromLayout<kOutChannelLayout>(),
+                      kOutSampleRate, 2048);
 
   audio_buffer_converter_ =
       std::make_unique<AudioBufferConverter>(output_params_);
@@ -228,7 +227,7 @@ TEST_F(AudioBufferConverterTest, LargeBuffersResampling) {
   const int kInputFrameSize = 8192;
   ASSERT_NE(kInputSampleRate, kOutSampleRate);
 
-  const int kInputBuffers = 3;
+  const int kInputBuffers = 4;
   for (int i = 0; i < kInputBuffers; ++i) {
     AddInput(MakeTestBuffer(kInputSampleRate,
                             kOutChannelLayout,

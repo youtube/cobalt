@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -168,6 +168,13 @@ bool CameraDeviceContext::ReserveVideoCaptureBufferFromPool(
 bool CameraDeviceContext::HasClient() {
   base::AutoLock lock(client_lock_);
   return !clients_.empty();
+}
+
+void CameraDeviceContext::OnCaptureConfigurationChanged() {
+  base::AutoLock lock(client_lock_);
+  for (const auto& client : clients_) {
+    client.second->OnCaptureConfigurationChanged();
+  }
 }
 
 }  // namespace media

@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,7 +37,7 @@ Transform TransformOperations::Apply() const {
 Transform TransformOperations::ApplyRemaining(size_t start) const {
   Transform to_return;
   for (size_t i = start; i < operations_.size(); i++) {
-    to_return.PreconcatTransform(operations_[i].matrix);
+    to_return.PreConcat(operations_[i].matrix);
   }
   return to_return;
 }
@@ -286,10 +286,15 @@ void TransformOperations::AppendSkew(SkScalar x, SkScalar y) {
   decomposed_transforms_.clear();
 }
 
-void TransformOperations::AppendPerspective(SkScalar depth) {
+void TransformOperations::AppendPerspective(absl::optional<SkScalar> depth) {
   TransformOperation to_add;
   to_add.type = TransformOperation::TRANSFORM_OPERATION_PERSPECTIVE;
-  to_add.perspective_depth = depth;
+  if (depth) {
+    DCHECK_GE(*depth, 1.0f);
+    to_add.perspective_m43 = -1.0f / *depth;
+  } else {
+    to_add.perspective_m43 = 0.0f;
+  }
   to_add.Bake();
   operations_.push_back(to_add);
   decomposed_transforms_.clear();
@@ -362,7 +367,7 @@ bool TransformOperations::BlendInternal(const TransformOperations& from,
     DecomposedTransform matrix_transform = BlendDecomposedTransforms(
         *decomposed_transforms_[matching_prefix_length].get(),
         *from.decomposed_transforms_[matching_prefix_length].get(), progress);
-    result->AppendMatrix(ComposeTransform(matrix_transform));
+    result->AppendMatrix(Transform::Compose(matrix_transform));
   }
   return true;
 }
@@ -371,12 +376,13 @@ bool TransformOperations::ComputeDecomposedTransform(
     size_t start_offset) const {
   auto it = decomposed_transforms_.find(start_offset);
   if (it == decomposed_transforms_.end()) {
-    std::unique_ptr<DecomposedTransform> decomposed_transform =
-        std::make_unique<DecomposedTransform>();
     Transform transform = ApplyRemaining(start_offset);
-    if (!DecomposeTransform(decomposed_transform.get(), transform))
+    if (absl::optional<DecomposedTransform> decomp = transform.Decompose()) {
+      decomposed_transforms_[start_offset] =
+          std::make_unique<DecomposedTransform>(*decomp);
+    } else {
       return false;
-    decomposed_transforms_[start_offset] = std::move(decomposed_transform);
+    }
   }
   return true;
 }

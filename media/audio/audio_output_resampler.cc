@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,12 +11,12 @@
 #include <string>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/compiler_specific.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
@@ -47,7 +47,7 @@ class OnMoreDataConverter
   // AudioSourceCallback interface.
   int OnMoreData(base::TimeDelta delay,
                  base::TimeTicks delay_timestamp,
-                 int prior_frames_skipped,
+                 const AudioGlitchInfo& glitch_info,
                  AudioBus* dest) override;
   void OnError(ErrorType type) override;
 
@@ -64,10 +64,12 @@ class OnMoreDataConverter
 
  private:
   // AudioConverter::InputCallback implementation.
-  double ProvideInput(AudioBus* audio_bus, uint32_t frames_delayed) override;
+  double ProvideInput(AudioBus* audio_bus,
+                      uint32_t frames_delayed,
+                      const AudioGlitchInfo& glitch_info) override;
 
   // Source callback.
-  AudioOutputStream::AudioSourceCallback* source_callback_;
+  raw_ptr<AudioOutputStream::AudioSourceCallback> source_callback_;
 
   // Last |delay| and |delay_timestamp| received via OnMoreData(). Used to
   // correct playback delay in ProvideInput() before calling |source_callback_|.
@@ -114,7 +116,7 @@ static void RecordStats(const AudioParameters& output_params) {
 
 // Only Windows has a high latency output driver that is not the same as the low
 // latency path.
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 // Converts low latency based |output_params| into high latency appropriate
 // output parameters in error situations.
 AudioParameters GetFallbackOutputParams(
@@ -128,10 +130,10 @@ AudioParameters GetFallbackOutputParams(
   const int frames_per_buffer = std::max(
       original_output_params.frames_per_buffer(), kMinLowLatencyFrameSize);
 
-  return AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
-                         original_output_params.channel_layout(),
-                         original_output_params.sample_rate(),
-                         frames_per_buffer);
+  AudioParameters fallback_params(original_output_params);
+  fallback_params.set_format(AudioParameters::AUDIO_PCM_LINEAR);
+  fallback_params.set_frames_per_buffer(frames_per_buffer);
+  return fallback_params;
 }
 #endif
 
@@ -297,7 +299,7 @@ bool AudioOutputResampler::OpenStream() {
 
   // Only Windows has a high latency output driver that is not the same as the
   // low latency path.
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   DLOG(ERROR) << "Unable to open audio device in low latency mode.  Falling "
               << "back to high latency audio output.";
 
@@ -462,13 +464,13 @@ void OnMoreDataConverter::Stop() {
 
 int OnMoreDataConverter::OnMoreData(base::TimeDelta delay,
                                     base::TimeTicks delay_timestamp,
-                                    int /* prior_frames_skipped */,
+                                    const AudioGlitchInfo& glitch_info,
                                     AudioBus* dest) {
   TRACE_EVENT2("audio", "OnMoreDataConverter::OnMoreData", "input buffer size",
                input_buffer_size_, "output buffer size", output_buffer_size_);
   current_delay_ = delay;
   current_delay_timestamp_ = delay_timestamp;
-  audio_converter_.Convert(dest);
+  audio_converter_.ConvertWithInfo(0, glitch_info, dest);
 
   if (debug_recorder_)
     debug_recorder_->OnData(dest);
@@ -479,13 +481,14 @@ int OnMoreDataConverter::OnMoreData(base::TimeDelta delay,
 }
 
 double OnMoreDataConverter::ProvideInput(AudioBus* dest,
-                                         uint32_t frames_delayed) {
+                                         uint32_t frames_delayed,
+                                         const AudioGlitchInfo& glitch_info) {
   base::TimeDelta new_delay =
       current_delay_ + AudioTimestampHelper::FramesToTime(
                            frames_delayed, input_samples_per_second_);
   // Retrieve data from the original callback.
   const int frames = source_callback_->OnMoreData(
-      new_delay, current_delay_timestamp_, 0, dest);
+      new_delay, current_delay_timestamp_, glitch_info, dest);
 
   // Zero any unfilled frames if anything was filled, otherwise we'll just
   // return a volume of zero and let AudioConverter drop the output.

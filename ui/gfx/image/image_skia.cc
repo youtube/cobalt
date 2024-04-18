@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,22 +6,26 @@
 
 #include <stddef.h>
 
-#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
 
+#include "base/check.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/ref_counted.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
 #include "build/build_config.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/image/image_skia_operations.h"
+#include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/image/image_skia_source.h"
 #include "ui/gfx/switches.h"
 
@@ -39,19 +43,8 @@ std::vector<float>* g_supported_scales = NULL;
 // The difference to fall back to the smaller scale factor rather than the
 // larger one. For example, assume 1.20 is requested but only 1.0 and 2.0 are
 // supported. In that case, not fall back to 2.0 but 1.0, and then expand
-// the image to 1.25.
+// the image to 1.20.
 const float kFallbackToSmallerScaleDiff = 0.20f;
-
-// Maps to the closest supported scale. Returns an exact match, a smaller
-// scale within 0.2 units, the nearest larger scale, or the min/max
-// supported scale.
-float MapToSupportedScale(float scale) {
-  for (float supported_scale : *g_supported_scales) {
-    if (supported_scale + kFallbackToSmallerScaleDiff >= scale)
-      return supported_scale;
-  }
-  return g_supported_scales->back();
-}
 
 }  // namespace
 
@@ -233,7 +226,6 @@ std::vector<ImageSkiaRep>::const_iterator ImageSkiaStorage::FindRepresentation(
       smallest_diff = diff;
     }
   }
-
   if (fetch_new_image && source_) {
     DCHECK(sequence_checker_.CalledOnValidSequence())
         << "An ImageSkia with the source must be accessed by the same "
@@ -246,8 +238,9 @@ std::vector<ImageSkiaRep>::const_iterator ImageSkiaStorage::FindRepresentation(
 
     ImageSkiaRep image;
     float resource_scale = scale;
-    if (!HasRepresentationAtAllScales() && g_supported_scales)
-      resource_scale = MapToSupportedScale(scale);
+    if (!HasRepresentationAtAllScales()) {
+      resource_scale = ImageSkia::MapToResourceScale(scale);
+    }
     if (scale != resource_scale) {
       auto iter = FindRepresentation(resource_scale, fetch_new_image);
       CHECK(iter != image_reps_.end());
@@ -263,10 +256,7 @@ std::vector<ImageSkiaRep>::const_iterator ImageSkiaStorage::FindRepresentation(
 
     // If the source returned the new image, store it.
     if (!image.is_null() &&
-        std::find_if(image_reps_.begin(), image_reps_.end(),
-                     [&image](const ImageSkiaRep& rep) {
-                       return rep.scale() == image.scale();
-                     }) == image_reps_.end()) {
+        !base::Contains(image_reps_, image.scale(), &ImageSkiaRep::scale)) {
       mutable_this->image_reps_.push_back(image);
     }
 
@@ -332,12 +322,26 @@ void ImageSkia::SetSupportedScales(const std::vector<float>& supported_scales) {
 
 // static
 const std::vector<float>& ImageSkia::GetSupportedScales() {
-  DCHECK(g_supported_scales != NULL);
+  CHECK_NE(g_supported_scales, nullptr);
   return *g_supported_scales;
 }
 
 // static
 float ImageSkia::GetMaxSupportedScale() {
+  CHECK_NE(g_supported_scales, nullptr);
+  return g_supported_scales->back();
+}
+
+// static
+float ImageSkia::MapToResourceScale(float scale) {
+  CHECK_NE(g_supported_scales, nullptr);
+  // Returns an exact match, a smaller scale within 0.2 units, the nearest
+  // larger scale, or the min/max supported scale.
+  for (float supported_scale : *g_supported_scales) {
+    if (supported_scale + kFallbackToSmallerScaleDiff >= scale) {
+      return supported_scale;
+    }
+  }
   return g_supported_scales->back();
 }
 
@@ -507,8 +511,10 @@ void ImageSkia::EnsureRepsForSupportedScales() const {
 void ImageSkia::RemoveUnsupportedRepresentationsForScale(float scale) {
   for (const ImageSkiaRep& image_rep_to_test : image_reps()) {
     const float test_scale = image_rep_to_test.scale();
-    if (test_scale != scale && MapToSupportedScale(test_scale) == scale)
+    if (test_scale != scale &&
+        ImageSkia::MapToResourceScale(test_scale) == scale) {
       RemoveRepresentation(test_scale);
+    }
   }
 }
 
@@ -528,7 +534,7 @@ const SkBitmap& ImageSkia::GetBitmap() const {
 
   // TODO(oshima): This made a few tests flaky on Windows.
   // Fix the root cause and re-enable this. crbug.com/145623.
-#if !defined(OS_WIN)
+#if !BUILDFLAG(IS_WIN)
   CHECK(CanRead());
 #endif
 

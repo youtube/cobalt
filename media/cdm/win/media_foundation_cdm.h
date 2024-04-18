@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,7 @@
 #include "media/base/cdm_context.h"
 #include "media/base/content_decryption_module.h"
 #include "media/base/media_export.h"
+#include "media/cdm/cdm_document_service.h"
 
 namespace media {
 
@@ -53,24 +54,31 @@ class MEDIA_EXPORT MediaFoundationCdm final : public ContentDecryptionModule,
   using CreateMFCdmCB = base::RepeatingCallback<
       void(HRESULT&, Microsoft::WRL::ComPtr<IMFContentDecryptionModule>&)>;
 
-  // Callback to MediaFoundationCDM to resolve the promise.
+  // Callback for `IsTypeSupportedCB` below.
   using IsTypeSupportedResultCB = base::OnceCallback<void(bool is_supported)>;
 
   // Callback to IMFMediaFoundataionCdmFactory's IsTypeSupported.
   using IsTypeSupportedCB =
-      base::RepeatingCallback<void(const std::string&,
+      base::RepeatingCallback<void(const std::string& content_type,
                                    IsTypeSupportedResultCB)>;
 
   // Callback to MediaFoundationCdmFactory::StoreClientToken
   using StoreClientTokenCB =
       base::RepeatingCallback<void(const std::vector<uint8_t>&)>;
 
+  // Callback to notify the CDM of an event, with an optional HRESULT associated
+  // with that event (e.g. errors).
+  using CdmEventCB = base::RepeatingCallback<void(CdmEvent, HRESULT hresult)>;
+
   // Constructs `MediaFoundationCdm`. Note that `Initialize()` must be called
   // before calling any other methods.
+  // TODO(xhwang): Use a helper to reduce the number of callbacks.
   MediaFoundationCdm(
+      const std::string& uma_prefix,
       const CreateMFCdmCB& create_mf_cdm_cb,
       const IsTypeSupportedCB& is_type_supported_cb,
       const StoreClientTokenCB& store_client_token_cb,
+      const CdmEventCB& cdm_event_cb,
       const SessionMessageCB& session_message_cb,
       const SessionClosedCB& session_closed_cb,
       const SessionKeysChangeCB& session_keys_change_cb,
@@ -107,8 +115,7 @@ class MEDIA_EXPORT MediaFoundationCdm final : public ContentDecryptionModule,
 
   // CdmContext implementation.
   bool RequiresMediaFoundationRenderer() override;
-  bool GetMediaFoundationCdmProxy(
-      GetMediaFoundationCdmProxyCB get_mf_cdm_proxy_cb) override;
+  scoped_refptr<MediaFoundationCdmProxy> GetMediaFoundationCdmProxy() override;
 
  private:
   ~MediaFoundationCdm() override;
@@ -127,11 +134,17 @@ class MEDIA_EXPORT MediaFoundationCdm final : public ContentDecryptionModule,
   // Called when hardware context reset happens.
   void OnHardwareContextReset();
 
+  // Called when CdmEvent happens.
+  void OnCdmEvent(CdmEvent event, HRESULT hresult);
+
   // Called when IsTypeSupported() result is available.
   void OnIsTypeSupportedResult(std::unique_ptr<KeyStatusCdmPromise> promise,
                                bool is_supported);
 
   void StoreClientTokenIfNeeded();
+
+  // Prefix for UMA reported in `this` and the `sessions_`.
+  const std::string uma_prefix_;
 
   // Callback to create `mf_cdm_`.
   CreateMFCdmCB create_mf_cdm_cb_;
@@ -141,6 +154,9 @@ class MEDIA_EXPORT MediaFoundationCdm final : public ContentDecryptionModule,
 
   // Callback to MFCdmFactory's StoreClientToken().
   StoreClientTokenCB store_client_token_cb_;
+
+  // Callback to report fatal errors.
+  CdmEventCB cdm_event_cb_;
 
   // Callbacks for firing session events.
   SessionMessageCB session_message_cb_;

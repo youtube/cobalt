@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,16 +40,23 @@ class H265VaapiVideoDecoderDelegate : public H265Decoder::H265Accelerator,
 
   // H265Decoder::H265Accelerator implementation.
   scoped_refptr<H265Picture> CreateH265Picture() override;
-  Status SubmitFrameMetadata(const H265SPS* sps,
-                             const H265PPS* pps,
-                             const H265SliceHeader* slice_hdr,
-                             const H265Picture::Vector& ref_pic_list,
-                             scoped_refptr<H265Picture> pic) override;
+  Status SubmitFrameMetadata(
+      const H265SPS* sps,
+      const H265PPS* pps,
+      const H265SliceHeader* slice_hdr,
+      const H265Picture::Vector& ref_pic_list,
+      const H265Picture::Vector& ref_pic_set_lt_curr,
+      const H265Picture::Vector& ref_pic_set_st_curr_after,
+      const H265Picture::Vector& ref_pic_set_st_curr_before,
+      scoped_refptr<H265Picture> pic) override;
   Status SubmitSlice(const H265SPS* sps,
                      const H265PPS* pps,
                      const H265SliceHeader* slice_hdr,
                      const H265Picture::Vector& ref_pic_list0,
                      const H265Picture::Vector& ref_pic_list1,
+                     const H265Picture::Vector& ref_pic_set_lt_curr,
+                     const H265Picture::Vector& ref_pic_set_st_curr_after,
+                     const H265Picture::Vector& ref_pic_set_st_curr_before,
                      scoped_refptr<H265Picture> pic,
                      const uint8_t* data,
                      size_t size,
@@ -59,6 +66,7 @@ class H265VaapiVideoDecoderDelegate : public H265Decoder::H265Accelerator,
   void Reset() override;
   Status SetStream(base::span<const uint8_t> stream,
                    const DecryptConfig* decrypt_config) override;
+  bool IsChromaSamplingSupported(VideoChromaSampling chroma_sampling) override;
 
  private:
   void FillVAPicture(VAPictureHEVC* va_pic, scoped_refptr<H265Picture> pic);

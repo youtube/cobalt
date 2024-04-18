@@ -1,11 +1,13 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "ui/gfx/geometry/axis_transform2d.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/test/gfx_util.h"
+#include "ui/gfx/geometry/decomposed_transform.h"
+#include "ui/gfx/geometry/test/geometry_util.h"
+#include "ui/gfx/geometry/transform.h"
 
 namespace gfx {
 namespace {
@@ -85,6 +87,96 @@ TEST(AxisTransform2dTest, Inverse) {
                              ConcatAxisTransform2d(t, inv_inplace));
   EXPECT_AXIS_TRANSFORM2D_EQ(AxisTransform2d(),
                              ConcatAxisTransform2d(inv_inplace, t));
+}
+
+TEST(AxisTransform2dTest, ClampOutput) {
+  double entries[][2] = {
+      // The first entry is used to initialize the transform.
+      // The second entry is used to initialize the object to be mapped.
+      {std::numeric_limits<float>::max(),
+       std::numeric_limits<float>::infinity()},
+      {1, std::numeric_limits<float>::infinity()},
+      {-1, std::numeric_limits<float>::infinity()},
+      {1, -std::numeric_limits<float>::infinity()},
+      {
+          std::numeric_limits<float>::max(),
+          std::numeric_limits<float>::max(),
+      },
+      {
+          std::numeric_limits<float>::lowest(),
+          -std::numeric_limits<float>::infinity(),
+      },
+  };
+
+  for (double* entry : entries) {
+    const float mv = entry[0];
+    const float factor = entry[1];
+
+    auto is_valid_point = [&](const PointF& p) -> bool {
+      return std::isfinite(p.x()) && std::isfinite(p.y());
+    };
+    auto is_valid_rect = [&](const RectF& r) -> bool {
+      return is_valid_point(r.origin()) && std::isfinite(r.width()) &&
+             std::isfinite(r.height());
+    };
+
+    auto test = [&](const AxisTransform2d& m) {
+      SCOPED_TRACE(base::StringPrintf("m: %s factor: %lg", m.ToString().c_str(),
+                                      factor));
+      auto p = m.MapPoint(PointF(factor, factor));
+      EXPECT_TRUE(is_valid_point(p)) << p.ToString();
+
+      // AxisTransform2d::MapRect() requires non-negative scales.
+      if (m.scale().x() >= 0 && m.scale().y() >= 0) {
+        auto r = m.MapRect(RectF(factor, factor, factor, factor));
+        EXPECT_TRUE(is_valid_rect(r)) << r.ToString();
+      }
+    };
+
+    test(AxisTransform2d::FromScaleAndTranslation(Vector2dF(mv, mv),
+                                                  Vector2dF(mv, mv)));
+    test(AxisTransform2d::FromScaleAndTranslation(Vector2dF(mv, mv),
+                                                  Vector2dF(0, 0)));
+    test(AxisTransform2d::FromScaleAndTranslation(Vector2dF(1, 1),
+                                                  Vector2dF(mv, mv)));
+  }
+}
+
+TEST(AxisTransform2dTest, Decompose) {
+  {
+    auto transform = AxisTransform2d::FromScaleAndTranslation(
+        Vector2dF(2.5, -3.75), Vector2dF(4.25, -5.5));
+    DecomposedTransform decomp = transform.Decompose();
+    EXPECT_DECOMPOSED_TRANSFORM_EQ((DecomposedTransform{{4.25, -5.5, 0},
+                                                        {2.5, -3.75, 1},
+                                                        {0, 0, 0},
+                                                        {0, 0, 0, 1},
+                                                        {0, 0, 0, 1}}),
+                                   decomp);
+    EXPECT_EQ(Transform(transform), Transform::Compose(decomp));
+  }
+  {
+    auto transform = AxisTransform2d::FromScaleAndTranslation(
+        Vector2dF(-2.5, -3.75), Vector2dF(4.25, -5.5));
+    DecomposedTransform decomp = transform.Decompose();
+    EXPECT_DECOMPOSED_TRANSFORM_EQ((DecomposedTransform{{4.25, -5.5, 0},
+                                                        {2.5, 3.75, 1},
+                                                        {0, 0, 0},
+                                                        {0, 0, 0, 1},
+                                                        {0, 0, 1, 0}}),
+                                   decomp);
+    EXPECT_EQ(Transform(transform), Transform::Compose(decomp));
+  }
+  {
+    auto transform =
+        AxisTransform2d::FromScaleAndTranslation(Vector2dF(), Vector2dF());
+    DecomposedTransform decomp = transform.Decompose();
+    EXPECT_DECOMPOSED_TRANSFORM_EQ(
+        (DecomposedTransform{
+            {0, 0, 0}, {0, 0, 1}, {0, 0, 0}, {0, 0, 0, 1}, {0, 0, 0, 1}}),
+        decomp);
+    EXPECT_EQ(Transform(transform), Transform::Compose(decomp));
+  }
 }
 
 }  // namespace

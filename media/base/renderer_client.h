@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 
 #include "media/base/audio_decoder_config.h"
 #include "media/base/buffering_state.h"
+#include "media/base/media_export.h"
 #include "media/base/media_status.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/video_decoder_config.h"
@@ -23,10 +24,15 @@ class MEDIA_EXPORT RendererClient {
   // Executed if any error was encountered after Renderer initialization.
   virtual void OnError(PipelineStatus status) = 0;
 
+  // Executed if there is a non-fatal fallback that should be reported
+  virtual void OnFallback(PipelineStatus status) = 0;
+
   // Executed when rendering has reached the end of stream.
   virtual void OnEnded() = 0;
 
-  // Executed periodically with rendering statistics.
+  // Executed periodically with rendering statistics. Fields *_decoded*,
+  // *_dropped and *memory_usage should be the delta since the last
+  // OnStatisticsUpdate() call.
   virtual void OnStatisticsUpdate(const PipelineStatistics& stats) = 0;
 
   // Executed when buffering state is changed. |reason| indicates the cause of

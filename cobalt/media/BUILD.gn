@@ -112,6 +112,7 @@ component("media") {
     "//net",
     "//starboard:starboard_group",
     "//third_party/protobuf:protobuf_lite",
+    "//ui/gfx:gfx",
     "//url",
   ]
 }
@@ -143,6 +144,7 @@ target(gtest_target_type, "media_test") {
     "//media",
     "//testing/gmock",
     "//testing/gtest",
+    "//ui/gfx:gfx",
   ]
 
   data_deps = [ "//cobalt/media/testing:cobalt_media_download_test_data" ]

@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,8 @@
 
 #include <memory>
 
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
 #include "media/audio/audio_io.h"
 #include "media/base/media_export.h"
@@ -56,15 +56,16 @@ class MEDIA_EXPORT AudioInputStreamDataInterceptor
   // Implementation of AudioInputCallback
   void OnData(const AudioBus* source,
               base::TimeTicks capture_time,
-              double volume) override;
+              double volume,
+              const AudioGlitchInfo& audio_glitch_info) override;
 
   void OnError() override;
 
  private:
   const CreateDebugRecorderCB create_debug_recorder_cb_;
   std::unique_ptr<AudioDebugRecorder> debug_recorder_;
-  AudioInputStream* const stream_;
-  AudioInputStream::AudioInputCallback* callback_;
+  const raw_ptr<AudioInputStream, DanglingUntriaged> stream_;
+  raw_ptr<AudioInputStream::AudioInputCallback> callback_;
   SEQUENCE_CHECKER(sequence_checker_);
 };
 

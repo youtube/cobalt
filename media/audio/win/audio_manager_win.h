@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
 #include "media/audio/audio_manager_base.h"
+#include "media/media_buildflags.h"
 
 namespace media {
 
@@ -55,6 +55,10 @@ class MEDIA_EXPORT AudioManagerWin : public AudioManagerBase {
       const AudioParameters& params,
       const std::string& device_id,
       const LogCallback& log_callback) override;
+  AudioOutputStream* MakeBitstreamOutputStream(
+      const AudioParameters& params,
+      const std::string& device_id,
+      const LogCallback& log_callback) override;
   std::string GetDefaultInputDeviceID() override;
   std::string GetDefaultOutputDeviceID() override;
   std::string GetCommunicationsInputDeviceID() override;
@@ -75,6 +79,10 @@ class MEDIA_EXPORT AudioManagerWin : public AudioManagerBase {
   void InitializeOnAudioThread();
 
   void GetAudioDeviceNamesImpl(bool input, AudioDeviceNames* device_names);
+
+  AudioOutputStream* MakeOutputStream(const AudioParameters& params,
+                                      const std::string& device_id,
+                                      const LogCallback& log_callback);
 
   // Listen for output device changes.
   std::unique_ptr<AudioDeviceListenerWin> output_device_listener_;

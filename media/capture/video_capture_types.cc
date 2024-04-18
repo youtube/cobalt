@@ -1,11 +1,14 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/capture/video_capture_types.h"
 
+#include <ostream>
+
 #include "base/check.h"
-#include "base/cxx17_backports.h"
+#include "base/ranges/algorithm.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "media/base/limits.h"
 
@@ -52,29 +55,29 @@ std::string VideoCaptureFormat::ToString(const VideoCaptureFormat& format) {
 bool VideoCaptureFormat::ComparePixelFormatPreference(
     const VideoPixelFormat& lhs,
     const VideoPixelFormat& rhs) {
-  auto* format_lhs = std::find(
-      kSupportedCapturePixelFormats,
-      kSupportedCapturePixelFormats + base::size(kSupportedCapturePixelFormats),
-      lhs);
-  auto* format_rhs = std::find(
-      kSupportedCapturePixelFormats,
-      kSupportedCapturePixelFormats + base::size(kSupportedCapturePixelFormats),
-      rhs);
+  auto* format_lhs = base::ranges::find(kSupportedCapturePixelFormats, lhs);
+  auto* format_rhs = base::ranges::find(kSupportedCapturePixelFormats, rhs);
   return format_lhs < format_rhs;
 }
 
 VideoCaptureParams::VideoCaptureParams()
     : buffer_type(VideoCaptureBufferType::kSharedMemory),
       resolution_change_policy(ResolutionChangePolicy::FIXED_RESOLUTION),
-      power_line_frequency(PowerLineFrequency::FREQUENCY_DEFAULT),
-      enable_face_detection(false) {}
+      power_line_frequency(PowerLineFrequency::kDefault) {}
 
 bool VideoCaptureParams::IsValid() const {
   return requested_format.IsValid() &&
          resolution_change_policy >= ResolutionChangePolicy::FIXED_RESOLUTION &&
          resolution_change_policy <= ResolutionChangePolicy::LAST &&
-         power_line_frequency >= PowerLineFrequency::FREQUENCY_DEFAULT &&
-         power_line_frequency <= PowerLineFrequency::FREQUENCY_MAX;
+         power_line_frequency >= PowerLineFrequency::kDefault &&
+         power_line_frequency <= PowerLineFrequency::k60Hz;
+}
+
+std::string VideoCaptureParams::SuggestedConstraints::ToString() const {
+  return base::StrCat(
+      {"min = ", min_frame_size.ToString(),
+       ", max = ", max_frame_size.ToString(),
+       ", fixed_aspect_ratio = ", fixed_aspect_ratio ? "true" : "false"});
 }
 
 VideoCaptureParams::SuggestedConstraints
@@ -96,8 +99,6 @@ VideoCaptureParams::SuggestConstraints() const {
       break;
 
     case ResolutionChangePolicy::FIXED_ASPECT_RATIO: {
-      // TODO(miu): This is a place-holder until "min constraints" are plumbed-
-      // in from the MediaStream framework.  http://crbug.com/473336
       constexpr int kMinLines = 180;
       if (max_frame_size.height() <= kMinLines) {
         min_frame_size = max_frame_size;
@@ -127,6 +128,12 @@ VideoCaptureParams::SuggestConstraints() const {
   return SuggestedConstraints{
       min_frame_size, max_frame_size,
       resolution_change_policy == ResolutionChangePolicy::FIXED_ASPECT_RATIO};
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const VideoCaptureParams::SuggestedConstraints& constraints) {
+  return os << constraints.ToString();
 }
 
 }  // namespace media

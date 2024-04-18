@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,15 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/test/gfx_util.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/geometry/size_f.h"
+#include "ui/gfx/geometry/transform.h"
+#include "ui/gfx/geometry/transform_operations.h"
+#include "ui/gfx/geometry/test/geometry_util.h"
+#include "ui/gfx/test/sk_color_eq.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include <float.h>
 #endif
 
@@ -19,7 +25,7 @@ namespace gfx {
 namespace {
 
 double next_double(double d) {
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   return _nextafter(d, d + 1);
 #else
   // Step two units of least precision towards positive infinity. On some 32
@@ -161,12 +167,8 @@ TEST(TweenTest, RectValueBetween) {
   constexpr gfx::Rect r1(0, 0, 10, 10);
   constexpr gfx::Rect r2(10, 10, 30, 30);
 
-  // TODO(pkasting): Move the geometry test helpers from
-  // cc/test/geometry_test_utils.h to ui/gfx/test/gfx_util.h or similar and use
-  // a rect-comparison function here.
   const gfx::Rect tweened = Tween::RectValueBetween(0.08, r1, r2);
-  EXPECT_EQ(11, tweened.width());
-  EXPECT_EQ(11, tweened.height());
+  EXPECT_EQ(gfx::Size(11, 11), tweened.size());
 }
 
 TEST(TweenTest, SizeValueBetween) {

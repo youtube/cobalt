@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,16 @@
 
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/base/video_color_space.h"
 #include "media/gpu/codec_picture.h"
 #include "media/gpu/media_gpu_export.h"
 
 namespace media {
 
+class V4L2H265Picture;
 class VaapiH265Picture;
+class D3D11H265Picture;
 
 // A picture (a frame or a field) in the H.265 spec sense.
 // See spec at http://www.itu.int/rec/T-REC-H.265
@@ -27,7 +29,9 @@ class MEDIA_GPU_EXPORT H265Picture : public CodecPicture {
   H265Picture(const H265Picture&) = delete;
   H265Picture& operator=(const H265Picture&) = delete;
 
+  virtual V4L2H265Picture* AsV4L2H265Picture();
   virtual VaapiH265Picture* AsVaapiH265Picture();
+  virtual D3D11H265Picture* AsD3D11H265Picture();
 
   enum ReferenceType {
     kUnused = 0,

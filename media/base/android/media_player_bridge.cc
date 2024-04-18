@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,13 +10,12 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
-#include "base/bind.h"
 #include "base/check_op.h"
-#include "base/cxx17_backports.h"
+#include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "media/base/android/media_common_android.h"
 #include "media/base/android/media_jni_headers/MediaPlayerBridge_jni.h"
 #include "media/base/android/media_resource_getter.h"
@@ -69,6 +68,7 @@ MediaPlayerBridge::MediaPlayerBridge(
     const GURL& url,
     const net::SiteForCookies& site_for_cookies,
     const url::Origin& top_frame_origin,
+    bool has_storage_access,
     const std::string& user_agent,
     bool hide_url_log,
     Client* client,
@@ -81,6 +81,7 @@ MediaPlayerBridge::MediaPlayerBridge(
       url_(url),
       site_for_cookies_(site_for_cookies),
       top_frame_origin_(top_frame_origin),
+      has_storage_access_(has_storage_access),
       pending_retrieve_cookies_(false),
       should_prepare_on_retrieved_cookies_(false),
       user_agent_(user_agent),
@@ -101,7 +102,8 @@ MediaPlayerBridge::MediaPlayerBridge(
                                        base::Unretained(this))),
       client_(client) {
   listener_ = std::make_unique<MediaPlayerListener>(
-      base::ThreadTaskRunnerHandle::Get(), weak_factory_.GetWeakPtr());
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      weak_factory_.GetWeakPtr());
 }
 
 MediaPlayerBridge::~MediaPlayerBridge() {
@@ -121,7 +123,7 @@ MediaPlayerBridge::~MediaPlayerBridge() {
 
 void MediaPlayerBridge::Initialize() {
   cookies_.clear();
-  if (url_.SchemeIsBlob()) {
+  if (url_.SchemeIsBlob() || url_.SchemeIsFileSystem()) {
     NOTREACHED();
     return;
   }
@@ -132,7 +134,7 @@ void MediaPlayerBridge::Initialize() {
 
     pending_retrieve_cookies_ = true;
     resource_getter->GetCookies(
-        url_, site_for_cookies_, top_frame_origin_,
+        url_, site_for_cookies_, top_frame_origin_, has_storage_access_,
         base::BindOnce(&MediaPlayerBridge::OnCookiesRetrieved,
                        weak_factory_.GetWeakPtr()));
   }
@@ -169,6 +171,11 @@ void MediaPlayerBridge::SetVideoSurface(gl::ScopedJavaSurface surface) {
 }
 
 void MediaPlayerBridge::SetPlaybackRate(double playback_rate) {
+  if (!prepared_) {
+    pending_playback_rate_ = playback_rate;
+    return;
+  }
+
   if (j_media_player_bridge_.is_null())
     return;
 
@@ -182,19 +189,12 @@ void MediaPlayerBridge::SetPlaybackRate(double playback_rate) {
 void MediaPlayerBridge::Prepare() {
   DCHECK(j_media_player_bridge_.is_null());
 
-  if (url_.SchemeIsBlob()) {
+  if (url_.SchemeIsBlob() || url_.SchemeIsFileSystem()) {
     NOTREACHED();
     return;
   }
 
   CreateJavaMediaPlayerBridge();
-
-  if (url_.SchemeIsFileSystem()) {
-    client_->GetMediaResourceGetter()->GetPlatformPathFromURL(
-        url_, base::BindOnce(&MediaPlayerBridge::SetDataSource,
-                             weak_factory_.GetWeakPtr()));
-    return;
-  }
 
   SetDataSource(url_.spec());
 }
@@ -420,7 +420,7 @@ void MediaPlayerBridge::Release() {
 }
 
 void MediaPlayerBridge::SetVolume(double volume) {
-  volume_ = base::clamp(volume, 0.0, 1.0);
+  volume_ = std::clamp(volume, 0.0, 1.0);
   UpdateVolumeInternal();
 }
 
@@ -488,6 +488,11 @@ void MediaPlayerBridge::OnMediaPrepared() {
     StartInternal();
     pending_play_ = false;
   }
+
+  if (pending_playback_rate_) {
+    SetPlaybackRate(pending_playback_rate_.value());
+    pending_playback_rate_.reset();
+  }
 }
 
 ScopedJavaLocalRef<jobject> MediaPlayerBridge::GetAllowedOperations() {
@@ -550,7 +555,7 @@ void MediaPlayerBridge::SeekInternal(base::TimeDelta time) {
 
   // Seeking to an invalid position may cause media player to stuck in an
   // error state.
-  if (time < base::TimeDelta()) {
+  if (time.is_negative()) {
     DCHECK_EQ(-1.0, time.InMillisecondsF());
     return;
   }

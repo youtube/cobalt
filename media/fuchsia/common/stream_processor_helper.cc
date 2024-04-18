@@ -1,11 +1,11 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/fuchsia/common/stream_processor_helper.h"
 
-#include "base/bind.h"
 #include "base/fuchsia/fuchsia_logging.h"
+#include "base/functional/bind.h"
 #include "media/base/timestamp_constants.h"
 
 namespace media {
@@ -23,12 +23,14 @@ StreamProcessorHelper::IoPacket::IoPacket(size_t index,
                                           size_t size,
                                           base::TimeDelta timestamp,
                                           bool unit_end,
+                                          bool key_frame,
                                           base::OnceClosure destroy_cb)
     : index_(index),
       offset_(offset),
       size_(size),
       timestamp_(timestamp),
-      unit_end_(unit_end) {
+      unit_end_(unit_end),
+      key_frame_(key_frame) {
   destroy_callbacks_.push_front(std::move(destroy_cb));
 }
 
@@ -66,6 +68,8 @@ StreamProcessorHelper::StreamProcessorHelper(
       fit::bind_member(this, &StreamProcessorHelper::OnStreamFailed);
   processor_.events().OnFreeInputPacket =
       fit::bind_member(this, &StreamProcessorHelper::OnFreeInputPacket);
+  processor_.events().OnInputConstraints =
+      fit::bind_member(this, &StreamProcessorHelper::OnInputConstraints);
   processor_.events().OnOutputConstraints =
       fit::bind_member(this, &StreamProcessorHelper::OnOutputConstraints);
   processor_.events().OnOutputFormat =
@@ -104,7 +108,7 @@ void StreamProcessorHelper::Process(IoPacket input) {
                                         fidl::Clone(input.format()));
   }
 
-  DCHECK(input_packets_.find(input.buffer_index()) == input_packets_.end());
+  DCHECK(!input_packets_.contains(input.buffer_index()));
   input_packets_.insert_or_assign(input.buffer_index(), std::move(input));
   processor_->QueueInputPacket(std::move(packet));
 }
@@ -177,6 +181,26 @@ void StreamProcessorHelper::OnFreeInputPacket(
   // for the next packet while the current packet is still in |input_packets_|.
   auto packet = std::move(it->second);
   input_packets_.erase(it);
+}
+
+void StreamProcessorHelper::OnInputConstraints(
+    fuchsia::media::StreamBufferConstraints input_constraints) {
+  if (!input_constraints.has_buffer_constraints_version_ordinal()) {
+    DLOG(ERROR)
+        << "Received OnInputConstraints() with missing required fields.";
+    OnError();
+    return;
+  }
+
+  if (input_constraints.buffer_constraints_version_ordinal() !=
+      kInputBufferLifetimeOrdinal) {
+    DLOG(ERROR) << "Received OnInputConstraints() unexpected version ordinal: "
+                << input_constraints.buffer_constraints_version_ordinal();
+    OnError();
+    return;
+  }
+
+  client_->OnStreamProcessorAllocateInputBuffers(input_constraints);
 }
 
 void StreamProcessorHelper::OnOutputConstraints(
@@ -273,6 +297,7 @@ void StreamProcessorHelper::OnOutputPacket(fuchsia::media::Packet output_packet,
       buffer_index, output_packet.start_offset(),
       output_packet.valid_length_bytes(), timestamp,
       output_packet.known_end_access_unit(),
+      output_packet.has_key_frame() ? output_packet.key_frame() : false,
       base::BindOnce(&StreamProcessorHelper::OnRecycleOutputBuffer, weak_this_,
                      output_buffer_lifetime_ordinal_, packet_index)));
 }

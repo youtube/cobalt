@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/fuchsia/test_component_context_for_process.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "media/capture/video/fuchsia/video_capture_device_factory_fuchsia.h"
 #include "media/fuchsia/camera/fake_fuchsia_camera.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -70,11 +71,6 @@ class HeapBufferHandleProvider final
     return {};
   }
 
-  mojo::ScopedSharedBufferHandle DuplicateAsMojoBuffer() override {
-    NOTREACHED();
-    return {};
-  }
-
   std::unique_ptr<VideoCaptureBufferHandle> GetHandleForInProcessAccess()
       override {
     return std::make_unique<HeapBufferHandle>(data_.size(), data_.data());
@@ -106,6 +102,8 @@ class TestVideoCaptureClient final : public VideoCaptureDevice::Client {
 
  private:
   // VideoCaptureDevice::Client implementation.
+  void OnCaptureConfigurationChanged() override {}
+
   void OnStarted() final {
     EXPECT_FALSE(started_);
     started_ = true;
@@ -166,7 +164,8 @@ class TestVideoCaptureClient final : public VideoCaptureDevice::Client {
       CapturedExternalVideoBuffer buffer,
       std::vector<CapturedExternalVideoBuffer> scaled_buffers,
       base::TimeTicks reference_time,
-      base::TimeDelta timestamp) override {
+      base::TimeDelta timestamp,
+      gfx::Rect visible_rect) override {
     NOTREACHED();
   }
   void OnIncomingCapturedBuffer(Buffer buffer,
@@ -222,7 +221,8 @@ class VideoCaptureDeviceFuchsiaTest : public testing::Test {
   void CreateDevice() {
     auto devices_info = GetDevicesInfo();
     ASSERT_EQ(devices_info.size(), 1U);
-    device_ = device_factory_.CreateDevice(devices_info[0].descriptor);
+    device_ = device_factory_.CreateDevice(devices_info[0].descriptor)
+                  .ReleaseDevice();
   }
 
   FakeCameraStream* GetDefaultCameraStream() {
@@ -404,7 +404,8 @@ TEST_F(VideoCaptureDeviceFuchsiaTest,
   base::RunLoop().RunUntilIdle();
 
   // The factory is expected to reconnect DeviceWatcher.
-  device_ = device_factory_.CreateDevice(devices_info[0].descriptor);
+  device_ =
+      device_factory_.CreateDevice(devices_info[0].descriptor).ReleaseDevice();
 
   StartCapturer();
 

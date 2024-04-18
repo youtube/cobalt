@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/logging.h"
 #include "build/build_config.h"
+#include "media/base/video_bitrate_allocation.h"
 #include "media/gpu/vaapi/va_surface.h"
 #include "media/gpu/vaapi/vaapi_common.h"
 #include "media/gpu/vaapi/vaapi_wrapper.h"
@@ -21,13 +22,15 @@ using ::testing::Return;
 namespace media {
 namespace {
 
-VaapiVideoEncoderDelegate::Config kDefaultVEADelegateConfig{4};
+VaapiVideoEncoderDelegate::Config kDefaultVEADelegateConfig{
+    .max_num_ref_frames = 4,
+};
 
 VideoEncodeAccelerator::Config kDefaultVEAConfig(
     PIXEL_FORMAT_I420,
     gfx::Size(1280, 720),
     H264PROFILE_BASELINE,
-    Bitrate::ConstantBitrate(14000000)
+    Bitrate::ConstantBitrate(14000000u)
     /* = maximum bitrate in bits per second for level 3.1 */,
     VideoEncodeAccelerator::kDefaultFramerate,
     absl::nullopt /* gop_length */,
@@ -35,6 +38,40 @@ VideoEncodeAccelerator::Config kDefaultVEAConfig(
     false /* is_constrained_h264 */,
     VideoEncodeAccelerator::Config::StorageType::kShmem,
     VideoEncodeAccelerator::Config::ContentType::kCamera);
+
+MATCHER_P2(MatchVABufferDescriptor, va_buffer_type, va_buffer_size, "") {
+  return arg.type == va_buffer_type && arg.size == va_buffer_size &&
+         arg.data != nullptr;
+}
+
+MATCHER_P2(MatchVABufferDescriptorForMiscParam,
+           va_misc_param_type,
+           va_misc_param_size,
+           "") {
+  if (arg.type != VAEncMiscParameterBufferType ||
+      arg.size != va_misc_param_size + sizeof(VAEncMiscParameterBuffer)) {
+    return false;
+  }
+  const auto* va_buffer =
+      static_cast<const VAEncMiscParameterBuffer*>(arg.data);
+
+  return va_buffer != nullptr && va_buffer->type == va_misc_param_type;
+}
+
+MATCHER_P(MatchVABufferDescriptorForPackedHeader, va_packed_header_type, "") {
+  if (arg.type != VAEncPackedHeaderParameterBufferType ||
+      arg.size != sizeof(VAEncPackedHeaderParameterBuffer)) {
+    return false;
+  }
+
+  const auto* va_buffer =
+      static_cast<const VAEncPackedHeaderParameterBuffer*>(arg.data);
+  return va_buffer != nullptr && va_buffer->type == va_packed_header_type;
+}
+
+MATCHER(MatchVABufferDescriptorForPackedHeaderData, "") {
+  return arg.type == VAEncPackedHeaderDataBufferType && arg.data != nullptr;
+}
 
 void ValidateTemporalLayerStructure(uint8_t num_temporal_layers,
                                     size_t num_frames,
@@ -77,7 +114,10 @@ void ValidateTemporalLayerStructure(uint8_t num_temporal_layers,
 
 class MockVaapiWrapper : public VaapiWrapper {
  public:
-  MockVaapiWrapper() : VaapiWrapper(kEncodeConstantBitrate) {}
+  MockVaapiWrapper()
+      : VaapiWrapper(VADisplayStateHandle(), kEncodeConstantBitrate) {}
+
+  MOCK_METHOD1(SubmitBuffer_Locked, bool(const VABufferDescriptor&));
 
   bool GetSupportedPackedHeaders(VideoCodecProfile profile,
                                  bool& packed_sps,
@@ -123,12 +163,6 @@ class H264VaapiVideoEncoderDelegateTest
 
 std::unique_ptr<VaapiVideoEncoderDelegate::EncodeJob>
 H264VaapiVideoEncoderDelegateTest::CreateEncodeJob(bool keyframe) {
-  auto input_frame = VideoFrame::CreateFrame(
-      kDefaultVEAConfig.input_format, kDefaultVEAConfig.input_visible_size,
-      gfx::Rect(kDefaultVEAConfig.input_visible_size),
-      kDefaultVEAConfig.input_visible_size, base::TimeDelta());
-  LOG_ASSERT(input_frame) << " Failed to create VideoFrame";
-
   auto va_surface = base::MakeRefCounted<VASurface>(
       next_surface_id_++, kDefaultVEAConfig.input_visible_size,
       VA_RT_FORMAT_YUV420, base::DoNothing());
@@ -139,8 +173,11 @@ H264VaapiVideoEncoderDelegateTest::CreateEncodeJob(bool keyframe) {
       kDummyVABufferID, VAEncCodedBufferType,
       kDefaultVEAConfig.input_visible_size.GetArea());
 
+  // TODO(b/229358029): Set a valid timestamp and check the timestamp in
+  // metadata.
+  constexpr base::TimeDelta timestamp;
   return std::make_unique<VaapiVideoEncoderDelegate::EncodeJob>(
-      input_frame, keyframe, base::DoNothing(), va_surface, picture,
+      keyframe, timestamp, next_surface_id_++, picture,
       std::move(scoped_va_buffer));
 }
 
@@ -162,7 +199,7 @@ bool H264VaapiVideoEncoderDelegateTest::InitializeEncoder(
   auto& sl = vea_config.spatial_layers[0];
   sl.width = vea_config.input_visible_size.width();
   sl.height = vea_config.input_visible_size.height();
-  sl.bitrate_bps = vea_config.bitrate.target();
+  sl.bitrate_bps = vea_config.bitrate.target_bps();
   sl.framerate = vea_config.initial_framerate.value_or(30);
   sl.max_qp = 30;
   sl.num_of_temporal_layers = num_temporal_layers;
@@ -171,19 +208,84 @@ bool H264VaapiVideoEncoderDelegateTest::InitializeEncoder(
 
 void H264VaapiVideoEncoderDelegateTest::EncodeFrame(bool force_keyframe) {
   auto encode_job = CreateEncodeJob(force_keyframe);
-  EXPECT_TRUE(encoder_->PrepareEncodeJob(encode_job.get()));
+  ::testing::InSequence seq;
 
-  const H264Picture& pic = *encoder_->GetPicture(encode_job.get());
-  if (force_keyframe)
-    EXPECT_EQ(pic.idr, true);
+  EXPECT_CALL(*mock_vaapi_wrapper_,
+              SubmitBuffer_Locked(MatchVABufferDescriptor(
+                  VAEncSequenceParameterBufferType,
+                  sizeof(VAEncSequenceParameterBufferH264))))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_vaapi_wrapper_,
+              SubmitBuffer_Locked(MatchVABufferDescriptor(
+                  VAEncPictureParameterBufferType,
+                  sizeof(VAEncPictureParameterBufferH264))))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_vaapi_wrapper_, SubmitBuffer_Locked(MatchVABufferDescriptor(
+                                        VAEncSliceParameterBufferType,
+                                        sizeof(VAEncSliceParameterBufferH264))))
+      .WillOnce(Return(true));
+
+  // Misc Parameters.
+  EXPECT_CALL(*mock_vaapi_wrapper_,
+              SubmitBuffer_Locked(MatchVABufferDescriptorForMiscParam(
+                  VAEncMiscParameterTypeRateControl,
+                  sizeof(VAEncMiscParameterRateControl))))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_vaapi_wrapper_,
+              SubmitBuffer_Locked(MatchVABufferDescriptorForMiscParam(
+                  VAEncMiscParameterTypeFrameRate,
+                  sizeof(VAEncMiscParameterFrameRate))))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_vaapi_wrapper_,
+              SubmitBuffer_Locked(MatchVABufferDescriptorForMiscParam(
+                  VAEncMiscParameterTypeHRD, sizeof(VAEncMiscParameterHRD))))
+      .WillOnce(Return(true));
+  // Packed slice header.
+  EXPECT_CALL(*mock_vaapi_wrapper_,
+              SubmitBuffer_Locked(MatchVABufferDescriptorForPackedHeader(
+                  VAEncPackedHeaderSlice)))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_vaapi_wrapper_,
+              SubmitBuffer_Locked(MatchVABufferDescriptorForPackedHeaderData()))
+      .WillOnce(Return(true));
+
+  // Assume IDR frame is produced if and only if |force_keyframe| because IDR
+  // frame period is long enough.
+  if (force_keyframe) {
+    // Packed SPS header.
+    EXPECT_CALL(*mock_vaapi_wrapper_,
+                SubmitBuffer_Locked(MatchVABufferDescriptorForPackedHeader(
+                    VAEncPackedHeaderSequence)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(
+        *mock_vaapi_wrapper_,
+        SubmitBuffer_Locked(MatchVABufferDescriptorForPackedHeaderData()))
+        .WillOnce(Return(true));
+
+    // Packed PPS header.
+    EXPECT_CALL(*mock_vaapi_wrapper_,
+                SubmitBuffer_Locked(MatchVABufferDescriptorForPackedHeader(
+                    VAEncPackedHeaderPicture)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(
+        *mock_vaapi_wrapper_,
+        SubmitBuffer_Locked(MatchVABufferDescriptorForPackedHeaderData()))
+        .WillOnce(Return(true));
+  }
+
+  EXPECT_TRUE(encoder_->PrepareEncodeJob(*encode_job.get()));
+
+  const H264Picture& pic =
+      *reinterpret_cast<H264Picture*>(encode_job->picture().get());
   EXPECT_EQ(pic.type == H264SliceHeader::kISlice, pic.idr);
-  if (pic.idr)
+  EXPECT_EQ(pic.idr, force_keyframe);
+  if (force_keyframe)
     num_encode_frames_ = 0;
 
   const int frame_num = pic.frame_num;
   constexpr size_t kDummyPayloadSize = 12345;
   const BitstreamBufferMetadata metadata =
-      encoder_->GetMetadata(encode_job.get(), kDummyPayloadSize);
+      encoder_->GetMetadata(*encode_job.get(), kDummyPayloadSize);
   ASSERT_TRUE(metadata.h264.has_value());
 
   const uint8_t temporal_idx = metadata.h264->temporal_idx;
@@ -208,18 +310,31 @@ TEST_F(H264VaapiVideoEncoderDelegateTest, Initialize) {
   ExpectLevel(H264SPS::kLevelIDC5p1);
 }
 
-// H.264 temporal layer encoding is enabled on ChromeOS only. Skip this test
-// on other platforms.
-#if defined(ARCH_CPU_X86_FAMILY) && BUILDFLAG(IS_CHROMEOS_ASH)
-TEST_P(H264VaapiVideoEncoderDelegateTest, EncodeTemporalLayerRequest) {
-  // TODO(b/199487660): Enable H.264 temporal layer encoding on AMD once their
-  // drivers support them.
-  const auto implementation = VaapiWrapper::GetImplementationType();
-  if (implementation != VAImplementation::kIntelI965 &&
-      implementation != VAImplementation::kIntelIHD) {
-    GTEST_SKIP() << "Skip temporal layer test on AMD devices";
-  }
+TEST_F(H264VaapiVideoEncoderDelegateTest, ChangeBitrateModeFails) {
+  auto vea_config = kDefaultVEAConfig;
+  const auto vea_delegate_config = kDefaultVEADelegateConfig;
+  EXPECT_TRUE(encoder_->Initialize(vea_config, vea_delegate_config));
 
+  const uint32_t new_bitrate_bps = kDefaultVEAConfig.bitrate.target_bps();
+  VideoBitrateAllocation new_allocation =
+      VideoBitrateAllocation(Bitrate::Mode::kVariable);
+  new_allocation.SetBitrate(0, 0, new_bitrate_bps);
+  EXPECT_TRUE(new_allocation.SetPeakBps(2u * new_bitrate_bps));
+
+  ASSERT_FALSE(encoder_->UpdateRates(
+      new_allocation, VideoEncodeAccelerator::kDefaultFramerate));
+}
+
+TEST_F(H264VaapiVideoEncoderDelegateTest, VariableBitrate_Initialize) {
+  auto vea_config = kDefaultVEAConfig;
+  const uint32_t bitrate_bps = vea_config.bitrate.target_bps();
+  vea_config.bitrate = Bitrate::VariableBitrate(bitrate_bps, 2u * bitrate_bps);
+  const auto vea_delegate_config = kDefaultVEADelegateConfig;
+
+  ASSERT_TRUE(encoder_->Initialize(vea_config, vea_delegate_config));
+}
+
+TEST_P(H264VaapiVideoEncoderDelegateTest, EncodeTemporalLayerRequest) {
   const uint8_t num_temporal_layers = GetParam();
   const bool initialize_success = num_temporal_layers <= 3;
   // Initialize.
@@ -244,5 +359,4 @@ TEST_P(H264VaapiVideoEncoderDelegateTest, EncodeTemporalLayerRequest) {
 INSTANTIATE_TEST_SUITE_P(,
                          H264VaapiVideoEncoderDelegateTest,
                          ::testing::Values(2u, 3u, 4u));
-#endif  // defined(ARCH_CPU_X86_FAMILY) && BUILDFLAG(IS_CHROMEOS_ASH)
 }  // namespace media

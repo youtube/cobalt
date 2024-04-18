@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,7 +34,7 @@ std::unique_ptr<AudioBus> TestAudioBusFactory::NextAudioBus(
     const base::TimeDelta& duration) {
   const int num_samples = (sample_rate_ * duration).InSeconds();
   std::unique_ptr<AudioBus> bus(AudioBus::Create(num_channels_, num_samples));
-  source_.OnMoreData(base::TimeDelta(), base::TimeTicks::Now(), 0, bus.get());
+  source_.OnMoreData(base::TimeDelta(), base::TimeTicks::Now(), {}, bus.get());
   bus->Scale(volume_);
   return bus;
 }

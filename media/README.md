@@ -92,7 +92,7 @@ audio and video rendering.
 Specifically under the playback heading, media/ contains the implementations of
 components required for HTML media elements and extensions:
 
-* [HTML5 Audio & Video](https://dev.w3.org/html5/spec-author-view/video.html)
+* [HTML5 Audio & Video](https://www.w3.org/html/wg/spec/video.html)
 * [Media Source Extensions](https://www.w3.org/TR/media-source/)
 * [Encrypted Media Extensions](https://www.w3.org/TR/encrypted-media/)
 
@@ -189,3 +189,16 @@ MediaLog messages should be concise and free of implementation details. Error
 messages should provide clues as to how to fix them, usually by precisely
 describing the circumstances that led to the error. Use properties, rather
 than messages, to record metadata and state changes.
+
+## Logging Format
+
+When adding logs, it's often helpful to log the function name, e.g.
+```
+DVLOG(?) << __func__;
+```
+
+When adding logs with values, prefer the following format for consistency and
+readability:
+```
+DVLOG(?) << __func__ << ": param1=" << param1 << ", param2=" << param2;
+```

@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,8 @@
 #define MEDIA_GPU_VAAPI_TEST_SCOPED_VA_CONFIG_H_
 
 #include <va/va.h>
+
+#include "base/memory/raw_ref.h"
 
 namespace media {
 namespace vaapi_test {
@@ -32,7 +34,7 @@ class ScopedVAConfig {
 
  private:
   // Non-owned.
-  const VaapiDevice& device_;
+  const raw_ref<const VaapiDevice> device_;
 
   VAConfigID config_id_;
   const VAProfile profile_;

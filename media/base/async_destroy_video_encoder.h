@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,29 +38,30 @@ class AsyncDestroyVideoEncoder final : public VideoEncoder {
 
   void Initialize(VideoCodecProfile profile,
                   const Options& options,
+                  EncoderInfoCB info_cb,
                   OutputCB output_cb,
-                  StatusCB done_cb) override {
+                  EncoderStatusCB done_cb) override {
     DCHECK(wrapped_encoder_);
-    wrapped_encoder_->Initialize(profile, options, std::move(output_cb),
-                                 std::move(done_cb));
+    wrapped_encoder_->Initialize(profile, options, std::move(info_cb),
+                                 std::move(output_cb), std::move(done_cb));
   }
 
   void Encode(scoped_refptr<VideoFrame> frame,
-              bool key_frame,
-              StatusCB done_cb) override {
+              const EncodeOptions& options,
+              EncoderStatusCB done_cb) override {
     DCHECK(wrapped_encoder_);
-    wrapped_encoder_->Encode(std::move(frame), key_frame, std::move(done_cb));
+    wrapped_encoder_->Encode(std::move(frame), options, std::move(done_cb));
   }
 
   void ChangeOptions(const Options& options,
                      OutputCB output_cb,
-                     StatusCB done_cb) override {
+                     EncoderStatusCB done_cb) override {
     DCHECK(wrapped_encoder_);
     wrapped_encoder_->ChangeOptions(options, std::move(output_cb),
                                     std::move(done_cb));
   }
 
-  void Flush(StatusCB done_cb) override {
+  void Flush(EncoderStatusCB done_cb) override {
     DCHECK(wrapped_encoder_);
     wrapped_encoder_->Flush(std::move(done_cb));
   }

@@ -22,11 +22,11 @@
 #include "base/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/data_source.h"
-#include "media/base/bind_to_current_loop.h"
 #include "media/base/starboard_utils.h"
 #include "media/base/timestamp_constants.h"
 #include "starboard/types.h"
@@ -49,8 +49,7 @@ ProgressiveDemuxerStream::ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer,
   DCHECK(demuxer_);
 }
 
-void ProgressiveDemuxerStream::Read(int max_number_of_buffers_to_read,
-                                    ReadCB read_cb) {
+void ProgressiveDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
   TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Read()");
   DCHECK(!read_cb.is_null());
 
@@ -544,7 +543,7 @@ void ProgressiveDemuxer::Seek(base::TimeDelta time, PipelineStatusCallback cb) {
   blocking_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ProgressiveDemuxer::SeekTask, base::Unretained(this),
-                     time, ::media::BindToCurrentLoop(std::move(cb))));
+                     time, BindPostTaskToCurrentDefault(std::move(cb))));
 }
 
 // runs on blocking thread

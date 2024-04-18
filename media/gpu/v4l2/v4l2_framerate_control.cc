@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,8 @@
 #include "base/command_line.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/trace_event/trace_event.h"
 #include "media/base/media_switches.h"
 
 namespace {
@@ -104,10 +106,17 @@ void V4L2FrameRateControl::UpdateFrameRate() {
     parms.parm.output.timeperframe.numerator = current_frame_duration_avg_ms_;
     parms.parm.output.timeperframe.denominator = 1000L;
 
-    const auto result = device_->Ioctl(VIDIOC_S_PARM, &parms);
-    LOG_IF(ERROR, result != 0) << "Failed to issue VIDIOC_S_PARM command";
+    TRACE_COUNTER_ID1("media,gpu", "V4L2 time per frame (ms)", this,
+                      current_frame_duration_avg_ms_);
+    TRACE_COUNTER_ID1("media,gpu", "V4L2 estimated frame rate (Hz)", this,
+                      std::round(frame_duration_avg.ToHz()));
 
-    VLOG(1) << "Average framerate: " << frame_duration_avg.ToHz();
+    if (device_->Ioctl(VIDIOC_S_PARM, &parms) != 0) {
+      LOG(ERROR) << "Failed to issue VIDIOC_S_PARM command";
+      TRACE_EVENT0("media,gpu", "V4L2 VIDIOC_S_PARM call failed");
+    }
+
+    DVLOG(4) << "Average framerate: " << frame_duration_avg.ToHz();
   }
 }
 

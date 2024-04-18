@@ -1,15 +1,14 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_CDM_EXTERNAL_CLEAR_KEY_TEST_HELPER_H_
 #define MEDIA_CDM_EXTERNAL_CLEAR_KEY_TEST_HELPER_H_
 
-#include <string>
-
 #include "base/files/file_path.h"
-#include "base/macros.h"
 #include "base/scoped_native_library.h"
+#include "media/base/cdm_config.h"
+#include "media/cdm/clear_key_cdm_common.h"
 
 namespace media {
 
@@ -25,7 +24,10 @@ class ExternalClearKeyTestHelper {
 
   ~ExternalClearKeyTestHelper();
 
-  std::string KeySystemName() { return "org.chromium.externalclearkey"; }
+  media::CdmConfig CdmConfig() {
+    return {kExternalClearKeyKeySystem, false, false, false};
+  }
+
   base::FilePath LibraryPath() { return library_path_; }
 
  private:

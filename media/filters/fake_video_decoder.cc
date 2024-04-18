@@ -1,11 +1,11 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/filters/fake_video_decoder.h"
 
 #include "base/location.h"
-#include "media/base/bind_to_current_loop.h"
+#include "base/task/bind_post_task.h"
 #include "media/base/test_helpers.h"
 
 namespace media {
@@ -82,10 +82,10 @@ void FakeVideoDecoder::Initialize(const VideoDecoderConfig& config,
   DCHECK(reset_cb_.IsNull()) << "No reinitialization during pending reset.";
 
   current_config_ = config;
-  init_cb_.SetCallback(BindToCurrentLoop(std::move(init_cb)));
+  init_cb_.SetCallback(base::BindPostTaskToCurrentDefault(std::move(init_cb)));
 
-  // Don't need BindToCurrentLoop() because |output_cb_| is only called from
-  // RunDecodeCallback() which is posted from Decode().
+  // Don't need base::BindPostTaskToCurrentDefault() because |output_cb_| is
+  // only called from RunDecodeCallback() which is posted from Decode().
   output_cb_ = output_cb;
 
   if (!decoded_frames_.empty()) {
@@ -96,18 +96,18 @@ void FakeVideoDecoder::Initialize(const VideoDecoderConfig& config,
   if (config.is_encrypted() && (!supports_encrypted_config_ || !cdm_context)) {
     DVLOG(1) << "Encrypted config not supported.";
     state_ = STATE_NORMAL;
-    init_cb_.RunOrHold(StatusCode::kEncryptedContentUnsupported);
+    init_cb_.RunOrHold(DecoderStatus::Codes::kUnsupportedEncryptionMode);
     return;
   }
 
   if (fail_to_initialize_) {
     DVLOG(1) << decoder_id_ << ": Initialization failed.";
     state_ = STATE_ERROR;
-    init_cb_.RunOrHold(StatusCode::kDecoderInitializeNeverCompleted);
+    init_cb_.RunOrHold(DecoderStatus::Codes::kFailed);
   } else {
     DVLOG(1) << decoder_id_ << ": Initialization succeeded.";
     state_ = STATE_NORMAL;
-    init_cb_.RunOrHold(OkStatus());
+    init_cb_.RunOrHold(DecoderStatus::Codes::kOk);
   }
 }
 
@@ -124,10 +124,10 @@ void FakeVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
   int buffer_size = buffer->end_of_stream() ? 0 : buffer->data_size();
   DecodeCB wrapped_decode_cb = base::BindOnce(
       &FakeVideoDecoder::OnFrameDecoded, weak_factory_.GetWeakPtr(),
-      buffer_size, BindToCurrentLoop(std::move(decode_cb)));
+      buffer_size, base::BindPostTaskToCurrentDefault(std::move(decode_cb)));
 
   if (state_ == STATE_ERROR) {
-    std::move(wrapped_decode_cb).Run(DecodeStatus::DECODE_ERROR);
+    std::move(wrapped_decode_cb).Run(DecoderStatus::Codes::kFailed);
     return;
   }
 
@@ -151,7 +151,7 @@ void FakeVideoDecoder::Reset(base::OnceClosure closure) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(reset_cb_.IsNull());
 
-  reset_cb_.SetCallback(BindToCurrentLoop(std::move(closure)));
+  reset_cb_.SetCallback(base::BindPostTaskToCurrentDefault(std::move(closure)));
   decoded_frames_.clear();
 
   // Defer the reset if a decode is pending.
@@ -218,7 +218,8 @@ void FakeVideoDecoder::SimulateError() {
 
   state_ = STATE_ERROR;
   while (!held_decode_callbacks_.empty()) {
-    std::move(held_decode_callbacks_.front()).Run(DecodeStatus::DECODE_ERROR);
+    std::move(held_decode_callbacks_.front())
+        .Run(DecoderStatus::Codes::kFailed);
     held_decode_callbacks_.pop_front();
   }
   decoded_frames_.clear();
@@ -234,7 +235,7 @@ int FakeVideoDecoder::GetMaxDecodeRequests() const {
 
 void FakeVideoDecoder::OnFrameDecoded(int buffer_size,
                                       DecodeCB decode_cb,
-                                      Status status) {
+                                      DecoderStatus status) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (status.is_ok()) {
@@ -261,7 +262,7 @@ void FakeVideoDecoder::RunDecodeCallback(DecodeCB decode_cb) {
 
   if (!reset_cb_.IsNull()) {
     DCHECK(decoded_frames_.empty());
-    std::move(decode_cb).Run(DecodeStatus::ABORTED);
+    std::move(decode_cb).Run(DecoderStatus::Codes::kAborted);
     return;
   }
 
@@ -286,7 +287,7 @@ void FakeVideoDecoder::RunDecodeCallback(DecodeCB decode_cb) {
     }
   }
 
-  std::move(decode_cb).Run(DecodeStatus::OK);
+  std::move(decode_cb).Run(DecoderStatus::Codes::kOk);
 }
 
 void FakeVideoDecoder::DoReset() {

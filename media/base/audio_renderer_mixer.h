@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,6 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
-#include "base/macros.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
@@ -60,7 +59,7 @@ class MEDIA_EXPORT AudioRendererMixer
   // AudioRendererSink::RenderCallback implementation.
   int Render(base::TimeDelta delay,
              base::TimeTicks delay_timestamp,
-             int prior_frames_skipped,
+             const AudioGlitchInfo& glitch_info,
              AudioBus* audio_bus) override;
   void OnRenderError() override;
 

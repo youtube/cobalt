@@ -1,17 +1,18 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <memory>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/task_environment.h"
 #include "base/threading/thread.h"
+#include "base/time/time.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/decoder_buffer.h"
@@ -23,6 +24,7 @@
 #include "media/mojo/mojom/audio_decoder.mojom.h"
 #include "media/mojo/services/mojo_audio_decoder_service.h"
 #include "media/mojo/services/mojo_cdm_service_context.h"
+#include "media/mojo/services/mojo_media_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -45,6 +47,32 @@ const int kDefaultSampleRate = 44100;
 const int kDefaultFrameSize = 100;
 const int kOutputPerDecode = 3;
 
+namespace {
+
+// Proxies CreateAudioDecoder() to a callback.
+class FakeMojoMediaClient : public MojoMediaClient {
+ public:
+  using CreateAudioDecoderCB =
+      base::RepeatingCallback<std::unique_ptr<AudioDecoder>()>;
+
+  explicit FakeMojoMediaClient(CreateAudioDecoderCB create_audio_decoder_cb)
+      : create_audio_decoder_cb_(std::move(create_audio_decoder_cb)) {}
+
+  FakeMojoMediaClient(const FakeMojoMediaClient&) = delete;
+  FakeMojoMediaClient& operator=(const FakeMojoMediaClient&) = delete;
+
+  std::unique_ptr<AudioDecoder> CreateAudioDecoder(
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
+      std::unique_ptr<media::MediaLog> media_log) override {
+    return create_audio_decoder_cb_.Run();
+  }
+
+ private:
+  const CreateAudioDecoderCB create_audio_decoder_cb_;
+};
+
+}  // namespace
+
 // Tests MojoAudioDecoder (client) and MojoAudioDecoderService (service).
 // To better simulate how they are used in production, the client and service
 // are running on two different threads.
@@ -66,7 +94,7 @@ class MojoAudioDecoderTest : public ::testing::Test {
                        base::Unretained(this),
                        remote_audio_decoder.InitWithNewPipeAndPassReceiver()));
     mojo_audio_decoder_ = std::make_unique<MojoAudioDecoder>(
-        task_environment_.GetMainThreadTaskRunner(),
+        task_environment_.GetMainThreadTaskRunner(), &media_log_,
         std::move(remote_audio_decoder));
   }
 
@@ -83,10 +111,10 @@ class MojoAudioDecoderTest : public ::testing::Test {
   }
 
   // Completion callbacks.
-  MOCK_METHOD1(OnInitialized, void(Status));
+  MOCK_METHOD1(OnInitialized, void(DecoderStatus));
   MOCK_METHOD1(OnOutput, void(scoped_refptr<AudioBuffer>));
   MOCK_METHOD1(OnWaiting, void(WaitingReason));
-  MOCK_METHOD1(OnDecoded, void(Status));
+  MOCK_METHOD1(OnDecoded, void(DecoderStatus));
   MOCK_METHOD0(OnReset, void());
 
   // Always create a new RunLoop (and destroy the old loop if it exists) before
@@ -109,28 +137,29 @@ class MojoAudioDecoderTest : public ::testing::Test {
     run_loop_->QuitWhenIdle();
   }
 
+  std::unique_ptr<AudioDecoder> CreateAudioDecoder() {
+    CHECK_NE(owned_mock_audio_decoder_, nullptr);
+    return std::move(owned_mock_audio_decoder_);
+  }
+
   void ConnectToService(mojo::PendingReceiver<mojom::AudioDecoder> receiver) {
     DCHECK(service_task_runner_->BelongsToCurrentThread());
 
-    std::unique_ptr<StrictMock<MockAudioDecoder>> mock_audio_decoder(
-        new StrictMock<MockAudioDecoder>());
-    mock_audio_decoder_ = mock_audio_decoder.get();
-
     EXPECT_CALL(*mock_audio_decoder_, Initialize_(_, _, _, _, _))
         .WillRepeatedly(DoAll(SaveArg<3>(&output_cb_), SaveArg<4>(&waiting_cb_),
-                              RunOnceCallback<2>(OkStatus())));
+                              RunOnceCallback<2>(DecoderStatus::Codes::kOk)));
     EXPECT_CALL(*mock_audio_decoder_, Decode(_, _))
         .WillRepeatedly([&](scoped_refptr<DecoderBuffer> buffer,
                             AudioDecoder::DecodeCB decode_cb) {
           ReturnOutput();
-          std::move(decode_cb).Run(DecodeStatus::OK);
+          std::move(decode_cb).Run(DecoderStatus::Codes::kOk);
         });
     EXPECT_CALL(*mock_audio_decoder_, Reset_(_))
         .WillRepeatedly(RunOnceCallback<0>());
 
     mojo::MakeSelfOwnedReceiver(
-        std::make_unique<MojoAudioDecoderService>(
-            &mojo_cdm_service_context_, std::move(mock_audio_decoder)),
+        std::make_unique<MojoAudioDecoderService>(&mojo_media_client_,
+                                                  &mojo_cdm_service_context_),
         std::move(receiver));
   }
 
@@ -138,8 +167,8 @@ class MojoAudioDecoderTest : public ::testing::Test {
     mojo_audio_decoder_->set_writer_capacity_for_testing(capacity);
   }
 
-  void InitializeAndExpect(Status status) {
-    DVLOG(1) << __func__ << ": success=" << status.code();
+  void InitializeAndExpect(DecoderStatus status) {
+    DVLOG(1) << __func__ << ": success=" << static_cast<int>(status.code());
     EXPECT_CALL(*this, OnInitialized(SameStatusCode(status)))
         .WillOnce(InvokeWithoutArgs(this, &MojoAudioDecoderTest::QuitLoop));
 
@@ -159,7 +188,7 @@ class MojoAudioDecoderTest : public ::testing::Test {
     RunLoop();
   }
 
-  void Initialize() { InitializeAndExpect(OkStatus()); }
+  void Initialize() { InitializeAndExpect(DecoderStatus::Codes::kOk); }
 
   void Decode() {
     scoped_refptr<DecoderBuffer> buffer(new DecoderBuffer(100));
@@ -228,6 +257,7 @@ class MojoAudioDecoderTest : public ::testing::Test {
 
   base::test::SingleThreadTaskEnvironment task_environment_;
   std::unique_ptr<base::RunLoop> run_loop_;
+  NullMediaLog media_log_;
 
   // The MojoAudioDecoder that we are testing.
   std::unique_ptr<MojoAudioDecoder> mojo_audio_decoder_;
@@ -244,10 +274,17 @@ class MojoAudioDecoderTest : public ::testing::Test {
   scoped_refptr<base::SingleThreadTaskRunner> service_task_runner_;
 
   // Owned by the connection on the service thread.
-  MojoAudioDecoderService* mojo_audio_decoder_service_ = nullptr;
+  raw_ptr<MojoAudioDecoderService> mojo_audio_decoder_service_ = nullptr;
+
+  FakeMojoMediaClient mojo_media_client_{
+      base::BindRepeating(&MojoAudioDecoderTest::CreateAudioDecoder,
+                          base::Unretained(this))};
 
   // Service side mock.
-  StrictMock<MockAudioDecoder>* mock_audio_decoder_ = nullptr;
+  std::unique_ptr<MockAudioDecoder> owned_mock_audio_decoder_{
+      std::make_unique<StrictMock<MockAudioDecoder>>()};
+  raw_ptr<MockAudioDecoder> mock_audio_decoder_{
+      owned_mock_audio_decoder_.get()};
 
   int num_of_decodes_ = 0;
   int decode_count_ = 0;
@@ -294,7 +331,7 @@ TEST_F(MojoAudioDecoderTest, WaitingForKey) {
       .WillOnce([&](scoped_refptr<DecoderBuffer> buffer,
                     AudioDecoder::DecodeCB decode_cb) {
         WaitForKey();
-        std::move(decode_cb).Run(DecodeStatus::OK);
+        std::move(decode_cb).Run(DecoderStatus::Codes::kOk);
       });
   EXPECT_CALL(*this, OnWaiting(WaitingReason::kNoDecryptionKey)).Times(1);
   EXPECT_CALL(*this, OnDecoded(IsOkStatus()))

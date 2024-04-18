@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,7 +20,7 @@ STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
 
 #else  // defined(STARBOARD)
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/test/launcher/unit_test_launcher.h"
 #include "base/test/test_discardable_memory_allocator.h"
 #include "base/test/test_suite.h"
@@ -30,7 +30,7 @@ STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
 #include "media/base/media_switches.h"
 #include "mojo/core/embedder/embedder.h"
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include "media/base/android/media_codec_bridge_impl.h"
 #include "media/base/android/media_codec_util.h"
 #endif
@@ -51,11 +51,8 @@ void TestSuiteNoAtExit::Initialize() {
   // Run TestSuite::Initialize first so that logging is initialized.
   base::TestSuite::Initialize();
 
-#if defined(OS_ANDROID)
-  if (media::MediaCodecUtil::IsMediaCodecAvailable()) {
-    media::EnablePlatformDecoderSupport();
-    media::MediaCodecBridgeImpl::SetupCallbackHandlerForTesting();
-  }
+#if BUILDFLAG(IS_ANDROID)
+  media::MediaCodecBridgeImpl::SetupCallbackHandlerForTesting();
 #endif
 
   // Run this here instead of main() to ensure an AtExitManager is already

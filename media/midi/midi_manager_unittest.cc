@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,9 +10,8 @@
 #include <memory>
 #include <vector>
 
-#include "base/bind.h"
 #include "base/check_op.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/system/system_monitor.h"
@@ -22,9 +21,9 @@
 #include "media/midi/task_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "media/midi/midi_manager_win.h"
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace midi {
 
@@ -94,7 +93,7 @@ class FakeMidiManagerFactory : public MidiService::ManagerFactory {
   }
 
   base::WeakPtr<FakeMidiManager> manager() {
-#if defined(OS_MAC)
+#if BUILDFLAG(IS_MAC)
     // To avoid Core MIDI issues, MidiManager won't be destructed on macOS.
     // See https://crbug.com/718140.
     if (!manager_ ||
@@ -351,8 +350,8 @@ class PlatformMidiManagerTest : public ::testing::Test {
   // This #ifdef needs to be identical to the one in media/midi/midi_manager.cc.
   // Do not change the condition for disabling this test.
   bool IsSupported() {
-#if !defined(OS_MAC) && !defined(OS_WIN) && \
-    !(defined(USE_ALSA) && defined(USE_UDEV)) && !defined(OS_ANDROID)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_WIN) && \
+    !(defined(USE_ALSA) && defined(USE_UDEV)) && !BUILDFLAG(IS_ANDROID)
     return false;
 #else
     return true;
@@ -369,7 +368,7 @@ class PlatformMidiManagerTest : public ::testing::Test {
   std::unique_ptr<MidiService> service_;
 };
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 // The test sometimes fails on Android. https://crbug.com/844027
 #define MAYBE_CreatePlatformMidiManager DISABLED_CreatePlatformMidiManager
 #else
@@ -389,9 +388,9 @@ TEST_F(PlatformMidiManagerTest, MAYBE_CreatePlatformMidiManager) {
 
 TEST_F(PlatformMidiManagerTest, InstanceIdOverflow) {
   service()->task_service()->OverflowInstanceIdForTesting();
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   MidiManagerWin::OverflowInstanceIdForTesting();
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
   StartSession();
   EXPECT_EQ(

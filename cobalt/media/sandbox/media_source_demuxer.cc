@@ -23,8 +23,8 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/sys_byteorder.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
-#include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
@@ -37,7 +37,6 @@ namespace sandbox {
 namespace {
 
 using base::Bind;
-using ::media::BindToCurrentLoop;
 using ::media::ChunkDemuxer;
 using ::media::DecoderBuffer;
 using ::media::DemuxerStream;
@@ -94,11 +93,11 @@ class Loader : public ::media::DemuxerHost {
     DCHECK(!append_buffer_cb.is_null());
 
     demuxer_ = new ChunkDemuxer(
-        BindToCurrentLoop(Bind(&Loader::OnDemuxerOpen, base::Unretained(this),
-                               IsMP4(content))),
+        BindPostTaskToCurrentDefault(Bind(
+            &Loader::OnDemuxerOpen, base::Unretained(this), IsMP4(content))),
         Bind(NeedKeyCB), Bind(Log));
     demuxer_->Initialize(
-        this, ::media::BindToCurrentLoop(
+        this, BindPostTaskToCurrentDefault(
                   Bind(&Loader::OnDemuxerStatus, base::Unretained(this))));
     while (valid_ && !ended_) {
       base::RunLoop().RunUntilIdle();

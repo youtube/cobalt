@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,7 @@
 
 #include <stdint.h>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "media/gpu/vaapi/vaapi_picture_native_pixmap.h"
 #include "ui/gfx/buffer_types.h"
@@ -17,6 +16,10 @@
 namespace gfx {
 class NativePixmap;
 }  // namespace gfx
+
+namespace gpu {
+class GLImageNativePixmap;
+}
 
 namespace media {
 
@@ -43,13 +46,16 @@ class VaapiPictureNativePixmapOzone : public VaapiPictureNativePixmap {
   ~VaapiPictureNativePixmapOzone() override;
 
   // VaapiPicture implementation.
-  Status Allocate(gfx::BufferFormat format) override;
+  VaapiStatus Allocate(gfx::BufferFormat format) override;
   bool ImportGpuMemoryBufferHandle(
       gfx::BufferFormat format,
       gfx::GpuMemoryBufferHandle gpu_memory_buffer_handle) override;
 
  private:
-  Status Initialize(scoped_refptr<gfx::NativePixmap> pixmap);
+  VaapiStatus Initialize(scoped_refptr<gfx::NativePixmap> pixmap);
+
+  // GLImage bound to the GL textures used by the VDA client.
+  scoped_refptr<gpu::GLImageNativePixmap> gl_image_;
 };
 
 }  // namespace media

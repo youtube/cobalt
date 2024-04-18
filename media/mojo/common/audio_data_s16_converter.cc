@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include "media/base/audio_bus.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/channel_mixer.h"
+#include "media/mojo/mojom/audio_data.mojom.h"
 #include "media/mojo/mojom/media_types.mojom.h"
 
 namespace media {
@@ -41,9 +42,9 @@ mojom::AudioDataS16Ptr AudioDataS16Converter::ConvertToAudioDataS16(
   }
 
   CopyBufferToTempAudioBus(*buffer);
-  return ConvertAudioBusToAudioDataS16Internal(
-      *temp_audio_bus_, buffer->sample_rate(), buffer->channel_layout(),
-      is_multichannel_supported);
+  return ConvertToAudioDataS16(*temp_audio_bus_, buffer->sample_rate(),
+                               buffer->channel_layout(),
+                               is_multichannel_supported);
 }
 
 mojom::AudioDataS16Ptr AudioDataS16Converter::ConvertToAudioDataS16(
@@ -53,12 +54,11 @@ mojom::AudioDataS16Ptr AudioDataS16Converter::ConvertToAudioDataS16(
     bool is_multichannel_supported) {
   DCHECK_GT(audio_bus->frames(), 0);
   DCHECK_GT(audio_bus->channels(), 0);
-  return ConvertAudioBusToAudioDataS16Internal(
-      *audio_bus, sample_rate, channel_layout, is_multichannel_supported);
+  return ConvertToAudioDataS16(*audio_bus, sample_rate, channel_layout,
+                               is_multichannel_supported);
 }
 
-mojom::AudioDataS16Ptr
-AudioDataS16Converter::ConvertAudioBusToAudioDataS16Internal(
+mojom::AudioDataS16Ptr AudioDataS16Converter::ConvertToAudioDataS16(
     const AudioBus& audio_bus,
     int sample_rate,
     ChannelLayout channel_layout,

@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,12 +8,13 @@
 
 #include "base/command_line.h"
 #include "base/memory/aligned_memory.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/audio/audio_device_info_accessor_for_tests.h"
@@ -27,7 +28,7 @@
 #include "media/base/media_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include "media/audio/android/audio_manager_android.h"
 #endif
 
@@ -40,7 +41,7 @@ class AudioOutputTest : public testing::TestWithParam<bool> {
         AudioManager::CreateForTesting(std::make_unique<TestAudioThread>());
     audio_manager_device_info_ =
         std::make_unique<AudioDeviceInfoAccessorForTests>(audio_manager_.get());
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
     // The only parameter is used to enable/disable AAudio.
     should_use_aaudio_ = GetParam();
     if (should_use_aaudio_) {
@@ -69,7 +70,7 @@ class AudioOutputTest : public testing::TestWithParam<bool> {
   // Runs message loop for the specified amount of time.
   void RunMessageLoop(base::TimeDelta delay) {
     base::RunLoop run_loop;
-    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE, run_loop.QuitClosure(), delay);
     run_loop.Run();
   }
@@ -80,10 +81,10 @@ class AudioOutputTest : public testing::TestWithParam<bool> {
   std::unique_ptr<AudioManager> audio_manager_;
   std::unique_ptr<AudioDeviceInfoAccessorForTests> audio_manager_device_info_;
   AudioParameters stream_params_;
-  AudioOutputStream* stream_ = nullptr;
+  raw_ptr<AudioOutputStream> stream_ = nullptr;
   bool should_use_aaudio_ = false;
   bool aaudio_is_supported_ = false;
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   base::test::ScopedFeatureList features_;
 #endif
 };
@@ -159,12 +160,15 @@ TEST_P(AudioOutputTest, Play200HzTone) {
 
   // Play the stream until position gets past |samples_to_play|.
   base::RunLoop run_loop;
-  source.set_on_more_data_callback(
-      base::BindLambdaForTesting([&source, &run_loop, samples_to_play]() {
-        if (source.pos_samples() >= samples_to_play)
+  bool got_enough_samples = false;
+  source.set_on_more_data_callback(base::BindLambdaForTesting(
+      [&source, &run_loop, samples_to_play, &got_enough_samples]() {
+        if (source.pos_samples() >= samples_to_play && !got_enough_samples) {
+          got_enough_samples = true;
           run_loop.Quit();
+        }
       }));
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(), TestTimeouts::action_timeout());
 
   stream_->Start(&source);
@@ -205,7 +209,7 @@ TEST_P(AudioOutputTest, VolumeControl) {
 // allow the use of AAudio.
 INSTANTIATE_TEST_SUITE_P(Base, AudioOutputTest, testing::Values(false));
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 // Run tests with AAudio enabled. On Android P and below, these tests should not
 // run, as we only use AAudio on Q+.
 INSTANTIATE_TEST_SUITE_P(AAudio, AudioOutputTest, testing::Values(true));

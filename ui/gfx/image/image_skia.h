@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,13 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "ui/gfx/gfx_export.h"
-#include "ui/gfx/image/image_skia_rep.h"
+
+class SkBitmap;
 
 namespace gfx {
+class ImageSkiaRep;
 class ImageSkiaSource;
 class Size;
 
@@ -53,6 +55,10 @@ class GFX_EXPORT ImageSkia {
   // at |scale| and uses its dimensions to calculate the size in DIP.
   ImageSkia(std::unique_ptr<ImageSkiaSource> source, float scale);
 
+  // This constructor is explicitly deleted to ensure callers don't accidentally
+  // pass an int and have it converted to float.
+  ImageSkia(std::unique_ptr<ImageSkiaSource> source, int dont_use) = delete;
+
   explicit ImageSkia(const gfx::ImageSkiaRep& image_rep);
 
   // Copies a reference to |other|'s storage.
@@ -72,6 +78,10 @@ class GFX_EXPORT ImageSkia {
 
   // Returns the maximum scale supported by this platform.
   static float GetMaxSupportedScale();
+
+  // Returns the resource scale factor value that ImageSkia uses when
+  // looking for the resource for a given device scale factor.
+  static float MapToResourceScale(float device_scale_factor);
 
   // Creates an image from the passed in bitmap, which is designed for display
   // at the device scale factor given in `scale`. The DIP width and height will

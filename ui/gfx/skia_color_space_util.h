@@ -1,13 +1,17 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef UI_GFX_SKIA_COLOR_SPACE_UTIL_H_
 #define UI_GFX_SKIA_COLOR_SPACE_UTIL_H_
 
-#include "skia/ext/skia_matrix_44.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
-#include "third_party/skia/include/core/SkICC.h"
+#include "third_party/skia/include/core/SkM44.h"
+#if defined(STARBOARD)
+#include "third_party/skia/include/third_party/skcms/skcms.h"
+#else  // defined(STARBOARD)
+#include "third_party/skia/modules/skcms/skcms.h"
+#endif  // defined(STARBOARD)
 #include "ui/gfx/color_space_export.h"
 
 namespace gfx {
@@ -35,8 +39,11 @@ SkTransferFnsApproximatelyCancel(const skcms_TransferFunction& a,
 bool COLOR_SPACE_EXPORT
 SkTransferFnIsApproximatelyIdentity(const skcms_TransferFunction& fn);
 
-bool COLOR_SPACE_EXPORT
-SkMatrixIsApproximatelyIdentity(const skia::Matrix44& m);
+#if !defined(STARBOARD)
+bool COLOR_SPACE_EXPORT SkM44IsApproximatelyIdentity(const SkM44& m);
+#endif // !defined(STARBOARD)
+
+SkM44 COLOR_SPACE_EXPORT SkM44FromRowMajor3x3(const float* scale);
 
 }  // namespace gfx
 

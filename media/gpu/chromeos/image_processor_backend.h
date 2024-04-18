@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,10 +9,9 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/color_plane_layout.h"
 #include "media/base/video_frame.h"
 #include "media/gpu/chromeos/fourcc.h"
@@ -113,6 +112,16 @@ class MEDIA_GPU_EXPORT ImageProcessorBackend {
   const PortConfig& output_config() const { return output_config_; }
   OutputMode output_mode() const { return output_mode_; }
 
+  virtual bool needs_linear_output_buffers() const;
+
+  virtual bool supports_incoherent_buffers() const;
+
+  const scoped_refptr<base::SequencedTaskRunner>& task_runner() const {
+    return backend_task_runner_;
+  }
+
+  virtual std::string type() const = 0;
+
  protected:
   friend struct std::default_delete<ImageProcessorBackend>;
 
@@ -141,8 +150,9 @@ class MEDIA_GPU_EXPORT ImageProcessorBackend {
   const ErrorCB error_cb_;
 
   // The main sequence and its checker. Except getter methods, all public
-  // methods and callbacks are called on this sequence.
-  scoped_refptr<base::SequencedTaskRunner> backend_task_runner_;
+  // methods and callbacks are called on this sequence. The proper
+  // SequencedTaskRunner is created by ImageProcessorBackend.
+  const scoped_refptr<base::SequencedTaskRunner> backend_task_runner_;
   SEQUENCE_CHECKER(backend_sequence_checker_);
 };
 

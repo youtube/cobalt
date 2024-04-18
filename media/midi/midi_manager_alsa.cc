@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,19 +9,18 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include <algorithm>
 #include <string>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/cxx17_backports.h"
+#include "base/functional/bind.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/posix/safe_strerror.h"
-#include "base/single_thread_task_runner.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "crypto/sha2.h"
@@ -151,11 +150,11 @@ std::string GetVendor(udev_device* dev) {
   return vendor;
 }
 
-void SetStringIfNonEmpty(base::DictionaryValue* value,
+void SetStringIfNonEmpty(base::Value::Dict* value,
                          const std::string& path,
                          const std::string& in_value) {
   if (!in_value.empty())
-    value->SetString(path, in_value);
+    value->Set(path, in_value);
 }
 
 }  // namespace
@@ -310,8 +309,7 @@ MidiManagerAlsa::MidiPort::Id::Id(const std::string& bus,
       vendor_id_(vendor_id),
       model_id_(model_id),
       usb_interface_num_(usb_interface_num),
-      serial_(serial) {
-}
+      serial_(serial) {}
 
 MidiManagerAlsa::MidiPort::Id::Id(const Id&) = default;
 
@@ -348,14 +346,13 @@ MidiManagerAlsa::MidiPort::MidiPort(const std::string& path,
       client_name_(client_name),
       port_name_(port_name),
       manufacturer_(manufacturer),
-      version_(version) {
-}
+      version_(version) {}
 
 MidiManagerAlsa::MidiPort::~MidiPort() = default;
 
 // Note: keep synchronized with the MidiPort::Match* methods.
-std::unique_ptr<base::Value> MidiManagerAlsa::MidiPort::Value() const {
-  std::unique_ptr<base::DictionaryValue> value(new base::DictionaryValue);
+std::unique_ptr<base::Value::Dict> MidiManagerAlsa::MidiPort::Value() const {
+  std::unique_ptr<base::Value::Dict> value(new base::Value::Dict);
 
   std::string type;
   switch (type_) {
@@ -366,13 +363,13 @@ std::unique_ptr<base::Value> MidiManagerAlsa::MidiPort::Value() const {
       type = "output";
       break;
   }
-  value->SetString("type", type);
+  value->Set("type", type);
   SetStringIfNonEmpty(value.get(), "path", path_);
   SetStringIfNonEmpty(value.get(), "clientName", client_name_);
   SetStringIfNonEmpty(value.get(), "portName", port_name_);
-  value->SetInteger("clientId", client_id_);
-  value->SetInteger("portId", port_id_);
-  value->SetInteger("midiDevice", midi_device_);
+  value->Set("clientId", client_id_);
+  value->Set("portId", port_id_);
+  value->Set("midiDevice", midi_device_);
 
   // Flatten id fields.
   SetStringIfNonEmpty(value.get(), "bus", id_.bus());
@@ -381,7 +378,7 @@ std::unique_ptr<base::Value> MidiManagerAlsa::MidiPort::Value() const {
   SetStringIfNonEmpty(value.get(), "usbInterfaceNum", id_.usb_interface_num());
   SetStringIfNonEmpty(value.get(), "serial", id_.serial());
 
-  return std::move(value);
+  return value;
 }
 
 std::string MidiManagerAlsa::MidiPort::JSONValue() const {
@@ -489,11 +486,9 @@ MidiManagerAlsa::MidiPortStateBase::iterator
 MidiManagerAlsa::MidiPortStateBase::FindConnected(
     const MidiManagerAlsa::MidiPort& port) {
   // Exact match required for connected ports.
-  auto it = std::find_if(ports_.begin(), ports_.end(),
-                         [&port](std::unique_ptr<MidiPort>& p) {
-                           return p->MatchConnected(port);
-                         });
-  return it;
+  return base::ranges::find_if(ports_, [&port](std::unique_ptr<MidiPort>& p) {
+    return p->MatchConnected(port);
+  });
 }
 
 MidiManagerAlsa::MidiPortStateBase::iterator
@@ -516,10 +511,10 @@ MidiManagerAlsa::MidiPortStateBase::FindDisconnected(
     // Pass 1. Match on path, id, midi_device, port_id.
     // This is the best possible match for hardware card-based clients.
     // This will also match the empty id correctly for devices without an id.
-    auto it = std::find_if(ports_.begin(), ports_.end(),
-                           [&port](std::unique_ptr<MidiPort>& p) {
-                             return p->MatchCardPass1(port);
-                           });
+    auto it =
+        base::ranges::find_if(ports_, [&port](std::unique_ptr<MidiPort>& p) {
+          return p->MatchCardPass1(port);
+        });
     if (it != ports_.end())
       return it;
 
@@ -528,10 +523,9 @@ MidiManagerAlsa::MidiPortStateBase::FindDisconnected(
       // This will give us a high-confidence match when a user moves a device to
       // another USB/Firewire/Thunderbolt/etc port, but only works if the device
       // has a hardware id.
-      it = std::find_if(ports_.begin(), ports_.end(),
-                        [&port](std::unique_ptr<MidiPort>& p) {
-                          return p->MatchCardPass2(port);
-                        });
+      it = base::ranges::find_if(ports_, [&port](std::unique_ptr<MidiPort>& p) {
+        return p->MatchCardPass2(port);
+      });
       if (it != ports_.end())
         return it;
     }
@@ -539,20 +533,19 @@ MidiManagerAlsa::MidiPortStateBase::FindDisconnected(
     // Else, we have a non-card-based client.
     // Pass 1. Match on client_id, port_id, client_name, port_name.
     // This will give us a reasonably good match.
-    auto it = std::find_if(ports_.begin(), ports_.end(),
-                           [&port](std::unique_ptr<MidiPort>& p) {
-                             return p->MatchNoCardPass1(port);
-                           });
+    auto it =
+        base::ranges::find_if(ports_, [&port](std::unique_ptr<MidiPort>& p) {
+          return p->MatchNoCardPass1(port);
+        });
     if (it != ports_.end())
       return it;
 
     // Pass 2. Match on port_id, client_name, port_name.
     // This is weaker but similar to pass 2 in the hardware card-based clients
     // match.
-    it = std::find_if(ports_.begin(), ports_.end(),
-                      [&port](std::unique_ptr<MidiPort>& p) {
-                        return p->MatchNoCardPass2(port);
-                      });
+    it = base::ranges::find_if(ports_, [&port](std::unique_ptr<MidiPort>& p) {
+      return p->MatchNoCardPass2(port);
+    });
     if (it != ports_.end())
       return it;
   }
@@ -712,15 +705,13 @@ MidiManagerAlsa::AlsaSeqState::Port::Port(
     const std::string& name,
     MidiManagerAlsa::AlsaSeqState::PortDirection direction,
     bool midi)
-    : name_(name), direction_(direction), midi_(midi) {
-}
+    : name_(name), direction_(direction), midi_(midi) {}
 
 MidiManagerAlsa::AlsaSeqState::Port::~Port() = default;
 
 MidiManagerAlsa::AlsaSeqState::Client::Client(const std::string& name,
                                               snd_seq_client_type_t type)
-    : name_(name), type_(type) {
-}
+    : name_(name), type_(type) {}
 
 MidiManagerAlsa::AlsaSeqState::Client::~Client() = default;
 
@@ -769,8 +760,7 @@ MidiManagerAlsa::AlsaCard::AlsaCard(udev_device* dev,
           vendor_id_,
           device::UdevDeviceGetPropertyValue(dev, kUdevIdVendorFromDatabase),
           name,
-          longname)) {
-}
+          longname)) {}
 
 MidiManagerAlsa::AlsaCard::~AlsaCard() = default;
 
@@ -822,10 +812,10 @@ void MidiManagerAlsa::SendMidiData(MidiManagerClient* client,
     int result = snd_midi_event_encode_byte(encoder.get(), datum, &event);
     if (result == 1) {
       // Full event, send it.
-      base::AutoLock lock(out_ports_lock_);
+      base::AutoLock ports_lock(out_ports_lock_);
       auto it = out_ports_.find(port_index);
       if (it != out_ports_.end()) {
-        base::AutoLock lock(out_client_lock_);
+        base::AutoLock client_lock(out_client_lock_);
         if (!out_client_)
           return;
         snd_seq_ev_set_source(&event, it->second);
@@ -848,7 +838,7 @@ void MidiManagerAlsa::EventLoop() {
   pfd[1].fd = device::udev_monitor_get_fd(udev_monitor_.get());
   pfd[1].events = POLLIN;
 
-  int err = HANDLE_EINTR(poll(pfd, base::size(pfd), -1));
+  int err = HANDLE_EINTR(poll(pfd, std::size(pfd), -1));
   if (err < 0) {
     VLOG(1) << "poll fails: " << base::safe_strerror(errno);
     loop_again = false;
@@ -1113,9 +1103,9 @@ void MidiManagerAlsa::AddCard(udev_device* dev) {
   snd_ctl_close(handle);
 
   if (midi_count > 0) {
-    std::unique_ptr<AlsaCard> card(
-        new AlsaCard(dev, name, longname, driver, midi_count));
-    alsa_cards_.insert(std::make_pair(number, std::move(card)));
+    auto alsa_card =
+        std::make_unique<AlsaCard>(dev, name, longname, driver, midi_count);
+    alsa_cards_.insert(std::make_pair(number, std::move(alsa_card)));
     alsa_card_midi_count_ += midi_count;
   }
 }

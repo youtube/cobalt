@@ -63,17 +63,17 @@ class MediaMetricsProvider {
     bool has_video = false;
     bool is_eme = false;
     bool video_decoder_changed = false;
-    ::media::AudioCodec audio_codec;
-    ::media::VideoCodec video_codec;
-    ::media::PipelineStatus last_pipeline_status =
-        ::media::PipelineStatus::PIPELINE_OK;
+    AudioCodec audio_codec;
+    VideoCodec video_codec;
+    PipelineStatus last_pipeline_status =
+        PipelineStatus(PipelineStatus::Codes::PIPELINE_OK);
   };
 
  public:
   // based on mojom::MediaMetricsProvider
-  void OnError(const ::media::PipelineStatus status);
-  void SetHasAudio(::media::AudioCodec audio_codec);
-  void SetHasVideo(::media::VideoCodec video_codec);
+  void OnError(const PipelineStatus status);
+  void SetHasAudio(AudioCodec audio_codec);
+  void SetHasVideo(VideoCodec video_codec);
   void SetHasPlayed();
   void SetHaveEnough();
   void SetIsEME();

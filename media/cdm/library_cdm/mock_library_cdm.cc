@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,7 +25,8 @@ MockLibraryCdm* MockLibraryCdm::GetInstance() {
 template <typename HostInterface>
 MockLibraryCdm::MockLibraryCdm(HostInterface* host,
                                const std::string& key_system)
-    : cdm_host_proxy_(new CdmHostProxyImpl<HostInterface>(host)) {}
+    : cdm_host_proxy_(std::make_unique<CdmHostProxyImpl<HostInterface>>(host)) {
+}
 
 MockLibraryCdm::~MockLibraryCdm() {
   DCHECK(g_mock_library_cdm);

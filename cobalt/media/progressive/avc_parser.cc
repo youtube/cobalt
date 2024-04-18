@@ -459,8 +459,9 @@ void AVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   aac_config[1] = b1;
   audio_prepend_.clear();
 
+  int adts_header_size;
   if (!aac.Parse(aac_config, media_log_) ||
-      !aac.ConvertEsdsToADTS(&audio_prepend_)) {
+      !aac.ConvertEsdsToADTS(&audio_prepend_, &adts_header_size)) {
     DLOG(WARNING) << "Error in parsing AudioSpecificConfig.";
     return;
   }
