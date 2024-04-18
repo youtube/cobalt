@@ -33,28 +33,6 @@
 namespace cobalt {
 namespace watchdog {
 
-// Persistent setting name and default setting for the boolean that controls
-// whether or not Watchdog is enabled. When disabled, Watchdog behaves like a
-// stub except that persistent settings can still be get/set. Requires a
-// restart to take effect.
-constexpr char kPersistentSettingWatchdogEnable[] =
-    "kPersistentSettingWatchdogEnable";
-constexpr bool kDefaultSettingWatchdogEnable = true;
-
-// Persistent setting name and default setting for the boolean that controls
-// whether or not a Watchdog violation will trigger a crash.
-constexpr char kPersistentSettingWatchdogCrash[] =
-    "kPersistentSettingWatchdogCrash";
-constexpr bool kDefaultSettingWatchdogCrash = false;
-
-// Persistent setting name and default setting for the boolean that controls
-// whether or not LogTrace API is enabled. When disabled, all LogTrace methods
-// behave like a stub except for persistent settings itself. Requires a
-// restart to take effect.
-constexpr char kPersistentSettingLogtraceEnable[] =
-    "kPersistentSettingLogtraceEnable";
-constexpr bool kDefaultSettingLogtraceEnable = true;
-
 // Client to monitor
 typedef struct Client {
   std::string name;
@@ -134,8 +112,6 @@ class Watchdog : public Singleton<Watchdog> {
   bool LogEvent(const std::string& event);
   std::vector<std::string> GetLogTrace();
   void ClearLog();
-  bool GetPersistentSettingLogtraceEnable();
-  void SetPersistentSettingLogtraceEnable(bool enable_logtrace);
 
 #if defined(_DEBUG)
   // Sleeps threads based off of environment variables for Watchdog debugging.
@@ -205,9 +181,6 @@ class Watchdog : public Singleton<Watchdog> {
   int64_t watchdog_monitor_frequency_;
   // Captures string events emitted from Kabuki via logEvent() h5vcc API.
   InstrumentationLog instrumentation_log_;
-  // Flag to disable LogTrace API. When disabled, all LogTrace methods behave
-  // like a stub except that the flag itself can still be get/set.
-  bool is_logtrace_disabled_;
 
 #if defined(_DEBUG)
   starboard::Mutex delay_mutex_;
