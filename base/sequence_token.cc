@@ -202,8 +202,7 @@ ScopedSetSequenceTokenForCurrentThread::ScopedSetSequenceTokenForCurrentThread(
       task_token_resetter_(&current_task_token, [] {
         DCHECK(!current_task_token.IsValid());
         return TaskToken::Create();
-      }()) {
-}
+      }()) {}
 #endif
 
 #if defined(STARBOARD)

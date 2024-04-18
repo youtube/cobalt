@@ -260,6 +260,9 @@ std::u16string DateIntervalFormat(const Time& begin_time,
   UErrorCode status = U_ZERO_ERROR;
 
   std::unique_ptr<icu::DateIntervalFormat> formatter(
+/* Cobalt
+      icu::DateIntervalFormat::createInstance(DateFormatToString(format),
+Cobalt */
       icu::DateIntervalFormat::createInstance(icu::UnicodeString(DateFormatToString(format)),
                                               status));
 
