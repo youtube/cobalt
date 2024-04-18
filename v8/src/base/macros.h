@@ -5,7 +5,6 @@
 #ifndef V8_BASE_MACROS_H_
 #define V8_BASE_MACROS_H_
 
-#include <cstdint>
 #include <limits>
 #include <type_traits>
 

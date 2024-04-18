@@ -24,10 +24,10 @@
 #include "cobalt/js_profiler/profiler.h"
 #include "cobalt/js_profiler/profiler_trace.h"
 #include "cobalt/script/global_environment.h"
-#include "third_party/v8/include/v8-profiler.h"
 #include "v8/include/cppgc/member.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8-platform.h"
+#include "v8/include/v8-profiler.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
