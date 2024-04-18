@@ -19,9 +19,9 @@
 #include <string>
 #include <utility>
 
+#include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "media/base/audio_codecs.h"
-#include "media/base/bind_to_current_loop.h"
 #include "media/base/encryption_scheme.h"
 #include "media/base/sample_format.h"
 #include "media/base/starboard_utils.h"
@@ -188,8 +188,7 @@ DemuxerExtensionStream::DemuxerExtensionStream(
       << "Audio config is not valid!";
 }
 
-void DemuxerExtensionStream::Read(int max_number_of_buffers_to_read,
-                                  ReadCB read_cb) {
+void DemuxerExtensionStream::Read(uint32_t count, ReadCB read_cb) {
   DCHECK(!read_cb.is_null());
   base::AutoLock auto_lock(lock_);
   if (stopped_) {
@@ -542,7 +541,7 @@ void DemuxerExtensionWrapper::OnInitializeDone(
   } else {
     LOG(ERROR) << "Initialization failed with status " << status;
   }
-  std::move(status_cb).Run(static_cast<PipelineStatus>(status));
+  std::move(status_cb).Run(static_cast<PipelineStatus::Codes>(status));
 }
 
 void DemuxerExtensionWrapper::AbortPendingReads() {}
@@ -558,7 +557,7 @@ void DemuxerExtensionWrapper::Seek(base::TimeDelta time,
   blocking_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&DemuxerExtensionWrapper::SeekTask, base::Unretained(this),
-                     time, BindToCurrentLoop(std::move(status_cb))));
+                     time, BindPostTaskToCurrentDefault(std::move(status_cb))));
 }
 
 // TODO(b/232984963): Determine whether it's OK to have reads and seeks on the

@@ -47,12 +47,8 @@ class ProgressiveDemuxerStream : public ::media::DemuxerStream {
 
   ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer, Type type);
 
-// DemuxerStream implementation
-#if defined(STARBOARD)
-  void Read(int max_number_of_buffers_to_read, ReadCB read_cb) override;
-#else   // defined(STARBOARD)
-  void Read(ReadCB read_cb) override;
-#endif  // defined(STARBOARD)
+  // DemuxerStream implementation
+  void Read(uint32_t count, ReadCB read_cb) override;
   AudioDecoderConfig audio_decoder_config() override;
   VideoDecoderConfig video_decoder_config() override;
   Type type() const override;
@@ -121,12 +117,17 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
 
   // Demuxer implementation.
   std::string GetDisplayName() const override { return "ProgressiveDemuxer"; }
+  ::media::DemuxerType GetDemuxerType() const override {
+    // kFFmpegDemuxer is used in Chromium media for progressive demuxing.
+    return ::media::DemuxerType::kFFmpegDemuxer;
+  }
   void Initialize(DemuxerHost* host, PipelineStatusCallback status_cb) override;
   void AbortPendingReads() override {}
   void StartWaitingForSeek(base::TimeDelta seek_time) override {}
   void CancelPendingSeek(base::TimeDelta seek_time) override {}
   void Stop() override;
   void Seek(base::TimeDelta time, PipelineStatusCallback cb) override;
+  bool IsSeekable() const override { return true; }
   std::vector<DemuxerStream*> GetAllStreams() override;
   base::TimeDelta GetStartTime() const override;
   base::Time GetTimelineOffset() const override { return base::Time(); }
@@ -149,6 +150,7 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
       base::TimeDelta currTime, TrackChangeCB change_completed_cb) override {
     NOTREACHED();
   }
+  void SetPlaybackRate(double rate) override { NOTREACHED(); }
 
   // TODO: Consider move the following functions to private section.
 

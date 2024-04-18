@@ -49,6 +49,7 @@ namespace sandbox {
 namespace {
 
 using ::media::ChunkDemuxer;
+using ::media::StreamParser;
 
 // The possible mime type configurations that are supported by cobalt.
 const std::vector<std::string> kSupportedMimeTypes = {
@@ -93,7 +94,7 @@ base::FilePath ResolvePath(const std::string& path) {
 // of the file is less than 256kb, the function reads all of its content.
 std::vector<uint8_t> ReadHeader(const base::FilePath& path) {
   // Size of the input file to be read into memory for checking the validity
-  // of ChunkDemuxer::AppendData() calls.
+  // of ChunkDemuxer::AppendToParseBuffer() calls.
   const int64_t kHeaderSize = 256 * 1024;  // 256kb
   starboard::ScopedFile file(path.value().c_str(),
                              kSbFileOpenOnly | kSbFileRead);
@@ -205,15 +206,23 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
                        << static_cast<int>(warning);
         }));
 
+    bool success =
+        chunk_demuxer->AppendToParseBuffer(id, header.data(), header.size());
+    StreamParser::ParseStatus result =
+        StreamParser::ParseStatus::kSuccessHasMoreData;
     base::TimeDelta unused_timestamp;
-    if (!chunk_demuxer->AppendData(
-            id, header.data(), header.size(), base::TimeDelta(),
-            ::media::kInfiniteDuration, &unused_timestamp)) {
-      // Failing to |AppendData()| means the chosen format is not the file's
+    while (success &&
+           result == StreamParser::ParseStatus::kSuccessHasMoreData) {
+      result = chunk_demuxer->RunSegmentParserLoop(
+          id, base::TimeDelta(), ::media::kInfiniteDuration, &unused_timestamp);
+    }
+    success &= result == StreamParser::ParseStatus::kSuccess;
+    if (!success) {
+      // Failing to append data means the chosen format is not the file's
       // true format.
       continue;
     }
-    // Succeeding |AppendData()| may be a false positive (i.e. the expected
+    // Succeeding appending data may be a false positive (i.e. the expected
     // configuration does not match with the configuration determined by the
     // ChunkDemuxer). To confirm, we check the decoder configuration determined
     // by the ChunkDemuxer against the chosen format.

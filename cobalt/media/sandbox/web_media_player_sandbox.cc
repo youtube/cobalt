@@ -44,6 +44,7 @@ namespace sandbox {
 namespace {
 
 using base::TimeDelta;
+using ::media::StreamParser;
 using render_tree::Image;
 using starboard::ScopedFile;
 
@@ -350,11 +351,18 @@ class Application {
       SB_DCHECK(evicted);
 
       file->Read(reinterpret_cast<char*>(buffer.data()), bytes_to_append);
+      bool appended = chunk_demuxer_->AppendToParseBuffer(id, buffer.data(),
+                                                          bytes_to_append);
+      StreamParser::ParseStatus result =
+          StreamParser::ParseStatus::kSuccessHasMoreData;
       base::TimeDelta timestamp_offset;
-      auto appended = chunk_demuxer_->AppendData(
-          id, buffer.data(), bytes_to_append, base::TimeDelta(),
-          ::media::kInfiniteDuration, &timestamp_offset);
-      SB_DCHECK(appended);
+      while (appended &&
+             result == StreamParser::ParseStatus::kSuccessHasMoreData) {
+        result = chunk_demuxer_->RunSegmentParserLoop(
+            id, base::TimeDelta(), ::media::kInfiniteDuration,
+            &timestamp_offset);
+      }
+      SB_DCHECK(appended && result == StreamParser::ParseStatus::kSuccess);
 
       *offset += bytes_to_append;
     }

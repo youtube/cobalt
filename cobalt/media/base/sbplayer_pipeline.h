@@ -168,7 +168,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnDemuxerStreamRead(
       ::media::DemuxerStream::Type type, int max_number_buffers_to_read,
       ::media::DemuxerStream::Status status,
-      const std::vector<scoped_refptr<::media::DecoderBuffer>>& buffers);
+      const std::vector<scoped_refptr<::media::DecoderBuffer>> buffers);
   // SbPlayerBridge::Host implementation.
   void OnNeedData(::media::DemuxerStream::Type type,
                   int max_number_of_buffers_to_write) override;

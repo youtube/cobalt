@@ -318,7 +318,7 @@ TEST_F(DemuxerExtensionWrapperTest, SuccessfullyInitializes) {
         return true;
       }));
   EXPECT_CALL(mock_demuxer, GetVideoConfig(NotNull())).WillOnce(Return(false));
-  EXPECT_CALL(initialize_cb, Run(::media::PIPELINE_OK))
+  EXPECT_CALL(initialize_cb, Run(::media::PipelineStatus(::media::PIPELINE_OK)))
       .WillOnce(InvokeWithoutArgs([&init_done]() { init_done.Signal(); }));
 
   demuxer_wrapper->Initialize(&mock_host, initialize_cb.Get());
@@ -407,7 +407,7 @@ TEST_F(DemuxerExtensionWrapperTest, ProvidesAudioAndVideoStreams) {
 
         return true;
       }));
-  EXPECT_CALL(initialize_cb, Run(::media::PIPELINE_OK))
+  EXPECT_CALL(initialize_cb, Run(::media::PipelineStatus(::media::PIPELINE_OK)))
       .WillOnce(InvokeWithoutArgs([&init_done]() { init_done.Signal(); }));
 
   demuxer_wrapper->Initialize(&mock_host, initialize_cb.Get());
@@ -492,7 +492,7 @@ TEST_F(DemuxerExtensionWrapperTest, ReadsAudioData) {
 
         return true;
       }));
-  EXPECT_CALL(initialize_cb, Run(::media::PIPELINE_OK))
+  EXPECT_CALL(initialize_cb, Run(::media::PipelineStatus(::media::PIPELINE_OK)))
       .WillOnce(InvokeWithoutArgs([&init_done]() { init_done.Signal(); }));
 
   std::vector<uint8_t> buffer_data = {1, 2, 3, 4, 5};
@@ -549,7 +549,7 @@ TEST_F(DemuxerExtensionWrapperTest, ReadsAudioData) {
 
   base::MockCallback<base::OnceCallback<void(
       ::media::DemuxerStream::Status,
-      const std::vector<scoped_refptr<::media::DecoderBuffer>>&)>>
+      const std::vector<scoped_refptr<::media::DecoderBuffer>>)>>
       read_cb;
   base::WaitableEvent read_done;
   std::vector<std::vector<uint8_t>> buffers;
@@ -632,7 +632,7 @@ TEST_F(DemuxerExtensionWrapperTest, ReadsVideoData) {
 
         return true;
       }));
-  EXPECT_CALL(initialize_cb, Run(::media::PIPELINE_OK))
+  EXPECT_CALL(initialize_cb, Run(::media::PipelineStatus(::media::PIPELINE_OK)))
       .WillOnce(InvokeWithoutArgs([&init_done]() { init_done.Signal(); }));
 
   std::vector<uint8_t> buffer_data = {1, 2, 3, 4, 5};
@@ -689,7 +689,7 @@ TEST_F(DemuxerExtensionWrapperTest, ReadsVideoData) {
 
   base::MockCallback<base::OnceCallback<void(
       ::media::DemuxerStream::Status,
-      const std::vector<scoped_refptr<::media::DecoderBuffer>>&)>>
+      const std::vector<scoped_refptr<::media::DecoderBuffer>>)>>
       read_cb;
   base::WaitableEvent read_done;
   std::vector<std::vector<uint8_t>> buffers;

@@ -26,6 +26,7 @@ target(final_executable_type, "media_sandbox") {
     "//cobalt/media",
     "//media",
     "//starboard:starboard_group",
+    "//ui/gfx:gfx",
   ]
 }
 
@@ -59,6 +60,7 @@ target(final_executable_type, "web_media_player_sandbox") {
     "//cobalt/trace_event",
     "//media",
     "//starboard:starboard_group",
+    "//ui/gfx:gfx",
     "//url",
   ]
 

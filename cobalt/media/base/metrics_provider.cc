@@ -26,7 +26,7 @@ using starboard::ScopedLock;
 
 MediaMetricsProvider::~MediaMetricsProvider() { ReportPipelineUMA(); }
 
-void MediaMetricsProvider::OnError(const ::media::PipelineStatus status) {
+void MediaMetricsProvider::OnError(const PipelineStatus status) {
   ScopedLock scoped_lock(mutex_);
   uma_info_.last_pipeline_status = status;
 }
@@ -61,24 +61,27 @@ void MediaMetricsProvider::SetIsEME() {
 void MediaMetricsProvider::ReportPipelineUMA() {
   ScopedLock scoped_lock(mutex_);
   if (uma_info_.has_video && uma_info_.has_audio) {
-    base::UmaHistogramExactLinear(GetUMANameForAVStream(uma_info_),
-                                  uma_info_.last_pipeline_status,
-                                  PipelineStatus::PIPELINE_STATUS_MAX + 1);
+    base::UmaHistogramExactLinear(
+        GetUMANameForAVStream(uma_info_), uma_info_.last_pipeline_status.code(),
+        PipelineStatus::Codes::PIPELINE_STATUS_MAX + 1);
   } else if (uma_info_.has_audio) {
-    base::UmaHistogramExactLinear("Cobalt.Media.PipelineStatus.AudioOnly",
-                                  uma_info_.last_pipeline_status,
-                                  PipelineStatus::PIPELINE_STATUS_MAX + 1);
+    base::UmaHistogramExactLinear(
+        "Cobalt.Media.PipelineStatus.AudioOnly",
+        uma_info_.last_pipeline_status.code(),
+        PipelineStatus::Codes::PIPELINE_STATUS_MAX + 1);
   } else if (uma_info_.has_video) {
-    base::UmaHistogramExactLinear("Cobalt.Media.PipelineStatus.VideoOnly",
-                                  uma_info_.last_pipeline_status,
-                                  PipelineStatus::PIPELINE_STATUS_MAX + 1);
+    base::UmaHistogramExactLinear(
+        "Cobalt.Media.PipelineStatus.VideoOnly",
+        uma_info_.last_pipeline_status.code(),
+        PipelineStatus::Codes::PIPELINE_STATUS_MAX + 1);
   } else {
     // Note: This metric can be recorded as a result of normal operation with
     // Media Source Extensions. If a site creates a MediaSource object but never
     // creates a source buffer or appends data, PIPELINE_OK will be recorded.
-    base::UmaHistogramExactLinear("Cobalt.Media.PipelineStatus.Unsupported",
-                                  uma_info_.last_pipeline_status,
-                                  PipelineStatus::PIPELINE_STATUS_MAX + 1);
+    base::UmaHistogramExactLinear(
+        "Cobalt.Media.PipelineStatus.Unsupported",
+        uma_info_.last_pipeline_status.code(),
+        PipelineStatus::Codes::PIPELINE_STATUS_MAX + 1);
   }
 
   // Report whether this player ever saw a playback event. Used to measure the
