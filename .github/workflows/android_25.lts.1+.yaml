@@ -1,4 +1,4 @@
-name: android
+name: android_25.lts.1+
 
 on:
   release:
@@ -6,12 +6,10 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   push:
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   schedule:
     # GMT timezone.
     - cron: '0 9 * * *'

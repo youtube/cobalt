@@ -1,17 +1,15 @@
-name: xb1
+name: raspi-2_25.lts.1+
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   push:
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   schedule:
-    # GTM timezone.
+    # GMT timezone.
     - cron: '0 9 * * *'
   workflow_dispatch:
     inputs:
@@ -22,11 +20,19 @@ on:
         default: false
 
 jobs:
-  xb1:
-    uses: ./.github/workflows/main_win.yaml
+  raspi-2:
+    uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: xb1
+      platform: raspi-2
+      nightly: ${{ github.event.inputs.nightly }}
+  raspi-2-skia:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: raspi-2-skia
       nightly: ${{ github.event.inputs.nightly }}

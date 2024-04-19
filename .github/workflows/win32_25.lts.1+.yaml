@@ -1,15 +1,13 @@
-name: win32
+name: win32_25.lts.1+
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   push:
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   schedule:
     # GTM timezone.
     - cron: '0 9 * * *'
