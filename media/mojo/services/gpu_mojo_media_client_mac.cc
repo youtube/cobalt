@@ -1,49 +1,64 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "media/base/audio_decoder.h"
+#include "media/base/offloading_audio_encoder.h"
+#include "media/filters/mac/audio_toolbox_audio_decoder.h"
+#include "media/filters/mac/audio_toolbox_audio_encoder.h"
 #include "media/gpu/ipc/service/vda_video_decoder.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"
 
 namespace media {
-namespace {
 
-class MacPlatformDelegate : public GpuMojoMediaClient::PlatformDelegate {
- public:
-  explicit MacPlatformDelegate(GpuMojoMediaClient* client) : client_(client) {}
-  ~MacPlatformDelegate() override = default;
+std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(
+    VideoDecoderTraits& traits) {
+  return VdaVideoDecoder::Create(
+      traits.task_runner, traits.gpu_task_runner, traits.media_log->Clone(),
+      *traits.target_color_space, traits.gpu_preferences,
+      *traits.gpu_workarounds, traits.get_command_buffer_stub_cb,
+      VideoDecodeAccelerator::Config::OutputMode::ALLOCATE);
+}
 
-  MacPlatformDelegate(const MacPlatformDelegate&) = delete;
-  void operator=(const MacPlatformDelegate&) = delete;
+absl::optional<SupportedVideoDecoderConfigs>
+GetPlatformSupportedVideoDecoderConfigs(
+    gpu::GpuDriverBugWorkarounds gpu_workarounds,
+    gpu::GpuPreferences gpu_preferences,
+    const gpu::GPUInfo& gpu_info,
+    base::OnceCallback<SupportedVideoDecoderConfigs()> get_vda_configs) {
+  return std::move(get_vda_configs).Run();
+}
 
-  // GpuMojoMediaClient::PlatformDelegate implementation.
-  std::unique_ptr<VideoDecoder> CreateVideoDecoder(
-      const VideoDecoderTraits& traits) override {
-    return VdaVideoDecoder::Create(
-        traits.task_runner, traits.gpu_task_runner, traits.media_log->Clone(),
-        *traits.target_color_space, client_->gpu_preferences(),
-        client_->gpu_workarounds(), traits.get_command_buffer_stub_cb);
-  }
+std::unique_ptr<AudioDecoder> CreatePlatformAudioDecoder(
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    std::unique_ptr<MediaLog> media_log) {
+  return std::make_unique<AudioToolboxAudioDecoder>(std::move(media_log));
+}
 
-  void GetSupportedVideoDecoderConfigs(
-      MojoMediaClient::SupportedVideoDecoderConfigsCallback callback) override {
-    std::move(callback).Run(client_->GetVDAVideoDecoderConfigs());
-  }
+std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
+    scoped_refptr<base::SequencedTaskRunner> task_runner) {
+  auto encoding_runner = base::ThreadPool::CreateSequencedTaskRunner({});
+  auto encoder = std::make_unique<AudioToolboxAudioEncoder>();
+  return std::make_unique<OffloadingAudioEncoder>(
+      std::move(encoder), std::move(encoding_runner), std::move(task_runner));
+}
 
-  VideoDecoderType GetDecoderImplementationType() override {
-    return VideoDecoderType::kVda;
-  }
+// This class doesn't exist on mac, so we need a stub for unique_ptr.
+class CdmFactory {};
 
- private:
-  GpuMojoMediaClient* client_;
-};
+std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
+    mojom::FrameInterfaceFactory* frame_interfaces) {
+  return nullptr;
+}
 
-}  // namespace
-
-std::unique_ptr<GpuMojoMediaClient::PlatformDelegate>
-GpuMojoMediaClient::PlatformDelegate::Create(GpuMojoMediaClient* client) {
-  return std::make_unique<MacPlatformDelegate>(client);
+VideoDecoderType GetPlatformDecoderImplementationType(
+    gpu::GpuDriverBugWorkarounds gpu_workarounds,
+    gpu::GpuPreferences gpu_preferences,
+    const gpu::GPUInfo& gpu_info) {
+  return VideoDecoderType::kVda;
 }
 
 }  // namespace media

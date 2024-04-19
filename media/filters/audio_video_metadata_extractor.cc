@@ -1,10 +1,10 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/filters/audio_video_metadata_extractor.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
@@ -112,6 +112,15 @@ bool AudioVideoMetadataExtractor::Extract(DataSource* source,
     AVStream* stream = format_context->streams[i];
     if (!stream)
       continue;
+
+    void* display_matrix =
+        av_stream_get_side_data(stream, AV_PKT_DATA_DISPLAYMATRIX, nullptr);
+    if (display_matrix) {
+      rotation_ = VideoTransformation::FromFFmpegDisplayMatrix(
+                      static_cast<int32_t*>(display_matrix))
+                      .rotation;
+      info.tags["rotate"] = base::NumberToString(rotation_);
+    }
 
     // Extract dictionary from streams also. Needed for containers that attach
     // metadata to contained streams instead the container itself, like OGG.
@@ -255,8 +264,6 @@ void AudioVideoMetadataExtractor::ExtractDictionary(AVDictionary* metadata,
     if (raw_tags->find(tag->key) == raw_tags->end())
       (*raw_tags)[tag->key] = tag->value;
 
-    if (ExtractInt(tag, "rotate", &rotation_))
-      continue;
     if (ExtractString(tag, "album", &album_))
       continue;
     if (ExtractString(tag, "artist", &artist_))

@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,9 @@ namespace media {
 class TuneableTest : public ::testing::Test {
  public:
   TuneableTest() = default;
+
+  TuneableTest(const TuneableTest&) = delete;
+  TuneableTest& operator=(const TuneableTest&) = delete;
 
   void SetUp() override {
     // Note that we might need to call value() to cache `tuneable_cached_` here.
@@ -64,8 +67,6 @@ class TuneableTest : public ::testing::Test {
   static constexpr const char* kTuneableInt5 = "t_int_5";
   static constexpr const char* kTuneableInt10 = "t_int_10";
   static constexpr const char* kTuneableTimeDeltaFiveSeconds = "t_time_5s";
-
-  DISALLOW_COPY_AND_ASSIGN(TuneableTest);
 };
 
 TEST_F(TuneableTest, IntTuneableCached) {

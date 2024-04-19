@@ -94,7 +94,10 @@ target(final_executable_type, "cobalt") {
 ##############################
 
 config("bindings_includes") {
-  include_dirs = [ _generated_source_output_dir ]
+  include_dirs = [
+    "//third_party/skia",
+    _generated_source_output_dir,
+  ]
 }
 
 source_set("browser_switches") {

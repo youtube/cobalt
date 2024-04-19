@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/base/media_export.h"
 #include "media/base/video_types.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
@@ -74,7 +74,8 @@ class MEDIA_EXPORT RenderableGpuMemoryBufferVideoFramePool {
   // may return nullptr on an unsupported parameter, or may return nullptr
   // forever in response to a context lost.
   virtual scoped_refptr<VideoFrame> MaybeCreateVideoFrame(
-      const gfx::Size& coded_size) = 0;
+      const gfx::Size& coded_size,
+      const gfx::ColorSpace& color_space) = 0;
 
   virtual ~RenderableGpuMemoryBufferVideoFramePool() = default;
 };

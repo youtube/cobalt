@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -110,11 +110,23 @@ class MEDIA_EXPORT VideoColorSpace {
 
   gfx::ColorSpace ToGfxColorSpace() const;
 
+  // Similar to ToGfxColorSpace(), but attempts to guess a gfx::ColorSpace from
+  // a fully or partially specified VideoColorSpace. E.g., a completely invalid
+  // VideoColorSpace will return a BT.709 gfx::ColorSpace.
+  gfx::ColorSpace GuessGfxColorSpace() const;
+
+  std::string ToString() const;
+
+  static VideoColorSpace FromGfxColorSpace(const gfx::ColorSpace& color_space);
+
   // Note, these are public variables.
   PrimaryID primaries = PrimaryID::INVALID;
   TransferID transfer = TransferID::INVALID;
   MatrixID matrix = MatrixID::INVALID;
   gfx::ColorSpace::RangeID range = gfx::ColorSpace::RangeID::INVALID;
+
+ private:
+  gfx::ColorSpace ToGfxColorSpaceInternal(bool allow_guessing) const;
 };
 
 }  // namespace media

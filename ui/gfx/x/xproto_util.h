@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "base/component_export.h"
+#include "base/ranges/algorithm.h"
 #include "ui/gfx/x/connection.h"
 #include "ui/gfx/x/future.h"
 #include "ui/gfx/x/xproto.h"
@@ -29,7 +30,7 @@ Future<void> SendEvent(const T& event,
   memcpy(event_bytes.data(), first_buffer->data(), first_buffer->size());
 
   SendEventRequest send_event{false, target, mask};
-  std::copy(event_bytes.begin(), event_bytes.end(), send_event.event.begin());
+  base::ranges::copy(event_bytes, send_event.event.begin());
   return connection->SendEvent(send_event);
 }
 
@@ -62,7 +63,8 @@ bool GetArrayProperty(Window window,
   DCHECK_EQ(response->format / CHAR_BIT * response->value_len,
             response->value->size());
   value->resize(response->value_len);
-  memcpy(value->data(), response->value->data(), response->value->size());
+  if (response->value_len > 0)
+    memcpy(value->data(), response->value->data(), response->value->size());
   if (out_type)
     *out_type = response->type;
   return true;
@@ -90,7 +92,8 @@ Future<void> SetArrayProperty(Window window,
                               Connection* connection = Connection::Get()) {
   static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4, "");
   std::vector<uint8_t> data(sizeof(T) * values.size());
-  memcpy(data.data(), values.data(), sizeof(T) * values.size());
+  if (values.size() > 0)
+    memcpy(data.data(), values.data(), sizeof(T) * values.size());
   return connection->ChangeProperty(
       ChangePropertyRequest{.window = static_cast<Window>(window),
                             .property = name,

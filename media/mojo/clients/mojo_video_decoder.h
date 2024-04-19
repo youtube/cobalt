@@ -1,15 +1,16 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_MOJO_CLIENTS_MOJO_VIDEO_DECODER_H_
 #define MEDIA_MOJO_CLIENTS_MOJO_VIDEO_DECODER_H_
 
-#include "base/containers/mru_cache.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/containers/lru_cache.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
+#include "base/time/time.h"
 #include "media/base/status.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
@@ -31,14 +32,6 @@ class GpuVideoAcceleratorFactories;
 class MediaLog;
 class MojoDecoderBufferWriter;
 class MojoVideoFrameHandleReleaser;
-
-extern const char kMojoVideoDecoderInitialPlaybackSuccessCodecCounterUMA[];
-
-extern const char kMojoVideoDecoderInitialPlaybackErrorCodecCounterUMA[];
-
-// How many frames the decoder needs to process before reporting:
-// kMojoVideoDecoderInitialPlaybackSuccessCodecCounterUMA
-extern const int kMojoDecoderInitialPlaybackFrameCount;
 
 // A VideoDecoder, for use in the renderer process, that proxies to a
 // mojom::VideoDecoder. It is assumed that the other side will be implemented by
@@ -77,7 +70,6 @@ class MojoVideoDecoder final : public VideoDecoder,
   bool NeedsBitstreamConversion() const final;
   bool CanReadWithoutStalling() const final;
   int GetMaxDecodeRequests() const final;
-  bool IsOptimizedForRTC() const final;
 
   // mojom::VideoDecoderClient implementation.
   void OnVideoFrameDecoded(
@@ -92,12 +84,12 @@ class MojoVideoDecoder final : public VideoDecoder,
   }
 
  private:
-  void FailInit(InitCB init_cb, Status err);
-  void OnInitializeDone(const Status& status,
+  void FailInit(InitCB init_cb, DecoderStatus err);
+  void OnInitializeDone(const DecoderStatus& status,
                         bool needs_bitstream_conversion,
                         int32_t max_decode_requests,
                         VideoDecoderType decoder_type);
-  void OnDecodeDone(uint64_t decode_id, const Status& status);
+  void OnDecodeDone(uint64_t decode_id, const DecoderStatus& status);
   void OnResetDone();
 
   void InitAndBindRemoteDecoder(base::OnceClosure complete_cb);
@@ -117,8 +109,6 @@ class MojoVideoDecoder final : public VideoDecoder,
   // Cleans up callbacks and blocks future calls.
   void Stop();
 
-  void ReportInitialPlaybackErrorUMA();
-
   // Task runner that the decoder runs on (media thread).
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
   SEQUENCE_CHECKER(sequence_checker_);
@@ -130,11 +120,11 @@ class MojoVideoDecoder final : public VideoDecoder,
   // Manages VideoFrame destruction callbacks.
   scoped_refptr<MojoVideoFrameHandleReleaser> mojo_video_frame_handle_releaser_;
 
-  GpuVideoAcceleratorFactories* gpu_factories_ = nullptr;
+  raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
 
   // Raw pointer is safe since both `this` and the `media_log` are owned by
   // WebMediaPlayerImpl with the correct declaration order.
-  MediaLog* media_log_ = nullptr;
+  raw_ptr<MediaLog> media_log_ = nullptr;
 
   InitCB init_cb_;
   OutputCB output_cb_;
@@ -145,7 +135,7 @@ class MojoVideoDecoder final : public VideoDecoder,
 
   // DecodeBuffer/VideoFrame timestamps for histogram/tracing purposes. Must be
   // large enough to account for any amount of frame reordering.
-  base::MRUCache<int64_t, base::TimeTicks> timestamps_;
+  base::LRUCache<int64_t, base::TimeTicks> timestamps_;
 
   mojo::Remote<mojom::VideoDecoder> remote_decoder_;
   std::unique_ptr<MojoDecoderBufferWriter> mojo_decoder_buffer_writer_;
@@ -163,11 +153,6 @@ class MojoVideoDecoder final : public VideoDecoder,
   bool needs_bitstream_conversion_ = false;
   bool can_read_without_stalling_ = true;
   VideoDecoderType decoder_type_ = VideoDecoderType::kUnknown;
-
-  // True if UMA metrics of success/failure after first few seconds of playback
-  // have been already reported.
-  bool initial_playback_outcome_reported_ = false;
-  int total_frames_decoded_ = 0;
   int32_t max_decode_requests_ = 1;
 
   base::WeakPtr<MojoVideoDecoder> weak_this_;

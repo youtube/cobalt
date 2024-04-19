@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include <memory>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/notreached.h"
 #include "base/run_loop.h"
@@ -141,6 +141,7 @@ class PipelineControllerTest : public ::testing::Test, public Pipeline::Client {
 
   // Pipeline::Client overrides
   void OnError(PipelineStatus status) override { NOTREACHED(); }
+  void OnFallback(PipelineStatus status) override { NOTREACHED(); }
   void OnEnded() override {}
   void OnMetadata(const PipelineMetadata& metadata) override {}
   void OnBufferingStateChange(BufferingState state,
@@ -161,7 +162,7 @@ class PipelineControllerTest : public ::testing::Test, public Pipeline::Client {
   base::test::SingleThreadTaskEnvironment task_environment_;
 
   NiceMock<MockDemuxer> demuxer_;
-  StrictMock<MockPipeline>* pipeline_;
+  raw_ptr<StrictMock<MockPipeline>> pipeline_;
   PipelineController pipeline_controller_;
 
   bool was_seeked_ = false;

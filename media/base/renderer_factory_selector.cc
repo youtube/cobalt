@@ -1,42 +1,13 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/renderer_factory_selector.h"
 
 #include "base/logging.h"
+#include "build/build_config.h"
 
 namespace media {
-
-// WARNING: The returned names are used as part of UMA names. Do NOT change
-// existing return names.
-std::string GetRendererName(RendererType renderer_type) {
-  switch (renderer_type) {
-    case RendererType::kDefault:
-      return "RendererImpl";
-    case RendererType::kMojo:
-      return "MojoRenderer";
-    case RendererType::kMediaPlayer:
-      return "MediaPlayerRenderer";
-    case RendererType::kCourier:
-      return "CourierRenderer";
-    case RendererType::kFlinging:
-      return "FlingingRenderer";
-    case RendererType::kCast:
-      return "CastRenderer";
-    case RendererType::kMediaFoundation:
-      return "MediaFoundationRenderer";
-    case RendererType::kFuchsia:
-      return "FuchsiaRenderer";  // RendererImpl by FuchsiaRendererFactory.
-    case RendererType::kRemoting:
-      return "RemotingRenderer";  // media::remoting::Receiver
-    case RendererType::kCastStreaming:
-      return "CastStreamingRenderer";
-    default:
-      NOTREACHED();
-      return "RendererType created through invalid static_cast";
-  }
-}
 
 RendererFactorySelector::RendererFactorySelector() = default;
 
@@ -99,7 +70,7 @@ RendererFactory* RendererFactorySelector::GetCurrentFactory() {
   return current_factory;
 }
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 void RendererFactorySelector::StartRequestRemotePlayStateCB(
     RequestRemotePlayStateChangeCB callback_request) {
   DCHECK(!remote_play_state_change_cb_request_);

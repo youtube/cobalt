@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "media/cast/common/rtp_time.h"
@@ -16,16 +16,18 @@
 namespace media {
 namespace cast {
 
-// TODO(miu): Document this class.
 class ReceiverStats {
  public:
   explicit ReceiverStats(const base::TickClock* clock);
+
+  ReceiverStats(const ReceiverStats&) = delete;
+  ReceiverStats& operator=(const ReceiverStats&) = delete;
 
   RtpReceiverStatistics GetStatistics();
   void UpdateStatistics(const RtpCastHeader& header, int rtp_timebase);
 
  private:
-  const base::TickClock* const clock_;  // Not owned by this class.
+  const raw_ptr<const base::TickClock> clock_;  // Not owned by this class.
 
   // Global metrics.
   uint16_t min_sequence_number_;
@@ -40,8 +42,6 @@ class ReceiverStats {
   int interval_min_sequence_number_;
   int interval_number_packets_;
   int interval_wrap_count_;
-
-  DISALLOW_COPY_AND_ASSIGN(ReceiverStats);
 };
 
 }  // namespace cast

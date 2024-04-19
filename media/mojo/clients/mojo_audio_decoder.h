@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,7 @@
 
 #include <memory>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "media/base/audio_decoder.h"
 #include "media/mojo/mojom/audio_decoder.mojom.h"
@@ -23,6 +22,7 @@ class SequencedTaskRunner;
 
 namespace media {
 
+class MediaLog;
 class MojoDecoderBufferWriter;
 
 // An AudioDecoder that proxies to a mojom::AudioDecoder.
@@ -30,6 +30,7 @@ class MojoAudioDecoder final : public AudioDecoder,
                                public mojom::AudioDecoderClient {
  public:
   MojoAudioDecoder(scoped_refptr<base::SequencedTaskRunner> task_runner,
+                   MediaLog* media_log,
                    mojo::PendingRemote<mojom::AudioDecoder> remote_decoder);
 
   MojoAudioDecoder(const MojoAudioDecoder&) = delete;
@@ -67,15 +68,15 @@ class MojoAudioDecoder final : public AudioDecoder,
   void OnConnectionError();
 
   // Fail an initialization with a Status.
-  void FailInit(InitCB init_cb, Status err);
+  void FailInit(InitCB init_cb, DecoderStatus err);
 
   // Called when |remote_decoder_| finished initialization.
-  void OnInitialized(const Status& status,
+  void OnInitialized(const DecoderStatus& status,
                      bool needs_bitstream_conversion,
                      AudioDecoderType decoder_type);
 
   // Called when |remote_decoder_| accepted or rejected DecoderBuffer.
-  void OnDecodeStatus(const Status& decode_status);
+  void OnDecodeStatus(const DecoderStatus& decode_status);
 
   // called when |remote_decoder_| finished Reset() sequence.
   void OnResetDone();
@@ -97,6 +98,10 @@ class MojoAudioDecoder final : public AudioDecoder,
 
   // Receiver for AudioDecoderClient, bound to the |task_runner_|.
   mojo::AssociatedReceiver<AudioDecoderClient> client_receiver_{this};
+
+  // Raw pointer is safe since both `this` and the `media_log` are owned by
+  // WebMediaPlayerImpl with the correct declaration order.
+  raw_ptr<MediaLog> media_log_;
 
   InitCB init_cb_;
   OutputCB output_cb_;

@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,15 +7,18 @@
 
 #include <memory>
 
-#include "base/macros.h"
+#include "base/memory/shared_memory_mapping.h"
 #include "base/memory/weak_ptr.h"
-#include "base/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "components/chromeos_camera/jpeg_encode_accelerator.h"
 #include "media/base/bitstream_buffer.h"
-#include "media/base/unaligned_shared_memory.h"
 #include "media/gpu/media_gpu_export.h"
 #include "media/gpu/vaapi/vaapi_wrapper.h"
+
+namespace base {
+class SingleThreadTaskRunner;
+class SequencedTaskRunner;
+}  // namespace base
 
 namespace media {
 
@@ -64,31 +67,25 @@ class MEDIA_GPU_EXPORT VaapiJpegEncodeAccelerator
   struct EncodeRequest {
     EncodeRequest(int32_t task_id,
                   scoped_refptr<VideoFrame> video_frame,
-                  std::unique_ptr<UnalignedSharedMemory> exif_shm,
-                  std::unique_ptr<UnalignedSharedMemory> output_shm,
+                  base::WritableSharedMemoryMapping exif_mapping,
+                  base::WritableSharedMemoryMapping output_mapping,
                   int quality);
+
+    EncodeRequest(const EncodeRequest&) = delete;
+    EncodeRequest& operator=(const EncodeRequest&) = delete;
+
     ~EncodeRequest();
 
     int32_t task_id;
     scoped_refptr<VideoFrame> video_frame;
-    std::unique_ptr<UnalignedSharedMemory> exif_shm;
-    std::unique_ptr<UnalignedSharedMemory> output_shm;
+    base::WritableSharedMemoryMapping exif_mapping;
+    base::WritableSharedMemoryMapping output_mapping;
     int quality;
-
-    DISALLOW_COPY_AND_ASSIGN(EncodeRequest);
   };
 
   // The Encoder class is a collection of methods that run on
   // |encoder_task_runner_|.
   class Encoder;
-
-  void InitializeOnEncoderTaskRunner(InitCB init_cb);
-
-  void InitializeOnTaskRunner(
-      chromeos_camera::JpegEncodeAccelerator::Client* client,
-      InitCB init_cb);
-
-  void CleanUpOnEncoderThread();
 
   // Notifies the client that an error has occurred and encoding cannot
   // continue.
@@ -96,20 +93,14 @@ class MEDIA_GPU_EXPORT VaapiJpegEncodeAccelerator
 
   void VideoFrameReady(int32_t task_id, size_t encoded_picture_size);
 
-  // ChildThread's task runner.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-
   // GPU IO task runner.
   scoped_refptr<base::SingleThreadTaskRunner> io_task_runner_;
 
   // The client of this class.
   Client* client_ = nullptr;
 
-  base::Thread encoder_thread_;
-
-  // Use this to post tasks to encoder thread.
-  scoped_refptr<base::SingleThreadTaskRunner> encoder_task_runner_;
-
+  // The task runner on which the functions of |encoder_| are executed.
+  scoped_refptr<base::SequencedTaskRunner> encoder_task_runner_;
   std::unique_ptr<Encoder> encoder_;
 
   // |weak_this_| is used to post tasks from |encoder_task_runner_| to

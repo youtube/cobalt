@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/resources/resource_format_utils.h"
 #include "gpu/command_buffer/client/raster_interface.h"
@@ -16,8 +17,10 @@
 #include "media/renderers/video_frame_yuv_converter.h"
 #include "media/renderers/video_frame_yuv_mailboxes_holder.h"
 #include "skia/ext/rgba_to_yuva.h"
+#include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
 #include "ui/gfx/gpu_memory_buffer.h"
 
 namespace {
@@ -28,7 +31,7 @@ class ScopedAcceleratedSkImage {
  public:
   static std::unique_ptr<ScopedAcceleratedSkImage> Create(
       viz::RasterContextProvider* provider,
-      viz::ResourceFormat format,
+      viz::SharedImageFormat format,
       const gfx::Size& size,
       const gfx::ColorSpace& color_space,
       GrSurfaceOrigin surface_origin,
@@ -57,14 +60,16 @@ class ScopedAcceleratedSkImage {
     GrGLTextureInfo gl_info = {
         mailbox_holder.texture_target,
         texture_id,
-        viz::TextureStorageFormat(format),
+        viz::TextureStorageFormat(
+            format.resource_format(),
+            provider->ContextCapabilities().angle_rgbx_internal_format),
     };
     GrBackendTexture backend_texture(size.width(), size.height(),
                                      GrMipmapped::kNo, gl_info);
 
-    SkColorType color_type = viz::ResourceFormatToClosestSkColorType(
+    SkColorType color_type = viz::ToClosestSkColorType(
         /*gpu_compositing=*/true, format);
-    sk_sp<SkImage> sk_image = SkImage::MakeFromTexture(
+    sk_sp<SkImage> sk_image = SkImages::BorrowTextureFrom(
         gr_context, backend_texture, surface_origin, color_type,
         kOpaque_SkAlphaType, color_space.ToSkColorSpace());
     if (!sk_image) {
@@ -100,7 +105,7 @@ class ScopedAcceleratedSkImage {
                            sk_sp<SkImage> sk_image)
       : provider_(provider), texture_id_(texture_id), sk_image_(sk_image) {}
 
-  viz::RasterContextProvider* const provider_;
+  const raw_ptr<viz::RasterContextProvider> provider_;
   uint32_t texture_id_ = 0;
   sk_sp<SkImage> sk_image_;
 };
@@ -110,32 +115,62 @@ class ScopedAcceleratedSkImage {
 namespace media {
 
 bool CopyRGBATextureToVideoFrame(viz::RasterContextProvider* provider,
-                                 viz::ResourceFormat src_format,
+                                 viz::SharedImageFormat src_format,
                                  const gfx::Size& src_size,
                                  const gfx::ColorSpace& src_color_space,
                                  GrSurfaceOrigin src_surface_origin,
                                  const gpu::MailboxHolder& src_mailbox_holder,
-                                 VideoFrame* dst_video_frame,
-                                 gpu::SyncToken& completion_sync_token) {
+                                 VideoFrame* dst_video_frame) {
   DCHECK_EQ(dst_video_frame->format(), PIXEL_FORMAT_NV12);
 
   auto* ri = provider->RasterInterface();
   DCHECK(ri);
 
-  if (!provider->GrContext()) {
-    SkYUVAInfo yuva_info =
-        VideoFrameYUVMailboxesHolder::VideoFrameGetSkYUVAInfo(dst_video_frame);
-    gpu::Mailbox yuva_mailboxes[SkYUVAInfo::kMaxPlanes];
+  // If context is lost for any reason e.g. creating shared image failed, we
+  // cannot distinguish between OOP and non-OOP raster based on GrContext().
+  if (ri->GetGraphicsResetStatusKHR() != GL_NO_ERROR) {
+    DLOG(ERROR) << "Raster context lost.";
+    return false;
+  }
+
+#if BUILDFLAG(IS_WIN)
+  // CopyToGpuMemoryBuffer is only supported for D3D shared images on Windows.
+  if (!provider->ContextCapabilities().shared_image_d3d) {
+    DLOG(ERROR) << "CopyToGpuMemoryBuffer not supported.";
+    return false;
+  }
+#endif  // BUILDFLAG(IS_WIN)
+
+  if ((!provider->GrContext() ||
+       provider->ContextCapabilities().supports_yuv_rgb_conversion) &&
+      src_mailbox_holder.mailbox.IsSharedImage()) {
     ri->WaitSyncTokenCHROMIUM(src_mailbox_holder.sync_token.GetConstData());
-    for (int plane = 0; plane < yuva_info.numPlanes(); ++plane) {
+    if (dst_video_frame->shared_image_format_type() ==
+        SharedImageFormatType::kLegacy) {
+      SkYUVAInfo yuva_info =
+          VideoFrameYUVMailboxesHolder::VideoFrameGetSkYUVAInfo(
+              dst_video_frame);
+      gpu::Mailbox yuva_mailboxes[SkYUVAInfo::kMaxPlanes];
+      for (int plane = 0; plane < yuva_info.numPlanes(); ++plane) {
+        gpu::MailboxHolder dst_mailbox_holder =
+            dst_video_frame->mailbox_holder(plane);
+        ri->WaitSyncTokenCHROMIUM(dst_mailbox_holder.sync_token.GetConstData());
+        yuva_mailboxes[plane] = dst_mailbox_holder.mailbox;
+      }
+      ri->ConvertRGBAToYUVAMailboxes(
+          yuva_info.yuvColorSpace(), yuva_info.planeConfig(),
+          yuva_info.subsampling(), yuva_mailboxes, src_mailbox_holder.mailbox);
+    } else {
       gpu::MailboxHolder dst_mailbox_holder =
-          dst_video_frame->mailbox_holder(plane);
+          dst_video_frame->mailbox_holder(0);
       ri->WaitSyncTokenCHROMIUM(dst_mailbox_holder.sync_token.GetConstData());
-      yuva_mailboxes[plane] = dst_mailbox_holder.mailbox;
+
+      ri->CopySharedImage(
+          src_mailbox_holder.mailbox, dst_mailbox_holder.mailbox, GL_TEXTURE_2D,
+          0, 0, 0, 0, dst_video_frame->coded_size().width(),
+          dst_video_frame->coded_size().height(), /*unpack_flip_y=*/false,
+          /*unpack_premultiply_alpha=*/false);
     }
-    ri->ConvertRGBAToYUVAMailboxes(
-        yuva_info.yuvColorSpace(), yuva_info.planeConfig(),
-        yuva_info.subsampling(), yuva_mailboxes, src_mailbox_holder.mailbox);
   } else {
     // Create an accelerated SkImage for the source.
     auto scoped_sk_image = ScopedAcceleratedSkImage::Create(
@@ -176,30 +211,35 @@ bool CopyRGBATextureToVideoFrame(viz::RasterContextProvider* provider,
 
   const size_t num_planes = dst_video_frame->layout().num_planes();
 
+#if BUILDFLAG(IS_WIN)
   // For shared memory GMBs on Windows we needed to explicitly request a copy
-  // from the shared image GPU texture to the GMB. Set `completion_sync_token`
-  // to mark the completion of the copy.
-  if (dst_video_frame->HasGpuMemoryBuffer() &&
-      dst_video_frame->GetGpuMemoryBuffer()->GetType() ==
-          gfx::SHARED_MEMORY_BUFFER) {
-    auto* sii = provider->SharedImageInterface();
+  // from the shared image GPU texture to the GMB.
+  DCHECK(dst_video_frame->HasGpuMemoryBuffer());
+  DCHECK_EQ(dst_video_frame->GetGpuMemoryBuffer()->GetType(),
+            gfx::SHARED_MEMORY_BUFFER);
 
-    gpu::SyncToken blit_done_sync_token;
-    ri->GenUnverifiedSyncTokenCHROMIUM(blit_done_sync_token.GetData());
+  gpu::SyncToken blit_done_sync_token;
+  ri->GenUnverifiedSyncTokenCHROMIUM(blit_done_sync_token.GetData());
 
-    for (size_t plane = 0; plane < num_planes; ++plane) {
-      const auto& mailbox = dst_video_frame->mailbox_holder(plane).mailbox;
-      sii->CopyToGpuMemoryBuffer(blit_done_sync_token, mailbox);
-    }
-
-    completion_sync_token = sii->GenVerifiedSyncToken();
-  } else {
-    ri->GenSyncTokenCHROMIUM(completion_sync_token.GetData());
+  auto* sii = provider->SharedImageInterface();
+  for (size_t plane = 0; plane < num_planes; ++plane) {
+    const auto& mailbox = dst_video_frame->mailbox_holder(plane).mailbox;
+    sii->CopyToGpuMemoryBuffer(blit_done_sync_token, mailbox);
   }
+
+  // Synchronize RasterInterface with SharedImageInterface. We want to generate
+  // the final SyncToken from the RasterInterface since callers might be using
+  // RasterInterface::Finish() to ensure synchronization in cases where
+  // SignalSyncToken can't be used (e.g. webrtc video frame adapter).
+  auto copy_to_gmb_done_sync_token = sii->GenUnverifiedSyncToken();
+  ri->WaitSyncTokenCHROMIUM(copy_to_gmb_done_sync_token.GetData());
+#endif  // BUILDFLAG(IS_WIN)
 
   // Make access to the `dst_video_frame` wait on copy completion. We also
   // update the ReleaseSyncToken here since it's used when the underlying
   // GpuMemoryBuffer and SharedImage resources are returned to the pool.
+  gpu::SyncToken completion_sync_token;
+  ri->GenSyncTokenCHROMIUM(completion_sync_token.GetData());
   SimpleSyncTokenClient simple_client(completion_sync_token);
   for (size_t plane = 0; plane < num_planes; ++plane)
     dst_video_frame->UpdateMailboxHolderSyncToken(plane, &simple_client);

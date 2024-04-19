@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,17 +7,13 @@
 
 #include <memory>
 
-#include "base/callback.h"
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
-
-namespace base {
-class SingleThreadTaskRunner;
-}
 
 namespace media {
 
@@ -71,6 +67,9 @@ class MEDIA_EXPORT SerialRunner {
   static std::unique_ptr<SerialRunner> Run(Queue&& bound_fns,
                                            PipelineStatusCallback done_cb);
 
+  SerialRunner(const SerialRunner&) = delete;
+  SerialRunner& operator=(const SerialRunner&) = delete;
+
  private:
   friend std::default_delete<SerialRunner>;
 
@@ -79,14 +78,12 @@ class MEDIA_EXPORT SerialRunner {
 
   void RunNextInSeries(PipelineStatus last_status);
 
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   Queue bound_fns_;
   PipelineStatusCallback done_cb_;
 
   // NOTE: Weak pointers must be invalidated before all other member variables.
   base::WeakPtrFactory<SerialRunner> weak_factory_{this};
-
-  DISALLOW_COPY_AND_ASSIGN(SerialRunner);
 };
 
 }  // namespace media

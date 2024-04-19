@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,16 +12,19 @@
 #include <cmath>
 #include <memory>
 
+#include "base/memory/ref_counted_memory.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_skia_rep.h"
+#include "ui/gfx/test/sk_color_eq.h"
 
-#if defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
 #include "base/mac/scoped_cftyperef.h"
 #include "skia/ext/skia_utils_ios.h"
-#elif defined(OS_MAC)
+#elif BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
 #include "skia/ext/skia_utils_mac.h"
 #endif
@@ -36,26 +39,6 @@ namespace {
 // converting between NSImage & UIImage to ImageSkia. Determined by trial and
 // error.
 const int kMaxColorSpaceConversionColorShift = 40;
-
-bool ColorComponentsClose(SkColor component1,
-                          SkColor component2,
-                          int max_deviation) {
-  int c1 = static_cast<int>(component1);
-  int c2 = static_cast<int>(component2);
-  return std::abs(c1 - c2) <= max_deviation;
-}
-
-bool ColorsClose(SkColor color1, SkColor color2, int max_deviation) {
-  // Be tolerant of floating point rounding and lossy color space conversions.
-  return ColorComponentsClose(SkColorGetR(color1), SkColorGetR(color2),
-                              max_deviation) &&
-         ColorComponentsClose(SkColorGetG(color1), SkColorGetG(color2),
-                              max_deviation) &&
-         ColorComponentsClose(SkColorGetB(color1), SkColorGetB(color2),
-                              max_deviation) &&
-         ColorComponentsClose(SkColorGetA(color1), SkColorGetA(color2),
-                              max_deviation);
-}
 
 }  // namespace
 
@@ -167,7 +150,8 @@ void CheckImageIndicatesPNGDecodeFailure(const gfx::Image& image) {
   EXPECT_FALSE(bitmap.isNull());
   EXPECT_LE(16, bitmap.width());
   EXPECT_LE(16, bitmap.height());
-  CheckColors(bitmap.getColor(10, 10), SK_ColorRED);
+  EXPECT_SKCOLOR_CLOSE(bitmap.getColor(10, 10), SK_ColorRED,
+                       MaxColorSpaceConversionColorShift());
 }
 
 bool ImageSkiaStructureMatches(
@@ -204,7 +188,7 @@ bool IsEmpty(const gfx::Image& image) {
 
 PlatformImage CreatePlatformImage() {
   SkBitmap bitmap(CreateBitmap(25, 25));
-#if defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
   float scale = ImageSkia::GetMaxSupportedScale();
 
   if (scale > 1.0) {
@@ -218,7 +202,7 @@ PlatformImage CreatePlatformImage() {
   UIImage* image =
       skia::SkBitmapToUIImageWithColorSpace(bitmap, scale, color_space);
   return image;
-#elif defined(OS_MAC)
+#elif BUILDFLAG(IS_MAC)
   NSImage* image = skia::SkBitmapToNSImageWithColorSpace(
       bitmap, base::mac::GetGenericRGBColorSpace());
   return image;
@@ -228,9 +212,9 @@ PlatformImage CreatePlatformImage() {
 }
 
 gfx::Image::RepresentationType GetPlatformRepresentationType() {
-#if defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
   return gfx::Image::kImageRepCocoaTouch;
-#elif defined(OS_MAC)
+#elif BUILDFLAG(IS_MAC)
   return gfx::Image::kImageRepCocoa;
 #else
   return gfx::Image::kImageRepSkia;
@@ -238,9 +222,9 @@ gfx::Image::RepresentationType GetPlatformRepresentationType() {
 }
 
 PlatformImage ToPlatformType(const gfx::Image& image) {
-#if defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
   return image.ToUIImage();
-#elif defined(OS_MAC)
+#elif BUILDFLAG(IS_MAC)
   return image.ToNSImage();
 #else
   return image.AsImageSkia();
@@ -248,17 +232,17 @@ PlatformImage ToPlatformType(const gfx::Image& image) {
 }
 
 gfx::Image CopyViaPlatformType(const gfx::Image& image) {
-#if defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
   return gfx::Image(image.ToUIImage());
-#elif defined(OS_MAC)
+#elif BUILDFLAG(IS_MAC)
   return gfx::Image(image.ToNSImage());
 #else
   return gfx::Image(image.AsImageSkia());
 #endif
 }
 
-#if defined(OS_APPLE)
-// Defined in image_unittest_util_mac.mm.
+#if BUILDFLAG(IS_APPLE)
+// Defined in image_unittest_util_apple.mm.
 #else
 SkColor GetPlatformImageColor(PlatformImage image, int x, int y) {
   return image.bitmap()->getColor(x, y);
@@ -266,7 +250,8 @@ SkColor GetPlatformImageColor(PlatformImage image, int x, int y) {
 #endif
 
 void CheckColors(SkColor color1, SkColor color2) {
-  EXPECT_TRUE(ColorsClose(color1, color2, MaxColorSpaceConversionColorShift()));
+  // Be tolerant of floating point rounding and lossy color space conversions.
+  EXPECT_SKCOLOR_CLOSE(color1, color2, MaxColorSpaceConversionColorShift());
 }
 
 void CheckIsTransparent(SkColor color) {
@@ -274,7 +259,7 @@ void CheckIsTransparent(SkColor color) {
 }
 
 bool IsPlatformImageValid(PlatformImage image) {
-#if defined(OS_APPLE)
+#if BUILDFLAG(IS_APPLE)
   return image != NULL;
 #else
   return !image.isNull();
@@ -282,7 +267,7 @@ bool IsPlatformImageValid(PlatformImage image) {
 }
 
 bool PlatformImagesEqual(PlatformImage image1, PlatformImage image2) {
-#if defined(OS_APPLE)
+#if BUILDFLAG(IS_APPLE)
   return image1 == image2;
 #else
   return image1.BackedBySameObjectAs(image2);

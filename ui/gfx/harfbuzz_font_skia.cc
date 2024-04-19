@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,9 @@
 #include <map>
 
 #include "base/check_op.h"
-#include "base/containers/mru_cache.h"
+#include "base/containers/lru_cache.h"
 #include "base/lazy_instance.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "third_party/skia/include/core/SkFont.h"
@@ -37,7 +37,7 @@ struct FontData {
   explicit FontData(GlyphCache* glyph_cache) : glyph_cache_(glyph_cache) {}
 
   SkFont font_;
-  GlyphCache* glyph_cache_;
+  raw_ptr<GlyphCache> glyph_cache_;
 };
 
 // Deletes the object at the given pointer after casting it to the given type.
@@ -206,7 +206,7 @@ class FontFuncs {
   hb_font_funcs_t* get() { return font_funcs_; }
 
  private:
-  hb_font_funcs_t* font_funcs_;
+  raw_ptr<hb_font_funcs_t> font_funcs_;
 };
 
 base::LazyInstance<FontFuncs>::Leaky g_font_funcs = LAZY_INSTANCE_INITIALIZER;
@@ -258,7 +258,7 @@ class TypefaceData {
   TypefaceData() = delete;
 
   GlyphCache glyphs_;
-  hb_face_t* face_ = nullptr;
+  raw_ptr<hb_face_t> face_ = nullptr;
 
   // The skia typeface must outlive |face_| since it's being used by harfbuzz.
   sk_sp<SkTypeface> sk_typeface_;
@@ -272,7 +272,7 @@ hb_font_t* CreateHarfBuzzFont(sk_sp<SkTypeface> skia_face,
                               const FontRenderParams& params,
                               bool subpixel_rendering_suppressed) {
   // A cache from Skia font to harfbuzz typeface information.
-  using TypefaceCache = base::MRUCache<SkFontID, TypefaceData>;
+  using TypefaceCache = base::LRUCache<SkFontID, TypefaceData>;
 
   constexpr int kTypefaceCacheSize = 64;
   static base::NoDestructor<TypefaceCache> face_caches(kTypefaceCacheSize);

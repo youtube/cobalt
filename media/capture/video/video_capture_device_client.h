@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,8 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/threading/thread_collision_warner.h"
 #include "build/chromeos_buildflags.h"
 #include "media/capture/capture_export.h"
@@ -67,7 +66,7 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
       int frame_feedback_id);
 
   // VideoCaptureDevice::Client implementation.
-  // TODO(crbug.com/978143): remove |frame_feedback_id| default value.
+  void OnCaptureConfigurationChanged() override;
   void OnIncomingCapturedData(const uint8_t* data,
                               int length,
                               const VideoCaptureFormat& frame_format,
@@ -76,19 +75,19 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
                               bool flip_y,
                               base::TimeTicks reference_time,
                               base::TimeDelta timestamp,
-                              int frame_feedback_id = 0) override;
-  // TODO(crbug.com/978143): remove |frame_feedback_id| default value.
+                              int frame_feedback_id) override;
   void OnIncomingCapturedGfxBuffer(gfx::GpuMemoryBuffer* buffer,
                                    const VideoCaptureFormat& frame_format,
                                    int clockwise_rotation,
                                    base::TimeTicks reference_time,
                                    base::TimeDelta timestamp,
-                                   int frame_feedback_id = 0) override;
+                                   int frame_feedback_id) override;
   void OnIncomingCapturedExternalBuffer(
       CapturedExternalVideoBuffer buffer,
       std::vector<CapturedExternalVideoBuffer> scaled_buffers,
       base::TimeTicks reference_time,
-      base::TimeDelta timestamp) override;
+      base::TimeDelta timestamp,
+      gfx::Rect visible_rect) override;
   ReserveResult ReserveOutputBuffer(const gfx::Size& dimensions,
                                     VideoPixelFormat format,
                                     int frame_feedback_id,
@@ -117,7 +116,8 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
   ReadyFrameInBuffer CreateReadyFrameFromExternalBuffer(
       CapturedExternalVideoBuffer buffer,
       base::TimeTicks reference_time,
-      base::TimeDelta timestamp);
+      base::TimeDelta timestamp,
+      gfx::Rect visible_rect);
 
   // A branch of OnIncomingCapturedData for Y16 frame_format.pixel_format.
   void OnIncomingCapturedY16Data(const uint8_t* data,

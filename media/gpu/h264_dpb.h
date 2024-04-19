@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,8 +12,7 @@
 
 #include <vector>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/gpu/codec_picture.h"
 #include "media/gpu/media_gpu_export.h"
 #include "media/video/h264_parser.h"
@@ -39,6 +38,9 @@ class MEDIA_GPU_EXPORT H264Picture : public CodecPicture {
   };
 
   H264Picture();
+
+  H264Picture(const H264Picture&) = delete;
+  H264Picture& operator=(const H264Picture&) = delete;
 
   virtual V4L2H264Picture* AsV4L2H264Picture();
   virtual VaapiH264Picture* AsVaapiH264Picture();
@@ -96,9 +98,6 @@ class MEDIA_GPU_EXPORT H264Picture : public CodecPicture {
 
  protected:
   ~H264Picture() override;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(H264Picture);
 };
 
 // DPB - Decoded Picture Buffer.
@@ -120,8 +119,8 @@ class H264DPB {
   // and free it.
   void DeleteUnused();
 
-  // Remove a picture by its pic_order_cnt and free it.
-  void DeleteByPOC(int poc);
+  // Remove a picture from DPB and free it.
+  void Delete(scoped_refptr<H264Picture> pic);
 
   // Clear DPB.
   void Clear();
@@ -140,6 +139,9 @@ class H264DPB {
 
   // Return a long-term reference picture by its long_term_pic_num.
   scoped_refptr<H264Picture> GetLongRefPicByLongTermPicNum(int pic_num);
+
+  // Return a long-term reference picture by its long term reference index.
+  scoped_refptr<H264Picture> GetLongRefPicByLongTermIdx(int idx);
 
   // Return the short reference picture with lowest frame_num. Used for sliding
   // window memory management.

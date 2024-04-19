@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,8 +11,8 @@
 #include <utility>
 #include <vector>
 
-#include "base/callback.h"
 #include "base/files/file.h"
+#include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
@@ -48,6 +48,9 @@ class VideoFrameValidator : public VideoFrameProcessor {
   using GetModelFrameCB =
       base::RepeatingCallback<scoped_refptr<const VideoFrame>(size_t)>;
 
+  using CropHelper =
+      base::RepeatingCallback<gfx::Rect(const VideoFrame& frame)>;
+
   VideoFrameValidator(const VideoFrameValidator&) = delete;
   VideoFrameValidator& operator=(const VideoFrameValidator&) = delete;
 
@@ -78,14 +81,25 @@ class VideoFrameValidator : public VideoFrameProcessor {
   };
 
   VideoFrameValidator(
-      std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor);
+      std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor,
+      CropHelper crop_helper);
 
   // Start the frame validation thread.
   bool Initialize();
 
   SEQUENCE_CHECKER(validator_thread_sequence_checker_);
 
+  // Returns true if the processed frame or model frame should be cropped with
+  // CloneAndCropFrame() or VideoFrame::WrapVideoFrame().
+  bool ShouldCrop() const { return static_cast<bool>(crop_helper_); }
+
+  // This can be used by VideoFrameValidators to support cropping.
+  scoped_refptr<VideoFrame> CloneAndCropFrame(
+      scoped_refptr<const VideoFrame> frame) const;
+
  private:
+  void CleanUpOnValidatorThread();
+
   // Stop the frame validation thread.
   void Destroy();
 
@@ -104,7 +118,11 @@ class VideoFrameValidator : public VideoFrameProcessor {
 
   // An optional video frame processor that all corrupted frames will be
   // forwarded to. This can be used to e.g. write corrupted frames to disk.
-  const std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor_;
+  std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor_;
+
+  // If |crop_helper_| is runnable, then ShouldCrop() will return true and
+  // CloneAndCropFrame() can be used.
+  const CropHelper crop_helper_;
 
   // The number of frames currently queued for validation.
   size_t num_frames_validating_ GUARDED_BY(frame_validator_lock_);
@@ -120,6 +138,11 @@ class VideoFrameValidator : public VideoFrameProcessor {
   SEQUENCE_CHECKER(validator_sequence_checker_);
 };
 
+// Returns a cropping rectangle containing the bottom |row_height| rows of the
+// input frame. This can be used by VideoFrameValidator::CropHelper.
+gfx::Rect BottomRowCrop(int row_height, const VideoFrame& frame);
+constexpr int kDefaultBottomRowCropHeight = 2;
+
 // Validate by converting the frame to be validated to |validation_format| to
 // resolve pixel format differences on different platforms. Thereafter, it
 // compares md5 values of the mapped and converted buffer with golden md5
@@ -130,7 +153,8 @@ class MD5VideoFrameValidator : public VideoFrameValidator {
   static std::unique_ptr<MD5VideoFrameValidator> Create(
       const std::vector<std::string>& expected_frame_checksums,
       VideoPixelFormat validation_format = PIXEL_FORMAT_I420,
-      std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor = nullptr);
+      std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor = nullptr,
+      CropHelper crop_helper = CropHelper());
   ~MD5VideoFrameValidator() override;
 
  private:
@@ -139,7 +163,8 @@ class MD5VideoFrameValidator : public VideoFrameValidator {
   MD5VideoFrameValidator(
       const std::vector<std::string>& expected_frame_checksums,
       VideoPixelFormat validation_format,
-      std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor);
+      std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor,
+      CropHelper crop_helper);
   MD5VideoFrameValidator(const MD5VideoFrameValidator&) = delete;
   MD5VideoFrameValidator& operator=(const MD5VideoFrameValidator&) = delete;
 
@@ -165,7 +190,8 @@ class RawVideoFrameValidator : public VideoFrameValidator {
   static std::unique_ptr<RawVideoFrameValidator> Create(
       const GetModelFrameCB& get_model_frame_cb,
       std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor = nullptr,
-      uint8_t tolerance = kDefaultTolerance);
+      uint8_t tolerance = kDefaultTolerance,
+      CropHelper crop_helper = CropHelper());
   ~RawVideoFrameValidator() override;
 
  private:
@@ -174,7 +200,8 @@ class RawVideoFrameValidator : public VideoFrameValidator {
   RawVideoFrameValidator(
       const GetModelFrameCB& get_model_frame_cb,
       std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor,
-      uint8_t tolerance);
+      uint8_t tolerance,
+      CropHelper crop_helper);
 
   std::unique_ptr<MismatchedFrameInfo> Validate(
       scoped_refptr<const VideoFrame> frame,
@@ -184,8 +211,6 @@ class RawVideoFrameValidator : public VideoFrameValidator {
   const uint8_t tolerance_;
 };
 
-// Validate by computing PSNR from the frame to be validated and the model frame
-// acquired by |get_model_frame_cb_|. If the PSNR value is equal to or more than
 // |tolerance_|, the validation on the frame passes.
 class PSNRVideoFrameValidator : public VideoFrameValidator {
  public:
@@ -195,7 +220,8 @@ class PSNRVideoFrameValidator : public VideoFrameValidator {
       const GetModelFrameCB& get_model_frame_cb,
       std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor = nullptr,
       ValidationMode validation_mode = ValidationMode::kThreshold,
-      double tolerance = kDefaultTolerance);
+      double tolerance = kDefaultTolerance,
+      CropHelper crop_helper = CropHelper());
   const std::map<size_t, double>& GetPSNRValues() const { return psnr_; }
   ~PSNRVideoFrameValidator() override;
 
@@ -206,7 +232,8 @@ class PSNRVideoFrameValidator : public VideoFrameValidator {
       const GetModelFrameCB& get_model_frame_cb,
       std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor,
       ValidationMode validation_mode,
-      double tolerance);
+      double tolerance,
+      CropHelper crop_helper);
 
   std::unique_ptr<MismatchedFrameInfo> Validate(
       scoped_refptr<const VideoFrame> frame,
@@ -215,6 +242,7 @@ class PSNRVideoFrameValidator : public VideoFrameValidator {
   bool Passed() const override;
 
   const GetModelFrameCB get_model_frame_cb_;
+  const CropHelper crop_helper_;
   const double tolerance_;
   const ValidationMode validation_mode_;
   std::map<size_t, double> psnr_;
@@ -231,7 +259,8 @@ class SSIMVideoFrameValidator : public VideoFrameValidator {
       const GetModelFrameCB& get_model_frame_cb,
       std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor = nullptr,
       ValidationMode validation_mode = ValidationMode::kThreshold,
-      double tolerance = kDefaultTolerance);
+      double tolerance = kDefaultTolerance,
+      CropHelper crop_helper = CropHelper());
   const std::map<size_t, double>& GetSSIMValues() const { return ssim_; }
   ~SSIMVideoFrameValidator() override;
 
@@ -242,7 +271,8 @@ class SSIMVideoFrameValidator : public VideoFrameValidator {
       const GetModelFrameCB& get_model_frame_cb,
       std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor,
       ValidationMode validation_mode,
-      double tolerance);
+      double tolerance,
+      CropHelper crop_helper);
 
   std::unique_ptr<MismatchedFrameInfo> Validate(
       scoped_refptr<const VideoFrame> frame,
@@ -255,6 +285,48 @@ class SSIMVideoFrameValidator : public VideoFrameValidator {
   const ValidationMode validation_mode_;
   std::map<size_t, double> ssim_;
 };
+
+// Validate by computing the log likelihood ratio of the frame to be validate
+// and the model frame acquired by |get_model_frame_cb_|. If the log likelihood
+// ratio is less than or equal to |tolerance_|, the validation on the frame
+// passes.
+class LogLikelihoodRatioVideoFrameValidator : public VideoFrameValidator {
+ public:
+  // Default tolerance value chosen empirically.
+  constexpr static double kDefaultTolerance = 1.015;
+
+  static std::unique_ptr<LogLikelihoodRatioVideoFrameValidator> Create(
+      const GetModelFrameCB& get_model_frame_cb,
+      std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor = nullptr,
+      ValidationMode validation_mode = ValidationMode::kThreshold,
+      double tolerance = kDefaultTolerance,
+      CropHelper crop_helper = CropHelper());
+
+  const std::map<size_t, double>& get_log_likelihood_ratio_values() const {
+    return log_likelihood_ratios_;
+  }
+
+  ~LogLikelihoodRatioVideoFrameValidator() override;
+
+ private:
+  struct LogLikelihoodRatioMismatchedFrameInfo;
+
+  LogLikelihoodRatioVideoFrameValidator(
+      const GetModelFrameCB& get_model_frame_cb,
+      std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor,
+      ValidationMode validation_mode,
+      double tolerance,
+      CropHelper crop_helper);
+
+  std::unique_ptr<MismatchedFrameInfo> Validate(
+      scoped_refptr<const VideoFrame> frame,
+      size_t frame_index) override;
+
+  const GetModelFrameCB get_model_frame_cb_;
+  const double tolerance_;
+  std::map<size_t, double> log_likelihood_ratios_;
+};
+
 }  // namespace test
 }  // namespace media
 

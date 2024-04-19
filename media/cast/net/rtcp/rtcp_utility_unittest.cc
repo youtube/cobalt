@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,12 +8,11 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "media/base/fake_single_thread_task_runner.h"
 #include "media/cast/cast_environment.h"
 #include "media/cast/net/cast_transport_defines.h"
-#include "media/cast/net/rtcp/test_rtcp_packet_builder.h"
+#include "media/cast/test/test_rtcp_packet_builder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -25,6 +24,10 @@ static const uint32_t kUnknownSsrc = 0xDEAD;
 static const base::TimeDelta kTargetDelay = base::Milliseconds(100);
 
 class RtcpParserTest : public ::testing::Test {
+ public:
+  RtcpParserTest(const RtcpParserTest&) = delete;
+  RtcpParserTest& operator=(const RtcpParserTest&) = delete;
+
  protected:
   RtcpParserTest()
       : testing_clock_(new base::SimpleTestTickClock()),
@@ -133,13 +136,10 @@ class RtcpParserTest : public ::testing::Test {
 
   std::unique_ptr<base::SimpleTestTickClock> testing_clock_;
   scoped_refptr<FakeSingleThreadTaskRunner> task_runner_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(RtcpParserTest);
 };
 
 TEST_F(RtcpParserTest, BrokenPacketIsIgnored) {
-  const char bad_packet[] = {0, 0, 0, 0};
+  const uint8_t bad_packet[] = {0, 0, 0, 0};
   RtcpParser parser(kLocalSsrc, kRemoteSsrc);
   base::BigEndianReader reader(bad_packet, sizeof(bad_packet));
   EXPECT_FALSE(parser.Parse(&reader));

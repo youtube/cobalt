@@ -18,6 +18,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
@@ -28,7 +29,6 @@
 #include "cobalt/media/progressive/data_source_reader.h"
 #include "cobalt/media/progressive/demuxer_extension_wrapper.h"
 #include "cobalt/media/progressive/progressive_demuxer.h"
-#include "media/base/bind_to_current_loop.h"
 #include "media/base/limits.h"
 #include "media/base/timestamp_constants.h"
 #include "media/filters/chunk_demuxer.h"
@@ -93,10 +93,10 @@ base::TimeDelta ConvertSecondsToTimestamp(double seconds) {
 }  // namespace
 
 #define BIND_TO_RENDER_LOOP(function) \
-  ::media::BindToCurrentLoop(base::Bind(function, AsWeakPtr()))
+  BindPostTaskToCurrentDefault(base::Bind(function, AsWeakPtr()))
 
 #define BIND_TO_RENDER_LOOP_2(function, arg1, arg2) \
-  ::media::BindToCurrentLoop(base::Bind(function, AsWeakPtr(), arg1, arg2))
+  BindPostTaskToCurrentDefault(base::Bind(function, AsWeakPtr(), arg1, arg2))
 
 // TODO(acolwell): Investigate whether the key_system & session_id parameters
 // are really necessary.
@@ -666,15 +666,15 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
         WebMediaPlayer::kNetworkStateFormatError,
         message.empty()
             ? base::StringPrintf("Ready state have nothing. Error: (%d)",
-                                 static_cast<int>(error))
+                                 static_cast<int>(error.code()))
             : base::StringPrintf(
                   "Ready state have nothing: Error: (%d), Message: %s",
-                  static_cast<int>(error), message.c_str()));
+                  static_cast<int>(error.code()), message.c_str()));
     return;
   }
 
   std::string default_message;
-  switch (error) {
+  switch (error.code()) {
     case ::media::PIPELINE_OK:
       NOTREACHED() << "PIPELINE_OK isn't an error!";
       break;

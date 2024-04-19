@@ -1,20 +1,21 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_CAST_TEST_RECEIVER_AUDIO_DECODER_H_
 #define MEDIA_CAST_TEST_RECEIVER_AUDIO_DECODER_H_
 
-#include "base/callback.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/base/audio_bus.h"
+#include "media/cast/cast_config.h"
 #include "media/cast/cast_environment.h"
 #include "media/cast/constants.h"
-#include "media/cast/net/cast_transport_config.h"
 
 namespace media {
 namespace cast {
+
+struct EncodedFrame;
 
 class AudioDecoder {
  public:

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,11 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/values.h"
 #include "media/base/fake_single_thread_task_runner.h"
@@ -26,8 +26,7 @@
 #include "media/cast/test/utility/audio_utility.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace media {
-namespace cast {
+namespace media::cast {
 
 namespace {
 
@@ -42,6 +41,9 @@ class TransportClient : public CastTransport::Client {
  public:
   TransportClient() = default;
 
+  TransportClient(const TransportClient&) = delete;
+  TransportClient& operator=(const TransportClient&) = delete;
+
   void OnStatusChanged(CastTransportStatus status) final {
     EXPECT_EQ(TRANSPORT_STREAM_INITIALIZED, status);
   }
@@ -49,8 +51,6 @@ class TransportClient : public CastTransport::Client {
       std::unique_ptr<std::vector<FrameEvent>> frame_events,
       std::unique_ptr<std::vector<PacketEvent>> packet_events) final {}
   void ProcessRtpPacket(std::unique_ptr<Packet> packet) final {}
-
-  DISALLOW_COPY_AND_ASSIGN(TransportClient);
 };
 
 }  // namespace
@@ -58,6 +58,9 @@ class TransportClient : public CastTransport::Client {
 class TestPacketSender : public PacketTransport {
  public:
   TestPacketSender() : number_of_rtp_packets_(0), number_of_rtcp_packets_(0) {}
+
+  TestPacketSender(const TestPacketSender&) = delete;
+  TestPacketSender& operator=(const TestPacketSender&) = delete;
 
   bool SendPacket(PacketRef packet, base::OnceClosure cb) final {
     if (IsRtcpPacket(&packet->data[0], packet->data.size())) {
@@ -87,29 +90,33 @@ class TestPacketSender : public PacketTransport {
  private:
   int number_of_rtp_packets_;
   int number_of_rtcp_packets_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestPacketSender);
 };
 
 class AudioSenderTest : public ::testing::Test {
  protected:
-  AudioSenderTest() {
+  AudioSenderTest()
+      : task_runner_(
+            base::MakeRefCounted<FakeSingleThreadTaskRunner>(&testing_clock_)),
+        cast_environment_(base::MakeRefCounted<CastEnvironment>(&testing_clock_,
+                                                                task_runner_,
+                                                                task_runner_,
+                                                                task_runner_)) {
     InitializeMediaLibrary();
     testing_clock_.Advance(base::TimeTicks::Now() - base::TimeTicks());
-    task_runner_ = new FakeSingleThreadTaskRunner(&testing_clock_);
-    cast_environment_ = new CastEnvironment(&testing_clock_, task_runner_,
-                                            task_runner_, task_runner_);
-    audio_config_.codec = CODEC_AUDIO_OPUS;
-    audio_config_.use_external_encoder = false;
+
+    audio_config_.codec = Codec::kAudioOpus;
+    audio_config_.use_hardware_encoder = false;
     audio_config_.rtp_timebase = kDefaultAudioSamplingRate;
     audio_config_.channels = 2;
     audio_config_.max_bitrate = kDefaultAudioEncoderBitrate;
     audio_config_.rtp_payload_type = RtpPayloadType::AUDIO_OPUS;
 
-    transport_ = new TestPacketSender();
+    auto sender = std::make_unique<TestPacketSender>();
+    transport_ = sender.get();
     transport_sender_ = std::make_unique<CastTransportImpl>(
         &testing_clock_, base::TimeDelta(), std::make_unique<TransportClient>(),
-        base::WrapUnique(transport_), task_runner_);
+        std::move(sender), task_runner_);
+
     OperationalStatus operational_status = STATUS_UNINITIALIZED;
     audio_sender_ = std::make_unique<AudioSender>(
         cast_environment_, audio_config_,
@@ -122,11 +129,11 @@ class AudioSenderTest : public ::testing::Test {
   ~AudioSenderTest() override = default;
 
   base::SimpleTestTickClock testing_clock_;
-  TestPacketSender* transport_;  // Owned by CastTransport.
+  const scoped_refptr<FakeSingleThreadTaskRunner> task_runner_;
+  const scoped_refptr<CastEnvironment> cast_environment_;
   std::unique_ptr<CastTransportImpl> transport_sender_;
-  scoped_refptr<FakeSingleThreadTaskRunner> task_runner_;
+  raw_ptr<TestPacketSender> transport_;  // Owned by CastTransport.
   std::unique_ptr<AudioSender> audio_sender_;
-  scoped_refptr<CastEnvironment> cast_environment_;
   FrameSenderConfig audio_config_;
 };
 
@@ -155,12 +162,11 @@ TEST_F(AudioSenderTest, RtcpTimer) {
 
   // Make sure that we send at least one RTCP packet.
   base::TimeDelta max_rtcp_timeout =
-      base::Milliseconds(1 + kRtcpReportIntervalMs * 3 / 2);
+      base::Milliseconds(1) + kRtcpReportInterval * 3 / 2;
   testing_clock_.Advance(max_rtcp_timeout);
   task_runner_->RunTasks();
   EXPECT_LE(1, transport_->number_of_rtp_packets());
   EXPECT_LE(1, transport_->number_of_rtcp_packets());
 }
 
-}  // namespace cast
-}  // namespace media
+}  // namespace media::cast

@@ -1,12 +1,11 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_CDM_CDM_CONTEXT_REF_IMPL_H_
 #define MEDIA_CDM_CDM_CONTEXT_REF_IMPL_H_
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/threading/thread_checker.h"
 #include "media/base/cdm_context.h"
 #include "media/base/media_export.h"

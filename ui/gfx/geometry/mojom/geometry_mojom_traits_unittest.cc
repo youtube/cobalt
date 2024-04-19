@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -85,6 +85,10 @@ class GeometryStructTraitsTest : public testing::Test,
 
   void EchoQuaternion(const Quaternion& q,
                       EchoQuaternionCallback callback) override {
+    std::move(callback).Run(q);
+  }
+
+  void EchoQuadF(const QuadF& q, EchoQuadFCallback callback) override {
     std::move(callback).Run(q);
   }
 
@@ -186,7 +190,7 @@ TEST_F(GeometryStructTraitsTest, Insets) {
   const int32_t left = 5678;
   const int32_t bottom = 4321;
   const int32_t right = 8765;
-  gfx::Insets input(top, left, bottom, right);
+  auto input = gfx::Insets::TLBR(top, left, bottom, right);
   mojo::Remote<mojom::GeometryTraitsTestService> remote = GetTraitsTestRemote();
   gfx::Insets output;
   remote->EchoInsets(input, &output);
@@ -201,7 +205,7 @@ TEST_F(GeometryStructTraitsTest, InsetsF) {
   const float left = 5678.2f;
   const float bottom = 4321.3f;
   const float right = 8765.4f;
-  gfx::InsetsF input(top, left, bottom, right);
+  auto input = gfx::InsetsF::TLBR(top, left, bottom, right);
   mojo::Remote<mojom::GeometryTraitsTestService> remote = GetTraitsTestRemote();
   gfx::InsetsF output;
   remote->EchoInsetsF(input, &output);
@@ -259,6 +263,22 @@ TEST_F(GeometryStructTraitsTest, Quaternion) {
   EXPECT_EQ(y, output.y());
   EXPECT_EQ(z, output.z());
   EXPECT_EQ(w, output.w());
+}
+
+TEST_F(GeometryStructTraitsTest, QuadF) {
+  const PointF p1(1234.5, 6789.6);
+  const PointF p2(-31415.9, 27182.8);
+  const PointF p3(5432.1, -5678);
+  const PointF p4(-2468.0, -3579.1);
+  gfx::QuadF input(p1, p2, p3, p4);
+  mojo::Remote<mojom::GeometryTraitsTestService> remote = GetTraitsTestRemote();
+  gfx::QuadF output;
+  remote->EchoQuadF(input, &output);
+  EXPECT_EQ(p1, output.p1());
+  EXPECT_EQ(p2, output.p2());
+  EXPECT_EQ(p3, output.p3());
+  EXPECT_EQ(p4, output.p4());
+  EXPECT_EQ(input, output);
 }
 
 }  // namespace gfx

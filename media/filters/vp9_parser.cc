@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,10 +13,9 @@
 
 #include <algorithm>
 
-#include "base/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/containers/circular_deque.h"
-#include "base/cxx17_backports.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/sys_byteorder.h"
@@ -138,7 +137,7 @@ const int16_t kAcQLookup[][kQIndexRange] = {
 };
 // clang-format on
 
-static_assert(base::size(kDcQLookup[0]) == base::size(kAcQLookup[0]),
+static_assert(std::size(kDcQLookup[0]) == std::size(kAcQLookup[0]),
               "quantizer lookup arrays of incorrect size");
 
 size_t ClampQ(int64_t q) {
@@ -149,7 +148,7 @@ size_t ClampQ(int64_t q) {
 
 int ClampLf(int lf) {
   constexpr int kMaxLoopFilterLevel = 63;
-  return base::clamp(lf, 0, kMaxLoopFilterLevel);
+  return std::clamp(lf, 0, kMaxLoopFilterLevel);
 }
 
 std::string IncrementIV(const std::string& iv, uint32_t by) {
@@ -373,7 +372,7 @@ bool Vp9FrameContext::IsValid() const {
     for (auto& ai : a) {
       for (auto& aj : ai) {
         for (auto& ak : aj) {
-          int max_l = (ak == aj[0]) ? 3 : 6;
+          int max_l = (+ak == +aj[0]) ? 3 : 6;
           for (int l = 0; l < max_l; l++) {
             for (auto& x : ak[l]) {
               if (x == 0) {
@@ -518,32 +517,38 @@ void Vp9Parser::Context::Reset() {
 }
 
 void Vp9Parser::Context::MarkFrameContextForUpdate(size_t frame_context_idx) {
-  DCHECK_LT(frame_context_idx, base::size(frame_context_managers_));
+  DCHECK_LT(frame_context_idx, std::size(frame_context_managers_));
   frame_context_managers_[frame_context_idx].SetNeedsClientUpdate();
 }
 
 void Vp9Parser::Context::UpdateFrameContext(
     size_t frame_context_idx,
     const Vp9FrameContext& frame_context) {
-  DCHECK_LT(frame_context_idx, base::size(frame_context_managers_));
+  DCHECK_LT(frame_context_idx, std::size(frame_context_managers_));
   frame_context_managers_[frame_context_idx].Update(frame_context);
 }
 
 const Vp9Parser::ReferenceSlot& Vp9Parser::Context::GetRefSlot(
     size_t ref_type) const {
-  DCHECK_LT(ref_type, base::size(ref_slots_));
+  DCHECK_LT(ref_type, std::size(ref_slots_));
   return ref_slots_[ref_type];
 }
 
 void Vp9Parser::Context::UpdateRefSlot(
     size_t ref_type,
     const Vp9Parser::ReferenceSlot& ref_slot) {
-  DCHECK_LT(ref_type, base::size(ref_slots_));
+  DCHECK_LT(ref_type, std::size(ref_slots_));
   ref_slots_[ref_type] = ref_slot;
 }
 
 Vp9Parser::Vp9Parser(bool parsing_compressed_header)
-    : parsing_compressed_header_(parsing_compressed_header) {
+    : Vp9Parser(parsing_compressed_header,
+                /*needs_external_context_update=*/false) {}
+
+Vp9Parser::Vp9Parser(bool parsing_compressed_header,
+                     bool needs_external_context_update)
+    : parsing_compressed_header_(parsing_compressed_header),
+      needs_external_context_update_(needs_external_context_update) {
   Reset();
 }
 
@@ -644,9 +649,17 @@ bool Vp9Parser::ParseCompressedHeader(const FrameInfo& frame_info,
       context_to_load.frame_context();
 
   Vp9CompressedHeaderParser compressed_parser;
-  if (!compressed_parser.Parse(
-          frame_info.ptr + curr_frame_header_.uncompressed_header_size,
-          curr_frame_header_.header_size_in_bytes, &curr_frame_header_)) {
+  bool parse_success;
+  if (!needs_external_context_update_) {
+    parse_success = compressed_parser.ParseNoContext(
+        frame_info.ptr + curr_frame_header_.uncompressed_header_size,
+        curr_frame_header_.header_size_in_bytes, &curr_frame_header_);
+  } else {
+    parse_success = compressed_parser.Parse(
+        frame_info.ptr + curr_frame_header_.uncompressed_header_size,
+        curr_frame_header_.header_size_in_bytes, &curr_frame_header_);
+  }
+  if (!parse_success) {
     *result = kInvalidStream;
     return true;
   }
@@ -658,7 +671,8 @@ bool Vp9Parser::ParseCompressedHeader(const FrameInfo& frame_info,
       context_.UpdateFrameContext(frame_context_idx,
                                   curr_frame_header_.frame_context);
     } else {
-      context_.MarkFrameContextForUpdate(frame_context_idx);
+      if (needs_external_context_update_)
+        context_.MarkFrameContextForUpdate(frame_context_idx);
     }
   }
   return false;
@@ -748,7 +762,7 @@ Vp9Parser::Result Vp9Parser::ParseNextFrame(
 
 Vp9Parser::ContextRefreshCallback Vp9Parser::GetContextRefreshCb(
     size_t frame_context_idx) {
-  DCHECK_LT(frame_context_idx, base::size(context_.frame_context_managers_));
+  DCHECK_LT(frame_context_idx, std::size(context_.frame_context_managers_));
   auto& frame_context_manager =
       context_.frame_context_managers_[frame_context_idx];
 

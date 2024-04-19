@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,8 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/posix/eintr_wrapper.h"
 #include "skia/ext/legacy_display_globals.h"
 #include "third_party/skia/include/core/SkSurface.h"
@@ -29,56 +31,20 @@ namespace gbm_wrapper {
 
 namespace {
 
-// Function availability can be tested by checking if the address of gbm_* is
-// not nullptr.
-#define WEAK_GBM_FN(x) extern "C" __attribute__((weak)) decltype(x) x
-
-// TODO(https://crbug.com/784010): Remove these once support for Ubuntu Trusty
-// is dropped.
-WEAK_GBM_FN(gbm_bo_map);
-WEAK_GBM_FN(gbm_bo_unmap);
-
-// TODO(https://crbug.com/784010): Remove these once support for Ubuntu Trusty
-// and Debian Stretch are dropped.
-WEAK_GBM_FN(gbm_bo_create_with_modifiers);
-WEAK_GBM_FN(gbm_bo_get_handle_for_plane);
-WEAK_GBM_FN(gbm_bo_get_modifier);
-WEAK_GBM_FN(gbm_bo_get_offset);
-WEAK_GBM_FN(gbm_bo_get_plane_count);
-WEAK_GBM_FN(gbm_bo_get_stride_for_plane);
-
-bool HaveGbmMap() {
-  return gbm_bo_map && gbm_bo_unmap;
-}
-
-bool HaveGbmModifiers() {
-  return gbm_bo_create_with_modifiers && gbm_bo_get_modifier;
-}
-
-bool HaveGbmMultiplane() {
-  return gbm_bo_get_handle_for_plane && gbm_bo_get_offset &&
-         gbm_bo_get_plane_count && gbm_bo_get_stride_for_plane;
-}
-
 uint32_t GetHandleForPlane(struct gbm_bo* bo, int plane) {
-  CHECK(HaveGbmMultiplane() || plane == 0);
-  return HaveGbmMultiplane() ? gbm_bo_get_handle_for_plane(bo, plane).u32
-                             : gbm_bo_get_handle(bo).u32;
+  return gbm_bo_get_handle_for_plane(bo, plane).u32;
 }
 
 uint32_t GetStrideForPlane(struct gbm_bo* bo, int plane) {
-  CHECK(HaveGbmMultiplane() || plane == 0);
-  return HaveGbmMultiplane() ? gbm_bo_get_stride_for_plane(bo, plane)
-                             : gbm_bo_get_stride(bo);
+  return gbm_bo_get_stride_for_plane(bo, plane);
 }
 
 uint32_t GetOffsetForPlane(struct gbm_bo* bo, int plane) {
-  CHECK(HaveGbmMultiplane() || plane == 0);
-  return HaveGbmMultiplane() ? gbm_bo_get_offset(bo, plane) : 0;
+  return gbm_bo_get_offset(bo, plane);
 }
 
 int GetPlaneCount(struct gbm_bo* bo) {
-  return HaveGbmMultiplane() ? gbm_bo_get_plane_count(bo) : 1;
+  return gbm_bo_get_plane_count(bo);
 }
 
 int GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
@@ -153,14 +119,16 @@ class Buffer final : public ui::GbmBuffer {
         format_modifier_(modifier),
         flags_(flags),
         size_(size),
-        handle_(std::move(handle)) {}
+        handle_(std::move(handle)) {
+    handle_.supports_zero_copy_webgpu_import = SupportsZeroCopyWebGPUImport();
+  }
 
   Buffer(const Buffer&) = delete;
   Buffer& operator=(const Buffer&) = delete;
 
   ~Buffer() override {
     DCHECK(!mmap_data_);
-    gbm_bo_destroy(bo_);
+    gbm_bo_destroy(bo_.ExtractAsDangling());
   }
 
   uint32_t GetFormat() const override { return format_; }
@@ -187,6 +155,21 @@ class Buffer final : public ui::GbmBuffer {
     DCHECK_LT(plane, handle_.planes.size());
     return handle_.planes[plane].fd.get();
   }
+
+  bool SupportsZeroCopyWebGPUImport() const override {
+    // NOT supported if the buffer is multi-planar and its planes are disjoint.
+    size_t plane_count = GetNumPlanes();
+    if (plane_count > 1) {
+      uint32_t handle = GetPlaneHandle(0);
+      for (size_t plane = 1; plane < plane_count; ++plane) {
+        if (GetPlaneHandle(plane) != handle) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   uint32_t GetPlaneStride(size_t plane) const override {
     DCHECK_LT(plane, handle_.planes.size());
     return handle_.planes[plane].stride;
@@ -209,7 +192,6 @@ class Buffer final : public ui::GbmBuffer {
   }
 
   sk_sp<SkSurface> GetSurface() override {
-    CHECK(HaveGbmMap());
     DCHECK(!mmap_data_);
     uint32_t stride;
     void* addr;
@@ -233,14 +215,15 @@ class Buffer final : public ui::GbmBuffer {
 
  private:
   static void UnmapGbmBo(void* pixels, void* context) {
-    CHECK(HaveGbmMap());
     Buffer* buffer = static_cast<Buffer*>(context);
     gbm_bo_unmap(buffer->bo_, buffer->mmap_data_);
     buffer->mmap_data_ = nullptr;
   }
 
-  gbm_bo* const bo_;
-  void* mmap_data_ = nullptr;
+  raw_ptr<gbm_bo> bo_;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #addr-of
+  RAW_PTR_EXCLUSION void* mmap_data_ = nullptr;
 
   const uint32_t format_;
   const uint64_t format_modifier_;
@@ -248,7 +231,7 @@ class Buffer final : public ui::GbmBuffer {
 
   const gfx::Size size_;
 
-  const gfx::NativePixmapHandle handle_;
+  gfx::NativePixmapHandle handle_;
 };
 
 std::unique_ptr<Buffer> CreateBufferForBO(struct gbm_bo* bo,
@@ -258,7 +241,7 @@ std::unique_ptr<Buffer> CreateBufferForBO(struct gbm_bo* bo,
   DCHECK(bo);
   gfx::NativePixmapHandle handle;
 
-  const uint64_t modifier = HaveGbmModifiers() ? gbm_bo_get_modifier(bo) : 0;
+  const uint64_t modifier = gbm_bo_get_modifier(bo);
   const int plane_count = GetPlaneCount(bo);
   // The Mesa's gbm implementation explicitly checks whether plane count <= and
   // returns 1 if the condition is true. Nevertheless, use a DCHECK here to make
@@ -325,12 +308,51 @@ class Device final : public ui::GbmDevice {
       const std::vector<uint64_t>& modifiers) override {
     if (modifiers.empty())
       return CreateBuffer(format, size, flags);
-    CHECK(HaveGbmModifiers());
-    struct gbm_bo* bo = gbm_bo_create_with_modifiers(
-        device_, size.width(), size.height(), format, modifiers.data(),
-        modifiers.size());
-    if (!bo)
+
+    std::vector<uint64_t> filtered_modifiers =
+        GetFilteredModifiers(format, flags, modifiers);
+    struct gbm_bo* bo = nullptr;
+    while (filtered_modifiers.size() > 0) {
+      bo = gbm_bo_create_with_modifiers(device_, size.width(), size.height(),
+                                        format, filtered_modifiers.data(),
+                                        filtered_modifiers.size());
+      if (!bo) {
+        return nullptr;
+      }
+
+      struct gbm_import_fd_modifier_data fd_data;
+      fd_data.width = size.width();
+      fd_data.height = size.height();
+      fd_data.format = format;
+      fd_data.num_fds = gbm_bo_get_plane_count(bo);
+      fd_data.modifier = gbm_bo_get_modifier(bo);
+
+      // Store fds in the vector of base::ScopedFDs. Will be released
+      // automatically.
+      std::vector<base::ScopedFD> fds;
+      for (size_t i = 0; i < static_cast<size_t>(fd_data.num_fds); ++i) {
+        fds.emplace_back(GetPlaneFdForBo(bo, i));
+        fd_data.fds[i] = fds.back().get();
+        fd_data.strides[i] = gbm_bo_get_stride_for_plane(bo, i);
+        fd_data.offsets[i] = gbm_bo_get_offset(bo, i);
+      }
+
+      struct gbm_bo* bo_import =
+          gbm_bo_import(device_, GBM_BO_IMPORT_FD_MODIFIER, &fd_data, flags);
+      if (bo_import) {
+        gbm_bo_destroy(bo_import);
+        break;
+      } else {
+        gbm_bo_destroy(bo);
+        bo = nullptr;
+        AddModifierToBlocklist(format, flags, fd_data.modifier);
+        filtered_modifiers =
+            GetFilteredModifiers(format, flags, filtered_modifiers);
+      }
+    }
+    if (!bo) {
       return nullptr;
+    }
 
     return CreateBufferForBO(bo, format, size, flags);
   }
@@ -339,18 +361,19 @@ class Device final : public ui::GbmDevice {
       uint32_t format,
       const gfx::Size& size,
       gfx::NativePixmapHandle handle) override {
-    DCHECK_EQ(handle.planes[0].offset, 0u);
+    if (handle.planes.empty()) {
+      LOG(ERROR) << "Importing handle with no planes";
+      return nullptr;
+    }
+    if (handle.planes[0].offset != 0u) {
+      LOG(ERROR) << "Unsupported handle: expected an offset of 0 for the first "
+                    "plane; got "
+                 << handle.planes[0].offset;
+      return nullptr;
+    }
 
-    // Try to use scanout if supported.
-    int gbm_flags = GBM_BO_USE_SCANOUT;
-#if defined(MINIGBM)
-    gbm_flags |= GBM_BO_USE_TEXTURING;
-#endif
-    if (!gbm_device_is_format_supported(device_, format, gbm_flags))
-      gbm_flags &= ~GBM_BO_USE_SCANOUT;
-
-    struct gbm_bo* bo = nullptr;
-    if (!gbm_device_is_format_supported(device_, format, gbm_flags)) {
+    int gbm_flags = 0;
+    if ((gbm_flags = GetSupportedGbmFlags(format)) == 0) {
       LOG(ERROR) << "gbm format not supported: " << format;
       return nullptr;
     }
@@ -371,7 +394,8 @@ class Device final : public ui::GbmDevice {
 
     // The fd passed to gbm_bo_import is not ref-counted and need to be
     // kept open for the lifetime of the buffer.
-    bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_MODIFIER, &fd_data, gbm_flags);
+    struct gbm_bo* bo =
+        gbm_bo_import(device_, GBM_BO_IMPORT_FD_MODIFIER, &fd_data, gbm_flags);
     if (!bo) {
       LOG(ERROR) << "nullptr returned from gbm_bo_import";
       return nullptr;
@@ -381,8 +405,56 @@ class Device final : public ui::GbmDevice {
                                     size, std::move(handle));
   }
 
+  bool CanCreateBufferForFormat(uint32_t format) override {
+    return GetSupportedGbmFlags(format) != 0;
+  }
+
+#if defined(MINIGBM)
+  int GetSupportedGbmFlags(uint32_t format) {
+    int gbm_flags = GBM_BO_USE_SCANOUT | GBM_BO_USE_TEXTURING;
+    if (gbm_device_is_format_supported(device_, format, gbm_flags))
+      return gbm_flags;
+    gbm_flags = GBM_BO_USE_TEXTURING;
+    if (gbm_device_is_format_supported(device_, format, gbm_flags))
+      return gbm_flags;
+    return 0;
+  }
+#else
+  int GetSupportedGbmFlags(uint32_t format) {
+    if (gbm_device_is_format_supported(device_, format, GBM_BO_USE_SCANOUT))
+      return GBM_BO_USE_SCANOUT;
+    return 0;
+  }
+#endif
+
  private:
-  gbm_device* const device_;
+  std::vector<uint64_t> GetFilteredModifiers(
+      uint32_t format,
+      uint32_t flags,
+      const std::vector<uint64_t>& modifiers) {
+    std::vector<uint64_t> filtered_modifiers = modifiers;
+
+    for (const auto& [entry_format, entry_flags, entry_modifier] :
+         modifier_blocklist_) {
+      if (entry_format == format && entry_flags == flags) {
+        filtered_modifiers.erase(
+            std::remove(filtered_modifiers.begin(), filtered_modifiers.end(),
+                        entry_modifier),
+            filtered_modifiers.end());
+      }
+    }
+
+    return filtered_modifiers;
+  }
+
+  void AddModifierToBlocklist(uint32_t format,
+                              uint32_t flags,
+                              uint64_t modifier) {
+    modifier_blocklist_.push_back({format, flags, modifier});
+  }
+
+  const raw_ptr<gbm_device> device_;
+  std::vector<std::tuple<uint32_t, uint32_t, uint64_t>> modifier_blocklist_;
 };
 
 }  // namespace gbm_wrapper

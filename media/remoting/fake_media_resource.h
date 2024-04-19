@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,12 +27,12 @@ class FakeDemuxerStream : public DemuxerStream {
   ~FakeDemuxerStream() override;
 
   // DemuxerStream implementation.
-  MOCK_METHOD1(Read, void(ReadCB read_cb));
-  void FakeRead(ReadCB read_cb);
+  MOCK_METHOD2(Read, void(uint32_t count, ReadCB read_cb));
+  void FakeRead(uint32_t count, ReadCB read_cb);
   AudioDecoderConfig audio_decoder_config() override;
   VideoDecoderConfig video_decoder_config() override;
   Type type() const override;
-  Liveness liveness() const override;
+  StreamLiveness liveness() const override;
   void EnableBitstreamConverter() override {}
   bool SupportsConfigChanges() override;
 

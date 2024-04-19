@@ -69,7 +69,7 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
   size_t GetTotalBufferSize() const;
 
   // DemuxerStream implementation:
-  void Read(int max_number_of_buffers_to_read, ReadCB read_cb) override;
+  void Read(uint32_t count, ReadCB read_cb) override;
   ::media::AudioDecoderConfig audio_decoder_config() override;
   ::media::VideoDecoderConfig video_decoder_config() override;
   Type type() const override;
@@ -165,6 +165,10 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   // Demuxer implementation:
   std::vector<::media::DemuxerStream*> GetAllStreams() override;
   std::string GetDisplayName() const override;
+  ::media::DemuxerType GetDemuxerType() const override {
+    // kFFmpegDemuxer is used in Chromium media for progressive demuxing.
+    return ::media::DemuxerType::kFFmpegDemuxer;
+  }
   void Initialize(::media::DemuxerHost* host,
                   ::media::PipelineStatusCallback status_cb) override;
   void AbortPendingReads() override;
@@ -172,6 +176,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   void CancelPendingSeek(base::TimeDelta seek_time) override;
   void Seek(base::TimeDelta time,
             ::media::PipelineStatusCallback status_cb) override;
+  bool IsSeekable() const override { return true; }
   void Stop() override;
   base::TimeDelta GetStartTime() const override;
   base::Time GetTimelineOffset() const override;
@@ -182,6 +187,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   void OnSelectedVideoTrackChanged(
       const std::vector<::media::MediaTrack::Id>& track_ids,
       base::TimeDelta curr_time, TrackChangeCB change_completed_cb) override;
+  void SetPlaybackRate(double rate) override { NOTREACHED(); }
 
   absl::optional<::media::container_names::MediaContainerName>
   GetContainerForMetrics() const override {

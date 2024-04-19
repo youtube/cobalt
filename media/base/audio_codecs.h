@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,6 +38,9 @@ enum class AudioCodec {
   kALAC = 15,
   kAC3 = 16,
   kMpegHAudio = 17,
+  kDTS = 18,
+  kDTSXP2 = 19,
+  kDTSE = 20,
   kIAMF = 22,
   // DO NOT ADD RANDOM AUDIO CODECS!
   //

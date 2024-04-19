@@ -1,11 +1,14 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 module media.stable.mojom;
 
+import "gpu/ipc/common/gpu_feature_info.mojom";
 import "media/mojo/mojom/stable/stable_video_decoder_types.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
+import "sandbox/policy/mojom/sandbox.mojom";
+import "ui/gfx/geometry/mojom/geometry.mojom";
 
 // This API is a stable version of VideoDecoder. This is used both by LaCrOS and
 // by out-of-process video decoding to allow the GPU process to forward video
@@ -46,20 +49,48 @@ interface VideoDecoderClient {
   // frame, for example if output buffers are limited or configuration changes
   // require the return of all outstanding frames.
   //
-  // If |release_token| is provided, the client shall call
-  // VideoFrameHandleReleaser::Release() when it is finished using |frame|.
+  // The client shall call VideoFrameHandleReleaser::ReleaseVideoFrame() with
+  // |release_token| when it is finished using |frame|.
   OnVideoFrameDecoded@0(VideoFrame frame,
                       bool can_read_without_stalling,
-                      mojo_base.mojom.UnguessableToken? release_token);
+                      mojo_base.mojom.UnguessableToken release_token);
 
   // Called when the remote decoder is waiting because of |reason|, e.g. waiting
   // for decryption key.
   OnWaiting@1(WaitingReason reason);
 };
 
-// TODO(b/194429120): Implement when protected content support is integrated.
+// Interface for handling callbacks from the StableCdmContext interface below.
+// Next min method ID: 1
+[Stable, Uuid="a1a73e1f-5297-49a2-a4e5-df875a44b61e"]
+interface CdmContextEventCallback {
+  // Sends the event back to the registrar.
+  EventCallback@0(CdmContextEvent event);
+};
+
+// Maps to the media::CdmContext interface for remoting it to another process.
+// Next MinVersion: 2
+// Next min method ID: 4
 [Stable, Uuid="33c7a00e-2970-41b3-8c7b-f1074a539740"]
 interface StableCdmContext {
+  // Proxies to media::CdmContext::GetChromeOsCdmContext()->GetHwKeyData.
+  [MinVersion=1]
+  GetHwKeyData@0(DecryptConfig decrypt_config, array<uint8> hw_identifier) =>
+      (DecryptStatus status, array<uint8> key_data);
+
+  // Registers an interface for receiving event callbacks. This maps to
+  // media::CdmContext::RegisterEventCB.
+  [MinVersion=1]
+  RegisterEventCallback@1(pending_remote<CdmContextEventCallback> callback);
+
+  // Proxies to media::CdmContext::GetChromeOsCdmContext()->GetHwConfigData.
+  [MinVersion=1]
+  GetHwConfigData@2() => (bool success, array<uint8> config_data);
+
+  // Proxies to media::CdmContext::GetChromeOsCdmContext()->
+  // GetScreenResolutions.
+  [MinVersion=1]
+  GetScreenResolutions@3() => (array<gfx.mojom.Size> resolutions);
 };
 
 // Based on |media.mojom.VideoDecoder|.
@@ -77,6 +108,13 @@ interface StableVideoDecoder {
 
   // Initialize the decoder. This must be called before any method other than
   // GetSupportedConfigs().
+  // StableVideoDecoder may hold onto references to VideoFrames sent to the
+  // client. However, it shall not re-use those frames until the client calls
+  // ReleaseVideoFrame() on |video_frame_handle_releaser|. The
+  // StableVideoDecoder may, however, release those references at any time.
+  // Therefore, VideoFrames sent to the client shall contain resources whose
+  // lifetime is independent of the StableVideoDecoder's lifetime, e.g., file
+  // descriptors.
   Construct@1(
       pending_associated_remote<VideoDecoderClient> client,
       pending_remote<MediaLog> media_log,
@@ -87,6 +125,12 @@ interface StableVideoDecoder {
   // Configure (or reconfigure) the decoder. This must be called before decoding
   // any frames, and must not be called while there are pending Initialize(),
   // Decode(), or Reset() requests.
+  //
+  // |cdm_context| is required for the first Initialize() call that sets up
+  // encryption and is ignored on subsequent calls.
+  //
+  // TODO(b/195769334): consider passing |cdm_context| in Construct() instead of
+  // Initialize().
   Initialize@2(VideoDecoderConfig config, bool low_delay,
                pending_remote<StableCdmContext>? cdm_context)
       => (Status status,
@@ -105,9 +149,47 @@ interface StableVideoDecoder {
   Reset@4() => ();
 };
 
+// Only Chrome-for-Linux and ash-chrome should host the implementation of a
+// StableVideoDecoderFactory.
+[EnableIf=is_linux_or_chromeos_ash]
+const sandbox.mojom.Sandbox kStableVideoDecoderFactoryServiceSandbox
+ = sandbox.mojom.Sandbox.kHardwareVideoDecoding;
+[EnableIfNot=is_linux_or_chromeos_ash]
+const sandbox.mojom.Sandbox kStableVideoDecoderFactoryServiceSandbox
+ = sandbox.mojom.Sandbox.kNoSandbox;
+
+// A StableVideoDecoderFactory allows the browser process to bind a
+// StableVideoDecoder on behalf of some client which can be, e.g., the
+// lacros-chrome browser process or a renderer process in ash-chrome.
 // Next min method ID: 1
 [Stable, Uuid="d6047fd9-fffb-4e37-ad9b-383a1c9e1d2d"]
 interface StableVideoDecoderFactory {
-  // Used to create StableVideoDecoder interfaces.
+  // Creates a StableVideoDecoder and should be called by the browser process.
   CreateStableVideoDecoder@0(pending_receiver<StableVideoDecoder> receiver);
+};
+
+// A StableVideoDecoderFactoryProcess is intended to be hosted in a utility
+// process in either ash-chrome or Chrome-for-linux. The client is expected to
+// be the browser process of ash-chrome or Chrome-for-linux. The intended usage
+// is as follows:
+//
+// 1) The browser process of ash-chrome or Chrome-for-linux receives a request
+//    to bind a pending_receiver<StableVideoDecoderFactory>.
+//
+// 2) That browser process starts a utility process to bind a
+//    pending_receiver<StableVideoDecoderFactoryProcess>. It then uses this
+//    connection to call InitializeStableVideoDecoderFactory() with the
+//    pending_receiver<StableVideoDecoderFactory> from (1).
+[ServiceSandbox=kStableVideoDecoderFactoryServiceSandbox,
+EnableIf=is_linux_or_chromeos_ash]
+interface StableVideoDecoderFactoryProcess {
+  // Initializes a StableVideoDecoderFactory using |gpu_feature_info| to
+  // restrict the supported video decode configurations. If
+  // |enable_direct_video_decoder| is true, the StableVideoDecoderFactory shall
+  // create video decoders backed by the direct video decoder stack. Otherwise,
+  // it will use the legacy VDA implementations.
+  InitializeStableVideoDecoderFactory(
+      gpu.mojom.GpuFeatureInfo gpu_feature_info,
+      bool enable_direct_video_decoder,
+      pending_receiver<StableVideoDecoderFactory> receiver);
 };

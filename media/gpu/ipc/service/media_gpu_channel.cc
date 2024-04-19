@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,11 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/single_thread_task_runner.h"
+#include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/unguessable_token.h"
+#include "build/build_config.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
 #include "gpu/ipc/service/gpu_channel.h"
 #include "ipc/ipc_mojo_bootstrap.h"
@@ -25,10 +27,17 @@ class DecoderProviderImpl : public mojom::GpuAcceleratedVideoDecoderProvider,
  public:
   DecoderProviderImpl(gpu::CommandBufferStub* stub,
                       const AndroidOverlayMojoFactoryCB& overlay_factory_cb)
-      : stub_(stub), overlay_factory_cb_(overlay_factory_cb) {}
+      : stub_(stub), overlay_factory_cb_(overlay_factory_cb) {
+    stub_->AddDestructionObserver(this);
+  }
+
   DecoderProviderImpl(const DecoderProviderImpl&) = delete;
   DecoderProviderImpl& operator=(const DecoderProviderImpl&) = delete;
-  ~DecoderProviderImpl() override = default;
+  ~DecoderProviderImpl() override {
+    if (stub_) {
+      stub_->RemoveDestructionObserver(this);
+    }
+  }
 
   // mojom::GpuAcceleratedVideoDecoderProvider:
   void CreateAcceleratedVideoDecoder(
@@ -39,6 +48,12 @@ class DecoderProviderImpl : public mojom::GpuAcceleratedVideoDecoderProvider,
           client,
       CreateAcceleratedVideoDecoderCallback callback) override {
     TRACE_EVENT0("gpu", "DecoderProviderImpl::CreateAcceleratedVideoDecoder");
+#if BUILDFLAG(IS_ANDROID)
+    NOTIMPLEMENTED()
+        << "The legacy VideoDecodeAccelerator API is not supported on Android";
+    std::move(callback).Run(false);
+    return;
+#else
     // Only allow stubs that have a ContextGroup, that is, the GLES2 ones. Later
     // code assumes the ContextGroup is valid.
     if (!stub_ || !stub_->decoder_context()->GetContextGroup()) {
@@ -51,13 +66,14 @@ class DecoderProviderImpl : public mojom::GpuAcceleratedVideoDecoderProvider,
         stub_, stub_->channel()->io_task_runner(), overlay_factory_cb_);
     std::move(callback).Run(
         decoder->Initialize(config, std::move(receiver), std::move(client)));
+#endif
   }
 
  private:
   // gpu::CommandBufferStub::DestructionObserver:
   void OnWillDestroyStub(bool have_context) override { stub_ = nullptr; }
 
-  gpu::CommandBufferStub* stub_;
+  raw_ptr<gpu::CommandBufferStub> stub_;
   const AndroidOverlayMojoFactoryCB overlay_factory_cb_;
 };
 

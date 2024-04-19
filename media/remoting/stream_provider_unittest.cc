@@ -1,18 +1,20 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/remoting/stream_provider.h"
 
+#include "base/memory/raw_ptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_util.h"
 #include "media/base/test_helpers.h"
 #include "media/base/video_decoder_config.h"
+#include "media/cast/openscreen/remoting_proto_enum_utils.h"
+#include "media/cast/openscreen/remoting_proto_utils.h"
 #include "media/remoting/mock_receiver_controller.h"
-#include "media/remoting/proto_enum_utils.h"
-#include "media/remoting/proto_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -40,7 +42,7 @@ class StreamProviderTest : public testing::Test {
         mock_controller_->mock_remotee()->BindNewPipeAndPassRemote());
     mock_remotee_ = mock_controller_->mock_remotee();
     stream_provider_ = std::make_unique<StreamProvider>(
-        mock_controller_, base::ThreadTaskRunnerHandle::Get());
+        mock_controller_, base::SingleThreadTaskRunner::GetCurrentDefault());
 
     rpc_messenger_ = mock_controller_->rpc_messenger();
     sender_audio_demuxer_stream_handle_ = rpc_messenger_->GetUniqueHandle();
@@ -60,6 +62,10 @@ class StreamProviderTest : public testing::Test {
   }
 
   void TearDown() override {
+    // Drop unowned references before `stream_provider_` destroys them.
+    audio_stream_ = nullptr;
+    video_stream_ = nullptr;
+
     stream_provider_.reset();
     task_environment_.RunUntilIdle();
   }
@@ -104,14 +110,16 @@ class StreamProviderTest : public testing::Test {
       case DemuxerStream::Type::AUDIO: {
         openscreen::cast::AudioDecoderConfig* audio_message =
             init_cb_message->mutable_audio_decoder_config();
-        ConvertAudioDecoderConfigToProto(audio_config_, audio_message);
+        media::cast::ConvertAudioDecoderConfigToProto(audio_config_,
+                                                      audio_message);
         break;
       }
 
       case DemuxerStream::Type::VIDEO: {
         openscreen::cast::VideoDecoderConfig* video_message =
             init_cb_message->mutable_video_decoder_config();
-        ConvertVideoDecoderConfigToProto(video_config_, video_message);
+        media::cast::ConvertVideoDecoderConfigToProto(video_config_,
+                                                      video_message);
         break;
       }
 
@@ -147,7 +155,7 @@ class StreamProviderTest : public testing::Test {
   }
 
   void OnStreamProviderInitialized(PipelineStatus status) {
-    EXPECT_EQ(PipelineStatus::PIPELINE_OK, status);
+    EXPECT_EQ(PIPELINE_OK, status);
     stream_provider_initialized_ = true;
     audio_stream_ =
         stream_provider_->GetFirstStream(DemuxerStream::Type::AUDIO);
@@ -186,7 +194,8 @@ class StreamProviderTest : public testing::Test {
     auto* message = rpc.mutable_demuxerstream_readuntilcb_rpc();
     message->set_count(0);
     message->set_status(
-        ToProtoDemuxerStreamStatus(DemuxerStream::Status::kOk).value());
+        media::cast::ToProtoDemuxerStreamStatus(DemuxerStream::Status::kOk)
+            .value());
     rpc_messenger_->SendMessageToRemote(rpc);
   }
 
@@ -202,10 +211,14 @@ class StreamProviderTest : public testing::Test {
     return stream_provider_->video_stream_->current_frame_count_;
   }
 
-  void OnBufferReadFromDemuxerStream(DemuxerStream::Type type,
-                                     DemuxerStream::Status status,
-                                     scoped_refptr<DecoderBuffer> buffer) {
+  void OnBufferReadFromDemuxerStream(
+      DemuxerStream::Type type,
+      DemuxerStream::Status status,
+      DemuxerStream::DecoderBufferVector buffers) {
     EXPECT_EQ(status, DemuxerStream::Status::kOk);
+    EXPECT_EQ(buffers.size(), 1u)
+        << "StreamProviderTest only reads a single-buffer.";
+    scoped_refptr<DecoderBuffer> buffer = std::move(buffers[0]);
     switch (type) {
       case DemuxerStream::Type::AUDIO:
         received_audio_buffer_ = buffer;
@@ -223,8 +236,8 @@ class StreamProviderTest : public testing::Test {
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
 
-  DemuxerStream* audio_stream_;
-  DemuxerStream* video_stream_;
+  raw_ptr<DemuxerStream> audio_stream_;
+  raw_ptr<DemuxerStream> video_stream_;
 
   scoped_refptr<DecoderBuffer> audio_buffer_;
   scoped_refptr<DecoderBuffer> video_buffer_;
@@ -238,9 +251,9 @@ class StreamProviderTest : public testing::Test {
   int receiver_audio_demuxer_stream_handle_ = RpcMessenger::kInvalidHandle;
   int receiver_video_demuxer_stream_handle_ = RpcMessenger::kInvalidHandle;
 
-  RpcMessenger* rpc_messenger_;
-  MockReceiverController* mock_controller_;
-  MockRemotee* mock_remotee_;
+  raw_ptr<RpcMessenger> rpc_messenger_;
+  raw_ptr<MockReceiverController> mock_controller_;
+  raw_ptr<MockRemotee> mock_remotee_;
   std::unique_ptr<StreamProvider> stream_provider_;
 };
 
@@ -283,8 +296,8 @@ TEST_F(StreamProviderTest, ReadBuffer) {
   EXPECT_TRUE(stream_provider_initialized_);
 
   audio_stream_->Read(
-      base::BindOnce(&StreamProviderTest::OnBufferReadFromDemuxerStream,
-                     base::Unretained(this), DemuxerStream::Type::AUDIO));
+      1, base::BindOnce(&StreamProviderTest::OnBufferReadFromDemuxerStream,
+                        base::Unretained(this), DemuxerStream::Type::AUDIO));
   task_environment_.RunUntilIdle();
   EXPECT_EQ(audio_buffer_->data_size(), received_audio_buffer_->data_size());
   EXPECT_EQ(audio_buffer_->end_of_stream(),
@@ -293,8 +306,8 @@ TEST_F(StreamProviderTest, ReadBuffer) {
             received_audio_buffer_->is_key_frame());
 
   video_stream_->Read(
-      base::BindOnce(&StreamProviderTest::OnBufferReadFromDemuxerStream,
-                     base::Unretained(this), DemuxerStream::Type::VIDEO));
+      1, base::BindOnce(&StreamProviderTest::OnBufferReadFromDemuxerStream,
+                        base::Unretained(this), DemuxerStream::Type::VIDEO));
   task_environment_.RunUntilIdle();
   EXPECT_EQ(video_buffer_->end_of_stream(),
             received_video_buffer_->end_of_stream());

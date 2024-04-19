@@ -1,14 +1,16 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/video/fake_video_encode_accelerator.h"
 
-#include "base/bind.h"
 #include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
+#include "media/base/media_log.h"
+#include "media/base/video_frame.h"
 
 namespace media {
 
@@ -23,6 +25,7 @@ FakeVideoEncodeAccelerator::FakeVideoEncodeAccelerator(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner)
     : task_runner_(task_runner),
       will_initialization_succeed_(true),
+      will_encoding_succeed_(true),
       client_(nullptr),
       next_frame_is_first_frame_(true) {}
 
@@ -37,6 +40,7 @@ FakeVideoEncodeAccelerator::GetSupportedProfiles() {
   profile.max_resolution.SetSize(1920, 1088);
   profile.max_framerate_numerator = 30;
   profile.max_framerate_denominator = 1;
+  profile.rate_control_modes = media::VideoEncodeAccelerator::kConstantMode;
 
   profile.profile = media::H264PROFILE_MAIN;
   profiles.push_back(profile);
@@ -45,8 +49,10 @@ FakeVideoEncodeAccelerator::GetSupportedProfiles() {
   return profiles;
 }
 
-bool FakeVideoEncodeAccelerator::Initialize(const Config& config,
-                                            Client* client) {
+bool FakeVideoEncodeAccelerator::Initialize(
+    const Config& config,
+    Client* client,
+    std::unique_ptr<MediaLog> media_log) {
   if (!will_initialization_succeed_) {
     return false;
   }
@@ -104,6 +110,24 @@ void FakeVideoEncodeAccelerator::SetWillInitializationSucceed(
   will_initialization_succeed_ = will_initialization_succeed;
 }
 
+void FakeVideoEncodeAccelerator::SetWillEncodingSucceed(
+    bool will_encoding_succeed) {
+  will_encoding_succeed_ = will_encoding_succeed;
+}
+
+void FakeVideoEncodeAccelerator::NotifyEncoderInfoChange(
+    const VideoEncoderInfo& info) {
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&FakeVideoEncodeAccelerator::DoNotifyEncoderInfoChange,
+                     weak_this_factory_.GetWeakPtr(), info));
+}
+
+void FakeVideoEncodeAccelerator::DoNotifyEncoderInfoChange(
+    const VideoEncoderInfo& info) {
+  client_->NotifyEncoderInfoChange(info);
+}
+
 void FakeVideoEncodeAccelerator::DoRequireBitstreamBuffers(
     unsigned int input_count,
     const gfx::Size& input_coded_size,
@@ -135,6 +159,11 @@ void FakeVideoEncodeAccelerator::EncodeTask() {
 void FakeVideoEncodeAccelerator::DoBitstreamBufferReady(
     BitstreamBuffer buffer,
     FrameToEncode frame_to_encode) const {
+  if (!will_encoding_succeed_) {
+    client_->NotifyErrorStatus(EncoderStatus::Codes::kEncoderFailedEncode);
+    return;
+  }
+
   BitstreamBufferMetadata metadata(kMinimumOutputBufferSize,
                                    frame_to_encode.force_keyframe,
                                    frame_to_encode.frame->timestamp());

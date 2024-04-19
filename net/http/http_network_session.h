@@ -158,7 +158,7 @@ struct NET_EXPORT HttpNetworkSessionParams {
 #if defined(STARBOARD)
     // If true, request to an origin without recorded alt-svc info will
     // try to establish both QUIC and TCP connections and use the faster one.
-    bool use_quic_for_unknown_origins;
+  bool use_quic_for_unknown_origins = false;
 #endif
 
   // If non-empty, QUIC will only be spoken to hosts in this list.
@@ -315,6 +315,9 @@ class NET_EXPORT HttpNetworkSession {
 
 #if defined(STARBOARD)
   void SetEnableQuic(bool enable_quic);
+
+  // Whether to try QUIC connection for origins without alt-svc on record.
+  bool UseQuicForUnknownOrigin() const;
 #endif  // defined(STARBOARD)
 
   // Clear the SSL session cache.

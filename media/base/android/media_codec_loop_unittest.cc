@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,8 @@
 #include <memory>
 
 #include "base/android/build_info.h"
-#include "base/macros.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/test_mock_time_task_runner.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "media/base/android/media_codec_bridge.h"
 #include "media/base/android/mock_media_codec_bridge.h"
 #include "media/base/waiting.h"
@@ -47,7 +45,7 @@ class MockMediaCodecLoopClient : public StrictMock<MediaCodecLoop::Client> {
 class MediaCodecLoopTest : public testing::Test {
  public:
   MediaCodecLoopTest()
-      : task_runner_handle_(mock_task_runner_),
+      : task_runner_current_default_handle_(mock_task_runner_),
         client_(std::make_unique<MockMediaCodecLoopClient>()) {}
 
   MediaCodecLoopTest(const MediaCodecLoopTest&) = delete;
@@ -91,8 +89,9 @@ class MediaCodecLoopTest : public testing::Test {
     mock_task_runner_->FastForwardBy(base::Seconds(30));
   }
 
-  void ConstructCodecLoop(int sdk_int = base::android::SDK_VERSION_LOLLIPOP) {
-    std::unique_ptr<MediaCodecBridge> codec(new MockMediaCodecBridge());
+  void ConstructCodecLoop() {
+    int sdk_int = base::android::SDK_VERSION_NOUGAT;
+    auto codec = std::make_unique<MockMediaCodecBridge>();
     // Since we're providing a codec, we do not expect an error.
     EXPECT_CALL(*client_, OnCodecLoopError()).Times(0);
     codec_loop_ = std::make_unique<MediaCodecLoop>(
@@ -190,7 +189,8 @@ class MediaCodecLoopTest : public testing::Test {
   // MediaCodecLoop's task runner.
   scoped_refptr<base::TestMockTimeTaskRunner> mock_task_runner_ =
       new base::TestMockTimeTaskRunner;
-  base::ThreadTaskRunnerHandle task_runner_handle_;
+  base::SingleThreadTaskRunner::CurrentDefaultHandle
+      task_runner_current_default_handle_;
 
   std::unique_ptr<MediaCodecLoop> codec_loop_;
   std::unique_ptr<MockMediaCodecLoopClient> client_;
@@ -199,7 +199,7 @@ class MediaCodecLoopTest : public testing::Test {
 TEST_F(MediaCodecLoopTest, TestConstructionWithNullCodec) {
   std::unique_ptr<MediaCodecBridge> codec;
   EXPECT_CALL(*client_, OnCodecLoopError()).Times(1);
-  const int sdk_int = base::android::SDK_VERSION_LOLLIPOP;
+  const int sdk_int = base::android::SDK_VERSION_NOUGAT;
   codec_loop_ = std::make_unique<MediaCodecLoop>(
       sdk_int, client_.get(), std::move(codec),
       scoped_refptr<base::SingleThreadTaskRunner>());

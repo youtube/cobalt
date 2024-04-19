@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/media_util.h"
 #include "media/base/stream_parser.h"
@@ -59,9 +58,9 @@ class StreamParserTestBase {
   }
 
  private:
-  bool AppendDataInPieces(const uint8_t* data,
-                          size_t length,
-                          size_t piece_size);
+  bool AppendAllDataThenParseInPieces(const uint8_t* data,
+                                      size_t length,
+                                      size_t piece_size);
   void OnInitDone(const StreamParser::InitParameters& params);
   bool OnNewConfig(std::unique_ptr<MediaTracks> tracks,
                    const StreamParser::TextTrackConfigMap& text_config);

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,8 +42,6 @@
 
 #include "base/at_exit.h"
 #include "base/base_paths.h"
-#include "base/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/command_line.h"
 #include "base/containers/queue.h"
 #include "base/containers/span.h"
@@ -51,16 +49,21 @@
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/files/scoped_file.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/numerics/checked_math.h"
 #include "base/path_service.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/simple_test_tick_clock.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/tick_clock.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "media/base/audio_bus.h"
 #include "media/base/fake_single_thread_task_runner.h"
@@ -134,7 +137,7 @@ struct PacketProxy {
     if (receiver)
       receiver->ReceivePacket(std::move(packet));
   }
-  CastReceiver* receiver;
+  raw_ptr<CastReceiver> receiver;
 };
 
 class TransportClient : public CastTransport::Client {
@@ -143,6 +146,9 @@ class TransportClient : public CastTransport::Client {
                   PacketProxy* packet_proxy)
       : log_event_dispatcher_(log_event_dispatcher),
         packet_proxy_(packet_proxy) {}
+
+  TransportClient(const TransportClient&) = delete;
+  TransportClient& operator=(const TransportClient&) = delete;
 
   void OnStatusChanged(CastTransportStatus status) final {
     LOG(INFO) << "Cast transport status: " << status;
@@ -160,10 +166,9 @@ class TransportClient : public CastTransport::Client {
   }
 
  private:
-  LogEventDispatcher* const log_event_dispatcher_;  // Not owned by this class.
-  PacketProxy* const packet_proxy_;                 // Not owned by this class.
-
-  DISALLOW_COPY_AND_ASSIGN(TransportClient);
+  const raw_ptr<LogEventDispatcher>
+      log_event_dispatcher_;                 // Not owned by this class.
+  const raw_ptr<PacketProxy> packet_proxy_;  // Not owned by this class.
 };
 
 // Maintains a queue of encoded video frames.
@@ -174,8 +179,7 @@ class TransportClient : public CastTransport::Client {
 class EncodedVideoFrameTracker final : public RawEventSubscriber {
  public:
   EncodedVideoFrameTracker(FakeMediaSource* media_source)
-      : media_source_(media_source),
-        last_frame_event_type_(UNKNOWN) {}
+      : media_source_(media_source), last_frame_event_type_(UNKNOWN) {}
 
   EncodedVideoFrameTracker(const EncodedVideoFrameTracker&) = delete;
   EncodedVideoFrameTracker& operator=(const EncodedVideoFrameTracker&) = delete;
@@ -217,33 +221,30 @@ class EncodedVideoFrameTracker final : public RawEventSubscriber {
   }
 
  private:
-  FakeMediaSource* media_source_;
+  raw_ptr<FakeMediaSource> media_source_;
   CastLoggingEvent last_frame_event_type_;
   base::queue<scoped_refptr<media::VideoFrame>> video_frames_;
 };
+
+// Safely creates a span for data backing a `frame` on specified `plane`.
+base::span<const uint8_t> MakeFrameSpan(const media::VideoFrame* frame,
+                                        size_t plane) {
+  base::CheckedNumeric<size_t> size = frame->stride(plane);
+  size *= frame->rows(plane);
+  return base::make_span(frame->data(plane), size.ValueOrDie());
+}
 
 // Appends a YUV frame in I420 format to the file located at |path|.
 void AppendYuvToFile(const base::FilePath& path,
                      scoped_refptr<media::VideoFrame> frame) {
   // Write YUV420 format to file.
   std::string header;
-  base::StringAppendF(
-      &header, "FRAME W%d H%d\n",
-      frame->coded_size().width(),
-      frame->coded_size().height());
+  base::StringAppendF(&header, "FRAME W%d H%d\n", frame->coded_size().width(),
+                      frame->coded_size().height());
   AppendToFile(path, header);
-  AppendToFile(path,
-               base::make_span(frame->data(media::VideoFrame::kYPlane),
-                               frame->stride(media::VideoFrame::kYPlane) *
-                                   frame->rows(media::VideoFrame::kYPlane)));
-  AppendToFile(path,
-               base::make_span(frame->data(media::VideoFrame::kUPlane),
-                               frame->stride(media::VideoFrame::kUPlane) *
-                                   frame->rows(media::VideoFrame::kUPlane)));
-  AppendToFile(path,
-               base::make_span(frame->data(media::VideoFrame::kVPlane),
-                               frame->stride(media::VideoFrame::kVPlane) *
-                                   frame->rows(media::VideoFrame::kVPlane)));
+  AppendToFile(path, MakeFrameSpan(frame.get(), media::VideoFrame::kYPlane));
+  AppendToFile(path, MakeFrameSpan(frame.get(), media::VideoFrame::kUPlane));
+  AppendToFile(path, MakeFrameSpan(frame.get(), media::VideoFrame::kVPlane));
 }
 
 // A container to save output of GotVideoFrame() for computation based
@@ -308,7 +309,8 @@ void RunSimulation(const base::FilePath& source_path,
   // Task runner.
   scoped_refptr<FakeSingleThreadTaskRunner> task_runner =
       new FakeSingleThreadTaskRunner(&testing_clock);
-  base::ThreadTaskRunnerHandle task_runner_handle(task_runner);
+  base::SingleThreadTaskRunner::CurrentDefaultHandle
+      task_runner_current_default_handle(task_runner);
 
   // CastEnvironments.
   test::SkewedTickClock sender_clock(&testing_clock);
@@ -319,10 +321,8 @@ void RunSimulation(const base::FilePath& source_path,
       &receiver_clock, task_runner, task_runner, task_runner);
 
   // Event subscriber. Store at most 1 hour of events.
-  EncodingEventSubscriber audio_event_subscriber(AUDIO_EVENT,
-                                                 100 * 60 * 60);
-  EncodingEventSubscriber video_event_subscriber(VIDEO_EVENT,
-                                                 30 * 60 * 60);
+  EncodingEventSubscriber audio_event_subscriber(AUDIO_EVENT, 100 * 60 * 60);
+  EncodingEventSubscriber video_event_subscriber(VIDEO_EVENT, 30 * 60 * 60);
   sender_env->logger()->Subscribe(&audio_event_subscriber);
   sender_env->logger()->Subscribe(&video_event_subscriber);
 
@@ -333,8 +333,7 @@ void RunSimulation(const base::FilePath& source_path,
           base::Milliseconds(GetIntegerSwitchValue(kTargetDelay, 400));
 
   // Audio receiver config.
-  FrameReceiverConfig audio_receiver_config =
-      GetDefaultAudioReceiverConfig();
+  FrameReceiverConfig audio_receiver_config = GetDefaultAudioReceiverConfig();
   audio_receiver_config.rtp_max_delay_ms =
       audio_sender_config.max_playout_delay.InMilliseconds();
 
@@ -349,8 +348,7 @@ void RunSimulation(const base::FilePath& source_path,
   video_sender_config.max_frame_rate = GetIntegerSwitchValue(kMaxFrameRate, 30);
 
   // Video receiver config.
-  FrameReceiverConfig video_receiver_config =
-      GetDefaultVideoReceiverConfig();
+  FrameReceiverConfig video_receiver_config = GetDefaultVideoReceiverConfig();
   video_receiver_config.rtp_max_delay_ms =
       video_sender_config.max_playout_delay.InMilliseconds();
 
@@ -387,9 +385,7 @@ void RunSimulation(const base::FilePath& source_path,
     LOG(INFO) << "Running Poisson based network simulation.";
     const IPPModel& ipp_model = model.ipp();
     std::vector<double> average_rates(ipp_model.average_rate_size());
-    std::copy(ipp_model.average_rate().begin(),
-              ipp_model.average_rate().end(),
-              average_rates.begin());
+    base::ranges::copy(ipp_model.average_rate(), average_rates.begin());
     ipp = std::make_unique<test::InterruptedPoissonProcess>(
         average_rates, ipp_model.coef_burstiness(), ipp_model.coef_variance(),
         0);
@@ -413,11 +409,8 @@ void RunSimulation(const base::FilePath& source_path,
 
   // Initialize a fake media source and a tracker to encoded video frames.
   const bool quality_test = !metrics_output_path.empty();
-  FakeMediaSource media_source(task_runner,
-                               &testing_clock,
-                               audio_sender_config,
-                               video_sender_config,
-                               quality_test);
+  FakeMediaSource media_source(task_runner, &testing_clock, audio_sender_config,
+                               video_sender_config, quality_test);
   std::unique_ptr<EncodedVideoFrameTracker> video_frame_tracker;
   if (quality_test) {
     video_frame_tracker =
@@ -491,10 +484,10 @@ void RunSimulation(const base::FilePath& source_path,
   media::cast::PacketEventList audio_packet_events, video_packet_events;
   audio_metadata.set_extra_data(extra_data);
   video_metadata.set_extra_data(extra_data);
-  audio_event_subscriber.GetEventsAndReset(
-      &audio_metadata, &audio_frame_events, &audio_packet_events);
-  video_event_subscriber.GetEventsAndReset(
-      &video_metadata, &video_frame_events, &video_packet_events);
+  audio_event_subscriber.GetEventsAndReset(&audio_metadata, &audio_frame_events,
+                                           &audio_packet_events);
+  video_event_subscriber.GetEventsAndReset(&video_metadata, &video_frame_events,
+                                           &video_packet_events);
 
   // Print simulation results.
 
@@ -553,10 +546,10 @@ void RunSimulation(const base::FilePath& source_path,
   LOG(INFO) << "Dropped video frames: " << dropped_video_frames;
   LOG(INFO) << "Late video frames: " << late_video_frames
             << " (average lateness: "
-            << (late_video_frames > 0 ?
-                    static_cast<double>(total_delay_of_late_frames_ms) /
-                        late_video_frames :
-                    0)
+            << (late_video_frames > 0
+                    ? static_cast<double>(total_delay_of_late_frames_ms) /
+                          late_video_frames
+                    : 0)
             << " ms)";
   LOG(INFO) << "Average encoded bitrate (kbps): " << avg_encoded_bitrate;
   LOG(INFO) << "Average target bitrate (kbps): " << avg_target_bitrate;
@@ -575,8 +568,9 @@ void RunSimulation(const base::FilePath& source_path,
   if (quality_test) {
     LOG(INFO) << "Writing quality metrics: " << metrics_output_path.value();
     std::string line;
-    for (size_t i = 0; i < metrics_output.psnr.size() &&
-             i < metrics_output.ssim.size(); ++i) {
+    for (size_t i = 0;
+         i < metrics_output.psnr.size() && i < metrics_output.ssim.size();
+         ++i) {
       base::StringAppendF(&line, "%f %f\n", metrics_output.psnr[i],
                           metrics_output.ssim[i]);
     }
@@ -673,7 +667,7 @@ int main(int argc, char** argv) {
   const base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
   base::FilePath media_path = cmd->GetSwitchValuePath(media::cast::kLibDir);
   if (media_path.empty()) {
-    if (!base::PathService::Get(base::DIR_MODULE, &media_path)) {
+    if (!base::PathService::Get(base::DIR_GEN_TEST_DATA_ROOT, &media_path)) {
       LOG(ERROR) << "Failed to load FFmpeg.";
       return 1;
     }
@@ -681,26 +675,26 @@ int main(int argc, char** argv) {
 
   media::InitializeMediaLibrary();
 
-  base::FilePath source_path = cmd->GetSwitchValuePath(
-      media::cast::kSourcePath);
-  base::FilePath log_output_path = cmd->GetSwitchValuePath(
-      media::cast::kOutputPath);
+  base::FilePath source_path =
+      cmd->GetSwitchValuePath(media::cast::kSourcePath);
+  base::FilePath log_output_path =
+      cmd->GetSwitchValuePath(media::cast::kOutputPath);
   if (log_output_path.empty()) {
     base::GetTempDir(&log_output_path);
     log_output_path = log_output_path.AppendASCII("sim-events.gz");
   }
-  base::FilePath metrics_output_path = cmd->GetSwitchValuePath(
-      media::cast::kMetricsOutputPath);
-  base::FilePath yuv_output_path = cmd->GetSwitchValuePath(
-      media::cast::kYuvOutputPath);
+  base::FilePath metrics_output_path =
+      cmd->GetSwitchValuePath(media::cast::kMetricsOutputPath);
+  base::FilePath yuv_output_path =
+      cmd->GetSwitchValuePath(media::cast::kYuvOutputPath);
   std::string sim_id = cmd->GetSwitchValueASCII(media::cast::kSimulationId);
 
-  NetworkSimulationModel model = media::cast::LoadModel(
-      cmd->GetSwitchValuePath(media::cast::kModelPath));
+  NetworkSimulationModel model =
+      media::cast::LoadModel(cmd->GetSwitchValuePath(media::cast::kModelPath));
 
-  base::DictionaryValue values;
-  values.SetBoolean("sim", true);
-  values.SetString("sim-id", sim_id);
+  base::Value::Dict values;
+  values.Set("sim", true);
+  values.Set("sim-id", sim_id);
 
   std::string extra_data;
   base::JSONWriter::Write(values, &extra_data);

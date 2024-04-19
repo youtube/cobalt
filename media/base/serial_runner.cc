@@ -1,14 +1,14 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/serial_runner.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
-#include "base/single_thread_task_runner.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 
 namespace media {
 
@@ -30,7 +30,7 @@ static void RunBoundClosure(SerialRunner::BoundClosure bound_closure,
 
 // Runs |status_cb| with |last_status| on |task_runner|.
 static void RunOnTaskRunner(
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     PipelineStatusCallback status_cb,
     PipelineStatus last_status) {
   // Force post to permit cancellation of a series in the scenario where all
@@ -67,7 +67,7 @@ bool SerialRunner::Queue::empty() {
 }
 
 SerialRunner::SerialRunner(Queue&& bound_fns, PipelineStatusCallback done_cb)
-    : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       bound_fns_(std::move(bound_fns)),
       done_cb_(std::move(done_cb)) {
   // Respect both cancellation and calling stack guarantees for |done_cb|
@@ -93,7 +93,7 @@ std::unique_ptr<SerialRunner> SerialRunner::Run(
 }
 
 void SerialRunner::RunNextInSeries(PipelineStatus last_status) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(done_cb_);
 
   if (bound_fns_.empty() || last_status != PIPELINE_OK) {

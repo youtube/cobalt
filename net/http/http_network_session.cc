@@ -385,6 +385,10 @@ void HttpNetworkSession::DisableQuic() {
 void HttpNetworkSession::SetEnableQuic(bool enable_quic) {
   params_.enable_quic = enable_quic;
 }
+
+bool HttpNetworkSession::UseQuicForUnknownOrigin() const {
+  return params_.use_quic_for_unknown_origins;
+}
 #endif  // defined(STARBOARD)
 
 void HttpNetworkSession::ClearSSLSessionCache() {

@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,10 +13,11 @@ namespace gfx {
 
 // The format needs to be taken into account when mapping a buffer into the
 // client's address space.
-enum class BufferFormat {
+enum class BufferFormat : uint8_t {
   R_8,
   R_16,
   RG_88,
+  RG_1616,
   BGR_565,
   RGBA_4444,
   RGBX_8888,
@@ -28,6 +29,7 @@ enum class BufferFormat {
   RGBA_F16,
   YVU_420,
   YUV_420_BIPLANAR,
+  YUVA_420_TRIPLANAR,
   P010,
 
   LAST = P010
@@ -35,11 +37,13 @@ enum class BufferFormat {
 
 // The usage mode affects how a buffer can be used. Only buffers created with
 // *_CPU_READ_WRITE_* can be mapped into the client's address space and accessed
-// by the CPU. SCANOUT implies GPU_READ_WRITE.
-// *_VDA_WRITE is for cases where a video decode accellerator writes into
-// the buffers.
+// by the CPU.
+// *_VDA_WRITE is for cases where a video decode accelerator writes into the
+// buffers.
 // PROTECTED_* are for HW protected buffers that cannot be read by the CPU and
 // can only be read in protected GPU contexts or scanned out to overlays.
+// At present, SCANOUT implies GPU_READ_WRITE. This doesn't apply to other
+// SCANOUT_* values.
 
 // TODO(reveman): Add GPU_READ_WRITE for use-cases where SCANOUT is not
 // required.
@@ -78,20 +82,22 @@ struct BufferUsageAndFormat {
 // SharedImage.
 enum class BufferPlane {
   // For single-plane GpuMemoryBuffer, this refers to that single plane. For
-  // YUV_420, YUV_420_BIPLANAR, and P010 GpuMemoryBuffers, this refers to an
-  // RGB representation of the planes (either bound directly as a texture or
-  // created through an extra copy).
+  // YUV_420, YUV_420_BIPLANAR, YUVA_420_TRIPLANAR, and P010 GpuMemoryBuffers,
+  // this refers to an RGB representation of the planes (either bound directly
+  // as a texture or created through an extra copy).
   DEFAULT,
-  // The Y plane for YUV_420, YUV_420_BIPLANAR, and P010.
+  // The Y plane for YUV_420, YUV_420_BIPLANAR, YUVA_420_TRIPLANAR, and P010.
   Y,
-  // The UV plane for YUV_420_BIPLANAR and P010.
+  // The UV plane for YUV_420_BIPLANAR, YUVA_420_TRIPLANAR and P010.
   UV,
   // The U plane for YUV_420.
   U,
   // The V plane for YUV_420.
   V,
+  // The A plane for YUVA_420_TRIPLANAR.
+  A,
 
-  LAST = V
+  LAST = A
 };
 
 }  // namespace gfx

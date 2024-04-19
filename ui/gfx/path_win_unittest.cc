@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,11 @@
 
 #include <stddef.h>
 
-#include <algorithm>
 #include <vector>
 
 #include "base/check_op.h"
-#include "base/cxx17_backports.h"
+#include "base/containers/span.h"
+#include "base/ranges/algorithm.h"
 #include "base/win/scoped_gdi_object.h"
 #include "skia/ext/skia_utils_win.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -34,10 +34,10 @@ std::vector<SkIRect> GetRectsFromHRGN(HRGN region) {
   CHECK_EQ(bytes_size, result);
 
   // Pull out the rectangles into a SkIRect vector to return to caller.
-  const LPRECT rects = reinterpret_cast<LPRECT>(&region_data->Buffer[0]);
-  std::vector<SkIRect> sk_rects(region_data->rdh.nCount);
-  std::transform(rects, rects + region_data->rdh.nCount,
-                 sk_rects.begin(), skia::RECTToSkIRect);
+  base::span<RECT> rects(reinterpret_cast<RECT*>(&region_data->Buffer[0]),
+                         region_data->rdh.nCount);
+  std::vector<SkIRect> sk_rects(rects.size());
+  base::ranges::transform(rects, sk_rects.begin(), skia::RECTToSkIRect);
 
   return sk_rects;
 }
@@ -84,8 +84,8 @@ TEST(CreateHRGNFromSkPathTest, RoundCornerTest) {
   path.addRRect(rrect);
   base::win::ScopedRegion region(CreateHRGNFromSkPath(path));
   const std::vector<SkIRect>& region_rects = GetRectsFromHRGN(region.get());
-  EXPECT_EQ(base::size(rects), region_rects.size());
-  for (size_t i = 0; i < base::size(rects) && i < region_rects.size(); ++i)
+  EXPECT_EQ(std::size(rects), region_rects.size());
+  for (size_t i = 0; i < std::size(rects) && i < region_rects.size(); ++i)
     EXPECT_EQ(rects[i], region_rects[i]);
 }
 
@@ -103,8 +103,8 @@ TEST(CreateHRGNFromSkPathTest, NonContiguousPath) {
   }
   base::win::ScopedRegion region(CreateHRGNFromSkPath(path));
   const std::vector<SkIRect>& region_rects = GetRectsFromHRGN(region.get());
-  ASSERT_EQ(base::size(rects), region_rects.size());
-  for (size_t i = 0; i < base::size(rects); ++i)
+  ASSERT_EQ(std::size(rects), region_rects.size());
+  for (size_t i = 0; i < std::size(rects); ++i)
     EXPECT_EQ(rects[i], region_rects[i]);
 }
 

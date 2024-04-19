@@ -343,9 +343,15 @@ QuicConnection::QuicConnection(
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
+#if defined(STARBOARD)
+  LOG(INFO) << "Created QUIC connection for address: "
+            << peer_address().ToString()
+            << " with version: " << ParsedQuicVersionToString(version());
+#else
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
+#endif
 
   QUIC_BUG_IF(quic_bug_12714_2, !QuicUtils::IsConnectionIdValidForVersion(
                                     server_connection_id, transport_version()))

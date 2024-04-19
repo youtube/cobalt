@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -266,22 +266,6 @@ const Font& GetDefaultSystemFont() {
 
 const Font& GetSystemFont(SystemFont system_font) {
   return SystemFonts::Instance()->GetFont(system_font);
-}
-
-NativeFont AdjustExistingSystemFont(NativeFont existing_font,
-                                    const FontAdjustment& font_adjustment) {
-  LOGFONT logfont;
-  auto result = GetObject(existing_font, sizeof(logfont), &logfont);
-  DCHECK(result);
-
-  // Make the necessary adjustments.
-  SystemFonts::AdjustLOGFONT(font_adjustment, &logfont);
-
-  // Cap at minimum font size.
-  logfont.lfHeight = SystemFonts::AdjustFontSize(logfont.lfHeight, 0);
-
-  // Create the Font object.
-  return ::CreateFontIndirect(&logfont);
 }
 
 int AdjustFontSize(int lf_height, int size_delta) {

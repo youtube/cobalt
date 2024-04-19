@@ -1,11 +1,11 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef UI_GFX_VECTOR_ICON_TYPES_H_
 #define UI_GFX_VECTOR_ICON_TYPES_H_
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "third_party/skia/include/core/SkScalar.h"
 #include "ui/gfx/animation/tween.h"
 
@@ -87,11 +87,15 @@ struct PathElement {
 // size or range of sizes.
 struct VectorIconRep {
   VectorIconRep() = default;
+  constexpr VectorIconRep(const PathElement* path, size_t path_size)
+      : path(path), path_size(path_size) {}
 
   VectorIconRep(const VectorIconRep&) = delete;
   VectorIconRep& operator=(const VectorIconRep&) = delete;
 
-  const PathElement* path = nullptr;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #global-scope, #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION const PathElement* path = nullptr;
 
   // The length of |path|.
   size_t path_size = 0u;
@@ -101,13 +105,19 @@ struct VectorIconRep {
 // scale factors and pixel dimensions.
 struct VectorIcon {
   VectorIcon() = default;
+  constexpr VectorIcon(const VectorIconRep* reps,
+                       size_t reps_size,
+                       const char* name)
+      : reps(reps), reps_size(reps_size), name(name) {}
 
   VectorIcon(const VectorIcon&) = delete;
   VectorIcon& operator=(const VectorIcon&) = delete;
 
   bool is_empty() const { return !reps; }
 
-  const VectorIconRep* const reps = nullptr;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #global-scope, #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION const VectorIconRep* const reps = nullptr;
   size_t reps_size = 0u;
 
   // A human-readable name, useful for debugging, derived from the name of the

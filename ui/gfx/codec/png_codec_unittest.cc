@@ -1,22 +1,23 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "ui/gfx/codec/png_codec.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include <algorithm>
 #include <cmath>
 
-#include "base/cxx17_backports.h"
+#include "base/check.h"
 #include "base/logging.h"
+#include "base/ranges/algorithm.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/libpng/png.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColorPriv.h"
 #include "third_party/skia/include/core/SkUnPreMultiply.h"
 #include "third_party/zlib/zlib.h"
-#include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/skia_util.h"
 
@@ -922,15 +923,9 @@ TEST(PNGCodec, EncodeWithComment) {
   const unsigned char kExpected3[] =
       "\x00\x00\x00\x18tEXthave some\x00spaces in both\x8d\x69\x34\x2d";
 
-  EXPECT_NE(std::search(encoded.begin(), encoded.end(), kExpected1,
-                        kExpected1 + base::size(kExpected1)),
-            encoded.end());
-  EXPECT_NE(std::search(encoded.begin(), encoded.end(), kExpected2,
-                        kExpected2 + base::size(kExpected2)),
-            encoded.end());
-  EXPECT_NE(std::search(encoded.begin(), encoded.end(), kExpected3,
-                        kExpected3 + base::size(kExpected3)),
-            encoded.end());
+  EXPECT_NE(base::ranges::search(encoded, kExpected1), encoded.end());
+  EXPECT_NE(base::ranges::search(encoded, kExpected2), encoded.end());
+  EXPECT_NE(base::ranges::search(encoded, kExpected3), encoded.end());
 }
 
 TEST(PNGCodec, EncodeDecodeWithVaryingCompressionLevels) {

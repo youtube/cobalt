@@ -1,12 +1,12 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/gpu/chromeos/decoder_buffer_transcryptor.h"
 
-#include "base/callback.h"
+#include "base/functional/callback.h"
+#include "base/task/bind_post_task.h"
 #include "chromeos/components/cdm_factory_daemon/chromeos_cdm_context.h"
-#include "media/base/bind_to_current_loop.h"
 
 namespace media {
 DecoderBufferTranscryptor::TranscryptTask::TranscryptTask(
@@ -36,7 +36,7 @@ DecoderBufferTranscryptor::DecoderBufferTranscryptor(
 
 DecoderBufferTranscryptor::~DecoderBufferTranscryptor() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  Reset(DecodeStatus::ABORTED);
+  Reset(DecoderStatus::Codes::kAborted);
 }
 
 void DecoderBufferTranscryptor::EnqueueBuffer(
@@ -47,7 +47,7 @@ void DecoderBufferTranscryptor::EnqueueBuffer(
   DecryptPendingBuffer();
 }
 
-void DecoderBufferTranscryptor::Reset(DecodeStatus status) {
+void DecoderBufferTranscryptor::Reset(DecoderStatus status) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (current_transcrypt_task_) {
     std::move(current_transcrypt_task_->decode_done_cb).Run(status);
@@ -90,7 +90,7 @@ void DecoderBufferTranscryptor::DecryptPendingBuffer() {
   transcrypt_pending_ = true;
   cdm_context_ref_->GetCdmContext()->GetDecryptor()->Decrypt(
       Decryptor::kVideo, current_transcrypt_task_->buffer,
-      BindToCurrentLoop(base::BindOnce(
+      base::BindPostTaskToCurrentDefault(base::BindOnce(
           &DecoderBufferTranscryptor::OnBufferTranscrypted, weak_this_)));
 }
 

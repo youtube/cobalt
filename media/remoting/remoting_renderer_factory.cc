@@ -1,10 +1,13 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/remoting/remoting_renderer_factory.h"
 
+#include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/demuxer.h"
+#include "media/cast/openscreen/remoting_message_factories.h"
 #include "media/remoting/receiver.h"
 #include "media/remoting/receiver_controller.h"
 #include "media/remoting/stream_provider.h"
@@ -17,7 +20,7 @@ namespace remoting {
 RemotingRendererFactory::RemotingRendererFactory(
     mojo::PendingRemote<mojom::Remotee> remotee,
     std::unique_ptr<RendererFactory> renderer_factory,
-    const scoped_refptr<base::SingleThreadTaskRunner>& media_task_runner)
+    const scoped_refptr<base::SequencedTaskRunner>& media_task_runner)
     : receiver_controller_(ReceiverController::GetInstance()),
       rpc_messenger_(receiver_controller_->rpc_messenger()),
       renderer_handle_(rpc_messenger_->GetUniqueHandle()),
@@ -28,13 +31,15 @@ RemotingRendererFactory::RemotingRendererFactory(
   DCHECK(receiver_controller_);
 
   // Register the callback to listen RPC_ACQUIRE_RENDERER message.
+  auto receive_callback = base::BindPostTask(
+      media_task_runner,
+      BindRepeating(&RemotingRendererFactory::OnAcquireRenderer,
+                    weak_factory_.GetWeakPtr()));
   rpc_messenger_->RegisterMessageReceiverCallback(
       RpcMessenger::kAcquireRendererHandle,
-      [ptr = weak_factory_.GetWeakPtr()](
+      [cb = std::move(receive_callback)](
           std::unique_ptr<openscreen::cast::RpcMessage> message) {
-        if (ptr) {
-          ptr->OnAcquireRenderer(std::move(message));
-        }
+        cb.Run(std::move(message));
       });
   receiver_controller_->Initialize(std::move(remotee));
 }
@@ -45,7 +50,7 @@ RemotingRendererFactory::~RemotingRendererFactory() {
 }
 
 std::unique_ptr<Renderer> RemotingRendererFactory::CreateRenderer(
-    const scoped_refptr<base::SingleThreadTaskRunner>& media_task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
     const scoped_refptr<base::TaskRunner>& worker_task_runner,
     AudioRendererSink* audio_renderer_sink,
     VideoRendererSink* video_renderer_sink,
@@ -111,11 +116,10 @@ void RemotingRendererFactory::OnAcquireRendererDone(int receiver_rpc_handle) {
   DVLOG(3) << __func__
            << ": Issues RPC_ACQUIRE_RENDERER_DONE RPC message. remote_handle="
            << remote_renderer_handle_ << " rpc_handle=" << receiver_rpc_handle;
-  openscreen::cast::RpcMessage rpc;
-  rpc.set_handle(remote_renderer_handle_);
-  rpc.set_proc(openscreen::cast::RpcMessage::RPC_ACQUIRE_RENDERER_DONE);
-  rpc.set_integer_value(receiver_rpc_handle);
-  rpc_messenger_->SendMessageToRemote(rpc);
+  auto rpc =
+      media::cast::CreateMessageForAcquireRendererDone(receiver_rpc_handle);
+  rpc->set_handle(remote_renderer_handle_);
+  rpc_messenger_->SendMessageToRemote(*rpc);
 
   // Once RPC_ACQUIRE_RENDERER_DONE is sent, it implies there is no Receiver
   // instance that is waiting the remote handle.

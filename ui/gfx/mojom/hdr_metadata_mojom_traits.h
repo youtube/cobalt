@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,19 +11,38 @@
 namespace mojo {
 
 template <>
+struct EnumTraits<gfx::mojom::HDRMode, gfx::HDRMode> {
+  static gfx::mojom::HDRMode ToMojom(gfx::HDRMode input) {
+    switch (input) {
+      case gfx::HDRMode::kDefault:
+        return gfx::mojom::HDRMode::kDefault;
+      case gfx::HDRMode::kExtended:
+        return gfx::mojom::HDRMode::kExtended;
+    }
+    NOTREACHED();
+    return gfx::mojom::HDRMode::kDefault;
+  }
+
+  static bool FromMojom(gfx::mojom::HDRMode input, gfx::HDRMode* out) {
+    switch (input) {
+      case gfx::mojom::HDRMode::kDefault:
+        *out = gfx::HDRMode::kDefault;
+        return true;
+      case gfx::mojom::HDRMode::kExtended:
+        *out = gfx::HDRMode::kExtended;
+        return true;
+    }
+    NOTREACHED();
+    return false;
+  }
+};
+
+template <>
 struct StructTraits<gfx::mojom::ColorVolumeMetadataDataView,
                     gfx::ColorVolumeMetadata> {
-  static const gfx::PointF& primary_r(const gfx::ColorVolumeMetadata& input) {
-    return input.primary_r;
-  }
-  static const gfx::PointF& primary_g(const gfx::ColorVolumeMetadata& input) {
-    return input.primary_g;
-  }
-  static const gfx::PointF& primary_b(const gfx::ColorVolumeMetadata& input) {
-    return input.primary_b;
-  }
-  static const gfx::PointF& white_point(const gfx::ColorVolumeMetadata& input) {
-    return input.white_point;
+  static const SkColorSpacePrimaries& primaries(
+      const gfx::ColorVolumeMetadata& input) {
+    return input.primaries;
   }
   static float luminance_max(const gfx::ColorVolumeMetadata& input) {
     return input.luminance_max;

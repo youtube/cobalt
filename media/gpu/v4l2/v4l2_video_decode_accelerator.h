@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,19 +12,18 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <list>
 #include <map>
 #include <memory>
 #include <queue>
 #include <utility>
 #include <vector>
 
-#include "base/functional/callback_forward.h"
 #include "base/cancelable_callback.h"
 #include "base/containers/queue.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "media/base/limits.h"
@@ -133,9 +132,9 @@ class MEDIA_GPU_EXPORT V4L2VideoDecodeAccelerator
   void Flush() override;
   void Reset() override;
   void Destroy() override;
-  bool TryToSetupDecodeOnSeparateThread(
+  bool TryToSetupDecodeOnSeparateSequence(
       const base::WeakPtr<Client>& decode_client,
-      const scoped_refptr<base::SingleThreadTaskRunner>& decode_task_runner)
+      const scoped_refptr<base::SequencedTaskRunner>& decode_task_runner)
       override;
 
   static VideoDecodeAccelerator::SupportedProfiles GetSupportedProfiles();
@@ -313,10 +312,10 @@ class MEDIA_GPU_EXPORT V4L2VideoDecodeAccelerator
   // function definition.
   void NotifyFlushDoneIfNeeded();
   // Notify the client of a flush completion.
-  void NofityFlushDone();
+  void NotifyFlushDone();
   // Returns true if VIDIOC_DECODER_CMD is supported.
   bool IsDecoderCmdSupported();
-  // Send V4L2_DEC_CMD_START to the driver. Return true if success.
+  // Send V4L2_DEC_CMD_STOP to the driver. Return true if success.
   bool SendDecoderCmdStop();
 
   // Reset() task.  Drop all input buffers. If V4L2VDA is not doing resolution
@@ -449,7 +448,7 @@ class MEDIA_GPU_EXPORT V4L2VideoDecodeAccelerator
   scoped_refptr<base::SingleThreadTaskRunner> child_task_runner_;
 
   // Task runner Decode() and PictureReady() run on.
-  scoped_refptr<base::SingleThreadTaskRunner> decode_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> decode_task_runner_;
 
   // WeakPtr<> pointing to |this| for use in posting tasks from the decoder or
   // device worker threads back to the child thread.  Because the worker threads
@@ -535,6 +534,9 @@ class MEDIA_GPU_EXPORT V4L2VideoDecodeAccelerator
   // Workaround for V4L2VideoDecodeAccelerator. This is created only if some
   // workaround is necessary for the V4L2VideoDecodeAccelerator.
   std::vector<std::unique_ptr<V4L2StatefulWorkaround>> workarounds_;
+
+  // Color space passed in from Initialize().
+  VideoColorSpace container_color_space_;
 
   //
   // Hardware state and associated queues.  Since decoder_thread_ services

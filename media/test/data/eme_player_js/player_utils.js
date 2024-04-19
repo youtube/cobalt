@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -71,6 +71,9 @@ PlayerUtils.registerEMEEventListeners = function(player) {
                   Utils.convertToUint8Array(item[0]))},status:${item[1]}}`);
         }
         Utils.timeLog('KeyStatusesChange: ' + result.join(','));
+        if (player.testConfig.playCount == 0) {
+          Utils.setResultInTitle('ENDED');
+        }
       });
     }
 
@@ -311,6 +314,7 @@ PlayerUtils.createPlayer = function(video, testConfig) {
         return WidevinePlayer;
       case CLEARKEY:
       case EXTERNAL_CLEARKEY:
+      case MEDIAFOUNDATION_CLEARKEY:
       case MESSAGE_TYPE_TEST_KEYSYSTEM:
       case CRASH_TEST_KEYSYSTEM:
         return ClearKeyPlayer;

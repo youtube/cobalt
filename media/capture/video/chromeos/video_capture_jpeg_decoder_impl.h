@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,11 @@
 #include <memory>
 #include <string>
 
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/chromeos_camera/mojo_mjpeg_decode_accelerator.h"
 #include "gpu/config/gpu_info.h"
 #include "media/capture/capture_export.h"
@@ -84,7 +84,7 @@ class CAPTURE_EXPORT VideoCaptureJpegDecoderImpl
   scoped_refptr<base::SequencedTaskRunner> decoder_task_runner_;
 
   // The underlying JPEG decode accelerator.
-  std::unique_ptr<chromeos_camera::MjpegDecodeAccelerator> decoder_;
+  std::unique_ptr<chromeos_camera::MojoMjpegDecodeAccelerator> decoder_;
 
   // The callback to run when decode succeeds.
   const DecodeDoneCB decode_done_cb_;

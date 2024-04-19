@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 #define MEDIA_BASE_MEDIA_LOG_RECORD_H_
 
 #include <stdint.h>
-#include <memory>
 
 #include "base/time/time.h"
 #include "base/values.h"
@@ -28,6 +27,14 @@ struct MediaLogRecord {
     return *this;
   }
 
+  bool operator==(const MediaLogRecord& other) const {
+    return id == other.id && type == other.type && params == other.params &&
+           time == other.time;
+  }
+  bool operator!=(const MediaLogRecord& other) const {
+    return !(*this == other);
+  }
+
   enum class Type {
     // See media/base/media_log_message_levels.h for info.
     kMessage,
@@ -38,7 +45,7 @@ struct MediaLogRecord {
     // See media/base/media_log_events.h for info.
     kMediaEventTriggered,
 
-    // TODO(tmathmeyer) use media::Status eventually instead of PipelineStatus
+    // Represents the contents some TypedStatus<T>
     kMediaStatus,
 
     kMaxValue = kMediaStatus,
@@ -46,7 +53,7 @@ struct MediaLogRecord {
 
   int32_t id;
   Type type;
-  base::Value params;
+  base::Value::Dict params;
   base::TimeTicks time;
 };
 

@@ -1,11 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef UI_GFX_ANIMATION_TEST_ANIMATION_DELEGATE_H_
 #define UI_GFX_ANIMATION_TEST_ANIMATION_DELEGATE_H_
 
-#include "base/macros.h"
 #include "base/run_loop.h"
 #include "ui/gfx/animation/animation_delegate.h"
 

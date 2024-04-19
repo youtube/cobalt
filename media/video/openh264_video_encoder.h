@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 #include "media/base/video_encoder.h"
 #include "media/base/video_frame_pool.h"
 #include "media/formats/mp4/h264_annex_b_to_avc_bitstream_converter.h"
-#include "third_party/openh264/src/codec/api/svc/codec_api.h"
+#include "third_party/openh264/src/codec/api/wels/codec_api.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -25,19 +25,22 @@ class MEDIA_EXPORT OpenH264VideoEncoder : public VideoEncoder {
   // VideoDecoder implementation.
   void Initialize(VideoCodecProfile profile,
                   const Options& options,
+                  EncoderInfoCB info_cb,
                   OutputCB output_cb,
-                  StatusCB done_cb) override;
+                  EncoderStatusCB done_cb) override;
   void Encode(scoped_refptr<VideoFrame> frame,
-              bool key_frame,
-              StatusCB done_cb) override;
+              const EncodeOptions& encode_options,
+              EncoderStatusCB done_cb) override;
   void ChangeOptions(const Options& options,
                      OutputCB output_cb,
-                     StatusCB done_cb) override;
-  void Flush(StatusCB done_cb) override;
+                     EncoderStatusCB done_cb) override;
+  void Flush(EncoderStatusCB done_cb) override;
 
  private:
-  Status DrainOutputs(const SFrameBSInfo& frame_info,
-                      base::TimeDelta timestamp);
+  EncoderStatus DrainOutputs(const SFrameBSInfo& frame_info,
+                             base::TimeDelta timestamp,
+                             gfx::ColorSpace color_space);
+  void UpdateEncoderColorSpace();
 
   class ISVCEncoderDeleter {
    public:
@@ -60,6 +63,7 @@ class MEDIA_EXPORT OpenH264VideoEncoder : public VideoEncoder {
   OutputCB output_cb_;
   std::vector<uint8_t> conversion_buffer_;
   VideoFramePool frame_pool_;
+  gfx::ColorSpace last_frame_color_space_;
 
   // If |h264_converter_| is null, we output in annexb format. Otherwise, we
   // output in avc format.

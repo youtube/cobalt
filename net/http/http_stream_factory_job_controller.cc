@@ -43,6 +43,10 @@ namespace net {
 
 namespace {
 
+#if defined(STARBOARD)
+const int kDefaultQUICServerPort = 443;
+#endif
+
 // Returns parameters associated with the proxy resolution.
 base::Value::Dict NetLogHttpStreamJobProxyServerResolved(
     const ProxyServer& proxy_server) {
@@ -1198,8 +1202,27 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
       http_server_properties.GetAlternativeServiceInfos(
           url::SchemeHostPort(original_url),
           request_info.network_anonymization_key);
+#if defined(STARBOARD)
+  // This block of code suggests QUIC connection for initial requests to a
+  // new host. This method is proven to provide performance benefit while still
+  // enabling Cobalt network module to fall back on TCP connection when QUIC
+  // fails or is too slow.
+  if (alternative_service_info_vector.empty() && session_->IsQuicEnabled() &&
+      session_->UseQuicForUnknownOrigin()) {
+    url::SchemeHostPort origin(original_url);
+    if (origin.port() == kDefaultQUICServerPort) {
+      quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
+      return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
+          AlternativeService(net::kProtoQUIC, origin.host(),
+                             kDefaultQUICServerPort),
+          base::Time::Max(), versions);
+    }
+    return AlternativeServiceInfo();
+  }
+#else
   if (alternative_service_info_vector.empty())
     return AlternativeServiceInfo();
+#endif
 
   bool quic_advertised = false;
   bool quic_all_broken = true;

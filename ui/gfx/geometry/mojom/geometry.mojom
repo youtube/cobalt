@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -85,4 +85,11 @@ struct Quaternion {
   double y;
   double z;
   double w;
+};
+
+struct QuadF {
+  PointF p1;
+  PointF p2;
+  PointF p3;
+  PointF p4;
 };

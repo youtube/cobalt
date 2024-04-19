@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,25 +6,24 @@
 
 #include <stdint.h>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/single_thread_task_runner.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/webvtt_util.h"
 
 namespace media {
 
 FakeTextTrackStream::FakeTextTrackStream()
-    : task_runner_(base::ThreadTaskRunnerHandle::Get()),
-      stopping_(false) {
-}
+    : task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
+      stopping_(false) {}
 
 FakeTextTrackStream::~FakeTextTrackStream() {
   DCHECK(!read_cb_);
 }
 
-void FakeTextTrackStream::Read(ReadCB read_cb) {
+// Only return one buffer at a time so we ignore the count.
+void FakeTextTrackStream::Read(uint32_t /*count*/, ReadCB read_cb) {
   DCHECK(read_cb);
   DCHECK(!read_cb_);
   OnRead();
@@ -72,17 +71,17 @@ void FakeTextTrackStream::SatisfyPendingRead(
   // Assume all fake text buffers are keyframes.
   buffer->set_is_key_frame(true);
 
-  std::move(read_cb_).Run(kOk, buffer);
+  std::move(read_cb_).Run(kOk, {std::move(buffer)});
 }
 
 void FakeTextTrackStream::AbortPendingRead() {
   DCHECK(read_cb_);
-  std::move(read_cb_).Run(kAborted, nullptr);
+  std::move(read_cb_).Run(kAborted, {});
 }
 
 void FakeTextTrackStream::SendEosNotification() {
   DCHECK(read_cb_);
-  std::move(read_cb_).Run(kOk, DecoderBuffer::CreateEOSBuffer());
+  std::move(read_cb_).Run(kOk, {DecoderBuffer::CreateEOSBuffer()});
 }
 
 void FakeTextTrackStream::Stop() {
