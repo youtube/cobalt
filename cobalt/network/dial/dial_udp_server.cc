@@ -140,30 +140,37 @@ void DialUdpServer::DidClose(net::UDPSocket* server) {}
 
 void DialUdpServer::DidRead(int bytes_read) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // If M-Search request was valid, send response. Else, keep quiet.
   if (!socket_ || !read_buf_.get() || !read_buf_->data()) {
     LOG(INFO) << "Dial server socket read error: no socket or buffer";
-  } else if (bytes_read <= 0) {
-    LOG(WARNING) << "Dial server socket read error: " << bytes_read;
-  } else if (ParseSearchRequest(std::string(read_buf_->data()))) {
-    auto response = std::make_unique<std::string>();
-    *response = std::move(ConstructSearchResponse());
-    // Using the fake IOBuffer to avoid another copy.
-    scoped_refptr<net::WrappedIOBuffer> fake_buffer =
-        new net::WrappedIOBuffer(response->data());
-    // After optimization, some compiler will dereference and get response size
-    // later than passing response.
-    auto response_size = response->size();
-    int result = socket_->SendTo(
-        fake_buffer.get(), response_size, client_address_,
-        base::Bind(&DialUdpServer::WriteComplete, base::Unretained(this),
-                   fake_buffer, base::Passed(&response)));
-    if (result == net::ERR_IO_PENDING) {
-      // WriteComplete is responsible for posting the next callback to accept
-      // connection.
-      return;
-    } else if (result < 0) {
-      LOG(ERROR) << "UDPSocket SendTo error: " << result;
+  } else {
+    if (bytes_read <= 0) {
+      LOG(WARNING) << "Dial server socket reads no bytes: " << bytes_read;
+    }
+
+    // ParseSearchRequest can be triggered when read bytes is zero, this will
+    // prompt a response that updates the device picker.
+    if (ParseSearchRequest(std::string(read_buf_->data()))) {
+      LOG(INFO) << "Dial server socket parses search request with "
+                << bytes_read << " bytes read";
+      auto response = std::make_unique<std::string>();
+      *response = std::move(ConstructSearchResponse());
+      // Using the fake IOBuffer to avoid another copy.
+      scoped_refptr<net::WrappedIOBuffer> fake_buffer =
+          new net::WrappedIOBuffer(response->data());
+      // After optimization, some compiler will dereference and get response
+      // size later than passing response.
+      auto response_size = response->size();
+      int result = socket_->SendTo(
+          fake_buffer.get(), response_size, client_address_,
+          base::Bind(&DialUdpServer::WriteComplete, base::Unretained(this),
+                     fake_buffer, base::Passed(&response)));
+      if (result == net::ERR_IO_PENDING) {
+        // WriteComplete is responsible for posting the next callback to accept
+        // connection.
+        return;
+      } else if (result < 0) {
+        LOG(ERROR) << "UDPSocket SendTo error: " << result;
+      }
     }
   }
 
