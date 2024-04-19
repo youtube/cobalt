@@ -101,6 +101,7 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
       QueueApplication(sb_event_handle_callback),
 #endif  // SB_API_VERSION >= 15
       last_is_accessibility_high_contrast_text_enabled_(false) {
+  handle_system_events_.store(true);
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
   tzset();
@@ -209,7 +210,7 @@ bool ApplicationAndroid::DestroyWindow(SbWindow window) {
 
 Event* ApplicationAndroid::WaitForSystemEventWithTimeout(int64_t time) {
   // Limit the polling time in case some non-system event is injected.
-  const int kMaxPollingTimeMillisecond = 10;
+  const int kMaxPollingTimeMillisecond = 1000;
 
   // Convert from microseconds to milliseconds, taking the ceiling value.
   // If we take the floor, or round, then we end up busy looping every time
@@ -220,12 +221,12 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(int64_t time) {
           ? (time + 1000 - 1) / 1000
           : INT_MAX;
   int looper_events;
-  int ident = ALooper_pollAll(
+  int ident = ALooper_pollOnce(
       std::min(std::max(timeout_millis, 0), kMaxPollingTimeMillisecond), NULL,
       &looper_events, NULL);
 
   // Ignore new system events while processing one.
-  handle_system_events_ = false;
+  handle_system_events_.store(false);
 
   switch (ident) {
     case kLooperIdAndroidCommand:
@@ -236,7 +237,7 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(int64_t time) {
       break;
   }
 
-  handle_system_events_ = true;
+  handle_system_events_.store(true);
 
   // Always return NULL since we already dispatched our own system events.
   return NULL;
@@ -244,11 +245,6 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(int64_t time) {
 
 void ApplicationAndroid::WakeSystemEventWait() {
   ALooper_wake(looper_);
-}
-
-void ApplicationAndroid::Inject(Event* event) {
-  QueueApplication::Inject(event);
-  WakeSystemEventWait();
 }
 
 void ApplicationAndroid::OnResume() {
