@@ -381,12 +381,6 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
   sb_media_color_metadata.matrix =
       static_cast<SbMediaMatrixId>(color_space.matrix);
 
-#if SB_API_VERSION < 14
-  if (color_space.matrix == VideoColorSpace::MatrixID::INVALID) {
-    sb_media_color_metadata.matrix = kSbMediaMatrixIdUnknown;
-  }
-#endif  // SB_API_VERSION < 14
-
   sb_media_color_metadata.range =
       static_cast<SbMediaRangeId>(color_space.range);
   // TODO(b/230915942): Revisit to see if we have to support custom primary id.

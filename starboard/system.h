@@ -58,11 +58,6 @@ typedef enum SbSystemPathId {
   // Path to a directory where temporary files can be written.
   kSbSystemPathTempDirectory,
 
-#if SB_API_VERSION < 14
-  // Path to a directory where test results can be written.
-  kSbSystemPathTestOutputDirectory,
-#endif  // #if SB_API_VERSION < 14
-
   // Full path to the executable file.
   kSbSystemPathExecutableFile,
 
@@ -175,20 +170,6 @@ typedef enum SbSystemDeviceType {
   kSbSystemDeviceTypeUnknown,
 } SbSystemDeviceType;
 #endif  // SB_API_VERSION < 15
-
-#if SB_API_VERSION < 14
-// Enumeration of network connection types.
-typedef enum SbSystemConnectionType {
-  // The system is on a wired connection.
-  kSbSystemConnectionTypeWired,
-
-  // The system is on a wireless connection.
-  kSbSystemConnectionTypeWireless,
-
-  // The system connection type is unknown.
-  kSbSystemConnectionTypeUnknown,
-} SbSystemConnectionType;
-#endif  // SB_API_VERSION < 14
 
 // Runtime capabilities are boolean properties of a platform that can't be
 // determined at compile-time. They may vary from device to device, but they
@@ -311,11 +292,6 @@ SB_EXPORT int64_t SbSystemGetUsedGPUMemory();
 // Returns the type of the device.
 SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
 #endif
-
-#if SB_API_VERSION < 14
-// Returns the device's current network connection type.
-SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
-#endif  // SB_API_VERSION < 14
 
 // Returns if the device is disconnected from network. "Disconnected" is chosen
 // over connected because disconnection can be determined with more certainty

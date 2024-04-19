@@ -22,7 +22,6 @@
 #include "cobalt/web/environment_settings_helper.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
 #include "starboard/common/system_property.h"
-#include "starboard/extension/ifa.h"
 #include "starboard/system.h"
 
 using starboard::kSystemPropertyMaxLength;

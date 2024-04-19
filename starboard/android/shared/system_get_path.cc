@@ -135,13 +135,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
-#if SB_API_VERSION < 14
-    case kSbSystemPathTestOutputDirectory: {
-      return SbSystemGetPath(kSbSystemPathDebugOutputDirectory, out_path,
-                             path_size);
-    }
-#endif
-
     // We return the library directory as the "executable" since:
     // a) Unlike the .so itself, it has a valid timestamp of the app install.
     // b) Its parent directory is still a directory within our app package.
