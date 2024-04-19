@@ -140,15 +140,12 @@ void DialUdpServer::DidClose(net::UDPSocket* server) {}
 
 void DialUdpServer::DidRead(int bytes_read) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (!socket_ || !read_buf_.get() || !read_buf_->data()) {
-    return;
-  }
-  if (bytes_read <= 0) {
-    LOG(WARNING) << "Dial server socket read error: " << bytes_read;
-    // Do not return the function here, but keep accepting M-Search requests.
-  }
   // If M-Search request was valid, send response. Else, keep quiet.
-  if (ParseSearchRequest(std::string(read_buf_->data()))) {
+  if (!socket_ || !read_buf_.get() || !read_buf_->data()) {
+    LOG(INFO) << "Dial server socket read error: no socket or buffer";
+  } else if (bytes_read <= 0) {
+    LOG(WARNING) << "Dial server socket read error: " << bytes_read;
+  } else if (ParseSearchRequest(std::string(read_buf_->data()))) {
     auto response = std::make_unique<std::string>();
     *response = std::move(ConstructSearchResponse());
     // Using the fake IOBuffer to avoid another copy.
