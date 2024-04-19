@@ -24,6 +24,8 @@
 #include <windows.h>
 #include <windows.system.display.h>
 
+#include <unistd.h>
+
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -333,7 +335,7 @@ std::string GetBinaryName() {
 void OnDeviceAdded(DeviceWatcher ^, DeviceInformation ^) {
   SB_LOG(INFO) << "DisplayStatusWatcher::OnDeviceAdded";
   // We need delay to give time for the display initializing after connect.
-  SbThreadSleep(15'000);
+  usleep(15'000);
 
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 
@@ -716,8 +718,7 @@ ref class App sealed : public IFrameworkView {
         std::stringstream ss;
         ss << platformStringToString(
             Windows::Storage::ApplicationData::Current->LocalCacheFolder->Path);
-        ss << "\\"
-           << "" << command_line->GetSwitchValue(kLogPathSwitch);
+        ss << "\\" << "" << command_line->GetSwitchValue(kLogPathSwitch);
         std::string full_path_log_file = ss.str();
         shared::uwp::OpenLogFileWin32(full_path_log_file.c_str());
       } else {

@@ -15,6 +15,8 @@
 #ifndef COBALT_DOM_SERIALIZED_ALGORITHM_RUNNER_H_
 #define COBALT_DOM_SERIALIZED_ALGORITHM_RUNNER_H_
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <memory>
 #include <utility>
@@ -101,7 +103,7 @@ class SerializedAlgorithmRunner {
             if (mutex_.AcquireTry()) {
               break;
             }
-            SbThreadSleep(wait_interval_usec);
+            usleep(static_cast<unsigned int>(wait_interval_usec));
             // Double the wait interval upon every failure, but cap it at
             // kMaxWaitIntervalUsec.
             wait_interval_usec =

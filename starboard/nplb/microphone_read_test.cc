@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "starboard/microphone.h"
 #include "starboard/nplb/microphone_helpers.h"
 #include "starboard/thread.h"
@@ -88,7 +90,7 @@ TEST(SbMicrophoneReadTest, SunnyDayOpenSleepCloseAndOpenRead) {
 
     EXPECT_TRUE(SbMicrophoneOpen(microphone));
 
-    SbThreadSleep(50'000);
+    usleep(50'000);
 
     EXPECT_TRUE(SbMicrophoneClose(microphone));
     EXPECT_TRUE(SbMicrophoneOpen(microphone));

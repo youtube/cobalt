@@ -14,6 +14,8 @@
 
 #include "cobalt/media_session/media_session.h"
 
+#include <unistd.h>
+
 #include <limits>
 #include <memory>
 
@@ -74,7 +76,7 @@ class MockMediaSessionClient : public MediaSessionClient {
       if (current_change_count != session_change_count_) {
         break;
       }
-      SbThreadSleep(1 * base::Time::kMicrosecondsPerMillisecond);
+      usleep(1 * base::Time::kMicrosecondsPerMillisecond);
     }
   }
   MediaSessionState GetMediaSessionState() const { return session_state_; }

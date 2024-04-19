@@ -15,6 +15,8 @@
 // SendTo is largely tested with ReceiveFrom, so look there for more involved
 // tests.
 
+#include <unistd.h>
+
 #include <utility>
 
 #include "starboard/common/socket.h"
@@ -169,7 +171,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
   int kNumRetries = 1000;
   for (int i = 0; i < kNumRetries; ++i) {
     char buff[kChunkSize] = {};
-    SbThreadSleep(1000);
+    usleep(1000);
     int result = trio->client_socket->SendTo(buff, sizeof(buff), NULL);
 
     if (result < 0) {
