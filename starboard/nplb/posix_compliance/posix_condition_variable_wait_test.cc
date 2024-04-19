@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/thread.h"
@@ -29,7 +31,7 @@ void* PosixTakeThenSignalEntryPoint(void* context) {
   test_context->do_signal.Take();
 
   if (test_context->delay_after_signal > 0) {
-    SbThreadSleep(test_context->delay_after_signal);
+    usleep(test_context->delay_after_signal);
   }
 
   // Signal the condition variable.

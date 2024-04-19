@@ -16,6 +16,8 @@
 
 #include <alsa/asoundlib.h>
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <vector>
 
@@ -281,7 +283,7 @@ bool AlsaAudioSink::IdleLoop() {
       AlsaWriteFrames(playback_handle_, silence_frames_, kFramesPerRequest);
       AlsaDrain(playback_handle_);
     }
-    SbThreadSleep(time_to_wait_);
+    usleep(time_to_wait_);
   }
 
   return false;
@@ -324,7 +326,7 @@ bool AlsaAudioSink::PlaybackLoop() {
       WriteFrames(playback_rate, std::min(kFramesPerRequest, frames_in_buffer),
                   frames_in_buffer, offset_in_frames);
     } else {
-      SbThreadSleep(time_to_wait_);
+      usleep(time_to_wait_);
     }
   }
 

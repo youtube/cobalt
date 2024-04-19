@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/net_args.h"
 
+#include <unistd.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -90,7 +92,7 @@ std::unique_ptr<Socket> WaitForClientConnection(Socket* listen_sock,
     if (CurrentMonotonicTime() > expire_time) {
       return std::unique_ptr<Socket>();
     }
-    SbThreadSleep(1000);
+    usleep(1000);
   }
 }
 

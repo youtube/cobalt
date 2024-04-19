@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <cmath>
 #include <deque>
@@ -155,7 +157,7 @@ class AdaptiveAudioDecoderTest
           return;
         }
       }
-      SbThreadSleep(1000);
+      usleep(1000);
     }
     *event = kError;
     FAIL();

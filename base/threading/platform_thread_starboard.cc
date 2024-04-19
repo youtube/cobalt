@@ -15,6 +15,7 @@
 #include "base/threading/platform_thread.h"
 
 #include <sched.h>
+#include <unistd.h>
 
 #include "base/logging.h"
 #include "base/threading/thread_id_name_manager.h"
@@ -120,7 +121,7 @@ void PlatformThread::YieldCurrentThread() {
 
 // static
 void PlatformThread::Sleep(TimeDelta duration) {
-  SbThreadSleep(duration.InMicroseconds());
+  usleep(duration.InMicroseconds());
 }
 
 // static

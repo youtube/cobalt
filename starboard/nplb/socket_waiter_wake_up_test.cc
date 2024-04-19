@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "starboard/common/time.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/nplb/thread_helpers.h"
@@ -41,7 +43,7 @@ void* WakeUpSleepEntryPoint(void* context) {
   WakeUpContext* wake_up_context = reinterpret_cast<WakeUpContext*>(context);
   SbSocketWaiter waiter = wake_up_context->waiter;
   wake_up_context->semaphore.Take();
-  SbThreadSleep(kSocketTimeout);
+  usleep(kSocketTimeout);
   SbSocketWaiterWakeUp(waiter);
   return NULL;
 }

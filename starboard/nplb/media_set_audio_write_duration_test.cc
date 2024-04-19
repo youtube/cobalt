@@ -14,6 +14,8 @@
 
 #include "starboard/media.h"
 
+#include <unistd.h>
+
 #include "starboard/common/optional.h"
 #include "starboard/common/spin_lock.h"
 #include "starboard/common/time.h"
@@ -133,7 +135,7 @@ class SbMediaSetAudioWriteDurationTest
     const int64_t kMaxWaitTime = 3'000'000LL;  // 3 seconds
     while (player_state_ != desired_state &&
            (CurrentMonotonicTime() - start_of_wait) < kMaxWaitTime) {
-      SbThreadSleep(kSmallWaitInterval);
+      usleep(kSmallWaitInterval);
       TryToWritePendingSample();
     }
     ASSERT_EQ(desired_state, player_state_);
@@ -210,7 +212,7 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
 #endif  // SB_API_VERSION >= 15
   while (CurrentMonotonicTime() - start_of_wait < kMaxWaitTime &&
          info.current_media_timestamp == 0) {
-    SbThreadSleep(500'000);
+    usleep(500'000);
 #if SB_API_VERSION >= 15
     SbPlayerGetInfo(player, &info);
 #else   // SB_API_VERSION >= 15
@@ -264,7 +266,7 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
 #else   // SB_API_VERSION >= 15
     SbPlayerGetInfo2(player, &info);
 #endif  // SB_API_VERSION >= 15
-    SbThreadSleep(kSmallWaitInterval);
+    usleep(kSmallWaitInterval);
     TryToWritePendingSample();
   }
   EXPECT_GE(info.current_media_timestamp, min_ending_playback_time);

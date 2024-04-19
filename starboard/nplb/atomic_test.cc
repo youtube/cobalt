@@ -15,6 +15,7 @@
 // Adapted from base's atomicops_unittest.
 
 #include <sched.h>
+#include <unistd.h>
 
 #include "starboard/common/atomic.h"
 #include "starboard/memory.h"
@@ -341,7 +342,7 @@ template <class SbAtomicType>
 void* TestOnceEntryPoint(void* raw_context) {
   // Force every thread to sleep immediately so the first thread doesn't always
   // just win.
-  SbThreadSleep(1000);
+  usleep(1000);
   TestOnceContext<SbAtomicType>* context =
       reinterpret_cast<TestOnceContext<SbAtomicType>*>(raw_context);
   SetData(context->state, context->out_data, context->data, context->size);
