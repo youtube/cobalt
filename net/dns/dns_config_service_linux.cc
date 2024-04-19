@@ -340,6 +340,34 @@ class DnsConfigServiceLinux::Watcher : public DnsConfigService::Watcher {
     CheckOnCorrectSequence();
 
     bool success = true;
+/* Cobalt
+    if (!resolv_watcher_.Watch(
+            base::FilePath(kFilePathResolv),
+            base::FilePathWatcher::Type::kNonRecursive,
+            base::BindRepeating(&Watcher::OnResolvFilePathWatcherChange,
+                                base::Unretained(this)))) {
+      LOG(ERROR) << "DNS config (resolv.conf) watch failed to start.";
+      success = false;
+    }
+
+    if (!nsswitch_watcher_.Watch(
+            base::FilePath(kFilePathNsswitch),
+            base::FilePathWatcher::Type::kNonRecursive,
+            base::BindRepeating(&Watcher::OnNsswitchFilePathWatcherChange,
+                                base::Unretained(this)))) {
+      LOG(ERROR) << "DNS nsswitch.conf watch failed to start.";
+      success = false;
+    }
+
+    if (!hosts_watcher_.Watch(
+            base::FilePath(kFilePathHosts),
+            base::FilePathWatcher::Type::kNonRecursive,
+            base::BindRepeating(&Watcher::OnHostsFilePathWatcherChange,
+                                base::Unretained(this)))) {
+      LOG(ERROR) << "DNS hosts watch failed to start.";
+      success = false;
+    }
+Cobalt */
     return success;
   }
 
@@ -357,6 +385,12 @@ class DnsConfigServiceLinux::Watcher : public DnsConfigService::Watcher {
   void OnHostsFilePathWatcherChange(const base::FilePath& path, bool error) {
     OnHostsChanged(!error);
   }
+
+/* Cobalt
+  base::FilePathWatcher resolv_watcher_;
+  base::FilePathWatcher nsswitch_watcher_;
+  base::FilePathWatcher hosts_watcher_;
+Cobalt */
 };
 
 // A SerialWorker that uses libresolv to initialize res_state and converts

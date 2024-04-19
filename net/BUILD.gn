@@ -1234,8 +1234,6 @@ component("net") {
     sources += [
       "base/network_change_notifier_linux.cc",
       "base/network_change_notifier_linux.h",
-      "base/network_interfaces_linux.cc",
-      "base/platform_mime_util_linux.cc",
       "proxy_resolution/proxy_config_service_linux.cc",
       "proxy_resolution/proxy_config_service_linux.h",
     ]
@@ -1710,7 +1708,6 @@ source_set("net_deps") {
     ":cronet_buildflags",
     ":isolation_info_proto",
     ":net_export_header",
-
     ":net_resources",
     ":preload_decoder",
     "//base",
@@ -1719,7 +1716,6 @@ source_set("net_deps") {
     "//third_party/protobuf:protobuf_lite",
     "//third_party/zlib",
     "//url:buildflags",
-
     "//third_party/boringssl",
   ]
 
@@ -2146,7 +2142,7 @@ static_library("test_support") {
     ]
     if (is_win) {
       sources += [ "test/spawned_test_server/local_test_server_win.cc" ]
-    } else if (is_posix) {
+    } else if (is_posix || is_fuchsia) {
       sources += [ "test/spawned_test_server/local_test_server_posix.cc" ]
     }
   }
@@ -2216,7 +2212,10 @@ if (!is_ios && !is_android && !use_cobalt_customizations) {
 
   proto_library("cert_verify_comparison_tool_proto") {
     sources = [ "tools/cert_verify_tool/dumper.proto" ]
-    # visibility = [ ":cert_verify_comparison_tool" ]
+
+if (!use_cobalt_customizations) {
+    visibility = [ ":cert_verify_comparison_tool" ]
+}
   }
 
   executable("cert_verify_comparison_tool") {
@@ -5398,8 +5397,7 @@ if (!use_cobalt_customizations) {
 proto_library("backoff_entry_serializer_fuzzer_input") {
   proto_in_dir = "//"
   sources = [ "base/backoff_entry_serializer_fuzzer_input.proto" ]
-
-  # link_deps = [ "//testing/libfuzzer/proto:json_proto" ]
+  link_deps = [ "//testing/libfuzzer/proto:json_proto" ]
 }
 
 fuzzer_test("net_backoff_entry_serializer_fuzzer") {
@@ -6005,8 +6003,7 @@ if (!use_cobalt_customizations) {
 proto_library("reporting_policy_proto") {
   proto_in_dir = "//"
   sources = [ "reporting/reporting_policy.proto" ]
-
-  # link_deps = [ "//testing/libfuzzer/proto:json_proto" ]
+  link_deps = [ "//testing/libfuzzer/proto:json_proto" ]
 }
 }
 
