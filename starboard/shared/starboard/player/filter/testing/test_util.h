@@ -56,10 +56,11 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     const char* extra_mime_attributes = "");
 std::vector<VideoTestParam> GetSupportedVideoTests();
 
-bool CreateAudioComponents(bool using_stub_decoder,
-                           const media::AudioStreamInfo& audio_stream_info,
-                           scoped_ptr<AudioDecoder>* audio_decoder,
-                           scoped_ptr<AudioRendererSink>* audio_renderer_sink);
+bool CreateAudioComponents(
+    bool using_stub_decoder,
+    const media::AudioStreamInfo& audio_stream_info,
+    unique_ptr_alias<AudioDecoder>* audio_decoder,
+    unique_ptr_alias<AudioRendererSink>* audio_renderer_sink);
 
 ::testing::AssertionResult AlmostEqualTime(int64_t time1, int64_t time2);
 

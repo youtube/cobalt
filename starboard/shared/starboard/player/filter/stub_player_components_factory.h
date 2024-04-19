@@ -28,14 +28,14 @@ namespace filter {
 
 class StubPlayerComponentsFactory : public PlayerComponents::Factory {
  public:
-  static scoped_ptr<PlayerComponents::Factory> Create();
+  static unique_ptr_alias<PlayerComponents::Factory> Create();
 
   bool CreateSubComponents(
       const CreationParameters& creation_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-      scoped_ptr<VideoDecoder>* video_decoder,
-      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      unique_ptr_alias<AudioDecoder>* audio_decoder,
+      unique_ptr_alias<AudioRendererSink>* audio_renderer_sink,
+      unique_ptr_alias<VideoDecoder>* video_decoder,
+      unique_ptr_alias<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);

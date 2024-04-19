@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 
+#include <memory>
 #include <utility>
 
 #include "starboard/common/log.h"
@@ -88,7 +89,7 @@ class JobThread {
   void RunLoop();
 
   SbThread thread_;
-  scoped_ptr<JobQueue> job_queue_;
+  std::unique_ptr<JobQueue> job_queue_;
 };
 
 }  // namespace player

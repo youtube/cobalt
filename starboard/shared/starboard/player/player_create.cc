@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <string>
+#include <utility>
 
 #include "starboard/player.h"
 
@@ -210,12 +211,12 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
-  starboard::scoped_ptr<PlayerWorker::Handler> handler(
+  starboard::unique_ptr_alias<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
 
   SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context, handler.Pass());
+      player_status_func, player_error_func, context, std::move(handler));
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;

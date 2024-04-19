@@ -132,7 +132,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   // Create three more decoders for each supported combinations.
   const int kDecodersToCreate = 3;
 
-  scoped_ptr<PlayerComponents::Factory> factory =
+  unique_ptr_alias<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
 
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
@@ -149,8 +149,8 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
         if (PlayerComponents::Factory::OutputModeSupported(
                 output_mode, video_codec, kSbDrmSystemInvalid)) {
           SbPlayerPrivate players[kDecodersToCreate];
-          scoped_ptr<VideoDecoder> video_decoders[kDecodersToCreate];
-          scoped_ptr<VideoRenderAlgorithm>
+          unique_ptr_alias<VideoDecoder> video_decoders[kDecodersToCreate];
+          unique_ptr_alias<VideoRenderAlgorithm>
               video_render_algorithms[kDecodersToCreate];
           scoped_refptr<VideoRendererSink>
               video_renderer_sinks[kDecodersToCreate];
