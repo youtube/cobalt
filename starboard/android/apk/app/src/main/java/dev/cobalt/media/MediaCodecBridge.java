@@ -763,9 +763,6 @@ class MediaCodecBridge {
   @UsedByNative
   public void release() {
     try {
-      mMediaCodec.setCallback(null);
-      mCallback = null;
-
       String codecName = mMediaCodec.getName();
       Log.w(TAG, "calling MediaCodec.release() on " + codecName);
       mMediaCodec.release();
