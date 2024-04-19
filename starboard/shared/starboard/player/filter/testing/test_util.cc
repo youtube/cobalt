@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 
+#include <unistd.h>
+
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/directory.h"
@@ -200,7 +202,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
           test_params.push_back(std::make_tuple(filename, output_mode));
           break;
         } else if (need_to_check_with_wait && !decoder_has_been_checked_once) {
-          SbThreadSleep(1'000'000);
+          usleep(1'000'000);
         } else {
           break;
         }

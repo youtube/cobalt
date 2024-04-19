@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This is a test app for Evergreen that does nothing.
-
 #include <unistd.h>
+#include <windows.h>
 
-#include "base/time/time.h"
-#include "starboard/event.h"
-#include "starboard/system.h"
-#include "starboard/thread.h"
+#include "starboard/shared/win32/time_utils.h"
 
-void SbEventHandle(const SbEvent* event) {
-  // No-op app. Exit after 1s.
-  usleep(1 * base::Time::kMicrosecondsPerSecond);
-  SbSystemRequestStop(0);
+using starboard::shared::win32::ConvertUsecToMillisRoundUp;
+
+extern "C" {
+
+int usleep(unsigned int useconds) {
+  Sleep(ConvertUsecToMillisRoundUp(useconds));
+  return 0;
+}
 }

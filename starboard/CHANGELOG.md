@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated `SbThreadSleep`
+Replaced the `SbThreadSleep` with the POSIX usleep() defined in the
+`<unistd.h>` header.
+
 ### MAP_EXECUTABLE_MEMORY changed from build-time to runtime config
 SB_CAN_MAP_EXECUTABLE_MEMORY has been refactored into a run-time configuration
 constant `kSbCanMapExecutableMemory`.

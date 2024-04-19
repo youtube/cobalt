@@ -14,6 +14,8 @@
 
 #include "cobalt/media/base/cval_stats.h"
 
+#include <unistd.h>
+
 #include <set>
 #include <string>
 
@@ -58,7 +60,7 @@ TEST(MediaCValStatsTest, NothingRecorded) {
   CValStats cval_stats_;
 
   cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-  SbThreadSleep(kSleepTime.InMicroseconds());
+  usleep(kSleepTime.InMicroseconds());
 
   cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
 
@@ -75,7 +77,7 @@ TEST(MediaCValStatsTest, EnableRecording) {
   cval_stats_.Enable(true);
 
   cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-  SbThreadSleep(kSleepTime.InMicroseconds());
+  usleep(kSleepTime.InMicroseconds());
   cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
 
   base::Optional<std::string> result = cvm->GetValueAsString(kCValnameLatest);
@@ -100,7 +102,7 @@ TEST(MediaCValStatsTest, DontGenerateHistoricalData) {
 
   for (int i = 0; i < kMediaDefaultMaxSamplesBeforeCalculation - 1; i++) {
     cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-    SbThreadSleep(kSleepTime.InMicroseconds());
+    usleep(kSleepTime.InMicroseconds());
     cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
   }
 
@@ -126,7 +128,7 @@ TEST(MediaCValStatsTest, GenerateHistoricalData) {
 
   for (int i = 0; i < kMediaDefaultMaxSamplesBeforeCalculation; i++) {
     cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-    SbThreadSleep(kSleepTime.InMicroseconds());
+    usleep(kSleepTime.InMicroseconds());
     cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
   }
 

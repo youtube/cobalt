@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "cobalt/trace_event/benchmark.h"
-
-#if defined(STARBOARD)
-#include "starboard/thread.h"
-#define usleep(usec) SbThreadSleep(usec)
-#endif
 
 // A sample simple benchmark that tracks only a single event, in this case,
 // "LoopIteration".

@@ -392,8 +392,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbThreadSetLocalValue);
   REGISTER_SYMBOL(SbThreadSetName);
-  REGISTER_SYMBOL(SbThreadSleep);
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
@@ -470,6 +470,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);
+  REGISTER_SYMBOL(usleep);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate

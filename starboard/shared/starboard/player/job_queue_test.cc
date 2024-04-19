@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/job_queue.h"
 
+#include <unistd.h>
+
 #include <atomic>
 #include <vector>
 
@@ -57,7 +59,7 @@ TEST_F(JobQueueTest, OwnedScheduledJobsAreExecutedInOrder) {
   Schedule([&]() { values.push_back(8); }, 3 * kPrecisionUsec);
 
   // Sleep past the last scheduled job.
-  SbThreadSleep(4 * kPrecisionUsec);
+  usleep(4 * kPrecisionUsec);
   job_queue_.RunUntilIdle();
 
   EXPECT_THAT(values, ElementsAre(1, 2, 3, 4, 5, 6, 7, 8));

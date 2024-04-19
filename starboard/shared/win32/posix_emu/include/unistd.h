@@ -23,6 +23,8 @@ extern "C" {
 // located in socket.cc.
 int close(int fd);
 
+int usleep(unsigned int useconds);
+
 #ifdef __cplusplus
 }
 #endif  // __cplusplus

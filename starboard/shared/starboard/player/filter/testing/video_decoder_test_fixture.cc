@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/testing/video_decoder_test_fixture.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <deque>
 #include <functional>
@@ -180,14 +182,14 @@ void VideoDecoderTestFixture::WaitForNextEvent(Event* event, int64_t timeout) {
         return;
       }
     }
-    SbThreadSleep(1000);
+    usleep(1000);
   } while (CurrentMonotonicTime() - start < timeout);
   event->status = kTimeout;
   SB_LOG(WARNING) << "WaitForNextEvent() timeout.";
 }
 
 bool VideoDecoderTestFixture::HasPendingEvents() {
-  SbThreadSleep(5000);
+  usleep(5000);
   ScopedLock scoped_lock(mutex_);
   return !event_queue_.empty();
 }

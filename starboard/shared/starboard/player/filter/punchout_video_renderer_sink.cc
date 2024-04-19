@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
 
+#include <unistd.h>
+
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
@@ -75,7 +77,7 @@ void PunchoutVideoRendererSink::SetBounds(int z_index,
 void PunchoutVideoRendererSink::RunLoop() {
   while (!stop_requested_.load()) {
     render_cb_(std::bind(&PunchoutVideoRendererSink::DrawFrame, this, _1, _2));
-    SbThreadSleep(render_interval_);
+    usleep(render_interval_);
   }
   ScopedLock lock(mutex_);
   shared::starboard::Application::Get()->HandleFrame(

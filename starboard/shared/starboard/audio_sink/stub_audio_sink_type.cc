@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 
 #include "starboard/common/mutex.h"
@@ -113,11 +115,11 @@ void StubAudioSink::AudioThreadFunc() {
       int frames_to_consume =
           std::min(kMaxFramesToConsumePerRequest, frames_in_buffer);
 
-      SbThreadSleep(frames_to_consume * 1'000'000LL / sampling_frequency_hz_);
+      usleep(frames_to_consume * 1'000'000LL / sampling_frequency_hz_);
       consume_frames_func_(frames_to_consume, CurrentMonotonicTime(), context_);
     } else {
       // Wait for five millisecond if we are paused.
-      SbThreadSleep(5'000);
+      usleep(5'000);
     }
   }
 }

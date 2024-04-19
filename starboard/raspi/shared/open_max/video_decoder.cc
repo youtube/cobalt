@@ -14,6 +14,8 @@
 
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 
+#include <unistd.h>
+
 namespace starboard {
 namespace raspi {
 namespace shared {
@@ -77,7 +79,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   const auto& input_buffer = input_buffers[0];
   queue_.Put(new Event(input_buffer));
   if (!TryToDeliverOneFrame()) {
-    SbThreadSleep(1000);
+    usleep(1000);
     // Call the callback with NULL frame to ensure that the host knows that
     // more data is expected.
     decoder_status_cb_(kNeedMoreInput, NULL);
@@ -185,7 +187,7 @@ void VideoDecoder::RunLoop() {
         current_buffer = NULL;
         offset = 0;
       } else {
-        SbThreadSleep(1000);
+        usleep(1000);
         continue;
       }
     }
