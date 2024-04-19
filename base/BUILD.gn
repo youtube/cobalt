@@ -994,6 +994,7 @@ component("base") {
       "synchronization/condition_variable_starboard.cc",
       "synchronization/lock_impl_starboard.cc",
       "synchronization/waitable_event_starboard.cc",
+      "synchronization/waitable_event_watcher_starboard.cc",
       "sys_info_starboard.cc",
       "threading/platform_thread_starboard.cc",
       "threading/thread_local_storage_starboard.cc",
@@ -3894,6 +3895,10 @@ test("base_unittests") {
 
   if (build_allocation_stack_trace_recorder) {
     sources += [ "debug/allocation_trace_unittest.cc" ]
+  }
+
+  if (is_starboard) {
+    sources += [ "message_loop/message_pump_io_starboard_unittest.cc" ]
   }
 
   if (is_ios && !is_starboard) {

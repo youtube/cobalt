@@ -16,57 +16,65 @@
 -->
 
 <html>
-
 <head>
-    <title>Cobalt Telemetry Test</title>
-    <script src='black_box_js_test_utils.js'></script>
+  <title>Cobalt Telemetry Test</title>
+  <script src='black_box_js_test_utils.js'></script>
 </head>
-
 <body>
-    <script>
-        const metrics = window.h5vcc.metrics;
-        const EVENT_INTERVAL_SECS = 5;
-        let lastMetricType = '';
-        let lastPayload = '';
-        let payloadCount = 0;
+  <script>
+setTimeout(notReached, 20000);
+const {metrics} = window.h5vcc;
+const now = () => new Date().getTime();
+const start = now();
+const elapsed = () => now() - start;
+const expectedEventCount = 2;
 
-        function metricEventHandler(metricType, payload) {
-            lastMetricType = metricType;
-            lastPayload = payload;
-            payloadCount++;
-        }
+let resolverIndex = 0;
+const resolvers = [];
+const resolveNext = () => {
+  if (resolverIndex >= resolvers.length) {
+    notReached('Unexpected event.')
+    console.error(`Resolver ${resolverIndex} does not exist.`);
+    return;
+  }
+  resolvers[resolverIndex]();
+  resolverIndex++
+};
+const promises = Array.from({length: expectedEventCount}, () =>
+    new Promise(resolve => {
+      resolvers.push(resolve);
+    }));
 
-        function initTelemetry() {
-            metrics.enable();
-            metrics.setMetricEventInterval(EVENT_INTERVAL_SECS);
-            metrics.onMetricEvent(metricEventHandler);
-        }
-        window.onload = function () {
-            initTelemetry();
+window.addEventListener('load', () => {
+  metrics.setMetricEventInterval(/*intervalSeconds=*/5);
+  metrics.onMetricEvent((metricType, payload) => {
+    if (resolverIndex === 0) {
+      assertTrue(elapsed() < 4000);
+    } else if (resolverIndex === 1) {
+      assertTrue(elapsed() > 4000);
+      assertTrue(elapsed() < 10000);
+    }
+    assertTrue(metrics.isEnabled());
+    assertEqual('COBALT_UMA', metricType);
+    assertTrue(payload.length > 0);
+    resolveNext();
+  });
 
-            setupFinished();
+  metrics.disable()
+    .then(() => {
+      assertFalse(metrics.isEnabled());
+    }).then(() => metrics.enable())
+    .then(() => {
+      assertTrue(metrics.isEnabled());
+    }).then(() => Promise.all(promises))
+    .then(() => metrics.disable())
+    .then(() => {
+      assertFalse(metrics.isEnabled());
+      onEndTest();
+    });
 
-            setTimeout(() => {
-                assertTrue(metrics.isEnabled(), 'metrics should be enabled');
-                assertEqual('COBALT_UMA', lastMetricType, 'metricType should be uma');
-                assertTrue(lastPayload.length > 0, 'payload should be non-empty');
-                assertEqual(1, payloadCount, 'only one payload sent');
-            }, 4000);
-
-            setTimeout(() => {
-                assertEqual('COBALT_UMA', lastMetricType, 'metricType should be uma');
-                assertTrue(lastPayload.length > 0, 'payload should be non-empty');
-                assertEqual(2, payloadCount, 'two payloads sent');
-
-                metrics.disable();
-
-                setTimeout(() => {
-                    assertFalse(metrics.isEnabled(), 'should disable metrics');
-                    onEndTest();
-                }, 1000);
-            }, 11000);
-        }
-    </script>
+  setupFinished();
+});
+  </script>
 </body>
-
 </html>

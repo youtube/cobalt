@@ -25,11 +25,12 @@
 
 namespace base {
 
-MessagePumpIOStarboard::SocketWatcher::SocketWatcher()
-    : interests_(kSbSocketWaiterInterestNone),
+MessagePumpIOStarboard::SocketWatcher::SocketWatcher(const Location& from_here)
+    : created_from_location_(from_here),
+      interests_(kSbSocketWaiterInterestNone),
       socket_(kSbSocketInvalid),
-      pump_(NULL),
-      watcher_(NULL),
+      pump_(nullptr),
+      watcher_(nullptr),
       weak_factory_(this) {}
 
 MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
@@ -39,7 +40,10 @@ MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
 }
 
 bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
+  watcher_ = nullptr;
+  interests_ = kSbSocketWaiterInterestNone;
   if (!SbSocketIsValid(socket_)) {
+    pump_ = nullptr;
     // If this watcher is not watching anything, no-op and return success.
     return true;
   }
@@ -50,9 +54,7 @@ bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
     DCHECK(pump_);
     result = pump_->StopWatching(socket);
   }
-  pump_ = NULL;
-  watcher_ = NULL;
-  interests_ = kSbSocketWaiterInterestNone;
+  pump_ = nullptr;
   return result;
 }
 
@@ -92,7 +94,6 @@ void MessagePumpIOStarboard::SocketWatcher::OnSocketReadyToWrite(
 
 MessagePumpIOStarboard::MessagePumpIOStarboard()
     : keep_running_(true),
-      in_run_(false),
       processed_io_events_(false),
       waiter_(SbSocketWaiterCreate()) {}
 
@@ -170,16 +171,14 @@ void MessagePumpIOStarboard::RemoveIOObserver(IOObserver* obs) {
 
 // Reentrant!
 void MessagePumpIOStarboard::Run(Delegate* delegate) {
-  AutoReset<bool> auto_reset_in_run(&in_run_, true);
+  AutoReset<bool> auto_reset_keep_running(&keep_running_, true);
 
   for (;;) {
     Delegate::NextWorkInfo next_work_info = delegate->DoWork();
-    bool has_more_immediate_work = next_work_info.is_immediate();
-    if (!keep_running_)
-      break;
+    bool immediate_work_available = next_work_info.is_immediate();
 
-    if (has_more_immediate_work)
-      continue;
+    if (should_quit())
+      break;
 
     // NOTE: We need to have a wake-up pending any time there is work queued,
     // and the MessageLoop only wakes up the pump when the work queue goes from
@@ -193,44 +192,37 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
     // loop and call delegate->DoWork() before we decide to block.
     SbSocketWaiterResult result = SbSocketWaiterWaitTimed(waiter_, 0);
     DCHECK_NE(kSbSocketWaiterResultInvalid, result);
-    has_more_immediate_work |=
-        (result == kSbSocketWaiterResultWokenUp) || processed_io_events_;
+
+    bool attempt_more_work =
+        (result == kSbSocketWaiterResultWokenUp) || immediate_work_available || processed_io_events_;
     processed_io_events_ = false;
-    if (!keep_running_)
+
+    if (should_quit())
       break;
 
-    if (has_more_immediate_work)
+    if (attempt_more_work)
       continue;
 
-    has_more_immediate_work = delegate->DoIdleWork();
-    if (!keep_running_)
+    attempt_more_work = delegate->DoIdleWork();
+
+    if (should_quit())
       break;
 
-    if (has_more_immediate_work)
+    if (attempt_more_work)
       continue;
 
-    if (!next_work_info.delayed_run_time.is_null()) {
-      delayed_work_time_ = next_work_info.delayed_run_time;
-    }
-    if (delayed_work_time_.is_null()) {
+    if (next_work_info.delayed_run_time.is_max()) {
       SbSocketWaiterWait(waiter_);
     } else {
-      TimeDelta delay = delayed_work_time_ - TimeTicks::Now();
-      if (delay > TimeDelta()) {
-        SbSocketWaiterWaitTimed(waiter_, delay.InMicroseconds());
-      } else {
-        // It looks like delayed_work_time_ indicates a time in the past, so we
-        // need to call DoDelayedWork now.
-        delayed_work_time_ = TimeTicks();
-      }
+      SbSocketWaiterWaitTimed(waiter_, next_work_info.remaining_delay().InMicroseconds());
     }
-  }
 
-  keep_running_ = true;
+    if (should_quit())
+      break;
+  }
 }
 
 void MessagePumpIOStarboard::Quit() {
-  DCHECK(in_run_);
   // Tell both the SbObjectWaiter and Run that they should break out of their
   // loops.
   keep_running_ = false;
@@ -246,8 +238,6 @@ void MessagePumpIOStarboard::ScheduleDelayedWork(
   // We know that we can't be blocked on Wait right now since this method can
   // only be called on the same thread as Run, so we only need to update our
   // record of how long to sleep when we do sleep.
-  delayed_work_time_ = next_work_info.delayed_run_time;
-  ScheduleWork();
 }
 
 void MessagePumpIOStarboard::WillProcessIOEvent() {
