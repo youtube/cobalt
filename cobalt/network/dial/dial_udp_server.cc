@@ -145,7 +145,7 @@ void DialUdpServer::DidRead(int bytes_read) {
   }
   if (bytes_read <= 0) {
     LOG(WARNING) << "Dial server socket read error: " << bytes_read;
-    return;
+    // Do not return the function here, but keep accepting M-Search requests.
   }
   // If M-Search request was valid, send response. Else, keep quiet.
   if (ParseSearchRequest(std::string(read_buf_->data()))) {
