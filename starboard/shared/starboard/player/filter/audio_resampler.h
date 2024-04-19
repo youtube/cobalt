@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RESAMPLER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RESAMPLER_H_
 
+#include <memory>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
@@ -57,7 +59,7 @@ class AudioResampler {
   // The |output_cb| will be called whenever there is resampled data ready.  It
   // is always called asynchronously on |job_queue| and then the user of
   // AudioResampler can call Read() to read the next chunk of resampled data.
-  static scoped_ptr<AudioResampler> Create(
+  static std::unique_ptr<AudioResampler> Create(
       SbMediaAudioSampleType source_sample_type,
       SbMediaAudioFrameStorageType source_storage_type,
       int source_sample_rate,
