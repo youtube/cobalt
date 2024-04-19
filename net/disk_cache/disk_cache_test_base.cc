@@ -50,8 +50,11 @@ bool DiskCacheTest::CopyTestCache(const std::string& name) {
   path = path.AppendASCII("cache_tests");
   path = path.AppendASCII(name);
 
+/* Cobalt
   if (!CleanupCacheDir())
     return false;
+  return base::CopyDirectory(path, cache_path_, false);
+Cobalt */
   return false;
 }
 

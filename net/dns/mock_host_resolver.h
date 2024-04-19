@@ -240,6 +240,9 @@ class MockHostResolverBase
     }
 
    private:
+/* Cobalt
+    friend class RefCounted<State>;
+Cobalt */
     friend class base::RefCounted<State>;
 
     ~State();
@@ -680,6 +683,9 @@ class HangingHostResolver : public HostResolver {
     void IncrementNumCancellations() { ++num_cancellations_; }
 
    private:
+/* Cobalt
+    friend class RefCounted<State>;
+Cobalt */
     friend class base::RefCounted<State>;
 
     ~State();
