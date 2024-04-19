@@ -124,6 +124,9 @@ class ApplicationAndroid
   Event* WaitForSystemEventWithTimeout(int64_t time) override;
   void WakeSystemEventWait() override;
 
+  // --- Application overrides ---
+  void Inject(Event* event) override;
+
  private:
   ALooper* looper_;
   ANativeWindow* native_window_;

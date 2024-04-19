@@ -214,7 +214,11 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(int64_t time) {
   // Convert from microseconds to milliseconds, taking the ceiling value.
   // If we take the floor, or round, then we end up busy looping every time
   // the next event time is less than one millisecond.
-  int timeout_millis = (time + 1000 - 1) / 1000;
+  int timeout_millis =
+      (time <
+       std::min(kSbInt64Max - 1000, 1000 * static_cast<int64_t>(INT_MAX - 1)))
+          ? (time + 1000 - 1) / 1000
+          : INT_MAX;
   int looper_events;
   int ident = ALooper_pollAll(
       std::min(std::max(timeout_millis, 0), kMaxPollingTimeMillisecond), NULL,
@@ -240,6 +244,11 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(int64_t time) {
 
 void ApplicationAndroid::WakeSystemEventWait() {
   ALooper_wake(looper_);
+}
+
+void ApplicationAndroid::Inject(Event* event) {
+  QueueApplication::Inject(event);
+  WakeSystemEventWait();
 }
 
 void ApplicationAndroid::OnResume() {
