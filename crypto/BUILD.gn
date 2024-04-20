@@ -4,9 +4,10 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/chromeos/ui_mode.gni")
-# import("//components/nacl/toolchain.gni")
+if (!use_cobalt_customizations) {
+import("//components/nacl/toolchain.gni")
+}
 import("//crypto/features.gni")
-import("//build_overrides/crypto.gni")
 import("//testing/test.gni")
 
 buildflag_header("buildflags") {
