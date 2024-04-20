@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/testing/video_decoder_test_fixture.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <deque>
 #include <functional>
@@ -92,7 +94,7 @@ void VideoDecoderTestFixture::Initialize() {
       fake_graphics_context_provider_->decoder_target_provider(), nullptr);
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
 
-  scoped_ptr<PlayerComponents::Factory> factory;
+  unique_ptr_alias<PlayerComponents::Factory> factory;
   if (using_stub_decoder_) {
     factory = StubPlayerComponentsFactory::Create();
   } else {
@@ -180,14 +182,14 @@ void VideoDecoderTestFixture::WaitForNextEvent(Event* event, int64_t timeout) {
         return;
       }
     }
-    SbThreadSleep(1000);
+    usleep(1000);
   } while (CurrentMonotonicTime() - start < timeout);
   event->status = kTimeout;
   SB_LOG(WARNING) << "WaitForNextEvent() timeout.";
 }
 
 bool VideoDecoderTestFixture::HasPendingEvents() {
-  SbThreadSleep(5000);
+  usleep(5000);
   ScopedLock scoped_lock(mutex_);
   return !event_queue_.empty();
 }

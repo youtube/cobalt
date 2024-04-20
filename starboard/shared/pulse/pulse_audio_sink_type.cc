@@ -16,6 +16,8 @@
 
 #include <pulse/pulseaudio.h>
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <memory>
 #include <vector>
@@ -571,9 +573,9 @@ void PulseAudioSinkType::AudioThreadFunc() {
         pa_mainloop_iterate(mainloop_, 0, NULL);
       }
       if (has_running_sink) {
-        SbThreadSleep(kAudioRunningSleepIntervalUsec);
+        usleep(kAudioRunningSleepIntervalUsec);
       } else {
-        SbThreadSleep(kAudioIdleSleepIntervalUsec);
+        usleep(kAudioIdleSleepIntervalUsec);
       }
     }
   }

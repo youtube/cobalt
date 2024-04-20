@@ -406,6 +406,7 @@ static_library("c_internal") {
     "src/starboard/time/gmtime_r.c",
     "src/starboard/time/time.c",
     "src/starboard/sys/stat.c",
+    "src/starboard/unistd/unistd.c",
     "src/stdio/__toread.c",
     "src/stdio/__uflow.c",
     "src/stdio/fprintf.c",

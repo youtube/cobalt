@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -85,7 +87,7 @@ class PlayerComponentsTest
           video_filename_.c_str(), VideoDmpReader::kEnableReadOnDemand));
     }
 
-    scoped_ptr<PlayerComponents::Factory> factory =
+    unique_ptr_alias<PlayerComponents::Factory> factory =
         PlayerComponents::Factory::Create();
     string error_message;
     if (audio_reader_ && video_reader_) {
@@ -278,7 +280,7 @@ class PlayerComponentsTest
       bool written = TryToWriteOneInputBuffer(max_timestamp);
       if (!written) {
         ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-        SbThreadSleep(5000);
+        usleep(5000);
       }
     }
   }
@@ -307,7 +309,7 @@ class PlayerComponentsTest
         last_input_filled_time = CurrentMonotonicTime();
       } else {
         ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-        SbThreadSleep(5000);
+        usleep(5000);
       }
     }
   }
@@ -344,7 +346,7 @@ class PlayerComponentsTest
         last_input_filled_time = CurrentMonotonicTime();
       } else {
         ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-        SbThreadSleep(5000);
+        usleep(5000);
       }
     }
   }
@@ -377,7 +379,7 @@ class PlayerComponentsTest
           << GetCurrentVideoBufferTimestamp() << "), current media time is "
           << GetMediaTime() << ".";
       ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-      SbThreadSleep(5000);
+      usleep(5000);
     }
     current_time = GetMediaTime();
     // TODO: investigate and reduce the tolerance.
@@ -484,7 +486,7 @@ class PlayerComponentsTest
   FakeGraphicsContextProvider fake_graphics_context_provider_;
   unique_ptr<VideoDmpReader> audio_reader_;
   unique_ptr<VideoDmpReader> video_reader_;
-  scoped_ptr<PlayerComponents> player_components_;
+  unique_ptr_alias<PlayerComponents> player_components_;
   double playback_rate_ = 1.0;
   int audio_index_ = 0;
   int video_index_ = 0;
@@ -565,13 +567,13 @@ TEST_P(PlayerComponentsTest, Pause) {
   int64_t start_time = CurrentMonotonicTime();
   while (CurrentMonotonicTime() < start_time + 200'000) {
     ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-    SbThreadSleep(5000);
+    usleep(5000);
   }
   int64_t media_time = GetMediaTime();
   start_time = CurrentMonotonicTime();
   while (CurrentMonotonicTime() < start_time + 200'000) {
     ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-    SbThreadSleep(5000);
+    usleep(5000);
   }
   ASSERT_EQ(media_time, GetMediaTime());
 

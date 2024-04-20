@@ -82,7 +82,6 @@ SbDecodeTarget StubVideoDecoder::GetCurrentDecodeTarget() {
 }
 
 void StubVideoDecoder::DecodeBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   for (const auto& input_buffer : input_buffers) {
     auto& video_sample_info = input_buffer->video_sample_info();
     if (video_sample_info.is_key_frame) {
@@ -120,8 +119,6 @@ void StubVideoDecoder::DecodeBuffers(const InputBuffers& input_buffers) {
 }
 
 void StubVideoDecoder::DecodeEndOfStream() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
-
   // If there are any remaining frames we need to output, send them all out
   // before writing EOS.
   for (const auto time : output_frame_timestamps_) {

@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
+#include <unistd.h>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -281,7 +282,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
 
     if (!is_playing || frames_in_buffer == 0) {
-      SbThreadSleep(10'000);
+      usleep(10'000);
       continue;
     }
 
@@ -322,7 +323,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
                   sync_time);
       }
 
-      SbThreadSleep(10'000);
+      usleep(10'000);
       continue;
     }
     SB_DCHECK(expected_written_frames > 0);
@@ -370,10 +371,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     // be big enough to account for the unstable playback head reported at the
     // beginning of the playback and during underrun.
     if (playback_head_position > 0 && unplayed_frames_in_time > 500'000) {
-      SbThreadSleep(40'000);
+      usleep(40'000);
     } else if (!written_fully) {
       // Only sleep if the buffer is nearly full and the last write is partial.
-      SbThreadSleep(10'000);
+      usleep(10'000);
     }
   }
 

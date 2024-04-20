@@ -16,6 +16,8 @@
 // this is hooked up to something.
 
 #include <fcntl.h>
+#include <unistd.h>
+
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "starboard/thread.h"
 
@@ -186,7 +188,7 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
   int kNumRetries = 1000;
   for (int i = 0; i < kNumRetries; ++i) {
     char buff[kChunkSize] = {};
-    SbThreadSleep(1000);
+    usleep(1000);
     result = sendto(client_socket_fd, buff, sizeof(buff), kSendFlags, NULL, 0);
 
     if (result < 0) {

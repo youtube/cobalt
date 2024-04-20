@@ -195,12 +195,14 @@ SB_EXPORT void SbThreadDetach(SbThread thread);
 SB_EXPORT void SbThreadYield();
 #endif
 
+#if SB_API_VERSION < 16
 // Sleeps the currently executing thread.
 //
 // |duration|: The minimum amount of time, in microseconds, that the currently
 //   executing thread should sleep. The function is a no-op if this value is
 //   negative or |0|.
 SB_EXPORT void SbThreadSleep(int64_t duration);
+#endif
 
 // Returns the handle of the currently executing thread.
 SB_EXPORT SbThread SbThreadGetCurrent();

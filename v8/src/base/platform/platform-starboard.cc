@@ -7,6 +7,7 @@
 // apps in the livingroom.
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
@@ -223,7 +224,7 @@ bool OS::HasLazyCommits() {
   return false;
 }
 
-void OS::Sleep(TimeDelta interval) { SbThreadSleep(interval.InMicroseconds()); }
+void OS::Sleep(TimeDelta interval) { usleep(interval.InMicroseconds()); }
 
 void OS::Abort() { SbSystemBreakIntoDebugger(); }
 
