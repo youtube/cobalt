@@ -92,6 +92,12 @@ class SbPlayerInterface {
     cval_stats_.Enable(should_enable);
   }
   CValStats cval_stats_;
+<<<<<<< HEAD
+=======
+  MediaMetricsProvider media_metrics_provider_;
+
+  void SetDecodeToTexturePreferred(bool preferred);
+>>>>>>> aada42d31c7 (Add decode to texture preferred option (#3011))
 };
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
