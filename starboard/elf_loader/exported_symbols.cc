@@ -53,6 +53,7 @@
 #if SB_API_VERSION >= 16
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #endif  // SB_API_VERSION >= 16
@@ -535,6 +536,12 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
+  map_["accept"] = reinterpret_cast<const void*>(&__abi_wrap_accept);
+  map_["bind"] = reinterpret_cast<const void*>(&__abi_wrap_bind);
+  map_["connect"] = reinterpret_cast<const void*>(&__abi_wrap_connect);
+  map_["getaddrinfo"] = reinterpret_cast<const void*>(&__abi_wrap_getaddrinfo);
+  map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
+  map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
 
 #if defined(_MSC_VER)
   // MSVC provides a template with the same name.

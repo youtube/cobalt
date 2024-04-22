@@ -52,6 +52,12 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
                        const AudioDecoderCreator& audio_decoder_creator,
                        const OutputFormatAdjustmentCallback&
                            output_adjustment_callback = nullptr);
+  AdaptiveAudioDecoder(const media::AudioStreamInfo& audio_stream_info,
+                       SbDrmSystem drm_system,
+                       const AudioDecoderCreator& audio_decoder_creator,
+                       bool enable_reset_audio_decoder,
+                       const OutputFormatAdjustmentCallback&
+                           output_adjustment_callback = nullptr);
   ~AdaptiveAudioDecoder() override;
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -91,6 +97,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   bool first_output_received_ = false;
   bool output_format_checked_ = false;
   bool first_input_written_ = false;
+  bool enable_reset_audio_decoder_ = false;
 };
 
 }  // namespace filter
