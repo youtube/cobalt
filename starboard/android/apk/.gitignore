@@ -1,8 +1,2 @@
-*.iml
-.gradle
-/local.properties
-/.idea
-.DS_Store
-/build
-/captures
-build.id
+app/.cxx/
+local.properties

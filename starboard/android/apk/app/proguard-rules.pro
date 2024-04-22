@@ -18,18 +18,17 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# JNI is an entry point that's hard to keep track of, so the @UsedByNative
-# annotation marks fields and methods used by native code.
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
 
-# Annotations are implemented as attributes, so we have to explicitly keep them.
--keepattributes *Annotation*
+# Uncomment this to preserve the line number information for
+# debugging stack traces.
+#-keepattributes SourceFile,LineNumberTable
 
-# Keep classes, methods, and fields that are accessed with JNI.
--keep @interface dev.cobalt.util.UsedByNative
--keep @dev.cobalt.util.UsedByNative class *
--keepclasseswithmembers class * {
-  @dev.cobalt.util.UsedByNative <methods>;
-}
--keepclasseswithmembers class * {
-  @dev.cobalt.util.UsedByNative <fields>;
-}
+# If you keep the line number information, uncomment this to
+# hide the original source file name.
+#-renamesourcefileattribute SourceFile

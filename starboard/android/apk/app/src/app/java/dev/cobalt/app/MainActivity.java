@@ -14,48 +14,14 @@
 
 package dev.cobalt.app;
 
-import android.app.Activity;
-import android.app.Service;
-import dev.cobalt.account.NoopUserAuthorizer;
 import dev.cobalt.coat.CobaltActivity;
-import dev.cobalt.coat.CobaltService;
 import dev.cobalt.coat.StarboardBridge;
-import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
-import dev.cobalt.util.Holder;
 
-/**
- * Main Activity for the "Cobalt on Android TV" app.
- *
- * <p>The real work is done in the abstract base class. This class is really just some factory
- * methods to "inject" things that can be customized.
- */
 public class MainActivity extends CobaltActivity {
 
   @Override
   protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
-    Holder<Activity> activityHolder = new Holder<>();
-    Holder<Service> serviceHolder = new Holder<>();
-    Runnable stopRequester =
-        new Runnable() {
-          @Override
-          public void run() {
-            getStarboardBridge().requestStop(0);
-          }
-        };
-    NoopUserAuthorizer userAuthorizer = new NoopUserAuthorizer();
-    StarboardBridge bridge =
-        new StarboardBridge(
-            getApplicationContext(),
-            activityHolder,
-            serviceHolder,
-            userAuthorizer,
-            args,
-            startDeepLink);
-
-    CobaltService.Factory clientLogInfoFactory =
-        new ClientLogInfoModule().provideFactory(getApplicationContext());
-    bridge.registerCobaltService(clientLogInfoFactory);
-
+    StarboardBridge bridge = new StarboardBridge(getApplicationContext());
     return bridge;
   }
 }

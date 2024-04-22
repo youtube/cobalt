@@ -17,9 +17,9 @@ package dev.cobalt.app;
 import android.app.Application;
 import dev.cobalt.coat.StarboardBridge;
 
-/** Android Application hosting the Starboard application. */
+/** Android Application hosting the Chrobalt application. */
 public class CobaltApplication extends Application implements StarboardBridge.HostApplication {
-  StarboardBridge starboardBridge;
+  StarboardBridge starboardBridge = null;
 
   @Override
   public void setStarboardBridge(StarboardBridge starboardBridge) {
