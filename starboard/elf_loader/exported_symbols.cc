@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/accessibility.h"
@@ -113,6 +114,9 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
 #endif  // SB_API_VERSION < 16
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(kSbCanMapExecutableMemory);
+#endif
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
@@ -388,8 +392,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbThreadSetLocalValue);
   REGISTER_SYMBOL(SbThreadSetName);
-  REGISTER_SYMBOL(SbThreadSleep);
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
@@ -462,9 +466,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(stat);
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);
+  REGISTER_SYMBOL(usleep);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate

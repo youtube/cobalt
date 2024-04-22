@@ -1,10 +1,13 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/fake_audio_render_callback.h"
 
+#include <algorithm>
+
 #include "base/numerics/math_constants.h"
+#include "base/time/time.h"
 #include "media/base/audio_timestamp_helper.h"
 
 namespace media {
@@ -23,13 +26,17 @@ FakeAudioRenderCallback::~FakeAudioRenderCallback() = default;
 
 int FakeAudioRenderCallback::Render(base::TimeDelta delay,
                                     base::TimeTicks delay_timestamp,
-                                    int prior_frames_skipped,
+                                    const AudioGlitchInfo& glitch_info,
                                     AudioBus* audio_bus) {
+  cumulative_glitch_info_ += glitch_info;
   return RenderInternal(audio_bus, delay, volume_);
 }
 
-double FakeAudioRenderCallback::ProvideInput(AudioBus* audio_bus,
-                                             uint32_t frames_delayed) {
+double FakeAudioRenderCallback::ProvideInput(
+    AudioBus* audio_bus,
+    uint32_t frames_delayed,
+    const AudioGlitchInfo& glitch_info) {
+  cumulative_glitch_info_ += glitch_info;
   // Volume should only be applied by the caller to ProvideInput, so don't bake
   // it into the rendered audio.
   auto delay = AudioTimestampHelper::FramesToTime(frames_delayed, sample_rate_);
@@ -48,11 +55,28 @@ int FakeAudioRenderCallback::RenderInternal(AudioBus* audio_bus,
   if (half_fill_)
     number_of_frames /= 2;
 
+  float* channel_data = audio_bus->channel(0);
+
   // Fill first channel with a sine wave.
-  for (int i = 0; i < number_of_frames; ++i)
-    audio_bus->channel(0)[i] =
-        sin(2 * base::kPiDouble * (x_ + step_ * i)) * volume;
+  for (int i = 0; i < number_of_frames; ++i) {
+    channel_data[i] = sin(2 * base::kPiDouble * (x_ + step_ * i)) * volume;
+  }
   x_ += number_of_frames * step_;
+
+  // Matches the AudioRenderer::InputFadeInHelper implementation.
+  if (needs_fade_in_) {
+    constexpr base::TimeDelta kFadeInDuration = base::Milliseconds(5);
+
+    const int fade_in_frames =
+        std::min(static_cast<int>(AudioTimestampHelper::TimeToFrames(
+                     kFadeInDuration, sample_rate_)),
+                 audio_bus->frames());
+
+    for (int i = 0; i < fade_in_frames; ++i)
+      channel_data[i] = channel_data[i] * i / fade_in_frames;
+
+    needs_fade_in_ = false;
+  }
 
   // Copy first channel into the rest of the channels.
   for (int i = 1; i < audio_bus->channels(); ++i) {

@@ -1,19 +1,19 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SSL_SSL_PRIVATE_KEY_H_
 #define NET_SSL_SSL_PRIVATE_KEY_H_
 
+#include <stdint.h>
+
 #include <vector>
 
-#include "base/callback_forward.h"
 #include "base/containers/span.h"
-#include "base/macros.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -32,11 +32,18 @@ class NET_EXPORT SSLPrivateKey
   using SignCallback =
       base::OnceCallback<void(Error, const std::vector<uint8_t>&)>;
 
-  SSLPrivateKey() {}
+  SSLPrivateKey() = default;
+
+  SSLPrivateKey(const SSLPrivateKey&) = delete;
+  SSLPrivateKey& operator=(const SSLPrivateKey&) = delete;
+
+  // Returns a human-readable name of the provider that backs this
+  // SSLPrivateKey, for debugging. If not applicable or available, return the
+  // empty string.
+  virtual std::string GetProviderName() = 0;
 
   // Returns the algorithms that are supported by the key in decreasing
-  // preference for TLS 1.2 and later. Note that |SSL_SIGN_RSA_PKCS1_MD5_SHA1|
-  // is only used by TLS 1.1 and earlier and should not be in this list.
+  // preference for TLS 1.2 and later.
   virtual std::vector<uint16_t> GetAlgorithmPreferences() = 0;
 
   // Asynchronously signs an |input| with the specified TLS signing algorithm.
@@ -59,11 +66,10 @@ class NET_EXPORT SSLPrivateKey
                                                            bool supports_pss);
 
  protected:
-  virtual ~SSLPrivateKey() {}
+  virtual ~SSLPrivateKey() = default;
 
  private:
   friend class base::RefCountedThreadSafe<SSLPrivateKey>;
-  DISALLOW_COPY_AND_ASSIGN(SSLPrivateKey);
 };
 
 }  // namespace net

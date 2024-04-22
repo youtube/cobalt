@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,6 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/test/task_environment.h"
-#include "base/win/windows_version.h"
 #include "media/capture/video/win/d3d_capture_test_utils.h"
 #include "media/capture/video/win/gpu_memory_buffer_tracker.h"
 #include "media/capture/video/win/video_capture_device_factory_win.h"
@@ -33,11 +32,17 @@ namespace {
 class MockDXGIDeviceManager : public DXGIDeviceManager {
  public:
   MockDXGIDeviceManager()
-      : DXGIDeviceManager(nullptr, 0),
+      : DXGIDeviceManager(nullptr, 0, CHROME_LUID{.LowPart = 0, .HighPart = 0}),
         mock_d3d_device_(new MockD3D11Device()) {}
 
   // Associates a new D3D device with the DXGI Device Manager
-  HRESULT ResetDevice() override { return S_OK; }
+  // returns it in the parameter, which can't be nullptr.
+  HRESULT ResetDevice(
+      Microsoft::WRL::ComPtr<ID3D11Device>& d3d_device) override {
+    mock_d3d_device_ = new MockD3D11Device();
+    d3d_device = mock_d3d_device_;
+    return S_OK;
+  }
 
   // Directly access D3D device stored in DXGI device manager
   Microsoft::WRL::ComPtr<ID3D11Device> GetDevice() override {
@@ -59,29 +64,12 @@ class MockDXGIDeviceManager : public DXGIDeviceManager {
 
 class GpuMemoryBufferTrackerTest : public ::testing::Test {
  protected:
-  GpuMemoryBufferTrackerTest()
-      : media_foundation_supported_(
-            VideoCaptureDeviceFactoryWin::PlatformSupportsMediaFoundation()) {}
-
-  bool ShouldSkipTest() {
-    if (!media_foundation_supported_) {
-      DVLOG(1) << "Media foundation is not supported by the current platform. "
-                  "Skipping test.";
-      return true;
-    }
-    // D3D11 is only supported with Media Foundation on Windows 8 or later
-    if (base::win::GetVersion() < base::win::Version::WIN8) {
-      DVLOG(1) << "D3D11 with Media foundation is not supported by the current "
-                  "platform. "
-                  "Skipping test.";
-      return true;
-    }
-    return false;
-  }
+  GpuMemoryBufferTrackerTest() = default;
 
   void SetUp() override {
-    if (ShouldSkipTest()) {
-      GTEST_SKIP();
+    if (!VideoCaptureDeviceFactoryWin::PlatformSupportsMediaFoundation()) {
+      GTEST_SKIP()
+          << "Media foundation is not supported by the current platform.";
     }
 
     dxgi_device_manager_ =
@@ -89,7 +77,6 @@ class GpuMemoryBufferTrackerTest : public ::testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
-  const bool media_foundation_supported_;
   scoped_refptr<MockDXGIDeviceManager> dxgi_device_manager_;
 };
 
@@ -116,7 +103,7 @@ TEST_F(GpuMemoryBufferTrackerTest, TextureCreation) {
             true);
 }
 
-TEST_F(GpuMemoryBufferTrackerTest, TextureRecreationOnDeviceLoss) {
+TEST_F(GpuMemoryBufferTrackerTest, InvalidateOnDeviceLoss) {
   // Verify that GpuMemoryBufferTracker recreates a D3D11 texture with the
   // correct properties when there is a device loss
   const gfx::Size expected_buffer_size = {1920, 1080};
@@ -135,8 +122,8 @@ TEST_F(GpuMemoryBufferTrackerTest, TextureRecreationOnDeviceLoss) {
                                       static_cast<const unsigned int>(
                                           expected_buffer_size.height())))),
                   _, _))
-      .Times(2);
-  // Mock device loss
+      .Times(1);
+  // Mock device loss.
   EXPECT_CALL(*(dxgi_device_manager_->GetMockDevice().Get()),
               OnGetDeviceRemovedReason())
       .WillOnce(Invoke([]() { return DXGI_ERROR_DEVICE_REMOVED; }));
@@ -145,8 +132,11 @@ TEST_F(GpuMemoryBufferTrackerTest, TextureRecreationOnDeviceLoss) {
       std::make_unique<GpuMemoryBufferTracker>(dxgi_device_manager_);
   EXPECT_EQ(tracker->Init(expected_buffer_size, PIXEL_FORMAT_NV12, nullptr),
             true);
-  // Get GpuMemoryBufferHandle (should trigger device/texture recreation)
+  // The tracker now should be invalid.
+  EXPECT_FALSE(tracker->IsReusableForFormat(expected_buffer_size,
+                                            PIXEL_FORMAT_NV12, nullptr));
   gfx::GpuMemoryBufferHandle gmb = tracker->GetGpuMemoryBufferHandle();
+  EXPECT_FALSE(gmb.dxgi_handle.IsValid());
 }
 
 TEST_F(GpuMemoryBufferTrackerTest, GetMemorySizeInBytes) {

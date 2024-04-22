@@ -32,6 +32,7 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "starboard/extension/font.h"
+#include "starboard/string.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 
 const char* ROBOTO_SCRIPT = "latn";
@@ -96,6 +97,7 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
 
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);
+  initial_families_ = default_families_;
 }
 
 void SkFontMgr_Cobalt::PurgeCaches() {
@@ -318,6 +320,10 @@ void SkFontMgr_Cobalt::LoadLocaleDefault() {
   }
 
   default_fonts_loaded_event_.Signal();
+}
+
+void SkFontMgr_Cobalt::ClearLocaleDefault() {
+  default_families_ = initial_families_;
 }
 
 void SkFontMgr_Cobalt::ParseConfigAndBuildFamilies(

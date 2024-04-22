@@ -20,7 +20,7 @@ namespace cobalt {
 namespace speech {
 
 namespace {
-base::Token TypeEnumToToken(SpeechRecognitionEvent::Type type) {
+base_token::Token TypeEnumToToken(SpeechRecognitionEvent::Type type) {
   switch (type) {
     case SpeechRecognitionEvent::kResult:
       return base::Tokens::result();

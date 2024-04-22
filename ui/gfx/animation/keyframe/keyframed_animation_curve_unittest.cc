@@ -1,4 +1,4 @@
-// Copyright 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,16 +9,16 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/geometry/box_f.h"
-#include "ui/gfx/geometry/test/transform_test_util.h"
+#include "ui/gfx/geometry/test/geometry_util.h"
 #include "ui/gfx/geometry/transform_operations.h"
-#include "ui/gfx/test/gfx_util.h"
+#include "ui/gfx/test/sk_color_eq.h"
 
 namespace gfx {
 namespace {
 
 void ExpectTranslateX(SkScalar translate_x,
                       const gfx::TransformOperations& operations) {
-  EXPECT_FLOAT_EQ(translate_x, operations.Apply().matrix().get(0, 3));
+  EXPECT_FLOAT_EQ(translate_x, operations.Apply().rc(0, 3));
 }
 
 // Tests that a color animation with one keyframe works as expected.
@@ -265,8 +265,8 @@ TEST(KeyframedAnimationCurveTest, RepeatedTransformKeyTimes) {
 
   // There is a discontinuity at 1. Any value between 4 and 6 is valid.
   gfx::Transform value = curve->GetValue(base::Seconds(1.f)).Apply();
-  EXPECT_GE(value.matrix().get(0, 3), 4.f);
-  EXPECT_LE(value.matrix().get(0, 3), 6.f);
+  EXPECT_GE(value.rc(0, 3), 4.f);
+  EXPECT_LE(value.rc(0, 3), 6.f);
 
   ExpectTranslateX(6.f, curve->GetValue(base::Seconds(1.5f)));
   ExpectTranslateX(6.f, curve->GetValue(base::Seconds(2.f)));
@@ -276,7 +276,7 @@ TEST(KeyframedAnimationCurveTest, RepeatedTransformKeyTimes) {
 // Tests that a discrete transform animation (e.g. where one or more keyframes
 // is a non-invertible matrix) works as expected.
 TEST(KeyframedAnimationCurveTest, DiscreteLinearTransformAnimation) {
-  gfx::Transform non_invertible_matrix(0, 0, 0, 0, 0, 0);
+  auto non_invertible_matrix = gfx::Transform::MakeScale(0);
   gfx::Transform identity_matrix;
 
   std::unique_ptr<KeyframedTransformAnimationCurve> curve(
@@ -299,28 +299,28 @@ TEST(KeyframedAnimationCurveTest, DiscreteLinearTransformAnimation) {
 
   // Between 0 and 0.5 seconds, the first keyframe should be returned.
   result = curve->GetValue(base::Seconds(0.01f));
-  ExpectTransformationMatrixEq(non_invertible_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(non_invertible_matrix, result.Apply());
 
   result = curve->GetValue(base::Seconds(0.49f));
-  ExpectTransformationMatrixEq(non_invertible_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(non_invertible_matrix, result.Apply());
 
   // Between 0.5 and 1.5 seconds, the middle keyframe should be returned.
   result = curve->GetValue(base::Seconds(0.5f));
-  ExpectTransformationMatrixEq(identity_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(identity_matrix, result.Apply());
 
   result = curve->GetValue(base::Seconds(1.49f));
-  ExpectTransformationMatrixEq(identity_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(identity_matrix, result.Apply());
 
   // Between 1.5 and 2.0 seconds, the last keyframe should be returned.
   result = curve->GetValue(base::Seconds(1.5f));
-  ExpectTransformationMatrixEq(non_invertible_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(non_invertible_matrix, result.Apply());
 
   result = curve->GetValue(base::Seconds(2.0f));
-  ExpectTransformationMatrixEq(non_invertible_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(non_invertible_matrix, result.Apply());
 }
 
 TEST(KeyframedAnimationCurveTest, DiscreteCubicBezierTransformAnimation) {
-  gfx::Transform non_invertible_matrix(0, 0, 0, 0, 0, 0);
+  auto non_invertible_matrix = gfx::Transform::MakeScale(0);
   gfx::Transform identity_matrix;
 
   std::unique_ptr<KeyframedTransformAnimationCurve> curve(
@@ -349,24 +349,24 @@ TEST(KeyframedAnimationCurveTest, DiscreteCubicBezierTransformAnimation) {
   // Due to the cubic-bezier, the first keyframe is returned almost all the way
   // to 1 second.
   result = curve->GetValue(base::Seconds(0.01f));
-  ExpectTransformationMatrixEq(non_invertible_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(non_invertible_matrix, result.Apply());
 
   result = curve->GetValue(base::Seconds(0.8f));
-  ExpectTransformationMatrixEq(non_invertible_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(non_invertible_matrix, result.Apply());
 
   // Between ~0.85 and ~1.85 seconds, the middle keyframe should be returned.
   result = curve->GetValue(base::Seconds(0.85f));
-  ExpectTransformationMatrixEq(identity_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(identity_matrix, result.Apply());
 
   result = curve->GetValue(base::Seconds(1.8f));
-  ExpectTransformationMatrixEq(identity_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(identity_matrix, result.Apply());
 
   // Finally the last keyframe only takes effect after ~1.85 seconds.
   result = curve->GetValue(base::Seconds(1.85f));
-  ExpectTransformationMatrixEq(non_invertible_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(non_invertible_matrix, result.Apply());
 
   result = curve->GetValue(base::Seconds(2.0f));
-  ExpectTransformationMatrixEq(non_invertible_matrix, result.Apply());
+  EXPECT_TRANSFORM_EQ(non_invertible_matrix, result.Apply());
 }
 
 // Tests that the keyframes may be added out of order.
@@ -469,6 +469,27 @@ TEST(KeyframedAnimationCurveTest, StepsTimingFunctionStepAtEnd) {
   for (float i = 0.5f; i <= num_steps; i += 1.0f) {
     const base::TimeDelta time = base::Seconds(i / num_steps);
     EXPECT_FLOAT_EQ(std::floor(i), curve->GetValue(time));
+  }
+}
+
+// A jump_both steps function has 1 extra jump. Ensure that this doesn't
+// overflow when using the maximum number of steps. In this case, the steps
+// function should be effectively the same as linear.
+// crbug.com/1313399
+TEST(KeyframedAnimationCurveTest, StepsTimingFunctionMaxSteps) {
+  std::unique_ptr<KeyframedFloatAnimationCurve> curve(
+      KeyframedFloatAnimationCurve::Create());
+  const int num_steps = std::numeric_limits<int>::max();
+  curve->AddKeyframe(FloatKeyframe::Create(
+      base::TimeDelta(), 0.f,
+      StepsTimingFunction::Create(
+          num_steps, StepsTimingFunction::StepPosition::JUMP_BOTH)));
+  curve->AddKeyframe(FloatKeyframe::Create(base::Seconds(1.0), 1.f, nullptr));
+
+  for (int i = 0; i <= 100; i++) {
+    const float value = 0.001f * i;
+    const base::TimeDelta time = base::Seconds(value);
+    EXPECT_NEAR(value, curve->GetValue(time), 0.0001);
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "base/strings/stringprintf.h"
 #include "media/midi/usb_midi_device.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -57,6 +56,10 @@ class MockUsbMidiDevice : public UsbMidiDevice {
 };
 
 class UsbMidiOutputStreamTest : public ::testing::Test {
+ public:
+  UsbMidiOutputStreamTest(const UsbMidiOutputStreamTest&) = delete;
+  UsbMidiOutputStreamTest& operator=(const UsbMidiOutputStreamTest&) = delete;
+
  protected:
   UsbMidiOutputStreamTest() {
     UsbMidiJack jack(&device_, 1, 2, 4);
@@ -65,9 +68,6 @@ class UsbMidiOutputStreamTest : public ::testing::Test {
 
   MockUsbMidiDevice device_;
   std::unique_ptr<UsbMidiOutputStream> stream_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(UsbMidiOutputStreamTest);
 };
 
 TEST_F(UsbMidiOutputStreamTest, SendEmpty) {

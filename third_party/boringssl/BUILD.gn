@@ -251,6 +251,7 @@ if (!use_cobalt_customizations) {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
 
+    # sources += boringssl_linux_x86_64_files
     if (sb_is_modular) {
       calling_convention = sabi_variables.calling_convention
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
@@ -500,3 +501,10 @@ if (build_with_chromium) {
     seed_corpus = "src/fuzz/server_corpus_no_fuzzer_mode"
   }
 }
+
+# group("boringssl") {
+#   all_dependent_configs = [ ":external_config" ]
+#   public_deps = [
+#   ":crypto"
+#   ]
+# }

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,7 @@
 #include <memory>
 #include <string>
 
-#include "base/callback_forward.h"
-#include "base/macros.h"
+#include "base/functional/callback_forward.h"
 #include "media/audio/audio_debug_recording_manager.h"
 #include "media/audio/audio_manager.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -65,6 +64,9 @@ class MockAudioManager : public AudioManager {
 
   void InitializeDebugRecording() override;
   AudioDebugRecordingManager* GetAudioDebugRecordingManager() override;
+
+  void SetAecDumpRecordingManager(base::WeakPtr<AecdumpRecordingManager>
+                                      aecdump_recording_manager) override;
 
   const char* GetName() override;
 

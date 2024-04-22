@@ -1,14 +1,14 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/base64url.h"
 
+#include <stddef.h>
+
 #include "base/base64.h"
-#include "base/macros.h"
 #include "base/numerics/safe_math.h"
 #include "base/strings/string_util.h"
-#include "starboard/types.h"
 #include "third_party/modp_b64/modp_b64.h"
 
 namespace base {
@@ -82,7 +82,7 @@ bool Base64UrlDecode(const StringPiece& input,
       base64_input_size += 4 - required_padding_characters;
 
     base64_input.reserve(base64_input_size.ValueOrDie());
-    input.AppendToString(&base64_input);
+    base64_input.append(input.data(), input.size());
 
     // Substitute the base64url URL-safe characters to their base64 equivalents.
     ReplaceChars(base64_input, "-", "+", &base64_input);

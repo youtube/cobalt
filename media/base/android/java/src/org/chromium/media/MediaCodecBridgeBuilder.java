@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@ import android.view.Surface;
 import org.chromium.base.Log;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.MainDex;
+import org.chromium.build.annotations.MainDex;
 import org.chromium.media.MediaCodecUtil.CodecCreationInfo;
 import org.chromium.media.MediaCodecUtil.MimeTypes;
 
@@ -25,11 +25,16 @@ class MediaCodecBridgeBuilder {
     static MediaCodecBridge createVideoDecoder(String mime, @CodecType int codecType,
             MediaCrypto mediaCrypto, int width, int height, Surface surface, byte[] csd0,
             byte[] csd1, HdrMetadata hdrMetadata, boolean allowAdaptivePlayback,
-            boolean useAsyncApi) {
+            boolean useAsyncApi, String decoderName) {
         CodecCreationInfo info = new CodecCreationInfo();
         try {
-            Log.i(TAG, "create MediaCodec video decoder, mime %s", mime);
-            info = MediaCodecUtil.createDecoder(mime, codecType, mediaCrypto);
+            Log.i(TAG, "create MediaCodec video decoder, mime %s, decoder name %s", mime,
+                    decoderName);
+            if (!decoderName.isEmpty()) {
+                info = MediaCodecUtil.createDecoderByName(mime, decoderName);
+            } else {
+                info = MediaCodecUtil.createDecoder(mime, codecType, mediaCrypto);
+            }
 
             if (info.mediaCodec == null) return null;
 

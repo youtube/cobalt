@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,13 +9,17 @@
 
 #include <stdint.h>
 
+#include <iterator>
+
+#include "base/time/time.h"
 #include "net/http/transport_security_state_source.h"
+
+// This is the time at which the key pins list was last updated.
+const base::Time kPinsListTimestamp = base::Time::FromTimeT([[PINS_LIST_TIMESTAMP]]);
 
 // These are SubjectPublicKeyInfo hashes for public key pinning. The
 // hashes are SHA256 digests.
 [[SPKI_HASHES]]
-
-static const char* const kExpectCTReportURIs[] = [[EXPECT_CT_REPORT_URIS]];
 
 // kNoRejectedPublicKeys is a placeholder for when no public keys are rejected.
 static const char* const kNoRejectedPublicKeys[] = {
@@ -44,9 +48,8 @@ static const net::TransportSecurityStateSource kHSTSSource = {
   kPreloadedHSTSData,
   kPreloadedHSTSBits,
   kHSTSRootPosition,
-  kExpectCTReportURIs,
   kPinsets,
-  arraysize(kPinsets)
+  std::size(kPinsets)
 };
 
 #endif  // NET_HTTP_TRANSPORT_SECURITY_STATE_STATIC_H_

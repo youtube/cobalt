@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/files/file_path.h"
+#include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "cobalt/updater/utils.h"
 #include "components/prefs/json_pref_store.h"

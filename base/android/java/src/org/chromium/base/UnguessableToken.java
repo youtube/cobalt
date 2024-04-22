@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,8 @@ package org.chromium.base;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+
+import androidx.annotation.Nullable;
 
 import org.chromium.base.annotations.CalledByNative;
 
@@ -51,6 +53,20 @@ public class UnguessableToken implements Parcelable {
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeLong(mHigh);
         dest.writeLong(mLow);
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (obj == null || getClass() != obj.getClass()) return false;
+
+        return ((UnguessableToken) obj).mHigh == mHigh && ((UnguessableToken) obj).mLow == mLow;
+    }
+
+    @Override
+    public int hashCode() {
+        int mLowHash = (int) (mLow ^ (mLow >>> 32));
+        int mHighHash = (int) (mHigh ^ (mHigh >>> 32));
+        return 31 * mLowHash + mHighHash;
     }
 
     public static final Parcelable.Creator<UnguessableToken> CREATOR =

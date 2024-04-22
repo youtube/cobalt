@@ -20,7 +20,7 @@ const base::FeatureParam<std::string> kWhitelistParam{
 
 }  // namespace
 
-void EnableExpiryChecker(const uint64_t* expired_histograms_hashes,
+void EnableExpiryChecker(const uint32_t* expired_histograms_hashes,
                          size_t num_expired_histograms) {
   DCHECK(base::FeatureList::GetInstance());
   if (base::FeatureList::IsEnabled(kExpiredHistogramLogicFeature)) {

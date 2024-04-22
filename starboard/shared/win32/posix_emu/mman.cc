@@ -83,13 +83,11 @@ int mprotect(void* addr, size_t len, int prot) {
     new_protection = PAGE_READWRITE;
   }
 
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
   if (prot == PROT_EXEC) {
     new_protection = PAGE_EXECUTE;
   } else if (prot == (PROT_READ | PROT_EXEC)) {
     new_protection = PAGE_EXECUTE_READ;
   }
-#endif
 
   ULONG old_protection;
   // Changing protection from No-Access to others needs the memory to be

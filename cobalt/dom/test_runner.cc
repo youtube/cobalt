@@ -16,7 +16,7 @@
 
 #include "cobalt/dom/test_runner.h"
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/web/context.h"

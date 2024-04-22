@@ -1157,6 +1157,7 @@ bool tls_can_accept_handshake_data(const SSL *ssl, uint8_t *out_alert);
 // tls_has_unprocessed_handshake_data returns whether there is buffered
 // handshake data that has not been consumed by |get_message|.
 bool tls_has_unprocessed_handshake_data(const SSL *ssl);
+bool tls_append_handshake_data(SSL *ssl, Span<const uint8_t> data);
 
 // tls_append_handshake_data appends |data| to the handshake buffer. It returns
 // true on success and false on allocation failure.
@@ -1592,7 +1593,6 @@ struct DC {
 // response. If this is true then we've committed to using the DC in the
 // handshake.
 bool ssl_signing_with_dc(const SSL_HANDSHAKE *hs);
-
 
 // Handshake functions.
 

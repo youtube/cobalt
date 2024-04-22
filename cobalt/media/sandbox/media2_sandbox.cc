@@ -23,7 +23,8 @@
 #include "base/bind.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/single_thread_task_executor.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
 #include "media/base/media_log.h"
@@ -39,6 +40,7 @@ namespace {
 
 using ::media::ChunkDemuxer;
 using ::media::DemuxerStream;
+using ::media::StreamParser;
 
 class DemuxerHostStub : public ::media::DemuxerHost {
   void OnBufferedTimeRangesChanged(
@@ -85,7 +87,7 @@ void ReadDemuxerStream(DemuxerStream* demuxer_stream);
 
 void OnDemuxerStreamRead(
     DemuxerStream* demuxer_stream, DemuxerStream::Status status,
-    const std::vector<scoped_refptr<::media::DecoderBuffer>>& decoder_buffers) {
+    const std::vector<scoped_refptr<::media::DecoderBuffer>> decoder_buffers) {
   if (status != DemuxerStream::kConfigChanged) {
     DCHECK(decoder_buffers.size() > 0);
   }
@@ -116,11 +118,13 @@ int SandboxMain(int argc, char** argv) {
 
   DecoderBufferAllocator decoder_buffer_allocator;
   ::media::MediaLog media_log;
-  base::MessageLoop message_loop;
+  base::SingleThreadTaskExecutor task_executor(base::MessagePumpType::UI);
+  base::RunLoop run_loop;
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;
-  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
+  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
+      "Cobalt TaskScheduler");
   DemuxerHostStub demuxer_host;
   std::unique_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
       base::BindOnce(OnDemuxerOpen), base::BindRepeating(OnProgress),
@@ -166,16 +170,30 @@ int SandboxMain(int argc, char** argv) {
         LOG(WARNING) << "Encountered SourceBufferParseWarning "
                      << static_cast<int>(warning);
       }));
-  bool result =
-      demuxer->AppendData("audio", reinterpret_cast<uint8*>(&audio_content[0]),
-                          audio_content.size(), base::TimeDelta(),
-                          base::TimeDelta::Max(), &timestamp_offset);
-  DCHECK(result);
-  result =
-      demuxer->AppendData("video", reinterpret_cast<uint8*>(&video_content[0]),
-                          video_content.size(), base::TimeDelta(),
-                          base::TimeDelta::Max(), &timestamp_offset);
-  DCHECK(result);
+
+  bool result = demuxer->AppendToParseBuffer(
+      "audio", reinterpret_cast<uint8*>(&audio_content[0]),
+      audio_content.size());
+  StreamParser::ParseStatus parse_status =
+      StreamParser::ParseStatus::kSuccessHasMoreData;
+  while (result &&
+         parse_status == StreamParser::ParseStatus::kSuccessHasMoreData) {
+    parse_status = demuxer->RunSegmentParserLoop(
+        "audio", base::TimeDelta(), base::TimeDelta::Max(), &timestamp_offset);
+  }
+  DCHECK(result && parse_status == StreamParser::ParseStatus::kSuccess);
+
+  result = demuxer->AppendToParseBuffer(
+      "video", reinterpret_cast<uint8*>(&video_content[0]),
+      video_content.size());
+  parse_status = StreamParser::ParseStatus::kSuccessHasMoreData;
+  while (result &&
+         parse_status == StreamParser::ParseStatus::kSuccessHasMoreData) {
+    parse_status = demuxer->RunSegmentParserLoop(
+        "video", base::TimeDelta(), base::TimeDelta::Max(), &timestamp_offset);
+  }
+  DCHECK(result && parse_status == StreamParser::ParseStatus::kSuccess);
+
   demuxer->MarkEndOfStream(::media::PIPELINE_OK);
 
   auto streams = demuxer->GetAllStreams();
@@ -194,7 +212,7 @@ int SandboxMain(int argc, char** argv) {
   ReadDemuxerStream(audio_stream);
   ReadDemuxerStream(video_stream);
 
-  base::RunLoop().RunUntilIdle();
+  run_loop.RunUntilIdle();
 
   demuxer->Stop();
 

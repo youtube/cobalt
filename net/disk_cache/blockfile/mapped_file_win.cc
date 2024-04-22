@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,8 @@
 
 #include <memory>
 
-#include "starboard/types.h"
-
+#include "base/check.h"
 #include "base/files/file_path.h"
-#include "base/logging.h"
 #include "net/disk_cache/disk_cache.h"
 
 #include <windows.h>
@@ -19,14 +17,14 @@ namespace disk_cache {
 void* MappedFile::Init(const base::FilePath& name, size_t size) {
   DCHECK(!init_);
   if (init_ || !File::Init(name))
-    return NULL;
+    return nullptr;
 
-  buffer_ = NULL;
+  buffer_ = nullptr;
   init_ = true;
-  section_ = CreateFileMapping(platform_file(), NULL, PAGE_READWRITE, 0,
-                               static_cast<DWORD>(size), NULL);
+  section_ = CreateFileMapping(platform_file(), nullptr, PAGE_READWRITE, 0,
+                               static_cast<DWORD>(size), nullptr);
   if (!section_)
-    return NULL;
+    return nullptr;
 
   buffer_ = MapViewOfFile(section_, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, size);
   DCHECK(buffer_);
@@ -34,9 +32,9 @@ void* MappedFile::Init(const base::FilePath& name, size_t size) {
 
   // Make sure we detect hardware failures reading the headers.
   size_t temp_len = size ? size : 4096;
-  std::unique_ptr<char[]> temp(new char[temp_len]);
+  auto temp = std::make_unique<char[]>(temp_len);
   if (!Read(temp.get(), temp_len, 0))
-    return NULL;
+    return nullptr;
 
   return buffer_;
 }

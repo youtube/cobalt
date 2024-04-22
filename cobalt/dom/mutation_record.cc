@@ -66,7 +66,7 @@ void MutationRecord::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(next_sibling_);
 }
 
-MutationRecord::MutationRecord(const base::Token& type,
+MutationRecord::MutationRecord(const base_token::Token& type,
                                const scoped_refptr<Node>& target)
     : type_(type),
       target_(target),

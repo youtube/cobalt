@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 
-#include "base/stl_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -25,7 +24,7 @@ namespace net {
 namespace {
 
 constexpr char kTestData[] = "0123456789";
-constexpr size_t kTestDataSize = base::size(kTestData) - 1;
+constexpr size_t kTestDataSize = std::size(kTestData) - 1;
 constexpr size_t kTestBufferSize = 1 << 14;  // 16KB.
 
 }  // namespace
@@ -243,7 +242,7 @@ TEST(ChunkedUploadDataStreamTest, EmptyUpload) {
   int result = stream.Read(buf.get(), kTestBufferSize, callback.callback());
   ASSERT_THAT(result, IsError(ERR_IO_PENDING));
 
-  stream.AppendData(NULL, 0, true);
+  stream.AppendData(nullptr, 0, true);
   int read = callback.WaitForResult();
   EXPECT_EQ(0, read);
   EXPECT_EQ(0u, stream.position());
@@ -252,7 +251,7 @@ TEST(ChunkedUploadDataStreamTest, EmptyUpload) {
 
 TEST(ChunkedUploadDataStreamTest, EmptyUploadEndedBeforeInit) {
   ChunkedUploadDataStream stream(0);
-  stream.AppendData(NULL, 0, true);
+  stream.AppendData(nullptr, 0, true);
 
   ASSERT_THAT(
       stream.Init(TestCompletionCallback().callback(), NetLogWithSource()),
@@ -340,8 +339,7 @@ TEST(ChunkedUploadDataStreamTest, RewindWhileReading) {
 
 // Check the behavior of ChunkedUploadDataStream::Writer.
 TEST(ChunkedUploadDataStreamTest, ChunkedUploadDataStreamWriter) {
-  std::unique_ptr<ChunkedUploadDataStream> stream(
-      new ChunkedUploadDataStream(0));
+  auto stream = std::make_unique<ChunkedUploadDataStream>(0);
   std::unique_ptr<ChunkedUploadDataStream::Writer> writer(
       stream->CreateWriter());
 

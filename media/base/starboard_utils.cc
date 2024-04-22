@@ -343,24 +343,24 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
     const auto& color_volume_metadata = hdr_metadata->color_volume_metadata;
 
     sb_media_mastering_metadata.primary_r_chromaticity_x =
-        color_volume_metadata.primary_r.x();
+        color_volume_metadata.primaries.fRX;
     sb_media_mastering_metadata.primary_r_chromaticity_y =
-        color_volume_metadata.primary_r.y();
+        color_volume_metadata.primaries.fRY;
 
     sb_media_mastering_metadata.primary_g_chromaticity_x =
-        color_volume_metadata.primary_g.x();
+        color_volume_metadata.primaries.fGX;
     sb_media_mastering_metadata.primary_g_chromaticity_y =
-        color_volume_metadata.primary_g.y();
+        color_volume_metadata.primaries.fGY;
 
     sb_media_mastering_metadata.primary_b_chromaticity_x =
-        color_volume_metadata.primary_b.x();
+        color_volume_metadata.primaries.fBX;
     sb_media_mastering_metadata.primary_b_chromaticity_y =
-        color_volume_metadata.primary_b.y();
+        color_volume_metadata.primaries.fBY;
 
     sb_media_mastering_metadata.white_point_chromaticity_x =
-        color_volume_metadata.white_point.x();
+        color_volume_metadata.primaries.fWX;
     sb_media_mastering_metadata.white_point_chromaticity_y =
-        color_volume_metadata.white_point.y();
+        color_volume_metadata.primaries.fWX;
 
     sb_media_mastering_metadata.luminance_max =
         color_volume_metadata.luminance_max;

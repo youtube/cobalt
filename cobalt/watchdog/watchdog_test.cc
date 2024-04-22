@@ -14,7 +14,10 @@
 
 #include "cobalt/watchdog/watchdog.h"
 
+#include <unistd.h>
+
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "base/json/json_reader.h"
@@ -51,17 +54,17 @@ class WatchdogTest : public testing::Test {
   }
 
   base::Value CreateDummyViolationDict(std::string desc, int begin, int end) {
-    base::Value violation_dict(base::Value::Type::DICTIONARY);
+    base::Value violation_dict(base::Value::Type::DICT);
     violation_dict.SetKey("description", base::Value(desc));
     base::Value list(base::Value::Type::LIST);
     for (int i = begin; i < end; i++)
-      list.GetList().emplace_back(CreateDummyViolation(i));
+      list.GetList().Append(CreateDummyViolation(i));
     violation_dict.SetKey("violations", list.Clone());
     return violation_dict.Clone();
   }
 
   base::Value CreateDummyViolation(int timestamp_violation) {
-    base::Value violation(base::Value::Type::DICTIONARY);
+    base::Value violation(base::Value::Type::DICT);
     base::Value ping_infos(base::Value::Type::LIST);
     violation.SetKey("pingInfos", ping_infos.Clone());
     violation.SetKey("monitorState",
@@ -219,7 +222,7 @@ TEST_F(WatchdogTest, ViolationsJsonShouldPersistAndBeValid) {
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
   ASSERT_TRUE(watchdog_->Ping("test-name", "test-ping"));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
   TearDown();
   watchdog_ = new watchdog::Watchdog();
@@ -229,97 +232,104 @@ TEST_F(WatchdogTest, ViolationsJsonShouldPersistAndBeValid) {
   // Validates Violation json file.
   std::string json = watchdog_->GetWatchdogViolations();
   ASSERT_NE(json, "");
-  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  ASSERT_TRUE(violations_map_optional.has_value());
+  std::unique_ptr<base::Value::Dict> violations_map =
+      std::make_unique<base::Value::Dict>(
+          std::move(*violations_map_optional.value().GetIfDict()));
   ASSERT_NE(violations_map, nullptr);
-  base::Value* violation_dict = violations_map->FindKey("test-name");
+  base::Value::Dict* violation_dict = violations_map->FindDict("test-name");
   ASSERT_NE(violation_dict, nullptr);
-  base::Value* description = violation_dict->FindKey("description");
+  std::string* description = violation_dict->FindString("description");
   ASSERT_NE(description, nullptr);
-  ASSERT_EQ(description->GetString(), "test-desc");
-  base::Value* violations = violation_dict->FindKey("violations");
+  ASSERT_EQ(*description, "test-desc");
+  base::Value::List* violations = violation_dict->FindList("violations");
   ASSERT_NE(violations, nullptr);
-  ASSERT_EQ(violations->GetList().size(), 1);
-  base::Value* monitor_state = violations->GetList()[0].FindKey("monitorState");
+  ASSERT_EQ(violations->size(), 1);
+  std::string* monitor_state =
+      (*violations)[0].GetDict().FindString("monitorState");
   ASSERT_NE(monitor_state, nullptr);
   ASSERT_EQ(
-      monitor_state->GetString(),
+      *monitor_state,
       std::string(GetApplicationStateString(base::kApplicationStateStarted)));
-  base::Value* ping_infos = violations->GetList()[0].FindKey("pingInfos");
+  base::Value::List* ping_infos =
+      (*violations)[0].GetDict().FindList("pingInfos");
   ASSERT_NE(ping_infos, nullptr);
-  ASSERT_EQ(ping_infos->GetList().size(), 1);
-  base::Value* info = ping_infos->GetList()[0].FindKey("info");
+  ASSERT_EQ(ping_infos->size(), 1);
+  std::string* info = (*ping_infos)[0].GetDict().FindString("info");
   ASSERT_NE(info, nullptr);
-  ASSERT_EQ(info->GetString(), "test-ping");
-  base::Value* timestamp_milliseconds =
-      ping_infos->GetList()[0].FindKey("timestampMilliseconds");
+  ASSERT_EQ(*info, "test-ping");
+  std::string* timestamp_milliseconds =
+      (*ping_infos)[0].GetDict().FindString("timestampMilliseconds");
   ASSERT_NE(timestamp_milliseconds, nullptr);
-  std::stoll(timestamp_milliseconds->GetString());
-  base::Value* registered_clients =
-      violations->GetList()[0].FindKey("registeredClients");
+  std::stoll(*timestamp_milliseconds);
+  base::Value::List* registered_clients =
+      (*violations)[0].GetDict().FindList("registeredClients");
   ASSERT_NE(registered_clients, nullptr);
-  ASSERT_EQ(registered_clients->GetList().size(), 1);
-  ASSERT_EQ(registered_clients->GetList()[0].GetString(), "test-name");
-  base::Value* time_interval_milliseconds =
-      violations->GetList()[0].FindKey("timeIntervalMilliseconds");
+  ASSERT_EQ(registered_clients->size(), 1);
+  ASSERT_EQ((*registered_clients)[0].GetString(), "test-name");
+  std::string* time_interval_milliseconds =
+      (*violations)[0].GetDict().FindString("timeIntervalMilliseconds");
   ASSERT_NE(time_interval_milliseconds, nullptr);
-  std::stoll(time_interval_milliseconds->GetString());
-  base::Value* time_wait_milliseconds =
-      violations->GetList()[0].FindKey("timeWaitMilliseconds");
+  std::stoll(*time_interval_milliseconds);
+  std::string* time_wait_milliseconds =
+      (*violations)[0].GetDict().FindString("timeWaitMilliseconds");
   ASSERT_NE(time_wait_milliseconds, nullptr);
-  std::stoll(time_wait_milliseconds->GetString());
-  base::Value* timestamp_last_pinged_milliseconds =
-      violations->GetList()[0].FindKey("timestampLastPingedMilliseconds");
+  std::stoll(*time_wait_milliseconds);
+  std::string* timestamp_last_pinged_milliseconds =
+      (*violations)[0].GetDict().FindString("timestampLastPingedMilliseconds");
   ASSERT_NE(timestamp_last_pinged_milliseconds, nullptr);
-  std::stoll(timestamp_last_pinged_milliseconds->GetString());
-  base::Value* timestamp_registered_milliseconds =
-      violations->GetList()[0].FindKey("timestampRegisteredMilliseconds");
+  std::stoll(*timestamp_last_pinged_milliseconds);
+  std::string* timestamp_registered_milliseconds =
+      (*violations)[0].GetDict().FindString("timestampRegisteredMilliseconds");
   ASSERT_NE(timestamp_registered_milliseconds, nullptr);
-  std::stoll(timestamp_registered_milliseconds->GetString());
-  base::Value* timestamp_violation_milliseconds =
-      violations->GetList()[0].FindKey("timestampViolationMilliseconds");
+  std::stoll(*timestamp_registered_milliseconds);
+  std::string* timestamp_violation_milliseconds =
+      (*violations)[0].GetDict().FindString("timestampViolationMilliseconds");
   ASSERT_NE(timestamp_violation_milliseconds, nullptr);
-  std::stoll(timestamp_violation_milliseconds->GetString());
-  base::Value* violation_duration_milliseconds =
-      violations->GetList()[0].FindKey("violationDurationMilliseconds");
+  std::stoll(*timestamp_violation_milliseconds);
+  std::string* violation_duration_milliseconds =
+      (*violations)[0].GetDict().FindString("violationDurationMilliseconds");
   ASSERT_NE(violation_duration_milliseconds, nullptr);
-  std::stoll(violation_duration_milliseconds->GetString());
+  std::stoll(*violation_duration_milliseconds);
 }
 
 TEST_F(WatchdogTest, RedundantViolationsShouldStack) {
   ASSERT_TRUE(watchdog_->Register("test-name", "test-desc",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   std::string json = watchdog_->GetWatchdogViolations({}, false);
   ASSERT_NE(json, "");
-  std::unique_ptr<base::Value> uncleared_violations_map =
+  absl::optional<base::Value> uncleared_violations_map_optional =
       base::JSONReader::Read(json);
-  ASSERT_NE(uncleared_violations_map, nullptr);
-  base::Value* violation_dict = uncleared_violations_map->FindKey("test-name");
-  base::Value* violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
+  base::Value::Dict uncleared_violations_map =
+      uncleared_violations_map_optional.value().GetDict().Clone();
+  ASSERT_NE(uncleared_violations_map.size(), 0);
+  base::Value::Dict* violation_dict =
+      uncleared_violations_map.FindDict("test-name");
+  base::Value::List* violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 1);
   std::string uncleared_timestamp =
-      violations->GetList()[0]
-          .FindKey("timestampLastPingedMilliseconds")
-          ->GetString();
-  int64_t uncleared_duration =
-      std::stoll(violations->GetList()[0]
-                     .FindKey("violationDurationMilliseconds")
-                     ->GetString());
-  SbThreadSleep(kWatchdogSleepDuration);
+      *(*violations)[0].GetDict().FindString("timestampLastPingedMilliseconds");
+  int64_t uncleared_duration = std::stoll(
+      *(*violations)[0].GetDict().FindString("violationDurationMilliseconds"));
+  usleep(kWatchdogSleepDuration);
   json = watchdog_->GetWatchdogViolations({}, false);
   ASSERT_NE(json, "");
-  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
-  ASSERT_NE(violations_map, nullptr);
-  violation_dict = violations_map->FindKey("test-name");
-  violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
-  std::string timestamp = violations->GetList()[0]
-                              .FindKey("timestampLastPingedMilliseconds")
-                              ->GetString();
-  int64_t duration = std::stoll(violations->GetList()[0]
-                                    .FindKey("violationDurationMilliseconds")
-                                    ->GetString());
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  ASSERT_NE(violations_map.size(), 0);
+  violation_dict = violations_map.FindDict("test-name");
+  violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 1);
+  std::string timestamp =
+      *(*violations)[0].GetDict().FindString("timestampLastPingedMilliseconds");
+  int64_t duration = std::stoll(
+      *(*violations)[0].GetDict().FindString("violationDurationMilliseconds"));
   ASSERT_EQ(uncleared_timestamp, timestamp);
   ASSERT_LT(uncleared_duration, duration);
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
@@ -329,7 +339,7 @@ TEST_F(WatchdogTest, ViolationsShouldResetAfterFetch) {
   ASSERT_TRUE(watchdog_->Register("test-name-1", "test-desc-1",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_TRUE(watchdog_->Unregister("test-name-1"));
   std::string json = watchdog_->GetWatchdogViolations();
   ASSERT_NE(json.find("test-name-1"), std::string::npos);
@@ -338,7 +348,7 @@ TEST_F(WatchdogTest, ViolationsShouldResetAfterFetch) {
       "test-name-2", "test-desc-2", base::kApplicationStateStarted,
       kWatchdogMonitorFrequency);
   ASSERT_NE(client, nullptr);
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_TRUE(watchdog_->UnregisterByClient(client));
   json = watchdog_->GetWatchdogViolations();
   ASSERT_EQ(json.find("test-name-1"), std::string::npos);
@@ -353,23 +363,27 @@ TEST_F(WatchdogTest, PingInfosAreEvictedAfterMax) {
   for (int i = 0; i < 61; i++) {
     ASSERT_TRUE(watchdog_->Ping("test-name", std::to_string(i)));
   }
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   std::string json = watchdog_->GetWatchdogViolations();
   ASSERT_NE(json, "");
-  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
-  ASSERT_NE(violations_map, nullptr);
-  base::Value* violation_dict = violations_map->FindKey("test-name");
-  base::Value* violations = violation_dict->FindKey("violations");
-  base::Value* pingInfos = violations->GetList()[0].FindKey("pingInfos");
-  ASSERT_EQ(pingInfos->GetList().size(), 60);
-  ASSERT_EQ(pingInfos->GetList()[0].FindKey("info")->GetString(), "1");
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  ASSERT_TRUE(violations_map_optional.has_value());
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  base::Value::Dict* violation_dict = violations_map.FindDict("test-name");
+  base::Value::List* violations = violation_dict->FindList("violations");
+  base::Value::List* pingInfos =
+      (*violations)[0].GetDict().FindList("pingInfos");
+  ASSERT_EQ(pingInfos->size(), 60);
+  ASSERT_EQ(*(*pingInfos)[0].GetDict().FindString("info"), "1");
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
 }
 
 TEST_F(WatchdogTest, ViolationsAreEvictedAfterMax) {
   // Creates maxed Violation json file.
   std::unique_ptr<base::Value> dummy_map =
-      std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
+      std::make_unique<base::Value>(base::Value::Type::DICT);
   dummy_map->SetKey("test-name-1",
                     CreateDummyViolationDict("test-desc-1", 0, 99));
   dummy_map->SetKey("test-name-2",
@@ -389,54 +403,59 @@ TEST_F(WatchdogTest, ViolationsAreEvictedAfterMax) {
   ASSERT_TRUE(watchdog_->Register("test-name-4", "test-desc-4",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
 
   json = watchdog_->GetWatchdogViolations({}, false);
   ASSERT_NE(json, "");
-  std::unique_ptr<base::Value> uncleared_violations_map =
+  absl::optional<base::Value> uncleared_violations_map_optional =
       base::JSONReader::Read(json);
-  ASSERT_NE(uncleared_violations_map, nullptr);
-  base::Value* violation_dict =
-      uncleared_violations_map->FindKey("test-name-1");
-  base::Value* violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 99);
-  violation_dict = uncleared_violations_map->FindKey("test-name-2");
-  violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 99);
-  ASSERT_EQ(violations->GetList()[0]
-                .FindKey("timestampViolationMilliseconds")
-                ->GetString(),
-            "3");
-  violation_dict = uncleared_violations_map->FindKey("test-name-3");
-  violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
-  violation_dict = uncleared_violations_map->FindKey("test-name-4");
-  violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
+  ASSERT_TRUE(uncleared_violations_map_optional.has_value());
+  base::Value::Dict uncleared_violations_map =
+      uncleared_violations_map_optional.value().GetDict().Clone();
+  ASSERT_NE(uncleared_violations_map.size(), 0);
+  base::Value::Dict* violation_dict =
+      uncleared_violations_map.FindDict("test-name-1");
+  base::Value::List* violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 99);
+  violation_dict = uncleared_violations_map.FindDict("test-name-2");
+  violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 99);
+  ASSERT_EQ(
+      *(*violations)[0].GetDict().FindString("timestampViolationMilliseconds"),
+      "3");
+  violation_dict = uncleared_violations_map.FindDict("test-name-3");
+  violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 1);
+  violation_dict = uncleared_violations_map.FindDict("test-name-4");
+  violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 1);
 
   ASSERT_TRUE(watchdog_->Ping("test-name-3"));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
 
   json = watchdog_->GetWatchdogViolations();
   ASSERT_NE(json, "");
-  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
-  ASSERT_NE(violations_map, nullptr);
-  violation_dict = violations_map->FindKey("test-name-1");
-  violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 98);
-  ASSERT_EQ(violations->GetList()[0]
-                .FindKey("timestampViolationMilliseconds")
-                ->GetString(),
-            "1");
-  violation_dict = violations_map->FindKey("test-name-2");
-  violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 99);
-  violation_dict = violations_map->FindKey("test-name-3");
-  violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 2);
-  violation_dict = violations_map->FindKey("test-name-4");
-  violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  ASSERT_TRUE(violations_map_optional.has_value());
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  ASSERT_NE(violations_map.size(), 0);
+  violation_dict = violations_map.FindDict("test-name-1");
+  violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 98);
+  ASSERT_EQ(
+      *(*violations)[0].GetDict().FindString("timestampViolationMilliseconds"),
+      "1");
+  violation_dict = violations_map.FindDict("test-name-2");
+  violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 99);
+  violation_dict = violations_map.FindDict("test-name-3");
+  violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 2);
+  violation_dict = violations_map.FindDict("test-name-4");
+  violations = violation_dict->FindList("violations");
+  ASSERT_EQ(violations->size(), 1);
 
   ASSERT_TRUE(watchdog_->Unregister("test-name-3"));
   ASSERT_TRUE(watchdog_->Unregister("test-name-4"));
@@ -447,7 +466,7 @@ TEST_F(WatchdogTest, UpdateStateShouldPreventViolations) {
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
   watchdog_->UpdateState(base::kApplicationStateBlurred);
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
 }
@@ -457,7 +476,7 @@ TEST_F(WatchdogTest, TimeWaitShouldPreventViolations) {
       "test-name", "test-desc", base::kApplicationStateStarted,
       kWatchdogMonitorFrequency,
       kWatchdogSleepDuration + kWatchdogMonitorFrequency));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
 }
@@ -466,25 +485,25 @@ TEST_F(WatchdogTest, PingShouldPreventViolations) {
   ASSERT_TRUE(watchdog_->Register("test-name", "test-desc",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
-  SbThreadSleep(kWatchdogMonitorFrequency / 2);
+  usleep(kWatchdogMonitorFrequency / 2);
   ASSERT_TRUE(watchdog_->Ping("test-name"));
-  SbThreadSleep(kWatchdogMonitorFrequency / 2);
+  usleep(kWatchdogMonitorFrequency / 2);
   ASSERT_TRUE(watchdog_->Ping("test-name"));
   ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
-  SbThreadSleep(kWatchdogMonitorFrequency / 2);
+  usleep(kWatchdogMonitorFrequency / 2);
   ASSERT_TRUE(watchdog_->Register("test-name", "test-desc",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency, 0, PING));
-  SbThreadSleep(kWatchdogMonitorFrequency / 2);
+  usleep(kWatchdogMonitorFrequency / 2);
   ASSERT_TRUE(watchdog_->Register("test-name", "test-desc",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency, 0, PING));
   ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
-  SbThreadSleep(kWatchdogMonitorFrequency / 2);
+  usleep(kWatchdogMonitorFrequency / 2);
   ASSERT_TRUE(watchdog_->Register("test-name", "test-desc",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency, 0, ALL));
-  SbThreadSleep(kWatchdogMonitorFrequency / 2);
+  usleep(kWatchdogMonitorFrequency / 2);
   ASSERT_TRUE(watchdog_->Register("test-name", "test-desc",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency, 0, ALL));
@@ -496,12 +515,12 @@ TEST_F(WatchdogTest, PingByClientShouldPreventViolations) {
   std::shared_ptr<Client> client = watchdog_->RegisterByClient(
       "test-name", "test-desc", base::kApplicationStateStarted,
       kWatchdogMonitorFrequency);
-  SbThreadSleep(kWatchdogMonitorFrequency / 2);
+  usleep(kWatchdogMonitorFrequency / 2);
   ASSERT_TRUE(watchdog_->PingByClient(client));
-  SbThreadSleep(kWatchdogMonitorFrequency / 2);
+  usleep(kWatchdogMonitorFrequency / 2);
   ASSERT_TRUE(watchdog_->PingByClient(client));
   ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_NE(watchdog_->GetWatchdogViolations(), "");
   ASSERT_TRUE(watchdog_->UnregisterByClient(client));
 }
@@ -511,7 +530,7 @@ TEST_F(WatchdogTest, UnregisterShouldPreventViolations) {
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
 }
 
@@ -520,7 +539,7 @@ TEST_F(WatchdogTest, UnregisterByClientShouldPreventViolations) {
       "test-name", "test-desc", base::kApplicationStateStarted,
       kWatchdogMonitorFrequency);
   ASSERT_TRUE(watchdog_->UnregisterByClient(client));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
 }
 
@@ -531,7 +550,7 @@ TEST_F(WatchdogTest, KillSwitchShouldPreventViolations) {
   ASSERT_TRUE(watchdog_->Register("test-name", "test-desc",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
 }
@@ -540,7 +559,7 @@ TEST_F(WatchdogTest, FrequentConsecutiveViolationsShouldNotWrite) {
   ASSERT_TRUE(watchdog_->Register("test-name", "test-desc",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   std::string write_json = "";
   starboard::ScopedFile read_file(watchdog_->GetWatchdogFilePath().c_str(),
                                   kSbFileOpenOnly | kSbFileRead);
@@ -552,7 +571,7 @@ TEST_F(WatchdogTest, FrequentConsecutiveViolationsShouldNotWrite) {
   }
   ASSERT_NE(write_json, "");
   ASSERT_TRUE(watchdog_->Ping("test-name"));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
   std::string no_write_json = "";
   starboard::ScopedFile read_file_again(
@@ -576,7 +595,7 @@ TEST_F(WatchdogTest, GetViolationClientNames) {
   ASSERT_TRUE(watchdog_->Register("test-name-2", "test-desc-2",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_TRUE(watchdog_->Unregister("test-name-1"));
   ASSERT_TRUE(watchdog_->Unregister("test-name-2"));
 
@@ -598,18 +617,21 @@ TEST_F(WatchdogTest, GetPartialViolationsByClients) {
   ASSERT_TRUE(watchdog_->Register("test-name-2", "test-desc-2",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
   ASSERT_TRUE(watchdog_->Unregister("test-name-1"));
   ASSERT_TRUE(watchdog_->Unregister("test-name-2"));
 
   const std::vector<std::string> clients = {"test-name-1"};
   std::string json = watchdog_->GetWatchdogViolations(clients);
   ASSERT_NE(json, "");
-  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
-  ASSERT_NE(violations_map, nullptr);
-  base::Value* violation_dict = violations_map->FindKey("test-name-1");
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  ASSERT_NE(violations_map.size(), 0);
+  base::Value::Dict* violation_dict = violations_map.FindDict("test-name-1");
   ASSERT_NE(violation_dict, nullptr);
-  violation_dict = violations_map->FindKey("test-name-2");
+  violation_dict = violations_map.FindDict("test-name-2");
   ASSERT_EQ(violation_dict, nullptr);
   json = watchdog_->GetWatchdogViolations(clients);
   ASSERT_EQ(json, "");
@@ -618,7 +640,7 @@ TEST_F(WatchdogTest, GetPartialViolationsByClients) {
 TEST_F(WatchdogTest, EvictOldWatchdogViolations) {
   // Creates old Violation json file.
   std::unique_ptr<base::Value> dummy_map =
-      std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
+      std::make_unique<base::Value>(base::Value::Type::DICT);
   dummy_map->SetKey("test-name-old",
                     CreateDummyViolationDict("test-desc-old", 0, 1));
   std::string json;
@@ -662,15 +684,19 @@ TEST_F(WatchdogTest, ViolationContainsLogTrace) {
   watchdog_->LogEvent("2");
   watchdog_->LogEvent("3");
 
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
 
   std::string json = watchdog_->GetWatchdogViolations();
-  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
-  base::Value* violations =
-      violations_map->FindKey("test-name")->FindKey("violations");
-  base::Value* logTrace = violations->GetList()[0].FindKey("logTrace");
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  ASSERT_TRUE(violations_map_optional.has_value());
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  base::Value::List* violations =
+      violations_map.FindDict("test-name")->FindList("violations");
+  base::Value::List* logTrace = (*violations)[0].GetDict().FindList("logTrace");
 
-  ASSERT_EQ(logTrace->GetList().size(), 3);
+  ASSERT_EQ(logTrace->size(), 3);
 }
 
 TEST_F(WatchdogTest, ViolationContainsEmptyLogTrace) {
@@ -678,15 +704,19 @@ TEST_F(WatchdogTest, ViolationContainsEmptyLogTrace) {
                       kWatchdogMonitorFrequency);
   watchdog_->Ping("test-name", "test-ping");
 
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
 
   std::string json = watchdog_->GetWatchdogViolations();
-  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
-  base::Value* violations =
-      violations_map->FindKey("test-name")->FindKey("violations");
-  base::Value* logTrace = violations->GetList()[0].FindKey("logTrace");
+  absl::optional<base::Value> violations_map_optional =
+      base::JSONReader::Read(json);
+  ASSERT_TRUE(violations_map_optional.has_value());
+  base::Value::Dict violations_map =
+      violations_map_optional.value().GetDict().Clone();
+  base::Value::List* violations =
+      violations_map.FindDict("test-name")->FindList("violations");
+  base::Value::List* logTrace = (*violations)[0].GetDict().FindList("logTrace");
 
-  ASSERT_EQ(logTrace->GetList().size(), 0);
+  ASSERT_EQ(logTrace->size(), 0);
 }
 
 }  // namespace watchdog

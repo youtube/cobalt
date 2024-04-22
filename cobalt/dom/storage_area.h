@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/containers/hash_tables.h"
+#include "base/macros.h"
 #include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/loader/origin.h"

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,37 +18,37 @@
 #include <vector>
 
 #include "base/at_exit.h"
-#include "base/bind.h"
-#include "base/bind_helpers.h"
 #include "base/command_line.h"
 #include "base/debug/debugger.h"
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/message_loop/message_pump_type.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
 #include "base/run_loop.h"
-#include "base/single_thread_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_executor.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/time/time.h"
+#include "build/build_config.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/blockfile/backend_impl.h"
 #include "net/disk_cache/blockfile/stress_support.h"
-#include "net/disk_cache/blockfile/trace.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/disk_cache_test_util.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/logging_win.h"
-#include "starboard/memory.h"
 #endif
 
 using base::Time;
@@ -62,7 +62,7 @@ int RunSlave(int iteration) {
   base::PathService::Get(base::FILE_EXE, &exe);
 
   base::CommandLine cmdline(exe);
-  cmdline.AppendArg(base::IntToString(iteration));
+  cmdline.AppendArg(base::NumberToString(iteration));
 
   base::Process process = base::LaunchProcess(cmdline, base::LaunchOptions());
   if (!process.IsValid()) {
@@ -123,7 +123,7 @@ enum Operation { NONE, OPEN, CREATE, READ, WRITE, DOOM };
 // closed or deleted.
 class EntryWrapper {
  public:
-  EntryWrapper() : entry_(nullptr), state_(NONE) {
+  EntryWrapper() {
     buffer_ = base::MakeRefCounted<net::IOBuffer>(kBufferSize);
     memset(buffer_->data(), 'k', kBufferSize);
   }
@@ -133,7 +133,7 @@ class EntryWrapper {
   void DoOpen(int key);
 
  private:
-  void OnOpenDone(int key, int result);
+  void OnOpenDone(int key, disk_cache::EntryResult result);
   void DoRead();
   void OnReadDone(int result);
   void DoWrite();
@@ -142,19 +142,19 @@ class EntryWrapper {
   void OnDeleteDone(int result);
   void DoIdle();
 
-  disk_cache::Entry* entry_;
-  Operation state_;
+  disk_cache::Entry* entry_ = nullptr;
+  Operation state_ = NONE;
   scoped_refptr<net::IOBuffer> buffer_;
 };
 
 // The data that the main thread is working on.
 struct Data {
-  Data() : pendig_operations(0), writes(0), iteration(0), cache(nullptr) {}
+  Data() = default;
 
-  int pendig_operations;  // Counter of simultaneous operations.
-  int writes;             // How many writes since this iteration started.
-  int iteration;          // The iteration (number of crashes).
-  disk_cache::BackendImpl* cache;
+  int pendig_operations = 0;  // Counter of simultaneous operations.
+  int writes = 0;             // How many writes since this iteration started.
+  int iteration = 0;          // The iteration (number of crashes).
+  disk_cache::BackendImpl* cache = nullptr;
   std::string keys[kNumKeys];
   EntryWrapper entries[kNumEntries];
 };
@@ -167,24 +167,26 @@ void EntryWrapper::DoOpen(int key) {
     return DoRead();
 
   state_ = OPEN;
-  int rv = g_data->cache->OpenEntry(
-      g_data->keys[key], net::HIGHEST, &entry_,
-      base::Bind(&EntryWrapper::OnOpenDone, base::Unretained(this), key));
-  if (rv != net::ERR_IO_PENDING)
-    OnOpenDone(key, rv);
+  disk_cache::EntryResult result = g_data->cache->OpenEntry(
+      g_data->keys[key], net::HIGHEST,
+      base::BindOnce(&EntryWrapper::OnOpenDone, base::Unretained(this), key));
+  if (result.net_error() != net::ERR_IO_PENDING)
+    OnOpenDone(key, std::move(result));
 }
 
-void EntryWrapper::OnOpenDone(int key, int result) {
-  if (result == net::OK)
+void EntryWrapper::OnOpenDone(int key, disk_cache::EntryResult result) {
+  if (result.net_error() == net::OK) {
+    entry_ = result.ReleaseEntry();
     return DoRead();
+  }
 
   CHECK_EQ(state_, OPEN);
   state_ = CREATE;
   result = g_data->cache->CreateEntry(
-      g_data->keys[key], net::HIGHEST, &entry_,
-      base::Bind(&EntryWrapper::OnOpenDone, base::Unretained(this), key));
-  if (result != net::ERR_IO_PENDING)
-    OnOpenDone(key, result);
+      g_data->keys[key], net::HIGHEST,
+      base::BindOnce(&EntryWrapper::OnOpenDone, base::Unretained(this), key));
+  if (result.net_error() != net::ERR_IO_PENDING)
+    OnOpenDone(key, std::move(result));
 }
 
 void EntryWrapper::DoRead() {
@@ -196,7 +198,7 @@ void EntryWrapper::DoRead() {
   memset(buffer_->data(), 'k', kReadSize);
   int rv = entry_->ReadData(
       0, 0, buffer_.get(), kReadSize,
-      base::Bind(&EntryWrapper::OnReadDone, base::Unretained(this)));
+      base::BindOnce(&EntryWrapper::OnReadDone, base::Unretained(this)));
   if (rv != net::ERR_IO_PENDING)
     OnReadDone(rv);
 }
@@ -217,7 +219,7 @@ void EntryWrapper::DoWrite() {
                  g_data->writes, g_data->iteration, size, truncate ? 1 : 0);
   int rv = entry_->WriteData(
       0, 0, buffer_.get(), size,
-      base::Bind(&EntryWrapper::OnWriteDone, base::Unretained(this), size),
+      base::BindOnce(&EntryWrapper::OnWriteDone, base::Unretained(this), size),
       truncate);
   if (rv != net::ERR_IO_PENDING)
     OnWriteDone(size, rv);
@@ -249,7 +251,7 @@ void EntryWrapper::DoDelete(const std::string& key) {
   state_ = DOOM;
   int rv = g_data->cache->DoomEntry(
       key, net::HIGHEST,
-      base::Bind(&EntryWrapper::OnDeleteDone, base::Unretained(this)));
+      base::BindOnce(&EntryWrapper::OnDeleteDone, base::Unretained(this)));
   if (rv != net::ERR_IO_PENDING)
     OnDeleteDone(rv);
 }
@@ -269,8 +271,8 @@ void EntryWrapper::DoIdle() {
   state_ = NONE;
   g_data->pendig_operations--;
   DCHECK(g_data->pendig_operations);
-  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                base::Bind(&LoopTask));
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&LoopTask));
 }
 
 // The task that keeps the main thread busy. Whenever an entry becomes idle this
@@ -290,8 +292,8 @@ void LoopTask() {
     g_data->entries[slot].DoOpen(key);
   }
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                base::Bind(&LoopTask));
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&LoopTask));
 }
 
 // This thread will loop forever, adding and removing entries from the cache.
@@ -307,20 +309,20 @@ void StressTheCache(int iteration) {
 
   base::Thread cache_thread("CacheThread");
   if (!cache_thread.StartWithOptions(
-          base::Thread::Options(base::MessageLoop::TYPE_IO, 0)))
+          base::Thread::Options(base::MessagePumpType::IO, 0)))
     return;
 
   g_data = new Data();
   g_data->iteration = iteration;
   g_data->cache = new disk_cache::BackendImpl(
-      path, mask, cache_thread.task_runner().get(), NULL);
+      path, mask, cache_thread.task_runner().get(), net::DISK_CACHE, nullptr);
   g_data->cache->SetMaxSize(cache_size);
   g_data->cache->SetFlags(disk_cache::kNoLoadProtection);
 
   net::TestCompletionCallback cb;
-  int rv = g_data->cache->Init(cb.callback());
+  g_data->cache->Init(cb.callback());
 
-  if (cb.GetResult(rv) != net::OK) {
+  if (cb.WaitForResult() != net::OK) {
     printf("Unable to initialize cache.\n");
     return;
   }
@@ -330,11 +332,11 @@ void StressTheCache(int iteration) {
   int seed = static_cast<int>(Time::Now().ToInternalValue());
   srand(seed);
 
-  for (int i = 0; i < kNumKeys; i++)
-    g_data->keys[i] = GenerateStressKey();
+  for (auto& key : g_data->keys)
+    key = GenerateStressKey();
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                base::Bind(&LoopTask));
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&LoopTask));
   base::RunLoop().Run();
 }
 
@@ -347,7 +349,7 @@ void RunSoon(scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
 void CrashCallback() {
   // Keep trying to run.
-  RunSoon(base::ThreadTaskRunnerHandle::Get());
+  RunSoon(base::SingleThreadTaskRunner::GetCurrentDefault());
 
   if (g_crashing)
     return;
@@ -361,8 +363,8 @@ void CrashCallback() {
 }
 
 void RunSoon(scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
-  const base::TimeDelta kTaskDelay = base::TimeDelta::FromSeconds(10);
-  task_runner->PostDelayedTask(FROM_HERE, base::Bind(&CrashCallback),
+  const base::TimeDelta kTaskDelay = base::Seconds(10);
+  task_runner->PostDelayedTask(FROM_HERE, base::BindOnce(&CrashCallback),
                                kTaskDelay);
 }
 
@@ -384,23 +386,9 @@ void CrashHandler(const char* file,
   base::debug::BreakDebugger();
 }
 
-bool MessageHandler(int severity, const char* file, int line,
-                    size_t message_start, const std::string& str) {
-  const size_t kMaxMessageLen = 48;
-  char message[kMaxMessageLen];
-  size_t len = std::min(str.length() - message_start, kMaxMessageLen - 1);
-
-  memcpy(message, str.c_str() + message_start, len);
-  message[len] = '\0';
-#if !defined(DISK_CACHE_TRACE_TO_LOG)
-  disk_cache::Trace("%s", message);
-#endif
-  return false;
-}
-
 // -----------------------------------------------------------------------
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 // {B9A153D4-31C3-48e4-9ABF-D54383F14A0D}
 const GUID kStressCacheTraceProviderName = {
     0xb9a153d4, 0x31c3, 0x48e4,
@@ -415,21 +403,21 @@ int main(int argc, const char* argv[]) {
     return MasterCode();
 
   logging::ScopedLogAssertHandler scoped_assert_handler(
-      base::Bind(CrashHandler));
-  logging::SetLogMessageHandler(MessageHandler);
+      base::BindRepeating(CrashHandler));
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   logging::LogEventProvider::Initialize(kStressCacheTraceProviderName);
 #else
   base::CommandLine::Init(argc, argv);
   logging::LoggingSettings settings;
-  settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
+  settings.logging_dest =
+      logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
   logging::InitLogging(settings);
 #endif
 
   // Some time for the memory manager to flush stuff.
-  base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(3));
-  base::MessageLoopForIO message_loop;
+  base::PlatformThread::Sleep(base::Seconds(3));
+  base::SingleThreadTaskExecutor io_task_executor(base::MessagePumpType::IO);
 
   char* end;
   long int iteration = strtol(argv[1], &end, 0);

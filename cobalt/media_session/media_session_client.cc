@@ -197,7 +197,7 @@ void MediaSessionClient::PostDelayedTaskForMaybeFreezeCallback() {
 void MediaSessionClient::UpdatePlatformPlaybackState(
     CobaltExtensionMediaSessionPlaybackState state) {
   DCHECK(media_session_->task_runner_);
-  if (!media_session_->task_runner_->BelongsToCurrentThread()) {
+  if (!media_session_->task_runner_->RunsTasksInCurrentSequence()) {
     media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::UpdatePlatformPlaybackState,
                               AsWeakPtr(), state));
@@ -220,7 +220,7 @@ void MediaSessionClient::InvokeAction(
   DCHECK(media_session_->task_runner_);
   media_session_->task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&MediaSessionClient::InvokeActionInternal,
-                                AsWeakPtr(), base::Passed(&details)));
+                                AsWeakPtr(), std::move(details)));
 }
 
 void MediaSessionClient::InvokeAction(
@@ -229,8 +229,8 @@ void MediaSessionClient::InvokeAction(
       new CobaltExtensionMediaSessionActionDetails(details));
   DCHECK(media_session_->task_runner_);
   media_session_->task_runner_->PostTask(
-      FROM_HERE, base::Bind(&MediaSessionClient::InvokeActionInternal,
-                            AsWeakPtr(), base::Passed(&details_ptr)));
+      FROM_HERE, base::BindOnce(&MediaSessionClient::InvokeActionInternal,
+                                AsWeakPtr(), std::move(details_ptr)));
 }
 
 
@@ -256,7 +256,7 @@ void MediaSessionClient::InvokeActionInternal(
   DCHECK(!details->fast_seek ||
          details->action == kCobaltExtensionMediaSessionActionSeekto);
   CHECK(media_session_->task_runner_);
-  CHECK(media_session_->task_runner_->BelongsToCurrentThread());
+  CHECK(media_session_->task_runner_->RunsTasksInCurrentSequence());
 
   MediaSession::ActionMap::iterator it = media_session_->action_map_.find(
       ConvertMediaSessionAction(details->action));

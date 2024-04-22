@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,14 +8,14 @@
 #include <string>
 #include <vector>
 
-#include "media/capture/video/linux/video_capture_device_factory_linux.h"
+#include "media/capture/video/linux/video_capture_device_factory_v4l2.h"
 #include "media/capture/video/video_capture_device_descriptor.h"
 #include "media/capture/video_capture_types.h"
 
 namespace media {
 
 class FakeDeviceProvider
-    : public VideoCaptureDeviceFactoryLinux::DeviceProvider {
+    : public VideoCaptureDeviceFactoryV4L2::DeviceProvider {
  public:
   FakeDeviceProvider();
   ~FakeDeviceProvider() override;

@@ -16,9 +16,11 @@
 
 #include "net/base/net_errors.h"
 
+#include "base/notreached.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "starboard/system.h"
+#include "starboard/socket.h"
 
 namespace net {
 

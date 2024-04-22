@@ -14,6 +14,8 @@
 
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 
+#include <unistd.h>
+
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/thread.h"
@@ -47,7 +49,7 @@ void* TakeThenSignalEntryPoint(void* context) {
   test_context->do_signal.Take();
 
   if (test_context->delay_after_signal > 0) {
-    SbThreadSleep(test_context->delay_after_signal);
+    usleep(test_context->delay_after_signal);
   }
 
   // Signal the condition variable.

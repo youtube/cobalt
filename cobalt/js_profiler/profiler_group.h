@@ -20,14 +20,14 @@
 #include <string>
 #include <vector>
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/current_thread.h"
 #include "cobalt/js_profiler/profiler.h"
 #include "cobalt/js_profiler/profiler_trace.h"
 #include "cobalt/script/global_environment.h"
-#include "third_party/v8/include/v8-profiler.h"
 #include "v8/include/cppgc/member.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8-platform.h"
+#include "v8/include/v8-profiler.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
@@ -38,7 +38,7 @@ class Profiler;
 
 // A ProfilerGroup represents a set of window.Profiler JS objects sharing an
 // underlying v8::CpuProfiler attached to a common isolate.
-class ProfilerGroup : public base::MessageLoop::DestructionObserver {
+class ProfilerGroup : public base::CurrentThread::DestructionObserver {
  public:
   explicit ProfilerGroup(v8::Isolate* isolate) : isolate_(isolate) {}
 

@@ -17,10 +17,13 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/bind.h"
+#include "base/command_line.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/network/disk_cache/cobalt_backend_factory.h"
@@ -37,20 +40,18 @@
 #include "net/cert/cert_verify_proc.h"
 #include "net/cert/ct_policy_enforcer.h"
 #include "net/cert/do_nothing_ct_verifier.h"
-#include "net/cert_net/cert_net_fetcher_impl.h"
 #include "net/dns/host_cache.h"
+#include "net/dns/host_resolver.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
-#include "net/http/http_server_properties_impl.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_transaction_factory.h"
+#include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
-#include "net/third_party/quic/platform/api/quic_flags.h"
-#include "net/url_request/data_protocol_handler.h"
-#include "net/url_request/url_request_job_factory_impl.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/configuration_constants.h"
 
@@ -115,119 +116,131 @@ const char kQUICToggleCommandLongHelp[] =
     "enabled or not. The new value will apply for new streams.";
 #endif  // defined(ENABLE_DEBUGGER)
 
+class CobaltCookieAccessDelegate : public net::CookieAccessDelegate {
+ public:
+  bool ShouldTreatUrlAsTrustworthy(const GURL& url) const override {
+    // TODO: Consider checking if URL is trustworthy.
+    return true;
+  }
+
+  net::CookieAccessSemantics GetAccessSemantics(
+      const net::CanonicalCookie& cookie) const override {
+    return net::CookieAccessSemantics::LEGACY;
+  }
+
+  bool ShouldIgnoreSameSiteRestrictions(
+      const GURL& url,
+      const net::SiteForCookies& site_for_cookies) const override {
+    return false;
+  }
+
+  absl::optional<net::FirstPartySetMetadata>
+  ComputeFirstPartySetMetadataMaybeAsync(
+      const net::SchemefulSite& site, const net::SchemefulSite* top_frame_site,
+      const std::set<net::SchemefulSite>& party_context,
+      base::OnceCallback<void(net::FirstPartySetMetadata)> callback)
+      const override {
+    return net::FirstPartySetMetadata();
+  }
+
+  absl::optional<base::flat_map<net::SchemefulSite, net::FirstPartySetEntry>>
+  FindFirstPartySetEntries(
+      const base::flat_set<net::SchemefulSite>& sites,
+      base::OnceCallback<
+          void(base::flat_map<net::SchemefulSite, net::FirstPartySetEntry>)>
+          callback) const override {
+    return std::vector<
+        std::pair<net::SchemefulSite, net::FirstPartySetEntry>>();
+  }
+};
+
 }  // namespace
 
 URLRequestContext::URLRequestContext(
     storage::StorageManager* storage_manager, const std::string& custom_proxy,
-    net::NetLog* net_log, bool ignore_certificate_errors,
+    bool ignore_certificate_errors,
     scoped_refptr<base::SequencedTaskRunner> network_task_runner,
-    persistent_storage::PersistentSettings* persistent_settings)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this))
+    persistent_storage::PersistentSettings* persistent_settings,
+    std::unique_ptr<net::HttpUserAgentSettings> http_user_agent_settings,
+    std::unique_ptr<net::NetworkDelegate> network_delegate)
 #if defined(ENABLE_DEBUGGER)
-      ,
-      ALLOW_THIS_IN_INITIALIZER_LIST(quic_toggle_command_handler_(
+    : ALLOW_THIS_IN_INITIALIZER_LIST(quic_toggle_command_handler_(
           kQUICToggleCommand,
           base::Bind(&URLRequestContext::OnQuicToggle, base::Unretained(this)),
           kQUICToggleCommandShortHelp, kQUICToggleCommandLongHelp))
 #endif  // defined(ENABLE_DEBUGGER)
 {
+  auto url_request_context_builder =
+      std::make_unique<net::URLRequestContextBuilder>();
+  url_request_context_builder->set_http_user_agent_settings(
+      std::move(http_user_agent_settings));
+  url_request_context_builder->set_network_delegate(
+      std::move(network_delegate));
   if (storage_manager) {
     persistent_cookie_store_ =
         new PersistentCookieStore(storage_manager, network_task_runner);
   }
-  storage_.set_cookie_store(
-      std::unique_ptr<net::CookieStore>(new net::CookieMonster(
-          persistent_cookie_store_, NULL /* channel_id_service */, net_log)));
 
-  set_enable_brotli(true);
+  {
+    auto cookie_store = std::make_unique<net::CookieMonster>(
+        persistent_cookie_store_,
+        base::TimeDelta::FromInternalValue(0) /* channel_id_service */,
+        net::NetLog::Get());
+    cookie_store->SetCookieAccessDelegate(
+        std::make_unique<CobaltCookieAccessDelegate>());
+    url_request_context_builder->SetCookieStore(std::move(cookie_store));
+  }
 
+  url_request_context_builder->set_enable_brotli(true);
   base::Optional<net::ProxyConfig> proxy_config;
   if (!custom_proxy.empty()) {
     proxy_config = CreateCustomProxyConfig(custom_proxy);
   }
 
-  storage_.set_proxy_resolution_service(
-      net::ProxyResolutionService::CreateUsingSystemProxyResolver(
+  url_request_context_builder->set_proxy_resolution_service(
+      net::ConfiguredProxyResolutionService::CreateUsingSystemProxyResolver(
           std::unique_ptr<net::ProxyConfigService>(
               new ProxyConfigService(proxy_config)),
-          net_log));
+          net::NetLog::Get(), /*quick_check_enabled=*/true));
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
+#ifndef COBALT_PENDING_CLEAN_UP
+  // TODO: Confirm this is not needed.
   // ack decimation significantly increases download bandwidth on low-end
   // android devices.
   SetQuicFlag(&FLAGS_quic_reloadable_flag_quic_enable_ack_decimation, true);
-
-  net::HostResolver::Options options;
-  options.max_concurrent_resolves = net::HostResolver::kDefaultParallelism;
-  options.max_retry_attempts = net::HostResolver::kDefaultRetryAttempts;
-  options.enable_caching = true;
-  storage_.set_host_resolver(
-      net::HostResolver::CreateSystemResolver(options, NULL));
-
-  storage_.set_ct_policy_enforcer(std::unique_ptr<net::CTPolicyEnforcer>(
-      new net::DefaultCTPolicyEnforcer()));
-  DCHECK(ct_policy_enforcer());
-  // As of Chromium m70 net, CreateDefault will return a caching multi-thread
-  // cert verifier, the verification cache will usually cache 25-40
-  // results in a single session which can take up to 100KB memory.
-  storage_.set_cert_verifier(net::CertVerifier::CreateDefault());
-  storage_.set_transport_security_state(
-      std::make_unique<net::TransportSecurityState>());
-  // TODO: Investigate if we want the cert transparency verifier.
-  storage_.set_cert_transparency_verifier(
-      std::make_unique<net::DoNothingCTVerifier>());
-  storage_.set_ssl_config_service(
-      std::make_unique<net::SSLConfigServiceDefaults>());
-
-  storage_.set_http_auth_handler_factory(
-      net::HttpAuthHandlerFactory::CreateDefault(host_resolver()));
-  storage_.set_http_server_properties(
-      std::make_unique<net::HttpServerPropertiesImpl>());
-
-  net::HttpNetworkSession::Params params;
-
-  if (configuration::Configuration::GetInstance()->CobaltEnableQuic()) {
+#endif
+  bool quic_enabled =
+      configuration::Configuration::GetInstance()->CobaltEnableQuic();
+  if (quic_enabled) {
     base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    params.enable_quic = !command_line->HasSwitch(switches::kDisableQuic);
-    params.use_quic_for_unknown_origins = params.enable_quic;
+    quic_enabled = !command_line->HasSwitch(switches::kDisableQuic);
   }
+#else
+  bool quic_enabled = false;
+#endif
+  url_request_context_builder->SetSpdyAndQuicEnabled(/*spdy_enabled=*/true,
+                                                     quic_enabled);
+
+  net::HttpNetworkSessionParams params;
+  params.enable_quic = quic_enabled;
+  params.use_quic_for_unknown_origins = quic_enabled;
+
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   params.ignore_certificate_errors = ignore_certificate_errors;
   if (ignore_certificate_errors) {
-    cert_verifier()->set_ignore_certificate_errors(true);
     LOG(INFO) << "ignore_certificate_errors option specified, Certificate "
                  "validation results will be ignored but error message will "
                  "still be displayed.";
   }
 #endif  // defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
 
-  net::HttpNetworkSession::Context context;
-  context.client_socket_factory = NULL;
-  context.host_resolver = host_resolver();
-  context.cert_verifier = cert_verifier();
-  context.ct_policy_enforcer = ct_policy_enforcer();
-  context.channel_id_service = NULL;
-  context.transport_security_state = transport_security_state();
-  context.cert_transparency_verifier = cert_transparency_verifier();
-  context.proxy_resolution_service = proxy_resolution_service();
-  context.ssl_config_service = ssl_config_service();
-  context.http_auth_handler_factory = http_auth_handler_factory();
-  context.http_server_properties = http_server_properties();
-#if defined(ENABLE_NETWORK_LOGGING)
-  context.net_log = net_log;
-  set_net_log(net_log);
-#else
-#endif
-  context.socket_performance_watcher_factory = NULL;
-  context.network_quality_provider = NULL;
+  url_request_context_builder->set_http_network_session_params(params);
 
-  storage_.set_http_network_session(
-      std::make_unique<net::HttpNetworkSession>(params, context));
   std::vector<char> path(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
                        kSbFileMaxPath)) {
-    storage_.set_http_transaction_factory(
-        std::unique_ptr<net::HttpNetworkLayer>(
-            new net::HttpNetworkLayer(storage_.http_network_session())));
+    using_http_cache_ = false;
   } else {
     using_http_cache_ = true;
 
@@ -246,56 +259,87 @@ URLRequestContext::URLRequestContext(
     LoadDiskCacheQuotaSettings(cache_persistent_settings_.get(),
                                max_cache_bytes);
 
-    auto http_cache = std::make_unique<net::HttpCache>(
-        storage_.http_network_session(),
-        std::make_unique<disk_cache::CobaltBackendFactory>(
-            base::FilePath(std::string(path.data())),
-            /* max_bytes */ max_cache_bytes, this),
-        true);
-    if (persistent_settings != nullptr) {
-      auto cache_enabled = persistent_settings->GetPersistentSettingAsBool(
-          disk_cache::kCacheEnabledPersistentSettingsKey, true);
-      disk_cache::settings::SetCacheEnabled(cache_enabled);
-      if (!cache_enabled) {
-        http_cache->set_mode(net::HttpCache::Mode::DISABLE);
-      }
-    }
-
-    storage_.set_http_transaction_factory(std::move(http_cache));
+    // Disable default http cache to use the one created by the supplied
+    // callback. |HttpCache| is an |HttpTransactionFactory| with an underlying
+    // |HttpTransactionFactory|.
+    //
+    // In |URLRequestContextBuilder|, first the |http_transaction_factory| is
+    // assigned by either the supplied creation callback, a test factory, or
+    // a default one.
+    //
+    // Then |URLRequestContextBuilder.http_cache_enabled_| is checked. When
+    // |true|, the |http_transaction_factory| is replaced with a default
+    // |HttpCache| wrapping the previously assign |http_transaction_factory|.
+    //
+    // We want to use the |HttpCache| created by the supplied callback, and we
+    // do not want it wrapped by the default |HttpCache|.
+    url_request_context_builder->DisableHttpCache();
+    url_request_context_builder->SetCreateHttpTransactionFactoryCallback(
+        base::BindOnce(
+            [](persistent_storage::PersistentSettings* persistent_settings,
+               int max_cache_bytes, const std::vector<char>& path,
+               URLRequestContext* url_request_context,
+               net::HttpNetworkSession* session)
+                -> std::unique_ptr<net::HttpTransactionFactory> {
+              auto http_cache = std::make_unique<net::HttpCache>(
+                  std::make_unique<net::HttpNetworkLayer>(session),
+                  std::make_unique<disk_cache::CobaltBackendFactory>(
+                      base::FilePath(std::string(path.data())),
+                      /* max_bytes */ max_cache_bytes, url_request_context));
+              http_cache->set_can_disable_by_mime_type(true);
+              if (persistent_settings != nullptr) {
+                auto cache_enabled =
+                    persistent_settings->GetPersistentSettingAsBool(
+                        disk_cache::kCacheEnabledPersistentSettingsKey, true);
+                disk_cache::settings::SetCacheEnabled(cache_enabled);
+                if (!cache_enabled) {
+                  http_cache->set_mode(net::HttpCache::Mode::DISABLE);
+                }
+              }
+              return http_cache;
+            },
+            base::Unretained(persistent_settings), max_cache_bytes, path,
+            base::Unretained(this)));
   }
 
-  auto* job_factory = new net::URLRequestJobFactoryImpl();
-  job_factory->SetProtocolHandler(url::kDataScheme,
-                                  std::make_unique<net::DataProtocolHandler>());
+#ifndef COBALT_PENDING_CLEAN_UP
+  // TODO: Determine if this is needed.
+  url_request_context_builder->SetProtocolHandler(
+      url::kDataScheme, std::make_unique<net::DataProtocolHandler>());
+#endif
 
-#if defined(ENABLE_CONFIGURE_REQUEST_JOB_FACTORY)
-  ConfigureRequestJobFactory(job_factory);
-#endif  // defined(ENABLE_CONFIGURE_REQUEST_JOB_FACTORY)
-
-  storage_.set_job_factory(
-      std::unique_ptr<net::URLRequestJobFactory>(job_factory));
+  url_request_context_ = url_request_context_builder->Build();
 }
 
 URLRequestContext::~URLRequestContext() {}
 
+std::unique_ptr<net::URLRequest> URLRequestContext::CreateRequest(
+    const GURL& url, net::RequestPriority priority,
+    net::URLRequest::Delegate* delegate) {
+  return url_request_context_->CreateRequest(url, priority, delegate);
+}
+
 void URLRequestContext::SetProxy(const std::string& proxy_rules) {
   net::ProxyConfig proxy_config = CreateCustomProxyConfig(proxy_rules);
   // ProxyService takes ownership of the ProxyConfigService.
-  proxy_resolution_service()->ResetConfigService(
-      std::make_unique<ProxyConfigService>(proxy_config));
+  url_request_context_->set_proxy_resolution_service(
+      net::ConfiguredProxyResolutionService::CreateUsingSystemProxyResolver(
+          std::make_unique<ProxyConfigService>(proxy_config),
+          net::NetLog::Get(),
+          /*quick_check_enabled=*/true));
 }
 
 void URLRequestContext::SetEnableQuic(bool enable_quic) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  storage_.http_network_session()->SetEnableQuic(enable_quic);
+  url_request_context_->http_network_session()->SetEnableQuic(enable_quic);
 }
 
 bool URLRequestContext::using_http_cache() { return using_http_cache_; }
 
 #if defined(ENABLE_DEBUGGER)
 void URLRequestContext::OnQuicToggle(const std::string& message) {
-  DCHECK(storage_.http_network_session());
-  storage_.http_network_session()->ToggleQuic();
+  DCHECK(url_request_context_->http_network_session());
+  SetEnableQuic(!url_request_context_->http_network_session()->IsQuicEnabled());
 }
 #endif  // defined(ENABLE_DEBUGGER)
 

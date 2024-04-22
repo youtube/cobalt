@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
-#include "base/single_thread_task_runner.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/strings/string_piece.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "media/base/media_export.h"
 
@@ -24,10 +24,9 @@ using MemoryDumpCB =
 class MEDIA_EXPORT MemoryDumpProviderProxy final
     : public base::trace_event::MemoryDumpProvider {
  public:
-  MemoryDumpProviderProxy(
-      const char* name,
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-      MemoryDumpCB dump_cb);
+  MemoryDumpProviderProxy(const char* name,
+                          scoped_refptr<base::SequencedTaskRunner> task_runner,
+                          MemoryDumpCB dump_cb);
 
   MemoryDumpProviderProxy(const MemoryDumpProviderProxy&) = delete;
   MemoryDumpProviderProxy& operator=(const MemoryDumpProviderProxy&) = delete;

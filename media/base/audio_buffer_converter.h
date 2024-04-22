@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "base/containers/circular_deque.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/base/audio_buffer.h"
 #include "media/base/audio_converter.h"
 #include "media/base/audio_parameters.h"
@@ -50,7 +50,9 @@ class MEDIA_EXPORT AudioBufferConverter : public AudioConverter::InputCallback {
 
  private:
   // Callback to provide data to the AudioConverter
-  double ProvideInput(AudioBus* audio_bus, uint32_t frames_delayed) override;
+  double ProvideInput(AudioBus* audio_bus,
+                      uint32_t frames_delayed,
+                      const AudioGlitchInfo& glitch_info) override;
 
   // Reset the converter in response to a configuration change.
   void ResetConverter(const AudioBuffer& input_buffer);

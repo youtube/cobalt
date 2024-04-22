@@ -30,6 +30,11 @@ TEST(DialUdpServerTest, ParseSearchRequest) {
     bool result;
   } tests[] = {
       {
+          // Empty request
+          "",
+          false,
+      },
+      {
           // The smallest correct response
           "M-SEARCH * HTTP/1.1\r\n"
           "ST: urn:dial-multiscreen-org:service:dial:1\r\n\r\n",
@@ -58,11 +63,6 @@ TEST(DialUdpServerTest, ParseSearchRequest) {
       {
           // Empty headers
           "M-SEARCH * HTTP/1.1\r\n\r\n",
-          false,
-      },
-      {
-          // Empty request
-          "",
           false,
       },
   };

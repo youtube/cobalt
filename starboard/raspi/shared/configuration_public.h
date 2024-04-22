@@ -61,13 +61,13 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-#endif  // SB_API_VERSION < 16
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
+
+#endif  // SB_API_VERSION < 16
 
 // --- Network Configuration -------------------------------------------------
 

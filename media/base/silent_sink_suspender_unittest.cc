@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,10 @@ namespace media {
 class SilentSinkSuspenderTest : public testing::Test {
  public:
   SilentSinkSuspenderTest()
-      : params_(AudioParameters::AUDIO_FAKE, CHANNEL_LAYOUT_MONO, 44100, 128),
+      : params_(AudioParameters::AUDIO_FAKE,
+                ChannelLayoutConfig::Mono(),
+                44100,
+                128),
         mock_sink_(new testing::StrictMock<MockAudioRendererSink>()),
         fake_callback_(0.1, params_.sample_rate()),
         temp_bus_(AudioBus::Create(params_)),
@@ -47,11 +50,15 @@ class SilentSinkSuspenderTest : public testing::Test {
 TEST_F(SilentSinkSuspenderTest, BasicPassthough) {
   temp_bus_->Zero();
   auto delay = base::Milliseconds(20);
+  AudioGlitchInfo glitch_info{.duration = base::Milliseconds(100),
+                              .count = 123};
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(delay, base::TimeTicks(), 0, temp_bus_.get()));
+            suspender_.Render(delay, base::TimeTicks(), glitch_info,
+                              temp_bus_.get()));
 
   // Delay should remain.
   EXPECT_EQ(delay, fake_callback_.last_delay());
+  EXPECT_EQ(glitch_info, fake_callback_.cumulative_glitch_info());
   EXPECT_FALSE(temp_bus_->AreFramesZero());
 }
 
@@ -60,7 +67,7 @@ TEST_F(SilentSinkSuspenderTest, SuspendResumeTriggered) {
   EXPECT_FALSE(suspender_.IsUsingFakeSinkForTesting());
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_FALSE(temp_bus_->AreFramesZero());
   base::RunLoop().RunUntilIdle();
@@ -70,7 +77,7 @@ TEST_F(SilentSinkSuspenderTest, SuspendResumeTriggered) {
   fake_callback_.set_volume(0);
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_TRUE(temp_bus_->AreFramesZero());
   {
@@ -97,11 +104,11 @@ TEST_F(SilentSinkSuspenderTest, SuspendResumeTriggered) {
   // not silent.
   fake_callback_.reset();
   std::unique_ptr<AudioBus> true_bus = AudioBus::Create(params_);
-  fake_callback_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+  fake_callback_.Render(base::TimeDelta(), base::TimeTicks(), {},
                         true_bus.get());
   EXPECT_FALSE(true_bus->AreFramesZero());
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_EQ(memcmp(temp_bus_->channel(0), true_bus->channel(0),
                    temp_bus_->frames() * sizeof(float)),
@@ -113,13 +120,13 @@ TEST_F(SilentSinkSuspenderTest, MultipleSuspend) {
   fake_callback_.set_volume(0);
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_TRUE(temp_bus_->AreFramesZero());
 
   // A second render should only result in a single Pause() call.
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
 
   EXPECT_CALL(*mock_sink_, Pause());
@@ -132,7 +139,7 @@ TEST_F(SilentSinkSuspenderTest, MultipleResume) {
   fake_callback_.set_volume(0);
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_TRUE(temp_bus_->AreFramesZero());
   EXPECT_CALL(*mock_sink_, Pause());
@@ -145,10 +152,10 @@ TEST_F(SilentSinkSuspenderTest, MultipleResume) {
   // Prepare our equality testers.
   fake_callback_.reset();
   std::unique_ptr<AudioBus> true_bus1 = AudioBus::Create(params_);
-  fake_callback_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+  fake_callback_.Render(base::TimeDelta(), base::TimeTicks(), {},
                         true_bus1.get());
   std::unique_ptr<AudioBus> true_bus2 = AudioBus::Create(params_);
-  fake_callback_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+  fake_callback_.Render(base::TimeDelta(), base::TimeTicks(), {},
                         true_bus2.get());
   EXPECT_NE(memcmp(true_bus1->channel(0), true_bus2->channel(0),
                    true_bus1->frames() * sizeof(float)),
@@ -159,23 +166,23 @@ TEST_F(SilentSinkSuspenderTest, MultipleResume) {
   fake_callback_.reset();
   EXPECT_EQ(
       temp_bus_->frames(),
-      suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0, nullptr));
+      suspender_.Render(base::TimeDelta(), base::TimeTicks(), {}, nullptr));
   EXPECT_EQ(
       temp_bus_->frames(),
-      suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0, nullptr));
+      suspender_.Render(base::TimeDelta(), base::TimeTicks(), {}, nullptr));
   EXPECT_CALL(*mock_sink_, Play());
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(suspender_.IsUsingFakeSinkForTesting());
 
   // Each render after resuming should return one of the non-silent bus.
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_EQ(memcmp(temp_bus_->channel(0), true_bus1->channel(0),
                    temp_bus_->frames() * sizeof(float)),
             0);
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_EQ(memcmp(temp_bus_->channel(0), true_bus2->channel(0),
                    temp_bus_->frames() * sizeof(float)),
@@ -187,7 +194,7 @@ TEST_F(SilentSinkSuspenderTest, SetDetectSilence) {
   EXPECT_FALSE(suspender_.IsUsingFakeSinkForTesting());
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_FALSE(temp_bus_->AreFramesZero());
   base::RunLoop().RunUntilIdle();
@@ -197,7 +204,7 @@ TEST_F(SilentSinkSuspenderTest, SetDetectSilence) {
   fake_callback_.set_volume(0);
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_TRUE(temp_bus_->AreFramesZero());
   {
@@ -227,7 +234,7 @@ TEST_F(SilentSinkSuspenderTest, SetDetectSilence) {
   // audio.
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
 
   base::RunLoop().RunUntilIdle();
@@ -238,7 +245,7 @@ TEST_F(SilentSinkSuspenderTest, SetDetectSilence) {
   suspender_.SetDetectSilence(true);
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_TRUE(temp_bus_->AreFramesZero());
   {
@@ -255,7 +262,7 @@ TEST_F(SilentSinkSuspenderTest, OnPaused) {
   EXPECT_FALSE(suspender_.IsUsingFakeSinkForTesting());
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_FALSE(temp_bus_->AreFramesZero());
   base::RunLoop().RunUntilIdle();
@@ -268,7 +275,7 @@ TEST_F(SilentSinkSuspenderTest, OnPaused) {
   fake_callback_.set_volume(0);
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
   EXPECT_TRUE(temp_bus_->AreFramesZero());
   {
@@ -287,7 +294,7 @@ TEST_F(SilentSinkSuspenderTest, OnPaused) {
   // Render silence again, which should attempt to transition to the fake sink.
   temp_bus_->Zero();
   EXPECT_EQ(temp_bus_->frames(),
-            suspender_.Render(base::TimeDelta(), base::TimeTicks(), 0,
+            suspender_.Render(base::TimeDelta(), base::TimeTicks(), {},
                               temp_bus_.get()));
 
   // OnPaused() should cancel any pending transitions.

@@ -1,9 +1,11 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <utility>
 
+#include "base/memory/platform_shared_memory_handle.h"
+#include "base/memory/unsafe_shared_memory_region.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
@@ -20,17 +22,39 @@
 #include "ui/gfx/native_widget_types.h"
 #include "ui/gfx/selection_bound.h"
 
+#if BUILDFLAG(IS_FUCHSIA)
+#include "base/fuchsia/koid.h"
+#endif
+
 namespace gfx {
 
 namespace {
 
 gfx::AcceleratedWidget CastToAcceleratedWidget(int i) {
-#if defined(USE_OZONE) || defined(USE_X11) || defined(OS_APPLE)
+#if BUILDFLAG(IS_OZONE) || BUILDFLAG(IS_APPLE)
   return static_cast<gfx::AcceleratedWidget>(i);
 #else
   return reinterpret_cast<gfx::AcceleratedWidget>(i);
 #endif
 }
+
+// Used by the GpuMemoryBufferHandle test to produce a valid object handle to
+// embed in a NativePixmapPlane object, so that the test isn't sending an
+// invalid FD/vmo object where the mojom requires a valid one.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+base::ScopedFD CreateValidLookingBufferHandle() {
+  return base::UnsafeSharedMemoryRegion::TakeHandleForSerialization(
+             base::UnsafeSharedMemoryRegion::Create(1024))
+      .PassPlatformHandle()
+      .fd;
+}
+#elif BUILDFLAG(IS_FUCHSIA)
+zx::vmo CreateValidLookingBufferHandle() {
+  return base::UnsafeSharedMemoryRegion::TakeHandleForSerialization(
+             base::UnsafeSharedMemoryRegion::Create(1024))
+      .PassPlatformHandle();
+}
+#endif
 
 class StructTraitsTest : public testing::Test, public mojom::TraitsTestService {
  public:
@@ -95,45 +119,44 @@ TEST_F(StructTraitsTest, SelectionBound) {
 }
 
 TEST_F(StructTraitsTest, Transform) {
-  const float col1row1 = 1.f;
-  const float col2row1 = 2.f;
-  const float col3row1 = 3.f;
-  const float col4row1 = 4.f;
-  const float col1row2 = 5.f;
-  const float col2row2 = 6.f;
-  const float col3row2 = 7.f;
-  const float col4row2 = 8.f;
-  const float col1row3 = 9.f;
-  const float col2row3 = 10.f;
-  const float col3row3 = 11.f;
-  const float col4row3 = 12.f;
-  const float col1row4 = 13.f;
-  const float col2row4 = 14.f;
-  const float col3row4 = 15.f;
-  const float col4row4 = 16.f;
-  gfx::Transform input(col1row1, col2row1, col3row1, col4row1, col1row2,
-                       col2row2, col3row2, col4row2, col1row3, col2row3,
-                       col3row3, col4row3, col1row4, col2row4, col3row4,
-                       col4row4);
+  const float r0c0 = 1.f;
+  const float r0c1 = 2.f;
+  const float r0c2 = 3.f;
+  const float r0c3 = 4.f;
+  const float r1c0 = 5.f;
+  const float r1c1 = 6.f;
+  const float r1c2 = 7.f;
+  const float r1c3 = 8.f;
+  const float r2c0 = 9.f;
+  const float r2c1 = 10.f;
+  const float r2c2 = 11.f;
+  const float r2c3 = 12.f;
+  const float r3c0 = 13.f;
+  const float r3c1 = 14.f;
+  const float r3c2 = 15.f;
+  const float r3c3 = 16.f;
+  auto input =
+      gfx::Transform::RowMajor(r0c0, r0c1, r0c2, r0c3, r1c0, r1c1, r1c2, r1c3,
+                               r2c0, r2c1, r2c2, r2c3, r3c0, r3c1, r3c2, r3c3);
   mojo::Remote<mojom::TraitsTestService> remote = GetTraitsTestRemote();
   gfx::Transform output;
   remote->EchoTransform(input, &output);
-  EXPECT_EQ(col1row1, output.matrix().get(0, 0));
-  EXPECT_EQ(col2row1, output.matrix().get(0, 1));
-  EXPECT_EQ(col3row1, output.matrix().get(0, 2));
-  EXPECT_EQ(col4row1, output.matrix().get(0, 3));
-  EXPECT_EQ(col1row2, output.matrix().get(1, 0));
-  EXPECT_EQ(col2row2, output.matrix().get(1, 1));
-  EXPECT_EQ(col3row2, output.matrix().get(1, 2));
-  EXPECT_EQ(col4row2, output.matrix().get(1, 3));
-  EXPECT_EQ(col1row3, output.matrix().get(2, 0));
-  EXPECT_EQ(col2row3, output.matrix().get(2, 1));
-  EXPECT_EQ(col3row3, output.matrix().get(2, 2));
-  EXPECT_EQ(col4row3, output.matrix().get(2, 3));
-  EXPECT_EQ(col1row4, output.matrix().get(3, 0));
-  EXPECT_EQ(col2row4, output.matrix().get(3, 1));
-  EXPECT_EQ(col3row4, output.matrix().get(3, 2));
-  EXPECT_EQ(col4row4, output.matrix().get(3, 3));
+  EXPECT_EQ(r0c0, output.rc(0, 0));
+  EXPECT_EQ(r0c1, output.rc(0, 1));
+  EXPECT_EQ(r0c2, output.rc(0, 2));
+  EXPECT_EQ(r0c3, output.rc(0, 3));
+  EXPECT_EQ(r1c0, output.rc(1, 0));
+  EXPECT_EQ(r1c1, output.rc(1, 1));
+  EXPECT_EQ(r1c2, output.rc(1, 2));
+  EXPECT_EQ(r1c3, output.rc(1, 3));
+  EXPECT_EQ(r2c0, output.rc(2, 0));
+  EXPECT_EQ(r2c1, output.rc(2, 1));
+  EXPECT_EQ(r2c2, output.rc(2, 2));
+  EXPECT_EQ(r2c3, output.rc(2, 3));
+  EXPECT_EQ(r3c0, output.rc(3, 0));
+  EXPECT_EQ(r3c1, output.rc(3, 1));
+  EXPECT_EQ(r3c2, output.rc(3, 2));
+  EXPECT_EQ(r3c3, output.rc(3, 3));
 }
 
 TEST_F(StructTraitsTest, AcceleratedWidget) {
@@ -147,7 +170,7 @@ TEST_F(StructTraitsTest, AcceleratedWidget) {
 TEST_F(StructTraitsTest, GpuMemoryBufferHandle) {
   const gfx::GpuMemoryBufferId kId(99);
   const uint32_t kOffset = 126;
-  const int32_t kStride = 256;
+  const uint32_t kStride = 256;
   base::UnsafeSharedMemoryRegion shared_memory_region =
       base::UnsafeSharedMemoryRegion::Create(1024);
   ASSERT_TRUE(shared_memory_region.IsValid());
@@ -171,21 +194,25 @@ TEST_F(StructTraitsTest, GpuMemoryBufferHandle) {
   base::UnsafeSharedMemoryRegion output_memory = std::move(output.region);
   EXPECT_TRUE(output_memory.Map().IsValid());
 
-#if defined(OS_LINUX) || defined(OS_CHROMEOS) || defined(USE_OZONE)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OZONE)
   gfx::GpuMemoryBufferHandle handle2;
   const uint64_t kSize = kOffset + kStride;
   handle2.type = gfx::NATIVE_PIXMAP;
   handle2.id = kId;
   handle2.offset = kOffset;
   handle2.stride = kStride;
-#if defined(OS_LINUX) || defined(OS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   const uint64_t kModifier = 2;
-  base::ScopedFD buffer_handle;
+  base::ScopedFD buffer_handle = CreateValidLookingBufferHandle();
   handle2.native_pixmap_handle.modifier = kModifier;
-#elif defined(OS_FUCHSIA)
-  zx::vmo buffer_handle;
-  handle2.native_pixmap_handle.buffer_collection_id =
-      gfx::SysmemBufferCollectionId::Create();
+#elif BUILDFLAG(IS_FUCHSIA)
+  zx::vmo buffer_handle = CreateValidLookingBufferHandle();
+  zx::eventpair client_handle, service_handle;
+  auto status = zx::eventpair::create(0, &client_handle, &service_handle);
+  DCHECK_EQ(status, ZX_OK);
+  zx_koid_t handle_koid = base::GetKoid(client_handle).value();
+  handle2.native_pixmap_handle.buffer_collection_handle =
+      std::move(client_handle);
   handle2.native_pixmap_handle.buffer_index = 4;
   handle2.native_pixmap_handle.ram_coherency = true;
 #endif
@@ -193,15 +220,14 @@ TEST_F(StructTraitsTest, GpuMemoryBufferHandle) {
                                                    std::move(buffer_handle));
   remote->EchoGpuMemoryBufferHandle(std::move(handle2), &output);
   EXPECT_EQ(gfx::NATIVE_PIXMAP, output.type);
-#if defined(OS_LINUX) || defined(OS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   EXPECT_EQ(kModifier, output.native_pixmap_handle.modifier);
-#elif defined(OS_FUCHSIA)
-  EXPECT_EQ(handle2.native_pixmap_handle.buffer_collection_id,
-            output.native_pixmap_handle.buffer_collection_id);
-  EXPECT_EQ(handle2.native_pixmap_handle.buffer_index,
-            output.native_pixmap_handle.buffer_index);
-  EXPECT_EQ(handle2.native_pixmap_handle.ram_coherency,
-            output.native_pixmap_handle.ram_coherency);
+#elif BUILDFLAG(IS_FUCHSIA)
+  EXPECT_EQ(handle_koid,
+            base::GetKoid(output.native_pixmap_handle.buffer_collection_handle)
+                .value());
+  EXPECT_EQ(4U, output.native_pixmap_handle.buffer_index);
+  EXPECT_EQ(true, output.native_pixmap_handle.ram_coherency);
 #endif
   ASSERT_EQ(1u, output.native_pixmap_handle.planes.size());
   EXPECT_EQ(kSize, output.native_pixmap_handle.planes.back().size);
@@ -245,6 +271,10 @@ TEST_F(StructTraitsTest, PresentationFeedback) {
   uint32_t flags =
       PresentationFeedback::kVSync | PresentationFeedback::kZeroCopy;
   PresentationFeedback input{timestamp, interval, flags};
+#if BUILDFLAG(IS_MAC)
+  input.ca_layer_error_code = kCALayerFailedPictureContent;
+#endif
+
   input.available_timestamp = base::TimeTicks() + base::Milliseconds(20);
   input.ready_timestamp = base::TimeTicks() + base::Milliseconds(21);
   input.latch_timestamp = base::TimeTicks() + base::Milliseconds(22);
@@ -257,6 +287,9 @@ TEST_F(StructTraitsTest, PresentationFeedback) {
   EXPECT_EQ(input.available_timestamp, output.available_timestamp);
   EXPECT_EQ(input.ready_timestamp, output.ready_timestamp);
   EXPECT_EQ(input.latch_timestamp, output.latch_timestamp);
+#if BUILDFLAG(IS_MAC)
+  EXPECT_EQ(input.ca_layer_error_code, output.ca_layer_error_code);
+#endif
 }
 
 TEST_F(StructTraitsTest, RRectF) {

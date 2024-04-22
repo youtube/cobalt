@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -169,6 +169,10 @@ class CAPTURE_EXPORT CameraDeviceContext {
 
   // Returns true if there is a client.
   bool HasClient();
+
+  // Expose MediaStreamTrack configuration changes through
+  // |client_->OnCaptureConfigurationChanged|
+  void OnCaptureConfigurationChanged();
 
  private:
   friend class RequestManagerTest;

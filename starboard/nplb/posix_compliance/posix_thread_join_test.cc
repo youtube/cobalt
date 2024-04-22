@@ -15,6 +15,7 @@
 // Thread joining is mostly tested in the other tests.
 
 #include <pthread.h>
+#include <unistd.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,7 +28,7 @@ void* ThreadEntryPoint(void* input) {
   static const int64_t kSleepTime = 10'000;  // 10 ms.
   // Wait to write the value to increase likelihood of catching
   // a race condition.
-  SbThreadSleep(kSleepTime);
+  usleep(kSleepTime);
   (*value)++;
   return NULL;
 }

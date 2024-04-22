@@ -12,8 +12,8 @@
 #include "base/files/file_util.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/sequenced_task_runner.h"
-#include "base/task/post_task.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/task/task_traits.h"
 #if defined(STARBOARD)
 #include "cobalt/updater/updater_module.h"
@@ -105,7 +105,7 @@ void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
     return;
   }
 
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&UrlFetcherDownloader::StartURLFetch,
 #if defined(IN_MEMORY_UPDATES)
                                 base::Unretained(this), url, dst));
@@ -137,7 +137,7 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
       updater_status_string_map.find(UpdaterStatus::kSlotLocked)->second));
 
   // Use 15 sec delay to allow for other updaters/loaders to settle down.
-  base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&UrlFetcherDownloader::ConfirmSlot, base::Unretained(this),
 #if defined(IN_MEMORY_UPDATES)
@@ -174,7 +174,7 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
     ReportDownloadFailure(url);
     return;
   }
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&UrlFetcherDownloader::SelectSlot,
 #if defined(IN_MEMORY_UPDATES)
                                 base::Unretained(this), url, dst));

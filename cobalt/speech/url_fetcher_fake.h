@@ -26,9 +26,11 @@
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
+#include "cobalt/network/custom/url_fetcher.h"
 #include "net/base/host_port_pair.h"
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_request_status.h"
+#include "net/base/net_errors.h"
+#include "net/http/http_request_headers.h"
+#include "net/url_request/referrer_policy.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -48,10 +50,10 @@ class URLFetcherFake : public net::URLFetcher {
   void SetUploadFilePath(
       const std::string& upload_content_type, const base::FilePath& file_path,
       uint64_t range_offset, uint64_t range_length,
-      scoped_refptr<base::TaskRunner> file_task_runner) override{};
+      scoped_refptr<base::TaskRunner> file_task_runner) override {}
   void SetUploadStreamFactory(
       const std::string& upload_content_type,
-      const CreateUploadStreamCallback& callback) override{};
+      const CreateUploadStreamCallback& callback) override {}
   void SetChunkedUpload(const std::string& upload_content_type) override;
   void AppendChunkToUpload(const std::string& data,
                            bool is_last_chunk) override;
@@ -62,8 +64,7 @@ class URLFetcherFake : public net::URLFetcher {
     return 0;
   }
   void SetReferrer(const std::string& referrer) override { NOTREACHED(); }
-  void SetReferrerPolicy(
-      net::URLRequest::ReferrerPolicy referrer_policy) override {}
+  void SetReferrerPolicy(net::ReferrerPolicy referrer_policy) override {}
   void SetExtraRequestHeaders(
       const std::string& extra_request_headers) override {
     NOTREACHED();
@@ -73,7 +74,7 @@ class URLFetcherFake : public net::URLFetcher {
   }
   void SetRequestContext(
       net::URLRequestContextGetter* request_context_getter) override;
-  void SetInitiator(const base::Optional<url::Origin>& initiator) override {}
+  void SetInitiator(const absl::optional<url::Origin>& initiator) override {}
   void SetURLRequestUserData(
       const void* key,
       const CreateDataCallback& create_data_callback) override {
@@ -140,7 +141,7 @@ class URLFetcherFake : public net::URLFetcher {
   void Start() override;
   const GURL& GetOriginalURL() const override { return original_url_; }
   const GURL& GetURL() const override { return original_url_; }
-  const net::URLRequestStatus& GetStatus() const override;
+  net::Error GetStatus() const override;
   int GetResponseCode() const override;
   void ReceivedContentWasMalformed() override { NOTREACHED(); }
   bool GetResponseAsString(std::string* out_response_string) const override {
@@ -165,7 +166,7 @@ class URLFetcherFake : public net::URLFetcher {
   net::URLFetcherDelegate* delegate_;
   bool is_chunked_upload_;
   int download_index_;
-  net::URLRequestStatus fake_status_;
+  net::Error fake_status_;
   base::Optional<base::RepeatingTimer> download_timer_;
   net::ProxyServer proxy_server_;
   std::unique_ptr<net::URLFetcherResponseWriter> response_data_writer_;

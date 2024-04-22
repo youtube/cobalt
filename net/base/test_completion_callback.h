@@ -1,18 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_TEST_COMPLETION_CALLBACK_H_
 #define NET_BASE_TEST_COMPLETION_CALLBACK_H_
 
-#include <memory>
+#include <stdint.h>
 
-#include "base/callback.h"
+#include <memory>
+#include <utility>
+
 #include "base/compiler_specific.h"
-#include "base/macros.h"
-#include "net/base/completion_callback.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/net_errors.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 //-----------------------------------------------------------------------------
 // completion callback helper
@@ -39,6 +42,10 @@ namespace internal {
 
 class TestCompletionCallbackBaseInternal {
  public:
+  TestCompletionCallbackBaseInternal(
+      const TestCompletionCallbackBaseInternal&) = delete;
+  TestCompletionCallbackBaseInternal& operator=(
+      const TestCompletionCallbackBaseInternal&) = delete;
   bool have_result() const { return have_result_; }
 
  protected:
@@ -52,25 +59,33 @@ class TestCompletionCallbackBaseInternal {
   // RunLoop.  Only non-NULL during the call to WaitForResult, so the class is
   // reusable.
   std::unique_ptr<base::RunLoop> run_loop_;
-  bool have_result_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestCompletionCallbackBaseInternal);
+  bool have_result_ = false;
 };
 
 template <typename R>
+struct NetErrorIsPendingHelper {
+  bool operator()(R status) const { return status == ERR_IO_PENDING; }
+};
+
+template <typename R, typename IsPendingHelper = NetErrorIsPendingHelper<R>>
 class TestCompletionCallbackTemplate
     : public TestCompletionCallbackBaseInternal {
  public:
-  virtual ~TestCompletionCallbackTemplate() override {}
+  TestCompletionCallbackTemplate(const TestCompletionCallbackTemplate&) =
+      delete;
+  TestCompletionCallbackTemplate& operator=(
+      const TestCompletionCallbackTemplate&) = delete;
+  ~TestCompletionCallbackTemplate() override = default;
 
   R WaitForResult() {
     TestCompletionCallbackBaseInternal::WaitForResult();
-    return result_;
+    return std::move(result_);
   }
 
   R GetResult(R result) {
-    if (ERR_IO_PENDING != result)
-      return result;
+    IsPendingHelper check_pending;
+    if (!check_pending(result))
+      return std::move(result);
     return WaitForResult();
   }
 
@@ -79,14 +94,12 @@ class TestCompletionCallbackTemplate
 
   // Override this method to gain control as the callback is running.
   virtual void SetResult(R result) {
-    result_ = result;
+    result_ = std::move(result);
     DidSetResult();
   }
 
  private:
   R result_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestCompletionCallbackTemplate);
 };
 
 }  // namespace internal
@@ -95,15 +108,14 @@ class TestClosure : public internal::TestCompletionCallbackBaseInternal {
  public:
   using internal::TestCompletionCallbackBaseInternal::WaitForResult;
 
-  TestClosure();
+  TestClosure() = default;
+  TestClosure(const TestClosure&) = delete;
+  TestClosure& operator=(const TestClosure&) = delete;
   ~TestClosure() override;
 
-  const base::Closure& closure() const { return closure_; }
-
- private:
-  const base::Closure closure_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestClosure);
+  base::OnceClosure closure() {
+    return base::BindOnce(&TestClosure::DidSetResult, base::Unretained(this));
+  }
 };
 
 // Base class overridden by custom implementations of TestCompletionCallback.
@@ -115,41 +127,45 @@ typedef internal::TestCompletionCallbackTemplate<int64_t>
 
 class TestCompletionCallback : public TestCompletionCallbackBase {
  public:
-  TestCompletionCallback();
+  TestCompletionCallback() = default;
+  TestCompletionCallback(const TestCompletionCallback&) = delete;
+  TestCompletionCallback& operator=(const TestCompletionCallback&) = delete;
   ~TestCompletionCallback() override;
 
-  const CompletionCallback& callback() const { return callback_; }
-
- private:
-  const CompletionCallback callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestCompletionCallback);
+  CompletionOnceCallback callback() {
+    return base::BindOnce(&TestCompletionCallback::SetResult,
+                          base::Unretained(this));
+  }
 };
 
 class TestInt64CompletionCallback : public TestInt64CompletionCallbackBase {
  public:
-  TestInt64CompletionCallback();
+  TestInt64CompletionCallback() = default;
+  TestInt64CompletionCallback(const TestInt64CompletionCallback&) = delete;
+  TestInt64CompletionCallback& operator=(const TestInt64CompletionCallback&) =
+      delete;
   ~TestInt64CompletionCallback() override;
 
-  const Int64CompletionCallback& callback() const { return callback_; }
-
- private:
-  const Int64CompletionCallback callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestInt64CompletionCallback);
+  Int64CompletionOnceCallback callback() {
+    return base::BindOnce(&TestInt64CompletionCallback::SetResult,
+                          base::Unretained(this));
+  }
 };
 
 // Makes sure that the buffer is not referenced when the callback runs.
 class ReleaseBufferCompletionCallback: public TestCompletionCallback {
  public:
   explicit ReleaseBufferCompletionCallback(IOBuffer* buffer);
+  ReleaseBufferCompletionCallback(const ReleaseBufferCompletionCallback&) =
+      delete;
+  ReleaseBufferCompletionCallback& operator=(
+      const ReleaseBufferCompletionCallback&) = delete;
   ~ReleaseBufferCompletionCallback() override;
 
  private:
   void SetResult(int result) override;
 
-  IOBuffer* buffer_;
-  DISALLOW_COPY_AND_ASSIGN(ReleaseBufferCompletionCallback);
+  raw_ptr<IOBuffer> buffer_;
 };
 
 }  // namespace net

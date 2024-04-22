@@ -4261,7 +4261,6 @@ extern "C" {
 #define SN_P384Kyber768 "P384Kyber768"
 #define NID_P384Kyber768 966
 
-
 #if defined(__cplusplus)
 } /* extern C */
 #endif

@@ -10,19 +10,19 @@
 #include <vector>
 
 #include "base/at_exit.h"
-#include "base/callback_forward.h"
 #include "base/command_line.h"
+#include "base/functional/callback_forward.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
-#include "base/sys_info.h"
-#include "base/task/post_task.h"
-#include "base/task/task_scheduler/initialization_util.h"
-#include "base/task/task_scheduler/task_scheduler.h"
-#include "base/task_runner.h"
+#include "base/system/sys_info.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_executor.h"
+#include "base/task/task_runner.h"
+#include "base/task/thread_pool/initialization_util.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
@@ -38,27 +38,17 @@
 namespace {
 
 void TaskSchedulerStart() {
-  base::TaskScheduler::Create("Updater");
+  base::ThreadPoolInstance::Create("Updater");
   const auto task_scheduler_init_params =
-      std::make_unique<base::TaskScheduler::InitParams>(
-          base::SchedulerWorkerPoolParams(
-              base::RecommendedMaxNumberOfThreadsInPool(3, 8, 0.1, 0),
-              base::TimeDelta::FromSeconds(30)),
-          base::SchedulerWorkerPoolParams(
-              base::RecommendedMaxNumberOfThreadsInPool(3, 8, 0.1, 0),
-              base::TimeDelta::FromSeconds(40)),
-          base::SchedulerWorkerPoolParams(
-              base::RecommendedMaxNumberOfThreadsInPool(8, 32, 0.3, 0),
-              base::TimeDelta::FromSeconds(30)),
-          base::SchedulerWorkerPoolParams(
-              base::RecommendedMaxNumberOfThreadsInPool(8, 32, 0.3, 0),
-              base::TimeDelta::FromSeconds(60)));
-  base::TaskScheduler::GetInstance()->Start(*task_scheduler_init_params);
+      std::make_unique<base::ThreadPoolInstance::InitParams>(
+          base::RecommendedMaxNumberOfThreadsInThreadGroup(3, 8, 0.1, 0),
+          base::RecommendedMaxNumberOfThreadsInThreadGroup(8, 32, 0.3, 0));
+  base::ThreadPoolInstance::Get()->Start(*task_scheduler_init_params);
 }
 
-void TaskSchedulerStop() { base::TaskScheduler::GetInstance()->Shutdown(); }
+void TaskSchedulerStop() { base::ThreadPoolInstance::Get()->Shutdown(); }
 
-std::unique_ptr<base::MessageLoopForUI> g_loop;
+std::unique_ptr<base::SingleThreadTaskExecutor> g_loop;
 std::unique_ptr<cobalt::network::NetworkModule> network_module;
 std::unique_ptr<base::AtExitManager> exit_manager;
 std::unique_ptr<cobalt::updater::UpdaterModule> updater_module;
@@ -75,10 +65,11 @@ int UpdaterMain(int argc, const char* const* argv) {
 
   TaskSchedulerStart();
 
-  g_loop.reset(new base::MessageLoopForUI());
-  g_loop->Start();
+  g_loop.reset(new base::SingleThreadTaskExecutor(base::MessagePumpType::UI));
 
+#ifndef COBALT_PENDING_CLEAN_UP
   DCHECK(base::ThreadTaskRunnerHandle::IsSet());
+#endif
   base::PlatformThread::SetName("UpdaterMain");
 
   network::NetworkModule::Options network_options;

@@ -20,7 +20,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/sbplayer_interface.h"

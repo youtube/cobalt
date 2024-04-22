@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,9 +8,9 @@
 #include <ostream>
 #include <sstream>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
-#include "base/task/post_task.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "media/base/video_types.h"
@@ -19,6 +19,8 @@
 namespace media {
 
 namespace {
+
+using PortConfig = ImageProcessorBackend::PortConfig;
 
 // Verify if the format of |frame| matches |config|.
 bool CheckVideoFrameFormat(const ImageProcessor::PortConfig& config,
@@ -63,21 +65,21 @@ std::unique_ptr<ImageProcessor> ImageProcessor::Create(
     CreateBackendCB create_backend_cb,
     const PortConfig& input_config,
     const PortConfig& output_config,
-    const std::vector<OutputMode>& preferred_output_modes,
+    OutputMode output_mode,
     VideoRotation relative_rotation,
     ErrorCB error_cb,
     scoped_refptr<base::SequencedTaskRunner> client_task_runner) {
-  scoped_refptr<base::SequencedTaskRunner> backend_task_runner =
-      base::ThreadPool::CreateSequencedTaskRunner({});
   auto wrapped_error_cb = base::BindRepeating(
       base::IgnoreResult(&base::SequencedTaskRunner::PostTask),
       client_task_runner, FROM_HERE, std::move(error_cb));
-  std::unique_ptr<ImageProcessorBackend> backend = create_backend_cb.Run(
-      input_config, output_config, preferred_output_modes, relative_rotation,
-      std::move(wrapped_error_cb), backend_task_runner);
+  std::unique_ptr<ImageProcessorBackend> backend =
+      create_backend_cb.Run(input_config, output_config, output_mode,
+                            relative_rotation, std::move(wrapped_error_cb));
   if (!backend)
     return nullptr;
 
+  scoped_refptr<base::SequencedTaskRunner> backend_task_runner =
+      backend->task_runner();
   return base::WrapUnique(new ImageProcessor(std::move(backend),
                                              std::move(client_task_runner),
                                              std::move(backend_task_runner)));
@@ -89,7 +91,9 @@ ImageProcessor::ImageProcessor(
     scoped_refptr<base::SequencedTaskRunner> backend_task_runner)
     : backend_(std::move(backend)),
       client_task_runner_(std::move(client_task_runner)),
-      backend_task_runner_(std::move(backend_task_runner)) {
+      backend_task_runner_(std::move(backend_task_runner)),
+      needs_linear_output_buffers_(backend_ &&
+                                   backend_->needs_linear_output_buffers()) {
   DVLOGF(2);
   DETACH_FROM_SEQUENCE(client_sequence_checker_);
 
@@ -233,6 +237,14 @@ int ImageProcessor::StoreCallback(ClientCallback cb) {
   int cb_index = next_cb_index_++;
   pending_cbs_.emplace(cb_index, std::move(cb));
   return cb_index;
+}
+
+const PortConfig& ImageProcessor::input_config() const {
+  return backend_->input_config();
+}
+
+const PortConfig& ImageProcessor::output_config() const {
+  return backend_->output_config();
 }
 
 }  // namespace media

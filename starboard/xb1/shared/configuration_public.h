@@ -49,12 +49,6 @@
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
-// --- Memory Configuration --------------------------------------------------
-
-// Whether this platform can map executable memory. Implies the platform can map
-// memory. This is required for platforms that want to JIT.
-#define SB_CAN_MAP_EXECUTABLE_MEMORY 1
-
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.

@@ -1,11 +1,11 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_GPU_ANDROID_SHARED_IMAGE_VIDEO_PROVIDER_H_
 #define MEDIA_GPU_ANDROID_SHARED_IMAGE_VIDEO_PROVIDER_H_
 
-#include "base/callback.h"
+#include "base/functional/callback.h"
 #include "gpu/command_buffer/service/mailbox_manager.h"
 #include "gpu/ipc/common/vulkan_ycbcr_info.h"
 #include "media/gpu/android/codec_image_group.h"
@@ -37,6 +37,9 @@ class MEDIA_GPU_EXPORT SharedImageVideoProvider {
 
     // Size of the underlying texture.
     gfx::Size coded_size;
+
+    // Color space used for the SharedImage.
+    gfx::ColorSpace color_space;
 
     // This is a hack to allow us to discard pooled images if the TextureOwner
     // changes.  We don't want to keep a ref to the TextureOwner here, so we

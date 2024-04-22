@@ -15,6 +15,8 @@
 #ifndef COBALT_DOM_SERIALIZED_ALGORITHM_RUNNER_H_
 #define COBALT_DOM_SERIALIZED_ALGORITHM_RUNNER_H_
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <memory>
 #include <utility>
@@ -23,8 +25,8 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -101,7 +103,7 @@ class SerializedAlgorithmRunner {
             if (mutex_.AcquireTry()) {
               break;
             }
-            SbThreadSleep(wait_interval_usec);
+            usleep(static_cast<unsigned int>(wait_interval_usec));
             // Double the wait interval upon every failure, but cap it at
             // kMaxWaitIntervalUsec.
             wait_interval_usec =
@@ -259,7 +261,7 @@ template <typename SerializedAlgorithm>
 class OffloadAlgorithmRunner
     : public SerializedAlgorithmRunner<SerializedAlgorithm> {
  public:
-  typedef base::SingleThreadTaskRunner TaskRunner;
+  typedef base::SequencedTaskRunner TaskRunner;
 
   OffloadAlgorithmRunner(const scoped_refptr<TaskRunner>& process_task_runner,
                          const scoped_refptr<TaskRunner>& finalize_task_runner);
@@ -299,7 +301,7 @@ void DefaultAlgorithmRunner<SerializedAlgorithm>::Start(
     return;
   }
 
-  auto task_runner = base::ThreadTaskRunnerHandle::Get();
+  auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
   task_runner->PostTask(FROM_HERE,
                         base::BindOnce(&DefaultAlgorithmRunner::Process,
                                        base::Unretained(this), handle));
@@ -311,7 +313,7 @@ void DefaultAlgorithmRunner<SerializedAlgorithm>::Process(
   DCHECK(handle);
   TRACE_EVENT0("cobalt::dom", "DefaultAlgorithmRunner::Process()");
 
-  auto task_runner = base::ThreadTaskRunnerHandle::Get();
+  auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
 
   bool finished = false;
   handle->Process(&finished);
@@ -363,7 +365,7 @@ template <typename SerializedAlgorithm>
 void OffloadAlgorithmRunner<SerializedAlgorithm>::Process(
     scoped_refptr<Handle> handle) {
   DCHECK(handle);
-  DCHECK(process_task_runner_->BelongsToCurrentThread());
+  DCHECK(process_task_runner_->RunsTasksInCurrentSequence());
 
   TRACE_EVENT0("cobalt::dom", "OffloadAlgorithmRunner::Process()");
 

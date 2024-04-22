@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 
 #include <vector>
 
-#include "base/macros.h"
+#include "base/task/single_thread_task_runner.h"
 #include "media/base/bitstream_buffer.h"
 #include "media/base/video_decoder_config.h"
 #include "media/video/picture.h"
@@ -41,9 +41,9 @@ class MockVideoDecodeAccelerator : public VideoDecodeAccelerator {
   MOCK_METHOD0(Flush, void());
   MOCK_METHOD0(Reset, void());
   MOCK_METHOD0(Destroy, void());
-  MOCK_METHOD2(TryToSetupDecodeOnSeparateThread,
+  MOCK_METHOD2(TryToSetupDecodeOnSeparateSequence,
                bool(const base::WeakPtr<Client>&,
-                    const scoped_refptr<base::SingleThreadTaskRunner>&));
+                    const scoped_refptr<base::SequencedTaskRunner>&));
 
  private:
   void DeleteThis();

@@ -1,24 +1,27 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_ADDRESS_LIST_H_
 #define NET_BASE_ADDRESS_LIST_H_
 
+#include <stdint.h>
+
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/values.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
-#include "net/log/net_log_parameters_callback.h"
 
-#if defined(STARBOARD)
-#include "starboard/common/socket.h"
-#include "starboard/types.h"
-#else
 struct addrinfo;
-#endif
+
+namespace base {
+class Value;
+}
 
 namespace net {
 
@@ -28,43 +31,55 @@ class NET_EXPORT AddressList {
  public:
   AddressList();
   AddressList(const AddressList&);
+  AddressList& operator=(const AddressList&);
+  AddressList(AddressList&&);
+  AddressList& operator=(AddressList&&);
   ~AddressList();
 
-  // Creates an address list for a single IP literal.
+  // Creates an address list for a single IP endpoint.
   explicit AddressList(const IPEndPoint& endpoint);
+
+  // Creates an address list for a single IP endpoint and a list of DNS aliases.
+  AddressList(const IPEndPoint& endpoint, std::vector<std::string> aliases);
+
+  // Creates an address list for a list of IP endpoints.
+  explicit AddressList(std::vector<IPEndPoint> endpoints);
 
   static AddressList CreateFromIPAddress(const IPAddress& address,
                                          uint16_t port);
 
   static AddressList CreateFromIPAddressList(const IPAddressList& addresses,
-                                             const std::string& canonical_name);
+                                             std::vector<std::string> aliases);
 
-#if defined(STARBOARD)
-  // Copies the data from |resolution| into an AddressList.
-  static AddressList CreateFromSbSocketResolution(
-      const SbSocketResolution* resolution);
-#else
-  // Copies the data from |head| and the chained list into an AddressList.
+  // Copies the data from `head` and the chained list into an AddressList.
   static AddressList CreateFromAddrinfo(const struct addrinfo* head);
-#endif
 
-  // Returns a copy of |list| with port on each element set to |port|.
+  // Returns a copy of `list` with port on each element set to |port|.
   static AddressList CopyWithPort(const AddressList& list, uint16_t port);
 
-  // TODO(szym): Remove all three. http://crbug.com/126134
-  const std::string& canonical_name() const { return canonical_name_; }
-
-  void set_canonical_name(const std::string& canonical_name) {
-    canonical_name_ = canonical_name;
+  bool operator==(const AddressList& other) const {
+    return std::tie(endpoints_, dns_aliases_) ==
+           std::tie(other.endpoints_, other.dns_aliases_);
   }
+  bool operator!=(const AddressList& other) const { return !(*this == other); }
 
-  // Sets canonical name to the literal of the first IP address on the list.
+  // Sets the first entry of `dns_aliases_` to the literal of the first IP
+  // address on the list. Assumes that `dns_aliases_` is empty.
   void SetDefaultCanonicalName();
 
-  // Creates a callback for use with the NetLog that returns a Value
-  // representation of the address list.  The callback must be destroyed before
-  // |this| is.
-  NetLogParametersCallback CreateNetLogCallback() const;
+  // The alias chain in no particular order.
+  const std::vector<std::string>& dns_aliases() const { return dns_aliases_; }
+
+  void SetDnsAliases(std::vector<std::string> aliases);
+
+  void AppendDnsAliases(std::vector<std::string> aliases);
+
+  // Creates a value representation of the address list, appropriate for
+  // inclusion in a NetLog.
+  base::Value::Dict NetLogParams() const;
+
+  // Deduplicates the stored addresses while otherwise preserving their order.
+  void Deduplicate();
 
   using iterator = std::vector<IPEndPoint>::iterator;
   using const_iterator = std::vector<IPEndPoint>::const_iterator;
@@ -96,8 +111,9 @@ class NET_EXPORT AddressList {
 
  private:
   std::vector<IPEndPoint> endpoints_;
-  // TODO(szym): Remove. http://crbug.com/126134
-  std::string canonical_name_;
+
+  // In no particular order.
+  std::vector<std::string> dns_aliases_;
 };
 
 }  // namespace net

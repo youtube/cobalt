@@ -14,6 +14,9 @@
 
 #include "cobalt/browser/loader_app_metrics.h"
 
+#include <cstring>
+
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "starboard/extension/loader_app_metrics.h"

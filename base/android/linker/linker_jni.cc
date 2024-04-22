@@ -1,98 +1,270 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This is the Android-specific Chromium linker, a tiny shared library
-// implementing a custom dynamic linker that can be used to load the
-// real Chromium libraries.
+#include "base/android/linker/linker_jni.h"
 
-// The main point of this linker is to be able to share the RELRO
-// section of libchrome.so (or equivalent) between renderer processes.
-
-// This source code *cannot* depend on anything from base/ or the C++
-// STL, to keep the final library small, and avoid ugly dependency issues.
-
-#include <android/log.h>
+#include <android/dlext.h>
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
 #include <jni.h>
+#include <link.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
 
-#include "build/build_config.h"
-
-#include <crazy_linker.h>
-
-#include "starboard/types.h"
-
-// Set this to 1 to enable debug traces to the Android log.
-// Note that LOG() from "base/logging.h" cannot be used, since it is
-// in base/ which hasn't been loaded yet.
-#define DEBUG 0
-
-#define TAG "cr_ChromiumAndroidLinker"
-
-#if DEBUG
-#define LOG_INFO(FORMAT, ...)                                             \
-  __android_log_print(ANDROID_LOG_INFO, TAG, "%s: " FORMAT, __FUNCTION__, \
-                      ##__VA_ARGS__)
-#else
-#define LOG_INFO(FORMAT, ...) ((void)0)
-#endif
-#define LOG_ERROR(FORMAT, ...)                                             \
-  __android_log_print(ANDROID_LOG_ERROR, TAG, "%s: " FORMAT, __FUNCTION__, \
-                      ##__VA_ARGS__)
-
-#define UNUSED __attribute__((unused))
-
-// See commentary in crazy_linker_elf_loader.cpp for the effect of setting
-// this. If changing there, change here also.
-//
-// For more, see:
-//   https://crbug.com/504410
-#define RESERVE_BREAKPAD_GUARD_REGION 1
-
-#if defined(ARCH_CPU_X86)
-// Dalvik JIT generated code doesn't guarantee 16-byte stack alignment on
-// x86 - use force_align_arg_pointer to realign the stack at the JNI
-// boundary. https://crbug.com/655248
-#define JNI_GENERATOR_EXPORT \
-  extern "C" __attribute__((visibility("default"), force_align_arg_pointer))
-#else
-#define JNI_GENERATOR_EXPORT extern "C" __attribute__((visibility("default")))
-#endif
+#include <memory>
 
 namespace chromium_android_linker {
 
 namespace {
 
-// Larger than the largest library we might attempt to load.
-constexpr size_t kAddressSpaceReservationSize = 192 * 1024 * 1024;
+// Variable containing LibInfo for the loaded library.
+LibInfo_class s_lib_info_fields;
 
-// Size of any Breakpad guard region. 16MB is comfortably larger than the
-// ~6MB relocation packing of the current 64-bit libchrome.so, the largest we
-// expect to encounter.
-#if RESERVE_BREAKPAD_GUARD_REGION
-constexpr size_t kBreakpadGuardRegionBytes = 16 * 1024 * 1024;
-#endif
+// Guarded by |mLock| in Linker.java.
+RelroSharingStatus s_relro_sharing_status = RelroSharingStatus::NOT_ATTEMPTED;
 
-// A simple scoped UTF String class that can be initialized from
-// a Java jstring handle. Modeled like std::string, which cannot
-// be used here.
-class String {
+// Saved JavaVM passed to JNI_OnLoad().
+JavaVM* s_java_vm = nullptr;
+
+// With mmap(2) reserves a range of virtual addresses.
+//
+// The range must start with |hint| and be of size |size|. The |hint==0|
+// indicates that the address of the mapping should be chosen at random,
+// utilizing ASLR built into mmap(2).
+//
+// The start of the resulting region is returned in |address|.
+//
+// The value 0 returned iff the attempt failed (a part of the address range is
+// already reserved by some other subsystem).
+void ReserveAddressWithHint(uintptr_t hint, uintptr_t* address, size_t* size) {
+  void* ptr = reinterpret_cast<void*>(hint);
+  void* new_ptr = mmap(ptr, kAddressSpaceReservationSize, PROT_NONE,
+                       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (new_ptr == MAP_FAILED) {
+    PLOG_ERROR("mmap");
+    *address = 0;
+  } else if ((hint != 0) && (new_ptr != ptr)) {
+    // Something grabbed the address range before the early phase of the
+    // linker had a chance, this should be uncommon.
+    LOG_ERROR("Address range starting at 0x%" PRIxPTR " was not free to use",
+              hint);
+    munmap(new_ptr, kAddressSpaceReservationSize);
+    *address = 0;
+  } else {
+    *address = reinterpret_cast<uintptr_t>(new_ptr);
+    *size = kAddressSpaceReservationSize;
+    LOG_INFO("Reserved region at address: 0x%" PRIxPTR ", size: 0x%zu",
+             *address, *size);
+  }
+}
+
+bool ScanRegionInBuffer(const char* buf,
+                        size_t length,
+                        uintptr_t* out_address,
+                        size_t* out_size) {
+  const char* position = strstr(buf, "[anon:libwebview reservation]");
+  if (!position)
+    return false;
+
+  const char* line_start = position;
+  while (line_start > buf) {
+    line_start--;
+    if (*line_start == '\n') {
+      line_start++;
+      break;
+    }
+  }
+
+  // Extract the region start and end. The failures below should not happen as
+  // long as the reservation is made the same way in
+  // frameworks/base/native/webview/loader/loader.cpp.
+  uintptr_t vma_start, vma_end;
+  char permissions[5] = {'\0'};  // Ensure a null-terminated string.
+  // Example line from proc(5):
+  // address           perms offset  dev   inode   pathname
+  // 00400000-00452000 r-xp 00000000 08:02 173521  /usr/bin/dbus-daemon
+  if (sscanf(line_start, "%" SCNxPTR "-%" SCNxPTR " %4c", &vma_start, &vma_end,
+             permissions) < 3) {
+    return false;
+  }
+
+  if (strcmp(permissions, "---p"))
+    return false;
+
+  if (vma_start % PAGE_SIZE || vma_end % PAGE_SIZE)
+    return false;
+
+  *out_address = static_cast<uintptr_t>(vma_start);
+  *out_size = vma_end - vma_start;
+
+  return true;
+}
+
+bool FindRegionInOpenFile(int fd, uintptr_t* out_address, size_t* out_size) {
+  constexpr size_t kMaxLineLength = 256;
+  constexpr size_t kReadSize = PAGE_SIZE;
+
+  // Loop until no bytes left to scan. On every iteration except the last, fill
+  // the buffer till the end. On every iteration except the first, the buffer
+  // begins with kMaxLineLength bytes from the end of the previous fill.
+  char buf[kReadSize + kMaxLineLength + 1];
+  buf[kReadSize + kMaxLineLength] = '\0';  // Stop strstr().
+  size_t pos = 0;
+  size_t bytes_requested = kReadSize + kMaxLineLength;
+  bool reached_end = false;
+  while (true) {
+    // Fill the |buf| to the maximum and determine whether reading reached the
+    // end.
+    size_t bytes_read = 0;
+    do {
+      ssize_t rv = HANDLE_EINTR(
+          read(fd, buf + pos + bytes_read, bytes_requested - bytes_read));
+      if (rv == 0) {
+        reached_end = true;
+      } else if (rv < 0) {
+        PLOG_ERROR("read to find webview reservation");
+        return false;
+      }
+      bytes_read += rv;
+    } while (!reached_end && (bytes_read < bytes_requested));
+
+    // Return results if the buffer contains the pattern.
+    if (ScanRegionInBuffer(buf, pos + bytes_read, out_address, out_size))
+      return true;
+
+    // Did not find the pattern.
+    if (reached_end)
+      return false;
+
+    // The buffer is filled to the end. Copy the end bytes to the beginning,
+    // allowing to scan these bytes on the next iteration.
+    memcpy(buf, buf + kReadSize, kMaxLineLength);
+    pos = kMaxLineLength;
+    bytes_requested = kReadSize;
+  }
+}
+
+// Calls the Linker Java methods to record the time intervals in UMA. The calls
+// are made only once pre process, hence there is no need to cache the values
+// obtained from JNIEnv. The class must *not* be reused across different
+// Java->native calls because the |jclass| reference may become invalid in this
+// case.
+class LoadTimeReporterJni : public LoadTimeReporter {
  public:
-  String(JNIEnv* env, jstring str);
+  LoadTimeReporterJni(JNIEnv* env, jclass linker_jni_class)
+      : env_(env), class_(linker_jni_class) {}
 
-  inline ~String() { ::free(ptr_); }
+  void reportDlopenExtTime(int64_t millis) const override {
+    env_->CallStaticVoidMethod(
+        class_, env_->GetStaticMethodID(class_, "reportDlopenExtTime", "(J)V"),
+        millis);
+  }
 
-  inline const char* c_str() const { return ptr_ ? ptr_ : ""; }
-  inline size_t size() const { return size_; }
+  void reportIteratePhdrTime(int64_t millis) const override {
+    env_->CallStaticVoidMethod(
+        class_,
+        env_->GetStaticMethodID(class_, "reportIteratePhdrTime", "(J)V"),
+        millis);
+  }
 
  private:
-  char* ptr_;
-  size_t size_;
+  // Not copyable or movable.
+  LoadTimeReporterJni(const LoadTimeReporterJni&) = delete;
+  LoadTimeReporterJni& operator=(const LoadTimeReporterJni&) = delete;
+
+  JNIEnv* env_;
+  jclass class_;
 };
 
-// Simple scoped UTF String class constructor.
+constexpr int64_t kMillisecondsPerSecond = 1'000;
+constexpr int64_t kNanosecondsPerMillisecond = 1'000'000;
+
+int64_t GetMillisNow() {
+  struct timespec ts;
+  if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+    PLOG_ERROR("clock_gettime");
+    return 0;
+  }
+
+  int64_t result = ts.tv_sec;
+  result *= kMillisecondsPerSecond;
+  result += (ts.tv_nsec / kNanosecondsPerMillisecond);
+  return result;
+}
+
+// Invokes android_dlopen_ext() to load the library into a given address range.
+// Assumes that the address range is already reserved with mmap(2). On success,
+// the |handle| of the loaded library is returned.
+//
+// Returns true iff this operation succeeds.
+bool AndroidDlopenExt(void* mapping_start,
+                      size_t mapping_size,
+                      const char* filename,
+                      void** handle) {
+  android_dlextinfo dlextinfo{};
+  dlextinfo.flags = ANDROID_DLEXT_RESERVED_ADDRESS;
+  dlextinfo.reserved_addr = mapping_start;
+  dlextinfo.reserved_size = mapping_size;
+
+  LOG_INFO(
+      "android_dlopen_ext:"
+      " flags=0x%" PRIx64 ", reserved_addr=%p, reserved_size=%zu",
+      dlextinfo.flags, dlextinfo.reserved_addr, dlextinfo.reserved_size);
+
+  void* rv = android_dlopen_ext(filename, RTLD_NOW, &dlextinfo);
+  if (rv == nullptr) {
+    LOG_ERROR("android_dlopen_ext: %s", dlerror());
+    return false;
+  }
+
+  *handle = rv;
+  return true;
+}
+
+// With munmap(2) unmaps the tail of the given contiguous range of virtual
+// memory. Ignores errors.
+void TrimMapping(uintptr_t address, size_t old_size, size_t new_size) {
+  if (old_size <= new_size) {
+    LOG_ERROR("WARNING: library reservation was too small");
+  } else {
+    // Unmap the part of the reserved address space that is beyond the end of
+    // the loaded library data.
+    const uintptr_t unmap = address + new_size;
+    const size_t length = old_size - new_size;
+    munmap(reinterpret_cast<void*>(unmap), length);
+  }
+}
+
+// Calls JNI_OnLoad() in the library referenced by |handle|.
+// Returns true for success.
+bool CallJniOnLoad(void* handle) {
+  LOG_INFO("Entering");
+  // Locate and if found then call the loaded library's JNI_OnLoad() function.
+  using JNI_OnLoadFunctionPtr = int (*)(void* vm, void* reserved);
+  auto jni_onload =
+      reinterpret_cast<JNI_OnLoadFunctionPtr>(dlsym(handle, "JNI_OnLoad"));
+  if (jni_onload != nullptr) {
+    // Check that JNI_OnLoad returns a usable JNI version.
+    int jni_version = (*jni_onload)(s_java_vm, nullptr);
+    if (jni_version < JNI_VERSION_1_4) {
+      LOG_ERROR("JNI version is invalid: %d", jni_version);
+      return false;
+    }
+  }
+
+  LOG_INFO("Done");
+  return true;
+}
+
+}  // namespace
+
 String::String(JNIEnv* env, jstring str) {
   size_ = env->GetStringUTFLength(str);
   ptr_ = static_cast<char*>(::malloc(size_ + 1));
@@ -117,7 +289,15 @@ String::String(JNIEnv* env, jstring str) {
   env->ReleaseStringUTFChars(str, bytes);
 }
 
-// Find the jclass JNI reference corresponding to a given |class_name|.
+bool IsValidAddress(jlong address) {
+  bool result = static_cast<jlong>(static_cast<uintptr_t>(address)) == address;
+  if (!result) {
+    LOG_ERROR("Invalid address 0x%" PRIx64, static_cast<uint64_t>(address));
+  }
+  return result;
+}
+
+// Finds the jclass JNI reference corresponding to a given |class_name|.
 // |env| is the current JNI environment handle.
 // On success, return true and set |*clazz|.
 bool InitClassReference(JNIEnv* env, const char* class_name, jclass* clazz) {
@@ -129,7 +309,7 @@ bool InitClassReference(JNIEnv* env, const char* class_name, jclass* clazz) {
   return true;
 }
 
-// Initialize a jfieldID corresponding to the field of a given |clazz|,
+// Initializes a jfieldID corresponding to the field of a given |clazz|,
 // with name |field_name| and signature |field_sig|.
 // |env| is the current JNI environment handle.
 // On success, return true and set |*field_id|.
@@ -147,552 +327,539 @@ bool InitFieldId(JNIEnv* env,
   return true;
 }
 
-// Initialize a jmethodID corresponding to the static method of a given
-// |clazz|, with name |method_name| and signature |method_sig|.
-// |env| is the current JNI environment handle.
-// On success, return true and set |*method_id|.
-bool InitStaticMethodId(JNIEnv* env,
-                        jclass clazz,
-                        const char* method_name,
-                        const char* method_sig,
-                        jmethodID* method_id) {
-  *method_id = env->GetStaticMethodID(clazz, method_name, method_sig);
-  if (!*method_id) {
-    LOG_ERROR("Could not find ID for static method '%s'", method_name);
+bool FindWebViewReservation(uintptr_t* out_address, size_t* out_size) {
+  // Note: reading /proc/PID/maps or /proc/PID/smaps is inherently racy. Among
+  // other things, the kernel provides these guarantees:
+  // * Each region record (line) is well formed
+  // * If there is something at a given vaddr during the entirety of the life of
+  //   the smaps/maps walk, there will be some output for it.
+  //
+  // In order for the address/size extraction to be safe, these precausions are
+  // made in base/android/linker:
+  // * Modification of the range is done only after this function exits
+  // * The use of the range is avoided if it is not sufficient in size, which
+  //   might happen if it gets split
+  const char kFileName[] = "/proc/self/maps";
+  int fd = HANDLE_EINTR(open(kFileName, O_RDONLY));
+  if (fd == -1) {
+    PLOG_ERROR("open %s", kFileName);
     return false;
   }
-  LOG_INFO("Found ID %p for static method '%s'", *method_id, method_name);
-  return true;
+
+  bool result = FindRegionInOpenFile(fd, out_address, out_size);
+  close(fd);
+  return result;
 }
 
-// Initialize a jfieldID corresponding to the static field of a given |clazz|,
-// with name |field_name| and signature |field_sig|.
-// |env| is the current JNI environment handle.
-// On success, return true and set |*field_id|.
-bool InitStaticFieldId(JNIEnv* env,
-                       jclass clazz,
-                       const char* field_name,
-                       const char* field_sig,
-                       jfieldID* field_id) {
-  *field_id = env->GetStaticFieldID(clazz, field_name, field_sig);
-  if (!*field_id) {
-    LOG_ERROR("Could not find ID for static field '%s'", field_name);
-    return false;
+// Starting with API level 26 (Android O) the following functions from
+// libandroid.so should be used to create shared memory regions to ensure
+// compatibility with the future versions:
+// * ASharedMemory_create()
+// * ASharedMemory_setProt()
+//
+// This is inspired by //third_party/ashmem/ashmem-dev.c, which cannot be
+// referenced from the linker library to avoid increasing binary size.
+//
+// *Not* threadsafe.
+struct SharedMemoryFunctions {
+  SharedMemoryFunctions() {
+    library_handle = dlopen("libandroid.so", RTLD_NOW);
+    create = reinterpret_cast<CreateFunction>(
+        dlsym(library_handle, "ASharedMemory_create"));
+    set_protection = reinterpret_cast<SetProtectionFunction>(
+        dlsym(library_handle, "ASharedMemory_setProt"));
   }
-  LOG_INFO("Found ID %p for static field '%s'", *field_id, field_name);
-  return true;
-}
 
-// Initialize a jint corresponding to the static integer field of a class
-// with class name |class_name| and field name |field_name|.
-// |env| is the current JNI environment handle.
-// On success, return true and set |*value|.
-bool InitStaticInt(JNIEnv* env,
-                   const char* class_name,
-                   const char* field_name,
-                   jint* value) {
-  jclass clazz;
-  if (!InitClassReference(env, class_name, &clazz))
-    return false;
-
-  jfieldID field_id;
-  if (!InitStaticFieldId(env, clazz, field_name, "I", &field_id))
-    return false;
-
-  *value = env->GetStaticIntField(clazz, field_id);
-  LOG_INFO("Found value %d for class '%s', static field '%s'",
-           *value, class_name, field_name);
-
-  return true;
-}
-
-// A class used to model the field IDs of the org.chromium.base.Linker
-// LibInfo inner class, used to communicate data with the Java side
-// of the linker.
-struct LibInfo_class {
-  jfieldID load_address_id;
-  jfieldID load_size_id;
-  jfieldID relro_start_id;
-  jfieldID relro_size_id;
-  jfieldID relro_fd_id;
-
-  // Initialize an instance.
-  bool Init(JNIEnv* env) {
-    jclass clazz;
-    if (!InitClassReference(
-            env, "org/chromium/base/library_loader/Linker$LibInfo", &clazz)) {
+  bool IsWorking() const {
+    if (!create || !set_protection) {
+      LOG_ERROR("Cannot get the shared memory functions from libandroid");
       return false;
     }
-
-    return InitFieldId(env, clazz, "mLoadAddress", "J", &load_address_id) &&
-           InitFieldId(env, clazz, "mLoadSize", "J", &load_size_id) &&
-           InitFieldId(env, clazz, "mRelroStart", "J", &relro_start_id) &&
-           InitFieldId(env, clazz, "mRelroSize", "J", &relro_size_id) &&
-           InitFieldId(env, clazz, "mRelroFd", "I", &relro_fd_id);
+    return true;
   }
 
-  void SetLoadInfo(JNIEnv* env,
-                   jobject library_info_obj,
-                   size_t load_address,
-                   size_t load_size) {
-    env->SetLongField(library_info_obj, load_address_id, load_address);
-    env->SetLongField(library_info_obj, load_size_id, load_size);
+  ~SharedMemoryFunctions() {
+    if (library_handle)
+      dlclose(library_handle);
   }
 
-  void SetRelroInfo(JNIEnv* env,
-                    jobject library_info_obj,
-                    size_t relro_start,
-                    size_t relro_size,
-                    int relro_fd) {
-    env->SetLongField(library_info_obj, relro_start_id, relro_start);
-    env->SetLongField(library_info_obj, relro_size_id, relro_size);
-    env->SetIntField(library_info_obj, relro_fd_id, relro_fd);
-  }
+  typedef int (*CreateFunction)(const char*, size_t);
+  typedef int (*SetProtectionFunction)(int fd, int prot);
 
-  // Use this instance to convert a RelroInfo reference into
-  // a crazy_library_info_t.
-  void GetRelroInfo(JNIEnv* env,
-                    jobject library_info_obj,
-                    size_t* relro_start,
-                    size_t* relro_size,
-                    int* relro_fd) {
-    if (relro_start) {
-      *relro_start = static_cast<size_t>(
-          env->GetLongField(library_info_obj, relro_start_id));
-    }
+  CreateFunction create;
+  SetProtectionFunction set_protection;
 
-    if (relro_size) {
-      *relro_size = static_cast<size_t>(
-          env->GetLongField(library_info_obj, relro_size_id));
-    }
-
-    if (relro_fd) {
-      *relro_fd = env->GetIntField(library_info_obj, relro_fd_id);
-    }
-  }
+  void* library_handle = nullptr;
 };
 
-// Variable containing LibInfo for the loaded library.
-LibInfo_class s_lib_info_fields;
-
-// Return true iff |address| is a valid address for the target CPU.
-inline bool IsValidAddress(jlong address) {
-  return static_cast<jlong>(static_cast<size_t>(address)) == address;
+void NativeLibInfo::ExportLoadInfoToJava() const {
+  if (!env_)
+    return;
+  s_lib_info_fields.SetLoadInfo(env_, java_object_, load_address_, load_size_);
 }
 
-// The linker uses a single crazy_context_t object created on demand.
-// There is no need to protect this against concurrent access, locking
-// is already handled on the Java side.
-crazy_context_t* GetCrazyContext() {
-  static crazy_context_t* s_crazy_context = nullptr;
-
-  if (!s_crazy_context) {
-    // Create new context.
-    s_crazy_context = crazy_context_create();
-
-    // Ensure libraries located in the same directory as the linker
-    // can be loaded before system ones.
-    crazy_context_add_search_path_for_address(
-        s_crazy_context, reinterpret_cast<void*>(&GetCrazyContext));
-  }
-
-  return s_crazy_context;
+void NativeLibInfo::ExportRelroInfoToJava() const {
+  if (!env_)
+    return;
+  s_lib_info_fields.SetRelroInfo(env_, java_object_, relro_start_, relro_size_,
+                                 relro_fd_);
 }
 
-// A scoped crazy_library_t that automatically closes the handle
-// on scope exit, unless Release() has been called.
-class ScopedLibrary {
- public:
-  ScopedLibrary() : lib_(nullptr) {}
+void NativeLibInfo::CloseRelroFd() {
+  if (relro_fd_ == kInvalidFd)
+    return;
+  close(relro_fd_);
+  relro_fd_ = kInvalidFd;
+}
 
-  ~ScopedLibrary() {
-    if (lib_)
-      crazy_library_close_with_context(lib_, GetCrazyContext());
-  }
+bool NativeLibInfo::FindRelroAndLibraryRangesInElf() {
+  LOG_INFO("Called for 0x%" PRIxPTR, load_address_);
 
-  crazy_library_t* Get() { return lib_; }
-
-  crazy_library_t** GetPtr() { return &lib_; }
-
-  crazy_library_t* Release() {
-    crazy_library_t* ret = lib_;
-    lib_ = nullptr;
-    return ret;
-  }
-
- private:
-  crazy_library_t* lib_;
-};
-
-// Retrieve the SDK build version and pass it into the crazy linker. This
-// needs to be done early in initialization, before any other crazy linker
-// code is run.
-// |env| is the current JNI environment handle.
-// On success, return true.
-bool InitSDKVersionInfo(JNIEnv* env) {
-  jint value = 0;
-  if (!InitStaticInt(env, "android/os/Build$VERSION", "SDK_INT", &value))
+  // Check that an ELF library starts at the |load_address_|.
+  if (memcmp(reinterpret_cast<void*>(load_address_), ELFMAG, SELFMAG) != 0) {
+    LOG_ERROR("Wrong magic number");
     return false;
+  }
+  auto class_type = *reinterpret_cast<uint8_t*>(load_address_ + EI_CLASS);
+  if (class_type == ELFCLASS32) {
+    LOG_INFO("ELFCLASS32");
+  } else if (class_type == ELFCLASS64) {
+    LOG_INFO("ELFCLASS64");
+  } else {
+    LOG_ERROR("Could not determine ELF class");
+    return false;
+  }
 
-  crazy_set_sdk_build_version(static_cast<int>(value));
-  LOG_INFO("Set SDK build version to %d", static_cast<int>(value));
+  // Sanitycheck PAGE_SIZE before use.
+  int page_size = sysconf(_SC_PAGESIZE);
+  if (page_size != PAGE_SIZE)
+    abort();
 
+  // Compute the ranges of PT_LOAD segments and the PT_GNU_RELRO. It is possible
+  // to reach for the same information by iterating over all loaded libraries
+  // and their program headers using dl_iterate_phdr(3). Instead here the
+  // iteration goes through the array |e_phoff[e_phnum]| to avoid acquisition of
+  // the global lock in Bionic (dlfcn.cpp).
+  //
+  // The code relies on (1) having RELRO in the PT_GNU_RELRO segment, and (2)
+  // the fact that the address *range* occupied by the library is the minimal
+  // address range containing all of the PT_LOAD and PT_GNU_RELRO segments.
+  // This is a contract between the static linker and the dynamic linker which
+  // seems unlikely to get broken. It might break though as a result of
+  // post-processing the DSO, which has historically happened for a few
+  // occasions (eliminating the unwind tables and splitting the library into
+  // DFMs).
+  auto min_vaddr = std::numeric_limits<ElfW(Addr)>::max();
+  auto min_relro_vaddr = min_vaddr;
+  ElfW(Addr) max_vaddr = 0;
+  ElfW(Addr) max_relro_vaddr = 0;
+  const auto* ehdr = reinterpret_cast<const ElfW(Ehdr)*>(load_address_);
+  const auto* phdrs =
+      reinterpret_cast<const ElfW(Phdr)*>(load_address_ + ehdr->e_phoff);
+  for (int i = 0; i < ehdr->e_phnum; i++) {
+    const ElfW(Phdr)* phdr = &phdrs[i];
+    switch (phdr->p_type) {
+      case PT_LOAD:
+        if (phdr->p_vaddr < min_vaddr)
+          min_vaddr = phdr->p_vaddr;
+        if (phdr->p_vaddr + phdr->p_memsz > max_vaddr)
+          max_vaddr = phdr->p_vaddr + phdr->p_memsz;
+        break;
+      case PT_GNU_RELRO:
+        min_relro_vaddr = PAGE_START(phdr->p_vaddr);
+        max_relro_vaddr = phdr->p_vaddr + phdr->p_memsz;
+
+        // As of 2020-11 in libmonochrome.so RELRO is covered by a LOAD segment.
+        // It is not clear whether this property is going to be guaranteed in
+        // the future. Include the RELRO segment as part of the 'load size'.
+        // This way a potential future change in layout of LOAD segments would
+        // not open address space for racy mmap(MAP_FIXED).
+        if (min_relro_vaddr < min_vaddr)
+          min_vaddr = min_relro_vaddr;
+        if (max_vaddr < max_relro_vaddr)
+          max_vaddr = max_relro_vaddr;
+        break;
+      default:
+        break;
+    }
+  }
+
+  // Fill out size and RELRO information.
+  load_size_ = PAGE_END(max_vaddr) - PAGE_START(min_vaddr);
+  relro_size_ = PAGE_END(max_relro_vaddr) - PAGE_START(min_relro_vaddr);
+  relro_start_ = load_address_ + PAGE_START(min_relro_vaddr);
   return true;
 }
 
-}  // namespace
-
-// Use Android ASLR to create a random address into which we expect to be
-// able to load libraries. Note that this is probabilistic; we unmap the
-// address we get from mmap and assume we can re-map into it later. This
-// works the majority of the time. If it doesn't, client code backs out and
-// then loads the library normally at any available address.
-// |env| is the current JNI environment handle, and |clazz| a class.
-// Returns the address selected by ASLR, or 0 on error.
-JNI_GENERATOR_EXPORT jlong
-Java_org_chromium_base_library_1loader_Linker_nativeGetRandomBaseLoadAddress(
-    JNIEnv* env,
-    jclass clazz) {
-  size_t bytes = kAddressSpaceReservationSize;
-
-#if RESERVE_BREAKPAD_GUARD_REGION
-  // Pad the requested address space size for a Breakpad guard region.
-  bytes += kBreakpadGuardRegionBytes;
-#endif
-
-  void* address =
-      mmap(nullptr, bytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (address == MAP_FAILED) {
-    LOG_INFO("Random base load address not determinable");
-    return 0;
-  }
-  munmap(address, bytes);
-
-#if RESERVE_BREAKPAD_GUARD_REGION
-  // Allow for a Breakpad guard region ahead of the returned address.
-  address = reinterpret_cast<void*>(
-      reinterpret_cast<uintptr_t>(address) + kBreakpadGuardRegionBytes);
-#endif
-
-  LOG_INFO("Random base load address is %p", address);
-  return static_cast<jlong>(reinterpret_cast<uintptr_t>(address));
-}
-
-// We identify the abi tag for which the linker is running. This allows
-// us to select the library which matches the abi of the linker.
-
-#if defined(__arm__) && defined(__ARM_ARCH_7A__)
-#define CURRENT_ABI "armeabi-v7a"
-#elif defined(__arm__)
-#define CURRENT_ABI "armeabi"
-#elif defined(__i386__)
-#define CURRENT_ABI "x86"
-#elif defined(__mips__)
-#define CURRENT_ABI "mips"
-#elif defined(__x86_64__)
-#define CURRENT_ABI "x86_64"
-#elif defined(__aarch64__)
-#define CURRENT_ABI "arm64-v8a"
-#else
-#error "Unsupported target abi"
-#endif
-
-// Add a zip archive file path to the context's current search path
-// list. Making it possible to load libraries directly from it.
-JNI_GENERATOR_EXPORT bool
-Java_org_chromium_base_library_1loader_Linker_nativeAddZipArchivePath(
-    JNIEnv* env,
-    jclass clazz,
-    jstring apk_path_obj) {
-  String apk_path(env, apk_path_obj);
-
-  char search_path[512];
-  snprintf(search_path, sizeof(search_path), "%s!lib/" CURRENT_ABI "/",
-           apk_path.c_str());
-
-  crazy_context_t* context = GetCrazyContext();
-  crazy_context_add_search_path(context, search_path);
-  return true;
-}
-
-// Load a library with the chromium linker. This will also call its
-// JNI_OnLoad() method, which shall register its methods. Note that
-// lazy native method resolution will _not_ work after this, because
-// Dalvik uses the system's dlsym() which won't see the new library,
-// so explicit registration is mandatory.
-//
-// |env| is the current JNI environment handle.
-// |clazz| is the static class handle for org.chromium.base.Linker,
-// and is ignored here.
-// |library_name| is the library name (e.g. libfoo.so).
-// |load_address| is an explicit load address.
-// |lib_info_obj| is a LibInfo handle used to communicate information
-// with the Java side.
-// Return true on success.
-JNI_GENERATOR_EXPORT bool
-Java_org_chromium_base_library_1loader_Linker_nativeLoadLibrary(
-    JNIEnv* env,
-    jclass clazz,
-    jstring lib_name_obj,
-    jlong load_address,
-    jobject lib_info_obj) {
-  String library_name(env, lib_name_obj);
-  LOG_INFO("Called for %s, at address 0x%llx", library_name, load_address);
-  crazy_context_t* context = GetCrazyContext();
-
-  if (!IsValidAddress(load_address)) {
-    LOG_ERROR("Invalid address 0x%llx",
-              static_cast<unsigned long long>(load_address));
-    return false;
-  }
-
-  // Set the desired load address (0 means randomize it).
-  crazy_context_set_load_address(context, static_cast<size_t>(load_address));
-
-  ScopedLibrary library;
-  if (!crazy_library_open(library.GetPtr(), library_name.c_str(), context)) {
-    return false;
-  }
-
-  crazy_library_info_t info;
-  if (!crazy_library_get_info(library.Get(), context, &info)) {
-    LOG_ERROR("Could not get library information for %s: %s",
-              library_name.c_str(), crazy_context_get_error(context));
-    return false;
-  }
-
-  // Release library object to keep it alive after the function returns.
-  library.Release();
-
-  s_lib_info_fields.SetLoadInfo(env, lib_info_obj, info.load_address,
-                                info.load_size);
-  LOG_INFO("Success loading library %s", library_name.c_str());
-  return true;
-}
-
-// Class holding the Java class and method ID for the Java side Linker
-// postCallbackOnMainThread method.
-struct JavaCallbackBindings_class {
-  jclass clazz;
-  jmethodID method_id;
-
-  // Initialize an instance.
-  bool Init(JNIEnv* env, jclass linker_class) {
-    clazz = reinterpret_cast<jclass>(env->NewGlobalRef(linker_class));
-    return InitStaticMethodId(env, linker_class, "postCallbackOnMainThread",
-                              "(J)V", &method_id);
-  }
-};
-
-static JavaCallbackBindings_class s_java_callback_bindings;
-
-// Designated receiver function for callbacks from Java. Its name is known
-// to the Java side.
-// |env| is the current JNI environment handle and is ignored here.
-// |clazz| is the static class handle for org.chromium.base.Linker,
-// and is ignored here.
-// |arg| is a pointer to an allocated crazy_callback_t, deleted after use.
-JNI_GENERATOR_EXPORT void
-Java_org_chromium_base_library_1loader_Linker_nativeRunCallbackOnUiThread(
-    JNIEnv* env,
-    jclass clazz,
-    jlong arg) {
-  crazy_callback_t* callback = reinterpret_cast<crazy_callback_t*>(arg);
-
-  LOG_INFO("Called back from java with handler %p, opaque %p",
-           callback->handler, callback->opaque);
-
-  crazy_callback_run(callback);
-  delete callback;
-}
-
-// Request a callback from Java. The supplied crazy_callback_t is valid only
-// for the duration of this call, so we copy it to a newly allocated
-// crazy_callback_t and then call the Java side's postCallbackOnMainThread.
-// This will call back to to our RunCallbackOnUiThread some time
-// later on the UI thread.
-// |callback_request| is a crazy_callback_t.
-// |poster_opaque| is unused.
-// Returns true if the callback request succeeds.
-static bool PostForLaterExecution(crazy_callback_t* callback_request,
-                                  void* poster_opaque UNUSED) {
-  crazy_context_t* context = GetCrazyContext();
-
-  JavaVM* vm;
-  int minimum_jni_version;
-  crazy_context_get_java_vm(context, reinterpret_cast<void**>(&vm),
-                            &minimum_jni_version);
-
-  // Do not reuse JNIEnv from JNI_OnLoad, but retrieve our own.
-  JNIEnv* env;
-  if (JNI_OK !=
-      vm->GetEnv(reinterpret_cast<void**>(&env), minimum_jni_version)) {
-    LOG_ERROR("Could not create JNIEnv");
-    return false;
-  }
-
-  // Copy the callback; the one passed as an argument may be temporary.
-  crazy_callback_t* callback = new crazy_callback_t();
-  *callback = *callback_request;
-
-  LOG_INFO("Calling back to java with handler %p, opaque %p", callback->handler,
-           callback->opaque);
-
-  jlong arg = static_cast<jlong>(reinterpret_cast<uintptr_t>(callback));
-
-  env->CallStaticVoidMethod(s_java_callback_bindings.clazz,
-                            s_java_callback_bindings.method_id, arg);
-
-  // Back out and return false if we encounter a JNI exception.
-  if (env->ExceptionCheck() == JNI_TRUE) {
-    env->ExceptionDescribe();
-    env->ExceptionClear();
-    delete callback;
-    return false;
-  }
-
-  return true;
-}
-
-JNI_GENERATOR_EXPORT jboolean
-Java_org_chromium_base_library_1loader_Linker_nativeCreateSharedRelro(
-    JNIEnv* env,
-    jclass clazz,
-    jstring library_name,
-    jlong load_address,
-    jobject lib_info_obj) {
-  String lib_name(env, library_name);
-
-  LOG_INFO("Called for %s", lib_name.c_str());
-
-  if (!IsValidAddress(load_address)) {
-    LOG_ERROR("Invalid address 0x%llx",
-              static_cast<unsigned long long>(load_address));
-    return false;
-  }
-
-  ScopedLibrary library;
-  if (!crazy_library_find_by_name(lib_name.c_str(), library.GetPtr())) {
-    LOG_ERROR("Could not find %s", lib_name.c_str());
-    return false;
-  }
-
-  crazy_context_t* context = GetCrazyContext();
-  size_t relro_start = 0;
-  size_t relro_size = 0;
-  int relro_fd = -1;
-
-  if (!crazy_library_create_shared_relro(
-          library.Get(), context, static_cast<size_t>(load_address),
-          &relro_start, &relro_size, &relro_fd)) {
-    LOG_ERROR("Could not create shared RELRO sharing for %s: %s\n",
-              lib_name.c_str(), crazy_context_get_error(context));
-    return false;
-  }
-
-  s_lib_info_fields.SetRelroInfo(env, lib_info_obj, relro_start, relro_size,
-                                 relro_fd);
-  return true;
-}
-
-JNI_GENERATOR_EXPORT jboolean
-Java_org_chromium_base_library_1loader_Linker_nativeUseSharedRelro(
-    JNIEnv* env,
-    jclass clazz,
-    jstring library_name,
-    jobject lib_info_obj) {
-  String lib_name(env, library_name);
-
-  LOG_INFO("Called for %s, lib_info_ref=%p", lib_name.c_str(), lib_info_obj);
-
-  ScopedLibrary library;
-  if (!crazy_library_find_by_name(lib_name.c_str(), library.GetPtr())) {
-    LOG_ERROR("Could not find %s", lib_name.c_str());
-    return false;
-  }
-
-  crazy_context_t* context = GetCrazyContext();
-  size_t relro_start = 0;
-  size_t relro_size = 0;
-  int relro_fd = -1;
-  s_lib_info_fields.GetRelroInfo(env, lib_info_obj, &relro_start, &relro_size,
-                                 &relro_fd);
-
-  LOG_INFO("library=%s relro start=%p size=%p fd=%d", lib_name.c_str(),
-           (void*)relro_start, (void*)relro_size, relro_fd);
-
-  if (!crazy_library_use_shared_relro(library.Get(), context, relro_start,
-                                      relro_size, relro_fd)) {
-    LOG_ERROR("Could not use shared RELRO for %s: %s", lib_name.c_str(),
-              crazy_context_get_error(context));
-    return false;
-  }
-
-  LOG_INFO("Library %s using shared RELRO section!", lib_name.c_str());
-
-  return true;
-}
-
-static bool LinkerJNIInit(JavaVM* vm, JNIEnv* env) {
+bool NativeLibInfo::LoadWithDlopenExt(const String& path,
+                                      const LoadTimeReporter& reporter,
+                                      void** handle) {
   LOG_INFO("Entering");
 
-  // Initialize SDK version info.
-  LOG_INFO("Retrieving SDK version info");
-  if (!InitSDKVersionInfo(env))
+  // The address range must be reserved during initialization in Linker.java.
+  if (!load_address_) {
+    // TODO(pasko): measure how often this happens.
+    return false;
+  }
+
+  // Remember the memory reservation size. Starting from this point load_size_
+  // changes the meaning to reflect the size of the loaded library.
+  size_t reservation_size = load_size_;
+  auto* address = reinterpret_cast<void*>(load_address_);
+
+  // Invoke android_dlopen_ext.
+  int64_t ticks_initial = GetMillisNow();
+  void* local_handle = nullptr;
+  if (!AndroidDlopenExt(address, reservation_size, path.c_str(),
+                        &local_handle)) {
+    LOG_ERROR("android_dlopen_ext() error");
+    munmap(address, load_size_);
+    return false;
+  }
+  int64_t ticks_after_dlopen_ext = GetMillisNow();
+  reporter.reportDlopenExtTime(ticks_after_dlopen_ext - ticks_initial);
+
+  // Determine the library address ranges and the RELRO region.
+  if (!FindRelroAndLibraryRangesInElf()) {
+    // Fail early if PT_GNU_RELRO is not found. It likely indicates a
+    // build misconfiguration.
+    LOG_ERROR("Could not find RELRO in the loaded library: %s", path.c_str());
+    abort();
+  }
+  reporter.reportIteratePhdrTime(GetMillisNow() - ticks_after_dlopen_ext);
+
+  // Release the unused parts of the memory reservation.
+  TrimMapping(load_address_, reservation_size, load_size_);
+
+  *handle = local_handle;
+  return true;
+}
+
+bool NativeLibInfo::CreateSharedRelroFd(
+    const SharedMemoryFunctions& functions) {
+  LOG_INFO("Entering");
+  if (!relro_start_ || !relro_size_) {
+    LOG_ERROR("RELRO region is not populated");
+    return false;
+  }
+
+  // Create a writable shared memory region.
+  int shared_mem_fd = functions.create("cr_relro", relro_size_);
+  if (shared_mem_fd == -1) {
+    LOG_ERROR("Cannot create the shared memory file");
+    return false;
+  }
+  int rw_flags = PROT_READ | PROT_WRITE;
+  functions.set_protection(shared_mem_fd, rw_flags);
+
+  // Map the region as writable.
+  void* relro_copy_addr =
+      mmap(nullptr, relro_size_, rw_flags, MAP_SHARED, shared_mem_fd, 0);
+  if (relro_copy_addr == MAP_FAILED) {
+    PLOG_ERROR("failed to allocate space for copying RELRO");
+    close(shared_mem_fd);
+    return false;
+  }
+
+  // Populate the shared memory region with the contents of RELRO.
+  void* relro_addr = reinterpret_cast<void*>(relro_start_);
+  memcpy(relro_copy_addr, relro_addr, relro_size_);
+
+  // Protect the underlying physical pages from further modifications from all
+  // processes including the forked ones.
+  //
+  // Setting protection flags on the region to read-only guarantees that the
+  // memory can no longer get mapped as writable, for any FD pointing to the
+  // region, for any process. It is necessary to also munmap(2) the existing
+  // writable memory mappings, since they are not directly affected by the
+  // change of region's protection flags.
+  munmap(relro_copy_addr, relro_size_);
+  if (functions.set_protection(shared_mem_fd, PROT_READ) == -1) {
+    LOG_ERROR("Failed to set the RELRO FD as read-only.");
+    close(shared_mem_fd);
+    return false;
+  }
+
+  relro_fd_ = shared_mem_fd;
+  return true;
+}
+
+bool NativeLibInfo::ReplaceRelroWithSharedOne(
+    const SharedMemoryFunctions& functions) const {
+  LOG_INFO("Entering");
+  if (relro_fd_ == -1 || !relro_start_ || !relro_size_) {
+    LOG_ERROR("Replacement RELRO not ready");
+    return false;
+  }
+
+  // Map as read-only to *atomically* replace the RELRO region provided by the
+  // dynamic linker. To avoid memory corruption it is important that the
+  // contents of both memory regions is identical.
+  void* new_addr = mmap(reinterpret_cast<void*>(relro_start_), relro_size_,
+                        PROT_READ, MAP_FIXED | MAP_SHARED, relro_fd_, 0);
+  if (new_addr == MAP_FAILED) {
+    PLOG_ERROR("mmap: replace RELRO");
+    return false;
+  }
+
+  LOG_INFO("Replaced RELRO at 0x%" PRIxPTR, relro_start_);
+  return true;
+}
+
+NativeLibInfo::NativeLibInfo(JNIEnv* env, jobject java_object)
+    : env_(env), java_object_(java_object) {}
+
+bool NativeLibInfo::CopyFromJavaObject() {
+  if (!env_)
     return false;
 
+  if (!s_lib_info_fields.GetLoadInfo(env_, java_object_, &load_address_,
+                                     &load_size_)) {
+    return false;
+  }
+  s_lib_info_fields.GetRelroInfo(env_, java_object_, &relro_start_,
+                                 &relro_size_, &relro_fd_);
+  return true;
+}
+
+bool NativeLibInfo::LoadLibrary(const String& library_path,
+                                bool spawn_relro_region,
+                                const LoadTimeReporter& reporter) {
+  // Load the library.
+  void* handle = nullptr;
+  if (!LoadWithDlopenExt(library_path, reporter, &handle)) {
+    LOG_ERROR("Failed to load native library: %s", library_path.c_str());
+    return false;
+  }
+  if (!CallJniOnLoad(handle))
+    return false;
+
+  // Publish the library size and load address back to LibInfo in Java.
+  ExportLoadInfoToJava();
+
+  if (!spawn_relro_region)
+    return true;
+
+  // Spawn RELRO to a shared memory region by copying and remapping on top of
+  // itself.
+  SharedMemoryFunctions functions;
+  if (!functions.IsWorking())
+    return false;
+  if (!CreateSharedRelroFd(functions)) {
+    LOG_ERROR("Failed to create shared RELRO");
+    return false;
+  }
+  if (!ReplaceRelroWithSharedOne(functions)) {
+    LOG_ERROR("Failed to convert RELRO to shared memory");
+    CloseRelroFd();
+    return false;
+  }
+
+  LOG_INFO(
+      "Created and converted RELRO to shared memory: relro_fd=%d, "
+      "relro_start=0x%" PRIxPTR,
+      relro_fd_, relro_start_);
+  ExportRelroInfoToJava();
+  return true;
+}
+
+bool NativeLibInfo::RelroIsIdentical(
+    const NativeLibInfo& other_lib_info,
+    const SharedMemoryFunctions& functions) const {
+  // Abandon sharing if contents of the incoming RELRO region does not match the
+  // current one. This can be useful for debugging, but should never happen in
+  // the field.
+  if (other_lib_info.relro_start_ != relro_start_ ||
+      other_lib_info.relro_size_ != relro_size_ ||
+      other_lib_info.load_size_ != load_size_) {
+    LOG_ERROR("Incoming RELRO size does not match RELRO of the loaded library");
+    return false;
+  }
+  void* shared_relro_address =
+      mmap(nullptr, other_lib_info.relro_size_, PROT_READ, MAP_SHARED,
+           other_lib_info.relro_fd_, 0);
+  if (shared_relro_address == MAP_FAILED) {
+    PLOG_ERROR("mmap: check RELRO is identical");
+    return false;
+  }
+  void* current_relro_address = reinterpret_cast<void*>(relro_start_);
+  int not_equal =
+      memcmp(shared_relro_address, current_relro_address, relro_size_);
+  munmap(shared_relro_address, relro_size_);
+  if (not_equal) {
+    LOG_ERROR("Relocations are not identical, giving up.");
+    return false;
+  }
+  return true;
+}
+
+bool NativeLibInfo::CompareRelroAndReplaceItBy(
+    const NativeLibInfo& other_lib_info) {
+  if (other_lib_info.relro_fd_ == -1) {
+    LOG_ERROR("No shared region to use");
+    s_relro_sharing_status = RelroSharingStatus::EXTERNAL_RELRO_FD_NOT_PROVIDED;
+    return false;
+  }
+
+  if (load_address_ == 0) {
+    LOG_ERROR("Load address reset. Second attempt to load the library?");
+    s_relro_sharing_status = RelroSharingStatus::EXTERNAL_LOAD_ADDRESS_RESET;
+    return false;
+  }
+
+  if (!FindRelroAndLibraryRangesInElf()) {
+    LOG_ERROR("Could not find RELRO from externally provided address: 0x%p",
+              reinterpret_cast<void*>(other_lib_info.load_address_));
+    s_relro_sharing_status = RelroSharingStatus::EXTERNAL_RELRO_NOT_FOUND;
+    return false;
+  }
+
+  SharedMemoryFunctions functions;
+  if (!functions.IsWorking()) {
+    s_relro_sharing_status = RelroSharingStatus::NO_SHMEM_FUNCTIONS;
+    return false;
+  }
+  if (!RelroIsIdentical(other_lib_info, functions)) {
+    LOG_ERROR("RELRO is not identical");
+    s_relro_sharing_status = RelroSharingStatus::NOT_IDENTICAL;
+    return false;
+  }
+
+  // Make it shared.
+  //
+  // The alternative approach to invoke mprotect+mremap is probably faster than
+  // munmap+mmap here. The advantage of the latter is that it removes all
+  // formerly writable mappings, so:
+  //  * It does not rely on disallowing mprotect(PROT_WRITE)
+  //  * This way |ReplaceRelroWithSharedOne()| is reused across spawning RELRO
+  //    and receiving it
+  if (!other_lib_info.ReplaceRelroWithSharedOne(functions)) {
+    LOG_ERROR("Failed to use relro_fd");
+    s_relro_sharing_status = RelroSharingStatus::REMAP_FAILED;
+    return false;
+  }
+
+  s_relro_sharing_status = RelroSharingStatus::SHARED;
+  return true;
+}
+
+bool NativeLibInfo::CreateSharedRelroFdForTesting() {
+  // The library providing these functions will be dlclose()-ed after returning
+  // from this context. The extra overhead of dlopen() is OK for testing.
+  SharedMemoryFunctions functions;
+  if (!functions.IsWorking())
+    abort();
+  return CreateSharedRelroFd(functions);
+}
+
+// static
+bool NativeLibInfo::SharedMemoryFunctionsSupportedForTesting() {
+  SharedMemoryFunctions functions;
+  return functions.IsWorking();
+}
+
+JNI_GENERATOR_EXPORT void
+Java_org_chromium_base_library_1loader_LinkerJni_nativeFindMemoryRegionAtRandomAddress(
+    JNIEnv* env,
+    jclass clazz,
+    jobject lib_info_obj) {
+  LOG_INFO("Entering");
+  uintptr_t address;
+  size_t size;
+  ReserveAddressWithHint(0, &address, &size);
+  s_lib_info_fields.SetLoadInfo(env, lib_info_obj, address, size);
+}
+
+JNI_GENERATOR_EXPORT void
+Java_org_chromium_base_library_1loader_LinkerJni_nativeReserveMemoryForLibrary(
+    JNIEnv* env,
+    jclass clazz,
+    jobject lib_info_obj) {
+  LOG_INFO("Entering");
+  uintptr_t address;
+  size_t size;
+  s_lib_info_fields.GetLoadInfo(env, lib_info_obj, &address, &size);
+  ReserveAddressWithHint(address, &address, &size);
+  s_lib_info_fields.SetLoadInfo(env, lib_info_obj, address, size);
+}
+
+JNI_GENERATOR_EXPORT jboolean
+Java_org_chromium_base_library_1loader_LinkerJni_nativeFindRegionReservedByWebViewZygote(
+    JNIEnv* env,
+    jclass clazz,
+    jobject lib_info_obj) {
+  LOG_INFO("Entering");
+  uintptr_t address;
+  size_t size;
+  if (!FindWebViewReservation(&address, &size))
+    return false;
+  s_lib_info_fields.SetLoadInfo(env, lib_info_obj, address, size);
+  return true;
+}
+
+JNI_GENERATOR_EXPORT jboolean
+Java_org_chromium_base_library_1loader_LinkerJni_nativeLoadLibrary(
+    JNIEnv* env,
+    jclass clazz,
+    jstring jdlopen_ext_path,
+    jobject lib_info_obj,
+    jboolean spawn_relro_region) {
+  LOG_INFO("Entering");
+
+  // Copy the contents from the Java-side LibInfo object.
+  NativeLibInfo lib_info = {env, lib_info_obj};
+  if (!lib_info.CopyFromJavaObject())
+    return false;
+
+  String library_path(env, jdlopen_ext_path);
+  LoadTimeReporterJni reporter = {env, clazz};
+  if (!lib_info.LoadLibrary(library_path, spawn_relro_region, reporter)) {
+    return false;
+  }
+  return true;
+}
+
+JNI_GENERATOR_EXPORT jboolean
+Java_org_chromium_base_library_1loader_LinkerJni_nativeUseRelros(
+    JNIEnv* env,
+    jclass clazz,
+    jlong local_load_address,
+    jobject remote_lib_info_obj) {
+  LOG_INFO("Entering");
+  // Copy the contents from the Java-side LibInfo object.
+  NativeLibInfo incoming_lib_info = {env, remote_lib_info_obj};
+  if (!incoming_lib_info.CopyFromJavaObject()) {
+    s_relro_sharing_status = RelroSharingStatus::CORRUPTED_IN_JAVA;
+    return false;
+  }
+
+  // Create an empty NativeLibInfo to extract the current information about the
+  // loaded library and later compare with the contents of the
+  // |incoming_lib_info|.
+  NativeLibInfo lib_info = {nullptr, nullptr};
+  lib_info.set_load_address(static_cast<uintptr_t>(local_load_address));
+
+  if (!lib_info.CompareRelroAndReplaceItBy(incoming_lib_info)) {
+    return false;
+  }
+  return true;
+}
+
+JNI_GENERATOR_EXPORT jint
+Java_org_chromium_base_library_1loader_LinkerJni_nativeGetRelroSharingResult(
+    JNIEnv* env,
+    jclass clazz) {
+  return static_cast<jint>(s_relro_sharing_status);
+}
+
+bool LinkerJNIInit(JavaVM* vm, JNIEnv* env) {
   // Find LibInfo field ids.
-  LOG_INFO("Caching field IDs");
   if (!s_lib_info_fields.Init(env)) {
     return false;
   }
 
-  // Register native methods.
-  jclass linker_class;
-  if (!InitClassReference(env, "org/chromium/base/library_loader/Linker",
-                          &linker_class))
-    return false;
-
-  // Resolve and save the Java side Linker callback class and method.
-  LOG_INFO("Resolving callback bindings");
-  if (!s_java_callback_bindings.Init(env, linker_class)) {
-    return false;
-  }
-
-  // Save JavaVM* handle into context.
-  crazy_context_t* context = GetCrazyContext();
-  crazy_context_set_java_vm(context, vm, JNI_VERSION_1_4);
-
-  // Register the function that the crazy linker can call to post code
-  // for later execution.
-  crazy_context_set_callback_poster(context, &PostForLaterExecution, nullptr);
-
+  s_java_vm = vm;
   return true;
 }
 
-// JNI_OnLoad() hook called when the linker library is loaded through
-// the regular System.LoadLibrary) API. This shall save the Java VM
-// handle and initialize LibInfo fields.
-jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  LOG_INFO("Entering");
-  // Get new JNIEnv
-  JNIEnv* env;
-  if (JNI_OK != vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_4)) {
-    LOG_ERROR("Could not create JNIEnv");
-    return -1;
-  }
-
-  // Initialize linker base and implementations.
-  if (!LinkerJNIInit(vm, env)) {
-    return -1;
-  }
-
-  LOG_INFO("Done");
-  return JNI_VERSION_1_4;
-}
-
 }  // namespace chromium_android_linker
-
-jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  return chromium_android_linker::JNI_OnLoad(vm, reserved);
-}

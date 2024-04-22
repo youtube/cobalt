@@ -30,7 +30,9 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/current_thread.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -483,11 +485,12 @@ int StringToLogLevel(const std::string& log_level) {
 
 void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
-    int32 out;
-    if (base::StringToInt32(
-            base::CommandLine::ForCurrentProcess()->GetSwitchValueNative(
-                switch_name),
-            &out)) {
+    size_t idx;
+    std::string str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueNative(
+            switch_name);
+    int32 out = std::stoi(str, &idx);
+    if (str.size() != idx) {
       LOG(INFO) << "Command line switch '" << switch_name << "': Modifying "
                 << *output << " -> " << out;
       *output = out;
@@ -626,7 +629,8 @@ int64 Application::lifetime_in_ms_ = 0;
 
 Application::Application(const base::Closure& quit_closure, bool should_preload,
                          int64_t timestamp)
-    : message_loop_(base::MessageLoop::current()), quit_closure_(quit_closure) {
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+      quit_closure_(quit_closure) {
   DCHECK(!quit_closure_.is_null());
   if (should_preload) {
     preload_timestamp_ = timestamp;
@@ -643,10 +647,14 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 
   TRACE_EVENT0("cobalt::browser", "Application::Application()");
 
-  DCHECK(base::MessageLoop::current());
-  DCHECK_EQ(
-      base::MessageLoop::TYPE_UI,
-      static_cast<base::MessageLoop*>(base::MessageLoop::current())->type());
+
+  // A one-per-process task scheduler is needed for usage of APIs in
+  // base/post_task.h which will be used by some net APIs like
+  // URLRequestContext;
+  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
+      "Cobalt TaskScheduler");
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(base::CurrentUIThread::IsSet());
 
   DETACH_FROM_THREAD(network_event_thread_checker_);
   DETACH_FROM_THREAD(application_event_thread_checker_);
@@ -672,11 +680,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // Get the system language and initialize our localized strings.
   std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
-
-  // A one-per-process task scheduler is needed for usage of APIs in
-  // base/post_task.h which will be used by some net APIs like
-  // URLRequestContext;
-  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
 
   starboard::StatsTrackerContainer::GetInstance()->set_stats_tracker(
       std::make_unique<StarboardStatsTracker>());
@@ -1012,7 +1015,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
     // If the "shutdown_after" command line option is specified, setup a delayed
     // message to quit the application after the specified number of seconds
     // have passed.
-    message_loop_->task_runner()->PostDelayedTask(
+    task_runner_->PostDelayedTask(
         FROM_HERE, quit_closure_,
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
@@ -1061,8 +1064,8 @@ Application::~Application() {
 }
 
 void Application::Start(int64_t timestamp) {
-  if (base::MessageLoop::current() != message_loop_) {
-    message_loop_->task_runner()->PostTask(
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&Application::Start, base::Unretained(this), timestamp));
     return;
@@ -1076,8 +1079,8 @@ void Application::Start(int64_t timestamp) {
 }
 
 void Application::Quit() {
-  if (base::MessageLoop::current() != message_loop_) {
-    message_loop_->task_runner()->PostTask(
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
         FROM_HERE, base::Bind(&Application::Quit, base::Unretained(this)));
     return;
   }
@@ -1088,7 +1091,7 @@ void Application::Quit() {
 
 void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
   DCHECK(starboard_event);
-  DCHECK_EQ(base::MessageLoop::current(), message_loop_);
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // Forward input events to |SystemWindow|.
   if (starboard_event->type == kSbEventTypeInput) {
@@ -1504,7 +1507,8 @@ void Application::InitMetrics() {
   // Must be called early as it initializes global state which is then read by
   // all threads without synchronization.
   // RecordAction task runner must be called before metric initialization.
-  base::SetRecordActionTaskRunner(base::ThreadTaskRunnerHandle::Get());
+  base::SetRecordActionTaskRunner(
+      base::SingleThreadTaskRunner::GetCurrentDefault());
   metrics_services_manager_ =
       metrics::CobaltMetricsServicesManager::GetInstance();
   // Before initializing metrics manager, set any persisted settings like if

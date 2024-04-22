@@ -34,7 +34,7 @@ namespace time_helpers {
 namespace {
 base::Time UDateToTime(UDate udate) {
   return base::Time::UnixEpoch() +
-         base::TimeDelta::FromMicroseconds(static_cast<int64_t>(
+         Microseconds(static_cast<int64_t>(
              udate * base::Time::kMicrosecondsPerMillisecond));
 }
 
@@ -82,12 +82,12 @@ base::Time FieldsToTime(TimeZone timezone,
   UChar* timezone_uname = NULL;
   switch (timezone) {
     case kTimeZonePacific:
-      u_strFromUTF8(timezone_buffer, arraysize(timezone_buffer), NULL,
+      u_strFromUTF8(timezone_buffer, std::size(timezone_buffer), NULL,
                     "America/Los_Angeles", -1, &status);
       timezone_uname = timezone_buffer;
       break;
     case kTimeZoneGMT:
-      u_strFromUTF8(timezone_buffer, arraysize(timezone_buffer), NULL,
+      u_strFromUTF8(timezone_buffer, std::size(timezone_buffer), NULL,
                     "Etc/GMT", -1, &status);
       timezone_uname = timezone_buffer;
     case kTimeZoneLocal:

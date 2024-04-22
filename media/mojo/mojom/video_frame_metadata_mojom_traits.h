@@ -1,11 +1,10 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_MOJO_MOJOM_VIDEO_FRAME_METADATA_MOJOM_TRAITS_H_
 #define MEDIA_MOJO_MOJOM_VIDEO_FRAME_METADATA_MOJOM_TRAITS_H_
 
-#include "base/memory/ref_counted.h"
 #include "media/base/ipc/media_param_traits_macros.h"
 #include "media/base/video_frame_metadata.h"
 #include "media/base/video_transformation.h"
@@ -35,6 +34,10 @@ struct StructTraits<media::mojom::VideoFrameMetadataDataView,
     return input.allow_overlay;
   }
 
+  static bool copy_required(const media::VideoFrameMetadata& input) {
+    return input.copy_required;
+  }
+
   static bool end_of_stream(const media::VideoFrameMetadata& input) {
     return input.end_of_stream;
   }
@@ -55,9 +58,8 @@ struct StructTraits<media::mojom::VideoFrameMetadataDataView,
     return input.hw_protected;
   }
 
-  static uint32_t hw_protected_validation_id(
-      const media::VideoFrameMetadata& input) {
-    return input.hw_protected_validation_id;
+  static bool is_webgpu_compatible(const media::VideoFrameMetadata& input) {
+    return input.is_webgpu_compatible;
   }
 
   static bool power_efficient(const media::VideoFrameMetadata& input) {
@@ -77,14 +79,13 @@ struct StructTraits<media::mojom::VideoFrameMetadataDataView,
     return input.texture_origin_is_top_left;
   }
 
+  static uint32_t crop_version(const media::VideoFrameMetadata& input) {
+    return input.crop_version;
+  }
+
   GENERATE_OPT_SERIALIZATION(int, capture_counter, 0)
 
-  GENERATE_OPT_SERIALIZATION(
-      media::VideoFrameMetadata::CopyMode,
-      copy_mode,
-      media::VideoFrameMetadata::CopyMode::kCopyToNewTexture)
-
-  static absl::optional<media::VideoTransformation> transformation(
+  static const absl::optional<media::VideoTransformation>& transformation(
       const media::VideoFrameMetadata& input) {
     return input.transformation;
   }
@@ -97,12 +98,22 @@ struct StructTraits<media::mojom::VideoFrameMetadataDataView,
   GENERATE_OPT_SERIALIZATION(double, frame_rate, 0.0)
   GENERATE_OPT_SERIALIZATION(double, rtp_timestamp, 0.0)
 
-  static absl::optional<gfx::Rect> capture_update_rect(
+  static const absl::optional<gfx::Rect>& capture_update_rect(
       const media::VideoFrameMetadata& input) {
     return input.capture_update_rect;
   }
 
-  static absl::optional<base::UnguessableToken> overlay_plane_id(
+  static const absl::optional<gfx::Size>& source_size(
+      const media::VideoFrameMetadata& input) {
+    return input.source_size;
+  }
+
+  static const absl::optional<gfx::Rect>& region_capture_rect(
+      const media::VideoFrameMetadata& input) {
+    return input.region_capture_rect;
+  }
+
+  static const absl::optional<base::UnguessableToken>& overlay_plane_id(
       const media::VideoFrameMetadata& input) {
     return input.overlay_plane_id;
   }
@@ -155,6 +166,8 @@ struct StructTraits<media::mojom::VideoFrameMetadataDataView,
   static bool Read(media::mojom::VideoFrameMetadataDataView input,
                    media::VideoFrameMetadata* output);
 };
+
+#undef GENERATE_OPT_SERIALIZATION
 
 }  // namespace mojo
 

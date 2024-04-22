@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/functional/callback.h"
 
 namespace media {
 
@@ -68,5 +69,15 @@ bool FileDataSource::IsStreaming() {
 void FileDataSource::SetBitrate(int bitrate) {}
 
 FileDataSource::~FileDataSource() = default;
+
+bool FileDataSource::PassedTimingAllowOriginCheck() {
+  // There are no HTTP responses, so this can safely return true.
+  return true;
+}
+
+bool FileDataSource::WouldTaintOrigin() {
+  // There are no HTTP responses, so this can safely return false.
+  return false;
+}
 
 }  // namespace media

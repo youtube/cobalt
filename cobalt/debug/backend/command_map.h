@@ -44,14 +44,14 @@ class CommandMap : public std::map<std::string, CommandFn> {
   // Calls the mapped method implementation.
   // Passes ownership of the command to the mapped method, otherwise returns
   // ownership of the not-run command for a fallback JS implementation.
-  base::Optional<Command> RunCommand(Command command) {
+  absl::optional<Command> RunCommand(Command command) {
     // If the domain matches, trim it and the dot from the method name.
     const std::string& method =
         (domain_ == command.GetDomain())
             ? command.GetMethod().substr(domain_.size() + 1)
             : command.GetMethod();
     auto iter = this->find(method);
-    if (iter == this->end()) return base::make_optional(std::move(command));
+    if (iter == this->end()) return absl::make_optional(std::move(command));
     auto command_impl = iter->second;
     command_impl.Run(std::move(command));
     return base::nullopt;

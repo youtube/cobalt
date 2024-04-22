@@ -25,7 +25,7 @@ namespace dom {
 
 namespace {
 
-const base::char16 kHorizontalEllipsisValue = 0x2026;
+const char16_t kHorizontalEllipsisValue = 0x2026;
 
 bool CharInRange(
     const std::set<FontFaceStyleSet::Entry::UnicodeRange>& unicode_range,
@@ -142,11 +142,11 @@ bool FontList::IsVisible() const {
 }
 
 scoped_refptr<render_tree::GlyphBuffer> FontList::CreateGlyphBuffer(
-    const base::char16* text_buffer, int32 text_length, bool is_rtl) {
+    const char16_t* text_buffer, int32 text_length, bool is_rtl) {
   return font_cache_->CreateGlyphBuffer(text_buffer, text_length, is_rtl, this);
 }
 
-float FontList::GetTextWidth(const base::char16* text_buffer, int32 text_length,
+float FontList::GetTextWidth(const char16_t* text_buffer, int32 text_length,
                              bool is_rtl,
                              render_tree::FontVector* maybe_used_fonts) {
   return font_cache_->GetTextWidth(text_buffer, text_length, is_rtl, this,
@@ -206,9 +206,7 @@ render_tree::FontMetrics FontList::GetFontMetrics(
                                   max_x_height);
 }
 
-base::char16 FontList::GetEllipsisValue() const {
-  return kHorizontalEllipsisValue;
-}
+char16_t FontList::GetEllipsisValue() const { return kHorizontalEllipsisValue; }
 
 const scoped_refptr<render_tree::Font>& FontList::GetEllipsisFont() {
   GenerateEllipsisInfo();

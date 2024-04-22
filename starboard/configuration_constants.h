@@ -153,4 +153,10 @@ SB_EXPORT extern const uint32_t kSbUserMaxSignedIn;
 SB_EXPORT extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
 #endif
 
+#if SB_API_VERSION >= 16
+// Whether this platform can map executable memory. This is required for
+// platforms that want to JIT.
+SB_EXPORT extern const bool kSbCanMapExecutableMemory;
+#endif
+
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_

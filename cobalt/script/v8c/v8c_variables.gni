@@ -15,8 +15,8 @@
 generated_bindings_prefix = "v8c"
 
 engine_dependencies = [
-  "//third_party/v8",
-  "//third_party/v8:v8_libplatform",
+  "//v8",
+  "//v8:v8_libplatform",
   "//net",
 ]
 

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,10 @@
 
 #include <vector>
 
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
+#include "media/base/video_color_space.h"
 #include "media/gpu/v4l2/v4l2_device.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -35,11 +35,15 @@ class V4L2DecodeSurface : public base::RefCounted<V4L2DecodeSurface> {
                     V4L2WritableBufferRef output_buffer,
                     scoped_refptr<VideoFrame> frame);
 
+  V4L2DecodeSurface(const V4L2DecodeSurface&) = delete;
+  V4L2DecodeSurface& operator=(const V4L2DecodeSurface&) = delete;
+
   // Mark the surface as decoded. This will also release all surfaces used for
   // reference, as they are not needed anymore and execute the done callback,
   // if not null.
   void SetDecoded();
   void SetVisibleRect(const gfx::Rect& visible_rect);
+  void SetColorSpace(const VideoColorSpace& color_space);
   // Take references to each reference surface and keep them until the
   // target surface is decoded.
   void SetReferenceSurfaces(
@@ -52,8 +56,8 @@ class V4L2DecodeSurface : public base::RefCounted<V4L2DecodeSurface> {
   // method must be called one time at most.
   void SetReleaseCallback(base::OnceClosure release_cb);
 
-  // Update the passed v4l2_ext_controls structure to add the request or
-  // config store information.
+  // Update the passed v4l2_ext_controls structure to add the request
+  // information.
   virtual void PrepareSetCtrls(struct v4l2_ext_controls* ctrls) const = 0;
   // Return the ID to use in order to reference this frame.
   virtual uint64_t GetReferenceID() const = 0;
@@ -62,7 +66,6 @@ class V4L2DecodeSurface : public base::RefCounted<V4L2DecodeSurface> {
   virtual bool Submit() = 0;
 
   bool decoded() const { return decoded_; }
-  int input_record() const { return input_record_; }
   V4L2WritableBufferRef& input_buffer() {
     return input_buffer_;
   }
@@ -72,6 +75,7 @@ class V4L2DecodeSurface : public base::RefCounted<V4L2DecodeSurface> {
   }
   scoped_refptr<VideoFrame> video_frame() const { return video_frame_; }
   gfx::Rect visible_rect() const { return visible_rect_; }
+  const VideoColorSpace& color_space() const { return color_space_; }
 
   std::string ToString() const;
 
@@ -85,12 +89,13 @@ class V4L2DecodeSurface : public base::RefCounted<V4L2DecodeSurface> {
   V4L2WritableBufferRef input_buffer_;
   V4L2WritableBufferRef output_buffer_;
   scoped_refptr<VideoFrame> video_frame_;
-  // The index of the corresponding input record.
-  const int input_record_;
+
   // The index of the corresponding output record.
   const int output_record_;
   // The visible size of the buffer.
   gfx::Rect visible_rect_;
+  // The color space of the buffer.
+  VideoColorSpace color_space_;
 
   // Indicate whether the surface is decoded or not.
   bool decoded_;
@@ -102,34 +107,6 @@ class V4L2DecodeSurface : public base::RefCounted<V4L2DecodeSurface> {
   // The decoded surfaces of the reference frames, which is kept until the
   // surface has been decoded.
   std::vector<scoped_refptr<V4L2DecodeSurface>> reference_surfaces_;
-
-  DISALLOW_COPY_AND_ASSIGN(V4L2DecodeSurface);
-};
-
-// An implementation of V4L2DecodeSurface that uses the config store to
-// associate controls/buffers to frames.
-class V4L2ConfigStoreDecodeSurface : public V4L2DecodeSurface {
- public:
-  V4L2ConfigStoreDecodeSurface(V4L2WritableBufferRef input_buffer,
-                               V4L2WritableBufferRef output_buffer,
-                               scoped_refptr<VideoFrame> frame)
-      : V4L2DecodeSurface(std::move(input_buffer),
-                          std::move(output_buffer),
-                          std::move(frame)),
-        // config store IDs are arbitrarily defined to be buffer ID + 1
-        config_store_(this->input_buffer().BufferId() + 1) {}
-
-  void PrepareSetCtrls(struct v4l2_ext_controls* ctrls) const override;
-  uint64_t GetReferenceID() const override;
-  bool Submit() override;
-
- private:
-  ~V4L2ConfigStoreDecodeSurface() override = default;
-
-  // The configuration store of the input buffer.
-  uint32_t config_store_;
-
-  DISALLOW_COPY_AND_ASSIGN(V4L2ConfigStoreDecodeSurface);
 };
 
 // An implementation of V4L2DecodeSurface that uses requests to associate
@@ -145,6 +122,9 @@ class V4L2RequestDecodeSurface : public V4L2DecodeSurface {
                           std::move(frame)),
         request_ref_(std::move(request_ref)) {}
 
+  V4L2RequestDecodeSurface(const V4L2RequestDecodeSurface&) = delete;
+  V4L2RequestDecodeSurface& operator=(const V4L2RequestDecodeSurface&) = delete;
+
   void PrepareSetCtrls(struct v4l2_ext_controls* ctrls) const override;
   uint64_t GetReferenceID() const override;
   bool Submit() override;
@@ -154,8 +134,6 @@ class V4L2RequestDecodeSurface : public V4L2DecodeSurface {
 
   // Request reference used for the surface.
   V4L2RequestRef request_ref_;
-
-  DISALLOW_COPY_AND_ASSIGN(V4L2RequestDecodeSurface);
 };
 
 }  // namespace media

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
@@ -19,24 +18,24 @@ namespace net {
 
 class HostPortPair;
 class HttpAuthController;
-class HttpStream;
 class HttpResponseInfo;
 class HttpRequestHeaders;
 class HttpAuthController;
 class NetLogWithSource;
 
+// A common base class for a stream socket tunneled through a proxy.
 class NET_EXPORT_PRIVATE ProxyClientSocket : public StreamSocket {
  public:
-  ProxyClientSocket() {}
-  ~ProxyClientSocket() override {}
+  ProxyClientSocket() = default;
+
+  ProxyClientSocket(const ProxyClientSocket&) = delete;
+  ProxyClientSocket& operator=(const ProxyClientSocket&) = delete;
+
+  ~ProxyClientSocket() override = default;
 
   // Returns the HttpResponseInfo (including HTTP Headers) from
   // the response to the CONNECT request.
   virtual const HttpResponseInfo* GetConnectResponseInfo() const = 0;
-
-  // Transfers ownership of a newly created HttpStream to the caller
-  // which can be used to read the response body.
-  virtual std::unique_ptr<HttpStream> CreateConnectResponseStream() = 0;
 
   // Returns the HttpAuthController which can be used
   // to interact with an HTTP Proxy Authorization Required (407) request.
@@ -53,12 +52,6 @@ class NET_EXPORT_PRIVATE ProxyClientSocket : public StreamSocket {
   // implementations should disconnect themselves and return OK.
   virtual int RestartWithAuth(CompletionOnceCallback callback) = 0;
 
-  // Returns true of the connection to the proxy is using SPDY.
-  virtual bool IsUsingSpdy() const = 0;
-
-  // Returns the protocol negotiated with the proxy.
-  virtual NextProto GetProxyNegotiatedProtocol() const = 0;
-
   // Set the priority of the underlying stream (for SPDY and QUIC)
   virtual void SetStreamPriority(RequestPriority priority);
 
@@ -67,7 +60,7 @@ class NET_EXPORT_PRIVATE ProxyClientSocket : public StreamSocket {
   // in draft-luotonen-web-proxy-tunneling-01.txt and RFC 2817, Sections 5.2
   // and 5.3.
   static void BuildTunnelRequest(const HostPortPair& endpoint,
-                                 const HttpRequestHeaders& auth_headers,
+                                 const HttpRequestHeaders& extra_headers,
                                  const std::string& user_agent,
                                  std::string* request_line,
                                  HttpRequestHeaders* request_headers);
@@ -80,20 +73,8 @@ class NET_EXPORT_PRIVATE ProxyClientSocket : public StreamSocket {
 
   // When a proxy authentication response is received during tunnel
   // construction, this method should be called to strip everything
-  // but the auth header from the redirect response.  If it returns
-  // false, the response should be discarded and tunnel construction should
-  // fail.
-  static bool SanitizeProxyAuth(HttpResponseInfo* response);
-
-  // When a redirect (e.g. 302 response) is received during tunnel
-  // construction, this method should be called to strip everything
-  // but the Location header from the redirect response.  If it returns
-  // false, the response should be discarded and tunnel construction should
-  // fail.
-  static bool SanitizeProxyRedirect(HttpResponseInfo* response);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ProxyClientSocket);
+  // but the auth header from the redirect response.
+  static void SanitizeProxyAuth(HttpResponseInfo& response);
 };
 
 }  // namespace net

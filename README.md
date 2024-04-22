@@ -159,8 +159,7 @@ All source locations are specified relative to `src/` (this directory).
     Implementation, Layout Engine, Renderer, and some other Cobalt-specific
     features.
       * `cobalt/build/` - The core build generation system, `gn.py`, and
-        configurations for supported platforms. (NOTE: This should eventually be
-        mostly moved into `starboard/`.)
+        configurations for supported platforms.
       * `cobalt/doc/` - Contains a wide range of detailed information and guides
         on Cobalt features, functionality and best practices for Cobalt
         development.

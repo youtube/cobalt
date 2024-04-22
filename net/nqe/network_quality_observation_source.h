@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -48,14 +48,13 @@ enum NetworkQualityObservationSource {
   // at the transport layer.
   NETWORK_QUALITY_OBSERVATION_SOURCE_DEFAULT_TRANSPORT_FROM_PLATFORM = 7,
 
+  // Round trip ping latency reported by H2 connections.
+  NETWORK_QUALITY_OBSERVATION_SOURCE_H2_PINGS = 8,
+
   NETWORK_QUALITY_OBSERVATION_SOURCE_MAX,
 };
 
-namespace nqe {
-
-namespace internal {
-// Returns the string equivalent of |source|.
-const char* GetNameForObservationSource(NetworkQualityObservationSource source);
+namespace nqe::internal {
 
 // Different categories to which an observation source can belong to. Each
 // observation source belongs to exactly one category.
@@ -76,9 +75,7 @@ enum ObservationCategory {
   OBSERVATION_CATEGORY_COUNT = 3
 };
 
-}  // namespace internal
-
-}  // namespace nqe
+}  // namespace nqe::internal
 
 }  // namespace net
 

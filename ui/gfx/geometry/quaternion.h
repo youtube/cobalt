@@ -1,10 +1,11 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef UI_GFX_GEOMETRY_QUATERNION_H_
 #define UI_GFX_GEOMETRY_QUATERNION_H_
 
+#include <iosfwd>
 #include <string>
 
 #include "ui/gfx/geometry/geometry_export.h"
@@ -103,6 +104,11 @@ inline bool operator==(const Quaternion& lhs, const Quaternion& rhs) {
 inline bool operator!=(const Quaternion& lhs, const Quaternion& rhs) {
   return !(lhs == rhs);
 }
+
+// This is declared here for use in gtest-based unit tests but is defined in
+// the //ui/gfx:test_support target. Depend on that to use this in your unit
+// test. This should not be used in production code - call ToString() instead.
+void PrintTo(const Quaternion& transform, ::std::ostream* os);
 
 }  // namespace gfx
 

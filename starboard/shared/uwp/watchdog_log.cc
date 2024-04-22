@@ -14,6 +14,8 @@
 
 #include "starboard/shared/uwp/watchdog_log.h"
 
+#include <unistd.h>
+
 #include <string>
 
 #include "starboard/common/file.h"
@@ -68,7 +70,7 @@ class WatchDogThread : public Thread {
         SbFileWrite(file_handle, kDone, static_cast<int>(strlen(kDone)));
     RecordFileWriteStat(result);
     SbFileFlush(file_handle);
-    SbThreadSleep(50'000);
+    usleep(50'000);
     bool closed = SbFileClose(file_handle);
     SB_LOG_IF(ERROR, closed) << "Could not close file " << file_path_;
   }

@@ -24,6 +24,7 @@
 #include "cobalt/h5vcc/watchdog_state.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/watchdog/watchdog.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace h5vcc {

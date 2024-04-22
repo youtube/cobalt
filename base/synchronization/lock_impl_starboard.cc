@@ -14,7 +14,7 @@
 
 #include "base/synchronization/lock_impl.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "starboard/common/mutex.h"
 
 namespace base {
@@ -30,13 +30,7 @@ LockImpl::~LockImpl() {
   DCHECK(result);
 }
 
-bool LockImpl::Try() {
-  SbMutexResult result = SbMutexAcquireTry(&native_handle_);
-  DCHECK_NE(kSbMutexDestroyed, result);
-  return SbMutexIsSuccess(result);
-}
-
-void LockImpl::Lock() {
+void LockImpl::LockInternal() {
   SbMutexResult result = SbMutexAcquire(&native_handle_);
   DCHECK_NE(kSbMutexDestroyed, result);
 }

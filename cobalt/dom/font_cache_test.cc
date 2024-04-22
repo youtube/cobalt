@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "base/memory/ref_counted.h"
+#include "base/test/task_environment.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/font_face.h"
 #include "cobalt/dom/global_stats.h"
@@ -49,7 +50,7 @@ std::unique_ptr<FontCache::FontFaceMap> CreateFontFaceMapHelper(
   scoped_refptr<dom::FontFaceStyleSet::Entry> entry =
       base::MakeRefCounted<dom::FontFaceStyleSet::Entry>();
   entry->sources.push_back(
-      FontFaceSource(local_font_name.as_string()));  // local()
+      FontFaceSource(std::string(local_font_name)));  // local()
   entry->sources.push_back(FontFaceSource(
       GURL("https://example.com/Dancing-Regular.woff")));  // url()
   ffss.AddEntry(entry);
@@ -75,8 +76,8 @@ class FontCacheTest : public ::testing::Test {
   cobalt::render_tree::ResourceProvider* mrp;
   std::unique_ptr<loader::font::RemoteTypefaceCache> rtc;
   std::unique_ptr<dom::FontCache> font_cache_;
-
-  base::MessageLoop message_loop_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 FontCacheTest::FontCacheTest()

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,19 +7,15 @@
 #include <limits.h>
 #include <stddef.h>
 
-#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/format_macros.h"
 #include "base/mac/scoped_cftyperef.h"
-#include "base/mac/scoped_nsautorelease_pool.h"
-#include "base/macros.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 
-namespace base {
-namespace mac {
+namespace base::mac {
 
 TEST(FoundationUtilTest, CFCast) {
   // Build out the CF types to be tested as empty containers.
@@ -162,112 +158,107 @@ TEST(FoundationUtilTest, CFCast) {
 }
 
 TEST(FoundationUtilTest, ObjCCast) {
-  ScopedNSAutoreleasePool pool;
+  @autoreleasepool {
+    id test_array = @[];
+    id test_array_mutable = [NSMutableArray array];
+    id test_data = [NSData data];
+    id test_data_mutable = [NSMutableData dataWithCapacity:10];
+    id test_date = [NSDate date];
+    id test_dict = @{@"meaning" : @42};
+    id test_dict_mutable = [NSMutableDictionary dictionaryWithCapacity:10];
+    id test_number = @42;
+    id test_null = [NSNull null];
+    id test_set = [NSSet setWithObject:@"string object"];
+    id test_set_mutable = [NSMutableSet setWithCapacity:10];
+    id test_str = [NSString string];
+    id test_str_const = @"bonjour";
+    id test_str_mutable = [NSMutableString stringWithCapacity:10];
 
-  id test_array = @[];
-  id test_array_mutable = [NSMutableArray array];
-  id test_data = [NSData data];
-  id test_data_mutable = [NSMutableData dataWithCapacity:10];
-  id test_date = [NSDate date];
-  id test_dict = @{ @"meaning" : @42 };
-  id test_dict_mutable = [NSMutableDictionary dictionaryWithCapacity:10];
-  id test_number = @42;
-  id test_null = [NSNull null];
-  id test_set = [NSSet setWithObject:@"string object"];
-  id test_set_mutable = [NSMutableSet setWithCapacity:10];
-  id test_str = [NSString string];
-  id test_str_const = @"bonjour";
-  id test_str_mutable = [NSMutableString stringWithCapacity:10];
+    // Make sure the allocations of NS types are good.
+    EXPECT_TRUE(test_array);
+    EXPECT_TRUE(test_array_mutable);
+    EXPECT_TRUE(test_data);
+    EXPECT_TRUE(test_data_mutable);
+    EXPECT_TRUE(test_date);
+    EXPECT_TRUE(test_dict);
+    EXPECT_TRUE(test_dict_mutable);
+    EXPECT_TRUE(test_number);
+    EXPECT_TRUE(test_null);
+    EXPECT_TRUE(test_set);
+    EXPECT_TRUE(test_set_mutable);
+    EXPECT_TRUE(test_str);
+    EXPECT_TRUE(test_str_const);
+    EXPECT_TRUE(test_str_mutable);
 
-  // Make sure the allocations of NS types are good.
-  EXPECT_TRUE(test_array);
-  EXPECT_TRUE(test_array_mutable);
-  EXPECT_TRUE(test_data);
-  EXPECT_TRUE(test_data_mutable);
-  EXPECT_TRUE(test_date);
-  EXPECT_TRUE(test_dict);
-  EXPECT_TRUE(test_dict_mutable);
-  EXPECT_TRUE(test_number);
-  EXPECT_TRUE(test_null);
-  EXPECT_TRUE(test_set);
-  EXPECT_TRUE(test_set_mutable);
-  EXPECT_TRUE(test_str);
-  EXPECT_TRUE(test_str_const);
-  EXPECT_TRUE(test_str_mutable);
+    // Casting the id correctly provides the same pointer.
+    EXPECT_EQ(test_array, ObjCCast<NSArray>(test_array));
+    EXPECT_EQ(test_array_mutable, ObjCCast<NSArray>(test_array_mutable));
+    EXPECT_EQ(test_data, ObjCCast<NSData>(test_data));
+    EXPECT_EQ(test_data_mutable, ObjCCast<NSData>(test_data_mutable));
+    EXPECT_EQ(test_date, ObjCCast<NSDate>(test_date));
+    EXPECT_EQ(test_dict, ObjCCast<NSDictionary>(test_dict));
+    EXPECT_EQ(test_dict_mutable, ObjCCast<NSDictionary>(test_dict_mutable));
+    EXPECT_EQ(test_number, ObjCCast<NSNumber>(test_number));
+    EXPECT_EQ(test_null, ObjCCast<NSNull>(test_null));
+    EXPECT_EQ(test_set, ObjCCast<NSSet>(test_set));
+    EXPECT_EQ(test_set_mutable, ObjCCast<NSSet>(test_set_mutable));
+    EXPECT_EQ(test_str, ObjCCast<NSString>(test_str));
+    EXPECT_EQ(test_str_const, ObjCCast<NSString>(test_str_const));
+    EXPECT_EQ(test_str_mutable, ObjCCast<NSString>(test_str_mutable));
 
-  // Casting the id correctly provides the same pointer.
-  EXPECT_EQ(test_array, ObjCCast<NSArray>(test_array));
-  EXPECT_EQ(test_array_mutable, ObjCCast<NSArray>(test_array_mutable));
-  EXPECT_EQ(test_data, ObjCCast<NSData>(test_data));
-  EXPECT_EQ(test_data_mutable, ObjCCast<NSData>(test_data_mutable));
-  EXPECT_EQ(test_date, ObjCCast<NSDate>(test_date));
-  EXPECT_EQ(test_dict, ObjCCast<NSDictionary>(test_dict));
-  EXPECT_EQ(test_dict_mutable, ObjCCast<NSDictionary>(test_dict_mutable));
-  EXPECT_EQ(test_number, ObjCCast<NSNumber>(test_number));
-  EXPECT_EQ(test_null, ObjCCast<NSNull>(test_null));
-  EXPECT_EQ(test_set, ObjCCast<NSSet>(test_set));
-  EXPECT_EQ(test_set_mutable, ObjCCast<NSSet>(test_set_mutable));
-  EXPECT_EQ(test_str, ObjCCast<NSString>(test_str));
-  EXPECT_EQ(test_str_const, ObjCCast<NSString>(test_str_const));
-  EXPECT_EQ(test_str_mutable, ObjCCast<NSString>(test_str_mutable));
+    // When given an incorrect ObjC cast, provide nil.
+    EXPECT_FALSE(ObjCCast<NSString>(test_array));
+    EXPECT_FALSE(ObjCCast<NSString>(test_array_mutable));
+    EXPECT_FALSE(ObjCCast<NSString>(test_data));
+    EXPECT_FALSE(ObjCCast<NSString>(test_data_mutable));
+    EXPECT_FALSE(ObjCCast<NSSet>(test_date));
+    EXPECT_FALSE(ObjCCast<NSSet>(test_dict));
+    EXPECT_FALSE(ObjCCast<NSNumber>(test_dict_mutable));
+    EXPECT_FALSE(ObjCCast<NSNull>(test_number));
+    EXPECT_FALSE(ObjCCast<NSDictionary>(test_null));
+    EXPECT_FALSE(ObjCCast<NSDictionary>(test_set));
+    EXPECT_FALSE(ObjCCast<NSDate>(test_set_mutable));
+    EXPECT_FALSE(ObjCCast<NSData>(test_str));
+    EXPECT_FALSE(ObjCCast<NSData>(test_str_const));
+    EXPECT_FALSE(ObjCCast<NSArray>(test_str_mutable));
 
-  // When given an incorrect ObjC cast, provide nil.
-  EXPECT_FALSE(ObjCCast<NSString>(test_array));
-  EXPECT_FALSE(ObjCCast<NSString>(test_array_mutable));
-  EXPECT_FALSE(ObjCCast<NSString>(test_data));
-  EXPECT_FALSE(ObjCCast<NSString>(test_data_mutable));
-  EXPECT_FALSE(ObjCCast<NSSet>(test_date));
-  EXPECT_FALSE(ObjCCast<NSSet>(test_dict));
-  EXPECT_FALSE(ObjCCast<NSNumber>(test_dict_mutable));
-  EXPECT_FALSE(ObjCCast<NSNull>(test_number));
-  EXPECT_FALSE(ObjCCast<NSDictionary>(test_null));
-  EXPECT_FALSE(ObjCCast<NSDictionary>(test_set));
-  EXPECT_FALSE(ObjCCast<NSDate>(test_set_mutable));
-  EXPECT_FALSE(ObjCCast<NSData>(test_str));
-  EXPECT_FALSE(ObjCCast<NSData>(test_str_const));
-  EXPECT_FALSE(ObjCCast<NSArray>(test_str_mutable));
+    // Giving a nil provides a nil.
+    EXPECT_FALSE(ObjCCast<NSArray>(nil));
+    EXPECT_FALSE(ObjCCast<NSData>(nil));
+    EXPECT_FALSE(ObjCCast<NSDate>(nil));
+    EXPECT_FALSE(ObjCCast<NSDictionary>(nil));
+    EXPECT_FALSE(ObjCCast<NSNull>(nil));
+    EXPECT_FALSE(ObjCCast<NSNumber>(nil));
+    EXPECT_FALSE(ObjCCast<NSSet>(nil));
+    EXPECT_FALSE(ObjCCast<NSString>(nil));
 
-  // Giving a nil provides a nil.
-  EXPECT_FALSE(ObjCCast<NSArray>(nil));
-  EXPECT_FALSE(ObjCCast<NSData>(nil));
-  EXPECT_FALSE(ObjCCast<NSDate>(nil));
-  EXPECT_FALSE(ObjCCast<NSDictionary>(nil));
-  EXPECT_FALSE(ObjCCast<NSNull>(nil));
-  EXPECT_FALSE(ObjCCast<NSNumber>(nil));
-  EXPECT_FALSE(ObjCCast<NSSet>(nil));
-  EXPECT_FALSE(ObjCCast<NSString>(nil));
+    // ObjCCastStrict: correct cast results in correct pointer being returned.
+    EXPECT_EQ(test_array, ObjCCastStrict<NSArray>(test_array));
+    EXPECT_EQ(test_array_mutable, ObjCCastStrict<NSArray>(test_array_mutable));
+    EXPECT_EQ(test_data, ObjCCastStrict<NSData>(test_data));
+    EXPECT_EQ(test_data_mutable, ObjCCastStrict<NSData>(test_data_mutable));
+    EXPECT_EQ(test_date, ObjCCastStrict<NSDate>(test_date));
+    EXPECT_EQ(test_dict, ObjCCastStrict<NSDictionary>(test_dict));
+    EXPECT_EQ(test_dict_mutable,
+              ObjCCastStrict<NSDictionary>(test_dict_mutable));
+    EXPECT_EQ(test_number, ObjCCastStrict<NSNumber>(test_number));
+    EXPECT_EQ(test_null, ObjCCastStrict<NSNull>(test_null));
+    EXPECT_EQ(test_set, ObjCCastStrict<NSSet>(test_set));
+    EXPECT_EQ(test_set_mutable, ObjCCastStrict<NSSet>(test_set_mutable));
+    EXPECT_EQ(test_str, ObjCCastStrict<NSString>(test_str));
+    EXPECT_EQ(test_str_const, ObjCCastStrict<NSString>(test_str_const));
+    EXPECT_EQ(test_str_mutable, ObjCCastStrict<NSString>(test_str_mutable));
 
-  // ObjCCastStrict: correct cast results in correct pointer being returned.
-  EXPECT_EQ(test_array, ObjCCastStrict<NSArray>(test_array));
-  EXPECT_EQ(test_array_mutable,
-            ObjCCastStrict<NSArray>(test_array_mutable));
-  EXPECT_EQ(test_data, ObjCCastStrict<NSData>(test_data));
-  EXPECT_EQ(test_data_mutable,
-            ObjCCastStrict<NSData>(test_data_mutable));
-  EXPECT_EQ(test_date, ObjCCastStrict<NSDate>(test_date));
-  EXPECT_EQ(test_dict, ObjCCastStrict<NSDictionary>(test_dict));
-  EXPECT_EQ(test_dict_mutable,
-            ObjCCastStrict<NSDictionary>(test_dict_mutable));
-  EXPECT_EQ(test_number, ObjCCastStrict<NSNumber>(test_number));
-  EXPECT_EQ(test_null, ObjCCastStrict<NSNull>(test_null));
-  EXPECT_EQ(test_set, ObjCCastStrict<NSSet>(test_set));
-  EXPECT_EQ(test_set_mutable,
-            ObjCCastStrict<NSSet>(test_set_mutable));
-  EXPECT_EQ(test_str, ObjCCastStrict<NSString>(test_str));
-  EXPECT_EQ(test_str_const,
-            ObjCCastStrict<NSString>(test_str_const));
-  EXPECT_EQ(test_str_mutable,
-            ObjCCastStrict<NSString>(test_str_mutable));
-
-  // ObjCCastStrict: Giving a nil provides a nil.
-  EXPECT_FALSE(ObjCCastStrict<NSArray>(nil));
-  EXPECT_FALSE(ObjCCastStrict<NSData>(nil));
-  EXPECT_FALSE(ObjCCastStrict<NSDate>(nil));
-  EXPECT_FALSE(ObjCCastStrict<NSDictionary>(nil));
-  EXPECT_FALSE(ObjCCastStrict<NSNull>(nil));
-  EXPECT_FALSE(ObjCCastStrict<NSNumber>(nil));
-  EXPECT_FALSE(ObjCCastStrict<NSSet>(nil));
-  EXPECT_FALSE(ObjCCastStrict<NSString>(nil));
+    // ObjCCastStrict: Giving a nil provides a nil.
+    EXPECT_FALSE(ObjCCastStrict<NSArray>(nil));
+    EXPECT_FALSE(ObjCCastStrict<NSData>(nil));
+    EXPECT_FALSE(ObjCCastStrict<NSDate>(nil));
+    EXPECT_FALSE(ObjCCastStrict<NSDictionary>(nil));
+    EXPECT_FALSE(ObjCCastStrict<NSNull>(nil));
+    EXPECT_FALSE(ObjCCastStrict<NSNumber>(nil));
+    EXPECT_FALSE(ObjCCastStrict<NSSet>(nil));
+    EXPECT_FALSE(ObjCCastStrict<NSString>(nil));
+  }
 }
 
 TEST(FoundationUtilTest, GetValueFromDictionary) {
@@ -283,16 +274,13 @@ TEST(FoundationUtilTest, GetValueFromDictionary) {
   CFStringRef keys[] = { CFSTR("one"), CFSTR("two"), CFSTR("three") };
   CFNumberRef values[] = { cf_one, cf_two, cf_three };
 
-  static_assert(arraysize(keys) == arraysize(values),
+  static_assert(std::size(keys) == std::size(values),
                 "keys and values arrays must have the same size");
 
-  ScopedCFTypeRef<CFDictionaryRef> test_dict(
-      CFDictionaryCreate(kCFAllocatorDefault,
-                         reinterpret_cast<const void**>(keys),
-                         reinterpret_cast<const void**>(values),
-                         arraysize(values),
-                         &kCFCopyStringDictionaryKeyCallBacks,
-                         &kCFTypeDictionaryValueCallBacks));
+  ScopedCFTypeRef<CFDictionaryRef> test_dict(CFDictionaryCreate(
+      kCFAllocatorDefault, reinterpret_cast<const void**>(keys),
+      reinterpret_cast<const void**>(values), std::size(values),
+      &kCFCopyStringDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks));
 
   // GetValueFromDictionary<>(_, _) should produce the correct
   // expected output.
@@ -308,6 +296,12 @@ TEST(FoundationUtilTest, GetValueFromDictionary) {
   EXPECT_FALSE(GetValueFromDictionary<CFStringRef>(test_dict, CFSTR("one")));
 }
 
+TEST(FoundationUtilTest, FilePathToNSURL) {
+  EXPECT_NSEQ(nil, FilePathToNSURL(FilePath()));
+  EXPECT_NSEQ([NSURL fileURLWithPath:@"/a/b"],
+              FilePathToNSURL(FilePath("/a/b")));
+}
+
 TEST(FoundationUtilTest, FilePathToNSString) {
   EXPECT_NSEQ(nil, FilePathToNSString(FilePath()));
   EXPECT_NSEQ(@"/a/b", FilePathToNSString(FilePath("/a/b")));
@@ -317,6 +311,11 @@ TEST(FoundationUtilTest, NSStringToFilePath) {
   EXPECT_EQ(FilePath(), NSStringToFilePath(nil));
   EXPECT_EQ(FilePath(), NSStringToFilePath(@""));
   EXPECT_EQ(FilePath("/a/b"), NSStringToFilePath(@"/a/b"));
+}
+
+TEST(FoundationUtilTest, FilePathToCFURL) {
+  EXPECT_NSEQ([NSURL fileURLWithPath:@"/a/b"],
+              base::mac::CFToNSCast(FilePathToCFURL(FilePath("/a/b"))));
 }
 
 TEST(FoundationUtilTest, CFRangeToNSRange) {
@@ -345,12 +344,12 @@ TEST(StringNumberConversionsTest, FormatNSInteger) {
 #endif  // defined(ARCH_CPU_64_BITS)
 
   NSInteger some_nsinteger;
-  FormatNSIntegerAsType* pointer_to_some_nsinteger = &some_nsinteger;
-  ALLOW_UNUSED_LOCAL(pointer_to_some_nsinteger);
+  [[maybe_unused]] FormatNSIntegerAsType* pointer_to_some_nsinteger =
+      &some_nsinteger;
 
   NSUInteger some_nsuinteger;
-  FormatNSUIntegerAsType* pointer_to_some_nsuinteger = &some_nsuinteger;
-  ALLOW_UNUSED_LOCAL(pointer_to_some_nsuinteger);
+  [[maybe_unused]] FormatNSUIntegerAsType* pointer_to_some_nsuinteger =
+      &some_nsuinteger;
 
   // Check that format specifier works correctly for NSInteger.
   const struct {
@@ -369,7 +368,7 @@ TEST(StringNumberConversionsTest, FormatNSInteger) {
 #endif  // !defined(ARCH_CPU_64_BITS)
   };
 
-  for (size_t i = 0; i < arraysize(nsinteger_cases); ++i) {
+  for (size_t i = 0; i < std::size(nsinteger_cases); ++i) {
     EXPECT_EQ(nsinteger_cases[i].expected,
               StringPrintf("%" PRIdNS, nsinteger_cases[i].value));
     EXPECT_EQ(nsinteger_cases[i].expected_hex,
@@ -393,7 +392,7 @@ TEST(StringNumberConversionsTest, FormatNSInteger) {
 #endif  // !defined(ARCH_CPU_64_BITS)
   };
 
-  for (size_t i = 0; i < arraysize(nsuinteger_cases); ++i) {
+  for (size_t i = 0; i < std::size(nsuinteger_cases); ++i) {
     EXPECT_EQ(nsuinteger_cases[i].expected,
               StringPrintf("%" PRIuNS, nsuinteger_cases[i].value));
     EXPECT_EQ(nsuinteger_cases[i].expected_hex,
@@ -401,5 +400,23 @@ TEST(StringNumberConversionsTest, FormatNSInteger) {
   }
 }
 
-}  // namespace mac
-}  // namespace base
+#define EXPECT_LOG_EQ(expected, val) \
+  EXPECT_EQ(expected, (std::ostringstream() << (val)).str())
+
+TEST(FoundationLoggingTest, ObjCObject) {
+  EXPECT_LOG_EQ("Hello, world!", @"Hello, world!");
+}
+
+TEST(FoundationLoggingTest, ObjCNil) {
+  EXPECT_LOG_EQ("(nil)", static_cast<id>(nil));
+}
+
+TEST(FoundationLoggingTest, CFRange) {
+  EXPECT_LOG_EQ("{0, 100}", CFRangeMake(0, 100));
+}
+
+TEST(FoundationLoggingTest, NSRange) {
+  EXPECT_LOG_EQ("{0, 100}", NSMakeRange(0, 100));
+}
+
+}  // namespace base::mac

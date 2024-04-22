@@ -32,7 +32,7 @@ namespace h5vcc {
 H5vccMetrics::H5vccMetrics(
     persistent_storage::PersistentSettings* persistent_settings,
     base::EventDispatcher* event_dispatcher)
-    : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       persistent_settings_(persistent_settings),
       event_dispatcher_(event_dispatcher) {
   DCHECK(event_dispatcher_);

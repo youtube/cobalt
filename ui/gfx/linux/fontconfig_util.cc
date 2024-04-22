@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,27 @@
 
 #include <fontconfig/fontconfig.h>
 
+#include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
+#include "build/chromeos_buildflags.h"
 #include "ui/gfx/font_render_params.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "ui/gfx/switches.h"
+#endif
 
 namespace gfx {
 
 namespace {
+
+#if BUILDFLAG(IS_CHROMEOS)
+constexpr base::FilePath::CharType kGoogleSansVariablePath[] =
+    FILE_PATH_LITERAL("/usr/share/fonts/google-sans/variable");
+constexpr base::FilePath::CharType kGoogleSansStaticPath[] =
+    FILE_PATH_LITERAL("/usr/share/fonts/google-sans/static");
+#endif
 
 // A singleton class to wrap a global font-config configuration. The
 // configuration reference counter is incremented to avoid the deletion of the
@@ -33,6 +48,21 @@ class GFX_EXPORT GlobalFontConfig {
     // being used (see http://crbug.com/1004254).
     fc_config_ = FcConfigGetCurrent();
     FcConfigReference(fc_config_);
+#if BUILDFLAG(IS_CHROMEOS)
+    if (features::UseVariableGoogleSansFont() &&
+        base::PathExists(base::FilePath(kGoogleSansVariablePath))) {
+      const FcChar8* kVariableFontPath =
+          reinterpret_cast<const FcChar8*>(kGoogleSansVariablePath);
+      // Adds the folder to the available fonts in the application. Returns
+      // false only when fonts cannot be added due to "allocation failure".
+      // https://www.freedesktop.org/software/fontconfig/fontconfig-devel/fcconfigappfontadddir.html
+      CHECK(FcConfigAppFontAddDir(fc_config_, kVariableFontPath));
+    } else {
+      const FcChar8* kStaticFontPath =
+          reinterpret_cast<const FcChar8*>(kGoogleSansStaticPath);
+      CHECK(FcConfigAppFontAddDir(fc_config_, kStaticFontPath));
+    }
+#endif
 
     // Set rescan interval to 0 to disable re-scan. Re-scanning in the
     // background is a source of thread safety issues.
@@ -44,7 +74,7 @@ class GFX_EXPORT GlobalFontConfig {
   GlobalFontConfig(const GlobalFontConfig&) = delete;
   GlobalFontConfig& operator=(const GlobalFontConfig&) = delete;
 
-  ~GlobalFontConfig() { FcConfigDestroy(fc_config_); }
+  ~GlobalFontConfig() { FcConfigDestroy(fc_config_.ExtractAsDangling()); }
 
   // Retrieve the native font-config FcConfig pointer.
   FcConfig* Get() const {
@@ -65,7 +95,7 @@ class GFX_EXPORT GlobalFontConfig {
   }
 
  private:
-  FcConfig* fc_config_ = nullptr;
+  raw_ptr<FcConfig> fc_config_ = nullptr;
 };
 
 // Converts Fontconfig FC_HINT_STYLE to FontRenderParams::Hinting.

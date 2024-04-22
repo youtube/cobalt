@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_FILTER_BASED_PLAYER_WORKER_HANDLER_H_
 
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "starboard/common/scoped_ptr.h"
@@ -91,7 +92,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   // other accesses are happening from the same thread.
   Mutex player_components_existence_mutex_;
 
-  scoped_ptr<PlayerComponents> player_components_;
+  unique_ptr_alias<PlayerComponents> player_components_;
   // The following three variables cache the return values of member functions
   // of |player_components_|.  Their lifetime is tied to |player_components_|.
   MediaTimeProvider* media_time_provider_ = nullptr;

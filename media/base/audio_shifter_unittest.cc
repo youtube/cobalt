@@ -1,4 +1,4 @@
-// Copyright (c) 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/time/time.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_shifter.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -121,7 +122,7 @@ class AudioShifterTest :
     CHECK(marker_outputs_.empty());
     base::TimeTicks expected_mark_time = time_to_push_ + end2end_latency_;
     Run(100);
-    if (end2end_latency_ > base::TimeDelta()) {
+    if (end2end_latency_.is_positive()) {
       CHECK(!marker_outputs_.empty());
       base::TimeDelta actual_offset = marker_outputs_[0] - expected_mark_time;
       EXPECT_LT(actual_offset, base::Microseconds(100));

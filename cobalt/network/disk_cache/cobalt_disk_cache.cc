@@ -17,9 +17,10 @@
 #include <string>
 #include <utility>
 
+#include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/metrics/field_trial.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/network/disk_cache/cobalt_backend_impl.h"
 #include "net/base/cache_type.h"
 #include "net/base/net_errors.h"
@@ -37,8 +38,7 @@ class CacheCreator {
  public:
   CacheCreator(const base::FilePath& path, int64_t max_bytes,
                net::NetLog* net_log,
-               std::unique_ptr<::disk_cache::Backend>* backend,
-               net::CompletionOnceCallback callback,
+               ::disk_cache::BackendResultCallback callback,
                cobalt::network::URLRequestContext* url_request_context);
 
   net::Error TryCreateCleanupTrackerAndRun();
@@ -57,8 +57,7 @@ class CacheCreator {
   const base::FilePath path_;
   bool retry_;
   int64_t max_bytes_;
-  std::unique_ptr<::disk_cache::Backend>* backend_;
-  net::CompletionOnceCallback callback_;
+  ::disk_cache::BackendResultCallback callback_;
   std::unique_ptr<::disk_cache::Backend> created_cache_;
   net::NetLog* net_log_;
   scoped_refptr<::disk_cache::BackendCleanupTracker> cleanup_tracker_;
@@ -69,12 +68,10 @@ class CacheCreator {
 
 CacheCreator::CacheCreator(
     const base::FilePath& path, int64_t max_bytes, net::NetLog* net_log,
-    std::unique_ptr<::disk_cache::Backend>* backend,
-    net::CompletionOnceCallback callback,
+    ::disk_cache::BackendResultCallback callback,
     cobalt::network::URLRequestContext* url_request_context)
     : path_(path),
       max_bytes_(max_bytes),
-      backend_(backend),
       callback_(std::move(callback)),
       net_log_(net_log),
       url_request_context_(url_request_context) {}
@@ -93,12 +90,13 @@ net::Error CacheCreator::Run() {
 void CacheCreator::DoCallback(int result) {
   DCHECK_NE(net::ERR_IO_PENDING, result);
   if (result == net::OK) {
-    *backend_ = std::move(created_cache_);
+    std::move(callback_).Run(
+        ::disk_cache::BackendResult::Make(std::move(created_cache_)));
   } else {
     LOG(ERROR) << "Unable to create cache";
-    created_cache_.reset();
+    std::move(callback_).Run(::disk_cache::BackendResult::MakeError(
+        static_cast<net::Error>(result)));
   }
-  std::move(callback_).Run(result);
   delete this;
 }
 
@@ -109,12 +107,7 @@ void CacheCreator::OnIOComplete(int result) {
   // delete all the files, and try again.
   retry_ = true;
   created_cache_.reset();
-  if (!disk_cache::DelayedCacheCleanup(path_)) return DoCallback(result);
-
-  // The worker thread will start deleting files soon, but the original folder
-  // is not there anymore... let's create a new set of files.
-  int rv = Run();
-  DCHECK_EQ(net::ERR_IO_PENDING, rv);
+  return DoCallback(result);
 }
 
 }  // namespace
@@ -125,13 +118,11 @@ namespace disk_cache {
 
 net::Error CreateCobaltCacheBackend(
     const base::FilePath& path, int64_t max_bytes, net::NetLog* net_log,
-    std::unique_ptr<::disk_cache::Backend>* backend,
-    net::CompletionOnceCallback callback,
+    ::disk_cache::BackendResultCallback callback,
     cobalt::network::URLRequestContext* url_request_context) {
   DCHECK(!callback.is_null());
-  CacheCreator* creator =
-      new CacheCreator(path, max_bytes, net_log, backend, std::move(callback),
-                       url_request_context);
+  CacheCreator* creator = new CacheCreator(
+      path, max_bytes, net_log, std::move(callback), url_request_context);
   return creator->Run();
 }
 

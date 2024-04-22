@@ -1,14 +1,17 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <stdint.h>
 
-#include "base/bind.h"
-#include "base/callback.h"
+#include <memory>
+#include <vector>
+
 #include "base/command_line.h"
 #include "base/environment.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/run_loop.h"
 #include "base/test/test_message_loop.h"
@@ -20,10 +23,43 @@
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_unittest_util.h"
 #include "media/audio/test_audio_thread.h"
+#include "media/base/audio_glitch_info.h"
 #include "media/base/media_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_FUCHSIA)
+#include <fuchsia/media/cpp/fidl_test_base.h>
+
+#include "base/fuchsia/scoped_service_binding.h"
+#include "base/fuchsia/test_component_context_for_process.h"
+#include "media/fuchsia/audio/fake_audio_capturer.h"
+#endif  // BUILDFLAG(IS_FUCHSIA)
+
 namespace media {
+
+#if BUILDFLAG(IS_FUCHSIA)
+class FakeAudio : public fuchsia::media::testing::Audio_TestBase {
+ public:
+  FakeAudio()
+      : audio_binding_(test_component_context_.additional_services(), this) {}
+
+  // fuchsia::media::testing::Audio_TestBase
+  void CreateAudioCapturer(
+      fidl::InterfaceRequest<fuchsia::media::AudioCapturer> request,
+      bool is_loopback) override {
+    capturer_.push_back(
+        std::make_unique<FakeAudioCapturer>(std::move(request)));
+  }
+  void NotImplemented_(const std::string& name) override {
+    FAIL() << "Unexpected call to: " << name;
+  }
+
+ private:
+  base::TestComponentContextForProcess test_component_context_;
+  base::ScopedServiceBinding<fuchsia::media::Audio> audio_binding_;
+  std::vector<std::unique_ptr<FakeAudioCapturer>> capturer_;
+};
+#endif  // BUILDFLAG(IS_FUCHSIA)
 
 // This class allows to find out if the callbacks are occurring as
 // expected and if any error has been reported.
@@ -35,7 +71,8 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
         had_error_(0) {}
   void OnData(const AudioBus* source,
               base::TimeTicks capture_time,
-              double volume) override {
+              double volume,
+              const AudioGlitchInfo& glitch_info) override {
     if (!quit_closure_.is_null()) {
       ++callback_count_;
       if (callback_count_ >= 2) {
@@ -85,13 +122,17 @@ class AudioInputTest : public testing::Test {
 
  protected:
   bool InputDevicesAvailable() {
-#if defined(OS_FUCHSIA)
-    // On Fuchsia HasAudioInputDevices() returns true, but AudioInputStream is
-    // not implemented. Audio input is implemented in
-    // FuchsiaAudioCapturerStream. It implements AudioCapturerStream interface
-    // and runs in the renderer process.
-    return false;
-#elif defined(OS_MAC) && defined(ARCH_CPU_ARM64)
+#if BUILDFLAG(IS_FUCHSIA)
+    if (AudioDeviceInfoAccessorForTests(audio_manager_.get())
+            .HasAudioInputDevices()) {
+      return true;
+    }
+    // If the device has no audio input device, fake it.
+    if (!fake_audio_) {
+      fake_audio_ = std::make_unique<FakeAudio>();
+    }
+    return true;
+#elif BUILDFLAG(IS_MAC) && defined(ARCH_CPU_ARM64)
     // TODO(crbug.com/1128458): macOS on ARM64 says it has devices, but won't
     // let any of them be opened or listed.
     return false;
@@ -189,8 +230,11 @@ class AudioInputTest : public testing::Test {
   void OnLogMessage(const std::string& message) {}
 
   base::TestMessageLoop message_loop_;
+#if BUILDFLAG(IS_FUCHSIA)
+  std::unique_ptr<FakeAudio> fake_audio_;
+#endif  // BUILDFLAG(IS_FUCHSIA)
   std::unique_ptr<AudioManager> audio_manager_;
-  AudioInputStream* audio_input_stream_;
+  raw_ptr<AudioInputStream> audio_input_stream_;
 };
 
 // Test create and close of an AudioInputStream without recording audio.
@@ -216,7 +260,13 @@ TEST_F(AudioInputTest, OpenStopAndClose) {
 
 // Test a normal recording sequence using an AudioInputStream.
 // Very simple test which starts capturing and verifies that recording starts.
-TEST_F(AudioInputTest, Record) {
+// TODO(crbug.com/1429490): This test is failing on ios-blink-dbg-fyi bot.
+#if BUILDFLAG(IS_IOS)
+#define MAYBE_Record DISABLED_Record
+#else
+#define MAYBE_Record Record
+#endif
+TEST_F(AudioInputTest, MAYBE_Record) {
   ABORT_AUDIO_TEST_IF_NOT(InputDevicesAvailable());
   MakeAudioInputStreamOnAudioThread();
 

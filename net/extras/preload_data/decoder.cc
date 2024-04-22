@@ -1,20 +1,15 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/extras/preload_data/decoder.h"
-#include "base/logging.h"
+#include "base/check_op.h"
+#include "base/notreached.h"
 
-namespace net {
-
-namespace extras {
+namespace net::extras {
 
 PreloadDecoder::BitReader::BitReader(const uint8_t* bytes, size_t num_bits)
-    : bytes_(bytes),
-      num_bits_(num_bits),
-      num_bytes_((num_bits + 7) / 8),
-      current_byte_index_(0),
-      num_bits_used_(8) {}
+    : bytes_(bytes), num_bits_(num_bits), num_bytes_((num_bits + 7) / 8) {}
 
 // Next sets |*out| to the next bit from the input. It returns false if no
 // more bits are available or true otherwise.
@@ -51,13 +46,73 @@ bool PreloadDecoder::BitReader::Read(unsigned num_bits, uint32_t* out) {
   return true;
 }
 
-// Unary sets |*out| to the result of decoding a unary value from the input.
-// It returns false if there were insufficient bits in the input and true
-// otherwise.
-bool PreloadDecoder::BitReader::Unary(size_t* out) {
-  size_t ret = 0;
+namespace {
 
-  for (;;) {
+// Reads one bit from |reader|, shifts |*bits| left by 1, and adds the read bit
+// to the end of |*bits|.
+bool ReadBit(PreloadDecoder::BitReader* reader, uint8_t* bits) {
+  bool bit;
+  if (!reader->Next(&bit)) {
+    return false;
+  }
+  *bits <<= 1;
+  if (bit) {
+    (*bits)++;
+  }
+  return true;
+}
+
+}  // namespace
+
+bool PreloadDecoder::BitReader::DecodeSize(size_t* out) {
+  uint8_t bits = 0;
+  if (!ReadBit(this, &bits) || !ReadBit(this, &bits)) {
+    return false;
+  }
+  if (bits == 0) {
+    *out = 0;
+    return true;
+  }
+  if (!ReadBit(this, &bits)) {
+    return false;
+  }
+  // We've parsed 3 bits so far. Check all possible combinations:
+  bool is_even;
+  switch (bits) {
+    case 0b000:
+    case 0b001:
+      // This should have been handled in the if (bits == 0) check.
+      NOTREACHED();
+      return false;
+    case 0b010:
+      // A specialization of the 0b01 prefix for unary-like even numbers.
+      *out = 4;
+      return true;
+    case 0b011:
+      // This will be handled with the prefixes for unary-like encoding below.
+      is_even = true;
+      break;
+    case 0b100:
+      *out = 1;
+      return true;
+    case 0b101:
+      *out = 2;
+      return true;
+    case 0b110:
+      *out = 3;
+      return true;
+    case 0b111:
+      // This will be handled with the prefixes for unary-like encoding below.
+      is_even = false;
+      break;
+    default:
+      // All cases should be covered above.
+      NOTREACHED();
+      return false;
+  }
+  size_t bit_length = 3;
+  while (true) {
+    bit_length++;
     bool bit;
     if (!Next(&bit)) {
       return false;
@@ -65,9 +120,11 @@ bool PreloadDecoder::BitReader::Unary(size_t* out) {
     if (!bit) {
       break;
     }
-    ret++;
   }
-
+  size_t ret = (bit_length - 2) * 2;
+  if (!is_even) {
+    ret--;
+  }
   *out = ret;
   return true;
 }
@@ -124,7 +181,7 @@ PreloadDecoder::PreloadDecoder(const uint8_t* huffman_tree,
       bit_reader_(trie, trie_bits),
       trie_root_position_(trie_root_position) {}
 
-PreloadDecoder::~PreloadDecoder() {}
+PreloadDecoder::~PreloadDecoder() = default;
 
 bool PreloadDecoder::Decode(const std::string& search, bool* out_found) {
   size_t bit_offset = trie_root_position_;
@@ -142,9 +199,9 @@ bool PreloadDecoder::Decode(const std::string& search, bool* out_found) {
       return false;
     }
 
-    // Decode the unary length of the common prefix.
+    // Decode the length of the common prefix.
     size_t prefix_length;
-    if (!bit_reader_.Unary(&prefix_length)) {
+    if (!bit_reader_.DecodeSize(&prefix_length)) {
       return false;
     }
 
@@ -246,9 +303,7 @@ bool PreloadDecoder::Decode(const std::string& search, bool* out_found) {
       }
     }
   }
-  return false;
+  NOTREACHED();
 }
 
-}  // namespace extras
-
-}  // namespace net
+}  // namespace net::extras

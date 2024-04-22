@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,15 +10,16 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
+#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
+#include "base/task/bind_post_task.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
-#include "media/base/bind_to_current_loop.h"
 #include "media/base/media_switches.h"
 #include "media/capture/video/fake_video_capture_device_factory.h"
 #include "media/capture/video/mock_video_capture_device_client.h"
@@ -88,7 +89,7 @@ class FakeVideoCaptureDeviceTestBase : public ::testing::Test {
 
   std::unique_ptr<MockVideoCaptureDeviceClient> CreateClient() {
     return MockVideoCaptureDeviceClient::CreateMockClientWithBufferAllocator(
-        BindToCurrentLoop(base::BindRepeating(
+        base::BindPostTaskToCurrentDefault(base::BindRepeating(
             &FakeVideoCaptureDeviceTestBase::OnFrameCaptured,
             base::Unretained(this))));
   }
@@ -358,6 +359,14 @@ TEST_F(FakeVideoCaptureDeviceTest, GetAndSetCapabilities) {
   EXPECT_GE(state->zoom->max, state->zoom->current);
   EXPECT_TRUE(state->fill_light_mode.empty());
 
+  ASSERT_TRUE(state->supported_background_blur_modes);
+  EXPECT_EQ(2u, state->supported_background_blur_modes->size());
+  EXPECT_EQ(1, base::ranges::count(*state->supported_background_blur_modes,
+                                   mojom::BackgroundBlurMode::OFF));
+  EXPECT_EQ(1, base::ranges::count(*state->supported_background_blur_modes,
+                                   mojom::BackgroundBlurMode::BLUR));
+  EXPECT_EQ(mojom::BackgroundBlurMode::OFF, state->background_blur_mode);
+
   // Set options: zoom to the maximum value.
   const int max_zoom_value = state->zoom->max;
   VideoCaptureDevice::SetPhotoOptionsCallback scoped_set_callback =
@@ -436,9 +445,11 @@ TEST_F(FakeVideoCaptureDeviceFactoryTest, DeviceWithNoSupportedFormats) {
   EXPECT_EQ(1u, devices_info_.size());
   VideoCaptureFormats& supported_formats = devices_info_[0].supported_formats;
   EXPECT_EQ(0u, supported_formats.size());
-  auto device =
+
+  VideoCaptureErrorOrDevice device_status =
       video_capture_device_factory_->CreateDevice(devices_info_[0].descriptor);
-  EXPECT_TRUE(device.get());
+  ASSERT_TRUE(device_status.ok());
+  auto device = device_status.ReleaseDevice();
 
   auto client = CreateClient();
   EXPECT_CALL(*client, OnError(_, _, _));
@@ -474,9 +485,10 @@ TEST_P(FakeVideoCaptureDeviceFactoryTest,
                 supported_formats_entry.pixel_format);
     }
 
-    std::unique_ptr<VideoCaptureDevice> device =
+    VideoCaptureErrorOrDevice device_status =
         video_capture_device_factory_->CreateDevice(device_info.descriptor);
-    ASSERT_TRUE(device);
+    ASSERT_TRUE(device_status.ok());
+    std::unique_ptr<VideoCaptureDevice> device = device_status.ReleaseDevice();
 
     VideoCaptureParams capture_params;
     capture_params.requested_format.frame_size.SetSize(1280, 720);

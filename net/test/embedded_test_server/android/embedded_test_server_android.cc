@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,18 +7,17 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
-#include "base/bind.h"
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
 #include "base/test/test_support_android.h"
-#include "base/trace_event/trace_event.h"
-#include "net/test/jni/EmbeddedTestServerImpl_jni.h"
+#include "net/base/tracing.h"
+#include "net/net_test_jni_headers/EmbeddedTestServerImpl_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
-namespace net {
-namespace test_server {
+namespace net::test_server {
 
 EmbeddedTestServerAndroid::ConnectionListener::ConnectionListener(
     EmbeddedTestServerAndroid* test_server_android)
@@ -26,9 +25,11 @@ EmbeddedTestServerAndroid::ConnectionListener::ConnectionListener(
 
 EmbeddedTestServerAndroid::ConnectionListener::~ConnectionListener() = default;
 
-void EmbeddedTestServerAndroid::ConnectionListener::AcceptedSocket(
-    const StreamSocket& socket) {
-  test_server_android_->AcceptedSocket(static_cast<const void*>(&socket));
+std::unique_ptr<StreamSocket>
+EmbeddedTestServerAndroid::ConnectionListener::AcceptedSocket(
+    std::unique_ptr<StreamSocket> socket) {
+  test_server_android_->AcceptedSocket(static_cast<const void*>(socket.get()));
+  return socket;
 }
 
 void EmbeddedTestServerAndroid::ConnectionListener::ReadFromSocket(
@@ -36,6 +37,9 @@ void EmbeddedTestServerAndroid::ConnectionListener::ReadFromSocket(
     int rv) {
   test_server_android_->ReadFromSocket(static_cast<const void*>(&socket));
 }
+
+void EmbeddedTestServerAndroid::ConnectionListener::
+    OnResponseCompletedSuccessfully(std::unique_ptr<StreamSocket> socket) {}
 
 EmbeddedTestServerAndroid::EmbeddedTestServerAndroid(
     JNIEnv* env,
@@ -55,28 +59,22 @@ EmbeddedTestServerAndroid::~EmbeddedTestServerAndroid() {
   Java_EmbeddedTestServerImpl_clearNativePtr(env, weak_java_server_.get(env));
 }
 
-jboolean EmbeddedTestServerAndroid::Start(JNIEnv* env,
-                                          const JavaParamRef<jobject>& jobj,
-                                          jint port) {
+jboolean EmbeddedTestServerAndroid::Start(JNIEnv* env, jint port) {
   return test_server_.Start(static_cast<int>(port));
 }
 
 ScopedJavaLocalRef<jstring> EmbeddedTestServerAndroid::GetRootCertPemPath(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jobj) const {
+    JNIEnv* env) const {
   return base::android::ConvertUTF8ToJavaString(
       env, test_server_.GetRootCertPemPath().value());
 }
 
-jboolean EmbeddedTestServerAndroid::ShutdownAndWaitUntilComplete(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jobj) {
+jboolean EmbeddedTestServerAndroid::ShutdownAndWaitUntilComplete(JNIEnv* env) {
   return test_server_.ShutdownAndWaitUntilComplete();
 }
 
 ScopedJavaLocalRef<jstring> EmbeddedTestServerAndroid::GetURL(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     const JavaParamRef<jstring>& jrelative_url) const {
   const GURL gurl(test_server_.GetURL(
       base::android::ConvertJavaStringToUTF8(env, jrelative_url)));
@@ -85,7 +83,6 @@ ScopedJavaLocalRef<jstring> EmbeddedTestServerAndroid::GetURL(
 
 ScopedJavaLocalRef<jstring> EmbeddedTestServerAndroid::GetURLWithHostName(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     const JavaParamRef<jstring>& jhostname,
     const JavaParamRef<jstring>& jrelative_url) const {
   const GURL gurl(test_server_.GetURL(
@@ -96,7 +93,6 @@ ScopedJavaLocalRef<jstring> EmbeddedTestServerAndroid::GetURLWithHostName(
 
 void EmbeddedTestServerAndroid::AddDefaultHandlers(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     const JavaParamRef<jstring>& jdirectory_path) {
   const base::FilePath directory(
       base::android::ConvertJavaStringToUTF8(env, jdirectory_path));
@@ -104,7 +100,6 @@ void EmbeddedTestServerAndroid::AddDefaultHandlers(
 }
 
 void EmbeddedTestServerAndroid::SetSSLConfig(JNIEnv* jenv,
-                                             const JavaParamRef<jobject>& jobj,
                                              jint jserver_certificate) {
   test_server_.SetSSLConfig(
       static_cast<EmbeddedTestServer::ServerCertificate>(jserver_certificate));
@@ -113,17 +108,14 @@ void EmbeddedTestServerAndroid::SetSSLConfig(JNIEnv* jenv,
 typedef std::unique_ptr<HttpResponse> (*HandleRequestPtr)(
     const HttpRequest& request);
 
-void EmbeddedTestServerAndroid::RegisterRequestHandler(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
-    jlong handler) {
+void EmbeddedTestServerAndroid::RegisterRequestHandler(JNIEnv* env,
+                                                       jlong handler) {
   HandleRequestPtr handler_ptr = reinterpret_cast<HandleRequestPtr>(handler);
-  test_server_.RegisterRequestHandler(base::Bind(handler_ptr));
+  test_server_.RegisterRequestHandler(base::BindRepeating(handler_ptr));
 }
 
 void EmbeddedTestServerAndroid::ServeFilesFromDirectory(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     const JavaParamRef<jstring>& jdirectory_path) {
   const base::FilePath directory(
       base::android::ConvertJavaStringToUTF8(env, jdirectory_path));
@@ -142,8 +134,7 @@ void EmbeddedTestServerAndroid::ReadFromSocket(const void* socket_id) {
       env, weak_java_server_.get(env), reinterpret_cast<intptr_t>(socket_id));
 }
 
-void EmbeddedTestServerAndroid::Destroy(JNIEnv* env,
-                                        const JavaParamRef<jobject>& jobj) {
+void EmbeddedTestServerAndroid::Destroy(JNIEnv* env) {
   delete this;
 }
 
@@ -156,8 +147,11 @@ static void JNI_EmbeddedTestServerImpl_Init(
   base::FilePath test_data_dir(
       base::android::ConvertJavaStringToUTF8(env, jtest_data_dir));
   base::InitAndroidTestPaths(test_data_dir);
+
+  // Bare new does not leak here because the instance deletes itself when it
+  // receives a Destroy() call its Java counterpart. The Java counterpart owns
+  // the instance created here.
   new EmbeddedTestServerAndroid(env, jobj, jhttps);
 }
 
-}  // namespace test_server
-}  // namespace net
+}  // namespace net::test_server

@@ -19,9 +19,9 @@
 
 #include "base/files/file_util.h"
 #include "base/memory/ptr_util.h"
-#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/test/task_environment.h"
 #include "cobalt/loader/fetcher_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,16 +37,16 @@ namespace loader {
 class FileFetcherTest : public ::testing::Test {
  protected:
   FileFetcherTest();
-  ~FileFetcherTest() override {}
+  ~FileFetcherTest() override { file_fetcher_.reset(); }
 
   base::FilePath data_dir_;
   base::FilePath dir_test_data_;
-  base::MessageLoop message_loop_;
   std::unique_ptr<FileFetcher> file_fetcher_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::DEFAULT};
 };
 
-FileFetcherTest::FileFetcherTest()
-    : message_loop_(base::MessageLoop::TYPE_DEFAULT) {
+FileFetcherTest::FileFetcherTest() {
   data_dir_ = data_dir_.Append(FILE_PATH_LITERAL("cobalt"))
                   .Append(FILE_PATH_LITERAL("loader"))
                   .Append(FILE_PATH_LITERAL("testdata"));
@@ -96,7 +96,7 @@ TEST_F(FileFetcherTest, EmptyFile) {
 TEST_F(FileFetcherTest, ValidFile) {
   InSequence dummy;
 
-  // Create a RunLoop that controls the current message loop.
+  // Create a RunLoop that controls the current task runner.
   base::RunLoop run_loop;
   StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
   EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _, _)).Times(AtLeast(1));
@@ -110,7 +110,7 @@ TEST_F(FileFetcherTest, ValidFile) {
   file_fetcher_ = base::WrapUnique(
       new FileFetcher(file_path, &fetcher_handler_mock, options));
 
-  // Start the message loop, hence the fetching.
+  // Start the task runner, hence the fetching.
   run_loop.Run();
 
   // Get result.
@@ -129,7 +129,7 @@ TEST_F(FileFetcherTest, ReadWithOffset) {
   const uint32 kStartOffset = 15;
   InSequence dummy;
 
-  // Create a RunLoop that controls the current message loop.
+  // Create a RunLoop that controls the current task runner.
   base::RunLoop run_loop;
   StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
   EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _, _)).Times(AtLeast(1));
@@ -144,7 +144,7 @@ TEST_F(FileFetcherTest, ReadWithOffset) {
   file_fetcher_ = base::WrapUnique(
       new FileFetcher(file_path, &fetcher_handler_mock, options));
 
-  // Start the message loop, hence the fetching.
+  // Start the task runner, hence the fetching.
   run_loop.Run();
 
   // Get result.
@@ -165,7 +165,7 @@ TEST_F(FileFetcherTest, ReadWithOffsetAndSize) {
   const uint32 kBytesToRead = 147;
   InSequence dummy;
 
-  // Create a RunLoop that controls the current message loop.
+  // Create a RunLoop that controls the current task runner.
   base::RunLoop run_loop;
   StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
   EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _, _)).Times(2);
@@ -181,7 +181,7 @@ TEST_F(FileFetcherTest, ReadWithOffsetAndSize) {
   file_fetcher_ = base::WrapUnique(
       new FileFetcher(file_path, &fetcher_handler_mock, options));
 
-  // Start the message loop, hence the fetching.
+  // Start the task runner, hence the fetching.
   run_loop.Run();
 
   // Get result.

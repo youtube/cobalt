@@ -42,3 +42,11 @@ void ScopedUserPrefUpdateBase::Notify() {
 }
 
 }  // namespace subtle
+
+base::Value::Dict& ScopedDictPrefUpdate::Get() {
+  return GetValueOfType(base::Value::Type::DICT)->GetDict();
+}
+
+base::Value::List& ScopedListPrefUpdate::Get() {
+  return GetValueOfType(base::Value::Type::LIST)->GetList();
+}

@@ -105,10 +105,14 @@ component("media") {
     "base/sample_format.h",
     "base/starboard_utils.cc",
     "base/starboard_utils.h",
+    "base/status.cc",
+    "base/status.h",
     "base/stream_parser.cc",
     "base/stream_parser.h",
     "base/stream_parser_buffer.cc",
     "base/stream_parser_buffer.h",
+    "base/subsample_entry.cc",
+    "base/subsample_entry.h",
     "base/supported_types.cc",
     "base/supported_types.h",
     "base/text_track_config.cc",
@@ -143,6 +147,8 @@ component("media") {
     "formats/common/offset_byte_queue.h",
     "formats/mp4/aac.cc",
     "formats/mp4/aac.h",
+    "formats/mp4/ac3.cc",
+    "formats/mp4/ac3.h",
     "formats/mp4/avc.cc",
     "formats/mp4/avc.h",
     "formats/mp4/bitstream_converter.cc",
@@ -153,6 +159,8 @@ component("media") {
     "formats/mp4/box_reader.h",
     "formats/mp4/dolby_vision.cc",
     "formats/mp4/dolby_vision.h",
+    "formats/mp4/eac3.cc",
+    "formats/mp4/eac3.h",
     "formats/mp4/es_descriptor.cc",
     "formats/mp4/es_descriptor.h",
     "formats/mp4/fourccs.h",
@@ -213,37 +221,6 @@ component("media") {
     "video/h265_parser.h",
   ]
 
-  sources += [
-    "cobalt/base/bind_post_task.h",
-    "cobalt/base/check.h",
-    "cobalt/base/check_op.h",
-    "cobalt/base/cxx17_backports.h",
-    "cobalt/base/hash/md5.h",
-    "cobalt/base/notreached.h",
-    "cobalt/base/types/strong_alias.h",
-    "cobalt/net/cookies/site_for_cookies.h",
-
-    #"cobalt/ui/gfx/hdr_metadata.cc",
-    "//ui/gfx/color_space.h",
-    "//ui/gfx/color_space_export.h",
-    "//ui/gfx/geometry/point.cc",
-    "//ui/gfx/geometry/point.h",
-    "//ui/gfx/geometry/point3_f.h",
-    "//ui/gfx/geometry/point_base.h",
-    "//ui/gfx/geometry/point_f.cc",
-    "//ui/gfx/geometry/point_f.h",
-    "//ui/gfx/geometry/rect.h",
-    "//ui/gfx/geometry/rect_base.h",
-    "//ui/gfx/geometry/rect_base_impl.h",
-    "//ui/gfx/geometry/size.h",
-    "//ui/gfx/geometry/size_base.h",
-    "//ui/gfx/geometry/size_f.h",
-    "//ui/gfx/geometry/vector2d.h",
-    "//ui/gfx/geometry/vector2d_f.h",
-    "//ui/gfx/hdr_metadata.h",
-    "//ui/gfx/native_pixmap_handle.h",
-  ]
-
   configs -= [ "//starboard/build/config:size" ]
   configs += [
     "//starboard/build/config:speed",
@@ -261,6 +238,7 @@ component("media") {
     "//net",
     "//starboard:starboard_group",
     "//third_party/abseil-cpp/absl/types:optional",
+    "//ui/gfx:gfx",
     "//url",
   ]
 }

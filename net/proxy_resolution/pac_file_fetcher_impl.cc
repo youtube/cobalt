@@ -1,16 +1,19 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/proxy_resolution/pac_file_fetcher_impl.h"
 
 #include "base/compiler_specific.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/single_thread_task_runner.h"
+#include "base/ranges/algorithm.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "net/base/data_url.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
@@ -44,53 +47,64 @@ const int kDefaultMaxResponseBytes = 1048576;  // 1 megabyte
 //
 // 30 seconds is a compromise between those competing goals. This value also
 // appears to match Microsoft Edge (based on testing).
-constexpr base::TimeDelta kDefaultMaxDuration =
-    base::TimeDelta::FromSeconds(30);
+constexpr base::TimeDelta kDefaultMaxDuration = base::Seconds(30);
 
 // Returns true if |mime_type| is one of the known PAC mime type.
-bool IsPacMimeType(const std::string& mime_type) {
-  static const char* const kSupportedPacMimeTypes[] = {
-      "application/x-ns-proxy-autoconfig", "application/x-javascript-config",
+constexpr bool IsPacMimeType(base::StringPiece mime_type) {
+  constexpr base::StringPiece kSupportedPacMimeTypes[] = {
+      "application/x-ns-proxy-autoconfig",
+      "application/x-javascript-config",
   };
-  for (size_t i = 0; i < arraysize(kSupportedPacMimeTypes); ++i) {
-    if (base::LowerCaseEqualsASCII(mime_type, kSupportedPacMimeTypes[i]))
-      return true;
-  }
-  return false;
+  return base::ranges::any_of(kSupportedPacMimeTypes, [&](auto pac_mime_type) {
+    return base::EqualsCaseInsensitiveASCII(pac_mime_type, mime_type);
+  });
 }
+
+struct BomMapping {
+  base::StringPiece prefix;
+  const char* charset;
+};
+
+const BomMapping kBomMappings[] = {
+    {"\xFE\xFF", "utf-16be"},
+    {"\xFF\xFE", "utf-16le"},
+    {"\xEF\xBB\xBF", "utf-8"},
+};
 
 // Converts |bytes| (which is encoded by |charset|) to UTF16, saving the resul
 // to |*utf16|.
 // If |charset| is empty, then we don't know what it was and guess.
 void ConvertResponseToUTF16(const std::string& charset,
                             const std::string& bytes,
-                            base::string16* utf16) {
-  const char* codepage;
-
+                            std::u16string* utf16) {
   if (charset.empty()) {
-    // Assume ISO-8859-1 if no charset was specified.
-    codepage = kCharsetLatin1;
-  } else {
-    // Otherwise trust the charset that was provided.
-    codepage = charset.c_str();
+    // Guess the charset by looking at the BOM.
+    base::StringPiece bytes_str(bytes);
+    for (const auto& bom : kBomMappings) {
+      if (base::StartsWith(bytes_str, bom.prefix)) {
+        return ConvertResponseToUTF16(
+            bom.charset,
+            // Strip the BOM in the converted response.
+            bytes.substr(bom.prefix.size()), utf16);
+      }
+    }
+
+    // Otherwise assume ISO-8859-1 if no charset was specified.
+    return ConvertResponseToUTF16(kCharsetLatin1, bytes, utf16);
   }
+
+  DCHECK(!charset.empty());
 
   // Be generous in the conversion -- if any characters lie outside of |charset|
   // (i.e. invalid), then substitute them with U+FFFD rather than failing.
-  ConvertToUTF16WithSubstitutions(bytes, codepage, utf16);
+  ConvertToUTF16WithSubstitutions(bytes, charset.c_str(), utf16);
 }
 
 }  // namespace
 
 std::unique_ptr<PacFileFetcherImpl> PacFileFetcherImpl::Create(
     URLRequestContext* url_request_context) {
-  return base::WrapUnique(new PacFileFetcherImpl(url_request_context, false));
-}
-
-std::unique_ptr<PacFileFetcherImpl>
-PacFileFetcherImpl::CreateWithFileUrlSupport(
-    URLRequestContext* url_request_context) {
-  return base::WrapUnique(new PacFileFetcherImpl(url_request_context, true));
+  return base::WrapUnique(new PacFileFetcherImpl(url_request_context));
 }
 
 PacFileFetcherImpl::~PacFileFetcherImpl() {
@@ -125,7 +139,7 @@ void PacFileFetcherImpl::OnResponseCompleted(URLRequest* request,
 
 int PacFileFetcherImpl::Fetch(
     const GURL& url,
-    base::string16* text,
+    std::u16string* text,
     CompletionOnceCallback callback,
     const NetworkTrafficAnnotationTag traffic_annotation) {
   // It is invalid to call Fetch() while a request is already in progress.
@@ -158,7 +172,8 @@ int PacFileFetcherImpl::Fetch(
   // requests, PAC requests are aren't blocked on them.
   cur_request_ = url_request_context_->CreateRequest(url, MAXIMUM_PRIORITY,
                                                      this, traffic_annotation);
-  cur_request_->set_is_pac_request(true);
+
+  cur_request_->set_isolation_info(isolation_info());
 
   // Make sure that the PAC script is downloaded using a direct connection,
   // to avoid circular dependencies (fetching is a part of proxy resolution).
@@ -183,10 +198,10 @@ int PacFileFetcherImpl::Fetch(
   // Post a task to timeout this request if it takes too long.
   cur_request_id_ = ++next_id_;
 
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&PacFileFetcherImpl::OnTimeout, weak_factory_.GetWeakPtr(),
-                 cur_request_id_),
+      base::BindOnce(&PacFileFetcherImpl::OnTimeout, weak_factory_.GetWeakPtr(),
+                     cur_request_id_),
       max_duration_);
 
   // Start the request.
@@ -235,7 +250,7 @@ void PacFileFetcherImpl::OnReceivedRedirect(URLRequest* request,
 }
 
 void PacFileFetcherImpl::OnAuthRequired(URLRequest* request,
-                                        AuthChallengeInfo* auth_info) {
+                                        const AuthChallengeInfo& auth_info) {
   DCHECK_EQ(request, cur_request_.get());
   // TODO(eroman): http://crbug.com/77366
   LOG(WARNING) << "Auth required to fetch PAC script, aborting.";
@@ -244,17 +259,13 @@ void PacFileFetcherImpl::OnAuthRequired(URLRequest* request,
 }
 
 void PacFileFetcherImpl::OnSSLCertificateError(URLRequest* request,
+                                               int net_error,
                                                const SSLInfo& ssl_info,
                                                bool fatal) {
   DCHECK_EQ(request, cur_request_.get());
-  // Revocation check failures are not fatal.
-  if (IsCertStatusMinorError(ssl_info.cert_status)) {
-    request->ContinueDespiteLastError();
-    return;
-  }
   LOG(WARNING) << "SSL certificate error when fetching PAC script, aborting.";
   // Certificate errors are in same space as net errors.
-  result_code_ = MapCertStatusToNetError(ssl_info.cert_status);
+  result_code_ = net_error;
   request->Cancel();
 }
 
@@ -274,7 +285,7 @@ void PacFileFetcherImpl::OnResponseStarted(URLRequest* request, int net_error) {
     if (request->GetResponseCode() != 200) {
       VLOG(1) << "Fetched PAC script had (bad) status line: "
               << request->response_headers()->GetStatusLine();
-      result_code_ = ERR_PAC_STATUS_NOT_OK;
+      result_code_ = ERR_HTTP_RESPONSE_CODE_FAILURE;
       request->Cancel();
       return;
     }
@@ -303,31 +314,18 @@ void PacFileFetcherImpl::OnReadCompleted(URLRequest* request, int num_bytes) {
   }
 }
 
-PacFileFetcherImpl::PacFileFetcherImpl(URLRequestContext* url_request_context,
-                                       bool allow_file_url)
+PacFileFetcherImpl::PacFileFetcherImpl(URLRequestContext* url_request_context)
     : url_request_context_(url_request_context),
       buf_(base::MakeRefCounted<IOBuffer>(kBufSize)),
-      next_id_(0),
-      cur_request_id_(0),
-      result_code_(OK),
-      result_text_(NULL),
       max_response_bytes_(kDefaultMaxResponseBytes),
-      max_duration_(kDefaultMaxDuration),
-      allow_file_url_(allow_file_url),
-      weak_factory_(this) {
+      max_duration_(kDefaultMaxDuration) {
   DCHECK(url_request_context);
 }
 
 bool PacFileFetcherImpl::IsUrlSchemeAllowed(const GURL& url) const {
-  // Always allow http://, https://, data:, and ftp://.
-  if (url.SchemeIsHTTPOrHTTPS() || url.SchemeIs("ftp") || url.SchemeIs("data"))
+  // Always allow http://, https://, and data:.
+  if (url.SchemeIsHTTPOrHTTPS() || url.SchemeIs("data"))
     return true;
-
-  // Only permit file:// if |allow_file_url_| was set. file:// should not be
-  // allowed for URLs that were auto-detected, or as the result of a server-side
-  // redirect.
-  if (url.SchemeIsFile())
-    return allow_file_url_;
 
   // Disallow any other URL scheme.
   return false;
@@ -404,7 +402,7 @@ void PacFileFetcherImpl::ResetCurRequestState() {
   cur_request_id_ = 0;
   callback_.Reset();
   result_code_ = OK;
-  result_text_ = NULL;
+  result_text_ = nullptr;
   fetch_start_time_ = base::TimeTicks();
   fetch_time_to_first_byte_ = base::TimeTicks();
 }

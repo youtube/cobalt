@@ -179,6 +179,7 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_thread_is_equal_test.cc",
     "posix_compliance/posix_thread_join_test.cc",
     "posix_compliance/posix_thread_local_value_test.cc",
+    "posix_compliance/posix_thread_sleep_test.cc",
     "posix_compliance/posix_thread_yield_test.cc",
     "posix_compliance/posix_time_test.cc",
     "random_helpers.cc",
@@ -307,7 +308,7 @@ target(gtest_target_type, "nplb") {
   }
 
   data_deps = [
-    "//cobalt/network:copy_ssl_certificates",
+    # "//cobalt/network:copy_ssl_certificates",
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
     "//starboard/shared/starboard/player:player_download_test_data",
     "//third_party/icu:icudata",

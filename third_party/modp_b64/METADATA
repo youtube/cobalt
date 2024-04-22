@@ -7,12 +7,12 @@ description:
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "87.0.4280.142"  # from https://chromereleases.googleblog.com/2021/01/stable-channel-update-for-chrome-os.html
+    value: "114.0.5735.331"  # from https://chromereleases.googleblog.com/2023/08/long-term-support-channel-update-for_23.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/src.git"
-    version: "f73da6d3eaeb33e9d4bcb497bf13c655143a82f9"
+    version: "fed499399d3f44d3a7957549d493bf30a5d8c867"
   }
   identifier {
     type: "UpstreamSubdir"

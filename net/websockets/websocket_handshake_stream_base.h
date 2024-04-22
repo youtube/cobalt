@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,14 +10,15 @@
 // this file must not introduce any link-time dependencies on websockets.
 
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
 #include "net/base/net_export.h"
 #include "net/http/http_stream.h"
+#include "net/quic/quic_chromium_client_session.h"
 #include "net/websockets/websocket_deflate_parameters.h"
 #include "net/websockets/websocket_stream.h"
 
@@ -79,10 +80,30 @@ class NET_EXPORT WebSocketHandshakeStreamBase : public HttpStream {
     HTTP2_FAILED = 15,
     // Connected over an HTTP/2 connection.
     HTTP2_CONNECTED = 16,
-    NUM_HANDSHAKE_RESULT_TYPES = 17
+    // Handshake not completed over an HTTP/3 connection.
+    HTTP3_INCOMPLETE = 17,
+    // Server responded to WebSocket request over an HTTP/3 connection with
+    // invalid status code.
+    HTTP3_INVALID_STATUS = 18,
+    // Server responded to WebSocket request over an HTTP/3 connection with
+    // invalid sec-websocket-protocol header.
+    HTTP3_FAILED_SUBPROTO = 19,
+    // Server responded to WebSocket request over an HTTP/3 connection with
+    // invalid sec-websocket-extensions header.
+    HTTP3_FAILED_EXTENSIONS = 20,
+    // WebSocket request over an HTTP/3 connection failed with some other error.
+    HTTP3_FAILED = 21,
+    // Connected over an HTTP/3 connection.
+    HTTP3_CONNECTED = 22,
+    NUM_HANDSHAKE_RESULT_TYPES = 23
   };
 
   WebSocketHandshakeStreamBase() = default;
+
+  WebSocketHandshakeStreamBase(const WebSocketHandshakeStreamBase&) = delete;
+  WebSocketHandshakeStreamBase& operator=(const WebSocketHandshakeStreamBase&) =
+      delete;
+
   ~WebSocketHandshakeStreamBase() override = default;
 
   // An object that stores data needed for the creation of a
@@ -90,7 +111,7 @@ class NET_EXPORT WebSocketHandshakeStreamBase : public HttpStream {
   // WebSocket connection.
   class NET_EXPORT_PRIVATE CreateHelper : public base::SupportsUserData::Data {
    public:
-    ~CreateHelper() override {}
+    ~CreateHelper() override = default;
 
     // Create a WebSocketBasicHandshakeStream. This is called after the
     // underlying connection has been established but before any handshake data
@@ -105,7 +126,15 @@ class NET_EXPORT WebSocketHandshakeStreamBase : public HttpStream {
     // underlying HTTP/2 connection has been established but before the stream
     // has been opened.  This cannot be called more than once.
     virtual std::unique_ptr<WebSocketHandshakeStreamBase> CreateHttp2Stream(
-        base::WeakPtr<SpdySession> session) = 0;
+        base::WeakPtr<SpdySession> session,
+        std::set<std::string> dns_aliases) = 0;
+
+    // Create a WebSocketHttp3HandshakeStream. This is called after the
+    // underlying HTTP/3 connection has been established but before the stream
+    // has been opened.  This cannot be called more than once.
+    virtual std::unique_ptr<WebSocketHandshakeStreamBase> CreateHttp3Stream(
+        std::unique_ptr<QuicChromiumClientSession::Handle> session,
+        std::set<std::string> dns_aliases) = 0;
   };
 
   // After the handshake has completed, this method creates a WebSocketStream
@@ -114,11 +143,18 @@ class NET_EXPORT WebSocketHandshakeStreamBase : public HttpStream {
   // been called.
   virtual std::unique_ptr<WebSocketStream> Upgrade() = 0;
 
-  void SetRequestHeadersCallback(RequestHeadersCallback /*callback*/) override {
-  }
+  // Returns true if a read from the stream will succeed. This should be true
+  // even if the stream is at EOF.
+  virtual bool CanReadFromStream() const = 0;
+
+  void SetRequestHeadersCallback(RequestHeadersCallback callback) override {}
 
   static std::string MultipleHeaderValuesMessage(
       const std::string& header_name);
+
+  // Subclasses need to implement this method so that the resulting weak
+  // pointers are invalidated as soon as the derived class is destroyed.
+  virtual base::WeakPtr<WebSocketHandshakeStreamBase> GetWeakPtr() = 0;
 
  protected:
   // TODO(ricea): If more extensions are added, replace this with a more general
@@ -144,11 +180,6 @@ class NET_EXPORT WebSocketHandshakeStreamBase : public HttpStream {
                                  WebSocketExtensionParams* params);
 
   void RecordHandshakeResult(HandshakeResult result);
-  void RecordDeflateMode(
-      WebSocketDeflateParameters::ContextTakeOverMode deflate_mode);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(WebSocketHandshakeStreamBase);
 };
 
 }  // namespace net

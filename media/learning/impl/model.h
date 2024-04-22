@@ -1,12 +1,12 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_LEARNING_IMPL_MODEL_H_
 #define MEDIA_LEARNING_IMPL_MODEL_H_
 
-#include "base/callback.h"
 #include "base/component_export.h"
+#include "base/functional/callback.h"
 #include "media/learning/common/labelled_example.h"
 #include "media/learning/common/target_histogram.h"
 

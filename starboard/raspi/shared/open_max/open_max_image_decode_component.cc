@@ -14,6 +14,8 @@
 
 #include "starboard/raspi/shared/open_max/open_max_image_decode_component.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 
 #include "starboard/common/time.h"
@@ -95,7 +97,7 @@ SbDecodeTarget OpenMaxImageDecodeComponent::Decode(
       break;
     } else if (write_size == 0 && output_size == 0) {
       // Wait for buffers to become available.
-      SbThreadSleep(1000);
+      usleep(1000);
     }
   }
 

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,8 @@
 #define MEDIA_GPU_VAAPI_H264_VAAPI_VIDEO_ENCODER_DELEGATE_H_
 
 #include <stddef.h>
-#include <list>
 
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
 #include "media/filters/h264_bitstream_buffer.h"
 #include "media/gpu/h264_dpb.h"
 #include "media/gpu/vaapi/vaapi_video_encoder_delegate.h"
@@ -71,14 +69,15 @@ class H264VaapiVideoEncoderDelegate : public VaapiVideoEncoderDelegate {
   gfx::Size GetCodedSize() const override;
   size_t GetMaxNumOfRefFrames() const override;
   std::vector<gfx::Size> GetSVCLayerResolutions() override;
-  bool PrepareEncodeJob(EncodeJob* encode_job) override;
-  BitstreamBufferMetadata GetMetadata(EncodeJob* encode_job,
-                                      size_t payload_size) override;
 
  private:
   class TemporalLayers;
 
   friend class H264VaapiVideoEncoderDelegateTest;
+
+  bool PrepareEncodeJob(EncodeJob& encode_job) override;
+  BitstreamBufferMetadata GetMetadata(const EncodeJob& encode_job,
+                                      size_t payload_size) override;
 
   // Fill current_sps_ and current_pps_ with current encoding state parameters.
   void UpdateSPS();
@@ -99,17 +98,11 @@ class H264VaapiVideoEncoderDelegate : public VaapiVideoEncoderDelegate {
   // current profile and level.
   bool CheckConfigValidity(uint32_t bitrate, uint32_t framerate);
 
-  // Submits a H264BitstreamBuffer |buffer| to the driver.
-  void SubmitH264BitstreamBuffer(scoped_refptr<H264BitstreamBuffer> buffer);
-
-  scoped_refptr<H264Picture> GetPicture(EncodeJob* job);
-
-  bool SubmitPackedHeaders(EncodeJob* job,
-                           scoped_refptr<H264BitstreamBuffer> packed_sps,
-                           scoped_refptr<H264BitstreamBuffer> packed_pps);
+  bool SubmitPackedHeaders(const H264BitstreamBuffer& packed_sps,
+                           const H264BitstreamBuffer& packed_pps);
 
   bool SubmitFrameParameters(
-      EncodeJob* job,
+      EncodeJob& job,
       const H264VaapiVideoEncoderDelegate::EncodeParams& encode_params,
       const H264SPS& sps,
       const H264PPS& pps,

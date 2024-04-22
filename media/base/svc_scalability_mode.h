@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@ namespace media {
 // This enum class is the corresponding implementation with WebRTC-SVC.
 // See https://www.w3.org/TR/webrtc-svc/#scalabilitymodes* for the detail.
 enum class SVCScalabilityMode {
+  kL1T1,
   kL1T2,
   kL1T3,
   kL2T1,
@@ -35,10 +36,12 @@ enum class SVCScalabilityMode {
   kS3T1h,
   kS3T2h,
   kS3T3h,
+  kL2T1Key,
   kL2T2Key,
   kL2T2KeyShift,
   kL2T3Key,
   kL2T3KeyShift,
+  kL3T1Key,
   kL3T2Key,
   kL3T2KeyShift,
   kL3T3Key,

@@ -1,23 +1,23 @@
-// Copyright (c) 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/android/http_auth_negotiate_android.h"
 
 #include "base/run_loop.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "net/android/dummy_spnego_authenticator.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_auth_challenge_tokenizer.h"
 #include "net/http/mock_allow_http_auth_preferences.h"
+#include "net/log/net_log_with_source.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
-namespace android {
+namespace net::android {
 
 TEST(HttpAuthNegotiateAndroidTest, GenerateAuthToken) {
-  base::test::ScopedTaskEnvironment scoped_task_environment;
+  base::test::TaskEnvironment task_environment;
 
   DummySpnegoAuthenticator::EnsureTestAccountExists();
 
@@ -32,12 +32,12 @@ TEST(HttpAuthNegotiateAndroidTest, GenerateAuthToken) {
   prefs.set_auth_android_negotiate_account_type(
       "org.chromium.test.DummySpnegoAuthenticator");
   HttpAuthNegotiateAndroid auth(&prefs);
-  EXPECT_TRUE(auth.Init());
+  EXPECT_TRUE(auth.Init(NetLogWithSource()));
 
   TestCompletionCallback callback;
-  EXPECT_EQ(OK, callback.GetResult(
-                    auth.GenerateAuthToken(nullptr, "Dummy", std::string(),
-                                           &auth_token, callback.callback())));
+  EXPECT_EQ(OK, callback.GetResult(auth.GenerateAuthToken(
+                    nullptr, "Dummy", std::string(), &auth_token,
+                    NetLogWithSource(), callback.callback())));
 
   EXPECT_EQ("Negotiate DummyToken", auth_token);
 
@@ -111,5 +111,4 @@ TEST(HttpAuthNegotiateAndroidTest, ParseChallenge_MissingTokenSecondRound) {
             auth.ParseChallenge(&second_challenge));
 }
 
-}  // namespace android
-}  // namespace net
+}  // namespace net::android

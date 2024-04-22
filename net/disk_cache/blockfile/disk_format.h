@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,17 +45,21 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_DISK_FORMAT_H_
 #define NET_DISK_CACHE_BLOCKFILE_DISK_FORMAT_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "net/base/net_export.h"
 #include "net/disk_cache/blockfile/disk_format_base.h"
-#include "starboard/types.h"
 
 namespace disk_cache {
 
 const int kIndexTablesize = 0x10000;
 const uint32_t kIndexMagic = 0xC103CAC3;
-const uint32_t kCurrentVersion = 0x20000;  // Version 2.0.
+const uint32_t kVersion2_0 = 0x20000;
+const uint32_t kVersion2_1 = 0x20001;
+const uint32_t kVersion3_0 = 0x30000;
+const uint32_t kCurrentVersion = kVersion3_0;
 
 struct LruData {
   int32_t pad1[2];
@@ -76,7 +80,7 @@ struct NET_EXPORT_PRIVATE IndexHeader {
   uint32_t magic;
   uint32_t version;
   int32_t num_entries;       // Number of entries currently stored.
-  int32_t num_bytes;         // Total size of the stored data.
+  int32_t old_v2_num_bytes;  // Total size of the stored data, in versions 2.x
   int32_t last_file;         // Last external file created.
   int32_t this_id;           // Id for all entries being changed (dirty flag).
   CacheAddr   stats;         // Storage for usage data.
@@ -84,7 +88,8 @@ struct NET_EXPORT_PRIVATE IndexHeader {
   int32_t crash;             // Signals a previous crash.
   int32_t experiment;        // Id of an ongoing test.
   uint64_t create_time;      // Creation time for this set of files.
-  int32_t pad[52];
+  int64_t num_bytes;         // Total size of the stored data, in version 3.0
+  int32_t pad[50];
   LruData     lru;           // Eviction control data.
 };
 

@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -284,35 +285,36 @@ class BrowserModule {
   // Glue function to deal with the production of an input event from an on
   // screen keyboard input device, and manage handing it off to the web module
   // for interpretation.
-  void OnOnScreenKeyboardInputEventProduced(base::Token type,
+  void OnOnScreenKeyboardInputEventProduced(base_token::Token type,
                                             const dom::InputEventInit& event);
 
   // Glue function to deal with the production of a keyboard input event from a
   // keyboard input device, and manage handing it off to the web module for
   // interpretation.
-  void OnKeyEventProduced(base::Token type,
+  void OnKeyEventProduced(base_token::Token type,
                           const dom::KeyboardEventInit& event);
 
   // Glue function to deal with the production of a pointer input event from a
   // pointer input device, and manage handing it off to the web module for
   // interpretation.
-  void OnPointerEventProduced(base::Token type,
+  void OnPointerEventProduced(base_token::Token type,
                               const dom::PointerEventInit& event);
 
   // Glue function to deal with the production of a wheel input event from a
   // wheel input device, and manage handing it off to the web module for
   // interpretation.
-  void OnWheelEventProduced(base::Token type, const dom::WheelEventInit& event);
+  void OnWheelEventProduced(base_token::Token type,
+                            const dom::WheelEventInit& event);
 
   // Injects an on screen keyboard input event directly into the main web
   // module.
   void InjectOnScreenKeyboardInputEventToMainWebModule(
-      base::Token type, const dom::InputEventInit& event);
+      base_token::Token type, const dom::InputEventInit& event);
 
   // Injects a key event directly into the main web module, useful for setting
   // up an input fuzzer whose input should be sent directly to the main
   // web module and not filtered into the debug console.
-  void InjectKeyEventToMainWebModule(base::Token type,
+  void InjectKeyEventToMainWebModule(base_token::Token type,
                                      const dom::KeyboardEventInit& event);
 
   // Error callback for any error that stops the program.
@@ -331,12 +333,13 @@ class BrowserModule {
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEvent(base::Token type, const dom::KeyboardEventInit& event);
+  bool FilterKeyEvent(base_token::Token type,
+                      const dom::KeyboardEventInit& event);
 
   // Filters a key event for hotkeys.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEventForHotkeys(base::Token type,
+  bool FilterKeyEventForHotkeys(base_token::Token type,
                                 const dom::KeyboardEventInit& event);
 
   void NavigateResetErrorHandling();
@@ -530,8 +533,8 @@ class BrowserModule {
   // A copy of the BrowserModule Options passed into the constructor.
   Options options_;
 
-  // The browser module runs on this message loop.
-  base::MessageLoop* const self_message_loop_;
+  // The browser module runs with this task runner.
+  base::SequencedTaskRunner* const task_runner_;
 
   // Handler for system errors, which is owned by browser module.
   SystemPlatformErrorHandler system_platform_error_handler_;

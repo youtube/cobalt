@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "starboard/common/rwlock.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
@@ -112,7 +114,7 @@ class ThreadHoldsWriteLockForTime : public AbstractTestThread {
   void Run() override {
     ScopedWriteLock write_lock(&shared_data_->rw_lock);
     shared_data_->signal_write_lock.Put();
-    SbThreadSleep(shared_data_->time_to_hold);
+    usleep(shared_data_->time_to_hold);
   }
 
  private:

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,20 +8,20 @@
 #ifndef BASE_PROCESS_PROCESS_METRICS_IOCOUNTERS_H_
 #define BASE_PROCESS_PROCESS_METRICS_IOCOUNTERS_H_
 
+#include <stdint.h>
+
 #include "base/process/process_metrics.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include <windows.h>
-
-#include "starboard/types.h"
 #endif
 
 namespace base {
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 struct IoCounters : public IO_COUNTERS {};
-#elif defined(OS_POSIX)
+#elif BUILDFLAG(IS_POSIX)
 struct IoCounters {
   uint64_t ReadOperationCount;
   uint64_t WriteOperationCount;

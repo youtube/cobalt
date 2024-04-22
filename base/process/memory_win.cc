@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 
 #include <new.h>
 #include <psapi.h>
-
-#include "starboard/types.h"
+#include <stddef.h>
+#include <stdlib.h>
 
 #if defined(__clang__)
 // This global constructor is trivial and non-racy (per being const).
@@ -30,7 +30,7 @@ extern "C" void* (*const malloc_default)(size_t) = &malloc;
 
 #if defined(_M_IX86)
 #pragma comment(linker, "/alternatename:_malloc_unchecked=_malloc_default")
-#elif defined(_M_X64) || defined(_M_ARM)
+#elif defined(_M_X64) || defined(_M_ARM) || defined(_M_ARM64)
 #pragma comment(linker, "/alternatename:malloc_unchecked=malloc_default")
 #else
 #error Unsupported platform
@@ -40,30 +40,16 @@ namespace base {
 
 namespace {
 
-#pragma warning(push)
-#pragma warning(disable: 4702)  // Unreachable code after the _exit.
-
-NOINLINE int OnNoMemory(size_t size) {
-  // Kill the process. This is important for security since most of code
-  // does not check the result of memory allocation.
-  // https://msdn.microsoft.com/en-us/library/het71c37.aspx
-  // Pass the size of the failed request in an exception argument.
-  ULONG_PTR exception_args[] = {size};
-  ::RaiseException(win::kOomExceptionCode, EXCEPTION_NONCONTINUABLE,
-                   arraysize(exception_args), exception_args);
-
-  // Safety check, make sure process exits here.
-  _exit(win::kOomExceptionCode);
+// Return a non-0 value to retry the allocation.
+int ReleaseReservationOrTerminate(size_t size) {
+  constexpr int kRetryAllocation = 1;
+  if (internal::ReleaseAddressSpaceReservation())
+    return kRetryAllocation;
+  TerminateBecauseOutOfMemory(size);
   return 0;
 }
 
-#pragma warning(pop)
-
 }  // namespace
-
-void TerminateBecauseOutOfMemory(size_t size) {
-  OnNoMemory(size);
-}
 
 void EnableTerminationOnHeapCorruption() {
   // Ignore the result code. Supported on XP SP3 and Vista.
@@ -71,14 +57,19 @@ void EnableTerminationOnHeapCorruption() {
 }
 
 void EnableTerminationOnOutOfMemory() {
-  _set_new_handler(&OnNoMemory);
-  _set_new_mode(1);
+  constexpr int kCallNewHandlerOnAllocationFailure = 1;
+  _set_new_handler(&ReleaseReservationOrTerminate);
+  _set_new_mode(kCallNewHandlerOnAllocationFailure);
 }
 
 // Implemented using a weak symbol.
 bool UncheckedMalloc(size_t size, void** result) {
   *result = malloc_unchecked(size);
   return *result != NULL;
+}
+
+void UncheckedFree(void* ptr) {
+  free(ptr);
 }
 
 }  // namespace base

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "starboard/common/semaphore.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/thread_helpers.h"
@@ -96,10 +98,10 @@ TEST(Semaphore, FLAKY_ThreadTakesWait_PutBeforeTimeExpires) {
   // Create thread and wait for it to start executing.
   thread.Start();
   while (!thread.thread_started_) {
-    SbThreadSleep(1000);
+    usleep(1000);
   }
 
-  SbThreadSleep(wait_time);
+  usleep(wait_time);
   thread.semaphore_.Put();
 
   thread.Join();
@@ -129,14 +131,14 @@ TEST(Semaphore, ThreadTakesWait_TimeExpires) {
     // Create thread and wait for it to start executing.
     thread.Start();
     while (!thread.thread_started_) {
-      SbThreadSleep(1000);
+      usleep(1000);
     }
 
     // It is possible for the thread to be preempted just before processing
     // Semaphore::TakeWait, so sleep for an extra amount of time to avoid the
     // semaphore being legitimately signalled during the wait time (because
     // the thread started TakeWait late).
-    SbThreadSleep(wait_time * 5);
+    usleep(wait_time * 5);
     thread.semaphore_.Put();
 
     thread.Join();

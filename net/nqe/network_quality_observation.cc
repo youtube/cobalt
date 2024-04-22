@@ -1,27 +1,25 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/nqe/network_quality_observation.h"
-#include "base/macros.h"
 
-namespace net {
+#include "base/check.h"
+#include "base/notreached.h"
 
-namespace nqe {
-
-namespace internal {
+namespace net::nqe::internal {
 
 Observation::Observation(int32_t value,
                          base::TimeTicks timestamp,
                          int32_t signal_strength,
                          NetworkQualityObservationSource source)
-    : Observation(value, timestamp, signal_strength, source, base::nullopt) {}
+    : Observation(value, timestamp, signal_strength, source, absl::nullopt) {}
 
 Observation::Observation(int32_t value,
                          base::TimeTicks timestamp,
                          int32_t signal_strength,
                          NetworkQualityObservationSource source,
-                         const base::Optional<IPHash>& host)
+                         const absl::optional<IPHash>& host)
     : value_(value),
       timestamp_(timestamp),
       signal_strength_(signal_strength),
@@ -55,6 +53,7 @@ std::vector<ObservationCategory> Observation::GetObservationCategories() const {
           ObservationCategory::OBSERVATION_CATEGORY_TRANSPORT);
       return observation_categories;
     case NETWORK_QUALITY_OBSERVATION_SOURCE_QUIC:
+    case NETWORK_QUALITY_OBSERVATION_SOURCE_H2_PINGS:
       observation_categories.push_back(
           ObservationCategory::OBSERVATION_CATEGORY_TRANSPORT);
       observation_categories.push_back(
@@ -68,8 +67,4 @@ std::vector<ObservationCategory> Observation::GetObservationCategories() const {
   return observation_categories;
 }
 
-}  // namespace internal
-
-}  // namespace nqe
-
-}  // namespace net
+}  // namespace net::nqe::internal

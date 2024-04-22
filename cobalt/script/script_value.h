@@ -21,6 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "cobalt/script/tracer.h"
 
 namespace cobalt {

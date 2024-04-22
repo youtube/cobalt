@@ -16,6 +16,8 @@
 
 #include "starboard/shared/uwp/analog_thumbstick_input_thread.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <map>
 #include <vector>
@@ -44,7 +46,7 @@ class AnalogThumbstickThread::Impl : public Thread {
     while (!join_called()) {
       Update();
       // 120hz to provide smooth 60fps playback.
-      SbThreadSleep(1'000'000LL / kPollingFrequency);
+      usleep(1'000'000LL / kPollingFrequency);
     }
   }
 

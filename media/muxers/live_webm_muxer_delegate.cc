@@ -1,12 +1,15 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/muxers/live_webm_muxer_delegate.h"
 
+#include "base/numerics/ostream_operators.h"
+
 namespace media {
 
-LiveWebmMuxerDelegate::LiveWebmMuxerDelegate(WriteDataCB write_data_callback)
+LiveWebmMuxerDelegate::LiveWebmMuxerDelegate(
+    Muxer::WriteDataCB write_data_callback)
     : write_data_callback_(std::move(write_data_callback)) {
   DCHECK(!write_data_callback_.is_null());
 }

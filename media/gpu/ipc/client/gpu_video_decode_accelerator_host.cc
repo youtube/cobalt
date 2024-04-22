@@ -1,12 +1,13 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/gpu/ipc/client/gpu_video_decode_accelerator_host.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
 #include "ipc/ipc_mojo_bootstrap.h"
@@ -18,7 +19,7 @@ GpuVideoDecodeAcceleratorHost::GpuVideoDecodeAcceleratorHost(
     gpu::CommandBufferProxyImpl* impl)
     : client_(nullptr),
       impl_(impl),
-      media_task_runner_(base::ThreadTaskRunnerHandle::Get()) {
+      media_task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()) {
   DCHECK(impl_);
 
   weak_this_ = weak_this_factory_.GetWeakPtr();
@@ -78,7 +79,7 @@ bool GpuVideoDecodeAcceleratorHost::Initialize(const Config& config,
       base::BindOnce(
           &GpuVideoDecodeAcceleratorHost::OnDisconnectedFromGpuProcess,
           weak_this_),
-      base::SequencedTaskRunnerHandle::Get());
+      base::SequencedTaskRunner::GetCurrentDefault());
   return true;
 }
 
@@ -172,7 +173,7 @@ void GpuVideoDecodeAcceleratorHost::OnInitializationComplete(bool success) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (client_) {
     client_->NotifyInitializationComplete(
-        success ? OkStatus() : StatusCode::kInitializationUnspecifiedFailure);
+        success ? DecoderStatus::Codes::kOk : DecoderStatus::Codes::kFailed);
   }
 }
 

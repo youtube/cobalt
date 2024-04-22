@@ -93,6 +93,7 @@
 // scoped_array, scoped_ptr_malloc.
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 
 #include "starboard/common/log.h"
@@ -133,6 +134,8 @@ class scoped_ptr {
   scoped_ptr(scoped_ptr<U> other)  // NOLINT(runtime/explicit)
       : ptr_(other.release()) {}
 #endif
+
+  scoped_ptr(scoped_ptr&& other) : ptr_(other.release()) {}
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
   scoped_ptr(RValue rvalue)  // NOLINT(runtime/explicit)
@@ -496,6 +499,14 @@ template <typename T>
 scoped_ptr<T> make_scoped_ptr(T* ptr) {
   return scoped_ptr<T>(ptr);
 }
+
+#ifdef DEPRECATED_SCOPED_PTR
+template <class C>
+using unique_ptr_alias = std::unique_ptr<C>;
+#else
+template <class C>
+using unique_ptr_alias = scoped_ptr<C>;
+#endif
 
 }  // namespace starboard
 

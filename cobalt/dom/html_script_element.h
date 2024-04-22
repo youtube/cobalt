@@ -122,7 +122,7 @@ class HTMLScriptElement : public HTMLElement {
                const base::SourceLocation& script_location, bool is_external);
 
   void PreventGarbageCollectionAndPostToDispatchEvent(
-      const base::Location& location, const base::Token& token,
+      const base::Location& location, const base_token::Token& token,
       std::unique_ptr<
           script::GlobalEnvironment::ScopedPreventGarbageCollection>*
           scoped_prevent_gc);

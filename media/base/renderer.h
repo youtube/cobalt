@@ -1,13 +1,11 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_BASE_RENDERER_H_
 #define MEDIA_BASE_RENDERER_H_
 
-#include "base/callback.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "media/base/buffering_state.h"
 #include "media/base/demuxer_stream.h"
@@ -20,6 +18,30 @@ namespace media {
 class CdmContext;
 class MediaResource;
 class RendererClient;
+
+// Types of media::Renderer.
+// WARNING: These values are reported to metrics. Entries should not be
+// renumbered and numeric values should not be reused. When adding new entries,
+// also update media::mojom::RendererType & tools/metrics/histograms/enums.xml.
+enum class RendererType {
+  kRendererImpl = 0,     // RendererImplFactory
+  kMojo = 1,             // MojoRendererFactory
+  kMediaPlayer = 2,      // MediaPlayerRendererClientFactory
+  kCourier = 3,          // CourierRendererFactory
+  kFlinging = 4,         // FlingingRendererClientFactory
+  kCast = 5,             // CastRendererClientFactory
+  kMediaFoundation = 6,  // MediaFoundationRendererClientFactory
+  // kFuchsia = 7,       // Deprecated
+  kRemoting = 8,       // RemotingRendererFactory for remoting::Receiver
+  kCastStreaming = 9,  // PlaybackCommandForwardingRendererFactory
+  kContentEmbedderDefined = 10,  // Defined by the content embedder
+  kTest = 11,                    // Renderer implementations used in tests
+  kMaxValue = kTest,
+};
+
+// Get the name of the Renderer for `renderer_type`. The returned name could be
+// the actual Renderer class name or a descriptive name.
+std::string MEDIA_EXPORT GetRendererName(RendererType renderer_type);
 
 class MEDIA_EXPORT Renderer {
  public:
@@ -58,8 +80,10 @@ class MEDIA_EXPORT Renderer {
   // different than 1.0.
   virtual void SetPreservesPitch(bool preserves_pitch);
 
-  // Sets a flag indicating whether the audio stream was initiated by autoplay.
-  virtual void SetAutoplayInitiated(bool autoplay_initiated);
+  // Sets a flag indicating whether the audio stream was played with user
+  // activation.
+  virtual void SetWasPlayedWithUserActivation(
+      bool was_played_with_user_activation);
 
   // The following functions must be called after Initialize().
 
@@ -91,6 +115,22 @@ class MEDIA_EXPORT Renderer {
   virtual void OnEnabledAudioTracksChanged(
       const std::vector<DemuxerStream*>& enabled_tracks,
       base::OnceClosure change_completed_cb);
+
+  // Signal to the renderer that there has been a client request to access a
+  // VideoFrame. This signal may be used by the renderer to ensure it is
+  // operating in a mode which produces a VideoFrame usable by the client.
+  // E.g., the MediaFoundationRendererClient on Windows has two modes
+  // of operation: Frame Server & Direct Composition. Direct Composition mode
+  // does not produce a VideoFrame with an accessible 'data' buffer, so clients
+  // cannot access the underlying image data. In order for
+  // MediaFoundationRendererClient to produce a VideoFrame with 'data'
+  // accessible by the client it must switch to operate in Frame Server mode.
+  virtual void OnExternalVideoFrameRequest();
+
+  // Returns the type of the Renderer implementation. Marked as pure virtual to
+  // enforce RendererType registration for all Renderer implementations.
+  // Note: New implementation should update RendererType.
+  virtual RendererType GetRendererType() = 0;
 };
 
 }  // namespace media

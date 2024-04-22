@@ -1,9 +1,11 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TASK_TASK_TRAITS_H_
 #define BASE_TASK_TASK_TRAITS_H_
+
+#include <stdint.h>
 
 #include <iosfwd>
 #include <tuple>
@@ -11,41 +13,67 @@
 #include <utility>
 
 #include "base/base_export.h"
-#include "base/logging.h"
-#include "base/task/task_traits_details.h"
-#include "base/task/task_traits_extension.h"
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/traits_bag.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 
 namespace base {
 
-// Valid priorities supported by the task scheduler. Note: internal algorithms
-// depend on priorities being expressed as a continuous zero-based list from
-// lowest to highest priority. Users of this API shouldn't otherwise care about
-// nor use the underlying values.
-enum class TaskPriority {
+// Valid priorities supported by the task scheduling infrastructure.
+//
+// Note: internal algorithms depend on priorities being expressed as a
+// continuous zero-based list from lowest to highest priority. Users of this API
+// shouldn't otherwise care about nor use the underlying values.
+//
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.base.task
+enum class TaskPriority : uint8_t {
   // This will always be equal to the lowest priority available.
   LOWEST = 0,
-  // This task will only be scheduled when machine resources are available. Once
-  // running, it may be descheduled if higher priority work arrives (in this
-  // process or another) and its running on a non-critical thread.
+  // Best effort tasks will only start running when machine resources are
+  // available. The application may preempt best effort tasks if it expects that
+  // resources will soon be needed by work of higher priority. Dependending on
+  // the ThreadPolicy, best effort tasks may run on a thread that is likely to
+  // be descheduled when higher priority work arrives (in this process or
+  // another).
+  //
+  // Examples:
+  // - Reporting metrics.
+  // - Persisting data to disk.
+  // - Loading data that is required for a potential future user interaction
+  //   (Note: Use CreateUpdateableSequencedTaskRunner() to increase the priority
+  //   when that user interactions happens).
   BEST_EFFORT = LOWEST,
-  // This task affects UI or responsiveness of future user interactions. It is
-  // not an immediate response to a user interaction.
+
+  // The result of user visible tasks is visible to the user (in the UI or as a
+  // side-effect on the system) but it is not an immediate response to a user
+  // interaction.
+  //
   // Examples:
   // - Updating the UI to reflect progress on a long task.
-  // - Loading data that might be shown in the UI after a future user
-  //   interaction.
+  // - Downloading a file requested by the user.
+  // - Loading an image that is displayed in the UI but is non-critical.
   USER_VISIBLE,
-  // This task affects UI immediately after a user interaction.
-  // Example: Generating data shown in the UI immediately after a click.
+
+  // User blocking tasks affects UI immediately after a user interaction.
+  //
+  // Example:
+  // - Loading and rendering a web page after the user clicks a link.
+  // - Sorting suggestions after the user types a character in the omnibox.
+  //
+  // This is the default TaskPriority in order for tasks to run in order by
+  // default and avoid unintended consequences. The only way to get a task to
+  // run at a higher priority than USER_BLOCKING is to coordinate with a
+  // higher-level scheduler (contact scheduler-dev@chromium.org for such use
+  // cases).
   USER_BLOCKING,
+
   // This will always be equal to the highest priority available.
-  HIGHEST = USER_BLOCKING,
+  HIGHEST = USER_BLOCKING
 };
 
-// Valid shutdown behaviors supported by the task scheduler.
-enum class TaskShutdownBehavior {
+// Valid shutdown behaviors supported by the thread pool.
+enum class TaskShutdownBehavior : uint8_t {
   // Tasks posted with this mode which have not started executing before
   // shutdown is initiated will never run. Tasks with this mode running at
   // shutdown will be ignored (the worker will not be joined).
@@ -68,19 +96,64 @@ enum class TaskShutdownBehavior {
   // executing when shutdown is invoked will be allowed to continue and
   // will block shutdown until completion.
   //
-  // Note: Because TaskScheduler::Shutdown() may block while these tasks are
-  // executing, care must be taken to ensure that they do not block on the
-  // thread that called TaskScheduler::Shutdown(), as this may lead to deadlock.
+  // Note: Because ThreadPoolInstance::Shutdown() may block while these tasks
+  // are executing, care must be taken to ensure that they do not block on the
+  // thread that called ThreadPoolInstance::Shutdown(), as this may lead to
+  // deadlock.
   SKIP_ON_SHUTDOWN,
 
   // Tasks posted with this mode before shutdown is complete will block shutdown
   // until they're executed. Generally, this should be used only to save
   // critical user data.
   //
-  // Note: Background threads will be promoted to normal threads at shutdown
+  // Note 1: Delayed tasks cannot block shutdown. Delayed tasks posted as part
+  // of a BLOCK_SHUTDOWN sequence will behave like SKIP_ON_SHUTDOWN tasks.
+  //
+  // Note 2: Background threads will be promoted to normal threads at shutdown
   // (i.e. TaskPriority::BEST_EFFORT + TaskShutdownBehavior::BLOCK_SHUTDOWN will
   // resolve without a priority inversion).
   BLOCK_SHUTDOWN,
+};
+
+// Determines at which thread priority a task may run.
+//
+// ThreadPolicy and priority updates
+// ---------------------------------
+//
+//   If the TaskPriority of an UpdateableSequencedTaskRunner is increased while
+//   one of its tasks is running at background thread priority, the task's
+//   execution will have to complete at background thread priority (may take a
+//   long time) before the next task can be scheduled with the new TaskPriority.
+//   If it is important that priority increases take effect quickly,
+//   MUST_USE_FOREGROUND should be used to prevent the tasks from running at
+//   background thread priority. If it is important to minimize impact on the
+//   rest on the system when the TaskPriority is BEST_EFFORT, PREFER_BACKGROUND
+//   should be used.
+//
+// ThreadPolicy and priority inversions
+// ------------------------------------
+//
+//   A priority inversion occurs when a task running at background thread
+//   priority is descheduled while holding a resource needed by a thread of
+//   higher priority. MUST_USE_FOREGROUND can be combined with BEST_EFFORT to
+//   indicate that a task has a low priority, but shouldn't run at background
+//   thread priority in order to avoid priority inversions. Please consult with
+//   //base/task/OWNERS if you suspect a priority inversion.
+enum class ThreadPolicy : uint8_t {
+  // The task runs on a background priority thread if:
+  // - The TaskPriority is BEST_EFFORT.
+  // - Background thread priority is supported by the platform (see
+  //   environment_config_unittest.cc).
+  // - ThreadPoolInstance::Shutdown() hadn't been called when the task started
+  // running.
+  //       (Remaining TaskShutdownBehavior::BLOCK_SHUTDOWN tasks use foreground
+  //        threads during shutdown regardless of TaskPriority)
+  // Otherwise, it runs on a normal priority thread.
+  // This is the default.
+  PREFER_BACKGROUND,
+
+  // The task runs at normal thread priority, irrespective of its TaskPriority.
+  MUST_USE_FOREGROUND
 };
 
 // Tasks with this trait may block. This includes but is not limited to tasks
@@ -119,120 +192,113 @@ struct MayBlock {};
 // In doubt, consult with //base/task/OWNERS.
 struct WithBaseSyncPrimitives {};
 
-// Describes immutable metadata for a single task or a group of tasks.
+// Describes metadata for a single task or a group of tasks.
 class BASE_EXPORT TaskTraits {
- private:
-  using TaskPriorityFilter =
-      trait_helpers::EnumTraitFilter<TaskPriority, TaskPriority::USER_VISIBLE>;
-  using MayBlockFilter = trait_helpers::BooleanTraitFilter<MayBlock>;
-  using TaskShutdownBehaviorFilter =
-      trait_helpers::EnumTraitFilter<TaskShutdownBehavior,
-                                     TaskShutdownBehavior::SKIP_ON_SHUTDOWN>;
-  using WithBaseSyncPrimitivesFilter =
-      trait_helpers::BooleanTraitFilter<WithBaseSyncPrimitives>;
-
  public:
   // ValidTrait ensures TaskTraits' constructor only accepts appropriate types.
   struct ValidTrait {
     ValidTrait(TaskPriority);
     ValidTrait(TaskShutdownBehavior);
+    ValidTrait(ThreadPolicy);
     ValidTrait(MayBlock);
     ValidTrait(WithBaseSyncPrimitives);
   };
 
-  // Invoking this constructor without arguments produces TaskTraits that are
-  // appropriate for tasks that
+  // Invoking this constructor without arguments produces default TaskTraits
+  // that are appropriate for tasks that
   //     (1) don't block (ref. MayBlock() and WithBaseSyncPrimitives()),
-  //     (2) prefer inheriting the current priority to specifying their own, and
+  //     (2) pertain to user-blocking activity,
+  //         (explicitly or implicitly by having an ordering dependency with a
+  //          component that does)
   //     (3) can either block shutdown or be skipped on shutdown
-  //         (TaskScheduler implementation is free to choose a fitting default).
+  //         (the task recipient is free to choose a fitting default).
   //
-  // To get TaskTraits for tasks that require stricter guarantees and/or know
-  // the specific TaskPriority appropriate for them, provide arguments of type
-  // TaskPriority, TaskShutdownBehavior, MayBlock, and/or WithBaseSyncPrimitives
-  // in any order to the constructor.
+  // To get TaskTraits for tasks that have more precise traits: provide any
+  // combination of ValidTrait's as arguments to this constructor.
+  //
+  // Note: When posting to well-known threads (e.g. UI/IO), default traits are
+  // almost always what you want unless you know for sure the task being posted
+  // has no explicit/implicit ordering dependency with anything else running at
+  // default (USER_BLOCKING) priority.
   //
   // E.g.
   // constexpr base::TaskTraits default_traits = {};
-  // constexpr base::TaskTraits user_visible_traits =
-  //     {base::TaskPriority::USER_VISIBLE};
+  // constexpr base::TaskTraits user_visible_traits = {
+  //     base::TaskPriority::USER_VISIBLE};
   // constexpr base::TaskTraits user_visible_may_block_traits = {
-  //     base::TaskPriority::USER_VISIBLE, base::MayBlock()};
+  //     base::TaskPriority::USER_VISIBLE, base::MayBlock()
+  // };
   // constexpr base::TaskTraits other_user_visible_may_block_traits = {
-  //     base::MayBlock(), base ::TaskPriority::USER_VISIBLE};
+  //     base::MayBlock(), base::TaskPriority::USER_VISIBLE
+  // };
   template <class... ArgTypes,
-#if __cplusplus < 201402L
-            class CheckArgumentsAreValid = trait_helpers::InitTypes<
-                decltype(ValidTrait(std::declval<ArgTypes>()))...>>
-#else
             class CheckArgumentsAreValid = std::enable_if_t<
-                trait_helpers::AreValidTraits<ValidTrait, ArgTypes...>::value ||
-                trait_helpers::AreValidTraitsForExtension<ArgTypes...>::value>>
-#endif
+                trait_helpers::AreValidTraits<ValidTrait, ArgTypes...>::value>>
+  // TaskTraits are intended to be implicitly-constructable (eg {}).
+  // NOLINTNEXTLINE(google-explicit-constructor)
   constexpr TaskTraits(ArgTypes... args)
-#if __cplusplus < 201402L
-      :
-#else
-      : extension_(trait_helpers::GetTaskTraitsExtension(
-            trait_helpers::AreValidTraits<ValidTrait, ArgTypes...>{},
-            args...)),
-#endif
-        priority_(
-            trait_helpers::GetTraitFromArgList<TaskPriorityFilter>(args...)),
-        shutdown_behavior_(
-            trait_helpers::GetTraitFromArgList<TaskShutdownBehaviorFilter>(
+      : priority_(
+            trait_helpers::GetEnum<TaskPriority, TaskPriority::USER_BLOCKING>(
                 args...)),
-        priority_set_explicitly_(
-            trait_helpers::TraitIsDefined<TaskPriorityFilter>(args...)),
-        shutdown_behavior_set_explicitly_(
-            trait_helpers::TraitIsDefined<TaskShutdownBehaviorFilter>(args...)),
-        may_block_(trait_helpers::GetTraitFromArgList<MayBlockFilter>(args...)),
+        shutdown_behavior_(
+            static_cast<uint8_t>(
+                trait_helpers::GetEnum<TaskShutdownBehavior,
+                                       TaskShutdownBehavior::SKIP_ON_SHUTDOWN>(
+                    args...)) |
+            (trait_helpers::HasTrait<TaskShutdownBehavior, ArgTypes...>()
+                 ? kIsExplicitFlag
+                 : 0)),
+        thread_policy_(
+            static_cast<uint8_t>(
+                trait_helpers::GetEnum<ThreadPolicy,
+                                       ThreadPolicy::PREFER_BACKGROUND>(
+                    args...)) |
+            (trait_helpers::HasTrait<ThreadPolicy, ArgTypes...>()
+                 ? kIsExplicitFlag
+                 : 0)),
+        may_block_(trait_helpers::HasTrait<MayBlock, ArgTypes...>()),
         with_base_sync_primitives_(
-            trait_helpers::GetTraitFromArgList<WithBaseSyncPrimitivesFilter>(
-                args...)) {}
+            trait_helpers::HasTrait<WithBaseSyncPrimitives, ArgTypes...>()) {}
 
   constexpr TaskTraits(const TaskTraits& other) = default;
   TaskTraits& operator=(const TaskTraits& other) = default;
 
   // TODO(eseckler): Default the comparison operator once C++20 arrives.
   bool operator==(const TaskTraits& other) const {
-    static_assert(24 == sizeof(TaskTraits),
+    static_assert(sizeof(TaskTraits) == 5,
                   "Update comparison operator when TaskTraits change");
-    return extension_ == other.extension_ && priority_ == other.priority_ &&
+    return priority_ == other.priority_ &&
            shutdown_behavior_ == other.shutdown_behavior_ &&
-           priority_set_explicitly_ == other.priority_set_explicitly_ &&
-           shutdown_behavior_set_explicitly_ ==
-               other.shutdown_behavior_set_explicitly_ &&
+           thread_policy_ == other.thread_policy_ &&
            may_block_ == other.may_block_ &&
            with_base_sync_primitives_ == other.with_base_sync_primitives_;
   }
 
-  // Returns TaskTraits constructed by combining |left| and |right|. If a trait
-  // is specified in both |left| and |right|, the returned TaskTraits will have
-  // the value from |right|. Note that extension traits are not merged: any
-  // extension traits in |left| are discarded if extension traits are present in
-  // |right|.
-  static constexpr TaskTraits Override(const TaskTraits& left,
-                                       const TaskTraits& right) {
-    return TaskTraits(left, right);
-  }
-
-  // Returns true if the priority was set explicitly.
-  constexpr bool priority_set_explicitly() const {
-    return priority_set_explicitly_;
-  }
+  // Sets the priority of tasks with these traits to |priority|.
+  void UpdatePriority(TaskPriority priority) { priority_ = priority; }
 
   // Returns the priority of tasks with these traits.
   constexpr TaskPriority priority() const { return priority_; }
 
   // Returns true if the shutdown behavior was set explicitly.
   constexpr bool shutdown_behavior_set_explicitly() const {
-    return shutdown_behavior_set_explicitly_;
+    return shutdown_behavior_ & kIsExplicitFlag;
   }
 
   // Returns the shutdown behavior of tasks with these traits.
   constexpr TaskShutdownBehavior shutdown_behavior() const {
-    return shutdown_behavior_;
+    return static_cast<TaskShutdownBehavior>(shutdown_behavior_ &
+                                             ~kIsExplicitFlag);
+  }
+
+  // Returns true if the thread policy was set explicitly.
+  constexpr bool thread_policy_set_explicitly() const {
+    return thread_policy_ & kIsExplicitFlag;
+  }
+
+  // Returns the thread policy of tasks with these traits.
+  constexpr ThreadPolicy thread_policy() const {
+    return static_cast<ThreadPolicy>(thread_policy_ & ~kIsExplicitFlag);
   }
 
   // Returns true if tasks with these traits may block.
@@ -243,42 +309,15 @@ class BASE_EXPORT TaskTraits {
     return with_base_sync_primitives_;
   }
 
-  uint8_t extension_id() const { return extension_.extension_id; }
-
-  // Access the extension data by parsing it into the provided extension type.
-  // See task_traits_extension.h for requirements on the extension type.
-  template <class TaskTraitsExtension>
-  const TaskTraitsExtension GetExtension() const {
-    DCHECK_EQ(TaskTraitsExtension::kExtensionId, extension_.extension_id);
-    return TaskTraitsExtension::Parse(extension_);
-  }
-
  private:
-  constexpr TaskTraits(const TaskTraits& left, const TaskTraits& right)
-      : extension_(right.extension_.extension_id !=
-                           TaskTraitsExtensionStorage::kInvalidExtensionId
-                       ? right.extension_
-                       : left.extension_),
-        priority_(right.priority_set_explicitly_ ? right.priority_
-                                                 : left.priority_),
-        shutdown_behavior_(right.shutdown_behavior_set_explicitly_
-                               ? right.shutdown_behavior_
-                               : left.shutdown_behavior_),
-        priority_set_explicitly_(left.priority_set_explicitly_ ||
-                                 right.priority_set_explicitly_),
-        shutdown_behavior_set_explicitly_(
-            left.shutdown_behavior_set_explicitly_ ||
-            right.shutdown_behavior_set_explicitly_),
-        may_block_(left.may_block_ || right.may_block_),
-        with_base_sync_primitives_(left.with_base_sync_primitives_ ||
-                                   right.with_base_sync_primitives_) {}
+  // This bit is set in |priority_|, |shutdown_behavior_| and |thread_policy_|
+  // when the value was set explicitly.
+  static constexpr uint8_t kIsExplicitFlag = 0x80;
 
   // Ordered for packing.
-  TaskTraitsExtensionStorage extension_;
   TaskPriority priority_;
-  TaskShutdownBehavior shutdown_behavior_;
-  bool priority_set_explicitly_;
-  bool shutdown_behavior_set_explicitly_;
+  uint8_t shutdown_behavior_;
+  uint8_t thread_policy_;
   bool may_block_;
   bool with_base_sync_primitives_;
 };
