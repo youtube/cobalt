@@ -115,7 +115,7 @@ void ProgressiveDemuxerStream::EnqueueBuffer(
     // it's possible due to pipelining both downstream and within the
     // demuxer that several pipelined reads will be enqueuing packets
     // on a stopped stream. Drop them after complaining.
-    DLOG(WARNING) << "attempted to enqueue packet on stopped stream";
+    LOG(WARNING) << "attempted to enqueue packet on stopped stream";
     return;
   }
 
@@ -129,7 +129,7 @@ void ProgressiveDemuxerStream::EnqueueBuffer(
     }
     last_buffer_timestamp_ = buffer->timestamp();
   } else {
-    DLOG(WARNING) << "bad timestamp info on enqueued buffer.";
+    LOG(WARNING) << "bad timestamp info on enqueued buffer.";
   }
 
   // Check for any already waiting reads, service oldest read if there
@@ -168,7 +168,7 @@ void ProgressiveDemuxerStream::FlushBuffers() {
   TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::FlushBuffers()");
   base::AutoLock auto_lock(lock_);
   // TODO: Investigate if the following warning is valid.
-  DLOG_IF(WARNING, !read_queue_.empty()) << "Read requests should be empty";
+  LOG_IF(WARNING, !read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
   total_buffer_size_ = 0;
   total_buffer_count_ = 0;
@@ -228,7 +228,7 @@ void ProgressiveDemuxer::Initialize(DemuxerHost* host,
   DCHECK(reader_);
   DCHECK(!parser_);
 
-  DLOG(INFO) << "this is a PROGRESSIVE playback.";
+  LOG(INFO) << "this is a PROGRESSIVE playback.";
 
   host_ = host;
 
@@ -327,7 +327,7 @@ void ProgressiveDemuxer::Request(DemuxerStream::Type type) {
   // fatal parsing error returns NULL or malformed AU
   if (!au || !au->IsValid()) {
     if (!HasStopCalled()) {
-      DLOG(ERROR) << "got back bad AU from parser";
+      LOG(ERROR) << "got back bad AU from parser";
       host_->OnDemuxerError(::media::DEMUXER_ERROR_COULD_NOT_PARSE);
     }
     return;
@@ -421,7 +421,7 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
                requested_au_->GetTimestamp().InMicroseconds());
   // do nothing if stopped
   if (HasStopCalled()) {
-    DLOG(INFO) << "aborting download task, stopped";
+    LOG(INFO) << "aborting download task, stopped";
     return;
   }
 
@@ -429,14 +429,14 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   // a new request. Drop current request and issue a new one.
   // flushing_ will be reset by the next call to RequestTask()
   if (flushing_) {
-    DLOG(INFO) << "skipped AU download due to flush";
+    LOG(INFO) << "skipped AU download due to flush";
     requested_au_ = NULL;
     IssueNextRequest();
     return;
   }
 
   if (!requested_au_->Read(reader_.get(), buffer.get())) {
-    DLOG(ERROR) << "au read failed";
+    LOG(ERROR) << "au read failed";
     host_->OnDemuxerError(::media::PIPELINE_ERROR_READ);
     return;
   }
@@ -473,7 +473,7 @@ void ProgressiveDemuxer::IssueNextRequest() {
   DCHECK(!requested_au_);
   // if we're stopped don't download anymore
   if (HasStopCalled()) {
-    DLOG(INFO) << "stopped so request loop is stopping";
+    LOG(INFO) << "stopped so request loop is stopping";
     return;
   }
 
@@ -483,7 +483,7 @@ void ProgressiveDemuxer::IssueNextRequest() {
     if (audio_reached_eos_) {
       if (video_reached_eos_) {
         // both are true, issue no more requests!
-        DLOG(INFO) << "both streams at EOS, request loop stopping";
+        LOG(INFO) << "both streams at EOS, request loop stopping";
         return;
       } else {
         // audio is at eos, video isn't, get more video
@@ -551,14 +551,14 @@ void ProgressiveDemuxer::SeekTask(base::TimeDelta time,
                                   PipelineStatusCallback cb) {
   TRACE_EVENT1("media_stack", "ProgressiveDemuxer::SeekTask()", "timestamp",
                time.InMicroseconds());
-  DLOG(INFO) << base::StringPrintf("seek to: %" PRId64 " ms",
-                                   time.InMilliseconds());
+  LOG(INFO) << base::StringPrintf("seek to: %" PRId64 " ms",
+                                  time.InMilliseconds());
   // clear any enqueued buffers on demuxer streams
   audio_demuxer_stream_->FlushBuffers();
   video_demuxer_stream_->FlushBuffers();
   // advance parser to new timestamp
   if (!parser_->SeekTo(time)) {
-    DLOG(ERROR) << "parser seek failed.";
+    LOG(ERROR) << "parser seek failed.";
     std::move(cb).Run(::media::PIPELINE_ERROR_READ);
     return;
   }
@@ -569,7 +569,7 @@ void ProgressiveDemuxer::SeekTask(base::TimeDelta time,
   flushing_ = true;
   std::move(cb).Run(::media::PIPELINE_OK);
   if (issue_new_request) {
-    DLOG(INFO) << "restarting stopped request loop";
+    LOG(INFO) << "restarting stopped request loop";
     Request(DemuxerStream::AUDIO);
   }
 }
