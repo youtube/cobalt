@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "base/logging.h"
 #include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
@@ -51,10 +52,10 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsSystemCanBeInitializedOften) {
   }
   int64_t time_per_initialization_usec =
       (starboard::CurrentMonotonicTime() - start) / kReferenceCount;
-  SB_LOG(INFO) << "Measured duration "
-               << time_per_initialization_usec /
-                      base::Time::kMicrosecondsPerMillisecond
-               << "ms per initialization.";
+  LOG(INFO) << "Measured duration "
+            << time_per_initialization_usec /
+                   base::Time::kMicrosecondsPerMillisecond
+            << "ms per initialization.";
 
   // Graphics system initializations should not take more than the maximum of
   // 250ms or three times as long as the time we just measured.
@@ -68,9 +69,9 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsSystemCanBeInitializedOften) {
     graphics_system.reset();
     int64_t now = starboard::CurrentMonotonicTime();
     int64_t elapsed_time_usec = now - last;
-    SB_LOG(INFO) << "Test duration "
-                 << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
-                 << "ms.";
+    LOG(INFO) << "Test duration "
+              << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
+              << "ms.";
     ASSERT_LT(elapsed_time_usec, maximum_time_usec_per_initialization);
     last = now;
   }
@@ -100,10 +101,10 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
   int64_t time_per_initialization_usec =
       base::Time::kMicrosecondsPerMillisecond +
       (starboard::CurrentMonotonicTime() - start) / kReferenceCount;
-  SB_LOG(INFO) << "Measured duration "
-               << time_per_initialization_usec /
-                      base::Time::kMicrosecondsPerMillisecond
-               << "ms per initialization.";
+  LOG(INFO) << "Measured duration "
+            << time_per_initialization_usec /
+                   base::Time::kMicrosecondsPerMillisecond
+            << "ms per initialization.";
 
   // Graphics system and context initializations should not take more than the
   // maximum of 250ms or three times as long as the time we just measured.
@@ -121,9 +122,9 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
 
     int64_t now = starboard::CurrentMonotonicTime();
     int64_t elapsed_time_usec = now - last;
-    SB_LOG(INFO) << "Test duration "
-                 << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
-                 << "ms.";
+    LOG(INFO) << "Test duration "
+              << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
+              << "ms.";
     ASSERT_LT(elapsed_time_usec, maximum_time_usec_per_initialization);
     last = now;
   }
