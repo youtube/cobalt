@@ -45,15 +45,18 @@ int PosixSocketCreateAndConnect(int server_domain,
     return -1;
   }
   // bind socket with local address
-  struct sockaddr_in address = {};
-  result =
-      PosixGetLocalAddressiIPv4(reinterpret_cast<struct sockaddr*>(&address));
-
-  address.sin_port = port;
-  address.sin_family = AF_INET;
-  if (result != 0) {
-    return -1;
-  }
+#if SB_HAS(IPV6)
+  sockaddr_in6 address = {};
+  EXPECT_TRUE(
+      PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
+      PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
+  address.sin6_port = htons(GetPortNumberForTests());
+#else
+  sockaddr address = {0};
+  EXPECT_TRUE(PosixGetLocalAddressIPv4(&address) == 0);
+  sockaddr_in* address_ptr = reinterpret_cast<sockaddr_in*>(&address);
+  address_ptr->sin_port = htons(GetPortNumberForTests());
+#endif
 
   result = bind(*listen_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
                 sizeof(struct sockaddr_in));
@@ -85,7 +88,7 @@ int PosixSocketCreateAndConnect(int server_domain,
 
   result =
       connect(*client_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
-              sizeof(struct sockaddr_in));
+              sizeof(struct sockaddr));
   if (result != 0) {
     close(*listen_socket_fd);
     close(*client_socket_fd);
@@ -136,10 +139,10 @@ int PosixSocketSetSendBufferSize(int socket_fd, int32_t size) {
   return setsockopt(socket_fd, SOL_SOCKET, SO_SNDBUF, "SO_SNDBUF", size);
 }
 
-int PosixGetLocalAddressiIPv4(sockaddr* address_ptr) {
+int PosixGetLocalAddressIPv4(sockaddr* address_ptr) {
   int result = -1;
-  struct ifaddrs* ifaddr;
-  if (getifaddrs(&ifaddr) == -1) {
+  struct ifaddrs* ifaddr = NULL;
+  if (getifaddrs(&ifaddr) != 0) {
     return -1;
   }
   /* Walk through linked list, maintaining head pointer so we
@@ -162,7 +165,7 @@ int PosixGetLocalAddressiIPv4(sockaddr* address_ptr) {
 }
 
 #if SB_HAS(IPV6)
-int PosixGetLocalAddressiIPv6(sockaddr_in6* address_ptr) {
+int PosixGetLocalAddressIPv6(sockaddr* address_ptr) {
   int result = -1;
   struct ifaddrs* ifaddr;
   if (getifaddrs(&ifaddr) == -1) {

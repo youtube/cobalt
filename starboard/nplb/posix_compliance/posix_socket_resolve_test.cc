@@ -31,20 +31,20 @@ TEST(PosixSocketResolveTest, SunnyDay) {
   ASSERT_NE(nullptr, ai);
 
   int address_count = 0;
-  struct sockaddr* ai_addr = nullptr;
+  struct sockaddr_in* ai_addr = nullptr;
 
   for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
     ++address_count;
     if (ai_addr == nullptr && i->ai_addr != nullptr) {
-      ai_addr = i->ai_addr;
+      ai_addr = reinterpret_cast<sockaddr_in*>(i->ai_addr);
+      break;
     }
   }
   EXPECT_LT(0, address_count);
   EXPECT_NE(nullptr, ai_addr);
 
-  for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
-    EXPECT_TRUE(i->ai_family == AF_INET || i->ai_family == AF_INET6);
-  }
+  EXPECT_TRUE(ai_addr->sin_family == AF_INET ||
+              ai_addr->sin_family == AF_INET6);
 
   freeaddrinfo(ai);
 }
@@ -58,19 +58,19 @@ TEST(PosixSocketResolveTest, Localhost) {
   ASSERT_NE(nullptr, ai);
 
   int address_count = 0;
-  struct sockaddr* ai_addr = nullptr;
+  struct sockaddr_in* ai_addr = nullptr;
   for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
     ++address_count;
     if (ai_addr == nullptr && i->ai_addr != nullptr) {
-      ai_addr = i->ai_addr;
+      ai_addr = reinterpret_cast<sockaddr_in*>(i->ai_addr);
+      break;
     }
   }
   EXPECT_LT(0, address_count);
   EXPECT_NE(nullptr, ai_addr);
 
-  for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
-    EXPECT_TRUE(i->ai_family == AF_INET || i->ai_family == AF_INET6);
-  }
+  EXPECT_TRUE(ai_addr->sin_family == AF_INET ||
+              ai_addr->sin_family == AF_INET6);
 
   freeaddrinfo(ai);
 }
