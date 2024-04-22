@@ -15,6 +15,7 @@
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
 
+#include <fcntl.h>
 #include <sched.h>
 
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
@@ -36,6 +37,9 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
   int result = -1;
   ASSERT_TRUE(socket_listen_fd >= 0);
 
+  // set socket non-blocking
+  fcntl(socket_listen_fd, F_SETFL, O_NONBLOCK);
+
   // set socket reuseable
   const int on = 1;
   result =
@@ -47,16 +51,19 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
   }
 
   // bind socket with local address
-  struct sockaddr_in address = {};
-  result =
-      PosixGetLocalAddressiIPv4(reinterpret_cast<struct sockaddr*>(&address));
-  address.sin_port = GetPortNumberForTests();
-  address.sin_family = AF_INET;
-  EXPECT_TRUE(result == 0);
-  if (result != 0) {
-    close(socket_listen_fd);
-    return;
-  }
+#if SB_HAS(IPV6)
+  sockaddr_in6 address = {};
+  EXPECT_TRUE(
+      PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
+      PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
+  address.sin6_port = htons(GetPortNumberForTests());
+#else
+  sockaddr address = {0};
+  EXPECT_TRUE(PosixGetLocalAddressIPv4(&address) == 0);
+  sockaddr_in* address_ptr = reinterpret_cast<sockaddr_in*>(&address);
+  address_ptr->sin_port = htons(GetPortNumberForTests());
+#endif
+
   result = bind(socket_listen_fd, reinterpret_cast<sockaddr*>(&address),
                 sizeof(sockaddr));
   EXPECT_TRUE(result == 0);
@@ -128,11 +135,18 @@ TEST(PosixSocketAcceptTest, RainyDayNotListening) {
   }
 
   // bind socket with local address
-  struct sockaddr_in address = {};
-  result =
-      PosixGetLocalAddressiIPv4(reinterpret_cast<struct sockaddr*>(&address));
-  address.sin_port = GetPortNumberForTests();
-  address.sin_family = AF_INET;
+#if SB_HAS(IPV6)
+  sockaddr_in6 address = {};
+  EXPECT_TRUE(
+      PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
+      PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
+  address.sin6_port = htons(GetPortNumberForTests());
+#else
+  sockaddr address = {0};
+  EXPECT_TRUE(PosixGetLocalAddressIPv4(&address) == 0);
+  sockaddr_in* address_ptr = reinterpret_cast<sockaddr_in*>(&address);
+  address_ptr->sin_port = htons(GetPortNumberForTests());
+#endif
   EXPECT_TRUE(result == 0);
   if (result != 0) {
     close(socket_fd);
