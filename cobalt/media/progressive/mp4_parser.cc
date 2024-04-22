@@ -138,7 +138,7 @@ scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
   base::TimeDelta duration;
   if (type == DemuxerStream::AUDIO) {
     if (audio_time_scale_hz_ == 0) {
-      DLOG(ERROR) << "|audio_time_scale_hz_| cannot be 0.";
+      LOG(ERROR) << "|audio_time_scale_hz_| cannot be 0.";
       return NULL;
     }
     if (!audio_map_->GetSize(audio_sample_, &size) ||
@@ -150,7 +150,7 @@ scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
         return AvcAccessUnit::CreateEndOfStreamAU(DemuxerStream::AUDIO,
                                                   audio_track_duration_);
       } else {
-        DLOG(ERROR) << "parsed bad audio AU";
+        LOG(ERROR) << "parsed bad audio AU";
         return NULL;
       }
     }
@@ -178,14 +178,14 @@ scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
       first_audio_hole_ = timestamp + duration;
       first_audio_hole_ticks_ += duration_ticks;
     } else {
-      DLOG(WARNING) << "parsed non-contiguous mp4 audio timestamp";
+      LOG(WARNING) << "parsed non-contiguous mp4 audio timestamp";
       // reset hole tracking past gap
       first_audio_hole_ticks_ = timestamp_ticks + duration_ticks;
       first_audio_hole_ = timestamp + duration;
     }
   } else if (type == DemuxerStream::VIDEO) {
     if (video_time_scale_hz_ == 0) {
-      DLOG(ERROR) << "|video_time_scale_hz_| cannot be 0.";
+      LOG(ERROR) << "|video_time_scale_hz_| cannot be 0.";
       return NULL;
     }
     if (!video_map_->GetSize(video_sample_, &size) ||
@@ -197,7 +197,7 @@ scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
         return AvcAccessUnit::CreateEndOfStreamAU(DemuxerStream::VIDEO,
                                                   video_track_duration_);
       } else {
-        DLOG(ERROR) << "parsed bad video AU";
+        LOG(ERROR) << "parsed bad video AU";
         return NULL;
       }
     }
@@ -227,9 +227,9 @@ scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
 
 bool MP4Parser::SeekTo(base::TimeDelta timestamp) {
   if (audio_time_scale_hz_ == 0 || video_time_scale_hz_ == 0) {
-    DLOG_IF(ERROR, audio_time_scale_hz_ == 0)
+    LOG_IF(ERROR, audio_time_scale_hz_ == 0)
         << "|audio_time_scale_hz_| cannot be 0.";
-    DLOG_IF(ERROR, video_time_scale_hz_ == 0)
+    LOG_IF(ERROR, video_time_scale_hz_ == 0)
         << "|video_time_scale_hz_| cannot be 0.";
     return false;
   }
@@ -252,7 +252,7 @@ bool MP4Parser::SeekTo(base::TimeDelta timestamp) {
   if (!audio_map_->GetKeyframe(audio_ticks, &audio_sample_)) {
     return false;
   }
-  DLOG(INFO) << base::StringPrintf(
+  LOG(INFO) << base::StringPrintf(
       "seeking to timestamp: %" PRId64 ", video sample: %d, audio sample: %d",
       timestamp.InMilliseconds(), video_sample_, audio_sample_);
   // cheat our buffer continuity system
@@ -300,16 +300,16 @@ bool MP4Parser::ParseNextAtom() {
   // atom sizes also include the size of the start of the atom, so sanity-check
   // the size we just parsed against the number of bytes we needed to parse it
   if (atom_size < atom_body) {
-    DLOG(WARNING) << base::StringPrintf("atom size: %" PRId64
-                                        " less than min body size %d",
-                                        atom_size, atom_body);
+    LOG(WARNING) << base::StringPrintf("atom size: %" PRId64
+                                       " less than min body size %d",
+                                       atom_size, atom_body);
     return false;
   }
 
   // extract fourCC code as big-endian uint32
   uint32 four_cc = endian_util::load_uint32_big_endian(atom + 4);
-  DLOG(INFO) << base::StringPrintf("four_cc: %c%c%c%c", atom[4], atom[5],
-                                   atom[6], atom[7]);
+  LOG(INFO) << base::StringPrintf("four_cc: %c%c%c%c", atom[4], atom[5],
+                                  atom[6], atom[7]);
 
   // advance read pointer to atom body
   atom_offset_ += atom_body;
@@ -434,9 +434,8 @@ bool MP4Parser::ParseNextAtom() {
     // entirely, meaning we will skip their contents too.
     default:
       atom_offset_ += atom_data_size;
-      DLOG(INFO) << base::StringPrintf(
-          "skipping unsupported MP4 atom: %c%c%c%c", atom[4], atom[5], atom[6],
-          atom[7]);
+      LOG(INFO) << base::StringPrintf("skipping unsupported MP4 atom: %c%c%c%c",
+                                      atom[4], atom[5], atom[6], atom[7]);
       break;
   }
 
@@ -454,8 +453,8 @@ bool MP4Parser::ParseNextAtom() {
   }
 
   if (!atom_parse_success) {
-    DLOG(ERROR) << base::StringPrintf("Unable to parse MP4 atom: %c%c%c%c",
-                                      atom[4], atom[5], atom[6], atom[7]);
+    LOG(ERROR) << base::StringPrintf("Unable to parse MP4 atom: %c%c%c%c",
+                                     atom[4], atom[5], atom[6], atom[7]);
   }
 
   return atom_parse_success;
@@ -463,7 +462,7 @@ bool MP4Parser::ParseNextAtom() {
 
 bool MP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   if (atom_data_size < kFullBoxHeaderAndFlagSize) {
-    DLOG(WARNING) << base::StringPrintf(
+    LOG(WARNING) << base::StringPrintf(
         "esds box should at least be %d bytes but now it is %" PRId64 " bytes",
         kFullBoxHeaderAndFlagSize, atom_data_size);
     return false;
@@ -481,7 +480,7 @@ bool MP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   // download esds
   int bytes_read = reader_->BlockingRead(esds_offset, esds_size, esds);
   if (bytes_read < esds_size) {
-    DLOG(WARNING) << "failed to download esds";
+    LOG(WARNING) << "failed to download esds";
     return false;
   }
   ::media::mp4::ESDescriptor es_descriptor;
@@ -493,9 +492,9 @@ bool MP4Parser::ParseMP4_esds(uint64 atom_data_size) {
       atom_offset_ += atom_data_size;
       return true;
     }
-    DLOG(WARNING) << "esds audio specific config shorter than 2 bytes";
+    LOG(WARNING) << "esds audio specific config shorter than 2 bytes";
   } else {
-    DLOG(WARNING) << "error in parse esds box";
+    LOG(WARNING) << "error in parse esds box";
   }
 
   return false;
@@ -506,8 +505,8 @@ bool MP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
   DCHECK_LE(kDesiredBytes_hdlr + 16, kAtomDownload);
   // sanity-check for minimum size
   if (atom_data_size < kDesiredBytes_hdlr) {
-    DLOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on hdlr",
-                                        atom_data_size);
+    LOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on hdlr",
+                                       atom_data_size);
     return false;
   }
   // last 4 bytes of the 12 we need are an ascii code for the trak type, we
@@ -537,13 +536,13 @@ bool MP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
 bool MP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
   DCHECK_LE(kDesiredBytes_mdhd + 16, kAtomDownload);
   if (atom_data_size < kDesiredBytes_mdhd) {
-    DLOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on mdhd",
-                                        atom_data_size);
+    LOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on mdhd",
+                                       atom_data_size);
     return false;
   }
   uint32 time_scale = endian_util::load_uint32_big_endian(mdhd + 12);
   if (time_scale == 0) {
-    DLOG(WARNING) << "got 0 time scale for mvhd";
+    LOG(WARNING) << "got 0 time scale for mvhd";
     return false;
   }
   // double-check track duration, it may be different from the movie duration
@@ -551,10 +550,10 @@ bool MP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
   base::TimeDelta track_duration =
       TicksToTime(track_duration_ticks, time_scale);
   if (track_duration > duration_) {
-    DLOG(WARNING) << base::StringPrintf("mdhd has longer duration: %" PRId64
-                                        " ms than old value: %" PRId64 " ms.",
-                                        track_duration.InMicroseconds(),
-                                        duration_.InMicroseconds());
+    LOG(WARNING) << base::StringPrintf("mdhd has longer duration: %" PRId64
+                                       " ms than old value: %" PRId64 " ms.",
+                                       track_duration.InMicroseconds(),
+                                       duration_.InMicroseconds());
     duration_ = track_duration;
   }
   if (current_trak_is_video_) {
@@ -583,8 +582,8 @@ bool MP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
   // number of this atom, which tells us the size of the rest of the header,
   // telling us how much we should skip to get to the extension contents.
   if (atom_data_size < kDesiredBytes_mp4a) {
-    DLOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on mp4a",
-                                        atom_data_size);
+    LOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on mp4a",
+                                       atom_data_size);
     return false;
   }
   uint16 mp4a_version = endian_util::load_uint16_big_endian(mp4a);
@@ -603,8 +602,8 @@ bool MP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
 
     default:
       // unknown mp4a atom version, parse failure
-      DLOG(ERROR) << base::StringPrintf("parsed bad mp4a version %d",
-                                        mp4a_version);
+      LOG(ERROR) << base::StringPrintf("parsed bad mp4a version %d",
+                                       mp4a_version);
       return false;
   }
 }
@@ -623,13 +622,13 @@ bool MP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
   DCHECK_LE(kDesiredBytes_mvhd + 16, kAtomDownload);
   // it should be at least long enough for us to extract the parts we want
   if (atom_data_size < kDesiredBytes_mvhd) {
-    DLOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on mvhd",
-                                        atom_data_size);
+    LOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on mvhd",
+                                       atom_data_size);
     return false;
   }
   uint32 time_scale_hz = endian_util::load_uint32_big_endian(mvhd + 12);
   if (time_scale_hz == 0) {
-    DLOG(WARNING) << "got 0 time scale for mvhd";
+    LOG(WARNING) << "got 0 time scale for mvhd";
     return false;
   }
   // duration is in units of the time scale we just extracted
