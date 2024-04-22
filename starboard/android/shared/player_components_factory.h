@@ -75,6 +75,11 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 // during Seek().
 constexpr bool kForceFlushDecoderDuringReset = false;
 
+// By default, Cobalt teardowns AudioDecoder during Reset().
+// Set the following variable to true to force it reset audio decoder
+// during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
+constexpr bool kForceResetAudioDecoder = false;
+
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
@@ -382,6 +387,22 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << tunnel_mode_audio_session_id << '.';
     }
 
+    bool enable_reset_audio_decoder =
+        video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
+    SB_LOG(INFO) << "Reset AudioDecoder during Reset(): "
+                 << (enable_reset_audio_decoder ? "enabled. " : "disabled. ")
+                 << "Video mime parameter \"enableresetaudiodecoder\" value: "
+                 << video_mime_type.GetParamStringValue(
+                        "enableresetaudiodecoder", "<not provided>")
+                 << ".";
+
+    if (kForceResetAudioDecoder && !enable_reset_audio_decoder) {
+      SB_LOG(INFO)
+          << "`kForceResetAudioDecoder` is set to true, force resetting"
+          << " audio decoder during Reset().";
+      enable_reset_audio_decoder = true;
+    }
+
     bool enable_flush_during_seek =
         video_mime_type.GetParamBoolValue("enableflushduringseek", false);
     SB_LOG(INFO) << "Flush MediaCodec during Reset(): "
@@ -431,7 +452,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
           creation_parameters.audio_stream_info(),
-          creation_parameters.drm_system(), decoder_creator));
+          creation_parameters.drm_system(), decoder_creator,
+          enable_reset_audio_decoder));
 
       if (tunnel_mode_audio_session_id != -1) {
         *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
