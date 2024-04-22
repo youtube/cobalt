@@ -771,7 +771,7 @@ TEST_F(WatchdogTest, WatchdogMethodsAreNoopWhenWatchdogIsDisabled) {
   ASSERT_TRUE(watchdog_->Ping("test-name"));
   ASSERT_TRUE(watchdog_->PingByClient(nullptr));
 
-  SbThreadSleep(kWatchdogSleepDuration);
+  usleep(kWatchdogSleepDuration);
 
   ASSERT_EQ(watchdog_->GetWatchdogViolations(), "");
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
