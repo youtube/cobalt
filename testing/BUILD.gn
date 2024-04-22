@@ -1,5 +1,0 @@
-group("run_perf_tests") {
-}
-
-group("run_perf_test") {
-}

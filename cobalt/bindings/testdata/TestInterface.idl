@@ -1,6 +1,0 @@
-interface TestInterface {
-  const double PORK_CHOP = 5.3;
-  attribute DOMString peach;
-  readonly attribute DOMString banana;
-  long Tomato();
-};

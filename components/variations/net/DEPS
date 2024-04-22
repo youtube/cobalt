@@ -1,6 +1,0 @@
-include_rules = [
-  "+components/google",
-  "+components/metrics",
-  "+net",
-  "+services/network/public/cpp",
-]
