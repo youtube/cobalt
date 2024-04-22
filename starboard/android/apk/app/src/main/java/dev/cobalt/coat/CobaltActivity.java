@@ -14,18 +14,34 @@
 
 package dev.cobalt.coat;
 
-import android.app.Activity;
-import android.app.Application;
-import android.os.Bundle;
-import android.view.View;
+import static dev.cobalt.util.Log.TAG;
 
-import com.google.androidgamesdk.GameActivity;
+import android.annotation.SuppressLint;
+import android.graphics.Bitmap;
 import android.media.AudioManager;
-import java.util.List;
+import android.os.Bundle;
+import android.view.KeyEvent;
+import android.view.View;
+import android.view.WindowManager;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import androidx.activity.OnBackPressedCallback;
+import androidx.activity.OnBackPressedDispatcher;
+import com.google.androidgamesdk.GameActivity;
+import dev.cobalt.libraries.services.ClientLogInfoModule;
+import dev.cobalt.libraries.services.FakeSoftMicModule;
+import dev.cobalt.util.Log;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
-/** Native activity. */
+/**
+ * Native activity.
+ */
 public abstract class CobaltActivity extends GameActivity {
 
   // A place to put args while debugging so they're used even when starting from the launcher.
@@ -36,9 +52,7 @@ public abstract class CobaltActivity extends GameActivity {
 
   private long timeInNanoseconds;
 
-  static {
-    System.loadLibrary("coat");
-  }
+  private WebView webView;
 
   protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
 
@@ -51,6 +65,34 @@ public abstract class CobaltActivity extends GameActivity {
     return args.toArray(new String[0]);
   }
 
+
+  private String loadJavaScriptFromAsset(String filename) {
+    try {
+      InputStream is = getAssets().open(filename);
+      int size = is.available();
+      byte[] buffer = new byte[size];
+      is.read(buffer);
+      is.close();
+      return new String(buffer, StandardCharsets.UTF_8);
+    } catch (IOException ex) {
+      Log.e(TAG, "asset " + filename + " failed to load");
+      return String.format("console.error('asset %s failed to load');", filename);
+    }
+  }
+
+  @Override
+  public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      Log.d(TAG, "Special key was pressed: " + keyCode);
+      webView.evaluateJavascript("handleBackPress()", null);
+    } else {
+      Log.d(TAG, "Key was pressed: " + keyCode);
+    }
+    return super.onKeyDown(keyCode, event);
+  }
+
+
+  @SuppressLint("SetJavaScriptEnabled")
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
@@ -60,15 +102,112 @@ public abstract class CobaltActivity extends GameActivity {
 
     String startDeepLink = "";
 
+    // super.onCreate() will cause an APP_CMD_START in native code,
+    // so make sure to initialize any state beforehand that might be touched by
+    // native code invocations.
+    super.onCreate(savedInstanceState);
+
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
+      Log.i(TAG, "TODO..");
     }
 
-    super.onCreate(savedInstanceState);
+    CobaltService.Factory clientLogInfoFactory = new ClientLogInfoModule().provideFactory(
+        getApplicationContext());
+    getStarboardBridge().registerCobaltService(clientLogInfoFactory);
+    CobaltService.Factory fakeSoftMicFactory = new FakeSoftMicModule().provideFactory(
+        getApplicationContext());
+    getStarboardBridge().registerCobaltService(fakeSoftMicFactory);
+
+    // Make the activity full-screen
+    getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+        WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+    OnBackPressedDispatcher dispatcher = getOnBackPressedDispatcher();
+    dispatcher.addCallback(this, new OnBackPressedCallback(true) {
+      @Override
+      public void handleOnBackPressed() {
+        Log.i(TAG, "Back was pressed");
+        webView.goBack();
+      }
+    });
+
+    // Allow debugger
+    WebView.setWebContentsDebuggingEnabled(true);
+    // Create a WebView instance
+    webView = new WebView(this);
+
+    // Enable JavaScript (if needed)
+    WebSettings webSettings = webView.getSettings();
+    webSettings.setJavaScriptEnabled(true);
+
+    // Set a custom user-agent
+    String customUserAgent = "Mozilla/5.0 (Linux armeabi-v7a; Android 12) "
+        + "Cobalt/26.lts.99.42-gold (unlike Gecko) v8/8.8.278.8-jit gles "
+        + "Starboard/15, Google_ATV_sabrina_2020/STTE.231215.005 "
+        + "(google, Chromecast) com.google.android.youtube.tv/6.30.300";
+    webSettings.setUserAgentString(customUserAgent);
+
+    // Set mixed content mode to allow all content to be loaded, regardless of the security origin
+    webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+
+    // Set cache mode to allow the WebView to use the default cache behavior
+    webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+    // Enable DOM storage
+    webSettings.setDomStorageEnabled(true);
+
+    webView.addJavascriptInterface(new WebAppInterface(this, getStarboardBridge()), "Android");
+
+    // Set a WebViewClient to handle page navigation
+    webView.setWebViewClient(new WebViewClient() {
+      @Override
+      public void onPageStarted(WebView view, String url, Bitmap favicon) {
+        Log.i(TAG, "Page started loading: " + url);
+        super.onPageStarted(view, url, favicon);
+
+        String jsCode = loadJavaScriptFromAsset("injected_script.js");
+
+        Helpers.loadJavaScriptFromURL("http://192.168.5.188:8000/dyn_script.js")
+            .thenAccept(jsCode2 -> {
+              runOnUiThread(() -> {
+                // Perform UI operations here
+                Log.i(TAG, "Got JS2, injecting");
+                view.evaluateJavascript(jsCode2, null);
+              });
+            }).exceptionally(e -> {
+              // Handle any exceptions here
+              Log.e(TAG, "Error message: " + e.getMessage(), e);
+              return null;
+            });
+
+        view.evaluateJavascript(jsCode, null);
+        Log.i(TAG, "JavaScript injected");
+      }
+
+      @Override
+      public void onPageFinished(WebView view, String url) {
+        Log.i(TAG, "Page finished loading: " + url);
+        super.onPageFinished(view, url);
+
+        View currentFocus = getCurrentFocus();
+        if (currentFocus != null) {
+          Log.d(TAG, "Current focus: " + currentFocus.getId());
+        } else {
+          Log.d(TAG, "No view currently has focus");
+        }
+      }
+    });
+
+    // Load Kabuki
+    webView.loadUrl("https://youtube.com/tv?debugjs=1");
+
+    // Set the WebView as the main content view of the activity
+    setContentView(webView);
   }
 
   @Override
@@ -83,12 +222,9 @@ public abstract class CobaltActivity extends GameActivity {
   private void hideSystemUi() {
     View decorView = getWindow().getDecorView();
     decorView.setSystemUiVisibility(
-        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-            | View.SYSTEM_UI_FLAG_FULLSCREEN
-    );
+        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN);
   }
+
 }

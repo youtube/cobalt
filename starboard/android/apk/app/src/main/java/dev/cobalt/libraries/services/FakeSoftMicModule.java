@@ -1,22 +1,20 @@
 package dev.cobalt.libraries.services;
-
 import android.content.Context;
 import dev.cobalt.coat.CobaltService;
 
-/** Client info module */
-public class ClientLogInfoModule {
+/** Fake SoftMic Module */
+public class FakeSoftMicModule {
   public CobaltService.Factory provideFactory(final Context context) {
     return new CobaltService.Factory() {
       @Override
       public CobaltService createCobaltService(long nativeService) {
-        return new ClientLogInfo(context, nativeService);
+        return new FakeSoftMic(context, nativeService);
       }
 
       @Override
       public String getServiceName() {
-        return ClientLogInfo.SERVICE_NAME;
+        return FakeSoftMic.SERVICE_NAME;
       }
     };
   }
-
 }
