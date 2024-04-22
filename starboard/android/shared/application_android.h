@@ -128,8 +128,13 @@ class ApplicationAndroid
   void OnSuspend() override;
 
   // --- QueueApplication overrides ---
+<<<<<<< HEAD
   bool MayHaveSystemEvents() override { return handle_system_events_; }
   Event* WaitForSystemEventWithTimeout(SbTime time) override;
+=======
+  bool MayHaveSystemEvents() override { return handle_system_events_.load(); }
+  Event* WaitForSystemEventWithTimeout(int64_t time) override;
+>>>>>>> ed27e83d758 ([Android] Fix CPU spinning of StarboardMain. (#3027))
   void WakeSystemEventWait() override;
 
  private:
@@ -144,7 +149,7 @@ class ApplicationAndroid
 
   // In certain situations, the Starboard thread should not try to process new
   // system events (e.g. while one is being processed).
-  bool handle_system_events_ = true;
+  atomic_bool handle_system_events_;
 
   // Synchronization for commands that change availability of Android resources
   // such as the input and/or native_window_.

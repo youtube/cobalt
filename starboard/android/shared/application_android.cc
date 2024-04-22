@@ -100,6 +100,7 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
       QueueApplication(sb_event_handle_callback),
 #endif  // SB_API_VERSION >= 15
       last_is_accessibility_high_contrast_text_enabled_(false) {
+  handle_system_events_.store(true);
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
   tzset();
@@ -208,19 +209,27 @@ bool ApplicationAndroid::DestroyWindow(SbWindow window) {
 
 Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
   // Limit the polling time in case some non-system event is injected.
-  const int kMaxPollingTimeMillisecond = 10;
+  const int kMaxPollingTimeMillisecond = 1000;
 
   // Convert from microseconds to milliseconds, taking the ceiling value.
   // If we take the floor, or round, then we end up busy looping every time
   // the next event time is less than one millisecond.
+<<<<<<< HEAD
   int timeout_millis = (time + kSbTimeMillisecond - 1) / kSbTimeMillisecond;
+=======
+  int timeout_millis =
+      (time <
+       std::min(kSbInt64Max - 1000, 1000 * static_cast<int64_t>(INT_MAX - 1)))
+          ? (time + 1000 - 1) / 1000
+          : INT_MAX;
+>>>>>>> ed27e83d758 ([Android] Fix CPU spinning of StarboardMain. (#3027))
   int looper_events;
-  int ident = ALooper_pollAll(
+  int ident = ALooper_pollOnce(
       std::min(std::max(timeout_millis, 0), kMaxPollingTimeMillisecond), NULL,
       &looper_events, NULL);
 
   // Ignore new system events while processing one.
-  handle_system_events_ = false;
+  handle_system_events_.store(false);
 
   switch (ident) {
     case kLooperIdAndroidCommand:
@@ -231,7 +240,7 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
       break;
   }
 
-  handle_system_events_ = true;
+  handle_system_events_.store(true);
 
   // Always return NULL since we already dispatched our own system events.
   return NULL;
