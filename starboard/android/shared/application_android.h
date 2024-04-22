@@ -128,13 +128,8 @@ class ApplicationAndroid
   void OnSuspend() override;
 
   // --- QueueApplication overrides ---
-<<<<<<< HEAD
-  bool MayHaveSystemEvents() override { return handle_system_events_; }
-  Event* WaitForSystemEventWithTimeout(SbTime time) override;
-=======
   bool MayHaveSystemEvents() override { return handle_system_events_.load(); }
-  Event* WaitForSystemEventWithTimeout(int64_t time) override;
->>>>>>> ed27e83d758 ([Android] Fix CPU spinning of StarboardMain. (#3027))
+  Event* WaitForSystemEventWithTimeout(SbTime time) override;
   void WakeSystemEventWait() override;
 
  private:
