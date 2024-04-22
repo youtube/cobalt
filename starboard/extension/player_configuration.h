@@ -32,15 +32,15 @@ typedef struct StarboardExtensionPlayerConfigurationApi {
 
   // The fields below this point were added in version 1 or later.
 
-  // This is used to enforce the underlying starboard player using decode
+  // This is used to ask the underlying starboard player using decode
   // to texture mode to render video frames when it's available, no matter
   // what output mode is passed in SbPlayerCreate(). This function can be
   // null.
-  void (*SetEnforceDecodeToTextureMode)(bool enforced);
+  void (*SetDecodeToTexturePreferred)(bool preferred);
 
-  // This is used to enforce the underlying starboard player using tunnel mode
+  // This is used to ask the underlying starboard player using tunnel mode
   // when it's available. This function can be null.
-  void (*SetEnforceTunnelMode)(bool enforced);
+  void (*SetTunnelModePreferred)(bool preferred);
 
 } StarboardExtensionPlayerConfigurationApi;
 
