@@ -214,15 +214,11 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
   // Convert from microseconds to milliseconds, taking the ceiling value.
   // If we take the floor, or round, then we end up busy looping every time
   // the next event time is less than one millisecond.
-<<<<<<< HEAD
-  int timeout_millis = (time + kSbTimeMillisecond - 1) / kSbTimeMillisecond;
-=======
   int timeout_millis =
       (time <
        std::min(kSbInt64Max - 1000, 1000 * static_cast<int64_t>(INT_MAX - 1)))
           ? (time + 1000 - 1) / 1000
           : INT_MAX;
->>>>>>> ed27e83d758 ([Android] Fix CPU spinning of StarboardMain. (#3027))
   int looper_events;
   int ident = ALooper_pollOnce(
       std::min(std::max(timeout_millis, 0), kMaxPollingTimeMillisecond), NULL,
