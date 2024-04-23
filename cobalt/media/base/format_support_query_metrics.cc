@@ -17,7 +17,10 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
+#include "base/time/tick_clock.h"
+#include "base/time/time.h"
 #include "starboard/common/string.h"
 
 namespace cobalt {
@@ -27,11 +30,23 @@ namespace media {
 
 namespace {
 
-std::string CreateQueryDescription(const char* query_name,
+std::string CreateQueryDescription(FormatSupportQueryAction query_action,
                                    const std::string& mime_type,
                                    const std::string& key_system,
                                    SbMediaSupportType support_type,
                                    base::TimeDelta query_duration) {
+  auto get_query_name_str = [](FormatSupportQueryAction query_action) {
+    switch (query_action) {
+      case FormatSupportQueryAction::HTML_MEDIA_ELEMENT_CAN_PLAY_TYPE:
+        return "HTMLMediaElement::canPlayType";
+      case FormatSupportQueryAction::MEDIA_SOURCE_IS_TYPE_SUPPORTED:
+        return "MediaSource::isTypeSupported";
+      case FormatSupportQueryAction::UNKNOWN_ACTION:
+      default:
+        return "Unknown Action";
+    }
+  };
+
   auto get_support_type_str = [](SbMediaSupportType support_type) {
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -47,7 +62,8 @@ std::string CreateQueryDescription(const char* query_name,
   };
 
   return starboard::FormatString(
-      "%s(%s%s%s, %" PRId64 " us", query_name, mime_type.c_str(),
+      "%s(%s%s%s, %" PRId64 " us", get_query_name_str(query_action),
+      mime_type.c_str(),
       (key_system.empty() ? ")" : ", " + key_system + ")").c_str(),
       get_support_type_str(support_type), query_duration.InMicroseconds());
 }
@@ -65,18 +81,49 @@ base::TimeDelta FormatSupportQueryMetrics::total_query_duration_ =
     base::TimeDelta();
 int FormatSupportQueryMetrics::total_num_queries_ = 0;
 
-FormatSupportQueryMetrics::FormatSupportQueryMetrics() {
-  start_time_ = base::Time::Now();
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
+FormatSupportQueryMetrics::FormatSupportQueryMetrics(
+    const base::TickClock* clock)
+    : clock_(clock) {
+  start_time_ = clock->NowTicks();
+}
+
+void FormatSupportQueryMetrics::RecordQueryLatencyUMA(
+    FormatSupportQueryAction query_action, base::TimeDelta action_duration) {
+  switch (query_action) {
+    case FormatSupportQueryAction::MEDIA_SOURCE_IS_TYPE_SUPPORTED: {
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.MediaSource.IsTypeSupported.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(5), 50);
+      break;
+    }
+    case FormatSupportQueryAction::HTML_MEDIA_ELEMENT_CAN_PLAY_TYPE: {
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.HTMLMediaElement.CanPlayType.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(5), 50);
+      break;
+    }
+    case FormatSupportQueryAction::UNKNOWN_ACTION:
+    default:
+      break;
+  }
 }
 
 void FormatSupportQueryMetrics::RecordAndLogQuery(
-    const char* query_name, const std::string& mime_type,
+    FormatSupportQueryAction query_action, const std::string& mime_type,
     const std::string& key_system, SbMediaSupportType support_type) {
-  base::TimeDelta query_duration = base::Time::Now() - start_time_;
+  base::TimeDelta query_duration = clock_->NowTicks() - start_time_;
+
+  RecordQueryLatencyUMA(query_action, query_duration);
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   total_query_duration_ += query_duration;
 
   std::string query_description = CreateQueryDescription(
-      query_name, mime_type, key_system, support_type, query_duration);
+      query_action, mime_type, key_system, support_type, query_duration);
   LOG(INFO) << query_description;
 
   if (total_num_queries_ < SB_ARRAY_SIZE_INT(cached_query_durations_)) {
@@ -90,10 +137,12 @@ void FormatSupportQueryMetrics::RecordAndLogQuery(
   }
 
   ++total_num_queries_;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 // static
 void FormatSupportQueryMetrics::PrintAndResetMetrics() {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   if (total_num_queries_ == 0) {
     LOG(INFO) << "Format support query metrics:\n\tNumber of queries: 0";
     return;
@@ -122,9 +171,9 @@ void FormatSupportQueryMetrics::PrintAndResetMetrics() {
   max_query_duration_ = {};
   total_query_duration_ = {};
   total_num_queries_ = {};
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace media
 }  // namespace cobalt
