@@ -17,38 +17,41 @@
 
 #include <string>
 
+<<<<<<< HEAD
+=======
+#include "base/time/default_tick_clock.h"
+#include "base/time/tick_clock.h"
+#include "base/time/time.h"
+>>>>>>> 5e14755c9e0 (Added UMA telemetry for Format Queries (#2954))
 #include "starboard/media.h"
 #include "starboard/time.h"
 
 namespace cobalt {
 namespace media {
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
-
-class FormatSupportQueryMetrics {
- public:
-  FormatSupportQueryMetrics() = default;
-  ~FormatSupportQueryMetrics() = default;
-
-  void RecordAndLogQuery(const char* query_name, const std::string& mime_type,
-                         const std::string& key_system,
-                         SbMediaSupportType support_type) {}
-  static void PrintAndResetMetrics() {}
+enum class FormatSupportQueryAction : uint8_t {
+  UNKNOWN_ACTION,
+  HTML_MEDIA_ELEMENT_CAN_PLAY_TYPE,
+  MEDIA_SOURCE_IS_TYPE_SUPPORTED,
 };
 
-#else  // defined(COBALT_BUILD_TYPE_GOLD)
-
 class FormatSupportQueryMetrics {
  public:
-  FormatSupportQueryMetrics();
+  FormatSupportQueryMetrics(
+      const base::TickClock* clock = base::DefaultTickClock::GetInstance());
   ~FormatSupportQueryMetrics() = default;
 
-  void RecordAndLogQuery(const char* query_name, const std::string& mime_type,
+  void RecordAndLogQuery(FormatSupportQueryAction query_action,
+                         const std::string& mime_type,
                          const std::string& key_system,
                          SbMediaSupportType support_type);
   static void PrintAndResetMetrics();
 
  private:
+  void RecordQueryLatencyUMA(FormatSupportQueryAction query_action,
+                             base::TimeDelta action_duration);
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   static constexpr int kMaxCachedQueryDurations = 150;
   static constexpr int kMaxQueryDescriptionLength = 350;
 
@@ -57,11 +60,16 @@ class FormatSupportQueryMetrics {
   static SbTimeMonotonic max_query_duration_;
   static SbTimeMonotonic total_query_duration_;
   static int total_num_queries_;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
+<<<<<<< HEAD
   SbTimeMonotonic start_time_ = 0;
+=======
+  base::TimeTicks start_time_;
+  const base::TickClock* clock_;
+>>>>>>> 5e14755c9e0 (Added UMA telemetry for Format Queries (#2954))
 };
 
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace media
 }  // namespace cobalt
