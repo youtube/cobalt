@@ -67,6 +67,28 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.HTMLMediaElement.CanPlayType.Timing"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of format query latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for calls to `HTMLMediaElement.canPlayType`.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.MediaSource.IsTypeSupported.Timing"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of format query latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for calls to `MediaSource.isTypeSupported`.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Media.PipelineStatus.AudioOnly" enum="PipelineStatus"
     expires_after="never">
 <!-- expires-never: Needed for baseline Media pipeline health metric. -->
