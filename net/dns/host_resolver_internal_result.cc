@@ -100,6 +100,9 @@ absl::optional<DnsQueryType> QueryTypeFromValue(const base::Value& value) {
   const std::string* query_type_string = value.GetIfString();
   if (!query_type_string)
     return absl::nullopt;
+/* Cobalt
+  const auto* query_type_it =
+Cobalt */
   const auto query_type_it =
       base::ranges::find(kDnsQueryTypes, *query_type_string,
                          &decltype(kDnsQueryTypes)::value_type::second);
@@ -261,6 +264,9 @@ bool HostResolverInternalResult::ValidateValueBaseDict(
   const std::string* query_type_string = dict.FindString(kValueQueryTypeKey);
   if (!query_type_string)
     return false;
+/* Cobalt
+  const auto* query_type_it =
+Cobalt */
   const auto query_type_it =
       base::ranges::find(kDnsQueryTypes, *query_type_string,
                          &decltype(kDnsQueryTypes)::value_type::second);

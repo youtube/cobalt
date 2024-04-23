@@ -120,9 +120,9 @@ void GrowableIOBuffer::SetCapacity(int capacity) {
     free(real_data_.release());
     real_data_.reset();
   } else {
-    real_data_.reset(
-        static_cast<char*>(realloc(real_data_.release(), capacity)));
+  real_data_.reset(static_cast<char*>(realloc(real_data_.release(), capacity)));
   }
+
   capacity_ = capacity;
   if (offset_ > capacity)
     set_offset(capacity);
