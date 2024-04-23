@@ -5,6 +5,8 @@
 #include <__config>
 #include <sched.h>
 
+#include <unistd.h>
+
 #include "starboard/common/recursive_mutex.h"
 #include "starboard/condition_variable.h"
 #include "starboard/mutex.h"
@@ -266,7 +268,7 @@ void __libcpp_thread_yield() { sched_yield(); }
 void __libcpp_thread_sleep_for(const chrono::nanoseconds& __ns) {
   // Convert nanoseconds (10^-9) to microseconds (10^-6).
   const int64_t duration = __ns.count() / 1000;
-  SbThreadSleep(duration);
+  usleep(duration);
 }
 
 int __libcpp_tls_create(__libcpp_tls_key* __key, void (*__at_exit)(void*)) {

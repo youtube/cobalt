@@ -28,7 +28,7 @@ namespace cobalt {
 namespace worker {
 
 ExtendableMessageEvent::ExtendableMessageEvent(
-    script::EnvironmentSettings* settings, base::Token type,
+    script::EnvironmentSettings* settings, base_token::Token type,
     const ExtendableMessageEventInit& init_dict)
     : ExtendableEvent(settings, type, init_dict) {
   if (init_dict.has_data() && init_dict.data()) {

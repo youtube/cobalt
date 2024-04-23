@@ -70,7 +70,7 @@ class ImageDecoder : public Decoder {
   bool Suspend() override;
   void Resume(render_tree::ResourceProvider* resource_provider) override;
 
-  // Called when this ImageDecoder's deletion has been posted to a message loop.
+  // Called when this ImageDecoder's deletion has been posted to a task runner.
   // This prevents any additional decoding from occurring prior to the decoder
   // being deleted.
   void SetDeletionPending();
@@ -114,8 +114,8 @@ class ImageDecoder : public Decoder {
   std::string error_message_;
   std::string mime_type_;
 
-  // Whether or not there is a pending task deleting this decoder on a message
-  // loop.
+  // Whether or not there is a pending task deleting this decoder on a task
+  // runner.
   base::subtle::Atomic32 is_deletion_pending_;
 
   // Whether or not we use failure image decoder.

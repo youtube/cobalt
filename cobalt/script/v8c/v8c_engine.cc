@@ -133,8 +133,7 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
 
   isolate_ = v8::Isolate::New(create_params);
   CHECK(isolate_);
-  isolate_fellowship->platform->RegisterIsolateOnThread(
-      isolate_, base::MessageLoop::current());
+  isolate_fellowship->platform->RegisterIsolateOnThread(isolate_);
 
   // There are 2 total isolate data slots, one for the sole |V8cEngine| (us),
   // and one for the |V8cGlobalEnvironment|.

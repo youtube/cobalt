@@ -1,14 +1,17 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright 2010 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_auth_handler_factory.h"
 
+#include <set>
+
+#include "base/containers/contains.h"
 #include "base/memory/ptr_util.h"
-#include "base/stl_util.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "net/base/net_errors.h"
+#include "net/dns/host_resolver.h"
 #include "net/http/http_auth_challenge_tokenizer.h"
 #include "net/http/http_auth_filter.h"
 #include "net/http/http_auth_handler_basic.h"
@@ -16,12 +19,38 @@
 #include "net/http/http_auth_handler_ntlm.h"
 #include "net/http/http_auth_preferences.h"
 #include "net/http/http_auth_scheme.h"
+#include "net/log/net_log_values.h"
 #include "net/net_buildflags.h"
 #include "net/ssl/ssl_info.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "url/scheme_host_port.h"
 
 #if BUILDFLAG(USE_KERBEROS)
 #include "net/http/http_auth_handler_negotiate.h"
 #endif
+
+namespace {
+
+base::Value::Dict NetLogParamsForCreateAuth(
+    const std::string& scheme,
+    const std::string& challenge,
+    const int net_error,
+    const url::SchemeHostPort& scheme_host_port,
+    const absl::optional<bool>& allows_default_credentials,
+    net::NetLogCaptureMode capture_mode) {
+  base::Value::Dict dict;
+  dict.Set("scheme", net::NetLogStringValue(scheme));
+  if (net::NetLogCaptureIncludesSensitive(capture_mode))
+    dict.Set("challenge", net::NetLogStringValue(challenge));
+  dict.Set("origin", scheme_host_port.Serialize());
+  if (allows_default_credentials)
+    dict.Set("allows_default_credentials", *allows_default_credentials);
+  if (net_error < 0)
+    dict.Set("net_error", net_error);
+  return dict;
+}
+
+}  // namespace
 
 namespace net {
 
@@ -29,39 +58,38 @@ int HttpAuthHandlerFactory::CreateAuthHandlerFromString(
     const std::string& challenge,
     HttpAuth::Target target,
     const SSLInfo& ssl_info,
-    const GURL& origin,
+    const NetworkAnonymizationKey& network_anonymization_key,
+    const url::SchemeHostPort& scheme_host_port,
     const NetLogWithSource& net_log,
+    HostResolver* host_resolver,
     std::unique_ptr<HttpAuthHandler>* handler) {
   HttpAuthChallengeTokenizer props(challenge.begin(), challenge.end());
-  return CreateAuthHandler(&props, target, ssl_info, origin, CREATE_CHALLENGE,
-                           1, net_log, handler);
+  return CreateAuthHandler(&props, target, ssl_info, network_anonymization_key,
+                           scheme_host_port, CREATE_CHALLENGE, 1, net_log,
+                           host_resolver, handler);
 }
 
 int HttpAuthHandlerFactory::CreatePreemptiveAuthHandlerFromString(
     const std::string& challenge,
     HttpAuth::Target target,
-    const GURL& origin,
+    const NetworkAnonymizationKey& network_anonymization_key,
+    const url::SchemeHostPort& scheme_host_port,
     int digest_nonce_count,
     const NetLogWithSource& net_log,
+    HostResolver* host_resolver,
     std::unique_ptr<HttpAuthHandler>* handler) {
   HttpAuthChallengeTokenizer props(challenge.begin(), challenge.end());
   SSLInfo null_ssl_info;
-  return CreateAuthHandler(&props, target, null_ssl_info, origin,
+  return CreateAuthHandler(&props, target, null_ssl_info,
+                           network_anonymization_key, scheme_host_port,
                            CREATE_PREEMPTIVE, digest_nonce_count, net_log,
-                           handler);
+                           host_resolver, handler);
 }
 
-namespace {
-
-const char* const kDefaultAuthSchemes[] = {kBasicAuthScheme, kDigestAuthScheme,
-#if BUILDFLAG(USE_KERBEROS) && !defined(OS_ANDROID)
-                                           kNegotiateAuthScheme,
-#endif
-                                           kNtlmAuthScheme};
-
-}  // namespace
-
-HttpAuthHandlerRegistryFactory::HttpAuthHandlerRegistryFactory() = default;
+HttpAuthHandlerRegistryFactory::HttpAuthHandlerRegistryFactory(
+    const HttpAuthPreferences* http_auth_preferences) {
+  set_http_auth_preferences(http_auth_preferences);
+}
 
 HttpAuthHandlerRegistryFactory::~HttpAuthHandlerRegistryFactory() = default;
 
@@ -75,107 +103,83 @@ void HttpAuthHandlerRegistryFactory::SetHttpAuthPreferences(
 
 void HttpAuthHandlerRegistryFactory::RegisterSchemeFactory(
     const std::string& scheme,
-    HttpAuthHandlerFactory* factory) {
-  factory->set_http_auth_preferences(http_auth_preferences());
+    std::unique_ptr<HttpAuthHandlerFactory> factory) {
   std::string lower_scheme = base::ToLowerASCII(scheme);
-  if (factory)
-    factory_map_[lower_scheme] = base::WrapUnique(factory);
-  else
+  if (factory) {
+    factory->set_http_auth_preferences(http_auth_preferences());
+    factory_map_[lower_scheme] = std::move(factory);
+  } else {
     factory_map_.erase(lower_scheme);
-}
-
-HttpAuthHandlerFactory* HttpAuthHandlerRegistryFactory::GetSchemeFactory(
-    const std::string& scheme) const {
-  std::string lower_scheme = base::ToLowerASCII(scheme);
-  auto it = factory_map_.find(lower_scheme);
-  if (it == factory_map_.end()) {
-    return NULL;                  // |scheme| is not registered.
   }
-  return it->second.get();
 }
 
 // static
 std::unique_ptr<HttpAuthHandlerRegistryFactory>
-HttpAuthHandlerFactory::CreateDefault(HostResolver* host_resolver,
-                                      const HttpAuthPreferences* prefs
-#if defined(OS_CHROMEOS)
-                                      ,
-                                      bool allow_gssapi_library_load
-#elif (defined(OS_POSIX) && !defined(OS_ANDROID)) || defined(OS_FUCHSIA)
-                                      ,
-                                      const std::string& gssapi_library_name
+HttpAuthHandlerFactory::CreateDefault(
+    const HttpAuthPreferences* prefs
+#if BUILDFLAG(USE_EXTERNAL_GSSAPI)
+    ,
+    const std::string& gssapi_library_name
 #endif
-                                      ) {
-  std::vector<std::string> auth_types(std::begin(kDefaultAuthSchemes),
-                                      std::end(kDefaultAuthSchemes));
-  return HttpAuthHandlerRegistryFactory::Create(host_resolver, prefs, auth_types
-#if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(OS_CHROMEOS)
+#if BUILDFLAG(USE_KERBEROS)
+    ,
+    HttpAuthMechanismFactory negotiate_auth_system_factory
+#endif
+) {
+  return HttpAuthHandlerRegistryFactory::Create(prefs
+#if BUILDFLAG(USE_EXTERNAL_GSSAPI)
                                                 ,
                                                 gssapi_library_name
 #endif
-#if defined(OS_CHROMEOS)
+#if BUILDFLAG(USE_KERBEROS)
                                                 ,
-                                                allow_gssapi_library_load
+                                                negotiate_auth_system_factory
 #endif
-                                                );
+  );
 }
 
 // static
 std::unique_ptr<HttpAuthHandlerRegistryFactory>
 HttpAuthHandlerRegistryFactory::Create(
-    HostResolver* host_resolver,
-    const HttpAuthPreferences* prefs,
-    const std::vector<std::string>& auth_schemes
-#if defined(OS_CHROMEOS)
-    ,
-    bool allow_gssapi_library_load
-#elif (defined(OS_POSIX) && !defined(OS_ANDROID)) || defined(OS_FUCHSIA)
+    const HttpAuthPreferences* prefs
+#if BUILDFLAG(USE_EXTERNAL_GSSAPI)
     ,
     const std::string& gssapi_library_name
 #endif
-    ) {
-  std::set<std::string> auth_schemes_set(auth_schemes.begin(),
-                                         auth_schemes.end());
+#if BUILDFLAG(USE_KERBEROS)
+    ,
+    HttpAuthMechanismFactory negotiate_auth_system_factory
+#endif
+) {
+  auto registry_factory =
+      std::make_unique<HttpAuthHandlerRegistryFactory>(prefs);
 
-  std::unique_ptr<HttpAuthHandlerRegistryFactory> registry_factory(
-      new HttpAuthHandlerRegistryFactory());
-  if (base::ContainsKey(auth_schemes_set, kBasicAuthScheme)) {
-    registry_factory->RegisterSchemeFactory(
-        kBasicAuthScheme, new HttpAuthHandlerBasic::Factory());
-  }
+  registry_factory->RegisterSchemeFactory(
+      kBasicAuthScheme, std::make_unique<HttpAuthHandlerBasic::Factory>());
 
-  if (base::ContainsKey(auth_schemes_set, kDigestAuthScheme)) {
-    registry_factory->RegisterSchemeFactory(
-        kDigestAuthScheme, new HttpAuthHandlerDigest::Factory());
-  }
+  registry_factory->RegisterSchemeFactory(
+      kDigestAuthScheme, std::make_unique<HttpAuthHandlerDigest::Factory>());
 
-  if (base::ContainsKey(auth_schemes_set, kNtlmAuthScheme)) {
-    HttpAuthHandlerNTLM::Factory* ntlm_factory =
-        new HttpAuthHandlerNTLM::Factory();
-#if defined(OS_WIN)
-    ntlm_factory->set_sspi_library(new SSPILibraryDefault());
-#endif  // defined(OS_WIN)
-    registry_factory->RegisterSchemeFactory(kNtlmAuthScheme, ntlm_factory);
-  }
+  auto ntlm_factory = std::make_unique<HttpAuthHandlerNTLM::Factory>();
+#if BUILDFLAG(IS_WIN)
+  ntlm_factory->set_sspi_library(
+      std::make_unique<SSPILibraryDefault>(NTLMSP_NAME));
+#endif  // BUILDFLAG(IS_WIN)
+  registry_factory->RegisterSchemeFactory(kNtlmAuthScheme,
+                                          std::move(ntlm_factory));
 
 #if BUILDFLAG(USE_KERBEROS)
-  if (base::ContainsKey(auth_schemes_set, kNegotiateAuthScheme)) {
-    DCHECK(host_resolver);
-    HttpAuthHandlerNegotiate::Factory* negotiate_factory =
-        new HttpAuthHandlerNegotiate::Factory();
-#if defined(OS_WIN)
-    negotiate_factory->set_library(std::make_unique<SSPILibraryDefault>());
-#elif defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(OS_CHROMEOS)
-    negotiate_factory->set_library(
-        std::make_unique<GSSAPISharedLibrary>(gssapi_library_name));
-#elif defined(OS_CHROMEOS)
-    negotiate_factory->set_library(std::make_unique<GSSAPISharedLibrary>(""));
-    negotiate_factory->set_allow_gssapi_library_load(allow_gssapi_library_load);
+  auto negotiate_factory = std::make_unique<HttpAuthHandlerNegotiate::Factory>(
+      negotiate_auth_system_factory);
+#if BUILDFLAG(IS_WIN)
+  negotiate_factory->set_library(
+      std::make_unique<SSPILibraryDefault>(NEGOSSP_NAME));
+#elif BUILDFLAG(USE_EXTERNAL_GSSAPI)
+  negotiate_factory->set_library(
+      std::make_unique<GSSAPISharedLibrary>(gssapi_library_name));
 #endif
-    negotiate_factory->set_host_resolver(host_resolver);
-    registry_factory->RegisterSchemeFactory(kNegotiateAuthScheme,
-                                            negotiate_factory);
-  }
+  registry_factory->RegisterSchemeFactory(kNegotiateAuthScheme,
+                                          std::move(negotiate_factory));
 #endif  // BUILDFLAG(USE_KERBEROS)
 
   if (prefs) {
@@ -191,26 +195,85 @@ int HttpAuthHandlerRegistryFactory::CreateAuthHandler(
     HttpAuthChallengeTokenizer* challenge,
     HttpAuth::Target target,
     const SSLInfo& ssl_info,
-    const GURL& origin,
+    const NetworkAnonymizationKey& network_anonymization_key,
+    const url::SchemeHostPort& scheme_host_port,
     CreateReason reason,
     int digest_nonce_count,
     const NetLogWithSource& net_log,
+    HostResolver* host_resolver,
     std::unique_ptr<HttpAuthHandler>* handler) {
-  std::string scheme = challenge->scheme();
+  auto scheme = challenge->auth_scheme();
+
+  int net_error;
   if (scheme.empty()) {
     handler->reset();
-    return ERR_INVALID_RESPONSE;
+    net_error = ERR_INVALID_RESPONSE;
+  } else {
+    bool all_schemes_allowed_for_origin =
+        http_auth_preferences() &&
+        http_auth_preferences()->IsAllowedToUseAllHttpAuthSchemes(
+            scheme_host_port);
+    auto* factory = all_schemes_allowed_for_origin || IsSchemeAllowed(scheme)
+                        ? GetSchemeFactory(scheme)
+                        : nullptr;
+    if (!factory) {
+      handler->reset();
+      net_error = ERR_UNSUPPORTED_AUTH_SCHEME;
+    } else {
+      net_error = factory->CreateAuthHandler(
+          challenge, target, ssl_info, network_anonymization_key,
+          scheme_host_port, reason, digest_nonce_count, net_log, host_resolver,
+          handler);
+    }
   }
+
+  net_log.AddEvent(
+      NetLogEventType::AUTH_HANDLER_CREATE_RESULT,
+      [&](NetLogCaptureMode capture_mode) {
+        return NetLogParamsForCreateAuth(
+            scheme, challenge->challenge_text(), net_error, scheme_host_port,
+            *handler
+                ? absl::make_optional((*handler)->AllowsDefaultCredentials())
+                : absl::nullopt,
+            capture_mode);
+      });
+  return net_error;
+}
+
+bool HttpAuthHandlerRegistryFactory::IsSchemeAllowedForTesting(
+    const std::string& scheme) const {
+  return IsSchemeAllowed(scheme);
+}
+
+bool HttpAuthHandlerRegistryFactory::IsSchemeAllowed(
+    const std::string& scheme) const {
+  const std::set<std::string>& allowed_schemes =
+      http_auth_preferences() && http_auth_preferences()->allowed_schemes()
+          ? *http_auth_preferences()->allowed_schemes()
+          : default_auth_schemes_;
+  return allowed_schemes.find(scheme) != allowed_schemes.end();
+}
+
+#if BUILDFLAG(USE_KERBEROS) && !BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_POSIX)
+absl::optional<std::string>
+HttpAuthHandlerRegistryFactory::GetNegotiateLibraryNameForTesting() const {
+  if (!IsSchemeAllowed(kNegotiateAuthScheme))
+    return absl::nullopt;
+
+  return reinterpret_cast<net::HttpAuthHandlerNegotiate::Factory*>(
+             GetSchemeFactory(net::kNegotiateAuthScheme))
+      ->GetLibraryNameForTesting();  // IN-TEST
+}
+#endif
+
+HttpAuthHandlerFactory* HttpAuthHandlerRegistryFactory::GetSchemeFactory(
+    const std::string& scheme) const {
   std::string lower_scheme = base::ToLowerASCII(scheme);
   auto it = factory_map_.find(lower_scheme);
   if (it == factory_map_.end()) {
-    handler->reset();
-    return ERR_UNSUPPORTED_AUTH_SCHEME;
+    return nullptr;  // |scheme| is not registered.
   }
-  DCHECK(it->second);
-  return it->second->CreateAuthHandler(challenge, target, ssl_info, origin,
-                                       reason, digest_nonce_count, net_log,
-                                       handler);
+  return it->second.get();
 }
 
 }  // namespace net

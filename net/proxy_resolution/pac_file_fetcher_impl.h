@@ -1,25 +1,25 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_PROXY_PAC_FILE_FETCHER_IMPL_H_
-#define NET_PROXY_PAC_FILE_FETCHER_IMPL_H_
+#ifndef NET_PROXY_RESOLUTION_PAC_FILE_FETCHER_IMPL_H_
+#define NET_PROXY_RESOLUTION_PAC_FILE_FETCHER_IMPL_H_
+
+#include <stddef.h>
 
 #include <memory>
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string16.h"
 #include "base/time/time.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/proxy_resolution/pac_file_fetcher.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/url_request.h"
-#include "starboard/types.h"
 
 class GURL;
 
@@ -49,12 +49,8 @@ class NET_EXPORT PacFileFetcherImpl : public PacFileFetcher,
   static std::unique_ptr<PacFileFetcherImpl> Create(
       URLRequestContext* url_request_context);
 
-  // Same as Create(), but additionally allows fetching PAC URLs from file://
-  // URLs (provided the URLRequestContext supports it).
-  //
-  // This should not be used in new code (see https://crbug.com/839566).
-  static std::unique_ptr<PacFileFetcherImpl> CreateWithFileUrlSupport(
-      URLRequestContext* url_request_context);
+  PacFileFetcherImpl(const PacFileFetcherImpl&) = delete;
+  PacFileFetcherImpl& operator=(const PacFileFetcherImpl&) = delete;
 
   ~PacFileFetcherImpl() override;
 
@@ -66,7 +62,7 @@ class NET_EXPORT PacFileFetcherImpl : public PacFileFetcher,
 
   // PacFileFetcher methods:
   int Fetch(const GURL& url,
-            base::string16* text,
+            std::u16string* text,
             CompletionOnceCallback callback,
             const NetworkTrafficAnnotationTag traffic_annotation) override;
   void Cancel() override;
@@ -78,8 +74,9 @@ class NET_EXPORT PacFileFetcherImpl : public PacFileFetcher,
                           const RedirectInfo& redirect_info,
                           bool* defer_redirect) override;
   void OnAuthRequired(URLRequest* request,
-                      AuthChallengeInfo* auth_info) override;
+                      const AuthChallengeInfo& auth_info) override;
   void OnSSLCertificateError(URLRequest* request,
+                             int net_error,
                              const SSLInfo& ssl_info,
                              bool is_hsts_ok) override;
   void OnResponseStarted(URLRequest* request, int net_error) override;
@@ -88,8 +85,7 @@ class NET_EXPORT PacFileFetcherImpl : public PacFileFetcher,
  private:
   enum { kBufSize = 4096 };
 
-  PacFileFetcherImpl(URLRequestContext* url_request_context,
-                     bool allow_file_url);
+  explicit PacFileFetcherImpl(URLRequestContext* url_request_context);
 
   // Returns true if |url| has an acceptable URL scheme (i.e. http://, https://,
   // etc).
@@ -114,13 +110,13 @@ class NET_EXPORT PacFileFetcherImpl : public PacFileFetcher,
 
   // The context used for making network requests.  Set to nullptr by
   // OnShutdown.
-  URLRequestContext* url_request_context_;
+  raw_ptr<URLRequestContext> url_request_context_;
 
   // Buffer that URLRequest writes into.
   scoped_refptr<IOBuffer> buf_;
 
   // The next ID to use for |cur_request_| (monotonically increasing).
-  int next_id_;
+  int next_id_ = 0;
 
   // The current (in progress) request, or NULL.
   std::unique_ptr<URLRequest> cur_request_;
@@ -128,20 +124,20 @@ class NET_EXPORT PacFileFetcherImpl : public PacFileFetcher,
   // State for current request (only valid when |cur_request_| is not NULL):
 
   // Unique ID for the current request.
-  int cur_request_id_;
+  int cur_request_id_ = 0;
 
   // Callback to invoke on completion of the fetch.
   CompletionOnceCallback callback_;
 
   // Holds the error condition that was hit on the current request, or OK.
-  int result_code_;
+  int result_code_ = OK;
 
   // Holds the bytes read so far. Will not exceed |max_response_bytes|.
   std::string bytes_read_so_far_;
 
   // This buffer is owned by the owner of |callback|, and will be filled with
   // UTF16 response on completion.
-  base::string16* result_text_;
+  raw_ptr<std::u16string> result_text_ = nullptr;
 
   // The maximum number of bytes to allow in responses.
   size_t max_response_bytes_;
@@ -155,15 +151,11 @@ class NET_EXPORT PacFileFetcherImpl : public PacFileFetcher,
   // The time that the first byte was received.
   base::TimeTicks fetch_time_to_first_byte_;
 
-  const bool allow_file_url_;
-
   // Factory for creating the time-out task. This takes care of revoking
   // outstanding tasks when |this| is deleted.
-  base::WeakPtrFactory<PacFileFetcherImpl> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(PacFileFetcherImpl);
+  base::WeakPtrFactory<PacFileFetcherImpl> weak_factory_{this};
 };
 
 }  // namespace net
 
-#endif  // NET_PROXY_PAC_FILE_FETCHER_IMPL_H_
+#endif  // NET_PROXY_RESOLUTION_PAC_FILE_FETCHER_IMPL_H_

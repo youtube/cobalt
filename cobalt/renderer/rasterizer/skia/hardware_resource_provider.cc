@@ -17,10 +17,13 @@
 #include <memory>
 #include <utility>
 
+#include "base/bind.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
@@ -35,8 +38,8 @@
 #include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
 #include "starboard/configuration.h"
-#include "third_party/ots/include/opentype-sanitiser.h"
-#include "third_party/ots/include/ots-memory-stream.h"
+#include "third_party/ots/src/include/opentype-sanitiser.h"
+#include "third_party/ots/src/include/ots-memory-stream.h"
 #include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/core/SkStream.h"
 #include "third_party/skia/include/core/SkTypeface.h"
@@ -60,8 +63,8 @@ HardwareResourceProvider::HardwareResourceProvider(
       purge_skia_font_caches_on_destruction_(
           purge_skia_font_caches_on_destruction),
       max_texture_size_(gr_context->maxTextureSize()) {
-  if (base::MessageLoop::current()) {
-    rasterizer_task_runner_ = base::ThreadTaskRunnerHandle::Get();
+  if (base::SequencedTaskRunner::HasCurrentDefault()) {
+    rasterizer_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
   }
 
   // Initialize the font manager now to ensure that it doesn't get initialized
@@ -91,8 +94,8 @@ void HardwareResourceProvider::Finish() {
   // Wait for any resource-related to complete (by waiting for all tasks to
   // complete).
   if (rasterizer_task_runner_ &&
-      !rasterizer_task_runner_->BelongsToCurrentThread()) {
-    rasterizer_task_runner_->WaitForFence();
+      !rasterizer_task_runner_->RunsTasksInCurrentSequence()) {
+    base::task_runner_util::WaitForFence(rasterizer_task_runner_, FROM_HERE);
   }
 }
 
@@ -357,7 +360,7 @@ void HardwareResourceProvider::GraphicsContextRunner(
           graphics_context_provider->gles_context_runner_context);
 
   if (provider->rasterizer_task_runner_ &&
-      !provider->rasterizer_task_runner_->BelongsToCurrentThread()) {
+      !provider->rasterizer_task_runner_->RunsTasksInCurrentSequence()) {
     // Post a task to the rasterizer thread to have it run the requested
     // function, and wait for it to complete before returning.
     base::WaitableEvent done_event(
@@ -481,6 +484,13 @@ void HardwareResourceProvider::LoadAdditionalFonts() {
   cobalt_font_manager->LoadLocaleDefault();
 }
 
+void HardwareResourceProvider::ClearAdditionalFonts() {
+  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  SkFontMgr_Cobalt* cobalt_font_manager =
+      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
+  cobalt_font_manager->ClearLocaleDefault();
+}
+
 scoped_refptr<render_tree::Typeface>
 HardwareResourceProvider::CreateTypefaceFromRawData(
     std::unique_ptr<render_tree::ResourceProvider::RawTypefaceDataVector>
@@ -525,7 +535,7 @@ HardwareResourceProvider::CreateTypefaceFromRawData(
 
 scoped_refptr<render_tree::GlyphBuffer>
 HardwareResourceProvider::CreateGlyphBuffer(
-    const base::char16* text_buffer, size_t text_length,
+    const char16_t* text_buffer, size_t text_length,
     const std::string& language, bool is_rtl,
     render_tree::FontProvider* font_provider) {
   return text_shaper_.CreateGlyphBuffer(text_buffer, text_length, language,
@@ -540,7 +550,7 @@ HardwareResourceProvider::CreateGlyphBuffer(
 }
 
 float HardwareResourceProvider::GetTextWidth(
-    const base::char16* text_buffer, size_t text_length,
+    const char16_t* text_buffer, size_t text_length,
     const std::string& language, bool is_rtl,
     render_tree::FontProvider* font_provider,
     render_tree::FontVector* maybe_used_fonts) {

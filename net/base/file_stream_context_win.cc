@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,16 +8,15 @@
 #include <utility>
 
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop_current.h"
 #include "base/message_loop/message_pump_for_io.h"
-#include "base/single_thread_task_runner.h"
-#include "base/task_runner.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/current_thread.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/task_runner.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -38,33 +37,21 @@ void IncrementOffset(OVERLAPPED* overlapped, DWORD count) {
 
 }  // namespace
 
-FileStream::Context::Context(const scoped_refptr<base::TaskRunner>& task_runner)
-    : async_in_progress_(false),
-      orphaned_(false),
-      task_runner_(task_runner),
-      async_read_initiated_(false),
-      async_read_completed_(false),
-      io_complete_for_read_received_(false),
-      result_(0) {}
+FileStream::Context::Context(scoped_refptr<base::TaskRunner> task_runner)
+    : Context(base::File(), std::move(task_runner)) {}
 
 FileStream::Context::Context(base::File file,
-                             const scoped_refptr<base::TaskRunner>& task_runner)
-    : file_(std::move(file)),
-      async_in_progress_(false),
-      orphaned_(false),
-      task_runner_(task_runner),
-      async_read_initiated_(false),
-      async_read_completed_(false),
-      io_complete_for_read_received_(false),
-      result_(0) {
+                             scoped_refptr<base::TaskRunner> task_runner)
+    : base::MessagePumpForIO::IOHandler(FROM_HERE),
+      file_(std::move(file)),
+      task_runner_(std::move(task_runner)) {
   if (file_.IsValid()) {
     DCHECK(file_.async());
     OnFileOpened();
   }
 }
 
-FileStream::Context::~Context() {
-}
+FileStream::Context::~Context() = default;
 
 int FileStream::Context::Read(IOBuffer* buf,
                               int buf_len,
@@ -82,9 +69,10 @@ int FileStream::Context::Read(IOBuffer* buf,
 
   task_runner_->PostTask(
       FROM_HERE,
-      base::Bind(&FileStream::Context::ReadAsync, base::Unretained(this),
-                 file_.GetPlatformFile(), base::WrapRefCounted(buf), buf_len,
-                 &io_context_.overlapped, base::ThreadTaskRunnerHandle::Get()));
+      base::BindOnce(&FileStream::Context::ReadAsync, base::Unretained(this),
+                     file_.GetPlatformFile(), base::WrapRefCounted(buf),
+                     buf_len, &io_context_.overlapped,
+                     base::SingleThreadTaskRunner::GetCurrentDefault()));
   return ERR_IO_PENDING;
 }
 
@@ -120,7 +108,7 @@ FileStream::Context::IOResult FileStream::Context::SeekFileImpl(
 }
 
 void FileStream::Context::OnFileOpened() {
-  HRESULT hr = base::MessageLoopCurrentForIO::Get()->RegisterIOHandler(
+  HRESULT hr = base::CurrentIOThread::Get()->RegisterIOHandler(
       file_.GetPlatformFile(), this);
   if (!SUCCEEDED(hr))
     file_.Close();
@@ -186,14 +174,14 @@ void FileStream::Context::InvokeUserCallback() {
     async_in_progress_ = false;
   }
   scoped_refptr<IOBuffer> temp_buf = in_flight_buf_;
-  in_flight_buf_ = NULL;
+  in_flight_buf_ = nullptr;
   std::move(callback_).Run(result_);
 }
 
 void FileStream::Context::DeleteOrphanedContext() {
   async_in_progress_ = false;
   callback_.Reset();
-  in_flight_buf_ = NULL;
+  in_flight_buf_ = nullptr;
   CloseAndDelete();
 }
 
@@ -208,9 +196,9 @@ void FileStream::Context::ReadAsync(
   DWORD bytes_read = 0;
   BOOL ret = ::ReadFile(file, buf->data(), buf_len, &bytes_read, overlapped);
   origin_thread_task_runner->PostTask(
-      FROM_HERE,
-      base::Bind(&FileStream::Context::ReadAsyncResult,
-                 base::Unretained(context), ret, bytes_read, ::GetLastError()));
+      FROM_HERE, base::BindOnce(&FileStream::Context::ReadAsyncResult,
+                                base::Unretained(context), ret, bytes_read,
+                                ::GetLastError()));
 }
 
 void FileStream::Context::ReadAsyncResult(BOOL read_file_ret,

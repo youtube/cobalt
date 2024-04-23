@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/debug/leak_annotations.h"
+#include "base/metrics/field_trial_list_including_low_anonymity.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
@@ -14,7 +15,7 @@
 #include "components/crash/core/common/crash_key.h"
 #include "components/variations/active_field_trials.h"
 #include "components/variations/synthetic_trials.h"
-
+#include "base/task/sequenced_task_runner.h"
 namespace variations {
 
 namespace {
@@ -34,6 +35,8 @@ crash_reporter::CrashKeyString<kVariationsKeySize> g_variations_crash_key(
 
 std::string ActiveGroupToString(const ActiveGroupId& active_group) {
   return base::StringPrintf("%x-%x,", active_group.name, active_group.group);
+}
+
 }
 
 class VariationsCrashKeys final : public base::FieldTrialList::Observer {
@@ -88,12 +91,12 @@ VariationsCrashKeys::VariationsCrashKeys() {
   }
   UpdateCrashKeys();
 
-  ui_thread_task_runner_ = base::SequencedTaskRunnerHandle::Get();
-  base::FieldTrialList::SetSynchronousObserver(this);
+  ui_thread_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+  base::FieldTrialListIncludingLowAnonymity::AddObserver(this);
 }
 
 VariationsCrashKeys::~VariationsCrashKeys() {
-  base::FieldTrialList::RemoveSynchronousObserver(this);
+  base::FieldTrialListIncludingLowAnonymity::RemoveObserver(this);
   g_num_variations_crash_key.Clear();
   g_variations_crash_key.Clear();
 }
@@ -176,8 +179,6 @@ void VariationsCrashKeys::OnSyntheticTrialsChanged(
 // intentionally leaked since it needs to live for the duration of the process
 // there's no benefit in cleaning it up at exit.
 VariationsCrashKeys* g_variations_crash_keys = nullptr;
-
-}  // namespace
 
 void InitCrashKeys() {
   DCHECK(!g_variations_crash_keys);

@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,6 @@ void SetLocalizedStringProvider(LocalizedStringProvider func) {
   g_localized_string_provider = func;
 }
 
-#if !defined(OS_IOS)
 std::string GetLocalizedStringUTF8(MessageId message_id) {
   return base::UTF16ToUTF8(GetLocalizedStringUTF16(message_id));
 }
@@ -24,6 +23,5 @@ std::u16string GetLocalizedStringUTF16(MessageId message_id) {
   return g_localized_string_provider ? g_localized_string_provider(message_id)
                                      : std::u16string();
 }
-#endif
 
 }  // namespace media

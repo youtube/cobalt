@@ -1,14 +1,16 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/process/launch.h"
 
+#include <tuple>
+
 #include <lib/fdio/limits.h>
 #include <lib/fdio/namespace.h>
 #include <lib/fdio/spawn.h>
-#include <lib/fdio/util.h>
 #include <lib/zx/job.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <zircon/processargs.h>
 
@@ -19,8 +21,10 @@
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/process/environment_internal.h"
 #include "base/scoped_generic.h"
-#include "starboard/types.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "base/trace_event/base_tracing.h"
 
 namespace base {
 
@@ -31,6 +35,7 @@ bool GetAppOutputInternal(const CommandLine& cmd_line,
                           std::string* output,
                           int* exit_code) {
   DCHECK(exit_code);
+  TRACE_EVENT0("base", "GetAppOutput");
 
   LaunchOptions options;
 
@@ -56,10 +61,14 @@ bool GetAppOutputInternal(const CommandLine& cmd_line,
     ssize_t bytes_read = read(pipe_fd[0], buffer, sizeof(buffer));
     if (bytes_read <= 0)
       break;
-    output->append(buffer, bytes_read);
+    output->append(buffer, static_cast<size_t>(bytes_read));
   }
   close(pipe_fd[0]);
 
+  // It is okay to allow this process to wait on the launched process as a
+  // process launched with GetAppOutput*() shouldn't wait back on the process
+  // that launched it.
+  internal::GetAppOutputScopedAllowBaseSyncPrimitives allow_wait;
   return process.WaitForExit(exit_code);
 }
 
@@ -91,20 +100,38 @@ fdio_spawn_action_t FdioSpawnActionAddHandle(uint32_t id, zx_handle_t handle) {
   return action;
 }
 
+fdio_spawn_action_t FdioSpawnActionSetName(const char* name) {
+  fdio_spawn_action_t action = FdioSpawnAction(FDIO_SPAWN_ACTION_SET_NAME);
+  action.name.data = name;
+  return action;
+}
+
 }  // namespace
+
+// static
+uint32_t LaunchOptions::AddHandleToTransfer(
+    HandlesToTransferVector* handles_to_transfer,
+    zx_handle_t handle) {
+  CHECK_LE(handles_to_transfer->size(), std::numeric_limits<uint16_t>::max())
+      << "Number of handles to transfer exceeds total allowed";
+  auto handle_id =
+      static_cast<uint32_t>(PA_HND(PA_USER1, handles_to_transfer->size()));
+  handles_to_transfer->push_back({handle_id, handle});
+  return handle_id;
+}
 
 Process LaunchProcess(const CommandLine& cmdline,
                       const LaunchOptions& options) {
   return LaunchProcess(cmdline.argv(), options);
 }
 
-// TODO(768416): Investigate whether we can make LaunchProcess() create
-// unprivileged processes by default (no implicit capabilities are granted).
 Process LaunchProcess(const std::vector<std::string>& argv,
                       const LaunchOptions& options) {
   // fdio_spawn_etc() accepts an array of |fdio_spawn_action_t|, describing
   // namespace entries, descriptors and handles to launch the child process
-  // with.
+  // with. |fdio_spawn_action_t| does not own any values assigned to its
+  // members, so strings assigned to members must be valid through the
+  // fdio_spawn_etc() call.
   std::vector<fdio_spawn_action_t> spawn_actions;
 
   // Handles to be transferred to the child are owned by this vector, so that
@@ -132,29 +159,36 @@ Process LaunchProcess(const std::vector<std::string>& argv,
     argv_cstr.push_back(arg.c_str());
   argv_cstr.push_back(nullptr);
 
-  // Determine the environment to pass to the new process.
-  // If |clear_environ|, |environ| or |current_directory| are set then we
-  // construct a new (possibly empty) environment, otherwise we let fdio_spawn()
-  // clone the caller's environment into the new process.
-  uint32_t spawn_flags = FDIO_SPAWN_CLONE_LDSVC | options.spawn_flags;
+  // If |environment| is set then it contains values to set/replace to create
+  // the new process' environment.
+  EnvironmentMap environ_modifications = options.environment;
 
-  EnvironmentMap environ_modifications = options.environ;
+  // "PWD" is set in the new process' environment, to one of:
+  // 1. The value of |current_directory|, if set.
+  // 2. The value specified in |environment|, if any.
+  // 3. The current process' current working directory, if known.
   if (!options.current_directory.empty()) {
     environ_modifications["PWD"] = options.current_directory.value();
-  } else {
+  } else if (environ_modifications.find("PWD") == environ_modifications.end()) {
     FilePath cwd;
-    GetCurrentDirectory(&cwd);
-    environ_modifications["PWD"] = cwd.value();
+    if (GetCurrentDirectory(&cwd)) {
+      environ_modifications["PWD"] = cwd.value();
+    }
   }
 
-  std::unique_ptr<char* []> new_environ;
-  if (!environ_modifications.empty()) {
-    char* const empty_environ = nullptr;
-    char* const* old_environ = options.clear_environ ? &empty_environ : environ;
-    new_environ = AlterEnvironment(old_environ, environ_modifications);
-  } else if (!options.clear_environ) {
-    spawn_flags |= FDIO_SPAWN_CLONE_ENVIRON;
-  }
+  // By default the calling process' environment is copied, and the collated
+  // modifications applied, to create the new process' environment. If
+  // |clear_environment| is set then only the collated modifications are used.
+  char* const kEmptyEnviron = nullptr;
+  char* const* old_environ =
+      options.clear_environment ? &kEmptyEnviron : environ;
+  std::unique_ptr<char*[]> new_environ =
+      internal::AlterEnvironment(old_environ, environ_modifications);
+
+  // Always clone the library loader service and UTC clock to new processes,
+  // in addition to any flags specified by the caller.
+  uint32_t spawn_flags = FDIO_SPAWN_DEFAULT_LDSVC | FDIO_SPAWN_CLONE_UTC_CLOCK |
+                         options.spawn_flags;
 
   // Add actions to clone handles for any specified paths into the new process'
   // namespace.
@@ -172,13 +206,14 @@ Process LaunchProcess(const std::vector<std::string>& argv,
     }
 
     for (const auto& path_to_clone : options.paths_to_clone) {
-      zx::handle handle = fuchsia::GetHandleFromFile(
-          base::File(base::FilePath(path_to_clone),
-                     base::File::FLAG_OPEN | base::File::FLAG_READ));
-      if (!handle) {
+      fidl::InterfaceHandle<::fuchsia::io::Directory> directory =
+          base::OpenDirectoryHandle(path_to_clone);
+      if (!directory) {
         LOG(WARNING) << "Could not open handle for path: " << path_to_clone;
         return base::Process();
       }
+
+      zx::handle handle = directory.TakeChannel();
 
       spawn_actions.push_back(FdioSpawnActionAddNamespaceEntry(
           path_to_clone.value().c_str(), handle.get()));
@@ -194,6 +229,15 @@ Process LaunchProcess(const std::vector<std::string>& argv,
         FdioSpawnActionCloneFd(src_target.first, src_target.second));
   }
 
+  // If |process_name_suffix| is specified then set process name as
+  // "<file_name><suffix>", otherwise leave the default value.
+  std::string process_name;  // Must outlive the fdio_spawn_etc() call.
+  if (!options.process_name_suffix.empty()) {
+    process_name = base::FilePath(argv[0]).BaseName().value() +
+                   options.process_name_suffix;
+    spawn_actions.push_back(FdioSpawnActionSetName(process_name.c_str()));
+  }
+
   zx::process process_handle;
   // fdio_spawn_etc() will write a null-terminated scring to |error_message| in
   // case of failure, so we avoid unnecessarily initializing it here.
@@ -206,7 +250,7 @@ Process LaunchProcess(const std::vector<std::string>& argv,
   // fdio_spawn_etc() will close all handles specified in add-handle actions,
   // regardless of whether it succeeds or fails, so release our copies.
   for (auto& transferred_handle : transferred_handles)
-    ignore_result(transferred_handle.release());
+    std::ignore = transferred_handle.release();
 
   if (status != ZX_OK) {
     ZX_LOG(ERROR, status) << "fdio_spawn: " << error_message;

@@ -51,6 +51,10 @@
 #include "time_zone_fixed.h"
 #include "time_zone_posix.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace time_internal {
@@ -601,6 +605,7 @@ namespace {
 
 using FilePtr = std::unique_ptr<FILE, int (*)(FILE*)>;
 
+#if !defined(STARBOARD)
 // fopen(3) adaptor.
 inline FilePtr FOpen(const char* path, const char* mode) {
 #if defined(_MSC_VER)
@@ -612,6 +617,7 @@ inline FilePtr FOpen(const char* path, const char* mode) {
   return FilePtr(fopen(path, mode), fclose);
 #endif
 }
+#endif
 
 // A stdio(3)-backed implementation of ZoneInfoSource.
 class FileZoneInfoSource : public ZoneInfoSource {
@@ -647,6 +653,10 @@ class FileZoneInfoSource : public ZoneInfoSource {
 
 std::unique_ptr<ZoneInfoSource> FileZoneInfoSource::Open(
     const std::string& name) {
+#if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
+  return nullptr;
+#else
   // Use of the "file:" prefix is intended for testing purposes only.
   const std::size_t pos = (name.compare(0, 5, "file:") == 0) ? 5 : 0;
 
@@ -673,6 +683,7 @@ std::unique_ptr<ZoneInfoSource> FileZoneInfoSource::Open(
   auto fp = FOpen(path.c_str(), "rb");
   if (fp == nullptr) return nullptr;
   return std::unique_ptr<ZoneInfoSource>(new FileZoneInfoSource(std::move(fp)));
+#endif
 }
 
 class AndroidZoneInfoSource : public FileZoneInfoSource {
@@ -689,6 +700,10 @@ class AndroidZoneInfoSource : public FileZoneInfoSource {
 
 std::unique_ptr<ZoneInfoSource> AndroidZoneInfoSource::Open(
     const std::string& name) {
+#if defined(STARBOARD)
+  SB_CHECK(false) << "An Android source should not be used in Starboard.";
+  return nullptr;
+#else
   // Use of the "file:" prefix is intended for testing purposes only.
   const std::size_t pos = (name.compare(0, 5, "file:") == 0) ? 5 : 0;
 
@@ -728,6 +743,7 @@ std::unique_ptr<ZoneInfoSource> AndroidZoneInfoSource::Open(
   }
 
   return nullptr;
+#endif
 }
 
 // A zoneinfo source for use inside Fuchsia components. This attempts to
@@ -752,6 +768,11 @@ class FuchsiaZoneInfoSource : public FileZoneInfoSource {
 
 std::unique_ptr<ZoneInfoSource> FuchsiaZoneInfoSource::Open(
     const std::string& name) {
+#if defined(STARBOARD)
+  // Don't compile this as it uses fstream.
+  SB_CHECK(false) << "A Fuchsia source should not be used in Starboard.";
+  return nullptr;
+#else
   // Use of the "file:" prefix is intended for testing purposes only.
   const std::size_t pos = (name.compare(0, 5, "file:") == 0) ? 5 : 0;
 
@@ -791,6 +812,7 @@ std::unique_ptr<ZoneInfoSource> FuchsiaZoneInfoSource::Open(
   }
 
   return nullptr;
+#endif
 }
 
 }  // namespace
@@ -809,8 +831,10 @@ bool TimeZoneInfo::Load(const std::string& name) {
   auto zip = cctz_extension::zone_info_source_factory(
       name, [](const std::string& n) -> std::unique_ptr<ZoneInfoSource> {
         if (auto z = FileZoneInfoSource::Open(n)) return z;
+#if !defined(STARBOARD)
         if (auto z = AndroidZoneInfoSource::Open(n)) return z;
         if (auto z = FuchsiaZoneInfoSource::Open(n)) return z;
+#endif
         return nullptr;
       });
   return zip != nullptr && Load(zip.get());

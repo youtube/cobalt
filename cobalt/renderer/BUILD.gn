@@ -424,6 +424,8 @@ copy("renderer_copy_test_data") {
     "rasterizer/testdata/SimpleTextInEthiopicBold-expected.png",
     "rasterizer/testdata/SimpleTextInRed40PtChineseFont-expected.png",
     "rasterizer/testdata/SimpleTextInRed40PtFont-expected.png",
+    "rasterizer/testdata/SimpleTextInRed40PtHiranganaJapaneseFont-expected.png",
+    "rasterizer/testdata/SimpleTextInRed40PtKatakanaJapaneseFont-expected.png",
     "rasterizer/testdata/SimpleTextInRed40PtThaiFont-expected.png",
     "rasterizer/testdata/SingleRGBAImageLargerThanRenderTarget-expected.png",
     "rasterizer/testdata/SingleRGBAImageWithAlphaFormatOpaque-expected.png",
@@ -564,6 +566,7 @@ static_library("default_options") {
   sources = [ "//cobalt/renderer/get_default_rasterizer_for_platform.cc" ]
 
   deps = [
+    "//base",
     "//cobalt/configuration",
     "//cobalt/renderer/backend:renderer_backend",
     "//cobalt/renderer/rasterizer/egl:hardware_rasterizer",

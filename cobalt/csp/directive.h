@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/macros.h"
 
 namespace cobalt {
 namespace csp {

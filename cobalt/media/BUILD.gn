@@ -112,6 +112,7 @@ component("media") {
     "//net",
     "//starboard:starboard_group",
     "//third_party/protobuf:protobuf_lite",
+    "//ui/gfx:gfx",
     "//url",
   ]
 }
@@ -122,6 +123,7 @@ target(gtest_target_type, "media_test") {
   sources = [
     "base/cval_stats_test.cc",
     "base/decoder_buffer_cache_test.cc",
+    "base/format_support_query_metrics_test.cc",
     "base/metrics_provider_test.cc",
     "bidirectional_fit_reuse_allocator_test.cc",
     "file_data_source_test.cc",
@@ -143,6 +145,7 @@ target(gtest_target_type, "media_test") {
     "//media",
     "//testing/gmock",
     "//testing/gtest",
+    "//ui/gfx:gfx",
   ]
 
   data_deps = [ "//cobalt/media/testing:cobalt_media_download_test_data" ]

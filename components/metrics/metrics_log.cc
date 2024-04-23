@@ -11,6 +11,7 @@
 
 #include "base/build_time.h"
 #include "base/cpu.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_flattener.h"
 #include "base/metrics/histogram_functions.h"
@@ -20,7 +21,7 @@
 #include "base/metrics/metrics_hashes.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
-#include "base/sys_info.h"
+#include "base/system/sys_info.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/metrics/delegating_provider.h"

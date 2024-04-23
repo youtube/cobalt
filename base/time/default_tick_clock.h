@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,12 @@
 
 namespace base {
 
-// DefaultClock is a Clock implementation that uses TimeTicks::Now().
+// DefaultTickClock is a TickClock implementation that uses TimeTicks::Now().
+// This is typically used by components that expose a SetTickClockForTesting().
+// Note: Overriding Time/TimeTicks altogether via
+// TaskEnvironment::TimeSource::MOCK_TIME is now the preferred way of overriding
+// time in unit tests. As such, there shouldn't be many new use cases for
+// TickClock/DefaultTickClock anymore.
 class BASE_EXPORT DefaultTickClock : public TickClock {
  public:
   ~DefaultTickClock() override;

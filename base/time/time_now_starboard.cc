@@ -29,7 +29,7 @@ namespace base {
 
 namespace subtle {
 Time TimeNowIgnoringOverride() {
-  return Time() + TimeDelta::FromMicroseconds(
+  return Time() + Microseconds(
       starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()));
 }
 
@@ -43,7 +43,7 @@ Time TimeNowFromSystemTimeIgnoringOverride() {
 
 namespace subtle {
 TimeTicks TimeTicksNowIgnoringOverride() {
-  return TimeTicks() + TimeDelta::FromMicroseconds(
+  return TimeTicks() + Microseconds(
       starboard::CurrentMonotonicTime());
 }
 }  // namespace subtle
@@ -63,7 +63,7 @@ bool TimeTicks::IsConsistentAcrossProcesses() {
 
 namespace subtle {
 ThreadTicks ThreadTicksNowIgnoringOverride() {
-  return ThreadTicks() + TimeDelta::FromMicroseconds(
+  return ThreadTicks() + Microseconds(
       starboard::CurrentMonotonicThreadTime());
 }
 }  // namespace subtle

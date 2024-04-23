@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,8 +10,6 @@
 #include <memory>
 
 #include "base/mac/scoped_cftyperef.h"
-#include "base/macros.h"
-#include "starboard/types.h"
 
 namespace base {
 class Thread;
@@ -26,7 +24,7 @@ class NetworkConfigWatcherMac {
   // NetworkConfigWatcherMac.
   class Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
 
     // Called to let the delegate do any setup work the must be run on the
     // notifier thread immediately after it starts.
@@ -48,6 +46,8 @@ class NetworkConfigWatcherMac {
   };
 
   explicit NetworkConfigWatcherMac(Delegate* delegate);
+  NetworkConfigWatcherMac(const NetworkConfigWatcherMac&) = delete;
+  NetworkConfigWatcherMac& operator=(const NetworkConfigWatcherMac&) = delete;
   ~NetworkConfigWatcherMac();
 
  private:
@@ -55,8 +55,6 @@ class NetworkConfigWatcherMac {
   // to the registered observers without posting back to the thread the object
   // was created on.
   std::unique_ptr<base::Thread> notifier_thread_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetworkConfigWatcherMac);
 };
 
 }  // namespace net

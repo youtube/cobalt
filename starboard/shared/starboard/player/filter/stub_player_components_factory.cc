@@ -23,8 +23,9 @@ namespace player {
 namespace filter {
 
 // static
-scoped_ptr<PlayerComponents::Factory> StubPlayerComponentsFactory::Create() {
-  return make_scoped_ptr<PlayerComponents::Factory>(
+unique_ptr_alias<PlayerComponents::Factory>
+StubPlayerComponentsFactory::Create() {
+  return unique_ptr_alias<PlayerComponents::Factory>(
       new StubPlayerComponentsFactory);
 }
 

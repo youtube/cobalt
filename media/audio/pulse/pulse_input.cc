@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,7 +42,10 @@ PulseAudioInputStream::PulseAudioInputStream(
       pa_mainloop_(mainloop),
       pa_context_(context),
       log_callback_(std::move(log_callback)),
-      handle_(nullptr) {
+      handle_(nullptr),
+      peak_detector_(base::BindRepeating(&AudioManager::TraceAmplitudePeak,
+                                         base::Unretained(audio_manager_),
+                                         /*trace_start=*/true)) {
   DCHECK(mainloop);
   DCHECK(context);
   CHECK(params_.IsValid());
@@ -350,8 +353,12 @@ void PulseAudioInputStream::ReadData() {
       fifo_.IncreaseCapacity(increase_blocks_of_buffer);
     }
 
-    fifo_.Push(data, number_of_frames,
-               SampleFormatToBytesPerChannel(pulse::kInputSampleFormat));
+    const int bytes_per_sample =
+        SampleFormatToBytesPerChannel(pulse::kInputSampleFormat);
+
+    peak_detector_.FindPeak(data, number_of_frames, bytes_per_sample);
+
+    fifo_.Push(data, number_of_frames, bytes_per_sample);
 
     // Checks if we still have data.
     pa_stream_drop(handle_);
@@ -360,7 +367,7 @@ void PulseAudioInputStream::ReadData() {
   while (fifo_.available_blocks()) {
     const AudioBus* audio_bus = fifo_.Consume();
 
-    callback_->OnData(audio_bus, capture_time, normalized_volume);
+    callback_->OnData(audio_bus, capture_time, normalized_volume, {});
 
     // Move the capture time forward for each vended block.
     capture_time += AudioTimestampHelper::FramesToTime(audio_bus->frames(),

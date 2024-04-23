@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,17 +39,10 @@
 // Then you simply #include this file as well as gtest.h and add the
 // following statement to my_task_runner_unittest.cc:
 //
-//   INSTANTIATE_TYPED_TEST_CASE_P(
+//   INSTANTIATE_TYPED_TEST_SUITE_P(
 //       MyTaskRunner, TaskRunnerTest, MyTaskRunnerTestDelegate);
 //
 // Easy!
-//
-// The optional test harnesses TaskRunnerAffinityTest can be
-// instanciated in the same way, using the same delegate:
-//
-//   INSTANTIATE_TYPED_TEST_CASE_P(
-//       MyTaskRunner, TaskRunnerAffinityTest, MyTaskRunnerTestDelegate);
-
 
 #ifndef BASE_TEST_TASK_RUNNER_TEST_TEMPLATE_H_
 #define BASE_TEST_TASK_RUNNER_TEST_TEMPLATE_H_
@@ -57,15 +50,14 @@
 #include <cstddef>
 #include <map>
 
-#include "base/bind.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/location.h"
-#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/single_thread_task_runner.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
-#include "base/task_runner.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/task_runner.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -79,10 +71,13 @@ class TaskTracker : public RefCountedThreadSafe<TaskTracker> {
  public:
   TaskTracker();
 
+  TaskTracker(const TaskTracker&) = delete;
+  TaskTracker& operator=(const TaskTracker&) = delete;
+
   // Returns a closure that runs the given task and increments the run
   // count of |i| by one.  |task| may be null.  It is guaranteed that
   // only one task wrapped by a given tracker will be run at a time.
-  Closure WrapTask(const Closure& task, int i);
+  RepeatingClosure WrapTask(RepeatingClosure task, int i);
 
   std::map<int, int> GetTaskRunCounts() const;
 
@@ -94,29 +89,26 @@ class TaskTracker : public RefCountedThreadSafe<TaskTracker> {
 
   ~TaskTracker();
 
-  void RunTask(const Closure& task, int i);
+  void RunTask(RepeatingClosure task, int i);
 
   mutable Lock lock_;
   std::map<int, int> task_run_counts_;
   int task_runs_;
   ConditionVariable task_runs_cv_;
-
-  DISALLOW_COPY_AND_ASSIGN(TaskTracker);
 };
 
 }  // namespace test
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TaskRunnerTest);
 template <typename TaskRunnerTestDelegate>
 class TaskRunnerTest : public testing::Test {
  protected:
-  TaskRunnerTest() : task_tracker_(new test::TaskTracker()) {}
+  TaskRunnerTest() : task_tracker_(base::MakeRefCounted<test::TaskTracker>()) {}
 
   const scoped_refptr<test::TaskTracker> task_tracker_;
   TaskRunnerTestDelegate delegate_;
 };
 
-TYPED_TEST_CASE_P(TaskRunnerTest);
+TYPED_TEST_SUITE_P(TaskRunnerTest);
 
 // We can't really test much, since TaskRunner provides very few
 // guarantees.
@@ -130,7 +122,8 @@ TYPED_TEST_P(TaskRunnerTest, Basic) {
   scoped_refptr<TaskRunner> task_runner = this->delegate_.GetTaskRunner();
   // Post each ith task i+1 times.
   for (int i = 0; i < 20; ++i) {
-    const Closure& ith_task = this->task_tracker_->WrapTask(Closure(), i);
+    RepeatingClosure ith_task =
+        this->task_tracker_->WrapTask(RepeatingClosure(), i);
     for (int j = 0; j < i + 1; ++j) {
       task_runner->PostTask(FROM_HERE, ith_task);
       ++expected_task_run_counts[i];
@@ -152,10 +145,10 @@ TYPED_TEST_P(TaskRunnerTest, Delayed) {
   scoped_refptr<TaskRunner> task_runner = this->delegate_.GetTaskRunner();
   // Post each ith task i+1 times with delays from 0-i.
   for (int i = 0; i < 20; ++i) {
-    const Closure& ith_task = this->task_tracker_->WrapTask(Closure(), i);
+    RepeatingClosure ith_task =
+        this->task_tracker_->WrapTask(RepeatingClosure(), i);
     for (int j = 0; j < i + 1; ++j) {
-      task_runner->PostDelayedTask(
-          FROM_HERE, ith_task, base::TimeDelta::FromMilliseconds(j));
+      task_runner->PostDelayedTask(FROM_HERE, ith_task, base::Milliseconds(j));
       ++expected_task_run_counts[i];
       ++expected_total_tasks;
     }
@@ -169,63 +162,7 @@ TYPED_TEST_P(TaskRunnerTest, Delayed) {
 
 // The TaskRunnerTest test case verifies behaviour that is expected from a
 // task runner in order to be conformant.
-REGISTER_TYPED_TEST_CASE_P(TaskRunnerTest, Basic, Delayed);
-
-namespace test {
-
-// Calls RunsTasksInCurrentSequence() on |task_runner| and expects it to
-// equal |expected_value|.
-void ExpectRunsTasksInCurrentSequence(bool expected_value,
-                                      TaskRunner* task_runner);
-
-}  // namespace test
-
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TaskRunnerAffinityTest);
-template <typename TaskRunnerTestDelegate>
-class TaskRunnerAffinityTest : public TaskRunnerTest<TaskRunnerTestDelegate> {};
-
-TYPED_TEST_CASE_P(TaskRunnerAffinityTest);
-
-// Post a bunch of tasks to the task runner as well as to a separate
-// thread, each checking the value of RunsTasksInCurrentSequence(),
-// which should return true for the tasks posted on the task runner
-// and false for the tasks posted on the separate thread.
-TYPED_TEST_P(TaskRunnerAffinityTest, RunsTasksInCurrentSequence) {
-  std::map<int, int> expected_task_run_counts;
-
-  Thread thread("Non-task-runner thread");
-  ASSERT_TRUE(thread.Start());
-  this->delegate_.StartTaskRunner();
-
-  scoped_refptr<TaskRunner> task_runner = this->delegate_.GetTaskRunner();
-  // Post each ith task i+1 times on the task runner and i+1 times on
-  // the non-task-runner thread.
-  for (int i = 0; i < 20; ++i) {
-    const Closure& ith_task_runner_task = this->task_tracker_->WrapTask(
-        Bind(&test::ExpectRunsTasksInCurrentSequence, true,
-             base::RetainedRef(task_runner)),
-        i);
-    const Closure& ith_non_task_runner_task = this->task_tracker_->WrapTask(
-        Bind(&test::ExpectRunsTasksInCurrentSequence, false,
-             base::RetainedRef(task_runner)),
-        i);
-    for (int j = 0; j < i + 1; ++j) {
-      task_runner->PostTask(FROM_HERE, ith_task_runner_task);
-      thread.task_runner()->PostTask(FROM_HERE, ith_non_task_runner_task);
-      expected_task_run_counts[i] += 2;
-    }
-  }
-
-  this->delegate_.StopTaskRunner();
-  thread.Stop();
-
-  EXPECT_EQ(expected_task_run_counts,
-            this->task_tracker_->GetTaskRunCounts());
-}
-
-// TaskRunnerAffinityTest tests that the TaskRunner implementation
-// can determine if tasks will never be run on a specific thread.
-REGISTER_TYPED_TEST_CASE_P(TaskRunnerAffinityTest, RunsTasksInCurrentSequence);
+REGISTER_TYPED_TEST_SUITE_P(TaskRunnerTest, Basic, Delayed);
 
 }  // namespace base
 

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,12 +15,14 @@
 #include <memory>
 
 #include "base/atomic_sequence_num.h"
-#include "base/bind.h"
+#include "base/containers/contains.h"
+#include "base/containers/span.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/mac/mac_logging.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/sdk_forward_declarations.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/scoped_policy.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
@@ -29,30 +31,31 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/sys_byteorder.h"
 #include "base/system/sys_info.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "base/version.h"
 #include "components/crash/core/common/crash_key.h"
-#include "components/viz/common/resources/resource_format_utils.h"
 #include "gpu/command_buffer/common/gpu_memory_buffer_support.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
-#include "gpu/command_buffer/service/shared_image_backing_gl_image.h"
-#include "gpu/command_buffer/service/shared_image_factory.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "gpu/ipc/service/shared_image_stub.h"
 #include "media/base/limits.h"
 #include "media/base/mac/color_space_util_mac.h"
 #include "media/base/media_switches.h"
 #include "media/filters/vp9_parser.h"
+#include "media/gpu/mac/gl_image_io_surface.h"
 #include "media/gpu/mac/vp9_super_frame_bitstream_filter.h"
 #include "media/gpu/mac/vt_config_util.h"
+#include "media/video/h264_level_limits.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/gpu_memory_buffer.h"
 #include "ui/gl/gl_context.h"
-#include "ui/gl/gl_image_io_surface.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/scoped_binders.h"
 
@@ -66,19 +69,35 @@ namespace media {
 
 namespace {
 
+// Controls whether InitializeVideoToolboxInternal() does preload or not.
+BASE_FEATURE(kSkipVideoToolboxPreload,
+             "SkipVideoToolboxPreload",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Parameter sets vector contain all PPSs/SPSs(/VPSs)
+using ParameterSets = std::vector<base::span<const uint8_t>>;
+
 // A sequence of ids for memory tracing.
 base::AtomicSequenceNumber g_memory_dump_ids;
 
 // A sequence of shared memory ids for CVPixelBufferRefs.
 base::AtomicSequenceNumber g_cv_pixel_buffer_ids;
 
-// Only H.264 with 4:2:0 chroma sampling is supported.
+// The video codec profiles that are supported.
 constexpr VideoCodecProfile kSupportedProfiles[] = {
     H264PROFILE_BASELINE, H264PROFILE_EXTENDED, H264PROFILE_MAIN,
     H264PROFILE_HIGH,
 
     // These are only supported on macOS 11+.
     VP9PROFILE_PROFILE0, VP9PROFILE_PROFILE2,
+
+    // These are only supported on macOS 11+.
+    HEVCPROFILE_MAIN, HEVCPROFILE_MAIN10, HEVCPROFILE_MAIN_STILL_PICTURE,
+
+    // This is partially supported on macOS 11+, Apple Silicon Mac supports
+    // 8 ~ 10 bit 400, 420, 422, 444 HW decoding, Intel Mac supports 8 ~ 12
+    // bit 400, 420, 422, 444 SW decoding.
+    HEVCPROFILE_REXT,
 
     // TODO(sandersd): Hi10p fails during
     // CMVideoFormatDescriptionCreateFromH264ParameterSets with
@@ -124,10 +143,18 @@ constexpr int kNumPictureBuffers = limits::kMaxVideoFrames * 4;
 // minimum safe (static) size of the reorder queue.
 constexpr int kMaxReorderQueueSize = 17;
 
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+// If videotoolbox total output picture count is lower than
+// kMinOutputsBeforeRASL, then we should skip the RASL frames
+// to avoid kVTVideoDecoderBadDataErr
+constexpr int kMinOutputsBeforeRASL = 5;
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+
 // Build an |image_config| dictionary for VideoToolbox initialization.
 base::ScopedCFTypeRef<CFMutableDictionaryRef> BuildImageConfig(
     CMVideoDimensions coded_dimensions,
-    bool is_hbd) {
+    bool is_hbd,
+    bool has_alpha) {
   base::ScopedCFTypeRef<CFMutableDictionaryRef> image_config;
 
   // Note that 4:2:0 textures cannot be used directly as RGBA in OpenGL, but are
@@ -135,6 +162,11 @@ base::ScopedCFTypeRef<CFMutableDictionaryRef> BuildImageConfig(
   int32_t pixel_format = is_hbd
                              ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
                              : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
+  // macOS support 8 bit (they actually only recommand main profile)
+  // HEVC with alpha layer well.
+  if (has_alpha)
+    pixel_format = kCVPixelFormatType_420YpCbCr8VideoRange_8A_TriPlanar;
+
 #define CFINT(i) CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &i)
   base::ScopedCFTypeRef<CFNumberRef> cf_pixel_format(CFINT(pixel_format));
   base::ScopedCFTypeRef<CFNumberRef> cf_width(CFINT(coded_dimensions.width));
@@ -157,6 +189,43 @@ base::ScopedCFTypeRef<CFMutableDictionaryRef> BuildImageConfig(
 
   return image_config;
 }
+
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+// Create a CMFormatDescription using the provided |param_sets|.
+base::ScopedCFTypeRef<CMFormatDescriptionRef> CreateVideoFormatHEVC(
+    ParameterSets param_sets) {
+  DCHECK(!param_sets.empty());
+
+  // Build the configuration records.
+  std::vector<const uint8_t*> nalu_data_ptrs;
+  std::vector<size_t> nalu_data_sizes;
+  nalu_data_ptrs.reserve(param_sets.size());
+  nalu_data_sizes.reserve(param_sets.size());
+  for (auto& param : param_sets) {
+    nalu_data_ptrs.push_back(param.data());
+    nalu_data_sizes.push_back(param.size());
+  }
+
+  // For some unknown reason, even if apple has claimed that this API is
+  // available after macOS 10.13, however base on the result on macOS 10.15.7,
+  // we could get an OSStatus=-12906 kVTCouldNotFindVideoDecoderErr after
+  // calling VTDecompressionSessionCreate(), so macOS 11+ is necessary
+  // (https://crbug.com/1300444#c9)
+  base::ScopedCFTypeRef<CMFormatDescriptionRef> format;
+  if (__builtin_available(macOS 11.0, *)) {
+    OSStatus status = CMVideoFormatDescriptionCreateFromHEVCParameterSets(
+        kCFAllocatorDefault,
+        nalu_data_ptrs.size(),   // parameter_set_count
+        nalu_data_ptrs.data(),   // &parameter_set_pointers
+        nalu_data_sizes.data(),  // &parameter_set_sizes
+        kNALUHeaderLength,       // nal_unit_header_length
+        NULL, format.InitializeInto());
+    OSSTATUS_DLOG_IF(WARNING, status != noErr, status)
+        << "CMVideoFormatDescriptionCreateFromHEVCParameterSets()";
+  }
+  return format;
+}
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 
 // Create a CMFormatDescription using the provided |pps| and |sps|.
 base::ScopedCFTypeRef<CMFormatDescriptionRef> CreateVideoFormatH264(
@@ -223,6 +292,7 @@ bool CreateVideoToolboxSession(
     const CMFormatDescriptionRef format,
     bool require_hardware,
     bool is_hbd,
+    bool has_alpha,
     const VTDecompressionOutputCallbackRecord* callback,
     base::ScopedCFTypeRef<VTDecompressionSessionRef>* session,
     gfx::Size* configured_size) {
@@ -254,7 +324,7 @@ bool CreateVideoToolboxSession(
       base::ClampFloor(visible_rect.size.width),
       base::ClampFloor(visible_rect.size.height)};
   base::ScopedCFTypeRef<CFMutableDictionaryRef> image_config(
-      BuildImageConfig(visible_dimensions, is_hbd));
+      BuildImageConfig(visible_dimensions, is_hbd, has_alpha));
   if (!image_config) {
     DLOG(ERROR) << "Failed to create decoder image configuration";
     return false;
@@ -285,36 +355,47 @@ bool CreateVideoToolboxSession(
 // session fails, hardware decoding will be disabled (Initialize() will always
 // return false).
 bool InitializeVideoToolboxInternal() {
+  if (base::FeatureList::IsEnabled(kSkipVideoToolboxPreload)) {
+    // When skipping preload we still need to register vp9, otherwise it won't
+    // work at all.
+    if (__builtin_available(macOS 11.0, *)) {
+      VTRegisterSupplementalVideoDecoderIfAvailable(kCMVideoCodecType_VP9);
+    }
+    return true;
+  }
+
   VTDecompressionOutputCallbackRecord callback = {0};
   base::ScopedCFTypeRef<VTDecompressionSessionRef> session;
   gfx::Size configured_size;
 
-  // Create a hardware decoding session.
+  // Create a h264 hardware decoding session.
   // SPS and PPS data are taken from a 480p sample (buck2.mp4).
-  const std::vector<uint8_t> sps_normal = {
+  const std::vector<uint8_t> sps_h264_normal = {
       0x67, 0x64, 0x00, 0x1e, 0xac, 0xd9, 0x80, 0xd4, 0x3d, 0xa1, 0x00, 0x00,
       0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x30, 0x8f, 0x16, 0x2d, 0x9a};
-  const std::vector<uint8_t> pps_normal = {0x68, 0xe9, 0x7b, 0xcb};
+  const std::vector<uint8_t> pps_h264_normal = {0x68, 0xe9, 0x7b, 0xcb};
   if (!CreateVideoToolboxSession(
-          CreateVideoFormatH264(sps_normal, std::vector<uint8_t>(), pps_normal),
-          /*require_hardware=*/true, /*is_hbd=*/false, &callback, &session,
-          &configured_size)) {
+          CreateVideoFormatH264(sps_h264_normal, std::vector<uint8_t>(),
+                                pps_h264_normal),
+          /*require_hardware=*/true, /*is_hbd=*/false, /*has_alpha=*/false,
+          &callback, &session, &configured_size)) {
     DVLOG(1) << "Hardware H264 decoding with VideoToolbox is not supported";
     return false;
   }
 
   session.reset();
 
-  // Create a software decoding session.
+  // Create a h264 software decoding session.
   // SPS and PPS data are taken from a 18p sample (small2.mp4).
-  const std::vector<uint8_t> sps_small = {
+  const std::vector<uint8_t> sps_h264_small = {
       0x67, 0x64, 0x00, 0x0a, 0xac, 0xd9, 0x89, 0x7e, 0x22, 0x10, 0x00,
       0x00, 0x3e, 0x90, 0x00, 0x0e, 0xa6, 0x08, 0xf1, 0x22, 0x59, 0xa0};
-  const std::vector<uint8_t> pps_small = {0x68, 0xe9, 0x79, 0x72, 0xc0};
+  const std::vector<uint8_t> pps_h264_small = {0x68, 0xe9, 0x79, 0x72, 0xc0};
   if (!CreateVideoToolboxSession(
-          CreateVideoFormatH264(sps_small, std::vector<uint8_t>(), pps_small),
-          /*require_hardware=*/false, /*is_hbd=*/false, &callback, &session,
-          &configured_size)) {
+          CreateVideoFormatH264(sps_h264_small, std::vector<uint8_t>(),
+                                pps_h264_small),
+          /*require_hardware=*/false, /*is_hbd=*/false, /*has_alpha=*/false,
+          &callback, &session, &configured_size)) {
     DVLOG(1) << "Software H264 decoding with VideoToolbox is not supported";
     return false;
   }
@@ -328,19 +409,85 @@ bool InitializeVideoToolboxInternal() {
     if (!CreateVideoToolboxSession(
             CreateVideoFormatVP9(VideoColorSpace::REC709(), VP9PROFILE_PROFILE0,
                                  absl::nullopt, gfx::Size(720, 480)),
-            /*require_hardware=*/true, /*is_hbd=*/false, &callback, &session,
-            &configured_size)) {
+            /*require_hardware=*/true, /*is_hbd=*/false, /*has_alpha=*/false,
+            &callback, &session, &configured_size)) {
       DVLOG(1) << "Hardware VP9 decoding with VideoToolbox is not supported";
 
       // We don't return false here since VP9 support is optional.
     }
   }
 
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+  if (base::FeatureList::IsEnabled(media::kPlatformHEVCDecoderSupport)) {
+    // Only macOS >= 11.0 will support hevc if we use
+    // CMVideoFormatDescriptionCreateFromHEVCParameterSets
+    // API to create video format
+    if (__builtin_available(macOS 11.0, *)) {
+      session.reset();
+
+      // Create a hevc hardware decoding session.
+      // VPS, SPS and PPS data are taken from a 720p sample
+      // (bear-1280x720-hevc.mp4).
+      const std::vector<uint8_t> vps_hevc_normal = {
+          0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60,
+          0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03,
+          0x00, 0x00, 0x03, 0x00, 0x5d, 0x95, 0x98, 0x09};
+
+      const std::vector<uint8_t> sps_hevc_normal = {
+          0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00,
+          0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5d, 0xa0, 0x02, 0x80, 0x80,
+          0x2d, 0x16, 0x59, 0x59, 0xa4, 0x93, 0x2b, 0xc0, 0x5a, 0x70, 0x80,
+          0x00, 0x01, 0xf4, 0x80, 0x00, 0x3a, 0x98, 0x04};
+
+      const std::vector<uint8_t> pps_hevc_normal = {0x44, 0x01, 0xc1, 0x72,
+                                                    0xb4, 0x62, 0x40};
+
+      if (!CreateVideoToolboxSession(
+              CreateVideoFormatHEVC(ParameterSets(
+                  {vps_hevc_normal, sps_hevc_normal, pps_hevc_normal})),
+              /*require_hardware=*/true, /*is_hbd=*/false, /*has_alpha=*/false,
+              &callback, &session, &configured_size)) {
+        DVLOG(1) << "Hardware HEVC decoding with VideoToolbox is not supported";
+
+        // We don't return false here since HEVC support is optional.
+      }
+
+      session.reset();
+
+      // Create a hevc software decoding session.
+      // VPS, SPS and PPS data are taken from a 240p sample
+      // (bear-320x240-v_frag-hevc.mp4).
+      const std::vector<uint8_t> vps_hevc_small = {
+          0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60,
+          0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03,
+          0x00, 0x00, 0x03, 0x00, 0x3c, 0x95, 0x98, 0x09};
+
+      const std::vector<uint8_t> sps_hevc_small = {
+          0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90,
+          0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3c, 0xa0, 0x0a,
+          0x08, 0x0f, 0x16, 0x59, 0x59, 0xa4, 0x93, 0x2b, 0xc0, 0x40,
+          0x40, 0x00, 0x00, 0xfa, 0x40, 0x00, 0x1d, 0x4c, 0x02};
+
+      const std::vector<uint8_t> pps_hevc_small = {0x44, 0x01, 0xc1, 0x72,
+                                                   0xb4, 0x62, 0x40};
+
+      if (!CreateVideoToolboxSession(
+              CreateVideoFormatHEVC(ParameterSets(
+                  {vps_hevc_small, sps_hevc_small, pps_hevc_small})),
+              /*require_hardware=*/false, /*is_hbd=*/false, /*has_alpha=*/false,
+              &callback, &session, &configured_size)) {
+        DVLOG(1) << "Software HEVC decoding with VideoToolbox is not supported";
+
+        // We don't return false here since HEVC support is optional.
+      }
+    }
+  }
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
   return true;
 }
 
 // TODO(sandersd): Share this computation with the VAAPI decoder.
-int32_t ComputeReorderWindow(const H264SPS* sps) {
+int32_t ComputeH264ReorderWindow(const H264SPS* sps) {
   // When |pic_order_cnt_type| == 2, decode order always matches presentation
   // order.
   // TODO(sandersd): For |pic_order_cnt_type| == 1, analyze the delta cycle to
@@ -348,8 +495,11 @@ int32_t ComputeReorderWindow(const H264SPS* sps) {
   if (sps->pic_order_cnt_type == 2)
     return 0;
 
-  // TODO(sandersd): Compute MaxDpbFrames.
-  int32_t max_dpb_frames = 16;
+  int max_dpb_mbs = H264LevelToMaxDpbMbs(sps->GetIndicatedLevel());
+  int max_dpb_frames =
+      max_dpb_mbs / ((sps->pic_width_in_mbs_minus1 + 1) *
+                     (sps->pic_height_in_map_units_minus1 + 1));
+  max_dpb_frames = std::clamp(max_dpb_frames, 0, 16);
 
   // See AVC spec section E.2.1 definition of |max_num_reorder_frames|.
   if (sps->vui_parameters_present_flag && sps->bitstream_restriction_flag) {
@@ -364,6 +514,13 @@ int32_t ComputeReorderWindow(const H264SPS* sps) {
   return max_dpb_frames;
 }
 
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+int32_t ComputeHEVCReorderWindow(const H265VPS* vps) {
+  int32_t vps_max_sub_layers_minus1 = vps->vps_max_sub_layers_minus1;
+  return vps->vps_max_num_reorder_pics[vps_max_sub_layers_minus1];
+}
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+
 // Route decoded frame callbacks back into the VTVideoDecodeAccelerator.
 void OutputThunk(void* decompression_output_refcon,
                  void* source_frame_refcon,
@@ -377,23 +534,41 @@ void OutputThunk(void* decompression_output_refcon,
   vda->Output(source_frame_refcon, status, image_buffer);
 }
 
+gfx::BufferFormat ToBufferFormat(viz::SharedImageFormat format) {
+  DCHECK(format.is_multi_plane());
+  if (format == viz::MultiPlaneFormat::kYV12) {
+    return gfx::BufferFormat::YVU_420;
+  }
+  if (format == viz::MultiPlaneFormat::kNV12) {
+    return gfx::BufferFormat::YUV_420_BIPLANAR;
+  }
+  if (format == viz::MultiPlaneFormat::kNV12A) {
+    return gfx::BufferFormat::YUVA_420_TRIPLANAR;
+  }
+  if (format == viz::MultiPlaneFormat::kP010) {
+    return gfx::BufferFormat::P010;
+  }
+  NOTREACHED();
+  return gfx::BufferFormat::RGBA_8888;
+}
+
 }  // namespace
 
 // Detects coded size and color space changes. Also indicates when a frame won't
 // generate any output.
 class VP9ConfigChangeDetector {
  public:
-  VP9ConfigChangeDetector() : parser_(false) {}
+  VP9ConfigChangeDetector() : vp9_parser_(false) {}
   ~VP9ConfigChangeDetector() = default;
 
   void DetectConfig(const uint8_t* stream, unsigned int size) {
-    parser_.SetStream(stream, size, nullptr);
+    vp9_parser_.SetStream(stream, size, nullptr);
     config_changed_ = false;
 
     Vp9FrameHeader fhdr;
     gfx::Size allocate_size;
     std::unique_ptr<DecryptConfig> null_config;
-    while (parser_.ParseNextFrame(&fhdr, &allocate_size, &null_config) ==
+    while (vp9_parser_.ParseNextFrame(&fhdr, &allocate_size, &null_config) ==
            Vp9Parser::kOk) {
       color_space_ = fhdr.GetColorSpace();
 
@@ -432,7 +607,7 @@ class VP9ConfigChangeDetector {
   bool config_changed_ = false;
   bool pending_config_changed_ = false;
   VideoColorSpace color_space_;
-  Vp9Parser parser_;
+  Vp9Parser vp9_parser_;
 };
 
 bool InitializeVideoToolbox() {
@@ -485,7 +660,7 @@ VTVideoDecodeAccelerator::VTVideoDecodeAccelerator(
       workarounds_(workarounds),
       // Non media/ use cases like PPAPI may not provide a MediaLog.
       media_log_(media_log ? media_log->Clone() : nullptr),
-      gpu_task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      gpu_task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       decoder_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::TaskPriority::USER_VISIBLE})),
       decoder_weak_this_factory_(this),
@@ -517,8 +692,8 @@ bool VTVideoDecodeAccelerator::OnMemoryDump(
 
   // Dump output pictures (decoded frames for which PictureReady() has been
   // called already).
-  for (const auto& it : picture_info_map_) {
-    PictureInfo* picture_info = it.second.get();
+  // TODO(sandersd): Dump SharedImages also.
+  for (const auto& [texture_id, picture_info] : picture_info_map_) {
     for (const auto& gl_image : picture_info->gl_images) {
       std::string dump_name =
           base::StringPrintf("media/vt_video_decode_accelerator_%d/picture_%d",
@@ -599,10 +774,8 @@ bool VTVideoDecodeAccelerator::Initialize(const Config& config,
 
   static const base::NoDestructor<VideoDecodeAccelerator::SupportedProfiles>
       kActualSupportedProfiles(GetSupportedProfiles(workarounds_));
-  if (std::find_if(kActualSupportedProfiles->begin(),
-                   kActualSupportedProfiles->end(), [config](const auto& p) {
-                     return p.profile == config.profile;
-                   }) == kActualSupportedProfiles->end()) {
+  if (!base::Contains(*kActualSupportedProfiles, config.profile,
+                      &VideoDecodeAccelerator::SupportedProfile::profile)) {
     DVLOG(2) << "Unsupported profile";
     return false;
   }
@@ -622,6 +795,14 @@ bool VTVideoDecodeAccelerator::Initialize(const Config& config,
     case H264PROFILE_HIGH:
       codec_ = VideoCodec::kH264;
       break;
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+    case HEVCPROFILE_MAIN:
+    case HEVCPROFILE_MAIN10:
+    case HEVCPROFILE_MAIN_STILL_PICTURE:
+    case HEVCPROFILE_REXT:
+      codec_ = VideoCodec::kHEVC;
+      break;
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
     case VP9PROFILE_PROFILE0:
     case VP9PROFILE_PROFILE2:
       codec_ = VideoCodec::kVP9;
@@ -641,6 +822,7 @@ bool VTVideoDecodeAccelerator::FinishDelayedFrames() {
   DCHECK(decoder_task_runner_->RunsTasksInCurrentSequence());
   if (session_) {
     OSStatus status = VTDecompressionSessionWaitForAsynchronousFrames(session_);
+    output_count_for_cra_rasl_workaround_ = 0;
     if (status) {
       NOTIFY_STATUS("VTDecompressionSessionWaitForAsynchronousFrames()", status,
                     SFT_PLATFORM_ERROR);
@@ -659,6 +841,19 @@ bool VTVideoDecodeAccelerator::ConfigureDecoder() {
     case VideoCodec::kH264:
       format = CreateVideoFormatH264(active_sps_, active_spsext_, active_pps_);
       break;
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+    case VideoCodec::kHEVC: {
+      ParameterSets param_sets;
+      for (auto& it : seen_vps_)
+        param_sets.push_back(it.second);
+      for (auto& it : seen_sps_)
+        param_sets.push_back(it.second);
+      for (auto& it : seen_pps_)
+        param_sets.push_back(it.second);
+      format = CreateVideoFormatHEVC(param_sets);
+      break;
+    }
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
     case VideoCodec::kVP9:
       format = CreateVideoFormatVP9(
           cc_detector_->GetColorSpace(config_.container_color_space),
@@ -687,11 +882,18 @@ bool VTVideoDecodeAccelerator::ConfigureDecoder() {
   session_.reset();
 
   // Note: We can always require hardware once Flash and PPAPI are gone.
+  // however for HEVC, do not use require hardware to avoid
+  // kVTVideoDecoderUnsupportedDataFormatErr(-12910) failure,
+  // hardware acceleration may be unavailable for a number of reasons,
+  // so just enable hardware and let vt choose whether to use
+  // hardware of software decode
   const bool require_hardware = config_.profile == VP9PROFILE_PROFILE0 ||
                                 config_.profile == VP9PROFILE_PROFILE2;
-  const bool is_hbd = config_.profile == VP9PROFILE_PROFILE2;
-  if (!CreateVideoToolboxSession(format_, require_hardware, is_hbd, &callback_,
-                                 &session_, &configured_size_)) {
+  const bool is_hbd = config_.profile == VP9PROFILE_PROFILE2 ||
+                      config_.profile == HEVCPROFILE_MAIN10 ||
+                      config_.profile == HEVCPROFILE_REXT;
+  if (!CreateVideoToolboxSession(format_, require_hardware, is_hbd, has_alpha_,
+                                 &callback_, &session_, &configured_size_)) {
     NotifyError(PLATFORM_FAILURE, SFT_PLATFORM_ERROR);
     return false;
   }
@@ -712,6 +914,15 @@ bool VTVideoDecodeAccelerator::ConfigureDecoder() {
     vp9_bsf_ = std::make_unique<VP9SuperFrameBitstreamFilter>();
 
   // Record that the configuration change is complete.
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+  // Actually seen vps/sps/pps may contain outdated parameter
+  // sets, VideoToolbox perhaps can handle this well since those
+  // outdated ones are not referenced by current pictures.
+  // Let's see what will happens in this way.
+  configured_vpss_ = seen_vps_;
+  configured_spss_ = seen_sps_;
+  configured_ppss_ = seen_pps_;
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
   configured_sps_ = active_sps_;
   configured_spsext_ = active_spsext_;
   configured_pps_ = active_pps_;
@@ -790,8 +1001,9 @@ void VTVideoDecodeAccelerator::DecodeTaskVp9(
   }
 }
 
-void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
-                                          Frame* frame) {
+void VTVideoDecodeAccelerator::DecodeTaskH264(
+    scoped_refptr<DecoderBuffer> buffer,
+    Frame* frame) {
   DVLOG(2) << __func__ << "(" << frame->bitstream_id << ")";
   DCHECK(decoder_task_runner_->RunsTasksInCurrentSequence());
 
@@ -803,10 +1015,11 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
   // record parameter sets for VideoToolbox initialization.
   size_t data_size = 0;
   std::vector<H264NALU> nalus;
-  parser_.SetStream(buffer->data(), buffer->data_size());
+  size_t first_slice_index = 0;
+  h264_parser_.SetStream(buffer->data(), buffer->data_size());
   H264NALU nalu;
   while (true) {
-    H264Parser::Result result = parser_.AdvanceToNextNALU(&nalu);
+    H264Parser::Result result = h264_parser_.AdvanceToNextNALU(&nalu);
     if (result == H264Parser::kEOStream)
       break;
     if (result == H264Parser::kUnsupportedStream) {
@@ -823,7 +1036,7 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
     switch (nalu.nal_unit_type) {
       case H264NALU::kSPS: {
         int sps_id = -1;
-        result = parser_.ParseSPS(&sps_id);
+        result = h264_parser_.ParseSPS(&sps_id);
         if (result == H264Parser::kUnsupportedStream) {
           WriteToMediaLog(MediaLogMessageLevel::kERROR, "Unsupported SPS");
           NotifyError(PLATFORM_FAILURE, SFT_UNSUPPORTED_STREAM);
@@ -841,7 +1054,7 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
 
       case H264NALU::kSPSExt: {
         int sps_id = -1;
-        result = parser_.ParseSPSExt(&sps_id);
+        result = h264_parser_.ParseSPSExt(&sps_id);
         if (result != H264Parser::kOk) {
           WriteToMediaLog(MediaLogMessageLevel::kERROR,
                           "Could not parse SPS extension");
@@ -854,7 +1067,7 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
 
       case H264NALU::kPPS: {
         int pps_id = -1;
-        result = parser_.ParsePPS(&pps_id);
+        result = h264_parser_.ParsePPS(&pps_id);
         if (result == H264Parser::kUnsupportedStream) {
           WriteToMediaLog(MediaLogMessageLevel::kERROR, "Unsupported PPS");
           NotifyError(PLATFORM_FAILURE, SFT_UNSUPPORTED_STREAM);
@@ -870,17 +1083,40 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
       }
 
       case H264NALU::kSEIMessage: {
-        H264SEIMessage sei_msg;
-        result = parser_.ParseSEI(&sei_msg);
-        if (result == H264Parser::kOk &&
-            sei_msg.type == H264SEIMessage::kSEIRecoveryPoint &&
-            sei_msg.recovery_point.recovery_frame_cnt == 0) {
-          // We only support immediate recovery points. Supporting future points
-          // would require dropping |recovery_frame_cnt| frames when needed.
-          frame->has_recovery_point = true;
-        }
         nalus.push_back(nalu);
         data_size += kNALUHeaderLength + nalu.size;
+        H264SEI sei;
+        result = h264_parser_.ParseSEI(&sei);
+        if (result != H264Parser::kOk)
+          break;
+        for (auto& sei_msg : sei.msgs) {
+          switch (sei_msg.type) {
+            case H264SEIMessage::kSEIRecoveryPoint:
+              if (sei_msg.recovery_point.recovery_frame_cnt == 0) {
+                // We only support immediate recovery points. Supporting
+                // future points would require dropping |recovery_frame_cnt|
+                // frames when needed.
+                frame->has_recovery_point = true;
+              }
+              break;
+            case H264SEIMessage::kSEIMasteringDisplayInfo:
+              if (!config_.hdr_metadata) {
+                config_.hdr_metadata = gfx::HDRMetadata();
+              }
+              sei_msg.mastering_display_info.PopulateColorVolumeMetadata(
+                  config_.hdr_metadata->color_volume_metadata);
+              break;
+            case H264SEIMessage::kSEIContentLightLevelInfo:
+              if (!config_.hdr_metadata) {
+                config_.hdr_metadata = gfx::HDRMetadata();
+              }
+              sei_msg.content_light_level_info.PopulateHDRMetadata(
+                  config_.hdr_metadata.value());
+              break;
+            default:
+              break;
+          }
+        }
         break;
       }
 
@@ -894,7 +1130,7 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
         if (!frame->has_slice) {
           // Parse slice header.
           H264SliceHeader slice_hdr;
-          result = parser_.ParseSliceHeader(nalu, &slice_hdr);
+          result = h264_parser_.ParseSliceHeader(nalu, &slice_hdr);
           if (result == H264Parser::kUnsupportedStream) {
             WriteToMediaLog(MediaLogMessageLevel::kERROR,
                             "Unsupported slice header");
@@ -909,7 +1145,8 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
           }
 
           // Lookup SPS and PPS.
-          const H264PPS* pps = parser_.GetPPS(slice_hdr.pic_parameter_set_id);
+          const H264PPS* pps =
+              h264_parser_.GetPPS(slice_hdr.pic_parameter_set_id);
           if (!pps) {
             WriteToMediaLog(MediaLogMessageLevel::kERROR,
                             "Missing PPS referenced by slice");
@@ -917,7 +1154,7 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
             return;
           }
 
-          const H264SPS* sps = parser_.GetSPS(pps->seq_parameter_set_id);
+          const H264SPS* sps = h264_parser_.GetSPS(pps->seq_parameter_set_id);
           if (!sps) {
             WriteToMediaLog(MediaLogMessageLevel::kERROR,
                             "Missing SPS referenced by PPS");
@@ -926,8 +1163,8 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
           }
 
           // Record the configuration.
-          DCHECK(seen_pps_.count(slice_hdr.pic_parameter_set_id));
-          DCHECK(seen_sps_.count(pps->seq_parameter_set_id));
+          DCHECK(seen_pps_.contains(slice_hdr.pic_parameter_set_id));
+          DCHECK(seen_sps_.contains(pps->seq_parameter_set_id));
           active_sps_ = seen_sps_[pps->seq_parameter_set_id];
           // Note: SPS extension lookup may create an empty entry.
           active_spsext_ = seen_spsext_[pps->seq_parameter_set_id];
@@ -936,7 +1173,7 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
           // Compute and store frame properties. |image_size| gets filled in
           // later, since it comes from the decoder configuration.
           absl::optional<int32_t> pic_order_cnt =
-              poc_.ComputePicOrderCnt(sps, slice_hdr);
+              h264_poc_.ComputePicOrderCnt(sps, slice_hdr);
           if (!pic_order_cnt.has_value()) {
             WriteToMediaLog(MediaLogMessageLevel::kERROR,
                             "Unable to compute POC");
@@ -946,11 +1183,15 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
 
           frame->has_slice = true;
           frame->is_idr = nalu.nal_unit_type == media::H264NALU::kIDRSlice;
-          frame->has_mmco5 = poc_.IsPendingMMCO5();
+          frame->has_mmco5 = h264_poc_.IsPendingMMCO5();
           frame->pic_order_cnt = *pic_order_cnt;
-          frame->reorder_window = ComputeReorderWindow(sps);
+          frame->reorder_window = ComputeH264ReorderWindow(sps);
+
+          first_slice_index = nalus.size();
         }
-        FALLTHROUGH;
+        nalus.push_back(nalu);
+        data_size += kNALUHeaderLength + nalu.size;
+        break;
 
       default:
         nalus.push_back(nalu);
@@ -961,6 +1202,7 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
 
   if (frame->is_idr || frame->has_recovery_point)
     waiting_for_idr_ = false;
+  frame->hdr_metadata = config_.hdr_metadata;
 
   // If no IDR has been seen yet, skip decoding. Note that Flash sends
   // configuration changes as a bitstream with only SPS/PPS; we don't print
@@ -984,27 +1226,62 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
     return;
   }
 
-  // Apply any configuration change, but only at an IDR. If there is no IDR, we
-  // just hope for the best from the decoder.
-  if (frame->is_idr &&
-      (configured_sps_ != active_sps_ || configured_spsext_ != active_spsext_ ||
-       configured_pps_ != active_pps_)) {
-    if (active_sps_.empty()) {
-      WriteToMediaLog(MediaLogMessageLevel::kERROR,
-                      "Invalid configuration (no SPS)");
-      NotifyError(INVALID_ARGUMENT, SFT_INVALID_STREAM);
-      return;
-    }
-    if (active_pps_.empty()) {
-      WriteToMediaLog(MediaLogMessageLevel::kERROR,
-                      "Invalid configuration (no PPS)");
-      NotifyError(INVALID_ARGUMENT, SFT_INVALID_STREAM);
-      return;
-    }
+  // If the configuration has changed, and we're at an IDR, reconfigure the
+  // decoding session. Otherwise insert the parameter sets and hope for the
+  // best.
+  if (configured_sps_ != active_sps_ || configured_spsext_ != active_spsext_ ||
+      configured_pps_ != active_pps_) {
+    if (frame->is_idr) {
+      if (active_sps_.empty()) {
+        WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                        "Invalid configuration (no SPS)");
+        NotifyError(INVALID_ARGUMENT, SFT_INVALID_STREAM);
+        return;
+      }
+      if (active_pps_.empty()) {
+        WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                        "Invalid configuration (no PPS)");
+        NotifyError(INVALID_ARGUMENT, SFT_INVALID_STREAM);
+        return;
+      }
 
-    // ConfigureDecoder() calls NotifyError() on failure.
-    if (!ConfigureDecoder())
-      return;
+      // ConfigureDecoder() calls NotifyError() on failure.
+      if (!ConfigureDecoder())
+        return;
+    } else {
+      // Only |data| and |size| are read later, other fields are left empty.
+      // In case that their are new PPS/SPS/SPSext appears after an IDR, or
+      // videos that have multiple PPSs and we are referring to the one that
+      // is not used to create video format.
+      media::H264NALU sps_nalu;
+      sps_nalu.data = active_sps_.data();
+      sps_nalu.size = active_sps_.size();
+      nalus.insert(nalus.begin() + first_slice_index, sps_nalu);
+      data_size += kNALUHeaderLength + sps_nalu.size;
+      first_slice_index += 1;
+
+      if (active_spsext_.size()) {
+        media::H264NALU spsext_nalu;
+        spsext_nalu.data = active_spsext_.data();
+        spsext_nalu.size = active_spsext_.size();
+        nalus.insert(nalus.begin() + first_slice_index, spsext_nalu);
+        data_size += kNALUHeaderLength + spsext_nalu.size;
+        first_slice_index += 1;
+      }
+
+      media::H264NALU pps_nalu;
+      pps_nalu.data = active_pps_.data();
+      pps_nalu.size = active_pps_.size();
+      nalus.insert(nalus.begin() + first_slice_index, pps_nalu);
+      data_size += kNALUHeaderLength + pps_nalu.size;
+      first_slice_index += 1;
+
+      // Update the configured SPS/SPSext/PPS in case VT referrence to the wrong
+      // parameter sets.
+      configured_sps_ = active_sps_;
+      configured_spsext_ = active_spsext_;
+      configured_pps_ = active_pps_;
+    }
   }
 
   // If the session is not configured by this point, fail.
@@ -1050,8 +1327,8 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
   // Copy NALU data into the CMBlockBuffer, inserting length headers.
   size_t offset = 0;
   for (size_t i = 0; i < nalus.size(); i++) {
-    H264NALU& nalu = nalus[i];
-    uint32_t header = base::HostToNet32(static_cast<uint32_t>(nalu.size));
+    H264NALU& nalu_ref = nalus[i];
+    uint32_t header = base::HostToNet32(static_cast<uint32_t>(nalu_ref.size));
     status =
         CMBlockBufferReplaceDataBytes(&header, data, offset, kNALUHeaderLength);
     if (status) {
@@ -1060,13 +1337,14 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
       return;
     }
     offset += kNALUHeaderLength;
-    status = CMBlockBufferReplaceDataBytes(nalu.data, data, offset, nalu.size);
+    status = CMBlockBufferReplaceDataBytes(nalu_ref.data, data, offset,
+                                           nalu_ref.size);
     if (status) {
       NOTIFY_STATUS("CMBlockBufferReplaceDataBytes()", status,
                     SFT_PLATFORM_ERROR);
       return;
     }
-    offset += nalu.size;
+    offset += nalu_ref.size;
   }
 
   // Package the data in a CMSampleBuffer.
@@ -1108,6 +1386,438 @@ void VTVideoDecodeAccelerator::DecodeTask(scoped_refptr<DecoderBuffer> buffer,
   }
 }
 
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+void VTVideoDecodeAccelerator::DecodeTaskHEVC(
+    scoped_refptr<DecoderBuffer> buffer,
+    Frame* frame) {
+  DCHECK(decoder_task_runner_->RunsTasksInCurrentSequence());
+
+  size_t data_size = 0;
+  std::vector<H265NALU> nalus;
+  // store the previous slice header to allow us recover the current
+  // from the previous one if dependent_slice_segment_flag exists
+  std::unique_ptr<H265SliceHeader> curr_slice_hdr;
+  std::unique_ptr<H265SliceHeader> last_slice_hdr;
+  size_t first_slice_index = 0;
+  // ID of the VPS/SPS/PPS that most recently activated by an IDR.
+  int active_vps_id = 0;
+  int active_sps_id = 0;
+  int active_pps_id = 0;
+  hevc_parser_.SetStream(buffer->data(), buffer->data_size());
+  H265NALU nalu;
+  while (true) {
+    H265Parser::Result result = hevc_parser_.AdvanceToNextNALU(&nalu);
+    if (result == H265Parser::kEOStream) {
+      last_slice_hdr.reset();
+      break;
+    }
+
+    if (result == H265Parser::kUnsupportedStream) {
+      WriteToMediaLog(MediaLogMessageLevel::kERROR, "Unsupported H.265 stream");
+      NotifyError(PLATFORM_FAILURE, SFT_UNSUPPORTED_STREAM);
+      return;
+    }
+
+    if (result != H265Parser::kOk) {
+      WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                      "Failed to parse H.265 stream");
+      NotifyError(UNREADABLE_INPUT, SFT_INVALID_STREAM);
+      return;
+    }
+
+    switch (nalu.nal_unit_type) {
+      case H265NALU::SPS_NUT: {
+        int sps_id = -1;
+        result = hevc_parser_.ParseSPS(&sps_id);
+        if (result == H265Parser::kUnsupportedStream) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR, "Unsupported SPS");
+          NotifyError(PLATFORM_FAILURE, SFT_UNSUPPORTED_STREAM);
+          return;
+        }
+        if (result != H265Parser::kOk) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR, "Could not parse SPS");
+          NotifyError(UNREADABLE_INPUT, SFT_INVALID_STREAM);
+          return;
+        }
+        seen_sps_[sps_id].assign(nalu.data, nalu.data + nalu.size);
+        break;
+      }
+
+      case H265NALU::PPS_NUT: {
+        int pps_id = -1;
+        result = hevc_parser_.ParsePPS(nalu, &pps_id);
+        if (result == H265Parser::kUnsupportedStream) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR, "Unsupported PPS");
+          NotifyError(PLATFORM_FAILURE, SFT_UNSUPPORTED_STREAM);
+          return;
+        }
+        if (result == H265Parser::kMissingParameterSet) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                          "Missing SPS from what was parsed");
+          NotifyError(PLATFORM_FAILURE, SFT_INVALID_STREAM);
+          return;
+        }
+        if (result != H265Parser::kOk) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR, "Could not parse PPS");
+          NotifyError(UNREADABLE_INPUT, SFT_INVALID_STREAM);
+          return;
+        }
+        seen_pps_[pps_id].assign(nalu.data, nalu.data + nalu.size);
+        break;
+      }
+
+      case H265NALU::VPS_NUT: {
+        int vps_id = -1;
+        result = hevc_parser_.ParseVPS(&vps_id);
+        if (result == H265Parser::kUnsupportedStream) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR, "Unsupported VPS");
+          NotifyError(PLATFORM_FAILURE, SFT_UNSUPPORTED_STREAM);
+          return;
+        }
+        if (result != H265Parser::kOk) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR, "Could not parse VPS");
+          NotifyError(UNREADABLE_INPUT, SFT_INVALID_STREAM);
+          return;
+        }
+        seen_vps_[vps_id].assign(nalu.data, nalu.data + nalu.size);
+        break;
+      }
+
+      case H265NALU::PREFIX_SEI_NUT: {
+        nalus.push_back(nalu);
+        data_size += kNALUHeaderLength + nalu.size;
+        H265SEI sei;
+        result = hevc_parser_.ParseSEI(&sei);
+        if (result != H265Parser::kOk)
+          break;
+        for (auto& sei_msg : sei.msgs) {
+          switch (sei_msg.type) {
+            case H265SEIMessage::kSEIAlphaChannelInfo:
+              has_alpha_ =
+                  sei_msg.alpha_channel_info.alpha_channel_cancel_flag == 0;
+              break;
+            case H265SEIMessage::kSEIMasteringDisplayInfo:
+              if (!config_.hdr_metadata)
+                config_.hdr_metadata = gfx::HDRMetadata();
+              sei_msg.mastering_display_info.PopulateColorVolumeMetadata(
+                  config_.hdr_metadata->color_volume_metadata);
+              break;
+            case H265SEIMessage::kSEIContentLightLevelInfo:
+              if (!config_.hdr_metadata)
+                config_.hdr_metadata = gfx::HDRMetadata();
+              sei_msg.content_light_level_info.PopulateHDRMetadata(
+                  config_.hdr_metadata.value());
+              break;
+            default:
+              break;
+          }
+        }
+        break;
+      }
+
+      case H265NALU::EOS_NUT:
+        hevc_poc_.Reset();
+        nalus.push_back(nalu);
+        data_size += kNALUHeaderLength + nalu.size;
+        break;
+      case H265NALU::BLA_W_LP:
+      case H265NALU::BLA_W_RADL:
+      case H265NALU::BLA_N_LP:
+      case H265NALU::IDR_W_RADL:
+      case H265NALU::IDR_N_LP:
+      case H265NALU::TRAIL_N:
+      case H265NALU::TRAIL_R:
+      case H265NALU::TSA_N:
+      case H265NALU::TSA_R:
+      case H265NALU::STSA_N:
+      case H265NALU::STSA_R:
+      case H265NALU::RADL_N:
+      case H265NALU::RADL_R:
+      case H265NALU::RASL_N:
+      case H265NALU::RASL_R:
+      case H265NALU::CRA_NUT: {
+        // The VT session will report a OsStatus=12909 kVTVideoDecoderBadDataErr
+        // if you send a RASL frame just after a CRA frame, so we wait until the
+        // total output count is enough
+        if (output_count_for_cra_rasl_workaround_ < kMinOutputsBeforeRASL &&
+            (nalu.nal_unit_type == H265NALU::RASL_N ||
+             nalu.nal_unit_type == H265NALU::RASL_R)) {
+          continue;
+        }
+        // Just like H264, only the first slice is examined. Other slices are at
+        // least one of: the same frame, not decoded, invalid so no need to
+        // parse again.
+        if (frame->has_slice) {
+          nalus.push_back(nalu);
+          data_size += kNALUHeaderLength + nalu.size;
+          break;
+        }
+        curr_slice_hdr.reset(new H265SliceHeader());
+        result = hevc_parser_.ParseSliceHeader(nalu, curr_slice_hdr.get(),
+                                               last_slice_hdr.get());
+
+        if (result == H265Parser::kMissingParameterSet) {
+          curr_slice_hdr.reset();
+          last_slice_hdr.reset();
+          WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                          "Missing PPS when parsing slice header");
+          continue;
+        }
+
+        if (result != H265Parser::kOk) {
+          curr_slice_hdr.reset();
+          last_slice_hdr.reset();
+          WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                          "Could not parse slice header");
+          NotifyError(UNREADABLE_INPUT, SFT_INVALID_STREAM);
+          return;
+        }
+
+        const H265PPS* pps =
+            hevc_parser_.GetPPS(curr_slice_hdr->slice_pic_parameter_set_id);
+        if (!pps) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                          "Missing PPS referenced by slice");
+          NotifyError(UNREADABLE_INPUT, SFT_INVALID_STREAM);
+          return;
+        }
+
+        const H265SPS* sps = hevc_parser_.GetSPS(pps->pps_seq_parameter_set_id);
+        if (!sps) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                          "Missing SPS referenced by PPS");
+          NotifyError(UNREADABLE_INPUT, SFT_INVALID_STREAM);
+          return;
+        }
+
+        const H265VPS* vps =
+            hevc_parser_.GetVPS(sps->sps_video_parameter_set_id);
+        if (!vps) {
+          WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                          "Missing VPS referenced by SPS");
+          NotifyError(UNREADABLE_INPUT, SFT_INVALID_STREAM);
+          return;
+        }
+
+        // Record the configuration.
+        active_vps_id = sps->sps_video_parameter_set_id;
+        active_sps_id = pps->pps_seq_parameter_set_id;
+        active_pps_id = curr_slice_hdr->slice_pic_parameter_set_id;
+        DCHECK(seen_vps_.contains(active_vps_id));
+        DCHECK(seen_sps_.contains(active_sps_id));
+        DCHECK(seen_pps_.contains(active_pps_id));
+        active_vps_ = seen_vps_[active_vps_id];
+        active_sps_ = seen_sps_[active_sps_id];
+        active_pps_ = seen_pps_[active_pps_id];
+
+        // Compute and store frame properties. |image_size| gets filled in
+        // later, since it comes from the decoder configuration.
+        int32_t pic_order_cnt =
+            hevc_poc_.ComputePicOrderCnt(sps, pps, *curr_slice_hdr.get());
+
+        frame->has_slice = true;
+        frame->is_idr = nalu.nal_unit_type >= H265NALU::BLA_W_LP &&
+                        nalu.nal_unit_type <= H265NALU::RSV_IRAP_VCL23;
+        frame->pic_order_cnt = pic_order_cnt;
+        frame->reorder_window = ComputeHEVCReorderWindow(vps);
+
+        first_slice_index = nalus.size();
+
+        last_slice_hdr.swap(curr_slice_hdr);
+        curr_slice_hdr.reset();
+        [[fallthrough]];
+      }
+      default:
+        nalus.push_back(nalu);
+        data_size += kNALUHeaderLength + nalu.size;
+        break;
+    }
+  }
+
+  if (frame->is_idr)
+    waiting_for_idr_ = false;
+  frame->hdr_metadata = config_.hdr_metadata;
+
+  // If no IDR has been seen yet, skip decoding. Note that Flash sends
+  // configuration changes as a bitstream with only SPS/PPS/VPS; we don't print
+  // error messages for those.
+  if (frame->has_slice && waiting_for_idr_) {
+    if (!missing_idr_logged_) {
+      WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                      ("Illegal attempt to decode without IDR. "
+                       "Discarding decode requests until the next IDR."));
+      missing_idr_logged_ = true;
+    }
+    frame->has_slice = false;
+  }
+
+  // If there is nothing to decode, drop the request by returning a frame with
+  // no image.
+  if (!frame->has_slice) {
+    gpu_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&VTVideoDecodeAccelerator::DecodeDone,
+                                  weak_this_, frame));
+    return;
+  }
+
+  // Apply any configuration change, but only at an IDR. If there is no IDR, we
+  // just hope for the best from the decoder.
+  if (seen_vps_ != configured_vpss_ || seen_sps_ != configured_spss_ ||
+      seen_pps_ != configured_ppss_) {
+    if (frame->is_idr) {
+      if (seen_vps_.empty()) {
+        WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                        "Invalid configuration (no VPS)");
+        NotifyError(INVALID_ARGUMENT, SFT_INVALID_STREAM);
+        return;
+      }
+      if (seen_sps_.empty()) {
+        WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                        "Invalid configuration (no SPS)");
+        NotifyError(INVALID_ARGUMENT, SFT_INVALID_STREAM);
+        return;
+      }
+      if (seen_pps_.empty()) {
+        WriteToMediaLog(MediaLogMessageLevel::kERROR,
+                        "Invalid configuration (no PPS)");
+        NotifyError(INVALID_ARGUMENT, SFT_INVALID_STREAM);
+        return;
+      }
+
+      // ConfigureDecoder() calls NotifyError() on failure.
+      if (!ConfigureDecoder()) {
+        return;
+      }
+    } else {
+      // Only |data| and |size| are read later, other fields are left empty.
+      // In case that their are new VPS/SPS/PPS appears after an IDR.
+      media::H265NALU vps_nalu;
+      vps_nalu.data = active_vps_.data();
+      vps_nalu.size = active_vps_.size();
+      nalus.insert(nalus.begin() + first_slice_index, vps_nalu);
+      data_size += kNALUHeaderLength + vps_nalu.size;
+      first_slice_index += 1;
+
+      media::H265NALU sps_nalu;
+      sps_nalu.data = active_sps_.data();
+      sps_nalu.size = active_sps_.size();
+      nalus.insert(nalus.begin() + first_slice_index, sps_nalu);
+      data_size += kNALUHeaderLength + sps_nalu.size;
+      first_slice_index += 1;
+
+      media::H265NALU pps_nalu;
+      pps_nalu.data = active_pps_.data();
+      pps_nalu.size = active_pps_.size();
+      nalus.insert(nalus.begin() + first_slice_index, pps_nalu);
+      data_size += kNALUHeaderLength + pps_nalu.size;
+      first_slice_index += 1;
+
+      // Update the configured VPSs/SPSs/PPSs in case VT referrence to the wrong
+      // parameter sets.
+      configured_vpss_[active_vps_id].assign(
+          active_vps_.data(), active_vps_.data() + active_vps_.size());
+      configured_spss_[active_sps_id].assign(
+          active_sps_.data(), active_sps_.data() + active_sps_.size());
+      configured_ppss_[active_pps_id].assign(
+          active_pps_.data(), active_pps_.data() + active_pps_.size());
+    }
+  }
+
+  // Now that the configuration is up to date, copy it into the frame.
+  frame->image_size = configured_size_;
+
+  // Create a memory-backed CMBlockBuffer for the translated data.
+  // TODO(sandersd): Pool of memory blocks.
+  base::ScopedCFTypeRef<CMBlockBufferRef> data;
+  OSStatus status = CMBlockBufferCreateWithMemoryBlock(
+      kCFAllocatorDefault,
+      nullptr,              // &memory_block
+      data_size,            // block_length
+      kCFAllocatorDefault,  // block_allocator
+      nullptr,              // &custom_block_source
+      0,                    // offset_to_data
+      data_size,            // data_length
+      0,                    // flags
+      data.InitializeInto());
+  if (status) {
+    NOTIFY_STATUS("CMBlockBufferCreateWithMemoryBlock()", status,
+                  SFT_PLATFORM_ERROR);
+    return;
+  }
+
+  // Make sure that the memory is actually allocated.
+  // CMBlockBufferReplaceDataBytes() is documented to do this, but prints a
+  // message each time starting in Mac OS X 10.10.
+  status = CMBlockBufferAssureBlockMemory(data);
+  if (status) {
+    NOTIFY_STATUS("CMBlockBufferAssureBlockMemory()", status,
+                  SFT_PLATFORM_ERROR);
+    return;
+  }
+
+  // Copy NALU data into the CMBlockBuffer, inserting length headers.
+  size_t offset = 0;
+  for (size_t i = 0; i < nalus.size(); i++) {
+    H265NALU& nalu_ref = nalus[i];
+    uint32_t header = base::HostToNet32(static_cast<uint32_t>(nalu_ref.size));
+    status =
+        CMBlockBufferReplaceDataBytes(&header, data, offset, kNALUHeaderLength);
+    if (status) {
+      NOTIFY_STATUS("CMBlockBufferReplaceDataBytes()", status,
+                    SFT_PLATFORM_ERROR);
+      return;
+    }
+    offset += kNALUHeaderLength;
+    status = CMBlockBufferReplaceDataBytes(nalu_ref.data, data, offset,
+                                           nalu_ref.size);
+    if (status) {
+      NOTIFY_STATUS("CMBlockBufferReplaceDataBytes()", status,
+                    SFT_PLATFORM_ERROR);
+      return;
+    }
+    offset += nalu_ref.size;
+  }
+
+  // Package the data in a CMSampleBuffer.
+  base::ScopedCFTypeRef<CMSampleBufferRef> sample;
+  status = CMSampleBufferCreate(kCFAllocatorDefault,
+                                data,        // data_buffer
+                                true,        // data_ready
+                                nullptr,     // make_data_ready_callback
+                                nullptr,     // make_data_ready_refcon
+                                format_,     // format_description
+                                1,           // num_samples
+                                0,           // num_sample_timing_entries
+                                nullptr,     // &sample_timing_array
+                                1,           // num_sample_size_entries
+                                &data_size,  // &sample_size_array
+                                sample.InitializeInto());
+  if (status) {
+    NOTIFY_STATUS("CMSampleBufferCreate()", status, SFT_PLATFORM_ERROR);
+    return;
+  }
+
+  // Send the frame for decoding.
+  // Asynchronous Decompression allows for parallel submission of frames
+  // (without it, DecodeFrame() does not return until the frame has been
+  // decoded). We don't enable Temporal Processing because we are not passing
+  // timestamps anyway.
+  VTDecodeFrameFlags decode_flags =
+      kVTDecodeFrame_EnableAsynchronousDecompression;
+  status = VTDecompressionSessionDecodeFrame(
+      session_,
+      sample,                          // sample_buffer
+      decode_flags,                    // decode_flags
+      reinterpret_cast<void*>(frame),  // source_frame_refcon
+      nullptr);                        // &info_flags_out
+  if (status) {
+    NOTIFY_STATUS("VTDecompressionSessionDecodeFrame()", status,
+                  SFT_DECODE_ERROR);
+    return;
+  }
+}
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+
 // This method may be called on any VideoToolbox thread.
 void VTVideoDecodeAccelerator::Output(void* source_frame_refcon,
                                       OSStatus status,
@@ -1144,7 +1854,7 @@ void VTVideoDecodeAccelerator::DecodeDone(Frame* frame) {
 
   // pending_frames_.erase() will delete |frame|.
   int32_t bitstream_id = frame->bitstream_id;
-  DCHECK_EQ(1u, pending_frames_.count(bitstream_id));
+  DCHECK(pending_frames_.contains(bitstream_id));
 
   if (state_ == STATE_ERROR || state_ == STATE_DESTROYING) {
     // Destroy() handles NotifyEndOfBitstreamBuffer().
@@ -1159,6 +1869,8 @@ void VTVideoDecodeAccelerator::DecodeDone(Frame* frame) {
     client_->NotifyEndOfBitstreamBuffer(bitstream_id);
     return;
   }
+
+  output_count_for_cra_rasl_workaround_++;
 
   Task task(TASK_FRAME);
   task.frame = std::move(pending_frames_[bitstream_id]);
@@ -1233,10 +1945,17 @@ void VTVideoDecodeAccelerator::Decode(scoped_refptr<DecoderBuffer> buffer,
         FROM_HERE,
         base::BindOnce(&VTVideoDecodeAccelerator::DecodeTaskVp9,
                        decoder_weak_this_, std::move(buffer), frame));
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+  } else if (codec_ == VideoCodec::kHEVC) {
+    decoder_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&VTVideoDecodeAccelerator::DecodeTaskHEVC,
+                       decoder_weak_this_, std::move(buffer), frame));
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
   } else {
     decoder_task_runner_->PostTask(
         FROM_HERE,
-        base::BindOnce(&VTVideoDecodeAccelerator::DecodeTask,
+        base::BindOnce(&VTVideoDecodeAccelerator::DecodeTaskH264,
                        decoder_weak_this_, std::move(buffer), frame));
   }
 }
@@ -1248,7 +1967,7 @@ void VTVideoDecodeAccelerator::AssignPictureBuffers(
 
   for (const PictureBuffer& picture : pictures) {
     DVLOG(3) << "AssignPictureBuffer(" << picture.id() << ")";
-    DCHECK(!picture_info_map_.count(picture.id()));
+    DCHECK(!picture_info_map_.contains(picture.id()));
     assigned_picture_ids_.insert(picture.id());
     available_picture_ids_.push_back(picture.id());
     if (picture.client_texture_ids().empty() &&
@@ -1290,8 +2009,7 @@ void VTVideoDecodeAccelerator::ReusePictureBuffer(int32_t picture_id) {
     picture_info->scoped_shared_images.clear();
   } else {
     gl_client_.bind_image.Run(picture_info->client_texture_id,
-                              gpu::GetPlatformSpecificTextureTarget(), nullptr,
-                              false);
+                              gpu::GetPlatformSpecificTextureTarget(), nullptr);
   }
   picture_info->gl_images.clear();
   picture_info->bitstream_id = 0;
@@ -1307,7 +2025,7 @@ void VTVideoDecodeAccelerator::ProcessWorkQueues() {
   DCHECK(gpu_task_runner_->BelongsToCurrentThread());
   switch (state_) {
     case STATE_DECODING:
-      if (codec_ != VideoCodec::kH264) {
+      if (codec_ == VideoCodec::kVP9) {
         while (state_ == STATE_DECODING) {
           if (!ProcessOutputQueue() && !ProcessTaskQueue())
             break;
@@ -1382,7 +2100,7 @@ bool VTVideoDecodeAccelerator::ProcessTaskQueue() {
 
     case TASK_FLUSH:
       DCHECK_EQ(task.type, pending_flush_tasks_.front());
-      if ((codec_ == VideoCodec::kH264 && reorder_queue_.size() == 0) ||
+      if ((codec_ != VideoCodec::kVP9 && reorder_queue_.size() == 0) ||
           (codec_ == VideoCodec::kVP9 && output_queue_.empty())) {
         DVLOG(1) << "Flush complete";
         pending_flush_tasks_.pop();
@@ -1394,7 +2112,7 @@ bool VTVideoDecodeAccelerator::ProcessTaskQueue() {
 
     case TASK_RESET:
       DCHECK_EQ(task.type, pending_flush_tasks_.front());
-      if ((codec_ == VideoCodec::kH264 && reorder_queue_.size() == 0) ||
+      if ((codec_ != VideoCodec::kVP9 && reorder_queue_.size() == 0) ||
           (codec_ == VideoCodec::kVP9 && output_queue_.empty())) {
         DVLOG(1) << "Reset complete";
         waiting_for_idr_ = true;
@@ -1485,14 +2203,17 @@ bool VTVideoDecodeAccelerator::ProcessFrame(const Frame& frame) {
     // Request new pictures.
     picture_size_ = frame.image_size;
 
-    // TODO(https://crbug.com/1210994): Remove XRGB support, and expose only
-    // PIXEL_FORMAT_NV12 and PIXEL_FORMAT_YUV420P10.
-    picture_format_ = PIXEL_FORMAT_XRGB;
-    if (base::FeatureList::IsEnabled(kMultiPlaneVideoToolboxSharedImages)) {
-      // TODO(https://crbug.com/1233228): The UV planes of P010 frames cannot
-      // be represented in the current gfx::BufferFormat.
-      if (config_.profile != VP9PROFILE_PROFILE2)
-        picture_format_ = PIXEL_FORMAT_NV12;
+    if (has_alpha_) {
+      si_format_ = viz::MultiPlaneFormat::kNV12A;
+      picture_format_ = PIXEL_FORMAT_NV12A;
+    } else if (config_.profile == VP9PROFILE_PROFILE2 ||
+               config_.profile == HEVCPROFILE_MAIN10 ||
+               config_.profile == HEVCPROFILE_REXT) {
+      si_format_ = viz::MultiPlaneFormat::kP010;
+      picture_format_ = PIXEL_FORMAT_P016LE;
+    } else {
+      si_format_ = viz::MultiPlaneFormat::kNV12;
+      picture_format_ = PIXEL_FORMAT_NV12;
     }
 
     DVLOG(3) << "ProvidePictureBuffers(" << kNumPictureBuffers
@@ -1520,98 +2241,79 @@ bool VTVideoDecodeAccelerator::SendFrame(const Frame& frame) {
   PictureInfo* picture_info = it->second.get();
   DCHECK(picture_info->gl_images.empty());
 
-  const gfx::BufferFormat buffer_format =
-      config_.profile == VP9PROFILE_PROFILE2
-          ? gfx::BufferFormat::P010
-          : gfx::BufferFormat::YUV_420_BIPLANAR;
-  gfx::ColorSpace color_space = GetImageBufferColorSpace(frame.image);
-
+  const gfx::ColorSpace color_space = GetImageBufferColorSpace(frame.image);
   std::vector<gfx::BufferPlane> planes;
-  switch (picture_format_) {
-    case PIXEL_FORMAT_NV12:
-    case PIXEL_FORMAT_YUV420P10:
-      planes.push_back(gfx::BufferPlane::Y);
-      planes.push_back(gfx::BufferPlane::UV);
-      break;
-    case PIXEL_FORMAT_XRGB:
-      planes.push_back(gfx::BufferPlane::DEFAULT);
-      break;
-    default:
-      NOTREACHED();
-      break;
-  }
-
-  for (size_t plane = 0; plane < planes.size(); ++plane) {
-    const gfx::Size plane_size(
-        CVPixelBufferGetWidthOfPlane(frame.image.get(), plane),
-        CVPixelBufferGetHeightOfPlane(frame.image.get(), plane));
-    gfx::BufferFormat plane_buffer_format =
-        gpu::GetPlaneBufferFormat(planes[plane], buffer_format);
-    // TODO(https://crbug.com/1108909): BGRA is not an appropriate value for
-    // these parameters.
-    const viz::ResourceFormat viz_resource_format =
-        (picture_format_ == PIXEL_FORMAT_XRGB)
-            ? viz::ResourceFormat::BGRA_8888
-            : viz::GetResourceFormat(plane_buffer_format);
-    const GLenum gl_format = viz::GLDataFormat(viz_resource_format);
-
-    scoped_refptr<gl::GLImageIOSurface> gl_image(
-        gl::GLImageIOSurface::Create(plane_size, gl_format));
-    if (!gl_image->InitializeWithCVPixelBuffer(
-            frame.image.get(), plane,
-            gfx::GenericSharedMemoryId(g_cv_pixel_buffer_ids.GetNext()),
-            plane_buffer_format)) {
-      NOTIFY_STATUS("Failed to initialize GLImageIOSurface", PLATFORM_FAILURE,
-                    SFT_PLATFORM_ERROR);
+  if (IsMultiPlaneFormatForHardwareVideoEnabled()) {
+    planes.push_back(gfx::BufferPlane::DEFAULT);
+  } else {
+    switch (picture_format_) {
+      case PIXEL_FORMAT_NV12:
+      case PIXEL_FORMAT_P016LE:
+        planes.push_back(gfx::BufferPlane::Y);
+        planes.push_back(gfx::BufferPlane::UV);
+        break;
+      case PIXEL_FORMAT_NV12A:
+        planes.push_back(gfx::BufferPlane::Y);
+        planes.push_back(gfx::BufferPlane::UV);
+        planes.push_back(gfx::BufferPlane::A);
+        break;
+      default:
+        NOTREACHED();
+        break;
     }
-    gl_image->DisableInUseByWindowServer();
-    gl_image->SetColorSpaceForYUVToRGBConversion(color_space);
-    gl_image->SetColorSpaceShallow(color_space);
-
+  }
+  for (size_t plane = 0; plane < planes.size(); ++plane) {
     if (picture_info->uses_shared_images) {
       gpu::SharedImageStub* shared_image_stub = client_->GetSharedImageStub();
-      DCHECK(shared_image_stub);
-      const uint32_t shared_image_usage =
-          gpu::SHARED_IMAGE_USAGE_DISPLAY | gpu::SHARED_IMAGE_USAGE_SCANOUT;
-      gpu::Mailbox mailbox = gpu::Mailbox::GenerateForSharedImage();
-
-      gpu::SharedImageBackingGLCommon::InitializeGLTextureParams gl_params;
-      // ANGLE-on-Metal exposes IOSurfaces via GL_TEXTURE_2D. Be robust to that.
-      gl_params.target = gl_client_.supports_arb_texture_rectangle
-                             ? GL_TEXTURE_RECTANGLE_ARB
-                             : GL_TEXTURE_2D;
-      gl_params.internal_format = gl_format;
-      gl_params.format = gl_format;
-      gl_params.type = GL_UNSIGNED_BYTE;
-      gl_params.is_cleared = true;
-      gpu::SharedImageBackingGLCommon::UnpackStateAttribs gl_attribs;
-
-      // A GL texture id is needed to create the legacy mailbox, which requires
-      // that the GL context be made current.
-      const bool kCreateLegacyMailbox = true;
-      if (!gl_client_.make_context_current.Run()) {
-        DLOG(ERROR) << "Failed to make context current";
+      if (!shared_image_stub) {
+        DLOG(ERROR) << "Failed to get SharedImageStub";
         NotifyError(PLATFORM_FAILURE, SFT_PLATFORM_ERROR);
         return false;
       }
 
-      auto shared_image = std::make_unique<gpu::SharedImageBackingGLImage>(
-          gl_image, mailbox, viz_resource_format, plane_size, color_space,
-          kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType, shared_image_usage,
-          gl_params, gl_attribs, gl_client_.is_passthrough);
+      const gfx::Size frame_size(CVPixelBufferGetWidth(frame.image.get()),
+                                 CVPixelBufferGetHeight(frame.image.get()));
+      const uint32_t shared_image_usage =
+          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
+          gpu::SHARED_IMAGE_USAGE_SCANOUT |
+          gpu::SHARED_IMAGE_USAGE_MACOS_VIDEO_TOOLBOX |
+          gpu::SHARED_IMAGE_USAGE_RASTER | gpu::SHARED_IMAGE_USAGE_GLES2;
+      GLenum target = gl_client_.supports_arb_texture_rectangle
+                          ? GL_TEXTURE_RECTANGLE_ARB
+                          : GL_TEXTURE_2D;
 
-      const bool success = shared_image_stub->factory()->RegisterBacking(
-          std::move(shared_image), kCreateLegacyMailbox);
+      gfx::GpuMemoryBufferHandle handle;
+      handle.id = gfx::GpuMemoryBufferHandle::kInvalidId;
+      handle.type = gfx::GpuMemoryBufferType::IO_SURFACE_BUFFER;
+      handle.io_surface.reset(CVPixelBufferGetIOSurface(frame.image),
+                              base::scoped_policy::RETAIN);
+
+      gpu::Mailbox mailbox = gpu::Mailbox::GenerateForSharedImage();
+      bool success;
+      constexpr char kDebugLabel[] = "VTVideoDecodeAccelerator";
+      if (IsMultiPlaneFormatForHardwareVideoEnabled()) {
+        success = shared_image_stub->CreateSharedImage(
+            mailbox, std::move(handle), si_format_, frame_size, color_space,
+            kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType, shared_image_usage,
+            kDebugLabel);
+      } else {
+        success = shared_image_stub->CreateSharedImage(
+            mailbox, std::move(handle), ToBufferFormat(si_format_),
+            planes[plane], frame_size, color_space, kTopLeft_GrSurfaceOrigin,
+            kOpaque_SkAlphaType, shared_image_usage, kDebugLabel);
+      }
       if (!success) {
-        DLOG(ERROR) << "Failed to register shared image";
+        DLOG(ERROR) << "Failed to create shared image";
         NotifyError(PLATFORM_FAILURE, SFT_PLATFORM_ERROR);
         return false;
       }
 
       // Wrap the destroy callback in a lambda that ensures that it be called on
-      // the appropriate thread.
+      // the appropriate thread. Retain the image buffer so that VideoToolbox
+      // will not reuse the IOSurface as long as the SharedImage is alive.
       auto destroy_shared_image_lambda =
           [](gpu::SharedImageStub::SharedImageDestructionCallback callback,
+             base::ScopedCFTypeRef<CVImageBufferRef> image,
              scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
             task_runner->PostTask(FROM_HERE, base::BindOnce(std::move(callback),
                                                             gpu::SyncToken()));
@@ -1619,22 +2321,38 @@ bool VTVideoDecodeAccelerator::SendFrame(const Frame& frame) {
       auto destroy_shared_image_callback = base::BindOnce(
           destroy_shared_image_lambda,
           shared_image_stub->GetSharedImageDestructionCallback(mailbox),
-          gpu_task_runner_);
+          frame.image, gpu_task_runner_);
       picture_info->scoped_shared_images.push_back(
           scoped_refptr<Picture::ScopedSharedImage>(
               new Picture::ScopedSharedImage(
-                  mailbox, gl_params.target,
-                  std::move(destroy_shared_image_callback))));
+                  mailbox, target, std::move(destroy_shared_image_callback))));
     } else {
+      const gfx::Size plane_size(
+          CVPixelBufferGetWidthOfPlane(frame.image.get(), plane),
+          CVPixelBufferGetHeightOfPlane(frame.image.get(), plane));
+      gfx::BufferFormat plane_buffer_format =
+          gpu::GetPlaneBufferFormat(planes[plane], ToBufferFormat(si_format_));
+
+      scoped_refptr<GLImageIOSurface> gl_image(
+          GLImageIOSurface::Create(plane_size));
+      if (!gl_image->InitializeWithCVPixelBuffer(
+              frame.image.get(), plane,
+              gfx::GenericSharedMemoryId(g_cv_pixel_buffer_ids.GetNext()),
+              plane_buffer_format)) {
+        NOTIFY_STATUS("Failed to initialize GLImageIOSurface", PLATFORM_FAILURE,
+                      SFT_PLATFORM_ERROR);
+      }
+
       if (!gl_client_.bind_image.Run(picture_info->client_texture_id,
                                      gpu::GetPlatformSpecificTextureTarget(),
-                                     gl_image, false)) {
+                                     gl_image)) {
         DLOG(ERROR) << "Failed to bind image";
         NotifyError(PLATFORM_FAILURE, SFT_PLATFORM_ERROR);
         return false;
       }
+
+      picture_info->gl_images.push_back(gl_image);
     }
-    picture_info->gl_images.push_back(gl_image);
   }
   picture_info->bitstream_id = frame.bitstream_id;
   available_picture_ids_.pop_back();
@@ -1643,22 +2361,31 @@ bool VTVideoDecodeAccelerator::SendFrame(const Frame& frame) {
            << "bitstream_id=" << frame.bitstream_id << ")";
   Picture picture(picture_id, frame.bitstream_id, gfx::Rect(frame.image_size),
                   color_space, true);
-  // The GLImageIOSurface keeps the IOSurface alive as long as it exists, but
-  // bound textures do not, and they can outlive the GLImageIOSurface if they
-  // are deleted in the command buffer before they are used by the platform GL
-  // implementation. (https://crbug.com/930479#c69)
+  // Bound textures can outlive the GLImageBacking if they are deleted in the
+  // command buffer before they are used by the platform GL implementation
+  // (https://crbug.com/930479#c69). Thus a fence is required whenever a GLImage
+  // is bound, but we can't know in advance whether that will happen.
   //
-  // A fence is required whenever a GLImage is bound, but we can't know in
-  // advance whether that will happen.
-  //
-  // TODO(sandersd): Can GLImageIOSurface be responsible for fences, so that
+  // TODO(sandersd): Can GLImageBacking be responsible for fences, so that
   // we don't need to use them when the image is never bound? Bindings are
   // typically only created when WebGL is in use.
   picture.set_read_lock_fences_enabled(true);
-  for (size_t plane = 0; plane < planes.size(); ++plane) {
-    picture.set_scoped_shared_image(picture_info->scoped_shared_images[plane],
-                                    plane);
+  if (frame.hdr_metadata)
+    picture.set_hdr_metadata(frame.hdr_metadata);
+  if (IsMultiPlaneFormatForHardwareVideoEnabled()) {
+    picture.set_shared_image_format_type(
+        SharedImageFormatType::kSharedImageFormat);
   }
+  if (picture_info->uses_shared_images) {
+    // For multiplanar shared images, planes.size() is 1.
+    for (size_t plane = 0; plane < planes.size(); ++plane) {
+      picture.set_scoped_shared_image(picture_info->scoped_shared_images[plane],
+                                      plane);
+    }
+    if (picture_format_ == PIXEL_FORMAT_NV12)
+      picture.set_is_webgpu_compatible(true);
+  }
+
   client_->PictureReady(std::move(picture));
   return true;
 }
@@ -1732,9 +2459,9 @@ void VTVideoDecodeAccelerator::Destroy() {
   QueueFlush(TASK_DESTROY);
 }
 
-bool VTVideoDecodeAccelerator::TryToSetupDecodeOnSeparateThread(
+bool VTVideoDecodeAccelerator::TryToSetupDecodeOnSeparateSequence(
     const base::WeakPtr<Client>& decode_client,
-    const scoped_refptr<base::SingleThreadTaskRunner>& decode_task_runner) {
+    const scoped_refptr<base::SequencedTaskRunner>& decode_task_runner) {
   return false;
 }
 
@@ -1761,19 +2488,31 @@ VTVideoDecodeAccelerator::GetSupportedProfiles(
         supported_profile == VP9PROFILE_PROFILE2) {
       if (workarounds.disable_accelerated_vp9_decode)
         continue;
-      if (!base::mac::IsAtLeastOS11())
+      if (!VTIsHardwareDecodeSupported(kCMVideoCodecType_VP9))
         continue;
-      if (__builtin_available(macOS 10.13, *)) {
-        if ((supported_profile == VP9PROFILE_PROFILE0 ||
-             supported_profile == VP9PROFILE_PROFILE2) &&
-            !VTIsHardwareDecodeSupported(kCMVideoCodecType_VP9)) {
-          continue;
-        }
+      // Success! We have VP9 hardware decoding support.
+    }
 
-        // Success! We have VP9 hardware decoding support.
-      } else {
-        continue;
+    if (supported_profile == HEVCPROFILE_MAIN ||
+        supported_profile == HEVCPROFILE_MAIN10 ||
+        supported_profile == HEVCPROFILE_MAIN_STILL_PICTURE ||
+        supported_profile == HEVCPROFILE_REXT) {
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+      if (!workarounds.disable_accelerated_hevc_decode &&
+          base::FeatureList::IsEnabled(kPlatformHEVCDecoderSupport)) {
+        if (__builtin_available(macOS 11.0, *)) {
+          // Success! We have HEVC hardware decoding (or software
+          // decoding if the hardware is not good enough) support too.
+          SupportedProfile profile;
+          profile.profile = supported_profile;
+          profile.min_resolution.SetSize(16, 16);
+          // max supported resolution -> 8k 👍
+          profile.max_resolution.SetSize(8192, 8192);
+          profiles.push_back(profile);
+        }
       }
+#endif  //  BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+      continue;
     }
 
     SupportedProfile profile;

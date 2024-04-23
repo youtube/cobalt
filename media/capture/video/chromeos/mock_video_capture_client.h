@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,7 @@ class MockVideoCaptureClient : public VideoCaptureDevice::Client {
   MOCK_METHOD0(DoReserveOutputBuffer, void(void));
   MOCK_METHOD0(DoOnIncomingCapturedBuffer, void(void));
   MOCK_METHOD0(DoOnIncomingCapturedVideoFrame, void(void));
+  MOCK_METHOD0(OnCaptureConfigurationChanged, void(void));
   MOCK_METHOD3(OnError,
                void(media::VideoCaptureError error,
                     const base::Location& from_here,
@@ -29,7 +30,7 @@ class MockVideoCaptureClient : public VideoCaptureDevice::Client {
 
   explicit MockVideoCaptureClient();
 
-  ~MockVideoCaptureClient();
+  ~MockVideoCaptureClient() override;
 
   void SetFrameCb(base::OnceClosure frame_cb);
 
@@ -53,12 +54,13 @@ class MockVideoCaptureClient : public VideoCaptureDevice::Client {
                                    int clockwise_rotation,
                                    base::TimeTicks reference_time,
                                    base::TimeDelta timestamp,
-                                   int frame_feedback_id = 0) override;
+                                   int frame_feedback_id) override;
   void OnIncomingCapturedExternalBuffer(
       CapturedExternalVideoBuffer buffer,
       std::vector<CapturedExternalVideoBuffer> scaled_buffers,
       base::TimeTicks reference_time,
-      base::TimeDelta timestamp) override;
+      base::TimeDelta timestamp,
+      gfx::Rect visible_rect) override;
   // Trampoline methods to workaround GMOCK problems with std::unique_ptr<>.
   ReserveResult ReserveOutputBuffer(const gfx::Size& dimensions,
                                     VideoPixelFormat format,

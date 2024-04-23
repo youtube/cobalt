@@ -27,8 +27,7 @@ namespace disk_cache {
 
 net::Error CreateCobaltCacheBackend(
     const base::FilePath& path, int64_t max_bytes, net::NetLog* net_log,
-    std::unique_ptr<::disk_cache::Backend>* backend,
-    net::CompletionOnceCallback callback,
+    ::disk_cache::BackendResultCallback callback,
     cobalt::network::URLRequestContext* url_request_context);
 
 }  // namespace disk_cache

@@ -143,8 +143,11 @@ class GTEST_INTERNAL_EMPTY_BASE_CLASS NiceMock
                 "https://google.github.io/googletest/"
                 "gmock_cook_book.html#NiceStrictNaggy");
   NiceMock() : MockClass() {
+#if !defined(COMPILER_MSVC)
+// TODO: b/330265477 - Re-enable this check on MSVC once it complies.
     static_assert(sizeof(*this) == sizeof(MockClass),
                   "The impl subclass shouldn't introduce any padding");
+#endif
   }
 
   // Ideally, we would inherit base class's constructors through a using

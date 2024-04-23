@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <utility>
 
 #include "starboard/common/time.h"
 
@@ -34,14 +35,15 @@ const int64_t kSeekTimeoutRetryInterval = 25'000;  // 25ms
 
 }  // namespace
 
-VideoRendererImpl::VideoRendererImpl(scoped_ptr<VideoDecoder> decoder,
-                                     MediaTimeProvider* media_time_provider,
-                                     scoped_ptr<VideoRenderAlgorithm> algorithm,
-                                     scoped_refptr<VideoRendererSink> sink)
+VideoRendererImpl::VideoRendererImpl(
+    unique_ptr_alias<VideoDecoder> decoder,
+    MediaTimeProvider* media_time_provider,
+    unique_ptr_alias<VideoRenderAlgorithm> algorithm,
+    scoped_refptr<VideoRendererSink> sink)
     : media_time_provider_(media_time_provider),
-      algorithm_(algorithm.Pass()),
+      algorithm_(std::move(algorithm)),
       sink_(sink),
-      decoder_(decoder.Pass()),
+      decoder_(std::move(decoder)),
       end_of_stream_written_(false),
       ended_cb_called_(false),
       need_more_input_(true),

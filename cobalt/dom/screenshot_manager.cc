@@ -48,7 +48,8 @@ void ScreenshotManager::Screenshot(
   base::Callback<void(std::unique_ptr<uint8[]>, const math::Size&)>
       fill_screenshot = base::Bind(
           &ScreenshotManager::FillScreenshot, base::Unretained(this),
-          next_ticket_id_, base::ThreadTaskRunnerHandle::Get(), desired_format);
+          next_ticket_id_, base::SequencedTaskRunner::GetCurrentDefault(),
+          desired_format);
   bool was_emplaced =
       ticket_to_screenshot_promise_map_
           .emplace(next_ticket_id_, std::move(promise_reference))
@@ -62,10 +63,11 @@ void ScreenshotManager::Screenshot(
 
 void ScreenshotManager::FillScreenshot(
     int64_t token,
-    scoped_refptr<base::SingleThreadTaskRunner> expected_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> expected_task_runner,
     loader::image::EncodedStaticImage::ImageFormat desired_format,
     std::unique_ptr<uint8[]> image_data, const math::Size& image_dimensions) {
-  if (expected_task_runner && !expected_task_runner->BelongsToCurrentThread()) {
+  if (expected_task_runner &&
+      !expected_task_runner->RunsTasksInCurrentSequence()) {
     expected_task_runner->PostTask(
         FROM_HERE,
         base::Bind(&ScreenshotManager::FillScreenshot, base::Unretained(this),

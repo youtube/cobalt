@@ -1,13 +1,14 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MEMORY_DISCARDABLE_SHARED_MEMORY_H_
 #define BASE_MEMORY_DISCARDABLE_SHARED_MEMORY_H_
 
+#include <stddef.h>
+
 #include "base/base_export.h"
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/dcheck_is_on.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/threading/thread_collision_warner.h"
@@ -16,8 +17,6 @@
 
 #if DCHECK_IS_ON()
 #include <set>
-
-#include "starboard/types.h"
 #endif
 
 // Linux (including Android) support the MADV_REMOVE argument with madvise()
@@ -27,7 +26,7 @@
 // and Android to indicate that this type of behavior can be expected on
 // those platforms. Note that madvise() will still be used on other POSIX
 // platforms but doesn't provide the zero-fill-on-demand pages guarantee.
-#if defined(OS_LINUX) || defined(OS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #define DISCARDABLE_SHARED_MEMORY_ZERO_FILL_ON_DEMAND_PAGES_AFTER_PURGE
 #endif
 
@@ -51,6 +50,9 @@ class BASE_EXPORT DiscardableSharedMemory {
   // Create a new DiscardableSharedMemory object from an existing, open shared
   // memory file. Memory must be locked.
   explicit DiscardableSharedMemory(UnsafeSharedMemoryRegion region);
+
+  DiscardableSharedMemory(const DiscardableSharedMemory&) = delete;
+  DiscardableSharedMemory& operator=(const DiscardableSharedMemory&) = delete;
 
   // Closes any open files.
   virtual ~DiscardableSharedMemory();
@@ -116,6 +118,13 @@ class BASE_EXPORT DiscardableSharedMemory {
   // different process. Returns NULL time if purged.
   Time last_known_usage() const { return last_known_usage_; }
 
+  // Releases any allocated pages in the specified range, if supported by the
+  // platform. Address space in the specified range continues to be reserved.
+  // The memory is not guaranteed to be released immediately.
+  // |offset| and |length| are both in bytes. |offset| and |length| must both be
+  // page aligned.
+  void ReleaseMemoryIfPossible(size_t offset, size_t length);
+
   // This returns true and sets |last_known_usage_| to 0 if
   // DiscardableSharedMemory object was successfully purged. Purging can fail
   // for two reasons; object might be locked or our last known usage timestamp
@@ -150,6 +159,12 @@ class BASE_EXPORT DiscardableSharedMemory {
       trace_event::ProcessMemoryDump* pmd,
       bool is_owned) const;
 
+#if BUILDFLAG(IS_ANDROID)
+  // Returns true if the Ashmem device is supported on this system.
+  // Only use this for unit-testing.
+  static bool IsAshmemDeviceSupportedForTesting();
+#endif
+
  private:
   // LockPages/UnlockPages are platform-native discardable page management
   // helper functions. Both expect |offset| to be specified relative to the
@@ -178,8 +193,6 @@ class BASE_EXPORT DiscardableSharedMemory {
   // synchronized somehow. Use a collision warner to detect incorrect usage.
   DFAKE_MUTEX(thread_collision_warner_);
   Time last_known_usage_;
-
-  DISALLOW_COPY_AND_ASSIGN(DiscardableSharedMemory);
 };
 
 }  // namespace base

@@ -1,101 +1,43 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 component("geometry") {
   sources = [
-    "../gfx_export.h",
-    "angle_conversions.h",
-    "axis_transform2d.cc",
-    "axis_transform2d.h",
-    "box_f.cc",
-    "box_f.h",
-    "cubic_bezier.cc",
-    "cubic_bezier.h",
-    "dip_util.cc",
-    "dip_util.h",
     "geometry_export.h",
-    "insets.cc",
-    "insets.h",
-    "insets_conversions.cc",
-    "insets_conversions.h",
-    "insets_f.cc",
-    "insets_f.h",
-    "matrix3_f.cc",
-    "matrix3_f.h",
     "point.cc",
     "point.h",
     "point3_f.cc",
     "point3_f.h",
-    "point_conversions.cc",
-    "point_conversions.h",
     "point_f.cc",
     "point_f.h",
-    "quad_f.cc",
-    "quad_f.h",
-    "quaternion.cc",
-    "quaternion.h",
+    "point_conversions.cc",
+    "point_conversions.h",
     "rect.cc",
     "rect.h",
-    "rect_conversions.cc",
-    "rect_conversions.h",
-    "rect_f.cc",
-    "rect_f.h",
-    "resize_utils.cc",
-    "resize_utils.h",
-    "rounded_corners_f.cc",
-    "rounded_corners_f.h",
     "size.cc",
     "size.h",
-    "size_conversions.cc",
-    "size_conversions.h",
     "size_f.cc",
     "size_f.h",
+    "size_conversions.cc",
+    "size_conversions.h",
     "vector2d.cc",
     "vector2d.h",
-    "vector2d_conversions.cc",
-    "vector2d_conversions.h",
     "vector2d_f.cc",
     "vector2d_f.h",
-    "vector3d_f.cc",
-    "vector3d_f.h",
   ]
 
   defines = [ "GEOMETRY_IMPLEMENTATION" ]
 
   deps = [ "//base" ]
-
-  if (!is_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
-  }
-}
-
-component("geometry_skia") {
-  sources = [
-    "geometry_skia_export.h",
-    "mask_filter_info.cc",
-    "mask_filter_info.h",
-    "rrect_f.cc",
-    "rrect_f.h",
-    "rrect_f_builder.cc",
-    "rrect_f_builder.h",
-    "skia_conversions.cc",
-    "skia_conversions.h",
-    "transform.cc",
-    "transform.h",
-    "transform_operation.cc",
-    "transform_operation.h",
-    "transform_operations.cc",
-    "transform_operations.h",
-    "transform_util.cc",
-    "transform_util.h",
-  ]
-  configs += [ "//build/config/compiler:wexit_time_destructors" ]
-  public_deps = [
-    ":geometry",
-    "//base",
-    "//skia",
-  ]
-  defines = [ "GEOMETRY_SKIA_IMPLEMENTATION" ]
 }

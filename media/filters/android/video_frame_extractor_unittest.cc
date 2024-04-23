@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include <memory>
 
-#include "base/bind.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_mock_time_task_runner.h"
@@ -88,7 +88,7 @@ TEST_F(VideoFrameExtractorTest, ExtractVideoFrame) {
 TEST_F(VideoFrameExtractorTest, ExtractInvalidVideoFile) {
   // Creates a dummy video file, frame extraction should fail.
   base::FilePath file = temp_dir().AppendASCII("test.txt");
-  EXPECT_GT(base::WriteFile(file, "123", sizeof("123")), 0);
+  EXPECT_TRUE(base::WriteFile(file, "123"));
 
   auto result = ExtractFrame(file);
   EXPECT_FALSE(result.success);

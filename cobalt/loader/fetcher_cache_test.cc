@@ -22,9 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/task/post_task.h"
-#include "base/task/task_scheduler/task_scheduler.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "cobalt/loader/fetcher.h"
@@ -126,7 +124,7 @@ class FetcherCacheTest : public ::testing::Test {
   };
 
   const std::string data_ = "Test string! Test string! Test!!";
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::test::TaskEnvironment scoped_task_environment_;
   OngoingFetcherFactory fetcher_factory_{"cache_name", kFetcherCapacity};
 };
 

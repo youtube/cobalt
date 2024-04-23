@@ -40,6 +40,7 @@ x-shared-build-env: &shared-build-env
   IS_CI: ${IS_CI:-0}
   IS_DOCKER: 1
   PYTHONPATH: /code
+  TERM: xterm
 
 x-shared-unittest-definitions: &shared-unittest-definitions
   stdin_open: true
@@ -173,7 +174,7 @@ services:
     depends_on: [ build-base ]
     environment:
       <<: *shared-build-env
-      PLATFORM: linux-x64x11
+      PLATFORM: ${PLATFORM:-linux-x64x11}
       CONFIG: ${CONFIG:-debug}
       TARGET: ${TARGET:-cobalt_install}
       SB_API_VERSION: ${SB_API_VERSION}

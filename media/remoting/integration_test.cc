@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,14 +23,16 @@ class MediaRemotingIntegrationTest : public testing::Test,
         base::Unretained(this)));
   }
 
+  MediaRemotingIntegrationTest(const MediaRemotingIntegrationTest&) = delete;
+  MediaRemotingIntegrationTest& operator=(const MediaRemotingIntegrationTest&) =
+      delete;
+
  private:
   std::unique_ptr<Renderer> CreateEnd2EndTestRenderer(
       absl::optional<RendererType> renderer_type) {
     return std::make_unique<End2EndTestRenderer>(
-        this->CreateDefaultRenderer(renderer_type));
+        this->CreateRendererImpl(renderer_type));
   }
-
-  DISALLOW_COPY_AND_ASSIGN(MediaRemotingIntegrationTest);
 };
 
 TEST_F(MediaRemotingIntegrationTest, BasicPlayback) {
@@ -39,7 +41,7 @@ TEST_F(MediaRemotingIntegrationTest, BasicPlayback) {
   ASSERT_TRUE(WaitUntilOnEnded());
 
   EXPECT_EQ("f0be120a90a811506777c99a2cdf7cc1", GetVideoHash());
-  EXPECT_EQ("-3.59,-2.06,-0.43,2.15,0.77,-0.95,", GetAudioHash());
+  EXPECT_EQ("-3.59,-2.06,-0.43,2.15,0.77,-0.95,", GetAudioHash().ToString());
 }
 
 TEST_F(MediaRemotingIntegrationTest, BasicPlayback_MediaSource) {

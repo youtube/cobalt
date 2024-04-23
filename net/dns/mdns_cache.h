@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,8 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 
@@ -39,18 +38,19 @@ class NET_EXPORT_PRIVATE MDnsCache {
     bool operator==(const Key& key) const;
 
     unsigned type() const { return type_; }
-    const std::string& name() const  { return name_; }
+    const std::string& name_lowercase() const { return name_lowercase_; }
     const std::string& optional() const { return optional_; }
 
     // Create the cache key corresponding to |record|.
     static Key CreateFor(const RecordParsed* record);
    private:
     unsigned type_;
-    std::string name_;
+    std::string name_lowercase_;
     std::string optional_;
   };
 
-  typedef base::Callback<void(const RecordParsed*)> RecordRemovedCallback;
+  typedef base::RepeatingCallback<void(const RecordParsed*)>
+      RecordRemovedCallback;
 
   enum UpdateType {
     RecordAdded,
@@ -60,6 +60,10 @@ class NET_EXPORT_PRIVATE MDnsCache {
   };
 
   MDnsCache();
+
+  MDnsCache(const MDnsCache&) = delete;
+  MDnsCache& operator=(const MDnsCache&) = delete;
+
   ~MDnsCache();
 
   // Return value indicates whether the record was added, changed
@@ -92,6 +96,12 @@ class NET_EXPORT_PRIVATE MDnsCache {
   // passed in if it was removed, scoped null otherwise.
   std::unique_ptr<const RecordParsed> RemoveRecord(const RecordParsed* record);
 
+  bool IsCacheOverfilled() const;
+
+  void set_entry_limit_for_testing(size_t entry_limit) {
+    entry_limit_ = entry_limit;
+  }
+
  private:
   typedef std::map<Key, std::unique_ptr<const RecordParsed>> RecordMap;
 
@@ -108,8 +118,7 @@ class NET_EXPORT_PRIVATE MDnsCache {
   RecordMap mdns_cache_;
 
   base::Time next_expiration_;
-
-  DISALLOW_COPY_AND_ASSIGN(MDnsCache);
+  size_t entry_limit_;
 };
 
 }  // namespace net

@@ -123,8 +123,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                  int conversion_flags, ExceptionState* exception_state,
                  std::vector<uint8_t>* out_vector);
 
-// base::Token -> JSValue
-inline void ToJSValue(v8::Isolate* isolate, const base::Token& token,
+// base_token::Token -> JSValue
+inline void ToJSValue(v8::Isolate* isolate, const base_token::Token& token,
                       v8::Local<v8::Value>* out_value) {
   ToJSValue(isolate, std::string(token.c_str()), out_value);
 }
@@ -476,6 +476,13 @@ inline void ToJSValue(v8::Isolate* isolate, const scoped_refptr<T>& in_object,
   V8cGlobalEnvironment* global_environment =
       V8cGlobalEnvironment::GetFromIsolate(isolate);
   *out_value = global_environment->wrapper_factory()->GetWrapper(in_object);
+}
+
+// weak ptr -> JSValue
+template <typename T>
+inline void ToJSValue(v8::Isolate* isolate, const base::WeakPtr<T>& in_object,
+                      v8::Local<v8::Value>* out_value) {
+  ToJSValue(isolate, scoped_refptr<T>(in_object.get()), out_value);
 }
 
 // raw object pointer -> JSValue

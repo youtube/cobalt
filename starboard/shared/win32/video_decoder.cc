@@ -14,6 +14,8 @@
 
 #include "starboard/shared/win32/video_decoder.h"
 
+#include <unistd.h>
+
 #include <functional>
 
 #include "starboard/common/log.h"
@@ -534,7 +536,7 @@ void VideoDecoder::ShutdownCodec() {
   // Microsoft recommends stalling to let other systems release their
   // references to the IMFSamples.
   if (video_codec_ == kSbMediaVideoCodecVp9) {
-    SbThreadSleep(150'000);
+    usleep(150'000);
   }
   decoder_.reset();
   video_processor_.Reset();
@@ -666,7 +668,7 @@ void VideoDecoder::DecoderThreadRun() {
     }
 
     if (event == nullptr) {
-      SbThreadSleep(1000);
+      usleep(1000);
     } else {
       switch (event->type) {
         case Event::kWriteInputBuffer:
@@ -771,7 +773,7 @@ void VideoDecoder::DecoderThreadRun() {
 
     if (!wrote_input && !read_output) {
       // Throttle decode loop since no I/O was possible.
-      SbThreadSleep(1000);
+      usleep(1000);
     }
   }
 }

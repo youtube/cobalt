@@ -1,98 +1,164 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/network_interfaces_fuchsia.h"
 
-#include <fuchsia/netstack/cpp/fidl.h>
+#include <fuchsia/net/interfaces/cpp/fidl.h>
+#include <zircon/types.h>
 
 #include <string>
 #include <utility>
 
-#include "base/format_macros.h"
-#include "base/fuchsia/component_context.h"
-#include "base/fuchsia/fuchsia_logging.h"
-#include "base/strings/stringprintf.h"
-#include "net/base/ip_endpoint.h"
+#include "base/logging.h"
+#include "net/base/fuchsia/network_interface_cache.h"
 #include "net/base/network_change_notifier.h"
+#include "net/base/network_change_notifier_fuchsia.h"
 #include "net/base/network_interfaces.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 namespace internal {
 namespace {
 
-using ConnectionType = NetworkChangeNotifier::ConnectionType;
-
-ConnectionType ConvertConnectionType(
-    const fuchsia::netstack::NetInterface& iface) {
-  return iface.features & fuchsia::netstack::interfaceFeatureWlan
-             ? NetworkChangeNotifier::CONNECTION_WIFI
-             : NetworkChangeNotifier::CONNECTION_UNKNOWN;
-}
-
-// Converts a Netstack NetInterface |interface| to a Chrome NetworkInterface.
-// NetInterfaces may be bound to multiple IPv6 addresses. |address_index| is
-// used to specify which address to use for the conversion.
-//   address_index = 0: Uses NetInterface::addr, NetInterface::netmask.
-//   address_index >= 1: Uses NetInterface::ipv6addrs[], with the array index
-//                       offset by one.
-NetworkInterface NetworkInterfaceFromAddress(
-    const fuchsia::netstack::NetInterface& interface,
-    size_t address_index) {
-  // TODO(sergeyu): attributes field is used to return address state for IPv6
-  // addresses. Currently Netstack doesn't provide this information.
-  const int attributes = 0;
-
-  IPAddress address;
-  uint8_t prefix_length;
-  if (address_index == 0) {
-    address = NetAddressToIPAddress(interface.addr);
-    prefix_length = MaskPrefixLength(NetAddressToIPAddress(interface.netmask));
-  } else {
-    CHECK_LE(address_index, interface.ipv6addrs->size());
-    address =
-        NetAddressToIPAddress(interface.ipv6addrs->at(address_index - 1).addr);
-    prefix_length = interface.ipv6addrs->at(address_index - 1).prefix_len;
+IPAddress FuchsiaIpAddressToIPAddress(const fuchsia::net::IpAddress& address) {
+  switch (address.Which()) {
+    case fuchsia::net::IpAddress::kIpv4:
+      return IPAddress(address.ipv4().addr.data(), address.ipv4().addr.size());
+    case fuchsia::net::IpAddress::kIpv6:
+      return IPAddress(address.ipv6().addr.data(), address.ipv6().addr.size());
+    default:
+      return IPAddress();
   }
-
-  return NetworkInterface(*interface.name, interface.name, interface.id,
-                          ConvertConnectionType(interface), address,
-                          prefix_length, attributes);
 }
 
 }  // namespace
 
-IPAddress NetAddressToIPAddress(const fuchsia::netstack::NetAddress& addr) {
-  if (addr.ipv4) {
-    return IPAddress(addr.ipv4->addr.data(), addr.ipv4->addr.count());
-  }
-  if (addr.ipv6) {
-    return IPAddress(addr.ipv6->addr.data(), addr.ipv6->addr.count());
-  }
-  return IPAddress();
+// static
+absl::optional<InterfaceProperties> InterfaceProperties::VerifyAndCreate(
+    fuchsia::net::interfaces::Properties properties) {
+  if (!internal::VerifyCompleteInterfaceProperties(properties))
+    return absl::nullopt;
+  return absl::make_optional(InterfaceProperties(std::move(properties)));
 }
 
-std::vector<NetworkInterface> NetInterfaceToNetworkInterfaces(
-    const fuchsia::netstack::NetInterface& iface_in) {
-  std::vector<NetworkInterface> output;
+InterfaceProperties::InterfaceProperties(
+    fuchsia::net::interfaces::Properties properties)
+    : properties_(std::move(properties)) {}
 
-  // Check if the interface is up.
-  if (!(iface_in.flags & fuchsia::netstack::NetInterfaceFlagUp))
-    return output;
+InterfaceProperties::InterfaceProperties(InterfaceProperties&& interface) =
+    default;
 
-  // Skip loopback.
-  if (iface_in.features & fuchsia::netstack::interfaceFeatureLoopback)
-    return output;
+InterfaceProperties& InterfaceProperties::operator=(
+    InterfaceProperties&& interface) = default;
 
-  output.push_back(NetworkInterfaceFromAddress(iface_in, 0));
+InterfaceProperties::~InterfaceProperties() = default;
 
-  // Append interface entries for all additional IPv6 addresses.
-  for (size_t i = 0; i < iface_in.ipv6addrs->size(); ++i) {
-    output.push_back(NetworkInterfaceFromAddress(iface_in, i + 1));
+bool InterfaceProperties::Update(
+    fuchsia::net::interfaces::Properties properties) {
+  if (!properties.has_id() || properties_.id() != properties.id()) {
+    LOG(ERROR) << "Update failed: invalid properties.";
+    return false;
   }
 
-  return output;
+  if (properties.has_addresses()) {
+    for (const auto& fidl_address : properties.addresses()) {
+      if (!fidl_address.has_addr()) {
+        LOG(ERROR) << "Update failed: invalid properties.";
+        return false;
+      }
+    }
+    properties_.set_addresses(std::move(*properties.mutable_addresses()));
+  }
+
+  if (properties.has_online())
+    properties_.set_online(properties.online());
+  if (properties.has_has_default_ipv4_route())
+    properties_.set_has_default_ipv4_route(properties.has_default_ipv4_route());
+  if (properties.has_has_default_ipv6_route())
+    properties_.set_has_default_ipv6_route(properties.has_default_ipv6_route());
+
+  return true;
+}
+
+void InterfaceProperties::AppendNetworkInterfaces(
+    NetworkInterfaceList* interfaces) const {
+  for (const auto& fidl_address : properties_.addresses()) {
+    IPAddress address = FuchsiaIpAddressToIPAddress(fidl_address.addr().addr);
+    if (address.empty()) {
+      LOG(WARNING) << "Unknown fuchsia.net/IpAddress variant "
+                   << fidl_address.addr().addr.Which();
+      continue;
+    }
+
+    const int kAttributes = 0;
+    interfaces->emplace_back(
+        properties_.name(), properties_.name(), properties_.id(),
+        internal::ConvertConnectionType(properties_.device_class()),
+        std::move(address), fidl_address.addr().prefix_len, kAttributes);
+  }
+}
+
+bool InterfaceProperties::IsPubliclyRoutable() const {
+  if (!properties_.online())
+    return false;
+
+  for (const auto& fidl_address : properties_.addresses()) {
+    const IPAddress address =
+        FuchsiaIpAddressToIPAddress(fidl_address.addr().addr);
+    if ((address.IsIPv4() && properties_.has_default_ipv4_route() &&
+         !address.IsLinkLocal()) ||
+        (address.IsIPv6() && properties_.has_default_ipv6_route() &&
+         address.IsPubliclyRoutable())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+NetworkChangeNotifier::ConnectionType ConvertConnectionType(
+    const fuchsia::net::interfaces::DeviceClass& device_class) {
+  switch (device_class.Which()) {
+    case fuchsia::net::interfaces::DeviceClass::kLoopback:
+      return NetworkChangeNotifier::CONNECTION_NONE;
+    case fuchsia::net::interfaces::DeviceClass::kDevice:
+      switch (device_class.device()) {
+        case fuchsia::hardware::network::DeviceClass::WLAN:
+          return NetworkChangeNotifier::CONNECTION_WIFI;
+        case fuchsia::hardware::network::DeviceClass::ETHERNET:
+          return NetworkChangeNotifier::CONNECTION_ETHERNET;
+        default:
+          return NetworkChangeNotifier::CONNECTION_UNKNOWN;
+      }
+    default:
+      LOG(WARNING) << "Received unknown fuchsia.net.interfaces/DeviceClass "
+                   << device_class.Which();
+      return NetworkChangeNotifier::CONNECTION_UNKNOWN;
+  }
+}
+
+bool VerifyCompleteInterfaceProperties(
+    const fuchsia::net::interfaces::Properties& properties) {
+  if (!properties.has_id())
+    return false;
+  if (!properties.has_addresses())
+    return false;
+  for (const auto& fidl_address : properties.addresses()) {
+    if (!fidl_address.has_addr())
+      return false;
+  }
+  if (!properties.has_online())
+    return false;
+  if (!properties.has_device_class())
+    return false;
+  if (!properties.has_has_default_ipv4_route())
+    return false;
+  if (!properties.has_has_default_ipv6_route())
+    return false;
+  if (!properties.has_name()) {
+    return false;
+  }
+  return true;
 }
 
 }  // namespace internal
@@ -100,25 +166,29 @@ std::vector<NetworkInterface> NetInterfaceToNetworkInterfaces(
 bool GetNetworkList(NetworkInterfaceList* networks, int policy) {
   DCHECK(networks);
 
-  fuchsia::netstack::NetstackSyncPtr netstack =
-      base::fuchsia::ComponentContext::GetDefault()
-          ->ConnectToServiceSync<fuchsia::netstack::Netstack>();
+  const internal::NetworkInterfaceCache* cache_ptr =
+      NetworkChangeNotifier::GetNetworkInterfaceCache();
+  if (cache_ptr) {
+    return cache_ptr->GetOnlineInterfaces(networks);
+  }
 
-  // TODO(kmarshall): Use NetworkChangeNotifier's cached interface list.
-  fidl::VectorPtr<fuchsia::netstack::NetInterface> interfaces;
-  zx_status_t status = netstack->GetInterfaces(&interfaces);
-  if (status != ZX_OK) {
-    ZX_LOG(ERROR, status) << "fuchsia::netstack::GetInterfaces()";
+  fuchsia::net::interfaces::WatcherHandle watcher_handle =
+      internal::ConnectInterfacesWatcher();
+  std::vector<fuchsia::net::interfaces::Properties> interfaces;
+
+  auto handle_or_status = internal::ReadExistingNetworkInterfacesFromNewWatcher(
+      std::move(watcher_handle), interfaces);
+  if (!handle_or_status.has_value()) {
     return false;
   }
 
-  for (auto& interface : interfaces.get()) {
-    auto converted = internal::NetInterfaceToNetworkInterfaces(interface);
-    std::move(converted.begin(), converted.end(),
-              std::back_inserter(*networks));
+  internal::NetworkInterfaceCache temp_cache(/*require_wlan=*/false);
+  auto change_bits = temp_cache.AddInterfaces(std::move(interfaces));
+  if (!change_bits.has_value()) {
+    return false;
   }
 
-  return true;
+  return temp_cache.GetOnlineInterfaces(networks);
 }
 
 std::string GetWifiSSID() {

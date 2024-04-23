@@ -1,7 +1,3 @@
-name: "ots"
-description:
-  "Subtree at third_party/ots."
-
 third_party {
   identifier {
     type: "ChromiumVersion"
@@ -9,14 +5,11 @@ third_party {
   }
   identifier {
     type: "Git"
-    value: "https://chromium.googlesource.com/external/github.com/khaledhosny/ots.git"
-    version: "ee537ac096667eed6559124164c3e8482646fd77"
-    # from https://chromium.googlesource.com/chromium/src/+/90.0.4430.218/DEPS#275
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "be07a152d9098db1e9d104a559c811029ab3e450"
   }
-  last_upgrade_date {
-    year: 2018
-    month: 2
-    day: 19
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/ots"
   }
-  license_type: NOTICE
 }

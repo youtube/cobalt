@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,14 +6,11 @@
 
 #include <string.h>
 
-#include "base/logging.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "base/check_op.h"
 
-namespace net {
-namespace ntlm {
+namespace net::ntlm {
 
-NtlmBufferReader::NtlmBufferReader() {}
+NtlmBufferReader::NtlmBufferReader() = default;
 
 NtlmBufferReader::NtlmBufferReader(base::span<const uint8_t> buffer)
     : buffer_(buffer) {}
@@ -300,5 +297,4 @@ void NtlmBufferReader::SetCursor(size_t cursor) {
   cursor_ = cursor;
 }
 
-}  // namespace ntlm
-}  // namespace net
+}  // namespace net::ntlm

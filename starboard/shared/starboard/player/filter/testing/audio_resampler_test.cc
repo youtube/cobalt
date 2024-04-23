@@ -118,7 +118,7 @@ class AudioResamplerTest
 };
 
 TEST_P(AudioResamplerTest, SunnyDay) {
-  scoped_ptr<AudioResampler> resampler = AudioResampler::Create(
+  std::unique_ptr<AudioResampler> resampler = AudioResampler::Create(
       source_sample_type_, source_storage_type_, source_sample_rate_,
       destination_sample_type_, destination_storage_type_,
       destination_sample_rate_, channels_);

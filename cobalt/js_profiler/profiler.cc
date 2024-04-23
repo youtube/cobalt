@@ -107,7 +107,7 @@ Profiler::ProfilerTracePromise Profiler::Stop(
         new script::ValuePromiseWrappable::Reference(global_wrappable,
                                                      promise));
 
-    context->message_loop()->task_runner()->PostTask(
+    context->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&Profiler::PerformStop, base::Unretained(this),
                        profiler_group_, std::move(promise_reference),

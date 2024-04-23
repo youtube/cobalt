@@ -16,6 +16,9 @@ _is_python2 = exec_script("//starboard/build/util/is_python2.py", [], "json")
 assert(!_is_python2, "`python` must resolve to Python 3 when building with GN.")
 
 declare_args() {
+  # Temporary gn arg for work on base/net update.
+  cobalt_pending_clean_up = true
+
   is_clang = true
 
   build_type = "devel"
@@ -35,6 +38,8 @@ declare_args() {
   using_old_compiler = false
 
   build_with_separate_cobalt_toolchain = false
+
+  use_xcode_clang = false
 }
 
 _is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")
@@ -162,7 +167,14 @@ default_compiler_configs = [
   "//starboard/build/config:default_compiler_flags",
   "//starboard/build/config:default_cpp_standard",
   "//build/config/compiler:thin_archive",
+  "//build/config/compiler:default_optimization",
+  "//build/config/compiler:chromium_code",
+  "//build/config/sanitizers:default_sanitizer_flags",
 ]
+
+if (cobalt_pending_clean_up) {
+  default_compiler_configs += [ "//starboard/build/config:hacky_build_config" ]
+}
 
 if (is_starboard) {
   default_compiler_configs += [ "//starboard/build/config:starboard" ]
@@ -216,6 +228,9 @@ template("target_with_platform_configs") {
     configs += [ toolchain_config_path ]
     if (!has_pedantic_warnings) {
       configs += [ "//starboard/build/config:no_pedantic_warnings" ]
+    }
+    if (cobalt_pending_clean_up) {
+      configs += [ "//starboard/build/config:hacky_wnos" ]
     }
   }
 }

@@ -1,10 +1,10 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/gpu/vaapi/vp8_vaapi_video_decoder_delegate.h"
 
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/trace_event/trace_event.h"
 #include "media/gpu/decode_surface_handler.h"
 #include "media/gpu/vaapi/va_surface.h"
@@ -82,8 +82,9 @@ bool VP8VaapiVideoDecoderDelegate::SubmitDecode(
     if (!slice_params_)
       return false;
   }
-  // |encoded_data| cannot be reused even when it's of the appropriate size, due
-  // to strange stutterings in e.g. Gen 9.5.
+
+  // Create VASliceData buffer |encoded_data| every frame so that decoding can
+  // be more asynchronous than reusing the buffer.
   std::unique_ptr<ScopedVABuffer> encoded_data =
       vaapi_wrapper_->CreateVABuffer(VASliceDataBufferType, header->frame_size);
   if (!encoded_data)

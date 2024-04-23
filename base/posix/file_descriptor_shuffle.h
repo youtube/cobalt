@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,7 @@
 //   file_descriptor_map.push_back(base::InjectionArc(pipe[1], 1, true));
 //   base::ShuffleFileDescriptors(file_descriptor_map);
 //
-// and trust the the Right Thing will get done.
+// and trust the Right Thing will get done.
 
 #include <vector>
 
@@ -77,7 +77,7 @@ BASE_EXPORT bool PerformInjectiveMultimapDestructive(
     InjectionDelegate* delegate);
 
 // This function will not call malloc but will mutate |map|
-static inline bool ShuffleFileDescriptors(InjectiveMultimap* map) {
+inline bool ShuffleFileDescriptors(InjectiveMultimap* map) {
   FileDescriptorTableInjection delegate;
   return PerformInjectiveMultimapDestructive(map, &delegate);
 }

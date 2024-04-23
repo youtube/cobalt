@@ -1,22 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_FILTERS_FFMPEG_VIDEO_DECODER_H_
 #define MEDIA_FILTERS_FFMPEG_VIDEO_DECODER_H_
 
-#include <list>
 #include <memory>
 
-#include "base/callback.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "media/base/supported_video_decoder_config.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_decoder_config.h"
-#include "media/base/video_frame_pool.h"
 #include "media/ffmpeg/ffmpeg_deleters.h"
+#include "media/filters/frame_buffer_pool.h"
 
 struct AVCodecContext;
 struct AVFrame;
@@ -30,7 +29,6 @@ class MediaLog;
 class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
  public:
   static bool IsCodecSupported(VideoCodec codec);
-  static SupportedVideoDecoderConfigs SupportedConfigsForWebRTC();
 
   explicit FFmpegVideoDecoder(MediaLog* media_log);
 
@@ -80,7 +78,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   SEQUENCE_CHECKER(sequence_checker_);
 
-  MediaLog* const media_log_;
+  const raw_ptr<MediaLog> media_log_;
 
   DecoderState state_ = DecoderState::kUninitialized;
 
@@ -91,7 +89,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   VideoDecoderConfig config_;
 
-  VideoFramePool frame_pool_;
+  scoped_refptr<FrameBufferPool> frame_pool_;
 
   bool decode_nalus_ = false;
 

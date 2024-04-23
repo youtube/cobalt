@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,19 +10,21 @@
 #ifndef NET_HTTP_MOCK_HTTP_CACHE_H_
 #define NET_HTTP_MOCK_HTTP_CACHE_H_
 
+#include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_split.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/request_priority.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_transaction_test_util.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -37,6 +39,16 @@ class MockDiskEntry : public disk_cache::Entry,
     DEFER_CREATE,
     DEFER_READ,
     DEFER_WRITE,
+  };
+
+  // Bit mask used for set_fail_requests().
+  enum FailOp {
+    FAIL_READ = 0x01,
+    FAIL_WRITE = 0x02,
+    FAIL_READ_SPARSE = 0x04,
+    FAIL_WRITE_SPARSE = 0x08,
+    FAIL_GET_AVAILABLE_RANGE = 0x10,
+    FAIL_ALL = 0xFF
   };
 
   explicit MockDiskEntry(const std::string& key);
@@ -68,10 +80,9 @@ class MockDiskEntry : public disk_cache::Entry,
                       IOBuffer* buf,
                       int buf_len,
                       CompletionOnceCallback callback) override;
-  int GetAvailableRange(int64_t offset,
-                        int len,
-                        int64_t* start,
-                        CompletionOnceCallback callback) override;
+  RangeResult GetAvailableRange(int64_t offset,
+                                int len,
+                                RangeResultCallback callback) override;
   bool CouldBeSparse() const override;
   void CancelSparseIO() override;
   net::Error ReadyForSparseIO(
@@ -81,8 +92,8 @@ class MockDiskEntry : public disk_cache::Entry,
   uint8_t in_memory_data() const { return in_memory_data_; }
   void set_in_memory_data(uint8_t val) { in_memory_data_ = val; }
 
-  // Fail most subsequent requests.
-  void set_fail_requests() { fail_requests_ = true; }
+  // Fail subsequent requests, specified via FailOp bits.
+  void set_fail_requests(int mask) { fail_requests_ = mask; }
 
   void set_fail_sparse_requests() { fail_sparse_requests_ = true; }
 
@@ -99,6 +110,9 @@ class MockDiskEntry : public disk_cache::Entry,
   // |resume_return_code_|.
   void ResumeDiskEntryOperation();
 
+  // Sets the maximum length of a stream. This is only applied to stream 1.
+  void set_max_file_size(int val) { max_file_size_ = val; }
+
  private:
   friend class base::RefCounted<MockDiskEntry>;
   struct CallbackInfo;
@@ -109,34 +123,35 @@ class MockDiskEntry : public disk_cache::Entry,
   // if the consumer called Close on the MockDiskEntry.  We achieve that by
   // leveraging the fact that this class is reference counted.
   void CallbackLater(CompletionOnceCallback callback, int result);
+  void CallbackLater(base::OnceClosure callback);
 
-  void RunCallback(CompletionOnceCallback callback, int result);
+  void RunCallback(base::OnceClosure callback);
 
   // When |store| is true, stores the callback to be delivered later; otherwise
   // delivers any callback previously stored.
   static void StoreAndDeliverCallbacks(bool store,
                                        MockDiskEntry* entry,
-                                       CompletionOnceCallback callback,
-                                       int result);
+                                       base::OnceClosure callback);
 
   static const int kNumCacheEntryDataIndices = 3;
 
   std::string key_;
   std::vector<char> data_[kNumCacheEntryDataIndices];
-  uint8_t in_memory_data_;
+  uint8_t in_memory_data_ = 0;
   int test_mode_;
-  bool doomed_;
-  bool sparse_;
-  bool fail_requests_;
-  bool fail_sparse_requests_;
-  bool busy_;
-  bool delayed_;
-  bool cancel_;
+  int max_file_size_;
+  bool doomed_ = false;
+  bool sparse_ = false;
+  int fail_requests_ = 0;
+  bool fail_sparse_requests_ = false;
+  bool busy_ = false;
+  bool delayed_ = false;
+  bool cancel_ = false;
 
   // Used for pause and restart.
-  DeferOp defer_op_;
+  DeferOp defer_op_ = DEFER_NONE;
   CompletionOnceCallback resume_callback_;
-  int resume_return_code_;
+  int resume_return_code_ = 0;
 
   static bool ignore_callbacks_;
 };
@@ -146,16 +161,16 @@ class MockDiskCache : public disk_cache::Backend {
   MockDiskCache();
   ~MockDiskCache() override;
 
-  CacheType GetCacheType() const override;
   int32_t GetEntryCount() const override;
-  net::Error OpenEntry(const std::string& key,
-                       net::RequestPriority request_priority,
-                       disk_cache::Entry** entry,
-                       CompletionOnceCallback callback) override;
-  net::Error CreateEntry(const std::string& key,
-                         net::RequestPriority request_priority,
-                         disk_cache::Entry** entry,
-                         CompletionOnceCallback callback) override;
+  EntryResult OpenOrCreateEntry(const std::string& key,
+                                net::RequestPriority request_priority,
+                                EntryResultCallback callback) override;
+  EntryResult OpenEntry(const std::string& key,
+                        net::RequestPriority request_priority,
+                        EntryResultCallback callback) override;
+  EntryResult CreateEntry(const std::string& key,
+                          net::RequestPriority request_priority,
+                          EntryResultCallback callback) override;
   net::Error DoomEntry(const std::string& key,
                        net::RequestPriority request_priority,
                        CompletionOnceCallback callback) override;
@@ -170,11 +185,9 @@ class MockDiskCache : public disk_cache::Backend {
   std::unique_ptr<Iterator> CreateIterator() override;
   void GetStats(base::StringPairs* stats) override;
   void OnExternalCacheHit(const std::string& key) override;
-  size_t DumpMemoryStats(
-      base::trace_event::ProcessMemoryDump* pmd,
-      const std::string& parent_absolute_name) const override;
   uint8_t GetEntryInMemoryData(const std::string& key) override;
   void SetEntryInMemoryData(const std::string& key, uint8_t data) override;
+  int64_t MaxFileSize() const override;
 
   // Returns number of times a cache entry was successfully opened.
   int open_count() const { return open_count_; }
@@ -185,11 +198,19 @@ class MockDiskCache : public disk_cache::Backend {
   // Returns number of doomed entries.
   int doomed_count() const { return doomed_count_; }
 
-  // Fail any subsequent CreateEntry and OpenEntry.
-  void set_fail_requests() { fail_requests_ = true; }
+  // Fail any subsequent CreateEntry, OpenEntry, and DoomEntry
+  void set_fail_requests(bool value) { fail_requests_ = value; }
 
   // Return entries that fail some of their requests.
-  void set_soft_failures(bool value) { soft_failures_ = value; }
+  // The value is formed as a bitmask of MockDiskEntry::FailOp.
+  void set_soft_failures_mask(int value) { soft_failures_ = value; }
+
+  // Returns entries that fail some of their requests, but only until
+  // the entry is re-created. The value is formed as a bitmask of
+  // MockDiskEntry::FailOp.
+  void set_soft_failures_one_instance(int value) {
+    soft_failures_one_instance_ = value;
+  }
 
   // Makes sure that CreateEntry is not called twice for a given key.
   void set_double_create_check(bool value) { double_create_check_ = value; }
@@ -200,8 +221,18 @@ class MockDiskCache : public disk_cache::Backend {
     support_in_memory_entry_data_ = value;
   }
 
+  // OpenEntry, CreateEntry, and DoomEntry immediately return with
+  // ERR_IO_PENDING and will callback some time later with an error.
+  void set_force_fail_callback_later(bool value) {
+    force_fail_callback_later_ = value;
+  }
+
   // Makes all requests for data ranges to fail as not implemented.
   void set_fail_sparse_requests() { fail_sparse_requests_ = true; }
+
+  // Sets the limit on how big entry streams can get. Only stream 1 enforces
+  // this, but MaxFileSize() will still report it.
+  void set_max_file_size(int new_size) { max_file_size_ = new_size; }
 
   void ReleaseAll();
 
@@ -219,33 +250,39 @@ class MockDiskCache : public disk_cache::Backend {
   // Returns a reference to the disk entry with the given |key|.
   scoped_refptr<MockDiskEntry> GetDiskEntryRef(const std::string& key);
 
+  // Returns a reference to the vector storing all keys for external cache hits.
+  const std::vector<std::string>& GetExternalCacheHits() const;
+
  private:
   using EntryMap = std::map<std::string, MockDiskEntry*>;
   class NotImplementedIterator;
 
-  void CallbackLater(CompletionOnceCallback callback, int result);
+  void CallbackLater(base::OnceClosure callback);
 
   EntryMap entries_;
-  int open_count_;
-  int create_count_;
-  int doomed_count_;
-  bool fail_requests_;
-  bool soft_failures_;
-  bool double_create_check_;
-  bool fail_sparse_requests_;
-  bool support_in_memory_entry_data_;
+  std::vector<std::string> external_cache_hits_;
+  int open_count_ = 0;
+  int create_count_ = 0;
+  int doomed_count_ = 0;
+  int max_file_size_;
+  bool fail_requests_ = false;
+  int soft_failures_ = 0;
+  int soft_failures_one_instance_ = 0;
+  bool double_create_check_ = true;
+  bool fail_sparse_requests_ = false;
+  bool support_in_memory_entry_data_ = true;
+  bool force_fail_callback_later_ = false;
 
   // Used for pause and restart.
-  MockDiskEntry::DeferOp defer_op_;
-  CompletionOnceCallback resume_callback_;
-  int resume_return_code_;
+  MockDiskEntry::DeferOp defer_op_ = MockDiskEntry::DEFER_NONE;
+  base::OnceClosure resume_callback_;
 };
 
 class MockBackendFactory : public HttpCache::BackendFactory {
  public:
-  int CreateBackend(NetLog* net_log,
-                    std::unique_ptr<disk_cache::Backend>* backend,
-                    CompletionOnceCallback callback) override;
+  disk_cache::BackendResult CreateBackend(
+      NetLog* net_log,
+      disk_cache::BackendResultCallback callback) override;
 };
 
 class MockHttpCache {
@@ -253,11 +290,6 @@ class MockHttpCache {
   MockHttpCache();
   explicit MockHttpCache(
       std::unique_ptr<HttpCache::BackendFactory> disk_cache_factory);
-  // |is_main_cache| if set, will set a quic server info factory.
-  explicit MockHttpCache(bool is_main_cache);
-
-  MockHttpCache(std::unique_ptr<HttpCache::BackendFactory> disk_cache_factory,
-                bool is_main_cache);
 
   HttpCache* http_cache() { return &http_cache_; }
 
@@ -319,17 +351,16 @@ class MockHttpCache {
 
 // This version of the disk cache doesn't invoke CreateEntry callbacks.
 class MockDiskCacheNoCB : public MockDiskCache {
-  net::Error CreateEntry(const std::string& key,
-                         net::RequestPriority request_priority,
-                         disk_cache::Entry** entry,
-                         CompletionOnceCallback callback) override;
+  EntryResult CreateEntry(const std::string& key,
+                          net::RequestPriority request_priority,
+                          EntryResultCallback callback) override;
 };
 
 class MockBackendNoCbFactory : public HttpCache::BackendFactory {
  public:
-  int CreateBackend(NetLog* net_log,
-                    std::unique_ptr<disk_cache::Backend>* backend,
-                    CompletionOnceCallback callback) override;
+  disk_cache::BackendResult CreateBackend(
+      NetLog* net_log,
+      disk_cache::BackendResultCallback callback) override;
 };
 
 // This backend factory allows us to control the backend instantiation.
@@ -338,26 +369,26 @@ class MockBlockingBackendFactory : public HttpCache::BackendFactory {
   MockBlockingBackendFactory();
   ~MockBlockingBackendFactory() override;
 
-  int CreateBackend(NetLog* net_log,
-                    std::unique_ptr<disk_cache::Backend>* backend,
-                    CompletionOnceCallback callback) override;
+  disk_cache::BackendResult CreateBackend(
+      NetLog* net_log,
+      disk_cache::BackendResultCallback callback) override;
 
   // Completes the backend creation. Any blocked call will be notified via the
   // provided callback.
   void FinishCreation();
 
-  std::unique_ptr<disk_cache::Backend>* backend() { return backend_; }
   void set_fail(bool fail) { fail_ = fail; }
 
-  CompletionOnceCallback ReleaseCallback() { return std::move(callback_); }
+  disk_cache::BackendResultCallback ReleaseCallback() {
+    return std::move(callback_);
+  }
 
  private:
-  int Result() { return fail_ ? ERR_FAILED : OK; }
+  disk_cache::BackendResult MakeResult();
 
-  std::unique_ptr<disk_cache::Backend>* backend_;
-  CompletionOnceCallback callback_;
-  bool block_;
-  bool fail_;
+  disk_cache::BackendResultCallback callback_;
+  bool block_ = true;
+  bool fail_ = false;
 };
 
 }  // namespace net

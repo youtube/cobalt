@@ -22,6 +22,7 @@ config("platform_configuration") {
       ":libraries",
       "//starboard/linux/shared/platform_configuration",
       "//starboard/linux/shared/platform_configuration:compiler_flags",
+      "//starboard/linux/shared/platform_configuration:no_pedantic_warnings",
       ":linker_flags",
     ]
   }

@@ -1,10 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/time/default_clock.h"
 
-#include "base/lazy_instance.h"
+#include "base/no_destructor.h"
 
 namespace base {
 
@@ -16,8 +16,8 @@ Time DefaultClock::Now() const {
 
 // static
 DefaultClock* DefaultClock::GetInstance() {
-  static LazyInstance<DefaultClock>::Leaky instance = LAZY_INSTANCE_INITIALIZER;
-  return instance.Pointer();
+  static base::NoDestructor<DefaultClock> instance;
+  return instance.get();
 }
 
 }  // namespace base

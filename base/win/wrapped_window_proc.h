@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,6 @@
 #include <windows.h>
 
 #include "base/base_export.h"
-#include "base/strings/string16.h"
 
 namespace base {
 namespace win {
@@ -23,13 +22,13 @@ namespace win {
 // expected behavior for this function is to not return, instead of returning
 // EXCEPTION_EXECUTE_HANDLER or similar, given that in general we are not
 // prepared to handle exceptions.
-typedef int (__cdecl *WinProcExceptionFilter)(EXCEPTION_POINTERS* info);
+using WinProcExceptionFilter = int __cdecl (*)(EXCEPTION_POINTERS* info);
 
 // Sets the filter to deal with exceptions inside a WindowProc. Returns the old
 // exception filter, if any.
 // This function should be called before any window is created.
-BASE_EXPORT WinProcExceptionFilter SetWinProcExceptionFilter(
-    WinProcExceptionFilter filter);
+BASE_EXPORT WinProcExceptionFilter
+SetWinProcExceptionFilter(WinProcExceptionFilter filter);
 
 // Calls the registered exception filter.
 BASE_EXPORT int CallExceptionFilter(EXCEPTION_POINTERS* info);
@@ -37,18 +36,17 @@ BASE_EXPORT int CallExceptionFilter(EXCEPTION_POINTERS* info);
 // Initializes the WNDCLASSEX structure |*class_out| to be passed to
 // RegisterClassEx() making sure that it is associated with the module
 // containing the window procedure.
-BASE_EXPORT void InitializeWindowClass(
-    const char16* class_name,
-    WNDPROC window_proc,
-    UINT style,
-    int class_extra,
-    int window_extra,
-    HCURSOR cursor,
-    HBRUSH background,
-    const char16* menu_name,
-    HICON large_icon,
-    HICON small_icon,
-    WNDCLASSEX* class_out);
+BASE_EXPORT void InitializeWindowClass(const wchar_t* class_name,
+                                       WNDPROC window_proc,
+                                       UINT style,
+                                       int class_extra,
+                                       int window_extra,
+                                       HCURSOR cursor,
+                                       HBRUSH background,
+                                       const wchar_t* menu_name,
+                                       HICON large_icon,
+                                       HICON small_icon,
+                                       WNDCLASSEX* class_out);
 
 // Wrapper that supplies a standard exception frame for the provided WindowProc.
 // The normal usage is something like this:
@@ -74,7 +72,7 @@ WrappedWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
   LRESULT rv = 0;
   __try {
     rv = proc(hwnd, message, wparam, lparam);
-  } __except(CallExceptionFilter(GetExceptionInformation())) {
+  } __except (CallExceptionFilter(GetExceptionInformation())) {
   }
   return rv;
 }

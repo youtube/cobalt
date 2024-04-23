@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,19 +6,21 @@
 
 #include <memory>
 
-#include "base/bind.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/run_loop.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/test_message_loop.h"
 #include "base/threading/platform_thread.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/timer/elapsed_timer.h"
 #include "media/base/cdm_config.h"
 #include "media/base/cdm_context.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
+#include "media/cdm/clear_key_cdm_common.h"
 #include "media/cdm/default_cdm_factory.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/mojo/common/media_type_converters.h"
@@ -40,6 +42,7 @@ using ::base::test::RunOnceCallback;
 using ::base::test::RunOnceClosure;
 using ::testing::_;
 using ::testing::DoAll;
+using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
@@ -48,7 +51,6 @@ namespace media {
 
 namespace {
 const int64_t kStartPlayingTimeInMs = 100;
-const char kClearKeyKeySystem[] = "org.w3.clearkey";
 
 ACTION_P2(GetMediaTime, start_time, elapsed_timer) {
   return start_time + elapsed_timer->Elapsed();
@@ -56,7 +58,7 @@ ACTION_P2(GetMediaTime, start_time, elapsed_timer) {
 
 void WaitFor(base::TimeDelta duration) {
   base::RunLoop run_loop;
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(), duration);
   run_loop.Run();
 }
@@ -128,7 +130,7 @@ class MojoRendererTest : public ::testing::Test {
 
   void InitializeAndExpect(PipelineStatus status) {
     DVLOG(1) << __func__ << ": " << status;
-    EXPECT_CALL(*this, OnInitialized(status));
+    EXPECT_CALL(*this, OnInitialized(SameStatusCode(status)));
     mojo_renderer_->Initialize(&demuxer_, &renderer_client_,
                                base::BindOnce(&MojoRendererTest::OnInitialized,
                                               base::Unretained(this)));
@@ -182,7 +184,7 @@ class MojoRendererTest : public ::testing::Test {
     mojo_cdm_service_ =
         std::make_unique<MojoCdmService>(&mojo_cdm_service_context_);
     mojo_cdm_service_->Initialize(
-        &cdm_factory_, kClearKeyKeySystem, CdmConfig(),
+        &cdm_factory_, {kClearKeyKeySystem, false, false, false},
         base::BindOnce(&MojoRendererTest::OnCdmServiceInitialized,
                        base::Unretained(this)));
     base::RunLoop().RunUntilIdle();
@@ -220,8 +222,10 @@ class MojoRendererTest : public ::testing::Test {
   std::unique_ptr<MojoCdmService> mojo_cdm_service_;
 
   // Service side mocks and helpers.
-  StrictMock<MockRenderer>* mock_renderer_;
-  RendererClient* remote_renderer_client_;
+  raw_ptr<StrictMock<MockRenderer>> mock_renderer_;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #addr-of
+  RAW_PTR_EXCLUSION RendererClient* remote_renderer_client_;
 
   mojo::SelfOwnedReceiverRef<mojom::Renderer> renderer_receiver_;
 };
@@ -263,7 +267,9 @@ TEST_F(MojoRendererTest, Flush_ConnectionError) {
   Initialize();
 
   // Upon connection error, OnError() should be called once and only once.
-  EXPECT_CALL(renderer_client_, OnError(PIPELINE_ERROR_DECODE)).Times(1);
+  EXPECT_CALL(renderer_client_,
+              OnError(HasStatusCode(PIPELINE_ERROR_DISCONNECTED)))
+      .Times(1);
   EXPECT_CALL(*mock_renderer_, OnFlush(_))
       .WillOnce(InvokeWithoutArgs(this, &MojoRendererTest::ConnectionError));
   Flush();
@@ -273,7 +279,9 @@ TEST_F(MojoRendererTest, Flush_AfterConnectionError) {
   Initialize();
 
   // Upon connection error, OnError() should be called once and only once.
-  EXPECT_CALL(renderer_client_, OnError(PIPELINE_ERROR_DECODE)).Times(1);
+  EXPECT_CALL(renderer_client_,
+              OnError(HasStatusCode(PIPELINE_ERROR_DISCONNECTED)))
+      .Times(1);
   ConnectionError();
 
   Flush();
@@ -340,7 +348,9 @@ TEST_F(MojoRendererTest, SetCdm_BeforeInitialize) {
 TEST_F(MojoRendererTest, SetCdm_AfterInitializeAndConnectionError) {
   CreateCdm();
   Initialize();
-  EXPECT_CALL(renderer_client_, OnError(PIPELINE_ERROR_DECODE)).Times(1);
+  EXPECT_CALL(renderer_client_,
+              OnError(HasStatusCode(PIPELINE_ERROR_DISCONNECTED)))
+      .Times(1);
   ConnectionError();
   SetCdmAndExpect(false);
 }
@@ -440,7 +450,8 @@ TEST_F(MojoRendererTest, Destroy_PendingInitialize) {
   CreateAudioStream();
   EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
       .WillRepeatedly(RunOnceCallback<2>(PIPELINE_ERROR_ABORT));
-  EXPECT_CALL(*this, OnInitialized(PIPELINE_ERROR_INITIALIZATION_FAILED));
+  EXPECT_CALL(*this, OnInitialized(
+                         HasStatusCode(PIPELINE_ERROR_INITIALIZATION_FAILED)));
   mojo_renderer_->Initialize(
       &demuxer_, &renderer_client_,
       base::BindOnce(&MojoRendererTest::OnInitialized, base::Unretained(this)));
@@ -467,13 +478,11 @@ TEST_F(MojoRendererTest, Destroy_PendingSetCdm) {
   Destroy();
 }
 
-// TODO(xhwang): Add more tests on OnError. For example, ErrorDuringFlush,
-// ErrorAfterFlush etc.
-
 TEST_F(MojoRendererTest, ErrorDuringPlayback) {
   Initialize();
 
-  EXPECT_CALL(renderer_client_, OnError(PIPELINE_ERROR_DECODE)).Times(1);
+  EXPECT_CALL(renderer_client_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)))
+      .Times(1);
 
   Play();
   remote_renderer_client_->OnError(PIPELINE_ERROR_DECODE);
@@ -481,6 +490,30 @@ TEST_F(MojoRendererTest, ErrorDuringPlayback) {
 
   EXPECT_CALL(*mock_renderer_, SetPlaybackRate(0.0)).Times(1);
   mojo_renderer_->SetPlaybackRate(0.0);
+  Flush();
+}
+
+TEST_F(MojoRendererTest, ErrorBeforeFlush) {
+  Initialize();
+  Play();
+
+  EXPECT_CALL(renderer_client_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)))
+      .Times(1);
+  remote_renderer_client_->OnError(PIPELINE_ERROR_DECODE);
+  Flush();
+}
+
+TEST_F(MojoRendererTest, ErrorDuringFlush) {
+  Initialize();
+  Play();
+
+  EXPECT_CALL(renderer_client_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)))
+      .Times(1);
+  EXPECT_CALL(*mock_renderer_, OnFlush(_))
+      .WillOnce(DoAll(InvokeWithoutArgs([&]() {
+                        remote_renderer_client_->OnError(PIPELINE_ERROR_DECODE);
+                      }),
+                      RunOnceClosure<0>()));
   Flush();
 }
 

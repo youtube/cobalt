@@ -24,6 +24,7 @@ _MODULAR_BUILD_FILTERED_TESTS = {
     'nplb': [
         'MultiplePlayerTests/*/*sintel_329_ec3_dmp*',
         'MultiplePlayerTests/*/*sintel_381_ac3_dmp*',
+        'PosixDirectoryCanOpenTest.FailureMissingStaticContent',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_329_ec3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_381_ac3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_329_ec3_dmp_*',
@@ -33,6 +34,11 @@ _MODULAR_BUILD_FILTERED_TESTS = {
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
     ],
     'player_filter_tests': [test_filter.FILTER_ALL],
+    'net_unittests': [
+        'VersionIncludeStreamDependencySequence/QuicNetworkTransactionTest.NetworkIsolationTunnel*',
+        'SchemeHostPortMatcherRuleTest.SchemeHostPortMatcherHostnamePatternRule_PunnyCodeHostname',
+        'ProxySpecificationUtilTest.ProxyUriToProxyServer',
+    ],
 }
 
 _FILTERED_TESTS = {

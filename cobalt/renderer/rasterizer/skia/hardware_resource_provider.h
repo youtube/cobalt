@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "base/task/sequenced_task_runner_helpers.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -93,6 +94,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       const std::string& language) override;
 
   void LoadAdditionalFonts() override;
+  void ClearAdditionalFonts() override;
 
   // This resource provider uses ots (OpenTypeSanitizer) to sanitize the raw
   // typeface data and skia to generate the typeface. It supports TrueType,
@@ -103,7 +105,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       std::string* error_string) override;
 
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const base::char16* text_buffer, size_t text_length,
+      const char16_t* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       render_tree::FontProvider* font_provider) override;
 
@@ -111,7 +113,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       const std::string& utf8_string,
       const scoped_refptr<render_tree::Font>& font) override;
 
-  float GetTextWidth(const base::char16* text_buffer, size_t text_length,
+  float GetTextWidth(const char16_t* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts) override;
@@ -143,12 +145,12 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
 
-  // We keep a handle to the message loop that this resource provider was
-  // created on.  This message loop is used whenever we need to issue graphics
-  // commands, such as during the creation of an image.  If the message loop
+  // We keep a handle to the task runner that this resource provider was
+  // created on.  This task runner is used whenever we need to issue graphics
+  // commands, such as during the creation of an image.  If the task runner
   // is NULL, we will try to issue the graphics commands from the current
   // thread.
-  scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> rasterizer_task_runner_;
 };
 
 }  // namespace skia

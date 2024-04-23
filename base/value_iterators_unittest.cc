@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,11 +32,6 @@ bool are_equal(InputIterator1 first1,
 }
 
 }  // namespace
-
-TEST(ValueIteratorsTest, SameDictStorage) {
-  static_assert(std::is_same<Value::DictStorage, DictStorage>::value,
-                "DictStorage differs between Value and Value Iterators.");
-}
 
 TEST(ValueIteratorsTest, IsAssignable) {
   static_assert(
@@ -262,72 +257,6 @@ TEST(ValueIteratorsTest, ConstDictIteratorOperatorNE) {
 
   using iterator = const_dict_iterator;
   EXPECT_NE(iterator(storage.begin()), iterator(storage.end()));
-}
-
-TEST(ValueIteratorsTest, DictIteratorProxy) {
-  DictStorage storage;
-  storage.emplace("null", std::make_unique<Value>(Value::Type::NONE));
-  storage.emplace("bool", std::make_unique<Value>(Value::Type::BOOLEAN));
-  storage.emplace("int", std::make_unique<Value>(Value::Type::INTEGER));
-  storage.emplace("double", std::make_unique<Value>(Value::Type::DOUBLE));
-  storage.emplace("string", std::make_unique<Value>(Value::Type::STRING));
-  storage.emplace("blob", std::make_unique<Value>(Value::Type::BINARY));
-  storage.emplace("dict", std::make_unique<Value>(Value::Type::DICTIONARY));
-  storage.emplace("list", std::make_unique<Value>(Value::Type::LIST));
-
-  using iterator = const_dict_iterator;
-  using iterator_proxy = dict_iterator_proxy;
-  iterator_proxy proxy(&storage);
-
-  auto equal_to = [](const DictStorage::value_type& lhs,
-                     const iterator::reference& rhs) {
-    return std::tie(lhs.first, *lhs.second) == std::tie(rhs.first, rhs.second);
-  };
-
-  EXPECT_TRUE(are_equal(storage.begin(), storage.end(), proxy.begin(),
-                        proxy.end(), equal_to));
-
-  EXPECT_TRUE(are_equal(storage.rbegin(), storage.rend(), proxy.rbegin(),
-                        proxy.rend(), equal_to));
-
-  EXPECT_TRUE(are_equal(storage.cbegin(), storage.cend(), proxy.cbegin(),
-                        proxy.cend(), equal_to));
-
-  EXPECT_TRUE(are_equal(storage.crbegin(), storage.crend(), proxy.crbegin(),
-                        proxy.crend(), equal_to));
-}
-
-TEST(ValueIteratorsTest, ConstDictIteratorProxy) {
-  DictStorage storage;
-  storage.emplace("null", std::make_unique<Value>(Value::Type::NONE));
-  storage.emplace("bool", std::make_unique<Value>(Value::Type::BOOLEAN));
-  storage.emplace("int", std::make_unique<Value>(Value::Type::INTEGER));
-  storage.emplace("double", std::make_unique<Value>(Value::Type::DOUBLE));
-  storage.emplace("string", std::make_unique<Value>(Value::Type::STRING));
-  storage.emplace("blob", std::make_unique<Value>(Value::Type::BINARY));
-  storage.emplace("dict", std::make_unique<Value>(Value::Type::DICTIONARY));
-  storage.emplace("list", std::make_unique<Value>(Value::Type::LIST));
-
-  using iterator = const_dict_iterator;
-  using iterator_proxy = const_dict_iterator_proxy;
-  iterator_proxy proxy(&storage);
-
-  auto equal_to = [](const DictStorage::value_type& lhs,
-                     const iterator::reference& rhs) {
-    return std::tie(lhs.first, *lhs.second) == std::tie(rhs.first, rhs.second);
-  };
-
-  EXPECT_TRUE(are_equal(storage.begin(), storage.end(), proxy.begin(),
-                        proxy.end(), equal_to));
-
-  EXPECT_TRUE(are_equal(storage.rbegin(), storage.rend(), proxy.rbegin(),
-                        proxy.rend(), equal_to));
-
-  EXPECT_TRUE(are_equal(storage.cbegin(), storage.cend(), proxy.cbegin(),
-                        proxy.cend(), equal_to));
-
-  EXPECT_TRUE(are_equal(storage.crbegin(), storage.crend(), proxy.crbegin(),
-                        proxy.crend(), equal_to));
 }
 
 }  // namespace detail

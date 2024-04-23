@@ -554,13 +554,13 @@ TEST(ExtensionTest, PlayerConfiguration) {
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
 
-  if (extension_api->SetEnforceDecodeToTextureMode) {
-    extension_api->SetEnforceDecodeToTextureMode(true);
-    extension_api->SetEnforceDecodeToTextureMode(false);
+  if (extension_api->SetDecodeToTexturePreferred) {
+    extension_api->SetDecodeToTexturePreferred(true);
+    extension_api->SetDecodeToTexturePreferred(false);
   }
-  if (extension_api->SetEnforceTunnelMode) {
-    extension_api->SetEnforceTunnelMode(true);
-    extension_api->SetEnforceTunnelMode(false);
+  if (extension_api->SetTunnelModePreferred) {
+    extension_api->SetTunnelModePreferred(true);
+    extension_api->SetTunnelModePreferred(false);
   }
 }
 

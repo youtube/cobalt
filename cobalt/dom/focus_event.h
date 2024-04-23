@@ -31,7 +31,7 @@ class FocusEvent : public UIEvent {
  public:
   explicit FocusEvent(const std::string& type);
 
-  FocusEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+  FocusEvent(base_token::Token type, Bubbles bubbles, Cancelable cancelable,
              const scoped_refptr<Window>& view,
              const scoped_refptr<web::EventTarget>& related_target);
 

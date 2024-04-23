@@ -59,9 +59,9 @@ static_library("script") {
     "//cobalt/base",
     "//cobalt/loader:origin",
     "//starboard:starboard_headers_only",
-    "//third_party/v8",
-    "//third_party/v8:v8_libplatform",
     "//url",
+    "//v8",
+    "//v8:v8_libplatform",
   ]
 }
 
@@ -75,8 +75,8 @@ static_library("standalone_javascript_runner") {
     ":script",
     "//base",
     "//cobalt/base",
-    "//third_party/v8",
-    "//third_party/v8:v8_libplatform",
+    "//v8",
+    "//v8:v8_libplatform",
   ]
 }
 

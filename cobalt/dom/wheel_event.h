@@ -43,7 +43,7 @@ class WheelEvent : public MouseEvent {
 
   explicit WheelEvent(const std::string& type);
   WheelEvent(const std::string& type, const WheelEventInit& init_dict);
-  WheelEvent(base::Token type, const scoped_refptr<Window>& view,
+  WheelEvent(base_token::Token type, const scoped_refptr<Window>& view,
              const WheelEventInit& init_dict);
 
   // Creates an event with its "initialized flag" unset.

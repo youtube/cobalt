@@ -37,8 +37,8 @@ namespace websocket {
 WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
                              WebSocket *delegate)
     : network_module_(network_module), delegate_(delegate) {
-  DCHECK(base::MessageLoop::current());
-  owner_task_runner_ = base::ThreadTaskRunnerHandle::Get();
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
+  owner_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
 }
 
 void WebSocketImpl::ResetWebSocketEventDelegate() {
@@ -101,14 +101,12 @@ void WebSocketImpl::DoConnect(
 
   websocket_channel_->SendAddChannelRequest(
       url, desired_sub_protocols_, url::Origin::Create(GURL(origin_)),
-      connect_url_ /*site_for_cookies*/,
-      net::HttpRequestHeaders() /*additional_headers*/);
+      net::SiteForCookies::FromUrl(connect_url_) /*site_for_cookies*/,
+      net::IsolationInfo(), net::HttpRequestHeaders() /*additional_headers*/,
+      net::DefineNetworkTrafficAnnotation("websocket_server",
+                                          "websocket_server"));
   channel_created_event
       ->Signal();  // Signal that this->websocket_channel_ has been assigned.
-
-  // On Cobalt we do not support flow control.
-  auto flow_control_result = websocket_channel_->SendFlowControl(INT_MAX);
-  DCHECK_EQ(net::WebSocketChannel::CHANNEL_ALIVE, flow_control_result);
 }
 
 void WebSocketImpl::Close(const net::WebSocketError code,
@@ -207,9 +205,8 @@ void WebSocketImpl::OnClose(bool was_clean, int error_code,
 
   std::uint16_t close_code = static_cast<std::uint16_t>(error_code);
 
-  DLOG(INFO) << "WebSocket is closing."
-             << " code[" << close_code << "] reason[" << close_reason << "]"
-             << " was_clean: " << was_clean;
+  DLOG(INFO) << "WebSocket is closing." << " code[" << close_code << "] reason["
+             << close_reason << "]" << " was_clean: " << was_clean;
 
   // Queue the deletion of |websocket_channel_|.  We would do it here, but this
   // function may be called as a callback *by* |websocket_channel_|;

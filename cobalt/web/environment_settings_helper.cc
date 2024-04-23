@@ -14,7 +14,7 @@
 
 #include "cobalt/web/environment_settings_helper.h"
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
@@ -66,13 +66,13 @@ script::ScriptValueFactory* get_script_value_factory(
   return global_environment->script_value_factory();
 }
 
-base::MessageLoop* get_message_loop(
+base::SequencedTaskRunner* get_task_runner(
     script::EnvironmentSettings* environment_settings) {
   auto* context = get_context(environment_settings);
   if (!context) {
     return nullptr;
   }
-  return context->message_loop();
+  return context->task_runner();
 }
 
 }  // namespace web

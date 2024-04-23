@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,11 +8,11 @@
 #include <stdint.h>
 #include <memory>
 
-#include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/unguessable_token.h"
 #include "media/base/buffering_state.h"
@@ -82,6 +82,7 @@ class MEDIA_MOJO_EXPORT MojoRendererService final : public mojom::Renderer,
 
   // RendererClient implementation.
   void OnError(PipelineStatus status) final;
+  void OnFallback(PipelineStatus status) final;
   void OnEnded() final;
   void OnStatisticsUpdate(const PipelineStatistics& stats) final;
   void OnBufferingStateChange(BufferingState state,
@@ -115,7 +116,7 @@ class MEDIA_MOJO_EXPORT MojoRendererService final : public mojom::Renderer,
   // Callback executed once SetCdm() completes.
   void OnCdmAttached(base::OnceCallback<void(bool)> callback, bool success);
 
-  MojoCdmServiceContext* const mojo_cdm_service_context_ = nullptr;
+  const raw_ptr<MojoCdmServiceContext> mojo_cdm_service_context_ = nullptr;
 
   State state_;
   double playback_rate_;

@@ -16,7 +16,9 @@
 
 #include <memory>
 
+#include "base/bind.h"
 #include "base/threading/platform_thread.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/loader/image/threaded_image_decoder_proxy.h"
 
 namespace cobalt {
@@ -26,7 +28,7 @@ LoaderFactory::LoaderFactory(const char* name, FetcherFactory* fetcher_factory,
                              render_tree::ResourceProvider* resource_provider,
                              const base::DebuggerHooks& debugger_hooks,
                              size_t encoded_image_cache_capacity,
-                             base::ThreadPriority loader_thread_priority)
+                             base::ThreadType loader_thread_priority)
     : ScriptLoaderFactory(name, fetcher_factory, loader_thread_priority),
       debugger_hooks_(debugger_hooks),
       resource_provider_(resource_provider) {
@@ -56,7 +58,7 @@ std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
       fetcher_creator,
       base::Bind(&image::ThreadedImageDecoderProxy::Create, resource_provider_,
                  &debugger_hooks_, image_available_callback,
-                 load_thread_.message_loop()),
+                 load_thread_.task_runner()),
       load_complete_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
       is_suspended_));
@@ -190,7 +192,7 @@ void LoaderFactory::SuspendActiveLoaders() {
   }
 
   // Wait for all loader thread messages to be flushed before returning.
-  load_thread_.message_loop()->task_runner()->WaitForFence();
+  base::task_runner_util::WaitForFence(load_thread_.task_runner(), FROM_HERE);
 }
 
 void LoaderFactory::ResumeActiveLoaders(
@@ -203,7 +205,7 @@ void LoaderFactory::ResumeActiveLoaders(
   }
 
   // Wait for all loader thread messages to be flushed before returning.
-  load_thread_.message_loop()->task_runner()->WaitForFence();
+  base::task_runner_util::WaitForFence(load_thread_.task_runner(), FROM_HERE);
 }
 
 }  // namespace loader

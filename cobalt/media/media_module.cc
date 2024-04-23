@@ -127,8 +127,9 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
     } else {
       support_type = CanPlayType(mime_type, "");
     }
-    metrics.RecordAndLogQuery("HTMLMediaElement::canPlayType", mime_type, "",
-                              support_type);
+    metrics.RecordAndLogQuery(
+        FormatSupportQueryAction::HTML_MEDIA_ELEMENT_CAN_PLAY_TYPE, mime_type,
+        "", support_type);
     return support_type;
   }
 
@@ -137,8 +138,9 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
       const std::string& key_system) const override {
     media::FormatSupportQueryMetrics metrics;
     SbMediaSupportType support_type = CanPlayType(mime_type, key_system);
-    metrics.RecordAndLogQuery("MediaSource::IsTypeSupported", mime_type,
-                              key_system, support_type);
+    metrics.RecordAndLogQuery(
+        FormatSupportQueryAction::MEDIA_SOURCE_IS_TYPE_SUPPORTED, mime_type,
+        key_system, support_type);
     return support_type;
   }
 
@@ -210,6 +212,11 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
               << audio_write_duration_remote_.InMicroseconds();
     return true;
 #endif  // SB_API_VERSION >= 15
+  } else if (name == "PlayerConfiguration.DecodeToTexturePreferred") {
+    sbplayer_interface_->SetDecodeToTexturePreferred(value);
+    LOG(INFO) << "Set DecodeToTexturePreferred to "
+              << (value ? "true" : "false");
+    return true;
   }
 
   return false;

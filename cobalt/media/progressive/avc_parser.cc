@@ -119,14 +119,14 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
   DCHECK(record_out) << "no output structure provided";
   // first byte is NAL type id, check that it is SPS
   if ((*sps & 0x1f) != kSPSNALType) {
-    DLOG(ERROR) << "bad NAL type on SPS";
+    LOG(ERROR) << "bad NAL type on SPS";
     return false;
   }
   // convert SPS NALU to RBSP stream
   RBSPStream sps_rbsp(sps + 1, sps_size - 1);
   uint8 profile_idc = 0;
   if (!sps_rbsp.ReadByte(&profile_idc)) {
-    DLOG(ERROR) << "failure reading profile_idc from sps RBSP";
+    LOG(ERROR) << "failure reading profile_idc from sps RBSP";
     return false;
   }
   // skip 3 constraint flags, 5 reserved bits, and level_idc (16 bits)
@@ -143,7 +143,7 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
       profile_idc == 83 || profile_idc == 86 || profile_idc == 118) {
     uint32 chroma_format_idc = 0;
     if (!sps_rbsp.ReadUEV(&chroma_format_idc)) {
-      DLOG(WARNING) << "failure reading chroma_format_idc from sps RBSP";
+      LOG(WARNING) << "failure reading chroma_format_idc from sps RBSP";
       return false;
     }
     if (chroma_format_idc == 3) {
@@ -159,7 +159,7 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
     // seq_scaling_matrix_present_flag
     uint8 seq_scaling_matrix_present_flag = 0;
     if (!sps_rbsp.ReadBit(&seq_scaling_matrix_present_flag)) {
-      DLOG(ERROR)
+      LOG(ERROR)
           << "failure reading seq_scaling_matrix_present_flag from sps RBSP";
       return false;
     }
@@ -173,7 +173,7 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
   // pic_order_cnt_type
   uint32 pic_order_cnt_type = 0;
   if (!sps_rbsp.ReadUEV(&pic_order_cnt_type)) {
-    DLOG(ERROR) << "failure reading pic_order_cnt_type from sps RBSP";
+    LOG(ERROR) << "failure reading pic_order_cnt_type from sps RBSP";
     return false;
   }
   if (pic_order_cnt_type == 0) {
@@ -189,7 +189,7 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
     // num_ref_frames_in_pic_order_cnt_cycle
     uint32 num_ref_frames_in_pic_order_cnt_cycle = 0;
     if (!sps_rbsp.ReadUEV(&num_ref_frames_in_pic_order_cnt_cycle)) {
-      DLOG(ERROR)
+      LOG(ERROR)
           << "failure reading num_ref_frames_in_pic_order_cnt_cycle from sps";
       return false;
     }
@@ -200,7 +200,7 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
   // number of reference frames used to decode
   uint32 num_ref_frames = 0;
   if (!sps_rbsp.ReadUEV(&num_ref_frames)) {
-    DLOG(ERROR) << "failure reading number of ref frames from sps RBSP";
+    LOG(ERROR) << "failure reading number of ref frames from sps RBSP";
     return false;
   }
   // gaps_in_frame_num_value_allowed_flag
@@ -208,7 +208,7 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
   // width is calculated from pic_width_in_mbs_minus1
   uint32 pic_width_in_mbs_minus1 = 0;
   if (!sps_rbsp.ReadUEV(&pic_width_in_mbs_minus1)) {
-    DLOG(WARNING) << "failure reading image width from sps RBSP";
+    LOG(WARNING) << "failure reading image width from sps RBSP";
     return false;
   }
   // 16 pxs per macroblock
@@ -216,13 +216,13 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
   // pic_height_in_map_units_minus1
   uint32 pic_height_in_map_units_minus1 = 0;
   if (!sps_rbsp.ReadUEV(&pic_height_in_map_units_minus1)) {
-    DLOG(ERROR)
+    LOG(ERROR)
         << "failure reading pic_height_in_map_uints_minus1 from sps RBSP";
     return false;
   }
   uint8 frame_mbs_only_flag = 0;
   if (!sps_rbsp.ReadBit(&frame_mbs_only_flag)) {
-    DLOG(ERROR) << "failure reading frame_mbs_only_flag from sps RBSP";
+    LOG(ERROR) << "failure reading frame_mbs_only_flag from sps RBSP";
     return false;
   }
   uint32 height = (2 - static_cast<uint32>(frame_mbs_only_flag)) *
@@ -235,7 +235,7 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
   // frame cropping flag
   uint8 frame_cropping_flag = 0;
   if (!sps_rbsp.ReadBit(&frame_cropping_flag)) {
-    DLOG(ERROR) << "failure reading frame_cropping_flag from sps RBSP";
+    LOG(ERROR) << "failure reading frame_cropping_flag from sps RBSP";
     return false;
   }
   // distance in pixels from the associated edge of the media:
@@ -266,19 +266,19 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
   // cropping values are stored divided by two
   if (frame_cropping_flag) {
     if (!sps_rbsp.ReadUEV(&crop_left)) {
-      DLOG(ERROR) << "failure reading crop_left from sps RBSP";
+      LOG(ERROR) << "failure reading crop_left from sps RBSP";
       return false;
     }
     if (!sps_rbsp.ReadUEV(&crop_right)) {
-      DLOG(ERROR) << "failure reading crop_right from sps RBSP";
+      LOG(ERROR) << "failure reading crop_right from sps RBSP";
       return false;
     }
     if (!sps_rbsp.ReadUEV(&crop_top)) {
-      DLOG(ERROR) << "failure reading crop_top from sps RBSP";
+      LOG(ERROR) << "failure reading crop_top from sps RBSP";
       return false;
     }
     if (!sps_rbsp.ReadUEV(&crop_bottom)) {
-      DLOG(ERROR) << "failure reading crop_bottom from sps RBSP";
+      LOG(ERROR) << "failure reading crop_bottom from sps RBSP";
       return false;
     }
     crop_left *= 2;
@@ -300,7 +300,7 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
 
 bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   if (size < kAVCConfigMinSize) {
-    DLOG(ERROR) << base::StringPrintf("AVC config record bad size: %d", size);
+    LOG(ERROR) << base::StringPrintf("AVC config record bad size: %d", size);
     return false;
   }
 
@@ -316,7 +316,7 @@ bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   // That means we need at least 1 SPS NALU in this stream for extraction.
   uint8 number_of_sps_nalus = buffer[5] & 0x1f;
   if (number_of_sps_nalus == 0) {
-    DLOG(WARNING) << "got AVCConfigRecord without any SPS NALUs!";
+    LOG(WARNING) << "got AVCConfigRecord without any SPS NALUs!";
     return false;
   }
   // iterate through SPS NALUs finding one of valid size for our purposes
@@ -330,7 +330,7 @@ bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
     // make sure we haven't run out of record for the 2-byte size record
     DCHECK_LE(size, static_cast<uint32>(std::numeric_limits<int32>::max()));
     if (record_offset + 2 > static_cast<int>(size)) {
-      DLOG(WARNING) << "ran out of AVCConfig record while parsing SPS size.";
+      LOG(WARNING) << "ran out of AVCConfig record while parsing SPS size.";
       return false;
     }
     // extract 2-byte size of this SPS
@@ -340,7 +340,7 @@ bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
     record_offset += 2;
     // see if we jumped over record size
     if (record_offset + sps_size > size) {
-      DLOG(WARNING) << "ran out of AVCConfig record while parsing SPS blocks.";
+      LOG(WARNING) << "ran out of AVCConfig record while parsing SPS blocks.";
       return false;
     }
     if (!have_valid_sps) {
@@ -353,7 +353,7 @@ bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
     record_offset += sps_size;
   }
   if (!have_valid_sps) {
-    DLOG(WARNING)
+    LOG(WARNING)
         << "unable to parse a suitable SPS. Perhaps increase max size?";
     return false;
   }
@@ -374,7 +374,7 @@ bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
       // make sure we don't run out of room for 2-byte size record
       DCHECK_LE(size, static_cast<uint32>(std::numeric_limits<int32>::max()));
       if (record_offset + 2 >= static_cast<int>(size)) {
-        DLOG(WARNING) << "ran out of AVCConfig record while parsing PPS size.";
+        LOG(WARNING) << "ran out of AVCConfig record while parsing PPS size.";
         return false;
       }
       // extract 2-byte size of this PPS
@@ -383,7 +383,7 @@ bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
       record_offset += 2;
       // see if there's actually room for this record in the buffer
       if (record_offset + pps_size > size) {
-        DLOG(WARNING)
+        LOG(WARNING)
             << "ran out of AVCConfig record while scanning PPS blocks.";
         return false;
       }
@@ -398,7 +398,7 @@ bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   // now we parse the valid SPS we extracted from byte stream earlier.
   SPSRecord sps_record;
   if (!ParseSPS(buffer + usable_sps_offset, usable_sps_size, &sps_record)) {
-    DLOG(WARNING) << "error parsing SPS";
+    LOG(WARNING) << "error parsing SPS";
     return false;
   }
   // we can now initialize our video decoder config
@@ -459,9 +459,10 @@ void AVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   aac_config[1] = b1;
   audio_prepend_.clear();
 
+  int adts_header_size;
   if (!aac.Parse(aac_config, media_log_) ||
-      !aac.ConvertEsdsToADTS(&audio_prepend_)) {
-    DLOG(WARNING) << "Error in parsing AudioSpecificConfig.";
+      !aac.ConvertEsdsToADTS(&audio_prepend_, &adts_header_size)) {
+    LOG(WARNING) << "Error in parsing AudioSpecificConfig.";
     return;
   }
 

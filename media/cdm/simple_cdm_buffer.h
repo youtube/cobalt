@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 
 #include <vector>
 
-#include "base/macros.h"
 #include "media/cdm/api/content_decryption_module.h"
 
 namespace media {
@@ -20,6 +19,9 @@ namespace media {
 class SimpleCdmBuffer final : public cdm::Buffer {
  public:
   static SimpleCdmBuffer* Create(size_t capacity);
+
+  SimpleCdmBuffer(const SimpleCdmBuffer&) = delete;
+  SimpleCdmBuffer& operator=(const SimpleCdmBuffer&) = delete;
 
   // cdm::Buffer implementation.
   void Destroy() override;
@@ -34,8 +36,6 @@ class SimpleCdmBuffer final : public cdm::Buffer {
 
   std::vector<uint8_t> buffer_;
   uint32_t size_;
-
-  DISALLOW_COPY_AND_ASSIGN(SimpleCdmBuffer);
 };
 
 }  // namespace media

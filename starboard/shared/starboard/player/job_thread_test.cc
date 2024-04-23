@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
+#include <unistd.h>
+
 #include <atomic>
 #include <vector>
 
@@ -52,7 +54,7 @@ TEST(JobThreadTest, ScheduledJobsAreExecutedInOrder) {
   job_thread.Schedule([&]() { values.push_back(8); }, 3 * kPrecisionUsec);
 
   // Sleep past the last scheduled job.
-  SbThreadSleep(4 * kPrecisionUsec);
+  usleep(4 * kPrecisionUsec);
 
   ExecutePendingJobs(&job_thread);
 
@@ -64,7 +66,7 @@ TEST(JobThreadTest, ScheduleAndWaitWaits) {
   std::atomic_bool job_1 = {false};
   JobThread job_thread{"JobThreadTests"};
   job_thread.ScheduleAndWait([&]() {
-    SbThreadSleep(1 * kPrecisionUsec);
+    usleep(1 * kPrecisionUsec);
     job_1 = true;
   });
   // Verify that the job ran and that it took at least as long as it slept.
@@ -83,14 +85,14 @@ TEST(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
     job_thread.Schedule(job);
 
     // Wait for the job to run at least once and reschedule itself.
-    SbThreadSleep(1 * kPrecisionUsec);
+    usleep(1 * kPrecisionUsec);
     ExecutePendingJobs(&job_thread);
   }
   int end_value = counter;
   EXPECT_GE(counter, 1);
 
   // Sleep past two more (potential) executions and verify there were none.
-  SbThreadSleep(4 * kPrecisionUsec);
+  usleep(4 * kPrecisionUsec);
   EXPECT_EQ(counter, end_value);
 }
 
@@ -121,7 +123,7 @@ TEST(JobThreadTest, CanceledJobsAreCanceled) {
   int checkpoint_2 = counter_2;
 
   // Sleep and wait for pending jobs to run.
-  SbThreadSleep(1 * kPrecisionUsec);
+  usleep(1 * kPrecisionUsec);
   ExecutePendingJobs(&job_thread);
 
   // Job 1 should not have run again.

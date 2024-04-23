@@ -68,6 +68,8 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   // Loads the font that matches the suggested script for the device's locale.
   void LoadLocaleDefault();
+  // Clears the font that matches the suggested script for the device's locale.
+  void ClearLocaleDefault();
 
  protected:
   // From SkFontMgr
@@ -170,6 +172,9 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   // List of default families that are used when no specific match is found
   // during a request.
   std::vector<SkFontStyleSet_Cobalt*> default_families_;
+
+  // List of initial families used for all locales.
+  std::vector<SkFontStyleSet_Cobalt*> initial_families_;
 
   // Used to delay font loading until default fonts are fully loaded.
   base::WaitableEvent default_fonts_loaded_event_;

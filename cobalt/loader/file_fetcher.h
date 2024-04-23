@@ -45,12 +45,12 @@ class FileFetcher : public Fetcher {
         : buffer_size(kDefaultBufferSize),
           start_offset(0),
           bytes_to_read(std::numeric_limits<int64>::max()),
-          message_loop_proxy(base::ThreadTaskRunnerHandle::Get()) {}
+          task_runner_proxy(base::SequencedTaskRunner::GetCurrentDefault()) {}
 
     int32 buffer_size;
     int64 start_offset;
     int64 bytes_to_read;
-    scoped_refptr<base::SingleThreadTaskRunner> message_loop_proxy;
+    scoped_refptr<base::SequencedTaskRunner> task_runner_proxy;
     base::FilePath extra_search_dir;
   };
 
@@ -94,7 +94,7 @@ class FileFetcher : public Fetcher {
   // How many bytes we are going to read.
   int64 bytes_left_to_read_;
   // Message loop that is used for actual IO operations in FileProxy.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   // Relative (to the current search path entry) file path.
   base::FilePath file_path_;
   // Paths to search for files. When a file is to be fetched, the fetcher will

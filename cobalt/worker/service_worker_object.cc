@@ -52,7 +52,7 @@ ServiceWorkerObject::~ServiceWorkerObject() {
 void ServiceWorkerObject::Abort() {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::Abort()");
   if (web_agent_) {
-    DCHECK(message_loop());
+    DCHECK(task_runner());
     DCHECK(web_context_);
     std::unique_ptr<web::Agent> web_agent(std::move(web_agent_));
     DCHECK(web_agent);
@@ -144,7 +144,7 @@ void ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone() {
   web_agent_->WaitUntilDone();
 }
 
-bool ServiceWorkerObject::ShouldSkipEvent(base::Token event_name) {
+bool ServiceWorkerObject::ShouldSkipEvent(base_token::Token event_name) {
   // Algorithm for Should Skip Event:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#should-skip-event-algorithm
   // 1. If serviceWorker’s set of event types to handle does not contain

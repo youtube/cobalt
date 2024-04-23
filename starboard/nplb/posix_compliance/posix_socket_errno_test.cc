@@ -46,12 +46,12 @@ TEST(PosixErrnoTest, ConnectUnavailableAddress) {
 
   sockaddr_in6 address = {};
 #if SB_HAS(IPV6)
-  EXPECT_TRUE(PosixGetLocalAddressiIPv4(
+  EXPECT_TRUE(PosixGetLocalAddressIPv4(
                   reinterpret_cast<struct sockaddr*>(&address)) == 0 ||
-              PosixGetLocalAddressiIPv6(&address) == 0);
+              PosixGetLocalAddressIPv6(&address) == 0);
 #else
-  EXPECT_TRUE(
-      PosixGetLocalAddressiIPv4(reinterpret_cast<sockaddr*>(&address)) == 0);
+  EXPECT_TRUE(PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) ==
+              0);
 #endif
 
   // Attempt to connect to an address where we expect connection to be refused

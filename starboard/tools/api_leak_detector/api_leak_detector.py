@@ -147,6 +147,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'pthread_key_create',
     'pthread_key_delete',
     'pthread_setspecific',
+    'usleep',
 ]
 
 

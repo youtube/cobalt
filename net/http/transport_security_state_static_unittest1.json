@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,29 +7,12 @@
 // transport_security_state_static.json.
 
 {
-  "pinsets": [
-    {
-      "name": "test1",
-      "static_spki_hashes": [
-        "TestSPKI1"
-      ],
-      "bad_static_spki_hashes": [
-        "TestSPKI2"
-      ]
-    }, {
-      "name": "test2",
-      "static_spki_hashes": [
-        "TestSPKI2"
-      ]
-    }
-  ],
   "entries": [
     {
       "name": "hsts.example.com",
       "policy": "test",
       "mode": "force-https",
-      "include_subdomains": true,
-      "pins": "test1"
+      "include_subdomains": true
     }
   ]
 }

@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/net_log.h"
 
+#include <unistd.h>
 #include <windows.h>
 
 #include <algorithm>
@@ -447,7 +448,7 @@ void NetLogWaitForClientConnected(int64_t timeout) {
       if (CurrentMonotonicTime() > expire_time) {
         break;
       }
-      SbThreadSleep(1000);
+      usleep(1000);
     }
   }
 #endif

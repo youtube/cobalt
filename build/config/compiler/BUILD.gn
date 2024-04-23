@@ -1601,7 +1601,9 @@ config("default_warnings") {
 
       # -Wpacked-not-aligned complains all generated mojom-shared-internal.h
       # files.
+      if (!is_native_target_build) {
       cflags += [ "-Wno-packed-not-aligned" ]
+      }
     }
   }
 
@@ -1813,6 +1815,7 @@ config("chromium_code") {
       ]
     }
 
+    # TODO: check if this is still needed with updated //net.
     # Suppress warning in old //net.
     if (is_starboard) {
       cflags += [
@@ -2035,6 +2038,9 @@ config("no_exceptions") {
 config("wglobal_constructors") {
   if (is_clang) {
     cflags = [ "-Wglobal-constructors" ]
+    if (is_starboard) {
+      cflags -= [ "-Wglobal-constructors" ]
+    }
   }
 }
 

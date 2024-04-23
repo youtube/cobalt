@@ -1,10 +1,12 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_HASH_VALUE_H_
 #define NET_BASE_HASH_VALUE_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <string>
@@ -14,12 +16,6 @@
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "net/base/net_export.h"
-
-#if defined(STARBOARD)
-#include "starboard/configuration.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
-#endif
 
 namespace net {
 
@@ -108,12 +104,6 @@ typedef std::vector<HashValue> HashValueVector;
 // array of SHA256 hashes.
 bool IsSHA256HashInSortedArray(const HashValue& hash,
                                base::span<const SHA256HashValue> array);
-
-#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
-// MSVC can not implicitly convert HashValueVector to span<HashValue>.
-bool IsAnySHA256HashInSortedArray(const HashValueVector& hashes,
-                                  base::span<const SHA256HashValue> array);
-#endif
 
 // IsAnySHA256HashInSortedArray returns true iff any value in |hashes| is in
 // |array|, a sorted array of SHA256 hashes.

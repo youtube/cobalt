@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,13 +14,8 @@ TEST(SequenceTokenTest, IsValid) {
 }
 
 TEST(SequenceTokenTest, OperatorEquals) {
-#ifdef STARBOARD
-  const SequenceToken invalid_a{};
-  const SequenceToken invalid_b{};
-#else
   const SequenceToken invalid_a;
   const SequenceToken invalid_b;
-#endif
   const SequenceToken valid_a = SequenceToken::Create();
   const SequenceToken valid_b = SequenceToken::Create();
 
@@ -36,13 +31,8 @@ TEST(SequenceTokenTest, OperatorEquals) {
 }
 
 TEST(SequenceTokenTest, OperatorNotEquals) {
-#ifdef STARBOARD
-  const SequenceToken invalid_a{};
-  const SequenceToken invalid_b{};
-#else
   const SequenceToken invalid_a;
   const SequenceToken invalid_b;
-#endif
   const SequenceToken valid_a = SequenceToken::Create();
   const SequenceToken valid_b = SequenceToken::Create();
 

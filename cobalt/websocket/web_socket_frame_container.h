@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "base/basictypes.h"
+#include "base/notreached.h"
 #include "net/base/io_buffer.h"
 #include "net/websockets/websocket_frame.h"
 

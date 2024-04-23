@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,12 +10,12 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/base_export.h"
-#include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump.h"
 #include "base/time/time.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 struct ALooper;
 
@@ -28,12 +28,17 @@ class RunLoop;
 class BASE_EXPORT MessagePumpForUI : public MessagePump {
  public:
   MessagePumpForUI();
+
+  MessagePumpForUI(const MessagePumpForUI&) = delete;
+  MessagePumpForUI& operator=(const MessagePumpForUI&) = delete;
+
   ~MessagePumpForUI() override;
 
   void Run(Delegate* delegate) override;
   void Quit() override;
   void ScheduleWork() override;
-  void ScheduleDelayedWork(const TimeTicks& delayed_work_time) override;
+  void ScheduleDelayedWork(
+      const Delegate::NextWorkInfo& next_work_info) override;
 
   // Attaches |delegate| to this native MessagePump. |delegate| will from then
   // on be invoked by the native loop to process application tasks.
@@ -57,10 +62,13 @@ class BASE_EXPORT MessagePumpForUI : public MessagePump {
   void OnNonDelayedLooperCallback();
 
  protected:
-  void SetDelegate(Delegate* delegate) { delegate_ = delegate; }
-  virtual bool IsTestImplementation() const;
+  Delegate* SetDelegate(Delegate* delegate);
+  bool SetQuit(bool quit);
+  virtual void DoDelayedLooperWork();
+  virtual void DoNonDelayedLooperWork(bool do_idle_work);
 
  private:
+  void ScheduleWorkInternal(bool do_idle_work);
   void DoIdleWork();
 
   // Unlike other platforms, we don't control the message loop as it's
@@ -77,11 +85,13 @@ class BASE_EXPORT MessagePumpForUI : public MessagePump {
   bool quit_ = false;
 
   // The MessageLoop::Delegate for this pump.
-  Delegate* delegate_ = nullptr;
+  raw_ptr<Delegate> delegate_ = nullptr;
 
   // The time at which we are currently scheduled to wake up and perform a
-  // delayed task.
-  base::TimeTicks delayed_scheduled_time_;
+  // delayed task. This avoids redundantly scheduling |delayed_fd_| with the
+  // same timeout when subsequent work phases all go idle on the same pending
+  // delayed task; nullopt if no wakeup is currently scheduled.
+  absl::optional<TimeTicks> delayed_scheduled_time_;
 
   // If set, a callback to fire when the message pump is quit.
   base::OnceClosure on_quit_callback_;
@@ -93,9 +103,10 @@ class BASE_EXPORT MessagePumpForUI : public MessagePump {
   int delayed_fd_;
 
   // The Android Looper for this thread.
-  ALooper* looper_ = nullptr;
+  raw_ptr<ALooper> looper_ = nullptr;
 
-  DISALLOW_COPY_AND_ASSIGN(MessagePumpForUI);
+  // The JNIEnv* for this thread, used to check for pending exceptions.
+  raw_ptr<JNIEnv> env_;
 };
 
 }  // namespace base

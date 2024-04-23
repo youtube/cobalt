@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,18 +13,15 @@
 
 #include "net/ntlm/ntlm.h"
 
+#include <iterator>
 #include <string>
 
-#include "base/md5.h"
-#include "base/stl_util.h"
-#include "base/strings/string16.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "net/ntlm/ntlm_test_data.h"
-#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
-namespace ntlm {
+namespace net::ntlm {
 
 namespace {
 
@@ -63,7 +60,7 @@ TEST(NtlmTest, MapHashToDesKeysAllOnes) {
   // is undefined, so clear it to do memcmp.
   ClearLsb(result);
 
-  EXPECT_EQ(base::make_span(expected), base::make_span(result));
+  EXPECT_TRUE(base::ranges::equal(expected, result));
 }
 
 TEST(NtlmTest, MapHashToDesKeysAllZeros) {
@@ -77,7 +74,7 @@ TEST(NtlmTest, MapHashToDesKeysAllZeros) {
   // is undefined, so clear it to do memcmp.
   ClearLsb(result);
 
-  EXPECT_EQ(base::make_span(expected), base::make_span(result));
+  EXPECT_TRUE(base::ranges::equal(expected, result));
 }
 
 TEST(NtlmTest, MapHashToDesKeysAlternatingBits) {
@@ -94,7 +91,7 @@ TEST(NtlmTest, MapHashToDesKeysAlternatingBits) {
   // is undefined, so clear it to do memcmp.
   ClearLsb(result);
 
-  EXPECT_EQ(base::make_span(expected), base::make_span(result));
+  EXPECT_TRUE(base::ranges::equal(expected, result));
 }
 
 TEST(NtlmTest, GenerateNtlmHashV1PasswordSpecTests) {
@@ -104,8 +101,8 @@ TEST(NtlmTest, GenerateNtlmHashV1PasswordSpecTests) {
 }
 
 TEST(NtlmTest, GenerateNtlmHashV1PasswordChangesHash) {
-  base::string16 password1 = base::UTF8ToUTF16("pwd01");
-  base::string16 password2 = base::UTF8ToUTF16("pwd02");
+  std::u16string password1 = u"pwd01";
+  std::u16string password2 = u"pwd02";
   uint8_t hash1[kNtlmHashLen];
   uint8_t hash2[kNtlmHashLen];
 
@@ -122,16 +119,16 @@ TEST(NtlmTest, GenerateResponsesV1SpecTests) {
   GenerateResponsesV1(test::kPassword, test::kServerChallenge, lm_response,
                       ntlm_response);
 
-  ASSERT_EQ(0, memcmp(test::kExpectedNtlmResponseV1, ntlm_response,
-                      kResponseLenV1));
+  ASSERT_EQ(
+      0, memcmp(test::kExpectedNtlmResponseV1, ntlm_response, kResponseLenV1));
 
   // This implementation never sends an LMv1 response (spec equivalent of the
   // client variable NoLMResponseNTLMv1 being false) so the LM response is
   // equal to the NTLM response when
   // NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY is not negotiated. See
   // [MS-NLMP] Section 3.3.1.
-  ASSERT_EQ(0, memcmp(test::kExpectedNtlmResponseV1, lm_response,
-                      kResponseLenV1));
+  ASSERT_EQ(0,
+            memcmp(test::kExpectedNtlmResponseV1, lm_response, kResponseLenV1));
 }
 
 TEST(NtlmTest, GenerateResponsesV1WithSessionSecuritySpecTests) {
@@ -143,8 +140,8 @@ TEST(NtlmTest, GenerateResponsesV1WithSessionSecuritySpecTests) {
 
   ASSERT_EQ(0, memcmp(test::kExpectedLmResponseWithV1SS, lm_response,
                       kResponseLenV1));
-  ASSERT_EQ(0, memcmp(test::kExpectedNtlmResponseWithV1SS,
-                      ntlm_response, kResponseLenV1));
+  ASSERT_EQ(0, memcmp(test::kExpectedNtlmResponseWithV1SS, ntlm_response,
+                      kResponseLenV1));
 }
 
 TEST(NtlmTest, GenerateResponsesV1WithSessionSecurityClientChallengeUsed) {
@@ -211,8 +208,8 @@ TEST(NtlmTest, GenerateProofInputV2SpecTests) {
 
   // |GenerateProofInputV2| generates the first |kProofInputLenV2| bytes of
   // what [MS-NLMP] calls "temp".
-  ASSERT_EQ(0, memcmp(test::kExpectedTempFromSpecV2,
-                      proof_input.data(), proof_input.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedTempFromSpecV2, proof_input.data(),
+                      proof_input.size()));
 }
 
 TEST(NtlmTest, GenerateNtlmProofV2SpecTests) {
@@ -225,8 +222,8 @@ TEST(NtlmTest, GenerateNtlmProofV2SpecTests) {
                           .subspan<0, kProofInputLenV2>(),
                       test::kExpectedTargetInfoFromSpecV2, v2_proof);
 
-  ASSERT_EQ(0, memcmp(test::kExpectedProofFromSpecV2, v2_proof,
-                      kNtlmProofLenV2));
+  ASSERT_EQ(0,
+            memcmp(test::kExpectedProofFromSpecV2, v2_proof, kNtlmProofLenV2));
 }
 
 TEST(NtlmTest, GenerateSessionBaseKeyV2SpecTests) {
@@ -236,8 +233,8 @@ TEST(NtlmTest, GenerateSessionBaseKeyV2SpecTests) {
                            test::kExpectedProofFromSpecV2, session_base_key);
 
   // Verify the session base key.
-  ASSERT_EQ(0, memcmp(test::kExpectedSessionBaseKeyFromSpecV2,
-                      session_base_key, kSessionKeyLenV2));
+  ASSERT_EQ(0, memcmp(test::kExpectedSessionBaseKeyFromSpecV2, session_base_key,
+                      kSessionKeyLenV2));
 }
 
 TEST(NtlmTest, GenerateSessionBaseKeyWithClientTimestampV2SpecTests) {
@@ -248,18 +245,18 @@ TEST(NtlmTest, GenerateSessionBaseKeyWithClientTimestampV2SpecTests) {
       test::kExpectedProofSpecResponseWithClientTimestampV2, session_base_key);
 
   // Verify the session base key.
-  ASSERT_EQ(0,
-            memcmp(test::kExpectedSessionBaseKeyWithClientTimestampV2,
-                   session_base_key, kSessionKeyLenV2));
+  ASSERT_EQ(0, memcmp(test::kExpectedSessionBaseKeyWithClientTimestampV2,
+                      session_base_key, kSessionKeyLenV2));
 }
 
 TEST(NtlmTest, GenerateChannelBindingHashV2SpecTests) {
   uint8_t v2_channel_binding_hash[kChannelBindingsHashLen];
-  GenerateChannelBindingHashV2(test::kChannelBindings, v2_channel_binding_hash);
+  GenerateChannelBindingHashV2(
+      reinterpret_cast<const char*>(test::kChannelBindings),
+      v2_channel_binding_hash);
 
-  ASSERT_EQ(0,
-            memcmp(test::kExpectedChannelBindingHashV2,
-                   v2_channel_binding_hash, kChannelBindingsHashLen));
+  ASSERT_EQ(0, memcmp(test::kExpectedChannelBindingHashV2,
+                      v2_channel_binding_hash, kChannelBindingsHashLen));
 }
 
 TEST(NtlmTest, GenerateMicV2Simple) {
@@ -280,14 +277,7 @@ TEST(NtlmTest, GenerateMicV2Simple) {
                                      0x6b, 0x02, 0x47, 0x20};
 
   uint8_t mic[kMicLenV2];
-#ifdef STARBOARD
-  GenerateMicV2(test::kExpectedSessionBaseKeyFromSpecV2,
-                base::span<const uint8_t>(a.data(), a.size()),
-                base::span<const uint8_t>(b.data(), b.size()),
-                base::span<const uint8_t>(c.data(), c.size()), mic);
-#else
   GenerateMicV2(test::kExpectedSessionBaseKeyFromSpecV2, a, b, c, mic);
-#endif
   ASSERT_EQ(0, memcmp(expected_mic, mic, kMicLenV2));
 }
 
@@ -298,21 +288,9 @@ TEST(NtlmTest, GenerateMicSpecResponseV2) {
   memset(&authenticate_msg[kMicOffsetV2], 0x00, kMicLenV2);
 
   uint8_t mic[kMicLenV2];
-#ifdef STARBOARD
-  GenerateMicV2(
-      test::kExpectedSessionBaseKeyWithClientTimestampV2,
-      base::span<const uint8_t>(test::kExpectedNegotiateMsg,
-                                sizeof(test::kExpectedNegotiateMsg)),
-      base::span<const uint8_t>(test::kChallengeMsgFromSpecV2,
-                                sizeof(test::kChallengeMsgFromSpecV2)),
-      base::span<const uint8_t>(authenticate_msg.data(),
-                                authenticate_msg.size()),
-      mic);
-#else
   GenerateMicV2(test::kExpectedSessionBaseKeyWithClientTimestampV2,
                 test::kExpectedNegotiateMsg, test::kChallengeMsgFromSpecV2,
                 authenticate_msg, mic);
-#endif
   ASSERT_EQ(0, memcmp(test::kExpectedMicV2, mic, kMicLenV2));
 }
 
@@ -325,18 +303,17 @@ TEST(NtlmTest, GenerateUpdatedTargetInfo) {
 
   uint64_t server_timestamp = UINT64_MAX;
   std::vector<uint8_t> updated_target_info = GenerateUpdatedTargetInfo(
-      true, true, test::kChannelBindings, test::kNtlmSpn, server_av_pairs,
-      &server_timestamp);
+      true, true, reinterpret_cast<const char*>(test::kChannelBindings),
+      test::kNtlmSpn, server_av_pairs, &server_timestamp);
 
   // With MIC and EPA enabled 3 additional AvPairs will be added.
   // 1) A flags AVPair with the MIC_PRESENT bit set.
   // 2) A channel bindings AVPair containing the channel bindings hash.
   // 3) A target name AVPair containing the SPN of the server.
-  ASSERT_EQ(base::size(test::kExpectedTargetInfoSpecResponseV2),
+  ASSERT_EQ(std::size(test::kExpectedTargetInfoSpecResponseV2),
             updated_target_info.size());
   ASSERT_EQ(0, memcmp(test::kExpectedTargetInfoSpecResponseV2,
-                      updated_target_info.data(),
-                      updated_target_info.size()));
+                      updated_target_info.data(), updated_target_info.size()));
 }
 
 TEST(NtlmTest, GenerateUpdatedTargetInfoNoEpaOrMic) {
@@ -351,13 +328,12 @@ TEST(NtlmTest, GenerateUpdatedTargetInfoNoEpaOrMic) {
   // When both EPA and MIC are false the target info does not get modified by
   // the client.
   std::vector<uint8_t> updated_target_info = GenerateUpdatedTargetInfo(
-      false, false, test::kChannelBindings, test::kNtlmSpn, server_av_pairs,
-      &server_timestamp);
-  ASSERT_EQ(base::size(test::kExpectedTargetInfoFromSpecV2),
+      false, false, reinterpret_cast<const char*>(test::kChannelBindings),
+      test::kNtlmSpn, server_av_pairs, &server_timestamp);
+  ASSERT_EQ(std::size(test::kExpectedTargetInfoFromSpecV2),
             updated_target_info.size());
   ASSERT_EQ(0, memcmp(test::kExpectedTargetInfoFromSpecV2,
-                      updated_target_info.data(),
-                      updated_target_info.size()));
+                      updated_target_info.data(), updated_target_info.size()));
 }
 
 TEST(NtlmTest, GenerateUpdatedTargetInfoWithServerTimestamp) {
@@ -377,15 +353,14 @@ TEST(NtlmTest, GenerateUpdatedTargetInfoWithServerTimestamp) {
   // When both EPA and MIC are false the target info does not get modified by
   // the client.
   std::vector<uint8_t> updated_target_info = GenerateUpdatedTargetInfo(
-      false, false, test::kChannelBindings, test::kNtlmSpn, server_av_pairs,
-      &server_timestamp);
+      false, false, reinterpret_cast<const char*>(test::kChannelBindings),
+      test::kNtlmSpn, server_av_pairs, &server_timestamp);
   // Verify that the server timestamp was read from the target info.
   ASSERT_EQ(test::kServerTimestamp, server_timestamp);
-  ASSERT_EQ(base::size(test::kExpectedTargetInfoFromSpecPlusServerTimestampV2),
+  ASSERT_EQ(std::size(test::kExpectedTargetInfoFromSpecPlusServerTimestampV2),
             updated_target_info.size());
-  ASSERT_EQ(0, memcmp(
-                   test::kExpectedTargetInfoFromSpecPlusServerTimestampV2,
-                   updated_target_info.data(), updated_target_info.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedTargetInfoFromSpecPlusServerTimestampV2,
+                      updated_target_info.data(), updated_target_info.size()));
 }
 
 TEST(NtlmTest, GenerateUpdatedTargetInfoWhenServerSendsNoTargetInfo) {
@@ -395,8 +370,8 @@ TEST(NtlmTest, GenerateUpdatedTargetInfoWhenServerSendsNoTargetInfo) {
 
   uint64_t server_timestamp = UINT64_MAX;
   std::vector<uint8_t> updated_target_info = GenerateUpdatedTargetInfo(
-      true, true, test::kChannelBindings, test::kNtlmSpn, server_av_pairs,
-      &server_timestamp);
+      true, true, reinterpret_cast<const char*>(test::kChannelBindings),
+      test::kNtlmSpn, server_av_pairs, &server_timestamp);
 
   // With MIC and EPA enabled 3 additional AvPairs will be added.
   // 1) A flags AVPair with the MIC_PRESENT bit set.
@@ -408,13 +383,12 @@ TEST(NtlmTest, GenerateUpdatedTargetInfoWhenServerSendsNoTargetInfo) {
   // Server pairs) not present.
   const size_t kMissingServerPairsLength = 32;
 
-  ASSERT_EQ(base::size(test::kExpectedTargetInfoSpecResponseV2) -
+  ASSERT_EQ(std::size(test::kExpectedTargetInfoSpecResponseV2) -
                 kMissingServerPairsLength,
             updated_target_info.size());
   ASSERT_EQ(0, memcmp(test::kExpectedTargetInfoSpecResponseV2 +
-                        kMissingServerPairsLength,
-                      updated_target_info.data(),
-                      updated_target_info.size()));
+                          kMissingServerPairsLength,
+                      updated_target_info.data(), updated_target_info.size()));
 }
 
 TEST(NtlmTest, GenerateNtlmProofV2) {
@@ -424,8 +398,8 @@ TEST(NtlmTest, GenerateNtlmProofV2) {
                       base::make_span(test::kExpectedTempFromSpecV2)
                           .subspan<0, kProofInputLenV2>(),
                       test::kExpectedTargetInfoSpecResponseV2, proof);
-  ASSERT_EQ(0, memcmp(test::kExpectedProofSpecResponseV2, proof,
-                      kNtlmProofLenV2));
+  ASSERT_EQ(0,
+            memcmp(test::kExpectedProofSpecResponseV2, proof, kNtlmProofLenV2));
 }
 
 TEST(NtlmTest, GenerateNtlmProofWithClientTimestampV2) {
@@ -438,10 +412,8 @@ TEST(NtlmTest, GenerateNtlmProofWithClientTimestampV2) {
                       base::make_span(test::kExpectedTempWithClientTimestampV2)
                           .subspan<0, kProofInputLenV2>(),
                       test::kExpectedTargetInfoSpecResponseV2, proof);
-  ASSERT_EQ(
-      0, memcmp(test::kExpectedProofSpecResponseWithClientTimestampV2,
-                proof, kNtlmProofLenV2));
+  ASSERT_EQ(0, memcmp(test::kExpectedProofSpecResponseWithClientTimestampV2,
+                      proof, kNtlmProofLenV2));
 }
 
-}  // namespace ntlm
-}  // namespace net
+}  // namespace net::ntlm

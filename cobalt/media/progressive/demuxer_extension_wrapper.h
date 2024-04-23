@@ -46,12 +46,12 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
   // Represents a video stream.
   explicit DemuxerExtensionStream(
       CobaltExtensionDemuxer* demuxer,
-      scoped_refptr<base::SequencedTaskRunner> message_loop,
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
       CobaltExtensionDemuxerVideoDecoderConfig config);
   // Represents an audio stream.
   explicit DemuxerExtensionStream(
       CobaltExtensionDemuxer* demuxer,
-      scoped_refptr<base::SequencedTaskRunner> message_loop,
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
       CobaltExtensionDemuxerAudioDecoderConfig config);
 
   // Disallow copy and assign.
@@ -69,7 +69,7 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
   size_t GetTotalBufferSize() const;
 
   // DemuxerStream implementation:
-  void Read(int max_number_of_buffers_to_read, ReadCB read_cb) override;
+  void Read(uint32_t count, ReadCB read_cb) override;
   ::media::AudioDecoderConfig audio_decoder_config() override;
   ::media::VideoDecoderConfig video_decoder_config() override;
   Type type() const override;
@@ -102,7 +102,7 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
   BufferQueue buffer_queue_;
   ReadQueue read_queue_;
 
-  scoped_refptr<base::SequencedTaskRunner> message_loop_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   size_t total_buffer_size_ = 0;
 };
@@ -148,12 +148,12 @@ class PositionalDataSource {
 class DemuxerExtensionWrapper : public ::media::Demuxer {
  public:
   // Constructs a new DemuxerExtensionWrapper, returning null on failure. If
-  // |data_source| or |message_loop| is null, or if a demuxer cannot be created,
+  // |data_source| or |task_runner| is null, or if a demuxer cannot be created,
   // this will return null. If |demuxer_api| is null, we will attempt to use the
   // corresponding Cobalt extension.
   static std::unique_ptr<DemuxerExtensionWrapper> Create(
       DataSource* data_source,
-      scoped_refptr<base::SequencedTaskRunner> message_loop,
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
       const CobaltExtensionDemuxerApi* demuxer_api = nullptr);
 
   // Disallow copy and assign.
@@ -165,6 +165,10 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   // Demuxer implementation:
   std::vector<::media::DemuxerStream*> GetAllStreams() override;
   std::string GetDisplayName() const override;
+  ::media::DemuxerType GetDemuxerType() const override {
+    // kFFmpegDemuxer is used in Chromium media for progressive demuxing.
+    return ::media::DemuxerType::kFFmpegDemuxer;
+  }
   void Initialize(::media::DemuxerHost* host,
                   ::media::PipelineStatusCallback status_cb) override;
   void AbortPendingReads() override;
@@ -172,6 +176,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   void CancelPendingSeek(base::TimeDelta seek_time) override;
   void Seek(base::TimeDelta time,
             ::media::PipelineStatusCallback status_cb) override;
+  bool IsSeekable() const override { return true; }
   void Stop() override;
   base::TimeDelta GetStartTime() const override;
   base::Time GetTimelineOffset() const override;
@@ -182,6 +187,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   void OnSelectedVideoTrackChanged(
       const std::vector<::media::MediaTrack::Id>& track_ids,
       base::TimeDelta curr_time, TrackChangeCB change_completed_cb) override;
+  void SetPlaybackRate(double rate) override { NOTREACHED(); }
 
   absl::optional<::media::container_names::MediaContainerName>
   GetContainerForMetrics() const override {
@@ -200,7 +206,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
       CobaltExtensionDemuxer* demuxer,
       std::unique_ptr<PositionalDataSource> data_source,
       std::unique_ptr<CobaltExtensionDemuxerDataSource> c_data_source,
-      scoped_refptr<base::SequencedTaskRunner> message_loop);
+      scoped_refptr<base::SequencedTaskRunner> task_runner);
 
   void OnInitializeDone(::media::PipelineStatusCallback status_cb,
                         CobaltExtensionDemuxerStatus status);
@@ -236,7 +242,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   // Thread for blocking I/O operations.
   base::Thread blocking_thread_;
 
-  scoped_refptr<base::SequencedTaskRunner> message_loop_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<DemuxerExtensionWrapper> weak_factory_{this};

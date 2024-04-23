@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,10 @@
 #include "base/android/jni_array.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/base_switches.h"
+#include "base/check.h"
 #include "base/command_line.h"
-#include "base/logging.h"
-#include "jni/MainReturnCodeResult_jni.h"
-#include "jni/MultiprocessTestClientLauncher_jni.h"
-#include "starboard/types.h"
+#include "base/test/test_support_jni_headers/MainReturnCodeResult_jni.h"
+#include "base/test/test_support_jni_headers/MultiprocessTestClientLauncher_jni.h"
 
 namespace base {
 
@@ -82,6 +81,14 @@ bool TerminateMultiProcessTestChild(const Process& process,
 
   return android::Java_MultiprocessTestClientLauncher_terminate(
       env, process.Pid(), exit_code, wait);
+}
+
+bool MultiProcessTestChildHasCleanExit(const Process& process) {
+  JNIEnv* env = android::AttachCurrentThread();
+  DCHECK(env);
+
+  return android::Java_MultiprocessTestClientLauncher_hasCleanExit(
+      env, process.Pid());
 }
 
 }  // namespace base

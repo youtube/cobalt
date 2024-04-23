@@ -144,9 +144,9 @@ Evergreen:
         for more details.
 *   `kSbMemoryMapProtectExec`
     *   Ensures mapped memory can be executed
-*   `#define SB_CAN_MAP_EXECUTABLE_MEMORY 1`
+*   Set `kSbCanMapExecutableMemory` to `true`
     *   Specifies that the platform can map executable memory
-    *   Defined in `configuration_public.h`
+    *   Defined in `configuration_constants.h`
 
 Only if necessary, create a customized SABI configuration for your architecture.
 Note, we do not anticipate that you will need to make a new configuration for

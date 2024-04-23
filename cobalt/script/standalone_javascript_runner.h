@@ -19,7 +19,7 @@
 #include <string>
 
 #include "base/files/file_path.h"
-#include "base/task_runner.h"
+#include "base/task/task_runner.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -52,10 +52,10 @@ class StandaloneJavascriptRunner {
   // is encountered (CTRL-D).
   bool RunInteractive();
 
-  // Run interactively in a message loop
+  // Run interactively in a task runner
   void RunUntilDone(const base::Closure& quit_closure);
 
-  // Quit, when run in a message loop
+  // Quit, when run in a task runner
   void Quit(const base::Closure& quit_closure);
 
   // Read the file from disk and execute the script. Echos the result to stdout.

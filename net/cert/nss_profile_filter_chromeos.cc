@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,8 @@
 #include <memory>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/strings/string_piece.h"
-#include "base/strings/stringprintf.h"
 #include "net/cert/x509_certificate.h"
 
 namespace net {
@@ -17,28 +17,30 @@ NSSProfileFilterChromeOS::NSSProfileFilterChromeOS() = default;
 
 NSSProfileFilterChromeOS::NSSProfileFilterChromeOS(
     const NSSProfileFilterChromeOS& other) {
-  public_slot_.reset(other.public_slot_ ?
-      PK11_ReferenceSlot(other.public_slot_.get()) :
-      NULL);
-  private_slot_.reset(other.private_slot_ ?
-      PK11_ReferenceSlot(other.private_slot_.get()) :
-      NULL);
-  system_slot_.reset(
-      other.system_slot_ ? PK11_ReferenceSlot(other.system_slot_.get()) : NULL);
+  public_slot_.reset(other.public_slot_
+                         ? PK11_ReferenceSlot(other.public_slot_.get())
+                         : nullptr);
+  private_slot_.reset(other.private_slot_
+                          ? PK11_ReferenceSlot(other.private_slot_.get())
+                          : nullptr);
+  system_slot_.reset(other.system_slot_
+                         ? PK11_ReferenceSlot(other.system_slot_.get())
+                         : nullptr);
 }
 
 NSSProfileFilterChromeOS::~NSSProfileFilterChromeOS() = default;
 
 NSSProfileFilterChromeOS& NSSProfileFilterChromeOS::operator=(
     const NSSProfileFilterChromeOS& other) {
-  public_slot_.reset(other.public_slot_ ?
-      PK11_ReferenceSlot(other.public_slot_.get()) :
-      NULL);
-  private_slot_.reset(other.private_slot_ ?
-      PK11_ReferenceSlot(other.private_slot_.get()) :
-      NULL);
-  system_slot_.reset(
-      other.system_slot_ ? PK11_ReferenceSlot(other.system_slot_.get()) : NULL);
+  public_slot_.reset(other.public_slot_
+                         ? PK11_ReferenceSlot(other.public_slot_.get())
+                         : nullptr);
+  private_slot_.reset(other.private_slot_
+                          ? PK11_ReferenceSlot(other.private_slot_.get())
+                          : nullptr);
+  system_slot_.reset(other.system_slot_
+                         ? PK11_ReferenceSlot(other.system_slot_.get())
+                         : nullptr);
   return *this;
 }
 
@@ -93,7 +95,7 @@ bool NSSProfileFilterChromeOS::IsModuleAllowed(PK11SlotInfo* slot) const {
 
 bool NSSProfileFilterChromeOS::IsCertAllowed(CERTCertificate* cert) const {
   crypto::ScopedPK11SlotList slots_for_cert(
-      PK11_GetAllSlotsForCert(cert, NULL));
+      PK11_GetAllSlotsForCert(cert, nullptr));
   if (!slots_for_cert)
     return false;
 
@@ -109,15 +111,6 @@ bool NSSProfileFilterChromeOS::IsCertAllowed(CERTCertificate* cert) const {
   }
 
   return false;
-}
-
-NSSProfileFilterChromeOS::ModuleNotAllowedForProfilePredicate::
-    ModuleNotAllowedForProfilePredicate(const NSSProfileFilterChromeOS& filter)
-    : filter_(filter) {}
-
-bool NSSProfileFilterChromeOS::ModuleNotAllowedForProfilePredicate::operator()(
-    const crypto::ScopedPK11Slot& module) const {
-  return !filter_.IsModuleAllowed(module.get());
 }
 
 }  // namespace net

@@ -30,6 +30,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/web/csp_delegate.h"
 #include "starboard/common/time.h"
 #include "url/gurl.h"
@@ -145,7 +146,7 @@ void HTMLLinkElement::set_cross_origin(
 void HTMLLinkElement::OnRemovedFromDocument() {
   HTMLElement::OnRemovedFromDocument();
 
-  DCHECK(base::MessageLoop::current());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
   ReleaseLoader();
 
   if (style_sheet_) {
@@ -180,7 +181,7 @@ void HTMLLinkElement::Obtain() {
     return;
   }
 
-  DCHECK(base::MessageLoop::current());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(!loader_);
 
   // 1. If the href attribute's value is the empty string, then abort these
@@ -277,7 +278,7 @@ void HTMLLinkElement::OnLoadingComplete(
   // GetLoadTimingInfo and create resource timing before loader released.
   GetLoadTimingInfoAndCreateResourceTiming();
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
 
   if (!error) return;

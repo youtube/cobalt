@@ -652,12 +652,19 @@ int getaddrinfo(const char* node, const char* service, const struct addrinfo* hi
   int filters = 0;
   if (hints != NULL){
     if (hints->ai_family == AF_INET) {
-      filters &= kSbSocketResolveFilterIpv4;
+      filters = kSbSocketResolveFilterIpv4;
     }
-    if (hints->ai_family == AF_INET6) {
-      filters &= kSbSocketResolveFilterIpv6;
+    else if (hints->ai_family == AF_INET6) {
+      filters = kSbSocketResolveFilterIpv6;
+    }
+    else if (hints->ai_family == AF_UNSPEC) {
+      filters = kSbSocketResolveFilterIpv6 & kSbSocketResolveFilterIpv4;
+    }
+    else {
+      return -1;
     }
   }
+
   SbSocketResolution* sbSockResolve = SbSocketResolve(node, filters);
   if (sbSockResolve == NULL){
     return -1;

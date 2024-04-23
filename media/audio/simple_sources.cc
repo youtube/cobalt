@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,8 +26,8 @@ namespace {
 // in |read_length|.
 std::unique_ptr<char[]> ReadWavFile(const base::FilePath& wav_filename,
                                     size_t* read_length) {
-  base::File wav_file(
-      wav_filename, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  base::File wav_file(wav_filename,
+                      base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!wav_file.IsValid()) {
     LOG(ERROR) << "Failed to read " << wav_filename.value()
                << " as input to the fake device."
@@ -46,7 +46,7 @@ std::unique_ptr<char[]> ReadWavFile(const base::FilePath& wav_filename,
     return nullptr;
   }
 
-  std::unique_ptr<char[]> data(new char[wav_file_length]);
+  auto data = std::make_unique<char[]>(wav_file_length);
   int read_bytes = wav_file.Read(0, data.get(), wav_file_length);
   if (read_bytes != wav_file_length) {
     LOG(ERROR) << "Failed to read all bytes of " << wav_filename.value();
@@ -116,7 +116,7 @@ SineWaveAudioSource::~SineWaveAudioSource() = default;
 // but it is efficient enough for our simple needs.
 int SineWaveAudioSource::OnMoreData(base::TimeDelta /* delay */,
                                     base::TimeTicks /* delay_timestamp */,
-                                    int /* prior_frames_skipped */,
+                                    const AudioGlitchInfo& /* glitch_info */,
                                     AudioBus* dest) {
   int max_frames;
 
@@ -164,7 +164,6 @@ FileSource::FileSource(const AudioParameters& params,
                        bool loop)
     : params_(params),
       path_to_wav_file_(path_to_wav_file),
-      wav_file_read_pos_(0),
       load_failed_(false),
       looping_(loop) {}
 
@@ -199,8 +198,8 @@ void FileSource::LoadWavFile(const base::FilePath& path_to_wav_file) {
   // of it at a time and not the whole thing (like 10 ms at a time).
   AudioParameters file_audio_slice(
       AudioParameters::AUDIO_PCM_LOW_LATENCY,
-      GuessChannelLayout(wav_audio_handler_->num_channels()),
-      wav_audio_handler_->sample_rate(), params_.frames_per_buffer());
+      ChannelLayoutConfig::Guess(wav_audio_handler_->GetNumChannels()),
+      wav_audio_handler_->GetSampleRate(), params_.frames_per_buffer());
 
   file_audio_converter_ =
       std::make_unique<AudioConverter>(file_audio_slice, params_, false);
@@ -209,7 +208,7 @@ void FileSource::LoadWavFile(const base::FilePath& path_to_wav_file) {
 
 int FileSource::OnMoreData(base::TimeDelta /* delay */,
                            base::TimeTicks /* delay_timestamp */,
-                           int /* prior_frames_skipped */,
+                           const AudioGlitchInfo& /* glitch_info */,
                            AudioBus* dest) {
   // Load the file if we haven't already. This load needs to happen on the
   // audio thread, otherwise we'll run on the UI thread on Mac for instance.
@@ -221,7 +220,7 @@ int FileSource::OnMoreData(base::TimeDelta /* delay */,
 
   DCHECK(wav_audio_handler_.get());
 
-  if (wav_audio_handler_->AtEnd(wav_file_read_pos_)) {
+  if (wav_audio_handler_->AtEnd()) {
     if (looping_)
       Rewind();
     else
@@ -234,16 +233,15 @@ int FileSource::OnMoreData(base::TimeDelta /* delay */,
 }
 
 void FileSource::Rewind() {
-  wav_file_read_pos_ = 0;
+  wav_audio_handler_->Reset();
 }
 
 double FileSource::ProvideInput(AudioBus* audio_bus_into_converter,
-                                uint32_t frames_delayed) {
+                                uint32_t frames_delayed,
+                                const AudioGlitchInfo&) {
   // Unfilled frames will be zeroed by CopyTo.
-  size_t bytes_written;
-  wav_audio_handler_->CopyTo(audio_bus_into_converter, wav_file_read_pos_,
-                             &bytes_written);
-  wav_file_read_pos_ += bytes_written;
+  size_t frames_written;
+  wav_audio_handler_->CopyTo(audio_bus_into_converter, &frames_written);
   return 1.0;
 }
 
@@ -264,7 +262,7 @@ BeepingSource::~BeepingSource() = default;
 
 int BeepingSource::OnMoreData(base::TimeDelta /* delay */,
                               base::TimeTicks /* delay_timestamp */,
-                              int /* prior_frames_skipped */,
+                              const AudioGlitchInfo& /* glitch_info */,
                               AudioBus* dest) {
   // Accumulate the time from the last beep.
   interval_from_last_beep_ += base::TimeTicks::Now() - last_callback_time_;
@@ -275,7 +273,7 @@ int BeepingSource::OnMoreData(base::TimeDelta /* delay */,
   if (beep_context->automatic_beep()) {
     base::TimeDelta delta = interval_from_last_beep_ -
                             base::Milliseconds(kAutomaticBeepIntervalInMs);
-    if (delta > base::TimeDelta()) {
+    if (delta.is_positive()) {
       should_beep = true;
       interval_from_last_beep_ = delta;
     }

@@ -1,17 +1,17 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
-import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.MainDex;
+import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.MainDex;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 
@@ -54,7 +54,7 @@ public class JavaHandlerThread {
         new Handler(mThread.getLooper()).post(new Runnable() {
             @Override
             public void run() {
-                nativeInitializeThread(nativeThread, nativeEvent);
+                JavaHandlerThreadJni.get().initializeThread(nativeThread, nativeEvent);
             }
         });
     }
@@ -66,13 +66,11 @@ public class JavaHandlerThread {
             @Override
             public void run() {
                 mThread.quit();
-                nativeOnLooperStopped(nativeThread);
+                JavaHandlerThreadJni.get().onLooperStopped(nativeThread);
             }
         });
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            // When we can, signal that new tasks queued up won't be run.
-            mThread.getLooper().quitSafely();
-        }
+        // Signal that new tasks queued up won't be run.
+        mThread.getLooper().quitSafely();
     }
 
     @CalledByNative
@@ -114,6 +112,9 @@ public class JavaHandlerThread {
         return mUnhandledException;
     }
 
-    private native void nativeInitializeThread(long nativeJavaHandlerThread, long nativeEvent);
-    private native void nativeOnLooperStopped(long nativeJavaHandlerThread);
+    @NativeMethods
+    interface Natives {
+        void initializeThread(long nativeJavaHandlerThread, long nativeEvent);
+        void onLooperStopped(long nativeJavaHandlerThread);
+    }
 }

@@ -1,14 +1,13 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/android/android_image_reader_compat.h"
 
+#include <stdint.h>
 #include <memory>
 
 #include "base/android/build_info.h"
-#include "base/test/scoped_feature_list.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -28,7 +27,7 @@ TEST_F(AndroidImageReaderTest, GetImageReaderInstance) {
   // version OREO.
   EXPECT_EQ(AndroidImageReader::GetInstance().IsSupported(),
             base::android::BuildInfo::GetInstance()->sdk_int() >=
-                base::android::SDK_VERSION_OREO);
+                base::android::SDK_VERSION_P);
 }
 
 // There should be only 1 instance of AndroidImageReader im memory. Hence 2

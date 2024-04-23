@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -97,7 +97,8 @@ bool VP9SuperFrameBitstreamFilter::PreparePassthroughBuffer(
 
   // Create a memory-backed CMBlockBuffer for the translated data.
   OSStatus status = CMBlockBufferCreateWithMemoryBlock(
-      kCFAllocatorDefault, static_cast<void*>(buffer->writable_data()),
+      kCFAllocatorDefault,
+      static_cast<void*>(const_cast<uint8_t*>(buffer->data())),
       buffer->data_size(), kCFAllocatorDefault, &source, 0, buffer->data_size(),
       0, data_.InitializeInto());
   if (status != noErr) {

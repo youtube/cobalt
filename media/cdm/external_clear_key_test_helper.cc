@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 #include "build/build_config.h"
 #include "media/cdm/api/content_decryption_module.h"
 #include "media/cdm/cdm_paths.h"
+#include "media/cdm/clear_key_cdm_common.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -31,20 +32,15 @@ ExternalClearKeyTestHelper::~ExternalClearKeyTestHelper() {
 }
 
 void ExternalClearKeyTestHelper::LoadLibrary() {
-#if defined(OS_FUCHSIA)
-  library_path_ =
-      base::FilePath(base::GetLoadableModuleName(kClearKeyCdmLibraryName));
-#else   // defined(OS_FUCHSIA)
   // Determine the location of the CDM. It is expected to be in the same
   // directory as the current module.
   base::FilePath cdm_base_path;
-  ASSERT_TRUE(base::PathService::Get(base::DIR_MODULE, &cdm_base_path));
+  ASSERT_TRUE(base::PathService::Get(base::DIR_ASSETS, &cdm_base_path));
   cdm_base_path = cdm_base_path.Append(
       GetPlatformSpecificDirectory(kClearKeyCdmBaseDirectory));
   library_path_ = cdm_base_path.AppendASCII(
       base::GetLoadableModuleName(kClearKeyCdmLibraryName));
   ASSERT_TRUE(base::PathExists(library_path_)) << library_path_.value();
-#endif  // defined(OS_FUCHSIA)
 
   // Now load the CDM library.
   library_ = base::ScopedNativeLibrary(library_path_);

@@ -35,6 +35,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_TIME_STRETCHER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_TIME_STRETCHER_H_
 
+#include <memory>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/internal_only.h"
@@ -193,11 +195,11 @@ class AudioTimeStretcher {
   scoped_refptr<DecodedAudio> wsola_output_;
 
   // Overlap-and-add window.
-  scoped_array<float> ola_window_;
+  std::unique_ptr<float[]> ola_window_;
 
   // Transition window, used to update |optimal_block_| by a weighted sum of
   // |optimal_block_| and |target_block_|.
-  scoped_array<float> transition_window_;
+  std::unique_ptr<float[]> transition_window_;
 
   // Auxiliary variables to avoid allocation in every iteration.
 

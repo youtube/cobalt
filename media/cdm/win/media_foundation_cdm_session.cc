@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,11 @@
 #include <memory>
 
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/win/scoped_co_mem.h"
-#include "media/base/bind_to_current_loop.h"
 #include "media/base/cdm_key_information.h"
 #include "media/base/win/mf_helpers.h"
 
@@ -88,9 +89,17 @@ CdmKeysInfo ToCdmKeysInfo(const MFMediaKeyStatus* key_statuses, int count) {
   keys_info.reserve(count);
   for (int i = 0; i < count; ++i) {
     const auto& key_status = key_statuses[i];
+
+    if (key_status.cbKeyId != sizeof(GUID)) {
+      DLOG(ERROR) << __func__ << ": Key ID with unsupported size ignored";
+      continue;
+    }
+
+    GUID* key_id_guid = reinterpret_cast<GUID*>(key_status.pbKeyId);
     keys_info.push_back(std::make_unique<CdmKeyInformation>(
-        key_status.pbKeyId, key_status.cbKeyId,
-        ToCdmKeyStatus(key_status.eMediaKeyStatus), /*system_code=*/0));
+        ByteArrayFromGUID(*key_id_guid),
+        ToCdmKeyStatus(key_status.eMediaKeyStatus),
+        /*system_code=*/0));
   }
   return keys_info;
 }
@@ -142,10 +151,12 @@ class SessionCallbacks final
 }  // namespace
 
 MediaFoundationCdmSession::MediaFoundationCdmSession(
+    const std::string& uma_prefix,
     const SessionMessageCB& session_message_cb,
     const SessionKeysChangeCB& session_keys_change_cb,
     const SessionExpirationUpdateCB& session_expiration_update_cb)
-    : session_message_cb_(session_message_cb),
+    : uma_prefix_(uma_prefix),
+      session_message_cb_(session_message_cb),
       session_keys_change_cb_(session_keys_change_cb),
       session_expiration_update_cb_(session_expiration_update_cb) {
   DVLOG_FUNC(1);
@@ -163,13 +174,13 @@ HRESULT MediaFoundationCdmSession::Initialize(
   ComPtr<SessionCallbacks> session_callbacks;
   auto weak_this = weak_factory_.GetWeakPtr();
 
-  // Use BindToCurrentLoop() because the callbacks can be fired on different
-  // threads by |mf_cdm_session_|.
+  // Use base::BindPostTaskToCurrentDefault() because the callbacks can be fired
+  // on different threads by |mf_cdm_session_|.
   RETURN_IF_FAILED(MakeAndInitialize<SessionCallbacks>(
       &session_callbacks,
-      BindToCurrentLoop(base::BindRepeating(
+      base::BindPostTaskToCurrentDefault(base::BindRepeating(
           &MediaFoundationCdmSession::OnSessionMessage, weak_this)),
-      BindToCurrentLoop(base::BindRepeating(
+      base::BindPostTaskToCurrentDefault(base::BindRepeating(
           &MediaFoundationCdmSession::OnSessionKeysChange, weak_this))));
 
   // |mf_cdm_session_| holds a ref count to |session_callbacks|.
@@ -188,38 +199,49 @@ HRESULT MediaFoundationCdmSession::GenerateRequest(
   DCHECK(session_id_.empty() && !session_id_cb_);
 
   session_id_cb_ = std::move(session_id_cb);
-  RETURN_IF_FAILED(mf_cdm_session_->GenerateRequest(
-      InitDataTypeToString(init_data_type), init_data.data(),
-      base::checked_cast<DWORD>(init_data.size())));
+
+  RETURN_IF_FAILED(WithUmaReported(
+      mf_cdm_session_->GenerateRequest(
+          InitDataTypeToString(init_data_type), init_data.data(),
+          base::checked_cast<DWORD>(init_data.size())),
+      "GenerateRequest"));
   return S_OK;
 }
 
 HRESULT MediaFoundationCdmSession::Load(const std::string& session_id) {
   DVLOG_FUNC(1);
-  return E_NOTIMPL;
+  RETURN_IF_FAILED(WithUmaReported(E_NOTIMPL, "LoadSession"));
+  return S_OK;
 }
 
 HRESULT
 MediaFoundationCdmSession::Update(const std::vector<uint8_t>& response) {
   DVLOG_FUNC(1);
-  RETURN_IF_FAILED(
+  RETURN_IF_FAILED(WithUmaReported(
       mf_cdm_session_->Update(reinterpret_cast<const BYTE*>(response.data()),
-                              base::checked_cast<DWORD>(response.size())));
+                              base::checked_cast<DWORD>(response.size())),
+      "UpdateSession"));
   RETURN_IF_FAILED(UpdateExpirationIfNeeded());
   return S_OK;
 }
 
 HRESULT MediaFoundationCdmSession::Close() {
   DVLOG_FUNC(1);
-  RETURN_IF_FAILED(mf_cdm_session_->Close());
+  RETURN_IF_FAILED(WithUmaReported(mf_cdm_session_->Close(), "CloseSession"));
   return S_OK;
 }
 
 HRESULT MediaFoundationCdmSession::Remove() {
   DVLOG_FUNC(1);
-  RETURN_IF_FAILED(mf_cdm_session_->Remove());
+  RETURN_IF_FAILED(WithUmaReported(mf_cdm_session_->Remove(), "RemoveSession"));
   RETURN_IF_FAILED(UpdateExpirationIfNeeded());
   return S_OK;
+}
+
+HRESULT MediaFoundationCdmSession::WithUmaReported(HRESULT hr,
+                                                   const std::string& api) {
+  base::UmaHistogramSparse(uma_prefix_ + api, hr);
+  return hr;
 }
 
 void MediaFoundationCdmSession::OnSessionMessage(

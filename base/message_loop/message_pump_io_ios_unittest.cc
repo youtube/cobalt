@@ -1,4 +1,4 @@
-// Copyright 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,16 +6,20 @@
 
 #include <unistd.h>
 
-#include "base/macros.h"
+#include "base/logging.h"
+#include "base/message_loop/message_pump_for_io.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/test/gtest_util.h"
 #include "base/threading/thread.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
 class MessagePumpIOSForIOTest : public testing::Test {
+ public:
+  MessagePumpIOSForIOTest(const MessagePumpIOSForIOTest&) = delete;
+  MessagePumpIOSForIOTest& operator=(const MessagePumpIOSForIOTest&) = delete;
+
  protected:
   MessagePumpIOSForIOTest() = default;
   ~MessagePumpIOSForIOTest() override = default;
@@ -42,9 +46,6 @@ class MessagePumpIOSForIOTest : public testing::Test {
 
   int pipefds_[2];
   int alternate_pipefds_[2];
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MessagePumpIOSForIOTest);
 };
 
 namespace {
@@ -69,9 +70,9 @@ class BaseWatcher : public MessagePumpIOSForIO::FdWatcher {
   ~BaseWatcher() override {}
 
   // MessagePumpIOSForIO::FdWatcher interface
-  void OnFileCanReadWithoutBlocking(int fd) override { NOTREACHED(); }
+  void OnFileCanReadWithoutBlocking(int /* fd */) override { NOTREACHED(); }
 
-  void OnFileCanWriteWithoutBlocking(int fd) override { NOTREACHED(); }
+  void OnFileCanWriteWithoutBlocking(int /* fd */) override { NOTREACHED(); }
 
  protected:
   MessagePumpIOSForIO::FdWatchController* controller_;
@@ -84,7 +85,7 @@ class DeleteWatcher : public BaseWatcher {
 
   ~DeleteWatcher() override { DCHECK(!controller_); }
 
-  void OnFileCanWriteWithoutBlocking(int fd) override {
+  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
     DCHECK(controller_);
     delete controller_;
     controller_ = NULL;
@@ -114,7 +115,7 @@ class StopWatcher : public BaseWatcher {
 
   ~StopWatcher() override {}
 
-  void OnFileCanWriteWithoutBlocking(int fd) override {
+  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
     controller_->StopWatchingFileDescriptor();
     if (fd_to_start_watching_ >= 0) {
       pump_->WatchFileDescriptor(fd_to_start_watching_,

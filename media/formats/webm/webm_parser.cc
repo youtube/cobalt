@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,6 +20,7 @@
 #include "base/check_op.h"
 #include "base/cxx17_backports.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "media/formats/webm/webm_constants.h"
@@ -52,7 +53,9 @@ struct ElementIdInfo {
 struct ListElementInfo {
   int id_;
   int level_;
-  const ElementIdInfo* id_info_;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #reinterpret-cast-trivial-type, #global-scope
+  RAW_PTR_EXCLUSION const ElementIdInfo* id_info_;
   int id_info_count_;
 };
 
@@ -382,7 +385,7 @@ static const ElementIdInfo kSimpleTagIds[] = {
 };
 
 #define LIST_ELEMENT_INFO(id, level, id_info) \
-  { (id), (level), (id_info), base::size(id_info) }
+  { (id), (level), (id_info), std::size(id_info) }
 
 static const ListElementInfo kListElementInfo[] = {
     LIST_ELEMENT_INFO(kWebMIdCluster, 1, kClusterIds),
@@ -557,7 +560,7 @@ static ElementType FindIdType(int id,
 
 // Finds ListElementInfo for a specific ID.
 static const ListElementInfo* FindListInfo(int id) {
-  for (size_t i = 0; i < base::size(kListElementInfo); ++i) {
+  for (size_t i = 0; i < std::size(kListElementInfo); ++i) {
     if (id == kListElementInfo[i].id_)
       return &kListElementInfo[i];
   }
@@ -982,7 +985,7 @@ bool WebMListParser::OnListEnd() {
 bool WebMListParser::IsSiblingOrAncestor(int id_a, int id_b) const {
   if (id_a == kWebMIdCluster) {
     // kWebMIdCluster siblings.
-    for (size_t i = 0; i < base::size(kSegmentIds); i++) {
+    for (size_t i = 0; i < std::size(kSegmentIds); i++) {
       if (kSegmentIds[i].id_ == id_b)
         return true;
     }

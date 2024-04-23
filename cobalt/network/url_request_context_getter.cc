@@ -29,10 +29,10 @@ URLRequestContextGetter::URLRequestContextGetter(
 URLRequestContextGetter::~URLRequestContextGetter() {}
 
 net::URLRequestContext* URLRequestContextGetter::GetURLRequestContext() {
-  return url_request_context_;
+  return url_request_context_->url_request_context();
 }
 
-scoped_refptr<base::SequencedTaskRunner>
+scoped_refptr<base::SingleThreadTaskRunner>
 URLRequestContextGetter::GetNetworkTaskRunner() const {
   return network_task_runner_;
 }

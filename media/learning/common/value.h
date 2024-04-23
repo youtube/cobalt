@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,13 +26,12 @@ namespace learning {
 class COMPONENT_EXPORT(LEARNING_COMMON) Value {
  public:
   Value();
-  template <typename T>
-  explicit Value(const T& x) : value_(x) {
-    // We want to rule out mostly pointers, since they wouldn't make much sense.
-    // Note that the implicit cast would likely fail anyway.
-    static_assert(std::is_arithmetic<T>::value || std::is_enum<T>::value,
-                  "media::learning::Value works only with arithmetic types");
-  }
+  // We want to rule out mostly pointers, since they wouldn't make much sense.
+  // Note that the implicit cast would likely fail anyway.
+  template <
+      typename T,
+      typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
+  explicit Value(const T& x) : value_(x) {}
 
   explicit Value(const char* x);
   explicit Value(const std::string& x);

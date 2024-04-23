@@ -15,6 +15,7 @@
 #ifndef COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
 #define COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
 
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"

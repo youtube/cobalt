@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "base/logging.h"
 #include "cobalt/math/size.h"
 #include "media/base/starboard_utils.h"
 #include "starboard/common/allocator.h"

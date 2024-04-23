@@ -36,7 +36,7 @@ typedef media::AudioBus AudioBus;
 AudioBufferSourceNode::AudioBufferSourceNode(
     script::EnvironmentSettings* settings, AudioContext* context)
     : AudioNode(settings, context),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       state_(kNone),
       read_index_(0),
       buffer_source_added_(false),

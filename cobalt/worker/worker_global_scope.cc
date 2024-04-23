@@ -20,8 +20,10 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/message_loop/message_loop_current.h"
+#include "base/strings/stringprintf.h"
+#include "base/task/current_thread.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/loader/origin.h"
@@ -44,23 +46,26 @@ namespace worker {
 
 namespace {
 
-class ScriptLoader : public base::MessageLoop::DestructionObserver {
+class ScriptLoader : public base::CurrentThread::DestructionObserver {
  public:
   explicit ScriptLoader(web::Context* context) : context_(context) {
     thread_.reset(new base::Thread("ImportScriptsLoader"));
     thread_->Start();
 
     // Register as a destruction observer to shut down the Loaders once all
-    // pending tasks have been executed and the message loop is about to be
+    // pending tasks have been executed and the task runner is about to be
     // destroyed. This allows us to safely stop the thread, drain the task
-    // queue, then destroy the internal components before the message loop is
+    // queue, then destroy the internal components before the task runner is
     // reset. No posted tasks will be executed once the thread is stopped.
-    thread_->message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&base::MessageLoop::AddDestructionObserver,
-                              base::Unretained(thread_->message_loop()),
-                              base::Unretained(this)));
+    thread_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(
+                       [](DestructionObserver* destruction_observer) {
+                         base::CurrentThread::Get()->AddDestructionObserver(
+                             destruction_observer);
+                       },
+                       base::Unretained(this)));
 
-    thread_->message_loop()->task_runner()->PostTask(
+    thread_->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(
             [](loader::FetcherFactory* fetcher_factory,
@@ -105,7 +110,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
 
     for (int i = 0; i < resolved_urls.size(); ++i) {
       const GURL& url = resolved_urls[i];
-      thread_->message_loop()->task_runner()->PostTask(
+      thread_->task_runner()->PostTask(
           FROM_HERE,
           base::BindOnce(&ScriptLoader::LoaderTask, base::Unretained(this),
                          csp_delegate, &loaders_[i], origin, url, &contents_[i],
@@ -154,7 +159,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
     if (!SbAtomicNoBarrier_Increment(&number_of_loads_, -1)) {
       // Clear the loader factory after this callback
       // completes.
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(
                          [](base::WaitableEvent* load_finished_) {
                            load_finished_->Signal();
@@ -311,7 +316,7 @@ bool WorkerGlobalScope::LoadImportsAndReturnIfUpdated(
   //   8.21.1.4. Let fetchedResponse be the result of fetching importRequest.
   web::EnvironmentSettings* settings = environment_settings();
   const GURL& base_url = settings->base_url();
-  loader::Origin origin = loader::Origin(base_url.GetOrigin());
+  loader::Origin origin = loader::Origin(base_url.DeprecatedGetOriginAsURL());
   ScriptLoader script_loader(settings->context());
   script_loader.Load(csp_delegate(), origin, request_urls);
 
@@ -355,10 +360,7 @@ void WorkerGlobalScope::ImportScriptsInternal(
 
   // 2. Let settings object be the current settings object.
   web::EnvironmentSettings* settings = environment_settings();
-  DCHECK(settings->context()
-             ->message_loop()
-             ->task_runner()
-             ->BelongsToCurrentThread());
+  DCHECK(settings->context()->task_runner()->RunsTasksInCurrentSequence());
 
   // 3. If urls is empty, return.
   if (urls.empty()) return;
@@ -396,7 +398,7 @@ void WorkerGlobalScope::ImportScriptsInternal(
     }
   }
 
-  loader::Origin origin = loader::Origin(base_url.GetOrigin());
+  loader::Origin origin = loader::Origin(base_url.DeprecatedGetOriginAsURL());
 
   // 5. For each url in the resulting URL records, run these substeps:
   // 5.1. Fetch a classic worker-imported script given url and settings

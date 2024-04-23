@@ -18,6 +18,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "base/bind.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
@@ -644,7 +645,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
   int max_surface_size = std::max(gr_context_->maxRenderTargetSize(),
                                   gr_context_->maxTextureSize());
-  DLOG(INFO) << "Max renderer surface size: " << max_surface_size;
 }
 
 HardwareRasterizer::Impl::~Impl() {

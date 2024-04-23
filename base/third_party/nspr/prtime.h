@@ -52,8 +52,9 @@
 #ifndef BASE_PRTIME_H__
 #define BASE_PRTIME_H__
 
+#include <stdint.h>
+
 #include "base/base_export.h"
-#include "starboard/types.h"
 
 typedef int8_t PRInt8;
 typedef int16_t PRInt16;

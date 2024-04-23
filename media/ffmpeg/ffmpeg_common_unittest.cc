@@ -1,22 +1,22 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "media/ffmpeg/ffmpeg_common.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <cstring>
 
-#include "base/bind.h"
-#include "base/cxx17_backports.h"
 #include "base/files/memory_mapped_file.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/media.h"
 #include "media/base/media_util.h"
 #include "media/base/test_data_util.h"
 #include "media/base/video_decoder_config.h"
-#include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "media/filters/in_memory_url_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -53,7 +53,7 @@ void TestConfigConvertExtraData(
 
   // Valid combination: extra_data = non-nullptr && size > 0.
   codec_parameters->extradata = &kExtraData[0];
-  codec_parameters->extradata_size = base::size(kExtraData);
+  codec_parameters->extradata_size = std::size(kExtraData);
   EXPECT_TRUE(converter_fn.Run(stream, decoder_config));
   EXPECT_EQ(static_cast<size_t>(codec_parameters->extradata_size),
             decoder_config->extra_data().size());
@@ -77,6 +77,32 @@ void TestConfigConvertExtraData(
   // Restore orig values for sane cleanup.
   codec_parameters->extradata = orig_extradata;
   codec_parameters->extradata_size = orig_extradata_size;
+}
+
+void VerifyProfileTest(const char* file_name,
+                       VideoCodecProfile expected_profile) {
+  // Open a file to get a real AVStreams from FFmpeg.
+  base::MemoryMappedFile file;
+  ASSERT_TRUE(file.Initialize(GetTestDataFilePath(file_name)));
+  InMemoryUrlProtocol protocol(file.data(), file.length(), false);
+  FFmpegGlue glue(&protocol);
+  ASSERT_TRUE(glue.OpenContext());
+  AVFormatContext* format_context = glue.format_context();
+
+  for (size_t i = 0; i < format_context->nb_streams; ++i) {
+    AVStream* stream = format_context->streams[i];
+    AVCodecParameters* codec_parameters = stream->codecpar;
+    AVMediaType codec_type = codec_parameters->codec_type;
+
+    if (codec_type == AVMEDIA_TYPE_VIDEO) {
+      VideoDecoderConfig video_config;
+      EXPECT_TRUE(AVStreamToVideoDecoderConfig(stream, &video_config));
+      EXPECT_EQ(expected_profile, video_config.profile());
+    } else {
+      // Only process video.
+      continue;
+    }
+  }
 }
 
 TEST_F(FFmpegCommonTest, AVStreamToDecoderConfig) {
@@ -198,7 +224,7 @@ TEST_F(FFmpegCommonTest, TimeBaseConversions) {
       {1, 2, 1, 500000, 1}, {1, 3, 1, 333333, 1}, {1, 3, 2, 666667, 2},
   };
 
-  for (size_t i = 0; i < base::size(test_data); ++i) {
+  for (size_t i = 0; i < std::size(test_data); ++i) {
     SCOPED_TRACE(i);
 
     AVRational time_base;
@@ -298,32 +324,22 @@ TEST_F(FFmpegCommonTest, VerifyUmaCodecHashes) {
   printf("</enum>\n");
 #endif
 }
+
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
 TEST_F(FFmpegCommonTest, VerifyH264Profile) {
-  // Open a file to get a real AVStreams from FFmpeg.
-  base::MemoryMappedFile file;
-  ASSERT_TRUE(file.Initialize(GetTestDataFilePath("bear-1280x720.mp4")));
-  InMemoryUrlProtocol protocol(file.data(), file.length(), false);
-  FFmpegGlue glue(&protocol);
-  ASSERT_TRUE(glue.OpenContext());
-  AVFormatContext* format_context = glue.format_context();
-
-  for (size_t i = 0; i < format_context->nb_streams; ++i) {
-    AVStream* stream = format_context->streams[i];
-    AVCodecParameters* codec_parameters = stream->codecpar;
-    AVMediaType codec_type = codec_parameters->codec_type;
-
-    if (codec_type == AVMEDIA_TYPE_VIDEO) {
-      VideoDecoderConfig video_config;
-      EXPECT_TRUE(AVStreamToVideoDecoderConfig(stream, &video_config));
-      EXPECT_EQ(H264PROFILE_HIGH, video_config.profile());
-    } else {
-      // Only process video.
-      continue;
-    }
-  }
+  VerifyProfileTest("bear-1280x720.mp4", H264PROFILE_HIGH);
 }
-#endif
+
+#if BUILDFLAG(ENABLE_PLATFORM_HEVC)
+TEST_F(FFmpegCommonTest, VerifyH265MainProfile) {
+  VerifyProfileTest("bear-1280x720-hevc.mp4", HEVCPROFILE_MAIN);
+}
+
+TEST_F(FFmpegCommonTest, VerifyH265Main10Profile) {
+  VerifyProfileTest("bear-1280x720-hevc-10bit.mp4", HEVCPROFILE_MAIN10);
+}
+#endif  // BUILDFLAG(ENABLE_PLATFORM_HEVC)
+#endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
 // Verifies that the HDR Metadata and VideoColorSpace are correctly parsed.
 TEST_F(FFmpegCommonTest, VerifyHDRMetadataAndColorSpaceInfo) {
@@ -344,23 +360,31 @@ TEST_F(FFmpegCommonTest, VerifyHDRMetadataAndColorSpaceInfo) {
   VideoDecoderConfig video_config;
   EXPECT_TRUE(AVStreamToVideoDecoderConfig(stream, &video_config));
   ASSERT_TRUE(video_config.hdr_metadata().has_value());
-  EXPECT_EQ(30.0,
-            video_config.hdr_metadata()->color_volume_metadata.luminance_min);
-  EXPECT_EQ(40.0,
-            video_config.hdr_metadata()->color_volume_metadata.luminance_max);
-  EXPECT_EQ(gfx::PointF(0.1, 0.2),
-            video_config.hdr_metadata()->color_volume_metadata.primary_r);
-  EXPECT_EQ(gfx::PointF(0.1, 0.2),
-            video_config.hdr_metadata()->color_volume_metadata.primary_g);
-  EXPECT_EQ(gfx::PointF(0.1, 0.2),
-            video_config.hdr_metadata()->color_volume_metadata.primary_b);
-  EXPECT_EQ(gfx::PointF(0.1, 0.2),
-            video_config.hdr_metadata()->color_volume_metadata.white_point);
-
+  const auto& color_volume_metadata =
+      video_config.hdr_metadata()->color_volume_metadata;
+  EXPECT_EQ(30.0, color_volume_metadata.luminance_min);
+  EXPECT_EQ(40.0, color_volume_metadata.luminance_max);
+  EXPECT_EQ(0.1f, color_volume_metadata.primaries.fRX);
+  EXPECT_EQ(0.2f, color_volume_metadata.primaries.fRY);
+  EXPECT_EQ(0.1f, color_volume_metadata.primaries.fGX);
+  EXPECT_EQ(0.2f, color_volume_metadata.primaries.fGY);
+  EXPECT_EQ(0.1f, color_volume_metadata.primaries.fBX);
+  EXPECT_EQ(0.2f, color_volume_metadata.primaries.fBY);
+  EXPECT_EQ(0.1f, color_volume_metadata.primaries.fWX);
+  EXPECT_EQ(0.2f, color_volume_metadata.primaries.fWY);
   EXPECT_EQ(VideoColorSpace(VideoColorSpace::PrimaryID::SMPTEST428_1,
                             VideoColorSpace::TransferID::LOG,
                             VideoColorSpace::MatrixID::RGB,
                             gfx::ColorSpace::RangeID::FULL),
             video_config.color_space_info());
 }
+
+#if BUILDFLAG(ENABLE_AV1_DECODER)
+TEST_F(FFmpegCommonTest, VerifyAv1Profiles) {
+  VerifyProfileTest("blackwhite_yuv444p_av1.mp4", AV1PROFILE_PROFILE_HIGH);
+  VerifyProfileTest("blackwhite_yuv444p_av1.webm", AV1PROFILE_PROFILE_HIGH);
+  VerifyProfileTest("bear-av1.mp4", AV1PROFILE_PROFILE_MAIN);
+}
+#endif
+
 }  // namespace media

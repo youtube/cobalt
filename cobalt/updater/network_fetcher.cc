@@ -19,10 +19,12 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
+#include "base/strings/stringprintf.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
+#include "net/base/net_errors.h"
 
 namespace {
 
@@ -184,25 +186,25 @@ void NetworkFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
 void NetworkFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   LOG(INFO) << "cobalt::updater::NetworkFetcher::OnURLFetchComplete";
-  const net::URLRequestStatus& status = source->GetStatus();
+  const net::Error status = source->GetStatus();
   const int response_code = source->GetResponseCode();
   if (url_fetcher_type_ == kUrlFetcherTypePostRequest) {
-    OnPostRequestComplete(source, status.error());
+    OnPostRequestComplete(source, status);
 #if defined(IN_MEMORY_UPDATES)
   } else if (url_fetcher_type_ == kUrlFetcherTypeDownloadToString) {
-    OnDownloadToStringComplete(source, status.error());
+    OnDownloadToStringComplete(source, status);
   }
 #else
   } else if (url_fetcher_type_ == kUrlFetcherTypeDownloadToFile) {
-    OnDownloadToFileComplete(source, status.error());
+    OnDownloadToFileComplete(source, status);
   }
 #endif
 
-  if (!status.is_success() || !IsResponseCodeSuccess(response_code)) {
+  if (status != net::OK || !IsResponseCodeSuccess(response_code)) {
     std::string msg(base::StringPrintf(
         "NetworkFetcher error on %s : %s, response code %d",
         source->GetURL().spec().c_str(),
-        net::ErrorToString(status.error()).c_str(), response_code));
+        net::ErrorToString(status).c_str(), response_code));
     return HandleError(msg).InvalidateThis();
   }
   url_fetcher_.reset();
@@ -231,7 +233,9 @@ void NetworkFetcher::CreateUrlFetcher(
   // Request mode is kCORSModeOmitCredentials.
   const uint32 kDisableCookiesAndCacheLoadFlags =
       net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
+#ifndef COBALT_PENDING_CLEAN_UP
       net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA |
+#endif
       net::LOAD_DISABLE_CACHE;
   url_fetcher_->SetLoadFlags(kDisableCookiesAndCacheLoadFlags);
 

@@ -14,8 +14,11 @@
 
 #include "cobalt/debug/backend/log_agent.h"
 
+#include <utility>
+
 #include "base/bind.h"
 #include "base/logging.h"
+#include "base/values.h"
 #include "cobalt/debug/console/command_manager.h"
 
 namespace cobalt {
@@ -85,10 +88,12 @@ bool LogAgent::OnLogMessage(int severity, const char* file, int line,
     // Our custom "Log.browserEntryAdded" event is just like "Log.entryAdded"
     // except it only shows up in the debug console and not in remote devtools.
     // TODO: Flesh out the rest of LogEntry properties (source, timestamp)
-    JSONObject params(new base::DictionaryValue());
-    params->SetString("entry.source", "other");
-    params->SetString("entry.text", str);
-    params->SetString("entry.level", GetLogLevelFromSeverity(severity));
+    JSONObject params;
+    base::Value::Dict entry;
+    entry.Set("source", "other");
+    entry.Set("text", str);
+    entry.Set("level", GetLogLevelFromSeverity(severity));
+    params.Set("entry", std::move(entry));
     dispatcher_->SendEvent(event_method_, params);
   }
 

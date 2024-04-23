@@ -1,14 +1,15 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TRACE_EVENT_MEMORY_ALLOCATOR_DUMP_GUID_H_
 #define BASE_TRACE_EVENT_MEMORY_ALLOCATOR_DUMP_GUID_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "base/base_export.h"
-#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

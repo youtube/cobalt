@@ -1,13 +1,13 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/test/android/java_handler_thread_helpers.h"
 
 #include "base/android/java_handler_thread.h"
-#include "base/message_loop/message_loop_current.h"
 #include "base/synchronization/waitable_event.h"
-#include "jni/JavaHandlerThreadHelpers_jni.h"
+#include "base/task/current_thread.h"
+#include "base/test/base_unittests_jni_headers/JavaHandlerThreadHelpers_jni.h"
 
 namespace base {
 namespace android {
@@ -24,7 +24,7 @@ void JavaHandlerThreadHelpers::ThrowExceptionAndAbort(WaitableEvent* event) {
   JNIEnv* env = AttachCurrentThread();
   Java_JavaHandlerThreadHelpers_throwException(env);
   DCHECK(HasException(env));
-  base::MessageLoopCurrentForUI::Get()->Abort();
+  base::CurrentUIThread::Get()->Abort();
   event->Signal();
 }
 
