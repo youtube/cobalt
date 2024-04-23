@@ -92,6 +92,8 @@ class SbPlayerInterface {
     cval_stats_.Enable(should_enable);
   }
   CValStats cval_stats_;
+
+  void SetDecodeToTexturePreferred(bool preferred);
 };
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {

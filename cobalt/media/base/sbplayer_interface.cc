@@ -17,10 +17,32 @@
 #include <string>
 
 #include "base/logging.h"
+#include "starboard/extension/player_configuration.h"
 #include "starboard/system.h"
 
 namespace cobalt {
 namespace media {
+
+void SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
+  const StarboardExtensionPlayerConfigurationApi* extension_api =
+      static_cast<const StarboardExtensionPlayerConfigurationApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerConfigurationName));
+  if (!extension_api) {
+    return;
+  }
+
+  DCHECK_EQ(extension_api->name,
+            // Avoid comparing raw string pointers for equal.
+            std::string(kStarboardExtensionPlayerConfigurationName));
+  DCHECK_EQ(extension_api->version, 1u);
+
+  // SetDecodeToTexturePreferred api could be NULL.
+  if (extension_api->SetDecodeToTexturePreferred) {
+    extension_api->SetDecodeToTexturePreferred(preferred);
+  } else {
+    LOG(INFO) << "DecodeToTextureModePreferred is not supported.";
+  }
+}
 
 DefaultSbPlayerInterface::DefaultSbPlayerInterface() {
   const CobaltExtensionEnhancedAudioApi* extension_api =
