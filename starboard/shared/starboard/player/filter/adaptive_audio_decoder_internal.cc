@@ -43,6 +43,19 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
   SB_DCHECK(audio_stream_info.codec != kSbMediaAudioCodecNone);
 }
 
+AdaptiveAudioDecoder::AdaptiveAudioDecoder(
+    const media::AudioStreamInfo& audio_stream_info,
+    SbDrmSystem drm_system,
+    const AudioDecoderCreator& audio_decoder_creator,
+    bool enable_reset_audio_decoder,
+    const OutputFormatAdjustmentCallback& output_adjustment_callback)
+    : AdaptiveAudioDecoder(audio_stream_info,
+                           drm_system,
+                           audio_decoder_creator,
+                           output_adjustment_callback) {
+  enable_reset_audio_decoder_ = enable_reset_audio_decoder;
+}
+
 AdaptiveAudioDecoder::~AdaptiveAudioDecoder() {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -154,9 +167,13 @@ void AdaptiveAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (audio_decoder_) {
-    audio_decoder_->Reset();
-    resampler_.reset();
-    channel_mixer_.reset();
+    if (enable_reset_audio_decoder_) {
+      audio_decoder_->Reset();
+      resampler_.reset();
+      channel_mixer_.reset();
+    } else {
+      TeardownAudioDecoder();
+    }
   }
   ResetInternal();
 }
