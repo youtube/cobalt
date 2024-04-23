@@ -17,12 +17,9 @@
 
 #include <string>
 
-<<<<<<< HEAD
-=======
 #include "base/time/default_tick_clock.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
->>>>>>> 5e14755c9e0 (Added UMA telemetry for Format Queries (#2954))
 #include "starboard/media.h"
 #include "starboard/time.h"
 
@@ -55,19 +52,15 @@ class FormatSupportQueryMetrics {
   static constexpr int kMaxCachedQueryDurations = 150;
   static constexpr int kMaxQueryDescriptionLength = 350;
 
-  static SbTimeMonotonic cached_query_durations_[kMaxCachedQueryDurations];
+  static base::TimeDelta cached_query_durations_[kMaxCachedQueryDurations];
   static char max_query_description_[kMaxQueryDescriptionLength];
-  static SbTimeMonotonic max_query_duration_;
-  static SbTimeMonotonic total_query_duration_;
+  static base::TimeDelta max_query_duration_;
+  static base::TimeDelta total_query_duration_;
   static int total_num_queries_;
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
-<<<<<<< HEAD
-  SbTimeMonotonic start_time_ = 0;
-=======
   base::TimeTicks start_time_;
   const base::TickClock* clock_;
->>>>>>> 5e14755c9e0 (Added UMA telemetry for Format Queries (#2954))
 };
 
 

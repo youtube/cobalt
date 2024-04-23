@@ -34,9 +34,6 @@ std::string CreateQueryDescription(FormatSupportQueryAction query_action,
                                    const std::string& mime_type,
                                    const std::string& key_system,
                                    SbMediaSupportType support_type,
-<<<<<<< HEAD
-                                   SbTimeMonotonic query_duration) {
-=======
                                    base::TimeDelta query_duration) {
   auto get_query_name_str = [](FormatSupportQueryAction query_action) {
     switch (query_action) {
@@ -50,7 +47,6 @@ std::string CreateQueryDescription(FormatSupportQueryAction query_action,
     }
   };
 
->>>>>>> 5e14755c9e0 (Added UMA telemetry for Format Queries (#2954))
   auto get_support_type_str = [](SbMediaSupportType support_type) {
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -69,24 +65,22 @@ std::string CreateQueryDescription(FormatSupportQueryAction query_action,
       "%s(%s%s%s, %" PRId64 " us", get_query_name_str(query_action),
       mime_type.c_str(),
       (key_system.empty() ? ")" : ", " + key_system + ")").c_str(),
-      get_support_type_str(support_type), query_duration);
+      get_support_type_str(support_type), query_duration.InMicroseconds());
 }
 
 }  // namespace
 
 // static
-SbTimeMonotonic FormatSupportQueryMetrics::cached_query_durations_
+base::TimeDelta FormatSupportQueryMetrics::cached_query_durations_
     [kMaxCachedQueryDurations] = {};
 char FormatSupportQueryMetrics::max_query_description_
     [kMaxQueryDescriptionLength] = {};
-SbTimeMonotonic FormatSupportQueryMetrics::max_query_duration_ = 0;
-SbTimeMonotonic FormatSupportQueryMetrics::total_query_duration_ = 0;
+base::TimeDelta FormatSupportQueryMetrics::max_query_duration_ =
+    base::TimeDelta();
+base::TimeDelta FormatSupportQueryMetrics::total_query_duration_ =
+    base::TimeDelta();
 int FormatSupportQueryMetrics::total_num_queries_ = 0;
 
-<<<<<<< HEAD
-FormatSupportQueryMetrics::FormatSupportQueryMetrics() {
-  start_time_ = SbTimeGetMonotonicNow();
-=======
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 FormatSupportQueryMetrics::FormatSupportQueryMetrics(
@@ -116,21 +110,16 @@ void FormatSupportQueryMetrics::RecordQueryLatencyUMA(
     default:
       break;
   }
->>>>>>> 5e14755c9e0 (Added UMA telemetry for Format Queries (#2954))
 }
 
 void FormatSupportQueryMetrics::RecordAndLogQuery(
     FormatSupportQueryAction query_action, const std::string& mime_type,
     const std::string& key_system, SbMediaSupportType support_type) {
-<<<<<<< HEAD
-  SbTimeMonotonic query_duration = SbTimeGetMonotonicNow() - start_time_;
-=======
   base::TimeDelta query_duration = clock_->NowTicks() - start_time_;
 
   RecordQueryLatencyUMA(query_action, query_duration);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
->>>>>>> 5e14755c9e0 (Added UMA telemetry for Format Queries (#2954))
   total_query_duration_ += query_duration;
 
   std::string query_description = CreateQueryDescription(
@@ -178,18 +167,11 @@ void FormatSupportQueryMetrics::PrintAndResetMetrics() {
             << " us\n\tMedian query time: ~" << get_median()
             << " us\n\tLongest query: " << max_query_description_;
 
-<<<<<<< HEAD
-  max_query_description_[0] = 0;
-  max_query_duration_ = 0;
-  total_query_duration_ = 0;
-  total_num_queries_ = 0;
-=======
   max_query_description_[0] = {};
   max_query_duration_ = {};
   total_query_duration_ = {};
   total_num_queries_ = {};
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
->>>>>>> 5e14755c9e0 (Added UMA telemetry for Format Queries (#2954))
 }
 
 
