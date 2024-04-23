@@ -265,12 +265,24 @@ MockJobTask::~MockJobTask() = default;
 MockJobTask::MockJobTask(
     base::RepeatingCallback<void(JobDelegate*)> worker_task,
     size_t num_tasks_to_run)
+/* Cobalt
+    : worker_task_(std::move(worker_task)),
+      remaining_num_tasks_to_run_(num_tasks_to_run) {}
+Cobalt */
     : task_(std::move(worker_task)),
       remaining_num_tasks_to_run_(num_tasks_to_run) {
   CHECK(!absl::get<decltype(worker_task)>(task_).is_null());
 }
 
 MockJobTask::MockJobTask(base::OnceClosure worker_task)
+/* Cobalt
+    : worker_task_(base::BindRepeating(
+          [](base::OnceClosure&& worker_task, JobDelegate*) mutable {
+            std::move(worker_task).Run();
+          },
+          base::Passed(std::move(worker_task)))),
+      remaining_num_tasks_to_run_(1) {}
+Cobalt */
     : task_(std::move(worker_task)), remaining_num_tasks_to_run_(1) {
   CHECK(!absl::get<decltype(worker_task)>(task_).is_null());
 }
@@ -298,6 +310,11 @@ size_t MockJobTask::GetMaxConcurrency(size_t /* worker_count */) const {
 }
 
 void MockJobTask::Run(JobDelegate* delegate) {
+/* Cobalt
+  worker_task_.Run(delegate);
+  size_t before = remaining_num_tasks_to_run_.fetch_sub(1);
+  DCHECK_GT(before, 0U);
+Cobalt */
   absl::visit(
       base::Overloaded{
           [](OnceClosure& closure) { std::move(closure).Run(); },

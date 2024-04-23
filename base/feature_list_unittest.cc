@@ -626,7 +626,7 @@ TEST_F(FeatureListTest, UninitializedInstance_IsEnabledReturnsFalse) {
 }
 
 #if !defined(STARBOARD)
-TEST_F(FeatureListTest, DISABLED_StoreAndRetrieveFeaturesFromSharedMemory) {
+TEST_F(FeatureListTest, StoreAndRetrieveFeaturesFromSharedMemory) {
   std::unique_ptr<base::FeatureList> feature_list(new base::FeatureList);
 
   // Create some overrides.
@@ -659,7 +659,7 @@ TEST_F(FeatureListTest, DISABLED_StoreAndRetrieveFeaturesFromSharedMemory) {
       kFeatureOnByDefaultName, FeatureList::OVERRIDE_DISABLE_FEATURE));
 }
 
-TEST_F(FeatureListTest, DISABLED_StoreAndRetrieveAssociatedFeaturesFromSharedMemory) {
+TEST_F(FeatureListTest, StoreAndRetrieveAssociatedFeaturesFromSharedMemory) {
   std::unique_ptr<base::FeatureList> feature_list(new base::FeatureList);
 
   // Create some overrides.

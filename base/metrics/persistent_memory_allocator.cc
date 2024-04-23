@@ -5,7 +5,6 @@
 #include "base/metrics/persistent_memory_allocator.h"
 
 #include <assert.h>
-#include <sys/mman.h>
 
 #include <algorithm>
 
@@ -1036,7 +1035,6 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
   }
 
   DCHECK_EQ(MEM_VIRTUAL, type);
-
 #if defined(STARBOARD)
 #elif BUILDFLAG(IS_WIN)
   BOOL success = ::VirtualFree(memory, 0, MEM_DECOMMIT);
@@ -1075,8 +1073,8 @@ bool WritableSharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
 }
 #endif  // !defined(STARBOARD)
 
-
 //----- ReadOnlySharedPersistentMemoryAllocator --------------------------------
+
 #if !defined(STARBOARD)
 ReadOnlySharedPersistentMemoryAllocator::
     ReadOnlySharedPersistentMemoryAllocator(
@@ -1100,7 +1098,6 @@ bool ReadOnlySharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
     const base::ReadOnlySharedMemoryMapping& memory) {
   return IsMemoryAcceptable(memory.memory(), memory.size(), 0, true);
 }
-
 #endif  // !defined(STARBOARD)
 
 #if !BUILDFLAG(IS_NACL)

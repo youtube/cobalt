@@ -206,14 +206,15 @@ bool PathService::Get(int key, FilePath* result) {
   DCHECK_GT(key, PATH_START);
 
   // Special case the current directory because it can never be cached.
-  if (key == DIR_CURRENT) {
+  if (key == DIR_CURRENT)
 #if defined(STARBOARD)
+  {
     NOTREACHED() << "DIR_CURRENT not supported in Starboard.";
     return false;
+  }
 #else
     return GetCurrentDirectory(result);
 #endif
-  }
 
   Provider* provider = nullptr;
   {
