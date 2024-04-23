@@ -1,7 +1,7 @@
 {
   "docker_service": "build-linux-clang-3-9",
   "on_host_test": true,
-  "on_host_test_shards": ["0", "1", "2", "3"],
+  "on_host_test_shards": ["0", "1", "2", "3", "wpt"],
   "platforms": [
     "linux-x64x11-clang-3-9"
   ],
