@@ -723,7 +723,6 @@ TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
   EXPECT_EQ(0, data[2]);
   EXPECT_EQ(0, data[3]);
 }
-
 #endif  // !defined(STARBOARD)
 
 // TODO: b/316198056 - Re-enable this test once base/net have been updated.

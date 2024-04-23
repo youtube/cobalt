@@ -339,11 +339,10 @@ bool TaskTracker::WillPostTask(Task* task,
     // A non BLOCK_SHUTDOWN task is allowed to be posted iff shutdown hasn't
     // started and the task is not delayed.
     if (shutdown_behavior != TaskShutdownBehavior::BLOCK_SHUTDOWN ||
-        !task->delayed_run_time.is_null() ||
 #if defined(STARBOARD)
-        GetFizzleBlockShutdownTasks()) {
+        !task->delayed_run_time.is_null() || GetFizzleBlockShutdownTasks()) {
 #else
-        fizzle_block_shutdown_tasks) {
+        !task->delayed_run_time.is_null() || fizzle_block_shutdown_tasks) {
 #endif
       return false;
     }

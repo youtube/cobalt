@@ -625,12 +625,14 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
       PLOG(ERROR) << "inotify_init failed";
       return false;
     }
-    // if (!base::SetNonBlocking(inotify_fd_)) {
-    //   PLOG(ERROR) << "base::SetNonBlocking failed";
-    //   close(inotify_fd_);
-    //   inotify_fd_ = -1;
-    //   return false;
-    // }
+/* Cobalt
+    if (!base::SetNonBlocking(inotify_fd_)) {
+      PLOG(ERROR) << "base::SetNonBlocking failed";
+      close(inotify_fd_);
+      inotify_fd_ = -1;
+      return false;
+    }
+Cobalt */
 
     constexpr base::TaskTraits kTraits = {base::TaskPriority::USER_VISIBLE,
                                           base::MayBlock()};
@@ -646,7 +648,9 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
   void ShutDown() override {
     if (inotify_fd_ >= 0) {
       ResetCachedSettings();
-      // inotify_watcher_.reset();
+/* Cobalt
+      inotify_watcher_.reset();
+Cobalt */
       close(inotify_fd_);
       inotify_fd_ = -1;
     }
@@ -675,7 +679,12 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
       return false;
     }
     notify_delegate_ = delegate;
-
+/* Cobalt
+    inotify_watcher_ = base::FileDescriptorWatcher::WatchReadable(
+        inotify_fd_,
+        base::BindRepeating(&SettingGetterImplKDE::OnChangeNotification,
+                            base::Unretained(this)));
+Cobalt */
     // Simulate a change to avoid possibly losing updates before this point.
     OnChangeNotification();
     return true;
@@ -863,6 +872,9 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
     bool at_least_one_kioslaverc_opened = false;
     for (const auto& kde_config_dir : kde_config_dirs_) {
       base::FilePath kioslaverc = kde_config_dir.Append("kioslaverc");
+/* Cobalt
+      base::ScopedFILE input(base::OpenFile(kioslaverc, "r"));
+Cobalt */
       base::ScopedFILE input(new starboard::ScopedFile(kioslaverc.value().c_str(), kSbFileOpenOnly | kSbFileRead));
       if (!input.get())
         continue;
@@ -876,68 +888,70 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
       bool line_too_long = false;
       char line[BUFFER_SIZE];
       // fgets() will return NULL on EOF or error.
-      // while (fgets(line, sizeof(line), input.get())) {
-      //   // fgets() guarantees the line will be properly terminated.
-      //   size_t length = strlen(line);
-      //   if (!length)
-      //     continue;
-      //   // This should be true even with CRLF endings.
-      //   if (line[length - 1] != '\n') {
-      //     line_too_long = true;
-      //     continue;
-      //   }
-      //   if (line_too_long) {
-      //     // The previous line had no line ending, but this one does. This is
-      //     // the end of the line that was too long, so warn here and skip it.
-      //     LOG(WARNING) << "skipped very long line in " << kioslaverc.value();
-      //     line_too_long = false;
-      //     continue;
-      //   }
-      //   // Remove the LF at the end, and the CR if there is one.
-      //   line[--length] = '\0';
-      //   if (length && line[length - 1] == '\r')
-      //     line[--length] = '\0';
-      //   // Now parse the line.
-      //   if (line[0] == '[') {
-      //     // Switching sections. All we care about is whether this is
-      //     // the (a?) proxy settings section, for both KDE3 and KDE4.
-      //     in_proxy_settings = !strncmp(line, "[Proxy Settings]", 16);
-      //   } else if (in_proxy_settings) {
-      //     // A regular line, in the (a?) proxy settings section.
-      //     char* split = strchr(line, '=');
-      //     // Skip this line if it does not contain an = sign.
-      //     if (!split)
-      //       continue;
-      //     // Split the line on the = and advance |split|.
-      //     *(split++) = 0;
-      //     std::string key = line;
-      //     std::string value = split;
-      //     base::TrimWhitespaceASCII(key, base::TRIM_ALL, &key);
-      //     base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
-      //     // Skip this line if the key name is empty.
-      //     if (key.empty())
-      //       continue;
-      //     // Is the value name localized?
-      //     if (key[key.length() - 1] == ']') {
-      //       // Find the matching bracket.
-      //       length = key.rfind('[');
-      //       // Skip this line if the localization indicator is malformed.
-      //       if (length == std::string::npos)
-      //         continue;
-      //       // Trim the localization indicator off.
-      //       key.resize(length);
-      //       // Remove any resulting trailing whitespace.
-      //       base::TrimWhitespaceASCII(key, base::TRIM_TRAILING, &key);
-      //       // Skip this line if the key name is now empty.
-      //       if (key.empty())
-      //         continue;
-      //     }
-      //     // Now fill in the tables.
-      //     AddKDESetting(key, value);
-      //   }
-      // }
-      // if (ferror(input.get()))
-      //   LOG(ERROR) << "error reading " << kioslaverc.value();
+/* Cobalt
+      while (fgets(line, sizeof(line), input.get())) {
+        // fgets() guarantees the line will be properly terminated.
+        size_t length = strlen(line);
+        if (!length)
+          continue;
+        // This should be true even with CRLF endings.
+        if (line[length - 1] != '\n') {
+          line_too_long = true;
+          continue;
+        }
+        if (line_too_long) {
+          // The previous line had no line ending, but this one does. This is
+          // the end of the line that was too long, so warn here and skip it.
+          LOG(WARNING) << "skipped very long line in " << kioslaverc.value();
+          line_too_long = false;
+          continue;
+        }
+        // Remove the LF at the end, and the CR if there is one.
+        line[--length] = '\0';
+        if (length && line[length - 1] == '\r')
+          line[--length] = '\0';
+        // Now parse the line.
+        if (line[0] == '[') {
+          // Switching sections. All we care about is whether this is
+          // the (a?) proxy settings section, for both KDE3 and KDE4.
+          in_proxy_settings = !strncmp(line, "[Proxy Settings]", 16);
+        } else if (in_proxy_settings) {
+          // A regular line, in the (a?) proxy settings section.
+          char* split = strchr(line, '=');
+          // Skip this line if it does not contain an = sign.
+          if (!split)
+            continue;
+          // Split the line on the = and advance |split|.
+          *(split++) = 0;
+          std::string key = line;
+          std::string value = split;
+          base::TrimWhitespaceASCII(key, base::TRIM_ALL, &key);
+          base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
+          // Skip this line if the key name is empty.
+          if (key.empty())
+            continue;
+          // Is the value name localized?
+          if (key[key.length() - 1] == ']') {
+            // Find the matching bracket.
+            length = key.rfind('[');
+            // Skip this line if the localization indicator is malformed.
+            if (length == std::string::npos)
+              continue;
+            // Trim the localization indicator off.
+            key.resize(length);
+            // Remove any resulting trailing whitespace.
+            base::TrimWhitespaceASCII(key, base::TRIM_TRAILING, &key);
+            // Skip this line if the key name is now empty.
+            if (key.empty())
+              continue;
+          }
+          // Now fill in the tables.
+          AddKDESetting(key, value);
+        }
+      }
+      if (ferror(input.get()))
+        LOG(ERROR) << "error reading " << kioslaverc.value();
+Cobalt */
     }
     if (at_least_one_kioslaverc_opened) {
       ResolveModeEffects();
@@ -993,7 +1007,9 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
         // large), but if it does we'd warn continuously since |inotify_fd_|
         // would be forever ready to read. Close it and stop watching instead.
         LOG(ERROR) << "inotify failure; no longer watching kioslaverc!";
-        // inotify_watcher_.reset();
+/* Cobalt
+        inotify_watcher_.reset();
+Cobalt */
         close(inotify_fd_);
         inotify_fd_ = -1;
       }
@@ -1014,7 +1030,9 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
                    std::vector<std::string> > strings_map_type;
 
   int inotify_fd_ = -1;
-  // std::unique_ptr<base::FileDescriptorWatcher::Controller> inotify_watcher_;
+/* Cobalt
+  std::unique_ptr<base::FileDescriptorWatcher::Controller> inotify_watcher_;
+Cobalt */
   raw_ptr<ProxyConfigServiceLinux::Delegate> notify_delegate_ = nullptr;
   std::unique_ptr<base::OneShotTimer> debounce_timer_;
   std::vector<base::FilePath> kde_config_dirs_;

@@ -106,7 +106,7 @@ class BASE_EXPORT TraceLog :
 #endif
 
   // Disables tracing for all categories. Only RECORDING_MODE is supported.
-  void SetDisabled() {}
+  void SetDisabled();
   void SetDisabled(uint8_t modes_to_disable) {}
 
   // Returns true if TraceLog is enabled on recording mode.
