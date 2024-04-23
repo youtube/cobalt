@@ -28,6 +28,7 @@
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/player_configuration.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/time_zone.h"
 #include "starboard/extension/updater_notification.h"
