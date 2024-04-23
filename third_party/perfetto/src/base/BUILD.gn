@@ -29,6 +29,9 @@ perfetto_component("base") {
     "../../gn:base_platform",
     "../../gn:default_deps",
   ]
+  if (is_starboard) {
+    deps += [ "//starboard/common:common_headers_only" ]
+  }
   public_deps = [
     "../../include/perfetto/base",
     "../../include/perfetto/ext/base",
@@ -211,6 +214,12 @@ perfetto_unittest_source_set("unittests") {
     "uuid_unittest.cc",
     "weak_ptr_unittest.cc",
   ]
+  if (use_cobalt_customizations) {
+    sources -= [
+      "paged_memory_unittest.cc",
+      "temp_file_unittest.cc",
+    ]
+  }
   if (_subprocess_supported) {
     # Don't run on Fuchsia, NaCL. They pretend to be POSIX but then give up on
     # execve(2).

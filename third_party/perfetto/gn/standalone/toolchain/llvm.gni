@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (use_cobalt_customizations) {
+import("../sanitizers/vars.gni")
+} else {
 import("//gn/standalone/sanitizers/vars.gni")
+}
 
 declare_args() {
   is_hermetic_clang = is_clang && (is_linux_host || is_win_host)

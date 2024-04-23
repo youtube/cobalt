@@ -43,6 +43,10 @@
 #include <unistd.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace perfetto {
 namespace base {
 namespace {
@@ -144,7 +148,12 @@ bool ReadPlatformHandle(PlatformHandle h, std::string* out) {
 }
 
 bool ReadFileStream(FILE* f, std::string* out) {
+#if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
+  return false;
+#else
   return ReadFileDescriptor(fileno(f), out);
+#endif
 }
 
 bool ReadFile(const std::string& path, std::string* out) {
@@ -162,6 +171,10 @@ ssize_t WriteAll(int fd, const void* buf, size_t count) {
     uint32_t bytes_left = static_cast<uint32_t>(
         std::min(count - written, static_cast<size_t>(UINT32_MAX)));
     platform::BeforeMaybeBlockingSyscall();
+#if defined(STARBOARD)
+    SB_NOTIMPLEMENTED();
+    return -1;
+#else
     ssize_t wr = PERFETTO_EINTR(
         write(fd, static_cast<const char*>(buf) + written, bytes_left));
     platform::AfterMaybeBlockingSyscall();
@@ -170,6 +183,7 @@ ssize_t WriteAll(int fd, const void* buf, size_t count) {
     if (wr < 0)
       return wr;
     written += static_cast<size_t>(wr);
+#endif
   }
   return static_cast<ssize_t>(written);
 }
@@ -216,7 +230,12 @@ bool Rmdir(const std::string& path) {
 }
 
 int CloseFile(int fd) {
+#if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
+  return -1;
+#else
   return close(fd);
+#endif
 }
 
 ScopedFile OpenFile(const std::string& path, int flags, FileOpenMode mode) {
