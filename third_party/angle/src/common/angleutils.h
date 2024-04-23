@@ -11,12 +11,9 @@
 
 #include "common/platform.h"
 
-#include <stdint.h>
-
 #include <climits>
 #include <cstdarg>
 #include <cstddef>
-#include <cstdint>
 #include <set>
 #include <sstream>
 #include <string>

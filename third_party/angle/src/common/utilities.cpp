@@ -12,7 +12,6 @@
 #include "common/mathutil.h"
 #include "common/platform.h"
 
-#include <cstdlib>
 #include <set>
 
 #if defined(ANGLE_ENABLE_WINDOWS_UWP)
