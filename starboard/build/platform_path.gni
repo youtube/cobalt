@@ -16,6 +16,9 @@ declare_args() {
   starboard_path = ""
 }
 
+_is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")
+assert(_is_on_pythonpath, "The current repo is not first on the PYTHONPATH.")
+
 if (starboard_path == "") {
   declare_args() {
     target_platform = "stub"
