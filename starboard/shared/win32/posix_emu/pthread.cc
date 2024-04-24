@@ -18,10 +18,13 @@
 #include <cstdint>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/win32/thread_local_internal.h"
 #include "starboard/shared/win32/thread_private.h"
+#include "starboard/shared/win32/wchar_utils.h"
 
+using starboard::shared::win32::CStringToWString;
 using starboard::shared::win32::GetCurrentSbThreadPrivate;
 using starboard::shared::win32::GetThreadSubsystemSingleton;
 using starboard::shared::win32::SbThreadPrivate;
@@ -314,4 +317,24 @@ int pthread_setspecific(pthread_key_t key, const void* value) {
   return TlsInternalSetValue(tls_index, const_cast<void*>(value)) ? 0 : -1;
 }
 
+int pthread_setname_np(pthread_t thread, const char* name) {
+  SbThreadPrivate* thread_private = static_cast<SbThreadPrivate*>(thread);
+  std::wstring wname = CStringToWString(name);
+
+  HRESULT hr = SetThreadDescription(thread_private->handle_, wname.c_str());
+  if (FAILED(hr)) {
+    return -1;
+  }
+  // We store the thread name in our own TLS context as well as telling
+  // the OS because it's much easier to retrieve from our own TLS context.
+  thread_private->name_ = name;
+
+  return 0;
+}
+
+int pthread_getname_np(pthread_t thread, char* name, size_t len) {
+  SbThreadPrivate* thread_private = static_cast<SbThreadPrivate*>(thread);
+  starboard::strlcpy(name, thread_private->name_.c_str(), len);
+  return 0;
+}
 }  // extern "C"
