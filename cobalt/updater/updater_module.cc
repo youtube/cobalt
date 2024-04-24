@@ -105,8 +105,8 @@ void Observer::OnEvent(Events event, const std::string& id) {
         component_to_updater_status_map.find(crx_update_item_.state);
     LOG(INFO) << "==============================component_to_updater_status_map";
     for (auto item : component_to_updater_status_map) {
-      LOG(INFO) << "first: " << item.first;
-      LOG(INFO) << "second: " << item.second;
+      // LOG(INFO) << "first: " << item.first;
+      // LOG(INFO) << "second: " << item.second;
     }
     LOG(INFO) << "==============================";
     if (status_iterator == component_to_updater_status_map.end()) {
