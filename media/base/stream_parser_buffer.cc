@@ -40,6 +40,7 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
                              is_key_frame, type, track_id));
 }
 
+#if !defined(STARBOARD)
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::FromExternalMemory(
     std::unique_ptr<ExternalMemory> external_memory,
     bool is_key_frame,
@@ -48,6 +49,7 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::FromExternalMemory(
   return base::WrapRefCounted(new StreamParserBuffer(
       std::move(external_memory), is_key_frame, type, track_id));
 }
+#endif  // !defined(STARBOARD)
 
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
   if (decode_timestamp_ == kNoDecodeTimestamp)
@@ -61,6 +63,7 @@ void StreamParserBuffer::SetDecodeTimestamp(DecodeTimestamp timestamp) {
     preroll_buffer_->SetDecodeTimestamp(timestamp);
 }
 
+#if !defined(STARBOARD)
 StreamParserBuffer::StreamParserBuffer(
     std::unique_ptr<ExternalMemory> external_memory,
     bool is_key_frame,
@@ -72,6 +75,7 @@ StreamParserBuffer::StreamParserBuffer(
   set_duration(kNoTimestamp);
   set_is_key_frame(is_key_frame);
 }
+#endif  // !defined(STARBOARD)
 
 StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
                                        int data_size,

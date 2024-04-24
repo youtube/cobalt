@@ -17,6 +17,9 @@
 #include "media/base/crc_16.h"
 #include "media/base/media_export.h"
 #include "media/base/media_serializers_base.h"
+#if defined(STARBOARD)
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#endif  // defined(STARBOARD)
 
 // Mojo namespaces for serialization friend declarations.
 namespace mojo {
@@ -58,6 +61,7 @@ struct SecondArgType<R(A1, A2)> {
   using Type = A2;
 };
 
+#if !defined(STARBOARD)
 union UKMPackHelper {
   struct bits {
     uint16_t group;
@@ -68,6 +72,7 @@ union UKMPackHelper {
 
   static_assert(sizeof(bits) == sizeof(packed));
 };
+#endif  // !defined(STARBOARD)
 
 struct MEDIA_EXPORT StatusData {
   StatusData();
@@ -408,12 +413,14 @@ class MEDIA_EXPORT TypedStatus {
     data_->cause = std::move(cause.data_);
   }
 
+#if !defined(STARBOARD)
   template <typename UKMBuilder>
   void ToUKM(UKMBuilder& builder) const {
     builder.SetStatus(PackForUkm());
     if (data_)
       builder.SetRootCause(data_->packed_root_cause);
   }
+#endif  // !defined(STARBOARD)
 
   inline bool operator==(Codes code) const { return code == this->code(); }
 
@@ -596,6 +603,7 @@ class MEDIA_EXPORT TypedStatus {
   template <typename StatusEnum>
   friend class TypedStatus;
 
+#if !defined(STARBOARD)
   UKMPackedType PackForUkm() const {
     internal::UKMPackHelper result;
     // the group field is a crc16 hash of the constant name of the status,
@@ -607,6 +615,7 @@ class MEDIA_EXPORT TypedStatus {
     result.bits.extra_data = 0;
     return result.packed;
   }
+#endif  // !defined(STARBOARD)
 };
 
 template <typename T>

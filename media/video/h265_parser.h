@@ -443,7 +443,9 @@ struct MEDIA_EXPORT H265SEIContentLightLevelInfo {
   uint16_t max_content_light_level;
   uint16_t max_picture_average_light_level;
 
+#if !defined(STARBOARD)
   gfx::HdrMetadataCta861_3 ToGfx() const;
+#endif
 };
 
 struct MEDIA_EXPORT H265SEIMasteringDisplayInfo {
@@ -457,7 +459,9 @@ struct MEDIA_EXPORT H265SEIMasteringDisplayInfo {
   uint32_t max_luminance;
   uint32_t min_luminance;
 
+#if !defined(STARBOARD)
   gfx::HdrMetadataSmpteSt2086 ToGfx() const;
+#endif
 };
 
 struct MEDIA_EXPORT H265SEIMessage {

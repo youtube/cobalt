@@ -282,6 +282,9 @@ struct MediaSerializer<VideoColorSpace> {
 template <>
 struct MediaSerializer<gfx::HDRMetadata> {
   static base::Value Serialize(const gfx::HDRMetadata& value) {
+#if defined(STARBOARD)
+    return base::Value();
+#else  // defined(STARBOARD)
     // TODO(tmathmeyer) serialize more fields here potentially.
     gfx::HdrMetadataSmpteSt2086 smpte_st_2086 =
         value.smpte_st_2086.value_or(gfx::HdrMetadataSmpteSt2086());
@@ -298,6 +301,7 @@ struct MediaSerializer<gfx::HDRMetadata> {
             primaries.fRX, primaries.fRY, primaries.fGX, primaries.fGY,
             primaries.fBX, primaries.fBY, primaries.fWX, primaries.fWY));
     return base::Value(std::move(result));
+#endif  // defined(STARBOARD)
   }
 };
 
