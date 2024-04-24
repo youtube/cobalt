@@ -112,6 +112,12 @@ SB_EXPORT void* __abi_wrap_pthread_getspecific(musl_pthread_key_t key);
 SB_EXPORT int __abi_wrap_pthread_setspecific(musl_pthread_key_t key,
                                              const void* value);
 
+SB_EXPORT int __abi_wrap_pthread_setname_np(musl_pthread_t thread,
+                                            const char* name);
+SB_EXPORT int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
+                                            char* name,
+                                            size_t len);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
