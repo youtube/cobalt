@@ -18,9 +18,9 @@
 #include <string>
 
 #include "starboard/common/mutex.h"
+#include "starboard/common/once.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
-#include "starboard/once.h"
 #include "starboard/shared/uwp/log_writer_uwp.h"
 #include "starboard/shared/uwp/log_writer_win32.h"
 

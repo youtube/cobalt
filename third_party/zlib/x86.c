@@ -15,16 +15,17 @@ int ZLIB_INTERNAL x86_cpu_enable_ssse3 = 0;
 int ZLIB_INTERNAL x86_cpu_enable_simd = 0;
 
 #ifdef STARBOARD
+#include <pthread.h>
+
 #include "starboard/cpu_features.h"
 #include "starboard/log.h"
-#include "starboard/once.h"
 
-SbOnceControl cpu_check_inited_once = SB_ONCE_INITIALIZER;
+pthread_once_t cpu_check_inited_once = PTHREAD_ONCE_INIT;
 static void _x86_check_features(void);
 
 void x86_check_features(void)
 {
-  SbOnce(&cpu_check_inited_once, _x86_check_features);
+  pthread_once(&cpu_check_inited_once, _x86_check_features);
 }
 
 static void _x86_check_features(void)

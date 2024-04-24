@@ -16,10 +16,11 @@
 
 #include "starboard/system.h"
 
+#include <pthread.h>
+
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/file.h"
-#include "starboard/once.h"
 
 namespace {
 
@@ -45,7 +46,7 @@ class URandomFile {
 URandomFile* g_urandom_file = NULL;
 
 // Control to initialize g_urandom_file.
-SbOnceControl g_urandom_file_once = SB_ONCE_INITIALIZER;
+pthread_once_t g_urandom_file_once = PTHREAD_ONCE_INIT;
 
 // Lazily initialize g_urandom_file.
 void InitializeRandom() {
@@ -59,8 +60,8 @@ void SbSystemGetRandomData(void* out_buffer, int buffer_size) {
   SB_DCHECK(out_buffer);
   char* buffer = reinterpret_cast<char*>(out_buffer);
   int remaining = buffer_size;
-  bool once_result = SbOnce(&g_urandom_file_once, &InitializeRandom);
-  SB_DCHECK(once_result);
+  int once_result = pthread_once(&g_urandom_file_once, &InitializeRandom);
+  SB_DCHECK(once_result == 0);
 
   SbFile file = g_urandom_file->file();
   do {

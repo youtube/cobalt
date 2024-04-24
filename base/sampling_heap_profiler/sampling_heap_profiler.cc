@@ -39,8 +39,9 @@
 #endif
 
 #if defined(STARBOARD)
+#include <pthread.h>
+
 #include "base/check_op.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 #endif
 
@@ -95,7 +96,7 @@ const char* GetAndLeakThreadName() {
 
 const char* UpdateAndGetThreadName(const char* name) {
 #if defined(STARBOARD)
-  static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+  static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
   static SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
   
   auto InitThreadLocalKey = [](){
@@ -103,7 +104,7 @@ const char* UpdateAndGetThreadName(const char* name) {
     DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
   };
 
-  SbOnce(&s_once_flag, InitThreadLocalKey);
+  pthread_once(&s_once_flag, InitThreadLocalKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 
   const char* thread_name = static_cast<const char*>(SbThreadGetLocalValue(s_thread_local_key));

@@ -14,14 +14,16 @@
 
 #include "starboard/client_porting/icu_init/icu_init.h"
 
+#include <pthread.h>
+
 #include <string>
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/once.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
-#include "starboard/once.h"
 #include "starboard/system.h"
 #include "third_party/icu/source/common/unicode/putil.h"
 #include "third_party/icu/source/common/unicode/udata.h"
@@ -29,7 +31,7 @@
 namespace {
 
 // Once control for initializing ICU.
-SbOnceControl g_initialization_once = SB_ONCE_INITIALIZER;
+pthread_once_t g_initialization_once = PTHREAD_ONCE_INIT;
 
 // Initializes ICU and TimeZones so the rest of the functions will work. Should
 // only be called once.
@@ -55,5 +57,5 @@ void Initialize() {
 }  // namespace
 
 void IcuInit() {
-  SbOnce(&g_initialization_once, &Initialize);
+  pthread_once(&g_initialization_once, &Initialize);
 }

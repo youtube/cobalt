@@ -18,7 +18,7 @@
 #include <memory>
 
 #include "starboard/common/log.h"
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/shared/win32/thread_private.h"
 
 using starboard::shared::win32::GetThreadSubsystemSingleton;
