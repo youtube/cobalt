@@ -32,14 +32,17 @@ typedef struct StarboardExtensionPlayerConfigurationApi {
 
   // The fields below this point were added in version 1 or later.
 
-  // This is used to ask the underlying starboard player using decode
-  // to texture mode to render video frames when it's available, no matter
-  // what output mode is passed in SbPlayerCreate(). This function can be
-  // null.
+  // This is used to ask the underlying starboard player prefer to use decode
+  // to texture mode to render video frames when it's available. This function
+  // can be null.
+  // When decode to texture mode is prefereed, SbPlayerGetPreferredOutputMode()
+  // should return kSbPlayerOutputModeDecodeToTexture if it's supported.
   void (*SetDecodeToTexturePreferred)(bool preferred);
 
-  // This is used to ask the underlying starboard player using tunnel mode
-  // when it's available. This function can be null.
+  // This is used to ask the underlying starboard player prefer to use tunnel
+  // mode when it's available. This function can be null.
+  // When tunnel mode is prefereed, the platform should use tunnel mode for
+  // primary player if it's supported.
   void (*SetTunnelModePreferred)(bool preferred);
 
 } StarboardExtensionPlayerConfigurationApi;
