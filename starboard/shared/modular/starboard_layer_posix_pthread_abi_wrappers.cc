@@ -370,3 +370,13 @@ int __abi_wrap_pthread_setspecific(musl_pthread_key_t key, const void* value) {
   return pthread_setspecific(
       reinterpret_cast<PosixThreadLocalKeyPrivate*>(key)->key, value);
 }
+
+int __abi_wrap_pthread_setname_np(musl_pthread_t thread, const char* name) {
+  return pthread_setname_np(reinterpret_cast<pthread_t>(thread), name);
+}
+
+int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
+                                  char* name,
+                                  size_t len) {
+  return pthread_getname_np(reinterpret_cast<pthread_t>(thread), name, len);
+}
