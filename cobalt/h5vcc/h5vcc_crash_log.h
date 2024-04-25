@@ -91,6 +91,10 @@ class H5vccCrashLog : public script::Wrappable {
 
   void SetPersistentSettingWatchdogCrash(bool can_trigger_crash);
 
+  bool GetPersistentSettingLogtraceEnable();
+
+  void SetPersistentSettingLogtraceEnable(bool enable_logtrace);
+
   bool LogEvent(const std::string& event);
 
   script::Sequence<std::string> GetLogTrace();

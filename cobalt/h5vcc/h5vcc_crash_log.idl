@@ -109,6 +109,14 @@ interface H5vccCrashLog {
   // Watchdog violation will trigger a crash.
   void setPersistentSettingWatchdogCrash(boolean can_trigger_crash);
 
+  // Gets a persistent setting that determines whether or not
+  // events emitted by logEvent() are saved in Cobalt buffer.
+  boolean getPersistentSettingLogtraceEnable();
+
+  // Sets a persistent setting that determines whether or not
+  // events emitted by logEvent() are saved in Cobalt buffer.
+  void setPersistentSettingLogtraceEnable(boolean enable_logtrace);
+
   // Appends a string event to a ring buffer. These log events can be appended
   // from JS code. When watchdog violation is created, a snapshot of
   // that buffer is attached to a violation. Identical sequential events
