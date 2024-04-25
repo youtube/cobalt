@@ -94,11 +94,13 @@ typedef void (*SbThreadLocalDestructor)(void* value);
 // may have specific rules about how it must be used.
 typedef int32_t SbThreadAffinity;
 
+#if SB_API_VERSION < 16
 // Private structure representing a thread-local key.
 typedef struct SbThreadLocalKeyPrivate SbThreadLocalKeyPrivate;
 
 // A handle to a thread-local key.
 typedef SbThreadLocalKeyPrivate* SbThreadLocalKey;
+#endif
 
 // Well-defined constant value to mean "no thread ID."
 #define kSbThreadInvalidId (SbThreadId)0
@@ -106,8 +108,10 @@ typedef SbThreadLocalKeyPrivate* SbThreadLocalKey;
 // Well-defined constant value to mean "no affinity."
 #define kSbThreadNoAffinity (SbThreadAffinity) kSbInvalidInt
 
+#if SB_API_VERSION < 16
 // Well-defined constant value to mean "no thread local key."
 #define kSbThreadLocalKeyInvalid (SbThreadLocalKey) NULL
+#endif
 
 // Returns whether the given thread handle is valid.
 static inline bool SbThreadIsValid(SbThread thread) {
@@ -129,10 +133,12 @@ static inline bool SbThreadIsValidAffinity(SbThreadAffinity affinity) {
   return affinity != kSbThreadNoAffinity;
 }
 
+#if SB_API_VERSION < 16
 // Returns whether the given thread local variable key is valid.
 static inline bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
   return key != kSbThreadLocalKeyInvalid;
 }
+#endif
 
 // Creates a new thread, which starts immediately.
 // - If the function succeeds, the return value is a handle to the newly
@@ -193,9 +199,7 @@ SB_EXPORT void SbThreadDetach(SbThread thread);
 #if SB_API_VERSION < 16
 // Yields the currently executing thread, so another thread has a chance to run.
 SB_EXPORT void SbThreadYield();
-#endif
 
-#if SB_API_VERSION < 16
 // Sleeps the currently executing thread.
 //
 // |duration|: The minimum amount of time, in microseconds, that the currently
@@ -225,6 +229,7 @@ SB_EXPORT void SbThreadGetName(char* buffer, int buffer_size);
 // |name|: The name to assign to the thread.
 SB_EXPORT void SbThreadSetName(const char* name);
 
+#if SB_API_VERSION < 16
 // Creates and returns a new, unique key for thread local data. If the function
 // does not succeed, the function returns |kSbThreadLocalKeyInvalid|.
 //
@@ -259,6 +264,7 @@ SB_EXPORT void* SbThreadGetLocalValue(SbThreadLocalKey key);
 // |key|: The key for which to set the key value.
 // |value|: The new pointer-sized key value.
 SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
+#endif
 
 // Returns whether |thread| is the current thread.
 //

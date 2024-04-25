@@ -52,20 +52,20 @@ namespace {
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 
 bool GetWasQuitProperly() {
-  void* was_quit_properly = SbThreadGetLocalValue(s_thread_local_key);
+  EnsureThreadLocalKeyInited();
+  void* was_quit_properly = pthread_getspecific(s_thread_local_key);
   return !!was_quit_properly ? reinterpret_cast<intptr_t>(was_quit_properly) != 0 : false;
 }
 #else
@@ -374,7 +374,7 @@ void Thread::SetThreadWasQuitProperly(bool flag) {
 #if DCHECK_IS_ON()
 #if defined(STARBOARD)
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(flag)));
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(flag)));
 #else
   was_quit_properly = flag;
 #endif

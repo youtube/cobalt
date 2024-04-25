@@ -97,22 +97,21 @@ const char* GetAndLeakThreadName() {
 const char* UpdateAndGetThreadName(const char* name) {
 #if defined(STARBOARD)
   static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-  static SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+  static pthread_key_t s_thread_local_key = 0;
   
   auto InitThreadLocalKey = [](){
-    s_thread_local_key = SbThreadCreateLocalKey(NULL);
-    DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+    int res = pthread_key_create(&s_thread_local_key , NULL);
+    DCHECK(res == 0);
   };
 
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 
-  const char* thread_name = static_cast<const char*>(SbThreadGetLocalValue(s_thread_local_key));
+  const char* thread_name = static_cast<const char*>(pthread_getspecific(s_thread_local_key));
   if (name)
-    SbThreadSetLocalValue(s_thread_local_key, const_cast<char*>(name));
+    pthread_setspecific(s_thread_local_key, const_cast<char*>(name));
   else if (!thread_name)
-    SbThreadSetLocalValue(s_thread_local_key, const_cast<char*>(GetAndLeakThreadName()));
-  return static_cast<const char*>(SbThreadGetLocalValue(s_thread_local_key));
+    pthread_setspecific(s_thread_local_key, const_cast<char*>(GetAndLeakThreadName()));
+  return static_cast<const char*>(pthread_getspecific(s_thread_local_key));
 #else
   static thread_local const char* thread_name;
   if (name)
