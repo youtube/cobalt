@@ -43,6 +43,9 @@ int sb_connect(int socket, sockaddr* name, int namelen);
 int sb_send(int sockfd, const void* buf, size_t len, int flags);
 #define send sb_send
 
+int sb_poll(struct pollfd *fds, nfds_t nfds, int timeout);
+#define poll sb_poll
+
 int sb_recv(int sockfd, void* buf, size_t len, int flags);
 #define recv sb_recv
 

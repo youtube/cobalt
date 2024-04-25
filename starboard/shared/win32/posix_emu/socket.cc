@@ -298,4 +298,9 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
   return 0;
 }
 
+int sb_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+  // create WSAPOLLFD array that has winsock handler
+  // call WSAPoll()
+  return 0;
+}
 }  // extern "C"

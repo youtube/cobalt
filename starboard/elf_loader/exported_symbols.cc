@@ -456,6 +456,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
+  REGISTER_SYMBOL(poll);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);

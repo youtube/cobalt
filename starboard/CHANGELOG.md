@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+### Added standard POSIX socket poll API.
+The standard API `poll` can be used from <poll.h>.
+
 ### Deprecated `SbThreadSleep`
 Replaced the `SbThreadSleep` with the POSIX usleep() defined in the
 `<unistd.h>` header.
