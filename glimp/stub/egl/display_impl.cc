@@ -22,7 +22,7 @@
 #include "glimp/stub/egl/window_surface_impl.h"
 #include "glimp/stub/gles/context_impl.h"
 #include "starboard/common/log.h"
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/types.h"
 
 namespace glimp {

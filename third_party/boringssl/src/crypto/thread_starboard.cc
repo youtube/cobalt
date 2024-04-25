@@ -17,11 +17,11 @@
 #include "internal.h"
 
 #if defined(STARBOARD)
+#include <pthread.h>
 #include <unistd.h>
 
 #include <openssl/mem.h>
 
-#include "starboard/once.h"
 #include "starboard/thread.h"
 
 namespace {
@@ -36,7 +36,7 @@ struct ThreadLocalEntry {
 SbThreadLocalKey g_thread_local_key = kSbThreadLocalKeyInvalid;
 
 // Control the creation of the global thread local key.
-SbOnceControl g_thread_local_once_control = SB_ONCE_INITIALIZER;
+pthread_once_t g_thread_local_once_control = PTHREAD_ONCE_INIT;
 
 void ThreadLocalDestructor(void* value) {
   if (value) {
@@ -183,7 +183,7 @@ void CRYPTO_STATIC_MUTEX_unlock_write(struct CRYPTO_STATIC_MUTEX* lock) {
 }
 
 void* CRYPTO_get_thread_local(thread_local_data_t index) {
-  SbOnce(&g_thread_local_once_control, &ThreadLocalInit);
+  pthread_once(&g_thread_local_once_control, &ThreadLocalInit);
   if (!SbThreadIsValidLocalKey(g_thread_local_key)) {
     return nullptr;
   }
@@ -199,7 +199,7 @@ void* CRYPTO_get_thread_local(thread_local_data_t index) {
 
 int CRYPTO_set_thread_local(thread_local_data_t index, void *value,
                             thread_local_destructor_t destructor) {
-  SbOnce(&g_thread_local_once_control, &ThreadLocalInit);
+  pthread_once(&g_thread_local_once_control, &ThreadLocalInit);
   if (!SbThreadIsValidLocalKey(g_thread_local_key)) {
     destructor(value);
     return 0;

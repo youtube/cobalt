@@ -18,9 +18,9 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/once.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
-#include "starboard/once.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
 using Windows::Foundation::AsyncOperationCompletedHandler;

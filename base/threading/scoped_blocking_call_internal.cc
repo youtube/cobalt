@@ -23,7 +23,8 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
 #if defined(STARBOARD)
-#include "starboard/once.h"
+#include <pthread.h>
+
 #include "starboard/thread.h"
 #endif
 
@@ -33,9 +34,9 @@ namespace internal {
 namespace {
 
 #if defined(STARBOARD)
-ABSL_CONST_INIT SbOnceControl s_once_observer_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_observer_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_observer_key = kSbThreadLocalKeyInvalid;
-ABSL_CONST_INIT SbOnceControl s_once_call_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_call_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_call_key = kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalObserverKey() {
@@ -49,12 +50,12 @@ void InitThreadLocalCallKey() {
 }
 
 void EnsureThreadLocalObserverKeyInited() {
-  SbOnce(&s_once_observer_flag, InitThreadLocalObserverKey);
+  pthread_once(&s_once_observer_flag, InitThreadLocalObserverKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_observer_key));
 }
 
 void EnsureThreadLocalCallKeyInited() {
-  SbOnce(&s_once_call_flag, InitThreadLocalCallKey);
+  pthread_once(&s_once_call_flag, InitThreadLocalCallKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_call_key));
 }
 #else

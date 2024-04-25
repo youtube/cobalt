@@ -14,7 +14,7 @@
 
 #include "cobalt/base/startup_timer.h"
 
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 
 namespace base {
 namespace StartupTimer {

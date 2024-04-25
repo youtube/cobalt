@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #include "starboard/shared/uwp/xb1_media_session_client.h"
-#include "starboard/common/log.h"
 
+#include <pthread.h>
+
+#include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/key.h"
-#include "starboard/once.h"
 #include "starboard/shared/uwp/app_accessors.h"
 
 using starboard::shared::uwp::DisplayRequestActive;
@@ -50,7 +51,7 @@ MediaPlaybackStatus MediaSessionPlaybackStateToMediaPlaybackState(
   return MediaPlaybackStatus::Closed;
 }
 
-SbOnceControl once_flag = SB_ONCE_INITIALIZER;
+pthread_once_t once_flag = PTHREAD_ONCE_INIT;
 SbMutex mutex;
 
 // Callbacks to the last MediaSessionClient to become active, or null.
@@ -123,7 +124,7 @@ void OnMediaSessionStateChanged(
   const CobaltExtensionMediaSessionPlaybackState playback_state =
       session_state.actual_playback_state;
 
-  SbOnce(&once_flag, OnceInit);
+  pthread_once(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
   InitButtonCallbackOnce();
@@ -188,7 +189,7 @@ void RegisterMediaSessionCallbacks(
     CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback,
     CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
         update_platform_playback_state_callback) {
-  SbOnce(&once_flag, OnceInit);
+  pthread_once(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
   g_callback_context = callback_context;
@@ -199,7 +200,7 @@ void RegisterMediaSessionCallbacks(
 }
 
 void DestroyMediaSessionClientCallback() {
-  SbOnce(&once_flag, OnceInit);
+  pthread_once(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
   g_callback_context = NULL;
@@ -210,7 +211,7 @@ void DestroyMediaSessionClientCallback() {
 
 void UpdateActiveSessionPlatformPlaybackState(
     CobaltExtensionMediaSessionPlaybackState state) {
-  SbOnce(&once_flag, OnceInit);
+  pthread_once(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
   if (g_update_platform_playback_state_callback != NULL &&

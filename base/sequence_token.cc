@@ -8,8 +8,9 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
 #if defined(STARBOARD)
+#include <pthread.h>
+
 #include "base/check_op.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 #include "base/logging.h"
 #endif
@@ -23,7 +24,7 @@ base::AtomicSequenceNumber g_sequence_token_generator;
 base::AtomicSequenceNumber g_task_token_generator;
 
 #if defined(STARBOARD)
-ABSL_CONST_INIT SbOnceControl s_once_sequence_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t  s_once_sequence_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_sequence_key =
     kSbThreadLocalKeyInvalid;
 
@@ -33,11 +34,11 @@ void InitThreadLocalSequenceKey() {
 }
 
 void EnsureThreadLocalSequenceKeyInited() {
-  SbOnce(&s_once_sequence_flag, InitThreadLocalSequenceKey);
+  pthread_once(&s_once_sequence_flag, InitThreadLocalSequenceKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_sequence_key));
 }
 
-ABSL_CONST_INIT SbOnceControl s_once_set_sequence_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_set_sequence_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_sequence_set_for_thread =
     kSbThreadLocalKeyInvalid;
 void InitThreadLocalSequenceBoolKey() {
@@ -46,7 +47,7 @@ void InitThreadLocalSequenceBoolKey() {
 }
 
 void EnsureThreadLocalSequenceBoolKeyInited() {
-  SbOnce(&s_once_set_sequence_flag, InitThreadLocalSequenceBoolKey);
+  pthread_once(&s_once_set_sequence_flag, InitThreadLocalSequenceBoolKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_sequence_set_for_thread));
 }
 
@@ -57,7 +58,7 @@ bool IsSequenceSetForThread() {
                           : false;
 }
 
-ABSL_CONST_INIT SbOnceControl s_once_task_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_task_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_task_key =
     kSbThreadLocalKeyInvalid;
 
@@ -67,11 +68,11 @@ void InitThreadLocalTaskKey() {
 }
 
 void EnsureThreadLocalTaskKeyInited() {
-  SbOnce(&s_once_task_flag, InitThreadLocalTaskKey);
+  pthread_once(&s_once_task_flag, InitThreadLocalTaskKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_task_key));
 }
 
-ABSL_CONST_INIT SbOnceControl s_once_set_task_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_set_task_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_task_set_for_thread =
     kSbThreadLocalKeyInvalid;
 void InitThreadLocalTaskBoolKey() {
@@ -80,7 +81,7 @@ void InitThreadLocalTaskBoolKey() {
 }
 
 void EnsureThreadLocalTaskBoolKeyInited() {
-  SbOnce(&s_once_set_task_flag, InitThreadLocalTaskBoolKey);
+  pthread_once(&s_once_set_task_flag, InitThreadLocalTaskBoolKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_task_set_for_thread));
 }
 

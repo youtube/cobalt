@@ -42,13 +42,13 @@
 #include "starboard/gles.h"
 #if SB_API_VERSION < 16
 #include "starboard/image.h"
+#include "starboard/once.h"
 #endif  // SB_API_VERSION < 16
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/memory_reporter.h"
 #include "starboard/microphone.h"
 #include "starboard/mutex.h"
-#include "starboard/once.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
@@ -261,7 +261,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMutexCreate);
   REGISTER_SYMBOL(SbMutexDestroy);
   REGISTER_SYMBOL(SbMutexRelease);
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbOnce);
+#endif  // SB_API_VERSION < 16
+
   REGISTER_SYMBOL(SbPlayerCreate);
   REGISTER_SYMBOL(SbPlayerDestroy);
 #if SB_API_VERSION >= 15
