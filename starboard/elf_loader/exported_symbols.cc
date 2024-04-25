@@ -512,10 +512,12 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_detach);
   map_["pthread_equal"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_equal);
-  map_["pthread_join"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_join);
+  map_["pthread_getname_np"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_getname_np);
   map_["pthread_getspecific"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_getspecific);
+  map_["pthread_join"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_join);
   map_["pthread_key_create"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_key_create);
   map_["pthread_key_delete"] =
@@ -536,6 +538,8 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_self);
   map_["pthread_setspecific"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
+  map_["pthread_setname_np"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
   map_["accept"] = reinterpret_cast<const void*>(&__abi_wrap_accept);

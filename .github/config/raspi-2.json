@@ -13,7 +13,8 @@
   },
   "platforms": [
     "raspi-2",
-    "raspi-2-sbversion-15"
+    "raspi-2-sbversion-15",
+    "raspi-2-sbversion-16"
   ],
   "includes": [
     {
@@ -31,6 +32,15 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments": "build_with_separate_cobalt_toolchain=true use_asan=false",
       "sb_api_version": "15",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-16",
+      "platform":"raspi-2-sbversion-16",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments": "build_with_separate_cobalt_toolchain=true use_asan=false",
+      "sb_api_version": "16",
       "dimension": "release_version=regex:10.*"
     }
   ]
