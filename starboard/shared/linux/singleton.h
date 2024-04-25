@@ -20,7 +20,8 @@
 #ifndef STARBOARD_SHARED_LINUX_SINGLETON_H_
 #define STARBOARD_SHARED_LINUX_SINGLETON_H_
 
-#include "starboard/once.h"
+#include <pthread.h>
+
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -36,7 +37,7 @@ class Singleton {
   // initialization fails.
 
   static Type* GetOrCreateInstance() {
-    static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+    static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
     static Type* s_singleton = NULL;
     struct Local {
       static void Init() {
@@ -46,7 +47,7 @@ class Singleton {
         }
       }
     };
-    SbOnce(&s_once_flag, Local::Init);
+    pthread_once(&s_once_flag, Local::Init);
     return s_singleton;
   }
 

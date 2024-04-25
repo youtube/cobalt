@@ -27,8 +27,9 @@
 #endif
 
 #if defined(STARBOARD)
+#include <pthread.h>
+
 #include "base/check_op.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 #endif
 
@@ -39,7 +40,7 @@ namespace {
 TaskAnnotator::ObserverForTesting* g_task_annotator_observer = nullptr;
 
 #if defined(STARBOARD)
-ABSL_CONST_INIT SbOnceControl s_once_task_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_task_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_task_key =
     kSbThreadLocalKeyInvalid;
 
@@ -49,7 +50,7 @@ void InitThreadLocalTaskKey() {
 }
 
 void EnsureThreadLocalTaskKeyInited() {
-  SbOnce(&s_once_task_flag, InitThreadLocalTaskKey);
+  pthread_once(&s_once_task_flag, InitThreadLocalTaskKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_task_key));
 }
 
@@ -58,7 +59,7 @@ PendingTask* GetCurrentPendingTask() {
       SbThreadGetLocalValue(s_thread_local_task_key));
 }
 
-ABSL_CONST_INIT SbOnceControl s_once_hash_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_hash_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_hash_key =
     kSbThreadLocalKeyInvalid;
 
@@ -68,11 +69,11 @@ void InitThreadLocalHashKey() {
 }
 
 void EnsureThreadLocalHashKeyInited() {
-  SbOnce(&s_once_hash_flag, InitThreadLocalHashKey);
+  pthread_once(&s_once_hash_flag, InitThreadLocalHashKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_hash_key));
 }
 
-ABSL_CONST_INIT SbOnceControl s_once_tracker_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_tracker_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_tracker_key =
     kSbThreadLocalKeyInvalid;
 
@@ -82,7 +83,7 @@ void InitThreadLocalTrackerKey() {
 }
 
 void EnsureThreadLocalTrackerKeyInited() {
-  SbOnce(&s_once_tracker_flag, InitThreadLocalTrackerKey);
+  pthread_once(&s_once_tracker_flag, InitThreadLocalTrackerKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_tracker_key));
 }
 #else

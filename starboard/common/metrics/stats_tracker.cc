@@ -14,7 +14,7 @@
 
 #include "starboard/common/metrics/stats_tracker.h"
 
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 
 namespace starboard {
 

@@ -7,8 +7,9 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 
 #if defined(STARBOARD)
+#include <pthread.h>
+
 #include "base/check_op.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 #endif
 
@@ -38,7 +39,7 @@ void ThreadLocalDestructor(void* value) {
 }
 
 uint64_t Xoshiro256PlusPlus() {
-  static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+  static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
   static SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
   
   auto InitThreadLocalKey = [](){
@@ -46,7 +47,7 @@ uint64_t Xoshiro256PlusPlus() {
     DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
   };
   
-  SbOnce(&s_once_flag, InitThreadLocalKey);
+  pthread_once(&s_once_flag, InitThreadLocalKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 
   uint64_t* rng_state = static_cast<uint64_t*>(SbThreadGetLocalValue(s_thread_local_key));

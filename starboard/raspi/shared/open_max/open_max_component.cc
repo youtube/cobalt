@@ -16,8 +16,8 @@
 
 #include <algorithm>
 
+#include "starboard/common/once.h"
 #include "starboard/configuration.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 
 namespace starboard {

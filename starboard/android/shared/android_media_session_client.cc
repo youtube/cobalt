@@ -14,11 +14,12 @@
 
 #include "starboard/android/shared/android_media_session_client.h"
 
+#include <pthread.h>
+
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/once.h"
 
 namespace starboard {
 namespace android {
@@ -118,7 +119,7 @@ CobaltExtensionMediaSessionAction PlaybackStateActionToMediaSessionAction(
   return result;
 }
 
-SbOnceControl once_flag = SB_ONCE_INITIALIZER;
+pthread_once_t once_flag = PTHREAD_ONCE_INIT;
 SbMutex mutex;
 
 // Callbacks to the last MediaSessionClient to become active, or null.
@@ -135,7 +136,7 @@ void OnceInit() {
 }
 
 void NativeInvokeAction(jlong action, jlong seek_ms) {
-  SbOnce(&once_flag, OnceInit);
+  pthread_once(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
   if (g_invoke_action_callback != NULL && g_callback_context != NULL) {
@@ -154,7 +155,7 @@ void NativeInvokeAction(jlong action, jlong seek_ms) {
 
 void UpdateActiveSessionPlatformPlaybackState(
     CobaltExtensionMediaSessionPlaybackState state) {
-  SbOnce(&once_flag, OnceInit);
+  pthread_once(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
   if (g_update_platform_playback_state_callback != NULL &&
@@ -246,7 +247,7 @@ void RegisterMediaSessionCallbacks(
     CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback,
     CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
         update_platform_playback_state_callback) {
-  SbOnce(&once_flag, OnceInit);
+  pthread_once(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
   g_callback_context = callback_context;
@@ -258,7 +259,7 @@ void RegisterMediaSessionCallbacks(
 }
 
 void DestroyMediaSessionClientCallback() {
-  SbOnce(&once_flag, OnceInit);
+  pthread_once(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
   g_callback_context = NULL;
