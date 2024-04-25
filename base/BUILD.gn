@@ -2942,7 +2942,8 @@ if (is_win && !is_starboard) {
   }
 }
 
-if ((is_win && (current_cpu == "x64" || current_cpu == "arm64") && !is_starboard) || is_mac ||
+if ((is_win && (current_cpu == "x64" || current_cpu == "arm64") && !is_starboard) ||
+    (is_mac && !is_starboard) ||
     (is_android && (current_cpu == "arm" || current_cpu == "arm64")) ||
     (is_chromeos && current_cpu == "x64")) {
   # Must be a loadable module so that it can be loaded/unloaded at runtime
