@@ -2568,7 +2568,6 @@ if (is_win && !is_starboard) {
   }
 }
 
-<<<<<<< HEAD
 if (!is_starboard && (is_win || is_mac)) {
   if (current_cpu == "x64") {
     # Must be a shared library so that it can be unloaded during testing.
@@ -2577,78 +2576,6 @@ if (!is_starboard && (is_win || is_mac)) {
         "profiler/test_support_library.cc",
       ]
     }
-=======
-if ((is_win && (current_cpu == "x64" || current_cpu == "arm64") && !is_starboard) ||
-    (is_mac && !is_starboard) ||
-    (is_android && (current_cpu == "arm" || current_cpu == "arm64")) ||
-    (is_chromeos && current_cpu == "x64")) {
-  # Must be a loadable module so that it can be loaded/unloaded at runtime
-  # during testing.
-  loadable_module("base_profiler_test_support_library") {
-    testonly = true
-    sources = [ "profiler/test_support_library.cc" ]
-  }
-}
-
-if (is_android && (current_cpu == "arm" || current_cpu == "arm64") && !use_cobalt_customizations) {
-  # Use separate library for
-  # |LibunwindstackUnwinderAndroidTest.ReparsesMapsOnNewDynamicLibraryLoad|
-  # testcase. We can't use the existing `base_profiler_test_support_library`
-  # library for this test since this gets loaded by other tests and unloading
-  # a library in Android doesn't guarantee it will actually be unloaded.
-  # And in the test we would like to observe the change in /proc/self/maps
-  # on loading a dynamic library.
-  loadable_module("base_profiler_reparsing_test_support_library") {
-    testonly = true
-    sources = [ "profiler/test_support_library.cc" ]
-  }
-}
-
-if (is_android && !use_cobalt_customizations) {
-  source_set("native_unwinder_android") {
-    # This target is intended to be used only within the stack_unwinder dynamic
-    # feature module, to avoid binary size increase in Chrome due to the
-    # libunwindstack dependency. The additional :* visibility is needed to allow
-    # use by base test targets.
-    visibility = [
-      ":*",
-      "//chrome/android/modules/stack_unwinder/internal:*",
-    ]
-    sources = [
-      "profiler/libunwindstack_unwinder_android.cc",
-      "profiler/libunwindstack_unwinder_android.h",
-      "profiler/native_unwinder_android.cc",
-      "profiler/native_unwinder_android.h",
-    ]
-
-    public_deps = [
-      ":base",
-      "//third_party/libunwindstack",
-    ]
-  }
-}
-
-source_set("base_stack_sampling_profiler_test_util") {
-  testonly = true
-  sources = [
-    "profiler/stack_sampling_profiler_test_util.cc",
-    "profiler/stack_sampling_profiler_test_util.h",
-  ]
-  deps = [
-    ":base",
-    "//base/test:test_support",
-    "//testing/gtest",
-  ]
-  if (is_android && !use_cobalt_customizations) {
-    sources += [
-      "profiler/stack_sampling_profiler_java_test_util.cc",
-      "profiler/stack_sampling_profiler_java_test_util.h",
-    ]
-    deps += [
-      ":base_profiler_test_support_jni_headers",
-      ":native_unwinder_android",
-    ]
->>>>>>> 97032a39255 (Filter target base_profiler_test on mac (#3074))
   }
 }
 
