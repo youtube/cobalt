@@ -299,7 +299,7 @@ HarnessResult ParseResults(const std::string& json_results) {
 
   for (size_t i = 0; i < test_list->size(); ++i) {
     TestResult result;
-    const base::Value::Dict* test_dict = (*test_list)[0].GetIfDict();
+    const base::Value::Dict* test_dict = (*test_list)[i].GetIfDict();
     EXPECT_TRUE(!!test_dict);
 
     auto result_status = test_dict->FindInt("status");
@@ -318,6 +318,7 @@ HarnessResult ParseResults(const std::string& json_results) {
     if (result_stack) {
       result.stack = *result_stack;
     }
+    test_results.push_back(result);
   }
   return harness_result;
 }
