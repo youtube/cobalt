@@ -24,6 +24,12 @@ using ::starboard::shared::starboard::media::MimeType;
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const MimeType* mime_type,
                              int64_t bitrate) {
+#if SB_API_VERSION >= 15
+  if (audio_codec == kSbMediaAudioCodecIamf) {
+    return true;
+  }
+#endif  // SB_API_VERSION >= 15
+
   if (audio_codec == kSbMediaAudioCodecAac) {
     return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
