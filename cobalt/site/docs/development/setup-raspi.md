@@ -86,13 +86,13 @@ Raspberry Pi.
     following command:
 
     ```
-    $ cobalt/build/gn.py -p raspi-2
+    $ cobalt/build/gn.py -p raspi-2 -C devel
     ```
 
 1.  Compile the code from the `cobalt/` directory:
 
     ```
-    $ ninja -C out/raspi-2_debug cobalt
+    $ ninja -C out/raspi-2_devel cobalt_install
     ```
 
 1.  Run the following command to install your Cobalt binary (and content)
@@ -100,7 +100,7 @@ Raspberry Pi.
 
     ```
     $ rsync -avzLPh --exclude="obj*" --exclude="gen/" \
-          $COBALT_SRC/out/raspi-2_debug pi@$RASPI_ADDR:~/
+          $COBALT_SRC/out/raspi-2_devel pi@$RASPI_ADDR:~/
     ```
 
     The `rsyncs` get somewhat faster after the first time, as `rsync` is good at
@@ -112,8 +112,8 @@ Raspberry Pi.
 
     ```
     $ ssh pi@$RASPI_ADDR
-    $ cd raspi-2_debug
-    $ ./cobalt
+    $ cd raspi-2_devel/install/cobalt_loader
+    $ ./cobalt_loader
     ```
 
     With this approach, you can just hit `[CTRL-C]` to close Cobalt. If you
