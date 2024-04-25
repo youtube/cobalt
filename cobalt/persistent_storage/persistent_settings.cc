@@ -29,19 +29,13 @@
 namespace cobalt {
 namespace persistent_storage {
 
-namespace {
-// Protected persistent settings key indicating whether or not the persistent
-// settings file has been validated.
-const char kValidated[] = "validated";
-}  // namespace
-
 void PersistentSettings::WillDestroyCurrentMessageLoop() {
   // Clear all member variables allocated from the thread.
   pref_store_.reset();
 }
 
 PersistentSettings::PersistentSettings(const std::string& file_name)
-    : thread_("PersistentSettings") {
+    : thread_("PersistentSettings"), validated_initial_settings_(false) {
   if (!thread_.Start()) return;
   DCHECK(task_runner());
 
@@ -76,6 +70,7 @@ void PersistentSettings::InitializePrefStore() {
   // then destroy the internal components before the task runner is reset.
   // No posted tasks will be executed once the thread is stopped.
   base::CurrentThread::Get()->AddDestructionObserver(this);
+  // Read preferences into memory.
   {
     base::AutoLock auto_lock(pref_store_lock_);
     pref_store_ = base::MakeRefCounted<JsonPrefStore>(
@@ -83,28 +78,25 @@ void PersistentSettings::InitializePrefStore() {
     pref_store_->ReadPrefs();
     pref_store_initialized_.Signal();
   }
-  validated_initial_settings_ = GetPersistentSettingAsBool(kValidated, false);
-  if (!validated_initial_settings_) {
-    starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
-  }
+  // Remove settings file and do not allow writes to the file until the
+  // |ValidatePersistentSettings()| is called.
+  starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
   destruction_observer_added_.Signal();
 }
 
-void PersistentSettings::ValidatePersistentSettings() {
+void PersistentSettings::ValidatePersistentSettings(bool blocking) {
   task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&PersistentSettings::ValidatePersistentSettingsHelper,
-                     base::Unretained(this)));
+                     base::Unretained(this), blocking));
 }
 
-void PersistentSettings::ValidatePersistentSettingsHelper() {
+void PersistentSettings::ValidatePersistentSettingsHelper(bool blocking) {
   DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
   if (!validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-    pref_store_->SetValue(kValidated, base::Value(true),
-                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    CommitPendingWrite(false);
     validated_initial_settings_ = true;
+    CommitPendingWrite(blocking);
   }
 }
 
@@ -175,10 +167,6 @@ PersistentSettings::GetPersistentSettingAsDictionary(const std::string& key) {
 void PersistentSettings::SetPersistentSetting(
     const std::string& key, std::unique_ptr<base::Value> value,
     base::OnceClosure closure, bool blocking) {
-  if (key == kValidated) {
-    LOG(ERROR) << "Cannot set protected persistent setting: " << key;
-    return;
-  }
   task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&PersistentSettings::SetPersistentSettingHelper,
                                 base::Unretained(this), key, std::move(value),
@@ -189,16 +177,14 @@ void PersistentSettings::SetPersistentSettingHelper(
     const std::string& key, std::unique_ptr<base::Value> value,
     base::OnceClosure closure, bool blocking) {
   DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
-  if (validated_initial_settings_) {
+  {
     base::AutoLock auto_lock(pref_store_lock_);
-    pref_store_->SetValue(kValidated, base::Value(false),
-                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     pref_store_->SetValue(key,
                           base::Value::FromUniquePtrValue(std::move(value)),
                           WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    CommitPendingWrite(blocking);
-  } else {
-    LOG(ERROR) << "Cannot set persistent setting while unvalidated: " << key;
+    if (validated_initial_settings_) {
+      CommitPendingWrite(blocking);
+    }
   }
   std::move(closure).Run();
 }
@@ -216,14 +202,12 @@ void PersistentSettings::RemovePersistentSetting(const std::string& key,
 void PersistentSettings::RemovePersistentSettingHelper(
     const std::string& key, base::OnceClosure closure, bool blocking) {
   DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
-  if (validated_initial_settings_) {
+  {
     base::AutoLock auto_lock(pref_store_lock_);
-    pref_store_->SetValue(kValidated, base::Value(false),
-                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     pref_store_->RemoveValue(key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    CommitPendingWrite(blocking);
-  } else {
-    LOG(ERROR) << "Cannot remove persistent setting while unvalidated: " << key;
+    if (validated_initial_settings_) {
+      CommitPendingWrite(blocking);
+    }
   }
   std::move(closure).Run();
 }
@@ -238,12 +222,10 @@ void PersistentSettings::DeletePersistentSettings(base::OnceClosure closure) {
 void PersistentSettings::DeletePersistentSettingsHelper(
     base::OnceClosure closure) {
   DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
-  if (validated_initial_settings_) {
-    starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
+  {
     base::AutoLock auto_lock(pref_store_lock_);
+    starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
     pref_store_->ReadPrefs();
-  } else {
-    LOG(ERROR) << "Cannot delete persistent setting while unvalidated.";
   }
   std::move(closure).Run();
 }
