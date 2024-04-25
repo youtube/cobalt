@@ -79,15 +79,15 @@ TEST_F(PersistentSettingTest, GetDefaultBool) {
   // exists but invalid
   base::OnceClosure closure = base::BindOnce(
       [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsInt("key", true));
-        test_done->Signal();
-      },
+         base::WaitableEvent* test_done) { test_done->Signal(); },
       persistent_settings.get(), &test_done_);
   persistent_settings->SetPersistentSetting(
       "key", std::make_unique<base::Value>(4.2), std::move(closure), true);
   test_done_.Wait();
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_EQ(-1, persistent_settings->GetPersistentSettingAsInt("key", -1));
+  EXPECT_EQ(4.2,
+            persistent_settings->GetPersistentSettingAsDouble("key", -1.0));
 }
 
 TEST_F(PersistentSettingTest, GetSetBool) {
@@ -571,9 +571,9 @@ TEST_F(PersistentSettingTest, InvalidSettings) {
   closure = base::BindOnce(
       [](PersistentSettings* persistent_settings,
          base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
+        EXPECT_FALSE(
             persistent_settings->GetPersistentSettingAsBool("key", true));
-        EXPECT_TRUE(
+        EXPECT_FALSE(
             persistent_settings->GetPersistentSettingAsBool("key", false));
         test_done->Signal();
       },
@@ -586,9 +586,66 @@ TEST_F(PersistentSettingTest, InvalidSettings) {
   persistent_settings =
       std::make_unique<PersistentSettings>(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
-
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        EXPECT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", true));
+        EXPECT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", false));
+        test_done->Signal();
+      },
+      persistent_settings.get(), &test_done_);
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(true), std::move(closure), true);
+  test_done_.Wait();
+  test_done_.Reset();
+}
+
+TEST_F(PersistentSettingTest, WriteToFileOnlyWhenValidated) {
+  {
+    auto persistent_settings =
+        std::make_unique<PersistentSettings>(kPersistentSettingsJson);
+    auto closure = base::BindOnce(
+        [](PersistentSettings* persistent_settings,
+           base::WaitableEvent* test_done) { test_done->Signal(); },
+        persistent_settings.get(), &test_done_);
+    // Write to memory, but not file.
+    persistent_settings->SetPersistentSetting(
+        "key", std::make_unique<base::Value>(true), std::move(closure), true);
+    test_done_.Wait();
+    test_done_.Reset();
+    EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  }
+  {
+    auto persistent_settings =
+        std::make_unique<PersistentSettings>(kPersistentSettingsJson);
+    EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
+    EXPECT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  }
+
+  {
+    auto persistent_settings =
+        std::make_unique<PersistentSettings>(kPersistentSettingsJson);
+    auto closure = base::BindOnce(
+        [](PersistentSettings* persistent_settings,
+           base::WaitableEvent* test_done) { test_done->Signal(); },
+        persistent_settings.get(), &test_done_);
+    // Write to memory, but not file.
+    persistent_settings->SetPersistentSetting(
+        "key", std::make_unique<base::Value>(true), std::move(closure), true);
+    test_done_.Wait();
+    test_done_.Reset();
+    EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
+    persistent_settings->ValidatePersistentSettings(/*blocking=*/true);
+  }
+  {
+    auto persistent_settings =
+        std::make_unique<PersistentSettings>(kPersistentSettingsJson);
+    EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  }
 }
 
 }  // namespace persistent_storage
