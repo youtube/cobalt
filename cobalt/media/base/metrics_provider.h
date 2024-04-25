@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/containers/small_map.h"
+#include "base/synchronization/lock.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
@@ -27,7 +28,6 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
-#include "starboard/common/mutex.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -100,7 +100,7 @@ class MediaMetricsProvider {
   // UMA pipeline packaged data
   PipelineInfo uma_info_;
 
-  starboard::Mutex mutex_;
+  base::Lock mutex_;
 };
 
 }  // namespace media

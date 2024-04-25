@@ -16,7 +16,7 @@
 
 #include "base/logging.h"
 #include "base/memory/singleton.h"
-#include "starboard/common/mutex.h"
+#include "base/synchronization/lock.h"
 #include "starboard/common/string.h"
 
 namespace cobalt {
@@ -46,7 +46,7 @@ class OverlayInfoRegistryImpl {
   friend struct base::DefaultSingletonTraits<OverlayInfoRegistryImpl>;
 
   bool enabled_ = true;
-  starboard::Mutex mutex_;
+  base::Lock mutex_;
   std::string infos_;
 };
 
@@ -58,7 +58,7 @@ OverlayInfoRegistryImpl* OverlayInfoRegistryImpl::GetInstance() {
 }
 
 void OverlayInfoRegistryImpl::Disable() {
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   enabled_ = false;
   infos_.clear();
 }
@@ -83,7 +83,7 @@ void OverlayInfoRegistryImpl::Register(const char* category, const char* data) {
 void OverlayInfoRegistryImpl::RetrieveAndClear(std::string* infos) {
   DCHECK(infos);
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   if (enabled_) {
     infos->swap(infos_);
     infos_.clear();

@@ -22,6 +22,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "base/synchronization/condition_variable.h"
+#include "base/synchronization/lock.h"
 #include "base/values.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
@@ -29,7 +31,6 @@
 #include "cobalt/watchdog/singleton.h"
 #include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 
 namespace cobalt {
 namespace watchdog {
@@ -178,7 +179,7 @@ class Watchdog : public Singleton<Watchdog> {
   // only occur in between loops of monitor. API functions like Register(),
   // Unregister(), Ping(), and GetWatchdogViolations() will be called by
   // various threads and interact with these class variables.
-  starboard::Mutex mutex_;
+  base::Lock mutex_;
   // Tracks application state.
   base::ApplicationState state_ = base::kApplicationStateStarted;
   // Flag to trigger Watchdog violations writes to persistent storage.
@@ -200,8 +201,7 @@ class Watchdog : public Singleton<Watchdog> {
   // Flag to stop monitor thread.
   starboard::atomic_bool is_monitoring_;
   // Conditional Variable to wait and shutdown monitor thread.
-  starboard::ConditionVariable monitor_wait_ =
-      starboard::ConditionVariable(mutex_);
+  base::ConditionVariable monitor_wait_ = base::ConditionVariable(&mutex_);
   // The frequency in microseconds of monitor loops.
   int64_t watchdog_monitor_frequency_;
   // Captures string events emitted from Kabuki via logEvent() h5vcc API.
@@ -211,7 +211,7 @@ class Watchdog : public Singleton<Watchdog> {
   bool is_logtrace_disabled_;
 
 #if defined(_DEBUG)
-  starboard::Mutex delay_mutex_;
+  base::Lock delay_mutex_;
   // Name of the client to inject a delay for.
   std::string delay_name_ = "";
   // Monotonically increasing timestamp when a delay was last injected. 0
