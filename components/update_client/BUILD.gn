@@ -123,7 +123,6 @@ static_library("test_support") {
 
   if (cobalt_pending_clean_up) {
     sources -= [
-      "net/network_impl_cobalt.cc",
       "net/url_request_post_interceptor.cc",
     ]
   }
