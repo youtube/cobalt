@@ -17,16 +17,31 @@
 import os
 
 
-def main():
+def is_first_on_pythonpath(file_path):
+  """
+  Checks if the passed file path is in the first entry on PYTHONPATH.
+
+  Args:
+    file_path: The path to the file that should be checked.
+
+  Returns:
+    True if the file is in the first entry on PYTHONPATH, False otherwise.
+  """
   try:
-    # Try to import this file and compare its path to the current file.
-    import starboard.build.is_on_path  # pylint: disable=import-outside-toplevel
-    this_file = os.path.realpath(__file__)
-    imported_file = os.path.realpath(starboard.build.is_on_path.__file__)
-    print(str(this_file == imported_file).lower())
+    src_root_dir = os.path.join(
+        os.path.dirname(file_path), os.pardir, os.pardir)
+    pythonpath = os.environ['PYTHONPATH']
+    if not pythonpath:
+      return False
+
+    first_path = pythonpath.split(os.pathsep)[0]
+    return os.path.abspath(first_path) == os.path.abspath(src_root_dir)
   except ImportError:
-    print('false')
+    return False
 
 
 if __name__ == '__main__':
-  main()
+  try:
+    print(str(is_first_on_pythonpath(__file__)).lower())
+  except KeyError:
+    print('false')
