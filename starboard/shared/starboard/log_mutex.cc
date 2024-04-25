@@ -14,8 +14,8 @@
 
 #include "starboard/shared/starboard/log_mutex.h"
 
+#include "starboard/common/once.h"
 #include "starboard/configuration.h"
-#include "starboard/once.h"
 
 namespace starboard {
 namespace shared {

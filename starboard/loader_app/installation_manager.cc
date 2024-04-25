@@ -32,7 +32,7 @@
 #if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/string.h"
 
 namespace starboard {

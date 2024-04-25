@@ -14,6 +14,7 @@
 
 #include <ifaddrs.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <sched.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -27,7 +28,6 @@
 #include "starboard/common/socket.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/once.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,7 +37,7 @@ namespace nplb {
 namespace {
 
 int port_number_for_tests = 0;
-SbOnceControl valid_port_once_control = SB_ONCE_INITIALIZER;
+pthread_once_t valid_port_once_control = PTHREAD_ONCE_INIT;
 
 void InitializePortNumberForTests() {
   // Create a listening socket. Let the system choose a port for us.
@@ -64,7 +64,7 @@ int GetPortNumberForTests() {
   }
   return SB_SOCKET_OVERRIDE_PORT_FOR_TESTS + ++incremental;
 #else
-  SbOnce(&valid_port_once_control, &InitializePortNumberForTests);
+  pthread_once(&valid_port_once_control, &InitializePortNumberForTests);
   return port_number_for_tests;
 #endif
 }

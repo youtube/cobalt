@@ -15,15 +15,12 @@ int ZLIB_INTERNAL arm_cpu_enable_neon = 0;
 #endif
 int ZLIB_INTERNAL arm_cpu_enable_pmull = 0;
 
-#if !defined(STARBOARD)
-#if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA)
+#if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA) || defined(STARBOARD)
 #include <pthread.h>
-#endif
 #endif
 
 #if defined(STARBOARD)
 #include "starboard/log.h"
-#include "starboard/once.h"
 #include "starboard/string.h"
 #include "starboard/cpu_features.h"
 #elif defined(ARMV8_OS_ANDROID)
@@ -45,13 +42,7 @@ int ZLIB_INTERNAL arm_cpu_enable_pmull = 0;
 
 static void _arm_check_features(void);
 
-#if defined(STARBOARD)
-SbOnceControl cpu_check_inited_once = SB_ONCE_INITIALIZER;
-void ZLIB_INTERNAL arm_check_features(void)
-{
-    SbOnce(&cpu_check_inited_once, _arm_check_features);
-}
-#elif defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA)
+#if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA) || defined(STARBOARD)
 static pthread_once_t cpu_check_inited_once = PTHREAD_ONCE_INIT;
 void ZLIB_INTERNAL arm_check_features(void)
 {

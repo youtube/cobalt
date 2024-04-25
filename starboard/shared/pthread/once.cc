@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/once.h"
 
 #include <pthread.h>
@@ -41,3 +43,5 @@ bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
   return pthread_once(SB_PTHREAD_INTERNAL_ONCE(once_control), init_routine) ==
          0;
 }
+
+#endif  // SB_API_VERSION < 16

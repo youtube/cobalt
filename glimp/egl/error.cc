@@ -16,14 +16,15 @@
 
 #include "glimp/egl/error.h"
 
-#include "starboard/once.h"
+#include <pthread.h>
+
 #include "starboard/thread.h"
 
 namespace glimp {
 namespace egl {
 
 namespace {
-SbOnceControl s_error_once_control = SB_ONCE_INITIALIZER;
+pthread_once_t s_error_once_control = PTHREAD_ONCE_INIT;
 SbThreadLocalKey s_error_tls_key = kSbThreadLocalKeyInvalid;
 
 void InitializeError() {
@@ -32,7 +33,7 @@ void InitializeError() {
 }  // namespace
 
 EGLint GetError() {
-  SbOnce(&s_error_once_control, &InitializeError);
+  pthread_once(&s_error_once_control, &InitializeError);
   void* local_value = SbThreadGetLocalValue(s_error_tls_key);
   if (local_value == NULL) {
     // The EGL error has never been set.  In this case, return EGL_SUCCESS as
@@ -45,7 +46,7 @@ EGLint GetError() {
 }
 
 void SetError(EGLint error) {
-  SbOnce(&s_error_once_control, &InitializeError);
+  pthread_once(&s_error_once_control, &InitializeError);
   SbThreadSetLocalValue(s_error_tls_key, reinterpret_cast<void*>(error));
 }
 

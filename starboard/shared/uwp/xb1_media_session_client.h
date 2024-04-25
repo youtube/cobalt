@@ -18,8 +18,8 @@
 #include <agile.h>
 #include <wrl.h>
 
+#include "starboard/common/once.h"
 #include "starboard/extension/media_session.h"
-#include "starboard/once.h"
 
 namespace starboard {
 namespace shared {

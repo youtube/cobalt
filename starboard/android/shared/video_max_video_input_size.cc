@@ -14,15 +14,16 @@
 
 #include "starboard/android/shared/video_max_video_input_size.h"
 
+#include <pthread.h>
+
 #include "starboard/common/log.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
-SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalKey() {
@@ -31,7 +32,7 @@ void InitThreadLocalKey() {
 }
 
 void EnsureThreadLocalKeyInited() {
-  SbOnce(&s_once_flag, InitThreadLocalKey);
+  pthread_once(&s_once_flag, InitThreadLocalKey);
   SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 

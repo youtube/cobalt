@@ -17,7 +17,7 @@
 #include <Windows.h>
 #include <string>
 
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
 namespace {

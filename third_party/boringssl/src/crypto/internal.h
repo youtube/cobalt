@@ -119,8 +119,9 @@
 #include <string.h>
 
 #ifdef STARBOARD
+#include <pthread.h>
+
 #include "starboard/atomic.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 #endif
 
@@ -529,8 +530,8 @@ static inline int constant_time_declassify_int(int v) {
 // Thread-safe initialisation.
 
 #if defined(STARBOARD)
-typedef SbOnceControl CRYPTO_once_t;
-#define CRYPTO_ONCE_INIT SB_ONCE_INITIALIZER
+typedef pthread_once_t CRYPTO_once_t;
+#define CRYPTO_ONCE_INIT PTHREAD_ONCE_INIT
 #elif !defined(OPENSSL_THREADS)
 typedef uint32_t CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT 0
@@ -552,7 +553,7 @@ typedef pthread_once_t CRYPTO_once_t;
 // The |once| argument must be a |CRYPTO_once_t| that has been initialised with
 // the value |CRYPTO_ONCE_INIT|.
 #if defined(STARBOARD)
-#define CRYPTO_once SbOnce
+#define CRYPTO_once pthread_once 
 #else
 OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
 #endif

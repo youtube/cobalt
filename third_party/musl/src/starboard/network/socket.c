@@ -24,8 +24,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "starboard/common/log.h"
 #include "starboard/file.h"
 #include "starboard/socket.h"
+#include "starboard/system.h"
 #include "starboard/file.h"
 #include "starboard/time.h"
 #include "../pthread/pthread.h"
@@ -165,6 +167,7 @@ int TranslateSocketErrnoSbToPosix(SbSocketError sbError) {
 
 int ConvertSocketAddressPosixToSb(const struct sockaddr* address, SbSocketAddress* sbAddress){
   if (address == NULL){
+    errno = EINVAL;
     return -1;
   }
   struct sockaddr_in* addr_in = (struct sockaddr_in*)address;
@@ -187,6 +190,7 @@ int ConvertSocketAddressPosixToSb(const struct sockaddr* address, SbSocketAddres
 
 int ConvertSocketAddressSbToPosix(const SbSocketAddress* sbAddress, struct sockaddr* address){
   if (sbAddress == NULL){
+    errno = EINVAL;
     return -1;
   }
   struct sockaddr_in* addr_in = (struct sockaddr_in*)address;
@@ -230,12 +234,14 @@ int open(const char* path, int oflag, ...) {
 
   value->file = SbFileOpen(path, open_flags, &out_created, &out_error);
   if (!SbFileIsValid(value->file)){
+    errno = SbSystemGetLastError();
     free(value);
     return -1;
   }
 
   int result = put(value);
   if (result <= 0){
+    errno = EBADF;
     SbFileClose(value->file);
     free(value);
   }
@@ -252,6 +258,7 @@ int socket(int domain, int type, int protocol){
         address_type = kSbSocketAddressTypeIpv6;
         break;
     default:
+        errno = EAFNOSUPPORT;
         return -1;
   }
   switch (protocol){
@@ -262,6 +269,7 @@ int socket(int domain, int type, int protocol){
         socket_protocol = kSbSocketProtocolUdp;
         break;
     default:
+        errno = EAFNOSUPPORT;
         return -1;
   }
 
@@ -270,6 +278,7 @@ int socket(int domain, int type, int protocol){
   value->is_file = false;
   value->socket = SbSocketCreate(address_type, socket_protocol);
   if (!SbSocketIsValid(value->socket)){
+    errno = SbSystemGetLastError();
     free(value);
     return -1;
   }
@@ -284,10 +293,12 @@ int socket(int domain, int type, int protocol){
 
 int close(int fd){
   if (fd <= 0) {
+    errno = EBADF;
     return -1;
   }
   FileOrSocket* valueptr = NULL;
   if (get(fd, true, &valueptr) != 0) {
+    errno = EBADF;
     return -1;
   }
   if (valueptr != NULL) {
@@ -298,19 +309,22 @@ int close(int fd){
       result = SbFileClose(valueptr->file);
     }
     if (!result){
+      errno = EBADF;
       return -1;
     }
     return 0;
   }
+  errno = EBADF;
   return -1;
 }
 
 int bind(int socket, const struct sockaddr* address, socklen_t address_len) {
-  if (address == NULL || socket <= 0){
+  if (address == NULL){
+    errno = EINVAL;
     return -1;
   }
   FileOrSocket *fileOrSock = NULL;
-  if (get(socket, false, &fileOrSock) != 0){
+  if (socket <= 0 || get(socket, false, &fileOrSock) != 0){
     errno = EBADF;
     return -1;
   }
@@ -333,6 +347,7 @@ int bind(int socket, const struct sockaddr* address, socklen_t address_len) {
 
 int listen(int socket, int backlog) {
   if (socket <= 0){
+    errno = EBADF;
     return -1;
   }
   FileOrSocket *fileOrSock = NULL;
@@ -356,6 +371,7 @@ int listen(int socket, int backlog) {
 
 int accept(int socket, struct sockaddr* addr, socklen_t* addrlen) {
   if (socket <= 0){
+    errno = EBADF;
     return -1;
   }
   FileOrSocket *fileOrSock = NULL;
@@ -373,6 +389,7 @@ int accept(int socket, struct sockaddr* addr, socklen_t* addrlen) {
   value->is_file = false;
   value->socket = SbSocketAccept(fileOrSock->socket);
   if (!SbSocketIsValid(value->socket)){
+    errno = SbSystemGetLastError();
     free(value);
     return -1;
   }
@@ -382,6 +399,7 @@ int accept(int socket, struct sockaddr* addr, socklen_t* addrlen) {
 
 int connect(int socket, const struct sockaddr* name, socklen_t namelen) {
   if (socket <= 0 || name == NULL){
+    errno = EBADF;
     return -1;
   }
   FileOrSocket *fileOrSock = NULL;
@@ -408,6 +426,7 @@ int connect(int socket, const struct sockaddr* name, socklen_t namelen) {
 
 ssize_t send(int sockfd, const void* buf, size_t len, int flags) {
   if (sockfd <= 0){
+    errno = EBADF;
     return -1;
   }
   FileOrSocket *fileOrSock = NULL;
@@ -420,13 +439,19 @@ ssize_t send(int sockfd, const void* buf, size_t len, int flags) {
     return -1;
   }
 
-  return SbSocketSendTo(fileOrSock->socket, buf, len, NULL);
+  int result = SbSocketSendTo(fileOrSock->socket, buf, len, NULL);
+  if(result == -1) {
+    errno = SbSystemGetLastError();
+  }
+
+  return result;
 }
 
 ssize_t sendto(int sockfd, const void* buf, size_t len, int flags,
               const struct sockaddr* dest_addr,
               socklen_t dest_len) {
   if (sockfd <= 0){
+    errno = EBADF;
     return -1;
   }
   FileOrSocket *fileOrSock = NULL;
@@ -442,11 +467,17 @@ ssize_t sendto(int sockfd, const void* buf, size_t len, int flags,
   SbSocketAddress local_address = {0};
   ConvertSocketAddressPosixToSb(dest_addr, &local_address);
 
-  return SbSocketSendTo(fileOrSock->socket, buf, len, dest_addr == NULL? NULL: &local_address);
+  int result = SbSocketSendTo(fileOrSock->socket, buf, len, dest_addr == NULL? NULL: &local_address);
+  if(result == -1) {
+    errno = SbSystemGetLastError();
+  }
+
+  return result;
 }
 
 ssize_t recv(int sockfd, void* buf, size_t len, int flags) {
   if (sockfd <= 0){
+    errno = EBADF;
     return -1;
   }
   FileOrSocket *fileOrSock = NULL;
@@ -459,7 +490,12 @@ ssize_t recv(int sockfd, void* buf, size_t len, int flags) {
     return -1;
   }
 
-  return SbSocketReceiveFrom(fileOrSock->socket, buf, len, NULL);
+  int result = SbSocketReceiveFrom(fileOrSock->socket, buf, len, NULL);
+  if(result == -1) {
+    errno = SbSystemGetLastError();
+  }
+
+  return result;
 }
 
 ssize_t recvfrom(int sockfd,
@@ -484,11 +520,17 @@ ssize_t recvfrom(int sockfd,
   SbSocketAddress local_address = {0};
   ConvertSocketAddressPosixToSb(address, &local_address);
 
-  return SbSocketReceiveFrom(fileOrSock->socket, buf, len, address == NULL? NULL: &local_address);
+  int result = SbSocketReceiveFrom(fileOrSock->socket, buf, len, address == NULL? NULL: &local_address);
+  if(result == -1) {
+    errno = SbSystemGetLastError();
+  }
+
+  return result;
 }
 
 int getsockname(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict addrlen){
   if (sockfd <= 0){
+    errno = EBADF;
     return -1;
   }
   FileOrSocket *fileOrSock = NULL;
@@ -508,6 +550,7 @@ int getsockname(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict 
 int setsockopt (int sockfd, int level, int optname, const void* optval,
                       socklen_t optlen){
   if (sockfd <= 0){
+    errno = EBADF;
     return -1;
   }
   FileOrSocket *fileOrSock = NULL;

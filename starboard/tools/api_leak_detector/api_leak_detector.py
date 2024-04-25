@@ -87,6 +87,7 @@ _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 
 # Allowed POSIX symbols in Starboard 16
 _ALLOWED_SB16_POSIX_SYMBOLS = [
+    '__errno_location',
     'accept',
     'bind',
     'calloc',
@@ -146,6 +147,8 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'pthread_key_create',
     'pthread_key_delete',
     'pthread_setspecific',
+    'pthread_setname_np',
+    'pthread_getname_np',
     'usleep',
 ]
 

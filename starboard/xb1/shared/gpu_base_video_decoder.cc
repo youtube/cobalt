@@ -18,7 +18,7 @@
 #include <wrl/client.h>
 #include <algorithm>
 
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/decoder_utils.h"

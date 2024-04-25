@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated `SbOnce`
+Replaced the `SbOnce` with the POSIX `pthread_once`.
+
 ### Deprecated `SbThreadSleep`
 Replaced the `SbThreadSleep` with the POSIX usleep() defined in the
 `<unistd.h>` header.

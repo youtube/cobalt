@@ -19,7 +19,7 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/shared/win32/wasapi_include.h"
 
@@ -221,8 +221,8 @@ HRESULT WASAPIAudioDevice::ActivateCompleted(
             supports_eac3_passthrough_ = hr == S_OK;
           }
         }  // audio_client_->GetMixFormat
-      }    // audio_client_->SetClientProperties
-    }      // audio_interface->QueryInterface
+      }  // audio_client_->SetClientProperties
+    }  // audio_interface->QueryInterface
   }
 
   audio_client_ = nullptr;

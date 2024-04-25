@@ -185,6 +185,17 @@ int __abi_wrap_pthread_setspecific(pthread_key_t key, const void* value);
 int pthread_setspecific(pthread_key_t key, const void* value) {
   return __abi_wrap_pthread_setspecific(key, value);
 }
+
+int __abi_wrap_pthread_setname_np(pthread_t thread, const char* name);
+
+int pthread_setname_np(pthread_t thread, const char* name) {
+  return __abi_wrap_pthread_setname_np(thread, name);
 }
 
+int __abi_wrap_pthread_getname_np(pthread_t thread, char* name, size_t len);
+
+int pthread_getname_np(pthread_t thread, char* name, size_t len) {
+  return __abi_wrap_pthread_getname_np(thread, name, len);
+}
+}
 #endif  // SB_API_VERSION >= 16

@@ -195,4 +195,24 @@ int pthread_setspecific(pthread_key_t key, const void* value) {
   return SbThreadSetLocalValue((SbThreadLocalKey)key, value)? 0: -1;
 }
 
+int pthread_setname_np(pthread_t thread, const char* name) {
+  // Starboard 14/15 can only set thread name for the current thread
+  if (SbThreadGetCurrent() != thread) {
+    SB_DCHECK(false);
+    return -1;
+  }
+  SbThreadSetName(name);
+  return 0;
+}
+
+int pthread_getname_np(pthread_t thread, char* name, size_t len) {
+  // Starboard 14/15 can only get the thread name for the current thread
+  if (SbThreadGetCurrent() != thread) {
+    SB_DCHECK(false);
+    return -1;
+  }
+  SbThreadGetName(name, len); 
+  return 0;
+}
+
 #endif  // SB_API_VERSION < 16

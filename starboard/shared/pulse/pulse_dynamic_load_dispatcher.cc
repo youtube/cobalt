@@ -17,7 +17,7 @@
 #include <dlfcn.h>
 
 #include "starboard/common/log.h"
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 
 namespace starboard {
 namespace shared {

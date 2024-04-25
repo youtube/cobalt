@@ -33,8 +33,9 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
 #if defined(STARBOARD)
+#include <pthread.h>
+
 #include "base/check_op.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 #endif
 
@@ -52,7 +53,7 @@ enum class LoggingLevel { kNone = 0, kUmaOnly = 1, kUmaAndCrash = 2 };
 HangWatcher* g_instance = nullptr;
 
 #if defined(STARBOARD)
-ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalKey() {
@@ -61,7 +62,7 @@ void InitThreadLocalKey() {
 }
 
 void EnsureThreadLocalKeyInited() {
-  SbOnce(&s_once_flag, InitThreadLocalKey);
+  pthread_once(&s_once_flag, InitThreadLocalKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 

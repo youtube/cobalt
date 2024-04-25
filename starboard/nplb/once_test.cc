@@ -14,6 +14,8 @@
 
 // Broadcast is Sunny Day tested in most of the other SbConditionVariable tests.
 
+#if SB_API_VERSION < 16
+
 #include <sched.h>
 
 #include "starboard/configuration_constants.h"
@@ -163,3 +165,5 @@ TEST(SbOnceTest, InitializeOnceMacroFunction) {
 }  // namespace.
 }  // namespace nplb.
 }  // namespace starboard.
+
+#endif  // SB_API_VERSION < 16

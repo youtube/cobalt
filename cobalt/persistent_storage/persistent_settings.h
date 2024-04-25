@@ -54,7 +54,7 @@ class PersistentSettings : public base::CurrentThread::DestructionObserver {
   void WillDestroyCurrentMessageLoop() override;
 
   // Validates persistent settings by restoring the file on successful start up.
-  void ValidatePersistentSettings();
+  void ValidatePersistentSettings(bool blocking = false);
 
   // Getters and Setters for persistent settings.
   bool GetPersistentSettingAsBool(const std::string& key, bool default_setting);
@@ -90,7 +90,7 @@ class PersistentSettings : public base::CurrentThread::DestructionObserver {
   // the dedicated thread_ as a JSONPrefStore.
   void InitializePrefStore();
 
-  void ValidatePersistentSettingsHelper();
+  void ValidatePersistentSettingsHelper(bool blocking);
 
   void SetPersistentSettingHelper(const std::string& key,
                                   std::unique_ptr<base::Value> value,

@@ -16,13 +16,13 @@
 // the libraries.
 
 #include <dlfcn.h>
+#include <pthread.h>
 
 #include <map>
 
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
-#include "starboard/once.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
@@ -36,7 +36,7 @@ const char kAVCodecLibraryName[] = "libavcodec.so";
 const char kAVFormatLibraryName[] = "libavformat.so";
 const char kAVUtilLibraryName[] = "libavutil.so";
 
-SbOnceControl g_dynamic_load_once = SB_ONCE_INITIALIZER;
+pthread_once_t g_dynamic_load_once = PTHREAD_ONCE_INIT;
 
 struct LibraryMajorVersions {
   int avcodec;
@@ -110,7 +110,7 @@ FFMPEGDispatchImpl::~FFMPEGDispatchImpl() {
 // static
 FFMPEGDispatchImpl* FFMPEGDispatchImpl::GetInstance() {
   bool initialized =
-      SbOnce(&g_dynamic_load_once, construct_ffmpeg_dispatch_impl);
+      pthread_once(&g_dynamic_load_once, construct_ffmpeg_dispatch_impl) == 0;
   SB_DCHECK(initialized);
   return g_ffmpeg_dispatch_impl;
 }
