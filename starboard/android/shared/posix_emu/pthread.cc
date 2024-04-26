@@ -19,6 +19,8 @@
 #include <sys/prctl.h>
 #include <unistd.h>
 
+extern "C" {
+
 #if __ANDROID_API__ < 26
 // The API doesn exist before API Level 26 and we currently target 24
 // If this is the current thread we can obtain the name using `prctl`.
@@ -29,5 +31,6 @@ int pthread_getname_np(pthread_t thread, char* name, size_t len) {
     return 0;
   }
   return -1;
+}
 }
 #endif  // __ANDROID_API__ < 26
