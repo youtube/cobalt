@@ -65,6 +65,11 @@ _FILTERED_TESTS = {
         'PosixDirectoryOpenTest.SunnyDayStaticContent',
         'PosixFileGetPathInfoTest.WorksOnStaticContentDirectories',
 
+        # These POSIX tests should be disabled until asset manager starboard
+        # extension is implemented.
+        'PosixFileReadTest.ReadStaticContent',
+        'PosixFileSeekTest.FromEndInStaticContentWorks',
+
         # These tests are disabled due to not receiving the kEndOfStream
         # player state update within the specified timeout.
         'SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.NoInput/*',
