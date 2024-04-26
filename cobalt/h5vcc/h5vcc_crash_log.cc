@@ -226,6 +226,17 @@ void H5vccCrashLog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
   if (watchdog) watchdog->SetPersistentSettingWatchdogCrash(can_trigger_crash);
 }
 
+bool H5vccCrashLog::GetPersistentSettingLogtraceEnable() {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) return watchdog->GetPersistentSettingLogtraceEnable();
+  return false;
+}
+
+void H5vccCrashLog::SetPersistentSettingLogtraceEnable(bool enable_logtrace) {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) watchdog->SetPersistentSettingLogtraceEnable(enable_logtrace);
+}
+
 bool H5vccCrashLog::LogEvent(const std::string& event) {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (!watchdog) {
