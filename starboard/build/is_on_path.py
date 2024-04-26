@@ -16,10 +16,13 @@
 
 import os
 
+SRC_ROOT = src_root_dir = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 
-def is_first_on_pythonpath(file_path):
+
+def is_on_same_path(file_path):
   """
-  Checks if the passed file path is in the first entry on PYTHONPATH.
+  Checks if the passed file path is in the same repo as this file.
 
   Args:
     file_path: The path to the file that should be checked.
@@ -28,20 +31,16 @@ def is_first_on_pythonpath(file_path):
     True if the file is in the first entry on PYTHONPATH, False otherwise.
   """
   try:
-    src_root_dir = os.path.join(
-        os.path.dirname(file_path), os.pardir, os.pardir)
-    pythonpath = os.environ['PYTHONPATH']
-    if not pythonpath:
-      return False
-
-    first_path = pythonpath.split(os.pathsep)[0]
-    return os.path.abspath(first_path) == os.path.abspath(src_root_dir)
+    return os.path.abspath(file_path).startswith(SRC_ROOT)
   except ImportError:
     return False
 
 
 if __name__ == '__main__':
   try:
-    print(str(is_first_on_pythonpath(__file__)).lower())
-  except KeyError:
+    import starboard.build.is_on_path  # pylint: disable=import-outside-toplevel
+    # Use imported function instead of calling directly to ensure imports are
+    # being made from the same repo as this file is in.
+    print(str(starboard.build.is_on_path.is_on_same_path(__file__)).lower())
+  except ImportError:
     print('false')
