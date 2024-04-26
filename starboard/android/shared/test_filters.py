@@ -67,7 +67,8 @@ _FILTERED_TESTS = {
 
         # These POSIX tests should be disabled until asset manager starboard
         # extension is implemented.
-        'PosixFileReadTest.ReadStaticContent',
+        'PosixFileGetInfoTest.WorksOnStaticContentFiles',
+        'PosixFileReadTest/*.ReadStaticContent',
         'PosixFileSeekTest.FromEndInStaticContentWorks',
 
         # These tests are disabled due to not receiving the kEndOfStream

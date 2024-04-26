@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION >= 16
+
 #include "starboard/shared/modular/starboard_layer_posix_file_abi_wrappers.h"
 
 #include <sys/types.h>
@@ -24,3 +26,5 @@ musl_off_t __abi_wrap_lseek(int fildes, musl_off_t offset, int whence) {
 ssize_t __abi_wrap_read(int fildes, void* buf, size_t nbyte) {
   return read(fildes, buf, nbyte);
 }
+
+#endif  // SB_API_VERSION >= 16

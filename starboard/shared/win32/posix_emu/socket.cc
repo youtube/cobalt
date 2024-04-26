@@ -17,7 +17,6 @@
 #include <fcntl.h>
 #include <io.h>  // Needed for file-specific `_close`.
 #include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
@@ -290,20 +289,20 @@ int close(int fd) {
   return _close(handle.file);
 }
 
-int sb_lseek(int fd, off_t offset, int origin) {
+off_t sb_lseek(int fd, off_t offset, int origin) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
     return -1;
   }
-  return lseek(handle.file, offset, origin);
+  return _lseek(handle.file, offset, origin);
 }
 
-SSIZE_T sb_read(int fd, void* buf, size_t nbyte) {
+ssize_t sb_read(int fd, void* buf, size_t nbyte) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
     return -1;
   }
-  return read(handle.file, buf, nbyte);
+  return _read(handle.file, buf, nbyte);
 }
 
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
@@ -471,7 +470,7 @@ int sb_fstat(int fd, struct stat* buffer) {
   if (!handle.is_file) {
     return -1;
   }
-  return fstat(handle.file, buffer);
+  return _fstat(handle.file, (struct _stat*)buffer);
 }
 
 }  // extern "C"

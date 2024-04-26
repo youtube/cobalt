@@ -14,13 +14,9 @@
 
 #include "starboard/common/file.h"
 
-#ifdef _WIN32
-#include <sys/socket.h>
-#else
-#include <unistd.h>
-#endif
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include <cstring>
 #include <string>

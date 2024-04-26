@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -97,5 +95,3 @@ TEST(PosixFileGetInfoTest, WorksOnStaticContentFiles) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 16

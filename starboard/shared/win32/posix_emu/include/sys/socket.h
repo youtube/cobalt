@@ -15,7 +15,6 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
 
-#include <BaseTsd.h>
 #include <sys/types.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -69,15 +68,6 @@ int sb_setsockopt(int socket,
                   const void* option_value,
                   int option_len);
 #define setsockopt sb_setsockopt
-
-int sb_fstat(int fd, struct stat* buffer);
-#define fstat sb_fstat
-
-int sb_lseek(int fd, off_t offset, int origin);
-#define lseek sb_lseek
-
-SSIZE_T sb_read(int fildes, void* buf, size_t nbyte);
-#define read sb_read
 
 #ifdef __cplusplus
 }
