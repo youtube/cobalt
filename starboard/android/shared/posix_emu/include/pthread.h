@@ -17,8 +17,16 @@
 
 #include_next <pthread.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if __ANDROID_API__ < 26
 int pthread_getname_np(pthread_t thread, char* name, size_t len);
 #endif  // __ANDROID_API__ < 26
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // STARBOARD_ANDROID_SHARED_POSIX_EMU_INCLUDE_PTHREAD_H_
