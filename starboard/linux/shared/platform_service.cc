@@ -22,6 +22,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/linux/shared/soft_mic_platform_service.h"
+#include "starboard/linux/shared/pre_app_recommendation_service.h"
 #include "starboard/shared/starboard/application.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
@@ -40,7 +41,8 @@ struct cmp_str {
 };
 
 std::map<const char*, const void* (*)(), cmp_str> platform_service_registry = {
-    {kSoftMicPlatformServiceName, GetSoftMicPlatformServiceApi}};
+    {kSoftMicPlatformServiceName, GetSoftMicPlatformServiceApi},
+    {kPreappRecommendationServiceName, GetPreappRecommendationServiceApi}};
 
 bool Has(const char* name) {
   // Checks whether Cobalt platform service registry has service name
