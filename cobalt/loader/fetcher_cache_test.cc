@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/task_runner.h"
 #include "base/test/task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
@@ -150,15 +151,15 @@ TEST_F(FetcherCacheTest, SunnyDay) {
   scoped_refptr<net::HttpResponseHeaders> headers =
       base::MakeRefCounted<net::HttpResponseHeaders>("HTTP/1.1 200 OK\n");
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireResponseStarted,
                      base::Unretained(stub_fetcher_factory.fetcher), headers));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&StubFetcher::FireReceived,
                                 base::Unretained(stub_fetcher_factory.fetcher),
                                 data_.c_str(), data_.size()));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireDone,
                      base::Unretained(stub_fetcher_factory.fetcher)));
@@ -187,7 +188,7 @@ TEST_F(FetcherCacheTest, DuplicateFetcherCache) {
     stub_fetcher_factorys.push_back(stub_fetcher_factory);
     fetcher_creators.push_back(fetcher_creator);
     fetchers.push_back(std::move(fetcher));
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&StubFetcher::FireFetcherProcess,
                        base::Unretained(stub_fetcher_factorys[i].fetcher),
@@ -219,7 +220,7 @@ TEST_F(FetcherCacheTest, MultipleFetcherCache) {
     stub_fetcher_factorys.push_back(stub_fetcher_factory);
     fetcher_creators.push_back(fetcher_creator);
     fetchers.push_back(std::move(fetcher));
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&StubFetcher::FireFetcherProcess,
                        base::Unretained(stub_fetcher_factorys[i].fetcher),
@@ -255,7 +256,7 @@ TEST_F(FetcherCacheTest, MaxFetcherCache) {
     stub_fetcher_factorys.push_back(stub_fetcher_factory);
     fetcher_creators.push_back(fetcher_creator);
     fetchers.push_back(std::move(fetcher));
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&StubFetcher::FireFetcherProcess,
                        base::Unretained(stub_fetcher_factorys[i].fetcher),
@@ -284,30 +285,30 @@ TEST_F(FetcherCacheTest, DisorderedSameFetcherCache) {
   std::unique_ptr<Fetcher> fetcher2 = fetcher_creator2.Run(&handler);
 
   // Task 1: start and receive
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireResponseStarted,
                      base::Unretained(stub_fetcher_factory1.fetcher), headers));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&StubFetcher::FireReceived,
                                 base::Unretained(stub_fetcher_factory1.fetcher),
                                 data_.c_str(), data_.size()));
   // Task 2: start and receive
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireResponseStarted,
                      base::Unretained(stub_fetcher_factory2.fetcher), headers));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&StubFetcher::FireReceived,
                                 base::Unretained(stub_fetcher_factory2.fetcher),
                                 data_.c_str(), data_.size()));
   // Task 1: done
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireDone,
                      base::Unretained(stub_fetcher_factory1.fetcher)));
   // Task 2: done
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireDone,
                      base::Unretained(stub_fetcher_factory2.fetcher)));
@@ -334,30 +335,30 @@ TEST_F(FetcherCacheTest, DisorderedDiffFetcherCache) {
   std::unique_ptr<Fetcher> fetcher2 = fetcher_creator2.Run(&handler);
 
   // Task 1: start and receive
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireResponseStarted,
                      base::Unretained(stub_fetcher_factory1.fetcher), headers));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&StubFetcher::FireReceived,
                                 base::Unretained(stub_fetcher_factory1.fetcher),
                                 data_.c_str(), data_.size()));
   // Task 2: start and receive
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireResponseStarted,
                      base::Unretained(stub_fetcher_factory2.fetcher), headers));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&StubFetcher::FireReceived,
                                 base::Unretained(stub_fetcher_factory2.fetcher),
                                 data_.c_str(), data_.size()));
   // Task 1: done
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireDone,
                      base::Unretained(stub_fetcher_factory1.fetcher)));
   // Task 2: done
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireDone,
                      base::Unretained(stub_fetcher_factory2.fetcher)));
@@ -384,29 +385,29 @@ TEST_F(FetcherCacheTest, DisorderedSlowFetcherCache) {
   std::unique_ptr<Fetcher> fetcher2 = fetcher_creator2.Run(&handler);
 
   // Task 1: start and receive
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireResponseStarted,
                      base::Unretained(stub_fetcher_factory1.fetcher), headers));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&StubFetcher::FireReceived,
                                 base::Unretained(stub_fetcher_factory1.fetcher),
                                 data_.c_str(), data_.size()));
   // Task 2: start, receive, and done
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireResponseStarted,
                      base::Unretained(stub_fetcher_factory2.fetcher), headers));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&StubFetcher::FireReceived,
                                 base::Unretained(stub_fetcher_factory2.fetcher),
                                 data_.c_str(), data_.size()));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireDone,
                      base::Unretained(stub_fetcher_factory2.fetcher)));
   // Task 1: done
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&StubFetcher::FireDone,
                      base::Unretained(stub_fetcher_factory1.fetcher)));

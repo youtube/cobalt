@@ -175,9 +175,7 @@ target(gtest_target_type, "loader_test") {
 
   sources = [
     "blob_fetcher_test.cc",
-
-    # TODO: b/335330660 - Re-enable FetcherCacheTests once crash is fixed for evergreen.
-    # "fetcher_cache_test.cc",
+    "fetcher_cache_test.cc",
     "fetcher_factory_test.cc",
     "fetcher_test.h",
     "file_fetcher_test.cc",
