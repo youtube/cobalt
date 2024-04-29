@@ -34,6 +34,7 @@ TCPSocketStarboard::TCPSocketStarboard(
     const NetLogSource& source)
     : socket_performance_watcher_(std::move(socket_performance_watcher)),
       socket_(kSbSocketInvalid),
+      socket_watcher_(FROM_HERE),
       family_(ADDRESS_FAMILY_UNSPECIFIED),
       logging_multiple_connect_attempts_(false),
       net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::SOCKET)),
