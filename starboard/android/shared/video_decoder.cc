@@ -87,7 +87,7 @@ bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
 
   bool is_low_resolution = mime_type.GetParamIntValue("width", 1920) <= 432 &&
                            mime_type.GetParamIntValue("height", 1080) <= 240;
-  bool is_low_fps = mime_type.GetParamIntValue("fps", 30) <= 15;
+  bool is_low_fps = mime_type.GetParamIntValue("framerate", 30) <= 15;
 
   if (is_low_resolution && is_low_fps) {
     // Workaround to be compatible with existing backend implementation.
