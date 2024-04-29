@@ -131,6 +131,40 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.HDR.Matrix" enum="MatrixID" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Matrix id used in HDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.HDR.Primaries" enum="PrimaryID"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Primary id used in HDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.HDR.Range" enum="RangeID" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Range id used in HDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.HDR.Transfer" enum="TransferID"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Transfer id used in HDR playbacks.</summary>
+</histogram>
+
 <histogram name="Cobalt.Media.HTMLMediaElement.CanPlayType.Timing"
     units="microseconds" expires_after="never">
 <!-- expires-never: Needed for long-term tracking of format query latency. -->
@@ -258,6 +292,40 @@ Always run the pretty print utility on this file after editing:
   <owner>sideboard@google.com</owner>
   <owner>cobalt-team@google.com</owner>
   <summary>Timing data for the destruction of SbPlayer.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SDR.Matrix" enum="MatrixID" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Matrix id used in SDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SDR.Primaries" enum="PrimaryID"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Primary id used in SDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SDR.Range" enum="RangeID" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Range id used in SDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SDR.Transfer" enum="TransferID"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Transfer id used in SDR playbacks.</summary>
 </histogram>
 
 <histogram name="Cobalt.Media.SourceBuffer.AppendBuffer.Timing"

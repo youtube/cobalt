@@ -245,6 +245,7 @@ class SbPlayerBridge {
       SbPlayerOutputMode default_output_mode) const;
 
   void LogStartupLatency() const;
+  void SendColorSpaceHistogram() const;
 
 // The following variables are initialized in the ctor and never changed.
 #if SB_HAS(PLAYER_WITH_URL)
