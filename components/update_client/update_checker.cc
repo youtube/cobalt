@@ -193,8 +193,22 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
 #endif
 
   auto urls(config_->UpdateUrl());
-  if (IsEncryptionRequired(components))
-    RemoveUnsecureUrls(&urls);
+  LOG(INFO) << "URLS BEFORE==============================================================";
+  for (auto url : urls) {
+    LOG(INFO) << url;
+  }
+  LOG(INFO) << "==============================================================";
+  // if (IsEncryptionRequired(components)) {
+  //   LOG(INFO) << "==============================================================";
+  //   LOG(INFO) << "Encryption is required";
+  //   RemoveUnsecureUrls(&urls);
+  // }
+
+  LOG(INFO) << "URLS AFTER==============================================================";
+  for (auto url : urls) {
+    LOG(INFO) << url;
+  }
+  LOG(INFO) << "==============================================================";
 
   // Components in this update check are either all foreground, or all
   // background since this member is inherited from the component's update
@@ -249,6 +263,8 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       // update_check_callback_, indicates a throttling by the update server.
       // Only non-negative values are valid. Negative values are not trusted
       // and are ignored.
+      LOG(INFO) << "==============================================================";
+      LOG(INFO) << "COBALT QUICK UPDATE";
       UpdateCheckFailed(ErrorCategory::kUpdateCheck,
                         static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD),
                         -1);
@@ -287,6 +303,8 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       updater_state_attributes_.get(), std::move(apps));
 
   request_sender_ = std::make_unique<RequestSender>(config_);
+  LOG(INFO) << "==============================================================";
+  LOG(INFO) << "SENDING REQUEST";
   request_sender_->Send(
       urls,
       BuildUpdateCheckExtraRequestHeaders(config_->GetProdId(),
