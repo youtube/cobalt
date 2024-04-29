@@ -47,9 +47,8 @@ TEST(PosixConditionVariableWaitTest, SunnyDayAutoInit) {
                                           PTHREAD_MUTEX_INITIALIZER,
                                           PTHREAD_COND_INITIALIZER};
   // Start the thread.
-  SbThread thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
-                     posix::TakeThenSignalEntryPoint, &context);
+  pthread_t thread = 0;
+  pthread_create(&thread, NULL, posix::TakeThenSignalEntryPoint, &context);
 
   EXPECT_EQ(pthread_mutex_lock(&context.mutex), 0);
 
@@ -65,7 +64,7 @@ TEST(PosixConditionVariableWaitTest, SunnyDayAutoInit) {
   EXPECT_EQ(pthread_mutex_unlock(&context.mutex), 0);
 
   // Now we wait for the thread to exit.
-  EXPECT_TRUE(SbThreadJoin(thread, NULL));
+  EXPECT_TRUE(pthread_join(thread, NULL) == 0);
   EXPECT_EQ(pthread_cond_destroy(&context.condition), 0);
   EXPECT_EQ(pthread_mutex_destroy(&context.mutex), 0);
 }
@@ -74,10 +73,9 @@ TEST(PosixConditionVariableWaitTest, SunnyDay) {
   const int kMany = kSbMaxThreads > 64 ? 64 : kSbMaxThreads;
   posix::WaiterContext context;
 
-  std::vector<SbThread> threads(kMany);
+  std::vector<pthread_t> threads(kMany);
   for (int i = 0; i < kMany; ++i) {
-    threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                true, NULL, posix::WaiterEntryPoint, &context);
+    pthread_create(&threads[i], NULL, posix::WaiterEntryPoint, &context);
   }
 
   for (int i = 0; i < kMany; ++i) {
@@ -89,7 +87,8 @@ TEST(PosixConditionVariableWaitTest, SunnyDay) {
 
   // Now we wait for the threads to exit.
   for (int i = 0; i < kMany; ++i) {
-    EXPECT_TRUE(SbThreadJoin(threads[i], NULL)) << "thread = " << threads[i];
+    EXPECT_TRUE(pthread_join(threads[i], NULL) == 0)
+        << "thread = " << threads[i];
   }
 }
 
