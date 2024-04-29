@@ -59,8 +59,11 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
   // Object returned by WatchSocket to manage further watching.
   class SocketWatcher {
    public:
-    SocketWatcher();
+    SocketWatcher(const Location& from_here);
     ~SocketWatcher();  // Implicitly calls StopWatchingSocket.
+
+    SocketWatcher(const SocketWatcher&) = delete;
+    SocketWatcher& operator=(const SocketWatcher&) = delete;
 
     // NOTE: These methods aren't called StartWatching()/StopWatching() to avoid
     // confusion with the win32 ObjectWatcher class.
@@ -90,14 +93,13 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     void OnSocketReadyToRead(SbSocket socket, MessagePumpIOStarboard* pump);
     void OnSocketReadyToWrite(SbSocket socket, MessagePumpIOStarboard* pump);
 
+    const Location created_from_location_;
     int interests_;
     SbSocket socket_;
     bool persistent_;
     MessagePumpIOStarboard* pump_;
     Watcher* watcher_;
     base::WeakPtrFactory<SocketWatcher> weak_factory_;
-
-    // DISALLOW_COPY_AND_ASSIGN(SocketWatcher);
   };
 
   enum Mode {
@@ -107,6 +109,10 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
   };
 
   MessagePumpIOStarboard();
+  virtual ~MessagePumpIOStarboard();
+
+  MessagePumpIOStarboard(const MessagePumpIOStarboard&) = delete;
+  MessagePumpIOStarboard& operator=(const MessagePumpIOStarboard&) = delete;
 
   // Have the current thread's message loop watch for a a situation in which
   // reading/writing to the socket can be performed without blocking.  Callers
@@ -135,9 +141,6 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
   virtual void ScheduleWork() override;
   virtual void ScheduleDelayedWork(const Delegate::NextWorkInfo& next_work_info) override;
 
-//  protected:
-  virtual ~MessagePumpIOStarboard();
-
  private:
   friend class MessagePumpIOStarboardTest;
 
@@ -151,17 +154,13 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
                                          void* context,
                                          int ready_interests);
 
+  bool should_quit() const { return !keep_running_; }
+
   // This flag is set to false when Run should return.
   bool keep_running_;
 
-  // This flag is set when inside Run.
-  bool in_run_;
-
   // This flag is set if the Socket Waiter has processed I/O events.
   bool processed_io_events_;
-
-  // The time at which we should call DoDelayedWork.
-  TimeTicks delayed_work_time_;
 
   // Starboard socket waiter dispatcher.  Waits for all sockets registered with
   // it, and sends readiness callbacks when a socket is ready for I/O.
@@ -169,7 +168,6 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
   ObserverList<IOObserver> io_observers_;
   THREAD_CHECKER(watch_socket_caller_checker_);
-  // DISALLOW_COPY_AND_ASSIGN(MessagePumpIOStarboard);
 };
 
 using MessagePumpForIO = MessagePumpIOStarboard;
