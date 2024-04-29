@@ -16,7 +16,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "components/update_client/component.h"
 #include "components/update_client/crx_downloader.h"
@@ -115,7 +115,7 @@ class UpdateEngine : public base::RefCounted<UpdateEngine> {
               const std::vector<std::string>& crx_component_ids);
 #endif
 
-  base::ThreadChecker thread_checker_;
+  SEQUENCE_CHECKER(sequence_checker_);
   scoped_refptr<Configurator> config_;
   UpdateChecker::Factory update_checker_factory_;
   CrxDownloader::Factory crx_downloader_factory_;

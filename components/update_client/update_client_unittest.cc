@@ -280,7 +280,7 @@ TEST_F(UpdateClientTest, OneCrxNoUpdate) {
       ProtocolParser::Results results;
       results.list.push_back(result);
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -451,7 +451,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoUpdate) {
         EXPECT_FALSE(components.at(id)->is_foreground());
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -485,11 +485,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoUpdate) {
       result.error = 0;
       result.response = path;
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
                                     base::Unretained(this)));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -652,7 +652,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateFirstServerIgnoresSecond) {
         EXPECT_FALSE(components.at(id)->is_foreground());
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -686,11 +686,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateFirstServerIgnoresSecond) {
       result.error = 0;
       result.response = path;
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
                                     base::Unretained(this)));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -860,7 +860,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentData) {
         EXPECT_FALSE(components.at(id)->is_foreground());
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -898,11 +898,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentData) {
         NOTREACHED();
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
                                     base::Unretained(this)));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -1189,7 +1189,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
         results.list.push_back(result);
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -1238,11 +1238,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
         NOTREACHED();
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
                                     base::Unretained(this)));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -1480,7 +1480,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         NOTREACHED();
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -1532,11 +1532,11 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         NOTREACHED();
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
                                     base::Unretained(this)));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -1754,7 +1754,7 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
 
       ProtocolParser::Results results;
       results.list.push_back(result);
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -1788,11 +1788,11 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
       result.error = 0;
       result.response = path;
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
                                     base::Unretained(this)));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -2003,7 +2003,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
         NOTREACHED();
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -2065,11 +2065,11 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
         result.response = path;
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
                                     base::Unretained(this)));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -2222,7 +2222,7 @@ TEST_F(UpdateClientTest, OneCrxNoUpdateQueuedCall) {
       ProtocolParser::Results results;
       results.list.push_back(result);
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -2369,7 +2369,7 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
       // Verify that calling Install sets ondemand.
       EXPECT_TRUE(components.at(id)->is_foreground());
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -2407,11 +2407,11 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
         NOTREACHED();
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
                                     base::Unretained(this)));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -2632,7 +2632,7 @@ TEST_F(UpdateClientTest, ConcurrentInstallSameCRX) {
       // Verify that calling Install sets |is_foreground| for the component.
       EXPECT_TRUE(components.at(id)->is_foreground());
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -2917,7 +2917,7 @@ TEST_F(UpdateClientTest, RetryAfter) {
       ProtocolParser::Results results;
       results.list.push_back(result);
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, retry_after_sec));
     }
@@ -3160,7 +3160,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateOneUpdateDisabled) {
         results.list.push_back(result);
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -3198,11 +3198,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateOneUpdateDisabled) {
         NOTREACHED();
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
                                     base::Unretained(this)));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -3328,7 +3328,7 @@ TEST_F(UpdateClientTest, OneCrxUpdateCheckFails) {
       const std::string id = "jebgalgnebhfojomionfpkfelancnnkf";
       EXPECT_EQ(id, ids_to_check.front());
       EXPECT_EQ(1u, components.count(id));
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE,
           base::BindOnce(std::move(update_check_callback), base::nullopt,
                          ErrorCategory::kUpdateCheck, -1, 0));
@@ -3485,7 +3485,7 @@ TEST_F(UpdateClientTest, OneCrxErrorUnknownApp) {
       const auto parser = ProtocolHandlerFactoryJSON().CreateParser();
       EXPECT_TRUE(parser->Parse(update_response));
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE,
           base::BindOnce(std::move(update_check_callback), parser->results(),
                          ErrorCategory::kNone, 0, 0));
@@ -3671,7 +3671,7 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
       ProtocolParser::Results results;
       results.list.push_back(result);
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
@@ -3709,7 +3709,7 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
         NOTREACHED();
       }
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadComplete,
                                     base::Unretained(this), true, result,
                                     download_metrics));
@@ -3833,7 +3833,7 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
       ProtocolParser::Results results;
       results.list.push_back(result);
 
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
