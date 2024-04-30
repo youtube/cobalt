@@ -98,9 +98,8 @@ struct timespec CalculateDelayTimestamp(int64_t delay, bool use_monotonic) {
 void DoSunnyDay(posix::TakeThenSignalContext* context,
                 bool check_timeout,
                 bool use_monotonic) {
-  SbThread thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
-                     posix::TakeThenSignalEntryPoint, context);
+  pthread_t thread = 0;
+  pthread_create(&thread, NULL, posix::TakeThenSignalEntryPoint, context);
 
   const int64_t kDelayUs = 10'000;  // 10ms
   // Allow two-millisecond-level precision.
@@ -156,7 +155,7 @@ void DoSunnyDay(posix::TakeThenSignalContext* context,
   }
 
   // Now we wait for the thread to exit.
-  EXPECT_TRUE(SbThreadJoin(thread, NULL));
+  EXPECT_TRUE(pthread_join(thread, NULL) == 0);
   EXPECT_EQ(pthread_cond_destroy(&context->condition), 0);
   EXPECT_EQ(pthread_mutex_destroy(&context->mutex), 0);
 }
@@ -212,9 +211,8 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
   EXPECT_EQ(pthread_mutex_init(&context.mutex, NULL), 0);
 
   InitCondition(&context.condition, false /* use_monotonic */);
-  SbThread thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
-                     posix::TakeThenSignalEntryPoint, &context);
+  pthread_t thread = 0;
+  pthread_create(&thread, NULL, posix::TakeThenSignalEntryPoint, &context);
 
   EXPECT_EQ(pthread_mutex_lock(&context.mutex), 0);
 
@@ -243,7 +241,7 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
   EXPECT_EQ(pthread_mutex_unlock(&context.mutex), 0);
 
   // Now we wait for the thread to exit.
-  EXPECT_TRUE(SbThreadJoin(thread, NULL));
+  EXPECT_TRUE(pthread_join(thread, NULL) == 0);
   EXPECT_EQ(pthread_cond_destroy(&context.condition), 0);
   EXPECT_EQ(pthread_mutex_destroy(&context.mutex), 0);
 }
