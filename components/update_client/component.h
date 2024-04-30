@@ -18,7 +18,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "components/update_client/crx_downloader.h"
@@ -219,7 +219,7 @@ class Component {
     Component& component() { return component_; }
     const Component& component() const { return component_; }
 
-    base::ThreadChecker thread_checker_;
+    SEQUENCE_CHECKER(sequence_checker_);
 
     const ComponentState state_;
 
@@ -444,7 +444,7 @@ class Component {
                                  int error_code,
                                  int extra_code1) const;
 
-  base::ThreadChecker thread_checker_;
+  SEQUENCE_CHECKER(sequence_checker_);
 
   const std::string id_;
   base::Optional<CrxComponent> crx_component_;

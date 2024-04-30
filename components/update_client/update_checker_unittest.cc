@@ -21,9 +21,9 @@
 #include "base/stl_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/post_task.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/test/bind_test_util.h"
 #include "base/test/scoped_task_environment.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/version.h"
 #include "build/build_config.h"
 #include "components/prefs/testing_pref_service.h"
@@ -188,8 +188,8 @@ void UpdateCheckerTest::SetUp() {
                                               activity_data_service_.get());
 
 #if defined(STARBOARD)
-  interceptor_factory_ =
-      std::make_unique<InterceptorFactory>(base::ThreadTaskRunnerHandle::Get());
+  interceptor_factory_ = std::make_unique<InterceptorFactory>(
+      base::SequencedTaskRunner::GetCurrentDefault());
   post_interceptor_ = interceptor_factory_->CreateInterceptor();
 #else
   post_interceptor_ = std::make_unique<URLLoaderPostInterceptor>(

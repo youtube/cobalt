@@ -27,13 +27,13 @@ PersistedData::PersistedData(PrefService* pref_service,
       activity_data_service_(activity_data_service) {}
 
 PersistedData::~PersistedData() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 int PersistedData::GetInt(const std::string& id,
                           const std::string& key,
                           int fallback) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // We assume ids do not contain '.' characters.
   DCHECK_EQ(std::string::npos, id.find('.'));
   if (!pref_service_)
@@ -49,7 +49,7 @@ int PersistedData::GetInt(const std::string& id,
 
 std::string PersistedData::GetString(const std::string& id,
                                      const std::string& key) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // We assume ids do not contain '.' characters.
   DCHECK_EQ(std::string::npos, id.find('.'));
   if (!pref_service_)
@@ -107,7 +107,7 @@ std::string PersistedData::GetCohortHint(const std::string& id) const {
 
 void PersistedData::SetDateLastRollCall(const std::vector<std::string>& ids,
                                         int datenum) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!pref_service_ || datenum < 0)
     return;
   ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
@@ -122,7 +122,7 @@ void PersistedData::SetDateLastRollCall(const std::vector<std::string>& ids,
 
 void PersistedData::SetDateLastActive(const std::vector<std::string>& ids,
                                       int datenum) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!pref_service_ || datenum < 0)
     return;
   ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
@@ -140,7 +140,7 @@ void PersistedData::SetDateLastActive(const std::vector<std::string>& ids,
 void PersistedData::SetString(const std::string& id,
                               const std::string& key,
                               const std::string& value) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!pref_service_)
     return;
   ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
@@ -158,7 +158,7 @@ void PersistedData::SetUpdaterChannel(const std::string& id,
   SetString(id, "updaterchannel", channel);
 }
 void PersistedData::SetLatestChannel(const std::string& channel) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!pref_service_)
     return;
   ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
@@ -186,14 +186,14 @@ bool PersistedData::GetActiveBit(const std::string& id) const {
 }
 
 int PersistedData::GetDaysSinceLastRollCall(const std::string& id) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return activity_data_service_
              ? activity_data_service_->GetDaysSinceLastRollCall(id)
              : kDaysUnknown;
 }
 
 int PersistedData::GetDaysSinceLastActive(const std::string& id) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return activity_data_service_
              ? activity_data_service_->GetDaysSinceLastActive(id)
              : kDaysUnknown;
