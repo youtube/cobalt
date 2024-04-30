@@ -69,6 +69,77 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="24" label="PLAYBACK_CAPABILITY_CHANGED (deprecated)"/>
 </enum>
 
+<enum name="PrimaryID">
+  <summary>
+   Possible primary ids reported by the Media Pipeline
+  </summary>
+  <int value="0" label="INVALID"/>
+  <int value="1" label="BT709"/>
+  <int value="2" label="UNSPECIFIED"/>
+  <int value="4" label="BT470M"/>
+  <int value="5" label="BT470BG"/>
+  <int value="6" label="SMPTE170M"/>
+  <int value="7" label="SMPTE240M"/>
+  <int value="8" label="FILM"/>
+  <int value="9" label="BT2020"/>
+  <int value="10" label="SMPTEST428_1"/>
+  <int value="11" label="SMPTEST431_2"/>
+  <int value="12" label="SMPTEST432_1"/>
+  <int value="22" label="EBU_3213_E"/>
+</enum>
+
+<enum name="TransferID">
+  <summary>
+   Possible transfer ids reported by the Media Pipeline
+  </summary>
+  <int value="0" label="INVALID"/>
+  <int value="1" label="BT709"/>
+  <int value="2" label="UNSPECIFIED"/>
+  <int value="4" label="GAMMA22"/>
+  <int value="5" label="GAMMA28"/>
+  <int value="6" label="SMPTE170M"/>
+  <int value="7" label="SMPTE240M"/>
+  <int value="8" label="LINEAR"/>
+  <int value="9" label="LOG"/>
+  <int value="10" label="LOG_SQRT"/>
+  <int value="11" label="IEC61966_2_4"/>
+  <int value="12" label="BT1361_ECG"/>
+  <int value="13" label="IEC61966_2_1"/>
+  <int value="14" label="BT2020_10"/>
+  <int value="15" label="BT2020_12"/>
+  <int value="16" label="SMPTEST2084"/>
+  <int value="17" label="SMPTEST428_1"/>
+  <int value="18" label="ARIB_STD_B67"/>
+</enum>
+
+<enum name="MatrixID">
+  <summary>
+   Possible matrix ids reported by the Media Pipeline
+  </summary>
+  <int value="0" label="RGB"/>
+  <int value="1" label="BT709"/>
+  <int value="2" label="UNSPECIFIED"/>
+  <int value="4" label="FCC"/>
+  <int value="5" label="BT470BG"/>
+  <int value="6" label="SMPTE170M"/>
+  <int value="7" label="SMPTE240M"/>
+  <int value="8" label="YCOCG"/>
+  <int value="9" label="BT2020_NCL"/>
+  <int value="10" label="BT2020_CL"/>
+  <int value="11" label="YDZDX"/>
+  <int value="255" label="INVALID"/>
+</enum>
+
+<enum name="RangeID">
+  <summary>
+   Possible range ids reported by the Media Pipeline
+  </summary>
+  <int value="0" label="INVALID"/>
+  <int value="1" label="LIMITED"/>
+  <int value="2" label="LIMITED"/>
+  <int value="3" label="DERIVED"/>
+</enum>
+
 <enum name="CrashpadInstallationStatus">
   <summary>
    Possible status of Crashpad installation by the Loader App
