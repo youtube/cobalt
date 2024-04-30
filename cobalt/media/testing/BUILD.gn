@@ -17,7 +17,7 @@ import("//cobalt/media/testing/data/sha1_files.gni")
 action("cobalt_media_download_test_data") {
   install_content = true
 
-  script = "//tools/download_from_gcs.py"
+  script = "//cobalt/tools/download_from_gcs.py"
 
   sha_sources = []
   foreach(sha1_file, sha1_files) {

@@ -18,7 +18,7 @@ import os
 import tempfile
 import unittest
 
-from tools import download_from_gcs
+from cobalt.tools import download_from_gcs
 
 _BUCKET = 'chromium-clang-format'
 _HASH_FILE_EXT = '.sha1'

@@ -17,7 +17,6 @@ files: |
             starboard|
             tools/metrics/actions/cobalt|
             tools/metrics/histograms/metadata/cobalt|
-            tools/testing|
         )/
         | ^[^/]+$  # files in the root
     )
@@ -176,7 +175,7 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [push]
-        args: [-m, unittest, tools/download_from_gcs_test.py]
+        args: [-m, unittest, cobalt/tools/download_from_gcs_test.py]
     -   id: test-python3-compatibility
         name: Test Python 3 Compatibility
         description: Checks that scripts can be run in Python 3
