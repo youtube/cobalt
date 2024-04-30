@@ -31,15 +31,16 @@ void WriteBarrier::ClearForThread(MarkingBarrier* marking_barrier) {
 
 MarkingBarrier* GetMarkingBarrier() { return current_marking_barrier; }
 #else
+#include <pthread.h>
+
 #include "starboard/common/log.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
-SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalKey() {
@@ -48,7 +49,7 @@ void InitThreadLocalKey() {
 }
 
 void EnsureThreadLocalKeyInited() {
-  SbOnce(&s_once_flag, InitThreadLocalKey);
+  pthread_once(&s_once_flag, InitThreadLocalKey);
   SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 

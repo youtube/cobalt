@@ -31,6 +31,7 @@
    libjpeg-turbo */
 
 #include <ctype.h>
+#include <pthread.h>
 #include <jinclude.h>
 #define JPEG_INTERNALS
 #include <jpeglib.h>
@@ -46,7 +47,6 @@
 #ifdef STARBOARD
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 #endif
 
@@ -65,7 +65,7 @@ extern void jpeg_mem_src_tj(j_decompress_ptr, const unsigned char *,
 
 #if defined(STARBOARD)
 static SbThreadLocalKey g_err_key = kSbThreadLocalKeyInvalid;
-static SbOnceControl g_err_once = SB_ONCE_INITIALIZER;
+static pthread_once_t g_err_once = PTHREAD_ONCE_INIT;
 
 void initialize_err_key(void) {
   g_err_key = SbThreadCreateLocalKey(free);
@@ -74,7 +74,7 @@ void initialize_err_key(void) {
 }
 
 char* errStr() {
-  SbOnce(&g_err_once, initialize_err_key);
+  pthread_once(&g_err_once, initialize_err_key);
 
   char* value = (char*)(SbThreadGetLocalValue(g_err_key));
 

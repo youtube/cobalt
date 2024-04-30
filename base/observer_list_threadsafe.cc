@@ -7,7 +7,7 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
 #if defined(STARBOARD)
-#include "starboard/once.h"
+#include <pthread.h>
 #endif
 
 namespace base {
@@ -17,7 +17,7 @@ namespace internal {
 
 namespace {
 
-ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalKey() {
@@ -28,7 +28,7 @@ void InitThreadLocalKey() {
 }
 
 void ObserverListThreadSafeBase::EnsureThreadLocalKeyInited() {
-  SbOnce(&s_once_flag, InitThreadLocalKey);
+  pthread_once(&s_once_flag, InitThreadLocalKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 

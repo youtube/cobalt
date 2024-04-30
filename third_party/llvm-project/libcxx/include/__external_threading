@@ -3,14 +3,13 @@
 
 #include <__chrono/duration.h>
 #include <__config>
+#include <pthread.h>
 #include <sched.h>
-
 #include <unistd.h>
 
 #include "starboard/common/recursive_mutex.h"
 #include "starboard/condition_variable.h"
 #include "starboard/mutex.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
 
 _LIBCPP_PUSH_MACROS
@@ -35,8 +34,8 @@ typedef starboard::RecursiveMutex __libcpp_recursive_mutex_t;
 typedef SbConditionVariable __libcpp_condvar_t;
 #define _LIBCPP_CONDVAR_INITIALIZER SB_CONDITION_VARIABLE_INITIALIZER
 
-typedef SbOnceControl __libcpp_exec_once_flag;
-#define _LIBCPP_EXEC_ONCE_INITIALIZER SB_ONCE_INITIALIZER
+typedef pthread_once_t __libcpp_exec_once_flag;
+#define _LIBCPP_EXEC_ONCE_INITIALIZER PTHREAD_ONCE_INIT
 
 typedef SbThread __libcpp_thread_t;
 typedef SbThread __libcpp_thread_id;
@@ -217,7 +216,7 @@ int __libcpp_condvar_destroy(__libcpp_condvar_t* __cv) {
 
 int __libcpp_execute_once(__libcpp_exec_once_flag* flag,
                           void (*init_routine)(void)) {
-  if (SbOnce(flag, init_routine)) {
+  if (pthread_once(flag, init_routine) == 0) {
     return 0;
   }
   return 1;

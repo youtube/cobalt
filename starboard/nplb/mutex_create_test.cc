@@ -16,8 +16,8 @@
 #include "starboard/mutex.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#include "starboard/common/once.h"
 #include "starboard/condition_variable.h"
-#include "starboard/once.h"
 
 namespace starboard {
 namespace nplb {

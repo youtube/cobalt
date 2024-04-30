@@ -23,9 +23,9 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/once.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
-#include "starboard/once.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
 namespace starboard {

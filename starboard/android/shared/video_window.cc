@@ -23,8 +23,8 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/once.h"
 #include "starboard/configuration.h"
-#include "starboard/once.h"
 #include "starboard/shared/gles/gl_call.h"
 
 namespace starboard {

@@ -29,12 +29,12 @@
 #include "cobalt/media/base/format_support_query_metrics.h"
 #include "media/base/starboard_utils.h"
 #include "starboard/common/media.h"
+#include "starboard/common/once.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/memory.h"
-#include "starboard/once.h"
 
 namespace cobalt {
 namespace media {

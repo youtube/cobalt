@@ -2,11 +2,11 @@
 #include <stdlib.h>
 
 #include "starboard/common/log.h"
-#include "starboard/once.h"
 #include "starboard/thread.h"
+#include "../pthread/pthread.h"
 
 static SbThreadLocalKey g_errno_key = kSbThreadLocalKeyInvalid;
-static SbOnceControl g_errno_once = SB_ONCE_INITIALIZER;
+static pthread_once_t g_errno_once = PTHREAD_ONCE_INIT;
 
 void initialize_errno_key(void) {
   g_errno_key = SbThreadCreateLocalKey(free);
@@ -20,7 +20,7 @@ void initialize_errno_key(void) {
 // errno from thread-local storage.
 
 int *__errno_location(void) {
-  SB_DCHECK(SbOnce(&g_errno_once, &initialize_errno_key));
+  SB_DCHECK(pthread_once(&g_errno_once, &initialize_errno_key) == 0);
 
   int* value = (int*)SbThreadGetLocalValue(g_errno_key);
 

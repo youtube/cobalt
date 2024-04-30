@@ -20,9 +20,9 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
 #include "cobalt/base/statistics.h"
+#include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/once.h"
 #include "starboard/types.h"
 
 namespace cobalt {

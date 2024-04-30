@@ -25,9 +25,9 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/once.h"
 
 namespace {
 

@@ -16,7 +16,8 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
 #if defined(STARBOARD)
-#include "starboard/once.h"
+#include <pthread.h>
+
 #include "starboard/thread.h"
 #endif
 
@@ -25,7 +26,7 @@ namespace base {
 namespace {
 
 #if defined(STARBOARD)
-ABSL_CONST_INIT SbOnceControl s_once_delegate_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_delegate_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_delegate_key = kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalDelegateKey() {
@@ -34,7 +35,7 @@ void InitThreadLocalDelegateKey() {
 }
 
 void EnsureThreadLocalDelegateKeyInited() {
-  SbOnce(&s_once_delegate_flag, InitThreadLocalDelegateKey);
+  pthread_once(&s_once_delegate_flag, InitThreadLocalDelegateKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_delegate_key));
 }
 
@@ -43,7 +44,7 @@ RunLoop::Delegate* GetDelegate() {
       SbThreadGetLocalValue(s_thread_local_delegate_key));
 }
 
-ABSL_CONST_INIT SbOnceControl s_once_timeout_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT pthread_once_t s_once_timeout_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_timeout_key = kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalTimeoutKey() {
@@ -52,7 +53,7 @@ void InitThreadLocalTimeoutKey() {
 }
 
 void EnsureThreadLocalTimeoutKeyInited() {
-  SbOnce(&s_once_timeout_flag, InitThreadLocalTimeoutKey);
+  pthread_once(&s_once_timeout_flag, InitThreadLocalTimeoutKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_timeout_key));
 }
 

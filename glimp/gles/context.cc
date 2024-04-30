@@ -16,6 +16,8 @@
 
 #include "glimp/gles/context.h"
 
+#include <pthread.h>
+
 #include <algorithm>
 #include <string>
 
@@ -28,9 +30,9 @@
 #include "glimp/gles/pixel_format.h"
 #include "glimp/tracing/tracing.h"
 #include "starboard/common/log.h"
+#include "starboard/common/once.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/memory.h"
-#include "starboard/once.h"
 
 namespace glimp {
 namespace gles {
@@ -38,7 +40,7 @@ namespace gles {
 namespace {
 
 std::atomic_int s_context_id_counter_(0);
-SbOnceControl s_tls_current_context_key_once_control = SB_ONCE_INITIALIZER;
+pthread_once_t s_tls_current_context_key_once_control = PTHREAD_ONCE_INIT;
 SbThreadLocalKey s_tls_current_context_key = kSbThreadLocalKeyInvalid;
 
 void InitializeThreadLocalKey() {
@@ -46,7 +48,8 @@ void InitializeThreadLocalKey() {
 }
 
 SbThreadLocalKey GetThreadLocalKey() {
-  SbOnce(&s_tls_current_context_key_once_control, &InitializeThreadLocalKey);
+  pthread_once(&s_tls_current_context_key_once_control,
+               &InitializeThreadLocalKey);
   return s_tls_current_context_key;
 }
 

@@ -25,7 +25,7 @@
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/script/v8c/isolate_fellowship.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 
 namespace cobalt {
 namespace script {
