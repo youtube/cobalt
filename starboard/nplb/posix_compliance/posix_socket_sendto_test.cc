@@ -16,6 +16,7 @@
 // this is hooked up to something.
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <unistd.h>
 
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
@@ -40,6 +41,8 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   const size_t kBufSize = 1024;
   char* send_buf = new char[kBufSize];
   memset(send_buf, 0, kBufSize);
+
+  pthread_setname_np(pthread_self(), "SendToTest");
 
   // Continue sending to the socket until it fails to send. It's expected that
   // SbSocketSendTo will fail when the server socket closes, but the application
@@ -98,17 +101,16 @@ TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
 
   // Start a thread to write to the client socket.
   const bool kJoinable = true;
-  SbThread send_thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, kJoinable,
-                     "SendToTest", PosixSocketSendToServerSocketEntryPoint,
-                     static_cast<void*>(&trio_as_void_ptr));
+  pthread_t send_thread = 0;
+  pthread_create(&send_thread, NULL, PosixSocketSendToServerSocketEntryPoint,
+                 static_cast<void*>(&trio_as_void_ptr));
 
   // Close the client, which should cause writes to the server socket to fail.
   EXPECT_TRUE(close(client_socket_fd) == 0);
 
   // Wait for the thread to exit and check the last socket error.
   void* thread_result;
-  EXPECT_TRUE(SbThreadJoin(send_thread, &thread_result));
+  EXPECT_TRUE(pthread_join(send_thread, &thread_result) == 0);
 
   // TODO: errno: EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno
   // == EPIPE);

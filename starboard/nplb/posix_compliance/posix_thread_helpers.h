@@ -158,44 +158,38 @@ struct TakeThenSignalContext {
 // thread. Subclasses must override Run().
 class AbstractTestThread {
  public:
-  AbstractTestThread() : thread_(kSbThreadInvalid) {}
+  AbstractTestThread() : thread_(0) {}
   virtual ~AbstractTestThread() {}
 
   // Subclasses should override the Run method.
   virtual void Run() = 0;
 
-  // Calls SbThreadCreate() with default parameters.
+  // Calls pthread_create() with default parameters.
   void Start() {
-    SbThreadEntryPoint entry_point = ThreadEntryPoint;
-
-    thread_ = SbThreadCreate(0,                    // default stack_size.
-                             kSbThreadNoPriority,  // default priority.
-                             kSbThreadNoAffinity,  // default affinity.
-                             true,                 // joinable.
-                             "AbstractTestThread", entry_point, this);
-
-    if (kSbThreadInvalid == thread_) {
+    pthread_create(&thread_, NULL, ThreadEntryPoint, this);
+    if (0 == thread_) {
       ADD_FAILURE_AT(__FILE__, __LINE__) << "Invalid thread.";
     }
     return;
   }
 
   void Join() {
-    if (!SbThreadJoin(thread_, NULL)) {
+    if (pthread_join(thread_, NULL) != 0) {
       ADD_FAILURE_AT(__FILE__, __LINE__) << "Could not join thread.";
     }
   }
 
-  SbThread GetThread() { return thread_; }
+  pthread_t GetThread() { return thread_; }
 
  private:
   static void* ThreadEntryPoint(void* ptr) {
+    pthread_setname_np(pthread_self(), "AbstractTestThread");
     AbstractTestThread* this_ptr = static_cast<AbstractTestThread*>(ptr);
     this_ptr->Run();
     return NULL;
   }
 
-  SbThread thread_;
+  pthread_t thread_;
 
   AbstractTestThread(const AbstractTestThread&) = delete;
   void operator=(const AbstractTestThread&) = delete;
