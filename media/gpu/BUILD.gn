@@ -5,6 +5,7 @@
 import("//build/buildflag_header.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
+import("//build/config/logging.gni")
 import("//build/config/ui.gni")
 import("//gpu/vulkan/features.gni")
 import("//media/gpu/args.gni")
@@ -63,13 +64,17 @@ component("gpu") {
     "//remoting/host:common",
   ]
 
-  if (is_mac) {
+  if (is_apple) {
     # On Mac, content/common reaches into here to do some pre-sandbox
     # initialization.
     visibility += [ "//content/common" ]
   }
 
   defines = [ "MEDIA_GPU_IMPLEMENTATION" ]
+  if (!use_runtime_vlog) {
+    # Enable VLOG(1) when using build time VLOG.
+    defines += [ "ENABLED_VLOG_LEVEL=1" ]
+  }
 
   sources = [
     "gpu_video_accelerator_util.cc",
@@ -111,7 +116,7 @@ component("gpu") {
     ]
   }
 
-  if (is_mac) {
+  if (is_apple) {
     public_deps += [ "//media/gpu/mac" ]
   }
 
@@ -220,34 +225,32 @@ component("gpu") {
       "windows/d3d11_texture_selector.h",
       "windows/d3d11_texture_wrapper.cc",
       "windows/d3d11_texture_wrapper.h",
-      "windows/d3d11_video_context_wrapper.cc",
-      "windows/d3d11_video_context_wrapper.h",
       "windows/d3d11_video_decoder.cc",
       "windows/d3d11_video_decoder.h",
       "windows/d3d11_video_decoder_client.h",
-      "windows/d3d11_video_decoder_impl.cc",
-      "windows/d3d11_video_decoder_impl.h",
+      "windows/d3d11_video_decoder_wrapper.cc",
+      "windows/d3d11_video_decoder_wrapper.h",
       "windows/d3d11_video_device_format_support.cc",
       "windows/d3d11_video_device_format_support.h",
+      "windows/d3d11_video_frame_mailbox_release_helper.cc",
+      "windows/d3d11_video_frame_mailbox_release_helper.h",
       "windows/d3d11_video_processor_proxy.cc",
       "windows/d3d11_video_processor_proxy.h",
       "windows/d3d11_vp9_accelerator.cc",
       "windows/d3d11_vp9_accelerator.h",
       "windows/d3d11_vp9_picture.cc",
       "windows/d3d11_vp9_picture.h",
-      "windows/dxva_picture_buffer_win.cc",
-      "windows/dxva_picture_buffer_win.h",
-      "windows/dxva_video_decode_accelerator_win.cc",
-      "windows/dxva_video_decode_accelerator_win.h",
-      "windows/gl_image_egl_stream.cc",
-      "windows/gl_image_egl_stream.h",
-      "windows/gl_image_pbuffer.cc",
-      "windows/gl_image_pbuffer.h",
+      "windows/d3d_accelerator.cc",
+      "windows/d3d_accelerator.h",
+      "windows/d3d_video_decoder_wrapper.cc",
+      "windows/d3d_video_decoder_wrapper.h",
       "windows/init_guid.cc",
       "windows/media_foundation_video_encode_accelerator_win.cc",
       "windows/media_foundation_video_encode_accelerator_win.h",
       "windows/mf_audio_encoder.cc",
       "windows/mf_audio_encoder.h",
+      "windows/scoped_d3d_buffers.cc",
+      "windows/scoped_d3d_buffers.h",
       "windows/supported_profile_helpers.cc",
       "windows/supported_profile_helpers.h",
       "windows/video_rate_control_wrapper.h",
@@ -274,6 +277,7 @@ component("gpu") {
     ]
     deps += [
       "//gpu/ipc/common:common",
+      "//media/base/win:color_space_util_win",
       "//media/parsers",
       "//third_party/angle:includes",
       "//third_party/libvpx:libvpxrc",
@@ -366,8 +370,6 @@ source_set("common") {
 
   if (is_win || use_vaapi) {
     sources += [
-      "video_rate_control.cc",
-      "video_rate_control.h",
       "vp9_svc_layers.cc",
       "vp9_svc_layers.h",
     ]
@@ -616,12 +618,13 @@ source_set("unit_tests") {
       "windows/d3d11_video_decoder_unittest.cc",
       "windows/d3d11_video_device_format_support_unittest.cc",
       "windows/d3d11_video_processor_proxy_unittest.cc",
+      "windows/scoped_d3d_buffers_unittest.cc",
       "windows/supported_profile_helpers_unittest.cc",
     ]
     libs = [ "dxguid.lib" ]
   }
 
-  if (is_mac) {
+  if (is_apple) {
     deps += [ "//media/gpu/mac:unit_tests" ]
   }
 

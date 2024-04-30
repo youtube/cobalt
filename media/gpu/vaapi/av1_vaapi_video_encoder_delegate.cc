@@ -341,7 +341,7 @@ bool AV1VaapiVideoEncoderDelegate::UpdateRates(
   rc_config.scaling_factor_den[0] = 1;
 
   if (!rate_ctrl_) {
-    rate_ctrl_ = AV1RateControl::Create(rc_config);
+    rate_ctrl_ = aom::AV1RateControlRTC::Create(rc_config);
     return !!rate_ctrl_;
   }
 
@@ -418,13 +418,7 @@ bool AV1VaapiVideoEncoderDelegate::PrepareEncodeJob(EncodeJob& encode_job) {
 void AV1VaapiVideoEncoderDelegate::BitrateControlUpdate(
     const BitstreamBufferMetadata& metadata) {
   DVLOGF(4) << "encoded chunk size=" << metadata.payload_size_bytes;
-
-  aom::AV1FrameParamsRTC frame_params;
-  frame_params.frame_type =
-      metadata.key_frame ? aom::kKeyFrame : aom::kInterFrame;
-  frame_params.spatial_layer_id = 0;
-  frame_params.temporal_layer_id = 0;
-  rate_ctrl_->PostEncodeUpdate(metadata.payload_size_bytes, frame_params);
+  rate_ctrl_->PostEncodeUpdate(metadata.payload_size_bytes);
 }
 
 // See section 5.6 of the AV1 specification.
@@ -684,10 +678,24 @@ bool AV1VaapiVideoEncoderDelegate::FillPictureParam(
 
   pic_param.temporal_id = 0;
 
-  pic_param.filter_level[0] = 15;
-  pic_param.filter_level[1] = 15;
-  pic_param.filter_level_u = 8;
-  pic_param.filter_level_v = 8;
+  aom::AV1FrameParamsRTC frame_params;
+  frame_params.frame_type = is_keyframe ? aom::kKeyFrame : aom::kInterFrame;
+  frame_params.spatial_layer_id = 0;
+  frame_params.temporal_layer_id = 0;
+  rate_ctrl_->ComputeQP(frame_params);
+  pic_param.base_qindex = rate_ctrl_->GetQP();
+
+  aom::AV1LoopfilterLevel loop_filter_level = rate_ctrl_->GetLoopfilterLevel();
+  pic_param.filter_level[0] = loop_filter_level.filter_level[0];
+  pic_param.filter_level[1] = loop_filter_level.filter_level[1];
+  pic_param.filter_level_u = loop_filter_level.filter_level_u;
+  pic_param.filter_level_v = loop_filter_level.filter_level_v;
+  DVLOGF(4) << "qp=" << pic_param.base_qindex
+            << " filter_level[0]=" << loop_filter_level.filter_level[0]
+            << " filter_level[1]=" << loop_filter_level.filter_level[1]
+            << " filter_level_u=" << loop_filter_level.filter_level_u
+            << " filter_level_v=" << loop_filter_level.filter_level_v
+            << (is_keyframe ? " (keyframe)" : "");
 
   pic_param.loop_filter_flags.bits.sharpness_level = 0;
   pic_param.loop_filter_flags.bits.mode_ref_delta_enabled = 0;
@@ -704,15 +712,6 @@ bool AV1VaapiVideoEncoderDelegate::FillPictureParam(
   pic_param.mode_deltas[0] = 0;
   pic_param.mode_deltas[0] = 0;
 
-  aom::AV1FrameParamsRTC frame_params;
-  frame_params.frame_type = is_keyframe ? aom::kKeyFrame : aom::kInterFrame;
-  frame_params.spatial_layer_id = 0;
-  frame_params.temporal_layer_id = 0;
-  // This method name is a misnomer, GetQP() actually returns the QP in QIndex
-  // form.
-  pic_param.base_qindex = rate_ctrl_->ComputeQP(frame_params);
-  DVLOGF(4) << "qp=" << pic_param.base_qindex
-            << (is_keyframe ? " (keyframe)" : "");
   pic_param.y_dc_delta_q = 0;
   pic_param.u_dc_delta_q = 0;
   pic_param.u_ac_delta_q = 0;

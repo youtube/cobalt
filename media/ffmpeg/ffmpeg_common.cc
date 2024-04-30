@@ -739,8 +739,9 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
 
       AVMasteringDisplayMetadata* metadata =
           reinterpret_cast<AVMasteringDisplayMetadata*>(side_data.data);
+      gfx::HdrMetadataSmpteSt2086 smpte_st_2086;
       if (metadata->has_primaries) {
-        hdr_metadata.color_volume_metadata.primaries = {
+        smpte_st_2086.primaries = {
             static_cast<float>(av_q2d(metadata->display_primaries[0][0])),
             static_cast<float>(av_q2d(metadata->display_primaries[0][1])),
             static_cast<float>(av_q2d(metadata->display_primaries[1][0])),
@@ -752,10 +753,14 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
         };
       }
       if (metadata->has_luminance) {
-        hdr_metadata.color_volume_metadata.luminance_max =
-            av_q2d(metadata->max_luminance);
-        hdr_metadata.color_volume_metadata.luminance_min =
-            av_q2d(metadata->min_luminance);
+        smpte_st_2086.luminance_max = av_q2d(metadata->max_luminance);
+        smpte_st_2086.luminance_min = av_q2d(metadata->min_luminance);
+      }
+
+      // TODO(https://crbug.com/1446302): Consider rejecting metadata that does
+      // not specify all values.
+      if (metadata->has_primaries || metadata->has_luminance) {
+        hdr_metadata.smpte_st_2086 = smpte_st_2086;
       }
     }
   }
@@ -908,26 +913,6 @@ VideoPixelFormat AVPixelFormatToVideoPixelFormat(AVPixelFormat pixel_format) {
       DVLOG(1) << "Unsupported AVPixelFormat: " << pixel_format;
   }
   return PIXEL_FORMAT_UNKNOWN;
-}
-
-VideoColorSpace AVColorSpaceToColorSpace(AVColorSpace color_space,
-                                         AVColorRange color_range) {
-  // TODO(hubbe): make this better
-  if (color_range == AVCOL_RANGE_JPEG)
-    return VideoColorSpace::JPEG();
-
-  switch (color_space) {
-    case AVCOL_SPC_UNSPECIFIED:
-      break;
-    case AVCOL_SPC_BT709:
-      return VideoColorSpace::REC709();
-    case AVCOL_SPC_SMPTE170M:
-    case AVCOL_SPC_BT470BG:
-      return VideoColorSpace::REC601();
-    default:
-      DVLOG(1) << "Unknown AVColorSpace: " << color_space;
-  }
-  return VideoColorSpace();
 }
 
 std::string AVErrorToString(int errnum) {

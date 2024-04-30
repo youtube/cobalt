@@ -67,14 +67,21 @@ const std::vector<CVImagePrimary>& GetSupportedImagePrimaries() {
             {kCVImageBufferColorPrimaries_ITU_R_2020,
              kCMFormatDescriptionColorPrimaries_ITU_R_2020,
              gfx::ColorSpace::PrimaryID::BT2020});
+        supported_primaries.push_back(
+            {kCVImageBufferColorPrimaries_DCI_P3,
+             kCMFormatDescriptionColorPrimaries_DCI_P3,
+             gfx::ColorSpace::PrimaryID::SMPTEST431_2});
+        supported_primaries.push_back(
+            {kCVImageBufferColorPrimaries_P3_D65,
+             kCMFormatDescriptionColorPrimaries_P3_D65,
+             gfx::ColorSpace::PrimaryID::P3});
         return supported_primaries;
       }());
   return *kSupportedPrimaries;
 }
 
 gfx::ColorSpace::PrimaryID GetCoreVideoPrimary(CFTypeRef primaries_untyped) {
-  // The named primaries. Default to BT709.
-  auto primary_id = gfx::ColorSpace::PrimaryID::BT709;
+  auto primary_id = gfx::ColorSpace::PrimaryID::INVALID;
   if (!GetImageBufferProperty(primaries_untyped, GetSupportedImagePrimaries(),
                               &primary_id)) {
     DLOG(ERROR) << "Failed to find CVImageBufferRef primaries: "
@@ -131,18 +138,14 @@ const std::vector<CVImageTransferFn>& GetSupportedImageTransferFn() {
         supported_transfer_funcs.push_back({kCVImageBufferTransferFunction_sRGB,
                                             nullptr,
                                             gfx::ColorSpace::TransferID::SRGB});
-        if (@available(macos 10.14, *)) {
-          supported_transfer_funcs.push_back(
-              {kCVImageBufferTransferFunction_Linear,
-               kCMFormatDescriptionTransferFunction_Linear,
-               gfx::ColorSpace::TransferID::LINEAR});
-        }
-        if (@available(macos 10.15, *)) {
-          supported_transfer_funcs.push_back(
-              {kCVImageBufferTransferFunction_sRGB,
-               kCMFormatDescriptionTransferFunction_sRGB,
-               gfx::ColorSpace::TransferID::SRGB});
-        }
+        supported_transfer_funcs.push_back(
+            {kCVImageBufferTransferFunction_Linear,
+             kCMFormatDescriptionTransferFunction_Linear,
+             gfx::ColorSpace::TransferID::LINEAR});
+        supported_transfer_funcs.push_back(
+            {kCVImageBufferTransferFunction_sRGB,
+             kCMFormatDescriptionTransferFunction_sRGB,
+             gfx::ColorSpace::TransferID::SRGB});
 
         return supported_transfer_funcs;
       }());
@@ -153,7 +156,7 @@ gfx::ColorSpace::TransferID GetCoreVideoTransferFn(CFTypeRef transfer_untyped,
                                                    CFTypeRef gamma_untyped,
                                                    double* gamma) {
   // The named transfer function.
-  auto transfer_id = gfx::ColorSpace::TransferID::BT709;
+  auto transfer_id = gfx::ColorSpace::TransferID::INVALID;
   if (!GetImageBufferProperty(transfer_untyped, GetSupportedImageTransferFn(),
                               &transfer_id)) {
     DLOG(ERROR) << "Failed to find CVImageBufferRef transfer: "
@@ -163,19 +166,17 @@ gfx::ColorSpace::TransferID GetCoreVideoTransferFn(CFTypeRef transfer_untyped,
   if (transfer_id != gfx::ColorSpace::TransferID::CUSTOM)
     return transfer_id;
 
-  // If we fail to retrieve the gamma parameter, fall back to BT709.
-  constexpr auto kDefaultTransferFn = gfx::ColorSpace::TransferID::BT709;
   CFNumberRef gamma_number = base::mac::CFCast<CFNumberRef>(gamma_untyped);
   if (!gamma_number) {
     DLOG(ERROR) << "Failed to get gamma level.";
-    return kDefaultTransferFn;
+    return gfx::ColorSpace::TransferID::INVALID;
   }
 
   // CGFloat is a double on 64-bit systems.
   CGFloat gamma_double = 0;
   if (!CFNumberGetValue(gamma_number, kCFNumberCGFloatType, &gamma_double)) {
     DLOG(ERROR) << "Failed to get CVImageBufferRef gamma level as float.";
-    return kDefaultTransferFn;
+    return gfx::ColorSpace::TransferID::INVALID;
   }
 
   if (gamma_double == 2.2)
@@ -237,14 +238,10 @@ gfx::ColorSpace GetCoreVideoColorSpaceInternal(CFTypeRef primaries_untyped,
   auto transfer_id =
       GetCoreVideoTransferFn(transfer_untyped, gamma_untyped, &gamma);
 
-  // Use a matrix id that is coherent with a primary id. Useful when we fail to
-  // parse the matrix. Previously it was always defaulting to MatrixID::BT709
-  // See http://crbug.com/788236.
-  if (matrix_id == gfx::ColorSpace::MatrixID::INVALID) {
-    if (primary_id == gfx::ColorSpace::PrimaryID::BT470BG)
-      matrix_id = gfx::ColorSpace::MatrixID::BT470BG;
-    else
-      matrix_id = gfx::ColorSpace::MatrixID::BT709;
+  if (primary_id == gfx::ColorSpace::PrimaryID::INVALID ||
+      matrix_id == gfx::ColorSpace::MatrixID::INVALID ||
+      transfer_id == gfx::ColorSpace::TransferID::INVALID) {
+    return gfx::ColorSpace();
   }
 
   // It is specified to the decoder to use luma=[16,235] chroma=[16,240] via

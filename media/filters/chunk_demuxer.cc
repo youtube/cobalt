@@ -466,9 +466,7 @@ void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
 
   switch (state_) {
     case UNINITIALIZED:
-      requested_buffer_count_ = 0;
-      NOTREACHED();
-      return;
+      NOTREACHED_NORETURN();
     case RETURNING_ABORT_FOR_READS:
       // Null buffers should be returned in this state since we are waiting
       // for a seek. Any buffers in the SourceBuffer should NOT be returned
@@ -1034,6 +1032,10 @@ void ChunkDemuxer::OnSelectedVideoTrackChanged(
                             std::move(change_completed_cb));
 }
 
+void ChunkDemuxer::DisableCanChangeType() {
+  supports_change_type_ = false;
+}
+
 void ChunkDemuxer::OnMemoryPressure(
     base::TimeDelta currentMediaTime,
     base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
@@ -1336,6 +1338,10 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
   base::AutoLock auto_lock(lock_);
 
   DCHECK(IsValidId_Locked(id));
+
+  if (!supports_change_type_) {
+    return false;
+  }
 
   // CanChangeType() doesn't care if there has or hasn't been received a first
   // initialization segment for the source buffer corresponding to |id|.
@@ -1694,8 +1700,7 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
       break;
 
     case DemuxerStream::UNKNOWN:
-      NOTREACHED();
-      return nullptr;
+      NOTREACHED_NORETURN();
   }
 
 #if defined(STARBOARD)

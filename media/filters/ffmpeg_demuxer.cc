@@ -64,6 +64,17 @@ void SetAVStreamDiscard(AVStream* stream, AVDiscard discard) {
   stream->discard = discard;
 }
 
+int AVSeekFrame(AVFormatContext* s, int stream_index, int64_t timestamp) {
+  // Seek to a timestamp <= to the desired timestamp.
+  int result = av_seek_frame(s, stream_index, timestamp, AVSEEK_FLAG_BACKWARD);
+  if (result >= 0) {
+    return result;
+  }
+
+  // Seek to the nearest keyframe, wherever that may be.
+  return av_seek_frame(s, stream_index, timestamp, 0);
+}
+
 }  // namespace
 
 static base::Time ExtractTimelineOffset(
@@ -1118,11 +1129,9 @@ void FFmpegDemuxer::SeekInternal(base::TimeDelta time,
 
   blocking_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&av_seek_frame, glue_->format_context(),
+      base::BindOnce(&AVSeekFrame, glue_->format_context(),
                      seeking_stream->index,
-                     ConvertToTimeBase(seeking_stream->time_base, seek_time),
-                     // Always seek to a timestamp <= to the desired timestamp.
-                     AVSEEK_FLAG_BACKWARD),
+                     ConvertToTimeBase(seeking_stream->time_base, seek_time)),
       std::move(seek_cb));
 }
 
@@ -1350,6 +1359,14 @@ void FFmpegDemuxer::OnFindStreamInfoDone(int result) {
       stream->discard = AVDISCARD_ALL;
       continue;
     } else {
+      stream->discard = AVDISCARD_ALL;
+      continue;
+    }
+
+    // Skip disabled tracks. The mov demuxer translates MOV_TKHD_FLAG_ENABLED to
+    // AV_DISPOSITION_DEFAULT.
+    if (container() == container_names::CONTAINER_MOV &&
+        !(stream->disposition & AV_DISPOSITION_DEFAULT)) {
       stream->discard = AVDISCARD_ALL;
       continue;
     }
@@ -1653,8 +1670,7 @@ FFmpegDemuxerStream* FFmpegDemuxer::FindPreferredStreamForSeeking(
       return stream.get();
   }
 
-  NOTREACHED();
-  return nullptr;
+  NOTREACHED_NORETURN();
 }
 
 void FFmpegDemuxer::OnSeekFrameDone(int result) {

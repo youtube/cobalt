@@ -358,9 +358,11 @@ void V4L2StatelessVideoDecoderBackend::SurfaceReady(
 
 void V4L2StatelessVideoDecoderBackend::EnqueueDecodeTask(
     scoped_refptr<DecoderBuffer> buffer,
-    VideoDecoder::DecodeCB decode_cb,
-    int32_t bitstream_id) {
+    VideoDecoder::DecodeCB decode_cb) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  const int32_t bitstream_id =
+      bitstream_id_generator_.GenerateNextId().GetUnsafeValue();
 
   if (!buffer->end_of_stream())
     bitstream_id_to_timestamp_.Put(bitstream_id, buffer->timestamp());
@@ -423,6 +425,10 @@ bool V4L2StatelessVideoDecoderBackend::PumpDecodeTask() {
         output_request_queue_.push(OutputRequest::ChangeResolutionFence());
         PumpOutputSurfaces();
         return true;
+
+      case AcceleratedVideoDecoder::kColorSpaceChange:
+        NOTIMPLEMENTED_LOG_ONCE();
+        return false;
 
       case AcceleratedVideoDecoder::kRanOutOfStreamData:
         // Current decode request is finished processing.
@@ -683,7 +689,7 @@ bool V4L2StatelessVideoDecoderBackend::IsSupportedProfile(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(device_);
   if (supported_profiles_.empty()) {
-    constexpr uint32_t kSupportedInputFourccs[] = {
+    const std::vector<uint32_t> kSupportedInputFourccs = {
       V4L2_PIX_FMT_H264_SLICE,
 #if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
       V4L2_PIX_FMT_HEVC_SLICE,
@@ -692,10 +698,9 @@ bool V4L2StatelessVideoDecoderBackend::IsSupportedProfile(
       V4L2_PIX_FMT_VP9_FRAME,
       V4L2_PIX_FMT_AV1_FRAME,
     };
-    scoped_refptr<V4L2Device> device = V4L2Device::Create();
+    auto device = base::MakeRefCounted<V4L2Device>();
     VideoDecodeAccelerator::SupportedProfiles profiles =
-        device->GetSupportedDecodeProfiles(std::size(kSupportedInputFourccs),
-                                           kSupportedInputFourccs);
+        device->GetSupportedDecodeProfiles(kSupportedInputFourccs);
     for (const auto& entry : profiles)
       supported_profiles_.push_back(entry.profile);
   }

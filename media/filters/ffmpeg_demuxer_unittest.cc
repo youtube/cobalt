@@ -33,6 +33,7 @@
 #include "media/base/mock_demuxer_host.h"
 #include "media/base/mock_filters.h"
 #include "media/base/mock_media_log.h"
+#include "media/base/supported_types.h"
 #include "media/base/test_helpers.h"
 #include "media/base/timestamp_constants.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -473,6 +474,19 @@ TEST_F(FFmpegDemuxerTest, Initialize_Multitrack) {
   ASSERT_TRUE(stream);
   EXPECT_EQ(DemuxerStream::AUDIO, stream->type());
   EXPECT_EQ(AudioCodec::kPCM, stream->audio_decoder_config().codec());
+}
+#endif
+
+#if BUILDFLAG(USE_PROPRIETARY_CODECS)
+TEST_F(FFmpegDemuxerTest, Initialize_Multitrack_Disabled) {
+  // Open a file containing the following streams:
+  //   Stream #0: Video (AVC), disabled
+  //   Stream #1: Video (AVC)
+  CreateDemuxer("multitrack-disabled.mp4");
+  InitializeDemuxer();
+
+  std::vector<DemuxerStream*> streams = demuxer_->GetAllStreams();
+  EXPECT_EQ(1u, streams.size());
 }
 #endif
 
@@ -1447,6 +1461,11 @@ TEST_F(FFmpegDemuxerTest, Read_Mp4_Crbug657437) {
 }
 
 TEST_F(FFmpegDemuxerTest, XHE_AAC) {
+  if (!IsSupportedAudioType(
+          {AudioCodec::kAAC, AudioCodecProfile::kXHE_AAC, false})) {
+    GTEST_SKIP() << "Unsupported platform.";
+  }
+
   CreateDemuxer("noise-xhe-aac.mp4");
   InitializeDemuxer();
 

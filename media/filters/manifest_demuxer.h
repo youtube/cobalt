@@ -36,8 +36,65 @@ class MEDIA_EXPORT ManifestDemuxerEngineHost {
  public:
   virtual ~ManifestDemuxerEngineHost() {}
 
+  // Adds a new role to the chunk demuxer, and returns true if it succeeded.
+  virtual bool AddRole(base::StringPiece role,
+                       std::string container,
+                       std::string codec) = 0;
+
+  // Removes a role (on the media thread) to ensure that there are no
+  // media-thread-bound weak references.
+  virtual void RemoveRole(base::StringPiece role) = 0;
+
+  // Sets the sequence mode flag for a |role| which has been created with
+  // `AddRole`
+  virtual void SetSequenceMode(base::StringPiece role, bool sequence_mode) = 0;
+
+  // Sets the chunk demuxer duration.
+  virtual void SetDuration(double duration) = 0;
+
+  // Get the ranges that chunk demuxer has loaded, which allow seeking to avoid
+  // fetching new data, if the seek is into a loaded range already.
+  virtual Ranges<base::TimeDelta> GetBufferedRanges(base::StringPiece role) = 0;
+
+  // Removes all data from the chunk demuxer between `start` and `end`.
+  virtual void Remove(base::StringPiece role,
+                      base::TimeDelta start,
+                      base::TimeDelta end) = 0;
+
+  // Removes all data from the chunk demuxer between |start| and |end| for a
+  // given role, and resets the parser state while updating the parse offset.
+  virtual void RemoveAndReset(base::StringPiece role,
+                              base::TimeDelta start,
+                              base::TimeDelta end,
+                              base::TimeDelta* offset) = 0;
+
+  // Checks to see if we're parsing a media segment and if it is the case, then
+  // resets the group start timestamp.
+  virtual void SetGroupStartIfParsingAndSequenceMode(base::StringPiece role,
+                                                     base::TimeDelta start) = 0;
+
+  // Evicts frames from chunk demuxer.
+  virtual void EvictCodedFrames(base::StringPiece role,
+                                base::TimeDelta time,
+                                size_t data_size) = 0;
+
+  // Appends data to the chunk demuxer, parses it, and returns true if the new
+  // data was parsed successfully.
+  virtual bool AppendAndParseData(base::StringPiece role,
+                                  base::TimeDelta start,
+                                  base::TimeDelta end,
+                                  base::TimeDelta* offset,
+                                  const uint8_t* data,
+                                  size_t data_size) = 0;
+
+  // Allow seeking from within an implementation.
+  virtual void RequestSeek(base::TimeDelta time) = 0;
+
   // Handle errors.
-  virtual void OnError(PipelineStatus error);
+  virtual void OnError(PipelineStatus error) = 0;
+
+  virtual void SetGroupStartTimestamp(base::StringPiece role,
+                                      base::TimeDelta time) = 0;
 };
 
 // A Demuxer designed to allow implementation of media demuxers which don't
@@ -94,6 +151,7 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
   // ManifestDemuxer takes and keeps ownership of `impl` for the lifetime of
   // both.
   ManifestDemuxer(scoped_refptr<base::SequencedTaskRunner> media_task_runner,
+                  base::RepeatingCallback<void(base::TimeDelta)> request_seek,
                   std::unique_ptr<Engine> impl,
                   MediaLog* media_log);
 
@@ -125,11 +183,41 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
                                    TrackChangeCB change_completed_cb) override;
 
   // `ManifestDemuxerEngineHost` implementation
+  bool AddRole(base::StringPiece role,
+               std::string container,
+               std::string codec) override;
+  void RemoveRole(base::StringPiece role) override;
+  void SetSequenceMode(base::StringPiece role, bool sequence_mode) override;
+  void SetDuration(double duration) override;
+  Ranges<base::TimeDelta> GetBufferedRanges(base::StringPiece role) override;
+  void Remove(base::StringPiece role,
+              base::TimeDelta start,
+              base::TimeDelta end) override;
+  void RemoveAndReset(base::StringPiece role,
+                      base::TimeDelta start,
+                      base::TimeDelta end,
+                      base::TimeDelta* offset) override;
+  void SetGroupStartIfParsingAndSequenceMode(base::StringPiece role,
+                                             base::TimeDelta start) override;
+  void EvictCodedFrames(base::StringPiece role,
+                        base::TimeDelta time,
+                        size_t data_size) override;
+  bool AppendAndParseData(base::StringPiece role,
+                          base::TimeDelta start,
+                          base::TimeDelta end,
+                          base::TimeDelta* offset,
+                          const uint8_t* data,
+                          size_t data_size) override;
   void OnError(PipelineStatus status) override;
+  void RequestSeek(base::TimeDelta time) override;
+
+  void SetGroupStartTimestamp(base::StringPiece role,
+                              base::TimeDelta time) override;
 
   // Allow unit tests to grab the chunk demuxer.
   ChunkDemuxer* GetChunkDemuxerForTesting();
   bool has_pending_seek_for_testing() const { return !pending_seek_.is_null(); }
+  base::TimeDelta get_media_time_for_testing() const { return media_time_; }
   bool has_pending_event_for_testing() const { return has_pending_event_; }
   bool has_next_task_for_testing() const {
     return !cancelable_next_event_.IsCancelled();
@@ -157,7 +245,7 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
 
    private:
     WrapperReadCb read_cb_;
-    base::raw_ptr<DemuxerStream> stream_;
+    raw_ptr<DemuxerStream> stream_;
   };
 
   void OnChunkDemuxerInitialized(PipelineStatus init_status);
@@ -165,6 +253,11 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
   void OnProgress();
   void OnEncryptedMediaData(EmeInitDataType type,
                             const std::vector<uint8_t>& data);
+  void OnChunkDemuxerParseWarning(base::StringPiece role,
+                                  SourceBufferParseWarning warning);
+  void OnChunkDemuxerTracksChanged(base::StringPiece role,
+                                   std::unique_ptr<MediaTracks> tracks);
+
   void OnDemuxerStreamRead(DemuxerStream::ReadCB wrapped_read_cb,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
@@ -174,7 +267,7 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
   void SeekInternal();
   void OnChunkDemuxerSeeked(PipelineStatus seek_status);
   void OnEngineSeekComplete(base::TimeDelta delay_time);
-  void CompletePendingSeek();
+  void TryCompletePendingSeek();
 
   // Allows for both the chunk demuxer and the engine to be required for
   // initialization.
@@ -186,6 +279,8 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
   void TriggerEvent();
   void TriggerEventWithTime(DelayCallback cb, base::TimeDelta current_time);
   void OnEngineEventFinished(base::TimeDelta delay_time);
+
+  base::RepeatingCallback<void(base::TimeDelta)> request_seek_;
 
   std::unique_ptr<MediaLog> media_log_;
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
@@ -200,7 +295,7 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
   // Wrapped chunk demuxer that actually does the parsing and demuxing of the
   // raw data we feed it.
   std::unique_ptr<ChunkDemuxer> chunk_demuxer_;
-  base::raw_ptr<DemuxerHost> host_;
+  raw_ptr<DemuxerHost> host_;
 
   // Updated by seek, and by updates from outgoing frames.
   base::TimeDelta media_time_ = base::Seconds(0);
@@ -221,6 +316,7 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
 
   // Flag for the two-cb wait for finishing a seek.
   bool seek_waiting_on_engine_ = false;
+  bool seek_waiting_on_demuxer_ = false;
 
   // Pending an event. Don't trigger a new event chain while one is in
   // progress.

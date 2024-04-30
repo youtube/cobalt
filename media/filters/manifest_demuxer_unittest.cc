@@ -55,8 +55,10 @@ class ManifestDemuxerTest : public ::testing::Test {
     auto mock_engine = std::make_unique<MockEngine>();
     mock_engine_ = mock_engine.get();
     manifest_demuxer_ = std::make_unique<ManifestDemuxer>(
-        task_environment_.GetMainThreadTaskRunner(), std::move(mock_engine),
-        media_log_.get());
+        task_environment_.GetMainThreadTaskRunner(),
+        base::BindRepeating(&ManifestDemuxerTest::DemuxerRequestsSeek,
+                            base::Unretained(this)),
+        std::move(mock_engine), media_log_.get());
   }
 
   ~ManifestDemuxerTest() override {
@@ -66,6 +68,7 @@ class ManifestDemuxerTest : public ::testing::Test {
     base::RunLoop().RunUntilIdle();
   }
 
+  MOCK_METHOD(void, DemuxerRequestsSeek, (base::TimeDelta), ());
   MOCK_METHOD(void, MockInitComplete, (PipelineStatus status), ());
   MOCK_METHOD(void, MockSeekComplete, (PipelineStatus status), ());
 
@@ -110,7 +113,7 @@ class ManifestDemuxerTest : public ::testing::Test {
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<MediaLog> media_log_;
   std::unique_ptr<MockDemuxerHost> mock_host_;
-  base::raw_ptr<MockEngine> mock_engine_;
+  raw_ptr<MockEngine> mock_engine_;
   std::unique_ptr<ManifestDemuxer> manifest_demuxer_;
 };
 
@@ -233,6 +236,69 @@ TEST_F(ManifestDemuxerTest, OnTimeUpdateUninterruptedBySeek) {
 
   task_environment_.RunUntilIdle();
   ASSERT_FALSE(manifest_demuxer_->has_next_task_for_testing());
+}
+
+TEST_F(ManifestDemuxerTest, CancelSeekAfterDemuxerBeforeEngine) {
+  // What happens if we seek, the demuxer replies, and while waiting for the
+  // engine to reply, we get a notice to cancel pending seek?
+
+  ManifestDemuxer::DelayCallback delay_cb;
+  EXPECT_CALL(*mock_engine_, OnTimeUpdate(_, _, _))
+      .WillRepeatedly([&delay_cb](base::TimeDelta, double,
+                                  ManifestDemuxer::DelayCallback cb) {
+        delay_cb = std::move(cb);
+      });
+
+  // a pending event is set, which won't be cleared until `delay_cb` is
+  // executed.
+  InitializeDemuxer();
+  ASSERT_TRUE(!!delay_cb);
+  ASSERT_FALSE(manifest_demuxer_->has_pending_seek_for_testing());
+  ASSERT_TRUE(manifest_demuxer_->has_pending_event_for_testing());
+
+  // Seek won't be called until we post delay_cb.
+  EXPECT_CALL(*mock_engine_, StartWaitingForSeek());
+  EXPECT_CALL(*mock_engine_, Seek(_)).Times(0);
+  EXPECT_CALL(*this, MockSeekComplete(_)).Times(0);
+  manifest_demuxer_->StartWaitingForSeek(base::Seconds(100));
+  manifest_demuxer_->Seek(base::Seconds(100),
+                          base::BindOnce(&ManifestDemuxerTest::MockSeekComplete,
+                                         base::Unretained(this)));
+  task_environment_.RunUntilIdle();
+
+  // When we execute `delay_cb`, it will trigger `SeekInternal`, which will kick
+  // off a call to ChunkDemuxer::Seek and will also recapture a new `delay_cb`.
+  // The new `delay_cb` is bound to a task which completes the enigne seek step.
+  // The chunk demuxer should have already responded, and the pending seek
+  // should only be waiting on the engine.
+  EXPECT_CALL(*mock_engine_, Seek(_)).WillOnce(Return(true));
+  std::move(delay_cb).Run(kNoTimestamp);
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(!!delay_cb);
+  ASSERT_TRUE(manifest_demuxer_->has_pending_seek_for_testing());
+  ASSERT_TRUE(manifest_demuxer_->has_pending_event_for_testing());
+
+  EXPECT_CALL(*mock_engine_, AbortPendingReads());
+  manifest_demuxer_->CancelPendingSeek(base::Seconds(5));
+  task_environment_.RunUntilIdle();
+  ASSERT_EQ(manifest_demuxer_->get_media_time_for_testing(),
+            base::Seconds(100));
+
+  // Running `delay_cb` will finish the seek, and start a new update, even if
+  // it runs with kNoTimestamp.
+  EXPECT_CALL(*this, MockSeekComplete(_));
+  std::move(delay_cb).Run(kNoTimestamp);
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(!!delay_cb);
+  ASSERT_EQ(manifest_demuxer_->get_media_time_for_testing(),
+            base::Seconds(100));
+
+  // Run it again to end the loop.
+  std::move(delay_cb).Run(kNoTimestamp);
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(!delay_cb);
+  ASSERT_FALSE(manifest_demuxer_->has_pending_seek_for_testing());
+  ASSERT_FALSE(manifest_demuxer_->has_pending_event_for_testing());
 }
 
 }  // namespace media

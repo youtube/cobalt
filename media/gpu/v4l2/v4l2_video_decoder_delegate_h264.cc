@@ -4,19 +4,12 @@
 
 #include "media/gpu/v4l2/v4l2_video_decoder_delegate_h264.h"
 
-// ChromeOS specific header; does not exist upstream
-#if BUILDFLAG(IS_CHROMEOS)
-// TODO(987856): prevent legacy headers being included from videodev2.h until
-// v4.14 support is deprecated.
-#define _H264_CTRLS_LEGACY_H_
-
-#include <linux/media/h264-ctrls-upstream.h>
-#endif
-
+#include <linux/v4l2-controls.h>
 #include <linux/videodev2.h>
+
+#include <algorithm>
 #include <type_traits>
 
-#include "base/cxx17_backports.h"
 #include "base/logging.h"
 #include "media/gpu/macros.h"
 #include "media/gpu/v4l2/v4l2_decode_surface.h"

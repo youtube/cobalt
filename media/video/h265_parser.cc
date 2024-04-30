@@ -221,8 +221,7 @@ VideoChromaSampling H265SPS::GetChromaSampling() const {
     case 3:
       return VideoChromaSampling::k444;
     default:
-      NOTREACHED();
-      return VideoChromaSampling::kUnknown;
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -236,58 +235,6 @@ bool H265SliceHeader::IsPSlice() const {
 
 bool H265SliceHeader::IsBSlice() const {
   return slice_type == kSliceTypeB;
-}
-
-H265Parser::Result H265Parser::ReadUE(int* val, int* num_bits_read) {
-  // Count the number of contiguous zero bits.
-  int bit;
-  int num_bits = -1;
-  do {
-    READ_BITS_OR_RETURN(1, &bit);
-    num_bits++;
-  } while (bit == 0);
-
-  if (num_bits > 31)
-    return kInvalidStream;
-
-  // Calculate exp-Golomb code value of size num_bits.
-  // Special case for |num_bits| == 31 to avoid integer overflow. The only
-  // valid representation as an int is 2^31 - 1, so the remaining bits must
-  // be 0 or else the number is too large.
-  *val = (1u << num_bits) - 1u;
-
-  // Calculate the total read bits count.
-  if (num_bits_read)
-    *num_bits_read = 1 + num_bits * 2;
-
-  int rest;
-  if (num_bits == 31) {
-    READ_BITS_OR_RETURN(num_bits, &rest);
-    return (rest == 0) ? kOk : kInvalidStream;
-  }
-
-  if (num_bits > 0) {
-    READ_BITS_OR_RETURN(num_bits, &rest);
-    *val += rest;
-  }
-
-  return kOk;
-}
-
-H265Parser::Result H265Parser::ReadSE(int* val, int* num_bits_read) {
-  // See Chapter 9 in the spec.
-  int ue;
-  Result res;
-  res = ReadUE(&ue, num_bits_read);
-  if (res != kOk)
-    return res;
-
-  if (ue % 2 == 0)
-    *val = -(ue / 2);
-  else
-    *val = ue / 2 + 1;
-
-  return kOk;
 }
 
 H265Parser::Result H265Parser::ParseVPS(int* vps_id) {
@@ -468,8 +415,8 @@ H265Parser::Result H265Parser::ParseSPS(int* sps_id) {
       TRUE_OR_RETURN(sps->sps_max_num_reorder_pics[i] >=
                      sps->sps_max_num_reorder_pics[i - 1]);
     }
-    int sps_max_latency_increase_plus1;
-    READ_UE_OR_RETURN(&sps_max_latency_increase_plus1);
+    READ_UE_OR_RETURN(&sps->sps_max_latency_increase_plus1[i]);
+    IN_RANGE_OR_RETURN(sps->sps_max_latency_increase_plus1[i], 0, 0xFFFFFFFE);
   }
   if (!sps_sub_layer_ordering_info_present_flag) {
     // Fill in the default values for the other sublayers.
@@ -482,6 +429,18 @@ H265Parser::Result H265Parser::ParseSPS(int* sps_id) {
           sps->sps_max_latency_increase_plus1[sps->sps_max_sub_layers_minus1];
     }
   }
+
+  // Equation 7-9: Calculate SpsMaxLatencyPictures.
+  for (int i = 0; i <= sps->sps_max_sub_layers_minus1; ++i) {
+    if (sps->sps_max_latency_increase_plus1[i] != 0) {
+      sps->sps_max_latency_pictures[i] =
+          static_cast<uint32_t>(sps->sps_max_num_reorder_pics[i]) +
+          sps->sps_max_latency_increase_plus1[i] - 1;
+    } else {
+      sps->sps_max_latency_pictures[i] = 0;
+    }
+  }
+
   READ_UE_OR_RETURN(&sps->log2_min_luma_coding_block_size_minus3);
   // This enforces that min_cb_log2_size_y below will be <= 30 and prevents
   // integer overflow math there.
@@ -1260,29 +1219,29 @@ VideoCodecProfile H265Parser::ProfileIDCToVideoCodecProfile(int profile_idc) {
   }
 }
 
-void H265SEIContentLightLevelInfo::PopulateHDRMetadata(
-    gfx::HDRMetadata& hdr_metadata) const {
-  hdr_metadata.max_content_light_level = max_content_light_level;
-  hdr_metadata.max_frame_average_light_level = max_picture_average_light_level;
+#if !defined(STARBOARD)
+gfx::HdrMetadataCta861_3 H265SEIContentLightLevelInfo::ToGfx() const {
+  return gfx::HdrMetadataCta861_3(max_content_light_level,
+                                  max_picture_average_light_level);
 }
 
-void H265SEIMasteringDisplayInfo::PopulateColorVolumeMetadata(
-    gfx::ColorVolumeMetadata& color_volume_metadata) const {
+gfx::HdrMetadataSmpteSt2086 H265SEIMasteringDisplayInfo::ToGfx() const {
   constexpr auto kChromaDenominator = 50000.0f;
   constexpr auto kLumaDenoninator = 10000.0f;
   // display primaries are in G/B/R order in MDCV SEI.
-  color_volume_metadata.primaries = {
-      display_primaries[2][0] / kChromaDenominator,
-      display_primaries[2][1] / kChromaDenominator,
-      display_primaries[0][0] / kChromaDenominator,
-      display_primaries[0][1] / kChromaDenominator,
-      display_primaries[1][0] / kChromaDenominator,
-      display_primaries[1][1] / kChromaDenominator,
-      white_points[0] / kChromaDenominator,
-      white_points[1] / kChromaDenominator};
-  color_volume_metadata.luminance_max = max_luminance / kLumaDenoninator;
-  color_volume_metadata.luminance_min = min_luminance / kLumaDenoninator;
+  return gfx::HdrMetadataSmpteSt2086(
+      {display_primaries[2][0] / kChromaDenominator,
+       display_primaries[2][1] / kChromaDenominator,
+       display_primaries[0][0] / kChromaDenominator,
+       display_primaries[0][1] / kChromaDenominator,
+       display_primaries[1][0] / kChromaDenominator,
+       display_primaries[1][1] / kChromaDenominator,
+       white_points[0] / kChromaDenominator,
+       white_points[1] / kChromaDenominator},
+      /*luminance_max=*/max_luminance / kLumaDenoninator,
+      /*luminance_min=*/min_luminance / kLumaDenoninator);
 }
+#endif
 
 H265Parser::Result H265Parser::ParseProfileTierLevel(
     bool profile_present,

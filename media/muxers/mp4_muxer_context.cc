@@ -4,6 +4,7 @@
 
 #include "media/muxers/mp4_muxer_context.h"
 
+#include "media/formats/mp4/writable_box_definitions.h"
 #include "media/muxers/output_position_tracker.h"
 
 namespace media {
@@ -32,22 +33,6 @@ absl::optional<size_t> Mp4MuxerContext::GetAudioIndex() const {
 void Mp4MuxerContext::SetAudioIndex(size_t index) {
   CHECK(!audio_index_.has_value());
   audio_index_ = index;
-}
-
-void Mp4MuxerContext::SetCurrentFragmentMoofOffset(size_t offset) {
-  moof_offset_in_fragment_ = offset;
-}
-
-size_t Mp4MuxerContext::GetCurrentFragmentMoofOffset() const {
-  return moof_offset_in_fragment_.value();
-}
-
-void Mp4MuxerContext::SetCurrentFragmentMdatOffset(size_t offset) {
-  mdat_offset_in_fragment_ = offset;
-}
-
-size_t Mp4MuxerContext::GetCurrentFragmentMdatOffset() const {
-  return mdat_offset_in_fragment_.value();
 }
 
 OutputPositionTracker& Mp4MuxerContext::GetOutputPositionTracker() const {

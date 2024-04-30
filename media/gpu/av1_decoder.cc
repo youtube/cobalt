@@ -66,8 +66,7 @@ bool IsValidBitDepth(uint8_t bit_depth, VideoCodecProfile profile) {
     case AV1PROFILE_PROFILE_PRO:
       return bit_depth == 8u || bit_depth == 10u || bit_depth == 12u;
     default:
-      NOTREACHED();
-      return false;
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -93,32 +92,27 @@ VideoChromaSampling GetAV1ChromaSampling(
   }
 }
 
-void PopulateColorVolumeMetadata(
-    const libgav1::ObuMetadataHdrMdcv& mdcv,
-    gfx::ColorVolumeMetadata& color_volume_metadata) {
+gfx::HdrMetadataSmpteSt2086 ToGfxSmpteSt2086(
+    const libgav1::ObuMetadataHdrMdcv& mdcv) {
   constexpr auto kChromaDenominator = 65536.0f;
   constexpr auto kLumaMaxDenoninator = 256.0f;
   constexpr auto kLumaMinDenoninator = 16384.0f;
   // display primaries are in R/G/B order in metadata_hdr_mdcv OBU Metadata.
-  color_volume_metadata.primaries = {
-      mdcv.primary_chromaticity_x[0] / kChromaDenominator,
-      mdcv.primary_chromaticity_y[0] / kChromaDenominator,
-      mdcv.primary_chromaticity_x[1] / kChromaDenominator,
-      mdcv.primary_chromaticity_y[1] / kChromaDenominator,
-      mdcv.primary_chromaticity_x[2] / kChromaDenominator,
-      mdcv.primary_chromaticity_y[2] / kChromaDenominator,
-      mdcv.white_point_chromaticity_x / kChromaDenominator,
-      mdcv.white_point_chromaticity_y / kChromaDenominator};
-  color_volume_metadata.luminance_max =
-      mdcv.luminance_max / kLumaMaxDenoninator;
-  color_volume_metadata.luminance_min =
-      mdcv.luminance_min / kLumaMinDenoninator;
+  return gfx::HdrMetadataSmpteSt2086(
+      {mdcv.primary_chromaticity_x[0] / kChromaDenominator,
+       mdcv.primary_chromaticity_y[0] / kChromaDenominator,
+       mdcv.primary_chromaticity_x[1] / kChromaDenominator,
+       mdcv.primary_chromaticity_y[1] / kChromaDenominator,
+       mdcv.primary_chromaticity_x[2] / kChromaDenominator,
+       mdcv.primary_chromaticity_y[2] / kChromaDenominator,
+       mdcv.white_point_chromaticity_x / kChromaDenominator,
+       mdcv.white_point_chromaticity_y / kChromaDenominator},
+      /*luminance_max=*/mdcv.luminance_max / kLumaMaxDenoninator,
+      /*luminance_min=*/mdcv.luminance_min / kLumaMinDenoninator);
 }
 
-void PopulateHDRMetadata(const libgav1::ObuMetadataHdrCll& cll,
-                         gfx::HDRMetadata& hdr_metadata) {
-  hdr_metadata.max_content_light_level = cll.max_cll;
-  hdr_metadata.max_frame_average_light_level = cll.max_fall;
+gfx::HdrMetadataCta861_3 ToGfxCta861_3(const libgav1::ObuMetadataHdrCll& cll) {
+  return gfx::HdrMetadataCta861_3(cll.max_cll, cll.max_fall);
 }
 }  // namespace
 
@@ -314,6 +308,22 @@ AcceleratedVideoDecoder::DecodeResult AV1Decoder::DecodeInternal() {
           new_visible_rect = gfx::Rect(new_frame_size);
         }
 
+        const auto& cc = current_sequence_header_->color_config;
+        const VideoColorSpace header_color_space =
+            VideoColorSpace(cc.color_primary, cc.transfer_characteristics,
+                            cc.matrix_coefficients,
+                            cc.color_range == libgav1::kColorRangeStudio
+                                ? gfx::ColorSpace::RangeID::LIMITED
+                                : gfx::ColorSpace::RangeID::FULL);
+
+        VideoColorSpace new_color_space;
+        // For AV1, prefer the frame color space over the config.
+        if (header_color_space.IsSpecified()) {
+          new_color_space = header_color_space;
+        } else if (container_color_space_.IsSpecified()) {
+          new_color_space = container_color_space_;
+        }
+
         ClearReferenceFrames();
         // Issues kConfigChange only if either the dimensions, profile or bit
         // depth is changed.
@@ -324,8 +334,17 @@ AcceleratedVideoDecoder::DecodeResult AV1Decoder::DecodeInternal() {
           visible_rect_ = new_visible_rect;
           profile_ = new_profile;
           bit_depth_ = new_bit_depth;
+          picture_color_space_ = new_color_space;
           clear_current_frame.ReplaceClosure(base::DoNothing());
           return kConfigChange;
+        }
+
+        // Trigger color space change if the previous picture color space is
+        // different from new color space.
+        if (new_color_space.IsSpecified() &&
+            picture_color_space_ != new_color_space) {
+          picture_color_space_ = new_color_space;
+          return kColorSpaceChange;
         }
       }
     }
@@ -414,12 +433,18 @@ AcceleratedVideoDecoder::DecodeResult AV1Decoder::DecodeInternal() {
     // 3. Both container and bitstream.
     // Thus we should also extract HDR metadata here in case we
     // miss the information.
-    if (current_frame_->hdr_mdcv_set() && current_frame_->hdr_cll_set()) {
-      if (!hdr_metadata_)
-        hdr_metadata_ = gfx::HDRMetadata();
-      PopulateColorVolumeMetadata(current_frame_->hdr_mdcv(),
-                                  hdr_metadata_->color_volume_metadata);
-      PopulateHDRMetadata(current_frame_->hdr_cll(), hdr_metadata_.value());
+    if (current_frame_->hdr_cll_set()) {
+      if (!hdr_metadata_.has_value()) {
+        hdr_metadata_.emplace();
+      }
+      hdr_metadata_->cta_861_3 = ToGfxCta861_3(current_frame_->hdr_cll());
+    }
+    if (current_frame_->hdr_mdcv_set()) {
+      if (!hdr_metadata_.has_value()) {
+        hdr_metadata_.emplace();
+      }
+      hdr_metadata_->smpte_st_2086 =
+          ToGfxSmpteSt2086(current_frame_->hdr_mdcv());
     }
 
     DCHECK(current_sequence_header_->film_grain_params_present ||
@@ -434,17 +459,8 @@ AcceleratedVideoDecoder::DecodeResult AV1Decoder::DecodeInternal() {
     pic->set_visible_rect(current_visible_rect);
     pic->set_bitstream_id(stream_id_);
 
-    // For AV1, prefer the frame color space over the config.
-    const auto& cc = current_sequence_header_->color_config;
-    const auto cs = VideoColorSpace(
-        cc.color_primary, cc.transfer_characteristics, cc.matrix_coefficients,
-        cc.color_range == libgav1::kColorRangeStudio
-            ? gfx::ColorSpace::RangeID::LIMITED
-            : gfx::ColorSpace::RangeID::FULL);
-    if (cs.IsSpecified())
-      pic->set_colorspace(cs);
-    else if (container_color_space_.IsSpecified())
-      pic->set_colorspace(container_color_space_);
+    // Set the color space for the picture.
+    pic->set_colorspace(picture_color_space_);
 
     if (hdr_metadata_)
       pic->set_hdr_metadata(hdr_metadata_);
@@ -590,6 +606,11 @@ uint8_t AV1Decoder::GetBitDepth() const {
 VideoChromaSampling AV1Decoder::GetChromaSampling() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return chroma_sampling_;
+}
+
+VideoColorSpace AV1Decoder::GetVideoColorSpace() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return picture_color_space_;
 }
 
 size_t AV1Decoder::GetRequiredNumOfPictures() const {

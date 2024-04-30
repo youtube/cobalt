@@ -40,7 +40,7 @@ bool IsFormatSupported(media::VideoPixelFormat pixel_format) {
 }
 
 libyuv::RotationMode TranslateRotation(int rotation_degrees) {
-  DCHECK_EQ(0, rotation_degrees % 90)
+  CHECK_EQ(0, rotation_degrees % 90)
       << " Rotation must be a multiple of 90, now: " << rotation_degrees;
   libyuv::RotationMode rotation_mode = libyuv::kRotate0;
   if (rotation_degrees == 90)
@@ -102,7 +102,7 @@ gfx::ColorSpace OverrideColorSpaceForLibYuvConversion(
             gfx::ColorSpace::MatrixID::SMPTE170M,
             gfx::ColorSpace::RangeID::LIMITED);
       } else {
-        // Color space is not specified but it's probably safe to assume its
+        // Color space is not specified but it is probably safe to assume it is
         // sRGB though, and so it would be valid to assume that libyuv's
         // ConvertToI420() is going to produce results in Rec601, or very close
         // to it.
@@ -114,6 +114,66 @@ gfx::ColorSpace OverrideColorSpaceForLibYuvConversion(
   }
 
   return overriden_color_space;
+}
+
+struct FourccAndFlip {
+  libyuv::FourCC fourcc_format = libyuv::FOURCC_ANY;
+  bool flip = false;
+};
+
+FourccAndFlip GetFourccAndFlipFromPixelFormat(
+    const media::VideoCaptureFormat& format,
+    bool flip_y) {
+  const int is_width_odd = format.frame_size.width() & 1;
+  const int is_height_odd = format.frame_size.height() & 1;
+
+  switch (format.pixel_format) {
+    case media::PIXEL_FORMAT_UNKNOWN:  // Color format not set.
+      return {};
+    case media::PIXEL_FORMAT_I420:
+      CHECK(!is_width_odd && !is_height_odd);
+      return {libyuv::FOURCC_I420};
+    case media::PIXEL_FORMAT_YV12:
+      CHECK(!is_width_odd && !is_height_odd);
+      return {libyuv::FOURCC_YV12};
+    case media::PIXEL_FORMAT_NV12:
+      CHECK(!is_width_odd && !is_height_odd);
+      return {libyuv::FOURCC_NV12};
+    case media::PIXEL_FORMAT_NV21:
+      CHECK(!is_width_odd && !is_height_odd);
+      return {libyuv::FOURCC_NV21};
+    case media::PIXEL_FORMAT_YUY2:
+      CHECK(!is_width_odd && !is_height_odd);
+      return {libyuv::FOURCC_YUY2};
+    case media::PIXEL_FORMAT_UYVY:
+      CHECK(!is_width_odd && !is_height_odd);
+      return {libyuv::FOURCC_UYVY};
+    case media::PIXEL_FORMAT_RGB24:
+      if constexpr (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) {
+        // Linux RGB24 defines red at lowest byte address,
+        // see http://linuxtv.org/downloads/v4l-dvb-apis/packed-rgb.html.
+        return {libyuv::FOURCC_RAW};
+      } else if constexpr (BUILDFLAG(IS_WIN)) {
+        // Windows RGB24 defines blue at lowest byte,
+        // see https://msdn.microsoft.com/en-us/library/windows/desktop/dd407253
+
+        // TODO(wjia): Currently, for RGB24 on WIN, capture device always passes
+        // in positive src_width and src_height. Remove this hardcoded value
+        // when negative src_height is supported. The negative src_height
+        // indicates that vertical flipping is needed.
+        return {libyuv::FOURCC_24BG, true};
+      } else {
+        NOTREACHED_NORETURN()
+            << "RGB24 is only available in Linux and Windows platforms";
+      }
+    case media::PIXEL_FORMAT_ARGB:
+      // Windows platforms e.g. send the data vertically flipped sometimes.
+      return {libyuv::FOURCC_ARGB, flip_y};
+    case media::PIXEL_FORMAT_MJPEG:
+      return {libyuv::FOURCC_MJPG};
+    default:
+      NOTREACHED_NORETURN();
+  }
 }
 
 }  // anonymous namespace
@@ -224,6 +284,12 @@ void VideoCaptureDeviceClient::OnIncomingCapturedData(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
                "VideoCaptureDeviceClient::OnIncomingCapturedData");
 
+  // The input |length| can be greater than the required buffer size because of
+  // paddings and/or alignments, but it cannot be smaller.
+  CHECK_GE(static_cast<size_t>(length),
+           media::VideoFrame::AllocationSize(format.pixel_format,
+                                             format.frame_size));
+
   if (last_captured_pixel_format_ != format.pixel_format) {
     OnLog("Pixel format: " + VideoPixelFormatToString(format.pixel_format));
     last_captured_pixel_format_ = format.pixel_format;
@@ -233,7 +299,7 @@ void VideoCaptureDeviceClient::OnIncomingCapturedData(
         optional_jpeg_decoder_factory_callback_) {
       external_jpeg_decoder_ =
           std::move(optional_jpeg_decoder_factory_callback_).Run();
-      DCHECK(external_jpeg_decoder_);
+      CHECK(external_jpeg_decoder_);
       external_jpeg_decoder_->Initialize();
     }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -250,10 +316,10 @@ void VideoCaptureDeviceClient::OnIncomingCapturedData(
                                      timestamp, frame_feedback_id);
   }
 
-  // |chopped_{width,height} and |new_unrotated_{width,height}| are the lowest
-  // bit decomposition of {width, height}, grabbing the odd and even parts.
-  const int chopped_width = format.frame_size.width() & 1;
-  const int chopped_height = format.frame_size.height() & 1;
+  // |new_unrotated_{width,height}| are the dimensions of the output buffer that
+  // satisfy the video pixel format requirements. For I420, this is equivalent
+  // to rounding to nearest even number (away from zero, eg 13 becomes 14, -13
+  // becomes -14).
   const int new_unrotated_width = format.frame_size.width() & ~1;
   const int new_unrotated_height = format.frame_size.height() & ~1;
 
@@ -262,9 +328,12 @@ void VideoCaptureDeviceClient::OnIncomingCapturedData(
   if (rotation == 90 || rotation == 270)
     std::swap(destination_width, destination_height);
 
-  libyuv::RotationMode rotation_mode = TranslateRotation(rotation);
-
   const gfx::Size dimensions(destination_width, destination_height);
+  CHECK(dimensions.height());
+  CHECK(dimensions.width());
+
+  const libyuv::RotationMode rotation_mode = TranslateRotation(rotation);
+
   Buffer buffer;
   auto reservation_result_code = ReserveOutputBuffer(
       dimensions, PIXEL_FORMAT_I420, frame_feedback_id, &buffer);
@@ -274,8 +343,8 @@ void VideoCaptureDeviceClient::OnIncomingCapturedData(
     return;
   }
 
-  DCHECK(dimensions.height());
-  DCHECK(dimensions.width());
+  const auto [fourcc_format, flip] =
+      GetFourccAndFlipFromPixelFormat(format, flip_y);
 
   uint8_t* y_plane_data;
   uint8_t* u_plane_data;
@@ -284,78 +353,8 @@ void VideoCaptureDeviceClient::OnIncomingCapturedData(
   GetI420BufferAccess(buffer, dimensions, &y_plane_data, &u_plane_data,
                       &v_plane_data, &yplane_stride, &uv_plane_stride);
 
-  int crop_x = 0;
-  int crop_y = 0;
-  libyuv::FourCC fourcc_format = libyuv::FOURCC_ANY;
-
-  bool flip = false;
-  switch (format.pixel_format) {
-    case PIXEL_FORMAT_UNKNOWN:  // Color format not set.
-      break;
-    case PIXEL_FORMAT_I420:
-      DCHECK(!chopped_width && !chopped_height);
-      fourcc_format = libyuv::FOURCC_I420;
-      break;
-    case PIXEL_FORMAT_YV12:
-      DCHECK(!chopped_width && !chopped_height);
-      fourcc_format = libyuv::FOURCC_YV12;
-      break;
-    case PIXEL_FORMAT_NV12:
-      DCHECK(!chopped_width && !chopped_height);
-      fourcc_format = libyuv::FOURCC_NV12;
-      break;
-    case PIXEL_FORMAT_NV21:
-      DCHECK(!chopped_width && !chopped_height);
-      fourcc_format = libyuv::FOURCC_NV21;
-      break;
-    case PIXEL_FORMAT_YUY2:
-      DCHECK(!chopped_width && !chopped_height);
-      fourcc_format = libyuv::FOURCC_YUY2;
-      break;
-    case PIXEL_FORMAT_UYVY:
-      DCHECK(!chopped_width && !chopped_height);
-      fourcc_format = libyuv::FOURCC_UYVY;
-      break;
-    case PIXEL_FORMAT_RGB24:
-// Linux RGB24 defines red at lowest byte address,
-// see http://linuxtv.org/downloads/v4l-dvb-apis/packed-rgb.html.
-// Windows RGB24 defines blue at lowest byte,
-// see https://msdn.microsoft.com/en-us/library/windows/desktop/dd407253
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-      fourcc_format = libyuv::FOURCC_RAW;
-#elif BUILDFLAG(IS_WIN)
-      fourcc_format = libyuv::FOURCC_24BG;
-#else
-      NOTREACHED() << "RGB24 is only available in Linux and Windows platforms";
-#endif
-#if BUILDFLAG(IS_WIN)
-      // TODO(wjia): Currently, for RGB24 on WIN, capture device always passes
-      // in positive src_width and src_height. Remove this hardcoded value when
-      // negative src_height is supported. The negative src_height indicates
-      // that vertical flipping is needed.
-      flip = true;
-#endif
-      break;
-    case PIXEL_FORMAT_ARGB:
-      // Windows platforms e.g. send the data vertically flipped sometimes.
-      flip = flip_y;
-      fourcc_format = libyuv::FOURCC_ARGB;
-      break;
-    case PIXEL_FORMAT_MJPEG:
-      fourcc_format = libyuv::FOURCC_MJPG;
-      break;
-    default:
-      NOTREACHED();
-  }
-
   const gfx::ColorSpace color_space = OverrideColorSpaceForLibYuvConversion(
       data_color_space, format.pixel_format);
-
-  // The input |length| can be greater than the required buffer size because of
-  // paddings and/or alignments, but it cannot be smaller.
-  DCHECK_GE(static_cast<size_t>(length),
-            media::VideoFrame::AllocationSize(format.pixel_format,
-                                              format.frame_size));
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   if (external_jpeg_decoder_) {
@@ -375,11 +374,11 @@ void VideoCaptureDeviceClient::OnIncomingCapturedData(
   }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-  // libyuv::ConvertToI420 use Rec601 to convert RGB to YUV.
+  // libyuv::ConvertToI420 uses Rec601 to convert RGB to YUV.
   if (libyuv::ConvertToI420(
           data, length, y_plane_data, yplane_stride, u_plane_data,
-          uv_plane_stride, v_plane_data, uv_plane_stride, crop_x, crop_y,
-          format.frame_size.width(),
+          uv_plane_stride, v_plane_data, uv_plane_stride, /*crop_x=*/0,
+          /*crop_y=*/0, format.frame_size.width(),
           (flip ? -1 : 1) * format.frame_size.height(), new_unrotated_width,
           new_unrotated_height, rotation_mode, fourcc_format) != 0) {
     DLOG(WARNING) << "Failed to convert buffer's pixel format to I420 from "
@@ -403,7 +402,7 @@ void VideoCaptureDeviceClient::OnIncomingCapturedGfxBuffer(
     base::TimeTicks reference_time,
     base::TimeDelta timestamp,
     int frame_feedback_id) {
-  TRACE_EVENT0("media",
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
                "VideoCaptureDeviceClient::OnIncomingCapturedGfxBuffer");
 
   if (last_captured_pixel_format_ != frame_format.pixel_format) {
@@ -488,9 +487,16 @@ void VideoCaptureDeviceClient::OnIncomingCapturedExternalBuffer(
     std::vector<CapturedExternalVideoBuffer> scaled_buffers,
     base::TimeTicks reference_time,
     base::TimeDelta timestamp,
-    gfx::Rect visible_rect) {
-  auto ready_frame = CreateReadyFrameFromExternalBuffer(
-      std::move(buffer), reference_time, timestamp, visible_rect);
+    const gfx::Rect& visible_rect) {
+  ReadyFrameInBuffer ready_frame;
+  if (CreateReadyFrameFromExternalBuffer(
+          std::move(buffer), reference_time, timestamp, visible_rect,
+          &ready_frame) != ReserveResult::kSucceeded) {
+    DVLOG(2) << __func__
+             << " CreateReadyFrameFromExternalBuffer failed: reservation "
+                "trakcer failed.";
+    return;
+  }
   std::vector<ReadyFrameInBuffer> scaled_ready_frames;
   scaled_ready_frames.reserve(scaled_buffers.size());
   for (auto& scaled_buffer : scaled_buffers) {
@@ -499,25 +505,48 @@ void VideoCaptureDeviceClient::OnIncomingCapturedExternalBuffer(
     // be removed in another CL.
     gfx::Rect scaled_buffer_visible_rect =
         gfx::Rect{scaled_buffer.format.frame_size};
-    scaled_ready_frames.push_back(CreateReadyFrameFromExternalBuffer(
-        std::move(scaled_buffer), reference_time, timestamp,
-        scaled_buffer_visible_rect));
+    ReadyFrameInBuffer scaled_ready_frame;
+    if (CreateReadyFrameFromExternalBuffer(
+            std::move(scaled_buffer), reference_time, timestamp,
+            scaled_buffer_visible_rect,
+            &scaled_ready_frame) != ReserveResult::kSucceeded) {
+      DVLOG(2) << __func__
+               << " CreateReadyFrameFromExternalBuffer failed: scaled frame "
+                  "reservation trakcer failed.";
+      return;
+    }
+    scaled_ready_frames.push_back(std::move(scaled_ready_frame));
   }
   receiver_->OnFrameReadyInBuffer(std::move(ready_frame),
                                   std::move(scaled_ready_frames));
 }
 
-ReadyFrameInBuffer VideoCaptureDeviceClient::CreateReadyFrameFromExternalBuffer(
+VideoCaptureDevice::Client::ReserveResult
+VideoCaptureDeviceClient::CreateReadyFrameFromExternalBuffer(
     CapturedExternalVideoBuffer buffer,
     base::TimeTicks reference_time,
     base::TimeDelta timestamp,
-    gfx::Rect visible_rect) {
+    const gfx::Rect& visible_rect,
+    ReadyFrameInBuffer* ready_buffer) {
   // Reserve an ID for this buffer that will not conflict with any of the IDs
   // used by |buffer_pool_|.
   int buffer_id_to_drop = VideoCaptureBufferPool::kInvalidId;
-  int buffer_id = buffer_pool_->ReserveIdForExternalBuffer(buffer.handle,
-                                                           &buffer_id_to_drop);
-
+  int buffer_id = VideoCaptureBufferPool::kInvalidId;
+  // Use std::move to transfer the handle ownership here since the buffer will
+  // be created and confirm each ScopedHandle can only have one owner at a
+  // time. Because the subsequent code mojom::VideoFrameInfoPtr needs to use the
+  // buffer information, so here use |buffer_for_reserve_id| instead of
+  // std::move(buffer).
+  CapturedExternalVideoBuffer buffer_for_reserve_id =
+      CapturedExternalVideoBuffer(std::move(buffer.handle), buffer.format,
+                                  buffer.color_space);
+#if BUILDFLAG(IS_WIN)
+  buffer_for_reserve_id.imf_buffer = std::move(buffer.imf_buffer);
+#endif
+  VideoCaptureDevice::Client::ReserveResult reservation_result_code =
+      buffer_pool_->ReserveIdForExternalBuffer(std::move(buffer_for_reserve_id),
+                                               visible_rect.size(),
+                                               &buffer_id_to_drop, &buffer_id);
   // If a buffer to retire was specified, retire one.
   if (buffer_id_to_drop != VideoCaptureBufferPool::kInvalidId) {
     auto entry_iter =
@@ -528,11 +557,18 @@ ReadyFrameInBuffer VideoCaptureDeviceClient::CreateReadyFrameFromExternalBuffer(
     }
   }
 
+  if (reservation_result_code != ReserveResult::kSucceeded) {
+    return reservation_result_code;
+  }
+
   // Register the buffer with the receiver if it is new.
   if (!base::Contains(buffer_ids_known_by_receiver_, buffer_id)) {
+    // On windows, 'GetGpuMemoryBufferHandle' will duplicate a new handle which
+    // refers to the same object as the original handle.
+    // https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-duplicatehandle
     media::mojom::VideoBufferHandlePtr buffer_handle =
         media::mojom::VideoBufferHandle::NewGpuMemoryBufferHandle(
-            std::move(buffer.handle));
+            buffer_pool_->GetGpuMemoryBufferHandle(buffer_id));
     receiver_->OnNewBuffer(buffer_id, std::move(buffer_handle));
     buffer_ids_known_by_receiver_.push_back(buffer_id);
   }
@@ -551,11 +587,12 @@ ReadyFrameInBuffer VideoCaptureDeviceClient::CreateReadyFrameFromExternalBuffer(
   buffer_pool_->HoldForConsumers(buffer_id, 1);
   buffer_pool_->RelinquishProducerReservation(buffer_id);
 
-  return ReadyFrameInBuffer(
+  *ready_buffer = ReadyFrameInBuffer(
       buffer_id, 0 /* frame_feedback_id */,
       std::make_unique<ScopedBufferPoolReservation<ConsumerReleaseTraits>>(
           buffer_pool_, buffer_id),
       std::move(info));
+  return VideoCaptureDevice::Client::ReserveResult::kSucceeded;
 }
 
 VideoCaptureDevice::Client::ReserveResult
@@ -564,9 +601,9 @@ VideoCaptureDeviceClient::ReserveOutputBuffer(const gfx::Size& frame_size,
                                               int frame_feedback_id,
                                               Buffer* buffer) {
   DFAKE_SCOPED_RECURSIVE_LOCK(call_from_producer_);
-  DCHECK_GT(frame_size.width(), 0);
-  DCHECK_GT(frame_size.height(), 0);
-  DCHECK(IsFormatSupported(pixel_format));
+  CHECK_GT(frame_size.width(), 0);
+  CHECK_GT(frame_size.height(), 0);
+  CHECK(IsFormatSupported(pixel_format));
 
   int buffer_id_to_drop = VideoCaptureBufferPool::kInvalidId;
   int buffer_id = VideoCaptureBufferPool::kInvalidId;
@@ -588,7 +625,7 @@ VideoCaptureDeviceClient::ReserveOutputBuffer(const gfx::Size& frame_size,
     return reservation_result_code;
   }
 
-  DCHECK_NE(VideoCaptureBufferPool::kInvalidId, buffer_id);
+  CHECK_NE(VideoCaptureBufferPool::kInvalidId, buffer_id);
 
   if (!base::Contains(buffer_ids_known_by_receiver_, buffer_id)) {
     VideoCaptureBufferType target_buffer_type = target_buffer_type_;
@@ -711,9 +748,9 @@ void VideoCaptureDeviceClient::OnIncomingCapturedY16Data(
       format.frame_size, PIXEL_FORMAT_Y16, frame_feedback_id, &buffer);
   // The input |length| can be greater than the required buffer size because of
   // paddings and/or alignments, but it cannot be smaller.
-  DCHECK_GE(static_cast<size_t>(length),
-            media::VideoFrame::AllocationSize(format.pixel_format,
-                                              format.frame_size));
+  CHECK_GE(static_cast<size_t>(length),
+           media::VideoFrame::AllocationSize(format.pixel_format,
+                                             format.frame_size));
   // Failed to reserve output buffer, so drop the frame.
   if (reservation_result_code != ReserveResult::kSucceeded) {
     receiver_->OnFrameDropped(

@@ -21,7 +21,21 @@ namespace media {
 
 namespace {
 
-void SetUpOpenH264Params(const VideoEncoder::Options& options,
+EProfileIdc ToOpenH264Profile(media::VideoCodecProfile profile) {
+  switch (profile) {
+    case media::H264PROFILE_BASELINE:
+      return PRO_BASELINE;
+    case media::H264PROFILE_MAIN:
+      return PRO_MAIN;
+    case media::H264PROFILE_HIGH:
+      return PRO_HIGH;
+    default:
+      return PRO_UNKNOWN;
+  }
+}
+
+void SetUpOpenH264Params(media::VideoCodecProfile profile,
+                         const VideoEncoder::Options& options,
                          const VideoColorSpace& itu_cs,
                          SEncParamExt* params) {
   int threads = GetNumberOfThreadsForSoftwareEncoding(options.frame_size);
@@ -71,6 +85,7 @@ void SetUpOpenH264Params(const VideoEncoder::Options& options,
   params->iSpatialLayerNum = 1;
   auto& layer = params->sSpatialLayers[0];
   layer.fFrameRate = params->fMaxFrameRate;
+  layer.uiProfileIdc = ToOpenH264Profile(profile);
   layer.iMaxSpatialBitrate = params->iTargetBitrate;
   layer.iSpatialBitrate = params->iTargetBitrate;
   layer.iVideoHeight = params->iPicHeight;
@@ -142,13 +157,13 @@ void OpenH264VideoEncoder::Initialize(VideoCodecProfile profile,
     return;
   }
 
-  profile_ = profile;
-  if (profile != H264PROFILE_BASELINE) {
+  if (ToOpenH264Profile(profile) == PRO_UNKNOWN) {
     std::move(done_cb).Run(
         EncoderStatus(EncoderStatus::Codes::kEncoderUnsupportedProfile,
-                      "Unsupported profile"));
+                      "Unsupported profile: " + GetProfileName(profile)));
     return;
   }
+  profile_ = profile;
 
   if (options.bitrate.has_value() &&
       options.bitrate->mode() == Bitrate::Mode::kExternal) {
@@ -184,8 +199,8 @@ void OpenH264VideoEncoder::Initialize(VideoCodecProfile profile,
     return;
   }
   SetUpOpenH264Params(
-      options, VideoColorSpace::FromGfxColorSpace(last_frame_color_space_),
-      &params);
+      profile_, options,
+      VideoColorSpace::FromGfxColorSpace(last_frame_color_space_), &params);
 
   if (int err = codec->InitializeExt(&params)) {
     std::move(done_cb).Run(
@@ -371,9 +386,12 @@ void OpenH264VideoEncoder::Encode(scoped_refptr<VideoFrame> frame,
   picture.iPicHeight = frame->visible_rect().height();
   picture.iColorFormat = EVideoFormatType::videoFormatI420;
   picture.uiTimeStamp = frame->timestamp().InMilliseconds();
-  picture.pData[0] = frame->GetWritableVisibleData(VideoFrame::kYPlane);
-  picture.pData[1] = frame->GetWritableVisibleData(VideoFrame::kUPlane);
-  picture.pData[2] = frame->GetWritableVisibleData(VideoFrame::kVPlane);
+  picture.pData[0] =
+      const_cast<uint8_t*>(frame->visible_data(VideoFrame::kYPlane));
+  picture.pData[1] =
+      const_cast<uint8_t*>(frame->visible_data(VideoFrame::kUPlane));
+  picture.pData[2] =
+      const_cast<uint8_t*>(frame->visible_data(VideoFrame::kVPlane));
   picture.iStride[0] = frame->stride(VideoFrame::kYPlane);
   picture.iStride[1] = frame->stride(VideoFrame::kUPlane);
   picture.iStride[2] = frame->stride(VideoFrame::kVPlane);
@@ -423,8 +441,8 @@ void OpenH264VideoEncoder::ChangeOptions(const Options& options,
   }
 
   SetUpOpenH264Params(
-      options, VideoColorSpace::FromGfxColorSpace(last_frame_color_space_),
-      &params);
+      profile_, options,
+      VideoColorSpace::FromGfxColorSpace(last_frame_color_space_), &params);
 
   if (int err =
           codec_->SetOption(ENCODER_OPTION_SVC_ENCODE_PARAM_EXT, &params)) {
@@ -470,7 +488,7 @@ void OpenH264VideoEncoder::UpdateEncoderColorSpace() {
     return;
   }
 
-  SetUpOpenH264Params(options_, itu_cs, &params);
+  SetUpOpenH264Params(profile_, options_, itu_cs, &params);
 
   // It'd be nice if SetOption(ENCODER_OPTION_SVC_ENCODE_PARAM_EXT) worked, but
   // alas it doesn't seem to, so we must reinitialize.

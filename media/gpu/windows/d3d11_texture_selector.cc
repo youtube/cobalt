@@ -88,8 +88,10 @@ std::unique_ptr<TextureSelector> TextureSelector::Create(
   };
   // TODO(liberato): add other options here, like "copy to rgb" for NV12.
   switch (decoder_output_format) {
-    case DXGI_FORMAT_NV12: {
-      MEDIA_LOG(INFO, media_log) << "D3D11VideoDecoder producing NV12";
+    case DXGI_FORMAT_NV12:
+    case DXGI_FORMAT_AYUV: {
+      MEDIA_LOG(INFO, media_log) << "D3D11VideoDecoder producing "
+                                 << DxgiFormatToString(decoder_output_format);
       if (!needs_texture_copy || supports_fmt(DXGI_FORMAT_NV12)) {
         output_pixel_format = PIXEL_FORMAT_NV12;
         output_dxgi_format = DXGI_FORMAT_NV12;
@@ -104,7 +106,8 @@ std::unique_ptr<TextureSelector> TextureSelector::Create(
         output_color_space.reset();
         MEDIA_LOG(INFO, media_log) << "D3D11VideoDecoder: Selected ARGB";
       } else {
-        MEDIA_LOG(INFO, media_log) << "NV12 not supported";
+        MEDIA_LOG(INFO, media_log)
+            << DxgiFormatToString(decoder_output_format) << " not supported";
         return nullptr;
       }
       break;
@@ -194,10 +197,11 @@ std::unique_ptr<TextureSelector> TextureSelector::Create(
 
 std::unique_ptr<Texture2DWrapper> TextureSelector::CreateTextureWrapper(
     ComD3D11Device device,
+    gfx::ColorSpace color_space,
     gfx::Size size) {
   // TODO(liberato): If the output format is rgb, then create a pbuffer wrapper.
-  return std::make_unique<DefaultTexture2DWrapper>(size, OutputDXGIFormat(),
-                                                   device);
+  return std::make_unique<DefaultTexture2DWrapper>(size, color_space,
+                                                   OutputDXGIFormat(), device);
 }
 
 bool TextureSelector::DoesDecoderOutputUseSharedHandle() const {
@@ -230,6 +234,7 @@ CopyTextureSelector::~CopyTextureSelector() = default;
 
 std::unique_ptr<Texture2DWrapper> CopyTextureSelector::CreateTextureWrapper(
     ComD3D11Device device,
+    gfx::ColorSpace color_space,
     gfx::Size size) {
   D3D11_TEXTURE2D_DESC texture_desc = {};
   texture_desc.MipLevels = 1;
@@ -257,8 +262,9 @@ std::unique_ptr<Texture2DWrapper> CopyTextureSelector::CreateTextureWrapper(
 
   return std::make_unique<CopyingTexture2DWrapper>(
       size,
-      std::make_unique<DefaultTexture2DWrapper>(size, OutputDXGIFormat(),
-                                                device),
+      std::make_unique<DefaultTexture2DWrapper>(
+          size, output_color_space_.value_or(color_space), OutputDXGIFormat(),
+          device),
       video_processor_proxy_, out_texture, output_color_space_);
 }
 

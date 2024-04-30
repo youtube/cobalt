@@ -28,11 +28,6 @@ VideoDecoderType GetPreferredLinuxDecoderImplementation() {
     return VideoDecoderType::kOutOfProcess;
   }
 
-  // If direct video decoder is disabled, revert to using the VDA
-  // implementation.
-  if (!base::FeatureList::IsEnabled(kUseChromeOSDirectVideoDecoder)) {
-    return VideoDecoderType::kVda;
-  }
   return VideoDecoderType::kVaapi;
 }
 
@@ -61,11 +56,6 @@ VideoDecoderType GetActualPlatformDecoderImplementation(
       return VideoDecoderType::kUnknown;
     case VideoDecoderType::kOutOfProcess:
       return VideoDecoderType::kOutOfProcess;
-    case VideoDecoderType::kVda: {
-      return gpu_preferences.gr_context_type == gpu::GrContextType::kGL
-                 ? VideoDecoderType::kVda
-                 : VideoDecoderType::kUnknown;
-    }
     case VideoDecoderType::kVaapi: {
       // Allow VaapiVideoDecoder on GL.
       if (gpu_preferences.gr_context_type == gpu::GrContextType::kGL) {
@@ -137,12 +127,8 @@ std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(
       // out-of-process.
       auto frame_pool = std::make_unique<PlatformVideoFramePool>();
 
-      // With out-of-process video decoding, we don't feed wrapped frames to the
-      // MailboxVideoFrameConverter, so we need to pass base::NullCallback() as
-      // the callback for unwrapping.
       auto frame_converter = MailboxVideoFrameConverter::Create(
-          /*unwrap_frame_cb=*/base::NullCallback(), traits.gpu_task_runner,
-          traits.get_command_buffer_stub_cb,
+          traits.gpu_task_runner, traits.get_command_buffer_stub_cb,
           traits.gpu_preferences.enable_unsafe_webgpu);
       return VideoDecoderPipeline::Create(
           *traits.gpu_workarounds, traits.task_runner, std::move(frame_pool),
@@ -154,8 +140,6 @@ std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(
     case VideoDecoderType::kV4L2: {
       auto frame_pool = std::make_unique<PlatformVideoFramePool>();
       auto frame_converter = MailboxVideoFrameConverter::Create(
-          base::BindRepeating(&PlatformVideoFramePool::UnwrapFrame,
-                              base::Unretained(frame_pool.get())),
           traits.gpu_task_runner, traits.get_command_buffer_stub_cb,
           traits.gpu_preferences.enable_unsafe_webgpu);
       return VideoDecoderPipeline::Create(
@@ -163,13 +147,6 @@ std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(
           std::move(frame_converter),
           GetPreferredRenderableFourccs(traits.gpu_preferences),
           traits.media_log->Clone(), /*oop_video_decoder=*/{});
-    }
-    case VideoDecoderType::kVda: {
-      return VdaVideoDecoder::Create(
-          traits.task_runner, traits.gpu_task_runner, traits.media_log->Clone(),
-          *traits.target_color_space, traits.gpu_preferences,
-          *traits.gpu_workarounds, traits.get_command_buffer_stub_cb,
-          VideoDecodeAccelerator::Config::OutputMode::ALLOCATE);
     }
     default:
       return nullptr;
@@ -196,6 +173,7 @@ void NotifyPlatformDecoderSupport(
 
 absl::optional<SupportedVideoDecoderConfigs>
 GetPlatformSupportedVideoDecoderConfigs(
+    base::WeakPtr<MediaGpuChannelManager> manager,
     gpu::GpuDriverBugWorkarounds gpu_workarounds,
     gpu::GpuPreferences gpu_preferences,
     const gpu::GPUInfo& gpu_info,
@@ -205,8 +183,6 @@ GetPlatformSupportedVideoDecoderConfigs(
   base::UmaHistogramEnumeration("Media.VaapiLinux.SupportedVideoDecoder",
                                 decoder_implementation);
   switch (decoder_implementation) {
-    case VideoDecoderType::kVda:
-      return std::move(get_vda_configs).Run();
     case VideoDecoderType::kOutOfProcess:
     case VideoDecoderType::kVaapi:
     case VideoDecoderType::kV4L2:

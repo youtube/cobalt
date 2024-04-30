@@ -431,6 +431,9 @@ void VaapiVideoDecoder::HandleDecodeTask() {
       SetState(State::kChangingResolution);
       client_->PrepareChangeResolution();
       break;
+    case AcceleratedVideoDecoder::kColorSpaceChange:
+      NOTIMPLEMENTED_LOG_ONCE();
+      break;
     case AcceleratedVideoDecoder::kRanOutOfSurfaces:
       // No more surfaces to decode into available, wait until client returns
       // video frames to the frame pool.
@@ -955,14 +958,11 @@ bool VaapiVideoDecoder::NeedsBitstreamConversion() const {
 }
 
 bool VaapiVideoDecoder::CanReadWithoutStalling() const {
-  NOTIMPLEMENTED();
-  NOTREACHED();
-  return true;
+  NOTREACHED_NORETURN();
 }
 
 int VaapiVideoDecoder::GetMaxDecodeRequests() const {
-  NOTREACHED();
-  return 4;
+  NOTREACHED_NORETURN();
 }
 
 VideoDecoderType VaapiVideoDecoder::GetDecoderType() const {

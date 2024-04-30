@@ -209,7 +209,9 @@ enum class VideoCaptureError {
   kWinMediaFoundationSourceCreationFailed = 144,
   kWinDirectShowDeviceFilterCreationFailed = 145,
   kWinDirectShowDeviceInitializationFailed = 146,
-  kMaxValue = 146
+  kVideoCaptureDeviceFactorySecondCreateDenied = 147,
+  kScreenCaptureKitResetStreamError = 148,
+  kMaxValue = 148
 };
 
 // WARNING: Do not change the values assigned to the entries. They are used for
@@ -236,7 +238,7 @@ enum class VideoCaptureFrameDropReason {
   kVideoTrackAdapterHasNoResolutionAdapters = 19,
   kResolutionAdapterFrameIsNotValid = 20,
   kResolutionAdapterWrappingFrameForCroppingFailed = 21,
-  kResolutionAdapterTimestampTooCloseToPrevious = 22,
+  // kResolutionAdapterTimestampTooCloseToPrevious = 22, // combined into 23.
   kResolutionAdapterFrameRateIsHigherThanRequested = 23,
   kResolutionAdapterHasNoCallbacks = 24,
   kVideoTrackFrameDelivererNotEnabledReplacingWithBlackFrame = 25,

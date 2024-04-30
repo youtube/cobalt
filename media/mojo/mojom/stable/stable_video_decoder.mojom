@@ -95,6 +95,7 @@ interface StableCdmContext {
 
 // Based on |media.mojom.VideoDecoder|.
 // Next min method ID: 5
+// Next min version: 2
 [Stable, Uuid="85611470-3e87-43a9-ac75-a11a63e76415"]
 interface StableVideoDecoder {
   // Returns a list of supported configs as well as the decoder ID for the
@@ -129,6 +130,9 @@ interface StableVideoDecoder {
   // |cdm_context| is required for the first Initialize() call that sets up
   // encryption and is ignored on subsequent calls.
   //
+  // |needs_transcryption| tells the client whether it needs to do transcryption
+  // for encrypted content before sending it to the decoder.
+  //
   // TODO(b/195769334): consider passing |cdm_context| in Construct() instead of
   // Initialize().
   Initialize@2(VideoDecoderConfig config, bool low_delay,
@@ -136,7 +140,8 @@ interface StableVideoDecoder {
       => (Status status,
           bool needs_bitstream_conversion,
           int32 max_decode_requests,
-          VideoDecoderType decoder_type);
+          VideoDecoderType decoder_type,
+          [MinVersion=1] bool needs_transcryption);
 
   // Request decoding of exactly one frame or an EOS buffer. This must not be
   // called while there are pending Initialize(), Reset(), or Decode(EOS)
@@ -158,14 +163,32 @@ const sandbox.mojom.Sandbox kStableVideoDecoderFactoryServiceSandbox
 const sandbox.mojom.Sandbox kStableVideoDecoderFactoryServiceSandbox
  = sandbox.mojom.Sandbox.kNoSandbox;
 
+// A disconnection of this interface can be interpreted as the
+// StableVideoDecoder implementation created by
+// StableVideoDecoderFactory.CreateStableVideoDecoder() having been destroyed
+// (or never bound in the first place).
+//
+// This interface is intended to be implemented by the browser process and used
+// by the video decoder processes.
+[Stable, Uuid="b2211aaa-78e9-4326-8c85-a7ab15b32032"]
+interface StableVideoDecoderTracker {};
+
 // A StableVideoDecoderFactory allows the browser process to bind a
 // StableVideoDecoder on behalf of some client which can be, e.g., the
 // lacros-chrome browser process or a renderer process in ash-chrome.
 // Next min method ID: 1
+// Next min version: 2
 [Stable, Uuid="d6047fd9-fffb-4e37-ad9b-383a1c9e1d2d"]
 interface StableVideoDecoderFactory {
   // Creates a StableVideoDecoder and should be called by the browser process.
-  CreateStableVideoDecoder@0(pending_receiver<StableVideoDecoder> receiver);
+  // If |tracker| is provided, the caller can handle its disconnection in order
+  // to know when the StableVideoDecoder implementation is destroyed. Note that
+  // |tracker| may get disconnected without ever creating a StableVideoDecoder
+  // implementation instance, e.g., if an error occurs that prevents |receiver|
+  // from being bound to an implementation.
+  CreateStableVideoDecoder@0(
+      pending_receiver<StableVideoDecoder> receiver,
+      [MinVersion=1] pending_remote<StableVideoDecoderTracker>? tracker);
 };
 
 // A StableVideoDecoderFactoryProcess is intended to be hosted in a utility

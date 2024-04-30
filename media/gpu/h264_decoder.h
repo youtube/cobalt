@@ -172,6 +172,10 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
     // kNotSupported.
     virtual Status SetStream(base::span<const uint8_t> stream,
                              const DecryptConfig* decrypt_config);
+
+    // Notifies whether or not the current platform requires reference lists.
+    // In general, implementations don't need it.
+    virtual bool RequiresRefLists();
   };
 
   H264Decoder(std::unique_ptr<H264Accelerator> accelerator,
@@ -193,6 +197,7 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
   VideoCodecProfile GetProfile() const override;
   uint8_t GetBitDepth() const override;
   VideoChromaSampling GetChromaSampling() const override;
+  VideoColorSpace GetVideoColorSpace() const override;
   absl::optional<gfx::HDRMetadata> GetHDRMetadata() const override;
   size_t GetRequiredNumOfPictures() const override;
   size_t GetNumReferenceFrames() const override;
@@ -233,7 +238,9 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
   };
 
   // Process H264 stream structures.
-  bool ProcessSPS(int sps_id, bool* need_new_buffers);
+  bool ProcessSPS(int sps_id,
+                  bool* need_new_buffers,
+                  bool* color_space_changed);
 
   // Processes a CENCv1 encrypted slice header and fills in |curr_slice_hdr_|
   // with the relevant parsed fields.
@@ -415,6 +422,8 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
   uint8_t bit_depth_ = 0;
   // Chroma subsampling format of input bitstream.
   VideoChromaSampling chroma_sampling_ = VideoChromaSampling::kUnknown;
+  // Video picture color space of input bitstream.
+  VideoColorSpace picture_color_space_;
   // HDR metadata in the bitstream.
   absl::optional<gfx::HDRMetadata> hdr_metadata_;
 
@@ -422,6 +431,9 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
   int last_output_poc_;
 
   const std::unique_ptr<H264Accelerator> accelerator_;
+
+  // Whether the current decoder will utilize reference lists.
+  const bool requires_ref_lists_;
 };
 
 }  // namespace media

@@ -163,6 +163,7 @@ component("media") {
     "formats/mp4/eac3.h",
     "formats/mp4/es_descriptor.cc",
     "formats/mp4/es_descriptor.h",
+    "formats/mp4/fourccs.cc",
     "formats/mp4/fourccs.h",
     "formats/mp4/hevc.cc",
     "formats/mp4/hevc.h",

@@ -26,6 +26,11 @@
 #include "media/capture/video/blob_utils.h"
 #include "media/capture/video/linux/video_capture_device_linux.h"
 
+#if BUILDFLAG(IS_LINUX)
+#include "media/capture/capture_switches.h"
+#include "media/capture/video/linux/v4l2_capture_delegate_gpu_helper.h"
+#endif  // BUILDFLAG(IS_LINUX)
+
 using media::mojom::MeteringMode;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
@@ -132,6 +137,8 @@ int GetControllingSpecialControl(int control_id) {
       return V4L2_CID_EXPOSURE_AUTO;
     case V4L2_CID_FOCUS_ABSOLUTE:
       return V4L2_CID_FOCUS_AUTO;
+    case V4L2_CID_IRIS_ABSOLUTE:
+      return V4L2_CID_EXPOSURE_AUTO;
     case V4L2_CID_WHITE_BALANCE_TEMPERATURE:
       return V4L2_CID_AUTO_WHITE_BALANCE;
   }
@@ -145,35 +152,6 @@ bool IsSpecialControl(int control_id) {
     case V4L2_CID_EXPOSURE_AUTO:
     case V4L2_CID_EXPOSURE_AUTO_PRIORITY:
     case V4L2_CID_FOCUS_AUTO:
-      return true;
-  }
-  return false;
-}
-
-// Determines if |control_id| should be skipped, https://crbug.com/697885.
-#if !defined(V4L2_CID_PAN_SPEED)
-#define V4L2_CID_PAN_SPEED (V4L2_CID_CAMERA_CLASS_BASE + 32)
-#endif
-#if !defined(V4L2_CID_TILT_SPEED)
-#define V4L2_CID_TILT_SPEED (V4L2_CID_CAMERA_CLASS_BASE + 33)
-#endif
-#if !defined(V4L2_CID_PANTILT_CMD)
-#define V4L2_CID_PANTILT_CMD (V4L2_CID_CAMERA_CLASS_BASE + 34)
-#endif
-bool IsBlockedControl(int control_id) {
-  switch (control_id) {
-    case V4L2_CID_PAN_RELATIVE:
-    case V4L2_CID_TILT_RELATIVE:
-    case V4L2_CID_PAN_RESET:
-    case V4L2_CID_TILT_RESET:
-    case V4L2_CID_PAN_ABSOLUTE:
-    case V4L2_CID_TILT_ABSOLUTE:
-    case V4L2_CID_ZOOM_ABSOLUTE:
-    case V4L2_CID_ZOOM_RELATIVE:
-    case V4L2_CID_ZOOM_CONTINUOUS:
-    case V4L2_CID_PAN_SPEED:
-    case V4L2_CID_TILT_SPEED:
-    case V4L2_CID_PANTILT_CMD:
       return true;
   }
   return false;
@@ -252,6 +230,78 @@ std::vector<uint32_t> V4L2CaptureDelegate::GetListOfUsableFourCcs(
   return supported_formats;
 }
 
+// Determines if |control_id| should be skipped, https://crbug.com/697885.
+#if !defined(V4L2_CID_PAN_SPEED)
+#define V4L2_CID_PAN_SPEED (V4L2_CID_CAMERA_CLASS_BASE + 32)
+#endif
+#if !defined(V4L2_CID_TILT_SPEED)
+#define V4L2_CID_TILT_SPEED (V4L2_CID_CAMERA_CLASS_BASE + 33)
+#endif
+#if !defined(V4L2_CID_PANTILT_CMD)
+#define V4L2_CID_PANTILT_CMD (V4L2_CID_CAMERA_CLASS_BASE + 34)
+#endif
+// static
+bool V4L2CaptureDelegate::IsBlockedControl(int control_id) {
+  switch (control_id) {
+    case V4L2_CID_PAN_RELATIVE:
+    case V4L2_CID_TILT_RELATIVE:
+    case V4L2_CID_PAN_RESET:
+    case V4L2_CID_TILT_RESET:
+    case V4L2_CID_ZOOM_RELATIVE:
+    case V4L2_CID_ZOOM_CONTINUOUS:
+    case V4L2_CID_PAN_SPEED:
+    case V4L2_CID_TILT_SPEED:
+    case V4L2_CID_PANTILT_CMD:
+      return true;
+  }
+  return false;
+}
+
+// static
+bool V4L2CaptureDelegate::IsControllableControl(
+    int control_id,
+    const base::RepeatingCallback<int(int, void*)>& do_ioctl) {
+  const int special_control_id = GetControllingSpecialControl(control_id);
+  if (!special_control_id) {
+    // The control is not controlled by a special control thus the control is
+    // controllable.
+    return true;
+  }
+
+  // The control is controlled by a special control thus the control is
+  // really controllable (and not changed automatically) only if that special
+  // control is not set to automatic.
+  v4l2_control special_control = {};
+  special_control.id = special_control_id;
+  if (do_ioctl.Run(VIDIOC_G_CTRL, &special_control) < 0) {
+    return false;
+  }
+  switch (control_id) {
+    case V4L2_CID_EXPOSURE_ABSOLUTE:
+      DCHECK_EQ(special_control_id, V4L2_CID_EXPOSURE_AUTO);
+      // For a V4L2_CID_EXPOSURE_AUTO special control, |special_control.value|
+      // is an enum v4l2_exposure_auto_type.
+      // Check if the exposure time is manual. Iris may be manual or automatic.
+      return special_control.value == V4L2_EXPOSURE_MANUAL ||
+             special_control.value == V4L2_EXPOSURE_SHUTTER_PRIORITY;
+    case V4L2_CID_IRIS_ABSOLUTE:
+      DCHECK_EQ(special_control_id, V4L2_CID_EXPOSURE_AUTO);
+      // For a V4L2_CID_EXPOSURE_AUTO special control, |special_control.value|
+      // is an enum v4l2_exposure_auto_type.
+      // Check if the iris is manual. Exposure time may be manual or automatic.
+      return special_control.value == V4L2_EXPOSURE_MANUAL ||
+             special_control.value == V4L2_EXPOSURE_APERTURE_PRIORITY;
+    case V4L2_CID_FOCUS_ABSOLUTE:
+    case V4L2_CID_WHITE_BALANCE_TEMPERATURE:
+      // For V4L2_CID_FOCUS_AUTO and V4L2_CID_AUTO_WHITE_BALANCE special
+      // controls, |special_control.value| is a boolean.
+      return !special_control.value;  // Not automatic.
+    default:
+      NOTIMPLEMENTED();
+      return false;
+  }
+}
+
 V4L2CaptureDelegate::V4L2CaptureDelegate(
     V4L2CaptureDevice* v4l2,
     const VideoCaptureDeviceDescriptor& device_descriptor,
@@ -265,7 +315,11 @@ V4L2CaptureDelegate::V4L2CaptureDelegate(
       device_fd_(v4l2),
       is_capturing_(false),
       timeout_count_(0),
-      rotation_(rotation) {}
+      rotation_(rotation) {
+#if BUILDFLAG(IS_LINUX)
+  use_gpu_buffer_ = switches::IsVideoCaptureUseGpuMemoryBufferEnabled();
+#endif  // BUILDFLAG(IS_LINUX)
+}
 
 void V4L2CaptureDelegate::AllocateAndStart(
     int width,
@@ -388,6 +442,13 @@ void V4L2CaptureDelegate::AllocateAndStart(
     return;
 
   client_->OnStarted();
+
+#if BUILDFLAG(IS_LINUX)
+  if (use_gpu_buffer_) {
+    v4l2_gpu_helper_ = std::make_unique<V4L2CaptureDelegateGpuHelper>(
+        std::move(gmb_support_test_));
+  }
+#endif  // BUILDFLAG(IS_LINUX)
 
   // Post task to start fetching frames from v4l2.
   v4l2_task_runner_->PostTask(
@@ -725,6 +786,11 @@ base::WeakPtr<V4L2CaptureDelegate> V4L2CaptureDelegate::GetWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
 
+void V4L2CaptureDelegate::SetGPUEnvironmentForTesting(
+    std::unique_ptr<gpu::GpuMemoryBufferSupport> gmb_support) {
+  gmb_support_test_ = std::move(gmb_support);
+}
+
 V4L2CaptureDelegate::~V4L2CaptureDelegate() = default;
 
 bool V4L2CaptureDelegate::RunIoctl(int request, void* argp) {
@@ -742,38 +808,9 @@ int V4L2CaptureDelegate::DoIoctl(int request, void* argp) {
 }
 
 bool V4L2CaptureDelegate::IsControllableControl(int control_id) {
-  const int special_control_id = GetControllingSpecialControl(control_id);
-  if (!special_control_id) {
-    // The control is not controlled by a special control thus the control is
-    // controllable.
-    return true;
-  }
-
-  // The control is controlled by a special control thus the control is
-  // really controllable (and not changed automatically) only if that special
-  // control is not set to automatic.
-  v4l2_control special_control = {};
-  special_control.id = special_control_id;
-  if (DoIoctl(VIDIOC_G_CTRL, &special_control) < 0) {
-    return false;
-  }
-  switch (control_id) {
-    case V4L2_CID_EXPOSURE_ABSOLUTE:
-      DCHECK_EQ(special_control_id, V4L2_CID_EXPOSURE_AUTO);
-      // For a V4L2_CID_EXPOSURE_AUTO special control, |special_control.value|
-      // is an enum v4l2_exposure_auto_type.
-      // Check if the exposure time is manual. Iris may be manual or automatic.
-      return special_control.value == V4L2_EXPOSURE_MANUAL ||
-             special_control.value == V4L2_EXPOSURE_SHUTTER_PRIORITY;
-    case V4L2_CID_FOCUS_ABSOLUTE:
-    case V4L2_CID_WHITE_BALANCE_TEMPERATURE:
-      // For V4L2_CID_FOCUS_AUTO and V4L2_CID_AUTO_WHITE_BALANCE special
-      // controls, |special_control.value| is a boolean.
-      return !special_control.value;  // Not automatic.
-    default:
-      NOTIMPLEMENTED();
-      return false;
-  }
+  return IsControllableControl(
+      control_id, base::BindRepeating(&V4L2CaptureDelegate::DoIoctl,
+                                      base::Unretained(this)));
 }
 
 void V4L2CaptureDelegate::ReplaceControlEventSubscriptions() {
@@ -1110,10 +1147,18 @@ void V4L2CaptureDelegate::DoCapture() {
       // matrix = v4l2_format->fmt.pix.ycbcr_enc;
       // transfer = v4l2_format->fmt.pix.xfer_func;
       // See http://crbug.com/959919.
-      client_->OnIncomingCapturedData(
-          buffer_tracker->start(), buffer_tracker->payload_size(),
-          capture_format_, gfx::ColorSpace(), rotation_, false /* flip_y */,
-          now, timestamp);
+#if BUILDFLAG(IS_LINUX)
+      if (use_gpu_buffer_) {
+        v4l2_gpu_helper_->OnIncomingCapturedData(
+            client_.get(), buffer_tracker->start(),
+            buffer_tracker->payload_size(), capture_format_, gfx::ColorSpace(),
+            rotation_, now, timestamp);
+      } else
+#endif  //  BUILDFLAG(IS_LINUX)
+        client_->OnIncomingCapturedData(
+            buffer_tracker->start(), buffer_tracker->payload_size(),
+            capture_format_, gfx::ColorSpace(), rotation_, false /* flip_y */,
+            now, timestamp);
     }
 
     while (!take_photo_callbacks_.empty()) {

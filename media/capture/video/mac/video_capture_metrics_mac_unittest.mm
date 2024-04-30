@@ -18,7 +18,7 @@
 
 namespace media {
 
-namespace {}  // namespace
+namespace {
 
 TEST(VideoCaptureMetricsMacTest, NoMetricsLoggedIfNullRequestedCaptureFormat) {
   base::HistogramTester histogram_tester;
@@ -83,5 +83,7 @@ TEST(VideoCaptureMetricsMacTest, LogFirstFrameWhenAsRequested) {
                   "Media.VideoCapture.Mac.Device.CapturedIOSurface"),
               testing::UnorderedElementsAre(base::Bucket(0, 1)));
 }
+
+}  // namespace
 
 }  // namespace media

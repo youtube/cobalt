@@ -163,14 +163,20 @@ class CAPTURE_EXPORT VideoCaptureDeviceMFWin : public VideoCaptureDevice {
                const char* message);
   void SendOnStartedIfNotYetSent();
   HRESULT WaitOnCaptureEvent(GUID capture_event_guid);
-  HRESULT DeliverTextureToClient(ID3D11Texture2D* texture,
-                                 base::TimeTicks reference_time,
-                                 base::TimeDelta timestamp);
-  void OnCameraControlChangeInternal(REFGUID control_set, UINT32 id);
-  void OnIncomingCapturedDataInternal(
-      Microsoft::WRL::ComPtr<IMFMediaBuffer> buffer,
+  HRESULT DeliverTextureToClient(
+      Microsoft::WRL::ComPtr<IMFMediaBuffer> imf_buffer,
+      ID3D11Texture2D* texture,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp);
+  HRESULT DeliverExternalBufferToClient(
+      Microsoft::WRL::ComPtr<IMFMediaBuffer> imf_buffer,
+      ID3D11Texture2D* texture,
+      const gfx::Size& texture_size,
+      const VideoPixelFormat& pixel_format,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp);
+  void OnCameraControlChangeInternal(REFGUID control_set, UINT32 id);
+  void OnIncomingCapturedDataInternal();
   bool RecreateMFSource();
   void OnFrameDroppedInternal(VideoCaptureFrameDropReason reason);
   void ProcessEventError(HRESULT hr);
@@ -230,6 +236,15 @@ class CAPTURE_EXPORT VideoCaptureDeviceMFWin : public VideoCaptureDevice {
   media::VideoCaptureFeedback last_feedback_;
 
   SEQUENCE_CHECKER(sequence_checker_);
+
+  base::Lock queueing_lock_;
+  // Last input for the posted task OnIncomingCapturedDataInternal.
+  // If new input arrives while the task is pending, the input will be
+  // overridden. So only 2 IMFSampleBuffer would be used at any time.
+  Microsoft::WRL::ComPtr<IMFMediaBuffer> input_buffer_
+      GUARDED_BY(queueing_lock_);
+  base::TimeTicks input_reference_time_ GUARDED_BY(queueing_lock_);
+  base::TimeDelta input_timestamp_ GUARDED_BY(queueing_lock_);
 
   base::WeakPtrFactory<VideoCaptureDeviceMFWin> weak_factory_{this};
 };
