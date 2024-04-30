@@ -13,9 +13,9 @@
 #include "base/memory/ref_counted.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/test/bind_test_util.h"
-#include "base/test/scoped_task_environment.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/bind.h"
+#include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "components/update_client/net/network_chromium.h"
 #include "components/update_client/update_client_errors.h"
@@ -107,7 +107,7 @@ class CrxDownloaderTest : public testing::Test {
   static const int kExpectedContext = 0xaabb;
 
  private:
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::test::TaskEnvironment task_environment_;
 #if defined(STARBOARD)
   scoped_refptr<net::TestURLRequestContextGetter> context_;
 #else
@@ -129,11 +129,11 @@ CrxDownloaderTest::CrxDownloaderTest()
       crx_context_(0),
       num_download_complete_calls_(0),
       num_progress_calls_(0),
-      scoped_task_environment_(
-          base::test::ScopedTaskEnvironment::MainThreadType::IO),
+      task_environment_(
+          base::test::TaskEnvironment::MainThreadType::IO),
 #if defined(STARBOARD)
       context_(base::MakeRefCounted<net::TestURLRequestContextGetter>(
-          base::ThreadTaskRunnerHandle::Get())) {
+          base::SequencedTaskRunner::GetCurrentDefault())) {
 }
 
 CrxDownloaderTest::~CrxDownloaderTest() {
@@ -162,7 +162,8 @@ void CrxDownloaderTest::SetUp() {
   crx_downloader_->set_progress_callback(progress_callback_);
 
   get_interceptor_ = std::make_unique<GetInterceptor>(
-      base::ThreadTaskRunnerHandle::Get(), base::ThreadTaskRunnerHandle::Get());
+      base::SequencedTaskRunner::GetCurrentDefault(),
+      base::SequencedTaskRunner::GetCurrentDefault());
 #else
   crx_downloader_ = CrxDownloader::Create(
       false, base::MakeRefCounted<NetworkFetcherChromiumFactory>(
@@ -228,7 +229,7 @@ void CrxDownloaderTest::RunThreads() {
 }
 
 void CrxDownloaderTest::RunThreadsUntilIdle() {
-  scoped_task_environment_.RunUntilIdle();
+  task_environment_.RunUntilIdle();
   base::RunLoop().RunUntilIdle();
 }
 

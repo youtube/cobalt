@@ -15,7 +15,7 @@
 #include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/strings/strcat.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/prefs/pref_service.h"
 #include "components/update_client/component.h"
 #include "components/update_client/configurator.h"
@@ -77,7 +77,7 @@ UpdateEngine::UpdateEngine(
 }
 
 UpdateEngine::~UpdateEngine() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "UpdateEngine::~UpdateEngine";
 #endif
@@ -96,14 +96,14 @@ void UpdateEngine::Update(bool is_foreground,
                           base::OnceClosure& cancelation_closure) {
 
 #endif
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(STARBOARD)
   LOG(INFO) << "UpdateEngine::Update";
 #endif
 
   if (ids.empty()) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback), Error::INVALID_ARGUMENT));
     return;
@@ -115,7 +115,7 @@ void UpdateEngine::Update(bool is_foreground,
     for (const auto& id : ids) {
       VLOG(1) << "id:" << id;
     }
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), Error::RETRY_LATER));
     return;
   }
@@ -163,7 +163,7 @@ void UpdateEngine::Update(bool is_foreground,
   }
 
   if (update_context->components_to_check_for_updates.empty()) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&UpdateEngine::HandleComponent,
                                   base::Unretained(this), update_context));
     return;
@@ -178,7 +178,7 @@ void UpdateEngine::Update(bool is_foreground,
 void UpdateEngine::ComponentCheckingForUpdatesStart(
     scoped_refptr<UpdateContext> update_context,
     const std::string& id) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(update_context);
 
   DCHECK_EQ(1u, update_context->components.count(id));
@@ -207,13 +207,13 @@ void UpdateEngine::ComponentCheckingForUpdatesStart(
   }
 #endif
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&UpdateEngine::DoUpdateCheck,
                                 base::Unretained(this), update_context));
 }
 
 void UpdateEngine::DoUpdateCheck(scoped_refptr<UpdateContext> update_context) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(update_context);
 
 #if defined(STARBOARD)
@@ -238,7 +238,7 @@ void UpdateEngine::UpdateCheckResultsAvailable(
     ErrorCategory error_category,
     int error,
     int retry_after_sec) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(update_context);
 
 #if defined(STARBOARD)
@@ -314,7 +314,7 @@ void UpdateEngine::UpdateCheckResultsAvailable(
 
 void UpdateEngine::ComponentCheckingForUpdatesComplete(
     scoped_refptr<UpdateContext> update_context) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(update_context);
 
 #if defined(STARBOARD)
@@ -327,14 +327,14 @@ void UpdateEngine::ComponentCheckingForUpdatesComplete(
     return;
   }
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&UpdateEngine::UpdateCheckComplete,
                                 base::Unretained(this), update_context));
 }
 
 void UpdateEngine::UpdateCheckComplete(
     scoped_refptr<UpdateContext> update_context) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(update_context);
 
 #if defined(STARBOARD)
@@ -344,14 +344,14 @@ void UpdateEngine::UpdateCheckComplete(
   for (const auto& id : update_context->components_to_check_for_updates)
     update_context->component_queue.push(id);
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&UpdateEngine::HandleComponent,
                                 base::Unretained(this), update_context));
 }
 
 void UpdateEngine::HandleComponent(
     scoped_refptr<UpdateContext> update_context) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(update_context);
 
 #if defined(STARBOARD)
@@ -365,7 +365,7 @@ void UpdateEngine::HandleComponent(
                             ? Error::UPDATE_CHECK_ERROR
                             : Error::NONE;
 
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&UpdateEngine::UpdateComplete, base::Unretained(this),
                        update_context, error));
@@ -379,7 +379,7 @@ void UpdateEngine::HandleComponent(
 
   auto& next_update_delay = update_context->next_update_delay;
   if (!next_update_delay.is_zero() && component->IsUpdateAvailable()) {
-    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&UpdateEngine::HandleComponent, base::Unretained(this),
                        update_context),
@@ -405,7 +405,7 @@ void UpdateEngine::HandleComponent(
 
 void UpdateEngine::HandleComponentComplete(
     scoped_refptr<UpdateContext> update_context) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(update_context);
 
 #if defined(STARBOARD)
@@ -441,7 +441,7 @@ void UpdateEngine::HandleComponentComplete(
     queue.pop();
   }
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&UpdateEngine::HandleComponent,
                                 base::Unretained(this), update_context));
 }
@@ -452,19 +452,19 @@ void UpdateEngine::UpdateComplete(scoped_refptr<UpdateContext> update_context,
   LOG(INFO) << "UpdateEngine::UpdateComplete";
 #endif
 
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(update_context);
 
   const auto num_erased = update_contexts_.erase(update_context->session_id);
   DCHECK_EQ(1u, num_erased);
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(update_context->callback), error));
 }
 
 bool UpdateEngine::GetUpdateState(const std::string& id,
                                   CrxUpdateItem* update_item) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "UpdateEngine::GetUpdateState";
 #endif
@@ -480,7 +480,7 @@ bool UpdateEngine::GetUpdateState(const std::string& id,
 }
 
 bool UpdateEngine::IsThrottled(bool is_foreground) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "UpdateEngine::IsThrottled";
 #endif
@@ -520,7 +520,7 @@ void UpdateEngine::SendUninstallPing(const std::string& id,
                                      const base::Version& version,
                                      int reason,
                                      Callback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(STARBOARD)
   LOG(INFO) << "UpdateEngine::SendUninstallPing";
@@ -545,7 +545,7 @@ void UpdateEngine::SendUninstallPing(const std::string& id,
 
   update_context->component_queue.push(id);
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&UpdateEngine::HandleComponent,
                                 base::Unretained(this), update_context));
 }
