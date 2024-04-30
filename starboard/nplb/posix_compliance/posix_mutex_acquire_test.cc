@@ -48,10 +48,9 @@ TEST(PosixMutexAcquireTest, SunnyDayContended) {
   TestContext context;
   EXPECT_EQ(pthread_mutex_init(&context.mutex, NULL), 0);
   const int kThreads = 4;
-  SbThread threads[kThreads];
+  pthread_t threads[kThreads];
   for (int i = 0; i < kThreads; ++i) {
-    threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                true, NULL, EntryPoint, &context);
+    pthread_create(&threads[i], NULL, EntryPoint, &context);
   }
 
   for (int i = 0; i < kLoops; ++i) {
@@ -64,7 +63,7 @@ TEST(PosixMutexAcquireTest, SunnyDayContended) {
 
   // Join other threads and clean up.
   for (int i = 0; i < kThreads; ++i) {
-    EXPECT_TRUE(SbThreadJoin(threads[i], NULL));
+    EXPECT_TRUE(pthread_join(threads[i], NULL) == 0);
   }
   EXPECT_EQ(pthread_mutex_destroy(&context.mutex), 0);
   EXPECT_EQ(0, context.count);

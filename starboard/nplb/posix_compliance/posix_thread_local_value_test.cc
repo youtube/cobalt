@@ -53,6 +53,7 @@ void* EntryPoint(void* context) {
 
 // Sets a thread local non-NULL value, and then sets it back to NULL.
 static void* ThreadEntryPoint(void* ptr) {
+  pthread_setname_np(pthread_self(), "TestThread");
   pthread_key_t key = *static_cast<pthread_key_t*>(ptr);
   EXPECT_EQ(NULL, pthread_getspecific(key));
   // Set the value and then NULL it out. We expect that because the final
@@ -67,7 +68,7 @@ void DoSunnyDayTest(bool use_destructor) {
   const int kThreads = 16;
   ThreadLocalValue values[kThreads];
   Context contexts[kThreads];
-  SbThread threads[kThreads];
+  pthread_t threads[kThreads];
   ThreadLocalValue my_value;
 
   pthread_key_t key = 0;
@@ -81,13 +82,12 @@ void DoSunnyDayTest(bool use_destructor) {
   }
 
   for (int i = 0; i < kThreads; ++i) {
-    threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                true, NULL, EntryPoint, &contexts[i]);
+    pthread_create(&threads[i], NULL, EntryPoint, &contexts[i]);
   }
 
   for (int i = 0; i < kThreads; ++i) {
-    EXPECT_TRUE(SbThreadIsValid(threads[i]));
-    EXPECT_TRUE(SbThreadJoin(threads[i], NULL));
+    EXPECT_TRUE(threads[i] != 0);
+    EXPECT_TRUE(pthread_join(threads[i], NULL) == 0);
     EXPECT_EQ(contexts[i].in_value, contexts[i].out_value);
 
     // The destructor for all thread-local values will be called at thread exit
@@ -132,16 +132,12 @@ TEST(PosixThreadLocalValueTest, NoDestructorsForNullValue) {
   EXPECT_EQ(NULL, pthread_getspecific(key));
 
   // Spawn the thread.
-  SbThread thread =
-      SbThreadCreate(0,  // Signals automatic thread stack size.
-                     kSbThreadNoPriority,  // Signals default priority.
-                     kSbThreadNoAffinity,  // Signals default affinity.
-                     true,                 // joinable thread.
-                     "TestThread", ThreadEntryPoint, static_cast<void*>(&key));
+  pthread_t thread = 0;
+  pthread_create(&thread, NULL, ThreadEntryPoint, static_cast<void*>(&key));
 
-  ASSERT_NE(kSbThreadInvalid, thread) << "Thread creation not successful";
+  ASSERT_TRUE(thread != 0) << "Thread creation not successful";
   // 2nd param is return value from ThreadEntryPoint, which is always NULL.
-  ASSERT_TRUE(SbThreadJoin(thread, NULL));
+  ASSERT_TRUE(pthread_join(thread, NULL) == 0);
 
   // No destructors should have run.
   EXPECT_EQ(0, s_num_destructor_calls);

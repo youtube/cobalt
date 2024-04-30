@@ -73,6 +73,8 @@ struct RunPosixOnceContext {
 };
 
 void* RunPosixOnceEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), posix::kThreadName);
+
   RunPosixOnceContext* run_sbonce_context =
       reinterpret_cast<RunPosixOnceContext*>(context);
 
@@ -98,7 +100,7 @@ void* RunPosixOnceEntryPoint(void* context) {
 // initialization routine got called exactly one time.
 TEST(PosixOnceTest, SunnyDayMultipleThreadsInit) {
   const int kMany = kSbMaxThreads;
-  std::vector<SbThread> threads(kMany);
+  std::vector<pthread_t> threads(kMany);
 
   const int kIterationCount = 10;
   for (int i = 0; i < kIterationCount; ++i) {
@@ -107,9 +109,7 @@ TEST(PosixOnceTest, SunnyDayMultipleThreadsInit) {
 
     s_global_value = 0;
     for (int j = 0; j < kMany; ++j) {
-      threads[j] =
-          SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                         posix::kThreadName, RunPosixOnceEntryPoint, &context);
+      pthread_create(&threads[j], NULL, RunPosixOnceEntryPoint, &context);
     }
 
     // Wait for all threads to finish initializing and become ready, then
@@ -127,7 +127,7 @@ TEST(PosixOnceTest, SunnyDayMultipleThreadsInit) {
     // Signal threads to beginWait for all threads to complete.
     for (int i = 0; i < kMany; ++i) {
       void* result;
-      SbThreadJoin(threads[i], &result);
+      pthread_join(threads[i], &result);
     }
 
     EXPECT_EQ(s_global_value, 1);
