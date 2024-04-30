@@ -78,8 +78,8 @@ class ComponentUnpackerTest : public testing::Test {
   void RunThreads();
 
   base::test::TaskEnvironment scoped_task_environment_;
-  const scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner_ =
-      base::ThreadTaskRunnerHandle::Get();
+  const scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_ =
+      base::SequencedTaskRunner::GetCurrentDefault();
   base::RunLoop runloop_;
   base::OnceClosure quit_closure_ = runloop_.QuitClosure();
 

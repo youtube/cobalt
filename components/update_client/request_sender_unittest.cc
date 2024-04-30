@@ -103,8 +103,8 @@ void RequestSenderTest::SetUp() {
   request_sender_ = std::make_unique<RequestSender>(config_);
 
 #if defined(STARBOARD)
-  interceptor_factory_ =
-      std::make_unique<InterceptorFactory>(base::ThreadTaskRunnerHandle::Get());
+  interceptor_factory_ = std::make_unique<InterceptorFactory>(
+      base::SequencedTaskRunner::GetCurrentDefault());
   post_interceptor_1_ =
       interceptor_factory_->CreateInterceptorForPath(kUrlPath1);
   post_interceptor_2_ =

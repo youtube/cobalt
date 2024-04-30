@@ -59,14 +59,14 @@ namespace update_client {
 ActionRunner::ActionRunner(const Component& component)
     : is_per_user_install_(component.config()->IsPerUserInstall()),
       component_(component),
-      main_task_runner_(base::ThreadTaskRunnerHandle::Get()) {}
+      main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
 
 ActionRunner::~ActionRunner() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void ActionRunner::Run(Callback run_complete) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   run_complete_ = std::move(run_complete);
 
