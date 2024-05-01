@@ -33,7 +33,7 @@ struct ThreadLocalEntry {
 };
 
 // One thread local key will point to an array of ThreadLocalEntry.
-SbThreadLocalKey g_thread_local_key = kSbThreadLocalKeyInvalid;
+pthread_key_t g_thread_local_key = 0;
 
 // Control the creation of the global thread local key.
 pthread_once_t g_thread_local_once_control = PTHREAD_ONCE_INIT;
@@ -51,7 +51,7 @@ void ThreadLocalDestructor(void* value) {
 }
 
 void ThreadLocalInit() {
-  g_thread_local_key = SbThreadCreateLocalKey(&ThreadLocalDestructor);
+  pthread_key_create(&g_thread_local_key, &ThreadLocalDestructor);
 }
 
 void EnsureInitialized(struct CRYPTO_STATIC_MUTEX* lock) {
@@ -184,12 +184,12 @@ void CRYPTO_STATIC_MUTEX_unlock_write(struct CRYPTO_STATIC_MUTEX* lock) {
 
 void* CRYPTO_get_thread_local(thread_local_data_t index) {
   pthread_once(&g_thread_local_once_control, &ThreadLocalInit);
-  if (!SbThreadIsValidLocalKey(g_thread_local_key)) {
+  if (!g_thread_local_key) {
     return nullptr;
   }
 
   ThreadLocalEntry* thread_locals = static_cast<ThreadLocalEntry*>(
-      SbThreadGetLocalValue(g_thread_local_key));
+      pthread_getspecific(g_thread_local_key));
   if (thread_locals == nullptr) {
     return nullptr;
   }
@@ -200,13 +200,13 @@ void* CRYPTO_get_thread_local(thread_local_data_t index) {
 int CRYPTO_set_thread_local(thread_local_data_t index, void *value,
                             thread_local_destructor_t destructor) {
   pthread_once(&g_thread_local_once_control, &ThreadLocalInit);
-  if (!SbThreadIsValidLocalKey(g_thread_local_key)) {
+  if (!g_thread_local_key) {
     destructor(value);
     return 0;
   }
 
   ThreadLocalEntry* thread_locals = static_cast<ThreadLocalEntry*>(
-      SbThreadGetLocalValue(g_thread_local_key));
+      pthread_getspecific(g_thread_local_key));
   if (thread_locals == nullptr) {
     size_t thread_locals_size =
         sizeof(ThreadLocalEntry) * NUM_OPENSSL_THREAD_LOCALS;
@@ -217,7 +217,7 @@ int CRYPTO_set_thread_local(thread_local_data_t index, void *value,
       return 0;
     }
     OPENSSL_memset(thread_locals, 0, thread_locals_size);
-    if (!SbThreadSetLocalValue(g_thread_local_key, thread_locals)) {
+    if (pthread_setspecific(g_thread_local_key, thread_locals) !=0 ) {
       OPENSSL_free(thread_locals);
       destructor(value);
       return 0;
