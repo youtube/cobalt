@@ -40,17 +40,17 @@ void ThreadLocalDestructor(void* value) {
 
 uint64_t Xoshiro256PlusPlus() {
   static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-  static SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+  static pthread_key_t s_thread_local_key = 0;
   
   auto InitThreadLocalKey = [](){
-    s_thread_local_key = SbThreadCreateLocalKey(ThreadLocalDestructor);
-    DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+    pthread_key_create(&s_thread_local_key , ThreadLocalDestructor);
+    DCHECK(s_thread_local_key);
   };
   
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  DCHECK(s_thread_local_key);
 
-  uint64_t* rng_state = static_cast<uint64_t*>(SbThreadGetLocalValue(s_thread_local_key));
+  uint64_t* rng_state = static_cast<uint64_t*>(pthread_getspecific(s_thread_local_key));
   if (!rng_state) {
     rng_state = new uint64_t[4]{
       Xoshiro256InitializeRngStateMember(),
@@ -69,7 +69,7 @@ uint64_t Xoshiro256PlusPlus() {
   rng_state[0] ^= rng_state[3];
   rng_state[2] ^= t;
   rng_state[3] = Xoshiro256PlusPlusRotLeft(rng_state[3], 45);
-  SbThreadSetLocalValue(s_thread_local_key, rng_state);
+  pthread_setspecific(s_thread_local_key, rng_state);
   
   return result;
 }

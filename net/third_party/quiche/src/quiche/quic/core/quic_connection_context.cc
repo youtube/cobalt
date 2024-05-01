@@ -20,21 +20,22 @@ namespace quic {
 
 namespace {
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  pthread_key_create(&s_thread_local_key, NULL);
+  DCHECK(s_thread_local_key);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  DCHECK(s_thread_local_key);
 }
 
 QuicConnectionContext* GetQuicConnectionContext() {
+  EnsureThreadLocalKeyInited();
   return static_cast<QuicConnectionContext*>(
-      SbThreadGetLocalValue(s_thread_local_key));
+      pthread_getspecific(s_thread_local_key));
 }
 }  // namespace
 
@@ -58,7 +59,7 @@ QuicConnectionContextSwitcher::QuicConnectionContextSwitcher(
     QuicConnectionContext* new_context)
     : old_context_(QuicConnectionContext::Current()) {
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, new_context);
+  pthread_setspecific(s_thread_local_key, new_context);
   if (new_context && new_context->tracer) {
     new_context->tracer->Activate();
   }
@@ -69,7 +70,9 @@ QuicConnectionContextSwitcher::~QuicConnectionContextSwitcher() {
   if (current && current->tracer) {
     current->tracer->Deactivate();
   }
-  SbThreadSetLocalValue(s_thread_local_key, old_context_);
+
+  EnsureThreadLocalKeyInited();
+  pthread_setspecific(s_thread_local_key, old_context_);
 }
 
 #else  // defined(STARBOARD)
