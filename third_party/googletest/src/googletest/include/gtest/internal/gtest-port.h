@@ -1270,7 +1270,7 @@ template <typename T>
 class ThreadLocal {
  public:
   ThreadLocal() {
-    int res = pthread_key_create(&key2_, [](void* value) { delete static_cast<T*>(value); });
+    int res = pthread_key_create(&key_, [](void* value) { delete static_cast<T*>(value); });
     SB_DCHECK(res == 0);
   }
   explicit ThreadLocal(const T& value) : ThreadLocal() {
@@ -1278,7 +1278,7 @@ class ThreadLocal {
     set(value);
   }
   ~ThreadLocal() {
-    pthread_key_delete(key2_);
+    pthread_key_delete(key_);
   }
   T* pointer() { return GetOrCreateValue(); }
   const T* pointer() const { return GetOrCreateValue(); }
@@ -1286,18 +1286,18 @@ class ThreadLocal {
   void set(const T& value) { *GetOrCreateValue() = value; }
  private:
   T* GetOrCreateValue() const {
-    T* ptr = static_cast<T*>(pthread_getspecific(key2_));
+    T* ptr = static_cast<T*>(pthread_getspecific(key_));
     if (ptr) {
       return ptr;
     } else {
       T* new_value = new T(default_value_);
-      int res = pthread_setspecific(key2_, new_value);
+      int res = pthread_setspecific(key_, new_value);
       SB_CHECK(res == 0);
       return new_value;
     }
   }
   T default_value_;
-  pthread_key_t key2_;
+  pthread_key_t key_;
 };
 
 #else  // GTEST_OS_STARBOARD
