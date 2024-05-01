@@ -1291,12 +1291,16 @@ class ThreadLocal {
  private:
   T* GetOrCreateValue() const {
     T* ptr = static_cast<T*>(SbThreadGetLocalValue(key_));
+    void* tmp = pthread_getspecific(key2_);
+    SbLogRawFormatF("GetOrCreateValue %p %p\n", ptr, tmp);
     if (ptr) {
       return ptr;
     } else {
       T* new_value = new T(default_value_);
       bool is_set = SbThreadSetLocalValue(key_, new_value);
       SB_CHECK(is_set);
+      int res = pthread_setspecific(key2_, new_value);
+      SB_CHECK(res == 0);
       return new_value;
     }
   }
