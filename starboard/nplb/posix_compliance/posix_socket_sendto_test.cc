@@ -79,8 +79,9 @@ TEST(PosixSocketSendtoTest, RainyDayUnconnectedSocket) {
       sendto(socket_fd, buf, sizeof(buf), kSendFlags, NULL, 0);
   EXPECT_FALSE(bytes_written >= 0);
 
-  // TODO: check errno: EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET ||
-  // errno == EPIPE);
+  EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
+              errno == ENOTCONN);
+  SB_DLOG(INFO) << "Failed to send, errno = " << errno;
 
   EXPECT_TRUE(close(socket_fd) == 0);
 }
@@ -112,8 +113,11 @@ TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
   void* thread_result;
   EXPECT_TRUE(pthread_join(send_thread, &thread_result) == 0);
 
-  // TODO: errno: EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno
-  // == EPIPE);
+  EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
+              errno == ENOTCONN ||  // errno on Windows
+              errno == EINPROGRESS  // errno on Evergreen
+  );
+  SB_DLOG(INFO) << "Failed to send, errno = " << errno;
 
   // Clean up the server socket.
   EXPECT_TRUE(close(server_socket_fd) == 0);
@@ -146,9 +150,9 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketUntilBlocking) {
 
     if (result < 0) {
       // If we didn't get a socket, it should be pending.
-      // TODO: export errno
-      // EXPECT_TRUE(errno == EINPROGRESS || errno == EAGAIN || errno ==
-      // EWOULDBLOCK);
+      EXPECT_TRUE(errno == EINPROGRESS || errno == EAGAIN ||
+                  errno == EWOULDBLOCK);
+      SB_DLOG(INFO) << "Failed to send, errno = " << errno;
       break;
     }
 
@@ -194,9 +198,8 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
     result = sendto(client_socket_fd, buff, sizeof(buff), kSendFlags, NULL, 0);
 
     if (result < 0) {
-      // TODO: errno:
-      // EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno ==
-      // EPIPE);
+      EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
+                  errno == ECONNABORTED);
       SB_DLOG(INFO) << "Failed to send, errno = " << errno;
       break;
     }
