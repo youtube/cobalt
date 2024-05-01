@@ -573,7 +573,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
    GTEST_OS_HAIKU || GTEST_OS_GNU_HURD)
 #endif  // GTEST_HAS_PTHREAD
 
-#if GTEST_HAS_PTHREAD
+#if GTEST_HAS_PTHREAD || GTEST_OS_STARBOARD 
 // gtest-port.h guarantees to #include <pthread.h> when GTEST_HAS_PTHREAD is
 // true.
 #include <pthread.h>  // NOLINT
@@ -1272,6 +1272,8 @@ class ThreadLocal {
   ThreadLocal() {
     key_ = SbThreadCreateLocalKey(
         [](void* value) { delete static_cast<T*>(value); });
+    int res = pthread_key_create(&key2_, [](void* value) { delete static_cast<T*>(value); });
+    SB_DCHECK(res == 0);
     SB_DCHECK(key_ != kSbThreadLocalKeyInvalid);
   }
   explicit ThreadLocal(const T& value) : ThreadLocal() {
@@ -1280,6 +1282,7 @@ class ThreadLocal {
   }
   ~ThreadLocal() {
     SbThreadDestroyLocalKey(key_);
+    pthread_key_delete(key2_);
   }
   T* pointer() { return GetOrCreateValue(); }
   const T* pointer() const { return GetOrCreateValue(); }
@@ -1299,6 +1302,7 @@ class ThreadLocal {
   }
   T default_value_;
   SbThreadLocalKey key_;
+  pthread_key_t key2_;
 };
 
 #else  // GTEST_OS_STARBOARD
