@@ -1,16 +1,39 @@
-# Copyright 2024 The Cobalt Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright 2014 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/features.gni")
+import("//build/config/ozone.gni")
+import("//build/config/ui.gni")
+import("//testing/libfuzzer/fuzzer_test.gni")
+import("//testing/test.gni")
+
+if (is_ios) {
+  import("//build/config/ios/bundle_data_from_filelist.gni")
+}
+
+if (is_android) {
+  import("//build/config/android/config.gni")
+  import("//build/config/android/rules.gni")
+}
+
+# Several targets want to include this header file, and some of them are
+# child dependencies of "gfx". Therefore, we separate it out here so multiple
+# targets can all have a dependency for header checking purposes without
+# creating circular dependencies.
+source_set("gfx_export") {
+  sources = [ "gfx_export.h" ]
+}
+
+component("gfx") {
+  # This is part of the gfx component in the component build.
+  defines = [ "GFX_IMPLEMENTATION" ]
+
+  public_deps = [
+    ":color_space",
+    "//ui/gfx/geometry",
+  ]
+}
 
 component("color_space") {
   sources = [
@@ -31,9 +54,90 @@ component("color_space") {
   defines = [ "COLOR_SPACE_IMPLEMENTATION" ]
 }
 
-component("gfx") {
-  public_deps = [
-    ":color_space",
-    "geometry:geometry",
+# Depend on this to use image/resize_image_dimensions.h without pulling in
+# all of gfx.
+source_set("resize_image_dimensions") {
+  sources = [ "image/resize_image_dimensions.h" ]
+}
+
+group("selection_bound") {
+  if (is_component_build) {
+    public_deps = [ ":gfx" ]
+  } else {
+    public_deps = [ ":selection_bound_sources" ]
+  }
+}
+
+# Depend on this to use selection_bound.h without pulling in all of gfx.
+# Cannot be a static_library in component builds due to exported functions
+source_set("selection_bound_sources") {
+  visibility = [ ":*" ]
+
+  sources = [
+    "gfx_export.h",
+    "selection_bound.cc",
+    "selection_bound.h",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  defines = [ "GFX_IMPLEMENTATION" ]
+
+  public_deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# Depend on this to use buffer_types.h without pulling in all of gfx.
+source_set("buffer_types") {
+  sources = [ "buffer_types.h" ]
+}
+
+fuzzer_test("color_analysis_fuzzer") {
+  sources = [ "color_analysis_fuzzer.cc" ]
+
+  deps = [ ":gfx" ]
+}
+
+fuzzer_test("color_transform_fuzzer") {
+  sources = [ "color_transform_fuzzer.cc" ]
+
+  dict = "//testing/libfuzzer/fuzzers/dicts/icc.dict"
+
+  deps = [ ":gfx" ]
+
+  libfuzzer_options = [ "max_len=4194304" ]
+}
+
+fuzzer_test("render_text_fuzzer") {
+  sources = [ "render_text_fuzzer.cc" ]
+
+  deps = [
+    ":gfx",
+    "//base",
+    "//base/test:test_support",
+  ]
+
+  dict = "test/data/render_text/unicode_text_fuzzer.dict"
+}
+
+fuzzer_test("render_text_api_fuzzer") {
+  sources = [ "render_text_api_fuzzer.cc" ]
+
+  deps = [
+    ":gfx",
+    "//base",
+    "//base/test:test_support",
+    "//build:chromeos_buildflags",
+  ]
+
+  dict = "test/data/render_text/unicode_text_fuzzer.dict"
+}
+
+if (is_ios) {
+  bundle_data_from_filelist("unit_tests_bundle_data") {
+    testonly = true
+    filelist_name = "test/data/unit_tests_bundle_data.filelist"
+  }
 }
