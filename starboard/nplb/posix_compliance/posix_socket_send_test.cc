@@ -111,8 +111,9 @@ TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
   EXPECT_TRUE(pthread_join(send_thread, &thread_result) == 0);
 
   EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
-              errno == ENOTCONN // errno on Windows
-      || errno == EINPROGRESS // errno on Evergreen);
+              errno == ENOTCONN ||  // errno on Windows
+              errno == EINPROGRESS  // errno on Evergreen
+  );
   SB_DLOG(INFO) << "Failed to send, errno = " << errno;
 
   // Clean up the server socket.
