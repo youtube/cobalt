@@ -326,18 +326,14 @@ bool IsAACSupported(const AudioType& type) {
 }  // namespace
 
 bool IsSupportedAudioType(const AudioType& type) {
-#if !defined(STARBOARD)
   if (auto* media_client = GetMediaClient())
     return media_client->IsSupportedAudioType(type);
-#endif  // !defined(STARBOARD)
   return IsDefaultSupportedAudioType(type);
 }
 
 bool IsSupportedVideoType(const VideoType& type) {
-#if !defined(STARBOARD)
   if (auto* media_client = GetMediaClient())
     return media_client->IsSupportedVideoType(type);
-#endif  // !defined(STARBOARD)
   return IsDefaultSupportedVideoType(type);
 }
 

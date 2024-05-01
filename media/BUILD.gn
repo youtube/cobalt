@@ -30,7 +30,7 @@ config("media_config") {
     ]
   }
 
-  defines = [ "MEDIA_IMPLEMENTATION" ]
+  defines = [ "IS_MEDIA_IMPL" ]
 }
 
 config("media_config_public") {
@@ -82,6 +82,8 @@ component("media") {
     "base/encryption_pattern.h",
     "base/encryption_scheme.cc",
     "base/encryption_scheme.h",
+    "base/media_client.cc",
+    "base/media_client.h",
     "base/media_log.h",
     "base/media_resource.cc",
     "base/media_resource.h",
