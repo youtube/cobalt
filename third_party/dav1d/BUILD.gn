@@ -1,33 +1,19 @@
-# Copyright 2023 The Cobalt Authors. All Rights Reserved.
-
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-
-#     http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
 
 import("dav1d_generated.gni")
 
 import("//build/config/compiler/compiler.gni")
 import("//build/config/sanitizers/sanitizers.gni")
-
-assert(use_cobalt_customizations)
-
 if (is_starboard) {
   import("//starboard/build/nasm_assemble.gni")
 } else {
-  import("//third_party/nasm/nasm_assemble.gni")
+import("//third_party/nasm/nasm_assemble.gni")
 }
 
 # MemorySanitizer can't handle assembly, https://crbug.com/928357.
-enable_nasm =
-    nasm_exists && (current_cpu == "x86" || current_cpu == "x64") && !is_msan
+enable_nasm = (current_cpu == "x86" || current_cpu == "x64") && !is_msan
 
 # Some older compilers can't handle AVX-512 instructions.
 if (using_old_compiler) {
@@ -47,7 +33,7 @@ if (is_win) {
 } else {
   # Linux configuration files seem to work on Mac, so just reuse them.
   if (enable_nasm) {
-    platform_config_root = "config/linux/$current_cpu"
+  platform_config_root = "config/linux/$current_cpu"
   } else {
     platform_config_root = "config/linux-noasm/$current_cpu"
   }
@@ -98,13 +84,13 @@ config("public_dav1d_config") {
 config("dav1d_config") {
   configs = [ ":public_dav1d_config" ]
   include_dirs = [
-    ".",
-    "include",
-    "include/dav1d",
+    "libdav1d",
+    "libdav1d/include",
+    "libdav1d/include/dav1d",
     platform_config_root,
   ]
   if (is_win && !is_clang) {
-    include_dirs += [ "include/compat/msvc" ]
+    include_dirs += [ "libdav1d/include/compat/msvc" ]
   }
 }
 
@@ -134,12 +120,12 @@ if (enable_nasm) {
     sources = x86_asm_sources
 
     inputs = [
-      "src/ext/x86/x86inc.asm",
+      "libdav1d/src/ext/x86/x86inc.asm",
       "$platform_config_root/config.asm",
     ]
 
     include_dirs = [
-      "src/",
+      "libdav1d/src/",
       platform_config_root,
     ]
 
@@ -161,13 +147,21 @@ if (enable_nasm) {
 }
 
 source_set("dav1d_headers") {
-  configs += [ ":dav1d_config" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    "//build/config/compiler:no_chromium_code",
+    ":dav1d_config",
+  ]
 
   sources = c_headers
 }
 
 static_library("dav1d_8bit") {
-  configs += [ ":dav1d_config" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    "//build/config/compiler:no_chromium_code",
+    ":dav1d_config",
+  ]
 
   sources = template_sources
   if (current_cpu == "x86" || current_cpu == "x64") {
@@ -186,15 +180,18 @@ static_library("dav1d_8bit") {
 
 static_library("dav1d_10bit") {
   configs -= [
-    # "//build/config/compiler:chromium_code",
+    "//build/config/compiler:chromium_code",
 
     # Disable coverage for the 10 bit version to avoid confusing the
     # instrumentation about which version of the library is being run.
     # dav1d_10 bit was selected for this, as it's less used than dav1d_8bit,
     # which still has coverage enabled. See crbug.com/1030350.
-    # "//build/config/coverage:default_coverage",
+    "//build/config/coverage:default_coverage",
   ]
-  configs += [ ":dav1d_config" ]
+  configs += [
+    "//build/config/compiler:no_chromium_code",
+    ":dav1d_config",
+  ]
 
   sources = template_sources
   if (current_cpu == "x86" || current_cpu == "x64") {
@@ -214,11 +211,15 @@ static_library("dav1d_10bit") {
 if (current_cpu == "x86" || current_cpu == "x64") {
   static_library("dav1d_x86") {
     sources = [
-      "src/x86/cpu.c",
-      "src/x86/cpu.h",
+      "libdav1d/src/x86/cpu.c",
+      "libdav1d/src/x86/cpu.h",
     ]
 
-    configs += [ ":dav1d_config" ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [
+      "//build/config/compiler:no_chromium_code",
+      ":dav1d_config",
+    ]
     cflags = dav1d_copts
 
     deps = [ ":dav1d_headers" ]
@@ -227,8 +228,8 @@ if (current_cpu == "x86" || current_cpu == "x64") {
 } else if (current_cpu == "arm" || current_cpu == "arm64") {
   static_library("dav1d_arm") {
     sources = [
-      "src/arm/cpu.c",
-      "src/arm/cpu.h",
+      "libdav1d/src/arm/cpu.c",
+      "libdav1d/src/arm/cpu.h",
     ]
 
     # These are not template based so should only be built once.
@@ -238,7 +239,11 @@ if (current_cpu == "x86" || current_cpu == "x64") {
       sources += arm64_asm_sources
     }
 
-    configs += [ ":dav1d_config" ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [
+      "//build/config/compiler:no_chromium_code",
+      ":dav1d_config",
+    ]
 
     # Necessary to ensure macOS symbols end up with a _ prefix.
     if (is_mac || is_ios) {
@@ -255,10 +260,14 @@ if (current_cpu == "x86" || current_cpu == "x64") {
 static_library("dav1d") {
   sources = c_sources
   if (is_win) {
-    sources += [ "src/win32/thread.c" ]
+    sources += [ "libdav1d/src/win32/thread.c" ]
   }
 
-  configs += [ ":dav1d_config" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    "//build/config/compiler:no_chromium_code",
+    ":dav1d_config",
+  ]
   cflags = dav1d_copts
 
   deps = [
