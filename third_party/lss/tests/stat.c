@@ -1,4 +1,4 @@
-/* Copyright 2019, Google Inc.  All rights reserved.
+/* Copyright 2021, Google Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,40 +30,38 @@
 #include "test_skel.h"
 
 int main(int argc, char *argv[]) {
-  int fd = 0, mode = 0;
-  loff_t offset = 0, len = 0;
+  int exit_status = 0;
 
-  // Bad file descriptor.
-  fd = -1;
-  assert(sys_fallocate(fd, mode, offset, len) == -1);
-  assert(errno == EBADF);
+  // Get two unique paths to play with.
+  char foo[] = "tempfile.XXXXXX";
+  int fd_foo = mkstemp(foo);
+  assert(fd_foo != -1);
 
-  char filename[] = "tempfile.XXXXXX";
-  fd = mkstemp(filename);
-  assert(fd >= 0);
+  // Make sure it exists.
+  assert(access(foo, F_OK) == 0);
 
-  // Invalid len.
-  assert(sys_fallocate(fd, mode, offset, len) == -1);
-  assert(errno == EINVAL);
+  // Make sure sys_stat() and a libc stat() implementation return the same
+  // information.
+  struct stat libc_stat;
+  assert(stat(foo, &libc_stat) == 0);
 
-  // Small offset and length succeeds.
-  len = 4096;
-  assert(sys_fallocate(fd, mode, offset, len) == 0);
+  struct kernel_stat raw_stat;
+  // We need to check our stat syscall for EOVERFLOW, as sometimes the integer
+  // types used in the stat structures are too small to fit the actual value.
+  // E.g. on some systems st_ino is 32-bit, but some filesystems have 64-bit
+  // inodes.
+  int rc = sys_stat(foo, &raw_stat);
+  if (rc < 0 && errno == EOVERFLOW) {
+    // Bail out since we had an overflow in the stat structure.
+    exit_status = SKIP_TEST_EXIT_STATUS;
+    goto cleanup;
+  }
+  assert(rc == 0);
 
-  // Large offset succeeds and isn't truncated.
-  offset = 1llu + UINT32_MAX;
-  assert(sys_fallocate(fd, mode , offset, len) == 0);
+  assert(libc_stat.st_ino == raw_stat.st_ino);
 
-#if defined(__NR_fstat64)
-  struct kernel_stat64 st;
-  assert(sys_fstat64(fd, &st) == 0);
-#else
-  struct kernel_stat st;
-  assert(sys_fstat(fd, &st) == 0);
-#endif
-  assert(st.st_size == offset + len);
 
-  sys_unlink(filename);
-
-  return 0;
+cleanup:
+  sys_unlink(foo);
+  return exit_status;
 }
