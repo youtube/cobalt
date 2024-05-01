@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -144,7 +145,7 @@ int TCPClientSocket::Connect(CompletionOnceCallback callback) {
   // first one in the list.
   next_connect_state_ = CONNECT_STATE_CONNECT;
   current_address_index_ = 0;
-
+  LOG(INFO) << "TCP_CLIENT_SOCKET LINE 147"; 
   int rv = DoConnectLoop(OK);
   if (rv == ERR_IO_PENDING) {
     connect_callback_ = std::move(callback);
@@ -215,6 +216,7 @@ int TCPClientSocket::DoConnectLoop(int result) {
     switch (state) {
       case CONNECT_STATE_CONNECT:
         DCHECK_EQ(OK, rv);
+        LOG(INFO) << "TCP_CLIENT_SOCKET DoConnect()";
         rv = DoConnect();
         break;
       case CONNECT_STATE_CONNECT_COMPLETE:

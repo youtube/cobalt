@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/power_monitor_test.h"
@@ -160,6 +161,7 @@ TEST_F(TCPClientSocketTest, BindLoopbackToExternal) {
   EXPECT_THAT(socket.Bind(IPEndPoint(IPAddress::IPv4Localhost(), 0)), IsOk());
 
   TestCompletionCallback connect_callback;
+  LOG(INFO) << "TCP_CLIENT_SOCKET_UNITTESTS LINE 163";
   int result = socket.Connect(connect_callback.callback());
 
   // We may get different errors here on different system, but

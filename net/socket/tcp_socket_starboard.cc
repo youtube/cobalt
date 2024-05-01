@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/functional/callback_helpers.h"
 #include "base/message_loop/message_pump_for_io.h"
 #include "base/task/current_thread.h"
@@ -330,10 +331,12 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
   }
 
   peer_address_.reset(new IPEndPoint(address));
-
+  LOG(INFO) << "TCP_SOCKET_STARBOARD BEFORE SbSocketConnect";
   SbSocketError result = SbSocketConnect(socket_, &storage);
+  LOG(INFO) << "TCP_SOCKET_STARBOARD AFTER SbSocketConnect!!";
 
   int rv = MapLastSocketError(socket_);
+  LOG(INFO) << "Map last socket error rv: " << rv;
   if (rv != ERR_IO_PENDING) {
     return HandleConnectCompleted(rv);
   }

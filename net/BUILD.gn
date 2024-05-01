@@ -3346,9 +3346,6 @@ test("net_unittests") {
       "disk_cache/simple/simple_index_file_unittest.cc",
       "disk_cache/simple/simple_version_upgrade_unittest.cc",
 
-      # TODO: b/331469815
-      "socket/tcp_client_socket_unittest.cc",
-
       # Re-enable once we're on c++20
       "base/backoff_entry_serializer_unittest.cc",
     ]
