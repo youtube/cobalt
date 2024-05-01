@@ -1270,18 +1270,14 @@ template <typename T>
 class ThreadLocal {
  public:
   ThreadLocal() {
-    key_ = SbThreadCreateLocalKey(
-        [](void* value) { delete static_cast<T*>(value); });
     int res = pthread_key_create(&key2_, [](void* value) { delete static_cast<T*>(value); });
     SB_DCHECK(res == 0);
-    SB_DCHECK(key_ != kSbThreadLocalKeyInvalid);
   }
   explicit ThreadLocal(const T& value) : ThreadLocal() {
     default_value_ = value;
     set(value);
   }
   ~ThreadLocal() {
-    SbThreadDestroyLocalKey(key_);
     pthread_key_delete(key2_);
   }
   T* pointer() { return GetOrCreateValue(); }
@@ -1290,22 +1286,17 @@ class ThreadLocal {
   void set(const T& value) { *GetOrCreateValue() = value; }
  private:
   T* GetOrCreateValue() const {
-    T* ptr = static_cast<T*>(SbThreadGetLocalValue(key_));
-    void* tmp = pthread_getspecific(key2_);
-    SbLogRawFormatF("GetOrCreateValue %p %p\n", ptr, tmp);
+    T* ptr = static_cast<T*>(pthread_getspecific(key2_));
     if (ptr) {
       return ptr;
     } else {
       T* new_value = new T(default_value_);
-      bool is_set = SbThreadSetLocalValue(key_, new_value);
-      SB_CHECK(is_set);
       int res = pthread_setspecific(key2_, new_value);
       SB_CHECK(res == 0);
       return new_value;
     }
   }
   T default_value_;
-  SbThreadLocalKey key_;
   pthread_key_t key2_;
 };
 
