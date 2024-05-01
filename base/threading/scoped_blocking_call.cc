@@ -34,20 +34,21 @@ namespace {
 #if DCHECK_IS_ON()
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(s_thread_local_key);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  DCHECK(s_thread_local_key);
 }
 
 bool GetConstructionInProgress() {
-  void* construction_in_progress = SbThreadGetLocalValue(s_thread_local_key);
+  EnsureThreadLocalKeyInited();
+  void* construction_in_progress = pthread_getspecific(s_thread_local_key);
   return !!construction_in_progress ? reinterpret_cast<intptr_t>(construction_in_progress) != 0 : false;
 }
 #else
@@ -68,7 +69,7 @@ ScopedBlockingCall::ScopedBlockingCall(const Location& from_here,
 #if DCHECK_IS_ON()
 #if defined(STARBOARD)
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
 #else
   const AutoReset<bool> resetter(&construction_in_progress, true, false);
 #endif
@@ -82,7 +83,7 @@ ScopedBlockingCall::ScopedBlockingCall(const Location& from_here,
       });
 
 #if DCHECK_IS_ON() && defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
 #endif
 }
 
@@ -101,7 +102,7 @@ ScopedBlockingCallWithBaseSyncPrimitives::
 #if DCHECK_IS_ON()
 #if defined(STARBOARD)
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
 #else
   const AutoReset<bool> resetter(&construction_in_progress, true, false);
 #endif
@@ -118,7 +119,7 @@ ScopedBlockingCallWithBaseSyncPrimitives::
       });
 
 #if DCHECK_IS_ON() && defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
 #endif
 }
 

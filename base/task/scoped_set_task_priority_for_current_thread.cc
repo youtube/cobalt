@@ -21,33 +21,33 @@ namespace {
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(s_thread_local_key);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  DCHECK(s_thread_local_key);
 }
 
 ABSL_CONST_INIT pthread_once_t s_once_set_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_set_for_thread =
-    kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_set_for_thread = 0;
 void InitThreadLocalBoolKey() {
-  s_thread_local_set_for_thread = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_set_for_thread));
+  pthread_key_create(&s_thread_local_set_for_thread, NULL);
+  DCHECK(s_thread_local_set_for_thread);
 }
 
 void EnsureThreadLocalBoolKeyInited() {
   pthread_once(&s_once_set_flag, InitThreadLocalBoolKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_set_for_thread));
+  DCHECK(s_thread_local_set_for_thread);
 }
 
 bool IsValueSetForThread() {
-  void* set_for_thread = SbThreadGetLocalValue(s_thread_local_set_for_thread);
+  EnsureThreadLocalBoolKeyInited();
+  void* set_for_thread = pthread_getspecific(s_thread_local_set_for_thread);
   return !!set_for_thread ? reinterpret_cast<intptr_t>(set_for_thread) != 0
                           : false;
 }
@@ -66,11 +66,11 @@ ScopedSetTaskPriorityForCurrentThread::ScopedSetTaskPriorityForCurrentThread(
   scoped_reset_value_ = reinterpret_cast<void*>(static_cast<intptr_t>(
                             static_cast<uint8_t>(GetTaskPriorityForCurrentThread())));
 
-  SbThreadSetLocalValue(s_thread_local_key,
+  pthread_setspecific(s_thread_local_key,
                         reinterpret_cast<void*>(static_cast<intptr_t>(
                             static_cast<uint8_t>(priority))));
   EnsureThreadLocalBoolKeyInited();
-  SbThreadSetLocalValue(s_thread_local_set_for_thread,
+  pthread_setspecific(s_thread_local_set_for_thread,
                         reinterpret_cast<void*>(static_cast<intptr_t>(true)));
 }
 #else
@@ -82,7 +82,8 @@ ScopedSetTaskPriorityForCurrentThread::ScopedSetTaskPriorityForCurrentThread(
 #if defined(STARBOARD)
 ScopedSetTaskPriorityForCurrentThread::
     ~ScopedSetTaskPriorityForCurrentThread() {
-  SbThreadSetLocalValue(s_thread_local_key, scoped_reset_value_);
+  EnsureThreadLocalKeyInited();
+  pthread_setspecific(s_thread_local_key, scoped_reset_value_);
 }
 #else
 ScopedSetTaskPriorityForCurrentThread::
@@ -91,8 +92,9 @@ ScopedSetTaskPriorityForCurrentThread::
 
 TaskPriority GetTaskPriorityForCurrentThread() {
 #if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
   void* task_priority_for_current_thread =
-      SbThreadGetLocalValue(s_thread_local_key);
+      pthread_getspecific(s_thread_local_key);
   return IsValueSetForThread() ? static_cast<TaskPriority>(static_cast<uint8_t>(
                                      reinterpret_cast<intptr_t>(
                                          task_priority_for_current_thread)))

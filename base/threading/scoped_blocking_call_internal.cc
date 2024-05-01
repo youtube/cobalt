@@ -35,28 +35,28 @@ namespace {
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_observer_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_observer_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_observer_key = 0;
 ABSL_CONST_INIT pthread_once_t s_once_call_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_call_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_call_key = 0;
 
 void InitThreadLocalObserverKey() {
-  s_thread_local_observer_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_observer_key));
+  pthread_key_create(&s_thread_local_observer_key , NULL);
+  DCHECK(s_thread_local_observer_key);
 }
 
 void InitThreadLocalCallKey() {
-  s_thread_local_call_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_call_key));
+  pthread_key_create(&s_thread_local_call_key , NULL);
+  DCHECK(s_thread_local_call_key);
 }
 
 void EnsureThreadLocalObserverKeyInited() {
   pthread_once(&s_once_observer_flag, InitThreadLocalObserverKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_observer_key));
+  DCHECK(s_thread_local_observer_key);
 }
 
 void EnsureThreadLocalCallKeyInited() {
   pthread_once(&s_once_call_flag, InitThreadLocalCallKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_call_key));
+  DCHECK(s_thread_local_call_key);
 }
 #else
 ABSL_CONST_INIT thread_local BlockingObserver* blocking_observer = nullptr;
@@ -70,8 +70,9 @@ ABSL_CONST_INIT thread_local UncheckedScopedBlockingCall*
 // variable accesses, once the MSAN workaround is not necessary.
 BlockingObserver* GetBlockingObserver() {
 #if defined(STARBOARD)
+  EnsureThreadLocalObserverKeyInited();
   return static_cast<BlockingObserver*>(
-      SbThreadGetLocalValue(s_thread_local_observer_key));
+      pthread_getspecific(s_thread_local_observer_key));
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
@@ -83,8 +84,9 @@ BlockingObserver* GetBlockingObserver() {
 }
 UncheckedScopedBlockingCall* GetLastScopedBlockingCall() {
 #if defined(STARBOARD)
+  EnsureThreadLocalCallKeyInited();
   return static_cast<UncheckedScopedBlockingCall*>(
-      SbThreadGetLocalValue(s_thread_local_call_key));
+      pthread_getspecific(s_thread_local_call_key));
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
@@ -112,7 +114,7 @@ void SetBlockingObserverForCurrentThread(
   DCHECK(!GetBlockingObserver());
 #if defined(STARBOARD)
   EnsureThreadLocalObserverKeyInited();
-  SbThreadSetLocalValue(s_thread_local_observer_key, new_blocking_observer);
+  pthread_setspecific(s_thread_local_observer_key, new_blocking_observer);
 #else
   blocking_observer = new_blocking_observer;
 #endif
@@ -121,7 +123,7 @@ void SetBlockingObserverForCurrentThread(
 void ClearBlockingObserverForCurrentThread() {
 #if defined(STARBOARD)
   EnsureThreadLocalObserverKeyInited();
-  SbThreadSetLocalValue(s_thread_local_observer_key, nullptr);
+  pthread_setspecific(s_thread_local_observer_key, nullptr);
 #else
   blocking_observer = nullptr;
 #endif
@@ -381,8 +383,8 @@ UncheckedScopedBlockingCall::UncheckedScopedBlockingCall(
                       previous_scoped_blocking_call_->is_will_block_)) {
 #if defined(STARBOARD)
   EnsureThreadLocalCallKeyInited();
-  reset_to_ = SbThreadGetLocalValue(s_thread_local_call_key);
-  SbThreadSetLocalValue(s_thread_local_call_key, this);
+  reset_to_ = pthread_getspecific(s_thread_local_call_key);
+  pthread_setspecific(s_thread_local_call_key, this);
 #endif
 
   // Only monitor non-nested ScopedBlockingCall(MAY_BLOCK) calls on foreground
@@ -420,7 +422,8 @@ UncheckedScopedBlockingCall::~UncheckedScopedBlockingCall() {
     blocking_observer_->BlockingEnded();
 
 #if defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_call_key, reset_to_);
+  EnsureThreadLocalCallKeyInited();
+  pthread_setspecific(s_thread_local_call_key, reset_to_);
 #endif
 }
 

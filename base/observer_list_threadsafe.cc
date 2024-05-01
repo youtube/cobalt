@@ -18,21 +18,22 @@ namespace internal {
 namespace {
 
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(s_thread_local_key);
 }
 
 }
 
 void ObserverListThreadSafeBase::EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  DCHECK(s_thread_local_key);
 }
 
-const SbThreadLocalKey ObserverListThreadSafeBase::GetThreadLocalKey() {
+const pthread_key_t ObserverListThreadSafeBase::GetThreadLocalKey() {
+  EnsureThreadLocalKeyInited();
   return s_thread_local_key;
 }
 

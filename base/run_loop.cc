@@ -27,39 +27,41 @@ namespace {
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_delegate_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_delegate_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_delegate_key = 0;
 
 void InitThreadLocalDelegateKey() {
-  s_thread_local_delegate_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_delegate_key));
+  pthread_key_create(&s_thread_local_delegate_key , NULL);
+  DCHECK(s_thread_local_delegate_key);
 }
 
 void EnsureThreadLocalDelegateKeyInited() {
   pthread_once(&s_once_delegate_flag, InitThreadLocalDelegateKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_delegate_key));
+  DCHECK(s_thread_local_delegate_key);
 }
 
 RunLoop::Delegate* GetDelegate() {
+  EnsureThreadLocalDelegateKeyInited();
   return static_cast<RunLoop::Delegate*>(
-      SbThreadGetLocalValue(s_thread_local_delegate_key));
+      pthread_getspecific(s_thread_local_delegate_key));
 }
 
 ABSL_CONST_INIT pthread_once_t s_once_timeout_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_timeout_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_timeout_key = 0;
 
 void InitThreadLocalTimeoutKey() {
-  s_thread_local_timeout_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_timeout_key));
+  pthread_key_create(&s_thread_local_timeout_key, NULL);
+  DCHECK(s_thread_local_timeout_key);
 }
 
 void EnsureThreadLocalTimeoutKeyInited() {
   pthread_once(&s_once_timeout_flag, InitThreadLocalTimeoutKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_timeout_key));
+  DCHECK(s_thread_local_timeout_key);
 }
 
 const RunLoop::RunLoopTimeout* GetRunLoopTimeout() {
+  EnsureThreadLocalTimeoutKeyInited();
   return static_cast<const RunLoop::RunLoopTimeout*>(
-      SbThreadGetLocalValue(s_thread_local_timeout_key));
+      pthread_getspecific(s_thread_local_timeout_key));
 }
 #else
 ABSL_CONST_INIT thread_local RunLoop::Delegate* delegate = nullptr;
@@ -103,7 +105,7 @@ RunLoop::Delegate::~Delegate() {
 #if defined(STARBOARD)
     DCHECK_EQ(this, GetDelegate());
     EnsureThreadLocalDelegateKeyInited();
-    SbThreadSetLocalValue(s_thread_local_delegate_key, nullptr);
+    pthread_setspecific(s_thread_local_delegate_key, nullptr);
 #else
     DCHECK_EQ(this, delegate);
     delegate = nullptr;
@@ -138,7 +140,7 @@ void RunLoop::RegisterDelegateForCurrentThread(Delegate* new_delegate) {
          "MessageLoop/TaskEnvironment on a thread that already had one?";
 #if defined(STARBOARD)
   EnsureThreadLocalDelegateKeyInited();
-  SbThreadSetLocalValue(s_thread_local_delegate_key, new_delegate);
+  pthread_setspecific(s_thread_local_delegate_key, new_delegate);
   new_delegate->bound_ = true;
 #else
   delegate = new_delegate;
@@ -392,7 +394,7 @@ RunLoop::RunLoopTimeout::~RunLoopTimeout() = default;
 void RunLoop::SetTimeoutForCurrentThread(const RunLoopTimeout* timeout) {
 #if defined(STARBOARD)
   EnsureThreadLocalTimeoutKeyInited();
-  SbThreadSetLocalValue(s_thread_local_timeout_key, const_cast<RunLoopTimeout*>(timeout));
+  pthread_setspecific(s_thread_local_timeout_key, const_cast<RunLoopTimeout*>(timeout));
 #else
   run_loop_timeout = timeout;
 #endif
