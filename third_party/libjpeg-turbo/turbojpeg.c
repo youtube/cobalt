@@ -64,19 +64,19 @@ extern void jpeg_mem_src_tj(j_decompress_ptr, const unsigned char *,
 /* Error handling (based on example in example.txt) */
 
 #if defined(STARBOARD)
-static SbThreadLocalKey g_err_key = kSbThreadLocalKeyInvalid;
+static pthread_key_t g_err_key = 0;
 static pthread_once_t g_err_once = PTHREAD_ONCE_INIT;
 
 void initialize_err_key(void) {
-  g_err_key = SbThreadCreateLocalKey(free);
+  pthread_key_create(&g_err_key , free);
 
-  SB_DCHECK(SbThreadIsValidLocalKey(g_err_key));
+  SB_DCHECK(g_err_key);
 }
 
 char* errStr() {
   pthread_once(&g_err_once, initialize_err_key);
 
-  char* value = (char*)(SbThreadGetLocalValue(g_err_key));
+  char* value = (char*)(pthread_getspecific(g_err_key));
 
   if (value) {
     return value;
@@ -85,7 +85,8 @@ char* errStr() {
   value = malloc(sizeof(char) * JMSG_LENGTH_MAX);
 
   SB_DCHECK(value);
-  SB_DCHECK(SbThreadSetLocalValue(g_err_key, value));
+  int result  = pthread_setspecific(g_err_key, value);
+  SB_DCHECK(result == 0);
 
   memset(value, 0, JMSG_LENGTH_MAX);
   strcpy(value, "No error");
