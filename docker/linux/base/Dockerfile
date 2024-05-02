@@ -24,7 +24,7 @@ ENV PYTHONUNBUFFERED 1
 RUN apt update -qqy \
     && apt -qqy upgrade \
     && apt install -qqy --no-install-recommends \
-        python3-dev \
+        python3.8-dev \
         python3-pip \
         python3-requests \
         python3-setuptools \
