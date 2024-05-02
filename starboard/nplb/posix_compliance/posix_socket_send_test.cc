@@ -17,6 +17,7 @@
 
 #include <fcntl.h>
 #include <pthread.h>
+#include <string.h>
 #include <unistd.h>
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "starboard/thread.h"
@@ -78,7 +79,7 @@ TEST(PosixSocketSendTest, RainyDayUnconnectedSocket) {
 
   EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
               errno == ENOTCONN);
-  SB_DLOG(INFO) << "Failed to send, errno = " << errno;
+  SB_DLOG(INFO) << "Failed to send, errno = " << strerror(errno);
 
   EXPECT_TRUE(close(socket_fd) == 0);
 }
@@ -111,10 +112,11 @@ TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
   EXPECT_TRUE(pthread_join(send_thread, &thread_result) == 0);
 
   EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
-              errno == ENOTCONN ||  // errno on Windows
-              errno == EINPROGRESS  // errno on Evergreen
+              errno == ENOTCONN ||     // errno on Windows
+              errno == EINPROGRESS ||  // errno on Evergreen
+              errno == ENETUNREACH     // errno on raspi
   );
-  SB_DLOG(INFO) << "Failed to send, errno = " << errno;
+  SB_DLOG(INFO) << "Failed to send, errno = " << strerror(errno);
 
   // Clean up the server socket.
   EXPECT_TRUE(close(server_socket_fd) == 0);
@@ -149,7 +151,7 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketUntilBlocking) {
       // If we didn't get a socket, it should be pending.
       EXPECT_TRUE(errno == EINPROGRESS || errno == EAGAIN ||
                   errno == EWOULDBLOCK);
-      SB_DLOG(INFO) << "Failed to send, errno = " << errno;
+      SB_DLOG(INFO) << "Failed to send, errno = " << strerror(errno);
       break;
     }
 
@@ -201,7 +203,7 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketConnectionReset) {
     if (result < 0) {
       EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
                   errno == ECONNABORTED);
-      SB_DLOG(INFO) << "Failed to send, errno = " << errno;
+      SB_DLOG(INFO) << "Failed to send, errno = " << strerror(errno);
       break;
     }
 
