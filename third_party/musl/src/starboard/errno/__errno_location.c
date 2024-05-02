@@ -41,8 +41,3 @@ int *__errno_location(void) {
 }
 
 weak_alias(__errno_location, ___errno_location);
-<<<<<<< HEAD
-=======
-
-#endif // SB_API_VERSION < 16
->>>>>>> 9cd5e1d5efb (Deprecate SbThreadLocalKey (#3096))
