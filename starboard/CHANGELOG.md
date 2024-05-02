@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated the `SbThreadLocalKey` APIs.
+Replaced the `SbThreadLocalKey` with the POSIX `pthread_key_t`.
+
 ### Deprecated `SbOnce`
 Replaced the `SbOnce` with the POSIX `pthread_once`.
 

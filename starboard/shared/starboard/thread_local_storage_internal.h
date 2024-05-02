@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_INTERNAL_H_
 
+#if SB_API_VERSION < 16
+
 #include <vector>
 
 #include "starboard/common/mutex.h"
@@ -78,4 +80,5 @@ class TLSKeyManager {
 }  // namespace shared
 }  // namespace starboard
 
+#endif  // SB_API_VERSION < 16
 #endif  // STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_INTERNAL_H_
