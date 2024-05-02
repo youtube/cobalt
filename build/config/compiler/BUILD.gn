@@ -1642,6 +1642,7 @@ config("default_warnings") {
         "-Wno-shadow",
         "-Wno-range-loop-bind-reference",
         "-Wno-range-loop-construct",
+        "-Wno-unused-result",
       ]
     }
 
@@ -1812,27 +1813,6 @@ config("chromium_code") {
       cflags += [
         # Warn on unnecessary extra semicolons outside of function definitions.
         "-Wextra-semi",
-      ]
-    }
-
-    # TODO: check if this is still needed with updated //net.
-    # Suppress warning in old //net.
-    if (is_starboard) {
-      cflags += [
-        "-Wno-reorder-ctor",
-        "-Wno-unused-const-variable",
-        "-Wno-unused-variable",
-        "-Wno-unused-private-field",
-        "-Wno-missing-braces",
-        "-Wno-string-concatenation",
-      ]
-    }
-
-    # Suppress warnings in old //base and //net.
-    if (is_starboard) {
-      cflags += [
-        "-Wno-sign-compare",
-        "-Wno-shorten-64-to-32",
       ]
     }
 
