@@ -219,15 +219,12 @@ int ConvertSocketAddressSbToPosix(const SbSocketAddress* sbAddress, struct socka
   return 0;
 }
 
-// The exported POSIX APIs
-//
-int fstat(int fildes, struct stat* buf) {
+int GetInternalFdHelper(int fildes, FileOrSocket* fileOrSock) {
   if (fildes < 0) {
     errno = EBADF;
     return -1;
   }
 
-  FileOrSocket* fileOrSock = NULL;
   if (get(fildes, false, &fileOrSock) != 0) {
     errno = EBADF;
     return -1;
@@ -235,6 +232,16 @@ int fstat(int fildes, struct stat* buf) {
 
   if (fileOrSock == NULL || !fileOrSock->is_file) {
     errno = EBADF;
+    return -1;
+  }
+  return 0;
+}
+
+// The exported POSIX APIs
+//
+int fstat(int fildes, struct stat* buf) {
+  FileOrSocket* fileOrSock = NULL;
+  if (GetInternalFdHelper(fildes, fileOrSock) < 0) {
     return -1;
   }
 
@@ -257,20 +264,29 @@ int fstat(int fildes, struct stat* buf) {
   return 0;
 }
 
-off_t lseek(int fildes, off_t offset, int whence) {
-  if (fildes < 0) {
-    errno = EBADF;
-    return -1;
-  }
-
+int fsync(int fildes) {
   FileOrSocket* fileOrSock = NULL;
-  if (get(fildes, false, &fileOrSock) != 0) {
-    errno = EBADF;
+  if (GetInternalFdHelper(fildes, fileOrSock) < 0) {
     return -1;
   }
 
-  if (fileOrSock == NULL || !fileOrSock->is_file) {
-    errno = EBADF;
+  int result = SbFileFlush(fileOrSock->file) ? 0 : -1;
+  return result;
+}
+
+int ftruncate(int fildes, off_t length) {
+  FileOrSocket* fileOrSock = NULL;
+  if (GetInternalFdHelper(fildes, fileOrSock) < 0) {
+    return -1;
+  }
+
+  int result = SbFileTruncate(fileOrSock->file, length) ? 0 : -1;
+  return result;
+}
+
+off_t lseek(int fildes, off_t offset, int whence) {
+  FileOrSocket* fileOrSock = NULL;
+  if (GetInternalFdHelper(fildes, fileOrSock) < 0) {
     return -1;
   }
 
@@ -284,7 +300,6 @@ off_t lseek(int fildes, off_t offset, int whence) {
   } else {
     return -1;
   }
-
   return (off_t)SbFileSeek(fileOrSock->file, sbWhence, (int64_t)offset);
 }
 
@@ -312,7 +327,8 @@ int open(const char* path, int oflag, ...) {
     accessModeFlag |= kSbFileWrite;
     oflag &= ~O_WRONLY;
   } else if ((oflag & O_ACCMODE) == O_RDWR) {
-    accessModeFlag |= kSbFileRead | kSbFileWrite;
+    accessModeFlag |= kSbFileRead;
+    accessModeFlag |= kSbFileWrite;
     oflag &= ~O_RDWR;
   } else {
     // Applications shall specify exactly one of the first three file access
@@ -363,24 +379,20 @@ int open(const char* path, int oflag, ...) {
 }
 
 ssize_t read(int fildes, void* buf, size_t nbyte) {
-  if (fildes < 0) {
-    errno = EBADF;
-    return -1;
-  }
-
   FileOrSocket* fileOrSock = NULL;
-  if (get(fildes, false, &fileOrSock) != 0) {
-    errno = EBADF;
+  if (GetInternalFdHelper(fildes, fileOrSock) < 0) {
     return -1;
   }
-
-  if (fileOrSock == NULL || !fileOrSock->is_file) {
-    errno = EBADF;
-    return -1;
-  }
-
   return (ssize_t)SbFileRead(fileOrSock->file, buf, (int)nbyte);
 }
+
+//ssize_t write(int fildes, const void* buf, size_t nbyte) {
+//  FileOrSocket* fileOrSock = NULL;
+//  if (GetInternalFdHelper(fildes, fileOrSock) < 0) {
+//    return -1;
+//  }
+//  return (ssize_t)SbFileWrite(fileOrSock->file, buf, (int)nbyte);
+//}
 
 int socket(int domain, int type, int protocol){
   int address_type, socket_protocol;

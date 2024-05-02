@@ -29,6 +29,12 @@ ssize_t __abi_wrap_read(int fildes, void* buf, size_t nbyte);
 ssize_t read(int fildes, void* buf, size_t nbyte) {
   return __abi_wrap_read(fildes, buf, nbyte);
 }
+
+ssize_t __abi_wrap_write(int fildes, const void* buf, size_t nbyte);
+
+ssize_t write(int fildes, const void* buf, size_t nbyte) {
+  return __abi_wrap_write(fildes, buf, nbyte);
+}
 }
 
 #endif  // SB_API_VERSION >= 16

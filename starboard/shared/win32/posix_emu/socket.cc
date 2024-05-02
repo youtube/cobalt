@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <io.h>  // Needed for file-specific `_close`.
 #include <string.h>
-#include <unistd.h>  // Our version that declares generic `close`.
+// #include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
 #include <ws2tcpip.h>
@@ -289,12 +289,36 @@ int close(int fd) {
   return _close(handle.file);
 }
 
+int fsync(int fd) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _commit(handle.file);
+}
+
+int ftruncate(int fd, off_t length) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _chsize(handle.file, length);
+}
+
+int sb_fstat(int fd, struct stat* buffer) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _fstat(handle.file, (struct _stat*)buffer);
+}
+
 off_t sb_lseek(int fd, off_t offset, int origin) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
     return -1;
   }
-  return _lseek(handle.file, offset, origin);
+  return lseek(handle.file, offset, origin);
 }
 
 ssize_t sb_read(int fd, void* buf, size_t nbyte) {
@@ -302,7 +326,15 @@ ssize_t sb_read(int fd, void* buf, size_t nbyte) {
   if (!handle.is_file) {
     return -1;
   }
-  return _read(handle.file, buf, nbyte);
+  return read(handle.file, buf, nbyte);
+}
+
+ssize_t sb_write(int fd, const void* buf, size_t nbyte) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return write(handle.file, buf, nbyte);
 }
 
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
@@ -463,14 +495,6 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
     }
   }
   return 0;
-}
-
-int sb_fstat(int fd, struct stat* buffer) {
-  FileOrSocket handle = handle_db_get(fd, false);
-  if (!handle.is_file) {
-    return -1;
-  }
-  return _fstat(handle.file, (struct _stat*)buffer);
 }
 
 }  // extern "C"

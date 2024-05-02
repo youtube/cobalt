@@ -15,7 +15,18 @@
 #if SB_API_VERSION < 16
 #include <unistd.h>
 
+#include "starboard/file.h"
 #include "starboard/thread.h"
+
+int rmdir(const char* path) {
+  int result = SbFileDelete(path) ? 0 : -1;
+  return result;
+}
+
+int unlink(const char* path) {
+  int result = SbFileDelete(path) ? 0 : -1;
+  return result;
+}
 
 int usleep(useconds_t useconds) {
   SbThreadSleep(useconds);

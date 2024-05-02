@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_FILE_ABI_WRAPPERS_H_
-#define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_FILE_ABI_WRAPPERS_H_
+#ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_UNISTD_ABI_WRAPPERS_H_
+#define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_UNISTD_ABI_WRAPPERS_H_
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -50,14 +50,18 @@ typedef int32_t ssize_t;
 extern "C" {
 #endif
 
+SB_EXPORT int __abi_wrap_ftruncate(int fildes, musl_off_t length);
+
 SB_EXPORT musl_off_t __abi_wrap_lseek(int fildes,
                                       musl_off_t offset,
                                       int whence);
 
 SB_EXPORT ssize_t __abi_wrap_read(int fildes, void* buf, size_t nbyte);
 
+SB_EXPORT ssize_t __abi_wrap_write(int fildes, const void* buf, size_t nbyte);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_FILE_ABI_WRAPPERS_H_
+#endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_UNISTD_ABI_WRAPPERS_H_
