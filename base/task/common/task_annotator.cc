@@ -41,50 +41,45 @@ TaskAnnotator::ObserverForTesting* g_task_annotator_observer = nullptr;
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_task_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_task_key =
-    kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_task_key = 0;
 
 void InitThreadLocalTaskKey() {
-  s_thread_local_task_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_task_key));
+  int res = pthread_key_create(&s_thread_local_task_key, NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalTaskKeyInited() {
   pthread_once(&s_once_task_flag, InitThreadLocalTaskKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_task_key));
 }
 
 PendingTask* GetCurrentPendingTask() {
+  EnsureThreadLocalTaskKeyInited();
   return static_cast<PendingTask*>(
-      SbThreadGetLocalValue(s_thread_local_task_key));
+      pthread_getspecific(s_thread_local_task_key));
 }
 
 ABSL_CONST_INIT pthread_once_t s_once_hash_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_hash_key =
-    kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_hash_key = 0;
 
 void InitThreadLocalHashKey() {
-  s_thread_local_hash_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_hash_key));
+  int res = pthread_key_create(&s_thread_local_hash_key , NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalHashKeyInited() {
   pthread_once(&s_once_hash_flag, InitThreadLocalHashKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_hash_key));
 }
 
 ABSL_CONST_INIT pthread_once_t s_once_tracker_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_tracker_key =
-    kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_tracker_key = 0;
 
 void InitThreadLocalTrackerKey() {
-  s_thread_local_tracker_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_tracker_key));
+  int res = pthread_key_create(&s_thread_local_tracker_key , NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalTrackerKeyInited() {
   pthread_once(&s_once_tracker_flag, InitThreadLocalTrackerKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_tracker_key));
 }
 #else
 // The PendingTask currently in progress on each thread. Used to allow creating
@@ -106,8 +101,9 @@ ABSL_CONST_INIT thread_local TaskAnnotator::LongTaskTracker*
 // variable accesses, once the MSAN workaround is not necessary.
 TaskAnnotator::ScopedSetIpcHash* GetCurrentScopedIpcHash() {
 #if defined(STARBOARD)
+  EnsureThreadLocalHashKeyInited();
   return static_cast<TaskAnnotator::ScopedSetIpcHash*>(
-      SbThreadGetLocalValue(s_thread_local_hash_key));
+      pthread_getspecific(s_thread_local_hash_key));
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
@@ -121,8 +117,9 @@ TaskAnnotator::ScopedSetIpcHash* GetCurrentScopedIpcHash() {
 
 TaskAnnotator::LongTaskTracker* GetCurrentLongTaskTracker() {
 #if defined(STARBOARD)
+  EnsureThreadLocalTrackerKeyInited();
   return static_cast<TaskAnnotator::LongTaskTracker*>(
-      SbThreadGetLocalValue(s_thread_local_tracker_key));
+      pthread_getspecific(s_thread_local_tracker_key));
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
@@ -249,8 +246,8 @@ void TaskAnnotator::RunTaskImpl(PendingTask& pending_task) {
   {
 #if defined(STARBOARD)
     EnsureThreadLocalTaskKeyInited();
-    void* reset_to = SbThreadGetLocalValue(s_thread_local_task_key);
-    SbThreadSetLocalValue(s_thread_local_task_key, &pending_task);
+    void* reset_to = pthread_getspecific(s_thread_local_task_key);
+    pthread_setspecific(s_thread_local_task_key, &pending_task);
 #else
     const AutoReset<PendingTask*> resetter(&current_pending_task,
                                            &pending_task);
@@ -282,7 +279,7 @@ void TaskAnnotator::RunTaskImpl(PendingTask& pending_task) {
 #endif
 
 #if defined(STARBOARD)
-    SbThreadSetLocalValue(s_thread_local_task_key, reset_to);
+    pthread_setspecific(s_thread_local_task_key, reset_to);
 #endif
   }
 
@@ -371,8 +368,8 @@ TaskAnnotator::ScopedSetIpcHash::ScopedSetIpcHash(
       ipc_interface_name_(ipc_interface_name) {
 #if defined(STARBOARD)
   EnsureThreadLocalHashKeyInited();
-  scoped_reset_value_ = SbThreadGetLocalValue(s_thread_local_hash_key);
-  SbThreadSetLocalValue(s_thread_local_hash_key, this);
+  scoped_reset_value_ = pthread_getspecific(s_thread_local_hash_key);
+  pthread_setspecific(s_thread_local_hash_key, this);
 #endif
 }
 
@@ -390,7 +387,8 @@ uint32_t TaskAnnotator::ScopedSetIpcHash::MD5HashMetricName(
 TaskAnnotator::ScopedSetIpcHash::~ScopedSetIpcHash() {
   DCHECK_EQ(this, GetCurrentScopedIpcHash());
 #if defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_hash_key, scoped_reset_value_);
+  EnsureThreadLocalHashKeyInited();
+  pthread_setspecific(s_thread_local_hash_key, scoped_reset_value_);
 #endif
 }
 
@@ -407,8 +405,8 @@ TaskAnnotator::LongTaskTracker::LongTaskTracker(const TickClock* tick_clock,
       task_annotator_(task_annotator) {
 #if defined(STARBOARD)
   EnsureThreadLocalTrackerKeyInited();
-  scoped_reset_value_ = SbThreadGetLocalValue(s_thread_local_tracker_key);
-  SbThreadSetLocalValue(s_thread_local_tracker_key, this);
+  scoped_reset_value_ = pthread_getspecific(s_thread_local_tracker_key);
+  pthread_setspecific(s_thread_local_tracker_key, this);
 #endif
 
   TRACE_EVENT_CATEGORY_GROUP_ENABLED("scheduler.long_tasks", &is_tracing_);
@@ -420,7 +418,8 @@ TaskAnnotator::LongTaskTracker::LongTaskTracker(const TickClock* tick_clock,
 TaskAnnotator::LongTaskTracker::~LongTaskTracker() {
   DCHECK_EQ(this, GetCurrentLongTaskTracker());
 #if defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_tracker_key, scoped_reset_value_);
+  EnsureThreadLocalTrackerKeyInited();
+  pthread_setspecific(s_thread_local_tracker_key, scoped_reset_value_);
 #endif
 
   if (!is_tracing_)

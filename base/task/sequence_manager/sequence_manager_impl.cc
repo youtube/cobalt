@@ -51,21 +51,21 @@ namespace {
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key, NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 
 internal::SequenceManagerImpl* GetThreadLocalSequenceManager() {
+   EnsureThreadLocalKeyInited();
   return static_cast<internal::SequenceManagerImpl*>(
-      SbThreadGetLocalValue(s_thread_local_key));
+      pthread_getspecific(s_thread_local_key));
 }
 #else
 ABSL_CONST_INIT thread_local internal::SequenceManagerImpl*
@@ -268,7 +268,7 @@ SequenceManagerImpl::~SequenceManagerImpl() {
     DCHECK_EQ(this, GetCurrent());
 #if defined(STARBOARD)
     EnsureThreadLocalKeyInited();
-    SbThreadSetLocalValue(s_thread_local_key, nullptr);
+    pthread_setspecific(s_thread_local_key, nullptr);
 #else
     thread_local_sequence_manager = nullptr;
 #endif
@@ -398,7 +398,7 @@ void SequenceManagerImpl::CompleteInitializationOnBoundThread() {
         << "Can't register a second SequenceManagerImpl on the same thread.";
 #if defined(STARBOARD)
     EnsureThreadLocalKeyInited();
-    SbThreadSetLocalValue(s_thread_local_key, this);
+    pthread_setspecific(s_thread_local_key, this);
 #else
     thread_local_sequence_manager = this;
 #endif

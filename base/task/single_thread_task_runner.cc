@@ -29,16 +29,15 @@ namespace {
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 #else
 ABSL_CONST_INIT thread_local SingleThreadTaskRunner::CurrentDefaultHandle*
@@ -49,8 +48,9 @@ ABSL_CONST_INIT thread_local SingleThreadTaskRunner::CurrentDefaultHandle*
 // variable accesses, once the MSAN workaround is not necessary.
 SingleThreadTaskRunner::CurrentDefaultHandle* GetCurrentDefaultHandle() {
 #if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
   return static_cast<SingleThreadTaskRunner::CurrentDefaultHandle*>(
-      SbThreadGetLocalValue(s_thread_local_key));
+      pthread_getspecific(s_thread_local_key));
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
@@ -97,7 +97,7 @@ SingleThreadTaskRunner::CurrentDefaultHandle::CurrentDefaultHandle(
       sequenced_task_runner_current_default_(task_runner_) {
 #if defined(STARBOARD)
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, this);
+  pthread_setspecific(s_thread_local_key, this);
 #endif
   DCHECK(task_runner_->BelongsToCurrentThread());
 }
@@ -106,7 +106,7 @@ SingleThreadTaskRunner::CurrentDefaultHandle::~CurrentDefaultHandle() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK_EQ(GetCurrentDefaultHandle(), this);
 #if defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_key, nullptr);
+  pthread_setspecific(s_thread_local_key, nullptr);
 #endif
 }
 

@@ -58,7 +58,7 @@ typedef union pthread_mutexattr_t {
   void* ptr;
 } pthread_mutexattr_t;
 
-typedef void* pthread_key_t;
+typedef uintptr_t pthread_key_t;
 
 #ifdef __cplusplus
 #define PTHREAD_COND_INITIALIZER \
@@ -111,7 +111,7 @@ typedef union pthread_attr_t {
 } pthread_attr_t;
 
 typedef int clockid_t;
-typedef void* pthread_t;
+typedef uintptr_t pthread_t;
 
 // Max size of the pthread_once_t type.
 #define MUSL_PTHREAD_ONCE_MAX_SIZE 64

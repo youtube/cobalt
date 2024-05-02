@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/net_log.h"
 
+#include <pthread.h>
 #include <unistd.h>
 #include <windows.h>
 
@@ -389,21 +390,21 @@ class NetLogServer {
 
 class ThreadLocalBoolean {
  public:
-  ThreadLocalBoolean() : slot_(SbThreadCreateLocalKey(NULL)) {}
-  ~ThreadLocalBoolean() { SbThreadDestroyLocalKey(slot_); }
+  ThreadLocalBoolean() { pthread_key_create(&slot_, NULL); }
+  ~ThreadLocalBoolean() { pthread_key_delete(slot_); }
 
   void Set(bool val) {
     void* ptr = val ? reinterpret_cast<void*>(0x1) : nullptr;
-    SbThreadSetLocalValue(slot_, ptr);
+    pthread_setspecific(slot_, ptr);
   }
 
   bool Get() const {
-    void* ptr = SbThreadGetLocalValue(slot_);
+    void* ptr = pthread_getspecific(slot_);
     return ptr != nullptr;
   }
 
  private:
-  SbThreadLocalKey slot_;
+  pthread_key_t slot_;
 
   ThreadLocalBoolean(const ThreadLocalBoolean&) = delete;
   void operator=(const ThreadLocalBoolean&) = delete;

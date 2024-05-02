@@ -129,20 +129,20 @@ auto EmitThreadPoolTraceEventMetadata(perfetto::EventContext& ctx,
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t  s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 
 bool GetFizzleBlockShutdownTasks() {
-  void* fizzle_block_shutdown_tasks = SbThreadGetLocalValue(s_thread_local_key);
+  EnsureThreadLocalKeyInited();
+  void* fizzle_block_shutdown_tasks = pthread_getspecific(s_thread_local_key);
   return !!fizzle_block_shutdown_tasks ? reinterpret_cast<intptr_t>(fizzle_block_shutdown_tasks) != 0 : false;
 }
 #else
@@ -452,7 +452,7 @@ bool TaskTracker::IsShutdownComplete() const {
 void TaskTracker::BeginFizzlingBlockShutdownTasks() {
 #if defined(STARBOARD)
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
 #else
   fizzle_block_shutdown_tasks = true;
 #endif
@@ -461,7 +461,7 @@ void TaskTracker::BeginFizzlingBlockShutdownTasks() {
 void TaskTracker::EndFizzlingBlockShutdownTasks() {
 #if defined(STARBOARD)
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
 #else
   fizzle_block_shutdown_tasks = false;
 #endif

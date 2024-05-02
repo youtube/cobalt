@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/thread.h"
 
 #include "starboard/shared/starboard/thread_local_storage_internal.h"
@@ -19,3 +21,5 @@
 SbThreadLocalKey SbThreadCreateLocalKey(SbThreadLocalDestructor destructor) {
   return starboard::shared::TLSKeyManager::Get()->CreateKey(destructor);
 }
+
+#endif  // SB_API_VERSION < 16

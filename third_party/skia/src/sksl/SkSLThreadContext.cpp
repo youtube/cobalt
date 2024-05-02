@@ -214,29 +214,31 @@ namespace {
 ThreadContext* instance = nullptr;
 
 pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-    s_thread_local_key = SbThreadCreateLocalKey(nullptr);
-    SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
-    SbThreadSetLocalValue(s_thread_local_key, nullptr);
+    int res = pthread_key_create(&s_thread_local_key , nullptr);
+    SB_DCHECK(res == 0);
+    pthread_setspecific(s_thread_local_key, nullptr);
 }
 
 void EnsureThreadLocalKeyInited() {
     pthread_once(&s_once_flag, InitThreadLocalKey);
-    SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 }  // namespace
 
-bool ThreadContext::IsActive() { return SbThreadGetLocalValue(s_thread_local_key) != nullptr; }
+bool ThreadContext::IsActive() { 
+  EnsureThreadLocalKeyInited();
+  return pthread_getspecific(s_thread_local_key) != nullptr;
+}
 
 ThreadContext& ThreadContext::Instance() { return *instance; }
 
 void ThreadContext::SetInstance(std::unique_ptr<ThreadContext> newInstance) {
     EnsureThreadLocalKeyInited();
     delete instance;
-    SbThreadSetLocalValue(s_thread_local_key, static_cast<void*>(newInstance.release()));
-    instance = static_cast<ThreadContext*>(SbThreadGetLocalValue(s_thread_local_key));
+    pthread_setspecific(s_thread_local_key, static_cast<void*>(newInstance.release()));
+    instance = static_cast<ThreadContext*>(pthread_getspecific(s_thread_local_key));
 }
 
 #endif
