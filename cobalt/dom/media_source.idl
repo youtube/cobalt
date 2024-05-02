@@ -18,6 +18,7 @@
 [
   Constructor,
   ConstructorCallWith=EnvironmentSettings,
+  Exposed=(Window,DedicatedWorker),
 ]
 interface MediaSource : EventTarget {
   // All the source buffers created by this object.

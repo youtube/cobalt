@@ -61,7 +61,9 @@
 #include "cobalt/dom/media_settings.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "media/base/pipeline_status.h"
 #include "starboard/media.h"
 
@@ -154,6 +156,15 @@ MediaSource::MediaSource(script::EnvironmentSettings* settings)
             << (asynchronous_reduction_enabled_ ? "enabled" : "disabled");
   LOG(INFO) << "Max size of immediate job is set to "
             << max_size_for_immediate_job_;
+
+  web::EnvironmentSettings* web_environment_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
+  DCHECK(web_environment_settings);
+  DCHECK(web_environment_settings->context());
+  web::WindowOrWorkerGlobalScope* global_scope =
+      web_environment_settings->context()->GetWindowOrWorkerGlobalScope();
+
+  CHECK(global_scope->IsWindow()) << "MSE is not yet supported from workers.";
 }
 
 MediaSource::~MediaSource() { SetReadyState(kMediaSourceReadyStateClosed); }
@@ -399,7 +410,8 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
   }
 }
 
-bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
+bool MediaSource::StartAttachingToMediaElement(
+    HTMLMediaElement* media_element) {
   if (attached_element_) {
     return false;
   }
@@ -431,7 +443,7 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
   return true;
 }
 
-void MediaSource::SetChunkDemuxerAndOpen(ChunkDemuxer* chunk_demuxer) {
+void MediaSource::CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   DCHECK(!chunk_demuxer_);
   DCHECK(attached_element_);
@@ -489,6 +501,8 @@ scoped_refptr<TimeRanges> MediaSource::GetBufferedRange() const {
 }
 
 scoped_refptr<TimeRanges> MediaSource::GetSeekable() const {
+  DCHECK(attached_element_);
+
   // Implements MediaSource algorithm for HTMLMediaElement.seekable.
   double source_duration = duration(NULL);
 
@@ -497,7 +511,7 @@ scoped_refptr<TimeRanges> MediaSource::GetSeekable() const {
   }
 
   if (source_duration == std::numeric_limits<double>::infinity()) {
-    scoped_refptr<TimeRanges> buffered = attached_element_->buffered();
+    scoped_refptr<TimeRanges> buffered = GetBufferedRange();
 
     if (live_seekable_range_->length() != 0) {
       if (buffered->length() == 0) {
