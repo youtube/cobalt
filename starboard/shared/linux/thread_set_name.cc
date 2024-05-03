@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/thread.h"
 
 #include <errno.h>
@@ -41,3 +43,5 @@ void SbThreadSetName(const char* name) {
     SB_DLOG(ERROR) << "Failed to set thread name to " << name;
   }
 }
+
+#endif

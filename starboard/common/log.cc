@@ -14,6 +14,8 @@
 
 #include "starboard/common/log.h"
 
+#include <pthread.h>
+
 #include <algorithm>
 #include <cstring>
 #include <iomanip>
@@ -166,7 +168,7 @@ void LogMessage::Init(const char* file, int line) {
     filename.erase(0, last_slash_pos + 1);
   }
   char name[128] = {0};
-  SbThreadGetName(name, SB_ARRAY_SIZE_INT(name));
+  pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
   stream_ << '[';
   stream_ << name << '/' << SbThreadGetId() << ':';
   EzTimeValue time_value;

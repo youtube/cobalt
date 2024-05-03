@@ -220,6 +220,7 @@ SB_EXPORT SbThreadId SbThreadGetId();
 // |thread2|: The second thread to compare.
 SB_EXPORT bool SbThreadIsEqual(SbThread thread1, SbThread thread2);
 
+#if SB_API_VERSION < 16
 // Returns the debug name of the currently executing thread.
 SB_EXPORT void SbThreadGetName(char* buffer, int buffer_size);
 
@@ -229,7 +230,6 @@ SB_EXPORT void SbThreadGetName(char* buffer, int buffer_size);
 // |name|: The name to assign to the thread.
 SB_EXPORT void SbThreadSetName(const char* name);
 
-#if SB_API_VERSION < 16
 // Creates and returns a new, unique key for thread local data. If the function
 // does not succeed, the function returns |kSbThreadLocalKeyInvalid|.
 //

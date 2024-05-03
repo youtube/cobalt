@@ -76,7 +76,7 @@ JniEnvExt* JniEnvExt::Get() {
   if (JNI_OK != g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6)) {
     // Tell the JVM our thread name so it doesn't change it.
     char thread_name[16];
-    SbThreadGetName(thread_name, sizeof(thread_name));
+    pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
     JavaVMAttachArgs args{JNI_VERSION_1_6, thread_name, NULL};
     g_vm->AttachCurrentThread(&env, &args);
     // We don't use the value, but any non-NULL means we have to detach.

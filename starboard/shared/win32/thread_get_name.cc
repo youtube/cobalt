@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/thread.h"
 
 #include <windows.h>
@@ -26,3 +28,5 @@ void SbThreadGetName(char* buffer, int buffer_size) {
   SbThreadPrivate* thread_private = GetCurrentSbThreadPrivate();
   starboard::strlcpy(buffer, thread_private->name_.c_str(), buffer_size);
 }
+
+#endif

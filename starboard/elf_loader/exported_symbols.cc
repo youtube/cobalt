@@ -394,9 +394,9 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadGetLocalValue);
+  REGISTER_SYMBOL(SbThreadGetName);
 #endif  // SB_API_VERSION < 16
 
-  REGISTER_SYMBOL(SbThreadGetName);
   REGISTER_SYMBOL(SbThreadIsEqual);
   REGISTER_SYMBOL(SbThreadJoin);
   REGISTER_SYMBOL(SbThreadSamplerCreate);
@@ -409,8 +409,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSetLocalValue);
 #endif  // SB_API_VERSION < 16
 
-  REGISTER_SYMBOL(SbThreadSetName);
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbThreadSetName);
   REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
