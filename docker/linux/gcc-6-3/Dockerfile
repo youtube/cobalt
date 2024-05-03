@@ -24,7 +24,12 @@ RUN apt update -qqy \
     && add-apt-repository -y ppa:savoury1/backports \
     && apt update -qqy \
     && apt install -qqy --no-install-recommends git nasm \
+        python3.8 python3.8-dev python3.8-venv \
     && /opt/clean-after-apt.sh
+
+RUN python3.8 -m venv /python38_env
+ENV VIRTUAL_ENV /python38_env
+ENV PATH /python38_env/bin:$PATH
 
 CMD gn gen ${OUTDIR}/${PLATFORM}${SB_API_VERSION:+-sbversion-$SB_API_VERSION}_${CONFIG:-debug} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG:-debug}\" build_with_separate_cobalt_toolchain=true using_old_compiler=true ${SB_API_VERSION:+sb_api_version=$SB_API_VERSION}" && \
     ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}${SB_API_VERSION:+-sbversion-$SB_API_VERSION}_${CONFIG:-debug} ${TARGET:-cobalt_install}
