@@ -23,7 +23,7 @@ group("jpeg") {
   if (use_system_libjpeg) {
     public_configs = [ ":system_libjpeg_config" ]
   } else if (use_libjpeg_turbo) {
-    public_deps = [ "//third_party/libjpeg-turbo:libjpeg" ]
+    public_deps = [ "//third_party/libjpeg_turbo:libjpeg" ]
     public_configs = [ ":libjpeg_turbo_config" ]
   } else {
     public_deps = [ "//third_party/libjpeg:libjpeg" ]
@@ -38,7 +38,7 @@ group("jpeg_includes") {
   if (use_system_libjpeg) {
     public_configs = [ ":system_libjpeg_config" ]
   } else if (use_libjpeg_turbo) {
-    public_configs = [ "//third_party/libjpeg-turbo:libjpeg_config" ]
+    public_configs = [ "//third_party/libjpeg_turbo:libjpeg_config" ]
   } else {
     public_configs = [ "//third_party/libjpeg:libjpeg_config" ]
   }

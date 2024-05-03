@@ -212,6 +212,10 @@
 #define HB_PASTE1(a,b) a##b
 #define HB_PASTE(a,b) HB_PASTE1(a,b)
 
+#if defined(STARBOARD)
+#define getenv(x) NULL
+#endif  // defined(STARBOARD)
+
 
 /* Compile-time custom allocator support. */
 
