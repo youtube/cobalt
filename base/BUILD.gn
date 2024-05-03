@@ -2461,6 +2461,9 @@ component("base") {
       "tracing/tracing_tls.cc",
       "tracing/tracing_tls.h",
     ]
+    if (use_cobalt_customizations && use_xcode_clang) {
+      defines = [ "USES_XCODE_CLANG" ]
+    }
 
     public_deps += [
       "//base/tracing/protos:chrome_track_event_zero",

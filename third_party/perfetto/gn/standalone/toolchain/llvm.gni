@@ -44,7 +44,7 @@ if (is_linux_host) {
     linux_clangxx_bin = _find_llvm_out[2]
     linux_clang_linker = "gold"
   }
-} else if (is_mac_host && is_clang && !is_system_compiler) {
+} else if (is_mac_host && is_clang && !use_cobalt_customizations && !is_system_compiler) {
   _mac_toolchain_dirs = exec_script("mac_find_llvm.py", [], "list lines")
 
   # _mac_toolchain_dirs[0] contains the mac toolchain dir.

@@ -23,7 +23,9 @@
 #include "base/trace_event/traced_value.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_APPLE)
+#if defined(STARBOARD)
+#include <stdlib.h>
+#elif BUILDFLAG(IS_APPLE)
 #include <malloc/malloc.h>
 #else
 #include <malloc.h>
