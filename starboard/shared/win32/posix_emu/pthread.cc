@@ -195,7 +195,7 @@ static unsigned ThreadTrampoline(void* thread_create_info_context) {
 
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
   ThreadSetLocalValue(singleton->thread_private_key_, &info->thread_private_);
-  SbThreadSetName(info->name_.c_str());
+  pthread_setname_np(pthread_self(), info->name_.c_str());
 
   void* result = info->entry_point_(info->user_context_);
 

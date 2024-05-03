@@ -63,7 +63,7 @@ void* ThreadFunc(void* context) {
   void* real_context = thread_params->context;
   SbThreadAffinity affinity = thread_params->affinity;
   if (thread_params->name[0] != '\0') {
-    SbThreadSetName(thread_params->name);
+    pthread_setname_np(pthread_self(), thread_params->name);
   }
 
   starboard::shared::pthread::ThreadSetPriority(thread_params->priority);

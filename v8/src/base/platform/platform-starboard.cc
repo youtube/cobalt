@@ -378,7 +378,7 @@ Thread::Thread(const Options& options)
 
 Thread::~Thread() { delete data_; }
 
-static void SetThreadName(const char* name) { SbThreadSetName(name); }
+static void SetThreadName(const char* name) { pthread_setname_np(pthread_self(), name); }
 
 static void* ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
