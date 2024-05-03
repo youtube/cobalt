@@ -41,13 +41,13 @@ namespace {
 
 std::atomic_int s_context_id_counter_(0);
 pthread_once_t s_tls_current_context_key_once_control = PTHREAD_ONCE_INIT;
-SbThreadLocalKey s_tls_current_context_key = kSbThreadLocalKeyInvalid;
+pthread_key_t s_tls_current_context_key = 0;
 
 void InitializeThreadLocalKey() {
-  s_tls_current_context_key = SbThreadCreateLocalKey(NULL);
+  pthread_key_create(&s_tls_current_context_key, NULL);
 }
 
-SbThreadLocalKey GetThreadLocalKey() {
+pthread_key_t GetThreadLocalKey() {
   pthread_once(&s_tls_current_context_key_once_control,
                &InitializeThreadLocalKey);
   return s_tls_current_context_key;
@@ -82,7 +82,7 @@ Context::Context(std::unique_ptr<ContextImpl> context_impl,
 }
 
 Context* Context::GetTLSCurrentContext() {
-  return reinterpret_cast<Context*>(SbThreadGetLocalValue(GetThreadLocalKey()));
+  return reinterpret_cast<Context*>(pthread_getspecific(GetThreadLocalKey()));
 }
 
 bool Context::SetTLSCurrentContext(Context* context,
@@ -107,8 +107,7 @@ bool Context::SetTLSCurrentContext(Context* context,
     if (existing_context) {
       existing_context->ReleaseContext();
     }
-    SbThreadSetLocalValue(GetThreadLocalKey(),
-                          reinterpret_cast<void*>(context));
+    pthread_setspecific(GetThreadLocalKey(), reinterpret_cast<void*>(context));
   }
 
   context->MakeCurrent(draw, read);
@@ -119,7 +118,7 @@ void Context::ReleaseTLSCurrentContext() {
   Context* existing_context = GetTLSCurrentContext();
   if (existing_context) {
     existing_context->ReleaseContext();
-    SbThreadSetLocalValue(GetThreadLocalKey(), NULL);
+    pthread_setspecific(GetThreadLocalKey(), NULL);
   }
 }
 

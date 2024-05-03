@@ -54,21 +54,21 @@ HangWatcher* g_instance = nullptr;
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 
 internal::HangWatchState* GetHangWatchState() {
+  EnsureThreadLocalKeyInited();
   return static_cast<internal::HangWatchState*>(
-      SbThreadGetLocalValue(s_thread_local_key));
+      pthread_getspecific(s_thread_local_key));
 }
 #else
 ABSL_CONST_INIT thread_local internal::HangWatchState* hang_watch_state =
@@ -1197,7 +1197,7 @@ HangWatchState::HangWatchState(HangWatcher::ThreadType thread_type)
 #if defined(STARBOARD)
     : thread_type_(thread_type) {
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, this);
+  pthread_setspecific(s_thread_local_key, this);
 #else
     : resetter_(&hang_watch_state, this, nullptr), thread_type_(thread_type) {
 #endif
@@ -1226,7 +1226,8 @@ HangWatchState::~HangWatchState() {
 #endif
 
 #if defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_key, nullptr);
+  EnsureThreadLocalKeyInited();
+  pthread_setspecific(s_thread_local_key, nullptr);
 #endif
 }
 

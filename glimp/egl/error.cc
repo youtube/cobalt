@@ -25,16 +25,16 @@ namespace egl {
 
 namespace {
 pthread_once_t s_error_once_control = PTHREAD_ONCE_INIT;
-SbThreadLocalKey s_error_tls_key = kSbThreadLocalKeyInvalid;
+pthread_key_t s_error_tls_key = 0;
 
 void InitializeError() {
-  s_error_tls_key = SbThreadCreateLocalKey(NULL);
+  pthread_key_create(&s_error_tls_key, NULL);
 }
 }  // namespace
 
 EGLint GetError() {
   pthread_once(&s_error_once_control, &InitializeError);
-  void* local_value = SbThreadGetLocalValue(s_error_tls_key);
+  void* local_value = pthread_getspecific(s_error_tls_key);
   if (local_value == NULL) {
     // The EGL error has never been set.  In this case, return EGL_SUCCESS as
     // that is the initial value for eglGetError().
@@ -47,7 +47,7 @@ EGLint GetError() {
 
 void SetError(EGLint error) {
   pthread_once(&s_error_once_control, &InitializeError);
-  SbThreadSetLocalValue(s_error_tls_key, reinterpret_cast<void*>(error));
+  pthread_setspecific(s_error_tls_key, reinterpret_cast<void*>(error));
 }
 
 }  // namespace egl

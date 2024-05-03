@@ -5,12 +5,12 @@
 #include "starboard/thread.h"
 #include "../pthread/pthread.h"
 
-static SbThreadLocalKey g_errno_key = kSbThreadLocalKeyInvalid;
+static pthread_key_t g_errno_key = 0;
 static pthread_once_t g_errno_once = PTHREAD_ONCE_INIT;
 
 void initialize_errno_key(void) {
-  g_errno_key = SbThreadCreateLocalKey(free);
-  SB_DCHECK(g_errno_key != kSbThreadLocalKeyInvalid);
+  pthread_key_create(&g_errno_key , free);
+  SB_DCHECK(g_errno_key);
 }
 
 // __errno_location() provides every thread with its own copy of |errno|.
@@ -20,9 +20,10 @@ void initialize_errno_key(void) {
 // errno from thread-local storage.
 
 int *__errno_location(void) {
-  SB_DCHECK(pthread_once(&g_errno_once, &initialize_errno_key) == 0);
+  int result = pthread_once(&g_errno_once, &initialize_errno_key);
+  SB_DCHECK(result == 0);
 
-  int* value = (int*)SbThreadGetLocalValue(g_errno_key);
+  int* value = (int*)pthread_getspecific(g_errno_key);
 
   if (value) {
     return value;
@@ -31,7 +32,8 @@ int *__errno_location(void) {
   value = (int*)malloc(sizeof(int));
 
   SB_DCHECK(value);
-  SB_DCHECK(SbThreadSetLocalValue(g_errno_key, value));
+  result = pthread_setspecific(g_errno_key, value);
+  SB_DCHECK(result == 0);
 
   *value = 0;
 
