@@ -14,6 +14,7 @@
 
 #include "base/threading/platform_thread.h"
 
+#include <pthread.h>
 #include <sched.h>
 #include <unistd.h>
 
@@ -127,7 +128,7 @@ void PlatformThread::Sleep(TimeDelta duration) {
 // static
 void PlatformThread::SetName(const std::string& name) {
   ThreadIdNameManager::GetInstance()->SetName(name);
-  SbThreadSetName(name.c_str());
+  pthread_setname_np(pthread_self(), name.c_str());
 }
 
 // static
