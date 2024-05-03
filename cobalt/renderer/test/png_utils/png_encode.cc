@@ -81,7 +81,7 @@ std::unique_ptr<uint8[]> EncodeRGBAToBuffer(const uint8_t* pixel_data,
   // if error encountered png will call longjmp(), so we set up a setjmp() here
   // with a failed assert to indicate an error in one of the png functions.
   // yo libpng, 1980 called, they want their longjmp() back....
-  if (setjmp(png->jmpbuf)) {
+  if (setjmp(png_jmpbuf(png))) {
     png_destroy_write_struct(&png, &info);
     NOTREACHED() << "libpng encountered an error during processing.";
     return std::unique_ptr<uint8[]>();
