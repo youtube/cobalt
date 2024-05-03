@@ -50,7 +50,11 @@ base::Status ExportJson::Run(TraceStorage* storage,
   base::ScopedFstream output;
   if (sqlite3_value_type(argv[0]) == SQLITE_INTEGER) {
     // Assume input is an FD.
+#if defined(STARBOARD)
+    return base::ErrStatus("EXPORT_JSON: fdopen not supported for Starboard");
+#else
     output.reset(fdopen(sqlite3_value_int(argv[0]), "w"));
+#endif
     if (!output) {
       return base::ErrStatus(
           "EXPORT_JSON: Couldn't open output file from given FD");
