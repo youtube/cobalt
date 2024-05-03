@@ -14,6 +14,8 @@
 
 #include "starboard/shared/win32/log_file_impl.h"
 
+#include <pthread.h>
+
 #include <string>
 #include <vector>
 
@@ -29,7 +31,7 @@
 
 namespace {
 
-SbMutex log_mutex = SB_MUTEX_INITIALIZER;
+pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 SbFile log_file = kSbFileInvalid;
 
 // SbMutex is not reentrant, so factor out close log file functionality for use
@@ -49,9 +51,9 @@ namespace shared {
 namespace win32 {
 
 void CloseLogFile() {
-  SbMutexAcquire(&log_mutex);
+  pthread_mutex_lock(&log_mutex);
   CloseLogFileWithoutLock();
-  SbMutexRelease(&log_mutex);
+  pthread_mutex_unlock(&log_mutex);
 }
 
 void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
@@ -87,23 +89,23 @@ void OpenLogFile(const char* path, const int creation_flags) {
 
   int flags = creation_flags | kSbFileWrite;
 
-  SbMutexAcquire(&log_mutex);
+  pthread_mutex_lock(&log_mutex);
   CloseLogFileWithoutLock();
   if ((path != nullptr) && (path[0] != '\0')) {
     log_file = SbFileOpen(path, flags, nullptr, nullptr);
     SB_DCHECK(SbFileIsValid(log_file));
   }
 
-  SbMutexRelease(&log_mutex);
+  pthread_mutex_unlock(&log_mutex);
 }
 
 void WriteToLogFile(const char* text, const int text_length) {
   if (text_length <= 0) {
     return;
   }
-  SbMutexAcquire(&log_mutex);
+  pthread_mutex_lock(&log_mutex);
   if (!SbFileIsValid(log_file)) {
-    SbMutexRelease(&log_mutex);
+    pthread_mutex_unlock(&log_mutex);
     return;
   }
 
@@ -112,7 +114,7 @@ void WriteToLogFile(const char* text, const int text_length) {
   SB_DCHECK(text_length == bytes_written);
 
   SbFileFlush(log_file);
-  SbMutexRelease(&log_mutex);
+  pthread_mutex_unlock(&log_mutex);
 }
 
 }  // namespace win32
