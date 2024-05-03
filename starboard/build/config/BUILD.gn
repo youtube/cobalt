@@ -378,3 +378,7 @@ config("modular_cpp17_config") {
 config("modular_cpp20_config") {
   cflags_cc = [ "-std=c++20" ]
 }
+
+config("native_target") {
+  configs = [ ":modular_cpp17_config" ]
+}
