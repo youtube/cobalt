@@ -34,7 +34,11 @@ TraceSorter::TraceSorter(TraceProcessorContext* context,
     : context_(context),
       parser_(std::move(parser)),
       sorting_mode_(sorting_mode) {
+#if defined(STARBOARD)
+  const char* env = nullptr;
+#else
   const char* env = getenv("TRACE_PROCESSOR_SORT_ONLY");
+#endif
   bypass_next_stage_for_testing_ = env && !strcmp(env, "1");
   if (bypass_next_stage_for_testing_)
     PERFETTO_ELOG("TEST MODE: bypassing protobuf parsing stage");

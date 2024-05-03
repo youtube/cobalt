@@ -3355,7 +3355,7 @@ void TracingServiceImpl::MaybeEmitSystemInfo(
   auto* info = packet->set_system_info();
   info->set_tracing_service_version(base::GetVersionString());
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) && \
-    !PERFETTO_BUILDFLAG(PERFETTO_OS_NACL)
+    !PERFETTO_BUILDFLAG(PERFETTO_OS_NACL) && !defined(STARBOARD)
   struct utsname uname_info;
   if (uname(&uname_info) == 0) {
     auto* utsname_info = info->set_utsname();

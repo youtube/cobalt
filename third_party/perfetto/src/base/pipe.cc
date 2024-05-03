@@ -39,6 +39,7 @@ Pipe& Pipe::operator=(Pipe&&) = default;
 
 Pipe Pipe::Create(Flags flags) {
   PlatformHandle fds[2];
+#if !defined(STARBOARD)
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   PERFETTO_CHECK(::CreatePipe(&fds[0], &fds[1], /*lpPipeAttributes=*/nullptr,
                               0 /*default size*/));
@@ -46,6 +47,7 @@ Pipe Pipe::Create(Flags flags) {
   PERFETTO_CHECK(pipe(fds) == 0);
   PERFETTO_CHECK(fcntl(fds[0], F_SETFD, FD_CLOEXEC) == 0);
   PERFETTO_CHECK(fcntl(fds[1], F_SETFD, FD_CLOEXEC) == 0);
+#endif
 #endif
   Pipe p;
   p.rd.reset(fds[0]);

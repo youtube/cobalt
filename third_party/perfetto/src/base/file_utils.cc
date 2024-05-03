@@ -270,7 +270,9 @@ ScopedFstream OpenFstream(const char* path, const char* mode) {
 }
 
 bool FileExists(const std::string& path) {
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+#if defined(STARBOARD)
+  return false;
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   return _access(path.c_str(), 0) == 0;
 #else
   return access(path.c_str(), F_OK) == 0;

@@ -50,7 +50,9 @@ namespace base {
 
 std::string GetSysTempDir() {
   const char* tmpdir = nullptr;
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+#if defined(STARBOARD)
+  return "";
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   if ((tmpdir = getenv("TMP")))
     return tmpdir;
   if ((tmpdir = getenv("TEMP")))
@@ -70,6 +72,7 @@ std::string GetSysTempDir() {
 // static
 TempFile TempFile::Create() {
   TempFile temp_file;
+#if !defined(STARBOARD)
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   temp_file.path_ = GetSysTempDir() + "\\" + GetTempName();
   // Several tests want to read-back the temp file while still open. On Windows,
@@ -88,6 +91,7 @@ TempFile TempFile::Create() {
 #else
   temp_file.path_ = GetSysTempDir() + "/perfetto-XXXXXXXX";
   temp_file.fd_.reset(mkstemp(&temp_file.path_[0]));
+#endif
 #endif
   if (PERFETTO_UNLIKELY(!temp_file.fd_)) {
     PERFETTO_FATAL("Could not create temp file %s", temp_file.path_.c_str());
@@ -132,12 +136,14 @@ TempFile& TempFile::operator=(TempFile&&) = default;
 // static
 TempDir TempDir::Create() {
   TempDir temp_dir;
+#if !defined(STARBOARD)
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   temp_dir.path_ = GetSysTempDir() + "\\" + GetTempName();
   PERFETTO_CHECK(_mkdir(temp_dir.path_.c_str()) == 0);
 #else
   temp_dir.path_ = GetSysTempDir() + "/perfetto-XXXXXXXX";
   PERFETTO_CHECK(mkdtemp(&temp_dir.path_[0]));
+#endif
 #endif
   return temp_dir;
 }

@@ -216,6 +216,7 @@ perfetto_unittest_source_set("unittests") {
   ]
   if (use_cobalt_customizations) {
     sources -= [
+      "getopt_compat_unittest.cc",
       "paged_memory_unittest.cc",
       "temp_file_unittest.cc",
     ]

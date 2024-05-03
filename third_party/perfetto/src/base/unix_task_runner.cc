@@ -64,6 +64,7 @@ void UnixTaskRunner::Run() {
       UpdateWatchTasksLocked();
     }
 
+#if !defined(STARBOARD)
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
     DWORD timeout =
         poll_timeout_ms >= 0 ? static_cast<DWORD>(poll_timeout_ms) : INFINITE;
@@ -84,6 +85,7 @@ void UnixTaskRunner::Run() {
     platform::AfterMaybeBlockingSyscall();
     PERFETTO_CHECK(ret >= 0);
     PostFileDescriptorWatches(0 /*ignored*/);
+#endif
 #endif
 
     // To avoid starvation we always interleave all types of tasks -- immediate,
