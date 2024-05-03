@@ -27,6 +27,9 @@ RUN apt update -qqy \
         python3.8 python3.8-dev python3.8-venv \
     && /opt/clean-after-apt.sh
 
+# TODO(b/338650174): Upgrade the base linux distro to avoid backporting python
+# 3.8 manually. Additionally, this involves upgrading clang or backporting
+# the current version (3.9) to the new distro.
 RUN python3.8 -m venv /python38_env
 ENV VIRTUAL_ENV /python38_env
 ENV PATH /python38_env/bin:$PATH
