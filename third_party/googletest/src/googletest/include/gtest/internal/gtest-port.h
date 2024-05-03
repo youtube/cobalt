@@ -1216,17 +1216,17 @@ class Mutex {
   // statically initialized to 0 (effectively setting it to kStatic) and on
   // ThreadSafeLazyInit() to lazily initialize the rest of the members.
   explicit Mutex(StaticConstructorSelector /*dummy*/) {}
-  Mutex() : type_(kDynamic) { SbMutexCreate(&mutex_); }
+  Mutex() : type_(kDynamic) { pthread_mutex_init(&mutex_, nullptr); }
   ~Mutex() {
     if (type_ != kStatic) {
-      SbMutexDestroy(&mutex_);
+      pthread_mutex_destroy(&mutex_);
     }
   }
   void Lock() {
     LazyInit();
-    SbMutexAcquire(&mutex_);
+    pthread_mutex_lock(&mutex_);
   }
-  void Unlock() { SbMutexRelease(&mutex_); }
+  void Unlock() { pthread_mutex_unlock(&mutex_); }
   void AssertHeld() const {}
  private:
   void LazyInit() {
@@ -1234,13 +1234,13 @@ class Mutex {
       static starboard::SpinLock s_lock;
       s_lock.Acquire();
       if (!initialized_) {
-        SbMutexCreate(&mutex_);
+        pthread_mutex_init(&mutex_, nullptr);
         initialized_ = true;
       }
       s_lock.Release();
     }
   }
-  SbMutex mutex_;
+  pthread_mutex_t mutex_;
   friend class GTestMutexLock;
   bool initialized_ = false;
   // For static mutexes, we rely on type_ member being initialized to zero

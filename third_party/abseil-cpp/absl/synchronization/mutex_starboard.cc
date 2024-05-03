@@ -14,7 +14,7 @@
 
 #include "absl/synchronization/mutex.h"
 
-#include "starboard/mutex.h"
+#include <pthread.h>
 
 #if !defined(STARBOARD)
 #error This file is a specialization for Starboard only.
@@ -33,28 +33,29 @@ void Mutex::AssertHeld() const {}
 void Mutex::Lock() {
   intptr_t v = mu_.load(std::memory_order_relaxed);
   if (v) {
-    SbMutexAcquire(reinterpret_cast<SbMutex*>(v));
+    pthread_mutex_lock(reinterpret_cast<pthread_mutex_t*>(v));
   } else {
     // Need to create a new mutex, store in the |mu_| member variable.
-    SbMutex* mutex = new SbMutex;
+    pthread_mutex_t* mutex = new pthread_mutex_t();
+    pthread_mutex_init(mutex, nullptr);
     intptr_t expected = 0;
     if (mu_.compare_exchange_strong(expected, reinterpret_cast<intptr_t>(mutex),
                                     std::memory_order_acquire,
                                     std::memory_order_relaxed)) {
       // We stored our mutex in the member variable.
-      SbMutexAcquire(mutex);
+      pthread_mutex_lock(mutex);
     } else {
       // We raced with another thread creating a new mutex.
       delete mutex;
-      SbMutexAcquire(
-          reinterpret_cast<SbMutex*>(mu_.load(std::memory_order_relaxed)));
+      pthread_mutex_lock(
+          reinterpret_cast<pthread_mutex_t*>(mu_.load(std::memory_order_relaxed)));
     }
   }
 }
 void Mutex::Unlock() {
   intptr_t v = mu_.load(std::memory_order_relaxed);
   if (v) {
-    SbMutexRelease(reinterpret_cast<SbMutex*>(v));
+    pthread_mutex_destroy(reinterpret_cast<pthread_mutex_t*>(v));
   }
 }
 
@@ -75,8 +76,8 @@ void Mutex::ReaderUnlock() {
 Mutex::~Mutex() {
   intptr_t v = mu_.load(std::memory_order_relaxed);
   if (v) {
-    SbMutex* mutex = reinterpret_cast<SbMutex*>(v);
-    SbMutexDestroy(mutex);
+    pthread_mutex_t* mutex = reinterpret_cast<pthread_mutex_t*>(v);
+    pthread_mutex_destroy(mutex);
     delete mutex;
   }
 }
