@@ -78,7 +78,7 @@ TEST(MediaSettingsImplTest, RainyDay) {
   ASSERT_FALSE(
       impl.Set("MediaElement.TimeupdateEventIntervalInMilliseconds", 0));
   ASSERT_FALSE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 2));
-  ASSERT_TRUE(
+  ASSERT_FALSE(
       impl.Set("MediaElement.EnableUsingMediaSourceBufferedRange", -101));
 
   EXPECT_FALSE(impl.GetSourceBufferEvictExtraInBytes());
