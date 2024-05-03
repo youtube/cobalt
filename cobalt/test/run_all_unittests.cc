@@ -33,7 +33,8 @@ int InitAndRunAllTests(int argc, char** argv) {
 
   // Copy the Starboard thread name to the PlatformThread name.
   char thread_name[128] = {'\0'};
-  SbThreadGetName(thread_name, 127);
+  pthread_getname_np(pthread_self(), thread_name, 127);
+
   base::PlatformThread::SetName(thread_name);
   return test_suite.Run();
 }
