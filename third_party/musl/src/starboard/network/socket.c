@@ -21,6 +21,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -28,8 +29,8 @@
 #include "starboard/file.h"
 #include "starboard/socket.h"
 #include "starboard/system.h"
-#include "starboard/file.h"
 #include "starboard/time.h"
+#include "starboard/types.h"
 #include "../pthread/pthread.h"
 
 // Internal database function to convert SbSocket/SbFile object to
@@ -151,6 +152,12 @@ static int get(int key, bool take, FileOrSocket** valuePtr) {
   return status;
 }
 
+static SB_C_FORCE_INLINE time_t WindowsUsecToTimeT(int64_t time) {
+  int64_t posix_time = time - 11644473600000000ULL;
+  posix_time = posix_time / 1000000;
+  return posix_time;
+}
+
 int TranslateSocketErrnoSbToPosix(SbSocketError sbError) {
   switch (sbError) {
     case kSbSocketOk:
@@ -214,6 +221,73 @@ int ConvertSocketAddressSbToPosix(const SbSocketAddress* sbAddress, struct socka
 
 // The exported POSIX APIs
 //
+int fstat(int fildes, struct stat* buf) {
+  if (fildes < 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  FileOrSocket* fileOrSock = NULL;
+  if (get(fildes, false, &fileOrSock) != 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (fileOrSock == NULL || !fileOrSock->is_file) {
+    errno = EBADF;
+    return -1;
+  }
+
+  SbFileInfo info;
+  if (!SbFileGetInfo(fileOrSock->file, &info)) {
+    return -1;
+  }
+
+  buf->st_mode = 0;
+  if (info.is_directory) {
+    buf->st_mode = S_IFDIR;
+  } else if (info.is_symbolic_link) {
+    buf->st_mode = S_IFLNK;
+  }
+  buf->st_ctime = WindowsUsecToTimeT(info.creation_time);
+  buf->st_atime = WindowsUsecToTimeT(info.last_accessed);
+  buf->st_mtime = WindowsUsecToTimeT(info.last_modified);
+  buf->st_size = info.size;
+
+  return 0;
+}
+
+off_t lseek(int fildes, off_t offset, int whence) {
+  if (fildes < 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  FileOrSocket* fileOrSock = NULL;
+  if (get(fildes, false, &fileOrSock) != 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (fileOrSock == NULL || !fileOrSock->is_file) {
+    errno = EBADF;
+    return -1;
+  }
+
+  SbFileWhence sbWhence;
+  if (whence == SEEK_SET) {
+    sbWhence = kSbFileFromBegin;
+  } else if (whence == SEEK_CUR) {
+    sbWhence = kSbFileFromCurrent;
+  } else if (whence == SEEK_END) {
+    sbWhence = kSbFileFromEnd;
+  } else {
+    return -1;
+  }
+
+  return (off_t)SbFileSeek(fileOrSock->file, sbWhence, (int64_t)offset);
+}
+
 int open(const char* path, int oflag, ...) {
   bool out_created;
   SbFileError out_error;
@@ -226,11 +300,51 @@ int open(const char* path, int oflag, ...) {
   memset(value, 0, sizeof(struct FileOrSocket));
   value->is_file = true;
 
-  // TODO: b/302715109 map posix flags to SB file flags
-  int open_flags = 0;
-  // O_APPEND, O_ASYNC, O_CLOEXEC, O_CREAT, O_DIRECT, O_DIRECTORY, O_DSYNC
-  // O_EXCL, O_LARGEFILE, O_NOATIME, O_NOCTTY, O_NOFOLLOW,
-  // O_NONBLOCK or O_NDELAY, O_PATH, O_SYNC, O_TMPFILE, O_TRUNC
+  int sbFileFlags = 0;
+  int accessModeFlag = 0;
+
+  if ((oflag & O_ACCMODE) == O_RDONLY) {
+    accessModeFlag |= kSbFileRead;
+    if (oflag == O_RDONLY) {
+      sbFileFlags = kSbFileOpenOnly;
+    }
+  } else if ((oflag & O_ACCMODE) == O_WRONLY) {
+    accessModeFlag |= kSbFileWrite;
+    oflag &= ~O_WRONLY;
+  } else if ((oflag & O_ACCMODE) == O_RDWR) {
+    accessModeFlag |= kSbFileRead | kSbFileWrite;
+    oflag &= ~O_RDWR;
+  } else {
+    // Applications shall specify exactly one of the first three file access
+    // modes.
+    out_error = kSbFileErrorFailed;
+    return -1;
+  }
+
+  if (oflag & O_CREAT && oflag & O_EXCL) {
+    sbFileFlags = kSbFileCreateOnly;
+    oflag &= ~(O_CREAT | O_EXCL);
+  }
+  if (oflag & O_CREAT && oflag & O_TRUNC) {
+    sbFileFlags = kSbFileCreateAlways;
+    oflag &= ~(O_CREAT | O_TRUNC);
+  }
+  if (oflag & O_CREAT) {
+    sbFileFlags = kSbFileOpenAlways;
+    oflag &= ~O_CREAT;
+  }
+  if (oflag & O_TRUNC) {
+    sbFileFlags = kSbFileOpenTruncated;
+    oflag &= ~O_TRUNC;
+  }
+
+  // SbFileOpen does not support any other combination of flags.
+  if (oflag || !sbFileFlags) {
+    out_error = kSbFileErrorFailed;
+    return -1;
+  }
+
+  int open_flags = sbFileFlags | accessModeFlag;
 
   value->file = SbFileOpen(path, open_flags, &out_created, &out_error);
   if (!SbFileIsValid(value->file)){
@@ -246,6 +360,26 @@ int open(const char* path, int oflag, ...) {
     free(value);
   }
   return result;
+}
+
+ssize_t read(int fildes, void* buf, size_t nbyte) {
+  if (fildes < 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  FileOrSocket* fileOrSock = NULL;
+  if (get(fildes, false, &fileOrSock) != 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (fileOrSock == NULL || !fileOrSock->is_file) {
+    errno = EBADF;
+    return -1;
+  }
+
+  return (ssize_t)SbFileRead(fileOrSock->file, buf, (int)nbyte);
 }
 
 int socket(int domain, int type, int protocol){
