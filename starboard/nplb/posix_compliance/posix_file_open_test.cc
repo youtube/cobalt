@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/file.h"
-#include "starboard/nplb/posix_compliance/posix_file_helpers.h"
+#include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -133,5 +131,3 @@ TEST(PosixFileOpenTest, OpenTruncatedDoesNotCreateNonExistingFile) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 16

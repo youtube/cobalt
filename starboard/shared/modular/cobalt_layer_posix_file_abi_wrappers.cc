@@ -14,19 +14,20 @@
 
 #if SB_API_VERSION >= 16
 
-#include <sys/stat.h>
+#include <unistd.h>
 
 extern "C" {
 
-int __abi_wrap_fstat(int fildes, struct stat* info);
-int __abi_wrap_stat(const char* path, struct stat* info);
+off_t __abi_wrap_lseek(int fildes, off_t offset, int whence);
 
-int fstat(int fildes, struct stat* info) {
-  return __abi_wrap_fstat(fildes, info);
+off_t lseek(int fildes, off_t offset, int whence) {
+  return __abi_wrap_lseek(fildes, offset, whence);
 }
 
-int stat(const char* path, struct stat* info) {
-  return __abi_wrap_stat(path, info);
+ssize_t __abi_wrap_read(int fildes, void* buf, size_t nbyte);
+
+ssize_t read(int fildes, void* buf, size_t nbyte) {
+  return __abi_wrap_read(fildes, buf, nbyte);
 }
 }
 
