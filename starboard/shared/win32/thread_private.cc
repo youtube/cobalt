@@ -19,11 +19,13 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/shared/win32/thread_local_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 
 using starboard::shared::win32::GetThreadSubsystemSingleton;
 using starboard::shared::win32::SbThreadPrivate;
 using starboard::shared::win32::ThreadSubsystemSingleton;
+using starboard::shared::win32::TlsInternalSetValue;
 
 namespace starboard {
 namespace shared {
@@ -31,6 +33,22 @@ namespace win32 {
 
 SB_ONCE_INITIALIZE_FUNCTION(ThreadSubsystemSingleton,
                             GetThreadSubsystemSingleton);
+
+bool ThreadSetLocalValue(SbThreadLocalKey key, void* value) {
+  if (!SbThreadIsValidLocalKey(key)) {
+    return false;
+  }
+  DWORD tls_index = reinterpret_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
+  return TlsInternalSetValue(tls_index, value);
+}
+
+void* ThreadGetLocalValue(SbThreadLocalKey key) {
+  if (!SbThreadIsValidLocalKey(key)) {
+    return nullptr;
+  }
+  DWORD tls_index = reinterpret_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
+  return TlsInternalGetValue(tls_index);
+}
 
 void RegisterMainThread() {
   std::unique_ptr<SbThreadPrivate> thread_private(new SbThreadPrivate());
@@ -47,18 +65,17 @@ void RegisterMainThread() {
   thread_private->handle_ = handle;
   thread_private->wait_for_join_ = false;
 
-  SbThreadSetLocalValue(GetThreadSubsystemSingleton()->thread_private_key_,
-                        thread_private.release());
+  ThreadSetLocalValue(GetThreadSubsystemSingleton()->thread_private_key_,
+                      thread_private.release());
 }
 
 SbThreadPrivate* GetCurrentSbThreadPrivate() {
-  SbThreadPrivate* sb_thread_private =
-      static_cast<SbThreadPrivate*>(SbThreadGetLocalValue(
-          GetThreadSubsystemSingleton()->thread_private_key_));
+  SbThreadPrivate* sb_thread_private = static_cast<SbThreadPrivate*>(
+      ThreadGetLocalValue(GetThreadSubsystemSingleton()->thread_private_key_));
   if (sb_thread_private == nullptr) {
     // We are likely on a thread we did not create, so TLS needs to be setup.
     RegisterMainThread();
-    sb_thread_private = static_cast<SbThreadPrivate*>(SbThreadGetLocalValue(
+    sb_thread_private = static_cast<SbThreadPrivate*>(ThreadGetLocalValue(
         GetThreadSubsystemSingleton()->thread_private_key_));
     // TODO: Clean up TLS storage for threads we do not create.
   }

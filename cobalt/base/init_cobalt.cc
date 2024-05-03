@@ -14,6 +14,8 @@
 
 #include "cobalt/base/init_cobalt.h"
 
+#include <pthread.h>
+
 #include <string>
 
 #include "base/at_exit.h"
@@ -55,7 +57,7 @@ void InitCobalt(int argc, char* argv[], const char* link) {
 
   // Copy the Starboard thread name to the PlatformThread name.
   char thread_name[128] = {'\0'};
-  SbThreadGetName(thread_name, 127);
+  pthread_getname_np(pthread_self(), thread_name, 127);
   base::PlatformThread::SetName(thread_name);
 }
 

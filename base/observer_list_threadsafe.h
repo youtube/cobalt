@@ -26,7 +26,7 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
 #if defined(STARBOARD)
-#include "starboard/thread.h"
+#include  <pthread.h>
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -94,7 +94,7 @@ class BASE_EXPORT ObserverListThreadSafeBase
 
 #if defined(STARBOARD)
   static void EnsureThreadLocalKeyInited();
-  static const SbThreadLocalKey GetThreadLocalKey();
+  static const pthread_key_t GetThreadLocalKey();
 #endif
 
   virtual ~ObserverListThreadSafeBase() = default;
@@ -156,7 +156,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     // |lock_|).
     if (policy_ == ObserverListPolicy::ALL) {
 #if defined(STARBOARD)
-      void* current_notification_void = SbThreadGetLocalValue(GetThreadLocalKey());
+      void* current_notification_void = pthread_getspecific(GetThreadLocalKey());
       if (current_notification_void) {
       if (const NotificationDataBase* const current_notification =
               static_cast<NotificationDataBase*>(current_notification_void);
@@ -276,8 +276,8 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     // important to save the previous value to restore it later.
 #if defined(STARBOARD)
     EnsureThreadLocalKeyInited();
-    void* scoped_reset_value = SbThreadGetLocalValue(GetThreadLocalKey());
-    SbThreadSetLocalValue(GetThreadLocalKey(), const_cast<NotificationData*>(&notification));
+    void* scoped_reset_value = pthread_getspecific(GetThreadLocalKey());
+    pthread_setspecific(GetThreadLocalKey(), const_cast<NotificationData*>(&notification));
 #else
     const AutoReset<const NotificationDataBase*> resetter_(
         &GetCurrentNotification(), &notification);
@@ -287,7 +287,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     notification.method.Run(observer);
 
 #if defined(STARBOARD)
-    SbThreadSetLocalValue(GetThreadLocalKey(), scoped_reset_value);
+    pthread_setspecific(GetThreadLocalKey(), scoped_reset_value);
 #endif
   }
 

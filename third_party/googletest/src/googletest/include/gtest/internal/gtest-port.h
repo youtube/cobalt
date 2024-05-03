@@ -573,7 +573,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
    GTEST_OS_HAIKU || GTEST_OS_GNU_HURD)
 #endif  // GTEST_HAS_PTHREAD
 
-#if GTEST_HAS_PTHREAD
+#if GTEST_HAS_PTHREAD || GTEST_OS_STARBOARD
 // gtest-port.h guarantees to #include <pthread.h> when GTEST_HAS_PTHREAD is
 // true.
 #include <pthread.h>  // NOLINT
@@ -1270,16 +1270,15 @@ template <typename T>
 class ThreadLocal {
  public:
   ThreadLocal() {
-    key_ = SbThreadCreateLocalKey(
-        [](void* value) { delete static_cast<T*>(value); });
-    SB_DCHECK(key_ != kSbThreadLocalKeyInvalid);
+    int res = pthread_key_create(&key_, [](void* value) { delete static_cast<T*>(value); });
+    SB_DCHECK(res == 0);
   }
   explicit ThreadLocal(const T& value) : ThreadLocal() {
     default_value_ = value;
     set(value);
   }
   ~ThreadLocal() {
-    SbThreadDestroyLocalKey(key_);
+    pthread_key_delete(key_);
   }
   T* pointer() { return GetOrCreateValue(); }
   const T* pointer() const { return GetOrCreateValue(); }
@@ -1287,18 +1286,18 @@ class ThreadLocal {
   void set(const T& value) { *GetOrCreateValue() = value; }
  private:
   T* GetOrCreateValue() const {
-    T* ptr = static_cast<T*>(SbThreadGetLocalValue(key_));
+    T* ptr = static_cast<T*>(pthread_getspecific(key_));
     if (ptr) {
       return ptr;
     } else {
       T* new_value = new T(default_value_);
-      bool is_set = SbThreadSetLocalValue(key_, new_value);
-      SB_CHECK(is_set);
+      int res = pthread_setspecific(key_, new_value);
+      SB_CHECK(res == 0);
       return new_value;
     }
   }
   T default_value_;
-  SbThreadLocalKey key_;
+  pthread_key_t key_;
 };
 
 #else  // GTEST_OS_STARBOARD

@@ -15,7 +15,8 @@
 // We specifically do not include <sys/socket.h> since the define causes a loop
 
 #include <fcntl.h>
-#include <io.h>      // Needed for file-specific `_close`.
+#include <io.h>  // Needed for file-specific `_close`.
+#include <string.h>
 #include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
@@ -223,7 +224,7 @@ static void set_errno() {
   }
 
   _set_errno(sockError);
-  SB_DLOG(INFO) << "Encounter socket error: " << sockError;
+  SB_DLOG(INFO) << "Encounter socket error: " << strerror(sockError);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

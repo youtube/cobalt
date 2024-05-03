@@ -333,7 +333,7 @@ class V8_BASE_EXPORT Thread {
  public:
   // Opaque data type for thread-local storage keys.
 #if V8_OS_STARBOARD
-  using LocalStorageKey = SbThreadLocalKey;
+  using LocalStorageKey = uintptr_t;
 #else
   using LocalStorageKey = int32_t;
 #endif

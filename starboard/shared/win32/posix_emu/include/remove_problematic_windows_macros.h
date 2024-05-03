@@ -23,3 +23,4 @@
 #undef DeleteFile       // fileapi.h
 #undef GetCurrentTime   // winbase.h; b/324981660
 #undef PostMessage      // winuser.h
+#undef ReplaceFile      // winbase.h

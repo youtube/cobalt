@@ -7,6 +7,7 @@
 // apps in the livingroom.
 
 #include <stdio.h>
+#include <pthread.h>
 #include <unistd.h>
 
 #include "src/base/lazy-instance.h"
@@ -377,7 +378,7 @@ Thread::Thread(const Options& options)
 
 Thread::~Thread() { delete data_; }
 
-static void SetThreadName(const char* name) { SbThreadSetName(name); }
+static void SetThreadName(const char* name) { pthread_setname_np(pthread_self(), name); }
 
 static void* ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
@@ -407,19 +408,21 @@ bool Thread::Start() {
 void Thread::Join() { SbThreadJoin(data_->thread_, nullptr); }
 
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
-  return SbThreadCreateLocalKey(nullptr);
+  pthread_key_t key = 0;
+  pthread_key_create(&key, nullptr);
+  return key;
 }
 
 void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
-  SbThreadDestroyLocalKey(key);
+  pthread_key_delete(key);
 }
 
 void* Thread::GetThreadLocal(LocalStorageKey key) {
-  return SbThreadGetLocalValue(key);
+  return pthread_getspecific(key);
 }
 
 void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
-  bool result = SbThreadSetLocalValue(key, value);
+  bool result = pthread_setspecific(key, value) == 0;
   DCHECK(result);
 }
 

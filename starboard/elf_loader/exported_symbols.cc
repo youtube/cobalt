@@ -382,13 +382,21 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadContextGetPointer);
   REGISTER_SYMBOL(SbThreadCreate);
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadCreateLocalKey);
   REGISTER_SYMBOL(SbThreadDestroyLocalKey);
+#endif  // SB_API_VERSION < 16
+
   REGISTER_SYMBOL(SbThreadDetach);
   REGISTER_SYMBOL(SbThreadGetCurrent);
   REGISTER_SYMBOL(SbThreadGetId);
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadGetLocalValue);
   REGISTER_SYMBOL(SbThreadGetName);
+#endif  // SB_API_VERSION < 16
+
   REGISTER_SYMBOL(SbThreadIsEqual);
   REGISTER_SYMBOL(SbThreadJoin);
   REGISTER_SYMBOL(SbThreadSamplerCreate);
@@ -396,9 +404,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerFreeze);
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
-  REGISTER_SYMBOL(SbThreadSetLocalValue);
-  REGISTER_SYMBOL(SbThreadSetName);
+
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbThreadSetLocalValue);
+#endif  // SB_API_VERSION < 16
+
+#if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbThreadSetName);
   REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);

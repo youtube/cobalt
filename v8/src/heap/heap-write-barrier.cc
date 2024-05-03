@@ -41,31 +41,32 @@ namespace internal {
 
 namespace {
 pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key , NULL);
+  SB_DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 
 MarkingBarrier* GetMarkingBarrier() {
+  EnsureThreadLocalKeyInited();
   return static_cast<MarkingBarrier*>(
-      SbThreadGetLocalValue(s_thread_local_key));
+      pthread_getspecific(s_thread_local_key));
 }
 }  // namespace
 
 void WriteBarrier::SetForThread(MarkingBarrier* marking_barrier) {
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, marking_barrier);
+  pthread_setspecific(s_thread_local_key, marking_barrier);
 }
 
 void WriteBarrier::ClearForThread(MarkingBarrier* marking_barrier) {
-  SbThreadSetLocalValue(s_thread_local_key, NULL);
+  EnsureThreadLocalKeyInited();
+  pthread_setspecific(s_thread_local_key, NULL);
 }
 
 #endif
