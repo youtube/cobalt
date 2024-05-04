@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_
 
-#include "third_party/libdav1d/include/dav1d/dav1d.h"
+#include "third_party/dav1d/libdav1d/include/dav1d/dav1d.h"
 
 #include <queue>
 #include <string>
