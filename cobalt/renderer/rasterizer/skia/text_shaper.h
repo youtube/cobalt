@@ -27,8 +27,8 @@
 #include "cobalt/renderer/rasterizer/skia/font.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/harfbuzz_font.h"
-#include "third_party/harfbuzz-ng/src/hb-icu.h"
-#include "third_party/harfbuzz-ng/src/hb.h"
+#include "third_party/harfbuzz-ng/src/src/hb-icu.h"
+#include "third_party/harfbuzz-ng/src/src/hb.h"
 #include "third_party/icu/source/common/unicode/uscript.h"
 #include "third_party/skia/include/core/SkTextBlob.h"
 
