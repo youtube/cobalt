@@ -14,6 +14,9 @@
 
 // Adapted from net_errors_posix.h
 
+#include <errno.h>
+#include <string.h>
+
 #include "net/base/net_errors.h"
 
 #include "base/notreached.h"
@@ -38,22 +41,25 @@ Error MapSystemError(logging::SystemErrorCode error) {
   return ERR_FAILED;
 }
 
-Error MapSocketError(SbSocketError error) {
-  if (error != kSbSocketOk)
-    DVLOG(2) << "Error " << error;
+Error MapLastSocketError() {
+  if (errno != 0)
+    DVLOG(2) << "Error " << strerror(errno);
 
-  // TODO: Define standard Starboard error codes.
-  switch (error) {
-    case kSbSocketOk:
+  switch (errno) {
+    case 0:
       return OK;
-    case kSbSocketPending:
+    case EINPROGRESS:
+    case EAGAIN:
+#if EWOULDBLOCK != EAGAIN
+    case EWOULDBLOCK:
+#endif
       return ERR_IO_PENDING;
-    case kSbSocketErrorConnectionReset:
+    case ECONNRESET:
+    case ENETRESET:
+    case EPIPE:
       return ERR_CONNECTION_RESET;
-    case kSbSocketErrorFailed:
-      return ERR_FAILED;
     default:
-      NOTREACHED() << "Unrecognized error: " << error;
+      // Here's where we would be more nuanced if we need to be.
       return ERR_FAILED;
   }
 }

@@ -99,7 +99,7 @@ int TCPSocketStarboard::Bind(const IPEndPoint& address) {
   SbSocketError error = SbSocketBind(socket_, &storage);
   if (error != kSbSocketOk) {
     DLOG(ERROR) << "SbSocketBind() returned an error";
-    return MapLastSocketError(socket_);
+    return MapLastSocketError();
   }
 
   local_address_.reset(new IPEndPoint(address));
@@ -116,7 +116,7 @@ int TCPSocketStarboard::Listen(int backlog) {
   SbSocketError error = SbSocketListen(socket_);
   if (error != kSbSocketOk) {
     DLOG(ERROR) << "SbSocketListen() returned an error";
-    int rv = MapLastSocketError(socket_);
+    int rv = MapLastSocketError();
     Close();
     return rv;
   }
@@ -143,7 +143,7 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
             socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
             &socket_watcher_, this)) {
       DLOG(ERROR) << "WatchSocket failed on read";
-      return MapLastSocketError(socket_);
+      return MapLastSocketError();
     }
 
     accept_socket_ = socket;
@@ -157,7 +157,7 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
 int TCPSocketStarboard::SetDefaultOptionsForServer() {
   DCHECK(SbSocketIsValid(socket_));
   if (!SbSocketSetReuseAddress(socket_, true)) {
-    return MapLastSocketError(socket_);
+    return MapLastSocketError();
   }
   return OK;
 }
@@ -180,7 +180,7 @@ int TCPSocketStarboard::AcceptInternal(
     IPEndPoint* address) {
   SbSocket new_socket = SbSocketAccept(socket_);
   if (!SbSocketIsValid(new_socket)) {
-    int net_error = MapLastSocketError(socket_);
+    int net_error = MapLastSocketError();
     if (net_error != ERR_IO_PENDING) {
       net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT, net_error);
     }
@@ -192,7 +192,7 @@ int TCPSocketStarboard::AcceptInternal(
   // We use ReceiveFrom to get peer address of the newly connected socket.
   int received = SbSocketReceiveFrom(new_socket, &unused_byte, 0, &sb_address);
   if (received != 0) {
-    int net_error = MapLastSocketError(new_socket);
+    int net_error = MapLastSocketError();
     if (net_error != OK && net_error != ERR_IO_PENDING) {
       SbSocketDestroy(new_socket);
       net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT, net_error);
@@ -333,7 +333,7 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
 
   SbSocketError result = SbSocketConnect(socket_, &storage);
 
-  int rv = MapLastSocketError(socket_);
+  int rv = MapLastSocketError();
   if (rv != ERR_IO_PENDING) {
     return HandleConnectCompleted(rv);
   }
@@ -503,11 +503,10 @@ int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
     return bytes_read;
   } else {
     // If |bytes_read| < 0, some kind of error occurred.
-    SbSocketError starboard_error = SbSocketGetLastError(socket_);
-    int rv = MapSocketError(starboard_error);
+    int rv = MapLastSocketError();
     if (rv != ERR_IO_PENDING) {
       NetLogSocketError(net_log_, NetLogEventType::SOCKET_READ_ERROR, rv,
-                        starboard_error);
+                        errno);
       DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
     }
     return rv;
@@ -559,10 +558,9 @@ int TCPSocketStarboard::DoWrite(IOBuffer* buf, int buf_len) {
 
     return bytes_sent;
   } else {
-    SbSocketError starboard_error = SbSocketGetLastError(socket_);
-    int rv = MapSocketError(starboard_error);
+    int rv = MapLastSocketError();
     NetLogSocketError(net_log_, NetLogEventType::SOCKET_WRITE_ERROR, rv,
-                      starboard_error);
+                      errno);
     if (rv != ERR_IO_PENDING) {
       DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
     }
@@ -623,8 +621,7 @@ int TCPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
 
   SbSocketAddress sb_address;
   if (!SbSocketGetLocalAddress(socket_, &sb_address)) {
-    SbSocketError starboard_error = SbSocketGetLastError(socket_);
-    return MapSocketError(starboard_error);
+    return MapLastSocketError();
   }
 
   if (!address->FromSbSocketAddress(&sb_address)) {

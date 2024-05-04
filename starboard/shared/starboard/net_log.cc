@@ -178,10 +178,6 @@ class BufferedSocketWriter {
     SbSocketWaiterDestroy(waiter);
   }
 
-  bool IsConnectionReset(SbSocketError err) {
-    return err == kSbSocketErrorConnectionReset;
-  }
-
   // Will flush data through to the dest_socket. Returns |true| if
   // flushed, else connection was dropped or an error occurred.
   bool Flush(SbSocket dest_socket) {
@@ -191,19 +187,21 @@ class BufferedSocketWriter {
         int bytes_to_write = static_cast<int>(curr_write_block.size());
         int result = SbSocketSendTo(dest_socket, curr_write_block.c_str(),
                                     bytes_to_write, NULL);
+        int socket_err = errno;
+        errno = 0;
 
         if (result < 0) {
-          SbSocketError err = SbSocketGetLastError(dest_socket);
-          SbSocketClearLastError(dest_socket);
-          if (err == kSbSocketPending) {
+          if (socket_err == EINPROGRESS || socket_err == EAGAIN ||
+              socket_err == EWOULDBLOCK) {
             blocked_counts_.increment();
             WaitUntilWritableOrConnectionReset(dest_socket);
             continue;
-          } else if (IsConnectionReset(err)) {
+          } else if (socket_err == ECONNRESET || socket_err == ENETRESET ||
+                     socket_err == EPIPE) {
             return false;
           } else {
             SB_LOG(ERROR) << "An error happened while writing to socket: "
-                          << ToString(err);
+                          << strerror(socket_err);
             return false;
           }
           break;

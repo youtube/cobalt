@@ -144,7 +144,7 @@ int UDPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
   if (!local_address_.get()) {
     SbSocketAddress address;
     if (!SbSocketGetLocalAddress(socket_, &address))
-      return MapSocketError(SbSocketGetLastError(socket_));
+      return MapLastSocketError();
     std::unique_ptr<IPEndPoint> endpoint(new IPEndPoint());
     if (!endpoint->FromSbSocketAddress(&address))
       return ERR_FAILED;
@@ -184,7 +184,7 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
           socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
           &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchSocket failed on read";
-    Error result = MapLastSocketError(socket_);
+    Error result = MapLastSocketError();
     if (result == ERR_IO_PENDING) {
       // Watch(...) might call SbSocketWaiterAdd() which does not guarantee
       // setting system error on failure, but we need to treat this as an
@@ -237,7 +237,7 @@ int UDPSocketStarboard::SendToOrWrite(IOBuffer* buf,
           &socket_watcher_, this)) {
     DVLOG(1) << "Watch failed on write, error "
              << SbSocketGetLastError(socket_);
-    Error result = MapLastSocketError(socket_);
+    Error result = MapLastSocketError();
     LogWrite(result, NULL, NULL);
     return result;
   }
@@ -309,7 +309,7 @@ int UDPSocketStarboard::SetReceiveBufferSize(int32_t size) {
 
   int result = OK;
   if (!SbSocketSetReceiveBufferSize(socket_, size)) {
-    result = MapLastSocketError(socket_);
+    result = MapLastSocketError();
   }
   DCHECK_EQ(result, OK) << "Could not " << __FUNCTION__ << ": "
                         << SbSocketGetLastError(socket_);
@@ -322,7 +322,7 @@ int UDPSocketStarboard::SetSendBufferSize(int32_t size) {
 
   int result = OK;
   if (!SbSocketSetSendBufferSize(socket_, size)) {
-    result = MapLastSocketError(socket_);
+    result = MapLastSocketError();
   }
   DCHECK_EQ(result, OK) << "Could not " << __FUNCTION__ << ": "
                         << SbSocketGetLastError(socket_);
@@ -472,7 +472,7 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
       result = ERR_MSG_TOO_BIG;
     }
   } else {
-    result = MapLastSocketError(socket_);
+    result = MapLastSocketError();
   }
 
   if (result != ERR_IO_PENDING) {
@@ -500,7 +500,7 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
   int result = SbSocketSendTo(socket_, buf->data(), buf_len, &sb_address);
 
   if (result < 0)
-    result = MapLastSocketError(socket_);
+    result = MapLastSocketError();
 
   if (result != ERR_IO_PENDING)
     LogWrite(result, buf->data(), address);
@@ -534,7 +534,7 @@ int UDPSocketStarboard::JoinGroup(const IPAddress& group_address) const {
 
   if (!SbSocketJoinMulticastGroup(socket_, &sb_address)) {
     LOG(WARNING) << "SbSocketJoinMulticastGroup failed on UDP socket.";
-    return MapLastSocketError(socket_);
+    return MapLastSocketError();
   }
   return OK;
 }
@@ -608,7 +608,7 @@ SendResult UDPSocketStarboardSender::InternalSendBuffers(
   for (auto& buffer : buffers) {
     int result = Send(socket, buffer->data(), buffer->length(), address);
     if (result < 0) {
-      rv = MapLastSocketError(socket);
+      rv = MapLastSocketError();
       break;
     }
     write_count++;
@@ -812,7 +812,7 @@ void UDPSocketStarboard::DidSendBuffers(SendResult send_result) {
   if (last_async_result_ == ERR_IO_PENDING) {
     DVLOG(2) << __func__ << " WatchSocket start";
     if (!WatchSocket()) {
-      last_async_result_ = MapLastSocketError(socket_);
+      last_async_result_ = MapLastSocketError();
       DVLOG(1) << "WatchSocket failed on write, error: " << last_async_result_;
       LogWrite(last_async_result_, NULL, NULL);
     } else {

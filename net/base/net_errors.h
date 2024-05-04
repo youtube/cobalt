@@ -61,13 +61,8 @@ NET_EXPORT bool IsRequestBlockedError(int error);
 NET_EXPORT Error MapSystemError(logging::SystemErrorCode os_error);
 
 #if defined(STARBOARD)
-// Map socket error code to Error.
-NET_EXPORT Error MapSocketError(SbSocketError error);
-
 // Gets the last socket error as a net error.
-static inline Error MapLastSocketError(SbSocket socket) {
-  return MapSocketError(SbSocketGetLastError(socket));
-}
+NET_EXPORT Error MapLastSocketError();
 
 // Gets the last system error as a net error.
 static inline Error MapLastSystemError() {

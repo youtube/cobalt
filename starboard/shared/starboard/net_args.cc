@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include <errno.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -135,16 +136,21 @@ std::vector<std::string> NetArgsWaitForPayload(int64_t timeout) {
       // Socket has closed.
       break;
     } else if (result < 0) {  // Handle error condition.
-      SbSocketError err = client_connection->GetLastError();
-      client_connection->ClearLastError();
+      int socket_err = errno;
+      errno = 0;
 
-      switch (err) {
-        case kSbSocketOk: {
+      switch (socket_err) {
+        case 0: {
           SB_NOTREACHED() << "Expected error condition when return val "
                           << "is < 0.";
           continue;
         }
-        case kSbSocketPending: {
+        case EINPROGRESS:
+        case EAGAIN:
+#if EWOULDBLOCK != EAGAIN
+        case EWOULDBLOCK:
+#endif
+        {
           WaitUntilReadableOrConnectionReset(client_connection->socket());
           continue;
         }
@@ -155,7 +161,7 @@ std::vector<std::string> NetArgsWaitForPayload(int64_t timeout) {
     }
   }
   return SplitStringByLines(str_buff);
-}
+}  // namespace starboard
 
 }  // namespace starboard
 }  // namespace shared
