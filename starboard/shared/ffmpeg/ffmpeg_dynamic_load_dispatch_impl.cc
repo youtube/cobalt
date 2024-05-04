@@ -68,7 +68,7 @@ class FFMPEGDispatchImpl {
   FFMPEGDispatch* get_ffmpeg_dispatch();
 
  private:
-  SbMutex mutex_;
+  pthread_mutex_t mutex_;
   FFMPEGDispatch* ffmpeg_;
   // Load the ffmpeg shared libraries, return true if successful.
   bool OpenLibraries();
@@ -88,7 +88,7 @@ void construct_ffmpeg_dispatch_impl() {
 }
 
 FFMPEGDispatchImpl::FFMPEGDispatchImpl()
-    : mutex_(SB_MUTEX_INITIALIZER),
+    : mutex_(PTHREAD_MUTEX_INITIALIZER),
       ffmpeg_(NULL),
       avcodec_(NULL),
       avformat_(NULL),
@@ -119,7 +119,7 @@ bool FFMPEGDispatchImpl::RegisterSpecialization(int specialization,
                                                 int avcodec,
                                                 int avformat,
                                                 int avutil) {
-  SbMutexAcquire(&mutex_);
+  pthread_mutex_lock(&mutex_);
   auto result = versions_.insert(std::make_pair(
       specialization, LibraryMajorVersions(avcodec, avformat, avutil)));
   bool success = result.second;
@@ -131,12 +131,12 @@ bool FFMPEGDispatchImpl::RegisterSpecialization(int specialization,
               existing_versions.avformat == avformat &&
               existing_versions.avutil == avutil;
   }
-  SbMutexRelease(&mutex_);
+  pthread_mutex_unlock(&mutex_);
   return success;
 }
 
 FFMPEGDispatch* FFMPEGDispatchImpl::get_ffmpeg_dispatch() {
-  SbMutexAcquire(&mutex_);
+  pthread_mutex_lock(&mutex_);
   if (!ffmpeg_) {
     ffmpeg_ = new FFMPEGDispatch();
     // Dynamically load the libraries and retrieve the function pointers.
@@ -147,7 +147,7 @@ FFMPEGDispatch* FFMPEGDispatchImpl::get_ffmpeg_dispatch() {
       }
     }
   }
-  SbMutexRelease(&mutex_);
+  pthread_mutex_unlock(&mutex_);
   return ffmpeg_;
 }
 

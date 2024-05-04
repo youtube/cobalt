@@ -17,30 +17,30 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 
+#include <pthread.h>
+
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/once.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
 namespace {
-SbMutex g_codec_mutex = SB_MUTEX_INITIALIZER;
+pthread_mutex_t g_codec_mutex = PTHREAD_MUTEX_INITIALIZER;
 }  // namespace
 
 int FFMPEGDispatch::OpenCodec(AVCodecContext* codec_context,
                               const AVCodec* codec) {
-  SbMutexAcquire(&g_codec_mutex);
+  pthread_mutex_lock(&g_codec_mutex);
   int result = avcodec_open2(codec_context, codec, NULL);
-  SbMutexRelease(&g_codec_mutex);
+  pthread_mutex_unlock(&g_codec_mutex);
   return result;
 }
 
 void FFMPEGDispatch::CloseCodec(AVCodecContext* codec_context) {
-  SbMutexAcquire(&g_codec_mutex);
+  pthread_mutex_lock(&g_codec_mutex);
   avcodec_close(codec_context);
-  SbMutexRelease(&g_codec_mutex);
+  pthread_mutex_unlock(&g_codec_mutex);
 }
 
 void FFMPEGDispatch::FreeFrame(AVFrame** frame) {
