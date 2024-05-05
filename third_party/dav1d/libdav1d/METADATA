@@ -1,12 +1,12 @@
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "113.0.5672.134"  # from https://chromereleases.googleblog.com/2023/05/stable-channel-update-for-chromeos_19.html
+    value: "114.0.5735.358"  # from https://chromereleases.googleblog.com/2024/03/long-term-support-channel-update-for_26.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/external/github.com/videolan/dav1d.git"
     version: "d426d1c91075b9c552b12dd052af1cd0368f05a2"
-    # from https://chromium.googlesource.com/chromium/src/+/113.0.5672.134/DEPS#1122
+    # from https://chromium.googlesource.com/chromium/src/+/114.0.5735.358/DEPS#1106
   }
 }
