@@ -48,7 +48,7 @@ static_library("common") {
     "//cobalt/math",
     "//cobalt/render_tree",
     "//cobalt/renderer/rasterizer/skia/skia",
-    "//third_party/harfbuzz-ng",
+    "//third_party:freetype_harfbuzz",
     "//third_party/icu:icuuc",
     "//third_party/ots",
   ]

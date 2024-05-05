@@ -15,12 +15,15 @@
 // We specifically do not include <sys/socket.h> since the define causes a loop
 
 #include <fcntl.h>
-#include <io.h>      // Needed for file-specific `_close`.
+#include <io.h>  // Needed for file-specific `_close`.
+#include <string.h>
 #include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
 #include <ws2tcpip.h>
+
 #include <map>
+
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
@@ -223,7 +226,7 @@ static void set_errno() {
   }
 
   _set_errno(sockError);
-  SB_DLOG(INFO) << "Encounter socket error: " << sockError;
+  SB_DLOG(INFO) << "Encounter socket error: " << strerror(sockError);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -251,6 +254,8 @@ int open(const char* path, int oflag, ...) {
   va_start(args, oflag);
   int fd;
   mode_t mode;
+  // Open in binary mode because read() stops at the first 0x1A value.
+  oflag |= O_BINARY;
   if (oflag & O_CREAT) {
     mode = va_arg(args, mode_t);
     fd = _open(path, oflag, mode & MS_MODE_MASK);
@@ -282,6 +287,22 @@ int close(int fd) {
 
   // This is then a file handle, so use Windows `_close` API.
   return _close(handle.file);
+}
+
+off_t sb_lseek(int fd, off_t offset, int origin) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _lseek(handle.file, offset, origin);
+}
+
+ssize_t sb_read(int fd, void* buf, size_t nbyte) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _read(handle.file, buf, nbyte);
 }
 
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
@@ -443,4 +464,13 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
   }
   return 0;
 }
+
+int sb_fstat(int fd, struct stat* buffer) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _fstat(handle.file, (struct _stat*)buffer);
+}
+
 }  // extern "C"

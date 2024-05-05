@@ -23,10 +23,10 @@
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "third_party/libdav1d/include/dav1d/common.h"
-#include "third_party/libdav1d/include/dav1d/data.h"
-#include "third_party/libdav1d/include/dav1d/headers.h"
-#include "third_party/libdav1d/include/dav1d/picture.h"
+#include "third_party/dav1d/libdav1d/include/dav1d/common.h"
+#include "third_party/dav1d/libdav1d/include/dav1d/data.h"
+#include "third_party/dav1d/libdav1d/include/dav1d/headers.h"
+#include "third_party/dav1d/libdav1d/include/dav1d/picture.h"
 
 namespace starboard {
 namespace shared {

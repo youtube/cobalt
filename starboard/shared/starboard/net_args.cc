@@ -16,7 +16,9 @@
 
 #include <unistd.h>
 
+#if SB_API_VERSION >= 16
 #include <errno.h>
+#endif  // SB_API_VERSION >= 16
 #include <memory>
 #include <string>
 #include <vector>
@@ -136,6 +138,7 @@ std::vector<std::string> NetArgsWaitForPayload(int64_t timeout) {
       // Socket has closed.
       break;
     } else if (result < 0) {  // Handle error condition.
+#if SB_API_VERSION >= 16
       int socket_err = errno;
       errno = 0;
 
@@ -158,10 +161,29 @@ std::vector<std::string> NetArgsWaitForPayload(int64_t timeout) {
           break;
         }
       }
+#else
+      SbSocketError err = client_connection->GetLastError();
+      client_connection->ClearLastError();
+
+      switch (err) {
+        case kSbSocketOk: {
+          SB_NOTREACHED() << "Expected error condition when return val "
+                          << "is < 0.";
+          continue;
+        }
+        case kSbSocketPending: {
+          WaitUntilReadableOrConnectionReset(client_connection->socket());
+          continue;
+        }
+        default: {
+          break;
+        }
+      }
+#endif  // SB_API_VERSION >= 16
     }
   }
   return SplitStringByLines(str_buff);
-}  // namespace starboard
+}
 
 }  // namespace starboard
 }  // namespace shared

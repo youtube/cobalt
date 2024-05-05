@@ -29,21 +29,20 @@ namespace player {
 namespace {
 
 pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key, NULL);
+  SB_DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 
 JobQueue* GetCurrentThreadJobQueue() {
   EnsureThreadLocalKeyInited();
-  return static_cast<JobQueue*>(SbThreadGetLocalValue(s_thread_local_key));
+  return static_cast<JobQueue*>(pthread_getspecific(s_thread_local_key));
 }
 
 void SetCurrentThreadJobQueue(JobQueue* job_queue) {
@@ -51,14 +50,14 @@ void SetCurrentThreadJobQueue(JobQueue* job_queue) {
   SB_DCHECK(GetCurrentThreadJobQueue() == NULL);
 
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, job_queue);
+  pthread_setspecific(s_thread_local_key, job_queue);
 }
 
 void ResetCurrentThreadJobQueue() {
   SB_DCHECK(GetCurrentThreadJobQueue());
 
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, NULL);
+  pthread_setspecific(s_thread_local_key, NULL);
 }
 
 }  // namespace

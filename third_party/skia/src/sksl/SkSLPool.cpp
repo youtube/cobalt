@@ -31,27 +31,27 @@ static void set_thread_local_memory_pool(MemoryPool* memPool) {
 #else
 namespace {
 pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+pthread_key_t  s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-    s_thread_local_key = SbThreadCreateLocalKey(nullptr);
-    SkASSERT(SbThreadIsValidLocalKey(s_thread_local_key));
-    SbThreadSetLocalValue(s_thread_local_key, nullptr);
+    int res = pthread_key_create(&s_thread_local_key , nullptr);
+    SkASSERT(res == 0);
+    pthread_setspecific(s_thread_local_key, nullptr);
 }
 
 void EnsureThreadLocalKeyInited() {
     pthread_once(&s_once_flag, InitThreadLocalKey);
-    SkASSERT(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 }  // namespace
 
 static MemoryPool* get_thread_local_memory_pool() {
-    return static_cast<MemoryPool*>(SbThreadGetLocalValue(s_thread_local_key));
+    EnsureThreadLocalKeyInited();
+    return static_cast<MemoryPool*>(pthread_getspecific(s_thread_local_key));
 }
 
 static void set_thread_local_memory_pool(MemoryPool* memPool) {
     EnsureThreadLocalKeyInited();
-    SbThreadSetLocalValue(s_thread_local_key, memPool);
+    pthread_setspecific(s_thread_local_key, memPool);
 }
 #endif
 

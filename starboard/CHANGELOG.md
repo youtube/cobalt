@@ -9,6 +9,13 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated the `SbThreadSetName` and `SbThreadGetName` APIs.
+Replaced the `SbThreadSetName`/`SbThreadGetName` with the POSIX
+`pthread_setname_np`/`pthread_getname_np`.
+
+### Deprecated the `SbThreadLocalKey` APIs.
+Replaced the `SbThreadLocalKey` with the POSIX `pthread_key_t`.
+
 ### Deprecated `SbOnce`
 Replaced the `SbOnce` with the POSIX `pthread_once`.
 

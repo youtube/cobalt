@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/net_log.h"
 
+#include <pthread.h>
 #include <unistd.h>
 #include <windows.h>
 
@@ -178,6 +179,12 @@ class BufferedSocketWriter {
     SbSocketWaiterDestroy(waiter);
   }
 
+#if SB_API_VERSION < 16
+  bool IsConnectionReset(SbSocketError err) {
+    return err == kSbSocketErrorConnectionReset;
+  }
+#endif  // SB_API_VERSION < 16
+
   // Will flush data through to the dest_socket. Returns |true| if
   // flushed, else connection was dropped or an error occurred.
   bool Flush(SbSocket dest_socket) {
@@ -187,10 +194,11 @@ class BufferedSocketWriter {
         int bytes_to_write = static_cast<int>(curr_write_block.size());
         int result = SbSocketSendTo(dest_socket, curr_write_block.c_str(),
                                     bytes_to_write, NULL);
-        int socket_err = errno;
-        errno = 0;
 
         if (result < 0) {
+#if SB_API_VERSION >= 16
+          int socket_err = errno;
+          errno = 0;
           if (socket_err == EINPROGRESS || socket_err == EAGAIN ||
               socket_err == EWOULDBLOCK) {
             blocked_counts_.increment();
@@ -204,6 +212,21 @@ class BufferedSocketWriter {
                           << strerror(socket_err);
             return false;
           }
+#else
+          SbSocketError err = SbSocketGetLastError(dest_socket);
+          SbSocketClearLastError(dest_socket);
+          if (err == kSbSocketPending) {
+            blocked_counts_.increment();
+            WaitUntilWritableOrConnectionReset(dest_socket);
+            continue;
+          } else if (IsConnectionReset(err)) {
+            return false;
+          } else {
+            SB_LOG(ERROR) << "An error happened while writing to socket: "
+                          << ToString(err);
+            return false;
+          }
+#endif  // SB_API_VERSION >= 16
           break;
         } else if (result == 0) {
           // Socket has closed.
@@ -387,21 +410,21 @@ class NetLogServer {
 
 class ThreadLocalBoolean {
  public:
-  ThreadLocalBoolean() : slot_(SbThreadCreateLocalKey(NULL)) {}
-  ~ThreadLocalBoolean() { SbThreadDestroyLocalKey(slot_); }
+  ThreadLocalBoolean() { pthread_key_create(&slot_, NULL); }
+  ~ThreadLocalBoolean() { pthread_key_delete(slot_); }
 
   void Set(bool val) {
     void* ptr = val ? reinterpret_cast<void*>(0x1) : nullptr;
-    SbThreadSetLocalValue(slot_, ptr);
+    pthread_setspecific(slot_, ptr);
   }
 
   bool Get() const {
-    void* ptr = SbThreadGetLocalValue(slot_);
+    void* ptr = pthread_getspecific(slot_);
     return ptr != nullptr;
   }
 
  private:
-  SbThreadLocalKey slot_;
+  pthread_key_t slot_;
 
   ThreadLocalBoolean(const ThreadLocalBoolean&) = delete;
   void operator=(const ThreadLocalBoolean&) = delete;

@@ -30,21 +30,21 @@ static std::string* g_default_name;
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 
 const char* GetThreadName() {
+  EnsureThreadLocalKeyInited();
   const char* thread_name = static_cast<const char*>(
-      SbThreadGetLocalValue(s_thread_local_key));
+      pthread_getspecific(s_thread_local_key));
   return !!thread_name ? thread_name : kDefaultName;
 }
 #else
@@ -110,7 +110,7 @@ void ThreadIdNameManager::SetName(const std::string& name) {
 
 #if defined(STARBOARD)
     EnsureThreadLocalKeyInited();
-    SbThreadSetLocalValue(s_thread_local_key, const_cast<char*>(leaked_str->c_str()));
+    pthread_setspecific(s_thread_local_key, const_cast<char*>(leaked_str->c_str()));
 #else
     thread_name = leaked_str->c_str();
 #endif

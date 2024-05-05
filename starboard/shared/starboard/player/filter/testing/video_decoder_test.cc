@@ -398,7 +398,15 @@ TEST_P(VideoDecoderTest, MultipleInputs) {
   ASSERT_FALSE(error_occurred);
   if (frames_decoded < number_of_expected_decoded_frames) {
     fixture_.WriteEndOfStream();
-    ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs());
+    ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
+        &error_occurred, [=](const Event& event, bool* continue_process) {
+          // Keep 1 decoded frame, assuming it's used by renderer.
+          while (fixture_.GetDecodedFramesCount() > 1) {
+            fixture_.PopDecodedFrame();
+          }
+          *continue_process = true;
+        }));
+    ASSERT_FALSE(error_occurred);
   }
 }
 

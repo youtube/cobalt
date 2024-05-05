@@ -15,6 +15,8 @@
 #include <errno.h>
 #include <process.h>
 #include <pthread.h>
+#include <windows.h>
+
 #include <cstdint>
 
 #include "starboard/common/log.h"
@@ -29,6 +31,7 @@ using starboard::shared::win32::GetCurrentSbThreadPrivate;
 using starboard::shared::win32::GetThreadSubsystemSingleton;
 using starboard::shared::win32::SbThreadPrivate;
 using starboard::shared::win32::ThreadCreateInfo;
+using starboard::shared::win32::ThreadSetLocalValue;
 using starboard::shared::win32::ThreadSubsystemSingleton;
 using starboard::shared::win32::TlsInternalFree;
 using starboard::shared::win32::TlsInternalGetValue;
@@ -47,10 +50,11 @@ int pthread_mutex_destroy(pthread_mutex_t* mutex) {
 
 int pthread_mutex_init(pthread_mutex_t* mutex,
                        const pthread_mutexattr_t* mutex_attr) {
+  static_assert(sizeof(SRWLOCK) == sizeof(mutex->buffer));
   if (!mutex) {
     return EINVAL;
   }
-  InitializeSRWLock(mutex);
+  InitializeSRWLock(reinterpret_cast<PSRWLOCK>(mutex->buffer));
   return 0;
 }
 
@@ -58,7 +62,7 @@ int pthread_mutex_lock(pthread_mutex_t* mutex) {
   if (!mutex) {
     return EINVAL;
   }
-  AcquireSRWLockExclusive(mutex);
+  AcquireSRWLockExclusive(reinterpret_cast<PSRWLOCK>(mutex->buffer));
   return 0;
 }
 
@@ -66,7 +70,7 @@ int pthread_mutex_unlock(pthread_mutex_t* mutex) {
   if (!mutex) {
     return EINVAL;
   }
-  ReleaseSRWLockExclusive(mutex);
+  ReleaseSRWLockExclusive(reinterpret_cast<PSRWLOCK>(mutex->buffer));
   return 0;
 }
 
@@ -74,7 +78,8 @@ int pthread_mutex_trylock(pthread_mutex_t* mutex) {
   if (!mutex) {
     return EINVAL;
   }
-  bool result = TryAcquireSRWLockExclusive(mutex);
+  bool result =
+      TryAcquireSRWLockExclusive(reinterpret_cast<PSRWLOCK>(mutex->buffer));
   return result ? 0 : EBUSY;
 }
 
@@ -82,7 +87,7 @@ int pthread_cond_broadcast(pthread_cond_t* cond) {
   if (!cond) {
     return -1;
   }
-  WakeAllConditionVariable(cond);
+  WakeAllConditionVariable(reinterpret_cast<PCONDITION_VARIABLE>(cond->buffer));
   return 0;
 }
 
@@ -91,10 +96,12 @@ int pthread_cond_destroy(pthread_cond_t* cond) {
 }
 
 int pthread_cond_init(pthread_cond_t* cond, const pthread_condattr_t* attr) {
+  static_assert(sizeof(CONDITION_VARIABLE) == sizeof(cond->buffer));
   if (!cond) {
     return -1;
   }
-  InitializeConditionVariable(cond);
+  InitializeConditionVariable(
+      reinterpret_cast<PCONDITION_VARIABLE>(cond->buffer));
   return 0;
 }
 
@@ -102,7 +109,7 @@ int pthread_cond_signal(pthread_cond_t* cond) {
   if (!cond) {
     return -1;
   }
-  WakeConditionVariable(cond);
+  WakeConditionVariable(reinterpret_cast<PCONDITION_VARIABLE>(cond->buffer));
   return -0;
 }
 
@@ -116,7 +123,9 @@ int pthread_cond_timedwait(pthread_cond_t* cond,
   int64_t now_ms = starboard::CurrentMonotonicTime() / 1000;
   int64_t timeout_duration_ms = t->tv_sec * 1000 + t->tv_nsec / 1000000;
   timeout_duration_ms -= now_ms;
-  bool result = SleepConditionVariableSRW(cond, mutex, timeout_duration_ms, 0);
+  bool result = SleepConditionVariableSRW(
+      reinterpret_cast<PCONDITION_VARIABLE>(cond->buffer),
+      reinterpret_cast<PSRWLOCK>(mutex->buffer), timeout_duration_ms, 0);
 
   if (result) {
     return 0;
@@ -133,7 +142,9 @@ int pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex) {
     return -1;
   }
 
-  if (SleepConditionVariableSRW(cond, mutex, INFINITE, 0)) {
+  if (SleepConditionVariableSRW(
+          reinterpret_cast<PCONDITION_VARIABLE>(cond->buffer),
+          reinterpret_cast<PSRWLOCK>(mutex->buffer), INFINITE, 0)) {
     return 0;
   }
   return -1;
@@ -168,10 +179,12 @@ static BOOL CALLBACK OnceTrampoline(PINIT_ONCE once_control,
 }
 
 int pthread_once(pthread_once_t* once_control, void (*init_routine)(void)) {
+  static_assert(sizeof(INIT_ONCE) == sizeof(once_control->buffer));
   if (!once_control || !init_routine) {
     return -1;
   }
-  return InitOnceExecuteOnce(once_control, OnceTrampoline, init_routine, NULL)
+  return InitOnceExecuteOnce(reinterpret_cast<PINIT_ONCE>(once_control->buffer),
+                             OnceTrampoline, init_routine, NULL)
              ? 0
              : -1;
 }
@@ -181,8 +194,8 @@ static unsigned ThreadTrampoline(void* thread_create_info_context) {
       static_cast<ThreadCreateInfo*>(thread_create_info_context));
 
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
-  SbThreadSetLocalValue(singleton->thread_private_key_, &info->thread_private_);
-  SbThreadSetName(info->name_.c_str());
+  ThreadSetLocalValue(singleton->thread_private_key_, &info->thread_private_);
+  pthread_setname_np(pthread_self(), info->name_.c_str());
 
   void* result = info->entry_point_(info->user_context_);
 
@@ -278,7 +291,8 @@ int pthread_equal(pthread_t t1, pthread_t t2) {
 
 int pthread_key_create(pthread_key_t* key, void (*dtor)(void*)) {
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
-  *key = SbThreadCreateLocalKeyInternal(dtor, singleton);
+  *key = reinterpret_cast<pthread_key_t>(
+      SbThreadCreateLocalKeyInternal(dtor, singleton));
   return 0;
 }
 
@@ -288,8 +302,8 @@ int pthread_key_delete(pthread_key_t key) {
   }
   // To match pthreads, the thread local pointer for the key is set to null
   // so that a supplied destructor doesn't run.
-  SbThreadSetLocalValue(reinterpret_cast<SbThreadLocalKey>(key), nullptr);
-  DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
+  ThreadSetLocalValue(reinterpret_cast<SbThreadLocalKey>(key), nullptr);
+  DWORD tls_index = reinterpret_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
 
   SbMutexAcquire(&singleton->mutex_);
@@ -297,7 +311,7 @@ int pthread_key_delete(pthread_key_t key) {
   SbMutexRelease(&singleton->mutex_);
 
   TlsInternalFree(tls_index);
-  free(key);
+  free(reinterpret_cast<void*>(key));
   return 0;
 }
 
@@ -305,7 +319,7 @@ void* pthread_getspecific(pthread_key_t key) {
   if (!key) {
     return NULL;
   }
-  DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
+  DWORD tls_index = reinterpret_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
   return TlsInternalGetValue(tls_index);
 }
 
@@ -313,7 +327,7 @@ int pthread_setspecific(pthread_key_t key, const void* value) {
   if (!key) {
     return -1;
   }
-  DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
+  DWORD tls_index = reinterpret_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
   return TlsInternalSetValue(tls_index, const_cast<void*>(value)) ? 0 : -1;
 }
 

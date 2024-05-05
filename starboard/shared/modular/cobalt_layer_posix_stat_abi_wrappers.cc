@@ -18,7 +18,12 @@
 
 extern "C" {
 
+int __abi_wrap_fstat(int fildes, struct stat* info);
 int __abi_wrap_stat(const char* path, struct stat* info);
+
+int fstat(int fildes, struct stat* info) {
+  return __abi_wrap_fstat(fildes, info);
+}
 
 int stat(const char* path, struct stat* info) {
   return __abi_wrap_stat(path, info);

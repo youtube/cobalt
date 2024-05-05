@@ -161,6 +161,11 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
         << "The platform doesn't support partial audio. Skip the tests.";
     return;
   }
+  if (IsAudioPassthroughUsed(GetParam())) {
+    SB_LOG(INFO) << "The audio passthrough doesn't support partial audio. Skip "
+                    "the tests.";
+    return;
+  }
 
   SbPlayerTestFixture player_fixture(GetParam(),
                                      &fake_graphics_context_provider_);
@@ -235,6 +240,11 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
     // TODO: Use GTEST_SKIP when we have a newer version of gtest.
     SB_LOG(INFO)
         << "The platform doesn't support partial audio. Skip the tests.";
+    return;
+  }
+  if (IsAudioPassthroughUsed(GetParam())) {
+    SB_LOG(INFO) << "The audio passthrough doesn't support partial audio. Skip "
+                    "the tests.";
     return;
   }
 

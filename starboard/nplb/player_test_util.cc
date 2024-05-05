@@ -408,5 +408,17 @@ bool IsPartialAudioSupported() {
 #endif  // SB_API_VERSION >= 15
 }
 
+bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
+  const char* audio_dmp_filename = config.audio_filename;
+  SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
+  if (audio_dmp_filename && strlen(audio_dmp_filename) > 0) {
+    VideoDmpReader audio_dmp_reader(audio_dmp_filename,
+                                    VideoDmpReader::kEnableReadOnDemand);
+    audio_codec = audio_dmp_reader.audio_codec();
+  }
+  return audio_codec == kSbMediaAudioCodecAc3 ||
+         audio_codec == kSbMediaAudioCodecEac3;
+}
+
 }  // namespace nplb
 }  // namespace starboard
