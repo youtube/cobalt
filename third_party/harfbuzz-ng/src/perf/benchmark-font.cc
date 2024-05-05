@@ -40,7 +40,7 @@ enum operation_t
   nominal_glyphs,
   glyph_h_advances,
   glyph_extents,
-  glyph_shape,
+  draw_glyph,
 };
 
 static void
@@ -158,12 +158,12 @@ static void BM_Font (benchmark::State &state,
 	  hb_font_get_glyph_extents (font, gid, &extents);
       break;
     }
-    case glyph_shape:
+    case draw_glyph:
     {
       hb_draw_funcs_t *draw_funcs = _draw_funcs_create ();
       for (auto _ : state)
 	for (unsigned gid = 0; gid < num_glyphs; ++gid)
-	  hb_font_get_glyph_shape (font, gid, draw_funcs, nullptr);
+	  hb_font_draw_glyph (font, gid, draw_funcs, nullptr);
       break;
       hb_draw_funcs_destroy (draw_funcs);
     }
@@ -233,7 +233,7 @@ int main(int argc, char** argv)
   TEST_OPERATION (nominal_glyphs, benchmark::kMicrosecond);
   TEST_OPERATION (glyph_h_advances, benchmark::kMicrosecond);
   TEST_OPERATION (glyph_extents, benchmark::kMicrosecond);
-  TEST_OPERATION (glyph_shape, benchmark::kMicrosecond);
+  TEST_OPERATION (draw_glyph, benchmark::kMicrosecond);
 
 #undef TEST_OPERATION
 
