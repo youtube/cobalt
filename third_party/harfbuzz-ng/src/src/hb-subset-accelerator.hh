@@ -31,9 +31,18 @@
 #include "hb.hh"
 
 #include "hb-map.hh"
+#include "hb-multimap.hh"
 #include "hb-set.hh"
 
 extern HB_INTERNAL hb_user_data_key_t _hb_subset_accelerator_user_data_key;
+
+namespace CFF {
+struct cff_subset_accelerator_t;
+}
+
+namespace OT {
+struct SubtableUnicodesCache;
+};
 
 struct hb_subset_accelerator_t
 {
@@ -43,33 +52,79 @@ struct hb_subset_accelerator_t
   }
 
   static hb_subset_accelerator_t* create(const hb_map_t& unicode_to_gid_,
-                                         const hb_set_t& unicodes_) {
+					 const hb_multimap_t gid_to_unicodes_,
+					 const hb_set_t& unicodes_,
+					 bool has_seac_) {
     hb_subset_accelerator_t* accel =
-        (hb_subset_accelerator_t*) hb_malloc (sizeof(hb_subset_accelerator_t));
-    new (accel) hb_subset_accelerator_t (unicode_to_gid_, unicodes_);
+        (hb_subset_accelerator_t*) hb_calloc (1, sizeof(hb_subset_accelerator_t));
+
+    new (accel) hb_subset_accelerator_t (unicode_to_gid_,
+					 gid_to_unicodes_,
+					 unicodes_,
+					 has_seac_);
+
     return accel;
   }
 
-  static void destroy(void* value) {
-    if (!value) return;
+  static void destroy (void* p)
+  {
+    if (!p) return;
 
-    hb_subset_accelerator_t* accel = (hb_subset_accelerator_t*) value;
+    hb_subset_accelerator_t *accel = (hb_subset_accelerator_t *) p;
+
     accel->~hb_subset_accelerator_t ();
+
     hb_free (accel);
   }
 
-  hb_subset_accelerator_t(const hb_map_t& unicode_to_gid_,
-                          const hb_set_t& unicodes_)
-      : unicode_to_gid(unicode_to_gid_), unicodes(unicodes_) {}
+  hb_subset_accelerator_t (const hb_map_t& unicode_to_gid_,
+			   const hb_multimap_t& gid_to_unicodes_,
+			   const hb_set_t& unicodes_,
+			   bool has_seac_) :
+    unicode_to_gid(unicode_to_gid_),
+    gid_to_unicodes (gid_to_unicodes_),
+    unicodes(unicodes_),
+    cmap_cache(nullptr),
+    destroy_cmap_cache(nullptr),
+    has_seac(has_seac_),
+    cff_accelerator(nullptr),
+    destroy_cff_accelerator(nullptr) {}
+
+  ~hb_subset_accelerator_t ()
+  {
+    if (cff_accelerator && destroy_cff_accelerator)
+      destroy_cff_accelerator ((void*) cff_accelerator);
+
+    if (cmap_cache && destroy_cmap_cache)
+      destroy_cmap_cache ((void*) cmap_cache);
+  }
+
+  // Generic
+
+  mutable hb_mutex_t sanitized_table_cache_lock;
+  mutable hb_hashmap_t<hb_tag_t, hb::unique_ptr<hb_blob_t>> sanitized_table_cache;
 
   const hb_map_t unicode_to_gid;
+  const hb_multimap_t gid_to_unicodes;
   const hb_set_t unicodes;
+
+  // cmap
+  const OT::SubtableUnicodesCache* cmap_cache;
+  hb_destroy_func_t destroy_cmap_cache;
+
+  // CFF
+  bool has_seac;
+  const CFF::cff_subset_accelerator_t* cff_accelerator;
+  hb_destroy_func_t destroy_cff_accelerator;
+
   // TODO(garretrieger): cumulative glyf checksum map
-  // TODO(garretrieger): sanitized table cache.
 
   bool in_error () const
   {
-    return unicode_to_gid.in_error() || unicodes.in_error ();
+    return unicode_to_gid.in_error () ||
+	   gid_to_unicodes.in_error () ||
+	   unicodes.in_error () ||
+	   sanitized_table_cache.in_error ();
   }
 };
 
