@@ -793,7 +793,7 @@ void BrowserModule::OnLoad() {
 
   web_module_loaded_.Signal();
 
-  options_.persistent_settings->ValidatePersistentSettings();
+  options_.persistent_settings->Validate();
   ValidateCacheBackendSettings();
 }
 

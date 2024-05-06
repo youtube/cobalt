@@ -109,8 +109,10 @@ void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
 void NetworkModule::SetEnableQuicFromPersistentSettings() {
   // Called on initialization and when the persistent setting is changed.
   if (options_.persistent_settings != nullptr) {
-    bool enable_quic = options_.persistent_settings->GetPersistentSettingAsBool(
-        kQuicEnabledPersistentSettingsKey, false);
+    base::Value value;
+    options_.persistent_settings->Get(kQuicEnabledPersistentSettingsKey,
+                                      &value);
+    bool enable_quic = value.GetIfBool().value_or(false);
     task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&URLRequestContext::SetEnableQuic,

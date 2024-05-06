@@ -68,8 +68,7 @@ class ServiceWorkerPersistentSettings {
 
   bool ReadServiceWorkerObjectSettings(
       scoped_refptr<ServiceWorkerRegistrationObject> registration,
-      std::string key_string, std::unique_ptr<base::Value> value_dict,
-      std::string worker_type_string);
+      std::string key_string, const base::Value::Dict& value_dict);
 
   void WriteServiceWorkerRegistrationObjectSettings(
       RegistrationMapKey key,
@@ -81,13 +80,13 @@ class ServiceWorkerPersistentSettings {
 
   void RemoveServiceWorkerRegistrationObjectSettings(RegistrationMapKey key);
 
-  void RemoveServiceWorkerObjectSettings(std::string key_string);
-
   void RemoveAll();
 
   void DeleteAll();
 
  private:
+  void RemoveServiceWorkerObjectSettings(std::string key_string);
+
   Options options_;
 
   std::unique_ptr<cobalt::persistent_storage::PersistentSettings>
