@@ -423,6 +423,25 @@ ssize_t read(int fildes, void* buf, size_t nbyte) {
   return (ssize_t)SbFileRead(fileOrSock->file, buf, (int)nbyte);
 }
 
+ ssize_t write(int fildes, const void* buf, size_t nbyte) {
+  if (fildes < 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  FileOrSocket* fileOrSock = NULL;
+  if (get(fildes, false, &fileOrSock) != 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (fileOrSock == NULL || !fileOrSock->is_file) {
+    errno = EBADF;
+    return -1;
+  }
+   return (ssize_t)SbFileWrite(fileOrSock->file, buf, (int)nbyte);
+ }
+
 int socket(int domain, int type, int protocol){
   int address_type, socket_protocol;
   switch (domain){

@@ -329,6 +329,14 @@ ssize_t sb_read(int fd, void* buf, size_t nbyte) {
   return _read(handle.file, buf, nbyte);
 }
 
+ssize_t sb_write(int fd, const void* buf, size_t nbyte) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return write(handle.file, buf, nbyte);
+}
+
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
   SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
