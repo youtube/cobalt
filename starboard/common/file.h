@@ -30,8 +30,6 @@ ssize_t ReadAll(int fd, void* data, int size);
 
 void RecordFileWriteStat(int write_file_result);
 
-ssize_t WriteAll(int fd, const void* data, int size);
-
 // Deletes the file, symlink or directory at |path|. When |path| is a directory,
 // the function will recursively delete the entire tree; however, when
 // |preserve_root| is |true| the root directory is not removed. On some

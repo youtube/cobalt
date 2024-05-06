@@ -121,7 +121,6 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'socket',
     'time',
     'unlink',
-    #'write',
     'mmap',
     'munmap',
     'mprotect',

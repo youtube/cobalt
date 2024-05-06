@@ -19,11 +19,19 @@
 #include "starboard/thread.h"
 
 int rmdir(const char* path) {
+  SbFileInfo out_info;
+  if (!SbFileGetPathInfo(path, &out_info)) {
+    return -1;
+  }
   int result = SbFileDelete(path) ? 0 : -1;
   return result;
 }
 
 int unlink(const char* path) {
+  SbFileInfo out_info;
+  if (!SbFileGetPathInfo(path, &out_info)) {
+    return -1;
+  }
   int result = SbFileDelete(path) ? 0 : -1;
   return result;
 }

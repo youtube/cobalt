@@ -36,9 +36,6 @@ off_t sb_lseek(int fd, off_t offset, int origin);
 ssize_t sb_read(int fildes, void* buf, size_t nbyte);
 #define read sb_read
 
-ssize_t sb_write(int fd, const void* buf, size_t nbyte);
-#define write sb_write
-
 int usleep(unsigned int useconds);
 
 #ifdef __cplusplus

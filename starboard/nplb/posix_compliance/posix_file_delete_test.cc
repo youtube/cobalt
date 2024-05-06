@@ -55,11 +55,11 @@ TEST(PosixFileDeleteTest, SunnyDayDeleteExistingDirectory) {
   EXPECT_TRUE(rmdir(path.c_str()) == 0);
 }
 
-TEST(PosixFileDeleteTest, RainyDayNonExistentFileErrors) {
+TEST(PosixFileDeleteTest, RainyDayNonExistentDirErrors) {
   ScopedRandomFile file(ScopedRandomFile::kDontCreate);
 
   EXPECT_FALSE(FileExists(file.filename().c_str()));
-  EXPECT_TRUE(unlink(file.filename().c_str()) == -1);
+  EXPECT_TRUE(rmdir(file.filename().c_str()));
 }
 
 }  // namespace
