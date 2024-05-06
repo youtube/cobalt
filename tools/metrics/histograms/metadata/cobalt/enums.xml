@@ -37,6 +37,11 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="True"/>
 </enum>
 
+<enum name="BooleanHasPlayed">
+  <int value="0" label="Never played"/>
+  <int value="1" label="Played"/>
+</enum>
+
 <enum name="PipelineStatus">
   <summary>
    Possible status values reported by the Media Pipeline
