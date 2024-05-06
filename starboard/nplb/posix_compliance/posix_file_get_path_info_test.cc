@@ -51,13 +51,6 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
     // for a better chance to contain the imprecision and rounding errors.
     const int64_t kOneSecondInMicroseconds = 1'000'000;
     int64_t time = PosixTimeToWindowsTime(CurrentPosixTime());
-#if !SB_HAS_QUIRK(FILESYSTEM_ZERO_FILEINFO_TIME)
-#if SB_HAS_QUIRK(FILESYSTEM_COARSE_ACCESS_TIME)
-    // On platforms with coarse access time, we assume 1 day precision and go
-    // back 2 days to avoid rounding issues.
-    const int64_t kOneDayInMicroseconds = 1'000'000LL * 60LL * 60LL * 24LL;
-#endif  // FILESYSTEM_COARSE_ACCESS_TIME
-#endif  // FILESYSTEM_ZERO_FILEINFO_TIME
 
     const int kFileSize = 12;
     ScopedRandomFile random_file(kFileSize);
@@ -69,23 +62,12 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
       EXPECT_EQ(kFileSize, file_info.st_size);
       EXPECT_FALSE(S_ISDIR(file_info.st_mode));
       EXPECT_FALSE(S_ISLNK(file_info.st_mode));
-#if SB_HAS_QUIRK(FILESYSTEM_ZERO_FILEINFO_TIME)
-      EXPECT_LE(0, TimeTToWindowsUsecTest(file_info.at_ctime));
-      EXPECT_LE(0, TimeTToWindowsUsecTest(file_info.mt_ctime));
-      EXPECT_LE(0, TimeTToWindowsUsecTest(file_info.st_ctime));
-#else
       EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_mtime),
                   kOneSecondInMicroseconds);
-#if SB_HAS_QUIRK(FILESYSTEM_COARSE_ACCESS_TIME)
-      EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.at_ctime),
-                  2 * kOneDayInMicroseconds);
-#else
       EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_atime),
                   kOneSecondInMicroseconds);
-#endif  // FILESYSTEM_COARSE_ACCESS_TIME
       EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_ctime),
                   kOneSecondInMicroseconds);
-#endif  // FILESYSTEM_ZERO_FILEINFO_TIME
     }
   }
 }

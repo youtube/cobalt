@@ -118,6 +118,8 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
 
 bool IsPartialAudioSupported();
 
+bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config);
+
 }  // namespace nplb
 }  // namespace starboard
 

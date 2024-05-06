@@ -17,6 +17,7 @@
 #include <../ucrt/sys/stat.h>
 
 #include <direct.h>
+#include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,6 +28,10 @@ extern "C" {
 #define S_ISREG(mode) (((mode) & _S_IFMT) == (_S_IFREG))
 
 typedef int mode_t;
+
+// Implementation in socket.cc
+int sb_fstat(int fd, struct stat* buffer);
+#define fstat sb_fstat
 
 int sb_mkdir(const char* path, mode_t mode);
 #undef mkdir

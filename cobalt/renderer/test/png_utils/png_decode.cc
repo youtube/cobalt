@@ -129,7 +129,7 @@ PNGFileReadContext::PNGFileReadContext(const base::FilePath& file_path,
   // will not be called.  This is fine though, since we abort upon errors here.
   // If alternative behavior is desired, custom error and warning handler
   // functions can be passed into the png_create_read_struct() call above.
-  if (setjmp(png_->jmpbuf)) {
+  if (setjmp(png_jmpbuf(png_))) {
     LOG(FATAL) << "libpng returned error reading " << file_path.value();
   }
 

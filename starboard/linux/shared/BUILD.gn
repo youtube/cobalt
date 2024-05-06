@@ -383,6 +383,7 @@ static_library("starboard_platform_sources") {
 
   configs += [
     "//starboard/build/config:starboard_implementation",
+    "//third_party/dav1d:public_dav1d_config",
     "//third_party/de265_includes",
     "//third_party/pulseaudio_includes",
   ]
