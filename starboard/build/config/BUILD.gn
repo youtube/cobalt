@@ -33,49 +33,31 @@ if (cobalt_pending_clean_up) {
   config("hacky_wnos") {
     if (is_clang) {
       cflags = [
-        "-Wno-psabi",
-        "-Wno-shorten-64-to-32",
-        "-Wno-unknown-warning-option",
-        "-Wno-array-parameter",
-        "-Wno-unknown-attributes",
-        "-Wno-bitwise-instead-of-logical",
-        "-Wno-c++20-extensions",
-        "-Wno-c++98-compat-extra-semi",
-        "-Wno-delete-non-abstract-non-virtual-dtor",
-        "-Wno-deprecated-copy",
-        "-Wno-extra-semi",
         "-Wno-ignored-qualifiers",
         "-Wno-implicit-fallthrough",
+        "-Wno-inconsistent-missing-override",
         "-Wno-invalid-noreturn",
         "-Wno-macro-redefined",
-        "-Wno-mismatched-tags",
-        "-Wno-missing-braces",
-        "-Wno-null-pointer-subtraction",
         "-Wno-pessimizing-move",
         "-Wno-reorder-ctor",
-        "-Wno-self-assign-overloaded",
-        "-Wno-self-assign",
-        "-Wno-shadow",
         "-Wno-sign-compare",
-        "-Wno-sometimes-uninitialized",
-        "-Wno-tautological-unsigned-zero-compare",
-        "-Wno-unreachable-code-break",
-        "-Wno-unreachable-code-loop-increment",
-        "-Wno-unreachable-code-return",
-        "-Wno-unreachable-code",
-        "-Wno-unused-but-set-parameter",
         "-Wno-unused-but-set-variable",
-        "-Wno-unused-function",
-        "-Wno-unused-label",
-        "-Wno-unused-local-typedef",
         "-Wno-unused-private-field",
-        "-Wno-unused-variable",
-        "-Wno-unused-command-line-argument",
-        "-Wno-unused-private-field",
-        "-Wno-deprecated-declarations",
-        "-Wno-inconsistent-missing-override",
+
+        # Needed for Evergreen, Android, and Stub.
         "-Wno-return-type",
+        "-Wno-shorten-64-to-32",
+        "-Wno-unknown-attributes",
+        "-Wno-unused-command-line-argument",
+        "-Wno-unused-function",
       ]
+
+      if (!using_old_compiler) {
+        cflags += [
+          "-Wno-shadow",
+          "-Wno-unreachable-code-break",
+        ]
+      }
     }
   }
 }
