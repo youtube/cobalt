@@ -34,6 +34,10 @@
 
 #include "perfetto/ext/base/watchdog.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace perfetto {
 namespace base {
 
@@ -64,7 +68,9 @@ void UnixTaskRunner::Run() {
       UpdateWatchTasksLocked();
     }
 
-#if !defined(STARBOARD)
+#if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
+#else
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
     DWORD timeout =
         poll_timeout_ms >= 0 ? static_cast<DWORD>(poll_timeout_ms) : INFINITE;

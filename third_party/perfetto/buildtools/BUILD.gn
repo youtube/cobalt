@@ -1094,7 +1094,7 @@ config("sqlite_config") {
     "-DSQLITE_OMIT_DEPRECATED",
     "-DSQLITE_OMIT_SHARED_CACHE",
     "-DHAVE_USLEEP",
-    # "-DHAVE_UTIME",
+    "-DHAVE_UTIME",
     "-DSQLITE_BYTEORDER=1234",
     "-DSQLITE_DEFAULT_AUTOVACUUM=0",
     "-DSQLITE_DEFAULT_MMAP_SIZE=0",
@@ -1109,6 +1109,9 @@ config("sqlite_config") {
     # SQLite uses __int64 which clang complains about unless
     # we specify this flag.
     cflags += [ "-Wno-language-extension-token" ]
+  }
+  if (use_cobalt_customizations) {
+    cflags -= [ "-DHAVE_UTIME" ]
   }
 }
 
@@ -1130,7 +1133,10 @@ source_set("sqlite") {
   }
   public_configs = [ ":sqlite_config" ]
   if (use_cobalt_customizations) {
-    deps = [ "../gn:default_deps" ]
+    deps = [
+      "../gn:default_deps",
+      "//starboard/common:common_headers_only",
+    ]
   } else {
   deps = [ "//gn:default_deps" ]
   }

@@ -35,6 +35,10 @@
 #include "perfetto/ext/base/file_utils.h"
 #include "perfetto/ext/base/string_utils.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 namespace {
 std::string GetTempName() {
@@ -51,6 +55,7 @@ namespace base {
 std::string GetSysTempDir() {
   const char* tmpdir = nullptr;
 #if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
   return "";
 #elif PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   if ((tmpdir = getenv("TMP")))
@@ -72,7 +77,9 @@ std::string GetSysTempDir() {
 // static
 TempFile TempFile::Create() {
   TempFile temp_file;
-#if !defined(STARBOARD)
+#if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
+#else
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   temp_file.path_ = GetSysTempDir() + "\\" + GetTempName();
   // Several tests want to read-back the temp file while still open. On Windows,

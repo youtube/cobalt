@@ -30,6 +30,10 @@
 
 #include "perfetto/base/logging.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace perfetto {
 namespace base {
 
@@ -39,7 +43,9 @@ Pipe& Pipe::operator=(Pipe&&) = default;
 
 Pipe Pipe::Create(Flags flags) {
   PlatformHandle fds[2];
-#if !defined(STARBOARD)
+#if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
+#else
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   PERFETTO_CHECK(::CreatePipe(&fds[0], &fds[1], /*lpPipeAttributes=*/nullptr,
                               0 /*default size*/));

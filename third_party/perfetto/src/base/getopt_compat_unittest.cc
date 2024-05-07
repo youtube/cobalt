@@ -52,7 +52,7 @@ struct OurGetopt {
   char*& optarg = getopt_compat::optarg;
 };
 
-#if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) && !defined(STARBOARD)
+#if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 struct SystemGetopt {
   using LongOptionType = ::option;
   using GetoptFn = decltype(&::getopt);

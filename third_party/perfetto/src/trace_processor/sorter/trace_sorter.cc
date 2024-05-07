@@ -25,6 +25,10 @@
 #include "src/trace_processor/storage/trace_storage.h"
 #include "src/trace_processor/util/bump_allocator.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace perfetto {
 namespace trace_processor {
 
@@ -35,6 +39,7 @@ TraceSorter::TraceSorter(TraceProcessorContext* context,
       parser_(std::move(parser)),
       sorting_mode_(sorting_mode) {
 #if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
   const char* env = nullptr;
 #else
   const char* env = getenv("TRACE_PROCESSOR_SORT_ONLY");
