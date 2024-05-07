@@ -15,12 +15,13 @@
 #ifndef STARBOARD_SHARED_WIDEVINE_WIDEVINE_TIMER_H_
 #define STARBOARD_SHARED_WIDEVINE_WIDEVINE_TIMER_H_
 
+#include <pthread.h>
+
 #include <map>
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/thread.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
 namespace starboard {
@@ -51,7 +52,7 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
                              ConditionVariable* condition_variable);
 
   Mutex mutex_;
-  SbThread thread_ = kSbThreadInvalid;
+  pthread_t thread_ = 0;
   JobQueue* job_queue_ = NULL;
   std::map<IClient*, JobQueue::JobOwner*> active_clients_;
 };

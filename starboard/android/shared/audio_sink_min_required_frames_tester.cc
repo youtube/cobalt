@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
 namespace android {
@@ -52,13 +53,13 @@ MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
 MinRequiredFramesTester::~MinRequiredFramesTester() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   destroying_.store(true);
-  if (SbThreadIsValid(tester_thread_)) {
+  if (tester_thread_ != 0) {
     {
       ScopedLock scoped_lock(mutex_);
       condition_variable_.Signal();
     }
-    SbThreadJoin(tester_thread_, NULL);
-    tester_thread_ = kSbThreadInvalid;
+    pthread_join(tester_thread_, NULL);
+    tester_thread_ = 0;
   }
 }
 
@@ -70,7 +71,7 @@ void MinRequiredFramesTester::AddTest(
     int default_required_frames) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester doesn't support to add test after starts.
-  SB_DCHECK(!SbThreadIsValid(tester_thread_));
+  SB_DCHECK(tester_thread_ == 0);
 
   test_tasks_.emplace_back(number_of_channels, sample_type, sample_rate,
                            received_cb, default_required_frames);
@@ -79,17 +80,19 @@ void MinRequiredFramesTester::AddTest(
 void MinRequiredFramesTester::Start() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester only supports to start once.
-  SB_DCHECK(!SbThreadIsValid(tester_thread_));
+  SB_DCHECK(tester_thread_ == 0);
 
-  tester_thread_ =
-      SbThreadCreate(0, kSbThreadPriorityLowest, kSbThreadNoAffinity, true,
-                     "audio_track_tester",
-                     &MinRequiredFramesTester::TesterThreadEntryPoint, this);
-  SB_DCHECK(SbThreadIsValid(tester_thread_));
+  pthread_create(&tester_thread_, nullptr,
+                 &MinRequiredFramesTester::TesterThreadEntryPoint, this);
+  SB_DCHECK(tester_thread_ != 0);
 }
 
 // static
 void* MinRequiredFramesTester::TesterThreadEntryPoint(void* context) {
+  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityLowest);
+
+  pthread_setname_np(pthread_self(), "audio_track_tester");
+
   SB_DCHECK(context);
   MinRequiredFramesTester* tester =
       static_cast<MinRequiredFramesTester*>(context);
