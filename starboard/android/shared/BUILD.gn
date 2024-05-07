@@ -279,6 +279,8 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
+    "asset_manager.cc",
+    "asset_manager.h",
     "atomic_public.h",
     "audio_decoder.cc",
     "audio_decoder.h",
@@ -378,6 +380,11 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
+<<<<<<< HEAD
+=======
+    "posix_emu/errno.cc",
+    "posix_emu/file.cc",
+>>>>>>> 6e756ad1b1b (Add Android asset manager. (#3151))
     "posix_emu/pthread.cc",
     "posix_emu/stat.cc",
     "sanitizer_options.cc",
