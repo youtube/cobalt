@@ -318,7 +318,7 @@ off_t sb_lseek(int fd, off_t offset, int origin) {
   if (!handle.is_file) {
     return -1;
   }
-  return lseek(handle.file, offset, origin);
+  return _lseek(handle.file, offset, origin);
 }
 
 ssize_t sb_read(int fd, void* buf, size_t nbyte) {
@@ -326,7 +326,7 @@ ssize_t sb_read(int fd, void* buf, size_t nbyte) {
   if (!handle.is_file) {
     return -1;
   }
-  return read(handle.file, buf, nbyte);
+  return _read(handle.file, buf, nbyte);
 }
 
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
