@@ -131,6 +131,18 @@ int GetMaxSizeForImmediateJob(web::EnvironmentSettings* settings) {
   return max_size;
 }
 
+// If this function returns true, MediaSource::GetSeekable() will short-circuit
+// getting the buffered range from HTMLMediaElement by directly calling to
+// MediaSource::GetBufferedRange(). This reduces potential cross-object,
+// cross-thread calls between MediaSource and HTMLMediaElement.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceBufferedRangeEnabled()
+      .value_or(false);
+}
+
 }  // namespace
 
 MediaSource::MediaSource(script::EnvironmentSettings* settings)
@@ -498,7 +510,13 @@ scoped_refptr<TimeRanges> MediaSource::GetSeekable() const {
   }
 
   if (source_duration == std::numeric_limits<double>::infinity()) {
-    scoped_refptr<TimeRanges> buffered = attached_element_->buffered();
+    scoped_refptr<TimeRanges> buffered = nullptr;
+    if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+            environment_settings())) {
+      buffered = GetBufferedRange();
+    } else {
+      buffered = attached_element_->buffered();
+    }
 
     if (live_seekable_range_->length() != 0) {
       if (buffered->length() == 0) {
