@@ -86,6 +86,8 @@ extern char __executable_start;
 namespace base {
 namespace trace_event {
 
+void ThreadLocalEventBufferDestructor(void* buffer);
+
 namespace {
 
 // Controls the number of trace events we will buffer in-memory
@@ -570,7 +572,7 @@ class TraceLog::ThreadLocalEventBuffer
   }
 
 #if defined(STARBOARD)
-  void* reset_to_;
+  void* reset_to_ = nullptr;
 #else
   const AutoReset<ThreadLocalEventBuffer*> resetter_{&thread_local_event_buffer,
                                                      this, nullptr};
@@ -582,6 +584,10 @@ class TraceLog::ThreadLocalEventBuffer
   size_t chunk_index_ = 0;
   int generation_;
 };
+
+void ThreadLocalEventBufferDestructor(void* buffer) {
+  delete static_cast<TraceLog::ThreadLocalEventBuffer*>(buffer);
+}
 
 TraceLog::ThreadLocalEventBuffer::ThreadLocalEventBuffer(TraceLog* trace_log)
     : trace_log_(trace_log),
@@ -789,11 +795,13 @@ void TraceLog::InitializeThreadLocalEventBufferIfSupported() {
       !CheckGeneration(thread_local_event_buffer->generation())) {
     delete thread_local_event_buffer;
   }
+#if defined(STARBOARD)
+  thread_local_event_buffer = GetThreadLocalEventBuffer();
+#endif
   if (!thread_local_event_buffer) {
     thread_local_event_buffer = new ThreadLocalEventBuffer(this);
   }
 #if defined(STARBOARD)
-  // TODO(andrewsavage): Check validity.
   pthread_setspecific(s_thread_local_event_buffer_key,
                       thread_local_event_buffer);
 #endif
@@ -1602,9 +1610,6 @@ void TraceLog::FlushCurrentThread(int generation, bool discard_events) {
 #endif
   // This will flush the thread local buffer.
   delete thread_local_event_buffer;
-#if defined(STARBOARD)
-  pthread_setspecific(s_thread_local_event_buffer_key, nullptr);
-#endif
 
   auto on_flush_override = on_flush_override_.load(std::memory_order_relaxed);
   if (on_flush_override) {
@@ -1698,7 +1703,6 @@ bool TraceLog::ShouldAddAfterUpdatingState(
 
     const char* current_thread_name =
         static_cast<const char*>(pthread_getspecific(s_thread_local_key));
-    return static_cast<const char*>(pthread_getspecific(s_thread_local_key));
 #else
     thread_local const char* current_thread_name = nullptr;
 #endif
@@ -2295,9 +2299,6 @@ void TraceLog::SetCurrentThreadBlocksMessageLoop() {
 #endif
   // This will flush the thread local buffer.
   delete thread_local_event_buffer;
-#if defined(STARBOARD)
-  pthread_setspecific(s_thread_local_event_buffer_key, nullptr);
-#endif
 }
 
 TraceBuffer* TraceLog::CreateTraceBuffer() {

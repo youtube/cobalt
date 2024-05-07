@@ -4210,11 +4210,6 @@ test("base_unittests") {
         "trace_event/memory_allocator_dump_unittest.cc",
         "trace_event/process_memory_dump_unittest.cc",
         "trace_event/typed_macros_unittest.cc",
-
-        # TODO: The below tests are key to ensuring tracing works.
-        # Enable them ASAP.
-        "test/trace_event_analyzer_unittest.cc",
-        "trace_event/trace_event_unittest.cc",
       ]
     }
 
