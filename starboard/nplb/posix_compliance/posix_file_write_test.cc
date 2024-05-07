@@ -66,7 +66,8 @@ TYPED_TEST(PosixFileWriteTest, BasicWriting) {
   ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
-  int file = open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC);
+  int file =
+      open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
   ASSERT_TRUE(file >= 0);
 
   // Create a bigger buffer than necessary, so we can test the memory around
@@ -140,7 +141,8 @@ TYPED_TEST(PosixFileWriteTest, WriteZeroBytes) {
   ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
-  int file = open(filename.c_str(), O_CREAT | O_EXCL | O_WRONLY);
+  int file =
+      open(filename.c_str(), O_CREAT | O_EXCL | O_WRONLY, S_IRUSR | S_IWUSR);
   ASSERT_TRUE(file >= 0);
 
   char buffer[kBufferLength] = {0};

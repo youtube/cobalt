@@ -30,14 +30,11 @@ int fsync(int fd);
 
 int ftruncate(int fd, off_t length);
 
-off_t sb_lseek(int fd, off_t offset, int origin);
-#define lseek sb_lseek
+long lseek(int fd, long offset, int origin);  // NOLINT
 
-ssize_t sb_read(int fildes, void* buf, size_t nbyte);
-#define read sb_read
+int read(int fd, void* buffer, unsigned int buffer_size);
 
-ssize_t sb_write(int fd, const void* buf, size_t nbyte);
-#define write sb_write
+int write(int fd, const void* buffer, unsigned int count);
 
 int usleep(unsigned int useconds);
 

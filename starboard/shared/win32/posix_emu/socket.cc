@@ -305,6 +305,14 @@ int ftruncate(int fd, off_t length) {
   return _chsize(handle.file, length);
 }
 
+long lseek(int fd, long offset, int origin) {  // NOLINT
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _lseek(handle.file, offset, origin);
+}
+
 int sb_fstat(int fd, struct stat* buffer) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
@@ -313,28 +321,20 @@ int sb_fstat(int fd, struct stat* buffer) {
   return _fstat(handle.file, (struct _stat*)buffer);
 }
 
-off_t sb_lseek(int fd, off_t offset, int origin) {
+int read(int fd, void* buffer, unsigned int buffer_size) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
     return -1;
   }
-  return _lseek(handle.file, offset, origin);
+  return _read(handle.file, buffer, buffer_size);
 }
 
-ssize_t sb_read(int fd, void* buf, size_t nbyte) {
+int write(int fd, const void* buffer, unsigned int count) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
     return -1;
   }
-  return _read(handle.file, buf, nbyte);
-}
-
-ssize_t sb_write(int fd, const void* buf, size_t nbyte) {
-  FileOrSocket handle = handle_db_get(fd, false);
-  if (!handle.is_file) {
-    return -1;
-  }
-  return write(handle.file, buf, nbyte);
+  return _write(handle.file, buffer, count);
 }
 
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
