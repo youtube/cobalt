@@ -2175,6 +2175,15 @@ void TraceLog::AddMetadataEventsWhileLocked() {
                                 it.second);
   }
 
+#if defined(USE_COBALT_CUSTOMIZATIONS) && !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  AutoLock thread_info_lock(thread_info_lock_);
+  for (const auto& it : thread_names_) {
+    if (it.second.empty())
+      continue;
+    AddMetadataEventWhileLocked(it.first, "thread_name", "name", it.second);
+  }
+#endif
+
   // If buffer is full, add a metadata record to report this.
   if (!buffer_limit_reached_timestamp_.is_null()) {
     AddMetadataEventWhileLocked(current_thread_id, "trace_buffer_overflowed",
