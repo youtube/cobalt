@@ -205,7 +205,7 @@ class MediaDecoder
   bool first_call_on_handler_thread_ = true;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  SbThread decoder_thread_ = kSbThreadInvalid;
+  pthread_t decoder_thread_ = 0;
   scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
