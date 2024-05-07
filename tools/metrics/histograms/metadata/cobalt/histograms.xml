@@ -119,15 +119,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Media.HasEverPlayed" enum="PipelineStatus"
+<histogram name="Cobalt.Media.HasEverPlayed" enum="BooleanHasPlayed"
     expires_after="never">
 <!-- expires-never: Needed for baseline Media pipeline health metric. -->
 
   <owner>sideboard@google.com</owner>
   <owner>cobalt-team@google.com</owner>
   <summary>
-    Status of the media pipeline at the end of its lifecycle for audio-video
-    streams with an unknown video codec.
+    Whether a given WebMediaPlayer instance, after preload, started playback;
   </summary>
 </histogram>
 
