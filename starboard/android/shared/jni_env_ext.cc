@@ -30,8 +30,9 @@ jobject g_application_class_loader = NULL;
 jobject g_starboard_bridge = NULL;
 
 void Destroy(void* value) {
-  // OnThreadShutdown() must be called on each thread before it is destroyed.
-  SB_DCHECK(value == NULL);
+  if (value != NULL) {
+    starboard::android::shared::JniEnvExt::OnThreadShutdown();
+  }
 }
 
 }  // namespace
