@@ -15,6 +15,8 @@
 #ifndef COBALT_WATCHDOG_WATCHDOG_H_
 #define COBALT_WATCHDOG_WATCHDOG_H_
 
+#include <pthread.h>
+
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -28,7 +30,6 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
-#include "starboard/thread.h"
 
 namespace cobalt {
 namespace watchdog {
@@ -195,7 +196,7 @@ class Watchdog : public Singleton<Watchdog> {
   // Dictionary of lists of Watchdog violations represented as dictionaries.
   std::shared_ptr<base::Value> violations_map_;
   // Monitor thread.
-  SbThread watchdog_thread_;
+  pthread_t watchdog_thread_;
   // Flag to stop monitor thread.
   starboard::atomic_bool is_monitoring_;
   // Conditional Variable to wait and shutdown monitor thread.
