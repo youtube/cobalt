@@ -14,8 +14,10 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
+#include "starboard/android/shared/max_output_buffers_lookup_table.h"
 
 namespace starboard {
 namespace android {
@@ -271,6 +273,12 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
 
+  bool experiment_flag = true;
+
+  if (experiment_flag) {
+    MediaCodecBridgeEradicator::GetInstance()->CheckEradicatingAndMaybeWait();
+  }
+
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
   ScopedLocalJavaRef<jstring> j_decoder_name(
@@ -345,6 +353,13 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
 
 MediaCodecBridge::~MediaCodecBridge() {
   if (!j_media_codec_bridge_) {
+    return;
+  }
+
+  bool experiment_flag = true;
+  if (experiment_flag) {
+    SB_LOG(INFO) << "MediaCodecBridge.j_media_codec_bridge_ is " << j_media_codec_bridge_;
+    MediaCodecBridgeEradicator::GetInstance()->Eradicate(j_media_codec_bridge_, j_reused_get_output_format_result_);
     return;
   }
 

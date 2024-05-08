@@ -340,6 +340,8 @@ static_library("starboard_platform") {
     "max_output_buffers_lookup_table.h",
     "media_capabilities_cache.cc",
     "media_capabilities_cache.h",
+    "media_codec_bridge_eradicator.cc",
+    "media_codec_bridge_eradicator.h",
     "media_codec_bridge.cc",
     "media_codec_bridge.h",
     "media_common.h",
