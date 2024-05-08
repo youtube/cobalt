@@ -380,7 +380,6 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
-    "posix_emu/errno.cc",
     "posix_emu/file.cc",
     "posix_emu/pthread.cc",
     "posix_emu/stat.cc",
