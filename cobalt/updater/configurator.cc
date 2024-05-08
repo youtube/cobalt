@@ -226,7 +226,7 @@ std::vector<uint8_t> Configurator::GetRunActionKeyHash() const { return {}; }
 
 std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
                                            const std::string& version) {
-  if (updater_channel == "ltsnightly") {
+  if (updater_channel == "ltsnightly" || updater_channel == "ltsnightlyqa") {
     return kOmahaCobaltLTSNightlyAppID;
   }
   if (version.find(".lts.") != std::string::npos &&
