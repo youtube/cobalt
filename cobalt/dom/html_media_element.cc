@@ -898,7 +898,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
       NoneSupported("Media source is NULL.");
       return;
     }
-    if (!media_source_->AttachToElement(this)) {
+    if (!media_source_->StartAttachingToMediaElement(this)) {
       media_source_ = nullptr;
       NoneSupported("Unable to attach media source.");
       return;
@@ -1675,7 +1675,7 @@ void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   BeginProcessingMediaPlayerCallback();
   DCHECK(media_source_);
-  media_source_->SetChunkDemuxerAndOpen(chunk_demuxer);
+  media_source_->CompleteAttachingToMediaElement(chunk_demuxer);
   EndProcessingMediaPlayerCallback();
 }
 

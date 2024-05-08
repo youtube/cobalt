@@ -411,7 +411,8 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
   }
 }
 
-bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
+bool MediaSource::StartAttachingToMediaElement(
+    HTMLMediaElement* media_element) {
   if (attached_element_) {
     return false;
   }
@@ -443,7 +444,7 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
   return true;
 }
 
-void MediaSource::SetChunkDemuxerAndOpen(ChunkDemuxer* chunk_demuxer) {
+void MediaSource::CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   DCHECK(!chunk_demuxer_);
   DCHECK(attached_element_);
