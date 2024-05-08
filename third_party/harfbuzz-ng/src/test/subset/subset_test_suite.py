@@ -5,16 +5,19 @@ import os
 # A single test in a subset test suite. Identifies a font
 # a subsetting profile, and a subset to be cut.
 class Test:
-	def __init__(self, font_path, profile_path, subset, instance):
+	def __init__(self, font_path, profile_path, subset, instance, options):
 		self.font_path = font_path
 		self.profile_path = profile_path
 		self.subset = subset
 		self.instance = instance
+		self.options = options
 
 	def unicodes(self):
 		import re
 		if self.subset == '*':
 			return self.subset[0]
+		elif self.subset == "no-unicodes":
+			return ""
 		elif re.match("^U\+", self.subset):
 			s = re.sub (r"U\+", "", self.subset)
 			return s
@@ -48,6 +51,11 @@ class Test:
 				       profile_name,
 				       self.instance_name(),
 				       font_base_name_parts[1])
+		elif self.unicodes() == "":
+			return "%s.%s.no-unicodes%s%s" % (font_base_name_parts[0],
+				       profile_name,
+				       self.instance_name(),
+				       font_base_name_parts[1])
 		else:
 			return "%s.%s.%s%s%s" % (font_base_name_parts[0],
 				       profile_name,
@@ -70,6 +78,7 @@ class SubsetTestSuite:
 		self.profiles = []
 		self.subsets = []
 		self.instances = []
+		self.options = []
 		self._parse(definition)
 
 	def get_output_directory(self):
@@ -90,11 +99,11 @@ class SubsetTestSuite:
 			for profile in self.profiles:
 				profile = os.path.join(self._base_path(), "profiles", profile)
 				for subset in self.subsets:
-					if self.instances: 
+					if self.instances:
 						for instance in self.instances:
-							yield Test(font, profile, subset, instance)
+							yield Test(font, profile, subset, instance, options=self.options)
 					else:
-						yield Test(font, profile, subset, "")
+						yield Test(font, profile, subset, "", options=self.options)
 
 	def _base_path(self):
 		return os.path.dirname(os.path.dirname(self.test_path))
@@ -104,7 +113,8 @@ class SubsetTestSuite:
 				"FONTS:": self.fonts,
 				"PROFILES:": self.profiles,
 				"SUBSETS:": self.subsets,
-				"INSTANCES:": self.instances
+				"INSTANCES:": self.instances,
+				"OPTIONS:": self.options,
 		}
 
 		current_destination = None
