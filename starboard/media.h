@@ -150,7 +150,7 @@ typedef enum SbMediaAudioFrameStorageType {
   // "L0 R0 L1 R1 L2 R2 ...".
   kSbMediaAudioFrameStorageTypeInterleaved,
 
-  // The samples of each channel are stored in their own continuous buffer.  For
+  // The samples of each channel are stored in their own continuous buffer. For
   // example, for a stereo stream with channels L and R that contains samples
   // with timestamps 0, 1, 2, etc., the samples are stored in two buffers
   // "L0 L1 L2 ..." and "R0 R1 R2 ...".
@@ -312,9 +312,7 @@ typedef enum SbMediaRangeId {
 
 // HDR (High Dynamic Range) Metadata common for HDR10 and WebM/VP9-based HDR
 // formats, together with the ColorSpace. HDR reproduces a greater dynamic range
-// of luminosity than is possible with standard digital imaging. See the
-// Consumer Electronics Association press release:
-// https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx
+// of luminosity than is possible with standard digital imaging.
 typedef struct SbMediaColorMetadata {
   // Number of decoded bits per channel. A value of 0 indicates that the
   // BitsPerChannel is unspecified.
@@ -406,7 +404,7 @@ typedef struct SbMediaVideoStreamInfo {
   // The video codec of this sample.
   SbMediaVideoCodec codec;
 
-  // The mime of the video stream when |codec| isn't kSbMediaVideoCodecNone.  It
+  // The mime of the video stream when |codec| isn't kSbMediaVideoCodecNone. It
   // may point to an empty string if the mime is not available, and it can only
   // be set to NULL when |codec| is kSbMediaVideoCodecNone.
   const char* mime;
@@ -419,7 +417,7 @@ typedef struct SbMediaVideoStreamInfo {
   // SbMediaCanPlayMimeAndKeySystem(), for example, when it is set to
   // "width=1920; height=1080; framerate=15;", the video will never adapt to
   // resolution higher than 1920x1080 or frame per second higher than 15 fps.
-  // When the maximums are unknown, this will be set to an empty string.  It can
+  // When the maximums are unknown, this will be set to an empty string. It can
   // only be set to NULL when |codec| is kSbMediaVideoCodecNone.
   const char* max_video_capabilities;
 
@@ -463,7 +461,7 @@ typedef struct SbMediaVideoSampleInfo {
   // The video codec of this sample.
   SbMediaVideoCodec codec;
 
-  // The mime of the video stream when |codec| isn't kSbMediaVideoCodecNone.  It
+  // The mime of the video stream when |codec| isn't kSbMediaVideoCodecNone. It
   // may point to an empty string if the mime is not available, and it can only
   // be set to NULL when |codec| is kSbMediaVideoCodecNone.
   const char* mime;
@@ -476,7 +474,7 @@ typedef struct SbMediaVideoSampleInfo {
   // SbMediaCanPlayMimeAndKeySystem(), for example, when it is set to
   // "width=1920; height=1080; framerate=15;", the video will never adapt to
   // resolution higher than 1920x1080 or frame per second higher than 15 fps.
-  // When the maximums are unknown, this will be set to an empty string.  It can
+  // When the maximums are unknown, this will be set to an empty string. It can
   // only be set to NULL when |codec| is kSbMediaVideoCodecNone.
   const char* max_video_capabilities;
 
@@ -545,7 +543,7 @@ typedef struct SbMediaAudioStreamInfo {
   // The audio codec of this sample.
   SbMediaAudioCodec codec;
 
-  // The mime of the audio stream when |codec| isn't kSbMediaAudioCodecNone.  It
+  // The mime of the audio stream when |codec| isn't kSbMediaAudioCodecNone. It
   // may point to an empty string if the mime is not available, and it can only
   // be set to NULL when |codec| is kSbMediaAudioCodecNone.
   const char* mime;
@@ -562,8 +560,7 @@ typedef struct SbMediaAudioStreamInfo {
   // The size, in bytes, of the audio_specific_config.
   uint16_t audio_specific_config_size;
 
-  // The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1:
-  // http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF
+  // The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1.
   const void* audio_specific_config;
 } SbMediaAudioStreamInfo;
 
@@ -578,18 +575,18 @@ typedef struct SbMediaAudioSampleInfo {
 
 #else  // SB_API_VERSION >= 15
 
-// An audio sample info, which is a description of a given audio sample.  This
+// An audio sample info, which is a description of a given audio sample. This
 // acts as a set of instructions to the audio decoder.
 //
 // The audio sample info consists of information found in the |WAVEFORMATEX|
 // structure, as well as other information for the audio decoder, including the
-// Audio-specific configuration field.  The |WAVEFORMATEX| structure is
-// specified at http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx.
+// Audio-specific configuration field. The |WAVEFORMATEX| structure is
+// specified at http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx .
 typedef struct SbMediaAudioSampleInfo {
   // The audio codec of this sample.
   SbMediaAudioCodec codec;
 
-  // The mime of the audio stream when |codec| isn't kSbMediaAudioCodecNone.  It
+  // The mime of the audio stream when |codec| isn't kSbMediaAudioCodecNone. It
   // may point to an empty string if the mime is not available, and it can only
   // be set to NULL when |codec| is kSbMediaAudioCodecNone.
   const char* mime;
@@ -615,8 +612,7 @@ typedef struct SbMediaAudioSampleInfo {
   // The size, in bytes, of the audio_specific_config.
   uint16_t audio_specific_config_size;
 
-  // The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1:
-  // http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF
+  // The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1.
   const void* audio_specific_config;
 } SbMediaAudioSampleInfo, SbMediaAudioStreamInfo;
 
@@ -631,47 +627,46 @@ typedef struct SbMediaAudioSampleInfo {
 // |kSbMediaSupportNotSupported| if either is NULL.
 //
 // |mime|: The mime information of the media in the form of |video/webm| or
-//   |video/mp4; codecs="avc1.42001E"|. It may include arbitrary parameters like
-//   "codecs", "channels", etc.  Note that the "codecs" parameter may contain
-//   more than one codec, delimited by comma.
-// |key_system|: A lowercase value in the form of "com.example.somesystem" as
-//   suggested by https://w3c.github.io/encrypted-media/#key-system that can be
-//   matched exactly with known DRM key systems of the platform.  When
-//   |key_system| is an empty string, the return value is an indication for
-//   non-encrypted media.
+// |video/mp4; codecs="avc1.42001E"|. It may include arbitrary parameters like
+// "codecs", "channels", etc. Note that the "codecs" parameter may contain
+// more than one codec, delimited by comma.
 //
-//   An implementation may choose to support |key_system| with extra attributes,
-//   separated by ';', like
-//   |com.example.somesystem; attribute_name1="value1"; attribute_name2=value1|.
-//   If |key_system| with attributes is not supported by an implementation, it
-//   should treat |key_system| as if it contains only the key system, and reject
-//   any input containing extra attributes, i.e. it can keep using its existing
-//   implementation.
-//   When an implementation supports |key_system| with attributes, it has to
-//   support all attributes defined by the Starboard version the implementation
-//   uses.
-//   An implementation should ignore any unknown attributes, and make a decision
-//   solely based on the key system and the known attributes.  For example, if
-//   an implementation supports "com.widevine.alpha", it should also return
-//   `kSbMediaSupportTypeProbably` when |key_system| is
-//   |com.widevine.alpha; invalid_attribute="invalid_value"|.
-//   Currently the only attribute has to be supported is |encryptionscheme|.  It
-//   reflects the value passed to `encryptionScheme` of
-//   MediaKeySystemMediaCapability, as defined in
-//   https://wicg.github.io/encrypted-media-encryption-scheme/, which can take
-//   value "cenc", "cbcs", or "cbcs-1-9".
-//   Empty string is not a valid value for |encryptionscheme| and the
-//   implementation should return `kSbMediaSupportTypeNotSupported` when
-//   |encryptionscheme| is set to "".
-//   The implementation should return `kSbMediaSupportTypeNotSupported` for
-//   unknown values of known attributes.  For example, if an implementation
-//   supports "encryptionscheme" with value "cenc", "cbcs", or "cbcs-1-9", then
-//   it should return `kSbMediaSupportTypeProbably` when |key_system| is
-//   |com.widevine.alpha; encryptionscheme="cenc"|, and return
-//   `kSbMediaSupportTypeNotSupported` when |key_system| is
-//   |com.widevine.alpha; encryptionscheme="invalid"|.
-//   If an implementation supports key system with attributes on one key system,
-//   it has to support key system with attributes on all key systems supported.
+// |key_system|: A lowercase value in the form of "com.example.somesystem",
+// and can be matched exactly with known DRM key systems of the platform.
+// When |key_system| is an empty string, the return value is an indication for
+// non-encrypted media. For more detail, refer to
+// https://w3c.github.io/encrypted-media/#key-system
+//
+// An implementation may choose to support |key_system| with extra attributes,
+// separated by ';', like
+// |com.example.somesystem; attribute_name1="value1"; attribute_name2=value1|.
+// If |key_system| with attributes is not supported by an implementation, it
+// should treat |key_system| as if it contains only the key system, and reject
+// any input containing extra attributes, i.e. it can keep using its existing
+// implementation. When an implementation supports |key_system| with
+// attributes, it has to support all attributes defined by the Starboard version
+// the implementation uses. An implementation should ignore any unknown
+// attributes, and make a decision solely based on the key system and the known
+// attributes. For example, if an implementation supports "com.widevine.alpha",
+// it should also return |kSbMediaSupportTypeProbably| when |key_system| is
+// |com.widevine.alpha; invalid_attribute="invalid_value"|.
+// Currently the only attribute has to be supported is |encryptionscheme|. It
+// reflects the value passed to |encryptionScheme| of
+// MediaKeySystemMediaCapability. It can take value "cenc", "cbcs", or
+// "cbcs-1-9". Empty string is not a valid value for |encryptionscheme| and the
+// implementation should return |kSbMediaSupportTypeNotSupported| when
+// |encryptionscheme| is set to "". The implementation should return
+// |kSbMediaSupportTypeNotSupported| for unknown values of known attributes.
+// For example, if an implementation supports "encryptionscheme" with value
+// "cenc", "cbcs", or "cbcs-1-9", then it should return
+// |kSbMediaSupportTypeProbably| when |key_system| is
+// |com.widevine.alpha; encryptionscheme="cenc"|, and return
+// |kSbMediaSupportTypeNotSupported| when |key_system| is
+// |com.widevine.alpha; encryptionscheme="invalid"|.
+// If an implementation supports key system with attributes on one key system,
+// it has to support key system with attributes on all key systems supported.
+// For more detail, refer to
+// https://wicg.github.io/encrypted-media-encryption-scheme
 SB_EXPORT SbMediaSupportType
 SbMediaCanPlayMimeAndKeySystem(const char* mime, const char* key_system);
 
@@ -689,7 +684,7 @@ SB_EXPORT int SbMediaGetAudioOutputCount();
 // platform or if |output_index| does not exist on this device.
 //
 // |out_configuration|: The variable that holds the audio configuration
-//   information.
+// information.
 SB_EXPORT bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration);
@@ -704,7 +699,7 @@ typedef enum SbMediaBufferStorageType {
   kSbMediaBufferStorageTypeFile,
 } SbMediaBufferStorageType;
 
-// The media buffer will be allocated using the returned alignment.  Set this to
+// The media buffer will be allocated using the returned alignment. Set this to
 // a larger value may increase the memory consumption of media buffers.
 //
 #if SB_API_VERSION >= 14
@@ -717,30 +712,31 @@ SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
 // When the media stack needs more memory to store media buffers, it will
 // allocate extra memory in units returned by SbMediaGetBufferAllocationUnit.
 // This can return 0, in which case the media stack will allocate extra memory
-// on demand.  When SbMediaGetInitialBufferCapacity and this function both
+// on demand. When SbMediaGetInitialBufferCapacity and this function both
 // return 0, the media stack will allocate individual buffers directly using
 // SbMemory functions.
 SB_EXPORT int SbMediaGetBufferAllocationUnit();
 
 // Specifies the maximum amount of memory used by audio buffers of media source
-// before triggering a garbage collection.  A large value will cause more memory
+// before triggering a garbage collection. A large value will cause more memory
 // being used by audio buffers but will also make the app less likely to
-// re-download audio data.  Note that the app may experience significant
+// re-download audio data. Note that the app may experience significant
 // difficulty if this value is too low.
 SB_EXPORT int SbMediaGetAudioBufferBudget();
 
-// Specifies the duration threshold of media source garbage collection.  When
-// the accumulated duration in a source buffer exceeds this value, the media
-// source implementation will try to eject existing buffers from the cache. This
-// is usually triggered when the video being played has a simple content and the
-// encoded data is small.  In such case this can limit how much is allocated for
-// the book keeping data of the media buffers and avoid OOM of system heap. This
-// should return 170 seconds for most of the platforms.  But it can be further
-// reduced on systems with extremely low memory.
+// Specifies the duration threshold of media source garbage collection in
+// microseconds. When the accumulated duration in a source buffer exceeds this
+// value, the media source implementation will try to eject existing buffers
+// from the cache. This is usually triggered when the video being played has a
+// simple content and the encoded data is small. In such case this can limit
+// how much is allocated for the book keeping data of the media buffers and
+// avoid OOM of system heap. This should return 170 seconds for most of the
+// platforms. But it can be further reduced on systems with extremely low
+// memory.
 SB_EXPORT SbTime SbMediaGetBufferGarbageCollectionDurationThreshold();
 
 // The amount of memory that will be used to store media buffers allocated
-// during system startup.  To allocate a large chunk at startup helps with
+// during system startup. To allocate a large chunk at startup helps with
 // reducing fragmentation and can avoid failures to allocate incrementally. This
 // can return 0.
 SB_EXPORT int SbMediaGetInitialBufferCapacity();
@@ -749,22 +745,25 @@ SB_EXPORT int SbMediaGetInitialBufferCapacity();
 // must be larger than sum of the video budget and audio budget.
 // This is a soft limit and the app will continue to allocate media buffers even
 // if the accumulated memory used by the media buffers exceeds the maximum
-// buffer capacity.  The allocation of media buffers may only fail when there is
+// buffer capacity. The allocation of media buffers may only fail when there is
 // not enough memory in the system to fulfill the request, under which case the
 // app will be terminated as under other OOM situations.
 //
 // |codec|: the video codec associated with the buffer.
+//
 // |resolution_width|: the width of the video resolution.
+//
 // |resolution_height|: the height of the video resolution.
-// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
-//   HDR video.
+//
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR
+// than non-HDR video.
 SB_EXPORT int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
                                           int resolution_width,
                                           int resolution_height,
                                           int bits_per_pixel);
 
 // Extra bytes allocated at the end of a media buffer to ensure that the buffer
-// can be use optimally by specific instructions like SIMD.  Set to 0 to remove
+// can be use optimally by specific instructions like SIMD. Set to 0 to remove
 // any padding.
 //
 #if SB_API_VERSION >= 14
@@ -775,7 +774,7 @@ SB_EXPORT int SbMediaGetBufferPadding(SbMediaType type);
 #endif  // SB_API_VERSION >= 14
 
 // When either SbMediaGetInitialBufferCapacity or SbMediaGetBufferAllocationUnit
-// isn't zero, media buffers will be allocated using a memory pool.  Set the
+// isn't zero, media buffers will be allocated using a memory pool. Set the
 // following variable to true to allocate the media buffer pool memory on demand
 // and return all memory to the system when there is no media buffer allocated.
 // Setting the following value to false results in that Cobalt will allocate
@@ -784,16 +783,19 @@ SB_EXPORT int SbMediaGetBufferPadding(SbMediaType type);
 // media buffers allocated.
 SB_EXPORT bool SbMediaIsBufferPoolAllocateOnDemand();
 
-// The memory used when playing mp4 videos that is not in DASH format.  The
-// resolution of such videos shouldn't go beyond 1080p.  Its value should be
+// The memory used when playing mp4 videos that is not in DASH format. The
+// resolution of such videos shouldn't go beyond 1080p. Its value should be
 // less than the sum of SbMediaGetAudioBufferBudget and
 // 'SbMediaGetVideoBufferBudget(..., 1920, 1080, ...) but not less than 8 MB.
 //
 // |codec|: the video codec associated with the buffer.
+//
 // |resolution_width|: the width of the video resolution.
+//
 // |resolution_height|: the height of the video resolution.
-// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
-//   HDR video.
+//
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR
+// than non-HDR video.
 SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
                                                 int resolution_width,
                                                 int resolution_height,
@@ -814,16 +816,19 @@ SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
 SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
 
 // Specifies the maximum amount of memory used by video buffers of media source
-// before triggering a garbage collection.  A large value will cause more memory
+// before triggering a garbage collection. A large value will cause more memory
 // being used by video buffers but will also make app less likely to re-download
-// video data.  Note that the app may experience significant difficulty if this
+// video data. Note that the app may experience significant difficulty if this
 // value is too low.
 //
 // |codec|: the video codec associated with the buffer.
+//
 // |resolution_width|: the width of the video resolution.
+//
 // |resolution_height|: the height of the video resolution.
-// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
-//   HDR video.
+//
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR
+// than non-HDR video.
 SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                           int resolution_width,
                                           int resolution_height,
