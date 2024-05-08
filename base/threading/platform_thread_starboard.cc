@@ -21,6 +21,7 @@
 #include "base/logging.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 
 namespace base {
@@ -128,7 +129,9 @@ void PlatformThread::Sleep(TimeDelta duration) {
 // static
 void PlatformThread::SetName(const std::string& name) {
   ThreadIdNameManager::GetInstance()->SetName(name);
-  pthread_setname_np(pthread_self(), name.c_str());
+
+  std::string buffer(name, 0, kSbMaxThreadNameLength - 1);
+  pthread_setname_np(pthread_self(), buffer.c_str());
 }
 
 // static
