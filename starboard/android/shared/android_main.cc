@@ -44,7 +44,7 @@ using ::starboard::shared::starboard::CommandLine;
 typedef ::starboard::android::shared::ApplicationAndroid::AndroidCommand
     AndroidCommand;
 
-SbThread g_starboard_thread = kSbThreadInvalid;
+pthread_t g_starboard_thread = 0;
 Semaphore* g_app_created_semaphore = nullptr;
 
 // Safeguard to avoid sending AndroidCommands either when there is no instance
@@ -214,6 +214,7 @@ void InstallCrashpadHandler(const CommandLine& command_line) {
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 void* ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "StarboardMain");
   g_app_created_semaphore = static_cast<Semaphore*>(context);
 
 #if SB_API_VERSION >= 15
@@ -332,12 +333,17 @@ extern "C" SB_EXPORT_PLATFORM void GameActivity_onCreate(
     void* savedState,
     size_t savedStateSize) {
   // Start the Starboard thread the first time an Activity is created.
-  if (!SbThreadIsValid(g_starboard_thread)) {
+  if (g_starboard_thread == 0) {
     Semaphore semaphore;
 
-    g_starboard_thread =
-        SbThreadCreate(0, kSbThreadPriorityNormal, kSbThreadNoAffinity, false,
-                       "StarboardMain", &ThreadEntryPoint, &semaphore);
+    pthread_attr_t attributes;
+    pthread_attr_init(&attributes);
+    pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+
+    pthread_create(&g_starboard_thread, &attributes, &ThreadEntryPoint,
+                   &semaphore);
+
+    pthread_attr_destroy(&attributes);
 
     // Wait for the ApplicationAndroid to be created.
     semaphore.Take();
