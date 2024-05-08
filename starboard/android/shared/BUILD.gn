@@ -378,11 +378,8 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
-<<<<<<< HEAD
-    "posix_emu/pthread.cc",
-=======
     "posix_emu/errno.cc",
->>>>>>> 533ad2a5554 (Enabling errno across platform except PS (#2971))
+    "posix_emu/pthread.cc",
     "posix_emu/stat.cc",
     "sanitizer_options.cc",
     "socket_get_interface_address.cc",
