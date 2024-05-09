@@ -37,7 +37,6 @@ env:
   SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
   STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
   SCCACHE_LOG: debug
-  SCCACHE_START_SERVER: 1
   SCCACHE_NO_DAEMON: 1
 
 concurrency:
