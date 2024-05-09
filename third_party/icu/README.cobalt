@@ -39,7 +39,7 @@ instructions for both options have been included.
 Run:
 
     ```
-    cd $COBALT_SRC_ROOT/src/cobalt/content/icu
+    cd $COBALT_SRC_ROOT/third_party/icu/cobalt
     rm -rf *
     cp $ICU_DATA_ROOT/data/out/tmp/icudt68l.dat .
     cp $ICU_DATA_ROOT/data/out/tmp/icudt68b.dat .
@@ -47,9 +47,15 @@ Run:
 
 Note that at the time of this writing, the final resulting contents had a size
 of 4.6MB, from running the command
-`du -sh $COBALT_SRC_ROOT/src/cobalt/content/icu/icudt68l.dat`.
+`du -sh $COBALT_SRC_ROOT/third_party/icu/cobalt/icudt68l.dat`.
 
-***Option 2: Rebuild individual ICU data files
+***Option 2: Rebuild individual ICU data files (no longer supported)
+
+Note: as of b/209049814, Cobalt now links icudata directly into the binary
+instead of managing it as an external data file that must be loaded. This second
+option can probably no longer be used with the link approach, as
+`third_party/icu/scripts/make_data_assembly.py` requires an ICU .dat package
+file in order to generate an assembly file containing the data blob.
 
 6. Create a new directory where we will rebuild ICU with different options
     because the options used above will produce a version of the tool `icupkg` (

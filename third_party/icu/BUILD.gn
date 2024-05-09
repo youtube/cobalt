@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 import("//build/config/host_byteorder.gni")
+if (use_cobalt_customizations) {
+  import("//starboard/sabi/sabi.gni")
+}
 import("//third_party/icu/config.gni")
 import("//third_party/icu/sources.gni")
 
@@ -375,22 +378,34 @@ if (is_android && enable_java_templates) {
   }
 }
 
-if (is_android) {
-  # Use android_small for now to keep the size till we decide to switch to the new one.
-  data_dir = "android_small"
-} else if (is_ios) {
-  data_dir = "ios"
-} else if (is_chromeos) {
-  data_dir = "chromeos"
+if (use_cobalt_customizations) {
+  data_dir = "cobalt"
 } else {
-  data_dir = "common"
+  if (is_android) {
+    # Use android_small for now to keep the size till we decide to switch to the new one.
+    data_dir = "android_small"
+  } else if (is_ios) {
+    data_dir = "ios"
+  } else if (is_chromeos) {
+    data_dir = "chromeos"
+  } else {
+    data_dir = "common"
+  }
 }
 
-if (current_cpu == "mips" || current_cpu == "mips64" ||
-    host_byteorder == "big") {
-  data_bundle_prefix = "icudtb"
+if (use_cobalt_customizations) {
+  if (sabi_variables.endianness == "little") {
+    data_bundle_prefix = "icudt68l"
+  } else {
+    data_bundle_prefix = "icudt68b"
+  }
 } else {
-  data_bundle_prefix = "icudtl"
+  if (current_cpu == "mips" || current_cpu == "mips64" ||
+      host_byteorder == "big") {
+    data_bundle_prefix = "icudtb"
+  } else {
+    data_bundle_prefix = "icudtl"
+  }
 }
 data_bundle = "${data_bundle_prefix}.dat"
 
