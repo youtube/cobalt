@@ -22,6 +22,7 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 
@@ -161,17 +162,16 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
-  audio_out_thread_ = SbThreadCreate(
-      0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
-      "audio_track_audio_out", &AudioTrackAudioSink::ThreadEntryPoint, this);
-  SB_DCHECK(SbThreadIsValid(audio_out_thread_));
+  pthread_create(&audio_out_thread_, nullptr,
+                 &AudioTrackAudioSink::ThreadEntryPoint, this);
+  SB_DCHECK(audio_out_thread_ != 0);
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
-  if (SbThreadIsValid(audio_out_thread_)) {
-    SbThreadJoin(audio_out_thread_, NULL);
+  if (audio_out_thread_ != 0) {
+    pthread_join(audio_out_thread_, NULL);
   }
 }
 
@@ -188,7 +188,10 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
 
 // static
 void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "audio_track_audio_out");
   SB_DCHECK(context);
+  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+
   AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
   sink->AudioThreadFunc();
 

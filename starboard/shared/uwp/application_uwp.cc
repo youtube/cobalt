@@ -24,8 +24,6 @@
 #include <windows.h>
 #include <windows.system.display.h>
 
-#include <unistd.h>
-
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -58,8 +56,10 @@
 #include "starboard/shared/uwp/watchdog_log.h"
 #include "starboard/shared/uwp/window_internal.h"
 #include "starboard/shared/win32/thread_private.h"
+#include "starboard/shared/win32/time_utils.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/shared/win32/wchar_utils.h"
+
 #include "starboard/system.h"
 
 namespace starboard {
@@ -75,6 +75,7 @@ using shared::starboard::NetLogWaitForClientConnected;
 using shared::uwp::ApplicationUwp;
 using shared::uwp::RunInMainThreadAsync;
 using shared::uwp::WaitForResult;
+using shared::win32::ConvertUsecToMillisRoundUp;
 using shared::win32::platformStringToString;
 using shared::win32::stringToPlatformString;
 using shared::win32::wchar_tToUTF8;
@@ -335,7 +336,7 @@ std::string GetBinaryName() {
 void OnDeviceAdded(DeviceWatcher ^, DeviceInformation ^) {
   SB_LOG(INFO) << "DisplayStatusWatcher::OnDeviceAdded";
   // We need delay to give time for the display initializing after connect.
-  usleep(15'000);
+  Sleep(ConvertUsecToMillisRoundUp(15'000));
 
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 

@@ -15,6 +15,8 @@
 #include "starboard/common/file.h"
 
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <cstring>
 #include <string>
@@ -39,6 +41,26 @@ bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
 }
 
 }  // namespace
+
+ssize_t ReadAll(int fd, void* data, int size) {
+  if (fd < 0 || size < 0) {
+    return -1;
+  }
+  ssize_t bytes_read = 0;
+  ssize_t rv;
+  do {
+    // Needs to cast void* to char* as MSVC returns error for pointer
+    // arithmetic.
+    rv =
+        read(fd, reinterpret_cast<char*>(data) + bytes_read, size - bytes_read);
+    if (rv <= 0) {
+      break;
+    }
+    bytes_read += rv;
+  } while (bytes_read < size);
+
+  return bytes_read ? bytes_read : rv;
+}
 
 void RecordFileWriteStat(int write_file_result) {
   auto& stats_tracker = StatsTrackerContainer::GetInstance()->stats_tracker();

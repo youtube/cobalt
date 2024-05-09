@@ -15,12 +15,13 @@
 #ifndef STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 #define STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 
+#include <pthread.h>
+
 #include <functional>
 
 #include "starboard/common/queue.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
-#include "starboard/thread.h"
 #include "starboard/window.h"
 
 #include "starboard/egl.h"
@@ -72,7 +73,7 @@ class FakeGraphicsContextProvider {
   SbEglSurface surface_;
   SbEglContext context_;
   Queue<std::function<void()>> functor_queue_;
-  SbThread decode_target_context_thread_;
+  pthread_t decode_target_context_thread_;
 
   SbWindow window_;
 
