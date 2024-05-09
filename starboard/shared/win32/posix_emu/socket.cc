@@ -289,6 +289,30 @@ int close(int fd) {
   return _close(handle.file);
 }
 
+int fsync(int fd) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _commit(handle.file);
+}
+
+int ftruncate(int fd, off_t length) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _chsize(handle.file, length);
+}
+
+int sb_fstat(int fd, struct stat* buffer) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _fstat(handle.file, (struct _stat*)buffer);
+}
+
 off_t sb_lseek(int fd, off_t offset, int origin) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
@@ -463,14 +487,6 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
     }
   }
   return 0;
-}
-
-int sb_fstat(int fd, struct stat* buffer) {
-  FileOrSocket handle = handle_db_get(fd, false);
-  if (!handle.is_file) {
-    return -1;
-  }
-  return _fstat(handle.file, (struct _stat*)buffer);
 }
 
 }  // extern "C"
