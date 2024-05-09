@@ -39,7 +39,7 @@ class PosixRead {
 
 class PosixReadAll {
  public:
-  static ssize_t Read(int file, void* data, int size) {
+  static ssize_t Read(int file, void* data, size_t size) {
     return ReadAll(file, data, size);
   }
 };

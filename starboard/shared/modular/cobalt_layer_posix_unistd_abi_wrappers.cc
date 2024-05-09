@@ -22,11 +22,12 @@
 #include "starboard/system.h"
 #include "starboard/common/log.h"
 
+<<<<<<<< HEAD:third_party/harfbuzz-ng/src/hb-starboard.hh
 #define hb_malloc_impl malloc
 #define hb_realloc_impl realloc
 #define hb_calloc_impl calloc
 #define hb_free_impl free
-
+========
 int __abi_wrap_ftruncate(int fildes, off_t length);
 
 int ftruncate(int fildes, off_t length) {
@@ -34,6 +35,7 @@ int ftruncate(int fildes, off_t length) {
 }
 
 off_t __abi_wrap_lseek(int fildes, off_t offset, int whence);
+>>>>>>>> 79adf53a067 (Add tests for POSIX file flush, truncate, and delete. (#3139)):starboard/shared/modular/cobalt_layer_posix_unistd_abi_wrappers.cc
 
 // Micro Posix Emulation
 #undef assert

@@ -26,6 +26,10 @@ extern "C" {
 // This function will handle both files and sockets.
 int close(int fd);
 
+int fsync(int fd);
+
+int ftruncate(int fd, off_t length);
+
 off_t sb_lseek(int fd, off_t offset, int origin);
 #define lseek sb_lseek
 
