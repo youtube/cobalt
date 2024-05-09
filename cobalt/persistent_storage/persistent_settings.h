@@ -72,18 +72,13 @@ class PersistentSettings : public base::CurrentThread::DestructionObserver {
   base::flat_map<std::string, std::unique_ptr<base::Value>>
   GetPersistentSettingAsDictionary(const std::string& key);
 
-  void SetPersistentSetting(
-      const std::string& key, std::unique_ptr<base::Value> value,
-      base::OnceClosure closure = std::move(base::DoNothing()),
-      bool blocking = false);
+  void SetPersistentSetting(const std::string& key,
+                            std::unique_ptr<base::Value> value,
+                            bool blocking = false);
 
-  void RemovePersistentSetting(
-      const std::string& key,
-      base::OnceClosure closure = std::move(base::DoNothing()),
-      bool blocking = false);
+  void RemovePersistentSetting(const std::string& key, bool blocking = false);
 
-  void DeletePersistentSettings(
-      base::OnceClosure closure = std::move(base::DoNothing()));
+  void DeletePersistentSettings();
 
  private:
   // Called by the constructor to initialize pref_store_ from
@@ -94,12 +89,11 @@ class PersistentSettings : public base::CurrentThread::DestructionObserver {
 
   void SetPersistentSettingHelper(const std::string& key,
                                   std::unique_ptr<base::Value> value,
-                                  base::OnceClosure closure, bool blocking);
+                                  bool blocking);
 
-  void RemovePersistentSettingHelper(const std::string& key,
-                                     base::OnceClosure closure, bool blocking);
+  void RemovePersistentSettingHelper(const std::string& key, bool blocking);
 
-  void DeletePersistentSettingsHelper(base::OnceClosure closure);
+  void DeletePersistentSettingsHelper();
 
   void CommitPendingWrite(bool blocking);
 
@@ -109,13 +103,16 @@ class PersistentSettings : public base::CurrentThread::DestructionObserver {
   // PrefStore used for persistent settings.
   scoped_refptr<PersistentPrefStore> pref_store_;
 
-  // Flag indicating whether or not initial persistent settings have been
-  // validated.
-  bool validated_initial_settings_;
+  // Persistent settings dictionary.
+  base::Value::Dict persistent_settings_;
 
   // The thread created and owned by PersistentSettings. All pref_store_
   // methods must be called from this thread.
   base::Thread thread_;
+
+  // Flag indicating whether or not initial persistent settings have been
+  // validated.
+  bool validated_initial_settings_;
 
   // This event is used to signal when Initialize has been called and
   // pref_store_ mutations can now occur.
