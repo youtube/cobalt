@@ -257,6 +257,48 @@ int fstat(int fildes, struct stat* buf) {
   return 0;
 }
 
+int fsync(int fildes) {
+  if (fildes < 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  FileOrSocket* fileOrSock = NULL;
+  if (get(fildes, false, &fileOrSock) != 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (fileOrSock == NULL || !fileOrSock->is_file) {
+    errno = EBADF;
+    return -1;
+  }
+
+  int result = SbFileFlush(fileOrSock->file) ? 0 : -1;
+  return result;
+}
+
+int ftruncate(int fildes, off_t length) {
+  if (fildes < 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  FileOrSocket* fileOrSock = NULL;
+  if (get(fildes, false, &fileOrSock) != 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (fileOrSock == NULL || !fileOrSock->is_file) {
+    errno = EBADF;
+    return -1;
+  }
+
+  int result = SbFileTruncate(fileOrSock->file, length) ? 0 : -1;
+  return result;
+}
+
 off_t lseek(int fildes, off_t offset, int whence) {
   if (fildes < 0) {
     errno = EBADF;
@@ -284,7 +326,6 @@ off_t lseek(int fildes, off_t offset, int whence) {
   } else {
     return -1;
   }
-
   return (off_t)SbFileSeek(fileOrSock->file, sbWhence, (int64_t)offset);
 }
 
@@ -305,9 +346,6 @@ int open(const char* path, int oflag, ...) {
 
   if ((oflag & O_ACCMODE) == O_RDONLY) {
     accessModeFlag |= kSbFileRead;
-    if (oflag == O_RDONLY) {
-      sbFileFlags = kSbFileOpenOnly;
-    }
   } else if ((oflag & O_ACCMODE) == O_WRONLY) {
     accessModeFlag |= kSbFileWrite;
     oflag &= ~O_WRONLY;
@@ -319,6 +357,10 @@ int open(const char* path, int oflag, ...) {
     // modes.
     out_error = kSbFileErrorFailed;
     return -1;
+  }
+
+  if (!oflag) {
+    sbFileFlags = kSbFileOpenOnly;
   }
 
   if (oflag & O_CREAT && oflag & O_EXCL) {
@@ -378,7 +420,6 @@ ssize_t read(int fildes, void* buf, size_t nbyte) {
     errno = EBADF;
     return -1;
   }
-
   return (ssize_t)SbFileRead(fileOrSock->file, buf, (int)nbyte);
 }
 
