@@ -37,7 +37,7 @@ env:
   SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
   STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
   SCCACHE_LOG: debug
-  SCCACHE_NO_DAEMON: 1
+  SCCACHE_ERROR_LOG: C:/error.log
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
