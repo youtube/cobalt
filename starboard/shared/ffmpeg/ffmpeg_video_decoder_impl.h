@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_
 
+#include <pthread.h>
+
 #include <queue>
 
 #include "starboard/common/log.h"
@@ -29,7 +31,6 @@
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
@@ -134,7 +135,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   bool error_occurred_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  SbThread decoder_thread_;
+  pthread_t decoder_thread_;
 
   // Decode-to-texture related state.
   SbPlayerOutputMode output_mode_;
