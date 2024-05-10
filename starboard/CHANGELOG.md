@@ -9,11 +9,6 @@ since the version previous to it.
 
 ## Version 16
 
-### Added support for pthread create attributes.
-The standard pthread APIs `pthread_attr_init`, `pthread_attr_destroy`,
-`pthread_attr_getdetachstate`, `pthread_attr_getstacksize`,
-`pthread_attr_setdetachstate`, `pthread_attr_setstacksize` were added.
-
 ### Deprecated the `SbThreadSetName` and `SbThreadGetName` APIs.
 Replaced the `SbThreadSetName`/`SbThreadGetName` with the POSIX
 `pthread_setname_np`/`pthread_getname_np`.

@@ -24,11 +24,6 @@
 #include "starboard/once.h"
 #include "starboard/time.h"
 
-typedef struct pthread_attr_impl_t {
-  size_t stack_size;
-  int detach_state;
-} pthread_attr_impl_t;
-
 int pthread_mutex_init(pthread_mutex_t* mutext, const pthread_mutexattr_t*) {
   if (SbMutexCreate((SbMutex*)mutext->mutex_buffer)) {
     return 0;
@@ -151,19 +146,9 @@ int pthread_create(pthread_t* thread,
                    const pthread_attr_t* attr,
                    void* (*start_routine)(void*),
                    void* arg) {
-  int stack_size = 0;
-  bool joinable = true;
-  if (attr != NULL) {
-    stack_size = ((pthread_attr_impl_t*)(attr->attr_buffer))->stack_size;
-    if ((((pthread_attr_impl_t*)(attr->attr_buffer))->detach_state ==
-         PTHREAD_CREATE_DETACHED)) {
-      joinable = false;
-    }
-  }
-
   SbThread starboard_thread =
-      SbThreadCreate(stack_size, kSbThreadNoPriority, kSbThreadNoAffinity,
-                     joinable, NULL, start_routine, arg);
+      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
+                     start_routine, arg);
   if (SbThreadIsValid(thread)) {
     *thread = starboard_thread;
     return 0;
@@ -207,7 +192,7 @@ void* pthread_getspecific(pthread_key_t key) {
 }
 
 int pthread_setspecific(pthread_key_t key, const void* value) {
-  return SbThreadSetLocalValue((SbThreadLocalKey)key, value) ? 0 : -1;
+  return SbThreadSetLocalValue((SbThreadLocalKey)key, value)? 0: -1;
 }
 
 int pthread_setname_np(pthread_t thread, const char* name) {
@@ -226,36 +211,7 @@ int pthread_getname_np(pthread_t thread, char* name, size_t len) {
     SB_DCHECK(false);
     return -1;
   }
-  SbThreadGetName(name, len);
-  return 0;
-}
-
-int pthread_attr_init(pthread_attr_t* attr) {
-  memset(attr, 0, sizeof(pthread_attr_t)); 
-  return 0;
-}
-
-int pthread_attr_destroy(pthread_attr_t* attr) {
-  return 0;
-}
-
-int pthread_attr_getstacksize(const pthread_attr_t* attr, size_t* stack_size) {
-  *stack_size = ((pthread_attr_impl_t*)(attr->attr_buffer))->stack_size;
-  return 0;
-}
-
-int pthread_attr_setstacksize(pthread_attr_t* attr, size_t stack_size) {
-  ((pthread_attr_impl_t*)(attr->attr_buffer))->stack_size = stack_size;
-  return 0;
-}
-
-int pthread_attr_getdetachstate(const pthread_attr_t* attr, int* detach_state) {
-  *detach_state = ((pthread_attr_impl_t*)(attr->attr_buffer))->detach_state;
-  return 0;
-}
-
-int pthread_attr_setdetachstate(pthread_attr_t* attr, int detach_state) {
-  ((pthread_attr_impl_t*)(attr->attr_buffer))->detach_state = detach_state;
+  SbThreadGetName(name, len); 
   return 0;
 }
 

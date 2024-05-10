@@ -380,37 +380,3 @@ int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
                                   size_t len) {
   return pthread_getname_np(reinterpret_cast<pthread_t>(thread), name, len);
 }
-
-int __abi_wrap_pthread_attr_init(musl_pthread_attr_t* attr) {
-  return pthread_attr_init(PTHREAD_INTERNAL_ATTR(attr));
-}
-
-int __abi_wrap_pthread_attr_destroy(musl_pthread_attr_t* attr) {
-  return pthread_attr_destroy(PTHREAD_INTERNAL_ATTR(attr));
-}
-
-int __abi_wrap_pthread_attr_getstacksize(const musl_pthread_attr_t* attr,
-                                         size_t* stack_size) {
-  return pthread_attr_getstacksize(CONST_PTHREAD_INTERNAL_ATTR(attr),
-                                   stack_size);
-}
-
-int __abi_wrap_pthread_attr_setstacksize(musl_pthread_attr_t* attr,
-                                         size_t stack_size) {
-  return pthread_attr_setstacksize(PTHREAD_INTERNAL_ATTR(attr), stack_size);
-}
-
-int __abi_wrap_pthread_attr_getdetachstate(const musl_pthread_attr_t* attr,
-                                           int* detach_state) {
-  return pthread_attr_getdetachstate(CONST_PTHREAD_INTERNAL_ATTR(attr),
-                                     detach_state);
-}
-
-int __abi_wrap_pthread_attr_setdetachstate(musl_pthread_attr_t* attr,
-                                           int detach_state) {
-  int d = PTHREAD_CREATE_JOINABLE;
-  if (detach_state == MUSL_PTHREAD_CREATE_DETACHED) {
-    d = PTHREAD_CREATE_DETACHED;
-  }
-  return pthread_attr_setdetachstate(PTHREAD_INTERNAL_ATTR(attr), d);
-}

@@ -42,11 +42,6 @@ void ResetWinError();
 int RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton);
 int CountTlsObjectsRemaining(ThreadSubsystemSingleton* singleton);
 
-typedef struct pthread_attr_impl_t {
-  size_t stack_size;
-  int detach_state;
-} pthread_attr_impl_t;
-
 extern "C" {
 
 int pthread_mutex_destroy(pthread_mutex_t* mutex) {
@@ -230,20 +225,13 @@ int pthread_create(pthread_t* thread,
 
   info->entry_point_ = start_routine;
   info->user_context_ = arg;
-
   info->thread_private_.wait_for_join_ = true;
-  if (reinterpret_cast<pthread_attr_impl_t*>(*attr)->detach_state ==
-      PTHREAD_CREATE_DETACHED) {
-    info->thread_private_.wait_for_join_ = false;
-  }
 
   // Create the thread suspended, and then resume once ThreadCreateInfo::handle_
   // has been set, so that it's always valid in the ThreadCreateInfo
   // destructor.
-  unsigned int stack_size =
-      reinterpret_cast<pthread_attr_impl_t*>(*attr)->stack_size;
-  uintptr_t handle = _beginthreadex(NULL, stack_size, ThreadTrampoline, info,
-                                    CREATE_SUSPENDED, NULL);
+  uintptr_t handle =
+      _beginthreadex(NULL, 0, ThreadTrampoline, info, CREATE_SUSPENDED, NULL);
   SB_DCHECK(handle);
   info->thread_private_.handle_ = reinterpret_cast<HANDLE>(handle);
   ResetWinError();
@@ -363,38 +351,4 @@ int pthread_getname_np(pthread_t thread, char* name, size_t len) {
   starboard::strlcpy(name, thread_private->name_.c_str(), len);
   return 0;
 }
-
-int pthread_attr_init(pthread_attr_t* attr) {
-  *attr = calloc(sizeof(pthread_attr_impl_t), 1);
-  if (*attr) {
-    return 0;
-  }
-  return -1;
-}
-
-int pthread_attr_destroy(pthread_attr_t* attr) {
-  free(*attr);
-  return 0;
-}
-
-int pthread_attr_getstacksize(const pthread_attr_t* attr, size_t* stack_size) {
-  *stack_size = reinterpret_cast<pthread_attr_impl_t*>(*attr)->stack_size;
-  return 0;
-}
-
-int pthread_attr_setstacksize(pthread_attr_t* attr, size_t stack_size) {
-  reinterpret_cast<pthread_attr_impl_t*>(*attr)->stack_size = stack_size;
-  return 0;
-}
-
-int pthread_attr_getdetachstate(const pthread_attr_t* attr, int* detach_state) {
-  *detach_state = reinterpret_cast<pthread_attr_impl_t*>(*attr)->detach_state;
-  return 0;
-}
-
-int pthread_attr_setdetachstate(pthread_attr_t* attr, int detach_state) {
-  reinterpret_cast<pthread_attr_impl_t*>(*attr)->detach_state = detach_state;
-  return 0;
-}
-
 }  // extern "C"

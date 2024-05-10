@@ -25,9 +25,6 @@
 extern "C" {
 #endif
 
-#define MUSL_PTHREAD_CREATE_JOINABLE 0
-#define MUSL_PTHREAD_CREATE_DETACHED 1
-
 // Max size of the native mutex type.
 #define MUSL_MUTEX_MAX_SIZE 80
 
@@ -120,21 +117,6 @@ SB_EXPORT int __abi_wrap_pthread_setname_np(musl_pthread_t thread,
 SB_EXPORT int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
                                             char* name,
                                             size_t len);
-
-SB_EXPORT int __abi_wrap_pthread_attr_init(musl_pthread_attr_t* attr);
-SB_EXPORT int __abi_wrap_pthread_attr_destroy(musl_pthread_attr_t* attr);
-
-SB_EXPORT int __abi_wrap_pthread_attr_getstacksize(
-    const musl_pthread_attr_t* attr,
-    size_t* stack_size);
-SB_EXPORT int __abi_wrap_pthread_attr_setstacksize(musl_pthread_attr_t* attr,
-                                                   size_t stack_size);
-
-SB_EXPORT int __abi_wrap_pthread_attr_getdetachstate(
-    const musl_pthread_attr_t* attr,
-    int* detach_state);
-SB_EXPORT int __abi_wrap_pthread_attr_setdetachstate(musl_pthread_attr_t* attr,
-                                                     int detach_state);
 
 #ifdef __cplusplus
 }  // extern "C"
