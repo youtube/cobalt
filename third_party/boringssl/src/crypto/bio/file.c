@@ -177,6 +177,7 @@ BIO *BIO_new_file(const char *filename, const char *mode) {
 #if defined(OPENSSL_SYS_STARBOARD)
   SbFile sb_file = kSbFileInvalid;
   SbFileError error = kSbFileOk;
+  int file = open(filename, SbFileModeStringToFlags(mode));
   sb_file = SbFileOpen(filename, SbFileModeStringToFlags(mode), NULL, &error);
   if (!SbFileIsValid(sb_file)) {
     OPENSSL_PUT_SYSTEM_ERROR();
