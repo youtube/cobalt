@@ -14,10 +14,14 @@
 
 #if SB_API_VERSION >= 16
 
-#include "starboard/shared/modular/starboard_layer_posix_file_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 
 #include <sys/types.h>
 #include <unistd.h>
+
+int __abi_wrap_ftruncate(int fildes, musl_off_t length) {
+  return ftruncate(fildes, static_cast<off_t>(length));
+}
 
 musl_off_t __abi_wrap_lseek(int fildes, musl_off_t offset, int whence) {
   return static_cast<off_t>(lseek(fildes, static_cast<off_t>(offset), whence));
