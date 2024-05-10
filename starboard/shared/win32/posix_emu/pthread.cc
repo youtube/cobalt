@@ -226,12 +226,31 @@ int pthread_create(pthread_t* thread,
   info->entry_point_ = start_routine;
   info->user_context_ = arg;
   info->thread_private_.wait_for_join_ = true;
+<<<<<<< HEAD
+=======
+  if (attr != nullptr) {
+    if (reinterpret_cast<pthread_attr_impl_t*>(*attr)->detach_state ==
+        PTHREAD_CREATE_DETACHED) {
+      info->thread_private_.wait_for_join_ = false;
+    }
+  }
+>>>>>>> d5f561ac700 (Fix win32 pthread attributes support (#3220))
 
   // Create the thread suspended, and then resume once ThreadCreateInfo::handle_
   // has been set, so that it's always valid in the ThreadCreateInfo
   // destructor.
+<<<<<<< HEAD
   uintptr_t handle =
       _beginthreadex(NULL, 0, ThreadTrampoline, info, CREATE_SUSPENDED, NULL);
+=======
+
+  unsigned int stack_size = 0;
+  if (attr != nullptr) {
+    stack_size = reinterpret_cast<pthread_attr_impl_t*>(*attr)->stack_size;
+  }
+  uintptr_t handle = _beginthreadex(NULL, stack_size, ThreadTrampoline, info,
+                                    CREATE_SUSPENDED, NULL);
+>>>>>>> d5f561ac700 (Fix win32 pthread attributes support (#3220))
   SB_DCHECK(handle);
   info->thread_private_.handle_ = reinterpret_cast<HANDLE>(handle);
   ResetWinError();
