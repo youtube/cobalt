@@ -115,4 +115,22 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   return false;
 }
 
+ssize_t WriteAll(int file, const void* data, int size) {
+  if (file < 0 || size < 0) {
+    return -1;
+  }
+  ssize_t bytes_written = 0;
+  ssize_t rv;
+  do {
+    rv = write(file, reinterpret_cast<const char*>(data) + bytes_written,
+               size - bytes_written);
+    if (rv <= 0) {
+      break;
+    }
+    bytes_written += rv;
+  } while (bytes_written < size);
+
+  return bytes_written ? bytes_written : rv;
+}
+
 }  // namespace starboard
