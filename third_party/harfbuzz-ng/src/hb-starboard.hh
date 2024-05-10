@@ -27,14 +27,6 @@
 #define hb_calloc_impl calloc
 #define hb_free_impl free
 
-int __abi_wrap_ftruncate(int fildes, off_t length);
-
-int ftruncate(int fildes, off_t length) {
-  return __abi_wrap_ftruncate(fildes, length);
-}
-
-off_t __abi_wrap_lseek(int fildes, off_t offset, int whence);
-
 // Micro Posix Emulation
 #undef assert
 #define assert SB_DCHECK

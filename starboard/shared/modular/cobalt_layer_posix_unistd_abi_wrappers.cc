@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HB_STARBOARD_HH
-#define HB_STARBOARD_HH
+#if SB_API_VERSION >= 16
 
-#include <string.h>
+#include <unistd.h>
 
-#include "starboard/memory.h"
-#include "starboard/common/string.h"
-#include "starboard/system.h"
-#include "starboard/common/log.h"
+extern "C" {
 
-<<<<<<<< HEAD:third_party/harfbuzz-ng/src/hb-starboard.hh
-#define hb_malloc_impl malloc
-#define hb_realloc_impl realloc
-#define hb_calloc_impl calloc
-#define hb_free_impl free
-========
 int __abi_wrap_ftruncate(int fildes, off_t length);
 
 int ftruncate(int fildes, off_t length) {
@@ -35,11 +25,16 @@ int ftruncate(int fildes, off_t length) {
 }
 
 off_t __abi_wrap_lseek(int fildes, off_t offset, int whence);
->>>>>>>> 79adf53a067 (Add tests for POSIX file flush, truncate, and delete. (#3139)):starboard/shared/modular/cobalt_layer_posix_unistd_abi_wrappers.cc
 
-// Micro Posix Emulation
-#undef assert
-#define assert SB_DCHECK
-#define getenv(x) NULL
+off_t lseek(int fildes, off_t offset, int whence) {
+  return __abi_wrap_lseek(fildes, offset, whence);
+}
 
-#endif  // HB_STARBOARD_HH
+ssize_t __abi_wrap_read(int fildes, void* buf, size_t nbyte);
+
+ssize_t read(int fildes, void* buf, size_t nbyte) {
+  return __abi_wrap_read(fildes, buf, nbyte);
+}
+}
+
+#endif  // SB_API_VERSION >= 16
