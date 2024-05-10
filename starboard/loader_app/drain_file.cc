@@ -177,11 +177,10 @@ bool TryDrain(const char* dir, const char* app_key) {
   path.append(filename);
 
   SbFileError error = kSbFileOk;
-  SbFile file = SbFileOpen(path.c_str(), kSbFileCreateAlways | kSbFileWrite,
-                           NULL, &error);
+  int file = open(path.c_str(), O_CREAT | O_WRONLY);
 
-  SB_DCHECK(error == kSbFileOk);
-  SB_DCHECK(SbFileClose(file));
+  SB_DCHECK(file >= 0);
+  SB_DCHECK(close(file));
 
   SB_LOG(INFO) << "Created drain file at '" << path << "'";
 
