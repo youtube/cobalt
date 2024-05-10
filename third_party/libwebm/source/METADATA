@@ -11,7 +11,7 @@ third_party {
     type: "Git"
     value: "https://chromium.googlesource.com/webm/libwebm.git"
     version: "e4fbea0c9751ae8aa86629b197a28d8276a2b0da"
-    # from https://chromium.googlesource.com/chromium/src/+/refs/tags/114.0.5735.331/DEPS#1544
+    # from https://chromium.googlesource.com/chromium/src/+/114.0.5735.358/DEPS#1545
   }
   last_upgrade_date {
     year: 2024
