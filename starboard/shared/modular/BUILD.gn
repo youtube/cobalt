@@ -17,8 +17,6 @@
 if (sb_is_modular || sb_is_evergreen_compatible) {
   source_set("starboard_layer_posix_abi_wrappers") {
     sources = [
-      "starboard_layer_posix_file_abi_wrappers.cc",
-      "starboard_layer_posix_file_abi_wrappers.h",
       "starboard_layer_posix_mmap_abi_wrappers.cc",
       "starboard_layer_posix_mmap_abi_wrappers.h",
       "starboard_layer_posix_pthread_abi_wrappers.cc",
@@ -41,7 +39,6 @@ if (sb_is_modular && !sb_is_evergreen &&
     current_toolchain == cobalt_toolchain) {
   source_set("cobalt_layer_posix_abi_wrappers") {
     sources = [
-      "cobalt_layer_posix_file_abi_wrappers.cc",
       "cobalt_layer_posix_mmap_abi_wrappers.cc",
       "cobalt_layer_posix_pthread_abi_wrappers.cc",
       "cobalt_layer_posix_stat_abi_wrappers.cc",

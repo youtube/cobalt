@@ -51,7 +51,6 @@
 #include "starboard/mutex.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
-#include "starboard/shared/modular/starboard_layer_posix_file_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"

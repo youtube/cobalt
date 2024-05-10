@@ -343,12 +343,4 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
   return 0;
 }
 
-int sb_fstat(int fd, struct stat* buffer) {
-  FileOrSocket handle = handle_db_get(fd, false);
-  if (!handle.is_file) {
-    return -1;
-  }
-  return _fstat(handle.file, (struct _stat*)buffer);
-}
-
 }  // extern "C"
