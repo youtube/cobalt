@@ -232,16 +232,21 @@ int pthread_create(pthread_t* thread,
   info->user_context_ = arg;
 
   info->thread_private_.wait_for_join_ = true;
-  if (reinterpret_cast<pthread_attr_impl_t*>(*attr)->detach_state ==
-      PTHREAD_CREATE_DETACHED) {
-    info->thread_private_.wait_for_join_ = false;
+  if (attr != nullptr) {
+    if (reinterpret_cast<pthread_attr_impl_t*>(*attr)->detach_state ==
+        PTHREAD_CREATE_DETACHED) {
+      info->thread_private_.wait_for_join_ = false;
+    }
   }
 
   // Create the thread suspended, and then resume once ThreadCreateInfo::handle_
   // has been set, so that it's always valid in the ThreadCreateInfo
   // destructor.
-  unsigned int stack_size =
-      reinterpret_cast<pthread_attr_impl_t*>(*attr)->stack_size;
+
+  unsigned int stack_size = 0;
+  if (attr != nullptr) {
+    stack_size = reinterpret_cast<pthread_attr_impl_t*>(*attr)->stack_size;
+  }
   uintptr_t handle = _beginthreadex(NULL, stack_size, ThreadTrampoline, info,
                                     CREATE_SUSPENDED, NULL);
   SB_DCHECK(handle);
