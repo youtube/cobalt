@@ -229,13 +229,13 @@ bool ProcessTTF(ots::FontFile *header,
   // Don't call ots_failure() here since ~25% of fonts (250+ fonts) in
   // http://www.princexml.com/fonts/ have unexpected search_range value.
   if (font->search_range != expected_search_range) {
-    OTS_WARNING_MSG_HDR("bad search range");
+    OTS_WARNING_MSG_HDR("bad table directory searchRange");
     font->search_range = expected_search_range;  // Fix the value.
   }
 
   // entry_selector is Log2(maximum power of 2 <= numTables)
   if (font->entry_selector != max_pow2) {
-    OTS_WARNING_MSG_HDR("incorrect entrySelector for table directory");
+    OTS_WARNING_MSG_HDR("bad table directory entrySelector");
     font->entry_selector = max_pow2;  // Fix the value.
   }
 
@@ -245,7 +245,7 @@ bool ProcessTTF(ots::FontFile *header,
   const uint16_t expected_range_shift =
       16 * font->num_tables - font->search_range;
   if (font->range_shift != expected_range_shift) {
-    OTS_WARNING_MSG_HDR("bad range shift");
+    OTS_WARNING_MSG_HDR("bad table directory rangeShift");
     font->range_shift = expected_range_shift;  // the same as above.
   }
 
@@ -531,6 +531,10 @@ bool ProcessWOFF2(ots::FontFile *header,
                                OTS_MAX_DECOMPRESSED_FILE_SIZE / (1024.0 * 1024.0));
   }
 
+  if (decompressed_size > output->size()) {
+    return OTS_FAILURE_MSG_HDR("Size of decompressed WOFF 2.0 font exceeds output size (%gMB)", output->size() / (1024.0 * 1024.0));
+  }
+
   std::string buf(decompressed_size, 0);
   woff2::WOFF2StringOut out(&buf);
   if (!woff2::ConvertWOFF2ToTTF(data, length, &out)) {
@@ -670,6 +674,10 @@ bool ProcessGeneric(ots::FontFile *header,
   if (uncompressed_sum > OTS_MAX_DECOMPRESSED_FILE_SIZE) {
     return OTS_FAILURE_MSG_HDR("decompressed sum exceeds %gMB",
                                OTS_MAX_DECOMPRESSED_FILE_SIZE / (1024.0 * 1024.0));        
+  }
+
+  if (uncompressed_sum > output->size()) {
+    return OTS_FAILURE_MSG_HDR("decompressed sum exceeds output size (%gMB)", output->size() / (1024.0 * 1024.0));
   }
 
   // check that the tables are not overlapping.
