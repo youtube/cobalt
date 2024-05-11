@@ -358,6 +358,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool force_big_endian_hdr_metadata,
                            int max_video_input_size,
                            bool enable_flush_during_seek,
+                           bool use_mediacodec_callback_thread,
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -376,7 +377,8 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       number_of_preroll_frames_(kInitialPrerollFrameCount),
-      enable_flush_during_seek_(enable_flush_during_seek) {
+      enable_flush_during_seek_(enable_flush_during_seek),
+      use_mediacodec_callback_thread_(use_mediacodec_callback_thread) {
   SB_DCHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -731,7 +733,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, error_message));
+      max_video_input_size_, use_mediacodec_callback_thread_, error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

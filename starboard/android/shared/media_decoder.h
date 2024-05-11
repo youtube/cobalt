@@ -98,6 +98,7 @@ class MediaDecoder
                int tunnel_mode_audio_session_id,
                bool force_big_endian_hdr_metadata,
                int max_video_input_size,
+               bool use_mediacodec_callback_thread,
                std::string* error_message);
   ~MediaDecoder();
 

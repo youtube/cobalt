@@ -92,6 +92,10 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                      false)) {
       MaxMediaCodecOutputBuffersLookupTable::GetInstance()->SetEnabled(false);
     }
+
+    if (!mime_type->ValidateBoolParameter("mediacodeccallbackthread")) {
+      return false;
+    }
   }
 
   if (must_support_tunnel_mode && decode_to_texture_required) {
