@@ -85,10 +85,8 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   // The |path| points to a file. Remove it and return.
   if (!dir) {
-    return SbFileDelete(path);
+    return (unlink(path) == 0);
   }
-
-  SbFileInfo info;
 
   std::vector<char> entry(kSbFileMaxName);
 
@@ -120,7 +118,7 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   // Don't forget to close and remove the directory before returning!
   if (DirectoryCloseLogFailure(path, dir)) {
-    return preserve_root ? true : SbFileDelete(path);
+    return preserve_root ? true : (rmdir(path) == 0);
   }
   return false;
 }
