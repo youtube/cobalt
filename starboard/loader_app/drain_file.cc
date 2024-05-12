@@ -177,7 +177,7 @@ bool TryDrain(const char* dir, const char* app_key) {
   path.append(filename);
 
   SbFileError error = kSbFileOk;
-  int file = open(path.c_str(), O_CREAT | O_WRONLY);
+  int file = open(path.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 
   SB_DCHECK(file >= 0);
   SB_DCHECK(close(file));
