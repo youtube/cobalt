@@ -152,6 +152,7 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_file_open_test.cc",
     "posix_compliance/posix_file_read_test.cc",
     "posix_compliance/posix_file_seek_test.cc",
+    "posix_compliance/posix_file_write_test.cc",
     "posix_compliance/posix_memory_allocate_aligned_test.cc",
     "posix_compliance/posix_memory_allocate_test.cc",
     "posix_compliance/posix_memory_deallocate_aligned_test.cc",

@@ -495,6 +495,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);
+  REGISTER_SYMBOL(write);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
