@@ -1096,8 +1096,6 @@ TEST_F(PathBuilderKeyRolloverTest, TestAnchorsNoMatchAndNoIssuerSources) {
   EXPECT_EQ(target_, path.certs[0]);
 }
 
-// TODO(b/331674431) Re-enable after fix.
-#if !defined(STARBOARD)
 // If a path to a trust anchor could not be found, and the last issuer(s) in
 // the chain were culled by the loop checker, the partial path up to that point
 // should be returned.
@@ -1151,7 +1149,6 @@ TEST_F(PathBuilderKeyRolloverTest, TestReturnsPartialPathEndedByLoopChecker) {
     EXPECT_TRUE(path.errors.ContainsError(cert_errors::kNoIssuersFound));
   }
 }
-#endif
 
 // Tests that multiple trust root matches on a single path will be considered.
 // Both roots have the same subject but different keys. Only one of them will
