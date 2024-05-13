@@ -14,7 +14,12 @@
 
 # TODO: b/315170518 - Revert to static library after fixing
 # symbol visibility issues for windows based modular platform builds.
+<<<<<<< HEAD
 if (sb_is_modular || sb_is_evergreen_compatible) {
+=======
+if ((sb_is_modular || sb_is_evergreen_compatible) &&
+    current_toolchain == starboard_toolchain) {
+>>>>>>> be169156ee8 (Refine the build toolchain requirement for _abi_wrapper (#3202))
   source_set("starboard_layer_posix_abi_wrappers") {
     sources = [
       "starboard_layer_posix_mmap_abi_wrappers.cc",
