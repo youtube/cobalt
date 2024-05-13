@@ -194,6 +194,7 @@ static_library("dom") {
     "media_settings.cc",
     "media_source.cc",
     "media_source.h",
+    "media_source_attachment.h",
     "memory_info.cc",
     "memory_info.h",
     "mime_type_array.cc",

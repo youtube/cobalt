@@ -40,6 +40,7 @@
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_settings.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/url_fetcher_data_source.h"
@@ -892,8 +893,10 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
       return;
     }
 
-    media_source_ =
-        html_element_context()->media_source_registry()->Retrieve(url.spec());
+    media_source_ = html_element_context()
+                        ->media_source_registry()
+                        ->Retrieve(url.spec())
+                        ->media_source();
     if (!media_source_) {
       NoneSupported("Media source is NULL.");
       return;
