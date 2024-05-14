@@ -16,7 +16,7 @@
 
 #include "starboard/common/semaphore.h"
 #include "starboard/common/time.h"
-#include "starboard/nplb/thread_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -49,7 +49,7 @@ TEST(Semaphore, InitialValue_One) {
   EXPECT_FALSE(semaphore.TakeTry());
 }
 
-class ThreadTakesSemaphore : public AbstractTestThread {
+class ThreadTakesSemaphore : public posix::AbstractTestThread {
  public:
   explicit ThreadTakesSemaphore(Semaphore* s) : semaphore_(s) {}
   void Run() override { semaphore_->Take(); }
@@ -65,7 +65,7 @@ TEST(Semaphore, ThreadTakes) {
   thread.Join();
 }
 
-class ThreadTakesWaitSemaphore : public AbstractTestThread {
+class ThreadTakesWaitSemaphore : public posix::AbstractTestThread {
  public:
   explicit ThreadTakesWaitSemaphore(int64_t wait_us)
       : thread_started_(false),
@@ -153,7 +153,7 @@ TEST(Semaphore, ThreadTakesWait_TimeExpires) {
   EXPECT_TRUE(false) << "Thread waited, but time exceeded expectations.";
 }
 
-class ThreadPutsSemaphore : public AbstractTestThread {
+class ThreadPutsSemaphore : public posix::AbstractTestThread {
  public:
   explicit ThreadPutsSemaphore(Semaphore* s) : semaphore_(s) {}
   void Run() override { semaphore_->Put(); }
