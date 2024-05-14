@@ -17,7 +17,7 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include "starboard/nplb/thread_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -32,7 +32,7 @@ struct TestContext {
 };
 
 void* EntryPoint(void* parameter) {
-  pthread_setname_np(pthread_self(), nplb::kThreadName);
+  pthread_setname_np(pthread_self(), posix::kThreadName);
   TestContext* context = static_cast<TestContext*>(parameter);
   context->was_locked_ = (pthread_mutex_trylock(context->mutex_) == 0);
   return NULL;
