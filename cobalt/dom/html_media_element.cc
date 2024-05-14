@@ -893,10 +893,16 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
       return;
     }
 
-    media_source_ = html_element_context()
-                        ->media_source_registry()
-                        ->Retrieve(url.spec())
-                        ->media_source();
+    scoped_refptr<MediaSourceAttachment> attachment =
+        html_element_context()->media_source_registry()->Retrieve(url.spec());
+
+    if (!attachment) {
+      NoneSupported("Media source is NULL.");
+      return;
+    }
+
+    media_source_ = attachment->media_source();
+
     if (!media_source_) {
       NoneSupported("Media source is NULL.");
       return;
