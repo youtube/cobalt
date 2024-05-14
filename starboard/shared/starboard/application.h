@@ -18,6 +18,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 #define STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 
+#include <pthread.h>
+
 #include <memory>
 #include <vector>
 
@@ -32,7 +34,6 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/thread.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
 
@@ -376,7 +377,7 @@ class Application {
 
   // Returns whether the current thread is the Application thread.
   bool IsCurrentThread() const {
-    return SbThreadIsEqual(thread_, SbThreadGetCurrent());
+    return pthread_equal(thread_, pthread_self());
   }
 
   // Returns the current application state.
@@ -439,7 +440,7 @@ class Application {
 
   // The thread that this application was created on, which is assumed to be the
   // main thread.
-  SbThread thread_;
+  pthread_t thread_;
 
   // CommandLine instance initialized in |Run|.
   std::unique_ptr<CommandLine> command_line_;

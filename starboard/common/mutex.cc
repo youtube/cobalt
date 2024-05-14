@@ -47,28 +47,28 @@ void Mutex::Release() const {
 
 void Mutex::DCheckAcquired() const {
 #ifdef _DEBUG
-  SB_DCHECK(current_thread_acquired_ == SbThreadGetCurrent());
+  SB_DCHECK(pthread_equal(current_thread_acquired_, pthread_self()));
 #endif  // _DEBUG
 }
 
 #ifdef _DEBUG
 void Mutex::debugInit() {
-  current_thread_acquired_ = kSbThreadInvalid;
+  current_thread_acquired_ = 0;
 }
 void Mutex::debugSetReleased() const {
-  SbThread current_thread = SbThreadGetCurrent();
-  SB_DCHECK(current_thread_acquired_ == current_thread);
-  current_thread_acquired_ = kSbThreadInvalid;
+  pthread_t current_thread = pthread_self();
+  SB_DCHECK(pthread_equal(current_thread_acquired_, current_thread));
+  current_thread_acquired_ = 0;
 }
 void Mutex::debugPreAcquire() const {
   // Check that the mutex is not held by the current thread.
-  SbThread current_thread = SbThreadGetCurrent();
-  SB_DCHECK(current_thread_acquired_ != current_thread);
+  pthread_t current_thread = pthread_self();
+  SB_DCHECK(pthread_equal(current_thread_acquired_, current_thread));
 }
 void Mutex::debugSetAcquired() const {
   // Check that the thread has already not been held.
-  SB_DCHECK(current_thread_acquired_ == kSbThreadInvalid);
-  current_thread_acquired_ = SbThreadGetCurrent();
+  SB_DCHECK(current_thread_acquired_ == 0);
+  current_thread_acquired_ = pthread_self();
 }
 #else
 void Mutex::debugInit() {}
