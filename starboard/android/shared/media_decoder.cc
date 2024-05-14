@@ -172,6 +172,9 @@ MediaDecoder::~MediaDecoder() {
       SB_LOG(ERROR) << "Failed to flush media codec.";
     }
     host_ = NULL;
+    // Clear the native media codec bridge handle in java layer to prevent
+    // calling mediacodec callbacks with an invalid handle.
+    media_codec_bridge_.reset();
   }
 }
 
