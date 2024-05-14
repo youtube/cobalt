@@ -28,7 +28,7 @@ def is_on_same_path(file_path):
     file_path: The path to the file that should be checked.
 
   Returns:
-    True if the file is in the first entry on PYTHONPATH, False otherwise.
+    True if file_path is a file in the same repo as this file, otherwise False.
   """
   return os.path.abspath(file_path).startswith(SRC_ROOT)
 
