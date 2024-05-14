@@ -157,7 +157,7 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
   while (it != waitees_.end()) {
     Waitee* waitee = it->second;
     ++it;  // Increment before removal.
-    Remove(waitee->socket);
+    Remove(waitee->socket, waitee->waiter);
   }
 
   event_del(&wakeup_event_);
@@ -171,6 +171,8 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
   SbSocketDestroy(client_socket_);
 #endif
 }
+
+#if SB_API_VERSION <= 15
 
 bool SbSocketWaiterPrivate::Add(SbSocket socket,
                                 void* context,
@@ -260,6 +262,100 @@ bool SbSocketWaiterPrivate::Remove(SbSocket socket) {
   return true;
 }
 
+#else
+
+bool SbSocketWaiterPrivate::Add(int socket,
+                                SbSocketWaiter waiter,
+                                void* context,
+                                SocketWaiterCallback callback,
+                                int interests,
+                                bool persistent) {
+  SB_DCHECK(SbThreadIsCurrent(thread_));
+
+  if (socket < 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+
+  if (!interests) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": No interests provided.";
+    return false;
+  }
+
+  // The policy is not to add a socket to a waiter if it is registered with
+  // another waiter.
+
+  // TODO: If anyone were to want to add a socket to a different waiter,
+  // it would probably be another thread, so doing this check without locking is
+  // probably wrong. But, it is also a pain, and, at this precise moment, socket
+  // access is all going to come from one I/O thread anyway, and there will only
+  // be one waiter.
+  if (SbSocketWaiterIsValid(waiter)) {
+    if (waiter == this) {
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has this waiter ("
+                     << this << ").";
+    } else {
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has waiter ("
+                     << waiter << ", this=" << this << ").";
+    }
+    return false;
+  }
+
+  Waitee* waitee =
+      new Waitee(this, socket, context, callback, interests, persistent);
+  AddWaitee(waitee);
+
+  int16_t events = 0;
+  if (interests & kSbSocketWaiterInterestRead) {
+    events |= EV_READ;
+  }
+
+  if (interests & kSbSocketWaiterInterestWrite) {
+    events |= EV_WRITE;
+  }
+
+  if (persistent) {
+    events |= EV_PERSIST;
+  }
+
+  event_set(&waitee->event, socket, events,
+            &SbSocketWaiterPrivate::LibeventSocketCallback, waitee);
+  event_base_set(base_, &waitee->event);
+  waiter = this;
+  event_add(&waitee->event, NULL);
+  return true;
+}
+
+bool SbSocketWaiterPrivate::Remove(int socket, SbSocketWaiter waiter) {
+  SB_DCHECK(SbThreadIsCurrent(thread_));
+  if (socket < 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+
+  if (waiter != this) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") "
+                   << "is watched by Waiter (" << waiter << "), "
+                   << "not this Waiter (" << this << ").";
+    SB_DSTACK(ERROR);
+    return false;
+  }
+
+  Waitee* waitee = RemoveWaitee(socket);
+  if (!waitee) {
+    return false;
+  }
+
+  event_del(&waitee->event);
+  waiter = kSbSocketWaiterInvalid;
+
+  delete waitee;
+  return true;
+}
+
+
+#endif  // SB_API_VERSION <= 15
+
 void SbSocketWaiterPrivate::Wait() {
   SB_DCHECK(SbThreadIsCurrent(thread_));
 
@@ -348,12 +444,21 @@ void SbSocketWaiterPrivate::HandleSignal(Waitee* waitee,
   // Remove the non-persistent waitee before calling the callback, so that we
   // can add another waitee in the callback if we need to. This is also why we
   // copy all the fields we need out of waitee.
+#if SB_API_VERSION <= 15
   SbSocket socket = waitee->socket;
   void* context = waitee->context;
   SbSocketWaiterCallback callback = waitee->callback;
   if (!waitee->persistent) {
     Remove(waitee->socket);
   }
+#else
+  int socket = waitee->socket;
+  void* context = waitee->context;
+  SocketWaiterCallback callback = waitee->callback;
+  if (!waitee->persistent) {
+    Remove(waitee->socket, waitee->waiter);
+  }
+#endif
 
   callback(this, socket, context, interests);
 }
@@ -374,8 +479,13 @@ void SbSocketWaiterPrivate::AddWaitee(Waitee* waitee) {
   waitees_.insert(std::make_pair(waitee->socket, waitee));
 }
 
+#if SB_API_VERSION <= 15
 SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::GetWaitee(
     SbSocket socket) {
+#else
+SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::GetWaitee(
+    int socket) {
+#endif
   WaiteesMap::iterator it = waitees_.find(socket);
   if (it == waitees_.end()) {
     return NULL;
@@ -384,8 +494,13 @@ SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::GetWaitee(
   return it->second;
 }
 
+#if SB_API_VERSION <= 15
 SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::RemoveWaitee(
     SbSocket socket) {
+#else
+SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::RemoveWaitee(
+    int socket) {
+#endif
   WaiteesMap::iterator it = waitees_.find(socket);
   if (it == waitees_.end()) {
     return NULL;

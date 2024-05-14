@@ -26,7 +26,11 @@ namespace net {
 SocketDescriptor CreatePlatformSocket(int family, int type, int protocol) {
 #if defined(STARBOARD)
   NOTREACHED();
+#if SB_API_VERSION <= 15
   return kSbSocketInvalid;
+#else
+  return kSocketInvalid;
+#endif  // SB_API_VERSION <= 15
 #elif BUILDFLAG(IS_WIN)
   EnsureWinsockInit();
   SocketDescriptor result = ::WSASocket(family, type, protocol, nullptr, 0,

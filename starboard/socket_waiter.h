@@ -187,6 +187,33 @@ SB_EXPORT SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter,
 // |waiter|: The socket waiter to be woken up.
 SB_EXPORT void SbSocketWaiterWakeUp(SbSocketWaiter waiter);
 
+
+#if SB_API_VERSION >= 16
+
+// Function pointer for socket waiter callbacks.
+typedef void (*SocketWaiterCallback)(SbSocketWaiter waiter,
+                                     int socket,
+                                     void* context,
+                                     int ready_interests);
+
+SB_EXPORT bool SocketWaiterRemove(SbSocketWaiter waiter, int socket);
+
+SB_EXPORT bool SocketWaiterAdd(SbSocketWaiter waiter,
+                                 int socket,
+                                 void* context,
+                                 SocketWaiterCallback callback,
+                                 int interests,
+                                 bool persistent);
+
+// Well-defined value for an invalid socket watcher handle.
+#define kSocketWaiterInvalid ((SbSocketWaiter)NULL)
+
+static inline bool SocketWaiterIsValid(SbSocketWaiter watcher) {
+  return watcher != kSocketWaiterInvalid;
+}
+
+#endif  // SB_API_VERSION >= 16
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
