@@ -381,16 +381,16 @@ if (is_android && enable_java_templates) {
 if (use_cobalt_customizations) {
   data_dir = "cobalt"
 } else {
-  if (is_android) {
-    # Use android_small for now to keep the size till we decide to switch to the new one.
-    data_dir = "android_small"
-  } else if (is_ios) {
-    data_dir = "ios"
-  } else if (is_chromeos) {
-    data_dir = "chromeos"
-  } else {
-    data_dir = "common"
-  }
+if (is_android) {
+  # Use android_small for now to keep the size till we decide to switch to the new one.
+  data_dir = "android_small"
+} else if (is_ios) {
+  data_dir = "ios"
+} else if (is_chromeos) {
+  data_dir = "chromeos"
+} else {
+  data_dir = "common"
+}
 }
 
 if (use_cobalt_customizations) {
@@ -400,12 +400,12 @@ if (use_cobalt_customizations) {
     data_bundle_prefix = "icudt68b"
   }
 } else {
-  if (current_cpu == "mips" || current_cpu == "mips64" ||
-      host_byteorder == "big") {
-    data_bundle_prefix = "icudtb"
-  } else {
-    data_bundle_prefix = "icudtl"
-  }
+if (current_cpu == "mips" || current_cpu == "mips64" ||
+    host_byteorder == "big") {
+  data_bundle_prefix = "icudtb"
+} else {
+  data_bundle_prefix = "icudtl"
+}
 }
 data_bundle = "${data_bundle_prefix}.dat"
 
