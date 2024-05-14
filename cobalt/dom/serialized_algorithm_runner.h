@@ -91,7 +91,7 @@ class SerializedAlgorithmRunner {
           : synchronization_required_(synchronization_required), mutex_(mutex) {
         if (synchronization_required_) {
           // Crash if we are trying to re-acquire again on the same thread.
-          CHECK_NE(acquired_thread_id_, SbThreadGetId());
+          CHECK(!pthread_equal(acquired_thread_id_, pthread_self()));
 
           int64_t start_usec = starboard::CurrentMonotonicTime();
           int64_t wait_interval_usec =
@@ -112,13 +112,13 @@ class SerializedAlgorithmRunner {
             CHECK_LT(starboard::CurrentMonotonicTime() - start_usec,
                      1 * base::Time::kMicrosecondsPerSecond);
           }
-          acquired_thread_id_ = SbThreadGetId();
+          acquired_thread_id_ = pthread_self();
         }
       }
       ~ScopedLockWhenRequired() {
         if (synchronization_required_) {
-          CHECK_EQ(acquired_thread_id_, SbThreadGetId());
-          acquired_thread_id_ = kSbThreadInvalidId;
+          CHECK(pthread_equal(acquired_thread_id_, pthread_self()));
+          acquired_thread_id_ = 0;
           mutex_.Release();
         }
       }
@@ -126,7 +126,7 @@ class SerializedAlgorithmRunner {
      private:
       const bool synchronization_required_;
       const starboard::Mutex& mutex_;
-      SbThreadId acquired_thread_id_ = kSbThreadInvalidId;
+      pthread_t acquired_thread_id_ = 0;
     };
 
     Handle(bool synchronization_required,
