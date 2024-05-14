@@ -1,0 +1,147 @@
+# proto-file: third_party/libiamf/cli/proto/user_metadata.proto
+# proto-message: UserMetadata
+
+test_vector_metadata {
+  human_readable_description:
+    "A simple example of a stereo IAMF stream with an extra redundant sequence "
+    "header inserted after the initial descriptor OBUs."
+  file_name_prefix: "test_000078"
+  is_valid: true
+  mp4_fixed_timestamp: "2023-07-12 00:00:00"
+  primary_tested_spec_sections: [
+    "3.2/obu_redundant_copy"
+  ]
+  base_test: "test_000003"
+}
+
+ia_sequence_header_metadata {
+  ia_code: 0x69616d66  # "iamf"
+  primary_profile: PROFILE_VERSION_SIMPLE
+  additional_profile: PROFILE_VERSION_SIMPLE
+}
+
+codec_config_metadata {
+  codec_config_id: 200
+  codec_config {
+    codec_id: 0x6970636d  # "ipcm"
+    num_samples_per_frame: 128
+    audio_roll_distance: 0
+    decoder_config_lpcm {
+      sample_format_flags: LPCM_LITTLE_ENDIAN
+      sample_size: 16
+      sample_rate: 16000
+    }
+  }
+}
+
+audio_element_metadata {
+  audio_element_id: 300
+  audio_element_type: AUDIO_ELEMENT_CHANNEL_BASED
+  reserved: 0
+  codec_config_id: 200
+  num_substreams: 1
+  audio_substream_ids: [0]
+  num_parameters: 0
+  scalable_channel_layout_config {
+    num_layers: 1
+    reserved: 0
+    channel_audio_layer_configs: [
+      {
+        loudspeaker_layout: 1  # Stereo
+        output_gain_is_present_flag: 0
+        recon_gain_is_present_flag: 0
+        reserved_a: 0
+        substream_count: 1
+        coupled_substream_count: 1
+      }
+    ]
+  }
+}
+
+mix_presentation_metadata {
+  mix_presentation_id: 42
+  count_label: 1
+  language_labels: ["en-us"]
+  mix_presentation_annotations_array: [
+    {
+      mix_presentation_friendly_label: "test_mix_pres"
+    }
+  ]
+  num_sub_mixes: 1
+  sub_mixes {
+    num_audio_elements: 1
+    audio_elements {
+      audio_element_id: 300
+      mix_presentation_element_annotations_array: [
+        {
+          audio_element_friendly_label: "test_sub_mix_0_audio_element_0"
+        }
+      ]
+      rendering_config {
+        headphones_rendering_mode: HEADPHONES_RENDERING_MODE_STEREO
+      }
+      element_mix_config {
+        mix_gain {
+          param_definition {
+            parameter_id: 100
+            parameter_rate: 16000
+            param_definition_mode: 1
+            reserved: 0
+          }
+          default_mix_gain: 0
+        }
+      }
+    }
+    output_mix_config {
+      output_mix_gain {
+        param_definition {
+          parameter_id: 100
+          parameter_rate: 16000
+          param_definition_mode: 1
+          reserved: 0
+        }
+        default_mix_gain: 0
+      }
+    }
+    num_layouts: 1
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_A_0_2_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -13733
+        digital_peak: -12879
+      }
+    }
+  }
+}
+
+arbitrary_obu_metadata {
+  insertion_hook: INSERTION_HOOK_AFTER_DESCRIPTORS
+  obu_header {
+    obu_type: OBU_IA_SEQUENCE_HEADER
+    obu_redundant_copy: true
+    obu_trimming_status_flag: false
+    obu_extension_flag: false
+    obu_size: 6
+  }
+  payload: "iamf\x00\x00"
+}
+
+audio_frame_metadata {
+  wav_filename: "sawtooth_100_stereo.wav"
+  samples_to_trim_at_end: 64
+  samples_to_trim_at_start: 0
+  audio_element_id: 300
+  channel_ids: [0, 1]
+  channel_labels: ["L2", "R2"]
+}
+
+temporal_delimiter_metadata {
+  enable_temporal_delimiters: false
+}

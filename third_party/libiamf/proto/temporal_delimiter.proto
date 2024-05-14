@@ -1,0 +1,7 @@
+syntax = "proto2";
+
+package libiamf_proto;
+
+message TemporalDelimiterObuMetadata {
+  optional bool enable_temporal_delimiters = 1;
+}

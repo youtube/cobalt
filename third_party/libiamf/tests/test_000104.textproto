@@ -1,0 +1,128 @@
+# proto-file: third_party/libiamf/cli/proto/user_metadata.proto
+# proto-message: UserMetadata
+
+test_vector_metadata {
+  human_readable_description:
+    "A zero-order ambisonics IAMF stream encoded using "
+    "`ambisonics_mode` = `PROJECTION`."
+  file_name_prefix: "test_000104"
+  is_valid: true
+  mp4_fixed_timestamp: "2023-05-12 00:00:00"
+  primary_tested_spec_sections: ["3.6.3/ambisonics_projection_config"]
+  base_test: "test_000042"
+}
+
+ia_sequence_header_metadata {
+  ia_code: 0x69616d66  # "iamf"
+  primary_profile: PROFILE_VERSION_SIMPLE
+  additional_profile: PROFILE_VERSION_SIMPLE
+}
+
+codec_config_metadata {
+  codec_config_id: 200
+  codec_config {
+    codec_id: 0x6970636d  # "ipcm"
+    num_samples_per_frame: 1024
+    audio_roll_distance: 0
+    decoder_config_lpcm {
+      sample_format_flags: LPCM_LITTLE_ENDIAN
+      sample_size: 16
+      sample_rate: 48000
+    }
+  }
+}
+
+audio_element_metadata {
+  audio_element_id: 300
+  audio_element_type: AUDIO_ELEMENT_SCENE_BASED
+  reserved: 0
+  codec_config_id: 200
+  num_substreams: 1
+  audio_substream_ids: [0]
+  num_parameters: 0
+  ambisonics_config {
+    ambisonics_mode: AMBISONICS_MODE_PROJECTION
+    ambisonics_projection_config {
+      output_channel_count: 1
+      substream_count: 1
+      coupled_substream_count: 0
+      demixing_matrix: [32767]
+    }
+  }
+}
+
+mix_presentation_metadata {
+  mix_presentation_id: 42
+  count_label: 1
+  language_labels: ["en-us"]
+  mix_presentation_annotations_array: [
+    {
+      mix_presentation_friendly_label: "test_mix_pres"
+    }
+  ]
+  num_sub_mixes: 1
+  sub_mixes {
+    num_audio_elements: 1
+    audio_elements {
+      audio_element_id: 300
+      mix_presentation_element_annotations_array: [
+        {
+          audio_element_friendly_label: "test_sub_mix_0_audio_element_0"
+        }
+      ]
+      rendering_config {
+        headphones_rendering_mode: HEADPHONES_RENDERING_MODE_STEREO
+      }
+      element_mix_config {
+        mix_gain {
+          param_definition {
+            parameter_id: 999  # Non-existent; default will be used
+            parameter_rate: 48000
+            param_definition_mode: 1
+            reserved: 0
+          }
+          default_mix_gain: 0
+        }
+      }
+    }
+    output_mix_config {
+      output_mix_gain {
+        param_definition {
+          parameter_id: 998  # Non-existent; default will be used
+          parameter_rate: 48000
+          param_definition_mode: 1
+          reserved: 0
+        }
+        default_mix_gain: 0
+      }
+    }
+    num_layouts: 1
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_A_0_2_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -2365
+        digital_peak: -770
+      }
+    }
+  }
+}
+
+audio_frame_metadata {
+  wav_filename: "Transport_TOA_5s.wav"
+  samples_to_trim_at_end: 640
+  samples_to_trim_at_start: 0
+  audio_element_id: 300
+  channel_ids: [0]
+  channel_labels: ["A0"]
+}
+
+temporal_delimiter_metadata {
+  enable_temporal_delimiters: false
+}

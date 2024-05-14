@@ -1,0 +1,160 @@
+syntax = "proto2";
+
+package libiamf_proto;
+
+// Valid proto enums start at index 1, which are different from the
+// corresponding enums in C, e.g. kLpcmBigEndian = 0.
+enum LpcmFormatFlags {
+  LPCM_INVALID = 0;
+  LPCM_BIG_ENDIAN = 1;
+  LPCM_LITTLE_ENDIAN = 2;
+}
+
+message DecoderConfigLpcm {
+  optional LpcmFormatFlags sample_format_flags = 1;
+  optional uint32 sample_size = 2;
+  optional uint32 sample_rate = 3;
+}
+
+enum OpusApplicationFlag {
+  APPLICATION_INVALID = 0;
+  APPLICATION_VOIP = 1;
+  APPLICATION_AUDIO = 2;
+  APPLICATION_RESTRICTED_LOWDELAY = 3;
+}
+
+// Settings to configure `libopus`.
+message OpusEncoderMetadata {
+  optional int32 target_bitrate = 1;
+  optional OpusApplicationFlag application = 2;
+}
+
+message DecoderConfigOpus {
+  optional uint32 version = 1;
+  optional uint32 output_channel_count = 2;
+  optional uint32 pre_skip = 3;
+  optional uint32 input_sample_rate = 4;
+  optional int32 output_gain = 5;
+  optional uint32 mapping_family = 6;
+  optional OpusEncoderMetadata opus_encoder_metadata = 7;
+}
+
+enum AacSampleFrequencyIndex {
+  AAC_SAMPLE_FREQUENCY_INDEX_INVALID = 0;
+  AAC_SAMPLE_FREQUENCY_INDEX_96000 = 1;
+  AAC_SAMPLE_FREQUENCY_INDEX_88200 = 2;
+  AAC_SAMPLE_FREQUENCY_INDEX_64000 = 3;
+  AAC_SAMPLE_FREQUENCY_INDEX_48000 = 4;
+  AAC_SAMPLE_FREQUENCY_INDEX_44100 = 5;
+  AAC_SAMPLE_FREQUENCY_INDEX_32000 = 6;
+  AAC_SAMPLE_FREQUENCY_INDEX_23000 = 7;
+  AAC_SAMPLE_FREQUENCY_INDEX_22050 = 8;
+  AAC_SAMPLE_FREQUENCY_INDEX_16000 = 9;
+  AAC_SAMPLE_FREQUENCY_INDEX_12000 = 10;
+  AAC_SAMPLE_FREQUENCY_INDEX_11025 = 11;
+  AAC_SAMPLE_FREQUENCY_INDEX_8000 = 12;
+  AAC_SAMPLE_FREQUENCY_INDEX_7350 = 13;
+  AAC_SAMPLE_FREQUENCY_INDEX_RESERVED_A = 14;
+  AAC_SAMPLE_FREQUENCY_INDEX_RESERVED_B = 15;
+  AAC_SAMPLE_FREQUENCY_INDEX_ESCAPE_VALUE = 16;
+}
+
+// Settings to configure `fdk_aac`.
+message AacEncoderMetadata {
+  optional int32 bitrate_mode = 1;
+  optional bool enable_afterburner = 2 [default = true];
+  optional int32 signaling_mode = 3 [default = 2];
+}
+
+message AacDecoderSpecificInfo {
+  optional uint32 decoder_specific_info_descriptor_tag = 5 [default = 0x05];
+  optional uint32 audio_object_type = 1;
+  optional AacSampleFrequencyIndex sample_frequency_index = 2;
+  optional uint32 sampling_frequency = 3;
+  optional uint32 channel_configuration = 4;
+}
+
+message AacGaSpecificConfig {
+  optional bool frame_length_flag = 1;
+  optional bool depends_on_core_coder = 2;
+  optional bool extension_flag = 3;
+}
+
+message DecoderConfigAac {
+  optional uint32 decoder_config_descriptor_tag = 11 [default = 0x04];
+  optional uint32 object_type_indication = 1;
+  optional uint32 stream_type = 2;
+  optional bool upstream = 3;
+  optional bool reserved = 4;
+  optional uint32 buffer_size_db = 5;
+  optional uint32 max_bitrate = 6;
+  optional uint32 average_bit_rate = 7;
+  optional AacDecoderSpecificInfo decoder_specific_info = 8;
+  optional AacGaSpecificConfig ga_specific_config = 9;
+  optional AacEncoderMetadata aac_encoder_metadata = 10;
+}
+
+enum FlacBlockType {
+  FLAC_BLOCK_TYPE_INVALID = 0;
+  FLAC_BLOCK_TYPE_STREAMINFO = 1;
+  FLAC_BLOCK_TYPE_PADDING = 2;
+  FLAC_BLOCK_TYPE_APPLICATION = 3;
+  FLAC_BLOCK_TYPE_SEEKTABLE = 4;
+  FLAC_BLOCK_TYPE_VORBIS_COMMENT = 5;
+  FLAC_BLOCK_TYPE_CUESHEET = 6;
+  FLAC_BLOCK_TYPE_PICTURE = 7;
+}
+
+message FlacMetaBlockHeader {
+  optional bool last_metadata_block_flag = 1;
+  optional FlacBlockType block_type = 2;
+  optional uint32 metadata_data_block_length = 3;
+}
+
+message FlacMetaBlockStreamInfo {
+  optional uint32 minimum_block_size = 1;
+  optional uint32 maximum_block_size = 2;
+  optional uint32 minimum_frame_size = 3;
+  optional uint32 maximum_frame_size = 4;
+  optional uint32 sample_rate = 5;
+  optional uint32 number_of_channels = 6;
+  optional uint32 bits_per_sample = 7;
+  optional uint64 total_samples_in_stream = 8;
+  optional bytes md5_signature = 9;
+}
+
+// Settings to configure `libflac`.
+message FlacEncoderMetadata {
+  optional uint32 compression_level = 1;
+}
+
+message FlacMetaBlock {
+  optional FlacMetaBlockHeader header = 1;
+  oneof data {
+    FlacMetaBlockStreamInfo stream_info = 2;
+    bytes generic_block = 3;
+  }
+}
+
+message DecoderConfigFlac {
+  repeated FlacMetaBlock metadata_blocks = 3;
+  optional FlacEncoderMetadata flac_encoder_metadata = 4;
+}
+
+message CodecConfig {
+  optional uint32 codec_id = 1;
+  optional uint32 num_samples_per_frame = 2;
+  reserved 3;
+  optional int32 audio_roll_distance = 9;
+  oneof decoder_config {
+    DecoderConfigLpcm decoder_config_lpcm = 5;
+    DecoderConfigOpus decoder_config_opus = 6;
+    DecoderConfigAac decoder_config_aac = 7;
+    DecoderConfigFlac decoder_config_flac = 8;
+  }
+}
+
+message CodecConfigObuMetadata {
+  optional uint32 codec_config_id = 1;
+  optional CodecConfig codec_config = 2;
+}

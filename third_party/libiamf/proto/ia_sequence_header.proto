@@ -1,0 +1,15 @@
+syntax = "proto2";
+
+package libiamf_proto;
+
+enum ProfileVerson {
+  PROFILE_VERSION_INVALID = 0;
+  PROFILE_VERSION_SIMPLE = 1;
+  PROFILE_VERSION_BASE = 2;
+}
+
+message IASequenceHeaderObuMetadata {
+  optional uint32 ia_code = 1;
+  optional ProfileVerson primary_profile = 2;
+  optional ProfileVerson additional_profile = 3;
+}

@@ -1,0 +1,8015 @@
+# proto-file: third_party/libiamf/cli/proto/user_metadata.proto
+# proto-message: UserMetadata
+
+test_vector_metadata {
+  human_readable_description:
+    "A 2-layer IAMF stream scalable encoded using Opus with the "
+    "channel layouts: 5.1.2ch/7.1.4ch"
+  file_name_prefix: "test_000229"
+  is_valid: true
+  mp4_fixed_timestamp: "2023-06-27 00:00:00"
+  primary_tested_spec_sections: [
+    "3.6/num_parameters",
+    "3.6/recon_gain_info",
+    "3.6.2/Scalable Channel Layout Config Syntax and Semantics",
+    "3.6.2/loudspeaker_layout == 5.1.2",
+    "3.6.2/loudspeaker_layout == 7.1.4",
+    "3.6.2/output_gain_is_present_flag",
+    "3.6.2/output_gain_flags",
+    "3.6.2/output_gain",
+    "3.6.2.1/Channel Layout Generation Rule",
+    "3.8/recon_gain_info_parameter_data",
+    "3.8.3/Recon Gain Info Parameter Data Syntax and Semantics",
+    "7/IAMF Processing",
+    "7.2.1/Gain",
+    "7.2.3/Recon Gain",
+    "7.6.1/Dynamic Down-mix Matrix",
+    "9.1.2.2/Annex A2.2: Down-mix Mechanism",
+    "9.1.2.3/Annex A2.3: Recon Gain Generation",
+    "9.1.2.4/Annex A2.4: Channel Group Generation Rule"
+  ]
+  base_test: "test_000226"
+  override_computed_recon_gains: true
+}
+
+ia_sequence_header_metadata {
+  ia_code: 0x69616d66  # "iamf"
+  primary_profile: PROFILE_VERSION_SIMPLE
+  additional_profile: PROFILE_VERSION_SIMPLE
+}
+
+codec_config_metadata {
+  codec_config_id: 200
+  codec_config {
+    codec_id: 0x4f707573  # "Opus"
+    num_samples_per_frame: 960
+    audio_roll_distance: -4
+    decoder_config_opus {
+      version: 1
+      output_channel_count: 2
+      pre_skip: 312
+      input_sample_rate: 48000
+      output_gain: 0
+      mapping_family: 0
+      opus_encoder_metadata {
+        target_bitrate: 48000
+        application: APPLICATION_AUDIO
+      }
+    }
+  }
+}
+
+audio_element_metadata {
+  audio_element_id: 300
+  audio_element_type: AUDIO_ELEMENT_CHANNEL_BASED
+  reserved: 0
+  codec_config_id: 200
+  num_substreams: 7
+  audio_substream_ids: [0, 1, 2, 3, 4, 5, 6]
+  num_parameters: 2
+  audio_element_params {
+    param_definition_type: 1  #PARAMETER_DEFINITION_DEMIXING
+    demixing_param: {
+      param_definition {
+        parameter_id: 999  # Non-existent; default will be used
+        parameter_rate: 48000
+        param_definition_mode: 0
+        reserved: 0
+        duration: 960
+        num_subblocks: 1
+        constant_subblock_duration: 960
+      }
+      default_demixing_info_parameter_data: {
+        dmixp_mode: DMIXP_MODE_1
+      }
+      default_w: 0
+    }
+  }
+  audio_element_params {
+    param_definition_type: 2  # PARAMETER_DEFINITION_RECON_GAIN
+    recon_gain_param {
+      param_definition {
+        parameter_id: 100
+        parameter_rate: 48000
+        param_definition_mode: 0
+        reserved: 0
+        duration: 960
+        num_subblocks: 1
+        constant_subblock_duration: 960
+      }
+    }
+  }
+  scalable_channel_layout_config {
+    num_layers: 2
+    reserved: 0
+    channel_audio_layer_configs: [
+      {
+        loudspeaker_layout: 3  # 5.1.2 [L5/R5, Ls5/Rs5, Ltf2/Rtf2, C, LFE]
+        output_gain_is_present_flag: 1
+        recon_gain_is_present_flag: 0
+        reserved_a: 0
+        substream_count: 5
+        coupled_substream_count: 3
+        output_gain_flag: 15
+        output_gain: 359
+      },
+      {
+        loudspeaker_layout: 7  # 7.1.4 [Lss7/Rss7, Ltf4/Rtf4]
+        output_gain_is_present_flag: 1
+        recon_gain_is_present_flag: 1
+        reserved_a: 0
+        substream_count: 2
+        coupled_substream_count: 2
+        output_gain_flag: 0
+        output_gain: 0
+      }
+    ]
+  }
+}
+
+mix_presentation_metadata {
+  mix_presentation_id: 42
+  count_label: 1
+  language_labels: ["en-us"]
+  mix_presentation_annotations_array: [
+    {
+      mix_presentation_friendly_label: "test_mix_pres"
+    }
+  ]
+  num_sub_mixes: 1
+  sub_mixes {
+    num_audio_elements: 1
+    audio_elements {
+      audio_element_id: 300
+      mix_presentation_element_annotations_array: [
+        {
+          audio_element_friendly_label: "test_sub_mix_0_audio_element_0"
+        }
+      ]
+      rendering_config {
+        headphones_rendering_mode: HEADPHONES_RENDERING_MODE_STEREO
+      }
+      element_mix_config {
+        mix_gain {
+          param_definition {
+            parameter_id: 998
+            parameter_rate: 48000
+            param_definition_mode: 1
+            reserved: 0
+          }
+          default_mix_gain: 0
+        }
+      }
+    }
+    output_mix_config {
+      output_mix_gain {
+        param_definition {
+          parameter_id: 997
+          parameter_rate: 48000
+          param_definition_mode: 1
+          reserved: 0
+        }
+        default_mix_gain: 0
+      }
+    }
+    num_layouts: 3
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_A_0_2_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -4013
+        digital_peak: 0
+      }
+    }
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_C_2_5_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -4017
+        digital_peak: -694
+      }
+    }
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_J_4_7_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -4636
+        digital_peak: -1009
+      }
+    }
+  }
+}
+
+audio_frame_metadata {
+  # Not using every channel in the input wav file.
+  wav_filename: "Mechanism_5s.wav"
+  samples_to_trim_at_end: 648
+  samples_to_trim_at_start: 312
+  audio_element_id: 300
+  channel_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  channel_labels: ["L7", "R7", "C", "LFE", "Lss7", "Rss7", "Lrs7", "Rrs7", "Ltf4", "Rtf4", "Ltb4", "Rtb4"]
+}
+
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 219
+        }
+      }
+    }
+  }
+  start_timestamp: 0
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 217
+        }
+      }
+    }
+  }
+  start_timestamp: 960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 213
+        }
+      }
+    }
+  }
+  start_timestamp: 1920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 209
+        }
+      }
+    }
+  }
+  start_timestamp: 2880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 206
+        }
+      }
+    }
+  }
+  start_timestamp: 3840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 119
+        }
+      }
+    }
+  }
+  start_timestamp: 4800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 144
+        }
+      }
+    }
+  }
+  start_timestamp: 5760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 177
+        }
+      }
+    }
+  }
+  start_timestamp: 6720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 218
+        }
+      }
+    }
+  }
+  start_timestamp: 7680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 141
+        }
+      }
+    }
+  }
+  start_timestamp: 8640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 223
+        }
+      }
+    }
+  }
+  start_timestamp: 9600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 222
+        }
+      }
+    }
+  }
+  start_timestamp: 10560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 225
+        }
+      }
+    }
+  }
+  start_timestamp: 11520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 169
+        }
+      }
+    }
+  }
+  start_timestamp: 12480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 236
+        }
+      }
+    }
+  }
+  start_timestamp: 13440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 14400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 15360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 16320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 17280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 18240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 19200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 20160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 21120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 22080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 23040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 24000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 237
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 24960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 25920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 26880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 27840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 250
+        }
+        recon_gain {
+          key: 9
+          value: 230
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 28800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 229
+        }
+        recon_gain {
+          key: 9
+          value: 245
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 29760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 252
+        }
+        recon_gain {
+          key: 8
+          value: 223
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 30720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 237
+        }
+        recon_gain {
+          key: 8
+          value: 233
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 31680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 246
+        }
+        recon_gain {
+          key: 8
+          value: 225
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 32640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 245
+        }
+        recon_gain {
+          key: 8
+          value: 237
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 33600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 230
+        }
+        recon_gain {
+          key: 8
+          value: 168
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 34560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 178
+        }
+        recon_gain {
+          key: 8
+          value: 144
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 35520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 36480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 37440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 38400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 39360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 40320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 41280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 229
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 42240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 241
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 43200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 44160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 45120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 243
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 46080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 47040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 48000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 48960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 49920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 50880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 51840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 52800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 53760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 54720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 55680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 230
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 56640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 57600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 58560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 59520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 60480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 61440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 62400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 63360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 64320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 65280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 66240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 241
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 67200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 226
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 68160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 69120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 70080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 71040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 72000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 72960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 73920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 74880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 75840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 76800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 77760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 78720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 79680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 80640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 81600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 82560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 83520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 84480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 85440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 86400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 87360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 88320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 89280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 90240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 91200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 92160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 93120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 94080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 95040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 96000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 96960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 97920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 98880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 99840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 100800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 101760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 102720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 103680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 104640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 105600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 106560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 107520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 108480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 109440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 110400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 111360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 112320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 113280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 114240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 115200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 116160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 117120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 118080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 119040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 120000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 120960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 222
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 121920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 122880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 224
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 123840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 124800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 125760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 126720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 127680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 128640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 180
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 129600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 182
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 130560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 211
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 131520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 229
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 132480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 213
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 133440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 238
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 134400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 196
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 135360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 213
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 229
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 136320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 195
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 209
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 137280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 198
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 213
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 138240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 217
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 139200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 190
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 140160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 201
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 141120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 213
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 142080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 208
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 143040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 233
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 179
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 144000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 182
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 175
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 144960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 167
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 177
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 145920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 183
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 178
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 146880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 222
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 189
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 147840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 188
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 175
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 148800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 155
+        }
+        recon_gain {
+          key: 8
+          value: 237
+        }
+        recon_gain {
+          key: 9
+          value: 185
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 149760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 202
+        }
+        recon_gain {
+          key: 8
+          value: 238
+        }
+        recon_gain {
+          key: 9
+          value: 203
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 150720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 191
+        }
+        recon_gain {
+          key: 8
+          value: 229
+        }
+        recon_gain {
+          key: 9
+          value: 206
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 151680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 182
+        }
+        recon_gain {
+          key: 8
+          value: 224
+        }
+        recon_gain {
+          key: 9
+          value: 210
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 152640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 105
+        }
+        recon_gain {
+          key: 8
+          value: 245
+        }
+        recon_gain {
+          key: 9
+          value: 228
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 153600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 146
+        }
+        recon_gain {
+          key: 8
+          value: 249
+        }
+        recon_gain {
+          key: 9
+          value: 215
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 154560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 208
+        }
+        recon_gain {
+          key: 8
+          value: 198
+        }
+        recon_gain {
+          key: 9
+          value: 205
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 155520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 174
+        }
+        recon_gain {
+          key: 8
+          value: 207
+        }
+        recon_gain {
+          key: 9
+          value: 235
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 156480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 181
+        }
+        recon_gain {
+          key: 8
+          value: 204
+        }
+        recon_gain {
+          key: 9
+          value: 218
+        }
+        recon_gain {
+          key: 10
+          value: 226
+        }
+      }
+    }
+  }
+  start_timestamp: 157440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 154
+        }
+        recon_gain {
+          key: 8
+          value: 211
+        }
+        recon_gain {
+          key: 9
+          value: 231
+        }
+        recon_gain {
+          key: 10
+          value: 229
+        }
+      }
+    }
+  }
+  start_timestamp: 158400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 124
+        }
+        recon_gain {
+          key: 8
+          value: 205
+        }
+        recon_gain {
+          key: 9
+          value: 231
+        }
+        recon_gain {
+          key: 10
+          value: 233
+        }
+      }
+    }
+  }
+  start_timestamp: 159360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 165
+        }
+        recon_gain {
+          key: 8
+          value: 247
+        }
+        recon_gain {
+          key: 9
+          value: 230
+        }
+        recon_gain {
+          key: 10
+          value: 245
+        }
+      }
+    }
+  }
+  start_timestamp: 160320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 141
+        }
+        recon_gain {
+          key: 8
+          value: 223
+        }
+        recon_gain {
+          key: 9
+          value: 238
+        }
+        recon_gain {
+          key: 10
+          value: 250
+        }
+      }
+    }
+  }
+  start_timestamp: 161280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 169
+        }
+        recon_gain {
+          key: 8
+          value: 235
+        }
+        recon_gain {
+          key: 9
+          value: 244
+        }
+        recon_gain {
+          key: 10
+          value: 236
+        }
+      }
+    }
+  }
+  start_timestamp: 162240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 88
+        }
+        recon_gain {
+          key: 8
+          value: 146
+        }
+        recon_gain {
+          key: 9
+          value: 234
+        }
+        recon_gain {
+          key: 10
+          value: 240
+        }
+      }
+    }
+  }
+  start_timestamp: 163200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 150
+        }
+        recon_gain {
+          key: 8
+          value: 127
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 247
+        }
+      }
+    }
+  }
+  start_timestamp: 164160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 107
+        }
+        recon_gain {
+          key: 8
+          value: 153
+        }
+        recon_gain {
+          key: 9
+          value: 254
+        }
+        recon_gain {
+          key: 10
+          value: 254
+        }
+      }
+    }
+  }
+  start_timestamp: 165120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 69
+        }
+        recon_gain {
+          key: 8
+          value: 189
+        }
+        recon_gain {
+          key: 9
+          value: 247
+        }
+        recon_gain {
+          key: 10
+          value: 252
+        }
+      }
+    }
+  }
+  start_timestamp: 166080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 54
+        }
+        recon_gain {
+          key: 8
+          value: 162
+        }
+        recon_gain {
+          key: 9
+          value: 247
+        }
+        recon_gain {
+          key: 10
+          value: 243
+        }
+      }
+    }
+  }
+  start_timestamp: 167040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 90
+        }
+        recon_gain {
+          key: 8
+          value: 202
+        }
+        recon_gain {
+          key: 9
+          value: 252
+        }
+        recon_gain {
+          key: 10
+          value: 249
+        }
+      }
+    }
+  }
+  start_timestamp: 168000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 70
+        }
+        recon_gain {
+          key: 8
+          value: 118
+        }
+        recon_gain {
+          key: 9
+          value: 248
+        }
+        recon_gain {
+          key: 10
+          value: 234
+        }
+      }
+    }
+  }
+  start_timestamp: 168960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 50
+        }
+        recon_gain {
+          key: 8
+          value: 110
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 234
+        }
+      }
+    }
+  }
+  start_timestamp: 169920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 81
+        }
+        recon_gain {
+          key: 8
+          value: 161
+        }
+        recon_gain {
+          key: 9
+          value: 244
+        }
+        recon_gain {
+          key: 10
+          value: 241
+        }
+      }
+    }
+  }
+  start_timestamp: 170880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 129
+        }
+        recon_gain {
+          key: 8
+          value: 171
+        }
+        recon_gain {
+          key: 9
+          value: 239
+        }
+        recon_gain {
+          key: 10
+          value: 246
+        }
+      }
+    }
+  }
+  start_timestamp: 171840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 112
+        }
+        recon_gain {
+          key: 8
+          value: 217
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 172800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 143
+        }
+        recon_gain {
+          key: 8
+          value: 198
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 173760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 93
+        }
+        recon_gain {
+          key: 8
+          value: 210
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 174720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 107
+        }
+        recon_gain {
+          key: 8
+          value: 234
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 175680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 147
+        }
+        recon_gain {
+          key: 8
+          value: 240
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 176640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 153
+        }
+        recon_gain {
+          key: 8
+          value: 229
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 177600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 117
+        }
+        recon_gain {
+          key: 8
+          value: 195
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 178560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 95
+        }
+        recon_gain {
+          key: 8
+          value: 173
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 179520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 138
+        }
+        recon_gain {
+          key: 8
+          value: 215
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 180480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 112
+        }
+        recon_gain {
+          key: 8
+          value: 193
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 181440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 154
+        }
+        recon_gain {
+          key: 8
+          value: 203
+        }
+        recon_gain {
+          key: 9
+          value: 242
+        }
+        recon_gain {
+          key: 10
+          value: 246
+        }
+      }
+    }
+  }
+  start_timestamp: 182400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 121
+        }
+        recon_gain {
+          key: 8
+          value: 203
+        }
+        recon_gain {
+          key: 9
+          value: 249
+        }
+        recon_gain {
+          key: 10
+          value: 243
+        }
+      }
+    }
+  }
+  start_timestamp: 183360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 202
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 230
+        }
+        recon_gain {
+          key: 10
+          value: 236
+        }
+      }
+    }
+  }
+  start_timestamp: 184320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 237
+        }
+        recon_gain {
+          key: 8
+          value: 227
+        }
+        recon_gain {
+          key: 9
+          value: 248
+        }
+        recon_gain {
+          key: 10
+          value: 235
+        }
+      }
+    }
+  }
+  start_timestamp: 185280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 252
+        }
+        recon_gain {
+          key: 10
+          value: 252
+        }
+      }
+    }
+  }
+  start_timestamp: 186240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 243
+        }
+        recon_gain {
+          key: 10
+          value: 240
+        }
+      }
+    }
+  }
+  start_timestamp: 187200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 248
+        }
+        recon_gain {
+          key: 10
+          value: 237
+        }
+      }
+    }
+  }
+  start_timestamp: 188160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 222
+        }
+        recon_gain {
+          key: 10
+          value: 221
+        }
+      }
+    }
+  }
+  start_timestamp: 189120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 205
+        }
+        recon_gain {
+          key: 10
+          value: 192
+        }
+      }
+    }
+  }
+  start_timestamp: 190080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 190
+        }
+        recon_gain {
+          key: 10
+          value: 188
+        }
+      }
+    }
+  }
+  start_timestamp: 191040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 216
+        }
+        recon_gain {
+          key: 10
+          value: 188
+        }
+      }
+    }
+  }
+  start_timestamp: 192000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 242
+        }
+        recon_gain {
+          key: 10
+          value: 219
+        }
+      }
+    }
+  }
+  start_timestamp: 192960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 143
+        }
+        recon_gain {
+          key: 10
+          value: 166
+        }
+      }
+    }
+  }
+  start_timestamp: 193920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 210
+        }
+        recon_gain {
+          key: 10
+          value: 189
+        }
+      }
+    }
+  }
+  start_timestamp: 194880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 156
+        }
+        recon_gain {
+          key: 10
+          value: 158
+        }
+      }
+    }
+  }
+  start_timestamp: 195840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 167
+        }
+        recon_gain {
+          key: 10
+          value: 165
+        }
+      }
+    }
+  }
+  start_timestamp: 196800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 175
+        }
+        recon_gain {
+          key: 10
+          value: 177
+        }
+      }
+    }
+  }
+  start_timestamp: 197760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 125
+        }
+        recon_gain {
+          key: 10
+          value: 121
+        }
+      }
+    }
+  }
+  start_timestamp: 198720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 153
+        }
+        recon_gain {
+          key: 10
+          value: 163
+        }
+      }
+    }
+  }
+  start_timestamp: 199680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 144
+        }
+        recon_gain {
+          key: 10
+          value: 157
+        }
+      }
+    }
+  }
+  start_timestamp: 200640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 72
+        }
+        recon_gain {
+          key: 10
+          value: 94
+        }
+      }
+    }
+  }
+  start_timestamp: 201600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 74
+        }
+        recon_gain {
+          key: 10
+          value: 130
+        }
+      }
+    }
+  }
+  start_timestamp: 202560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 23
+        }
+        recon_gain {
+          key: 10
+          value: 80
+        }
+      }
+    }
+  }
+  start_timestamp: 203520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 96
+        }
+      }
+    }
+  }
+  start_timestamp: 204480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 89
+        }
+      }
+    }
+  }
+  start_timestamp: 205440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 85
+        }
+      }
+    }
+  }
+  start_timestamp: 206400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 100
+        }
+      }
+    }
+  }
+  start_timestamp: 207360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 18
+        }
+      }
+    }
+  }
+  start_timestamp: 208320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 18
+        }
+      }
+    }
+  }
+  start_timestamp: 209280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 38
+        }
+      }
+    }
+  }
+  start_timestamp: 210240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 78
+        }
+      }
+    }
+  }
+  start_timestamp: 211200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 73
+        }
+      }
+    }
+  }
+  start_timestamp: 212160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 123
+        }
+      }
+    }
+  }
+  start_timestamp: 213120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 84
+        }
+      }
+    }
+  }
+  start_timestamp: 214080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 57
+        }
+      }
+    }
+  }
+  start_timestamp: 215040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 56
+        }
+      }
+    }
+  }
+  start_timestamp: 216000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 51
+        }
+      }
+    }
+  }
+  start_timestamp: 216960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 51
+        }
+      }
+    }
+  }
+  start_timestamp: 217920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 114
+        }
+      }
+    }
+  }
+  start_timestamp: 218880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 103
+        }
+      }
+    }
+  }
+  start_timestamp: 219840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 82
+        }
+      }
+    }
+  }
+  start_timestamp: 220800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 110
+        }
+      }
+    }
+  }
+  start_timestamp: 221760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 86
+        }
+      }
+    }
+  }
+  start_timestamp: 222720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 106
+        }
+      }
+    }
+  }
+  start_timestamp: 223680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 90
+        }
+      }
+    }
+  }
+  start_timestamp: 224640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 62
+        }
+      }
+    }
+  }
+  start_timestamp: 225600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 78
+        }
+      }
+    }
+  }
+  start_timestamp: 226560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 103
+        }
+      }
+    }
+  }
+  start_timestamp: 227520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 0
+        }
+        recon_gain {
+          key: 10
+          value: 69
+        }
+      }
+    }
+  }
+  start_timestamp: 228480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 83
+        }
+        recon_gain {
+          key: 10
+          value: 69
+        }
+      }
+    }
+  }
+  start_timestamp: 229440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 225
+        }
+        recon_gain {
+          key: 9
+          value: 112
+        }
+        recon_gain {
+          key: 10
+          value: 69
+        }
+      }
+    }
+  }
+  start_timestamp: 230400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 122
+        }
+        recon_gain {
+          key: 10
+          value: 69
+        }
+      }
+    }
+  }
+  start_timestamp: 231360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 238
+        }
+        recon_gain {
+          key: 9
+          value: 51
+        }
+        recon_gain {
+          key: 10
+          value: 24
+        }
+      }
+    }
+  }
+  start_timestamp: 232320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 249
+        }
+        recon_gain {
+          key: 8
+          value: 219
+        }
+        recon_gain {
+          key: 9
+          value: 75
+        }
+        recon_gain {
+          key: 10
+          value: 37
+        }
+      }
+    }
+  }
+  start_timestamp: 233280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 234
+        }
+        recon_gain {
+          key: 8
+          value: 206
+        }
+        recon_gain {
+          key: 9
+          value: 110
+        }
+        recon_gain {
+          key: 10
+          value: 45
+        }
+      }
+    }
+  }
+  start_timestamp: 234240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 242
+        }
+        recon_gain {
+          key: 8
+          value: 231
+        }
+        recon_gain {
+          key: 9
+          value: 113
+        }
+        recon_gain {
+          key: 10
+          value: 56
+        }
+      }
+    }
+  }
+  start_timestamp: 235200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 243
+        }
+        recon_gain {
+          key: 8
+          value: 213
+        }
+        recon_gain {
+          key: 9
+          value: 110
+        }
+        recon_gain {
+          key: 10
+          value: 52
+        }
+      }
+    }
+  }
+  start_timestamp: 236160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 242
+        }
+        recon_gain {
+          key: 8
+          value: 198
+        }
+        recon_gain {
+          key: 9
+          value: 158
+        }
+        recon_gain {
+          key: 10
+          value: 75
+        }
+      }
+    }
+  }
+  start_timestamp: 237120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 244
+        }
+        recon_gain {
+          key: 8
+          value: 232
+        }
+        recon_gain {
+          key: 9
+          value: 188
+        }
+        recon_gain {
+          key: 10
+          value: 71
+        }
+      }
+    }
+  }
+  start_timestamp: 238080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 239040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    recon_gain_info_parameter_data {
+      recon_gains_for_layer {
+      }
+      recon_gains_for_layer {
+        recon_gain {
+          key: 7
+          value: 255
+        }
+        recon_gain {
+          key: 8
+          value: 255
+        }
+        recon_gain {
+          key: 9
+          value: 255
+        }
+        recon_gain {
+          key: 10
+          value: 255
+        }
+      }
+    }
+  }
+  start_timestamp: 240000
+}
+
+temporal_delimiter_metadata {
+  enable_temporal_delimiters: false
+}
