@@ -13,7 +13,8 @@
 // limitations under the License.
 
 #include "starboard/common/recursive_mutex.h"
-#include "starboard/nplb/thread_helpers.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -79,7 +80,7 @@ TEST(RecursiveMutex, TryLocksInRecursion) {
   EXPECT_TRUE(rmutex.AcquireTry());
 }
 
-class ThreadBlockedRecursiveMutex : public AbstractTestThread {
+class ThreadBlockedRecursiveMutex : public posix::AbstractTestThread {
  public:
   explicit ThreadBlockedRecursiveMutex(RecursiveMutex* s) : rmutex_(s) {}
   void Run() override { EXPECT_FALSE(rmutex_->AcquireTry()); }
@@ -98,7 +99,7 @@ TEST(RecursiveMutex, BlockOtherThread) {
   EXPECT_TRUE(rmutex.AcquireTry());
 }
 
-class ThreadAcquiresRecursiveMutex : public AbstractTestThread {
+class ThreadAcquiresRecursiveMutex : public posix::AbstractTestThread {
  public:
   explicit ThreadAcquiresRecursiveMutex(RecursiveMutex* s,
                                         Mutex* cv_mutex,
