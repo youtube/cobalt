@@ -14,6 +14,9 @@
 
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <memory>
 #include <utility>
 #include <vector>
@@ -82,16 +85,10 @@ void TransformPixelRow(png_structp ptr, png_row_infop row_info,
 
 void PNGReadPlatformFile(png_structp png, png_bytep buffer,
                          png_size_t buffer_size) {
-#if defined(STARBOARD)
-  // Casting between two pointer types.
-  base::PlatformFile file =
-      reinterpret_cast<base::PlatformFile>(png_get_io_ptr(png));
-#else
-  // Casting from a pointer to an int type.
   intptr_t temp = reinterpret_cast<intptr_t>(png_get_io_ptr(png));
   base::PlatformFile file = static_cast<base::PlatformFile>(temp);
-#endif
-  int count = SbFileReadAll(file, reinterpret_cast<char*>(buffer), buffer_size);
+  int count =
+      starboard::ReadAll(file, reinterpret_cast<char*>(buffer), buffer_size);
   DCHECK_EQ(count, buffer_size);
 }
 
@@ -104,14 +101,12 @@ PNGFileReadContext::PNGFileReadContext(const base::FilePath& file_path,
   // Much of this PNG loading code is based on a section from the libpng manual:
   // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html#section-3
 
-  file_ = SbFileOpen(file_path.value().c_str(), kSbFileOpenOnly | kSbFileRead,
-                     NULL, NULL);
-  DCHECK_NE(base::kInvalidPlatformFile, file_)
-      << "Unable to open: " << file_path.value();
+  file_ = open(file_path.value().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
+  DCHECK_NE(-1, file_) << "Unable to open: " << file_path.value();
 
   uint8_t header[8];
-  int count =
-      SbFileReadAll(file_, reinterpret_cast<char*>(header), sizeof(header));
+  int count = starboard::ReadAll(file_, reinterpret_cast<char*>(header),
+                                 sizeof(header));
   DCHECK_EQ(sizeof(header), count) << "Invalid file size.";
   DCHECK(!png_sig_cmp(header, 0, 8)) << "Invalid PNG header.";
 
@@ -236,7 +231,7 @@ PNGFileReadContext::~PNGFileReadContext() {
   // Release our png reading context and associated info structs.
   png_destroy_read_struct(&png_, &png_metadata_, &end);
 
-  SbFileClose(file_);
+  close(file_);
 }
 
 void PNGFileReadContext::DecodeImageTo(const std::vector<png_bytep>& rows) {

@@ -16,7 +16,9 @@
 
 #include "base/files/file_util.h"
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include<unistd.h>
 
 #include <stack>
 #include <string>
@@ -78,24 +80,24 @@ void GenerateTempFileName(FilePath::StringType *in_out_template) {
 
 // Creates a random filename based on the TempFileName() pattern, creates the
 // file, leaving it open, placing the path in |out_path| and returning the open
-// SbFile.
-SbFile CreateAndOpenTemporaryFile(FilePath directory, FilePath *out_path) {
+// file.
+int CreateAndOpenTemporaryFile(FilePath directory, FilePath *out_path) {
   internal::AssertBlockingAllowed();
   DCHECK(out_path);
   FilePath path = directory.Append(TempFileName());
   FilePath::StringType tmpdir_string = path.value();
   GenerateTempFileName(&tmpdir_string);
   *out_path = FilePath(tmpdir_string);
-  return SbFileOpen(tmpdir_string.c_str(), kSbFileCreateOnly | kSbFileWrite,
-                    NULL, NULL);
+  return open(tmpdir_string.c_str(), (O_CREAT & O_EXCL) | (O_WRONLY | O_RDWR),
+              S_IRUSR | S_IWUSR);
 }
 
 // Retries creating a temporary file until it can win the race to create a
 // unique one.
-SbFile CreateAndOpenTemporaryFileSafely(FilePath directory,
+int CreateAndOpenTemporaryFileSafely(FilePath directory,
                                         FilePath *out_path) {
-  SbFile file = kSbFileInvalid;
-  while (!SbFileIsValid(file)) {
+  int file = -1;
+  while (file < 0) {
     file = CreateAndOpenTemporaryFile(directory, out_path);
   }
   return file;
@@ -151,7 +153,7 @@ bool DeleteFile(const FilePath &path, bool recursive) {
   struct ::stat info;
   bool directory = ::stat(path_str, &info) == 0 && S_ISDIR(info.st_mode);
   if (!recursive || !directory) {
-    return SbFileDelete(path_str);
+    return !unlink(path_str);
   }
 
   bool success = true;
@@ -175,14 +177,14 @@ bool DeleteFile(const FilePath &path, bool recursive) {
     if (info.IsDirectory()) {
       directories.push(current.value());
     } else {
-      success = SbFileDelete(current.value().c_str());
+      success = !unlink(current.value().c_str());
     }
   }
 
   // Delete all directories in reverse-depth order, now that they have no more
   // regular files.
   while (success && !directories.empty()) {
-    success = SbFileDelete(directories.top().c_str());
+    success = !unlink(directories.top().c_str());
     directories.pop();
   }
 
@@ -333,15 +335,15 @@ ScopedFILE CreateAndOpenTemporaryStreamInDir(const FilePath& dir,
 File CreateAndOpenTemporaryFileInDir(const FilePath &dir, FilePath *temp_file) {
   internal::AssertBlockingAllowed();
   DCHECK(temp_file);
-  SbFile file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
-  return SbFileIsValid(file) ? File(std::move(file)) : File(File::GetLastFileError());
+  int file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
+  return file >= 0 ? File(std::move(file)) : File(File::GetLastFileError());
 }
 
 bool CreateTemporaryFileInDir(const FilePath &dir, FilePath *temp_file) {
   internal::AssertBlockingAllowed();
   DCHECK(temp_file);
-  SbFile file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
-  return (SbFileIsValid(file) && SbFileClose(file));
+  int file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
+  return ((file >= 0) && close(file));
 }
 
 bool CreateTemporaryDirInDir(const FilePath &base_dir,

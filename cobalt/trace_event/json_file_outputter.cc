@@ -14,6 +14,9 @@
 
 #include "cobalt/trace_event/json_file_outputter.h"
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <string>
 #include <utility>
 
@@ -57,8 +60,9 @@ JSONFileOutputter::JSONFileOutputter(const base::FilePath& output_path)
     : output_path_(output_path),
       output_trace_event_call_count_(0),
       file_(base::kInvalidPlatformFile) {
-  file_ = SbFileOpen(output_path.value().c_str(),
-                     kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+  file_ =
+      open(output_path.value().c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+
   if (GetError()) {
     DLOG(ERROR) << "Unable to open file for writing: " << output_path.value();
   } else {
@@ -136,7 +140,7 @@ void JSONFileOutputter::Write(const char* buffer, int length) {
     return;
   }
 
-  int count = SbFileWrite(file_, buffer, length);
+  int count = write(file_, buffer, length);
   base::RecordFileWriteStat(count);
   if (count < 0) {
     Close();
@@ -148,7 +152,7 @@ void JSONFileOutputter::Close() {
     return;
   }
 
-  SbFileClose(file_);
+  close(file_);
   file_ = base::kInvalidPlatformFile;
 }
 

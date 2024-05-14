@@ -8,6 +8,7 @@
 #include <stdio.h>
 
 #include <memory>
+#include <unistd.h>
 
 #include "base/base_export.h"
 #include "base/scoped_generic.h"
@@ -25,8 +26,8 @@ namespace internal {
 
 #if defined(STARBOARD)
 struct BASE_EXPORT ScopedSbFileCloseTraits {
-  static SbFile InvalidValue() { return kSbFileInvalid; }
-  static void Free(SbFile file) { SbFileClose(file); }
+  static int InvalidValue() { return -1; }
+  static void Free(int file) { close(file); }
 };
 #elif BUILDFLAG(IS_ANDROID)
 // Use fdsan on android.
@@ -58,9 +59,9 @@ struct BASE_EXPORT ScopedFDCloseTraits {
 #if defined(STARBOARD)
 // Functor for |ScopedFILE| (below).
 struct ScopedFILECloser {
-  inline void operator()(SbFile* x) const {
+  inline void operator()(int* x) const {
     if (x)
-      SbFileClose(*x);
+      close(*x);
   }
 };
 #else
@@ -108,7 +109,7 @@ void BASE_EXPORT ResetFDOwnership();
 // -----------------------------------------------------------------------------
 
 #if defined(STARBOARD)
-using ScopedFD = ScopedGeneric<SbFile, internal::ScopedSbFileCloseTraits>;
+using ScopedFD = ScopedGeneric<int, internal::ScopedSbFileCloseTraits>;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 // A low-level Posix file descriptor closer class. Use this when writing
 // platform-specific code, especially that does non-file-like things with the

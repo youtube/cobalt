@@ -17,12 +17,16 @@
 #include "base/files/file_starboard.h"
 
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/file.h"
@@ -54,6 +58,68 @@ static_assert(File::FROM_BEGIN == static_cast<int>(kSbFileFromBegin) &&
                   File::FROM_END == static_cast<int>(kSbFileFromEnd),
               "Whence enums from base must match those of Starboard.");
 
+void File::Info::FromStat(const stat_wrapper_t& stat_info) {
+  is_directory = S_ISDIR(stat_info.st_mode);
+  is_symbolic_link = S_ISLNK(stat_info.st_mode);
+  size = stat_info.st_size;
+
+  // Get last modification time, last access time, and creation time from
+  // |stat_info|.
+  // Note: st_ctime is actually last status change time when the inode was last
+  // updated, which happens on any metadata change. It is not the file's
+  // creation time. However, other than on Mac & iOS where the actual file
+  // creation time is included as st_birthtime, the rest of POSIX platforms have
+  // no portable way to get the creation time.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+  time_t last_modified_sec = stat_info.st_mtim.tv_sec;
+  int64_t last_modified_nsec = stat_info.st_mtim.tv_nsec;
+  time_t last_accessed_sec = stat_info.st_atim.tv_sec;
+  int64_t last_accessed_nsec = stat_info.st_atim.tv_nsec;
+  time_t creation_time_sec = stat_info.st_ctim.tv_sec;
+  int64_t creation_time_nsec = stat_info.st_ctim.tv_nsec;
+#elif BUILDFLAG(IS_ANDROID)
+  time_t last_modified_sec = stat_info.st_mtime;
+  int64_t last_modified_nsec = stat_info.st_mtime_nsec;
+  time_t last_accessed_sec = stat_info.st_atime;
+  int64_t last_accessed_nsec = stat_info.st_atime_nsec;
+  time_t creation_time_sec = stat_info.st_ctime;
+  int64_t creation_time_nsec = stat_info.st_ctime_nsec;
+#elif BUILDFLAG(IS_APPLE)
+  time_t last_modified_sec = stat_info.st_mtimespec.tv_sec;
+  int64_t last_modified_nsec = stat_info.st_mtimespec.tv_nsec;
+  time_t last_accessed_sec = stat_info.st_atimespec.tv_sec;
+  int64_t last_accessed_nsec = stat_info.st_atimespec.tv_nsec;
+  time_t creation_time_sec = stat_info.st_birthtimespec.tv_sec;
+  int64_t creation_time_nsec = stat_info.st_birthtimespec.tv_nsec;
+#elif BUILDFLAG(IS_BSD)
+  time_t last_modified_sec = stat_info.st_mtimespec.tv_sec;
+  int64_t last_modified_nsec = stat_info.st_mtimespec.tv_nsec;
+  time_t last_accessed_sec = stat_info.st_atimespec.tv_sec;
+  int64_t last_accessed_nsec = stat_info.st_atimespec.tv_nsec;
+  time_t creation_time_sec = stat_info.st_ctimespec.tv_sec;
+  int64_t creation_time_nsec = stat_info.st_ctimespec.tv_nsec;
+#else
+  time_t last_modified_sec = stat_info.st_mtime;
+  int64_t last_modified_nsec = 0;
+  time_t last_accessed_sec = stat_info.st_atime;
+  int64_t last_accessed_nsec = 0;
+  time_t creation_time_sec = stat_info.st_ctime;
+  int64_t creation_time_nsec = 0;
+#endif
+
+  last_modified =
+      Time::FromTimeT(last_modified_sec) +
+      Microseconds(last_modified_nsec / Time::kNanosecondsPerMicrosecond);
+
+  last_accessed =
+      Time::FromTimeT(last_accessed_sec) +
+      Microseconds(last_accessed_nsec / Time::kNanosecondsPerMicrosecond);
+
+  creation_time =
+      Time::FromTimeT(creation_time_sec) +
+      Microseconds(creation_time_nsec / Time::kNanosecondsPerMicrosecond);
+}
+
 bool File::IsValid() const {
   return file_.is_valid();
 }
@@ -80,7 +146,8 @@ int64_t File::Seek(Whence whence, int64_t offset) {
   DCHECK(IsValid());
 
   SCOPED_FILE_TRACE_WITH_SIZE("Seek", offset);
-  return SbFileSeek(file_.get(), static_cast<SbFileWhence>(whence), offset);
+  return lseek(file_.get(), static_cast<off_t>(offset),
+               static_cast<int>(whence));
 }
 
 int File::Read(int64_t offset, char* data, int size) {
@@ -92,19 +159,21 @@ int File::Read(int64_t offset, char* data, int size) {
 
   SCOPED_FILE_TRACE_WITH_SIZE("Read", size);
 
-  int original_position = SbFileSeek(file_.get(), kSbFileFromCurrent, 0);
+  int original_position = lseek(file_.get(), 0, static_cast<int>(kSbFileFromCurrent));
   if (original_position < 0) {
     return -1;
   }
 
-  int position = SbFileSeek(file_.get(), kSbFileFromBegin, offset);
+  int position =
+      lseek(file_.get(), static_cast<off_t>(offset),  static_cast<int>(kSbFileFromBegin));
   int result = 0;
   if (position == offset) {
     result = ReadAtCurrentPos(data, size);
   }
 
   // Restore position regardless of result of write.
-  position = SbFileSeek(file_.get(), kSbFileFromBegin, original_position);
+  position =
+      lseek(file_.get(), static_cast<off_t>(original_position), static_cast<int>(kSbFileFromBegin));
   if (result < 0) {
     return result;
   }
@@ -124,7 +193,7 @@ int File::ReadAtCurrentPos(char* data, int size) {
 
   SCOPED_FILE_TRACE_WITH_SIZE("ReadAtCurrentPos", size);
 
-  return SbFileReadAll(file_.get(), data, size);
+  return starboard::ReadAll(file_.get(), data, size);
 }
 
 int File::ReadNoBestEffort(int64_t offset, char* data, int size) {
@@ -132,19 +201,22 @@ int File::ReadNoBestEffort(int64_t offset, char* data, int size) {
   DCHECK(IsValid());
   SCOPED_FILE_TRACE_WITH_SIZE("ReadNoBestEffort", size);
 
-  int original_position = SbFileSeek(file_.get(), kSbFileFromCurrent, 0);
+  int original_position = lseek(
+      file_.get(), 0, static_cast<int>(kSbFileFromCurrent));
   if (original_position < 0) {
     return -1;
   }
 
-  int position = SbFileSeek(file_.get(), kSbFileFromBegin, offset);
+  int position =
+      lseek(file_.get(), static_cast<off_t>(offset),  static_cast<int>(kSbFileFromBegin));
   int result = 0;
   if (position == offset) {
-    result = SbFileRead(file_.get(), data, size);
+    result = read(file_.get(), data, size);
   }
 
   // Restore position regardless of result of read.
-  position = SbFileSeek(file_.get(), kSbFileFromBegin, original_position);
+  position = lseek(file_.get(), static_cast<off_t>(original_position),
+                   static_cast<int>(kSbFileFromBegin));
   if (result < 0) {
     return result;
   }
@@ -163,7 +235,7 @@ int File::ReadAtCurrentPosNoBestEffort(char* data, int size) {
     return -1;
 
   SCOPED_FILE_TRACE_WITH_SIZE("ReadAtCurrentPosNoBestEffort", size);
-  return SbFileRead(file_.get(), data, size);
+  return read(file_.get(), data, size);
 }
 
 int File::Write(int64_t offset, const char* data, int size) {
@@ -173,19 +245,21 @@ int File::Write(int64_t offset, const char* data, int size) {
     return WriteAtCurrentPos(data, size);
   }
 
-  int original_position = SbFileSeek(file_.get(), kSbFileFromCurrent, 0);
+  int original_position = lseek(file_.get(), 0,  static_cast<int>(kSbFileFromCurrent));
   if (original_position < 0) {
     return -1;
   }
 
-  int64_t position = SbFileSeek(file_.get(), kSbFileFromBegin, offset);
+  int64_t position =
+      lseek(file_.get(), static_cast<off_t>(offset), static_cast<int>(kSbFileFromBegin));
   int result = 0;
   if (position == offset) {
     result = WriteAtCurrentPos(data, size);
   }
 
   // Restore position regardless of result of write.
-  position = SbFileSeek(file_.get(), kSbFileFromBegin, original_position);
+  position = lseek(file_.get(), static_cast<off_t>(original_position),
+                   static_cast<int>(kSbFileFromBegin));
   if (result < 0) {
     return result;
   }
@@ -204,7 +278,7 @@ int File::WriteAtCurrentPos(const char* data, int size) {
     return -1;
 
   SCOPED_FILE_TRACE_WITH_SIZE("WriteAtCurrentPos", size);
-  int write_result = SbFileWriteAll(file_.get(), data, size);
+  int write_result = starboard::WriteAll(file_.get(), data, size);
   RecordFileWriteStat(write_result);
   return write_result;
 }
@@ -216,7 +290,7 @@ int File::WriteAtCurrentPosNoBestEffort(const char* data, int size) {
     return -1;
 
   SCOPED_FILE_TRACE_WITH_SIZE("WriteAtCurrentPosNoBestEffort", size);
-  int write_result = SbFileWrite(file_.get(), data, size);
+  int write_result = write(file_.get(), data, size);
   RecordFileWriteStat(write_result);
   return write_result;
 }
@@ -226,12 +300,11 @@ int64_t File::GetLength() {
 
   SCOPED_FILE_TRACE("GetLength");
 
-  File::Info file_info;
-  if (!GetInfo(&file_info)) {
+  stat_wrapper_t file_info;
+  if (Fstat(file_.get(), &file_info))
     return -1;
-  }
 
-  return file_info.size;
+  return file_info.st_size;
 }
 
 bool File::SetLength(int64_t length) {
@@ -239,7 +312,7 @@ bool File::SetLength(int64_t length) {
   DCHECK(IsValid());
 
   SCOPED_FILE_TRACE_WITH_SIZE("SetLength", length);
-  return SbFileTruncate(file_.get(), length);
+  return ftruncate(file_.get(), length) == 0;
 }
 
 bool File::SetTimes(Time last_access_time, Time last_modified_time) {
@@ -257,22 +330,11 @@ bool File::GetInfo(Info* info) {
 
   SCOPED_FILE_TRACE("GetInfo");
 
-  if (!info || !SbFileIsValid(file_.get()))
+  stat_wrapper_t file_info;
+  if (Fstat(file_.get(), &file_info))
     return false;
 
-  SbFileInfo file_info;
-  if (!SbFileGetInfo(file_.get(), &file_info))
-    return false;
-
-  info->is_directory = file_info.is_directory;
-  info->is_symbolic_link = file_info.is_symbolic_link;
-  info->size = file_info.size;
-  info->last_modified = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(file_info.last_modified));
-  info->last_accessed = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(file_info.last_accessed));
-  info->creation_time = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(file_info.creation_time));
+  info->FromStat(file_info);
   return true;
 }
 
@@ -281,6 +343,19 @@ File::Error File::GetLastFileError() {
 }
 
 // Static.
+int File::Stat(const char* path, stat_wrapper_t* sb) {
+  internal::AssertBlockingAllowed();
+  return stat(path, sb);
+}
+int File::Fstat(int fd, stat_wrapper_t* sb) {
+  internal::AssertBlockingAllowed();
+  return fstat(fd, sb);
+}
+int File::Lstat(const char* path, stat_wrapper_t* sb) {
+  internal::AssertBlockingAllowed();
+  return lstat(path, sb);
+}
+
 File::Error File::OSErrorToFileError(SbSystemError sb_system_error) {
   switch (static_cast<SbFileError>(sb_system_error)) {
     case kSbFileOk:
@@ -333,51 +408,50 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   file_name_ = path.AsUTF8Unsafe();
 
   int open_flags = 0;
-  switch (flags & (FLAG_OPEN | FLAG_CREATE | FLAG_OPEN_ALWAYS |
-                   FLAG_CREATE_ALWAYS | FLAG_OPEN_TRUNCATED)) {
-    case FLAG_OPEN:
-      open_flags = kSbFileOpenOnly;
-      break;
-
-    case FLAG_CREATE:
-      open_flags = kSbFileCreateOnly;
-      break;
-
-    case FLAG_OPEN_ALWAYS:
-      open_flags = kSbFileOpenAlways;
-      break;
-
-    case FLAG_CREATE_ALWAYS:
-      open_flags = kSbFileCreateAlways;
-      break;
-
-    case FLAG_OPEN_TRUNCATED:
-      open_flags = kSbFileOpenTruncated;
-      DCHECK(flags & FLAG_WRITE);
-      break;
-
-    default:
-      NOTREACHED() << "Passed incompatible flags: " << flags;
-      error_details_ = FILE_ERROR_FAILED;
+  if (flags & FLAG_CREATE) {
+    open_flags = O_CREAT | O_EXCL;
   }
 
-  if (flags & FLAG_READ) {
-    open_flags |= kSbFileRead;
+  if (flags & FLAG_CREATE_ALWAYS) {
+    DCHECK(!open_flags);
+    open_flags = O_CREAT | O_TRUNC;
   }
 
-  if (flags & FLAG_WRITE || flags & FLAG_APPEND) {
-    open_flags |= kSbFileWrite;
+  if (flags & FLAG_OPEN_TRUNCATED) {
+    DCHECK(!open_flags);
+    DCHECK(flags & FLAG_WRITE);
+    open_flags = O_TRUNC;
   }
 
-  file_.reset(SbFileOpen(path.value().c_str(), open_flags, &created_,
-                         &g_sb_file_error));
+  if (!open_flags && !(flags & FLAG_OPEN) && !(flags & FLAG_OPEN_ALWAYS)) {
+    NOTREACHED() << "Passed incompatible flags: " << flags;
+    error_details_ = FILE_ERROR_FAILED;
+  }
 
-  if (!file_.is_valid()) {
+  if (flags & FLAG_WRITE || flags & FLAG_APPEND && flags & FLAG_READ) {
+    open_flags |= O_RDWR;
+  } else if (flags & FLAG_WRITE || flags & FLAG_APPEND) {
+    open_flags |= O_WRONLY;
+  }
+
+  int mode = S_IRUSR | S_IWUSR;
+  int descriptor = open(path.value().c_str(), open_flags, mode);
+
+  if (flags & FLAG_OPEN_ALWAYS) {
+    if (descriptor < 0) {
+      open_flags |= O_CREAT;
+      descriptor = open(path.value().c_str(), open_flags, mode);
+    }
+  }
+
+  file_.reset(descriptor);
+
+  if (file_.get() < 0) {
     error_details_ = OSErrorToFileError(g_sb_file_error);
   } else {
     error_details_ = FILE_OK;
     if (append_) {
-      SbFileSeek(file_.get(), kSbFileFromEnd, 0);
+      lseek(file_.get(), 0, kSbFileFromEnd);
     }
   }
 
@@ -393,7 +467,7 @@ bool File::Flush() {
   DCHECK(IsValid());
   SCOPED_FILE_TRACE("Flush");
 
-  return SbFileFlush(file_.get());
+  return fsync(file_.get());
 }
 
 void File::SetPlatformFile(PlatformFile file) {
