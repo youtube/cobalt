@@ -60,7 +60,10 @@ struct SbPlayerPrivate {
 #else   // SB_API_VERSION >= 15
   void GetInfo(SbPlayerInfo2* out_player_info);
 #endif  // SB_API_VERSION >= 15
+
+  // TODO: this function is not used.
   void SetPause(bool pause);
+
   void SetPlaybackRate(double playback_rate);
   void SetVolume(double volume);
 

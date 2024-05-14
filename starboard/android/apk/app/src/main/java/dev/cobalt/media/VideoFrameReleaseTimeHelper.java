@@ -158,7 +158,8 @@ public final class VideoFrameReleaseTimeHelper {
           adjustedFrameTimeNs = candidateAdjustedFrameTimeNs;
           adjustedReleaseTimeNs =
               syncUnadjustedReleaseTimeNs
-                  + (long) ((adjustedFrameTimeNs - syncFramePresentationTimeNs) / playbackRate);
+                  + adjustFrameTimeForPlaybackRate(
+                      adjustedFrameTimeNs - syncFramePresentationTimeNs, playbackRate);
         }
       } else {
         // We're synced but haven't waited the required number of frames to apply an adjustment.
@@ -199,8 +200,19 @@ public final class VideoFrameReleaseTimeHelper {
   private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs, double playbackRate) {
     long elapsedFrameTimeNs = frameTimeNs - syncFramePresentationTimeNs;
     long elapsedReleaseTimeNs = releaseTimeNs - syncUnadjustedReleaseTimeNs;
-    return Math.abs(elapsedReleaseTimeNs - elapsedFrameTimeNs / playbackRate)
+    return Math.abs(
+            elapsedReleaseTimeNs - adjustFrameTimeForPlaybackRate(elapsedFrameTimeNs, playbackRate))
         > MAX_ALLOWED_DRIFT_NS;
+  }
+
+  private long adjustFrameTimeForPlaybackRate(long frameTimeNs, double playbackRate) {
+    // Double has 52 bits for number precision while long has 63 bits. The timestamp is in ns,
+    // sometimes it might be very large. To avoid losing precision, and as we only support playback
+    // rate of {0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2}. So, we use a multiplier of 100 here to keep
+    // precision of the timestamp conversion.
+    final long PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER = 100;
+    long multipliedPlaybackRate = (long) (playbackRate * PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER);
+    return frameTimeNs * PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER / multipliedPlaybackRate;
   }
 
   private static long closestVsync(long releaseTime, long sampledVsyncTime, long vsyncDuration) {

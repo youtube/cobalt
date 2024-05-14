@@ -54,7 +54,7 @@ class AudioFrameTracker {
   // Usually there are very few elements, so std::vector<> is efficient enough.
   std::vector<FrameRecord> frame_records_;
   int64_t frames_played_adjusted_to_playback_rate_ = 0;
-  double last_playback_rate_ = 1.0;
+  double last_playback_rate_ = 0.0;
 };
 
 }  // namespace filter
