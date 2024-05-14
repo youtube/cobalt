@@ -1,0 +1,3222 @@
+# proto-file: third_party/libiamf/cli/proto/user_metadata.proto
+# proto-message: UserMetadata
+
+test_vector_metadata {
+  human_readable_description:
+    "A 7.1.4 IAMF stream with demixing parameter "
+    "blocks."
+  file_name_prefix: "test_000222"
+  is_valid: true
+  mp4_fixed_timestamp: "2023-06-23 00:00:00"
+  primary_tested_spec_sections: [
+    "3.6.2/loudspeaker_layout == 7.1.4",
+    "3.8/demixing_info_parameter_data",
+    "3.8.2/Demixing Info Parameter Data Syntax and Semantics",
+    "7/IAMF Processing",
+    "7.3.2.1/Rendering a Channel-Based Audio Element to Loudspeakers",
+    "7.5.1/Loudness Normalization",
+    "7.5.2/Limiter",
+    "9.1.2.1/Annex A2.1: Down-mix parameter and Loudness"
+  ]
+  base_test: "test_000221"
+}
+
+ia_sequence_header_metadata {
+  ia_code: 0x69616d66  # "iamf"
+  primary_profile: PROFILE_VERSION_SIMPLE
+  additional_profile: PROFILE_VERSION_SIMPLE
+}
+
+codec_config_metadata {
+  codec_config_id: 200
+  codec_config {
+    codec_id: 0x4f707573  # "Opus"
+    num_samples_per_frame: 960
+    audio_roll_distance: -4
+    decoder_config_opus {
+      version: 1
+      output_channel_count: 2
+      pre_skip: 312
+      input_sample_rate: 48000
+      output_gain: 0
+      mapping_family: 0
+      opus_encoder_metadata {
+        target_bitrate: 48000
+        application: APPLICATION_AUDIO
+      }
+    }
+  }
+}
+
+audio_element_metadata {
+  audio_element_id: 300
+  audio_element_type: AUDIO_ELEMENT_CHANNEL_BASED
+  reserved: 0
+  codec_config_id: 200
+  num_substreams: 7
+  audio_substream_ids: [0, 1, 2, 3, 4, 5, 6]
+  num_parameters: 1
+  audio_element_params {
+    param_definition_type: 1  #PARAMETER_DEFINITION_DEMIXING
+    demixing_param: {
+      param_definition {
+        parameter_id: 100  # demixing parameter will be used.
+        parameter_rate: 48000
+        param_definition_mode: 0
+        reserved: 0
+        duration: 960
+        num_subblocks: 1
+        constant_subblock_duration: 960
+      }
+      default_demixing_info_parameter_data: {
+        dmixp_mode: DMIXP_MODE_1
+      }
+      default_w: 0
+    }
+  }
+  scalable_channel_layout_config {
+    num_layers: 1
+    reserved: 0
+    channel_audio_layer_configs: [
+      {
+        loudspeaker_layout: 7  # 7.1.4
+        output_gain_is_present_flag: 0
+        recon_gain_is_present_flag: 0
+        reserved_a: 0
+        substream_count: 7
+        coupled_substream_count: 5
+      }
+    ]
+  }
+}
+
+mix_presentation_metadata {
+  mix_presentation_id: 42
+  count_label: 1
+  language_labels: ["en-us"]
+  mix_presentation_annotations_array: [
+    {
+      mix_presentation_friendly_label: "test_mix_pres"
+    }
+  ]
+  num_sub_mixes: 1
+  sub_mixes {
+    num_audio_elements: 1
+    audio_elements {
+      audio_element_id: 300
+      mix_presentation_element_annotations_array: [
+        {
+          audio_element_friendly_label: "test_sub_mix_0_audio_element_0"
+        }
+      ]
+      rendering_config {
+        headphones_rendering_mode: HEADPHONES_RENDERING_MODE_STEREO
+      }
+      element_mix_config {
+        mix_gain {
+          param_definition {
+            parameter_id: 999  # Non-existent; default will be used
+            parameter_rate: 48000
+            param_definition_mode: 1
+            reserved: 0
+          }
+          default_mix_gain: 0
+        }
+      }
+    }
+    output_mix_config {
+      output_mix_gain {
+        param_definition {
+          parameter_id: 998  # Non-existent; default will be used
+          parameter_rate: 48000
+          param_definition_mode: 1
+          reserved: 0
+        }
+        default_mix_gain: 0
+      }
+    }
+    num_layouts: 4
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_A_0_2_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -4013
+        digital_peak: 0
+      }
+    }
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_B_0_5_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -3695
+        digital_peak: -798
+      }
+    }
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_11_2_3_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -3839
+        digital_peak: 0
+      }
+    }
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_J_4_7_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -4636
+        digital_peak: -1009
+      }
+    }
+  }
+}
+
+audio_frame_metadata {
+  wav_filename: "Mechanism_5s.wav"
+  samples_to_trim_at_end: 648
+  samples_to_trim_at_start: 312
+  audio_element_id: 300
+  channel_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  channel_labels: ["L7", "R7", "C", "LFE", "Lss7", "Rss7", "Lrs7", "Rrs7", "Ltf4", "Rtf4", "Ltb4", "Rtb4"]
+}
+
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 0
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 1920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 2880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 3840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 4800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 5760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 6720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 7680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 8640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 9600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 10560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 11520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 12480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 13440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 14400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 15360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 16320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 17280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 18240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 19200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 20160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 21120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 22080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 23040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 24000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 24960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 25920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 26880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 27840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 28800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 29760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 30720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 31680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 32640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 33600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 34560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 35520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 36480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 37440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 38400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 39360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 40320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 41280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 42240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 43200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 44160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 45120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 46080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 47040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 48000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 48960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 49920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 50880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 51840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 52800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 53760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 54720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 55680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 56640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 57600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 58560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 59520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 60480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 61440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 62400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 63360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 64320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 65280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 66240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 67200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 68160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 69120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 70080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 71040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 72000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 72960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 73920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 74880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 75840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 76800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 77760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 78720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 79680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 80640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 81600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 82560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 83520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 84480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3
+    }
+  }
+  start_timestamp: 85440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 86400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 87360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 88320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 89280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 90240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 91200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 92160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 93120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 94080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 95040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 96000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 96960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 97920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 98880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 99840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 100800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 101760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 102720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 103680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 104640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 105600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 106560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 107520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 108480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 109440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 110400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 111360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 112320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 113280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 114240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 115200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 116160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 117120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 118080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 119040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 120000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 120960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 121920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 122880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 123840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 124800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 125760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 126720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 127680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 128640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 129600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 130560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 131520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 132480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 133440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 134400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 135360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 136320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 137280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 138240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 139200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 140160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 141120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 142080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 143040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 144000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 144960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 145920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 146880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 147840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 148800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 149760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 150720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 151680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 152640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 153600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 154560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 155520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 156480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 157440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 158400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 159360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 160320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 161280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 162240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 163200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 164160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 165120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 166080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 167040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 168000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 168960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 169920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 170880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_3_N
+    }
+  }
+  start_timestamp: 171840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 172800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 173760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 174720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 175680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 176640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 177600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 178560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 179520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 180480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 181440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 182400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 183360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 184320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 185280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 186240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 187200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 188160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 189120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 190080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 191040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 192000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 192960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 193920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 194880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 195840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 196800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 197760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 198720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 199680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 200640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 201600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 202560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 203520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 204480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 205440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 206400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 207360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 208320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 209280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 210240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 211200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 212160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 213120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 214080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 215040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 216000
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 216960
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 217920
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 218880
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 219840
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 220800
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 221760
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 222720
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 223680
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 224640
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 225600
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 226560
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 227520
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 228480
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 229440
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 230400
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 231360
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 232320
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 233280
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 234240
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 235200
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 236160
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 237120
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1_N
+    }
+  }
+  start_timestamp: 238080
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1
+    }
+  }
+  start_timestamp: 239040
+}
+parameter_block_metadata {
+  parameter_id: 100
+  duration: 960
+  num_subblocks: 1
+  constant_subblock_duration: 960
+  subblocks {
+    demixing_info_parameter_data {
+      dmixp_mode: DMIXP_MODE_1
+    }
+  }
+  start_timestamp: 240000
+}
+
+temporal_delimiter_metadata {
+  enable_temporal_delimiters: false
+}
