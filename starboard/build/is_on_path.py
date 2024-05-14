@@ -30,10 +30,7 @@ def is_on_same_path(file_path):
   Returns:
     True if the file is in the first entry on PYTHONPATH, False otherwise.
   """
-  try:
-    return os.path.abspath(file_path).startswith(SRC_ROOT)
-  except ImportError:
-    return False
+  return os.path.abspath(file_path).startswith(SRC_ROOT)
 
 
 if __name__ == '__main__':
