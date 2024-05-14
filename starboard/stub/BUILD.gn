@@ -247,6 +247,7 @@ static_library("stub_sources") {
     "//starboard/shared/stub/thread_get_name.cc",
     "//starboard/shared/stub/thread_is_equal.cc",
     "//starboard/shared/stub/thread_join.cc",
+    "//starboard/shared/stub/thread_priority.cc",
     "//starboard/shared/stub/thread_sampler_create.cc",
     "//starboard/shared/stub/thread_sampler_destroy.cc",
     "//starboard/shared/stub/thread_sampler_freeze.cc",

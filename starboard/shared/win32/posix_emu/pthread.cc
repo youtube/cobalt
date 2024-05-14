@@ -255,7 +255,7 @@ int pthread_create(pthread_t* thread,
 
   ResumeThread(info->thread_private_.handle_);
 
-  *thread = &info->thread_private_;
+  *thread = reinterpret_cast<pthread_t>(&info->thread_private_);
   return 0;
 }
 
@@ -264,7 +264,7 @@ int pthread_join(pthread_t thread, void** value_ptr) {
     return -1;
   }
 
-  SbThreadPrivate* thread_private = static_cast<SbThreadPrivate*>(thread);
+  SbThreadPrivate* thread_private = reinterpret_cast<SbThreadPrivate*>(thread);
 
   SbMutexAcquire(&thread_private->mutex_);
   if (!thread_private->wait_for_join_) {
@@ -289,7 +289,7 @@ int pthread_detach(pthread_t thread) {
   if (thread == NULL) {
     return -1;
   }
-  SbThreadPrivate* thread_private = static_cast<SbThreadPrivate*>(thread);
+  SbThreadPrivate* thread_private = reinterpret_cast<SbThreadPrivate*>(thread);
 
   SbMutexAcquire(&thread_private->mutex_);
   thread_private->wait_for_join_ = false;
@@ -299,7 +299,7 @@ int pthread_detach(pthread_t thread) {
 }
 
 pthread_t pthread_self() {
-  return GetCurrentSbThreadPrivate();
+  return reinterpret_cast<pthread_t>(GetCurrentSbThreadPrivate());
 }
 
 int pthread_equal(pthread_t t1, pthread_t t2) {
@@ -349,7 +349,7 @@ int pthread_setspecific(pthread_key_t key, const void* value) {
 }
 
 int pthread_setname_np(pthread_t thread, const char* name) {
-  SbThreadPrivate* thread_private = static_cast<SbThreadPrivate*>(thread);
+  SbThreadPrivate* thread_private = reinterpret_cast<SbThreadPrivate*>(thread);
   std::wstring wname = CStringToWString(name);
 
   HRESULT hr = SetThreadDescription(thread_private->handle_, wname.c_str());
@@ -364,13 +364,14 @@ int pthread_setname_np(pthread_t thread, const char* name) {
 }
 
 int pthread_getname_np(pthread_t thread, char* name, size_t len) {
-  SbThreadPrivate* thread_private = static_cast<SbThreadPrivate*>(thread);
+  SbThreadPrivate* thread_private = reinterpret_cast<SbThreadPrivate*>(thread);
   starboard::strlcpy(name, thread_private->name_.c_str(), len);
   return 0;
 }
 
 int pthread_attr_init(pthread_attr_t* attr) {
-  *attr = calloc(sizeof(pthread_attr_impl_t), 1);
+  *attr =
+      reinterpret_cast<pthread_attr_t>(calloc(sizeof(pthread_attr_impl_t), 1));
   if (*attr) {
     return 0;
   }
@@ -378,7 +379,7 @@ int pthread_attr_init(pthread_attr_t* attr) {
 }
 
 int pthread_attr_destroy(pthread_attr_t* attr) {
-  free(*attr);
+  free(reinterpret_cast<void*>(*attr));
   return 0;
 }
 

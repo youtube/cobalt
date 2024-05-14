@@ -22,8 +22,7 @@
 #define _INITIALIZER \
   {}
 #else
-#define _INITIALIZER \
-  { 0 }
+#define _INITIALIZER {0}
 #endif
 
 #define PTHREAD_MUTEX_INITIALIZER _INITIALIZER
@@ -55,8 +54,8 @@ typedef union pthread_once_t {
 typedef unsigned int pthread_mutexattr_t;
 typedef uintptr_t pthread_key_t;
 typedef unsigned int pthread_condattr_t;
-typedef void* pthread_t;
-typedef void* pthread_attr_t;
+typedef uintptr_t pthread_t;
+typedef uintptr_t pthread_attr_t;
 
 int pthread_mutex_destroy(pthread_mutex_t* mutex);
 int pthread_mutex_init(pthread_mutex_t* mutex,
