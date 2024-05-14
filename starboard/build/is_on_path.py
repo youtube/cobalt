@@ -16,17 +16,28 @@
 
 import os
 
+SRC_ROOT = src_root_dir = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 
-def main():
-  try:
-    # Try to import this file and compare its path to the current file.
-    import starboard.build.is_on_path  # pylint: disable=import-outside-toplevel
-    this_file = os.path.realpath(__file__)
-    imported_file = os.path.realpath(starboard.build.is_on_path.__file__)
-    print(str(this_file == imported_file).lower())
-  except ImportError:
-    print('false')
+
+def is_on_same_path(file_path):
+  """
+  Checks if the passed file path is in the same repo as this file.
+
+  Args:
+    file_path: The path to the file that should be checked.
+
+  Returns:
+    True if file_path is a file in the same repo as this file, otherwise False.
+  """
+  return os.path.abspath(file_path).startswith(SRC_ROOT)
 
 
 if __name__ == '__main__':
-  main()
+  try:
+    import starboard.build.is_on_path  # pylint: disable=import-outside-toplevel
+    # Use imported function instead of calling directly to ensure imports are
+    # being made from the same repo as this file is in.
+    print(str(starboard.build.is_on_path.is_on_same_path(__file__)).lower())
+  except ImportError:
+    print('false')
