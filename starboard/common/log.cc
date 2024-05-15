@@ -170,7 +170,7 @@ void LogMessage::Init(const char* file, int line) {
   char name[128] = {0};
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
   stream_ << '[';
-  stream_ << name << '/' << SbThreadGetId() << ':';
+  stream_ << name << '/' << pthread_self() << ':';
   EzTimeValue time_value;
   EzTimeValueGetNow(&time_value, NULL);
   EzTimeT t = time_value.tv_sec;
