@@ -44,7 +44,7 @@ class RecursiveMutex {
 
  private:
   Mutex mutex_;
-  SbThreadId owner_id_;
+  pthread_t owner_id_;
   // Only the owner is able to modify recurse_count_.
   size_t recurse_count_;
 
