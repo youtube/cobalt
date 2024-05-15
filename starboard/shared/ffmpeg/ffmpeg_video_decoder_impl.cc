@@ -23,7 +23,7 @@
 
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/thread.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
 namespace shared {
@@ -111,7 +111,7 @@ VideoDecoderImpl<FFMPEG>::VideoDecoderImpl(
       av_frame_(NULL),
       stream_ended_(false),
       error_occurred_(false),
-      decoder_thread_(kSbThreadInvalid),
+      decoder_thread_(0),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -165,11 +165,10 @@ void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
     return;
   }
 
-  if (!SbThreadIsValid(decoder_thread_)) {
-    decoder_thread_ = SbThreadCreate(
-        0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true, "ff_video_dec",
-        &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
-    SB_DCHECK(SbThreadIsValid(decoder_thread_));
+  if (decoder_thread_ == 0) {
+    pthread_create(&decoder_thread_, nullptr,
+                   &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
+    SB_DCHECK(decoder_thread_ != 0);
   }
   queue_.Put(Event(input_buffer));
 }
@@ -181,7 +180,7 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
   // Decode() is not called when the stream is ended.
   stream_ended_ = true;
 
-  if (!SbThreadIsValid(decoder_thread_)) {
+  if (decoder_thread_ == 0) {
     // In case there is no WriteInputBuffers() call before WriteEndOfStream(),
     // don't create the decoder thread and send the EOS frame directly.
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
@@ -193,16 +192,16 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
 
 void VideoDecoderImpl<FFMPEG>::Reset() {
   // Join the thread to ensure that all callbacks in process are finished.
-  if (SbThreadIsValid(decoder_thread_)) {
+  if (decoder_thread_ != 0) {
     queue_.Put(Event(kReset));
-    SbThreadJoin(decoder_thread_, NULL);
+    pthread_join(decoder_thread_, NULL);
   }
 
   if (codec_context_ != NULL) {
     ffmpeg_->avcodec_flush_buffers(codec_context_);
   }
 
-  decoder_thread_ = kSbThreadInvalid;
+  decoder_thread_ = 0;
   stream_ended_ = false;
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -221,6 +220,8 @@ bool VideoDecoderImpl<FFMPEG>::is_valid() const {
 
 // static
 void* VideoDecoderImpl<FFMPEG>::ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "ff_video_dec");
+  shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
   SB_DCHECK(context);
   VideoDecoderImpl<FFMPEG>* decoder =
       reinterpret_cast<VideoDecoderImpl<FFMPEG>*>(context);

@@ -797,7 +797,7 @@ void ServiceWorkerContext::UpdateRegistrationState(
     const scoped_refptr<ServiceWorkerObject>& source) {
   TRACE_EVENT2("cobalt::worker",
                "ServiceWorkerContext::UpdateRegistrationState()", "target",
-               target, "source", source);
+               target, "source", source->options_name());
   DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(registration);
   // Algorithm for Update Registration State:

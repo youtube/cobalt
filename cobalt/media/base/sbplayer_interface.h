@@ -97,7 +97,7 @@ class SbPlayerInterface {
   CValStats cval_stats_;
   MediaMetricsProvider media_metrics_provider_;
 
-  void SetDecodeToTexturePreferred(bool preferred);
+  bool SetDecodeToTexturePreferred(bool preferred);
 };
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {

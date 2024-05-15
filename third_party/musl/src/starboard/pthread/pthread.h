@@ -18,6 +18,9 @@
 #include <stdint.h>
 #include <time.h>
 
+#define PTHREAD_CREATE_JOINABLE 0
+#define PTHREAD_CREATE_DETACHED 1
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -175,6 +178,15 @@ int pthread_equal(pthread_t t1, pthread_t t2);
 
 int pthread_setname_np(pthread_t thread, const char* name);
 int pthread_getname_np(pthread_t thread, char* name, size_t len);
+
+int pthread_attr_destroy(pthread_attr_t *attr);
+int pthread_attr_init(pthread_attr_t *attr);
+
+int pthread_attr_getstacksize(const pthread_attr_t* attr, size_t* stack_size);
+int pthread_attr_setstacksize(pthread_attr_t* attr, size_t stack_size);
+
+int pthread_attr_getdetachstate(const pthread_attr_t* att, int* detach_state);
+int pthread_attr_setdetachstate(pthread_attr_t *attr, int detach_state);
 
 #ifdef __cplusplus
 }  // extern "C"

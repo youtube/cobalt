@@ -114,7 +114,7 @@
 #include <utility>
 
 #if defined(STARBOARD)
-#include "starboard/configuration.h"
+#include "starboard/configuration.h"  // nogncheck
 #if SB_IS(LITTLE_ENDIAN) && \
     !defined(PROTOBUF_DISABLE_LITTLE_ENDIAN_OPT_FOR_TEST)
 #define PROTOBUF_LITTLE_ENDIAN 1

@@ -498,6 +498,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);
+  REGISTER_SYMBOL(write);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
@@ -512,6 +513,19 @@ ExportedSymbols::ExportedSymbols() {
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
   map_["lseek"] = reinterpret_cast<const void*>(&__abi_wrap_lseek);
   map_["mmap"] = reinterpret_cast<const void*>(&__abi_wrap_mmap);
+
+  map_["pthread_attr_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_init);
+  map_["pthread_attr_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_destroy);
+  map_["pthread_attr_getdetachstate"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getdetachstate);
+  map_["pthread_attr_getstacksize"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstacksize);
+  map_["pthread_attr_setdetachstate"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setdetachstate);
+  map_["pthread_attr_setstacksize"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstacksize);
   map_["pthread_cond_broadcast"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_broadcast);
   map_["pthread_cond_destroy"] =

@@ -143,7 +143,7 @@ void LogMessage(LogLev level,
 
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) &&  \
     !PERFETTO_BUILDFLAG(PERFETTO_OS_WASM) && \
-    !PERFETTO_BUILDFLAG(PERFETTO_CHROMIUM_BUILD)
+    !PERFETTO_BUILDFLAG(PERFETTO_CHROMIUM_BUILD) && !defined(STARBOARD)
   static const bool use_colors = isatty(STDERR_FILENO);
 #else
   static const bool use_colors = false;

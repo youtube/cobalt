@@ -129,6 +129,12 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'read',
     'sched_yield',
     'stat',
+    'pthread_attr_init',
+    'pthread_attr_destroy',
+    'pthread_attr_getdetachstate',
+    'pthread_attr_getstacksize',
+    'pthread_attr_setdetachstate',
+    'pthread_attr_setstacksize',
     'pthread_cond_broadcast',
     'pthread_cond_destroy',
     'pthread_cond_init',
@@ -157,6 +163,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'pthread_setname_np',
     'pthread_getname_np',
     'usleep',
+    'write',
 ]
 
 

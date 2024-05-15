@@ -18,24 +18,26 @@ class MemoryStream : public OTSStream {
       : ptr_(ptr), length_(length), off_(0) {
   }
 
-  virtual bool WriteRaw(const void *data, size_t length) {
+  size_t size() override { return length_; }
+
+  bool WriteRaw(const void *data, size_t length) override {
     if ((off_ + length > length_) ||
         (length > std::numeric_limits<size_t>::max() - off_)) {
       return false;
     }
     std::memcpy(static_cast<char*>(ptr_) + off_, data, length);
-    off_ += static_cast<off_t>(length);
+    off_ += length;
     return true;
   }
 
-  virtual bool Seek(off_t position) {
+  bool Seek(off_t position) override {
     if (position < 0) return false;
     if (static_cast<size_t>(position) > length_) return false;
     off_ = position;
     return true;
   }
 
-  virtual off_t Tell() const {
+  off_t Tell() const override {
     return off_;
   }
 
@@ -60,7 +62,9 @@ class ExpandingMemoryStream : public OTSStream {
     return ptr_;
   }
 
-  bool WriteRaw(const void *data, size_t length) {
+  size_t size() override { return limit_; }
+
+  bool WriteRaw(const void *data, size_t length) override {
     if ((off_ + length > length_) ||
         (length > std::numeric_limits<size_t>::max() - off_)) {
       if (length_ == limit_)
@@ -78,18 +82,18 @@ class ExpandingMemoryStream : public OTSStream {
       return WriteRaw(data, length);
     }
     std::memcpy(static_cast<char*>(ptr_) + off_, data, length);
-    off_ += static_cast<off_t>(length);
+    off_ += length;
     return true;
   }
 
-  bool Seek(off_t position) {
+  bool Seek(off_t position) override {
     if (position < 0) return false;
     if (static_cast<size_t>(position) > length_) return false;
     off_ = position;
     return true;
   }
 
-  off_t Tell() const {
+  off_t Tell() const override {
     return off_;
   }
 
