@@ -15,13 +15,14 @@
 #include "starboard/common/log.h"
 
 #include <pthread.h>
+#include <sys/time.h>
+#include <time.h>
 
 #include <algorithm>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
 
-#include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
@@ -171,17 +172,15 @@ void LogMessage::Init(const char* file, int line) {
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
   stream_ << '[';
   stream_ << name << '/' << pthread_self() << ':';
-  EzTimeValue time_value;
-  EzTimeValueGetNow(&time_value, NULL);
-  EzTimeT t = time_value.tv_sec;
-  struct EzTimeExploded local_time = {0};
-  EzTimeTExplodeLocal(&t, &local_time);
-  struct EzTimeExploded* tm_time = &local_time;
-  stream_ << std::setfill('0') << std::setw(2) << 1 + tm_time->tm_mon
-          << std::setw(2) << tm_time->tm_mday << '/' << std::setw(2)
-          << tm_time->tm_hour << std::setw(2) << tm_time->tm_min << std::setw(2)
-          << tm_time->tm_sec << '.' << std::setw(6) << time_value.tv_usec
-          << ':';
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  struct tm tm_time = {0};
+  time_t t = static_cast<time_t>(tv.tv_sec);
+  gmtime_r(&t, &tm_time);
+  stream_ << std::setfill('0') << std::setw(2) << 1 + tm_time.tm_mon
+          << std::setw(2) << tm_time.tm_mday << '/' << std::setw(2)
+          << tm_time.tm_hour << std::setw(2) << tm_time.tm_min << std::setw(2)
+          << tm_time.tm_sec << '.' << std::setw(6) << tv.tv_usec << "(UTC):";
   stream_ << log_priority_names[priority_];
   stream_ << ":" << filename << "(" << line << ")] ";
   message_start_ = stream_.tellp();
