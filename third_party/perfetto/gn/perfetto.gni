@@ -91,7 +91,7 @@ declare_args() {
 # be different from the GN args flag (is_perfetto_embedder) because of the way
 # GN works.
 if (!defined(perfetto_build_with_embedder)) {
-  perfetto_build_with_embedder = build_with_chromium || is_perfetto_embedder
+  perfetto_build_with_embedder = build_with_chromium || is_perfetto_embedder || use_cobalt_customizations
 }
 
 perfetto_build_standalone =
@@ -101,7 +101,7 @@ perfetto_build_standalone =
 # Only relevant for GN builds. Sets the path where perfetto lives. This is //
 # for standalone builds and //third_party/perfetto/ in embedders. The embedder
 # can override it in its GN files.
-if (perfetto_build_standalone || is_perfetto_build_generator) {
+if ((perfetto_build_standalone || is_perfetto_build_generator) && !use_cobalt_customizations) {
   perfetto_root_path = "//"
   import("//gn/standalone/android.gni")  # For android_api_level
   import("//gn/standalone/sanitizers/vars.gni")  # For is_fuzzer
@@ -171,7 +171,7 @@ declare_args() {
   if (!defined(enable_perfetto_trace_processor)) {
     enable_perfetto_trace_processor =
         perfetto_build_standalone || build_with_chromium ||
-        is_perfetto_build_generator
+        is_perfetto_build_generator || use_cobalt_customizations
   }
 
   # Enables base::Watchdog. Is supported only on Linux-based platforms in
@@ -187,7 +187,7 @@ declare_args() {
       perfetto_build_standalone || perfetto_build_with_android
 
   enable_perfetto_unittests = perfetto_build_standalone ||
-                              build_with_chromium || perfetto_build_with_android
+                              build_with_chromium || perfetto_build_with_android || use_cobalt_customizations
 
   enable_perfetto_integration_tests =
       perfetto_build_standalone || perfetto_build_with_android
@@ -273,7 +273,7 @@ declare_args() {
   # Enables the SQL query layer of trace processor.
   enable_perfetto_trace_processor_sqlite =
       enable_perfetto_trace_processor &&
-      (build_with_chromium || !perfetto_build_with_embedder)
+      (build_with_chromium || !perfetto_build_with_embedder || use_cobalt_customizations)
 
   # Enables the optional SQLite percentile module.
   enable_perfetto_trace_processor_percentile =

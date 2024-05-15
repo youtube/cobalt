@@ -35,3 +35,9 @@ is_apple = is_ios || is_mac
 is_posix = !is_win && !is_fuchsia
 
 is_host_win = host_os == "win" || host_os == "winuwp"
+
+# Needed by perfetto.
+is_win_host = host_os == "win"
+is_linux_host = host_os == "linux"
+is_mac_host = host_os == "mac"
+is_lto = false

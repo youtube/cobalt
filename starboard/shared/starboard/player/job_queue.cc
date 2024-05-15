@@ -62,8 +62,8 @@ void ResetCurrentThreadJobQueue() {
 
 }  // namespace
 
-JobQueue::JobQueue() : thread_id_(SbThreadGetId()), condition_(mutex_) {
-  SB_DCHECK(SbThreadIsValidId(thread_id_));
+JobQueue::JobQueue() : thread_id_(pthread_self()), condition_(mutex_) {
+  SB_DCHECK(thread_id_ != 0);
   SetCurrentThreadJobQueue(this);
 }
 
@@ -155,7 +155,7 @@ bool JobQueue::BelongsToCurrentThread() const {
   // The ctor already ensures that the current JobQueue is the only JobQueue of
   // the thread, checking for thread id is more light-weighted then calling
   // JobQueue::current() and compare the result with |this|.
-  return thread_id_ == SbThreadGetId();
+  return pthread_equal(thread_id_, pthread_self());
 }
 
 // static

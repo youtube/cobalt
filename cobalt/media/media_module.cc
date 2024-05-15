@@ -213,10 +213,11 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     return true;
 #endif  // SB_API_VERSION >= 15
   } else if (name == "PlayerConfiguration.DecodeToTexturePreferred") {
-    sbplayer_interface_->SetDecodeToTexturePreferred(value);
-    LOG(INFO) << "Set DecodeToTexturePreferred to "
-              << (value ? "true" : "false");
-    return true;
+    if (sbplayer_interface_->SetDecodeToTexturePreferred(value)) {
+      LOG(INFO) << "Set DecodeToTexturePreferred to "
+                << (value ? "true" : "false");
+      return true;
+    }
   }
 
   return false;

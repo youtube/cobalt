@@ -176,7 +176,7 @@ namespace sampler {
 class Sampler::PlatformData {
  public:
   PlatformData()
-      : thread_(SbThreadGetCurrent()),
+      : thread_(pthread_self()),
         thread_sampler_(kSbThreadSamplerInvalid) {}
   ~PlatformData() { ReleaseThreadSampler(); }
 
@@ -195,7 +195,7 @@ class Sampler::PlatformData {
   }
 
  private:
-  SbThread thread_;
+  pthread_t thread_;
   SbThreadSampler thread_sampler_;
 };
 

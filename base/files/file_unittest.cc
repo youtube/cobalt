@@ -606,7 +606,7 @@ TEST(FileTest, DuplicateDeleteOnClose) {
 }
 #endif
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
+#if BUILDFLAG(ENABLE_BASE_TRACING) && !defined(STARBOARD)
 TEST(FileTest, TracedValueSupport) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());

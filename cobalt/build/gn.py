@@ -22,7 +22,6 @@ import sys
 from pathlib import Path
 from typing import List
 
-from starboard.build.is_on_path import is_on_same_path
 from starboard.build.platforms import PLATFORMS
 
 _BUILD_TYPES = ['debug', 'devel', 'qa', 'gold']
@@ -52,8 +51,6 @@ def main(out_directory: str, platform: str, build_type: str,
 
 
 if __name__ == '__main__':
-  assert is_on_same_path(__file__), 'Current repo is not first on PYTHONPATH.'
-
   parser = argparse.ArgumentParser()
 
   builds_directory_group = parser.add_mutually_exclusive_group()

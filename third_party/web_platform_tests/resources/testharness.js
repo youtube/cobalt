@@ -19,7 +19,7 @@ policies and contribution forms [3].
     var settings = {
         output:true,
         harness_timeout:{
-            "normal":10000,
+            "normal":9000,
             "long":60000
         },
         test_timeout:null,

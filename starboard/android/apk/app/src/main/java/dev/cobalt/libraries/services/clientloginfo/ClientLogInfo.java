@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import android.content.Context;
 import dev.cobalt.coat.CobaltService;
+import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 
 /** ClientLogInfo to report Android API support on android devices. */
@@ -32,7 +33,11 @@ public class ClientLogInfo extends CobaltService {
   public ResponseToClient receiveFromClient(byte[] data) {
     ResponseToClient response = new ResponseToClient();
     response.invalidState = false;
-    response.data = clientInfo.getBytes(UTF_8);
+
+    String responseString =
+        "displayRefreshRate:" + DisplayUtil.getDefaultDisplayRefreshRate() + ";";
+    responseString += clientInfo;
+    response.data = responseString.getBytes(UTF_8);
     return response;
   }
 
