@@ -298,7 +298,7 @@ jobs:
         shell: bash
         run: |
            set -u
-           COBALT_EVERGREEN_LOADER="${{needs.initialize.outputs.evergreen_loader}}"
+           COBALT_EVERGREEN_LOADER="${{ needs.initialize.outputs.evergreen_loader }}"
            echo "COBALT_EVERGREEN_LOADER=${COBALT_EVERGREEN_LOADER}" >> $GITHUB_ENV
       # Build Evergreen loader for on-host tests if necessary.
       - name: Evergreen loader GN
@@ -311,7 +311,7 @@ jobs:
         if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
       - name: Upload Evergreen loader On Host Test Artifacts
-        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true'}}
+        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
