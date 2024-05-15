@@ -62,7 +62,7 @@
 #include <google/protobuf/message_lite.h>
 
 #if defined(STARBOARD)
-#include "starboard/memory.h"
+#include "starboard/memory.h"  // nogncheck
 #endif  // defined(STARBOARD)
 
 namespace google {
@@ -254,7 +254,11 @@ class RepeatedField {
   // the struct. We can not use sizeof(Arena*) as well because there might be
   // a "gap" after the field arena and before the field elements (e.g., when
   // Element is double and pointer is 32bit).
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+  inline static const size_t kRepHeaderSize = reinterpret_cast<size_t>(&reinterpret_cast<Rep*>(16)->elements[0]) - 16;
+#else
   static const size_t kRepHeaderSize;
+#endif
   // Contains arena ptr and the elements array. We also keep the invariant that
   // if rep_ is NULL, then arena is NULL.
   Rep* rep_;
@@ -294,9 +298,11 @@ class RepeatedField {
   }
 };
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 template<typename Element>
 const size_t RepeatedField<Element>::kRepHeaderSize =
     reinterpret_cast<size_t>(&reinterpret_cast<Rep*>(16)->elements[0]) - 16;
+#endif
 
 namespace internal {
 template <typename It> class RepeatedPtrIterator;

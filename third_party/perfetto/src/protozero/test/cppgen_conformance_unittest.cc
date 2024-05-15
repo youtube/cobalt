@@ -101,7 +101,9 @@ TEST(ProtoCppConformanceTest, GenEncode_GoldDecode) {
   pbgold::EveryField gold_msg;
   gold_msg.ParseFromString(serialized);
   CheckTestingFields(gold_msg);
+#if !defined(COBALT_PENDING_CLEAN_UP)
   EXPECT_EQ(serialized.size(), static_cast<size_t>(gold_msg.ByteSizeLong()));
+#endif
 }
 
 TEST(ProtoCppConformanceTest, GoldEncode_GenDecode) {

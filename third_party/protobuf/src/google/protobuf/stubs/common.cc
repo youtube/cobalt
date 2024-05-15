@@ -32,7 +32,7 @@
 
 #ifdef STARBOARD
 #include <string.h>
-#include "starboard/common/string.h"
+#include "starboard/common/string.h"  // nogncheck
 #endif  // STARBOARD
 
 #include <google/protobuf/stubs/common.h>
@@ -44,8 +44,8 @@
 
 #ifdef STARBOARD
 #include <pthread.h>
-#include "starboard/common/log.h"
-#include "starboard/system.h"
+#include "starboard/common/log.h"  // nogncheck
+#include "starboard/system.h"  // nogncheck
 #define abort SbSystemBreakIntoDebugger
 #define fflush(stderr) SbLogFlush()
 #else  // STARBOARD

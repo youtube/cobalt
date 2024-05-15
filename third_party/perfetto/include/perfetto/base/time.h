@@ -160,8 +160,12 @@ inline TimeNanos GetBootTimeNs() {
   // Determine if CLOCK_BOOTTIME is available on the first call.
   static const clockid_t kBootTimeClockSource = [] {
     struct timespec ts = {};
+#if defined(STARBOARD)
+    return kWallTimeClockSource;
+#else
     int res = clock_gettime(CLOCK_BOOTTIME, &ts);
     return res == 0 ? CLOCK_BOOTTIME : kWallTimeClockSource;
+#endif
   }();
   return GetTimeInternalNs(kBootTimeClockSource);
 }
@@ -171,7 +175,11 @@ inline TimeNanos GetWallTimeNs() {
 }
 
 inline TimeNanos GetWallTimeRawNs() {
+#if defined(STARBOARD)
+  return GetTimeInternalNs(CLOCK_MONOTONIC);
+#else
   return GetTimeInternalNs(CLOCK_MONOTONIC_RAW);
+#endif
 }
 
 inline TimeNanos GetThreadCPUTimeNs() {
@@ -208,7 +216,7 @@ std::string GetTimeFmt(const std::string& fmt);
 inline int64_t TimeGm(struct tm* tms) {
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   return static_cast<int64_t>(_mkgmtime(tms));
-#elif PERFETTO_BUILDFLAG(PERFETTO_OS_NACL)
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_NACL) || defined(STARBOARD)
   // NaCL has no timegm.
   if (tms)  // Kinda if (true), but avoids "mark as noreturn" errors.
     PERFETTO_FATAL("timegm not supported");

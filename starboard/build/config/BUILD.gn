@@ -33,6 +33,7 @@ if (cobalt_pending_clean_up) {
   config("hacky_wnos") {
     if (is_clang) {
       cflags = [
+        "-Wno-c99-designator",
         "-Wno-psabi",
         "-Wno-shorten-64-to-32",
         "-Wno-unknown-warning-option",
@@ -359,7 +360,7 @@ config("apple_cpp20_config") {
 }
 
 config("linux_host_cpp_config") {
-  cflags_cc = [ "-std=gnu++14" ]
+  cflags_cc = [ "-std=gnu++17" ]
 }
 
 config("linux_non_modular_cpp17_config") {
@@ -376,4 +377,8 @@ config("modular_cpp17_config") {
 
 config("modular_cpp20_config") {
   cflags_cc = [ "-std=c++20" ]
+}
+
+config("native_target") {
+  configs = [ ":modular_cpp17_config" ]
 }
