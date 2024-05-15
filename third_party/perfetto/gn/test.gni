@@ -21,7 +21,7 @@ if (perfetto_root_path == "//") {
       testonly = true
     }
   }
-} else if (build_with_chromium) {
+} else if (build_with_chromium || use_cobalt_customizations) {
   import("//testing/test.gni")
 } else {
   assert(perfetto_build_with_embedder)

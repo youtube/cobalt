@@ -15,6 +15,7 @@
 import("../../../gn/perfetto.gni")
 import("../../../gn/test.gni")
 
+if (!use_cobalt_customizations) {
 source_set("symbolizer") {
   public_deps = [ "../../../include/perfetto/ext/base" ]
   deps = [ "../../../gn:default_deps" ]
@@ -39,8 +40,9 @@ source_set("symbolizer") {
     "symbolizer.h",
   ]
 }
+}
 
-if (enable_perfetto_trace_processor) {
+if (enable_perfetto_trace_processor && !use_cobalt_customizations) {
   source_set("symbolize_database") {
     public_deps = [
       ":symbolizer",
@@ -61,6 +63,7 @@ if (enable_perfetto_trace_processor) {
   }
 }
 
+if (!use_cobalt_customizations) {
 perfetto_unittest_source_set("unittests") {
   testonly = true
   deps = [
@@ -74,4 +77,5 @@ perfetto_unittest_source_set("unittests") {
     "breakpad_symbolizer_unittest.cc",
     "local_symbolizer_unittest.cc",
   ]
+}
 }

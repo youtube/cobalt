@@ -106,11 +106,13 @@ const char* UpdateAndGetThreadName(const char* name) {
 
   pthread_once(&s_once_flag, InitThreadLocalKey);
 
-  const char* thread_name = static_cast<const char*>(pthread_getspecific(s_thread_local_key));
+  const char* thread_name =
+      static_cast<const char*>(pthread_getspecific(s_thread_local_key));
   if (name)
     pthread_setspecific(s_thread_local_key, const_cast<char*>(name));
   else if (!thread_name)
-    pthread_setspecific(s_thread_local_key, const_cast<char*>(GetAndLeakThreadName()));
+    pthread_setspecific(s_thread_local_key,
+                        const_cast<char*>(GetAndLeakThreadName()));
   return static_cast<const char*>(pthread_getspecific(s_thread_local_key));
 #else
   static thread_local const char* thread_name;

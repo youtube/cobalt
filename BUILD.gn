@@ -12,30 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if (false) {
-  group("default") {
-    deps = [ "//net" ]
-  }
-} else {
-  group("gn_all") {
-    testonly = true
+group("gn_all") {
+  testonly = true
 
+  deps = [
+    "//cobalt:gn_all",
+    "//starboard:gn_all",
+  ]
+}
+
+group("default") {
+  testonly = true
+
+  if (is_qa || is_gold) {
     deps = [
-      "//cobalt:gn_all",
-      "//starboard:gn_all",
+      "//cobalt:default",
+      "//starboard:default",
     ]
-  }
-
-  group("default") {
-    testonly = true
-
-    if (is_qa || is_gold) {
-      deps = [
-        "//cobalt:default",
-        "//starboard:default",
-      ]
-    } else {
-      deps = [ ":gn_all" ]
-    }
+  } else {
+    deps = [ ":gn_all" ]
   }
 }
