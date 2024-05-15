@@ -18,6 +18,8 @@
 #ifndef STARBOARD_COMMON_MUTEX_H_
 #define STARBOARD_COMMON_MUTEX_H_
 
+#include <pthread.h>
+
 #include "starboard/mutex.h"
 
 namespace starboard {
@@ -39,7 +41,7 @@ class Mutex {
   void debugSetReleased() const;
   void debugPreAcquire() const;
   void debugSetAcquired() const;
-  mutable SbThread current_thread_acquired_;
+  mutable pthread_t current_thread_acquired_;
 #else
   void debugInit();
   void debugSetReleased() const;
