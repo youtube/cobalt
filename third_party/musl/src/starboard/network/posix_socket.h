@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket_waiter.h"
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_POSIX_SOCKET_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_POSIX_SOCKET_H_
 
-bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket) {
-  return false;
-}
+#include <stdint.h>
+#include "starboard/socket.h"
 
-#if SB_API_VERSION >= 16
-bool PosixSocketWaiterRemove(SbSocketWaiter waiter, int socket) {
-  return false;
-}
+#define PTHREAD_CREATE_JOINABLE 0
+#define PTHREAD_CREATE_DETACHED 1
+
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+int posixSocketGetFdFromSb(SbSocket socket);
+SbSocket posixSocketGetSbFromFd(int socket);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_POSIX_SOCKET_H_

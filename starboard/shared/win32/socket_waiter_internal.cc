@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/win32/socket_waiter_internal.h"
+#include <sys/socket.h>
+#undef socket
 
 #include <windows.h>
 
@@ -24,6 +25,7 @@
 #include "starboard/common/time.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/socket_internal.h"
+#include "starboard/shared/win32/socket_waiter_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/time_utils.h"
 #include "starboard/thread.h"
@@ -142,10 +144,118 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
 SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
   for (auto& it : waitees_.GetWaitees()) {
     if (it) {
+#if SB_API_VERSION >= 16
+      SB_DCHECK(CheckSocketWaiterIsThis(it->socket, it->waiter));
+#else
       SB_DCHECK(CheckSocketWaiterIsThis(it->socket));
+#endif
     }
   }
 }
+
+#if SB_API_VERSION >= 16
+bool SbSocketWaiterPrivate::Add(int socket,
+                                SbSocketWaiter waiter,
+                                void* context,
+                                PosixSocketWaiterCallback callback,
+                                int interests,
+                                bool persistent) {
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
+
+  if (socket < 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+
+  if (!interests) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": No interests provided.";
+    return false;
+  }
+
+  // The policy is not to add a socket to a waiter if it is registered with
+  // another waiter.
+
+  // TODO: If anyone were to want to add a socket to a different waiter,
+  // it would probably be another thread, so doing this check without locking is
+  // probably wrong. But, it is also a pain, and, at this precise moment, socket
+  // access is all going to come from one I/O thread anyway, and there will only
+  // be one waiter.
+  if (SbSocketWaiterIsValid(waiter)) {
+    if (waiter == this) {
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has this waiter ("
+                     << this << ").";
+    } else {
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has waiter ("
+                     << waiter << ", this=" << this << ").";
+    }
+    return false;
+  }
+  int network_event_interests = 0;
+  if (interests & kSbSocketWaiterInterestRead) {
+    network_event_interests |= FD_READ | FD_ACCEPT | FD_CLOSE;
+  }
+
+  if (interests & kSbSocketWaiterInterestWrite) {
+    network_event_interests |= FD_CONNECT | FD_WRITE;
+  }
+
+  /*
+  const BOOL manual_reset = !persistent;
+
+  SB_DCHECK(!socket->socket_event.IsValid());
+
+ socket->socket_event.Reset(
+      CreateEvent(nullptr, manual_reset, false, nullptr));
+  if (socket->socket_event.GetEvent() == WSA_INVALID_EVENT) {
+    int last_error = WSAGetLastError();
+    SB_DLOG(ERROR) << "Error calling WSACreateEvent() last_error = "
+                   << sbwin32::Win32ErrorCode(last_error);
+    return false;
+  }*/
+
+  // Note that WSAEnumNetworkEvents used elsewhere only works with
+  // WSAEventSelect.
+  // Please consider that before changing this code.
+  /*int return_value =
+      WSAEventSelect(socket->socket_handle, socket->socket_event.GetEvent(),
+                     network_event_interests);
+
+  if (return_value == SOCKET_ERROR) {
+    int last_error = WSAGetLastError();
+    SB_DLOG(ERROR) << "Error calling WSAEventSelect() last_error = "
+                   << sbwin32::Win32ErrorCode(last_error);
+    return false;
+  }*/
+
+  if (waitees_.GetHandleArraySize() >= MAXIMUM_WAIT_OBJECTS) {
+    SB_DLOG(ERROR) << "Reached maxed number of socket events ("
+                   << MAXIMUM_WAIT_OBJECTS << ")";
+    return false;
+  }
+
+  /*std::unique_ptr<Waitee> waitee(
+      new Waitee(this, socket, context, callback, interests, persistent));
+  waitees_.AddSocketEventAndWaitee(socket->socket_event.GetEvent(),
+                                   std::move(waitee));*/
+  waiter = this;
+
+  return true;
+}
+
+bool SbSocketWaiterPrivate::Remove(int socket, SbSocketWaiter waiter) {
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
+
+  if (!CheckSocketWaiterIsThis(socket, waiter)) {
+    return false;
+  }
+
+  waiter = kSbSocketWaiterInvalid;
+
+  // socket->socket_event.Reset(nullptr);
+  return waitees_.RemoveSocket(socket, waiter);
+}
+
+#else
 
 bool SbSocketWaiterPrivate::Add(SbSocket socket,
                                 void* context,
@@ -247,6 +357,8 @@ bool SbSocketWaiterPrivate::Remove(SbSocket socket) {
   return waitees_.RemoveSocket(socket);
 }
 
+#endif  // SB_API_VERSION >= 16
+
 void SbSocketWaiterPrivate::HandleWakeUpRead() {
   SB_LOG(INFO) << "HandleWakeUpRead incrementing counter..";
   starboard::ScopedLock lock(unhandled_wakeup_count_mutex_);
@@ -263,6 +375,23 @@ void SbSocketWaiterPrivate::ResetWakeupEvent() {
   WSAResetEvent(wakeup_event_.GetEvent());
 }
 
+#if SB_API_VERSION >= 16
+bool SbSocketWaiterPrivate::CheckSocketWaiterIsThis(int socket,
+                                                    SbSocketWaiter waiter) {
+  if (socket < 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+
+  if (waiter != this) {
+    return false;
+  }
+
+  return true;
+}
+
+#else
+
 bool SbSocketWaiterPrivate::CheckSocketWaiterIsThis(SbSocket socket) {
   if (!SbSocketIsValid(socket)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
@@ -275,6 +404,7 @@ bool SbSocketWaiterPrivate::CheckSocketWaiterIsThis(SbSocket socket) {
 
   return true;
 }
+#endif  // SB_API_VERSION >= 16
 
 void SbSocketWaiterPrivate::Wait() {
   SB_DCHECK(SbThreadIsCurrent(thread_));
@@ -310,7 +440,10 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
 
     // There should always be a wakeup event.
     SB_DCHECK(number_events > 0);
-
+#if SB_API_VERSION >= 16
+    int maybe_writable_socket = -1;
+    bool has_writable = (maybe_writable_socket != -1);
+#else
     SbSocket maybe_writable_socket = kSbSocketInvalid;
     for (auto& it : waitees_.GetWaitees()) {
       if (!it) {
@@ -326,6 +459,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
     }
 
     bool has_writable = (maybe_writable_socket != kSbSocketInvalid);
+#endif
     DWORD return_value =
         WSAWaitForMultipleEvents(number_events, waitees_.GetHandleArray(),
                                  false, has_writable ? 0 : millis, false);
@@ -363,10 +497,27 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
         // Remove the non-persistent waitee before calling the callback, so
         // that we can add another waitee in the callback if we need to. This
         // is also why we copy all the fields we need out of waitee.
+#if SB_API_VERSION >= 16
+        const int socket = waitee->socket;
+        const PosixSocketWaiterCallback callback = waitee->callback;
+#else
         const SbSocket socket = waitee->socket;
         const SbSocketWaiterCallback callback = waitee->callback;
+#endif
+
         void* context = waitee->context;
 
+#if SB_API_VERSION >= 16
+
+        // Note: this should also go before Remove().
+        SbSocketWaiterInterest interests =
+            DiscoverNetworkEventInterests(posixSocketGetHandleFromFd(socket));
+
+        // TODO: implement "writable"
+        if (!waitee->persistent) {
+          Remove(waitee->socket, waitee->waiter);
+        }
+#else
         // Note: this should also go before Remove().
         SbSocketWaiterInterest interests =
             DiscoverNetworkEventInterests(socket->socket_handle);
@@ -381,6 +532,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
         if (!waitee->persistent) {
           Remove(waitee->socket);
         }
+#endif
 
         callback(this, socket, context, interests);
       }
@@ -420,7 +572,11 @@ void SbSocketWaiterPrivate::WakeUp() {
 }
 
 SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::WaiteeRegistry::GetWaitee(
+#if SB_API_VERSION >= 16
+    int socket) {
+#else
     SbSocket socket) {
+#endif
   starboard::optional<int64_t> token = GetIndex(socket);
   if (!token) {
     return nullptr;
@@ -429,7 +585,11 @@ SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::WaiteeRegistry::GetWaitee(
 }
 
 starboard::optional<int64_t> SbSocketWaiterPrivate::WaiteeRegistry::GetIndex(
+#if SB_API_VERSION >= 16
+    int socket) {
+#else
     SbSocket socket) {
+#endif
   auto iterator = socket_to_index_map_.find(socket);
   if (iterator == socket_to_index_map_.end()) {
     return starboard::nullopt;
@@ -443,7 +603,11 @@ SbSocketWaiterPrivate::WaiteeRegistry::AddSocketEventAndWaitee(
     std::unique_ptr<Waitee> waitee) {
   SB_DCHECK(socket_event != WSA_INVALID_EVENT);
   SB_DCHECK(socket_events_.size() == waitees_.size());
+#if SB_API_VERSION >= 16
+  int socket = -1;
+#else
   SbSocket socket = kSbSocketInvalid;
+#endif
   if (waitee) {
     socket = waitee->socket;
   }
@@ -454,7 +618,13 @@ SbSocketWaiterPrivate::WaiteeRegistry::AddSocketEventAndWaitee(
   return socket_events_.size() - 1;
 }
 
+#if SB_API_VERSION >= 16
+bool SbSocketWaiterPrivate::WaiteeRegistry::RemoveSocket(
+    int socket,
+    SbSocketWaiter waiter) {
+#else
 bool SbSocketWaiterPrivate::WaiteeRegistry::RemoveSocket(SbSocket socket) {
+#endif
   auto iterator = socket_to_index_map_.find(socket);
   if (iterator == socket_to_index_map_.end()) {
     return false;
@@ -464,8 +634,11 @@ bool SbSocketWaiterPrivate::WaiteeRegistry::RemoveSocket(SbSocket socket) {
   SB_DCHECK(current_size == waitees_.size());
 
   const std::size_t socket_index = iterator->second;
+#if SB_API_VERSION >= 16
+  int socket_to_swap = waitees_[current_size - 1]->socket;
+#else
   SbSocket socket_to_swap = waitees_[current_size - 1]->socket;
-
+#endif
   // Since |EraseIndexFromVector| will swap the last socket and the socket
   // at current index, |socket_to_index_| will need to be updated.
   socket_to_index_map_[socket_to_swap] = socket_index;

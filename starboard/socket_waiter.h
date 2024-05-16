@@ -79,6 +79,12 @@ typedef void (*SbSocketWaiterCallback)(SbSocketWaiter waiter,
                                        void* context,
                                        int ready_interests);
 
+// Function pointer for socket waiter callbacks.
+typedef void (*PosixSocketWaiterCallback)(SbSocketWaiter waiter,
+                                          int socket,
+                                          void* context,
+                                          int ready_interests);
+
 // Well-defined value for an invalid socket watcher handle.
 #define kSbSocketWaiterInvalid ((SbSocketWaiter)NULL)
 
@@ -139,6 +145,13 @@ SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                                  int interests,
                                  bool persistent);
 
+SB_EXPORT bool PosixSocketWaiterAdd(SbSocketWaiter waiter,
+                                    int socket,
+                                    void* context,
+                                    PosixSocketWaiterCallback callback,
+                                    int interests,
+                                    bool persistent);
+
 // Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter.
 // This function should only be called on the thread that waits on this waiter.
 //
@@ -149,6 +162,8 @@ SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
 // |waiter|: The waiter from which the socket is removed.
 // |socket|: The socket to remove from the waiter.
 SB_EXPORT bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket);
+
+SB_EXPORT bool PosixSocketWaiterRemove(SbSocketWaiter waiter, int socket);
 
 // Waits on all registered sockets, calling the registered callbacks if and when
 // the corresponding sockets become ready for an interested operation. This

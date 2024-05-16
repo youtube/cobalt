@@ -152,6 +152,40 @@ static int get(int key, bool take, FileOrSocket** valuePtr) {
   return status;
 }
 
+/******************************************************
+* This function looks for the sbSocket in the database.
+* Return
+*   -1 - not found
+*   positive value - the file descriptor/key of sbSocket
+******************************************************/
+static int getBySocket(SbSocket sbSocket) {
+  int index = 0;
+  int key = -1;
+  if (map == NULL) {
+    return -1;
+  }
+
+  pthread_mutex_lock(&lock);
+
+  while (index < mapSize){
+    Node* node = map->array[index];
+    if (node != NULL){
+      FileOrSocket* pValue = node->value;
+      if (pValue != NULL) {
+        if ((pValue->is_file == false) && (pValue->socket == sbSocket)){
+          key = node->key;
+          break;
+        }
+      }
+    }
+    index++;
+  }
+
+  pthread_mutex_unlock(&lock);
+
+  return key;
+}
+
 static SB_C_FORCE_INLINE time_t WindowsUsecToTimeT(int64_t time) {
   int64_t posix_time = time - 11644473600000000ULL;
   posix_time = posix_time / 1000000;
@@ -932,6 +966,28 @@ int getifaddrs(struct ifaddrs** ifap) {
   memset(ifa->ifa_addr, 0, sizeof(struct sockaddr));
   ConvertSocketAddressSbToPosix(&sbAddress, ifa->ifa_addr);
   return 0;
+}
+
+
+int posixSocketGetFdFromSb(SbSocket socket){
+  return getBySocket(socket);
+}
+
+SbSocket posixSocketGetSbFromFd(int socket){
+  if (socket <= 0){
+    return NULL;
+  }
+  FileOrSocket *fileOrSock = NULL;
+  if (get(socket, false, &fileOrSock) != 0){
+    errno = EBADF;
+    return NULL;
+  }
+  if (fileOrSock == NULL || fileOrSock->is_file == true) {
+    errno = EBADF;
+    return NULL;
+  }
+
+  return fileOrSock->socket;
 }
 
 #endif  // SB_API_VERSION < 16

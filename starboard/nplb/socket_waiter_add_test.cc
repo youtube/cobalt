@@ -22,6 +22,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION <= 15
 class SbSocketWaiterAddTest
     : public ::testing::TestWithParam<SbSocketAddressType> {
  public:
@@ -218,6 +219,8 @@ INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         ::testing::Values(kSbSocketAddressTypeIpv4),
                         GetSbSocketAddressTypeName);
 #endif
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace
 }  // namespace nplb

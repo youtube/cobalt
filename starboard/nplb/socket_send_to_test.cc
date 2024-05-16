@@ -24,6 +24,7 @@
 #include "starboard/common/time.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/socket_helpers.h"
+#include "starboard/socket.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -137,8 +138,13 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketUntilBlocking) {
     int result = trio->client_socket->SendTo(buff, sizeof(buff), NULL);
 
     if (result < 0) {
+#if SB_API_VERSION >= 16
+      int err = errno;
+      EXPECT_EQ(EINPROGRESS, err);
+#else
       SbSocketError err = SbSocketGetLastError(trio->client_socket->socket());
       EXPECT_EQ(kSbSocketPending, err);
+#endif  // SB_API_VERSION >= 16
       return;
     }
 
@@ -176,10 +182,15 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
     int result = trio->client_socket->SendTo(buff, sizeof(buff), NULL);
 
     if (result < 0) {
+#if SB_API_VERSION >= 16
+      int err = errno;
+      EXPECT_EQ(kSbSocketErrorConnectionReset, err);
+#else
       SbSocketError err = SbSocketGetLastError(trio->client_socket->socket());
 
       EXPECT_EQ(kSbSocketErrorConnectionReset, err)
           << "Expected connection drop.";
+#endif
       return;
     }
 
