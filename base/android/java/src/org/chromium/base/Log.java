@@ -67,15 +67,33 @@ public class Log {
     }
 
     /**
+<<<<<<< HEAD
      * When BuildConfig.ENABLE_DEBUG_LOGS=true, returns true. Otherwise, forwards to {@link
      * android.util.Log#isLoggable(String, int)} (which returns false for levels < INFO, unless
      * configured otherwise by R8's -maximumremovedandroidloglevel).
      *
      * <p>https://stackoverflow.com/questions/7948204/does-log-isloggable-returns-wrong-values
+=======
+     * Returns a formatted log message, using the supplied format and arguments.
+     * The message will be prepended with the filename and line number of the call.
+     */
+    private static String formatLogWithStack(
+            String messageTemplate, Throwable tr, Object... params) {
+        return "[" + getCallOrigin() + "] " + formatLog(messageTemplate, tr, params);
+    }
+
+    /**
+     * In debug: Forwards to {@link android.util.Log#isLoggable(String, int)}, but always
+     * In release: Always returns false (via proguard rule).
+>>>>>>> 18c2154a7f2 (Android: Remove Log.isDebug())
      */
     @AlwaysInline
     public static boolean isLoggable(String tag, int level) {
+<<<<<<< HEAD
         return BuildConfig.ENABLE_DEBUG_LOGS || android.util.Log.isLoggable(tag, level);
+=======
+        return android.util.Log.isLoggable(tag, level);
+>>>>>>> 18c2154a7f2 (Android: Remove Log.isDebug())
     }
 
     /**
@@ -88,7 +106,12 @@ public class Log {
      * @param args Arguments referenced by the format specifiers in the format string. If the last
      *     one is a {@link Throwable}, its trace will be printed.
      */
+<<<<<<< HEAD
     public static void v(String tag, String messageTemplate, @Nullable Object @Nullable ... args) {
+=======
+    @CheckDiscard("crbug.com/1231625")
+    public static void v(String tag, String messageTemplate, Object... args) {
+>>>>>>> 18c2154a7f2 (Android: Remove Log.isDebug())
         if (!isLoggable(tag, VERBOSE)) return;
 
         Throwable tr = getThrowableToLog(args);
@@ -111,7 +134,12 @@ public class Log {
      * @param args Arguments referenced by the format specifiers in the format string. If the last
      *     one is a {@link Throwable}, its trace will be printed.
      */
+<<<<<<< HEAD
     public static void d(String tag, String messageTemplate, @Nullable Object @Nullable ... args) {
+=======
+    @CheckDiscard("crbug.com/1231625")
+    public static void d(String tag, String messageTemplate, Object... args) {
+>>>>>>> 18c2154a7f2 (Android: Remove Log.isDebug())
         if (!isLoggable(tag, DEBUG)) return;
 
         Throwable tr = getThrowableToLog(args);
