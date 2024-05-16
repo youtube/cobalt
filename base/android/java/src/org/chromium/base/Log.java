@@ -75,20 +75,11 @@ public class Log {
         return "[" + getCallOrigin() + "] " + formatLog(messageTemplate, tr, params);
     }
 
-    private static boolean isDebug() {
-        // Proguard sets value to false in release builds.
-        return true;
-    }
-
     /**
      * In debug: Forwards to {@link android.util.Log#isLoggable(String, int)}, but always
      * In release: Always returns false (via proguard rule).
      */
     public static boolean isLoggable(String tag, int level) {
-        // Early return helps optimizer eliminate calls to isLoggable().
-        if (!isDebug() && level <= INFO) {
-            return false;
-        }
         return android.util.Log.isLoggable(tag, level);
     }
 
@@ -104,7 +95,7 @@ public class Log {
      */
     @CheckDiscard("crbug.com/1231625")
     public static void v(String tag, String messageTemplate, Object... args) {
-        if (!isDebug()) return;
+        if (!isLoggable(tag, VERBOSE)) return;
 
         Throwable tr = getThrowableToLog(args);
         String message = formatLogWithStack(messageTemplate, tr, args);
@@ -128,7 +119,7 @@ public class Log {
      */
     @CheckDiscard("crbug.com/1231625")
     public static void d(String tag, String messageTemplate, Object... args) {
-        if (!isDebug()) return;
+        if (!isLoggable(tag, DEBUG)) return;
 
         Throwable tr = getThrowableToLog(args);
         String message = formatLogWithStack(messageTemplate, tr, args);
