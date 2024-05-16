@@ -34,6 +34,9 @@ config("common") {
   defines = [
     "_UNICODE",
     "UNICODE",
+
+    # min and max collide with std::min and std::max
+    "NOMINMAX",
   ]
 
   # msvs_base

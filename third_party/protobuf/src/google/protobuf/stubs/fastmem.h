@@ -50,7 +50,7 @@
 #include <stdio.h>
 #include <string.h>
 #else
-#include "starboard/memory.h"
+#include "starboard/memory.h"  // nogncheck
 #endif  // STARBOARD
 
 #include <google/protobuf/stubs/common.h>

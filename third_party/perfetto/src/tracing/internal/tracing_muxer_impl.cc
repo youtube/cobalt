@@ -56,6 +56,10 @@
 #include <unistd.h>  // For dup()
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace perfetto {
 namespace internal {
 
@@ -705,7 +709,12 @@ void TracingMuxerImpl::TracingSessionImpl::Setup(const TraceConfig& cfg,
     }
 #endif
     trace_config->set_write_into_file(true);
+#if defined(STARBOARD)
+    SB_NOTIMPLEMENTED();
+    fd = -1;
+#else
     fd = dup(fd);
+#endif
   }
   muxer->task_runner_->PostTask([muxer, session_id, trace_config, fd] {
     muxer->SetupTracingSession(session_id, trace_config, base::ScopedFile(fd));
