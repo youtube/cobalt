@@ -250,8 +250,11 @@ class BlackBoxTests(object):
       self.proxy_port = args.proxy_port or str(
           self.GetUnusedPort([_server_binding_address]))
       proxy_address = args.proxy_address or _server_binding_address
-      _launcher_params.target_params.append(
-          f'--proxy={proxy_address}:{self.proxy_port}')
+      proxy_url = f'{proxy_address}:{self.proxy_port}'
+      _launcher_params.target_params.append(f'--proxy={proxy_url}')
+
+    _launcher_params.target_params.append(
+        '--unsafely-treat-insecure-origin-as-secure=*web-platform.test')
 
     self.device_ips = args.device_ips
 
