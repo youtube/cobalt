@@ -19,7 +19,9 @@ gtest_target_type = "shared_library"
 starboard_level_final_executable_type = "shared_library"
 starboard_level_gtest_target_type = "shared_library"
 
-sb_enable_benchmark = true
+# TODO: libbenchmark.so is not built by evergreen.
+# Enabling it causes the EG AOSP build to fail due to it missing.
+sb_enable_benchmark = false
 
 size_config_path = "//starboard/android/shared/platform_configuration:size"
 speed_config_path = "//starboard/android/shared/platform_configuration:speed"
