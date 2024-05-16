@@ -34,6 +34,7 @@ if (cobalt_pending_clean_up) {
     if (is_clang) {
       cflags = [
         "-Wno-c99-designator",
+<<<<<<< HEAD
         "-Wno-psabi",
         "-Wno-shorten-64-to-32",
         "-Wno-unknown-warning-option",
@@ -45,6 +46,9 @@ if (cobalt_pending_clean_up) {
         "-Wno-delete-non-abstract-non-virtual-dtor",
         "-Wno-deprecated-copy",
         "-Wno-extra-semi",
+=======
+        "-Wno-deprecated-declarations",
+>>>>>>> c072eebaef4 ([build] Disable warning for deprecated declaration (#3270))
         "-Wno-ignored-qualifiers",
         "-Wno-implicit-fallthrough",
         "-Wno-invalid-noreturn",
