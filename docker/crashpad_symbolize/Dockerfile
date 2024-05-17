@@ -44,12 +44,13 @@ RUN id=$(cat /tmp/asset_ids.txt) && \
       -H "X-GitHub-Api-Version: 2022-11-28" \
     https://api.github.com/repos/youtube/cobalt/releases/assets/$id -o /tmp/libcobalt.tgz
 
-RUN tar xzf /tmp/libcobalt.tgz
+RUN mkdir /tmp/cobalt-evergreen-snapshot/ && \
+    tar xzf /tmp/libcobalt.tgz -C /tmp/cobalt-evergreen-snapshot
+
 RUN libcobalt_path=$(find /tmp/cobalt-evergreen-snapshot/ -name "libcobalt.so") \
   && breakpad/src/src/tools/linux/dump_syms/dump_syms $libcobalt_path > /tmp/libcobalt.so.sym \
   && debug_id=$(head -n1 /tmp/libcobalt.so.sym | cut -d' ' -f4) \
   && mkdir -p /tmp/symbols/libcobalt.so/$debug_id/ \
   && mv /tmp/libcobalt.so.sym /tmp/symbols/libcobalt.so/$debug_id/
 
-ARG MINIDUMP_PATH
-CMD breakpad/src/src/processor/minidump_stackwalk ${MINIDUMP_PATH} /tmp/symbols
+CMD breakpad/src/src/processor/minidump_stackwalk /root/minidump_directory/minidump.dmp /tmp/symbols

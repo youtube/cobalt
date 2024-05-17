@@ -17,17 +17,17 @@ symbolize your minidumps.
 Build and run the container with:
 
 ```
-MINIDUMP_PATH=/path/to/minidump_file docker-compose up --build crashpad-symbolize
+MINIDUMP_PATH=/path/to/minidump_file.dmp docker-compose up --build crashpad-symbolize
 ```
 
 Where `MINIDUMP_PATH` is the path to your minidump file. The service will also
 pick up environment values for `GITHUB_TAG`, `ARCHITECTURE`, `SB_API_VERSION`,
 and `CONFIG`, so ensure these are correct.
 
-* `GITHUB_TAG`: A Cobalt version with an associated release, i.e. 23.lts.5
+* `GITHUB_TAG`: A Cobalt version with an associated release, i.e. 25.lts.10
 * `ARCHITECTURE`: One of `x64`, `x86`, `arm64`, `arm-hardfp`, or `arm-softfp`
-* `SB_API_VERSION`: The Starboard version, i.e. `15`
-* `CONFIG`: One of `release`, `qa`, or `debug`
+* `SB_API_VERSION`: The Starboard version, i.e. `16`
+* `CONFIG`: One of `release` or `qa`
 
 ## Symbolizing Locally
 
