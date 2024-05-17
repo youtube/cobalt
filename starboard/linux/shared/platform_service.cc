@@ -21,8 +21,8 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/linux/shared/soft_mic_platform_service.h"
 #include "starboard/linux/shared/pre_app_recommendation_service.h"
+#include "starboard/linux/shared/soft_mic_platform_service.h"
 #include "starboard/shared/starboard/application.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
