@@ -15,7 +15,7 @@
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
 
-SbThreadSampler SbThreadSamplerCreate(pthread_t thread) {
+SbThreadSampler SbThreadSamplerCreate(SbThread thread) {
   SB_NOTIMPLEMENTED() << "Profiling is not supported on this platform.";
   return kSbThreadSamplerInvalid;
 }

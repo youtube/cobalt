@@ -15,21 +15,20 @@
 #ifndef STARBOARD_SHARED_PTHREAD_THREAD_SAMPLER_INTERNAL_H_
 #define STARBOARD_SHARED_PTHREAD_THREAD_SAMPLER_INTERNAL_H_
 
-#include <pthread.h>
-
 #include "starboard/thread.h"
 
 class SbThreadSamplerPrivate {
  public:
-  explicit SbThreadSamplerPrivate(pthread_t thread);
+  explicit SbThreadSamplerPrivate(SbThread thread);
   ~SbThreadSamplerPrivate();
 
   SbThreadContext Freeze();
   bool Thaw();
-  pthread_t thread() { return thread_; }
+
+  SbThread thread() { return thread_; }
 
  private:
-  pthread_t thread_;
+  SbThread thread_;
 };
 
 #endif  // STARBOARD_SHARED_PTHREAD_THREAD_SAMPLER_INTERNAL_H_
