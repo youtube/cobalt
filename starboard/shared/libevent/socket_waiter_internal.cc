@@ -119,7 +119,7 @@ void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()
-    : thread_(pthread_self()),
+    : thread_(SbThreadGetCurrent()),
       base_(event_base_new()),
       waiting_(false),
       woken_up_(false) {
@@ -177,7 +177,7 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
                                 SbSocketWaiterCallback callback,
                                 int interests,
                                 bool persistent) {
-  SB_DCHECK(pthread_equal(pthread_self(), thread_));
+  SB_DCHECK(SbThreadIsCurrent(thread_));
 
   if (!SbSocketIsValid(socket)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
@@ -234,7 +234,7 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
 }
 
 bool SbSocketWaiterPrivate::Remove(SbSocket socket) {
-  SB_DCHECK(pthread_equal(pthread_self(), thread_));
+  SB_DCHECK(SbThreadIsCurrent(thread_));
   if (!SbSocketIsValid(socket)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
     return false;
@@ -261,7 +261,7 @@ bool SbSocketWaiterPrivate::Remove(SbSocket socket) {
 }
 
 void SbSocketWaiterPrivate::Wait() {
-  SB_DCHECK(pthread_equal(pthread_self(), thread_));
+  SB_DCHECK(SbThreadIsCurrent(thread_));
 
   // We basically wait for the largest amount of time to achieve an indefinite
   // block.
@@ -269,7 +269,7 @@ void SbSocketWaiterPrivate::Wait() {
 }
 
 SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
-  SB_DCHECK(pthread_equal(pthread_self(), thread_));
+  SB_DCHECK(SbThreadIsCurrent(thread_));
 
   // The way to do this is apparently to create a timeout event, call WakeUp
   // inside that callback, and then just do a normal wait.
