@@ -136,7 +136,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'websockets/WebPlatformTest.Run/websockets_keeping_connection_open_001_html',
         'websockets/WebPlatformTest.Run/websockets_opening_handshake_003_html',
         'websockets/WebPlatformTest.Run/websockets_opening_handshake_005_html',
-        'service_workers/WebPlatformTest.Run/service_workers_service_worker_register_wait_forever_in_install_worker_https_html',
     ]
     return filters
 

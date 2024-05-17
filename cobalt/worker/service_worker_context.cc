@@ -438,9 +438,7 @@ bool ServiceWorkerContext::WaitForAsynchronousExtensions(
     if (registration->done_event()->TimedWait(
             base::TimeDelta::FromMilliseconds(100)))
       break;
-#ifndef COBALT_PENDING_CLEAN_UP
-    base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
-#endif
+    base::CurrentThread::ScopedAllowApplicationTasksInNativeNestedLoop allow;
     base::RunLoop().RunUntilIdle();
   } while ((base::TimeTicks::Now() - wait_start_time) <
            kWaitForAsynchronousExtensionsTimeout);
