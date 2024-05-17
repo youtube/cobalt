@@ -491,7 +491,7 @@ class TestRunner(object):
       if out_path:
         # Note that this path will use the host OS path separator.
         # This can cause issues if the host and device path separators
-        # don't match.
+        # don't match. PS5 is one such example.
         test_result_xml_path = os.path.join(out_path, xml_filename)
       else:
         test_result_xml_path = xml_filename
