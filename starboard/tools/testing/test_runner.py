@@ -489,6 +489,9 @@ class TestRunner(object):
       # The filename is used by MH to deduce the target name.
       xml_filename = f"{target_name}_testoutput.xml"
       if out_path:
+        # Note that this path will use the host OS path separator.
+        # This can cause issues if the host and device path separators
+        # don't match.
         test_result_xml_path = os.path.join(out_path, xml_filename)
       else:
         test_result_xml_path = xml_filename
