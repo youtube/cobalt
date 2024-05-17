@@ -1,30 +1,15 @@
-name: "harfbuzz-ng"
-description:
-  "HarfBuzz (also formerly known as harfbuzz-ng) is a text shaping library and "
-  "a dependency of Cobalt's layout engine."
-
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "48.0.2564.116"  # from https://chromereleases.googleblog.com/2016/02/stable-channel-update_18.html
+    value: "114.0.5735.358"  # from https://chromereleases.googleblog.com/2024/03/long-term-support-channel-update-for_26.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/src.git"
-    version: "ba6eb95383b3c41f6b91ce448bdc2bd3e39e1b8b"
+    version: "1759c6ae9316996b9f150c0ce9d0ca78a3d15c02"
   }
   identifier {
     type: "UpstreamSubdir"
     value: "third_party/harfbuzz-ng"
   }
-  last_upgrade_date {
-    year: 2015
-    month: 11
-    day: 24
-  }
-  license_type: NOTICE
-  local_modifications:
-    '11/11/21 - Added BUILD.gn as part of GN migration.'
-    'Contents taken from https://chromium.googlesource.com/chromium/src/+/518b35929ff33d0dc2397a186eecbc3b536acb40/third_party/harfbuzz-ng/BUILD.gn'
-    'and modified for Cobalt.'
 }

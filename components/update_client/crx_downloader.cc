@@ -10,9 +10,9 @@
 #include "base/files/file_util.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #if defined(OS_WIN)
 #include "components/update_client/background_downloader_win.h"
@@ -60,7 +60,7 @@ std::unique_ptr<CrxDownloader> CrxDownloader::Create(
 }
 
 CrxDownloader::CrxDownloader(std::unique_ptr<CrxDownloader> successor)
-    : main_task_runner_(base::ThreadTaskRunnerHandle::Get()),
+    : main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       successor_(std::move(successor)) {
 #if defined(STARBOARD)
   LOG(INFO) << "CrxDownloader::CrxDownloader";
@@ -119,7 +119,7 @@ void CrxDownloader::StartDownload(const std::vector<GURL>& urls,
                                   std::string* dst,
 #endif
                                   DownloadCallback download_callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(IN_MEMORY_UPDATES)
   CHECK(dst != nullptr);
 #endif
@@ -166,7 +166,7 @@ void CrxDownloader::OnDownloadComplete(
     bool is_handled,
     const Result& result,
     const DownloadMetrics& download_metrics) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "CrxDownloader::OnDownloadComplete";
 #endif
@@ -183,7 +183,7 @@ void CrxDownloader::OnDownloadComplete(
 }
 
 void CrxDownloader::OnDownloadProgress() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (progress_callback_.is_null())
     return;
@@ -241,7 +241,7 @@ void CrxDownloader::HandleDownloadError(
     bool is_handled,
     const Result& result,
     const DownloadMetrics& download_metrics) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_NE(0, result.error);
 #if !defined(IN_MEMORY_UPDATES)
   DCHECK(result.response.empty());

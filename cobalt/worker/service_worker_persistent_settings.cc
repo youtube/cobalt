@@ -439,8 +439,8 @@ void ServiceWorkerPersistentSettings::RemoveAll() {
   }
 }
 
-void ServiceWorkerPersistentSettings::DeleteAll(base::OnceClosure closure) {
-  persistent_settings_->DeletePersistentSettings(std::move(closure));
+void ServiceWorkerPersistentSettings::DeleteAll() {
+  persistent_settings_->DeletePersistentSettings();
 }
 
 }  // namespace worker

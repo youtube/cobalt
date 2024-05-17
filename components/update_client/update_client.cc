@@ -18,8 +18,8 @@
 #include "base/macros.h"
 #include "base/observer_list.h"
 #include "base/stl_util.h"
-#include "base/threading/thread_checker.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/sequence_checker.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/update_client/configurator.h"
@@ -74,7 +74,7 @@ UpdateClientImpl::UpdateClientImpl(
                      base::Unretained(this)))) {}
 
 UpdateClientImpl::~UpdateClientImpl() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   DCHECK(task_queue_.empty());
   DCHECK(tasks_.empty());
@@ -90,7 +90,7 @@ UpdateClientImpl::~UpdateClientImpl() {
 void UpdateClientImpl::Install(const std::string& id,
                                CrxDataCallback crx_data_callback,
                                Callback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (IsUpdating(id)) {
     std::move(callback).Run(Error::UPDATE_IN_PROGRESS);
@@ -112,7 +112,7 @@ void UpdateClientImpl::Update(const std::vector<std::string>& ids,
                               CrxDataCallback crx_data_callback,
                               bool is_foreground,
                               Callback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto task = base::MakeRefCounted<TaskUpdate>(
       update_engine_.get(), is_foreground, ids, std::move(crx_data_callback),
@@ -129,8 +129,8 @@ void UpdateClientImpl::Update(const std::vector<std::string>& ids,
 }
 
 void UpdateClientImpl::RunTask(scoped_refptr<Task> task) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&Task::Run, base::Unretained(task.get())));
   tasks_.insert(task);
 }
@@ -138,14 +138,14 @@ void UpdateClientImpl::RunTask(scoped_refptr<Task> task) {
 void UpdateClientImpl::OnTaskComplete(Callback callback,
                                       scoped_refptr<Task> task,
                                       Error error) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(task);
 
 #if defined(STARBOARD)
   LOG(INFO) << "UpdateClientImpl::OnTaskComplete";
 #endif
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), error));
 
   // Remove the task from the set of the running tasks. Only tasks handled by
@@ -165,18 +165,18 @@ void UpdateClientImpl::OnTaskComplete(Callback callback,
 }
 
 void UpdateClientImpl::AddObserver(Observer* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   observer_list_.AddObserver(observer);
 }
 
 void UpdateClientImpl::RemoveObserver(Observer* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   observer_list_.RemoveObserver(observer);
 }
 
 void UpdateClientImpl::NotifyObservers(Observer::Events event,
                                        const std::string& id) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   if (is_stopped_) {
     LOG(WARNING) << "UpdateClientImpl::NotifyObservers: already stopped";
@@ -193,7 +193,7 @@ bool UpdateClientImpl::GetCrxUpdateState(const std::string& id,
 }
 
 bool UpdateClientImpl::IsUpdating(const std::string& id) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   for (const auto task : tasks_) {
     const auto ids = task->GetIds();
@@ -213,7 +213,7 @@ bool UpdateClientImpl::IsUpdating(const std::string& id) const {
 }
 
 void UpdateClientImpl::Stop() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   is_stopped_ = true;
 
@@ -252,7 +252,7 @@ void UpdateClientImpl::SendUninstallPing(const std::string& id,
                                          const base::Version& version,
                                          int reason,
                                          Callback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   RunTask(base::MakeRefCounted<TaskSendUninstallPing>(
       update_engine_.get(), id, version, reason,

@@ -438,9 +438,7 @@ bool ServiceWorkerContext::WaitForAsynchronousExtensions(
     if (registration->done_event()->TimedWait(
             base::TimeDelta::FromMilliseconds(100)))
       break;
-#ifndef COBALT_PENDING_CLEAN_UP
-    base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
-#endif
+    base::CurrentThread::ScopedAllowApplicationTasksInNativeNestedLoop allow;
     base::RunLoop().RunUntilIdle();
   } while ((base::TimeTicks::Now() - wait_start_time) <
            kWaitForAsynchronousExtensionsTimeout);
@@ -797,7 +795,7 @@ void ServiceWorkerContext::UpdateRegistrationState(
     const scoped_refptr<ServiceWorkerObject>& source) {
   TRACE_EVENT2("cobalt::worker",
                "ServiceWorkerContext::UpdateRegistrationState()", "target",
-               target, "source", source);
+               target, "source", source->options_name());
   DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(registration);
   // Algorithm for Update Registration State:

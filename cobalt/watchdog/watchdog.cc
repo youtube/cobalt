@@ -103,10 +103,10 @@ bool Watchdog::InitializeCustom(
 
   // Starts monitor thread.
   is_monitoring_.store(true);
-  SB_DCHECK(!SbThreadIsValid(watchdog_thread_));
-  watchdog_thread_ = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                    true, "Watchdog", &Watchdog::Monitor, this);
-  SB_DCHECK(SbThreadIsValid(watchdog_thread_));
+
+  int res =
+      pthread_create(&watchdog_thread_, nullptr, &Watchdog::Monitor, this);
+  SB_DCHECK(res == 0);
   return true;
 }
 
@@ -123,7 +123,7 @@ void Watchdog::Uninitialize() {
   is_monitoring_.store(false);
   monitor_wait_.Signal();
   mutex_.Release();
-  SbThreadJoin(watchdog_thread_, nullptr);
+  pthread_join(watchdog_thread_, nullptr);
 }
 
 std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
@@ -199,6 +199,7 @@ void Watchdog::WriteWatchdogViolations() {
 }
 
 void* Watchdog::Monitor(void* context) {
+  pthread_setname_np(pthread_self(), "Watchdog");
   starboard::ScopedLock scoped_lock(static_cast<Watchdog*>(context)->mutex_);
   while (1) {
     int64_t current_monotonic_time = starboard::CurrentMonotonicTime();

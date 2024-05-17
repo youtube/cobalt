@@ -15,6 +15,8 @@
 #include "starboard/thread.h"
 
 #include <process.h>
+#include <pthread.h>
+
 #include <memory>
 
 #include "starboard/common/log.h"
@@ -29,6 +31,8 @@ using sbwin32::DebugLogWinError;
 using sbwin32::GetThreadSubsystemSingleton;
 using sbwin32::SbThreadPrivate;
 using sbwin32::ThreadCreateInfo;
+using sbwin32::ThreadGetLocalValue;
+using sbwin32::ThreadSetLocalValue;
 using sbwin32::ThreadSubsystemSingleton;
 using sbwin32::wchar_tToUTF8;
 
@@ -47,11 +51,11 @@ int RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton) {
       continue;
     }
     auto key = curr_it->second;
-    void* entry = SbThreadGetLocalValue(key);
+    void* entry = ThreadGetLocalValue(reinterpret_cast<SbThreadLocalKey>(key));
     if (!entry) {
       continue;
     }
-    SbThreadSetLocalValue(key, nullptr);
+    ThreadSetLocalValue(reinterpret_cast<SbThreadLocalKey>(key), nullptr);
     ++num_destructors_called;
     curr_it->second->destructor(entry);
   }
@@ -66,7 +70,7 @@ int CountTlsObjectsRemaining(ThreadSubsystemSingleton* singleton) {
       continue;
     }
     auto key = it->second;
-    void* entry = SbThreadGetLocalValue(key);
+    void* entry = ThreadGetLocalValue(reinterpret_cast<SbThreadLocalKey>(key));
     if (!entry) {
       continue;
     }
@@ -110,8 +114,8 @@ unsigned ThreadTrampoline(void* thread_create_info_context) {
       static_cast<ThreadCreateInfo*>(thread_create_info_context));
 
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
-  SbThreadSetLocalValue(singleton->thread_private_key_, &info->thread_private_);
-  SbThreadSetName(info->name_.c_str());
+  ThreadSetLocalValue(singleton->thread_private_key_, &info->thread_private_);
+  pthread_setname_np(pthread_self(), info->name_.c_str());
 
   void* result = info->entry_point_(info->user_context_);
 

@@ -70,7 +70,7 @@ Application* Application::g_instance = NULL;
 #if SB_API_VERSION >= 15
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
     : error_level_(0),
-      thread_(SbThreadGetCurrent()),
+      thread_(pthread_self()),
       start_link_(NULL),
       state_(kStateUnstarted),
       sb_event_handle_callback_(sb_event_handle_callback) {
@@ -79,7 +79,7 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
 #else
 Application::Application()
     : error_level_(0),
-      thread_(SbThreadGetCurrent()),
+      thread_(pthread_self()),
       start_link_(NULL),
       state_(kStateUnstarted) {
 #endif  // SB_API_VERSION >= 15

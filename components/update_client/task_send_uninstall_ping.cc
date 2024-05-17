@@ -7,7 +7,7 @@
 
 #include "base/bind.h"
 #include "base/location.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/version.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_engine.h"
@@ -27,11 +27,11 @@ TaskSendUninstallPing::TaskSendUninstallPing(
       callback_(std::move(callback)) {}
 
 TaskSendUninstallPing::~TaskSendUninstallPing() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void TaskSendUninstallPing::Run() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (id_.empty()) {
     TaskComplete(Error::INVALID_ARGUMENT);
@@ -44,7 +44,7 @@ void TaskSendUninstallPing::Run() {
 }
 
 void TaskSendUninstallPing::Cancel() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   TaskComplete(Error::UPDATE_CANCELED);
 }
@@ -54,9 +54,9 @@ std::vector<std::string> TaskSendUninstallPing::GetIds() const {
 }
 
 void TaskSendUninstallPing::TaskComplete(Error error) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(callback_), scoped_refptr<Task>(this), error));
 }

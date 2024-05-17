@@ -32,7 +32,7 @@
 
 #ifdef STARBOARD
 #include <string.h>
-#include "starboard/common/string.h"
+#include "starboard/common/string.h"  // nogncheck
 #endif  // STARBOARD
 
 #include <google/protobuf/stubs/common.h>
@@ -43,9 +43,9 @@
 #include <google/protobuf/stubs/int128.h>
 
 #ifdef STARBOARD
-#include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
-#include "starboard/system.h"
+#include <pthread.h>
+#include "starboard/common/log.h"  // nogncheck
+#include "starboard/system.h"  // nogncheck
 #define abort SbSystemBreakIntoDebugger
 #define fflush(stderr) SbLogFlush()
 #else  // STARBOARD
@@ -329,27 +329,27 @@ void DoNothing() {}
 #if defined(STARBOARD)
 
 struct Mutex::Internal {
-  SbMutex mutex;
+  pthread_mutex_t mutex;
 };
 
 Mutex::Mutex() : mInternal(new Internal) {
-  SbMutexCreate(&mInternal->mutex);
+  pthread_mutex_init(&mInternal->mutex, nullptr);
 }
 
 Mutex::~Mutex() {
-  SbMutexDestroy(&mInternal->mutex);
+  pthread_mutex_destroy(&mInternal->mutex);
   delete mInternal;
 }
 
 void Mutex::Lock() {
-  if (!SbMutexIsSuccess(SbMutexAcquire(&mInternal->mutex))) {
-    GOOGLE_LOG(FATAL) << "SbMutexAcquire failed.";
+  if (pthread_mutex_lock(&mInternal->mutex) != 0) {
+    GOOGLE_LOG(FATAL) << "Mutex Acquire failed.";
   }
 }
 
 void Mutex::Unlock() {
-  if (!SbMutexRelease(&mInternal->mutex)) {
-    GOOGLE_LOG(FATAL) << "SbMutexRelease failed.";
+  if (pthread_mutex_unlock(&mInternal->mutex) != 0) {
+    GOOGLE_LOG(FATAL) << "Mutex Release failed.";
   }
 }
 

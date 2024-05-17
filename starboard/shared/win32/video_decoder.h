@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_WIN32_VIDEO_DECODER_H_
 
 #include <D3d11_1.h>
+#include <pthread.h>
 #include <wrl/client.h>
 
 #include <atomic>
@@ -31,7 +32,6 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
@@ -135,7 +135,7 @@ class VideoDecoder
   scoped_ptr<DecryptingDecoder> decoder_;
   RECT video_area_;
 
-  SbThread decoder_thread_ = kSbThreadInvalid;
+  pthread_t decoder_thread_ = 0;
   volatile bool decoder_thread_stop_requested_ = false;
   bool decoder_thread_stopped_ = false;
   Mutex thread_lock_;

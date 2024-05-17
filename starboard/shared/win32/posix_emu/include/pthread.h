@@ -15,25 +15,46 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_PTHREAD_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_PTHREAD_H_
 
+#include <stdint.h>
 #include <time.h>
-#include <windows.h>
 
-#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
+#ifdef __cplusplus
+#define _INITIALIZER \
+  {}
+#else
+#define _INITIALIZER \
+  { 0 }
+#endif
 
-#define PTHREAD_MUTEX_INITIALIZER SRWLOCK_INIT
-#define PTHREAD_COND_INITIALIZER CONDITION_VARIABLE_INIT
-#define PTHREAD_ONCE_INIT INIT_ONCE_STATIC_INIT
+#define PTHREAD_MUTEX_INITIALIZER _INITIALIZER
+#define PTHREAD_COND_INITIALIZER _INITIALIZER
+#define PTHREAD_ONCE_INIT _INITIALIZER
+
+#define PTHREAD_CREATE_JOINABLE 0
+#define PTHREAD_CREATE_DETACHED 1
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef SRWLOCK pthread_mutex_t;
+typedef union pthread_cond_t {
+  uint8_t buffer[8];
+  void* ptr;
+} pthread_cond_t;
+
+typedef union pthread_mutex_t {
+  uint8_t buffer[8];
+  void* ptr;
+} pthread_mutex_t;
+
+typedef union pthread_once_t {
+  uint8_t buffer[8];
+  void* ptr;
+} pthread_once_t;
+
 typedef unsigned int pthread_mutexattr_t;
-typedef void* pthread_key_t;
-typedef CONDITION_VARIABLE pthread_cond_t;
+typedef uintptr_t pthread_key_t;
 typedef unsigned int pthread_condattr_t;
-typedef INIT_ONCE pthread_once_t;
 typedef void* pthread_t;
 typedef void* pthread_attr_t;
 
@@ -76,6 +97,16 @@ int pthread_equal(pthread_t t1, pthread_t t2);
 
 int pthread_setname_np(pthread_t thread, const char* name);
 int pthread_getname_np(pthread_t thread, char* name, size_t len);
+
+int pthread_attr_init(pthread_attr_t* attr);
+int pthread_attr_destroy(pthread_attr_t* attr);
+
+int pthread_attr_getstacksize(const pthread_attr_t* attr, size_t* stack_size);
+int pthread_attr_setstacksize(pthread_attr_t* attr, size_t stack_size);
+
+int pthread_attr_getdetachstate(const pthread_attr_t* attr, int* detach_state);
+int pthread_attr_setdetachstate(pthread_attr_t* attr, int detach_state);
+
 #ifdef __cplusplus
 }
 #endif

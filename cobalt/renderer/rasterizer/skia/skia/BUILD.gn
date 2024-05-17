@@ -43,7 +43,10 @@ skia_common("skia_library_no_asan") {
   sources = skia_effects_imagefilter_sources_no_asan
   if (is_clang) {
     if (using_old_compiler) {
-      cflags_cc = [ "-Wno-c++1z-extensions" ]
+      cflags_cc = [
+        "-Wno-psabi",
+        "-Wno-c++1z-extensions",
+      ]
     } else {
       cflags_cc = [
         "-Wno-c++17-extensions",
@@ -88,7 +91,10 @@ config("skia_library_config_public") {
 
   if (is_clang) {
     if (using_old_compiler) {
-      cflags_cc = [ "-Wno-c++1z-extensions" ]
+      cflags_cc = [
+        "-Wno-psabi",
+        "-Wno-c++1z-extensions",
+      ]
     } else {
       cflags_cc = [
         "-Wno-c++17-extensions",
@@ -113,7 +119,7 @@ skia_common("skia_library") {
     ":skia_library_no_asan",
     "//base",
     "//starboard/common",
-    "//third_party/freetype",
+    "//third_party:freetype_harfbuzz",
     "//third_party/libpng",
     "//third_party/skia/third_party/skcms",
     "//third_party/zlib",
@@ -161,7 +167,7 @@ skia_common("skia") {
     "//cobalt/renderer:renderer_headers_only",
     "//starboard:starboard_headers_only",
     "//starboard/common",
-    "//third_party/freetype",
+    "//third_party:freetype_harfbuzz",
     "//third_party/libxml",
   ]
 

@@ -85,7 +85,7 @@ class ServiceWorkerPersistentSettings {
 
   void RemoveAll();
 
-  void DeleteAll(base::OnceClosure closure);
+  void DeleteAll();
 
  private:
   Options options_;

@@ -15,7 +15,6 @@
 #include <pthread.h>
 
 #include "base/check_op.h"
-#include "starboard/thread.h"
 #endif
 
 namespace base {
@@ -23,22 +22,77 @@ namespace base {
 namespace {
 
 #if defined(STARBOARD)
+
+enum TlsValue {
+  kDefault = 0,
+  kBackground = 1,
+  kUtility = 2,
+  kResourceEfficient = 3 ,
+  kCompositing = 4,
+  kDisplayCritical = 5,
+  kRealtimeAudio = 6,
+  kMaxValue = kRealtimeAudio,
+};
+
+TlsValue ThreadTypeToTlsValue(ThreadType type) {
+  if (type == ThreadType::kMaxValue) {
+    type = ThreadType::kRealtimeAudio;
+  }
+  switch(type) {
+    case ThreadType::kDefault:
+      return TlsValue::kDefault;
+    case ThreadType::kBackground:
+      return TlsValue::kBackground;
+    case  ThreadType::kUtility:
+      return TlsValue::kUtility;
+    case  ThreadType::kResourceEfficient:
+      return TlsValue::kResourceEfficient;
+    case  ThreadType::kCompositing:
+      return TlsValue::kCompositing;
+    case  ThreadType::kDisplayCritical:
+      return TlsValue::kDisplayCritical;
+    case  ThreadType::kRealtimeAudio:
+      return TlsValue::kRealtimeAudio;
+  }
+}
+
+ThreadType TlsValueToThreadType(TlsValue tls_value) {
+  if (tls_value == TlsValue::kMaxValue) {
+    tls_value = TlsValue::kRealtimeAudio;
+  }
+  switch(tls_value) {
+    case TlsValue::kDefault:
+      return ThreadType::kDefault;
+    case TlsValue::kBackground:
+      return ThreadType::kBackground;
+    case TlsValue::kUtility:
+      return ThreadType::kUtility;
+    case TlsValue::kResourceEfficient:
+      return ThreadType::kResourceEfficient;
+    case TlsValue::kCompositing:
+      return ThreadType::kCompositing;
+    case  TlsValue::kDisplayCritical:
+      return ThreadType::kDisplayCritical;
+    case TlsValue::kRealtimeAudio:
+      return ThreadType::kRealtimeAudio;
+  }
+}
+
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 
-ThreadType* GetThreadType() {
-  return static_cast<ThreadType*>(
-      SbThreadGetLocalValue(s_thread_local_key));
+ThreadType GetCurrentThreadTypeValue() {
+  EnsureThreadLocalKeyInited();
+  return TlsValueToThreadType(TlsValue(reinterpret_cast<intptr_t>(pthread_getspecific(s_thread_local_key))));
 }
 #else
 ABSL_CONST_INIT thread_local ThreadType current_thread_type =
@@ -64,8 +118,8 @@ void PlatformThread::SetCurrentThreadType(ThreadType thread_type) {
 // static
 ThreadType PlatformThread::GetCurrentThreadType() {
 #if defined(STARBOARD)
-  ThreadType* rv = GetThreadType();
-  return !!rv ? *rv : ThreadType::kDefault;
+  ThreadType type = GetCurrentThreadTypeValue(); 
+  return type;
 #else
   return current_thread_type;
 #endif
@@ -92,7 +146,7 @@ void SetCurrentThreadType(ThreadType thread_type,
   SetCurrentThreadTypeImpl(thread_type, pump_type_hint);
 #if defined(STARBOARD)
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, &thread_type);
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(ThreadTypeToTlsValue(thread_type)));
 #else
   current_thread_type = thread_type;
 #endif

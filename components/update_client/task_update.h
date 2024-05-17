@@ -11,7 +11,7 @@
 #include "base/callback.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
 #include "components/update_client/task.h"
 #include "components/update_client/update_client.h"
 
@@ -51,7 +51,7 @@ class TaskUpdate : public Task {
   // it has been canceled.
   void TaskComplete(Error error);
 
-  base::ThreadChecker thread_checker_;
+  SEQUENCE_CHECKER(sequence_checker_);
   scoped_refptr<UpdateEngine> update_engine_;
   const bool is_foreground_;
   const std::vector<std::string> ids_;

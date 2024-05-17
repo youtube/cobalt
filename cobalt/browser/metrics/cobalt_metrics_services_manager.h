@@ -18,7 +18,7 @@
 
 #include <memory>
 
-#include "base//memory/scoped_refptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/single_thread_task_runner.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
@@ -60,7 +60,8 @@ class CobaltMetricsServicesManager
 
   // Toggles whether metric reporting is enabled via
   // CobaltMetricsServicesManager.
-  static void ToggleMetricsEnabled(bool is_enabled);
+  static void ToggleMetricsEnabled(
+      bool is_enabled, base::OnceClosure done_callback = base::OnceClosure());
 
   // Sets the upload interval for metrics reporting. That is, how often are
   // metrics snapshotted and attempted to upload.

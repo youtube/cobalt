@@ -27,7 +27,7 @@
 
 // Inhibit C++ name-mangling for libjpeg functions.
 extern "C" {
-#include "third_party/libjpeg-turbo/jpeglib.h"
+#include "third_party/libjpeg_turbo/jpeglib.h"
 }
 
 namespace cobalt {

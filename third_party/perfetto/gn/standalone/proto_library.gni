@@ -20,7 +20,7 @@ if (host_os == "win") {
   _host_executable_suffix = ""
 }
 
-template("proto_library") {
+template("proto_library_pf") {
   assert(defined(invoker.sources))
   proto_sources = invoker.sources
 
@@ -29,9 +29,22 @@ template("proto_library") {
   if (defined(invoker.proto_in_dir)) {
     proto_in_dir = invoker.proto_in_dir
   }
+
+  if (use_cobalt_customizations) {
+    if (defined(invoker.proto_out_dir)) {
+      proto_out_dir = invoker.proto_out_dir
+    } else {
+      # Absolute path to the directory of current BUILD.gn file excluding "//".
+      proto_out_dir = rebase_path(".", "//")
+      if (proto_in_dir != ".") {
+        proto_out_dir += "/$proto_in_dir"
+      }
+    }
+  } else {
   assert(defined(invoker.proto_out_dir),
          "proto_out_dir must be explicitly defined")
   proto_out_dir = invoker.proto_out_dir
+  }
 
   # We don't support generate_python in the standalone build, but still must
   # check that the caller sets this to false. This is because when building in
@@ -149,12 +162,20 @@ template("proto_library") {
     if (perfetto_use_system_protobuf) {
       protoc_rebased_path = "protoc" + _host_executable_suffix  # from PATH
     } else {
+      if (use_cobalt_customizations) {
+        protoc_label = "//third_party/perfetto/gn:protoc($host_toolchain)"
+      } else {
       protoc_label = "//gn:protoc($host_toolchain)"
+      }
       protoc_path = get_label_info(protoc_label, "root_out_dir") + "/protoc" +
                     _host_executable_suffix
       protoc_rebased_path = "./" + rebase_path(protoc_path, root_build_dir)
     }
+    if (use_cobalt_customizations) {
+      script = "//third_party/perfetto/gn/standalone/protoc.py"
+    } else {
     script = "//gn/standalone/protoc.py"
+    }
     args = [
       # Path should be rebased because |root_build_dir| for current toolchain
       # may be different from |root_out_dir| of protoc built on host toolchain.
@@ -181,14 +202,23 @@ template("proto_library") {
       ]
     }
     if (generate_descriptor != "") {
+      if (use_cobalt_customizations) {
+        depfile = "$root_gen_dir/third_party/perfetto/$generate_descriptor.d"
+      } else {
       depfile = "$root_gen_dir/$generate_descriptor.d"
+      }
 
       if (!exclude_imports) {
         args += [ "--include_imports" ]
       }
+      if (use_cobalt_customizations) {
+        subpath = "third_party/perfetto/"
+      } else {
+        subpath = ""
+      }
       args += [
         "--descriptor_set_out",
-        rebase_path("$root_gen_dir/$generate_descriptor", root_build_dir),
+        rebase_path("$root_gen_dir/${subpath}$generate_descriptor", root_build_dir),
         "--dependency_out",
         rebase_path(depfile, root_build_dir),
       ]
@@ -252,7 +282,9 @@ template("proto_library") {
 
       sources = get_target_outputs(":$action_name")
 
+      if (!use_cobalt_customizations) {
       configs -= [ "//gn/standalone:extra_warnings" ]
+      }
       if (defined(invoker.extra_configs)) {
         configs += invoker.extra_configs
       }
@@ -266,7 +298,11 @@ template("proto_library") {
       # Only include the protobuf_gen_config when generating .pb.cc files.
       # Note that |generate_cc| is false for .{pbzero,ipc,gen etc.}.cc
       if (generate_cc) {
+        if (use_cobalt_customizations) {
+          public_configs += [ "//third_party/perfetto/gn:protobuf_gen_config" ]
+        } else {
         public_configs += [ "//gn:protobuf_gen_config" ]
+        }
       }
 
       # By default, propagate the config for |include_dirs| to dependent
@@ -276,7 +312,9 @@ template("proto_library") {
       propagate_imports_configs = !defined(invoker.propagate_imports_configs) ||
                                   invoker.propagate_imports_configs
       if (propagate_imports_configs) {
+        if (!use_cobalt_customizations) {
         public_configs += [ ":$config_name" ]
+        }
       } else {
         configs += [ ":$config_name" ]
       }
@@ -284,9 +322,17 @@ template("proto_library") {
       # Use protobuf_full only for tests.
       if (defined(invoker.use_protobuf_full) &&
           invoker.use_protobuf_full == true) {
+        if (use_cobalt_customizations) {
+          deps = [ "//third_party/perfetto/gn:protobuf_full" ]
+        } else {
         deps = [ "//gn:protobuf_full" ]
+        }
       } else if (generate_cc) {
+        if (use_cobalt_customizations) {
+          deps = [ "//third_party/perfetto/gn:protobuf_lite" ]
+        } else {
         deps = [ "//gn:protobuf_lite" ]
+        }
       } else {
         deps = []
       }

@@ -174,9 +174,21 @@ TEST(SbMediaBufferTest, Alignment) {
 #else   // SB_API_VERSION >= 14
     int alignment = SbMediaGetBufferAlignment(type);
 #endif  // SB_API_VERSION >= 14
+
+#if SB_API_VERSION >= 16
+    // SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return
+    // value is no longer used when allocating media buffers.  This is verified
+    // explicitly here by ensuring its return value is 1.
+    // The app MAY take best effort to allocate media buffers aligned to an
+    // optimal alignment for the platform, but not guaranteed.
+    // An implementation that has specific alignment requirement should check
+    // the alignment of the incoming buffer, and make a copy when necessary.
+    EXPECT_EQ(alignment, 1);
+#else   // SB_API_VERSION >= 16
     EXPECT_GE(alignment, 1);
     EXPECT_EQ(alignment & (alignment - 1), 0)
         << "Alignment must always be a power of 2";
+#endif  // SB_API_VERSION >= 16
   }
 }
 #endif  // SB_API_VERSION < 16
@@ -266,6 +278,16 @@ TEST(SbMediaBufferTest, MaxCapacity) {
 }
 
 TEST(SbMediaBufferTest, Padding) {
+#if SB_API_VERSION >= 16
+  // SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value
+  // is no longer used when allocating media buffers.  This is verified
+  // explicitly here by ensuring its return value is 0.
+  // An implementation that has specific padding requirement should make a
+  // copy of the incoming buffer when necessary.
+  EXPECT_EQ(SbMediaGetBufferPadding(), 0);
+
+#else  // SB_API_VERSION >= 16
+
 #if SB_API_VERSION >= 14
   EXPECT_GE(SbMediaGetBufferPadding(), 0);
 #else   // SB_API_VERSION >= 14
@@ -273,6 +295,8 @@ TEST(SbMediaBufferTest, Padding) {
     EXPECT_GE(SbMediaGetBufferPadding(type), 0);
   }
 #endif  // SB_API_VERSION >= 14
+
+#endif  // SB_API_VERSION >= 16
 }
 
 TEST(SbMediaBufferTest, PoolAllocateOnDemand) {

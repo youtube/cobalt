@@ -21,7 +21,7 @@
 
 #include "base/trace_event/trace_event.h"
 #include "starboard/memory.h"
-#include "third_party/libjpeg-turbo/turbojpeg.h"
+#include "third_party/libjpeg_turbo/turbojpeg.h"
 
 namespace cobalt {
 namespace renderer {

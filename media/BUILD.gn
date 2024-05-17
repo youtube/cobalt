@@ -13,7 +13,10 @@
 # limitations under the License.
 
 config("media_config") {
-  include_dirs = [ "//third_party/abseil-cpp" ]
+  include_dirs = [
+    "//third_party/abseil-cpp",
+    "//third_party/libwebm/source",
+  ]
   if (is_win) {
     cflags = [
       "/wd4267",  # Conversion from 'size_t' to 'type', possible loss of data.
@@ -30,22 +33,24 @@ config("media_config") {
     ]
   }
 
-  defines = [ "MEDIA_IMPLEMENTATION" ]
+  defines = [ "IS_MEDIA_IMPL" ]
 }
 
 config("media_config_public") {
   # TODO: Make include_dirs other than the first one private.
   include_dirs = [
     "//third_party/abseil-cpp",
+    "//third_party/libwebm/source",
+    "//third_party/skia",
     "..",
     "cobalt",
-    "//third_party/skia",
   ]
 }
 
 config("external_config") {
   include_dirs = [
     "//third_party/abseil-cpp",
+    "//third_party/libwebm/source",
     "..",
     "cobalt",
     "../../skia",
@@ -82,6 +87,8 @@ component("media") {
     "base/encryption_pattern.h",
     "base/encryption_scheme.cc",
     "base/encryption_scheme.h",
+    "base/media_client.cc",
+    "base/media_client.h",
     "base/media_log.h",
     "base/media_resource.cc",
     "base/media_resource.h",

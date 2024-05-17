@@ -23,6 +23,7 @@
 #include "base/compiler_specific.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/statistics.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
@@ -273,6 +274,7 @@ SbPlayerBridge::SbPlayerBridge(
   }
   if (video_config.IsValidConfig()) {
     UpdateVideoConfig(video_config, video_mime_type);
+    SendColorSpaceHistogram();
   }
 
   output_mode_ = ComputeSbPlayerOutputMode(default_output_mode);
@@ -944,6 +946,7 @@ void SbPlayerBridge::WriteBuffersInternal(
 
     if (buffer->side_data_size() > 0) {
       // We only support at most one side data currently.
+      side_data->type = kMatroskaBlockAdditional;
       side_data->data = buffer->side_data();
       side_data->size = buffer->side_data_size();
       sample_info.side_data = side_data;
@@ -1358,6 +1361,24 @@ void SbPlayerBridge::LogStartupLatency() const {
       StatisticsWrapper::GetInstance()->startup_latency.average(),
       StatisticsWrapper::GetInstance()->startup_latency.max());
   // clang-format on
+}
+
+void SbPlayerBridge::SendColorSpaceHistogram() const {
+  using base::UmaHistogramEnumeration;
+
+  const auto& cs_info = video_config_.color_space_info();
+
+  if (video_stream_info_.color_metadata.bits_per_channel > 8) {
+    UmaHistogramEnumeration("Cobalt.Media.HDR.Primaries", cs_info.primaries);
+    UmaHistogramEnumeration("Cobalt.Media.HDR.Transfer", cs_info.transfer);
+    UmaHistogramEnumeration("Cobalt.Media.HDR.Matrix", cs_info.matrix);
+    UmaHistogramEnumeration("Cobalt.Media.HDR.Range", cs_info.range);
+  } else {
+    UmaHistogramEnumeration("Cobalt.Media.SDR.Primaries", cs_info.primaries);
+    UmaHistogramEnumeration("Cobalt.Media.SDR.Transfer", cs_info.transfer);
+    UmaHistogramEnumeration("Cobalt.Media.SDR.Matrix", cs_info.matrix);
+    UmaHistogramEnumeration("Cobalt.Media.SDR.Range", cs_info.range);
+  }
 }
 
 }  // namespace media

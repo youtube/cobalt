@@ -28,10 +28,15 @@ perfetto_proto_library("@TYPE@") {
   }
 }
 
+if (use_cobalt_customizations) {
+  group("stack_descriptor") {
+  }
+} else {
 perfetto_proto_library("stack_descriptor") {
   proto_generators = [ "descriptor" ]
   generate_descriptor = "stack.descriptor"
   sources = [ "stack.proto" ]
+}
 }
 
 perfetto_proto_library("metrics_impl_@TYPE@") {

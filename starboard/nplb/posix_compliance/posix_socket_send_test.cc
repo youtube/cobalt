@@ -16,6 +16,8 @@
 // this is hooked up to something.
 
 #include <fcntl.h>
+#include <pthread.h>
+#include <string.h>
 #include <unistd.h>
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "starboard/thread.h"
@@ -39,6 +41,8 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   const size_t kBufSize = 1024;
   char* send_buf = new char[kBufSize];
   memset(send_buf, 0, kBufSize);
+
+  pthread_setname_np(pthread_self(), "SendToTest");
 
   // Continue sending to the socket until it fails to send. It's expected that
   // SbSocketSendTo will fail when the server socket closes, but the application
@@ -73,8 +77,9 @@ TEST(PosixSocketSendTest, RainyDayUnconnectedSocket) {
   ssize_t bytes_written = send(socket_fd, buf, sizeof(buf), kSendFlags);
   EXPECT_FALSE(bytes_written >= 0);
 
-  // TODO: check errno: EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET ||
-  // errno == EPIPE);
+  EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
+              errno == ENOTCONN);
+  SB_DLOG(INFO) << "Failed to send, errno = " << strerror(errno);
 
   EXPECT_TRUE(close(socket_fd) == 0);
 }
@@ -95,20 +100,23 @@ TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
 
   // Start a thread to write to the client socket.
   const bool kJoinable = true;
-  SbThread send_thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, kJoinable,
-                     "SendToTest", PosixSocketSendToServerSocketEntryPoint,
-                     static_cast<void*>(&trio_as_void_ptr));
+  pthread_t send_thread = 0;
+  pthread_create(&send_thread, NULL, PosixSocketSendToServerSocketEntryPoint,
+                 static_cast<void*>(&trio_as_void_ptr));
 
   // Close the client, which should cause writes to the server socket to fail.
   EXPECT_TRUE(close(client_socket_fd) == 0);
 
   // Wait for the thread to exit and check the last socket error.
   void* thread_result;
-  EXPECT_TRUE(SbThreadJoin(send_thread, &thread_result));
+  EXPECT_TRUE(pthread_join(send_thread, &thread_result) == 0);
 
-  // TODO: errno: EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno
-  // == EPIPE);
+  EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
+              errno == ENOTCONN ||     // errno on Windows
+              errno == EINPROGRESS ||  // errno on Evergreen
+              errno == ENETUNREACH     // errno on raspi
+  );
+  SB_DLOG(INFO) << "Failed to send, errno = " << strerror(errno);
 
   // Clean up the server socket.
   EXPECT_TRUE(close(server_socket_fd) == 0);
@@ -141,9 +149,9 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketUntilBlocking) {
 
     if (result < 0) {
       // If we didn't get a socket, it should be pending.
-      // TODO: export errno
-      // EXPECT_TRUE(errno == EINPROGRESS || errno == EAGAIN || errno ==
-      // EWOULDBLOCK);
+      EXPECT_TRUE(errno == EINPROGRESS || errno == EAGAIN ||
+                  errno == EWOULDBLOCK);
+      SB_DLOG(INFO) << "Failed to send, errno = " << strerror(errno);
       break;
     }
 
@@ -193,10 +201,9 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketConnectionReset) {
     result = send(client_socket_fd, buff, sizeof(buff), kSendFlags);
 
     if (result < 0) {
-      // TODO: errno:
-      // EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno ==
-      // EPIPE);
-      SB_DLOG(INFO) << "Failed to send, errno = " << errno;
+      EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
+                  errno == ECONNABORTED);
+      SB_DLOG(INFO) << "Failed to send, errno = " << strerror(errno);
       break;
     }
 

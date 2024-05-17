@@ -17,7 +17,7 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include "starboard/nplb/thread_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -32,6 +32,7 @@ struct TestContext {
 };
 
 void* EntryPoint(void* parameter) {
+  pthread_setname_np(pthread_self(), posix::kThreadName);
   TestContext* context = static_cast<TestContext*>(parameter);
   context->was_locked_ = (pthread_mutex_trylock(context->mutex_) == 0);
   return NULL;
@@ -60,13 +61,11 @@ TEST(PosixMutexAcquireTryTest, RainyDayReentrant) {
   EXPECT_EQ(pthread_mutex_trylock(&mutex), 0);
 
   TestContext context(&mutex);
-  // TODO: Migrate to pthread_create when available.
-  SbThread thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                     nplb::kThreadName, &EntryPoint, &context);
+  pthread_t thread = 0;
+  pthread_create(&thread, NULL, &EntryPoint, &context);
 
-  EXPECT_TRUE(SbThreadIsValid(thread));
-  EXPECT_TRUE(SbThreadJoin(thread, NULL));
+  EXPECT_TRUE(thread != 0);
+  EXPECT_TRUE(pthread_join(thread, NULL) == 0);
   EXPECT_FALSE(context.was_locked_);
   EXPECT_EQ(pthread_mutex_unlock(&mutex), 0);
   EXPECT_EQ(pthread_mutex_destroy(&mutex), 0);

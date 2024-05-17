@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_
 #define STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_
 
+#include <pthread.h>
+
 #include <atomic>
 #include <functional>
 #include <string>
@@ -24,7 +26,6 @@
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 namespace android {
@@ -116,7 +117,7 @@ class MinRequiredFramesTester {
 
   Mutex mutex_;
   ConditionVariable condition_variable_;
-  SbThread tester_thread_ = kSbThreadInvalid;
+  pthread_t tester_thread_ = 0;
   std::atomic_bool destroying_;
 };
 

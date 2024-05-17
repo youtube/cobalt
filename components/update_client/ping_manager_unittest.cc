@@ -16,8 +16,8 @@
 #include "base/json/json_reader.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/test/scoped_task_environment.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/version.h"
 #include "components/update_client/component.h"
 #include "components/update_client/protocol_definition.h"
@@ -118,8 +118,8 @@ INSTANTIATE_TEST_SUITE_P(Parameterized, PingManagerTest, testing::Bool());
 
 TEST_P(PingManagerTest, SendPing) {
 #if defined(STARBOARD)
-  auto interceptor_factory =
-      std::make_unique<InterceptorFactory>(base::ThreadTaskRunnerHandle::Get());
+  auto interceptor_factory = std::make_unique<InterceptorFactory>(
+      base::SequencedTaskRunner::GetCurrentDefault());
   auto interceptor = interceptor_factory->CreateInterceptor();
 #else
   auto interceptor = std::make_unique<URLLoaderPostInterceptor>(

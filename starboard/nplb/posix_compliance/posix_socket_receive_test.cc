@@ -37,8 +37,7 @@ int Transfer(int receive_socket_fd,
                             size - send_total, kSendFlags);
       if (bytes_sent < 0) {
         if (errno != EINPROGRESS) {
-          // TODO: b/321999529, need errno
-          // return -1;
+          return -1;
         }
         bytes_sent = 0;
       }
@@ -51,8 +50,7 @@ int Transfer(int receive_socket_fd,
 
     if (bytes_received < 0) {
       if (errno != EINPROGRESS) {
-        // TODO: b/321999529, need errno
-        // return -1;
+        return -1;
       }
       bytes_received = 0;
     }

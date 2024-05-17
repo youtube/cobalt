@@ -114,7 +114,7 @@ static_library("loader") {
     "//cobalt/renderer/test/png_utils",
     "//cobalt/web",
     "//net",
-    "//third_party/libjpeg-turbo:libjpeg",
+    "//third_party/libjpeg_turbo:libjpeg",
     "//third_party/libpng",
     "//third_party/libwebp",
     "//third_party/protobuf:protobuf_lite",
@@ -175,9 +175,7 @@ target(gtest_target_type, "loader_test") {
 
   sources = [
     "blob_fetcher_test.cc",
-
-    # TODO: b/335330660 - Re-enable FetcherCacheTests once crash is fixed for evergreen.
-    # "fetcher_cache_test.cc",
+    "fetcher_cache_test.cc",
     "fetcher_factory_test.cc",
     "fetcher_test.h",
     "file_fetcher_test.cc",

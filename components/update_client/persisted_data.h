@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/macros.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
 #include "base/values.h"
 
 class PrefRegistrySimple;
@@ -133,7 +133,7 @@ class PersistedData {
                  const std::string& key,
                  const std::string& value);
 
-  base::ThreadChecker thread_checker_;
+  SEQUENCE_CHECKER(sequence_checker_);
   PrefService* pref_service_;
   ActivityDataService* activity_data_service_;
 

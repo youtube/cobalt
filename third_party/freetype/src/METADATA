@@ -5,13 +5,13 @@ description:
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "112.0.5615.134"  # from https://chromereleases.googleblog.com/2023/04/stable-channel-update-for-chromeos_19.html
+    value: "114.0.5735.358"  # from https://chromereleases.googleblog.com/2024/03/long-term-support-channel-update-for_26.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/src/third_party/freetype2.git"
-    version: "e78e2d29a95baf6053e30cc9422aa20319259803"
-    # from https://chromium.googlesource.com/chromium/src/+/112.0.5615.134/DEPS#353
+    version: "0a3836c97d5e84d6721ac0fd2839e8ae1b7be8d9"
+    # from https://chromium.googlesource.com/chromium/src/+/114.0.5735.358/DEPS#347
   }
   last_upgrade_date {
     year: 2023

@@ -113,8 +113,8 @@ class MediaSource : public web::EventTarget {
   // Custom, not in any spec.
   //
   // HTMLMediaSource
-  bool AttachToElement(HTMLMediaElement* media_element);
-  void SetChunkDemuxerAndOpen(ChunkDemuxer* chunk_demuxer);
+  bool StartAttachingToMediaElement(HTMLMediaElement* media_element);
+  void CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer);
   void Close();
   bool IsClosed() const;
   scoped_refptr<TimeRanges> GetBufferedRange() const;

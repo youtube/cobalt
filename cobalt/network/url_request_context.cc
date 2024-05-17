@@ -26,6 +26,7 @@
 #include "base/command_line.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"
+#include "cobalt/network/custom/data_protocol_handler.h"
 #include "cobalt/network/disk_cache/cobalt_backend_factory.h"
 #include "cobalt/network/disk_cache/cobalt_backend_impl.h"
 #include "cobalt/network/disk_cache/resource_type.h"
@@ -302,11 +303,8 @@ URLRequestContext::URLRequestContext(
             base::Unretained(this)));
   }
 
-#ifndef COBALT_PENDING_CLEAN_UP
-  // TODO: Determine if this is needed.
   url_request_context_builder->SetProtocolHandler(
       url::kDataScheme, std::make_unique<net::DataProtocolHandler>());
-#endif
 
   url_request_context_ = url_request_context_builder->Build();
 }

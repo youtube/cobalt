@@ -55,16 +55,113 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Media.HasEverPlayed" enum="PipelineStatus"
+<histogram name="Cobalt.LoaderApp.CrashpadInstallationStatus"
+    enum="CrashpadInstallationStatus" expires_after="never">
+<!-- expires-never: Needed for crash reporting system health metrics. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Status of Crashpad installation by the Loader App.</summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for the ELF dynamic shared library, stored as a compressed
+    file, to be decompressed. This metric is only recorded when the shared
+    library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfLoadDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for Cobalt's ELF Loader to load the dynamic shared
+    library, which under normal operation is the Cobalt Core library. This
+    metric is only recorded when the shared library is stored as a compressed
+    file, and this metric includes the decompression time.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfLoadUnexplainedDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Cobalt.LoaderApp.ElfLoadDuration minus
+    Cobalt.LoaderApp.ElfDecompressionDuration. This metric is only recorded when
+    the shared library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.MaxSampledUsedCPUMemoryDuringELFLoad"
+    units="MB" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The maximum sampled value of CPU memory used by the Loader App while the ELF
+    dynamic shared library is being loaded. Note that this maximum sampled value
+    is not guaranteed to be the true maximum value, which could be greater. This
+    metric is only recorded when the shared library is stored as a compressed
+    file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.HasEverPlayed" enum="BooleanHasPlayed"
     expires_after="never">
 <!-- expires-never: Needed for baseline Media pipeline health metric. -->
 
   <owner>sideboard@google.com</owner>
   <owner>cobalt-team@google.com</owner>
   <summary>
-    Status of the media pipeline at the end of its lifecycle for audio-video
-    streams with an unknown video codec.
+    Whether a given WebMediaPlayer instance, after preload, started playback;
   </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.HDR.Matrix" enum="MatrixID" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Matrix id used in HDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.HDR.Primaries" enum="PrimaryID"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Primary id used in HDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.HDR.Range" enum="RangeID" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Range id used in HDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.HDR.Transfer" enum="TransferID"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Transfer id used in HDR playbacks.</summary>
 </histogram>
 
 <histogram name="Cobalt.Media.HTMLMediaElement.CanPlayType.Timing"
@@ -73,9 +170,7 @@ Always run the pretty print utility on this file after editing:
 
   <owner>async@google.com</owner>
   <owner>cobalt-team@google.com</owner>
-  <summary>
-    Timing data for calls to `HTMLMediaElement.canPlayType`.
-  </summary>
+  <summary>Timing data for calls to `HTMLMediaElement.canPlayType`.</summary>
 </histogram>
 
 <histogram name="Cobalt.Media.MediaSource.IsTypeSupported.Timing"
@@ -84,9 +179,7 @@ Always run the pretty print utility on this file after editing:
 
   <owner>async@google.com</owner>
   <owner>cobalt-team@google.com</owner>
-  <summary>
-    Timing data for calls to `MediaSource.isTypeSupported`.
-  </summary>
+  <summary>Timing data for calls to `MediaSource.isTypeSupported`.</summary>
 </histogram>
 
 <histogram name="Cobalt.Media.PipelineStatus.AudioOnly" enum="PipelineStatus"
@@ -173,6 +266,67 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.SbPlayer.Create.Timing" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Timing data for the creation of SbPlayer.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SbPlayer.CreateUrlPlayer.Timing"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Timing data for the creation of an SbPlayer::UrlPlayer.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SbPlayer.Destroy.Timing" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Timing data for the destruction of SbPlayer.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SDR.Matrix" enum="MatrixID" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Matrix id used in SDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SDR.Primaries" enum="PrimaryID"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Primary id used in SDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SDR.Range" enum="RangeID" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Range id used in SDR playbacks.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SDR.Transfer" enum="TransferID"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>xiaomings@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Transfer id used in SDR playbacks.</summary>
+</histogram>
+
 <histogram name="Cobalt.Media.SourceBuffer.AppendBuffer.Timing"
     units="microseconds" expires_after="never">
 <!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
@@ -181,6 +335,18 @@ Always run the pretty print utility on this file after editing:
   <owner>cobalt-team@google.com</owner>
   <summary>
     Timing data for the main action of the `SourceBuffer.appendBuffer` call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SourceBuffer.Other.Timing" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Catch-all for timing data for `SourceBuffer.appendBuffer` calls. This
+    histogram is not expected to receive data normally.
   </summary>
 </histogram>
 
@@ -195,60 +361,13 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Media.SourceBuffer.Other.Timing"
-    units="microseconds" expires_after="never">
-<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
-
-  <owner>async@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    Catch-all for timing data for `SourceBuffer.appendBuffer` calls. This
-    histogram is not expected to receive data normally.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Media.WebMediaPlayer.Seek.Timing"
-    units="milliseconds" expires_after="never">
+<histogram name="Cobalt.Media.WebMediaPlayer.Seek.Timing" units="ms"
+    expires_after="never">
 <!-- expires-never: Needed for long-term tracking of Seek latency. -->
 
   <owner>async@google.com</owner>
   <owner>cobalt-team@google.com</owner>
-  <summary>
-    Timing data for the seek latency of WebMediaPlayer.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Media.SbPlayer.Create.Timing"
-    units="microseconds" expires_after="never">
-<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
-
-  <owner>sideboard@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    Timing data for the creation of SbPlayer.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Media.SbPlayer.CreateUrlPlayer.Timing"
-    units="microseconds" expires_after="never">
-<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
-
-  <owner>sideboard@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    Timing data for the creation of an SbPlayer::UrlPlayer.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Media.SbPlayer.Destroy.Timing"
-    units="microseconds" expires_after="never">
-<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
-
-  <owner>sideboard@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    Timing data for the destruction of SbPlayer.
-  </summary>
+  <summary>Timing data for the seek latency of WebMediaPlayer.</summary>
 </histogram>
 
 <histogram name="Cobalt.MediaDevices.MicCreationSucceeded" enum="Boolean"
@@ -261,72 +380,6 @@ Always run the pretty print utility on this file after editing:
   <summary>
     A boolean representing the success or failure of an attempted mic creation
     event via mediaDevices.getUserMedia().
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LoaderApp.CrashpadInstallationStatus"
-    enum="CrashpadInstallationStatus" expires_after="never">
-<!-- expires-never: Needed for crash reporting system health metrics. -->
-
-  <owner>hwarriner@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    Status of Crashpad installation by the Loader App.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LoaderApp.ElfLoadDuration" units="milliseconds"
-    expires_after="never">
-<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
-
-  <owner>hwarriner@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    The time it takes for Cobalt's ELF Loader to load the dynamic shared
-    library, which under normal operation is the Cobalt Core library. This
-    metric is only recorded when the shared library is stored as a compressed
-    file, and this metric includes the decompression time.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="milliseconds"
-    expires_after="never">
-<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
-
-  <owner>hwarriner@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    The time it takes for the ELF dynamic shared library, stored as a compressed
-    file, to be decompressed. This metric is only recorded when the shared
-    library is stored as a compressed file.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LoaderApp.ElfLoadUnexplainedDuration"
-    units="milliseconds" expires_after="never">
-<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
-
-  <owner>hwarriner@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    Cobalt.LoaderApp.ElfLoadDuration minus
-    Cobalt.LoaderApp.ElfDecompressionDuration. This metric is only recorded when
-    the shared library is stored as a compressed file.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LoaderApp.MaxSampledUsedCPUMemoryDuringELFLoad"
-    units="MB" expires_after="never">
-<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
-
-  <owner>hwarriner@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    The maximum sampled value of CPU memory used by the Loader App while the ELF
-    dynamic shared library is being loaded. Note that this maximum sampled value
-    is not guaranteed to be the true maximum value, which could be greater. This
-    metric is only recorded when the shared library is stored as a compressed
-    file.
   </summary>
 </histogram>
 

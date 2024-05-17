@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <pthread.h>
+
 #include <string>
 
 #include "starboard/common/log.h"
@@ -21,7 +23,6 @@
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
 #include "third_party/crashpad/crashpad/wrapper/annotations.h"
@@ -101,9 +102,9 @@ void LoadLibraryAndInitialize(const std::string& library_path,
 }
 
 void SbEventHandle(const SbEvent* event) {
-  static SbMutex mutex = SB_MUTEX_INITIALIZER;
+  static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-  SB_CHECK(SbMutexAcquire(&mutex) == kSbMutexAcquired);
+  SB_CHECK(pthread_mutex_lock(&mutex) == 0);
 
   if (!g_sb_event_func) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
@@ -117,5 +118,5 @@ void SbEventHandle(const SbEvent* event) {
 
   g_sb_event_func(event);
 
-  SB_CHECK(SbMutexRelease(&mutex) == true);
+  SB_CHECK(pthread_mutex_unlock(&mutex) == 0);
 }

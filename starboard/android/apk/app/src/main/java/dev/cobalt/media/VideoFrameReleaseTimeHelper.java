@@ -34,7 +34,6 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
-import android.view.Display;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.UsedByNative;
 
@@ -43,7 +42,6 @@ import dev.cobalt.util.UsedByNative;
 @UsedByNative
 public final class VideoFrameReleaseTimeHelper {
 
-  private static final double DISPLAY_REFRESH_RATE_UNKNOWN = -1;
   private static final long CHOREOGRAPHER_SAMPLE_DELAY_MILLIS = 500;
   private static final long MAX_ALLOWED_DRIFT_NS = 20000000;
 
@@ -59,6 +57,7 @@ public final class VideoFrameReleaseTimeHelper {
   private long lastFramePresentationTimeUs;
   private long adjustedLastFrameTimeNs;
   private long pendingAdjustedFrameTimeNs;
+  private double lastPlaybackRate;
 
   private boolean haveSync;
   private long syncUnadjustedReleaseTimeNs;
@@ -72,11 +71,11 @@ public final class VideoFrameReleaseTimeHelper {
   @SuppressWarnings("unused")
   @UsedByNative
   public VideoFrameReleaseTimeHelper() {
-    this(getDefaultDisplayRefreshRate());
+    this(DisplayUtil.getDefaultDisplayRefreshRate());
   }
 
   private VideoFrameReleaseTimeHelper(double defaultDisplayRefreshRate) {
-    useDefaultDisplayVsync = defaultDisplayRefreshRate != DISPLAY_REFRESH_RATE_UNKNOWN;
+    useDefaultDisplayVsync = defaultDisplayRefreshRate != DisplayUtil.DISPLAY_REFRESH_RATE_UNKNOWN;
     if (useDefaultDisplayVsync) {
       vsyncSampler = VSyncSampler.getInstance();
       vsyncDurationNs = (long) (NANOS_PER_SECOND / defaultDisplayRefreshRate);
@@ -93,6 +92,7 @@ public final class VideoFrameReleaseTimeHelper {
   @UsedByNative
   public void enable() {
     haveSync = false;
+    lastPlaybackRate = -1;
     if (useDefaultDisplayVsync) {
       vsyncSampler.addObserver();
     }
@@ -118,7 +118,17 @@ public final class VideoFrameReleaseTimeHelper {
    */
   @SuppressWarnings("unused")
   @UsedByNative
-  public long adjustReleaseTime(long framePresentationTimeUs, long unadjustedReleaseTimeNs) {
+  public long adjustReleaseTime(
+      long framePresentationTimeUs, long unadjustedReleaseTimeNs, double playbackRate) {
+    if (playbackRate == 0) {
+      return unadjustedReleaseTimeNs;
+    }
+    if (playbackRate != lastPlaybackRate) {
+      // Resync if playback rate has changed.
+      haveSync = false;
+      lastPlaybackRate = playbackRate;
+    }
+
     long framePresentationTimeNs = framePresentationTimeUs * 1000;
 
     // Until we know better, the adjustment will be a no-op.
@@ -140,18 +150,18 @@ public final class VideoFrameReleaseTimeHelper {
             (framePresentationTimeNs - syncFramePresentationTimeNs) / frameCount;
         // Project the adjusted frame time forward using the average.
         long candidateAdjustedFrameTimeNs = adjustedLastFrameTimeNs + averageFrameDurationNs;
-
-        if (isDriftTooLarge(candidateAdjustedFrameTimeNs, unadjustedReleaseTimeNs)) {
+        if (isDriftTooLarge(candidateAdjustedFrameTimeNs, unadjustedReleaseTimeNs, playbackRate)) {
           haveSync = false;
         } else {
           adjustedFrameTimeNs = candidateAdjustedFrameTimeNs;
           adjustedReleaseTimeNs =
-              syncUnadjustedReleaseTimeNs + adjustedFrameTimeNs - syncFramePresentationTimeNs;
+              syncUnadjustedReleaseTimeNs
+                  + (long) ((adjustedFrameTimeNs - syncFramePresentationTimeNs) / playbackRate);
         }
       } else {
         // We're synced but haven't waited the required number of frames to apply an adjustment.
         // Check drift anyway.
-        if (isDriftTooLarge(framePresentationTimeNs, unadjustedReleaseTimeNs)) {
+        if (isDriftTooLarge(framePresentationTimeNs, unadjustedReleaseTimeNs, playbackRate)) {
           haveSync = false;
         }
       }
@@ -184,10 +194,11 @@ public final class VideoFrameReleaseTimeHelper {
     // Do nothing.
   }
 
-  private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs) {
+  private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs, double playbackRate) {
     long elapsedFrameTimeNs = frameTimeNs - syncFramePresentationTimeNs;
     long elapsedReleaseTimeNs = releaseTimeNs - syncUnadjustedReleaseTimeNs;
-    return Math.abs(elapsedReleaseTimeNs - elapsedFrameTimeNs) > MAX_ALLOWED_DRIFT_NS;
+    return Math.abs(elapsedReleaseTimeNs - elapsedFrameTimeNs / playbackRate)
+        > MAX_ALLOWED_DRIFT_NS;
   }
 
   private static long closestVsync(long releaseTime, long sampledVsyncTime, long vsyncDuration) {
@@ -205,11 +216,6 @@ public final class VideoFrameReleaseTimeHelper {
     long snappedAfterDiff = snappedAfterNs - releaseTime;
     long snappedBeforeDiff = releaseTime - snappedBeforeNs;
     return snappedAfterDiff < snappedBeforeDiff ? snappedAfterNs : snappedBeforeNs;
-  }
-
-  private static double getDefaultDisplayRefreshRate() {
-    Display defaultDisplay = DisplayUtil.getDefaultDisplay();
-    return defaultDisplay != null ? defaultDisplay.getRefreshRate() : DISPLAY_REFRESH_RATE_UNKNOWN;
   }
 
   /**

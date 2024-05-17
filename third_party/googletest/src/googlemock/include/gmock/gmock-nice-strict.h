@@ -143,7 +143,7 @@ class GTEST_INTERNAL_EMPTY_BASE_CLASS NiceMock
                 "https://google.github.io/googletest/"
                 "gmock_cook_book.html#NiceStrictNaggy");
   NiceMock() : MockClass() {
-#if !defined(COMPILER_MSVC)
+#if !defined(_MSC_VER)
 // TODO: b/330265477 - Re-enable this check on MSVC once it complies.
     static_assert(sizeof(*this) == sizeof(MockClass),
                   "The impl subclass shouldn't introduce any padding");
@@ -159,16 +159,20 @@ class GTEST_INTERNAL_EMPTY_BASE_CLASS NiceMock
   // made explicit.
   template <typename A>
   explicit NiceMock(A&& arg) : MockClass(std::forward<A>(arg)) {
+#if !defined(_MSC_VER)
     static_assert(sizeof(*this) == sizeof(MockClass),
                   "The impl subclass shouldn't introduce any padding");
+#endif
   }
 
   template <typename TArg1, typename TArg2, typename... An>
   NiceMock(TArg1&& arg1, TArg2&& arg2, An&&... args)
       : MockClass(std::forward<TArg1>(arg1), std::forward<TArg2>(arg2),
                   std::forward<An>(args)...) {
+#if !defined(_MSC_VER)
     static_assert(sizeof(*this) == sizeof(MockClass),
                   "The impl subclass shouldn't introduce any padding");
+#endif
   }
 
  private:
