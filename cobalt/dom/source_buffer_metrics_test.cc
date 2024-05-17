@@ -55,10 +55,15 @@ TEST_F(SourceBufferMetricsTest, RecordsAppendBufferTelemetry) {
   metrics_->StartTracking(SourceBufferMetricsAction::APPEND_BUFFER);
 
   clock_.Advance(base::TimeDelta::FromMicroseconds(100));
-  metrics_->EndTracking(SourceBufferMetricsAction::APPEND_BUFFER, 1234);
+  metrics_->EndTracking(SourceBufferMetricsAction::APPEND_BUFFER, 1234567);
 
   histogram_tester_.ExpectUniqueSample(
       std::string(kUmaPrefix) + "AppendBuffer.Timing", 100, 1);
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "AppendBuffer.BytesAppended", 1234567, 1);
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "AppendBuffer.BytesAppendedPerMicrosecond",
+      12345, 1);
 }
 
 }  // namespace

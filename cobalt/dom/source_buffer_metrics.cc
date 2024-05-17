@@ -97,7 +97,7 @@ void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
 
   base::TimeDelta wall_duration = clock_->NowTicks() - wall_start_time_;
 
-  RecordTelemetry(action, wall_duration);
+  RecordUMATelemetry(action, wall_duration, size_appended);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   int64_t thread_duration =
@@ -121,8 +121,9 @@ void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
-void SourceBufferMetrics::RecordTelemetry(
-    SourceBufferMetricsAction action, const base::TimeDelta& action_duration) {
+void SourceBufferMetrics::RecordUMATelemetry(
+    SourceBufferMetricsAction action, const base::TimeDelta& action_duration,
+    size_t size_appended) {
   switch (action) {
     case SourceBufferMetricsAction::PREPARE_APPEND:
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
@@ -130,12 +131,23 @@ void SourceBufferMetrics::RecordTelemetry(
           base::TimeDelta::FromMicroseconds(1),
           base::TimeDelta::FromMilliseconds(25), 50);
       break;
-    case SourceBufferMetricsAction::APPEND_BUFFER:
+    case SourceBufferMetricsAction::APPEND_BUFFER: {
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SourceBuffer.AppendBuffer.Timing", action_duration,
           base::TimeDelta::FromMicroseconds(1),
           base::TimeDelta::FromMilliseconds(25), 50);
+
+      UMA_HISTOGRAM_COUNTS_10M(
+          "Cobalt.Media.SourceBuffer.AppendBuffer.BytesAppended",
+          size_appended);
+
+      int64_t bytes_per_microsecond =
+          size_appended / action_duration.InMicroseconds();
+      UMA_HISTOGRAM_COUNTS_100000(
+          "Cobalt.Media.SourceBuffer.AppendBuffer.BytesAppendedPerMicrosecond",
+          bytes_per_microsecond);
       break;
+    }
     default:
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SourceBuffer.Other.Timing", action_duration,
