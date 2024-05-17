@@ -34,6 +34,7 @@ if (cobalt_pending_clean_up) {
     if (is_clang) {
       cflags = [
         "-Wno-c99-designator",
+        "-Wno-deprecated-declarations",
         "-Wno-ignored-qualifiers",
         "-Wno-implicit-fallthrough",
         "-Wno-inconsistent-missing-override",
