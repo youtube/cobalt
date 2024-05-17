@@ -17,7 +17,7 @@ import("../gn/standalone/libc++/libc++.gni")
 import("../gn/standalone/sanitizers/vars.gni")
 
 # We should never get here in embedder builds.
-assert(perfetto_build_standalone || is_perfetto_build_generator)
+assert(perfetto_build_standalone || is_perfetto_build_generator || use_cobalt_customizations)
 
 # This is to make sure that we don't add accidental dependencies from build
 # files in src/ or include/ to buildtools. All deps (outside of /gn/*) should
@@ -89,6 +89,7 @@ config("googletest_config") {
   configs = [ ":test_warning_suppressions" ]
 }
 
+if (!use_cobalt_customizations) {
 source_set("gtest") {
   visibility = _buildtools_visibility
   testonly = true
@@ -119,13 +120,16 @@ source_set("gmock") {
   sources = [ "googletest/googlemock/src/gmock-all.cc" ]
   deps = [ "//gn:default_deps" ]
 }
+}
 
 # Configuration used to build libprotobuf_* and the protoc compiler.
 config("protobuf_config") {
   visibility = _buildtools_visibility
 
   # Apply the lighter supressions and macro definitions from above.
+  if (!use_cobalt_customizations) {
   configs = [ "//gn:protobuf_gen_config" ]
+  }
 
   defines = [ "HAVE_PTHREAD=1" ]
   cflags = []
@@ -149,6 +153,7 @@ config("protobuf_full_public_config") {
   }
 }
 
+if (!use_cobalt_customizations) {
 source_set("protobuf_lite") {
   visibility = _buildtools_visibility
   sources = [
@@ -695,6 +700,7 @@ if (current_toolchain == host_toolchain) {
     }
   }
 }  # host_toolchain
+}
 
 if (use_custom_libcxx) {
   config("libunwind_config") {
@@ -985,6 +991,7 @@ config("benchmark_config") {
   configs = [ ":test_warning_suppressions" ]
 }
 
+if (!use_cobalt_customizations) {
 source_set("benchmark") {
   visibility = _buildtools_visibility
   testonly = true
@@ -1040,9 +1047,10 @@ source_set("benchmark") {
   configs -= [ "//gn/standalone:extra_warnings" ]
   deps = [ "//gn:default_deps" ]
 }
+}
 
 # On Linux/Android use libbacktrace in debug builds for better stacktraces.
-if (is_linux || is_android) {
+if ((is_linux || is_android) && !use_cobalt_customizations) {
   config("libbacktrace_config") {
     visibility = _buildtools_visibility
     include_dirs = [
@@ -1102,6 +1110,9 @@ config("sqlite_config") {
     # we specify this flag.
     cflags += [ "-Wno-language-extension-token" ]
   }
+  if (use_cobalt_customizations) {
+    cflags -= [ "-DHAVE_UTIME" ]
+  }
 }
 
 source_set("sqlite") {
@@ -1117,11 +1128,21 @@ source_set("sqlite") {
       "sqlite_src/ext/misc/percentile.c",
     ]
   }
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
   public_configs = [ ":sqlite_config" ]
+  if (use_cobalt_customizations) {
+    deps = [
+      "../gn:default_deps",
+      "//starboard/common:common_headers_only",
+    ]
+  } else {
   deps = [ "//gn:default_deps" ]
+  }
 }
 
+if (!use_cobalt_customizations) {
 source_set("lzma") {
   visibility = _buildtools_visibility
   defines = [ "_7ZIP_ST" ]
@@ -1217,6 +1238,7 @@ source_set("zlib") {
   # TODO(primiano): look into ADLER32_SIMD_SSSE3 and other SIMD optimizations
   # (from chromium's third_party/zlib/BUILD.gn).
 }
+}
 
 config("zlib_config") {
   visibility = _buildtools_visibility
@@ -1239,6 +1261,7 @@ config("zlib_config") {
   }
 }
 
+if (!use_cobalt_customizations) {
 # Here be dragons. Used only by standalone profiler builds, which are
 # considered best effort. Since the headers use c++17 features, this source_set
 # pushes -std=c++17 flags up the dependency tree, whereas the rest of the
@@ -1321,6 +1344,7 @@ source_set("libunwindstack") {
   }
   public_configs = [ ":libunwindstack_config" ]
 }
+}
 
 config("bionic_kernel_uapi_headers") {
   visibility = _buildtools_visibility
@@ -1356,9 +1380,15 @@ source_set("jsoncpp") {
     "jsoncpp/src/lib_json/json_value.cpp",
     "jsoncpp/src/lib_json/json_writer.cpp",
   ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
   public_configs = [ ":jsoncpp_config" ]
+  if (use_cobalt_customizations) {
+    deps = [ "../gn:default_deps" ]
+  } else {
   deps = [ "//gn:default_deps" ]
+  }
 }
 
 config("linenoise_config") {
@@ -1372,6 +1402,7 @@ config("linenoise_config") {
   ]
 }
 
+if (!use_cobalt_customizations) {
 source_set("linenoise") {
   visibility = _buildtools_visibility
   sources = [
@@ -1382,6 +1413,7 @@ source_set("linenoise") {
   public_configs = [ ":linenoise_config" ]
   cflags = [ "-Wno-tautological-unsigned-zero-compare" ]
   deps = [ "//gn:default_deps" ]
+}
 }
 
 if (use_libfuzzer) {
@@ -1416,7 +1448,11 @@ if (use_libfuzzer) {
       "libfuzzer/FuzzerUtilPosix.cpp",
       "libfuzzer/FuzzerUtilWindows.cpp",
     ]
+    if (use_cobalt_customizations) {
+      deps = [ "../gn:default_deps" ]
+    } else {
     deps = [ "//gn:default_deps" ]
+    }
   }
 }
 
@@ -1425,6 +1461,7 @@ config("llvm_demangle_config") {
   include_dirs = [ "llvm-project/llvm/include" ]
 }
 
+if (!use_cobalt_customizations) {
 source_set("llvm_demangle") {
   visibility = _buildtools_visibility
   configs -= [ "//gn/standalone:extra_warnings" ]
@@ -1445,6 +1482,7 @@ source_set("llvm_demangle") {
     "llvm-project/llvm/lib/Demangle/RustDemangle.cpp",
   ]
   deps = [ "//gn:default_deps" ]
+}
 }
 
 if (enable_perfetto_grpc) {

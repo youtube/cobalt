@@ -26,6 +26,10 @@ perfetto_unittests_targets = [
   "src/profiling/symbolizer:unittests",
 ]
 
+if (use_cobalt_customizations) {
+  perfetto_unittests_targets -= [ "src/profiling/symbolizer:unittests" ]
+}
+
 if ((is_linux || is_android) && !perfetto_build_with_embedder) {
   # This test depends on pthread and can't run on non-Linux-based OS.
   perfetto_unittests_targets += [ "test/sanitizers:unittests" ]

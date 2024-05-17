@@ -42,6 +42,9 @@
 #include "protos/perfetto/trace/track_event/track_descriptor.pbzero.h"
 #include "protos/perfetto/trace/track_event/track_event.pbzero.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
 namespace perfetto {
 
 // sRGB color.
@@ -270,7 +273,7 @@ void ConsoleInterceptor::OnSetup(const SetupArgs& args) {
   if (g_output_fd_for_testing)
     fd = g_output_fd_for_testing;
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) && \
-    !PERFETTO_BUILDFLAG(PERFETTO_OS_WASM)
+    !PERFETTO_BUILDFLAG(PERFETTO_OS_WASM) && !defined(STARBOARD)
   bool use_colors = isatty(fd);
 #else
   bool use_colors = false;
@@ -329,7 +332,12 @@ void ConsoleInterceptor::Printf(InterceptorContext& context,
   if (remaining <= 0 || written > remaining) {
     FILE* output = (tls.fd == STDOUT_FILENO) ? stdout : stderr;
     if (g_output_fd_for_testing) {
+#if defined(STARBOARD)
+      SB_NOTIMPLEMENTED();
+      output = nullptr;
+#else
       output = fdopen(dup(g_output_fd_for_testing), "w");
+#endif
     }
     Flush(context);
     va_list args;
