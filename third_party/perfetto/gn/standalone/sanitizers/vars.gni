@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (use_cobalt_customizations) {
+import("//build/config/sanitizers/sanitizers.gni")
+
+declare_args() {
+  is_fuzzer = false
+  link_fuzzer = ""
+}
+} else {
+
 declare_args() {
   # Address Sanitizer: memory bugs (e.g., UAF).
   is_asan = false
@@ -44,6 +53,7 @@ declare_args() {
   # If is_fuzzer=true and use_libfuzzer=false, add this flag to ldflags when
   # linking fuzzer executables.
   link_fuzzer = ""
+}
 }
 
 declare_args() {

@@ -205,6 +205,10 @@ static_library("protobuf_full") {
   # Prevent people from depending on this outside our file.
   visibility = [ ":*" ]
 
+  if (use_cobalt_customizations) {
+    visibility += [ "//third_party/perfetto/gn:protobuf_full" ]
+  }
+
   sources = protobuf_lite_sources
   sources += [
     "src/google/protobuf/any.cc",

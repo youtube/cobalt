@@ -46,13 +46,13 @@
 #include <stdint.h>
 #endif
 #else
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "starboard/memory.h"  // nogncheck
+#include "starboard/types.h"  // nogncheck
 #endif  // STARBOARD
 
 #undef PROTOBUF_LITTLE_ENDIAN
 #if defined(STARBOARD)
-#include "starboard/configuration.h"
+#include "starboard/configuration.h"  // nogncheck
 #if SB_IS(LITTLE_ENDIAN) && \
     !defined(PROTOBUF_DISABLE_LITTLE_ENDIAN_OPT_FOR_TEST)
 #define PROTOBUF_LITTLE_ENDIAN 1

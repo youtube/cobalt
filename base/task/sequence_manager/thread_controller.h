@@ -430,8 +430,13 @@ class BASE_EXPORT ThreadController {
     [[maybe_unused]] const raw_ref<const ThreadController> outer_;
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
+#if defined(STARBOARD)
+    TerminatingFlowLambda terminating_wakeup_lambda_{
+        perfetto::TerminatingFlow::FromPointer(const_cast<RunLevelTracker*>(this))};
+#else
     TerminatingFlowLambda terminating_wakeup_lambda_{
         perfetto::TerminatingFlow::FromPointer(this)};
+#endif
 #endif
 
     std::stack<RunLevel, std::vector<RunLevel>> run_levels_

@@ -43,7 +43,10 @@ skia_common("skia_library_no_asan") {
   sources = skia_effects_imagefilter_sources_no_asan
   if (is_clang) {
     if (using_old_compiler) {
-      cflags_cc = [ "-Wno-c++1z-extensions" ]
+      cflags_cc = [
+        "-Wno-psabi",
+        "-Wno-c++1z-extensions",
+      ]
     } else {
       cflags_cc = [
         "-Wno-c++17-extensions",
@@ -88,7 +91,10 @@ config("skia_library_config_public") {
 
   if (is_clang) {
     if (using_old_compiler) {
-      cflags_cc = [ "-Wno-c++1z-extensions" ]
+      cflags_cc = [
+        "-Wno-psabi",
+        "-Wno-c++1z-extensions",
+      ]
     } else {
       cflags_cc = [
         "-Wno-c++17-extensions",

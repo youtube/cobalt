@@ -18,7 +18,9 @@ source_set("absl_algorithm_algorithm") {
   sources = [ "src/third_party/abseil-cpp/absl/algorithm/algorithm.h" ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_algorithm_container") {
@@ -29,7 +31,9 @@ source_set("absl_algorithm_container") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_atomic_hook") {
@@ -39,7 +43,9 @@ source_set("absl_base_atomic_hook") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_base") {
@@ -73,7 +79,9 @@ source_set("absl_base_base") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_base_internal") {
@@ -89,7 +97,9 @@ source_set("absl_base_base_internal") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_config") {
@@ -100,7 +110,9 @@ source_set("absl_base_config") {
   ]
   public_deps = []
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_core_headers") {
@@ -115,7 +127,9 @@ source_set("absl_base_core_headers") {
   ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_cycleclock_internal") {
@@ -128,7 +142,9 @@ source_set("absl_base_cycleclock_internal") {
     ":absl_base_config",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_dynamic_annotations") {
@@ -141,7 +157,9 @@ source_set("absl_base_dynamic_annotations") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_endian") {
@@ -155,21 +173,27 @@ source_set("absl_base_endian") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_errno_saver") {
   sources = [ "src/third_party/abseil-cpp/absl/base/internal/errno_saver.h" ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_fast_type_id") {
   sources = [ "src/third_party/abseil-cpp/absl/base/internal/fast_type_id.h" ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_log_severity") {
@@ -182,7 +206,9 @@ source_set("absl_base_log_severity") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_malloc_internal") {
@@ -200,14 +226,18 @@ source_set("absl_base_malloc_internal") {
     ":absl_base_raw_logging_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_prefetch") {
   sources = [ "src/third_party/abseil-cpp/absl/base/internal/prefetch.h" ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_pretty_function") {
@@ -215,7 +245,9 @@ source_set("absl_base_pretty_function") {
       [ "src/third_party/abseil-cpp/absl/base/internal/pretty_function.h" ]
   public_deps = []
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_raw_logging_internal") {
@@ -231,7 +263,9 @@ source_set("absl_base_raw_logging_internal") {
     ":absl_base_log_severity",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_spinlock_wait") {
@@ -249,7 +283,9 @@ source_set("absl_base_spinlock_wait") {
     ":absl_base_errno_saver",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_strerror") {
@@ -263,7 +299,9 @@ source_set("absl_base_strerror") {
     ":absl_base_errno_saver",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_base_throw_delegate") {
@@ -276,7 +314,9 @@ source_set("absl_base_throw_delegate") {
     ":absl_base_raw_logging_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_cleanup_cleanup") {
@@ -287,7 +327,9 @@ source_set("absl_cleanup_cleanup") {
     ":absl_cleanup_cleanup_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_cleanup_cleanup_internal") {
@@ -298,7 +340,9 @@ source_set("absl_cleanup_cleanup_internal") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_btree") {
@@ -325,7 +369,9 @@ source_set("absl_container_btree") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_common") {
@@ -335,7 +381,9 @@ source_set("absl_container_common") {
     ":absl_types_optional",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_common_policy_traits") {
@@ -344,7 +392,9 @@ source_set("absl_container_common_policy_traits") {
   ]
   public_deps = [ ":absl_meta_type_traits" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_compressed_tuple") {
@@ -353,7 +403,9 @@ source_set("absl_container_compressed_tuple") {
   ]
   public_deps = [ ":absl_utility_utility" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_container_memory") {
@@ -367,7 +419,9 @@ source_set("absl_container_container_memory") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_fixed_array") {
@@ -382,7 +436,9 @@ source_set("absl_container_fixed_array") {
     ":absl_memory_memory",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_flat_hash_map") {
@@ -396,7 +452,9 @@ source_set("absl_container_flat_hash_map") {
     ":absl_memory_memory",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_flat_hash_set") {
@@ -410,7 +468,9 @@ source_set("absl_container_flat_hash_set") {
     ":absl_memory_memory",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_hash_function_defaults") {
@@ -422,7 +482,9 @@ source_set("absl_container_hash_function_defaults") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_hash_policy_traits") {
@@ -434,7 +496,9 @@ source_set("absl_container_hash_policy_traits") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_hashtable_debug") {
@@ -442,14 +506,18 @@ source_set("absl_container_hashtable_debug") {
       [ "src/third_party/abseil-cpp/absl/container/internal/hashtable_debug.h" ]
   public_deps = [ ":absl_container_hashtable_debug_hooks" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_hashtable_debug_hooks") {
   sources = [ "src/third_party/abseil-cpp/absl/container/internal/hashtable_debug_hooks.h" ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_hashtablez_sampler") {
@@ -470,7 +538,9 @@ source_set("absl_container_hashtablez_sampler") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_inlined_vector") {
@@ -484,7 +554,9 @@ source_set("absl_container_inlined_vector") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_inlined_vector_internal") {
@@ -498,7 +570,9 @@ source_set("absl_container_inlined_vector_internal") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_layout") {
@@ -512,7 +586,9 @@ source_set("absl_container_layout") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_node_hash_map") {
@@ -527,7 +603,9 @@ source_set("absl_container_node_hash_map") {
     ":absl_memory_memory",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_node_hash_set") {
@@ -541,7 +619,9 @@ source_set("absl_container_node_hash_set") {
     ":absl_memory_memory",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_node_slot_policy") {
@@ -550,7 +630,9 @@ source_set("absl_container_node_slot_policy") {
   ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_raw_hash_map") {
@@ -562,7 +644,9 @@ source_set("absl_container_raw_hash_map") {
     ":absl_container_raw_hash_set",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_container_raw_hash_set") {
@@ -588,7 +672,9 @@ source_set("absl_container_raw_hash_set") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_crc_cpu_detect") {
@@ -601,7 +687,9 @@ source_set("absl_crc_cpu_detect") {
     ":absl_base_config",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_crc_crc32c") {
@@ -627,7 +715,9 @@ source_set("absl_crc_crc32c") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_crc_crc_cord_state") {
@@ -642,7 +732,9 @@ source_set("absl_crc_crc_cord_state") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_crc_crc_internal") {
@@ -666,14 +758,18 @@ source_set("absl_crc_crc_internal") {
     ":absl_numeric_bits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_crc_non_temporal_arm_intrinsics") {
   sources = [ "src/third_party/abseil-cpp/absl/crc/internal/non_temporal_arm_intrinsics.h" ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_crc_non_temporal_memcpy") {
@@ -685,7 +781,9 @@ source_set("absl_crc_non_temporal_memcpy") {
     ":absl_crc_non_temporal_arm_intrinsics",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_debugging_debugging_internal") {
@@ -705,7 +803,9 @@ source_set("absl_debugging_debugging_internal") {
     ":absl_base_raw_logging_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_debugging_demangle_internal") {
@@ -719,7 +819,9 @@ source_set("absl_debugging_demangle_internal") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_debugging_examine_stack") {
@@ -735,7 +837,9 @@ source_set("absl_debugging_examine_stack") {
     ":absl_debugging_symbolize",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_debugging_failure_signal_handler") {
@@ -752,7 +856,9 @@ source_set("absl_debugging_failure_signal_handler") {
     ":absl_debugging_stacktrace",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_debugging_leak_check") {
@@ -765,7 +871,9 @@ source_set("absl_debugging_leak_check") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_debugging_stacktrace") {
@@ -790,7 +898,9 @@ source_set("absl_debugging_stacktrace") {
     ":absl_debugging_debugging_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_debugging_symbolize") {
@@ -816,7 +926,9 @@ source_set("absl_debugging_symbolize") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_commandlineflag") {
@@ -832,7 +944,9 @@ source_set("absl_flags_commandlineflag") {
     ":absl_types_optional",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_commandlineflag_internal") {
@@ -845,7 +959,9 @@ source_set("absl_flags_commandlineflag_internal") {
     ":absl_base_fast_type_id",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_config") {
@@ -863,7 +979,9 @@ source_set("absl_flags_config") {
     ":absl_synchronization_synchronization",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_flag") {
@@ -883,7 +1001,9 @@ source_set("absl_flags_flag") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_flag_internal") {
@@ -909,7 +1029,9 @@ source_set("absl_flags_flag_internal") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_marshalling") {
@@ -926,7 +1048,9 @@ source_set("absl_flags_marshalling") {
     ":absl_types_optional",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_parse") {
@@ -953,7 +1077,9 @@ source_set("absl_flags_parse") {
     ":absl_synchronization_synchronization",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_path_util") {
@@ -963,7 +1089,9 @@ source_set("absl_flags_path_util") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_private_handle_accessor") {
@@ -978,7 +1106,9 @@ source_set("absl_flags_private_handle_accessor") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_program_name") {
@@ -994,7 +1124,9 @@ source_set("absl_flags_program_name") {
     ":absl_synchronization_synchronization",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_reflection") {
@@ -1015,7 +1147,9 @@ source_set("absl_flags_reflection") {
     ":absl_synchronization_synchronization",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_usage") {
@@ -1031,7 +1165,9 @@ source_set("absl_flags_usage") {
     ":absl_synchronization_synchronization",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_flags_usage_internal") {
@@ -1054,7 +1190,9 @@ source_set("absl_flags_usage_internal") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_functional_any_invocable") {
@@ -1070,7 +1208,9 @@ source_set("absl_functional_any_invocable") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_functional_bind_front") {
@@ -1085,7 +1225,9 @@ source_set("absl_functional_bind_front") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_functional_function_ref") {
@@ -1099,7 +1241,9 @@ source_set("absl_functional_function_ref") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_hash_city") {
@@ -1113,7 +1257,9 @@ source_set("absl_hash_city") {
     ":absl_base_endian",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_hash_hash") {
@@ -1139,7 +1285,9 @@ source_set("absl_hash_hash") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_hash_low_level_hash") {
@@ -1153,7 +1301,9 @@ source_set("absl_hash_low_level_hash") {
     ":absl_numeric_int128",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_append_truncated") {
@@ -1165,7 +1315,9 @@ source_set("absl_log_internal_append_truncated") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_check_impl") {
@@ -1178,7 +1330,9 @@ source_set("absl_log_internal_check_impl") {
     ":absl_log_internal_strip",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_check_op") {
@@ -1195,7 +1349,9 @@ source_set("absl_log_internal_check_op") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_conditions") {
@@ -1210,7 +1366,9 @@ source_set("absl_log_internal_conditions") {
     ":absl_log_internal_voidify",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_config") {
@@ -1220,14 +1378,18 @@ source_set("absl_log_internal_config") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_flags") {
   sources = [ "src/third_party/abseil-cpp/absl/log/internal/flags.h" ]
   public_deps = [ ":absl_flags_flag" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_format") {
@@ -1248,7 +1410,9 @@ source_set("absl_log_internal_format") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_globals") {
@@ -1265,7 +1429,9 @@ source_set("absl_log_internal_globals") {
     ":absl_time_time",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_log_impl") {
@@ -1276,7 +1442,9 @@ source_set("absl_log_internal_log_impl") {
     ":absl_log_internal_strip",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_log_message") {
@@ -1310,7 +1478,9 @@ source_set("absl_log_internal_log_message") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_log_sink_set") {
@@ -1335,7 +1505,9 @@ source_set("absl_log_internal_log_sink_set") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_nullguard") {
@@ -1348,7 +1520,9 @@ source_set("absl_log_internal_nullguard") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_nullstream") {
@@ -1360,7 +1534,9 @@ source_set("absl_log_internal_nullstream") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_proto") {
@@ -1376,7 +1552,9 @@ source_set("absl_log_internal_proto") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_strip") {
@@ -1387,7 +1565,9 @@ source_set("absl_log_internal_strip") {
     ":absl_log_internal_nullstream",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_structured") {
@@ -1398,28 +1578,36 @@ source_set("absl_log_internal_structured") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_internal_voidify") {
   sources = [ "src/third_party/abseil-cpp/absl/log/internal/voidify.h" ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_absl_check") {
   sources = [ "src/third_party/abseil-cpp/absl/log/absl_check.h" ]
   public_deps = [ ":absl_log_internal_check_impl" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_absl_log") {
   sources = [ "src/third_party/abseil-cpp/absl/log/absl_log.h" ]
   public_deps = [ ":absl_log_internal_log_impl" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_check") {
@@ -1432,7 +1620,9 @@ source_set("absl_log_check") {
     ":absl_log_internal_strip",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_die_if_null") {
@@ -1447,7 +1637,9 @@ source_set("absl_log_die_if_null") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_flags") {
@@ -1467,7 +1659,9 @@ source_set("absl_log_flags") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_globals") {
@@ -1484,7 +1678,9 @@ source_set("absl_log_globals") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_initialize") {
@@ -1499,14 +1695,18 @@ source_set("absl_log_initialize") {
     ":absl_time_time",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_log") {
   sources = [ "src/third_party/abseil-cpp/absl/log/log.h" ]
   public_deps = [ ":absl_log_internal_log_impl" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_log_entry") {
@@ -1524,7 +1724,9 @@ source_set("absl_log_log_entry") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_log_sink") {
@@ -1537,7 +1739,9 @@ source_set("absl_log_log_sink") {
     ":absl_log_log_entry",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_log_sink_registry") {
@@ -1548,7 +1752,9 @@ source_set("absl_log_log_sink_registry") {
     ":absl_log_log_sink",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_log_streamer") {
@@ -1563,7 +1769,9 @@ source_set("absl_log_log_streamer") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_log_structured") {
@@ -1574,7 +1782,9 @@ source_set("absl_log_structured") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_memory_memory") {
@@ -1584,14 +1794,18 @@ source_set("absl_memory_memory") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_meta_type_traits") {
   sources = [ "src/third_party/abseil-cpp/absl/meta/type_traits.h" ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_numeric_bits") {
@@ -1604,7 +1818,9 @@ source_set("absl_numeric_bits") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_numeric_int128") {
@@ -1620,7 +1836,9 @@ source_set("absl_numeric_int128") {
     ":absl_numeric_bits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_numeric_representation") {
@@ -1628,7 +1846,9 @@ source_set("absl_numeric_representation") {
       [ "src/third_party/abseil-cpp/absl/numeric/internal/representation.h" ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_profiling_exponential_biased") {
@@ -1641,7 +1861,9 @@ source_set("absl_profiling_exponential_biased") {
     ":absl_base_core_headers",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_profiling_periodic_sampler") {
@@ -1654,7 +1876,9 @@ source_set("absl_profiling_periodic_sampler") {
     ":absl_profiling_exponential_biased",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_profiling_sample_recorder") {
@@ -1667,7 +1891,9 @@ source_set("absl_profiling_sample_recorder") {
     ":absl_time_time",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_distribution_caller") {
@@ -1680,7 +1906,9 @@ source_set("absl_random_internal_distribution_caller") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_fast_uniform_bits") {
@@ -1692,14 +1920,18 @@ source_set("absl_random_internal_fast_uniform_bits") {
     ":absl_random_internal_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_fastmath") {
   sources = [ "src/third_party/abseil-cpp/absl/random/internal/fastmath.h" ]
   public_deps = [ ":absl_numeric_bits" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_generate_real") {
@@ -1712,7 +1944,9 @@ source_set("absl_random_internal_generate_real") {
     ":absl_random_internal_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_iostream_state_saver") {
@@ -1724,7 +1958,9 @@ source_set("absl_random_internal_iostream_state_saver") {
     ":absl_numeric_int128",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_mock_helpers") {
@@ -1734,7 +1970,9 @@ source_set("absl_random_internal_mock_helpers") {
     ":absl_types_optional",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_nanobenchmark") {
@@ -1750,7 +1988,9 @@ source_set("absl_random_internal_nanobenchmark") {
     ":absl_random_internal_randen_engine",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_nonsecure_base") {
@@ -1766,7 +2006,9 @@ source_set("absl_random_internal_nonsecure_base") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_pcg_engine") {
@@ -1780,7 +2022,9 @@ source_set("absl_random_internal_pcg_engine") {
     ":absl_random_internal_iostream_state_saver",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_platform") {
@@ -1791,7 +2035,9 @@ source_set("absl_random_internal_platform") {
   ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_pool_urbg") {
@@ -1812,7 +2058,9 @@ source_set("absl_random_internal_pool_urbg") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_randen") {
@@ -1827,7 +2075,9 @@ source_set("absl_random_internal_randen") {
     ":absl_random_internal_randen_slow",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_randen_engine") {
@@ -1840,7 +2090,9 @@ source_set("absl_random_internal_randen_engine") {
     ":absl_random_internal_randen",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_randen_hwaes") {
@@ -1855,7 +2107,9 @@ source_set("absl_random_internal_randen_hwaes") {
     ":absl_random_internal_randen_hwaes_impl",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_randen_hwaes_impl") {
@@ -1870,7 +2124,9 @@ source_set("absl_random_internal_randen_hwaes_impl") {
     ":absl_random_internal_platform",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_randen_slow") {
@@ -1886,7 +2142,9 @@ source_set("absl_random_internal_randen_slow") {
     ":absl_random_internal_platform",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_salted_seed_seq") {
@@ -1900,7 +2158,9 @@ source_set("absl_random_internal_salted_seed_seq") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_seed_material") {
@@ -1918,7 +2178,9 @@ source_set("absl_random_internal_seed_material") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_traits") {
@@ -1929,7 +2191,9 @@ source_set("absl_random_internal_traits") {
     ":absl_numeric_int128",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_uniform_helper") {
@@ -1942,7 +2206,9 @@ source_set("absl_random_internal_uniform_helper") {
     ":absl_random_internal_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_internal_wide_multiply") {
@@ -1955,7 +2221,9 @@ source_set("absl_random_internal_wide_multiply") {
     ":absl_random_internal_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_bit_gen_ref") {
@@ -1969,7 +2237,9 @@ source_set("absl_random_bit_gen_ref") {
     ":absl_random_random",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_distributions") {
@@ -2005,7 +2275,9 @@ source_set("absl_random_distributions") {
     ":absl_strings_strings",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_random") {
@@ -2019,7 +2291,9 @@ source_set("absl_random_random") {
     ":absl_random_seed_sequences",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_seed_gen_exception") {
@@ -2029,7 +2303,9 @@ source_set("absl_random_seed_gen_exception") {
   ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_random_seed_sequences") {
@@ -2046,7 +2322,9 @@ source_set("absl_random_seed_sequences") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_status_status") {
@@ -2072,7 +2350,9 @@ source_set("absl_status_status") {
     ":absl_types_optional",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_status_statusor") {
@@ -2092,7 +2372,9 @@ source_set("absl_status_statusor") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_cord") {
@@ -2129,7 +2411,9 @@ source_set("absl_strings_cord") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_cord_internal") {
@@ -2170,7 +2454,9 @@ source_set("absl_strings_cord_internal") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_cordz_functions") {
@@ -2185,7 +2471,9 @@ source_set("absl_strings_cordz_functions") {
     ":absl_profiling_exponential_biased",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_cordz_handle") {
@@ -2200,7 +2488,9 @@ source_set("absl_strings_cordz_handle") {
     ":absl_synchronization_synchronization",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_cordz_info") {
@@ -2224,7 +2514,9 @@ source_set("absl_strings_cordz_info") {
     ":absl_types_span",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_cordz_sample_token") {
@@ -2238,7 +2530,9 @@ source_set("absl_strings_cordz_sample_token") {
     ":absl_strings_cordz_info",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_cordz_statistics") {
@@ -2249,7 +2543,9 @@ source_set("absl_strings_cordz_statistics") {
     ":absl_strings_cordz_update_tracker",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_cordz_update_scope") {
@@ -2264,7 +2560,9 @@ source_set("absl_strings_cordz_update_scope") {
     ":absl_strings_cordz_update_tracker",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_cordz_update_tracker") {
@@ -2273,7 +2571,9 @@ source_set("absl_strings_cordz_update_tracker") {
   ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_internal") {
@@ -2295,14 +2595,18 @@ source_set("absl_strings_internal") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_str_format") {
   sources = [ "src/third_party/abseil-cpp/absl/strings/str_format.h" ]
   public_deps = [ ":absl_strings_str_format_internal" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_strings_str_format_internal") {
@@ -2336,9 +2640,12 @@ source_set("absl_strings_str_format_internal") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
+if (!use_cobalt_customizations) {
 source_set("absl_strings_strings") {
   sources = [
     "src/third_party/abseil-cpp/absl/strings/ascii.cc",
@@ -2393,7 +2700,9 @@ source_set("absl_strings_strings") {
     ":absl_strings_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_synchronization_graphcycles_internal") {
@@ -2410,7 +2719,9 @@ source_set("absl_synchronization_graphcycles_internal") {
     ":absl_base_raw_logging_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_synchronization_kernel_timeout_internal") {
@@ -2423,7 +2734,9 @@ source_set("absl_synchronization_kernel_timeout_internal") {
     ":absl_time_time",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_synchronization_synchronization") {
@@ -2460,7 +2773,9 @@ source_set("absl_synchronization_synchronization") {
     ":absl_time_time",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_time_internal_cctz_civil_time") {
@@ -2471,7 +2786,9 @@ source_set("absl_time_internal_cctz_civil_time") {
   ]
   public_deps = [ ":absl_base_config" ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_time_internal_cctz_time_zone") {
@@ -2500,7 +2817,9 @@ source_set("absl_time_internal_cctz_time_zone") {
     ":absl_time_internal_cctz_civil_time",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_time_time") {
@@ -2528,7 +2847,9 @@ source_set("absl_time_time") {
     ":absl_types_optional",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_types_any") {
@@ -2542,7 +2863,9 @@ source_set("absl_types_any") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_types_bad_any_cast") {
@@ -2552,7 +2875,9 @@ source_set("absl_types_bad_any_cast") {
     ":absl_types_bad_any_cast_impl",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_types_bad_any_cast_impl") {
@@ -2565,7 +2890,9 @@ source_set("absl_types_bad_any_cast_impl") {
     ":absl_base_raw_logging_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_types_bad_optional_access") {
@@ -2578,7 +2905,9 @@ source_set("absl_types_bad_optional_access") {
     ":absl_base_raw_logging_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_types_bad_variant_access") {
@@ -2591,7 +2920,9 @@ source_set("absl_types_bad_variant_access") {
     ":absl_base_raw_logging_internal",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_types_compare") {
@@ -2601,7 +2932,9 @@ source_set("absl_types_compare") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_types_optional") {
@@ -2619,7 +2952,9 @@ source_set("absl_types_optional") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_types_span") {
@@ -2634,7 +2969,9 @@ source_set("absl_types_span") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_types_variant") {
@@ -2651,7 +2988,9 @@ source_set("absl_types_variant") {
     ":absl_utility_utility",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("absl_utility_utility") {
@@ -2662,7 +3001,10 @@ source_set("absl_utility_utility") {
     ":absl_meta_type_traits",
   ]
   public_configs = [ "..:grpc_absl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
+}
 }
 
 static_library("upb") {
@@ -2725,7 +3067,9 @@ static_library("upb") {
   ]
   public_deps = []
   public_configs = [ "..:grpc_upb_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 static_library("re2") {
@@ -2782,7 +3126,9 @@ static_library("re2") {
   ]
   public_deps = []
   public_configs = [ "..:grpc_re2_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 static_library("boringssl") {
@@ -3283,7 +3629,9 @@ static_library("boringssl") {
   ]
   public_deps = []
   public_configs = [ "..:grpc_boringssl_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("address_sorting") {
@@ -3296,7 +3644,9 @@ source_set("address_sorting") {
   ]
   public_deps = []
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("gpr") {
@@ -3387,7 +3737,9 @@ source_set("gpr") {
     ":absl_types_variant",
   ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("grpc") {
@@ -4929,7 +5281,9 @@ source_set("grpc") {
     "../../gn:zlib",
   ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("grpc_unsecure") {
@@ -5693,7 +6047,9 @@ source_set("grpc_unsecure") {
     ":upb",
   ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 static_library("grpc++") {
@@ -5795,7 +6151,9 @@ static_library("grpc++") {
   ]
   public_deps = [ ":grpc" ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("grpc++_alts") {
@@ -5805,14 +6163,18 @@ source_set("grpc++_alts") {
   ]
   public_deps = [ ":grpc++" ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("grpc++_error_details") {
   sources = [ "src/src/cpp/util/error_details.cc" ]
   public_deps = [ ":grpc++" ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("grpc++_unsecure") {
@@ -5863,7 +6225,9 @@ source_set("grpc++_unsecure") {
   ]
   public_deps = [ ":grpc_unsecure" ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("grpc_authorization_provider") {
@@ -6402,7 +6766,9 @@ source_set("grpc_authorization_provider") {
     ":upb",
   ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 source_set("grpc_plugin_support") {
@@ -6440,12 +6806,16 @@ source_set("grpc_plugin_support") {
   ]
   public_deps = [ "..:protoc_lib" ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }
 
 executable("grpc_cpp_plugin") {
   sources = [ "src/src/compiler/cpp_plugin.cc" ]
   public_deps = [ ":grpc_plugin_support" ]
   public_configs = [ "..:grpc_internal_config" ]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }

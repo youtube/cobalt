@@ -111,6 +111,13 @@ group("default_deps") {
                            # (breaks component).
   public_configs = [ ":default_config" ]
   deps = [ ":gen_buildflags" ]
+  if (use_cobalt_customizations) {
+    public_deps = [
+      "standalone:check_build_deps",
+      "standalone/libc++:deps",
+      "standalone/sanitizers:deps",
+    ]
+  }
   if (perfetto_build_standalone) {
     public_deps = [
       "//gn/standalone:check_build_deps",
@@ -197,7 +204,7 @@ group("gtest_main") {
 
   if (perfetto_root_path == "//") {
     public_deps = [ "//buildtools:gtest_main" ]
-  } else if (build_with_chromium) {
+  } else if (build_with_chromium || use_cobalt_customizations) {
     public_deps = [ "//base/test:run_all_unittests" ]
   } else {
     public_deps = [ "//testing/gtest:gtest_main" ]
@@ -215,6 +222,9 @@ protobuf_full_deps_allowlist = [
   "../tools/*",
   "../src/tools/*",
 ]
+if (use_cobalt_customizations) {
+  protobuf_full_deps_allowlist += [ "../src/trace_processor:*" ]
+}
 
 group("protoc") {
   public_deps = [ "${perfetto_protobuf_target_prefix}:protoc($host_toolchain)" ]
@@ -249,7 +259,7 @@ group("protobuf_full") {
   if (perfetto_use_system_protobuf) {
     public_configs = [ ":system_protobuf" ]
   } else {
-    public_deps = [ "${perfetto_protobuf_target_prefix}:protobuf_full" ]
+    public_deps = [ "${perfetto_protobuf_target_prefix}:protobuf_full($host_toolchain)" ]
   }
 }
 
@@ -275,7 +285,7 @@ config("protobuf_gen_config") {
     "GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER",
   ]
   cflags = []
-  if (!is_clang || !is_win) {
+  if (is_clang || !is_win) {
     cflags += [ "-Wno-deprecated-declarations" ]
   }
   if (is_clang && is_win) {
@@ -322,7 +332,9 @@ if (perfetto_build_standalone && (is_linux || is_android)) {
 
 if (enable_perfetto_trace_processor_sqlite) {
   group("sqlite") {
-    if (perfetto_root_path == "//") {
+    if (use_cobalt_customizations) {
+      public_deps = [ "../buildtools:sqlite" ]
+    } else if (perfetto_root_path == "//") {
       public_deps = [ "//buildtools:sqlite" ]
     } else {
       if (build_with_chromium) {
@@ -345,7 +357,10 @@ config("sqlite_third_party_include_path") {
 
 if (enable_perfetto_trace_processor_json) {
   group("jsoncpp") {
-    if (perfetto_root_path == "//") {
+    if (use_cobalt_customizations) {
+      public_configs = [ "../buildtools:jsoncpp_config" ]
+      public_deps = [ "../buildtools:jsoncpp" ]
+    } else if (perfetto_root_path == "//") {
       public_configs = [ "//buildtools:jsoncpp_config" ]
       public_deps = [ "//buildtools:jsoncpp" ]
     } else {

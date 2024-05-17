@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+### Migrate the `SbThreadSampler` to use `pthread`.
+Switched the `SbThreadSampler` API to use `pthread` instead of `SbThread`.
+
 ### Added support for pthread create attributes.
 The standard pthread APIs `pthread_attr_init`, `pthread_attr_destroy`,
 `pthread_attr_getdetachstate`, `pthread_attr_getstacksize`,
@@ -176,7 +179,20 @@ standard APIs `malloc`, `realloc`, `calloc`, `posix_memalign`, `free`
 from `<stdlib.h>` and `strdup` from `<string.h>` should be used instead.
 
 ### Deprecated SbMediaGetBufferAlignment
-The `SbMediaGetBufferAlignment` API was deprecated.
+The `SbMediaGetBufferAlignment` API was deprecated, its return value is no
+longer used when allocating media buffers and has to be always set to 1.  This
+is verified explicitly using nplb tests.
+The app MAY take best effort to allocate media buffers aligned to an optimal
+alignment for the platform, but not guaranteed.
+An implementation that has specific alignment requirement should check the
+alignment of the incoming buffer, and make a copy when necessary.
+
+### Deprecated SbMediaGetBufferPadding
+The SbMediaGetBufferPadding() API was deprecated, its return value is no longer
+used when allocating media buffers and has to be always set to 0.  This is
+verified explicitly using nplb tests.
+An implementation that has specific padding requirement should make a copy of
+the incoming buffer when necessary.
 
 ### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
 The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in
