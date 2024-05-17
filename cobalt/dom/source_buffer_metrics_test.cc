@@ -66,6 +66,21 @@ TEST_F(SourceBufferMetricsTest, RecordsAppendBufferTelemetry) {
       12345, 1);
 }
 
+TEST_F(SourceBufferMetricsTest, HandlesAppendBufferWithZeroLatency) {
+  metrics_->StartTracking(SourceBufferMetricsAction::APPEND_BUFFER);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(0));
+  metrics_->EndTracking(SourceBufferMetricsAction::APPEND_BUFFER, 1234567);
+
+  auto counts = histogram_tester_.GetTotalCountsForPrefix(kUmaPrefix);
+  EXPECT_EQ(2, counts.size());
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "AppendBuffer.Timing", 0, 1);
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "AppendBuffer.BytesAppended", 1234567, 1);
+}
+
 }  // namespace
 }  // namespace dom
 }  // namespace cobalt

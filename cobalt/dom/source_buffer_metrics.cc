@@ -141,11 +141,14 @@ void SourceBufferMetrics::RecordUMATelemetry(
           "Cobalt.Media.SourceBuffer.AppendBuffer.BytesAppended",
           size_appended);
 
-      int64_t bytes_per_microsecond =
-          size_appended / action_duration.InMicroseconds();
-      UMA_HISTOGRAM_COUNTS_100000(
-          "Cobalt.Media.SourceBuffer.AppendBuffer.BytesAppendedPerMicrosecond",
-          bytes_per_microsecond);
+      if (action_duration.InMicroseconds() > 0) {
+        int64_t bytes_per_microsecond =
+            size_appended / action_duration.InMicroseconds();
+        UMA_HISTOGRAM_COUNTS_100000(
+            "Cobalt.Media.SourceBuffer.AppendBuffer."
+            "BytesAppendedPerMicrosecond",
+            bytes_per_microsecond);
+      }
       break;
     }
     default:
