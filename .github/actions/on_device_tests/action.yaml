@@ -97,11 +97,6 @@ runs:
       run: |
         set -eux
         gsutil -d cp "${GCS_RESULTS_PATH}" results.zip
-        if [[ $? -ne 0 ]]; then
-          warn="Unable to download results from ${GCS_RESULTS_PATH}"
-          echo "::warning title=No unit test results::$warn"
-          exit 0
-        fi
         mkdir -p unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}/
         unzip results.zip -d unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}/
       shell: bash
