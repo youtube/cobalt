@@ -175,6 +175,9 @@ declare_args() {
   # all unused symbols and nplb fails to link.
   # TODO: b/297808555 Remove this flag after nplb is fixed
   sb_has_unused_symbol_issue = false
+
+  # Set to true to enable extended IFA functionality in H5vccSystem.
+  enable_extended_ifa_in_h5vcc = false
 }
 
 if (current_toolchain == starboard_toolchain &&
