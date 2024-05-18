@@ -23,7 +23,7 @@
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/application.h"
 
-// Omit namespace linux due to symbol name conflict.
+// Omit namespace 'linux' due to symbol name conflict with macro 'linux'
 namespace starboard {
 namespace shared {
 namespace {
@@ -45,6 +45,14 @@ typedef struct PreAppRecommendationsPlatformServiceImpl
 // call.
 const char kSuccess[] = "200";
 const char kBadRequest[] = "400";
+// Methods supported
+const char kGetPartnerIdMethod[] = "getPartnerId";
+const char kRecommendMethod[] = "recommend";
+// Operations supported
+const char kUpsertOp[] = "upsert";
+const char kDeleteOp[] = "delete";
+// Configure partner Id
+const char kPartnerId[] = "dummy_partner_id";
 
 bool Has(const char* name) {
   // Check if platform has service name.
@@ -64,7 +72,9 @@ PlatformServiceImpl* Open(void* context,
 void Close(PlatformServiceImpl* service) {
   // Function Close shouldn't manually delete PlatformServiceImpl pointer,
   // because it is managed by unique_ptr in Platform Service.
-  SB_LOG(INFO) << "Perform actions before gracefully shutting down the service";
+  SB_LOG(INFO)
+      << kPreappRecommendationServiceName
+      << " Perform actions before gracefully shutting down the service";
 }
 
 std::string extractJsonValue(const std::string& jsonLikeString,
@@ -116,22 +126,22 @@ void* Send(PlatformServiceImpl* service,
 
   // When method_name = getPartnerId, platform returns partner Id to get
   // authenticated by YouTube app.
-  if (method_name == "getPartnerId") {
+  if (method_name == kGetPartnerIdMethod) {
     // Populate Partner Id in the response.
     // Partner Id will be used by YouTube app to authenticate platforms and
     // retrieve specified topics for a platform.
-    auto partner_id = "\"dummmy_partner_id\"";
-    response = FormatString("{\"partner_id\": %s}", partner_id);
+    // auto partner_id = "\"dummmy_partner_id\"";
+    response = FormatString("{\"partner_id\": \"%s\"}", kPartnerId);
   }
 
   // When method_name = recommend, platform processes data according to
   // operation field.
-  if (method_name == "recommend") {
+  if (method_name == kRecommendMethod) {
     std::string operation = extractJsonValue(message, "operation");
     if (operation.length() != 0) {
       // When operation = upsert, platform parses recs_response field and
       // insert/update data in local storage.
-      if (operation == "upsert") {
+      if (operation == kUpsertOp) {
         std::string recs_response = extractJsonValue(message, "recs_response");
 
         if (recs_response.length() != 0) {
@@ -144,7 +154,7 @@ void* Send(PlatformServiceImpl* service,
               << "Could not extract recsResponse from the input JSON file:"
               << message;
         }
-      } else if (operation == "delete") {
+      } else if (operation == kDeleteOp) {
         // When operation = delete, platform delete YouTube data in local
         // storage.
         SB_LOG(INFO) << "operation = " << operation
@@ -160,9 +170,9 @@ void* Send(PlatformServiceImpl* service,
   }
 
   *output_length = response.length();
-  char* ptr = reinterpret_cast<char*>(malloc(*output_length));
-  response.copy(ptr, response.length());
-  return static_cast<void*>(ptr);
+  auto ptr = malloc(*output_length);
+  response.copy(reinterpret_cast<char*>(ptr), response.length());
+  return ptr;
 }
 
 const CobaltPlatformServiceApi kGetPreappRecommendationServiceApi = {

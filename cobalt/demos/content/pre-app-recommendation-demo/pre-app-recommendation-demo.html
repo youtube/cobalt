@@ -36,8 +36,7 @@ Then navigate to Cobalt binary directory, run in Cobalt using this command:
     async function testPreappRecommendationService() {
 
       if (!H5vccPlatformService) {
-        // H5vccPlatformService is not implemented. Fallback to current Soft Mic
-        // implementation.
+        // H5vccPlatformService is not implemented.
         console.error("H5vccPlatformService is not implemented");
         return;
       }
@@ -78,11 +77,20 @@ Then navigate to Cobalt binary directory, run in Cobalt using this command:
       // Send method recommend, upsert operation and recs_response.
       // recs_response will follow the response format in https://developers.google.com/youtube/recommendations/reference/rest/v1/ListRecommendationsResponse
       var upsert_operation = str2ab(JSON.stringify({
-        'method': 'recommend', 'operation': 'upsert', 'recs_response': {
+        'method': 'recommend',
+        'operation': 'upsert',
+        'recs_response': {
           'shelves': [{
-            'title': 'top picks for you', 'shelf_items': [{
-              'title': '25 Best Countries to visit', 'url': 'https://www.youtube.com/tv?v=HcdohhNq8Iw&&launch=launcher',
-              'images': [{ 'uri': 'https://i.ytimg.com/vi/HcdohhNq8Iw/default.jpg', 'width': '120', 'height': '90', 'resolution': 'DEFAULT_RESOLUTION' }]
+            'title': 'top picks for you',
+            'shelf_items': [{
+              'title': '25 Best Countries to visit',
+              'url': 'https://www.youtube.com/tv?v=HcdohhNq8Iw&&launch=launcher',
+              'images': [{
+                'uri': 'https://i.ytimg.com/vi/HcdohhNq8Iw/default.jpg',
+                'width': '120',
+                'height': '90',
+                'resolution': 'DEFAULT_RESOLUTION'
+              }]
             }]
           }
           ]
@@ -109,7 +117,9 @@ Then navigate to Cobalt binary directory, run in Cobalt using this command:
       pre_app_recommendation_service.close();
     }
 
-    testPreappRecommendationService();
+    window.onload = () => {
+      testPreappRecommendationService();
+    }
 
   </script>
 </body>
