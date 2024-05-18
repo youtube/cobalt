@@ -189,7 +189,7 @@ public class AudioTrackBridge {
           sampleTypeString = "ENCODING_E_AC3";
           break;
         default:
-          Log.i(TAG, String.format("Unknown AudioFormat %d.", sampleType));
+          Log.i(TAG, String.format(Locale.US, "Unknown AudioFormat %d.", sampleType));
           break;
       }
     }
@@ -237,7 +237,7 @@ public class AudioTrackBridge {
     try {
       audioTrack.play();
     } catch (IllegalStateException e) {
-      Log.e(TAG, String.format("Unable to play audio track, error: %s", e.toString()));
+      Log.e(TAG, String.format(Locale.US, "Unable to play audio track, error: %s", e.toString()));
     }
   }
 
@@ -252,7 +252,7 @@ public class AudioTrackBridge {
     try {
       audioTrack.pause();
     } catch (IllegalStateException e) {
-      Log.e(TAG, String.format("Unable to pause audio track, error: %s", e.toString()));
+      Log.e(TAG, String.format(Locale.US, "Unable to pause audio track, error: %s", e.toString()));
     }
   }
 
@@ -267,7 +267,7 @@ public class AudioTrackBridge {
     try {
       audioTrack.stop();
     } catch (IllegalStateException e) {
-      Log.e(TAG, String.format("Unable to stop audio track, error: %s", e.toString()));
+      Log.e(TAG, String.format(Locale.US, "Unable to stop audio track, error: %s", e.toString()));
     }
   }
 
