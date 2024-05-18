@@ -38,7 +38,7 @@ H5vccSystem::H5vccSystem(
     )
     :
 #endif
-      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+      task_runner_(base::ThreadTaskRunnerHandle::Get()),
       ifa_extension_(static_cast<const StarboardExtensionIfaApi*>(
           SbSystemGetExtension(kStarboardExtensionIfaName))) {
 #if defined(COBALT_ENABLE_EXTENDED_IFA)
@@ -150,14 +150,14 @@ std::string H5vccSystem::tracking_authorization_status() const {
 
 void H5vccSystem::ReceiveTrackingAuthorizationComplete() {
   // May be called by another thread.
-  if (!task_runner_->RunsTasksInCurrentSequence()) {
+  if (!task_runner_->BelongsToCurrentThread()) {
     task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&H5vccSystem::ReceiveTrackingAuthorizationComplete,
                    base::Unretained(this)));
     return;
   }
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   // Mark all promises complete and release the references.
   for (auto& promise : request_tracking_authorization_promises_) {
