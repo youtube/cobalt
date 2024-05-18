@@ -19,13 +19,11 @@ config("h5vcc_internal_config") {
 
 config("h5vcc_external_config") {
   defines = []
-<<<<<<< HEAD
   if (enable_account_manager) {
     defines += [ "COBALT_ENABLE_ACCOUNT_MANAGER" ]
-=======
+  }
   if (enable_extended_ifa_in_h5vcc) {
     defines += [ "COBALT_ENABLE_EXTENDED_IFA" ]
->>>>>>> 6653e2f63fe (Add extended IFA support to H5vccSystem (#3292))
   }
 }
 
