@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "base/strings/stringprintf.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/version.h"
 #include "cobalt/web/environment_settings_helper.h"
