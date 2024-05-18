@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/single_thread_task_runner.h"
 #if SB_IS(EVERGREEN)
 #include "cobalt/h5vcc/h5vcc_updater.h"
 #endif
@@ -71,7 +71,7 @@ class H5vccSystem : public script::Wrappable {
 #if SB_IS(EVERGREEN)
   scoped_refptr<H5vccUpdater> updater_;
 #endif
-  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
+  scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
   const StarboardExtensionIfaApi* ifa_extension_;
 #if defined(COBALT_ENABLE_EXTENDED_IFA)
   void ReceiveTrackingAuthorizationComplete();
