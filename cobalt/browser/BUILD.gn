@@ -68,7 +68,7 @@ target(final_executable_type, "cobalt") {
     ]
   }
   if (sb_is_evergreen) {
-    data_deps += [ "//cobalt/updater/version_manifest:copy_version_manifest" ]
+    data_deps += [ "//chrome/updater/version_manifest:copy_version_manifest" ]
   }
   if (!is_gold) {
     data_deps += [
@@ -228,7 +228,7 @@ static_library("browser") {
   }
 
   if (sb_is_evergreen) {
-    deps += [ "//cobalt/updater" ]
+    deps += [ "//chrome/updater" ]
   } else {
     deps += cobalt_platform_dependencies
   }
