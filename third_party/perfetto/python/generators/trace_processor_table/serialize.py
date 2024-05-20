@@ -350,7 +350,7 @@ class TableSerializer(object):
    public:
     {iterator_getters}
 
-   protected:
+   public:
     explicit ConstIterator(const {self.table_name}* table,
                            std::vector<ColumnStorageOverlay> overlays)
         : AbstractConstIterator(table, std::move(overlays)) {{}}

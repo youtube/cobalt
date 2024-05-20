@@ -17,6 +17,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/url.h"
@@ -34,7 +35,11 @@ void RegisterMediaSourceObjectURL(
       base::polymorphic_downcast<dom::DOMSettings*>(environment_settings);
   DCHECK(dom_settings);
   DCHECK(dom_settings->media_source_registry());
-  dom_settings->media_source_registry()->Register(blob_url, media_source);
+
+  scoped_refptr<MediaSourceAttachment> attachment =
+      base::MakeRefCounted<MediaSourceAttachment>(media_source);
+
+  dom_settings->media_source_registry()->Register(blob_url, attachment);
 }
 
 // extern

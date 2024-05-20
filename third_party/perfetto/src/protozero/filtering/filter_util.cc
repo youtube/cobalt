@@ -22,7 +22,7 @@
 #include <memory>
 #include <set>
 
-#include <google/protobuf/compiler/importer.h>
+#include <third_party/protobuf/src/google/protobuf/compiler/importer.h>
 
 #include "perfetto/base/build_config.h"
 #include "perfetto/ext/base/file_utils.h"

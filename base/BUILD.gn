@@ -1002,8 +1002,6 @@ component("base") {
       "time/time_now_starboard.cc",
       "time/time_starboard.cc",
     ]
-    # Needed for at least //url/gurl.cc until enable_base_tracing = true.
-    sources += [ "trace_event/memory_usage_estimator.cc" ]
   }
 
   # Various files that are unused in the Chromium build, but presumably here to
@@ -2463,6 +2461,9 @@ component("base") {
       "tracing/tracing_tls.cc",
       "tracing/tracing_tls.h",
     ]
+    if (use_cobalt_customizations && use_xcode_clang) {
+      defines = [ "USES_XCODE_CLANG" ]
+    }
 
     public_deps += [
       "//base/tracing/protos:chrome_track_event_zero",
@@ -2479,7 +2480,7 @@ component("base") {
       "//third_party/perfetto/gn:public_config",
     ]
 
-    if (is_win) {
+    if (is_win && !is_starboard) {
       sources += [
         "trace_event/trace_event_etw_export_win.cc",
         "trace_event/trace_event_etw_export_win.h",
@@ -2488,7 +2489,7 @@ component("base") {
       ]
     }
 
-    if (is_android) {
+    if (is_android && !is_starboard) {
       sources += [
         "trace_event/application_state_proto_android.cc",
         "trace_event/application_state_proto_android.h",
@@ -4204,7 +4205,15 @@ test("base_unittests") {
       "tracing/perfetto_task_runner_unittest.cc",
     ]
 
-    if (is_android) {
+    if (cobalt_pending_clean_up) {
+      sources -= [
+        "trace_event/memory_allocator_dump_unittest.cc",
+        "trace_event/process_memory_dump_unittest.cc",
+        "trace_event/typed_macros_unittest.cc",
+      ]
+    }
+
+    if (is_android && !is_starboard) {
       sources += [
         "trace_event/cpufreq_monitor_android_unittest.cc",
         "trace_event/java_heap_dump_provider_android_unittest.cc",

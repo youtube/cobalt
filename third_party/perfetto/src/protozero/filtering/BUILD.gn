@@ -62,6 +62,7 @@ source_set("bytecode_generator") {
   ]
 }
 
+if (!use_cobalt_customizations) {
 source_set("filter_util") {
   testonly = true
   sources = [
@@ -76,6 +77,7 @@ source_set("filter_util") {
     "../../../gn:protobuf_full",
     "../../base",
   ]
+}
 }
 
 perfetto_unittest_source_set("unittests") {

@@ -14,7 +14,7 @@
 
 #include <pthread.h>
 
-#include "starboard/nplb/thread_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -45,14 +45,14 @@ void* SetThreadNameEntryPoint(void* context) {
 
 TEST(PosixThreadSetNameTest, SunnyDay) {
   Context context;
-  context.name_to_set = kAltThreadName;
+  context.name_to_set = posix::kAltThreadName;
   pthread_t thread;
   EXPECT_EQ(pthread_create(&thread, NULL, SetThreadNameEntryPoint, &context),
             0);
   EXPECT_TRUE(thread != 0);
   EXPECT_EQ(pthread_join(thread, NULL), 0);
-  EXPECT_NE(kAltThreadName, context.got_name1);
-  EXPECT_EQ(kAltThreadName, context.got_name2);
+  EXPECT_NE(posix::kAltThreadName, context.got_name1);
+  EXPECT_EQ(posix::kAltThreadName, context.got_name2);
 }
 
 }  // namespace
