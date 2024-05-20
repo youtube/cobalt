@@ -14,6 +14,7 @@
 
 #include "starboard/shared/pthread/thread_sampler_internal.h"
 
+#include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 
@@ -129,7 +130,11 @@ void SignalHandler::HandleProfilerSignal(int signal,
 
 }  // namespace
 
+#if SB_API_VERSION < 16
 SbThreadSamplerPrivate::SbThreadSamplerPrivate(SbThread thread)
+#else
+SbThreadSamplerPrivate::SbThreadSamplerPrivate(pthread_t thread)
+#endif
     : thread_(thread) {
   SignalHandler::AddSampler();
 }
