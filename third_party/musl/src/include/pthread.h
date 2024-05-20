@@ -3,6 +3,7 @@
 
 #include "../../include/pthread.h"
 
+#if !defined(STARBOARD)
 hidden int __pthread_once(pthread_once_t *, void (*)(void));
 hidden void __pthread_testcancel(void);
 hidden int __pthread_setcancelstate(int, int *);
@@ -25,5 +26,6 @@ hidden int __pthread_rwlock_wrlock(pthread_rwlock_t *);
 hidden int __pthread_rwlock_trywrlock(pthread_rwlock_t *);
 hidden int __pthread_rwlock_timedwrlock(pthread_rwlock_t *__restrict, const struct timespec *__restrict);
 hidden int __pthread_rwlock_unlock(pthread_rwlock_t *);
+#endif
 
 #endif
