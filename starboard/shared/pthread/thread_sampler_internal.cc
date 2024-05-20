@@ -130,7 +130,15 @@ void SignalHandler::HandleProfilerSignal(int signal,
 
 }  // namespace
 
+<<<<<<< HEAD
 SbThreadSamplerPrivate::SbThreadSamplerPrivate(pthread_t thread)
+=======
+#if SB_API_VERSION < 16
+SbThreadSamplerPrivate::SbThreadSamplerPrivate(SbThread thread)
+#else
+SbThreadSamplerPrivate::SbThreadSamplerPrivate(pthread_t thread)
+#endif
+>>>>>>> e305aad6fa3 (Migrate the SbThreadSampler to pthread (#3293))
     : thread_(thread) {
   SignalHandler::AddSampler();
 }

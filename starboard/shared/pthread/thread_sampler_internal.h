@@ -21,15 +21,38 @@
 
 class SbThreadSamplerPrivate {
  public:
+<<<<<<< HEAD
   explicit SbThreadSamplerPrivate(pthread_t thread);
+=======
+#if SB_API_VERSION < 16
+  explicit SbThreadSamplerPrivate(SbThread thread);
+#else
+  explicit SbThreadSamplerPrivate(pthread_t thread);
+#endif
+>>>>>>> e305aad6fa3 (Migrate the SbThreadSampler to pthread (#3293))
   ~SbThreadSamplerPrivate();
 
   SbThreadContext Freeze();
   bool Thaw();
+<<<<<<< HEAD
   pthread_t thread() { return thread_; }
 
  private:
   pthread_t thread_;
+=======
+#if SB_API_VERSION < 16
+  SbThread thread() { return thread_; }
+#else
+  pthread_t thread() { return thread_; }
+#endif
+
+ private:
+#if SB_API_VERSION < 16
+  SbThread thread_;
+#else
+  pthread_t thread_;
+#endif
+>>>>>>> e305aad6fa3 (Migrate the SbThreadSampler to pthread (#3293))
 };
 
 #endif  // STARBOARD_SHARED_PTHREAD_THREAD_SAMPLER_INTERNAL_H_

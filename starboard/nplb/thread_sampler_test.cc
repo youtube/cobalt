@@ -18,7 +18,16 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
+<<<<<<< HEAD
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
+=======
+
+#if SB_API_VERSION < 16
+#include "starboard/nplb/thread_helpers.h"
+#else
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
+#endif
+>>>>>>> e305aad6fa3 (Migrate the SbThreadSampler to pthread (#3293))
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,7 +35,15 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+<<<<<<< HEAD
 class CountingThread : public posix::AbstractTestThread {
+=======
+#if SB_API_VERSION < 16
+class CountingThread : public AbstractTestThread {
+#else
+class CountingThread : public posix::AbstractTestThread {
+#endif
+>>>>>>> e305aad6fa3 (Migrate the SbThreadSampler to pthread (#3293))
  public:
   ~CountingThread() { Stop(); }
 
@@ -64,7 +81,16 @@ TEST(ThreadSamplerTest, RainyDayCreateSamplerInvalidThread) {
   // Creating a sampler for an invalid thread should not succeed, and even
   // without without calling |SbThreadSamplerDelete| ASAN should not detect a
   // memory leak.
+<<<<<<< HEAD
   SbThreadSampler sampler = SbThreadSamplerCreate(0);
+=======
+
+#if SB_API_VERSION < 16
+  SbThreadSampler sampler = SbThreadSamplerCreate(kSbThreadInvalid);
+#else
+  SbThreadSampler sampler = SbThreadSamplerCreate(0);
+#endif
+>>>>>>> e305aad6fa3 (Migrate the SbThreadSampler to pthread (#3293))
   EXPECT_FALSE(SbThreadSamplerIsValid(sampler));
 }
 
