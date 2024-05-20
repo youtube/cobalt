@@ -15,13 +15,20 @@
 #ifndef COBALT_H5VCC_H5VCC_SYSTEM_H_
 #define COBALT_H5VCC_H5VCC_SYSTEM_H_
 
+#include <memory>
 #include <string>
+#include <vector>
 
-#include "starboard/configuration.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #if SB_IS(EVERGREEN)
 #include "cobalt/h5vcc/h5vcc_updater.h"
 #endif
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
+#include "starboard/configuration.h"
+#include "starboard/extension/ifa.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -33,6 +40,7 @@ class H5vccSystem : public script::Wrappable {
 #else
   H5vccSystem();
 #endif
+  ~H5vccSystem();
 
   bool are_keys_reversed() const;
   std::string build_id() const;
@@ -41,6 +49,11 @@ class H5vccSystem : public script::Wrappable {
   std::string version() const;
   std::string advertising_id() const;
   bool limit_ad_tracking() const;
+#if defined(COBALT_ENABLE_EXTENDED_IFA)
+  std::string tracking_authorization_status() const;
+  script::HandlePromiseVoid RequestTrackingAuthorization(
+      script::EnvironmentSettings* environment_settings);
+#endif  // defined(COBALT_ENABLE_EXTENDED_IFA)
 
   bool TriggerHelp() const;
 
@@ -55,10 +68,16 @@ class H5vccSystem : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccSystem);
 
  private:
-  std::string video_container_size_;
 #if SB_IS(EVERGREEN)
   scoped_refptr<H5vccUpdater> updater_;
 #endif
+  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
+  const StarboardExtensionIfaApi* ifa_extension_;
+#if defined(COBALT_ENABLE_EXTENDED_IFA)
+  void ReceiveTrackingAuthorizationComplete();
+  std::vector<std::unique_ptr<script::ValuePromiseVoid::Reference>>
+      request_tracking_authorization_promises_;
+#endif  // defined(COBALT_ENABLE_EXTENDED_IFA)
   DISALLOW_COPY_AND_ASSIGN(H5vccSystem);
 };
 
