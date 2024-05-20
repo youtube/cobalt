@@ -19,8 +19,6 @@
 #ifndef STARBOARD_THREAD_H_
 #define STARBOARD_THREAD_H_
 
-#include <pthread.h>
-
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/types.h"
@@ -335,7 +333,7 @@ SB_EXPORT bool SbThreadSamplerIsSupported();
 //
 // If successful, this function returns the newly created handle.
 // If unsuccessful, this function returns |kSbThreadSamplerInvalid|.
-SB_EXPORT SbThreadSampler SbThreadSamplerCreate(pthread_t thread);
+SB_EXPORT SbThreadSampler SbThreadSamplerCreate(SbThread thread);
 
 // Destroys the |sampler| and frees whatever resources it was using.
 SB_EXPORT void SbThreadSamplerDestroy(SbThreadSampler sampler);
