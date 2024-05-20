@@ -29,6 +29,8 @@ class NativeWindow11WinRT : public NativeWindow11
     bool getClientRect(LPRECT rect) const override;
     bool isIconic() const override;
 
+    // Note that argument UINT samples was added here to make this actually
+    // override the createSwapChain method in the base class NativeWindow11.
     HRESULT createSwapChain(ID3D11Device *device,
                             IDXGIFactory *factory,
                             DXGI_FORMAT format,
