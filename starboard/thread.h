@@ -335,7 +335,11 @@ SB_EXPORT bool SbThreadSamplerIsSupported();
 //
 // If successful, this function returns the newly created handle.
 // If unsuccessful, this function returns |kSbThreadSamplerInvalid|.
+#if SB_API_VERSION < 16
+SB_EXPORT SbThreadSampler SbThreadSamplerCreate(SbThread thread);
+#else
 SB_EXPORT SbThreadSampler SbThreadSamplerCreate(pthread_t thread);
+#endif
 
 // Destroys the |sampler| and frees whatever resources it was using.
 SB_EXPORT void SbThreadSamplerDestroy(SbThreadSampler sampler);
