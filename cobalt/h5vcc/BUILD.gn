@@ -19,9 +19,6 @@ config("h5vcc_internal_config") {
 
 config("h5vcc_external_config") {
   defines = []
-  if (enable_extended_ifa_in_h5vcc) {
-    defines += [ "COBALT_ENABLE_EXTENDED_IFA" ]
-  }
 }
 
 static_library("h5vcc") {

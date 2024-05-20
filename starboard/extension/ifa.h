@@ -54,6 +54,7 @@ typedef struct StarboardExtensionIfaApi {
 
   // Returns the the user's authorization status for using IFA in this app.
   // Valid strings that can be returned are:
+  //   * NOT_SUPPORTED - if this platform doesn't support this extension
   //   * UNKNOWN - if the system isn't able to determine a status
   //   * NOT_DETERMINED - the user hasn't made a decision yet
   //   * RESTRICTED - the system doesn't allow the user a choice
