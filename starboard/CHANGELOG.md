@@ -9,9 +9,6 @@ since the version previous to it.
 
 ## Version 16
 
-### Migrate the `SbThreadSampler` to use `pthread`.
-Switched the `SbThreadSampler` API to use `pthread` instead of `SbThread`.
-
 ### Added support for pthread create attributes.
 The standard pthread APIs `pthread_attr_init`, `pthread_attr_destroy`,
 `pthread_attr_getdetachstate`, `pthread_attr_getstacksize`,

@@ -14,8 +14,8 @@
 
 #include "starboard/shared/pthread/thread_sampler_internal.h"
 
-SbThreadSampler SbThreadSamplerCreate(pthread_t thread) {
-  if (thread == 0) {
+SbThreadSampler SbThreadSamplerCreate(SbThread thread) {
+  if (!SbThreadIsValid(thread)) {
     return kSbThreadSamplerInvalid;
   }
   return new SbThreadSamplerPrivate(thread);
