@@ -19,12 +19,15 @@ config("h5vcc_internal_config") {
 
 config("h5vcc_external_config") {
   defines = []
+<<<<<<< HEAD
   if (enable_account_manager) {
     defines += [ "COBALT_ENABLE_ACCOUNT_MANAGER" ]
   }
   if (enable_extended_ifa_in_h5vcc) {
     defines += [ "COBALT_ENABLE_EXTENDED_IFA" ]
   }
+=======
+>>>>>>> 0d8868819df (Remove compile-time config for extended IFA (#3301))
 }
 
 static_library("h5vcc") {

@@ -49,11 +49,9 @@ class H5vccSystem : public script::Wrappable {
   std::string version() const;
   std::string advertising_id() const;
   bool limit_ad_tracking() const;
-#if defined(COBALT_ENABLE_EXTENDED_IFA)
   std::string tracking_authorization_status() const;
   script::HandlePromiseVoid RequestTrackingAuthorization(
       script::EnvironmentSettings* environment_settings);
-#endif  // defined(COBALT_ENABLE_EXTENDED_IFA)
 
   bool TriggerHelp() const;
 
@@ -73,11 +71,9 @@ class H5vccSystem : public script::Wrappable {
 #endif
   scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
   const StarboardExtensionIfaApi* ifa_extension_;
-#if defined(COBALT_ENABLE_EXTENDED_IFA)
   void ReceiveTrackingAuthorizationComplete();
   std::vector<std::unique_ptr<script::ValuePromiseVoid::Reference>>
       request_tracking_authorization_promises_;
-#endif  // defined(COBALT_ENABLE_EXTENDED_IFA)
   DISALLOW_COPY_AND_ASSIGN(H5vccSystem);
 };
 
