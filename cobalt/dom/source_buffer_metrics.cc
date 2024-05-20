@@ -131,7 +131,7 @@ void SourceBufferMetrics::RecordUMATelemetry(
           base::TimeDelta::FromMicroseconds(1),
           base::TimeDelta::FromMilliseconds(25), 50);
       break;
-    case SourceBufferMetricsAction::APPEND_BUFFER: {
+    case SourceBufferMetricsAction::APPEND_BUFFER:
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SourceBuffer.AppendBuffer.Timing", action_duration,
           base::TimeDelta::FromMicroseconds(1),
@@ -150,7 +150,6 @@ void SourceBufferMetrics::RecordUMATelemetry(
             bytes_per_microsecond);
       }
       break;
-    }
     default:
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SourceBuffer.Other.Timing", action_duration,
