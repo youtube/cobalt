@@ -473,7 +473,6 @@ std::string HelpMessage() {
       {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
       {kDisableMapToMesh, kDisableMapToMeshHelp},
       {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
-      {kDisableUpdaterModule, kDisableUpdaterModuleHelp},
       {kEncodedImageCacheSizeInBytes, kEncodedImageCacheSizeInBytesHelp},
       {kForceMigrationForStoragePartitioning,
        kForceMigrationForStoragePartitioningHelp},
