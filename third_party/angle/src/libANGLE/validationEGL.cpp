@@ -2963,6 +2963,7 @@ bool ValidateCreatePbufferFromClientBuffer(const ValidationContext *val,
                 }
                 break;
 
+            case EGL_D3D11_TEXTURE_PLANE_ANGLE:
             case EGL_MIPMAP_TEXTURE:
                 break;
 
