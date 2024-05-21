@@ -30,6 +30,7 @@ declare_args() {
   # Use the PCI lib to collect GPU information on Linux.
   use_libpci = (is_linux || is_chromeos) && (angle_use_x11 || use_ozone) &&
                angle_has_build
+               && !is_starboard
 
   # Enable using Vulkan to collect system info as a fallback.
   angle_enable_vulkan_system_info = false
@@ -43,6 +44,7 @@ declare_args() {
   # often have problems building with it, e.g. for C++20.
   angle_build_all = !build_with_chromium && !angle_is_winuwp &&
                     !angle_is_msvc && angle_has_build && angle_build_tests
+                    && !is_starboard
 
   # Enable generating current commit information using git
   angle_enable_commit_id = true
@@ -50,6 +52,7 @@ declare_args() {
   # Abseil has trouble supporting MSVC, particularly regarding component builds.
   # http://crbug.com/1126524
   angle_enable_abseil = angle_has_build && is_clang
+      && !is_starboard
 
   # Adds run-time checks to filter out EVENT() messages when the debug annotator is disabled.
   angle_enable_annotator_run_time_checks = false
@@ -459,6 +462,9 @@ template("angle_common_lib") {
     ]
 
     deps = [ ":xxhash" ]
+    if (is_starboard) {
+      deps += ["//starboard/common"]
+    }
 
     public_deps = [
       ":angle_abseil",
@@ -738,7 +744,6 @@ template("translator_lib") {
       ":angle_common_shader_state",
       ":includes",
       ":preprocessor",
-      "$angle_root/src/common/spirv:angle_spirv_headers",
     ]
 
     if (_uses_spirv) {
@@ -1078,10 +1083,12 @@ angle_source_set("libANGLE_no_vulkan") {
     public_deps += [ "src/libANGLE/renderer/cl:angle_cl_backend" ]
   }
 
+if (!use_cobalt_customizations) {
   # Enable extra Chromium style warnings for libANGLE.
   if (is_clang && angle_has_build) {
     suppressed_configs -= [ "//build/config/clang:find_bad_constructs" ]
   }
+}
 
   if (is_apple) {
     sources += libangle_mac_sources
@@ -1537,7 +1544,7 @@ set_defaults("libEGL_template") {
 }
 
 template("libEGL_template") {
-  target(invoker.target_type, target_name) {
+  angle_static_library(target_name) {
     forward_variables_from(invoker, "*")
     sources += libegl_sources
     configs += [
@@ -1579,6 +1586,7 @@ template("libEGL_shared_template") {
   }
 }
 
+if (!use_cobalt_customizations) {
 libEGL_shared_template("libEGL") {
   defines = [ "ANGLE_DISPATCH_LIBRARY=\"${_angle_glesv2_library_name}\"" ]
   output_name = "libEGL"
@@ -1587,6 +1595,7 @@ libEGL_shared_template("libEGL") {
   if (is_win) {
     sources += [ "src/libEGL/libEGL_autogen.def" ]
   }
+}
 }
 
 if (angle_enable_vulkan) {
@@ -1602,11 +1611,14 @@ if (angle_enable_vulkan) {
 }
 
 libEGL_template("libEGL_static") {
+if (!use_cobalt_customizations) {
   target_type = "angle_static_library"
+}
   public_configs = [ ":angle_static_config" ]
   deps = [ ":libGLESv2_static" ]
 }
 
+if (!use_cobalt_customizations) {
 # Convenience targets for some of the samples so they can be built
 # with Chromium's toolchain.
 angle_executable("angle_shader_translator") {
@@ -1626,6 +1638,7 @@ angle_executable("angle_shader_translator") {
 
     defines += [ "ANGLE_ENABLE_VULKAN" ]
   }
+}
 }
 
 if (angle_standalone || build_with_chromium) {
@@ -1772,6 +1785,7 @@ if ((angle_standalone || build_with_chromium) && is_android &&
   }
 }
 
+if (!use_cobalt_customizations) {
 group("angle") {
   data_deps = [
     ":libEGL",
@@ -1788,6 +1802,7 @@ group("angle") {
     # Need to bundle the libraries inside the .app.
     deps = data_deps
   }
+}
 }
 
 group("angle_static") {
