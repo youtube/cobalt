@@ -285,6 +285,9 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
 
   DCHECK(source_buffer);
   source_buffers_->Add(source_buffer);
+  LOG(INFO) << "added SourceBuffer (0x" << source_buffer.get()
+            << ") to MediaSource (0x" << this << ") with type " << type
+            << " id = " << guid;
   return source_buffer;
 }
 
