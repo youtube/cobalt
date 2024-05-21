@@ -972,7 +972,7 @@ egl::Error Renderer11::initializeD3DDevice()
         mRenderer11DeviceCaps.featureLevel = mDevice->GetFeatureLevel();
     }
     ID3D11Multithread* multithread =
-        d3d11::DynamicCastComObject<ID3D11Multithread>(mDeviceContext);
+        d3d11::DynamicCastComObject<ID3D11Multithread>(mDeviceContext.Get());
     ASSERT(multithread != nullptr);
     multithread->SetMultithreadProtected(true);
     SafeRelease(multithread);
@@ -3381,9 +3381,10 @@ TextureStorage *Renderer11::createTextureStorage2D(SwapChainD3D *swapChain,
 }
 
 TextureStorage *Renderer11::createTextureStorage2D(IUnknown *texture,
-                                                   bool bindChroma)
+                                                   bool bindChroma,
+                                                   const std::string &label)
 {
-    return new TextureStorage11_2D(this, texture, bindChroma);
+    return new TextureStorage11_2D(this, texture, bindChroma, label);
 }
 
 TextureStorage *Renderer11::createTextureStorageEGLImage(EGLImageD3D *eglImage,

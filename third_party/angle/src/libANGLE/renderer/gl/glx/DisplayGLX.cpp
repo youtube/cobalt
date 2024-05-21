@@ -461,7 +461,7 @@ SurfaceImpl *DisplayGLX::createPixmapSurface(const egl::SurfaceState &state,
 {
     ASSERT(configIdToGLXConfig.count(state.config->configID) > 0);
     glx::FBConfig fbConfig = configIdToGLXConfig[state.config->configID];
-    return new PixmapSurfaceGLX(state, nativePixmap, mGLX.getDisplay(), mGLX, fbConfig);
+    return new PixmapSurfaceGLX(state, reinterpret_cast<Pixmap>(nativePixmap), mGLX.getDisplay(), mGLX, fbConfig);
 }
 
 egl::Error DisplayGLX::validatePixmap(const egl::Config *config,
@@ -475,7 +475,7 @@ egl::Error DisplayGLX::validatePixmap(const egl::Config *config,
     unsigned int height      = 0;
     unsigned int borderWidth = 0;
     unsigned int depth       = 0;
-    int status = XGetGeometry(mGLX.getDisplay(), pixmap, &rootWindow, &x, &y, &width, &height,
+    int status = XGetGeometry(mGLX.getDisplay(), reinterpret_cast<Pixmap>(pixmap), &rootWindow, &x, &y, &width, &height,
                               &borderWidth, &depth);
     if (!status)
     {
@@ -800,7 +800,8 @@ bool DisplayGLX::isValidNativeWindow(EGLNativeWindowType window) const
     // X11 error handler exits the program on any error.
     auto oldErrorHandler = XSetErrorHandler(IgnoreX11Errors);
     XWindowAttributes attributes;
-    int status = XGetWindowAttributes(mXDisplay, window, &attributes);
+    int status =
+        XGetWindowAttributes(mXDisplay, reinterpret_cast<Window>(window), &attributes);
     XSetErrorHandler(oldErrorHandler);
 
     return status != 0;

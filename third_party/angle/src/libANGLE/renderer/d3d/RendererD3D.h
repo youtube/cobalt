@@ -325,7 +325,9 @@ class RendererD3D : public BufferFactoryD3D
                                     bool unpackUnmultiplyAlpha)                        = 0;
     virtual TextureStorage *createTextureStorage2D(SwapChainD3D *swapChain,
                                                    const std::string &label)           = 0;
-    virtual TextureStorage *createTextureStorage2D(IUnknown *texture, bool bindChroma) = 0;
+    virtual TextureStorage *createTextureStorage2D(IUnknown *texture,
+                                                   bool bindChroma,
+                                                   const std::string &label)           = 0;
     virtual TextureStorage *createTextureStorageEGLImage(EGLImageD3D *eglImage,
                                                          RenderTargetD3D *renderTargetD3D,
                                                          const std::string &label)     = 0;

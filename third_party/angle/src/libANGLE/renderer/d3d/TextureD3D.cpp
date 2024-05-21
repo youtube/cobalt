@@ -1409,7 +1409,7 @@ angle::Result TextureD3D_2D::bindTexImage(const gl::Context *context, egl::Surfa
 
     if (surfaceD3D->getSwapChain() == nullptr)
         mTexStorage = mRenderer->createTextureStorage2D(
-            surfaceD3D->getD3DTexture(), surfaceD3D->getBindChroma());
+            surfaceD3D->getD3DTexture(), surfaceD3D->getBindChroma(), mState.getLabel());
     else
         mTexStorage = mRenderer->createTextureStorage2D(surfaceD3D->getSwapChain(), mState.getLabel());
     mEGLImageTarget = false;

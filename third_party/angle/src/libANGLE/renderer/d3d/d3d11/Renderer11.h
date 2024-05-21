@@ -239,7 +239,8 @@ class Renderer11 : public RendererD3D
                             bool unpackUnmultiplyAlpha) override;
 
     TextureStorage *createTextureStorage2D(IUnknown *texture,
-                                           bool bindChroma) override;
+                                           bool bindChroma,
+                                           const std::string &label) override;
     TextureStorage *createTextureStorage2D(SwapChainD3D *swapChain,
                                            const std::string &label) override;
     TextureStorage *createTextureStorageEGLImage(EGLImageD3D *eglImage,

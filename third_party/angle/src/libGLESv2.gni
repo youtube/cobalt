@@ -672,7 +672,7 @@ libglesv1_cm_sources = [
   "src/libGLESv1_CM/resource.h",
 ]
 
-if (is_win) {
+if (is_win && !is_starboard) {
   libglesv1_cm_sources += [ "src/libGLESv1_CM/libGLESv1_CM.rc" ]
 }
 
@@ -686,8 +686,4 @@ libegl_sources = [
 
 if (is_starboard) {
   libangle_common_sources += [ "src/common/angle_hdr.cpp" ]
-  libgl_sources -= [ "src/libGL/libGL.rc" ]
-  libglesv2_sources -= [ "src/libGLESv2/libGLESv2.rc" ]
-  libglesv1_cm_sources -= [ "src/libGLESv1_CM/libGLESv1_CM.rc" ]
-  libegl_sources -= [ "src/libEGL/libEGL.rc" ]
 }

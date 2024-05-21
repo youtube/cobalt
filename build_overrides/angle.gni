@@ -23,3 +23,5 @@ angle_jsoncpp_dir = ""
 angle_libpng_dir = ""
 angle_spirv_cross_dir = ""
 angle_spirv_tools_dir = ""
+
+angle_spirv_headers_dir = ""

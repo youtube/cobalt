@@ -293,7 +293,8 @@ class TextureStorage11_2D : public TextureStorage11
     TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swapchain, const std::string &label);
     TextureStorage11_2D(Renderer11 *renderer,
                         IUnknown *texture,
-                        bool bindChroma);
+                        bool bindChroma,
+                        const std::string &label);
     TextureStorage11_2D(Renderer11 *renderer,
                         GLenum internalformat,
                         BindFlags bindFlags,

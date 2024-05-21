@@ -19,6 +19,8 @@
 #    include <windows.graphics.display.h>
 #    include <wrl.h>
 #    include <wrl/wrappers/corewrappers.h>
+#elif defined(ANGLE_PLATFORM_WINDOWS)
+#    include <windows.h>
 #endif
 
 namespace

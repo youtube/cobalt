@@ -34,8 +34,6 @@
 #include "libANGLE/renderer/d3d/d3d11/renderer11_utils.h"
 #include "libANGLE/renderer/d3d/d3d11/texture_format_table.h"
 
-#include "starboard/common/log.h"
-
 namespace rx
 {
 TextureStorage11::SamplerKey::SamplerKey()
@@ -1034,11 +1032,9 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer,
 
 TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer,
                                          IUnknown *texture,
-                                         bool bindChroma)
-    : TextureStorage11(renderer,
-                       0,
-                       0,
-                       0),
+                                         bool bindChroma,
+                                         const std::string &label)
+    : TextureStorage11(renderer, 0, 0, 0, label),
       mTexture(),
       mLevelZeroTexture(),
       mLevelZeroRenderTarget(nullptr),

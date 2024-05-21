@@ -49,7 +49,7 @@ declare_args() {
 
   # Abseil has trouble supporting MSVC, particularly regarding component builds.
   # http://crbug.com/1126524
-  angle_enable_abseil = angle_has_build && is_clang
+  angle_enable_abseil = angle_has_build && is_clang && !is_starboard
 
   # Adds run-time checks to filter out EVENT() messages when the debug annotator is disabled.
   angle_enable_annotator_run_time_checks = false
@@ -794,7 +794,7 @@ template("translator_lib") {
       ":angle_common_shader_state",
       ":includes",
       ":preprocessor",
-      "$angle_root/src/common/spirv:angle_spirv_headers",
+      #"$angle_root/src/common/spirv:angle_spirv_headers",
       "//starboard:starboard_headers_only",
     ]
 
@@ -1550,7 +1550,7 @@ angle_static_library("libGLESv2_static") {
   public_deps = [ ":libANGLE" ]
 }
 
-angle_static_library("libGLESv1_CM") {
+angle_shared_library("libGLESv1_CM") {
   sources = libglesv1_cm_sources
   output_name = "libGLESv1_CM${angle_libs_suffix}"
 
@@ -1598,7 +1598,7 @@ set_defaults("libEGL_template") {
 }
 
 template("libEGL_template") {
-  target(invoker.target_type, target_name) {
+  angle_static_library(target_name) {
     forward_variables_from(invoker, "*")
     sources += libegl_sources
     configs += [
@@ -1640,14 +1640,37 @@ template("libEGL_shared_template") {
   }
 }
 
-libEGL_shared_template("libEGL") {
+libEGL_template("libEGL") {
   defines = [ "ANGLE_DISPATCH_LIBRARY=\"${_angle_glesv2_library_name}\"" ]
-  output_name = "libEGL"
   gles_library = "libGLESv2"
   sources = []
   if (is_win) {
     sources += [ "src/libEGL/libEGL_autogen.def" ]
   }
+
+  output_name = "libEGL${angle_libs_suffix}"
+  if (angle_egl_extension != "") {
+    output_extension = angle_egl_extension
+  }
+
+  defines += [ "LIBEGL_IMPLEMENTATION" ]
+  if (is_win) {
+    defines += [ "EGLAPI=" ]
+  } else {
+    defines += [ "EGLAPI=__attribute__((visibility(\"default\")))" ]
+  }
+
+  deps = [
+    ":angle_common",
+    ":libEGL_egl_loader",
+  ]
+
+   if (is_win) {
+    sources += [ "src/libEGL/libEGL.rc" ]
+    deps += [ ":angle_version" ]
+   }
+
+   data_deps = [ ":${gles_library}" ]
 }
 
 if (angle_enable_vulkan) {
@@ -1663,7 +1686,6 @@ if (angle_enable_vulkan) {
 }
 
 libEGL_template("libEGL_static") {
-  target_type = "angle_static_library"
   public_configs = [ ":angle_static_config" ]
   deps = [ ":libGLESv2_static" ]
 }

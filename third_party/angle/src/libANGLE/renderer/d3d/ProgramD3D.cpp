@@ -1581,7 +1581,7 @@ angle::Result ProgramD3D::getPixelExecutableForCachedHdrOutputLayout(
     }
 
     std::string finalPixelHLSL = mDynamicHLSL->generatePixelShaderForHdrOutputSignature(
-        mShaderHLSL[gl::ShaderType::Fragment], mPixelShaderKey, mUsesFragDepth,
+        mShaderHLSL[gl::ShaderType::Fragment], mPixelShaderKey, mFragDepthUsage!=FragDepthUsage::Unused,
         mPixelShaderOutputLayoutCache);
 
     // Generate new pixel executable
