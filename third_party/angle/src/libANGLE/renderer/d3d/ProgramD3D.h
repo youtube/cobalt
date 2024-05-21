@@ -237,17 +237,13 @@ class ProgramD3D : public ProgramImpl
     angle::Result getPixelExecutableForCachedOutputLayout(d3d::Context *context,
                                                           ShaderExecutableD3D **outExectuable,
                                                           gl::InfoLog *infoLog);
-<<<<<<< HEAD
 #if defined(STARBOARD)
     angle::Result getPixelExecutableForCachedHdrOutputLayout(d3d::Context *context,
                                                              ShaderExecutableD3D **outExectuable,
                                                              gl::InfoLog *infoLog);
 #endif  // STARBOARD
-    angle::Result getComputeExecutableForImage2DBindLayout(d3d::Context *context,
-=======
     angle::Result getComputeExecutableForImage2DBindLayout(const gl::Context *glContext,
                                                            d3d::Context *context,
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
                                                            ShaderExecutableD3D **outExecutable,
                                                            gl::InfoLog *infoLog);
     std::unique_ptr<LinkEvent> link(const gl::Context *context,

@@ -487,50 +487,25 @@ def _CheckGClientExists(input_api, output_api, search_limit=None):
 
 def CheckChangeOnUpload(input_api, output_api):
     results = []
-<<<<<<< HEAD
-    # Disabled in Cobalt.
-    # results.extend(_CheckCodeGeneration(input_api, output_api))
-    # results.extend(_CheckChangeHasBugField(input_api, output_api))
-    results.extend(input_api.canned_checks.CheckChangeHasDescription(input_api, output_api))
-    results.extend(_CheckNewHeaderWithoutGnChange(input_api, output_api))
-    # Disabled in Cobalt.
-    # results.extend(_CheckExportValidity(input_api, output_api))
-    # results.extend(
-    #     input_api.canned_checks.CheckPatchFormatted(
-    #         input_api, output_api, result_factory=output_api.PresubmitError))
-=======
     results.extend(_CheckTabsInSourceFiles(input_api, output_api))
     results.extend(_CheckNonAsciiInSourceFiles(input_api, output_api))
     results.extend(_CheckCommentBeforeTestInTestFiles(input_api, output_api))
     results.extend(_CheckShaderVersionInShaderLangHeader(input_api, output_api))
-    results.extend(_CheckCodeGeneration(input_api, output_api))
-    results.extend(_CheckChangeHasBugField(input_api, output_api))
+    # Disabled in Cobalt.
+    #results.extend(_CheckCodeGeneration(input_api, output_api))
+    #results.extend(_CheckChangeHasBugField(input_api, output_api))
     results.extend(input_api.canned_checks.CheckChangeHasDescription(input_api, output_api))
     results.extend(_CheckNewHeaderWithoutGnChange(input_api, output_api))
-    results.extend(_CheckExportValidity(input_api, output_api))
-    results.extend(
-        input_api.canned_checks.CheckPatchFormatted(
-            input_api, output_api, result_factory=output_api.PresubmitError))
+    # Disabled in Cobalt.
+    #results.extend(_CheckExportValidity(input_api, output_api))
+    #results.extend(
+    #    input_api.canned_checks.CheckPatchFormatted(
+    #        input_api, output_api, result_factory=output_api.PresubmitError))
     results.extend(_CheckCommitMessageFormatting(input_api, output_api))
     results.extend(_CheckGClientExists(input_api, output_api))
 
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     return results
 
 
 def CheckChangeOnCommit(input_api, output_api):
-<<<<<<< HEAD
-    results = []
-    # Disabled in Cobalt.
-    # results.extend(_CheckCodeGeneration(input_api, output_api))
-    results.extend(
-        input_api.canned_checks.CheckPatchFormatted(
-            input_api, output_api, result_factory=output_api.PresubmitError))
-    # Disabled in Cobalt.
-    # results.extend(_CheckChangeHasBugField(input_api, output_api))
-    # results.extend(_CheckExportValidity(input_api, output_api))
-    results.extend(input_api.canned_checks.CheckChangeHasDescription(input_api, output_api))
-    return results
-=======
     return CheckChangeOnUpload(input_api, output_api)
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6

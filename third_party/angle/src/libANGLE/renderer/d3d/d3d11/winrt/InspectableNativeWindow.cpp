@@ -21,11 +21,7 @@ bool IsCoreWindow(EGLNativeWindowType window,
         return false;
     }
 
-<<<<<<< HEAD
-    ComPtr<IInspectable> win = static_cast<IInspectable *>(window);
-=======
     ComPtr<IInspectable> win = reinterpret_cast<IInspectable *>(window);
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     ComPtr<ABI::Windows::UI::Core::ICoreWindow> coreWin;
     if (SUCCEEDED(win.As(&coreWin)))
     {

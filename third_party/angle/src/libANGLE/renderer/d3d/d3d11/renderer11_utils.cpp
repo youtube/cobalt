@@ -1615,32 +1615,6 @@ void GenerateCaps(ID3D11Device *device,
     extensions->compressedETC1RGB8TextureOES    = false;
     extensions->compressedETC1RGB8SubTextureEXT = false;
 
-<<<<<<< HEAD
-    extensions->elementIndexUint            = true;
-    extensions->getProgramBinary            = true;
-    extensions->rgb8rgba8                   = true;
-    extensions->readFormatBGRA              = true;
-    extensions->pixelBufferObject           = true;
-    extensions->mapBuffer                   = true;
-    extensions->mapBufferRange              = true;
-    extensions->textureNPOT                 = GetNPOTTextureSupport(featureLevel);
-    extensions->drawBuffers                 = GetMaximumSimultaneousRenderTargets(featureLevel) > 1;
-    extensions->textureStorage              = true;
-    // Anisotropic filtering isn't supported completely; in particular, it
-    // does not work correctly when interacting with glSamplerParameterf as
-    // GL_TEXTURE_MAX_ANISOTROPY_EXT is not considered a valid parameter name.
-    // So, although there is partial support at least, we explicitly disable it
-    // as normal use of the parameter causes GL errors.
-    extensions->textureFilterAnisotropic    = false;
-    extensions->maxTextureAnisotropy        = GetMaximumAnisotropy(featureLevel);
-    extensions->occlusionQueryBoolean       = GetOcclusionQuerySupport(featureLevel);
-    extensions->fence                       = GetEventQuerySupport(featureLevel);
-    extensions->disjointTimerQuery          = true;
-    extensions->queryCounterBitsTimeElapsed = 64;
-    extensions->queryCounterBitsTimestamp =
-        0;  // Timestamps cannot be supported due to D3D11 limitations
-    extensions->robustness = true;
-=======
     extensions->elementIndexUintOES         = true;
     extensions->getProgramBinaryOES         = true;
     extensions->rgb8Rgba8OES                = true;
@@ -1653,12 +1627,16 @@ void GenerateCaps(ID3D11Device *device,
     extensions->drawBuffersIndexedEXT       = (featureLevel >= D3D_FEATURE_LEVEL_10_1);
     extensions->drawBuffersIndexedOES       = extensions->drawBuffersIndexedEXT;
     extensions->textureStorageEXT           = true;
-    extensions->textureFilterAnisotropicEXT = true;
+    // Anisotropic filtering isn't supported completely; in particular, it
+    // does not work correctly when interacting with glSamplerParameterf as
+    // GL_TEXTURE_MAX_ANISOTROPY_EXT is not considered a valid parameter name.
+    // So, although there is partial support at least, we explicitly disable it
+    // as normal use of the parameter causes GL errors.
+    extensions->textureFilterAnisotropicEXT = false;
     extensions->occlusionQueryBooleanEXT    = GetOcclusionQuerySupport(featureLevel);
     extensions->fenceNV                     = GetEventQuerySupport(featureLevel);
     extensions->disjointTimerQueryEXT       = true;
     extensions->robustnessEXT               = true;
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     // Direct3D guarantees to return zero for any resource that is accessed out of bounds.
     // See https://msdn.microsoft.com/en-us/library/windows/desktop/ff476332(v=vs.85).aspx
     // and https://msdn.microsoft.com/en-us/library/windows/desktop/ff476900(v=vs.85).aspx

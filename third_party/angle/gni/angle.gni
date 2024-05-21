@@ -76,7 +76,9 @@ if (angle_has_build) {
     angle_use_x11 = (is_linux || is_chromeos) && !is_ggp
     angle_use_wayland = is_linux && !is_ggp
     use_ozone = false
-    ozone_platform_gbm = false
+    if (!defined(ozone_platform_gbm)) {
+      ozone_platform_gbm = false
+    }
     ozone_platform_wayland = false
     ozone_platform_headless = false
     use_fuzzing_engine = false
@@ -88,21 +90,12 @@ if (angle_has_build) {
   }
 }
 
-<<<<<<< HEAD
-if (build_with_chromium) {
-  import("//ui/ozone/ozone.gni")
-} else if (!defined(ozone_platform_gbm)) {
-  declare_args() {
-    ozone_platform_gbm = false
-  }
-=======
 if (!defined(checkout_angle_internal)) {
   checkout_angle_internal = false
 }
 
 if (!defined(checkout_angle_restricted_traces)) {
   checkout_angle_restricted_traces = false
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 }
 
 # Subdirectory to place data files (e.g. layer JSON files).
@@ -164,14 +157,6 @@ declare_args() {
 }
 
 declare_args() {
-<<<<<<< HEAD
-  angle_enable_d3d9 = is_win && !angle_is_winuwp && !is_starboard
-  angle_enable_d3d11 = is_win
-  angle_enable_gl =
-      (ozone_platform_gbm || !is_linux || (angle_use_x11 && !is_chromeos)) &&
-      !is_fuchsia && !angle_is_winuwp && !is_ggp && !is_starboard ||
-      (defined(sb_angle_enable_gl) && sb_angle_enable_gl)
-=======
   # By default, ANGLE is using a thread pool for parallel compilation.
   # Activating the delegate worker results in posting the tasks using the
   # embedder API. In Chromium code base, it results in sending tasks to the
@@ -181,25 +166,16 @@ declare_args() {
   # True if we are building inside an ANGLE checkout.
   angle_standalone = !build_with_chromium
 
-  angle_enable_d3d9 = is_win && !angle_is_winuwp
+  angle_enable_d3d9 = is_win && !angle_is_winuwp && !is_starboard
   angle_enable_d3d11 = is_win
   angle_enable_gl =
       (ozone_platform_gbm || ozone_platform_wayland || !is_linux ||
        ((angle_use_x11 && !is_chromeos) || angle_use_wayland || is_castos)) &&
-      !is_fuchsia && !angle_is_winuwp && !is_ggp && !is_win_arm64
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
+      !is_fuchsia && !angle_is_winuwp && !is_ggp && !is_win_arm64 && !is_starboard ||
+      (defined(sb_angle_enable_gl) && sb_angle_enable_gl)
 
   angle_enable_vulkan =
-<<<<<<< HEAD
-      angle_has_build && ((is_win && !angle_is_winuwp) ||
-                          (is_linux && angle_use_x11 && !is_chromeos) ||
-                          (is_android && ndk_api_level_at_least_26) ||
-                          is_fuchsia || is_ggp || is_mac) && !is_starboard
-  angle_enable_null = true
-  angle_enable_essl = true
-  angle_enable_glsl = true
-=======
-      angle_has_build &&
+      angle_has_build && !is_starboard &&
       !(is_android && build_with_chromium && is_official_build) &&
       ((is_win && !angle_is_winuwp) ||
        ((is_linux || is_chromeos) &&
@@ -213,7 +189,6 @@ declare_args() {
   # Disable null backend to save space for official build.
   angle_enable_null = !is_official_build
   angle_enable_gl_desktop_backend = !is_android && !is_ios
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
   # http://anglebug.com/2634
   angle_enable_metal = is_apple
@@ -246,16 +221,9 @@ if (!defined(checkout_angle_mesa)) {
 
 declare_args() {
   # Currently SwiftShader's Vulkan front-end doesn't build on Android.
-<<<<<<< HEAD
-  # SwiftShader is not needed on Fuchsia because Vulkan is supported on all
-  # devices that run Fuchsia.
-  angle_enable_swiftshader = angle_enable_vulkan && !is_android &&
-                             !is_fuchsia && !is_ggp && !is_starboard
-=======
   # Disabled by default on MSVC because of compiler warnings/errors.
   angle_enable_swiftshader =
-      angle_enable_vulkan && !is_android && !is_ggp && is_clang
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
+      angle_enable_vulkan && !is_android && !is_ggp && is_clang && !is_starboard
 
   # Translator frontend support:
   angle_enable_desktop_glsl = angle_enable_gl_desktop_frontend
@@ -463,11 +431,10 @@ template("angle_shared_library") {
       configs += [ angle_root + ":build_id_config" ]
       configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
     }
-<<<<<<< HEAD
 
     if (is_starboard) {
       install_target = true
-=======
+    }
     if (is_ios) {
       info_plist = "$angle_root/util/ios/Info.plist"
 
@@ -487,7 +454,6 @@ template("angle_shared_library") {
         ":${internal_target_name}+bundle",
         ":${internal_target_name}+link",
       ]
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     }
   }
 }
@@ -539,22 +505,8 @@ if (angle_standalone || build_with_chromium) {
                                "public_deps",
                              ])
 
-<<<<<<< HEAD
-  if (is_starboard) {
-    _googletest_deps -= [
-      "//third_party/googletest:gmock",
-      "//third_party/googletest:gtest",
-    ]
-  }
-
-  # TODO(jmadill): Migrate to standalone harness. http://anglebug.com/3162
-  if (build_with_chromium) {
-    _googletest_deps += [ "//base/test:test_support" ]
-  }
-=======
       configs += invoker.configs
       configs -= invoker.suppressed_configs
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
       if (is_ios) {
         # shared libraries are hidden inside ios_framework_bundle, but we include headers from them
@@ -569,9 +521,13 @@ if (angle_standalone || build_with_chromium) {
                       "$angle_root/util:angle_test_utils",
                       "//testing/gmock",
                       "//testing/gtest",
+                    ]
+      if (!is_starboard) {
+        public_deps += [
                       "//third_party/googletest:gmock",
                       "//third_party/googletest:gtest",
                     ]
+      }
 
       data = invoker.data + [
                "$angle_root/src/tests/py_utils/android_helper.py",

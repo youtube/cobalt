@@ -70,15 +70,11 @@ void GLES1Renderer::onDestroy(Context *context, State *state)
     {
         (void)state->setProgram(context, 0);
 
-<<<<<<< HEAD
-        mShaderPrograms->deleteProgram(context, mProgramState.program);
-=======
         for (const auto &iter : mUberShaderState)
         {
             const GLES1UberShaderState &UberShaderState = iter.second;
-            mShaderPrograms->deleteProgram(context, {UberShaderState.programState.program});
+            mShaderPrograms->deleteProgram(context, UberShaderState.programState.program);
         }
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
         mShaderPrograms->release(context);
         mShaderPrograms             = nullptr;
         mRendererProgramInitialized = false;

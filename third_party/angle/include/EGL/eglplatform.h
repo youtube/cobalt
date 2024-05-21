@@ -54,25 +54,13 @@
  * implementations.
  */
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-
-typedef void* EGLNativeDisplayType;
-typedef void* EGLNativePixmapType;
-typedef void* EGLNativeWindowType;
-
-#else
-
-#if defined(_WIN32) || defined(__VC32__) && !defined(__CYGWIN__) && !defined(__SCITECH_SNAP__) /* Win32 and WinCE */
-=======
-#if defined(EGL_NO_PLATFORM_SPECIFIC_TYPES)
+#if defined(EGL_NO_PLATFORM_SPECIFIC_TYPES) || defined(STARBOARD)
 
 typedef void *EGLNativeDisplayType;
 typedef void *EGLNativePixmapType;
 typedef void *EGLNativeWindowType;
 
 #elif defined(_WIN32) || defined(__VC32__) && !defined(__CYGWIN__) && !defined(__SCITECH_SNAP__) /* Win32 and WinCE */
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN 1
 #endif
@@ -167,7 +155,6 @@ typedef khronos_uintptr_t  EGLNativeWindowType;
 #error "Platform not recognized"
 #endif
 
-#endif  // STARBOARD
 /* EGL 1.2 types, renamed for consistency in EGL 1.3 */
 typedef EGLNativeDisplayType NativeDisplayType;
 typedef EGLNativePixmapType  NativePixmapType;

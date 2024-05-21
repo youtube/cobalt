@@ -238,14 +238,10 @@ class Renderer11 : public RendererD3D
                             bool unpackPremultiplyAlpha,
                             bool unpackUnmultiplyAlpha) override;
 
-<<<<<<< HEAD
-    TextureStorage *createTextureStorage2D(SwapChainD3D *swapChain) override;
     TextureStorage *createTextureStorage2D(IUnknown *texture,
                                            bool bindChroma) override;
-=======
     TextureStorage *createTextureStorage2D(SwapChainD3D *swapChain,
                                            const std::string &label) override;
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     TextureStorage *createTextureStorageEGLImage(EGLImageD3D *eglImage,
                                                  RenderTargetD3D *renderTargetD3D,
                                                  const std::string &label) override;

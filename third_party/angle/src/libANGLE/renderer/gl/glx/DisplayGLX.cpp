@@ -99,11 +99,7 @@ DisplayGLX::~DisplayGLX() {}
 egl::Error DisplayGLX::initialize(egl::Display *display)
 {
     mEGLDisplay           = display;
-<<<<<<< HEAD
-    mXDisplay             = static_cast<Display*>(display->getNativeDisplayId());
-=======
     mXDisplay             = reinterpret_cast<Display *>(display->getNativeDisplayId());
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     const auto &attribMap = display->getAttributeMap();
 
     // ANGLE_platform_angle allows the creation of a default display
@@ -410,13 +406,6 @@ egl::Error DisplayGLX::makeCurrent(egl::Display *display,
     // or 0), we need to set it current.
     if (!context)
     {
-<<<<<<< HEAD
-        // We must explicitly make no context current on GLX so that when thread
-        // A is done using a context, thread B can make it current without an
-        // error.
-        if (mGLX.makeCurrent(context ? drawable : None,
-                             context ? mContext : nullptr) != True)
-=======
         newDrawable = 0;
         newContext  = 0;
     }
@@ -424,7 +413,6 @@ egl::Error DisplayGLX::makeCurrent(egl::Display *display,
         newContext != mCurrentNativeContexts[angle::GetCurrentThreadUniqueId()])
     {
         if (mGLX.makeCurrent(newDrawable, newContext) != True)
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
         {
             return egl::EglContextLost() << "Failed to make the GLX context current";
         }
@@ -795,19 +783,6 @@ egl::ConfigSet DisplayGLX::generateConfigs()
 
 bool DisplayGLX::testDeviceLost()
 {
-<<<<<<< HEAD
-    // On Starboard applications it was found that this function was being
-    // called immediately *before* making a context current, resulting in an
-    // error from calling a function without a context.  Thus, we forego calling
-    // this function for Starboard platforms.
-#if !defined(STARBOARD)
-    if (mHasARBCreateContextRobustness)
-    {
-        return mRenderer->getResetStatus() != gl::GraphicsResetStatus::NoError;
-    }
-#endif  // !defined(STARBOARD)
-=======
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     return false;
 }
 
@@ -818,29 +793,6 @@ egl::Error DisplayGLX::restoreLostDevice(const egl::Display *display)
 
 bool DisplayGLX::isValidNativeWindow(EGLNativeWindowType window) const
 {
-<<<<<<< HEAD
-    // There is no function in Xlib to check the validity of a Window directly.
-    // However a small number of functions used to obtain window information
-    // return a status code (0 meaning failure) and guarantee that they will
-    // fail if the window doesn't exist (the rational is that these function
-    // are used by window managers). Out of these function we use XQueryTree
-    // as it seems to be the simplest; a drawback is that it will allocate
-    // memory for the list of children, because we use a child window for
-    // WindowSurface.
-    Window root;
-    Window parent;
-    Window *children = nullptr;
-    unsigned nChildren;
-    int status = XQueryTree(mGLX.getDisplay(), reinterpret_cast<Window>(window), &root, &parent,
-                            &children, &nChildren);
-    if (children)
-    {
-        XFree(children);
-    }
-    return status != 0;
-}
-=======
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
     // Check the validity of the window by calling a getter function on the window that
     // returns a status code. If the window is bad the call return a status of zero. We

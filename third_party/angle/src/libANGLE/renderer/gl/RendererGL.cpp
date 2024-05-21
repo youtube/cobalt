@@ -448,18 +448,15 @@ unsigned int RendererGL::getMaxWorkerContexts()
 
 bool RendererGL::hasNativeParallelCompile()
 {
-<<<<<<< HEAD
 #if defined(STARBOARD)
     // This implementation may not work correctly with some drivers. It can
     // result in driver memory leaks and slowdowns. Disable the feature.
     return false;
 #else
-=======
     if (mFeatures.disableNativeParallelCompile.enabled)
     {
         return false;
     }
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     return mFunctions->maxShaderCompilerThreadsKHR != nullptr ||
            mFunctions->maxShaderCompilerThreadsARB != nullptr;
 #endif

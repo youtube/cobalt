@@ -871,35 +871,6 @@ static bool DetermineRenderSnormSupport(const TextureCapsMap &textureCaps, bool 
 
 void Extensions::setTextureExtensionSupport(const TextureCapsMap &textureCaps)
 {
-<<<<<<< HEAD
-    // TODO(ynovikov): rgb8rgba8, colorBufferHalfFloat, textureHalfFloat, textureHalfFloatLinear,
-    // textureFloat, textureFloatLinear, textureRG, sRGB, colorBufferFloatRGB, colorBufferFloatRGBA
-    // and colorBufferFloat were verified. Verify the rest.
-    packedDepthStencil    = DeterminePackedDepthStencilSupport(textureCaps);
-    rgb8rgba8             = DetermineRGB8AndRGBA8TextureSupport(textureCaps);
-    textureFormatBGRA8888 = DetermineBGRA8TextureSupport(textureCaps);
-    textureHalfFloat      = DetermineHalfFloatTextureSupport(textureCaps);
-    textureHalfFloatLinear =
-        DetermineHalfFloatTextureFilteringSupport(textureCaps, textureHalfFloat);
-    textureFloat           = DetermineFloatTextureSupport(textureCaps);
-    textureFloatLinear     = DetermineFloatTextureFilteringSupport(textureCaps, textureFloat);
-#if defined(STARBOARD)
-    textureRG = false;
-#else
-    textureRG              = DetermineRGTextureSupport(textureCaps, textureHalfFloat, textureFloat);
-#endif  // STARBOARD
-    colorBufferHalfFloat   = textureHalfFloat && DetermineColorBufferHalfFloatSupport(textureCaps);
-    textureCompressionDXT1 = DetermineDXT1TextureSupport(textureCaps);
-    textureCompressionDXT3 = DetermineDXT3TextureSupport(textureCaps);
-    textureCompressionDXT5 = DetermineDXT5TextureSupport(textureCaps);
-    textureCompressionS3TCsRGB   = DetermineS3TCsRGBTextureSupport(textureCaps);
-    textureCompressionASTCLDRKHR = DetermineASTCLDRTextureSupport(textureCaps);
-    textureCompressionASTCOES    = DetermineASTCOESTExtureSupport(textureCaps);
-    compressedETC1RGB8Texture    = DetermineETC1RGB8TextureSupport(textureCaps);
-    compressedETC2RGB8Texture    = DetermineETC2RGB8TextureSupport(textureCaps);
-    compressedETC2sRGB8Texture   = DetermineETC2sRGB8TextureSupport(textureCaps);
-    compressedETC2PunchthroughARGB8Texture =
-=======
     // TODO(ynovikov): rgb8Rgba8OES, colorBufferHalfFloatEXT, textureHalfFloatOES,
     // textureHalfFloatLinearOES, textureFloatOES, textureFloatLinearOES, textureRgEXT, sRGB,
     // colorBufferFloatRgbCHROMIUM, colorBufferFloatRgbaCHROMIUM and colorBufferFloatEXT were
@@ -930,7 +901,6 @@ void Extensions::setTextureExtensionSupport(const TextureCapsMap &textureCaps)
     compressedETC2RGB8TextureOES  = DetermineETC2RGB8TextureSupport(textureCaps);
     compressedETC2SRGB8TextureOES = DetermineETC2sRGB8TextureSupport(textureCaps);
     compressedETC2PunchthroughARGBA8TextureOES =
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
         DetermineETC2PunchthroughARGB8TextureSupport(textureCaps);
     compressedETC2PunchthroughASRGB8AlphaTextureOES =
         DetermineETC2PunchthroughAsRGB8AlphaTextureSupport(textureCaps);

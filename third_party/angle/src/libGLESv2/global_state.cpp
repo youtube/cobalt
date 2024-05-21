@@ -8,19 +8,6 @@
 
 #include "libGLESv2/global_state.h"
 
-#if defined(ADDRESS_SANITIZER)
-// By default, Leak Sanitizer and Address Sanitizer is expected to exist
-// together. However, this is not true for all platforms.
-// HAS_LEAK_SANTIZIER=0 explicitly removes the Leak Sanitizer from code.
-#ifndef HAS_LEAK_SANITIZER
-#define HAS_LEAK_SANITIZER 1
-#endif  // HAS_LEAK_SANITIZER
-#endif  // defined(ADDRESS_SANITIZER)
-
-#if HAS_LEAK_SANITIZER
-#include <sanitizer/lsan_interface.h>
-#endif  // HAS_LEAK_SANITIZER
-
 #include "common/debug.h"
 #include "common/platform.h"
 #include "common/system_utils.h"
@@ -61,23 +48,8 @@ Thread *AllocateCurrentThread()
 #endif
     }
 
-<<<<<<< HEAD
-#if HAS_LEAK_SANITIZER
-    __lsan_disable();
-#endif  // HAS_LEAK_SANITIZER
-    Thread *thread = new Thread();
-#if HAS_LEAK_SANITIZER
-    __lsan_enable();
-#endif  // HAS_LEAK_SANITIZER
-    if (!SetTLSValue(threadTLS, thread))
-    {
-        ERR() << "Could not set thread local storage.";
-        return nullptr;
-    }
-=======
     // Initialize current-context TLS slot
     gl::SetCurrentValidContext(nullptr);
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
 #if defined(ANGLE_PLATFORM_ANDROID)
     static pthread_once_t keyOnce                 = PTHREAD_ONCE_INIT;
@@ -184,9 +156,6 @@ ScopedSyncCurrentContextFromThread::~ScopedSyncCurrentContextFromThread()
 
 }  // namespace egl
 
-<<<<<<< HEAD
-#if defined(ANGLE_PLATFORM_WINDOWS) && defined(LIBGLESV2_DLL)
-=======
 namespace gl
 {
 void GenerateContextLostErrorOnContext(Context *context)
@@ -208,8 +177,7 @@ void GenerateContextLostErrorOnCurrentGlobalContext()
 }
 }  // namespace gl
 
-#if defined(ANGLE_PLATFORM_WINDOWS) && !defined(ANGLE_STATIC)
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
+#if defined(ANGLE_PLATFORM_WINDOWS) && !defined(ANGLE_STATIC) && defined(LIBGLESV2_DLL)
 namespace egl
 {
 
@@ -316,8 +284,4 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID)
 
     return TRUE;
 }
-<<<<<<< HEAD
-#endif  // defined(ANGLE_PLATFORM_WINDOWS) && defined(LIBGLESV2_DLL)
-=======
-#endif  // defined(ANGLE_PLATFORM_WINDOWS) && !defined(ANGLE_STATIC)
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
+#endif  // defined(ANGLE_PLATFORM_WINDOWS) && !defined(ANGLE_STATIC) && defined(LIBGLESV2_DLL)

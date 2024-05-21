@@ -330,13 +330,11 @@ class TextureStorage11_2D : public TextureStorage11
 
     angle::Result useLevelZeroWorkaroundTexture(const gl::Context *context,
                                                 bool useLevelZeroTexture) override;
-<<<<<<< HEAD
 #if defined(STARBOARD)
     const angle::Format &getFormat();
 #endif // STARBOARD
-=======
+
     void onLabelUpdate() override;
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
   protected:
     angle::Result getSwizzleTexture(const gl::Context *context,

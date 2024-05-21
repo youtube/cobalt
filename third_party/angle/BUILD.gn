@@ -39,13 +39,9 @@ declare_args() {
 
   # Don't build extra (test, samples etc) for Windows UWP. We don't have
   # infrastructure (e.g. windowing helper functions) in place to run them.
-<<<<<<< HEAD
-  angle_build_all = !build_with_chromium && !angle_is_winuwp &&
-                    angle_has_build && !is_starboard
-=======
   # Also don't build them with MSVC, because tests and unused dependencies
   # often have problems building with it, e.g. for C++20.
-  angle_build_all = !build_with_chromium && !angle_is_winuwp &&
+  angle_build_all = !build_with_chromium && !angle_is_winuwp && !is_starboard &&
                     !angle_is_msvc && angle_has_build && angle_build_tests
 
   # Enable generating current commit information using git
@@ -80,7 +76,6 @@ declare_args() {
   }
 
   angle_enable_global_mutex_recursion = is_android && angle_enable_vulkan
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 }
 
 if (angle_build_all) {
@@ -94,17 +89,15 @@ if (angle_build_all) {
       "$angle_root/samples:angle_samples",
       "$angle_root/src/tests:angle_tests",
     ]
-<<<<<<< HEAD
 
     if (is_starboard) {
       deps -= [ ":angle_shader_translator" ]
-=======
+    }
     if (angle_enable_cl) {
       deps += [ "$angle_root/src/libOpenCL:angle_cl" ]
     }
     if (angle_build_mesa) {
       deps += [ "$angle_root/third_party/mesa" ]
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     }
   }
 }
@@ -143,16 +136,6 @@ config("internal_config") {
     "src",
   ]
 
-<<<<<<< HEAD
-  defines = []
-
-  if (!is_starboard) {
-    if (angle_64bit_current_cpu) {
-      defines += [ "ANGLE_IS_64_BIT_CPU" ]
-    } else {
-      defines += [ "ANGLE_IS_32_BIT_CPU" ]
-    }
-=======
   # Handle breaking changes in VulkanMemoryAllocator.
   angle_vma_version_define = "ANGLE_VMA_VERSION="
   if (defined(angle_vma_version)) {
@@ -161,7 +144,6 @@ config("internal_config") {
     # Default to 2.3.0. This can be bumped and include guards removed when all
     # clients have migrated to 3.x.
     angle_vma_version_define += 2003000
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
   }
 
   defines = [ angle_vma_version_define ]
@@ -214,19 +196,16 @@ config("internal_config") {
     defines += [ "ANGLE_PLATFORM_CHROMEOS" ]
   }
 
-<<<<<<< HEAD
   if (is_starboard && is_win) {
     defines += [ "__WRL_NO_DEFAULT_LIB__" ]
-    if (current_os == "winuwp") {
-      defines += [ "WINAPI_FAMILY=WINAPI_FAMILY_APP" ] # UWP
-    } else {
+    if (current_os != "winuwp") {
       defines += [
         "_WIN32",
         "WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP", # win32
       ]
     }
   }
-=======
+
   if (is_ggp) {
     defines += [ "__ggp__" ]
   }
@@ -277,7 +256,6 @@ config("internal_config") {
   if (angle_standalone || build_with_chromium) {
     defines += [ "ANGLE_OUTSIDE_WEBKIT" ]
   }
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 }
 
 config("constructor_and_destructor_warnings") {
@@ -376,15 +354,8 @@ config("build_id_config") {
   ldflags = [ "-Wl,--build-id" ]
 }
 
-_use_copy_compiler_dll = angle_has_build && is_win
+_use_copy_compiler_dll = !is_starboard && angle_has_build && is_win
 
-<<<<<<< HEAD
-_use_copy_compiler_dll = !is_starboard && angle_has_build && is_win && target_cpu != "arm64"
-
-# Windows ARM64 is available since 10.0.16299 so no need to copy
-# d3dcompiler_47.dll because this file is available as inbox.
-=======
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 if (_use_copy_compiler_dll) {
   copy("copy_compiler_dll") {
     sources = [ "$windows_sdk_path/Redist/D3D/$target_cpu/d3dcompiler_47.dll" ]
@@ -411,9 +382,7 @@ angle_source_set("cl_includes") {
 angle_source_set("includes") {
   sources = libangle_includes
   public_configs = [ ":includes_config" ]
-<<<<<<< HEAD
   deps = [ "//starboard:starboard_headers_only" ]
-=======
   if (angle_enable_cl) {
     public_deps = [ ":cl_includes" ]
   }
@@ -423,20 +392,17 @@ config("disable_unreachable_code_break_warning") {
   if (is_clang) {
     cflags = [ "-Wno-unreachable-code-break" ]
   }
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 }
 
 angle_static_library("preprocessor") {
   sources = angle_preprocessor_sources
 
-<<<<<<< HEAD
   if (is_starboard) {
     suppressed_configs += [ "//starboard/build/config:warnings_as_errors" ]
   }
-=======
+
   # preprocessor_tab_autogen.cpp contains an instance of this.
   configs += [ ":disable_unreachable_code_break_warning" ]
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
   public_deps = [
     ":angle_common",
@@ -541,14 +507,10 @@ template("angle_common_lib") {
       ":debug_annotations_config",
     ]
 
-<<<<<<< HEAD
-  deps = [
-    ":xxhash",
-    "//starboard/common",
-  ]
-=======
-    deps = [ ":xxhash" ]
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
+    deps = [
+      ":xxhash",
+      "//starboard/common",
+    ]
 
     public_deps = [
       ":angle_abseil",
@@ -824,11 +786,16 @@ template("translator_lib") {
 
     public_configs += [ ":external_config" ]
 
+    if (is_starboard) {
+      suppressed_configs += [ "//starboard/build/config:warnings_as_errors" ]
+    }
+
     deps = [
       ":angle_common_shader_state",
       ":includes",
       ":preprocessor",
       "$angle_root/src/common/spirv:angle_spirv_headers",
+      "//starboard:starboard_headers_only",
     ]
 
     if (_uses_spirv) {
@@ -859,56 +826,9 @@ translator_lib("translator") {
   gl_d3d_only = false
 }
 
-<<<<<<< HEAD
-  if (angle_enable_hlsl || use_fuzzing_engine) {
-    sources += angle_translator_hlsl_sources
-    defines += [ "ANGLE_ENABLE_HLSL" ]
-  }
-
-  if (angle_enable_vulkan || use_fuzzing_engine || angle_enable_metal) {
-    # This translator is needed by metal backend also.
-    sources += angle_translator_lib_vulkan_sources
-  }
-
-  if (angle_enable_vulkan || use_fuzzing_engine) {
-    defines += [ "ANGLE_ENABLE_VULKAN" ]
-  }
-
-  if (angle_enable_metal) {
-    sources += angle_translator_lib_metal_sources
-    defines += [ "ANGLE_ENABLE_METAL" ]
-  }
-
-  if (angle_enable_swiftshader) {
-    defines += [ "ANGLE_ENABLE_SWIFTSHADER" ]
-  }
-
-  public_configs += [ ":external_config" ]
-
-  if (is_starboard) {
-    suppressed_configs += [ "//starboard/build/config:warnings_as_errors" ]
-  }
-
-  deps = [
-    ":includes",
-    ":preprocessor",
-    "//starboard:starboard_headers_only",
-  ]
-
-  public_deps = [
-    ":angle_common",
-    ":angle_translator_headers",
-  ]
-
-  if (is_win) {
-    # Necessary to suppress some system header xtree warnigns in Release.
-    # For some reason this warning doesn't get triggered in Chromium
-    cflags = [ "/wd4718" ]
-=======
 if (angle_enable_essl || angle_enable_glsl || angle_enable_hlsl) {
   translator_lib("translator_gl_d3d_only") {
     gl_d3d_only = true
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
   }
 }
 
@@ -1497,19 +1417,10 @@ set_defaults("angle_libGLESv2") {
 }
 
 template("angle_libGLESv2") {
-<<<<<<< HEAD
-  angle_static_library(target_name) {
-    sources = libglesv2_sources + invoker.sources
-
-    if (is_win) {
-      sources += [ "src/libGLESv2/${invoker.output_name}_autogen.def" ]
-    }
-=======
   angle_shared_library(target_name) {
     sources = invoker.sources + libglesv2_sources
     deps = invoker.deps + [ ":includes" ]
     defines = [ "LIBGLESV2_IMPLEMENTATION" ]
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
     output_name = "${invoker.output_name}${angle_libs_suffix}"
     if (angle_glesv2_extension != "") {
@@ -1593,11 +1504,6 @@ if (angle_has_frame_capture) {
   }
 }
 
-<<<<<<< HEAD
-if (is_win && !angle_is_winuwp && !is_starboard) {
-  angle_shared_library("libGL") {
-    sources = libgl_sources
-=======
 if (angle_enable_gl_desktop_frontend) {
   angle_libGLESv2("libGL") {
     if (is_win) {
@@ -1605,7 +1511,6 @@ if (angle_enable_gl_desktop_frontend) {
     } else {
       output_name = "libGL"
     }
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
     deps = [ ":libANGLE" ]
   }
@@ -1686,51 +1591,10 @@ angle_source_set("libEGL_egl_loader") {
   deps = [ ":includes" ]
 }
 
-<<<<<<< HEAD
-angle_static_library("libEGL") {
-  sources = libegl_sources
-  output_name = "libEGL${angle_libs_suffix}"
-
-  configs += [
-    ":debug_annotations_config",
-    ":library_name_config",
-  ]
-
-  defines = [ "LIBEGL_IMPLEMENTATION" ]
-  if (is_win) {
-    defines += [ "EGLAPI=" ]
-  } else {
-    defines += [ "EGLAPI=__attribute__((visibility(\"default\")))" ]
-  }
-
-  if (is_win) {
-    sources += [ "src/libEGL/libEGL.def" ]
-  }
-
-  deps = [
-    ":angle_common",
-    ":angle_system_utils",
-    ":angle_version",
-    ":libEGL_egl_loader",
-  ]
-
-  public_deps = [
-    ":includes",
-  ]
-
-  data_deps = [
-    ":libGLESv2",
-  ]
-
-  if (is_starboard) {
-    deps -= [ ":libEGL_egl_loader" ]
-  }
-=======
 set_defaults("libEGL_template") {
   sources = []
   deps = []
   public_configs = []
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 }
 
 template("libEGL_template") {
@@ -1745,115 +1609,6 @@ template("libEGL_template") {
   }
 }
 
-<<<<<<< HEAD
-foreach(is_shared_library,
-        [
-          false,
-        ]) {
-  if (is_shared_library) {
-    library_type = "angle_shared_library"
-    library_name = "angle_util"
-    dep_suffix = "${angle_libs_suffix}"
-  } else {
-    library_type = "angle_static_library"
-    library_name = "angle_util_static"
-    dep_suffix = "_static"
-  }
-
-  if (is_starboard) {
-    not_needed([ "dep_suffix", "library_type" ])
-    group(library_name) {
-      deps = [
-        ":angle_common",
-        ":angle_util_loader_headers",
-      ]
-    }
-  } else {
-    target(library_type, library_name) {
-      sources = util_sources
-      deps = [
-        ":angle_common",
-        ":angle_util_loader_headers",
-      ]
-      public_deps = []
-      libs = []
-
-      if (is_win && !angle_is_winuwp) {
-        sources += util_win_sources
-        deps += [ ":angle_stack_walker" ]
-      }
-
-      if (is_linux) {
-        sources += util_linux_sources
-        libs += [
-          "rt",
-          "dl",
-        ]
-      }
-
-      if (is_mac) {
-        sources += util_osx_sources
-        libs += [
-          "AppKit.framework",
-          "QuartzCore.framework",
-        ]
-      }
-
-      if (angle_use_x11) {
-        sources += util_x11_sources
-      }
-
-      if (is_android) {
-        sources += util_android_sources
-        libs += [
-          "android",
-          "log",
-        ]
-      }
-
-      configs += [ ":debug_annotations_config" ]
-
-      public_configs += [ ":angle_util_config" ]
-
-      if (is_fuchsia) {
-        sources += util_fuchsia_sources
-        public_deps += [
-          "src/common/fuchsia_egl",
-          "//third_party/fuchsia-sdk/sdk:async_loop_cpp",
-          "//third_party/fuchsia-sdk/sdk:async_loop_default",
-          "//third_party/fuchsia-sdk/sdk:fdio",
-          "//third_party/fuchsia-sdk/sdk:images",
-          "//third_party/fuchsia-sdk/sdk:scenic_cpp",
-          "//third_party/fuchsia-sdk/sdk:ui_policy",
-          "//third_party/fuchsia-sdk/sdk:ui_scenic",
-          "//third_party/fuchsia-sdk/sdk:ui_views",
-        ]
-      } else if (use_ozone) {
-        sources += util_ozone_sources
-      }
-
-      if (is_shared_library) {
-        defines = [ "LIBANGLE_UTIL_IMPLEMENTATION" ]
-
-        if (is_win && !angle_is_winuwp) {
-          sources += util_win_shared_sources
-        }
-
-        public_deps += [ ":angle_util_loader" ]
-
-        if (is_mac && !is_component_build) {
-          ldflags = [
-            "-install_name",
-            "@rpath/libangle_util.dylib",
-          ]
-        }
-      } else {
-        public_configs += [
-          ":angle_static",
-          ":gl_prototypes",
-        ]
-      }
-=======
 template("libEGL_shared_template") {
   libEGL_template(target_name) {
     target_type = "angle_shared_library"
@@ -1903,36 +1658,17 @@ if (angle_enable_vulkan) {
     sources = []
     if (is_win) {
       sources += [ "src/libEGL/libEGL_vulkan_secondaries_autogen.def" ]
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     }
   }
 }
 
-<<<<<<< HEAD
-if (!is_starboard) {
-  # Convenience targets for some of the samples so they can be built
-  # with Chromium's toolchain.
-  angle_executable("angle_shader_translator") {
-    testonly = true
-
-    sources = [
-      "samples/shader_translator/shader_translator.cpp",
-    ]
-
-    deps = [
-      ":translator",
-    ]
-  }
-}
-
-if (angle_has_build && !is_starboard) {
-=======
 libEGL_template("libEGL_static") {
   target_type = "angle_static_library"
   public_configs = [ ":angle_static_config" ]
   deps = [ ":libGLESv2_static" ]
 }
 
+if (!is_starboard) {
 # Convenience targets for some of the samples so they can be built
 # with Chromium's toolchain.
 angle_executable("angle_shader_translator") {
@@ -1953,9 +1689,9 @@ angle_executable("angle_shader_translator") {
     defines += [ "ANGLE_ENABLE_VULKAN" ]
   }
 }
+}
 
-if (angle_standalone || build_with_chromium) {
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
+if ((angle_standalone && !is_starboard) || build_with_chromium) {
   config("angle_feature_support_config") {
     include_dirs = [
       "include",
@@ -2067,13 +1803,8 @@ if (is_android && symbol_level != 0) {
   }
 }
 
-<<<<<<< HEAD
-if (build_with_chromium && !is_component_build && is_android &&
-    is_starboardized_toolchain) {
-  # Package ANGLE libraries
-=======
 if ((angle_standalone || build_with_chromium) && is_android &&
-    current_toolchain == default_toolchain) {
+    is_starboardized_toolchain) {
   apk_version_code = "0"
   if (angle_enable_commit_id) {
     apk_version_code =
@@ -2081,7 +1812,6 @@ if ((angle_standalone || build_with_chromium) && is_android &&
   }
 
   # Package ANGLE libraries for normal use on Android
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
   angle_apk("angle_chromium_apk") {
     package_name = "org.chromium.angle"
     apk_name = "AngleLibraries"

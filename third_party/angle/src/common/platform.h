@@ -156,13 +156,12 @@
 #    endif
 #endif
 
-<<<<<<< HEAD
 // Disable std::async usage uniformly across all Starboard builds for more
 // consistent behaviour and stability.
 #if defined(STARBOARD)
-#  define ANGLE_STD_ASYNC_WORKERS 0
+#  define ANGLE_STD_ASYNC_WORKERS ANGLE_DISABLED
 #endif // defined(STARBOARD)
-=======
+
 // Define ANGLE_WITH_ASAN macro.
 #if defined(__has_feature)
 #    if __has_feature(address_sanitizer)
@@ -201,6 +200,5 @@
 #else
 #    define ANGLE_IS_32_BIT_CPU 1
 #endif
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
 #endif  // COMMON_PLATFORM_H_

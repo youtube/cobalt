@@ -8,17 +8,8 @@
 #ifndef COMMON_ANGLE_VERSION_H_
 #define COMMON_ANGLE_VERSION_H_
 
-<<<<<<< HEAD:third_party/angle/src/common/version.h
-#if defined(STARBOARD)
-// Just use the default commit hash header.
-#include "../commit.h"
-#else
-#include "id/commit.h"
-#endif
-=======
 #include "ANGLEShaderProgramVersion.h"
 #include "angle_commit.h"
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6:third_party/angle/src/common/angle_version.h
 
 #define ANGLE_MAJOR_VERSION 2
 #define ANGLE_MINOR_VERSION 1

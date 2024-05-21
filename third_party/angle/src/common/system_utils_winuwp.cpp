@@ -6,19 +6,13 @@
 
 // system_utils_winuwp.cpp: Implementation of OS-specific functions for Windows UWP
 
-#include "common/debug.h"
+#include "common/debug.h"  // nogncheck
 #include "system_utils.h"
 
 #include <stdarg.h>
 #include <windows.h>
 #include <array>
 #include <string>
-<<<<<<< HEAD
-#include <vector>
-
-#include "common/debug.h"  // nogncheck
-=======
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 
 namespace angle
 {

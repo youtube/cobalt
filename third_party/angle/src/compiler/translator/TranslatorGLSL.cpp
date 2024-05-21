@@ -352,8 +352,6 @@ void TranslatorGLSL::writeExtensionBehavior(TIntermNode *root,
         // some users.
         sink << "#extension GL_ARB_gpu_shader5 : enable\n";
         sink << "#extension GL_EXT_gpu_shader5 : enable\n";
-<<<<<<< HEAD
-=======
     }
 
     if (usesTextureCubeMapArray)
@@ -382,7 +380,6 @@ void TranslatorGLSL::writeExtensionBehavior(TIntermNode *root,
             sink << "#extension GL_OES_texture_buffer : enable\n";
             sink << "#extension GL_EXT_texture_buffer : enable\n";
         }
->>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     }
 
     TExtensionGLSL extensionGLSL(getOutputType());
