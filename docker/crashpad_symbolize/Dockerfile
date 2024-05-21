@@ -48,10 +48,10 @@ RUN id=$(cat /tmp/asset_ids.txt) && \
 RUN mkdir /tmp/cobalt-evergreen-snapshot/ && \
     tar xzf /tmp/libcobalt.tgz -C /tmp/cobalt-evergreen-snapshot
 
-RUN libcobalt_path=$(find /tmp/cobalt-evergreen-snapshot/ -name "libcobalt.so") \
-  && breakpad/src/src/tools/linux/dump_syms/dump_syms $libcobalt_path > /tmp/libcobalt.so.sym \
+RUN breakpad/src/src/tools/linux/dump_syms/dump_syms /tmp/cobalt-evergreen-snapshot/libcobalt.so > /tmp/libcobalt.so.sym \
   && debug_id=$(head -n1 /tmp/libcobalt.so.sym | cut -d' ' -f4) \
   && mkdir -p /tmp/symbols/libcobalt.so/$debug_id/ \
   && mv /tmp/libcobalt.so.sym /tmp/symbols/libcobalt.so/$debug_id/
 
-CMD breakpad/src/src/processor/minidump_stackwalk /root/minidump_directory/minidump.dmp /tmp/symbols
+CMD readelf -n /tmp/cobalt-evergreen-snapshot/libcobalt.so \
+  && breakpad/src/src/processor/minidump_stackwalk /root/minidump_directory/minidump.dmp /tmp/symbols
