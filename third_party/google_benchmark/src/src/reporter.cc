@@ -12,66 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "benchmark/benchmark.h"
-#include "timers.h"
-
 #include <cstdlib>
-
 #include <iostream>
+#include <map>
+#include <string>
 #include <tuple>
 #include <vector>
 
+#include "benchmark/benchmark.h"
 #include "check.h"
-#include "starboard/log.h"
 #include "string_util.h"
+#include "timers.h"
 
 namespace benchmark {
-namespace {
-
-class sblog_ostreambuf : public std::streambuf {
- public:
-  explicit sblog_ostreambuf(SbLogPriority priority) : priority_(priority) {}
-
-  std::streamsize xsputn(const char_type *s, std::streamsize n) override {
-    buffer_.insert(buffer_.end(), s, s + n);
-    if (buffer_.back() == '\n') {
-      SbLog(priority_, buffer_.c_str());
-      buffer_.clear();
-    }
-    return n;
-  }
-
- private:
-  SbLogPriority priority_;
-  std::string buffer_;
-};
-
-std::ostream *GetOutputStream() {
-  static sblog_ostreambuf streambuf(kSbLogPriorityInfo);
-  static std::ostream os(&streambuf);
-  return &os;
-}
-
-std::ostream *GetErrorStream() {
-  static sblog_ostreambuf streambuf(kSbLogPriorityError);
-  static std::ostream os(&streambuf);
-  return &os;
-}
-
-}  // namespace
 
 BenchmarkReporter::BenchmarkReporter()
-    : output_stream_(benchmark::GetOutputStream()),
-      error_stream_(benchmark::GetErrorStream()) {}
+    : output_stream_(&std::cout), error_stream_(&std::cerr) {}
 
 BenchmarkReporter::~BenchmarkReporter() {}
 
 void BenchmarkReporter::PrintBasicContext(std::ostream *out,
                                           Context const &context) {
-  CHECK(out) << "cannot be null";
+  BM_CHECK(out) << "cannot be null";
   auto &Out = *out;
 
+#ifndef BENCHMARK_OS_QURT
+  // Date/time information is not available on QuRT.
+  // Attempting to get it via this call cause the binary to crash.
   Out << LocalDateTimeString() << "\n";
+#endif
 
   if (context.executable_name)
     Out << "Running " << context.executable_name << "\n";
@@ -99,7 +68,16 @@ void BenchmarkReporter::PrintBasicContext(std::ostream *out,
     Out << "\n";
   }
 
-  if (info.scaling_enabled) {
+  std::map<std::string, std::string> *global_context =
+      internal::GetGlobalContext();
+
+  if (global_context != nullptr) {
+    for (const auto &kv : *global_context) {
+      Out << kv.first << ": " << kv.second << "\n";
+    }
+  }
+
+  if (CPUInfo::Scaling::ENABLED == info.scaling) {
     Out << "***WARNING*** CPU scaling is enabled, the benchmark "
            "real time measurements may be noisy and will incur extra "
            "overhead.\n";
