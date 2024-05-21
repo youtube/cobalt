@@ -96,7 +96,7 @@ services:
       dockerfile: Dockerfile
     image: crashpad-symbolize
     volumes:
-      - ${MINIDUMP_PATH}:/root/minidump_directory/minidump.dmp
+      - ${MINIDUMP_PATH:-./minidump.dmp}:/root/minidump_directory/minidump.dmp
     depends_on:
       - base
 

@@ -1,7 +1,8 @@
 FROM cobalt-base
 
 RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends jq build-essential zlib1g-dev libzstd-dev \
+    && apt install -qqy --no-install-recommends \
+        jq build-essential zlib1g-dev libzstd-dev \
     && /opt/clean-after-apt.sh
 
 RUN cd /tmp \
