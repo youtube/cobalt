@@ -913,6 +913,9 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
       return;
     }
     media_source_url_ = url;
+
+    LOG(INFO) << "Attached MediaSource (0x" << media_source_.get()
+              << ") to HTMLMediaElement (0x" << this << ")";
   }
   // The resource fetch algorithm
   network_state_ = kNetworkLoading;
