@@ -56,8 +56,8 @@ config("egl_and_gles_angle_config") {
 if (gl_type == "angle") {
   group("egl_and_gles_angle") {
     public_deps = [
-      "//third_party/angle:libEGL",
-      "//third_party/angle:libGLESv2",
+      "//third_party/angle:libEGL_static",
+      "//third_party/angle:libGLESv2_static",
     ]
     public_configs = [ ":egl_and_gles_angle_config" ]
   }

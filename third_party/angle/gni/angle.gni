@@ -61,6 +61,7 @@ if (angle_has_build) {
   declare_args() {
     angle_use_gbm = ozone_platform_gbm
     angle_use_x11 = ozone_platform_x11 && !is_ggp && (is_linux || is_chromeos)
+        || is_starboard
     angle_use_wayland =
         ozone_platform_wayland && !is_ggp && is_linux && !is_castos
     angle_use_vulkan_display = (is_linux || is_chromeos) && !is_ggp
@@ -116,6 +117,7 @@ declare_args() {
 
   # Indicate if the rapidJSON library is available to build with in third_party/.
   angle_has_rapidjson = angle_has_build
+      && !is_starboard
 }
 
 declare_args() {
@@ -163,6 +165,7 @@ declare_args() {
 
   # True if we are building inside an ANGLE checkout.
   angle_standalone = !build_with_chromium
+      && !is_starboard
 
   angle_enable_d3d9 = is_win && !angle_is_winuwp
   angle_enable_d3d11 = is_win
@@ -170,6 +173,7 @@ declare_args() {
       (ozone_platform_gbm || ozone_platform_wayland || !is_linux ||
        ((angle_use_x11 && !is_chromeos) || angle_use_wayland || is_castos)) &&
       !is_fuchsia && !angle_is_winuwp && !is_ggp && !is_win_arm64
+      && !is_starboard || (defined(sb_angle_enable_gl) && sb_angle_enable_gl)
 
   angle_enable_vulkan =
       angle_has_build &&
@@ -178,6 +182,7 @@ declare_args() {
        ((is_linux || is_chromeos) &&
         (angle_use_x11 || angle_use_wayland || angle_use_vulkan_display)) ||
        is_android || is_fuchsia || is_ggp || angle_enable_msl_through_spirv)
+      && !is_starboard
 
   # When set to true, ANGLE will not use VK_KHR_surface and VK_KHR_swapchain
   # extensions. Content can be rendered only off-screen.
@@ -274,6 +279,7 @@ declare_args() {
       "$angle_root/third_party/vulkan-deps/vulkan-validation-layers/src"
 
   angle_build_vulkan_system_info = angle_has_build && !angle_is_winuwp
+      && !is_starboard
 
   # Enable overlay by default when debug layers are enabled.  This is currently only implemented on
   # Vulkan.
