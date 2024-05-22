@@ -14,7 +14,6 @@
 
 // This is a test app for Evergreen that does nothing but crashes.
 
-#include "starboard/common/log.h"
 #include "starboard/event.h"
 
 void SbEventHandle(const SbEvent* event) {
