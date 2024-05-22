@@ -17,12 +17,14 @@
 #include <string>
 #include <vector>
 
+#include "base/logging.h"
+
 namespace cobalt {
 namespace watchdog {
 
 bool InstrumentationLog::LogEvent(const std::string& event) {
   if (event.length() > kMaxEventLenBytes) {
-    SB_DLOG(ERROR) << "[Watchdog] Log event exceeds max: " << kMaxEventLenBytes;
+    DLOG(ERROR) << "[Watchdog] Log event exceeds max: " << kMaxEventLenBytes;
     return false;
   }
 
