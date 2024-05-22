@@ -1,0 +1,128 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+
+devtools_module("sdk") {
+  sources = [
+    "AccessibilityModel.ts",
+    "CPUProfileDataModel.ts",
+    "CPUProfilerModel.ts",
+    "CPUThrottlingManager.ts",
+    "CSSContainerQuery.ts",
+    "CSSFontFace.ts",
+    "CSSLayer.ts",
+    "CSSMatchedStyles.ts",
+    "CSSMedia.ts",
+    "CSSMetadata.ts",
+    "CSSModel.ts",
+    "CSSProperty.ts",
+    "CSSPropertyParser.ts",
+    "CSSQuery.ts",
+    "CSSRule.ts",
+    "CSSScope.ts",
+    "CSSStyleDeclaration.ts",
+    "CSSStyleSheetHeader.ts",
+    "CSSSupports.ts",
+    "CategorizedBreakpoint.ts",
+    "ChildTargetManager.ts",
+    "CompilerSourceMappingContentProvider.ts",
+    "Connections.ts",
+    "ConsoleModel.ts",
+    "ConsoleModelTypes.ts",
+    "Cookie.ts",
+    "CookieModel.ts",
+    "CookieParser.ts",
+    "DOMDebuggerModel.ts",
+    "DOMModel.ts",
+    "DebuggerModel.ts",
+    "EmulationModel.ts",
+    "EventBreakpointsModel.ts",
+    "FilmStripModel.ts",
+    "FrameAssociated.ts",
+    "FrameManager.ts",
+    "HeapProfilerModel.ts",
+    "IOModel.ts",
+    "IsolateManager.ts",
+    "IssuesModel.ts",
+    "LayerTreeBase.ts",
+    "LogModel.ts",
+    "NetworkManager.ts",
+    "NetworkRequest.ts",
+    "OverlayColorGenerator.ts",
+    "OverlayModel.ts",
+    "OverlayPersistentHighlighter.ts",
+    "PageLoad.ts",
+    "PageResourceLoader.ts",
+    "PaintProfiler.ts",
+    "PerformanceMetricsModel.ts",
+    "PreloadingModel.ts",
+    "ProfileTreeModel.ts",
+    "RemoteObject.ts",
+    "Resource.ts",
+    "ResourceTreeModel.ts",
+    "RuntimeModel.ts",
+    "SDKModel.ts",
+    "ScreenCaptureModel.ts",
+    "Script.ts",
+    "SecurityOriginManager.ts",
+    "ServerTiming.ts",
+    "ServiceWorkerCacheModel.ts",
+    "ServiceWorkerManager.ts",
+    "SourceMap.ts",
+    "SourceMapManager.ts",
+    "StorageKeyManager.ts",
+    "Target.ts",
+    "TargetManager.ts",
+    "TraceSDKServices.ts",
+    "TracingManager.ts",
+    "TracingModel.ts",
+    "WebAuthnModel.ts",
+  ]
+
+  deps = [
+    "../../core/common:bundle",
+    "../../core/host:bundle",
+    "../../core/i18n:bundle",
+    "../../core/platform:bundle",
+    "../../core/protocol_client:bundle",
+    "../../core/root:bundle",
+    "../../generated",
+    "../../generated:protocol",
+    "../../models/text_utils:bundle",
+    "../../models/trace:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "sdk.ts"
+
+  deps = [
+    ":sdk",
+    "../../generated",
+  ]
+
+  visibility = [ "*" ]
+}
+
+devtools_entrypoint("legacy") {
+  entrypoint = "sdk-legacy.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [
+    "../..:legacy_entrypoints",
+    "../../entrypoints/shell/*",
+    "../../legacy_test_runner/*",
+  ]
+}
+
+devtools_entrypoint("meta") {
+  entrypoint = "sdk-meta.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [ "../../entrypoints/*" ]
+}

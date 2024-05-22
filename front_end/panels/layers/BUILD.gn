@@ -1,0 +1,47 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+import("../visibility.gni")
+
+devtools_module("layers") {
+  sources = [
+    "LayerPaintProfilerView.ts",
+    "LayerTreeModel.ts",
+    "LayersPanel.ts",
+  ]
+
+  deps = [
+    "../../core/common:bundle",
+    "../../core/i18n:bundle",
+    "../../core/sdk:bundle",
+    "../../generated:protocol",
+    "../../panels/layer_viewer:bundle",
+    "../../ui/legacy:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "layers.ts"
+
+  deps = [ ":layers" ]
+
+  visibility = [
+    ":*",
+    "../../../test/unittests/front_end/entrypoints/missing_entrypoints/*",
+    "../../../test/unittests/front_end/panels/layers/*",
+    "../../entrypoints/*",
+  ]
+
+  visibility += devtools_panels_visibility
+}
+
+devtools_entrypoint("meta") {
+  entrypoint = "layers-meta.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [ "../../entrypoints/*" ]
+}

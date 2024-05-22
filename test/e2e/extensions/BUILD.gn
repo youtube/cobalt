@@ -1,0 +1,20 @@
+# Copyright 2021 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../third_party/typescript/typescript.gni")
+
+node_ts_library("extensions") {
+  sources = [
+    "can-create-panels_test.ts",
+    "can-open-resources-with-columns_test.ts",
+    "can-search-in-extension-panel_test.ts",
+    "debugger-language-plugins_test.ts",
+  ]
+
+  deps = [
+    "../../../extension-api",
+    "../../shared",
+    "../helpers",
+  ]
+}

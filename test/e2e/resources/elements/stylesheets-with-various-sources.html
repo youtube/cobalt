@@ -1,0 +1,21 @@
+<!--
+  Copyright 2020 The Chromium Authors. All rights reserved.
+  Use of this source code is governed by a BSD-style license that can be
+  found in the LICENSE file.
+-->
+<!DOCTYPE html>
+<style id="mutated">
+</style>
+<style>
+  #properties-to-inspect { text-align: center; }
+</style>
+<script type="module">
+  document.querySelector('#mutated').sheet.insertRule('#properties-to-inspect { width: 10%; }');
+  const constructedStyleSheet = new CSSStyleSheet();
+  constructedStyleSheet.insertRule('#properties-to-inspect { color: grey; }');
+
+  import cssModuleStyleSheet from "./css-module.css" assert { type: "css" };
+
+  document.adoptedStyleSheets = [constructedStyleSheet, cssModuleStyleSheet];
+</script>
+<div id="properties-to-inspect"></div>

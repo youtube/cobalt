@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable",
+      "webworker",
+      "webworker.iterable"
+    ],
+    "outDir": "ignored-for-vscode"
+  },
+  "include": [
+    "../../front_end/**/*.ts",
+    "../../inspector_overlay/**/*.ts",
+    "../../scripts/protocol_typescript/*.ts",
+    "../../test/**/*.ts"
+  ],
+  "exclude": [
+    "../../front_end/third_party"
+  ]
+}

@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 (async function() {
-  TestRunner.addResult(`Tests accessibility in the Clear Storage view using the axe-core linter.`);
-  await TestRunner.loadModule('application_test_runner');
-  await TestRunner.loadModule('axe_core_test_runner');
+  TestRunner.addResult('Tests accessibility in the Storage view using the axe-core linter.');
+  await TestRunner.loadTestModule('application_test_runner');
+  await TestRunner.loadTestModule('axe_core_test_runner');
   await ApplicationTestRunner.resetState();
   await TestRunner.showPanel('resources');
   await UI.viewManager.showView('resources');
 
-  const parent = UI.panels.resources._sidebar._applicationTreeElement;
-  const clearStorageElement = parent.children().find(child => child.title === ls`Clear storage`);
-  clearStorageElement.select();
-  const clearStorageView = UI.panels.resources.visibleView;
-  TestRunner.addResult('Clear storage view is visible: ' + (clearStorageView instanceof Resources.ClearStorageView));
+  const parent = UI.panels.resources.sidebar.applicationTreeElement;
+  const storageElement = parent.children().find(child => child.title === 'Storage');
+  storageElement.select();
+  const storageView = UI.panels.resources.visibleView;
+  TestRunner.addResult('Storage view is visible: ' + ApplicationTestRunner.isStorageView(storageView));
 
   async function writeArray() {
     const array = Array(1).fill(0);
@@ -27,6 +27,6 @@
   }
 
   await writeArray();
-  await AxeCoreTestRunner.runValidation(clearStorageView.contentElement);
+  await AxeCoreTestRunner.runValidation(storageView.contentElement);
   TestRunner.completeTest();
 })();

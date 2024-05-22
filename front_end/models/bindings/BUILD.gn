@@ -1,0 +1,94 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+import("../visibility.gni")
+
+devtools_module("bindings") {
+  sources = [
+    "BreakpointManager.ts",
+    "CSSWorkspaceBinding.ts",
+    "CompilerScriptMapping.ts",
+    "ContentProviderBasedProject.ts",
+    "DebuggerLanguagePlugins.ts",
+    "DebuggerWorkspaceBinding.ts",
+    "DefaultScriptMapping.ts",
+    "FileUtils.ts",
+    "IgnoreListManager.ts",
+    "LiveLocation.ts",
+    "NetworkProject.ts",
+    "PresentationConsoleMessageHelper.ts",
+    "ResourceMapping.ts",
+    "ResourceScriptMapping.ts",
+    "ResourceUtils.ts",
+    "SASSSourceMapping.ts",
+    "StylesSourceMapping.ts",
+    "TempFile.ts",
+  ]
+
+  deps = [
+    "../../../extension-api",
+    "../../core/common:bundle",
+    "../../core/host:bundle",
+    "../../core/i18n:bundle",
+    "../../core/platform:bundle",
+    "../../core/root:bundle",
+    "../../core/sdk:bundle",
+    "../../generated:protocol",
+    "../../models/text_utils:bundle",
+    "../../models/workspace:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "bindings.ts"
+
+  deps = [ ":bindings" ]
+
+  visibility = [
+    ":*",
+    "../../../test/unittests/front_end/helpers/*",
+    "../../../test/unittests/front_end/models/bindings/*",
+    "../../../test/unittests/front_end/models/formatter/*",
+    "../../../test/unittests/front_end/panels/console/*",
+    "../../entrypoints/main/*",
+    "../../legacy_test_runner/*",
+    "../../panels/application/*",
+    "../../panels/console/*",
+    "../../panels/coverage/*",
+    "../../panels/network/*",
+    "../../panels/profiler/*",
+    "../../panels/sources/*",
+    "../persistence/*",
+
+    # TODO(crbug.com/1202788): Remove invalid dependents
+    "../../../test/unittests/front_end/ui/legacy/components/utils/*",
+    "../../panels/elements/*",
+    "../../panels/emulation/*",
+    "../../ui/components/docs/performance_panel/*",
+    "../../ui/components/linkifier/*",
+    "../../ui/legacy/components/inline_editor/*",
+    "../../ui/legacy/components/perf_ui/*",
+    "../../ui/legacy/components/utils/*",
+    "../extensions/*",
+    "../formatter/*",
+    "../issues_manager/*",
+    "../source_map_scopes/*",
+  ]
+
+  visibility += devtools_models_visibility
+}
+
+devtools_entrypoint("legacy") {
+  entrypoint = "bindings-legacy.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [
+    "../..:legacy_entrypoints",
+    "../../entrypoints/shell/*",
+    "../../legacy_test_runner/*",
+  ]
+}

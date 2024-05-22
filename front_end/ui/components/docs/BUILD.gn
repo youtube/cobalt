@@ -1,0 +1,68 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+import("../../../../scripts/build/ninja/copy.gni")
+import("../../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../../scripts/build/ninja/devtools_module.gni")
+
+group("docs") {
+  testonly = true
+  public_deps = [
+    ":bundle",
+    ":component_doc_styles",
+    "../../../Images",
+    "./button",
+    "./color_swatch",
+    "./computed_style_property",
+    "./computed_style_trace",
+    "./css_overview",
+    "./data_grid",
+    "./data_grid_controller",
+    "./elements_breadcrumbs",
+    "./expandable_list",
+    "./icon_button",
+    "./icon_component",
+    "./input",
+    "./issue_counter",
+    "./issue_link_icon",
+    "./layout_pane",
+    "./legacy_color_invert",
+    "./linear_memory_inspector",
+    "./linkifier",
+    "./markdown_image",
+    "./markdown_link",
+    "./markdown_view",
+    "./panel_feedback",
+    "./panel_introduction_steps",
+    "./perf_piechart",
+    "./performance_panel",
+    "./report",
+    "./request_link_icon",
+    "./style_property_editor",
+    "./survey_link",
+    "./text_editor",
+    "./text_prompt",
+    "./theme_colors",
+    "./tree_outline",
+    "./trust_tokens_view",
+    "./two_states_counter",
+    "./user_agent_client_hints",
+  ]
+}
+
+copy_to_gen("component_doc_styles") {
+  testonly = true
+  sources = [ "component_docs_styles.css" ]
+}
+
+ts_library("bundle") {
+  testonly = true
+  sources = [
+    "component_docs.ts",
+    "create_breadcrumbs.ts",
+    "toggle_dark_mode.ts",
+    "toggle_fonts.ts",
+  ]
+
+  deps = [ "../../../ui/lit-html:bundle" ]
+}

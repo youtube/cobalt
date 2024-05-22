@@ -1,0 +1,31 @@
+# Copyright 2019 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/copy.gni")
+import("../../../scripts/build/ninja/devtools_pre_built.gni")
+import("../../../scripts/build/ninja/vars.gni")
+import("../visibility.gni")
+
+devtools_pre_built("codemirror") {
+  sources_are_release = false
+
+  sources = [
+    "codemirror-tsconfig.json",
+    "package/addon/runmode/runmode-standalone.mjs",
+    "package/addon/runmode/runmode-standalone.mjs.d.ts",
+    "package/mode/css/css.mjs",
+    "package/mode/css/css.mjs.d.ts",
+    "package/mode/javascript/javascript.mjs",
+    "package/mode/javascript/javascript.mjs.d.ts",
+    "package/mode/xml/xml.mjs",
+    "package/mode/xml/xml.mjs.d.ts",
+  ]
+}
+
+copy_to_gen("codemirror-legacy-types") {
+  sources = [
+    "codemirror-legacy-types-tsconfig.json",
+    "codemirror-legacy.d.ts",
+  ]
+}

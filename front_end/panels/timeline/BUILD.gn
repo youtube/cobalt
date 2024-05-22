@@ -1,0 +1,114 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+import("../../../scripts/build/ninja/generate_css.gni")
+import("../visibility.gni")
+
+generate_css("css_files") {
+  sources = [
+    "historyToolbarButton.css",
+    "invalidationsTree.css",
+    "timelineFlamechartPopover.css",
+    "timelineHistoryManager.css",
+    "timelinePaintProfiler.css",
+    "timelinePanel.css",
+    "timelineStatusDialog.css",
+  ]
+}
+
+devtools_module("timeline") {
+  sources = [
+    "AppenderUtils.ts",
+    "CLSLinkifier.ts",
+    "CompatibilityTracksAppender.ts",
+    "CountersGraph.ts",
+    "EventsTimelineTreeView.ts",
+    "GPUTrackAppender.ts",
+    "InteractionsTrackAppender.ts",
+    "LayoutShiftsTrackAppender.ts",
+    "PerformanceModel.ts",
+    "SaveFileFormatter.ts",
+    "TimelineController.ts",
+    "TimelineDetailsView.ts",
+    "TimelineEventOverview.ts",
+    "TimelineFilters.ts",
+    "TimelineFlameChartDataProvider.ts",
+    "TimelineFlameChartNetworkDataProvider.ts",
+    "TimelineFlameChartView.ts",
+    "TimelineHistoryManager.ts",
+    "TimelineLayersView.ts",
+    "TimelineLoader.ts",
+    "TimelinePaintProfilerView.ts",
+    "TimelinePanel.ts",
+    "TimelineSelection.ts",
+    "TimelineTreeView.ts",
+    "TimelineUIUtils.ts",
+    "TimingsTrackAppender.ts",
+    "UIDevtoolsController.ts",
+    "UIDevtoolsUtils.ts",
+  ]
+
+  deps = [
+    "../../core/host:bundle",
+    "../../core/i18n:bundle",
+    "../../generated:protocol",
+    "../../models/extensions:bundle",
+    "../../models/source_map_scopes:bundle",
+    "../../models/timeline_model:bundle",
+    "../../models/trace:bundle",
+    "../../panels/coverage:bundle",
+    "../../panels/layer_viewer:bundle",
+    "../../panels/mobile_throttling:bundle",
+    "../../panels/profiler:bundle",
+    "../../ui/components/panel_feedback:bundle",
+    "../../ui/legacy/components/data_grid:bundle",
+    "../../ui/legacy/components/perf_ui:bundle",
+    "../../ui/legacy/components/utils:bundle",
+    "../../ui/legacy/theme_support:bundle",
+    "../../ui/lit-html:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "timeline.ts"
+
+  deps = [
+    ":css_files",
+    ":timeline",
+  ]
+
+  visibility = [
+    ":*",
+    "../../../test/unittests/front_end/entrypoints/missing_entrypoints/*",
+    "../../../test/unittests/front_end/helpers",
+    "../../../test/unittests/front_end/panels/timeline/*",
+    "../../entrypoints/*",
+    "../../ui/components/docs/performance_panel/*",
+    "../js_profiler/*",
+
+    # TODO(crbug.com/1202788): Remove invalid dependents
+    "../input/*",
+    "../lighthouse/*",
+  ]
+
+  visibility += devtools_panels_visibility
+}
+
+devtools_entrypoint("legacy") {
+  entrypoint = "timeline-legacy.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [ "../..:legacy_entrypoints" ]
+}
+
+devtools_entrypoint("meta") {
+  entrypoint = "timeline-meta.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [ "../../entrypoints/*" ]
+}

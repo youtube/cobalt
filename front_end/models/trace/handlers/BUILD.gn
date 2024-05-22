@@ -1,0 +1,45 @@
+# Copyright 2022 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../../scripts/build/ninja/devtools_module.gni")
+import("../../visibility.gni")
+
+devtools_module("handlers") {
+  sources = [
+    "AnimationHandler.ts",
+    "GPUHandler.ts",
+    "LargestImagePaintHandler.ts",
+    "LargestTextPaintHandler.ts",
+    "LayoutShiftsHandler.ts",
+    "MetaHandler.ts",
+    "ModelHandlers.ts",
+    "NetworkRequestsHandler.ts",
+    "PageLoadMetricsHandler.ts",
+    "RendererHandler.ts",
+    "SamplesHandler.ts",
+    "ScreenshotsHandler.ts",
+    "UserInteractionsHandler.ts",
+    "UserTimingsHandler.ts",
+    "types.ts",
+  ]
+
+  deps = [
+    "../../../core/platform:bundle",
+    "../../../generated",
+    "../helpers:bundle",
+    "../types:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "handlers.ts"
+  deps = [ ":handlers" ]
+  visibility = [
+    ":*",
+    "../*",
+  ]
+
+  visibility += devtools_models_visibility
+}

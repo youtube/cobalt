@@ -1,0 +1,26 @@
+# Copyright 2021 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../../scripts/build/ninja/copy.gni")
+import("../../../../scripts/build/ninja/wasm.gni")
+
+copy_to_gen("extensions") {
+  sources = [
+    "empty_extension.html",
+    "language_extensions.html",
+    "test_panel.html",
+    "wasm_module.html",
+  ]
+}
+
+if (!build_with_chromium) {
+  wasm_module("extension_wasm_modules") {
+    sources = [
+      "can_access_wasm_data.wat",
+      "global_variable.wat",
+      "stepping.wat",
+      "unreachable.wat",
+    ]
+  }
+}

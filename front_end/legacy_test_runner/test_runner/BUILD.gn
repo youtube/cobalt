@@ -1,0 +1,27 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+
+devtools_module("test_runner") {
+  sources = [ "TestRunner.js" ]
+
+  deps = [
+    "../../core/common:bundle",
+    "../../core/protocol_client:bundle",
+    "../../models/bindings:bundle",
+    "../../models/workspace:bundle",
+    "../../ui/components/code_highlighter:bundle",
+    "../../ui/legacy:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "test_runner.js"
+
+  deps = [ ":test_runner" ]
+
+  visibility = [ "../*" ]
+}

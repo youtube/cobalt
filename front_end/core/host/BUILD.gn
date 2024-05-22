@@ -1,0 +1,43 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+
+devtools_module("host") {
+  sources = [
+    "InspectorFrontendHost.ts",
+    "InspectorFrontendHostAPI.ts",
+    "Platform.ts",
+    "ResourceLoader.ts",
+    "UserMetrics.ts",
+  ]
+
+  deps = [
+    "../../core/common:bundle",
+    "../../core/i18n:bundle",
+    "../../core/platform:bundle",
+    "../../core/root:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "host.ts"
+
+  deps = [ ":host" ]
+
+  visibility = [ "*" ]
+}
+
+devtools_entrypoint("legacy") {
+  entrypoint = "host-legacy.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [
+    "../..:legacy_entrypoints",
+    "../../entrypoints/shell/*",
+    "../../legacy_test_runner/*",
+  ]
+}

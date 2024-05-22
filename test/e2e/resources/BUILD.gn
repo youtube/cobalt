@@ -1,0 +1,40 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/copy.gni")
+
+group("resources") {
+  deps = [
+    ":shared",
+    "animations",
+    "application",
+    "changes",
+    "console",
+    "coverage",
+    "cross_tool",
+    "css_overview",
+    "elements",
+    "emulation",
+    "extensions",
+    "host",
+    "inline_editor",
+    "issues",
+    "layers",
+    "lighthouse",
+    "media",
+    "memory",
+    "network",
+    "pages",
+    "performance",
+    "profiler",
+    "search",
+    "sensors",
+    "sources",
+    "webaudio",
+  ]
+}
+
+copy_to_gen("shared") {
+  sources = [ "empty.html" ]
+}

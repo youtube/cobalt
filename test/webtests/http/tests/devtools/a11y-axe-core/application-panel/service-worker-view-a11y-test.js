@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 (async function() {
-  TestRunner.addResult(`Tests accessibility of ServiceWorkersView on application panel.`);
-  await TestRunner.loadModule('axe_core_test_runner');
-  await TestRunner.loadModule('application_test_runner');
+  TestRunner.addResult('Tests accessibility of ServiceWorkersView on application panel.');
+  await TestRunner.loadTestModule('axe_core_test_runner');
+  await TestRunner.loadTestModule('application_test_runner');
   await ApplicationTestRunner.resetState();
 
   await TestRunner.showPanel('resources');
@@ -13,9 +13,9 @@
   const scriptURL = 'http://127.0.0.1:8000/devtools/service-workers/resources/service-worker-empty.js';
   const scope1 = 'http://127.0.0.1:8000/devtools/service-workers/resources/scope1/';
   const scope2 = 'http://127.0.0.1:8000/devtools/service-workers/resources/scope2/';
-  Resources.ServiceWorkersView._noThrottle = true;
+  Resources.ServiceWorkersView.setThrottleDisabledForDebugging = true;
 
-  UI.panels.resources._sidebar.serviceWorkersTreeElement.select();
+  UI.panels.resources.sidebar.serviceWorkersTreeElement.select();
   ApplicationTestRunner.registerServiceWorker(scriptURL, scope1);
   ApplicationTestRunner.registerServiceWorker(scriptURL, scope2);
   const element = UI.panels.resources.visibleView.contentElement;
