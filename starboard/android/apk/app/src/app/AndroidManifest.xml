@@ -39,6 +39,7 @@
     android:icon="@mipmap/ic_app"
     android:banner="@drawable/app_banner"
     android:label="${applicationName}"
+    android:installLocation="auto"
     android:extractNativeLibs="${evergreenCompatible}">
 
     <activity android:name="dev.cobalt.app.MainActivity"
