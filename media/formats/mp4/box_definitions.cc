@@ -1580,7 +1580,7 @@ IamfSpecificBox::IamfSpecificBox(const IamfSpecificBox& other) = default;
 IamfSpecificBox::~IamfSpecificBox() = default;
 
 FourCC IamfSpecificBox::BoxType() const {
-  return FOURCC_IAMF;
+  return FOURCC_IACB;
 }
 
 bool IamfSpecificBox::Parse(BoxReader* reader) {
@@ -1706,14 +1706,6 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
   // Convert from 16.16 fixed point to integer
   samplerate >>= 16;
 
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  if (format == FOURCC_IAMF) {
-    RCHECK_MEDIA_LOGGED(iamf.Parse(reader), reader->media_log(),
-                        "Failure parsing IamfSpecificBox (iamf)");
-    return true;
-  }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-
   RCHECK(reader->ScanChildren());
   if (format == FOURCC_ENCA) {
     // Continue scanning until a recognized protection scheme is found, or until
@@ -1758,6 +1750,14 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
                         "Failure parsing EC3SpecificBox (dec3)");
   }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
+
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+  if (format == FOURCC_IAMF) {
+    RCHECK_MEDIA_LOGGED(iacb.Parse(reader), reader->media_log(),
+                        "Failure parsing IamfSpecificBox (iacb)");
+    return true;
+  }
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 
   // Read the FLACSpecificBox, even if CENC is signalled.
   if (format == FOURCC_FLAC ||
