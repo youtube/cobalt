@@ -53,5 +53,11 @@ RUN breakpad/src/src/tools/linux/dump_syms/dump_syms /tmp/cobalt-evergreen-snaps
   && mkdir -p /tmp/symbols/libcobalt.so/$debug_id/ \
   && mv /tmp/libcobalt.so.sym /tmp/symbols/libcobalt.so/$debug_id/
 
-CMD readelf -n /tmp/cobalt-evergreen-snapshot/libcobalt.so \
+ENV GITHUB_TAG $GITHUB_TAG
+ENV ARCHITECTURE $ARCHITECTURE
+ENV SB_API_VERSION $SB_API_VERSION
+ENV CONFIG $CONFIG
+
+CMD echo "tag:${GITHUB_TAG} arch:${ARCHITECTURE} sbversion:${SB_API_VERSION} config:${CONFIG}" \
+  && readelf -n /tmp/cobalt-evergreen-snapshot/libcobalt.so \
   && breakpad/src/src/processor/minidump_stackwalk /root/minidump_directory/minidump.dmp /tmp/symbols
