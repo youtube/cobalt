@@ -107,10 +107,6 @@ class ApplicationAndroid
   std::string GetOverlayedStringValue(const char* var_name);
   bool GetOverlayedBoolValue(const char* var_name);
 
-  // Methods to start/stop Media playback service.
-  void StartMediaPlaybackService();
-  void StopMediaPlaybackService();
-
  protected:
   // --- Application overrides ---
   void Initialize() override;
