@@ -1,5 +1,5 @@
 /* libFLAC - Free Lossless Audio Codec library
- * Copyright (C) 2013-2014  Xiph.Org Foundation
+ * Copyright (C) 2013-2022  Xiph.Org Foundation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,52 +33,48 @@
 #  include <config.h>
 #endif
 
-#include <stdio.h>
-#include <sys/stat.h>
-#include <sys/utime.h>
 #include <io.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h> /* for WideCharToMultiByte and MultiByteToWideChar */
-
+#include <windows.h>
 #include "share/win_utf8_io.h"
 
 #define UTF8_BUFFER_SIZE 32768
 
-static
-int local_vsnprintf(char *str, size_t size, const char *fmt, va_list va)
+#if !defined(WINAPI_FAMILY_PARTITION)
+#define WINAPI_FAMILY_PARTITION(x) x
+#define WINAPI_PARTITION_DESKTOP 1
+#endif
+
+static int local_vsnprintf(char *str, size_t size, const char *fmt, va_list va)
 {
 	int rc;
 
 #if defined _MSC_VER
 	if (size == 0)
 		return 1024;
-	rc = vsnprintf_s (str, size, _TRUNCATE, fmt, va);
+	rc = vsnprintf_s(str, size, _TRUNCATE, fmt, va);
 	if (rc < 0)
 		rc = size - 1;
 #elif defined __MINGW32__
-	rc = __mingw_vsnprintf (str, size, fmt, va);
+	rc = __mingw_vsnprintf(str, size, fmt, va);
 #else
-	rc = vsnprintf (str, size, fmt, va);
+	rc = vsnprintf(str, size, fmt, va);
 #endif
 
 	return rc;
 }
 
-static UINT win_utf8_io_codepage = CP_ACP;
-
 /* convert WCHAR stored Unicode string to UTF-8. Caller is responsible for freeing memory */
-static
-char *utf8_from_wchar(const wchar_t *wstr)
+static char *utf8_from_wchar(const wchar_t *wstr)
 {
 	char *utf8str;
 	int len;
 
-	if (!wstr) return NULL;
-	if ((len = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, NULL, 0, NULL, NULL)) == 0) return NULL;
-	if ((utf8str = (char *)malloc(++len)) == NULL) return NULL;
+	if (!wstr)
+		return NULL;
+	if ((len = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, NULL, 0, NULL, NULL)) == 0)
+		return NULL;
+	if ((utf8str = (char *)malloc(len)) == NULL)
+		return NULL;
 	if (WideCharToMultiByte(CP_UTF8, 0, wstr, -1, utf8str, len, NULL, NULL) == 0) {
 		free(utf8str);
 		utf8str = NULL;
@@ -88,21 +84,20 @@ char *utf8_from_wchar(const wchar_t *wstr)
 }
 
 /* convert UTF-8 back to WCHAR. Caller is responsible for freeing memory */
-static
-wchar_t *wchar_from_utf8(const char *str)
+static wchar_t *wchar_from_utf8(const char *str)
 {
 	wchar_t *widestr;
 	int len;
 
-	if (!str) return NULL;
-	len=(int)strlen(str)+1;
-	if ((widestr = (wchar_t *)malloc(len*sizeof(wchar_t))) != NULL) {
-		if (MultiByteToWideChar(win_utf8_io_codepage, 0, str, len, widestr, len) == 0) {
-			if (MultiByteToWideChar(CP_ACP, 0, str, len, widestr, len) == 0) { /* try conversion from Ansi in case the initial UTF-8 conversion had failed */
-				free(widestr);
-				widestr = NULL;
-			}
-		}
+	if (!str)
+		return NULL;
+	if ((len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0)) == 0)
+		return NULL;
+	if ((widestr = (wchar_t *)malloc(len*sizeof(wchar_t))) == NULL)
+		return NULL;
+	if (MultiByteToWideChar(CP_UTF8, 0, str, -1, widestr, len) == 0) {
+		free(widestr);
+		widestr = NULL;
 	}
 
 	return widestr;
@@ -120,14 +115,23 @@ int get_utf8_argv(int *argc, char ***argv)
 	char **utf8argv;
 	int ret, i;
 
-	if ((handle = LoadLibraryA("msvcrt.dll")) == NULL) return 1;
-	if ((wgetmainargs = (wgetmainargs_t)GetProcAddress(handle, "__wgetmainargs")) == NULL) return 1;
+	if ((handle = LoadLibraryW(L"msvcrt.dll")) == NULL) return 1;
+	if ((wgetmainargs = (wgetmainargs_t)GetProcAddress(handle, "__wgetmainargs")) == NULL) {
+		FreeLibrary(handle);
+		return 1;
+	}
 	i = 0;
-	/* if __wgetmainargs expands wildcards then it also erroneously converts \\?\c:\path\to\file.flac to \\file.flac */
-	if (wgetmainargs(&wargc, &wargv, &wenv, 1, &i) != 0) return 1;
-	if ((utf8argv = (char **)calloc(wargc, sizeof(char*))) == NULL) return 1;
-	ret = 0;
+	/* when the 4th argument is 1,  __wgetmainargs expands wildcards but also erroneously converts \\?\c:\path\to\file.flac to \\file.flac */
+	if (wgetmainargs(&wargc, &wargv, &wenv, 1, &i) != 0) {
+		FreeLibrary(handle);
+		return 1;
+	}
+	if ((utf8argv = (char **)calloc(wargc, sizeof(char*))) == NULL) {
+		FreeLibrary(handle);
+		return 1;
+	}
 
+	ret = 0;
 	for (i=0; i<wargc; i++) {
 		if ((utf8argv[i] = utf8_from_wchar(wargv[i])) == NULL) {
 			ret = 1;
@@ -135,10 +139,9 @@ int get_utf8_argv(int *argc, char ***argv)
 		}
 	}
 
-	FreeLibrary(handle);
+	FreeLibrary(handle); /* do not free it when wargv or wenv are still in use */
 
 	if (ret == 0) {
-		win_utf8_io_codepage = CP_UTF8;
 		*argc = wargc;
 		*argv = utf8argv;
 	} else {
@@ -150,95 +153,112 @@ int get_utf8_argv(int *argc, char ***argv)
 	return ret;
 }
 
+/* similar to CreateFileW but accepts UTF-8 encoded lpFileName */
+HANDLE WINAPI CreateFile_utf8(const char *lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
+{
+	wchar_t *wname;
+	HANDLE handle = INVALID_HANDLE_VALUE;
+
+	if ((wname = wchar_from_utf8(lpFileName)) != NULL) {
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+		handle = CreateFileW(wname, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+#else // !WINAPI_PARTITION_DESKTOP
+		CREATEFILE2_EXTENDED_PARAMETERS params;
+		params.dwSize = sizeof(params);
+		params.dwFileAttributes = dwFlagsAndAttributes & 0xFFFF;
+		params.dwFileFlags = dwFlagsAndAttributes & 0xFFF00000;
+		params.dwSecurityQosFlags = dwFlagsAndAttributes & 0x000F0000;
+		params.lpSecurityAttributes = lpSecurityAttributes;
+		params.hTemplateFile = hTemplateFile;
+		handle = CreateFile2(wname, dwDesiredAccess, dwShareMode, dwCreationDisposition, &params);
+#endif // !WINAPI_PARTITION_DESKTOP
+		free(wname);
+	}
+
+	return handle;
+}
+
 /* return number of characters in the UTF-8 string */
 size_t strlen_utf8(const char *str)
 {
 	size_t len;
-	if ((len = MultiByteToWideChar(win_utf8_io_codepage, 0, str, -1, NULL, 0)) == 0)
-		len = strlen(str);
-	return len;
+	len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0); /* includes terminating null */
+	if (len != 0)
+		return len-1;
+	else
+		return strlen(str);
 }
 
 /* get the console width in characters */
 int win_get_console_width(void)
 {
 	int width = 80;
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-	if (GetConsoleScreenBufferInfo(hOut, &csbi) != 0) width = csbi.dwSize.X;
+	if(hOut != INVALID_HANDLE_VALUE && hOut != NULL)
+		if (GetConsoleScreenBufferInfo(hOut, &csbi) != 0)
+			width = csbi.dwSize.X;
+#endif // WINAPI_PARTITION_DESKTOP
 	return width;
 }
 
 /* print functions */
 
-int print_console(FILE *stream, const wchar_t *text, size_t len)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+static int wprint_console(FILE *stream, const wchar_t *text, size_t len)
 {
-	static HANDLE hOut;
-	static HANDLE hErr;
 	DWORD out;
-	hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-	hErr = GetStdHandle(STD_ERROR_HANDLE);
-	if (stream == stdout && hOut != INVALID_HANDLE_VALUE && GetFileType(hOut) == FILE_TYPE_CHAR) {
-		if (WriteConsoleW(hOut, text, len, &out, NULL) == 0) return -1;
-		return out;
-	} else if (stream == stderr && hErr != INVALID_HANDLE_VALUE && GetFileType(hErr) == FILE_TYPE_CHAR) {
-		if (WriteConsoleW(hErr, text, len, &out, NULL) == 0) return -1;
-		return out;
-	} else {
-		int ret = fputws(text, stream);
-		if (ret < 0) return ret;
-		return len;
-	}
+	int ret;
+
+	do {
+		if (stream == stdout) {
+			HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (hOut == INVALID_HANDLE_VALUE || hOut == NULL || GetFileType(hOut) != FILE_TYPE_CHAR)
+				break;
+			if (WriteConsoleW(hOut, text, len, &out, NULL) == 0)
+				return -1;
+			return out;
+		}
+		if (stream == stderr) {
+			HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
+			if (hErr == INVALID_HANDLE_VALUE || hErr == NULL || GetFileType(hErr) != FILE_TYPE_CHAR)
+				break;
+			if (WriteConsoleW(hErr, text, len, &out, NULL) == 0)
+				return -1;
+			return out;
+		}
+	} while(0);
+
+	ret = fputws(text, stream);
+	if (ret < 0)
+		return ret;
+	return len;
 }
+#endif // WINAPI_PARTITION_DESKTOP
 
 int printf_utf8(const char *format, ...)
 {
-	char *utmp = NULL;
-	wchar_t *wout = NULL;
-	int ret = -1;
+	int ret;
+	va_list argptr;
+	va_start(argptr, format);
 
-	while (1) {
-		va_list argptr;
-		if (!(utmp = (char *)malloc(UTF8_BUFFER_SIZE*sizeof(char)))) break;
-		va_start(argptr, format);
-		ret = local_vsnprintf(utmp, UTF8_BUFFER_SIZE, format, argptr);
-		va_end(argptr);
-		if (ret < 0) break;
-		if (!(wout = wchar_from_utf8(utmp))) {
-			ret = -1;
-			break;
-		}
-		ret = print_console(stdout, wout, wcslen(wout));
-		break;
-	}
-	if (utmp) free(utmp);
-	if (wout) free(wout);
+	ret = vfprintf_utf8(stdout, format, argptr);
+
+	va_end(argptr);
 
 	return ret;
 }
 
 int fprintf_utf8(FILE *stream, const char *format, ...)
 {
-	char *utmp = NULL;
-	wchar_t *wout = NULL;
-	int ret = -1;
+	int ret;
+	va_list argptr;
+	va_start(argptr, format);
 
-	while (1) {
-		va_list argptr;
-		if (!(utmp = (char *)malloc(UTF8_BUFFER_SIZE*sizeof(char)))) break;
-		va_start(argptr, format);
-		ret = local_vsnprintf(utmp, UTF8_BUFFER_SIZE, format, argptr);
-		va_end(argptr);
-		if (ret < 0) break;
-		if (!(wout = wchar_from_utf8(utmp))) {
-			ret = -1;
-			break;
-		}
-		ret = print_console(stream, wout, wcslen(wout));
-		break;
-	}
-	if (utmp) free(utmp);
-	if (wout) free(wout);
+	ret = vfprintf_utf8(stream, format, argptr);
+
+	va_end(argptr);
 
 	return ret;
 }
@@ -249,43 +269,48 @@ int vfprintf_utf8(FILE *stream, const char *format, va_list argptr)
 	wchar_t *wout = NULL;
 	int ret = -1;
 
-	while (1) {
-		if (!(utmp = (char *)malloc(UTF8_BUFFER_SIZE*sizeof(char)))) break;
-		if ((ret = local_vsnprintf(utmp, UTF8_BUFFER_SIZE, format, argptr)) < 0) break;
+	do {
+		if (!(utmp = (char *)malloc(UTF8_BUFFER_SIZE))) break;
+		if ((ret = local_vsnprintf(utmp, UTF8_BUFFER_SIZE, format, argptr)) <= 0) break;
 		if (!(wout = wchar_from_utf8(utmp))) {
 			ret = -1;
 			break;
 		}
-		ret = print_console(stream, wout, wcslen(wout));
-		break;
-	}
-	if (utmp) free(utmp);
-	if (wout) free(wout);
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+		ret = wprint_console(stream, wout, wcslen(wout));
+#else // !WINAPI_PARTITION_DESKTOP
+		OutputDebugStringW(wout);
+		ret = 0;
+#endif // !WINAPI_PARTITION_DESKTOP
+	} while(0);
+
+	free(utmp);
+	free(wout);
 
 	return ret;
 }
 
 /* file functions */
 
-FILE *fopen_utf8(const char *filename, const char *mode)
+FILE* fopen_utf8(const char *filename, const char *mode)
 {
 	wchar_t *wname = NULL;
 	wchar_t *wmode = NULL;
 	FILE *f = NULL;
 
-	while (1) {
+	do {
 		if (!(wname = wchar_from_utf8(filename))) break;
 		if (!(wmode = wchar_from_utf8(mode))) break;
 		f = _wfopen(wname, wmode);
-		break;
-	}
-	if (wname) free(wname);
-	if (wmode) free(wmode);
+	} while(0);
+
+	free(wname);
+	free(wmode);
 
 	return f;
 }
 
-int _stat64_utf8(const char *path, struct __stat64 *buffer)
+int stat64_utf8(const char *path, struct __stat64 *buffer)
 {
 	wchar_t *wpath;
 	int ret;
@@ -315,14 +340,9 @@ int utime_utf8(const char *filename, struct utimbuf *times)
 	struct __utimbuf64 ut;
 	int ret;
 
-	if (sizeof(*times) == sizeof(ut)) {
-		memcpy(&ut, times, sizeof(ut));
-	} else {
-		ut.actime = times->actime;
-		ut.modtime = times->modtime;
-	}
-
 	if (!(wname = wchar_from_utf8(filename))) return -1;
+	ut.actime = times->actime;
+	ut.modtime = times->modtime;
 	ret = _wutime64(wname, &ut);
 	free(wname);
 
@@ -347,27 +367,14 @@ int rename_utf8(const char *oldname, const char *newname)
 	wchar_t *wnew = NULL;
 	int ret = -1;
 
-	while (1) {
+	do {
 		if (!(wold = wchar_from_utf8(oldname))) break;
 		if (!(wnew = wchar_from_utf8(newname))) break;
 		ret = _wrename(wold, wnew);
-		break;
-	}
-	if (wold) free(wold);
-	if (wnew) free(wnew);
+	} while(0);
+
+	free(wold);
+	free(wnew);
 
 	return ret;
-}
-
-HANDLE WINAPI CreateFile_utf8(const char *lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
-{
-	wchar_t *wname;
-	HANDLE handle = INVALID_HANDLE_VALUE;
-
-	if ((wname = wchar_from_utf8(lpFileName)) != NULL) {
-		handle = CreateFileW(wname, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-		free(wname);
-	}
-
-	return handle;
 }
