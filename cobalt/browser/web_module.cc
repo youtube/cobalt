@@ -80,7 +80,6 @@
 #include "cobalt/web/event.h"
 #include "cobalt/web/url.h"
 #include "starboard/accessibility.h"
-#include "starboard/common/log.h"
 #include "starboard/gles.h"
 
 #if defined(ENABLE_DEBUGGER)
