@@ -14,6 +14,7 @@
 
 #include "net/cert/internal/trust_store_in_memory_starboard.h"
 
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "base/logging.h"
@@ -107,17 +108,14 @@ std::shared_ptr<const ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCer
   SbFileError out_error;
   char cert_buffer[kCertBufferSize];
   base::FilePath cert_path = GetCertificateDirPath().Append(cert_file_name);
-  SbFile sb_cert_file =
-      SbFileOpen(cert_path.value().c_str(), kSbFileOpenOnly | kSbFileRead,
-                 nullptr, &out_error);
+  base::File cert_file(cert_path, base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);
   // The file was in certs directory when we iterated the directory at startup,
   // opening it should not fail.
-  if (!SbFileIsValid(sb_cert_file)) {
+  if (!cert_file.IsValid()) {
     NOTREACHED() << "ssl/certs/" << cert_path << " failed to open.";
     return nullptr;
   }
-  int cert_size = SbFileReadAll(sb_cert_file, cert_buffer, kCertBufferSize);
-  SbFileClose(sb_cert_file);
+  int cert_size = cert_file.ReadAtCurrentPos(cert_buffer, kCertBufferSize);
   PEMTokenizer pem_tokenizer(base::StringPiece(cert_buffer, cert_size),
                              {kCertificateHeader});
   pem_tokenizer.GetNext();

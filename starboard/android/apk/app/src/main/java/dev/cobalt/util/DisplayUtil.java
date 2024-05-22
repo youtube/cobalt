@@ -34,6 +34,8 @@ public class DisplayUtil {
   private static Display defaultDisplay;
   private static DisplayMetrics cachedDisplayMetrics = null;
 
+  public static final double DISPLAY_REFRESH_RATE_UNKNOWN = -1;
+
   /** Returns the physical pixels per inch of the screen in the X and Y dimensions. */
   public static SizeF getDisplayDpi() {
     DisplayMetrics metrics = getDisplayMetrics();
@@ -50,6 +52,12 @@ public class DisplayUtil {
 
       return defaultDisplay;
     }
+  }
+
+  /** Returns the refresh rate of the default display. */
+  public static double getDefaultDisplayRefreshRate() {
+    Display defaultDisplay = getDefaultDisplay();
+    return defaultDisplay != null ? defaultDisplay.getRefreshRate() : DISPLAY_REFRESH_RATE_UNKNOWN;
   }
 
   /**

@@ -153,7 +153,7 @@ bool DeleteFile(const FilePath &path, bool recursive) {
   struct ::stat info;
   bool directory = ::stat(path_str, &info) == 0 && S_ISDIR(info.st_mode);
   if (!recursive || !directory) {
-    return !unlink(path_str);
+    return !::unlink(path_str);
   }
 
   bool success = true;
@@ -177,14 +177,14 @@ bool DeleteFile(const FilePath &path, bool recursive) {
     if (info.IsDirectory()) {
       directories.push(current.value());
     } else {
-      success = !unlink(current.value().c_str());
+      success = !::unlink(current.value().c_str());
     }
   }
 
   // Delete all directories in reverse-depth order, now that they have no more
   // regular files.
   while (success && !directories.empty()) {
-    success = !unlink(directories.top().c_str());
+    success = !::unlink(directories.top().c_str());
     directories.pop();
   }
 
@@ -343,7 +343,7 @@ bool CreateTemporaryFileInDir(const FilePath &dir, FilePath *temp_file) {
   internal::AssertBlockingAllowed();
   DCHECK(temp_file);
   int file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
-  return ((file >= 0) && close(file));
+  return ((file >= 0) && ::close(file));
 }
 
 bool CreateTemporaryDirInDir(const FilePath &base_dir,

@@ -29,7 +29,8 @@ namespace h5vcc {
 
 #define DEFINE_H5VCC_TRACE_EVENT0(Name, FunctionName)                      \
   void Trace##Name(const std::string& category, const std::string& name) { \
-    TRACE_EVENT_COPY_##FunctionName##0(category.c_str(), name.c_str());    \
+    TRACE_EVENT_COPY_##FunctionName##0("cobalt::h5vcc::trace_event",       \
+                                       name.c_str());                      \
   }
 
 #define TRACE_EVENT1_FOR_EACH(MacroOp)                                \
@@ -41,8 +42,9 @@ namespace h5vcc {
 #define DEFINE_H5VCC_TRACE_EVENT1(TraceName, FunctionName, CppType)           \
   void Trace##TraceName(const std::string& category, const std::string& name, \
                         const std::string& arg1_name, CppType arg1_value) {   \
-    TRACE_EVENT_COPY_##FunctionName##1(category.c_str(), name.c_str(),        \
-                                       arg1_name.c_str(), arg1_value);        \
+    TRACE_EVENT_COPY_##FunctionName##1("cobalt::h5vcc::trace_event",          \
+                                       name.c_str(), arg1_name.c_str(),       \
+                                       arg1_value);                           \
   }
 
 class H5vccTraceEvent : public script::Wrappable {

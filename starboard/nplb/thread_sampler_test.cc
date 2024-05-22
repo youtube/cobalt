@@ -18,7 +18,12 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
+
+#if SB_API_VERSION < 16
 #include "starboard/nplb/thread_helpers.h"
+#else
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
+#endif
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,7 +31,11 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION < 16
 class CountingThread : public AbstractTestThread {
+#else
+class CountingThread : public posix::AbstractTestThread {
+#endif
  public:
   ~CountingThread() { Stop(); }
 
@@ -64,7 +73,12 @@ TEST(ThreadSamplerTest, RainyDayCreateSamplerInvalidThread) {
   // Creating a sampler for an invalid thread should not succeed, and even
   // without without calling |SbThreadSamplerDelete| ASAN should not detect a
   // memory leak.
+
+#if SB_API_VERSION < 16
   SbThreadSampler sampler = SbThreadSamplerCreate(kSbThreadInvalid);
+#else
+  SbThreadSampler sampler = SbThreadSamplerCreate(0);
+#endif
   EXPECT_FALSE(SbThreadSamplerIsValid(sampler));
 }
 

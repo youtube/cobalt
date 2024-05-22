@@ -16,7 +16,7 @@
 #include "base/task/thread_pool.h"
 #include "base/task/task_traits.h"
 #if defined(STARBOARD)
-#include "cobalt/updater/updater_module.h"
+#include "chrome/updater/updater_module.h"
 #endif
 #include "components/update_client/network.h"
 #include "components/update_client/utils.h"

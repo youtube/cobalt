@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
@@ -46,7 +47,7 @@ class PNGFileReadContext {
   int height() const { return height_; }
 
  private:
-  base::PlatformFile file_;
+  base::File file_;
   png_structp png_;
   png_infop png_metadata_;
 
@@ -94,19 +95,21 @@ void PNGReadPlatformFile(png_structp png, png_bytep buffer,
 
 PNGFileReadContext::PNGFileReadContext(const base::FilePath& file_path,
                                        render_tree::PixelFormat pixel_format,
-                                       render_tree::AlphaFormat alpha_format) {
+                                       render_tree::AlphaFormat alpha_format)
+    : file_(file_path,
+            base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ) {
   TRACE_EVENT0("renderer::test::png_utils",
                "PNGFileReadContext::PNGFileReadContext()");
 
   // Much of this PNG loading code is based on a section from the libpng manual:
   // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html#section-3
 
-  file_ = open(file_path.value().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
-  DCHECK_NE(-1, file_) << "Unable to open: " << file_path.value();
+  DCHECK_NE(base::kInvalidPlatformFile, file_.GetPlatformFile())
+      << "Unable to open: " << file_path.value();
 
   uint8_t header[8];
-  int count = starboard::ReadAll(file_, reinterpret_cast<char*>(header),
-                                 sizeof(header));
+  int count =
+      file_.ReadAtCurrentPos(reinterpret_cast<char*>(header), sizeof(header));
   DCHECK_EQ(sizeof(header), count) << "Invalid file size.";
   DCHECK(!png_sig_cmp(header, 0, 8)) << "Invalid PNG header.";
 
@@ -129,7 +132,8 @@ PNGFileReadContext::PNGFileReadContext(const base::FilePath& file_path,
   }
 
   // Set up for file i/o.
-  png_set_read_fn(png_, reinterpret_cast<void*>(file_), &PNGReadPlatformFile);
+  png_set_read_fn(png_, reinterpret_cast<void*>(file_.GetPlatformFile()),
+                  &PNGReadPlatformFile);
   // Tell png we already read 8 bytes.
   png_set_sig_bytes(png_, 8);
   // Read the image info.
@@ -230,8 +234,6 @@ PNGFileReadContext::~PNGFileReadContext() {
 
   // Release our png reading context and associated info structs.
   png_destroy_read_struct(&png_, &png_metadata_, &end);
-
-  close(file_);
 }
 
 void PNGFileReadContext::DecodeImageTo(const std::vector<png_bytep>& rows) {

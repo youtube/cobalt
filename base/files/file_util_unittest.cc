@@ -346,7 +346,7 @@ void CreateTextFile(const FilePath& filename,
   SB_CHECK((file_error == kSbFileOk));
   SB_CHECK(starboard::WriteAll(file, contents_ascii.data(),contents_ascii.size()) ==
            contents_ascii.size());
-  SB_CHECK(close(file) == 0);
+  SB_CHECK(::close(file) == 0);
 #else   // !defined(STARBOARD)
   std::wofstream file;
 #if BUILDFLAG(IS_WIN)
@@ -369,7 +369,7 @@ std::wstring ReadTextFile(const FilePath& filename) {
   int file = open(filename.value().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
   SB_CHECK(file_error == kSbFileOk);
   SB_CHECK(starboard::ReadAll(file, contents, size_in_bytes) != -1);
-  SB_CHECK(close(file) == 0);
+  SB_CHECK(::close(file) == 0);
   return UTF16ToWide(ASCIIToUTF16(contents));
 #else   // !defined(STARBOARD)
   wchar_t contents[64];

@@ -35,8 +35,8 @@
 #include "cobalt/script/wrappable.h"
 
 #if SB_IS(EVERGREEN)
+#include "chrome/updater/updater_module.h"
 #include "cobalt/h5vcc/h5vcc_updater.h"
-#include "cobalt/updater/updater_module.h"
 #endif
 
 namespace cobalt {

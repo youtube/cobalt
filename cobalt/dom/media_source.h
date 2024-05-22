@@ -67,7 +67,6 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/event_target.h"
-#include "cobalt/web/url_registry.h"
 #include "media/filters/chunk_demuxer.h"
 
 namespace cobalt {
@@ -79,7 +78,6 @@ namespace dom {
 class MediaSource : public web::EventTarget {
  public:
   typedef ::media::ChunkDemuxer ChunkDemuxer;
-  typedef web::UrlRegistry<MediaSource> Registry;
 
   // Custom, not in any spec.
   //

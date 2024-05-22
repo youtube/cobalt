@@ -24,8 +24,8 @@
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/logging.h"
 #include "starboard/common/file.h"
-#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 
@@ -143,7 +143,7 @@ std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
     }
 
     if (violations_map_ == nullptr) {
-      SB_LOG(INFO) << "[Watchdog] No previous violations JSON.";
+      LOG(INFO) << "[Watchdog] No previous violations JSON.";
       violations_map_ = std::make_unique<base::Value>(base::Value::Type::DICT);
     }
   }
@@ -159,7 +159,7 @@ std::string Watchdog::GetWatchdogFilePath() {
                     kSbFileMaxPath);
     watchdog_file_path_ =
         std::string(cache_dir.data()) + kSbFileSepString + watchdog_file_name_;
-    SB_LOG(INFO) << "[Watchdog] Violations filepath: " << watchdog_file_path_;
+    LOG(INFO) << "[Watchdog] Violations filepath: " << watchdog_file_path_;
   }
   return watchdog_file_path_;
 }
@@ -189,7 +189,7 @@ void Watchdog::WriteWatchdogViolations() {
   // Writes Watchdog violations to persistent storage as a json file.
   std::string watchdog_json;
   base::JSONWriter::Write(*GetViolationsMap(), &watchdog_json);
-  SB_LOG(INFO) << "[Watchdog] Writing violations to JSON:\n" << watchdog_json;
+  LOG(INFO) << "[Watchdog] Writing violations to JSON:\n" << watchdog_json;
   starboard::ScopedFile watchdog_file(GetWatchdogFilePath().c_str(),
                                       kSbFileCreateAlways | kSbFileWrite);
   watchdog_file.WriteAll(watchdog_json.c_str(),
@@ -453,7 +453,7 @@ void Watchdog::MaybeTriggerCrash(void* context) {
   if (static_cast<Watchdog*>(context)->GetPersistentSettingWatchdogCrash()) {
     if (static_cast<Watchdog*>(context)->pending_write_)
       static_cast<Watchdog*>(context)->WriteWatchdogViolations();
-    SB_LOG(ERROR) << "[Watchdog] Triggering violation Crash!";
+    LOG(ERROR) << "[Watchdog] Triggering violation Crash!";
     *(reinterpret_cast<volatile char*>(0)) = 0;
   }
 }
@@ -495,9 +495,9 @@ bool Watchdog::Register(std::string name, std::string description,
   auto result = client_map_.emplace(name, std::move(client));
 
   if (result.second) {
-    SB_DLOG(INFO) << "[Watchdog] Registered: " << name;
+    DLOG(INFO) << "[Watchdog] Registered: " << name;
   } else {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
+    DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
   }
   return result.second;
 }
@@ -522,7 +522,7 @@ std::shared_ptr<Client> Watchdog::RegisterByClient(
   // Registers.
   client_list_.emplace_back(client);
 
-  SB_DLOG(INFO) << "[Watchdog] Registered: " << name;
+  DLOG(INFO) << "[Watchdog] Registered: " << name;
   return client;
 }
 
@@ -534,12 +534,12 @@ std::unique_ptr<Client> Watchdog::CreateClient(
   // Validates parameters.
   if (time_interval_microseconds < watchdog_monitor_frequency_ ||
       time_wait_microseconds < 0) {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
+    DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
     if (time_interval_microseconds < watchdog_monitor_frequency_) {
-      SB_DLOG(ERROR) << "[Watchdog] Time interval less than min: "
-                     << watchdog_monitor_frequency_;
+      DLOG(ERROR) << "[Watchdog] Time interval less than min: "
+                  << watchdog_monitor_frequency_;
     } else {
-      SB_DLOG(ERROR) << "[Watchdog] Time wait is negative.";
+      DLOG(ERROR) << "[Watchdog] Time wait is negative.";
     }
     return nullptr;
   }
@@ -569,9 +569,9 @@ bool Watchdog::Unregister(const std::string& name, bool lock) {
   if (lock) mutex_.Release();
 
   if (result) {
-    SB_DLOG(INFO) << "[Watchdog] Unregistered: " << name;
+    DLOG(INFO) << "[Watchdog] Unregistered: " << name;
   } else {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Unregister: " << name;
+    DLOG(ERROR) << "[Watchdog] Unable to Unregister: " << name;
   }
   return result;
 }
@@ -588,11 +588,11 @@ bool Watchdog::UnregisterByClient(std::shared_ptr<Client> client) {
   for (auto it = client_list_.begin(); it != client_list_.end(); it++) {
     if (client == *it) {
       client_list_.erase(it);
-      SB_DLOG(INFO) << "[Watchdog] Unregistered: " << name;
+      DLOG(INFO) << "[Watchdog] Unregistered: " << name;
       return true;
     }
   }
-  SB_DLOG(ERROR) << "[Watchdog] Unable to Unregister: " << name;
+  DLOG(ERROR) << "[Watchdog] Unable to Unregister: " << name;
   return false;
 }
 
@@ -610,7 +610,7 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
     Client* client = it->second.get();
     return PingHelper(client, name, info);
   }
-  SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+  DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
   return false;
 }
 
@@ -632,7 +632,7 @@ bool Watchdog::PingByClient(std::shared_ptr<Client> client,
       return PingHelper(client.get(), name, info);
     }
   }
-  SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+  DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
   return false;
 }
 
@@ -640,9 +640,9 @@ bool Watchdog::PingHelper(Client* client, const std::string& name,
                           const std::string& info) {
   // Validates parameters.
   if (info.length() > kWatchdogMaxPingInfoLength) {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
-    SB_DLOG(ERROR) << "[Watchdog] Ping info length exceeds max: "
-                   << kWatchdogMaxPingInfoLength;
+    DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+    DLOG(ERROR) << "[Watchdog] Ping info length exceeds max: "
+                << kWatchdogMaxPingInfoLength;
     return false;
   }
 
@@ -705,10 +705,9 @@ std::string Watchdog::GetWatchdogViolations(
         EvictOldWatchdogViolations();
       }
     }
-    SB_LOG(INFO) << "[Watchdog] Reading violations:\n"
-                 << fetched_violations_json;
+    LOG(INFO) << "[Watchdog] Reading violations:\n" << fetched_violations_json;
   } else {
-    SB_LOG(INFO) << "[Watchdog] No violations.";
+    LOG(INFO) << "[Watchdog] No violations.";
   }
   return fetched_violations_json;
 }
