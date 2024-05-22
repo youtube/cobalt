@@ -142,6 +142,14 @@ static inline bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
 }
 #endif
 
+#if SB_API_VERSION >= 16
+// Set the thread priority of the current thread.
+SB_EXPORT bool SbThreadSetPriority(SbThreadPriority priority);
+
+// Get the thread priority of the current thread.
+SB_EXPORT bool SbThreadGetPriority(SbThreadPriority* priority);
+#endif
+
 // Creates a new thread, which starts immediately.
 // - If the function succeeds, the return value is a handle to the newly
 //   created thread.
