@@ -34,8 +34,7 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "14",
-      "dimension": "release_version=regex:10.*"
+      "sb_api_version": "14"
     },
     {
       "name":"sbversion-15",
@@ -44,8 +43,7 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "15",
-      "dimension": "release_version=regex:10.*"
+      "sb_api_version": "15"
     },
     {
       "name":"sbversion-16",
@@ -54,8 +52,7 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "16",
-      "dimension": "release_version=regex:10.*"
+      "sb_api_version": "16"
     }
   ]
 }

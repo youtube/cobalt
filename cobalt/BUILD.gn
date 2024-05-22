@@ -52,7 +52,7 @@ group("gn_all") {
 
   if (sb_is_evergreen) {
     deps += [
-      "//cobalt/updater:updater_test",
+      "//chrome/updater:updater_test",
       "//components/update_client:cobalt_slot_management_test",
       "//components/update_client:update_client_test",
     ]
@@ -72,10 +72,10 @@ group("default") {
     if (sb_is_evergreen) {
       deps += [
         # TODO(b/294247612): Remove unnecessary dependencies.
-        "//cobalt/updater",
-        "//cobalt/updater:crash_sandbox",
-        "//cobalt/updater:noop_sandbox",
-        "//cobalt/updater:one_app_only_sandbox",
+        "//chrome/updater",
+        "//chrome/updater:crash_sandbox",
+        "//chrome/updater:noop_sandbox",
+        "//chrome/updater:one_app_only_sandbox",
         "//components/client_update_protocol",
         "//components/crx_file",
         "//components/prefs",

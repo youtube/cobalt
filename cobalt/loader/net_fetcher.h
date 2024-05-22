@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_NET_FETCHER_H_
 #define COBALT_LOADER_NET_FETCHER_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -132,7 +133,7 @@ class NetFetcher : public Fetcher,
 
   scoped_refptr<base::SequencedTaskRunner> const task_runner_;
   bool skip_fetch_intercept_;
-  starboard::atomic_bool will_destroy_current_task_runner_;
+  std::atomic_bool will_destroy_current_task_runner_;
   bool main_resource_;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);

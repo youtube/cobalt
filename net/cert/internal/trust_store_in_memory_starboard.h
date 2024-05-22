@@ -18,8 +18,8 @@
 #include <unordered_set>
 
 #include "base/strings/string_piece.h"
+#include "base/synchronization/lock.h"
 #include "net/cert/pki/trust_store_in_memory.h"
-#include "starboard/common/mutex.h"
 
 namespace net {
 
@@ -38,7 +38,7 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
   // Returns true if the trust store contains the given ParsedCertificate
   // (matches by DER).
   bool Contains(const ParsedCertificate* cert) const {
-    starboard::ScopedLock scoped_lock(load_mutex_);
+    base::AutoLock scoped_lock(load_mutex_);
     return underlying_trust_store_.Contains(cert);
   }
 
@@ -58,7 +58,7 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
   // the synchronization issue is solved by initializing trust store at startup
   // and passing constant reference to consumers. Cobalt loads certs lazily and
   // therefore guards the underlying_trust_store_ with mutex.
-  starboard::Mutex load_mutex_;
+  mutable base::Lock load_mutex_;
 
   const std::unordered_set<std::string> trusted_cert_names_on_disk_;
 };
