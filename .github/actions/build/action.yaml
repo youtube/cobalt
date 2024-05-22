@@ -13,6 +13,10 @@ runs:
         PROJECT_NAME=$(gcloud config get-value project)
         echo "GCS_NIGHTLY_PATH=gs://${PROJECT_NAME}-build-artifacts" >> $GITHUB_ENV
       shell: bash
+    - name: Download Gradle
+      if: startsWith(${{matrix.target_platform}}, 'android')
+      shell: bash
+      run: starboard/android/apk/gradlew --version
     - name: Build
       run: |
         set -x
