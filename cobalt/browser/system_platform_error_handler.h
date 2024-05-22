@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/callback.h"
-#include "starboard/common/mutex.h"
+#include "base/synchronization/lock.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -46,7 +46,7 @@ class SystemPlatformErrorHandler {
  private:
   // This specifies the user data passed to the error response callback.
   struct CallbackData {
-    starboard::Mutex* mutex;
+    base::Lock* mutex;
     SystemPlatformErrorCallback callback;
   };
 
@@ -54,7 +54,7 @@ class SystemPlatformErrorHandler {
   static void HandleSystemPlatformErrorResponse(
       SbSystemPlatformErrorResponse response, void* user_data);
 
-  starboard::Mutex mutex_;
+  base::Lock mutex_;
   std::vector<std::unique_ptr<CallbackData>> callback_data_;
 };
 

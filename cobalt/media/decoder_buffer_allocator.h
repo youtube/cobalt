@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
+#include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "cobalt/media/bidirectional_fit_reuse_allocator.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
@@ -25,7 +26,6 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_decoder_config.h"
 #include "starboard/common/atomic.h"
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 
 namespace cobalt {
@@ -68,7 +68,7 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   const int initial_capacity_;
   const int allocation_unit_;
 
-  starboard::Mutex mutex_;
+  mutable base::Lock mutex_;
   StarboardMemoryAllocator fallback_allocator_;
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_;
 
