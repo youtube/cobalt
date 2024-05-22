@@ -55,9 +55,8 @@ bool ShouldLogTimedTrace() {
 JSONFileOutputter::JSONFileOutputter(const base::FilePath& output_path)
     : output_path_(output_path),
       output_trace_event_call_count_(0),
-      file_(base::kInvalidPlatformFile) {
-  file_ = SbFileOpen(output_path.value().c_str(),
-                     kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+      file_(output_path, base::File::Flags::FLAG_OPEN_ALWAYS |
+                             base::File::Flags::FLAG_WRITE) {
   if (GetError()) {
     DLOG(ERROR) << "Unable to open file for writing: " << output_path.value();
   } else {
@@ -135,7 +134,7 @@ void JSONFileOutputter::Write(const char* buffer, int length) {
     return;
   }
 
-  int count = SbFileWrite(file_, buffer, length);
+  int count = file_.WriteAtCurrentPos(buffer, length);
   base::RecordFileWriteStat(count);
   if (count < 0) {
     Close();
@@ -147,8 +146,7 @@ void JSONFileOutputter::Close() {
     return;
   }
 
-  SbFileClose(file_);
-  file_ = base::kInvalidPlatformFile;
+  file_.Close();
 }
 
 }  // namespace trace_event
