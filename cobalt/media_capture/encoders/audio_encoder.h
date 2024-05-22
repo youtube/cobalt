@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@
 
 #include "base/basictypes.h"
 #include "base/strings/string_piece.h"
+#include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media_stream/audio_parameters.h"
-#include "starboard/common/mutex.h"
 
 
 namespace cobalt {
@@ -74,7 +74,7 @@ class AudioEncoder {
   AudioEncoder(const AudioEncoder&) = delete;
   AudioEncoder& operator=(AudioEncoder&) = delete;
 
-  starboard::Mutex listeners_mutex_;
+  base::Lock listeners_mutex_;
   std::vector<AudioEncoder::Listener*> listeners_;
 };
 
