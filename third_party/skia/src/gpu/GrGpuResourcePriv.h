@@ -8,7 +8,7 @@
 #ifndef GrGpuResourcePriv_DEFINED
 #define GrGpuResourcePriv_DEFINED
 
-#include "include/gpu/GrGpuResource.h"
+#include "src/gpu/GrGpuResource.h"
 
 /**
  * This class allows code internal to Skia privileged access to manage the cache keys and budget
@@ -22,7 +22,7 @@ public:
      * removeUniqueKey(). If another resource is using the key then its unique key is removed and
      * this resource takes over the key.
      */
-    void setUniqueKey(const GrUniqueKey& key) { fResource->setUniqueKey(key); }
+    void setUniqueKey(const skgpu::UniqueKey& key) { fResource->setUniqueKey(key); }
 
     /** Removes the unique key from a resource. If the resource has a scratch key, it may be
         preserved for recycling as scratch. */
@@ -60,7 +60,7 @@ public:
      * Otherwise it returns a key for which isNullScratch is true. The resource may currently be
      * used as a uniquely keyed resource rather than scratch. Check isScratch().
      */
-    const GrScratchKey& getScratchKey() const { return fResource->fScratchKey; }
+    const skgpu::ScratchKey& getScratchKey() const { return fResource->fScratchKey; }
 
     /**
      * If the resource has a scratch key, the key will be removed. Since scratch keys are installed
@@ -70,12 +70,14 @@ public:
 
     bool isPurgeable() const { return fResource->isPurgeable(); }
 
-    bool hasRef() const { return fResource->hasRef(); }
+    bool hasRefOrCommandBufferUsage() const {
+        return fResource->hasRef() || !fResource->hasNoCommandBufferUsages();
+    }
 
 protected:
     ResourcePriv(GrGpuResource* resource) : fResource(resource) {   }
     ResourcePriv(const ResourcePriv& that) : fResource(that.fResource) {}
-    ResourcePriv& operator=(const CacheAccess&); // unimpl
+    ResourcePriv& operator=(const CacheAccess&) = delete;
 
     // No taking addresses of this type.
     const ResourcePriv* operator&() const;
@@ -88,7 +90,7 @@ protected:
 
 inline GrGpuResource::ResourcePriv GrGpuResource::resourcePriv() { return ResourcePriv(this); }
 
-inline const GrGpuResource::ResourcePriv GrGpuResource::resourcePriv() const {
+inline const GrGpuResource::ResourcePriv GrGpuResource::resourcePriv() const {  // NOLINT(readability-const-return-type)
     return ResourcePriv(const_cast<GrGpuResource*>(this));
 }
 

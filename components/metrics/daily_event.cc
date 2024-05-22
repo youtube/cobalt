@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"

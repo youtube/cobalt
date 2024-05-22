@@ -15,8 +15,6 @@
 #include "dawn_native/DawnNative.h"
 #include "dawn/dawn_wsi.h"
 
-class GrContext;
-
 namespace sk_app {
 
 class DawnWindowContext : public WindowContext {
@@ -34,7 +32,7 @@ public:
 protected:
     bool isGpuContext() override { return true; }
     void initializeContext(int width, int height);
-    wgpu::Device createDevice(dawn_native::BackendType type);
+    wgpu::Device createDevice(wgpu::BackendType type);
     virtual wgpu::Device onInitializeContext() = 0;
     virtual void onDestroyContext() = 0;
     virtual void onSwapBuffers() = 0;

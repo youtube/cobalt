@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include <functional>
 
 #include "starboard/common/atomic.h"
@@ -40,7 +42,7 @@ class TestRunThread : public Thread {
 // Start(), and will exit on Join().
 TEST(Thread, TestRunThread) {
   TestRunThread test_thread;
-  SbThreadSleep(100);
+  usleep(100);
   // Expect that test thread not in a run state when initialized.
   EXPECT_FALSE(test_thread.finished_.load());
   EXPECT_FALSE(test_thread.join_called());

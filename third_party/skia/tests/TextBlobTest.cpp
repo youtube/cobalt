@@ -154,7 +154,6 @@ public:
         {
             // Exercise the empty bounds path, and ensure that RunRecord-aligned pos buffers
             // don't trigger asserts (http://crbug.com/542643).
-            SkFont font;
             font.setSize(0);
 
             const char* txt = "BOOO";
@@ -228,13 +227,8 @@ private:
                                const RunDef out[], unsigned outCount) {
         SkFont font;
 
-        unsigned glyphCount = 0;
-        unsigned posCount = 0;
-
         for (unsigned i = 0; i < inCount; ++i) {
             AddRun(font, in[i].count, in[i].pos, SkPoint::Make(in[i].x, in[i].y), builder);
-            glyphCount += in[i].count;
-            posCount += in[i].count * in[i].pos;
         }
 
         sk_sp<SkTextBlob> blob(builder.make());
@@ -323,12 +317,11 @@ DEF_TEST(TextBlob_extended, reporter) {
     SkAutoTMalloc<uint16_t> glyphs(glyphCount);
     (void)font.textToGlyphs(text1, strlen(text1), SkTextEncoding::kUTF8, glyphs.get(), glyphCount);
 
-    auto run = SkTextBlobBuilderPriv::AllocRunText(&textBlobBuilder,
-            font, glyphCount, 0, 0, SkToInt(strlen(text2)), SkString(), nullptr);
+    auto run = textBlobBuilder.allocRunText(font, glyphCount, 0, 0, SkToInt(strlen(text2)));
     memcpy(run.glyphs, glyphs.get(), sizeof(uint16_t) * glyphCount);
     memcpy(run.utf8text, text2, strlen(text2));
     for (int i = 0; i < glyphCount; ++i) {
-        run.clusters[i] = SkTMin(SkToU32(i), SkToU32(strlen(text2)));
+        run.clusters[i] = std::min(SkToU32(i), SkToU32(strlen(text2)));
     }
     sk_sp<SkTextBlob> blob(textBlobBuilder.make());
     REPORTER_ASSERT(reporter, blob);

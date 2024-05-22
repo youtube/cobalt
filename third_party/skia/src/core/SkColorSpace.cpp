@@ -7,6 +7,7 @@
 
 #include "include/core/SkColorSpace.h"
 #include "include/core/SkData.h"
+#include "include/private/SkTemplates.h"
 #include "include/third_party/skcms/skcms.h"
 #include "src/core/SkColorSpacePriv.h"
 #include "src/core/SkOpts.h"
@@ -244,9 +245,9 @@ enum NamedGamma {
 
 struct ColorSpaceHeader {
     // Flag values, only used by old (k0_Version) serialization
-    static constexpr uint8_t kMatrix_Flag     = 1 << 0;
-    static constexpr uint8_t kICC_Flag        = 1 << 1;
-    static constexpr uint8_t kTransferFn_Flag = 1 << 3;
+    inline static constexpr uint8_t kMatrix_Flag     = 1 << 0;
+    inline static constexpr uint8_t kICC_Flag        = 1 << 1;
+    inline static constexpr uint8_t kTransferFn_Flag = 1 << 3;
 
     uint8_t fVersion = kCurrent_Version;
 
@@ -379,14 +380,28 @@ bool SkColorSpace::Equals(const SkColorSpace* x, const SkColorSpace* y) {
     }
 
     if (x->hash() == y->hash()) {
+    #if defined(SK_DEBUG)
+        // Do these floats function equivalently?
+        // This returns true more often than simple float comparison   (NaN vs. NaN) and,
+        // also returns true more often than simple bitwise comparison (+0 vs. -0) and,
+        // even returns true more often than those two OR'd together   (two different NaNs).
+        auto equiv = [](float X, float Y) {
+            return (X==Y)
+                || (sk_float_isnan(X) && sk_float_isnan(Y));
+        };
+
         for (int i = 0; i < 7; i++) {
-            SkASSERT((&x->fTransferFn.g)[i] == (&y->fTransferFn.g)[i] && "Hash collsion");
+            float X = (&x->fTransferFn.g)[i],
+                  Y = (&y->fTransferFn.g)[i];
+            SkASSERTF(equiv(X,Y), "Hash collision at tf[%d], !equiv(%g,%g)\n", i, X,Y);
         }
-        for (int r = 0; r < 3; r++) {
-            for (int c = 0; c < 3; ++c) {
-                SkASSERT(x->fToXYZD50.vals[r][c] == y->fToXYZD50.vals[r][c] && "Hash collsion");
-            }
+        for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++) {
+            float X = x->fToXYZD50.vals[r][c],
+                  Y = y->fToXYZD50.vals[r][c];
+            SkASSERTF(equiv(X,Y), "Hash collision at toXYZD50[%d][%d], !equiv(%g,%g)\n", r,c, X,Y);
         }
+    #endif
         return true;
     }
     return false;

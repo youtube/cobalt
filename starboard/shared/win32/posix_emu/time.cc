@@ -19,7 +19,9 @@
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
-extern "C" int gettimeofday(struct timeval* tp, void* tzp) {
+extern "C" {
+
+int gettimeofday(struct timeval* tp, void* tzp) {
   if (tp == NULL) {
     return -1;
   }
@@ -44,7 +46,7 @@ extern "C" int gettimeofday(struct timeval* tp, void* tzp) {
   return 0;
 }
 
-extern "C" int clock_gettime(clockid_t clock_id, struct timespec* tp) {
+int clock_gettime(clockid_t clock_id, struct timespec* tp) {
   // There are only Windows implementations for realtime and monotonic clocks.
   // If CLOCK_PROCESS_CPUTIME_ID or CLOCK_THREAD_CPUTIME_ID are passed in,
   // this will return -1. Code that tries to use one of those should either
@@ -97,3 +99,12 @@ extern "C" int clock_gettime(clockid_t clock_id, struct timespec* tp) {
   }
   return -1;
 }
+
+struct tm* gmtime_r(const time_t* timer, struct tm* result) {
+  if (gmtime_s(result, timer) != 0) {
+    return NULL;
+  }
+  return result;
+}
+
+}  // extern "C"

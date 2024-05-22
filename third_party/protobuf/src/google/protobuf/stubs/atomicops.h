@@ -60,7 +60,7 @@
 #include <google/protobuf/stubs/platform_macros.h>
 
 #if defined(STARBOARD)
-#include "starboard/atomic.h"
+#include "starboard/atomic.h"  // nogncheck
 #endif  // defined(STARBOARD)
 
 namespace google {

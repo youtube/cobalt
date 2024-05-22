@@ -13,22 +13,22 @@
 #include "src/core/SkWriteBuffer.h"
 #include <new>
 
-SkData::SkData(const void* ptr, size_t size, ReleaseProc proc, void* context) {
-    fPtr = const_cast<void*>(ptr);
-    fSize = size;
-    fReleaseProc = proc;
-    fReleaseProcContext = context;
-}
+SkData::SkData(const void* ptr, size_t size, ReleaseProc proc, void* context)
+    : fReleaseProc(proc)
+    , fReleaseProcContext(context)
+    , fPtr(ptr)
+    , fSize(size)
+{}
 
 /** This constructor means we are inline with our fPtr's contents.
  *  Thus we set fPtr to point right after this.
  */
-SkData::SkData(size_t size) {
-    fPtr = (char*)(this + 1);   // contents are immediately after this
-    fSize = size;
-    fReleaseProc = nullptr;
-    fReleaseProcContext = nullptr;
-}
+SkData::SkData(size_t size)
+    : fReleaseProc(nullptr)
+    , fReleaseProcContext(nullptr)
+    , fPtr((const char*)(this + 1))
+    , fSize(size)
+{}
 
 SkData::~SkData() {
     if (fReleaseProc) {
@@ -37,11 +37,13 @@ SkData::~SkData() {
 }
 
 bool SkData::equals(const SkData* other) const {
+    if (this == other) {
+        return true;
+    }
     if (nullptr == other) {
         return false;
     }
-
-    return fSize == other->fSize && !memcmp(fPtr, other->fPtr, fSize);
+    return fSize == other->fSize && !sk_careful_memcmp(fPtr, other->fPtr, fSize);
 }
 
 size_t SkData::copyRange(size_t offset, size_t length, void* buffer) const {
@@ -55,7 +57,9 @@ size_t SkData::copyRange(size_t offset, size_t length, void* buffer) const {
     }
     SkASSERT(length > 0);
 
-    memcpy(buffer, this->bytes() + offset, length);
+    if (buffer) {
+        memcpy(buffer, this->bytes() + offset, length);
+    }
     return length;
 }
 
@@ -79,7 +83,7 @@ sk_sp<SkData> SkData::PrivateNewWithCopy(const void* srcOrNull, size_t length) {
     return data;
 }
 
-void SkData::DummyReleaseProc(const void*, void*) {}
+void SkData::NoopReleaseProc(const void*, void*) {}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -109,6 +113,14 @@ sk_sp<SkData> SkData::MakeUninitialized(size_t length) {
     return PrivateNewWithCopy(nullptr, length);
 }
 
+sk_sp<SkData> SkData::MakeZeroInitialized(size_t length) {
+    auto data = MakeUninitialized(length);
+    if (length != 0) {
+        memset(data->writable_data(), 0, data->size());
+    }
+    return data;
+}
+
 sk_sp<SkData> SkData::MakeWithProc(const void* ptr, size_t length, ReleaseProc proc, void* ctx) {
     return sk_sp<SkData>(new SkData(ptr, length, proc, ctx));
 }
@@ -119,7 +131,7 @@ static void sk_mmap_releaseproc(const void* addr, void* ctx) {
     sk_fmunmap(addr, length);
 }
 
-sk_sp<SkData> SkData::MakeFromFILE(SkFile* f) {
+sk_sp<SkData> SkData::MakeFromFILE(FILE* f) {
     size_t size;
     void* addr = sk_fmmap(f, &size);
     if (nullptr == addr) {
@@ -130,7 +142,7 @@ sk_sp<SkData> SkData::MakeFromFILE(SkFile* f) {
 }
 
 sk_sp<SkData> SkData::MakeFromFileName(const char path[]) {
-    SkFile* f = path ? sk_fopen(path, kRead_SkFILE_Flag) : nullptr;
+    FILE* f = path ? sk_fopen(path, kRead_SkFILE_Flag) : nullptr;
     if (nullptr == f) {
         return nullptr;
     }

@@ -16,9 +16,8 @@
 #include "include/core/SkRect.h"
 #include "include/core/SkSurface.h"
 #include "include/effects/SkDashPathEffect.h"
-#include "include/gpu/GrContext.h"
-#include "src/gpu/GrPath.h"
-#include "src/gpu/geometry/GrShape.h"
+#include "include/gpu/GrDirectContext.h"
+#include "src/gpu/geometry/GrStyledShape.h"
 #include "tests/Test.h"
 
 #include <initializer_list>
@@ -79,7 +78,7 @@ DEF_GPUTEST_FOR_ALL_GL_CONTEXTS(GpuDrawPath, reporter, ctxInfo) {
         for (auto& sampleCount : {1, 4, 16}) {
             SkImageInfo info = SkImageInfo::MakeN32Premul(255, 255);
             auto surface(
-                SkSurface::MakeRenderTarget(ctxInfo.grContext(), SkBudgeted::kNo, info,
+                SkSurface::MakeRenderTarget(ctxInfo.directContext(), SkBudgeted::kNo, info,
                                             sampleCount, nullptr));
             if (!surface) {
                 continue;
@@ -94,7 +93,7 @@ DEF_GPUTEST_FOR_ALL_CONTEXTS(GrDrawCollapsedPath, reporter, ctxInfo) {
     // path to be accepted by AAConvexPathRenderer, then be transformed to something without a
     // computable first direction by a perspective matrix.
     SkImageInfo info = SkImageInfo::MakeN32Premul(100, 100);
-    auto surface(SkSurface::MakeRenderTarget(ctxInfo.grContext(), SkBudgeted::kNo, info));
+    auto surface(SkSurface::MakeRenderTarget(ctxInfo.directContext(), SkBudgeted::kNo, info));
 
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -111,78 +110,23 @@ DEF_GPUTEST_FOR_ALL_CONTEXTS(GrDrawCollapsedPath, reporter, ctxInfo) {
              -8.94321693e-06f, -0.00173384184f, 0.998692870f);
     surface->getCanvas()->setMatrix(m);
     surface->getCanvas()->drawPath(path, paint);
-    surface->flush();
+    surface->flushAndSubmit();
 }
 
-DEF_GPUTEST(GrPathKeys, reporter, /* options */) {
-    SkPaint strokePaint;
-    strokePaint.setStyle(SkPaint::kStroke_Style);
-    strokePaint.setStrokeWidth(10.f);
-    GrStyle styles[] = {
-        GrStyle::SimpleFill(),
-        GrStyle::SimpleHairline(),
-        GrStyle(strokePaint)
-    };
+DEF_GPUTEST_FOR_ALL_CONTEXTS(PathTest_CrBug1232834, reporter, ctxInfo) {
+    // AAHairlinePathRenderer chops this path to quads that include infinities (and then NaNs).
+    // It used to trigger asserts, now the degenerate quad segments should cause it to be rejected.
+    SkImageInfo info = SkImageInfo::MakeN32Premul(256, 256);
+    auto surface(SkSurface::MakeRenderTarget(ctxInfo.directContext(), SkBudgeted::kNo, info));
 
-    for (const GrStyle& style : styles) {
-        // Keys should not ignore conic weights.
-        SkPath path1, path2;
-        SkPoint p0 = SkPoint::Make(100, 0);
-        SkPoint p1 = SkPoint::Make(100, 100);
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setStyle(SkPaint::kStroke_Style);
 
-        path1.conicTo(p0, p1, .5f);
-        path2.conicTo(p0, p1, .7f);
+    SkPath path;
+    path.moveTo(9.0072E15f, 60);
+    path.cubicTo(0, 3.40282e+38f, 0, 3.40282e+38f, 0, 0);
 
-        GrUniqueKey key1, key2;
-        // We expect these small paths to be keyed based on their data.
-        bool isVolatile;
-        GrPath::ComputeKey(GrShape(path1, GrStyle::SimpleFill()), &key1, &isVolatile);
-        REPORTER_ASSERT(reporter, !isVolatile);
-        REPORTER_ASSERT(reporter, key1.isValid());
-        GrPath::ComputeKey(GrShape(path2, GrStyle::SimpleFill()), &key2, &isVolatile);
-        REPORTER_ASSERT(reporter, !isVolatile);
-        REPORTER_ASSERT(reporter, key1.isValid());
-        REPORTER_ASSERT(reporter, key1 != key2);
-        {
-            GrUniqueKey tempKey;
-            path1.setIsVolatile(true);
-            GrPath::ComputeKey(GrShape(path1, style), &key1, &isVolatile);
-            REPORTER_ASSERT(reporter, isVolatile);
-            REPORTER_ASSERT(reporter, !tempKey.isValid());
-        }
-
-        // Ensure that recreating the GrShape doesn't change the key.
-        {
-            GrUniqueKey tempKey;
-            GrPath::ComputeKey(GrShape(path2, GrStyle::SimpleFill()), &tempKey, &isVolatile);
-            REPORTER_ASSERT(reporter, key2 == tempKey);
-        }
-
-        // Try a large path that is too big to be keyed off its data.
-        SkPath path3;
-        SkPath path4;
-        for (int i = 0; i < 1000; ++i) {
-            SkScalar s = SkIntToScalar(i);
-            path3.conicTo(s, 3.f * s / 4, s + 1.f, s, 0.5f + s / 2000.f);
-            path4.conicTo(s, 3.f * s / 4, s + 1.f, s, 0.3f + s / 2000.f);
-        }
-
-        GrUniqueKey key3, key4;
-        // These aren't marked volatile and so should have keys
-        GrPath::ComputeKey(GrShape(path3, style), &key3, &isVolatile);
-        REPORTER_ASSERT(reporter, !isVolatile);
-        REPORTER_ASSERT(reporter, key3.isValid());
-        GrPath::ComputeKey(GrShape(path4, style), &key4, &isVolatile);
-        REPORTER_ASSERT(reporter, !isVolatile);
-        REPORTER_ASSERT(reporter, key4.isValid());
-        REPORTER_ASSERT(reporter, key3 != key4);
-
-        {
-            GrUniqueKey tempKey;
-            path3.setIsVolatile(true);
-            GrPath::ComputeKey(GrShape(path3, style), &key1, &isVolatile);
-            REPORTER_ASSERT(reporter, isVolatile);
-            REPORTER_ASSERT(reporter, !tempKey.isValid());
-        }
-    }
+    surface->getCanvas()->drawPath(path, paint);
+    surface->flushAndSubmit();
 }

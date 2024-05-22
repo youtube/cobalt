@@ -24,8 +24,10 @@
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/elf_loader/lz4_file_impl.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
+#include "starboard/system.h"
 
 namespace starboard {
 namespace elf_loader {
@@ -42,9 +44,14 @@ bool EndsWith(const std::string& s, const std::string& suffix) {
 }  // namespace
 
 ElfLoaderImpl::ElfLoaderImpl() {
+#if SB_API_VERSION >= 16
+  SB_CHECK(kSbCanMapExecutableMemory)
+      << "Elf_loader requires executable memory support!";
+#else
 #if !SB_CAN(MAP_EXECUTABLE_MEMORY)
   SB_CHECK(false) << "The elf_loader requires "
                      "executable memory map support!";
+#endif
 #endif
 }
 
@@ -160,6 +167,21 @@ bool ElfLoaderImpl::Load(const char* name,
   }
 
   SB_DLOG(INFO) << "Applied relocations";
+
+  auto metrics_extension =
+      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
+          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
+  if (metrics_extension &&
+      strcmp(metrics_extension->name,
+             kStarboardExtensionLoaderAppMetricsName) == 0 &&
+      metrics_extension->version >= 2) {
+    // CPU memory use is likely the highest at this point of the ELF loading
+    // process, and observations support this. This value is therefore recorded
+    // here in an attempt to efficiently approximate the maximum CPU memory used
+    // at any point during loading of the ELF dynamic shared library.
+    metrics_extension->RecordUsedCpuBytesDuringElfLoad(
+        SbSystemGetUsedCPUMemory());
+  }
 
   program_table_->PublishEvergreenInfo(name);
   SB_DLOG(INFO) << "Published Evergreen Info";

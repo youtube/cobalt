@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
+// TODO: make `join_view` non-experimental once D2770 is implemented.
+// UNSUPPORTED: !c++experimental
 
 #include <algorithm>
 #include <array>
@@ -98,7 +100,7 @@ int main(int, char**) {
     test_containers<std::vector<int>, std::vector<int>>();
   }
 
-  meta::for_each(meta::forward_iterator_list<int*>{}, []<class Iter> {
+  types::for_each(types::forward_iterator_list<int*>{}, []<class Iter> {
     test_join_view<Iter, Iter>();
     test_join_view<Iter, sentinel_wrapper<Iter>>();
     test_join_view<Iter, sized_sentinel<Iter>>();

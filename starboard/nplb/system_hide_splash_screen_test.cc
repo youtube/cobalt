@@ -15,8 +15,9 @@
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
 
+#include <pthread.h>
+
 #include "starboard/system.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -24,6 +25,7 @@ namespace nplb {
 namespace {
 
 void* ThreadFunc(void* context) {
+  pthread_setname_np(pthread_self(), "HideSplashTest");
   SbSystemHideSplashScreen();
   return NULL;
 }
@@ -38,12 +40,10 @@ TEST(SbSystemHideSplashScreenTest, SunnyDay) {
 
 TEST(SbSystemHideSplashScreenTest, SunnyDayNewThread) {
   // We should be able to call the function from any thread.
-  const char kThreadName[] = "HideSplashTest";
-  SbThread thread = SbThreadCreate(0 /*stack_size*/, kSbThreadPriorityNormal,
-                                   kSbThreadNoAffinity, true /*joinable*/,
-                                   kThreadName, ThreadFunc, NULL /*context*/);
-  EXPECT_TRUE(SbThreadIsValid(thread));
-  SbThreadJoin(thread, NULL /*out_return*/);
+  pthread_t thread = 0;
+  pthread_create(&thread, nullptr, ThreadFunc, nullptr);
+  EXPECT_TRUE(thread != 0);
+  pthread_join(thread, NULL /*out_return*/);
 }
 
 }  // namespace

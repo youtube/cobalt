@@ -89,6 +89,12 @@ bar:
 # WAS .sleb128 .L2-.L1
 	.sleb128	.L2_BCM_1-.L1_BCM_1
 
+# .byte was not parsed as a symbol-containing directive on the
+# assumption that it's too small to hold a pointer. But Clang
+# will store offsets in it.
+# WAS .byte   (.LBB231_40-.LBB231_19)>>2, 4, .Lfoo, (.Lfoo), .Lfoo<<400, (   .Lfoo ) <<  66
+	.byte	(.LBB231_40_BCM_1-.LBB231_19_BCM_1)>>2, 4, .Lfoo_BCM_1, (.Lfoo_BCM_1), .Lfoo_BCM_1<<400, (   .Lfoo_BCM_1 ) <<  66
+.byte   421
 .text
 .loc 1 2 0
 BORINGSSL_bcm_text_end:
@@ -107,7 +113,7 @@ OPENSSL_ia32cap_get:
 OPENSSL_ia32cap_addr_delta:
 .quad OPENSSL_ia32cap_P-OPENSSL_ia32cap_addr_delta
 .type BORINGSSL_bcm_text_hash, @object
-.size BORINGSSL_bcm_text_hash, 64
+.size BORINGSSL_bcm_text_hash, 32
 BORINGSSL_bcm_text_hash:
 .byte 0xae
 .byte 0x2c
@@ -141,35 +147,3 @@ BORINGSSL_bcm_text_hash:
 .byte 0xff
 .byte 0x31
 .byte 0x80
-.byte 0xa2
-.byte 0xd4
-.byte 0xc3
-.byte 0x66
-.byte 0xf
-.byte 0xc2
-.byte 0x6a
-.byte 0x7b
-.byte 0xf4
-.byte 0xbe
-.byte 0x39
-.byte 0xa2
-.byte 0xd7
-.byte 0x25
-.byte 0xdb
-.byte 0x21
-.byte 0x98
-.byte 0xe9
-.byte 0xd5
-.byte 0x53
-.byte 0xbf
-.byte 0x5c
-.byte 0x32
-.byte 0x6
-.byte 0x83
-.byte 0x34
-.byte 0xc
-.byte 0x65
-.byte 0x89
-.byte 0x52
-.byte 0xbd
-.byte 0x1f

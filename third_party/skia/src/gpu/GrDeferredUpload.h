@@ -25,8 +25,8 @@ class GrTextureProxy;
  * Ops, in conjunction with helpers such as GrDrawOpAtlas, use upload tokens to know what the most
  * recent draw was that referenced a resource (or portion of a resource). Each draw is assigned a
  * token. A resource (or portion thereof) can be tagged with the most recent reading draw's token.
- * The deferred uploads target provides a facility for testing whether the draw corresponding to the
- * token has been flushed. If it has not been flushed then the op must perform an inline upload
+ * The deferred upload's target provides a facility for testing whether the draw corresponding to
+ * the token has been flushed. If it has not been flushed then the op must perform an inline upload
  * instead so that the upload occurs after the draw depending on the old contents and before the
  * draw depending on the updated contents. When scheduling an inline upload the op provides the
  * token of the draw that the upload must occur before.
@@ -115,9 +115,11 @@ private:
  * Passed to a deferred upload when it is executed, this method allows the deferred upload to
  * actually write its pixel data into a texture.
  */
-using GrDeferredTextureUploadWritePixelsFn =
-        std::function<bool(GrTextureProxy*, int left, int top, int width, int height,
-                           GrColorType srcColorType, const void* buffer, size_t rowBytes)>;
+using GrDeferredTextureUploadWritePixelsFn = std::function<bool(GrTextureProxy*,
+                                                                SkIRect,
+                                                                GrColorType srcColorType,
+                                                                const void*,
+                                                                size_t rowBytes)>;
 
 /**
  * A deferred texture upload is simply a std::function that takes a

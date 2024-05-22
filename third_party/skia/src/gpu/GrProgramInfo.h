@@ -9,131 +9,110 @@
 #define GrProgramInfo_DEFINED
 
 #include "include/gpu/GrTypes.h"
+#include "src/gpu/GrGeometryProcessor.h"
 #include "src/gpu/GrPipeline.h"
-#include "src/gpu/GrPrimitiveProcessor.h"
 
-class GrMesh;
 class GrStencilSettings;
 
 class GrProgramInfo {
 public:
-    GrProgramInfo(int numSamples,
-                  int numStencilSamples,
-                  const GrBackendFormat& backendFormat,
-                  GrSurfaceOrigin origin,
+    GrProgramInfo(const GrCaps& caps,
+                  const GrSurfaceProxyView& targetView,
+                  bool usesMSAASurface,
                   const GrPipeline* pipeline,
-                  const GrPrimitiveProcessor* primProc,
-                  const GrPipeline::FixedDynamicState* fixedDynamicState,
-                  const GrPipeline::DynamicStateArrays* dynamicStateArrays,
-                  int numDynamicStateArrays,
-                  GrPrimitiveType primitiveType)
-            : fNumRasterSamples(pipeline->isStencilEnabled() ? numStencilSamples : numSamples)
-            , fIsMixedSampled(fNumRasterSamples > numSamples)
-            , fBackendFormat(backendFormat)
-            , fOrigin(origin)
+                  const GrUserStencilSettings* userStencilSettings,
+                  const GrGeometryProcessor* geomProc,
+                  GrPrimitiveType primitiveType,
+                  uint8_t tessellationPatchVertexCount,
+                  GrXferBarrierFlags renderPassXferBarriers,
+                  GrLoadOp colorLoadOp)
+            : fNeedsStencil(targetView.asRenderTargetProxy()->needsStencil())
+            , fBackendFormat(targetView.proxy()->backendFormat())
+            , fOrigin(targetView.origin())
+            , fTargetHasVkResolveAttachmentWithInput(
+                    targetView.asRenderTargetProxy()->supportsVkInputAttachment() &&
+                    ((targetView.asRenderTargetProxy()->numSamples() > 1 &&
+                     targetView.asTextureProxy()) ||
+                    targetView.asRenderTargetProxy()->numSamples() == 1))
+            , fTargetsNumSamples(targetView.asRenderTargetProxy()->numSamples())
             , fPipeline(pipeline)
-            , fPrimProc(primProc)
-            , fFixedDynamicState(fixedDynamicState)
-            , fDynamicStateArrays(dynamicStateArrays)
-            , fNumDynamicStateArrays(numDynamicStateArrays)
-            , fPrimitiveType(primitiveType) {
-        SkASSERT(fNumRasterSamples > 0);
-        fRequestedFeatures = fPrimProc->requestedFeatures();
-        for (int i = 0; i < fPipeline->numFragmentProcessors(); ++i) {
-            fRequestedFeatures |= fPipeline->getFragmentProcessor(i).requestedFeatures();
+            , fUserStencilSettings(userStencilSettings)
+            , fGeomProc(geomProc)
+            , fPrimitiveType(primitiveType)
+            , fTessellationPatchVertexCount(tessellationPatchVertexCount)
+            , fRenderPassXferBarriers(renderPassXferBarriers)
+            , fColorLoadOp(colorLoadOp) {
+        SkASSERT(fTargetsNumSamples > 0);
+        fNumSamples = fTargetsNumSamples;
+        if (fNumSamples == 1 && usesMSAASurface) {
+            fNumSamples = caps.internalMultisampleCount(this->backendFormat());
         }
-        fRequestedFeatures |= fPipeline->getXferProcessor().requestedFeatures();
-
+        SkASSERT((GrPrimitiveType::kPatches == fPrimitiveType) ==
+                 (fTessellationPatchVertexCount > 0));
         SkDEBUGCODE(this->validate(false);)
-        (void) fNumDynamicStateArrays;  // touch this to quiet unused member warnings
     }
 
-    GrProcessor::CustomFeatures requestedFeatures() const { return fRequestedFeatures; }
-
-    int numRasterSamples() const { return fNumRasterSamples;  }
-    bool isMixedSampled() const { return fIsMixedSampled; }
+    int numSamples() const { return fNumSamples; }
+    int needsStencil() const { return fNeedsStencil; }
+    bool isStencilEnabled() const {
+        return fUserStencilSettings != &GrUserStencilSettings::kUnused ||
+               fPipeline->hasStencilClip();
+    }
+    const GrUserStencilSettings* userStencilSettings() const { return fUserStencilSettings; }
     // The backend format of the destination render target [proxy]
     const GrBackendFormat& backendFormat() const { return fBackendFormat; }
-    GrSurfaceOrigin origin() const { return fOrigin;  }
+    GrSurfaceOrigin origin() const { return fOrigin; }
     const GrPipeline& pipeline() const { return *fPipeline; }
-    const GrPrimitiveProcessor& primProc() const { return *fPrimProc; }
-    const GrPipeline::FixedDynamicState* fixedDynamicState() const { return fFixedDynamicState; }
-
-    bool hasDynamicScissors() const {
-        return fPipeline->isScissorEnabled() &&
-               fDynamicStateArrays && fDynamicStateArrays->fScissorRects;
-    }
-
-    const SkIRect& dynamicScissor(int i) const {
-        SkASSERT(this->hasDynamicScissors());
-
-        return fDynamicStateArrays->fScissorRects[i];
-    }
-
-    bool hasFixedScissor() const { return fPipeline->isScissorEnabled() && fFixedDynamicState; }
-
-    const SkIRect& fixedScissor() const {
-        SkASSERT(this->hasFixedScissor());
-
-        return fFixedDynamicState->fScissorRect;
-    }
-
-    bool hasDynamicPrimProcTextures() const {
-        return fDynamicStateArrays && fDynamicStateArrays->fPrimitiveProcessorTextures;
-    }
-
-    const GrSurfaceProxy* const* dynamicPrimProcTextures(int i) const {
-        SkASSERT(this->hasDynamicPrimProcTextures());
-        SkASSERT(i < fNumDynamicStateArrays);
-
-        return fDynamicStateArrays->fPrimitiveProcessorTextures +
-                                                                i * fPrimProc->numTextureSamplers();
-    }
-
-    bool hasFixedPrimProcTextures() const {
-        return fFixedDynamicState && fFixedDynamicState->fPrimitiveProcessorTextures;
-    }
-
-    const GrSurfaceProxy* const* fixedPrimProcTextures() const {
-        SkASSERT(this->hasFixedPrimProcTextures());
-
-        return fFixedDynamicState->fPrimitiveProcessorTextures;
-    }
+    const GrGeometryProcessor& geomProc() const { return *fGeomProc; }
 
     GrPrimitiveType primitiveType() const { return fPrimitiveType; }
+    uint8_t tessellationPatchVertexCount() const {
+        SkASSERT(GrPrimitiveType::kPatches == fPrimitiveType);
+        return fTessellationPatchVertexCount;
+    }
+
+    bool targetHasVkResolveAttachmentWithInput() const {
+        return fTargetHasVkResolveAttachmentWithInput;
+    }
+
+    int targetsNumSamples() const { return fTargetsNumSamples; }
+
+    GrXferBarrierFlags renderPassBarriers() const { return fRenderPassXferBarriers; }
+
+    GrLoadOp colorLoadOp() const { return fColorLoadOp; }
+
+    uint16_t primitiveTypeKey() const {
+        return ((uint16_t)fPrimitiveType << 8) | fTessellationPatchVertexCount;
+    }
 
     // For Dawn, Metal and Vulkan the number of stencil bits is known a priori so we can
     // create the stencil settings here.
     GrStencilSettings nonGLStencilSettings() const;
 
-    void visitProxies(const GrOp::VisitProxyFunc& fn) const {
-        fPipeline->visitProxies(fn);
-    }
+    // Invokes the visitor function on all FP proxies in the pipeline. The caller is responsible
+    // to call the visitor on its own primProc proxies.
+    void visitFPProxies(const GrVisitProxyFunc& func) const { fPipeline->visitProxies(func); }
 
 #ifdef SK_DEBUG
     void validate(bool flushTime) const;
     void checkAllInstantiated() const;
     void checkMSAAAndMIPSAreResolved() const;
-    void compatibleWithMeshes(const GrMesh meshes[], int meshCount) const;
-
-    bool isNVPR() const {
-        return fPrimProc->isPathRendering() && !fPrimProc->willUseGeoShader() &&
-               !fPrimProc->numVertexAttributes() && !fPrimProc->numInstanceAttributes();
-    }
 #endif
 
 private:
-    const int                             fNumRasterSamples;
-    const bool                            fIsMixedSampled;
-    const GrBackendFormat                 fBackendFormat;
-    const GrSurfaceOrigin                 fOrigin;
+    int                                   fNumSamples;
+    bool                                  fNeedsStencil;
+    GrBackendFormat                       fBackendFormat;
+    GrSurfaceOrigin                       fOrigin;
+    bool                                  fTargetHasVkResolveAttachmentWithInput;
+    int                                   fTargetsNumSamples;
     const GrPipeline*                     fPipeline;
-    const GrPrimitiveProcessor*           fPrimProc;
-    const GrPipeline::FixedDynamicState*  fFixedDynamicState;
-    const GrPipeline::DynamicStateArrays* fDynamicStateArrays;
-    const int                             fNumDynamicStateArrays;
-    GrProcessor::CustomFeatures           fRequestedFeatures;
+    const GrUserStencilSettings*          fUserStencilSettings;
+    const GrGeometryProcessor*            fGeomProc;
     GrPrimitiveType                       fPrimitiveType;
+    uint8_t                               fTessellationPatchVertexCount;  // GrPrimType::kPatches.
+    GrXferBarrierFlags                    fRenderPassXferBarriers;
+    GrLoadOp                              fColorLoadOp;
 };
 
 #endif

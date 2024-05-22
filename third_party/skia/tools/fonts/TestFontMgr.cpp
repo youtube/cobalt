@@ -18,11 +18,11 @@
 
 namespace {
 
-#include "test_font_monospace.inc"
-#include "test_font_sans_serif.inc"
-#include "test_font_serif.inc"
+#include "tools/fonts/test_font_monospace.inc"
+#include "tools/fonts/test_font_sans_serif.inc"
+#include "tools/fonts/test_font_serif.inc"
 
-#include "test_font_index.inc"
+#include "tools/fonts/test_font_index.inc"
 
 class FontStyleSet final : public SkFontStyleSet {
 public:
@@ -95,7 +95,7 @@ public:
                 }
             }
         }
-#ifdef SK_XML
+#if defined(SK_ENABLE_SVG)
         fFamilies.emplace_back(sk_make_sp<FontStyleSet>("Emoji"));
         fFamilies.back()->fTypefaces.emplace_back(
                 TestSVGTypeface::Default(), SkFontStyle::Normal(), "Normal");
@@ -128,7 +128,7 @@ public:
             if (strstr(familyName, "erif")) {
                 return this->createStyleSet(2);
             }
-#ifdef SK_XML
+#if defined(SK_ENABLE_SVG)
             if (strstr(familyName, "oji")) {
                 return this->createStyleSet(6);
             }
@@ -157,12 +157,6 @@ public:
         return this->matchFamilyStyle(familyName, style);
     }
 
-    SkTypeface* onMatchFaceStyle(const SkTypeface* tf, const SkFontStyle& style) const override {
-        SkString familyName;
-        tf->getFamilyName(&familyName);
-        return this->matchFamilyStyle(familyName.c_str(), style);
-    }
-
     sk_sp<SkTypeface> onMakeFromData(sk_sp<SkData>, int ttcIndex) const override { return nullptr; }
     sk_sp<SkTypeface> onMakeFromStreamIndex(std::unique_ptr<SkStreamAsset>,
                                             int ttcIndex) const override {
@@ -170,9 +164,6 @@ public:
     }
     sk_sp<SkTypeface> onMakeFromStreamArgs(std::unique_ptr<SkStreamAsset>,
                                            const SkFontArguments&) const override {
-        return nullptr;
-    }
-    sk_sp<SkTypeface> onMakeFromFontData(std::unique_ptr<SkFontData>) const override {
         return nullptr;
     }
     sk_sp<SkTypeface> onMakeFromFile(const char path[], int ttcIndex) const override {

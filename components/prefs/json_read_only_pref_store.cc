@@ -11,16 +11,15 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
+#include "base/logging.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/task_runner_util.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/values.h"
 #include "components/prefs/pref_filter.h"
 
@@ -78,8 +77,7 @@ PersistentPrefStore::PrefReadError HandleReadErrors(
         // TODO(erikkay) if we keep this error checking for very long, we may
         // want to differentiate between recent and long ago errors.
         bool bad_existed = base::PathExists(bad);
-        base::CopyFile(path, bad);
-        base::DeleteFile(path, false);
+        base::Move(path, bad);
         return bad_existed ? PersistentPrefStore::PREF_READ_ERROR_JSON_REPEAT
                            : PersistentPrefStore::PREF_READ_ERROR_JSON_PARSE;
     }
@@ -133,7 +131,6 @@ JsonReadOnlyPrefStore::JsonReadOnlyPrefStore(
     scoped_refptr<base::SequencedTaskRunner> file_task_runner)
     : path_(pref_filename),
       file_task_runner_(std::move(file_task_runner)),
-      prefs_(new base::DictionaryValue()),
       pref_filter_(std::move(pref_filter)),
       initialized_(false),
       filtering_in_progress_(false),
@@ -145,8 +142,8 @@ bool JsonReadOnlyPrefStore::GetValue(const std::string& key,
                                      const base::Value** result) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  base::Value* tmp = nullptr;
-  if (!prefs_->Get(key, &tmp))
+  const base::Value* tmp = prefs_.FindByDottedPath(key);
+  if (!tmp)
     return false;
 
   if (result)
@@ -154,9 +151,9 @@ bool JsonReadOnlyPrefStore::GetValue(const std::string& key,
   return true;
 }
 
-std::unique_ptr<base::DictionaryValue> JsonReadOnlyPrefStore::GetValues()
+base::Value::Dict JsonReadOnlyPrefStore::GetValues()
     const {
-  return prefs_->CreateDeepCopy();
+  return prefs_.Clone();
 }
 
 void JsonReadOnlyPrefStore::AddObserver(PrefStore::Observer* observer) {
@@ -173,8 +170,7 @@ void JsonReadOnlyPrefStore::RemoveObserver(PrefStore::Observer* observer) {
 
 bool JsonReadOnlyPrefStore::HasObservers() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  return observers_.might_have_observers();
+  return !observers_.empty();
 }
 
 bool JsonReadOnlyPrefStore::IsInitializationComplete() const {
@@ -187,17 +183,23 @@ bool JsonReadOnlyPrefStore::GetMutableValue(const std::string& key,
                                             base::Value** result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  return prefs_->Get(key, result);
+  base::Value* tmp = prefs_.FindByDottedPath(key);
+  if (!tmp)
+    return false;
+
+  if (result)
+    *result = tmp;
+  return true;
 }
 
 void JsonReadOnlyPrefStore::SetValue(const std::string& key,
-                                     std::unique_ptr<base::Value> value,
+                                     base::Value value,
                                      uint32_t flags) {
   NOTIMPLEMENTED();
 }
 
 void JsonReadOnlyPrefStore::SetValueSilently(const std::string& key,
-                                             std::unique_ptr<base::Value> value,
+                                             base::Value value,
                                              uint32_t flags) {
   NOTIMPLEMENTED();
 }
@@ -232,9 +234,9 @@ void JsonReadOnlyPrefStore::ReadPrefsAsync(ReadErrorDelegate* error_delegate) {
   error_delegate_.reset(error_delegate);
 
   // Weakly binds the read task so that it doesn't kick in during shutdown.
-  base::PostTaskAndReplyWithResult(
-      file_task_runner_.get(), FROM_HERE, base::Bind(&ReadPrefsFromDisk, path_),
-      base::Bind(&JsonReadOnlyPrefStore::OnFileRead, AsWeakPtr()));
+  file_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE, base::BindOnce(&ReadPrefsFromDisk, path_),
+      base::BindOnce(&JsonReadOnlyPrefStore::OnFileRead, AsWeakPtr()));
 }
 
 void JsonReadOnlyPrefStore::CommitPendingWrite(
@@ -267,8 +269,7 @@ void JsonReadOnlyPrefStore::OnFileRead(
 
   DCHECK(read_result);
 
-  std::unique_ptr<base::DictionaryValue> unfiltered_prefs(
-      new base::DictionaryValue);
+  base::Value::Dict unfiltered_prefs;
 
   read_error_ = read_result->error;
 
@@ -284,8 +285,8 @@ void JsonReadOnlyPrefStore::OnFileRead(
         break;
       case PREF_READ_ERROR_NONE:
         DCHECK(read_result->value);
-        unfiltered_prefs.reset(
-            static_cast<base::DictionaryValue*>(read_result->value.release()));
+        DCHECK(read_result->value->is_dict());
+        unfiltered_prefs = std::move(*read_result->value).TakeDict();
         break;
       case PREF_READ_ERROR_NO_FILE:
 
@@ -306,10 +307,10 @@ void JsonReadOnlyPrefStore::OnFileRead(
 
   if (pref_filter_) {
     filtering_in_progress_ = true;
-    const PrefFilter::PostFilterOnLoadCallback post_filter_on_load_callback(
-        base::Bind(&JsonReadOnlyPrefStore::FinalizeFileRead, AsWeakPtr(),
-                   initialization_successful));
-    pref_filter_->FilterOnLoad(post_filter_on_load_callback,
+    PrefFilter::PostFilterOnLoadCallback post_filter_on_load_callback(
+        base::BindOnce(&JsonReadOnlyPrefStore::FinalizeFileRead, AsWeakPtr(),
+                       initialization_successful));
+    pref_filter_->FilterOnLoad(std::move(post_filter_on_load_callback),
                                std::move(unfiltered_prefs));
   } else {
     FinalizeFileRead(initialization_successful, std::move(unfiltered_prefs),
@@ -319,7 +320,7 @@ void JsonReadOnlyPrefStore::OnFileRead(
 
 void JsonReadOnlyPrefStore::FinalizeFileRead(
     bool initialization_successful,
-    std::unique_ptr<base::DictionaryValue> prefs,
+    base::Value::Dict prefs,
     bool schedule_write) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 

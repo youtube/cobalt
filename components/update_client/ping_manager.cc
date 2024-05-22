@@ -15,7 +15,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/macros.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/update_client/component.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/protocol_definition.h"
@@ -58,7 +58,7 @@ class PingSender : public base::RefCountedThreadSafe<PingSender> {
                         const std::string& response,
                         int retry_after_sec);
 
-  THREAD_CHECKER(thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
 
   const scoped_refptr<Configurator> config_;
   Callback callback_;
@@ -70,18 +70,18 @@ class PingSender : public base::RefCountedThreadSafe<PingSender> {
 PingSender::PingSender(scoped_refptr<Configurator> config) : config_(config) {}
 
 PingSender::~PingSender() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void PingSender::SendPing(const Component& component, Callback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(STARBOARD)
   LOG(INFO) << "PingSender::SendPing";
 #endif
 
   if (component.events().empty()) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), kErrorNoEvents, ""));
     return;
   }
@@ -93,7 +93,7 @@ void PingSender::SendPing(const Component& component, Callback callback) {
     RemoveUnsecureUrls(&urls);
 
   if (urls.empty()) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), kErrorNoUrl, ""));
     return;
   }
@@ -129,7 +129,7 @@ void PingSender::Cancel() {
 void PingSender::SendPingComplete(int error,
                                   const std::string& response,
                                   int retry_after_sec) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   std::move(callback_).Run(error, response);
 }
 
@@ -154,14 +154,14 @@ void PingManager::Cancel() {
 #endif
 
 PingManager::~PingManager() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "PingManager::~PingManager";
 #endif
 }
 
 void PingManager::SendPing(const Component& component, Callback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(STARBOARD)
   LOG(INFO) << "PingManager::SendPing";

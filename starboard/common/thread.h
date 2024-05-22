@@ -18,6 +18,7 @@
 #define STARBOARD_COMMON_THREAD_H_
 
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "starboard/common/scoped_ptr.h"
@@ -32,13 +33,6 @@ class atomic_bool;
 
 class Thread {
  public:
-  struct Options {
-    Options();
-    int64_t stack_size;
-    SbThreadPriority priority_;
-    bool joinable = true;
-  };
-
   explicit Thread(const std::string& name);
   template <size_t N>
   explicit Thread(char const (&name)[N]) : Thread(std::string(name)) {
@@ -58,7 +52,7 @@ class Thread {
 
   // Called by the main thread, this will cause Run() to be invoked
   // on another thread.
-  virtual void Start(const Options& options = Options());
+  virtual void Start();
   virtual void Join();
   bool join_called() const;
 
@@ -74,7 +68,7 @@ class Thread {
   atomic_bool* joined_bool();
 
   struct Data;
-  scoped_ptr<Data> d_;
+  std::unique_ptr<Data> d_;
 
   Thread(const Thread&) = delete;
   void operator=(const Thread&) = delete;

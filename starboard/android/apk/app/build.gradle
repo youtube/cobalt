@@ -44,6 +44,7 @@ ext {
 println "TARGET: ${cobaltTarget}"
 
 android {
+    namespace "dev.cobalt.coat"
     compileSdkVersion 'android-31'
     buildToolsVersion '31.0.0'
     ndkVersion NDK_VERSION

@@ -17,15 +17,10 @@
 
 from starboard.tools import config
 
-_XB1_PACKAGE_CONFIGURATIONS = {
-    'youtube': config.GetAll(),
-    'mainappbeta': [config.Config.QA, config.Config.GOLD],
-    'youtubetv': [config.Config.QA, config.Config.GOLD]
-}
-
-
-def _GetPackageConfigurationsForPoduct(product):
-  return _XB1_PACKAGE_CONFIGURATIONS[product]
+_PACKAGE_CONFIGURATIONS = [
+    config.Config.QA,
+    config.Config.GOLD,
+]
 
 
 def DefaultPackageParameters(_, product):
@@ -35,6 +30,6 @@ def DefaultPackageParameters(_, product):
 
 def NightlyPackageParametersList(product):
   """Yield a (config, package_parameters, install_targets) tuple."""
-  for configuration in _GetPackageConfigurationsForPoduct(product):
+  for configuration in _PACKAGE_CONFIGURATIONS:
     package_parameters = DefaultPackageParameters(configuration, product)
     yield (configuration, package_parameters, None)

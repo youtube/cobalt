@@ -5,6 +5,7 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkBitmap.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkRegion.h"
 #include "include/effects/SkImageFilters.h"
@@ -36,6 +37,6 @@ DEF_TEST(FlattenableFactoryToName, r) {
     SkBitmap bm;
     bm.allocN32Pixels(8, 8);
     bm.eraseColor(SK_ColorCYAN);
-    sk_sp<SkImage> image(SkImage::MakeFromBitmap(bm));
-    test_flattenable(r, image->makeShader().get(), "SkImage::newShader()");
+    sk_sp<SkImage> image(bm.asImage());
+    test_flattenable(r, image->makeShader(SkSamplingOptions()).get(), "SkImage::newShader()");
 }

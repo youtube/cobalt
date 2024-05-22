@@ -1,5 +1,19 @@
+// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /*
- * Copyright (C) 2013 Google Inc. All Rights Reserved.
+ * Copyright (C) 2024 The Cobalt Authors. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -11,7 +25,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * Neither the name of Google Inc. nor the names of its
+ *     * Neither the name of The Cobalt Authors. nor the names of its
  * contributors may be used to endorse or promote products derived from
  * this software without specific prior written permission.
  *
@@ -28,20 +42,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #ifndef COBALT_DOM_SOURCE_BUFFER_H_
 #define COBALT_DOM_SOURCE_BUFFER_H_
 
@@ -52,9 +52,10 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
+#include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/token.h"
@@ -72,9 +73,8 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/event_target.h"
-#include "starboard/common/mutex.h"
-#include "third_party/chromium/media/base/media_tracks.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
+#include "media/base/media_tracks.h"
+#include "media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {
@@ -166,8 +166,8 @@ class SourceBuffer : public web::EventTarget {
     void TryToRunOnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
 
    private:
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner_ =
-        base::ThreadTaskRunnerHandle::Get();
+    scoped_refptr<base::SequencedTaskRunner> task_runner_ =
+        base::SequencedTaskRunner::GetCurrentDefault();
     // The access to |source_buffer_| always happens on |task_runner_|, and
     // needn't be explicitly synchronized by a mutex.
     SourceBuffer* source_buffer_;
@@ -175,7 +175,7 @@ class SourceBuffer : public web::EventTarget {
 
 
   void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
-  void ScheduleEvent(base::Token event_name);
+  void ScheduleEvent(base_token::Token event_name);
   bool PrepareAppend(size_t new_data_size,
                      script::ExceptionState* exception_state);
   void AppendBufferInternal(const unsigned char* data, size_t size,
@@ -211,7 +211,7 @@ class SourceBuffer : public web::EventTarget {
 
   SourceBufferAppendMode mode_ = kSourceBufferAppendModeSegments;
 
-  starboard::Mutex timestamp_offset_mutex_;
+  mutable base::Lock timestamp_offset_mutex_;
   double timestamp_offset_ = 0;
 
   scoped_refptr<SerializedAlgorithmRunner<SourceBufferAlgorithm>::Handle>

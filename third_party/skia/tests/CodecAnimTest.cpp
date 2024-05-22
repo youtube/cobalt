@@ -18,7 +18,6 @@
 #include "include/core/SkString.h"
 #include "include/core/SkTypes.h"
 #include "include/utils/SkAnimCodecPlayer.h"
-#include "src/core/SkMakeUnique.h"
 #include "tests/CodecPriv.h"
 #include "tests/Test.h"
 #include "tools/Resources.h"
@@ -68,6 +67,31 @@ static bool restore_previous(const SkCodec::FrameInfo& info) {
     return info.fDisposalMethod == SkCodecAnimation::DisposalMethod::kRestorePrevious;
 }
 
+namespace {
+SkString to_string(bool boolean) { return boolean ? SkString("true") : SkString("false"); }
+SkString to_string(SkCodecAnimation::Blend blend) {
+    switch (blend) {
+        case SkCodecAnimation::Blend::kSrcOver:
+            return SkString("kSrcOver");
+        case SkCodecAnimation::Blend::kSrc:
+            return SkString("kSrc");
+        default:
+            return SkString();
+    }
+}
+SkString to_string(SkIRect rect) {
+    return SkStringPrintf("{ %i, %i, %i, %i }", rect.fLeft, rect.fTop, rect.fRight, rect.fBottom);
+}
+
+template <typename T>
+void reporter_assert_equals(skiatest::Reporter* r, const char* name, int i, const char* prop,
+                            T expected, T actual) {
+    REPORTER_ASSERT(r, expected == actual, "%s's frame %i has wrong %s! expected:"
+                    " %s\tactual: %s", name, i, prop, to_string(expected).c_str(),
+                    to_string(actual).c_str());
+}
+} // namespace
+
 DEF_TEST(Codec_frames, r) {
     constexpr int kNoFrame = SkCodec::kNoFrame;
     constexpr SkAlphaType kOpaque = kOpaque_SkAlphaType;
@@ -78,6 +102,8 @@ DEF_TEST(Codec_frames, r) {
             SkCodecAnimation::DisposalMethod::kRestoreBGColor;
     constexpr SkCodecAnimation::DisposalMethod kRestorePrev =
             SkCodecAnimation::DisposalMethod::kRestorePrevious;
+    constexpr auto kSrcOver = SkCodecAnimation::Blend::kSrcOver;
+    constexpr auto kSrc     = SkCodecAnimation::Blend::kSrc;
 
     static const struct {
         const char*                                   fName;
@@ -92,13 +118,22 @@ DEF_TEST(Codec_frames, r) {
         std::vector<int>                              fDurations;
         int                                           fRepetitionCount;
         std::vector<SkCodecAnimation::DisposalMethod> fDisposalMethods;
+        std::vector<bool>                             fAlphaWithinBounds;
+        std::vector<SkCodecAnimation::Blend>          fBlends;
+        std::vector<SkIRect>                          fFrameRects;
     } gRecs[] = {
         { "images/required.gif", 7,
             { 0, 1, 2, 3, 4, 5 },
             { kOpaque, kUnpremul, kUnpremul, kUnpremul, kUnpremul, kUnpremul },
             { 100, 100, 100, 100, 100, 100, 100 },
             0,
-            { kKeep, kRestoreBG, kKeep, kKeep, kKeep, kRestoreBG, kKeep } },
+            { kKeep, kRestoreBG, kKeep, kKeep, kKeep, kRestoreBG, kKeep },
+            { false, true, true, true, true, true, true },
+            { kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver,
+              kSrcOver },
+            { {0, 0, 100, 100}, {0, 0, 75, 75}, {0, 0, 50, 50}, {0, 0, 60, 60},
+              {0, 0, 100, 100}, {0, 0, 50, 50}, {0, 0, 75, 75}},
+          },
         { "images/alphabetAnim.gif", 13,
             { kNoFrame, 0, 0, 0, 0, 5, 6, kNoFrame, kNoFrame, 9, 10, 11 },
             { kUnpremul, kUnpremul, kUnpremul, kUnpremul, kUnpremul, kUnpremul,
@@ -107,7 +142,16 @@ DEF_TEST(Codec_frames, r) {
             0,
             { kKeep, kRestorePrev, kRestorePrev, kRestorePrev, kRestorePrev,
               kRestoreBG, kKeep, kRestoreBG, kRestoreBG, kKeep, kKeep,
-              kRestoreBG, kKeep } },
+              kRestoreBG, kKeep },
+            { true, false, true, false, true, true, true, true, true, true, true, true, true },
+            { kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver,
+              kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver,
+              kSrcOver },
+            { {25, 25, 75, 75}, {25, 25, 75, 75}, {25, 25, 75, 75}, {37, 37, 62, 62},
+              {37, 37, 62, 62}, {25, 25, 75, 75}, {0, 0, 50, 50}, {0, 0, 100, 100},
+              {25, 25, 75, 75}, {25, 25, 75, 75}, {0, 0, 100, 100}, {25, 25, 75, 75},
+              {37, 37, 62, 62}},
+          },
         { "images/randPixelsAnim2.gif", 4,
             // required frames
             { 0, 0, 1 },
@@ -117,7 +161,11 @@ DEF_TEST(Codec_frames, r) {
             { 0, 1000, 170, 40 },
             // repetition count
             0,
-            { kKeep, kKeep, kRestorePrev, kKeep } },
+            { kKeep, kKeep, kRestorePrev, kKeep },
+            { false, true, false, false },
+            { kSrcOver, kSrcOver, kSrcOver, kSrcOver },
+            { {0, 0, 8, 8}, {6, 6, 8, 8}, {4, 4, 8, 8}, {7, 0, 8, 8} },
+          },
         { "images/randPixelsAnim.gif", 13,
             // required frames
             { 0, 1, 2, 3, 4, 3, 6, 7, 7, 7, 9, 9 },
@@ -129,40 +177,70 @@ DEF_TEST(Codec_frames, r) {
             0,
             { kKeep, kKeep, kKeep, kKeep, kRestoreBG, kRestoreBG, kRestoreBG,
               kRestoreBG, kRestorePrev, kRestoreBG, kRestorePrev, kRestorePrev,
-              kRestorePrev,  } },
-        { "images/box.gif", 1, {}, {}, {}, 0, { kKeep } },
-        { "images/color_wheel.gif", 1, {}, {}, {}, 0, { kKeep } },
+              kRestorePrev,  },
+            { false, true, true, false, true, true, false, false, true, true, false, false,
+              true },
+            { kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver,
+              kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver, kSrcOver,
+              kSrcOver },
+            { {4, 4, 12, 12}, {4, 4, 12, 12}, {4, 4, 12, 12}, {0, 0, 8, 8}, {8, 8, 16, 16},
+              {8, 8, 16, 16}, {8, 8, 16, 16}, {2, 2, 10, 10}, {7, 7, 15, 15}, {7, 7, 15, 15},
+              {7, 7, 15, 15}, {0, 0, 8, 8}, {14, 14, 16, 16} },
+        },
+        { "images/box.gif", 1, {}, {}, {}, 0, { kKeep }, {}, {}, {} },
+        { "images/color_wheel.gif", 1, {}, {}, {}, 0, { kKeep }, {}, {}, {} },
         { "images/test640x479.gif", 4, { 0, 1, 2 },
                 { kOpaque, kOpaque, kOpaque },
                 { 200, 200, 200, 200 },
                 SkCodec::kRepetitionCountInfinite,
-                { kKeep, kKeep, kKeep, kKeep } },
+                { kKeep, kKeep, kKeep, kKeep },
+                { false, true, true, true },
+                { kSrcOver, kSrcOver, kSrcOver, kSrcOver },
+                { {0, 0, 640, 479}, {0, 0, 640, 479}, {0, 0, 640, 479}, {0, 0, 640, 479} },
+        },
         { "images/colorTables.gif", 2, { 0 }, { kOpaque }, { 1000, 1000 }, 5,
-                { kKeep, kKeep } },
+                { kKeep, kKeep }, {false, true}, { kSrcOver, kSrcOver },
+                { {0, 0, 640, 400}, {0, 0, 640, 200}},
+        },
 
-        { "images/arrow.png",  1, {}, {}, {}, 0, {} },
-        { "images/google_chrome.ico", 1, {}, {}, {}, 0, {} },
-        { "images/brickwork-texture.jpg", 1, {}, {}, {}, 0, {} },
+        { "images/arrow.png",  1, {}, {}, {}, 0, {}, {}, {}, {} },
+        { "images/google_chrome.ico", 1, {}, {}, {}, 0, {}, {}, {}, {} },
+        { "images/brickwork-texture.jpg", 1, {}, {}, {}, 0, {}, {}, {}, {} },
 #if defined(SK_CODEC_DECODES_RAW) && (!defined(_WIN32))
-        { "images/dng_with_preview.dng", 1, {}, {}, {}, 0, {} },
+        { "images/dng_with_preview.dng", 1, {}, {}, {}, 0, {}, {}, {}, {} },
 #endif
-        { "images/mandrill.wbmp", 1, {}, {}, {}, 0, {} },
-        { "images/randPixels.bmp", 1, {}, {}, {}, 0, {} },
-        { "images/yellow_rose.webp", 1, {}, {}, {}, 0, {} },
-        { "images/webp-animated.webp", 3, { 0, 1 }, { kOpaque, kOpaque },
+        { "images/mandrill.wbmp", 1, {}, {}, {}, 0, {}, {}, {}, {} },
+        { "images/randPixels.bmp", 1, {}, {}, {}, 0, {}, {}, {}, {} },
+        { "images/yellow_rose.webp", 1, {}, {}, {}, 0, {}, {}, {}, {} },
+        { "images/stoplight.webp", 3, { 0, 1 }, { kOpaque, kOpaque },
             { 1000, 500, 1000 }, SkCodec::kRepetitionCountInfinite,
-            { kKeep, kKeep, kKeep } },
+            { kKeep, kKeep, kKeep }, {false, false, false},
+            {kSrcOver, kSrcOver, kSrcOver},
+            { {0, 0, 11, 29}, {2, 10, 9, 27}, {2, 2, 9, 18}},
+        },
         { "images/blendBG.webp", 7,
             { 0, kNoFrame, kNoFrame, kNoFrame, 4, 4 },
             { kOpaque, kOpaque, kUnpremul, kOpaque, kUnpremul, kUnpremul },
-            { 525, 500, 525, 437, 609, 729, 444 }, 7,
-            { kKeep, kKeep, kKeep, kKeep, kKeep, kKeep, kKeep } },
+            { 525, 500, 525, 437, 609, 729, 444 },
+            6,
+            { kKeep, kKeep, kKeep, kKeep, kKeep, kKeep, kKeep },
+            { false, true, false, true, false, true, true },
+            { kSrc, kSrcOver, kSrc, kSrc, kSrc, kSrc, kSrc },
+            { {0, 0, 200, 200}, {0, 0, 200, 200}, {0, 0, 200, 200}, {0, 0, 200, 200},
+              {0, 0, 200, 200}, {100, 100, 200, 200}, {100, 100, 200, 200} },
+        },
         { "images/required.webp", 7,
             { 0, 1, 1, kNoFrame, 4, 4 },
             { kOpaque, kUnpremul, kUnpremul, kOpaque, kOpaque, kOpaque },
             { 100, 100, 100, 100, 100, 100, 100 },
-            1,
-            { kKeep, kRestoreBG, kKeep, kKeep, kKeep, kRestoreBG, kKeep } },
+            0,
+            { kKeep, kRestoreBG, kKeep, kKeep, kKeep, kRestoreBG, kKeep },
+            { false, false, false, false, false, false, false },
+            { kSrc, kSrcOver, kSrcOver, kSrcOver, kSrc, kSrcOver,
+              kSrcOver },
+            { {0, 0, 100, 100}, {0, 0, 75, 75}, {0, 0, 50, 50}, {0, 0, 60, 60},
+              {0, 0, 100, 100}, {0, 0, 50, 50}, {0, 0, 75, 75}},
+          },
     };
 
     for (const auto& rec : gRecs) {
@@ -193,27 +271,27 @@ DEF_TEST(Codec_frames, r) {
 
         const int expected = rec.fFrameCount;
         if (rec.fRequiredFrames.size() + 1 != static_cast<size_t>(expected)) {
-            ERRORF(r, "'%s' has wrong number entries in fRequiredFrames; expected: %i\tactual: %i",
+            ERRORF(r, "'%s' has wrong number entries in fRequiredFrames; expected: %i\tactual: %zu",
                    rec.fName, expected - 1, rec.fRequiredFrames.size());
             continue;
         }
 
         if (expected > 1) {
             if (rec.fDurations.size() != static_cast<size_t>(expected)) {
-                ERRORF(r, "'%s' has wrong number entries in fDurations; expected: %i\tactual: %i",
+                ERRORF(r, "'%s' has wrong number entries in fDurations; expected: %i\tactual: %zu",
                        rec.fName, expected, rec.fDurations.size());
                 continue;
             }
 
             if (rec.fAlphas.size() + 1 != static_cast<size_t>(expected)) {
-                ERRORF(r, "'%s' has wrong number entries in fAlphas; expected: %i\tactual: %i",
+                ERRORF(r, "'%s' has wrong number entries in fAlphas; expected: %i\tactual: %zu",
                        rec.fName, expected - 1, rec.fAlphas.size());
                 continue;
             }
 
             if (rec.fDisposalMethods.size() != static_cast<size_t>(expected)) {
                 ERRORF(r, "'%s' has wrong number entries in fDisposalMethods; "
-                       "expected %i\tactual: %i",
+                       "expected %i\tactual: %zu",
                        rec.fName, expected, rec.fDisposalMethods.size());
                 continue;
             }
@@ -296,6 +374,16 @@ DEF_TEST(Codec_frames, r) {
                 }
 
                 REPORTER_ASSERT(r, frameInfo.fDisposalMethod == rec.fDisposalMethods[i]);
+
+                reporter_assert_equals<bool>(r, rec.fName, i, "alpha within bounds",
+                                             rec.fAlphaWithinBounds[i],
+                                             frameInfo.fHasAlphaWithinBounds);
+
+                reporter_assert_equals(r, rec.fName, i, "blend mode", rec.fBlends[i],
+                                       frameInfo.fBlend);
+
+                reporter_assert_equals(r, rec.fName, i, "frame rect", rec.fFrameRects[i],
+                                       frameInfo.fFrameRect);
             }
 
             if (TestMode::kIndividual == mode) {
@@ -389,16 +477,15 @@ DEF_TEST(Codec_frames, r) {
     }
 }
 
-// Verify that a webp image can be animated scaled down. This image has a
-// kRestoreBG frame, so it is an interesting image to test. After decoding that
+// Verify that an image can be animated scaled down. These images have a
+// kRestoreBG frame, so they are interesting to test. After decoding that
 // frame, we have to erase its rectangle. The rectangle has to be adjusted
 // based on the scaled size.
-DEF_TEST(AndroidCodec_animated, r) {
+static void test_animated_AndroidCodec(skiatest::Reporter* r, const char* file) {
     if (GetResourcePath().isEmpty()) {
         return;
     }
 
-    const char* file = "images/required.webp";
     sk_sp<SkData> data(GetResourceAsData(file));
     if (!data) {
         ERRORF(r, "Missing %s", file);
@@ -445,7 +532,7 @@ DEF_TEST(AndroidCodec_animated, r) {
             REPORTER_ASSERT(r, result == SkCodec::kSuccess);
 
             for (int y = 0; y < info.height(); ++y) {
-                if (memcmp(bm.getAddr32(0, y), bm2.getAddr32(0, y), info.minRowBytes())) {
+                if (0 != memcmp(bm.getAddr32(0, y), bm2.getAddr32(0, y), info.minRowBytes())) {
                     ERRORF(r, "pixel mismatch for sample size %i, frame %i resulting in "
                               "dimensions %i x %i line %i\n",
                               sampleSize, i, info.width(), info.height(), y);
@@ -456,35 +543,69 @@ DEF_TEST(AndroidCodec_animated, r) {
     }
 }
 
+DEF_TEST(AndroidCodec_animated, r) {
+    test_animated_AndroidCodec(r, "images/required.webp");
+}
+
+DEF_TEST(AndroidCodec_animated_gif, r) {
+    test_animated_AndroidCodec(r, "images/required.gif");
+}
+
+DEF_TEST(EncodedOriginToMatrixTest, r) {
+    // SkAnimCodecPlayer relies on the fact that these matrices are invertible.
+    for (auto origin : { kTopLeft_SkEncodedOrigin     ,
+                         kTopRight_SkEncodedOrigin    ,
+                         kBottomRight_SkEncodedOrigin ,
+                         kBottomLeft_SkEncodedOrigin  ,
+                         kLeftTop_SkEncodedOrigin     ,
+                         kRightTop_SkEncodedOrigin    ,
+                         kRightBottom_SkEncodedOrigin ,
+                         kLeftBottom_SkEncodedOrigin  }) {
+        // Arbitrary output dimensions.
+        auto matrix = SkEncodedOriginToMatrix(origin, 100, 80);
+        REPORTER_ASSERT(r, matrix.invert(nullptr));
+    }
+}
+
 DEF_TEST(AnimCodecPlayer, r) {
     static constexpr struct {
         const char* fFile;
         uint32_t    fDuration;
         SkISize     fSize;
     } gTests[] = {
-        { "images/alphabetAnim.gif", 1300, {100, 100} },
-        { "images/randPixels.gif"  ,    0, {  8,   8} },
-        { "images/randPixels.jpg"  ,    0, {  8,   8} },
-        { "images/randPixels.png"  ,    0, {  8,   8} },
+        { "images/alphabetAnim.gif"  , 1300, {100, 100} },
+        { "images/randPixels.gif"    ,    0, {  8,   8} },
+        { "images/randPixels.jpg"    ,    0, {  8,   8} },
+        { "images/randPixels.png"    ,    0, {  8,   8} },
+        { "images/stoplight.webp"    , 2500, { 11,  29} },
+        { "images/stoplight_h.webp"  , 2500, { 29,  11} },
+        { "images/orientation/1.webp",    0, {100,  80} },
+        { "images/orientation/2.webp",    0, {100,  80} },
+        { "images/orientation/3.webp",    0, {100,  80} },
+        { "images/orientation/4.webp",    0, {100,  80} },
+        { "images/orientation/5.webp",    0, {100,  80} },
+        { "images/orientation/6.webp",    0, {100,  80} },
+        { "images/orientation/7.webp",    0, {100,  80} },
+        { "images/orientation/8.webp",    0, {100,  80} },
     };
 
     for (const auto& test : gTests) {
         auto codec = SkCodec::MakeFromData(GetResourceAsData(test.fFile));
         REPORTER_ASSERT(r, codec);
 
-        auto player = skstd::make_unique<SkAnimCodecPlayer>(std::move(codec));
-        if (player->duration() != test.fDuration) {
-            printf("*** %d vs %d\n", player->duration(), test.fDuration);
-        }
+        auto player = std::make_unique<SkAnimCodecPlayer>(std::move(codec));
         REPORTER_ASSERT(r, player->duration() == test.fDuration);
+        REPORTER_ASSERT(r, player->dimensions() == test.fSize);
 
         auto f0 = player->getFrame();
         REPORTER_ASSERT(r, f0);
-        REPORTER_ASSERT(r, f0->bounds().size() == test.fSize);
+        REPORTER_ASSERT(r, f0->bounds().size() == test.fSize,
+                        "Mismatched size for initial frame of %s", test.fFile);
 
         player->seek(500);
         auto f1 = player->getFrame();
         REPORTER_ASSERT(r, f1);
-        REPORTER_ASSERT(r, f1->bounds().size() == test.fSize);
+        REPORTER_ASSERT(r, f1->bounds().size() == test.fSize,
+                        "Mismatched size for frame at 500 ms of %s", test.fFile);
     }
 }

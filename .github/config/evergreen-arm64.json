@@ -2,9 +2,9 @@
   "docker_service": "build-evergreen",
   "platforms": [
     "evergreen-arm64",
-    "evergreen-arm64-sbversion-15",
     "evergreen-arm64-sbversion-14",
-    "evergreen-arm64-sbversion-13"
+    "evergreen-arm64-sbversion-15",
+    "evergreen-arm64-sbversion-16"
   ],
   "includes": [
     {
@@ -15,14 +15,6 @@
       "extra_gn_arguments":"use_asan=false"
     },
     {
-      "name":"sbversion-15",
-      "platform":"evergreen-arm64-sbversion-15",
-      "target_platform":"evergreen-arm64",
-      "target_cpu":"target_cpu=\\\"arm64\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"15"
-    },
-    {
       "name":"sbversion-14",
       "platform":"evergreen-arm64-sbversion-14",
       "target_platform":"evergreen-arm64",
@@ -31,12 +23,20 @@
       "sb_api_version":"14"
     },
     {
-      "name":"sbversion-13",
-      "platform":"evergreen-arm64-sbversion-13",
+      "name":"sbversion-15",
+      "platform":"evergreen-arm64-sbversion-15",
       "target_platform":"evergreen-arm64",
       "target_cpu":"target_cpu=\\\"arm64\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"13"
+      "sb_api_version":"15"
+    },
+    {
+      "name":"sbversion-16",
+      "platform":"evergreen-arm64-sbversion-16",
+      "target_platform":"evergreen-arm64",
+      "target_cpu":"target_cpu=\\\"arm64\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"16"
     }
   ]
 }

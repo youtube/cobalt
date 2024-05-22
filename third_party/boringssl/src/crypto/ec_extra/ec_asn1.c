@@ -67,9 +67,9 @@
 #include "../internal.h"
 
 
-static const unsigned kParametersTag =
+static const CBS_ASN1_TAG kParametersTag =
     CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 0;
-static const unsigned kPublicKeyTag =
+static const CBS_ASN1_TAG kPublicKeyTag =
     CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 1;
 
 EC_KEY *EC_KEY_parse_private_key(CBS *cbs, const EC_GROUP *group) {
@@ -241,21 +241,6 @@ int EC_KEY_marshal_private_key(CBB *cbb, const EC_KEY *key,
   return 1;
 }
 
-// is_unsigned_integer returns one if |cbs| is a valid unsigned DER INTEGER and
-// zero otherwise.
-static int is_unsigned_integer(const CBS *cbs) {
-  if (CBS_len(cbs) == 0) {
-    return 0;
-  }
-  uint8_t byte = CBS_data(cbs)[0];
-  if ((byte & 0x80) ||
-      (byte == 0 && CBS_len(cbs) > 1 && (CBS_data(cbs)[1] & 0x80) == 0)) {
-    // Negative or not minimally-encoded.
-    return 0;
-  }
-  return 1;
-}
-
 // kPrimeFieldOID is the encoding of 1.2.840.10045.1.1.
 static const uint8_t kPrimeField[] = {0x2a, 0x86, 0x48, 0xce, 0x3d, 0x01, 0x01};
 
@@ -276,7 +261,7 @@ static int parse_explicit_prime_curve(CBS *in, CBS *out_prime, CBS *out_a,
       OPENSSL_memcmp(CBS_data(&field_type), kPrimeField, sizeof(kPrimeField)) !=
           0 ||
       !CBS_get_asn1(&field_id, out_prime, CBS_ASN1_INTEGER) ||
-      !is_unsigned_integer(out_prime) ||
+      !CBS_is_unsigned_asn1_integer(out_prime) ||
       CBS_len(&field_id) != 0 ||
       !CBS_get_asn1(&params, &curve, CBS_ASN1_SEQUENCE) ||
       !CBS_get_asn1(&curve, out_a, CBS_ASN1_OCTETSTRING) ||
@@ -286,7 +271,7 @@ static int parse_explicit_prime_curve(CBS *in, CBS *out_prime, CBS *out_a,
       CBS_len(&curve) != 0 ||
       !CBS_get_asn1(&params, &base, CBS_ASN1_OCTETSTRING) ||
       !CBS_get_asn1(&params, out_order, CBS_ASN1_INTEGER) ||
-      !is_unsigned_integer(out_order) ||
+      !CBS_is_unsigned_asn1_integer(out_order) ||
       !CBS_get_optional_asn1(&params, &cofactor, &has_cofactor,
                              CBS_ASN1_INTEGER) ||
       CBS_len(&params) != 0) {
@@ -519,7 +504,6 @@ EC_KEY *o2i_ECPublicKey(EC_KEY **keyp, const uint8_t **inp, long len) {
   ret = *keyp;
   if (ret->pub_key == NULL &&
       (ret->pub_key = EC_POINT_new(ret->group)) == NULL) {
-    OPENSSL_PUT_ERROR(EC, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
   if (!EC_POINT_oct2point(ret->group, ret->pub_key, *inp, len, NULL)) {
@@ -533,42 +517,18 @@ EC_KEY *o2i_ECPublicKey(EC_KEY **keyp, const uint8_t **inp, long len) {
 }
 
 int i2o_ECPublicKey(const EC_KEY *key, uint8_t **outp) {
-  size_t buf_len = 0;
-  int new_buffer = 0;
-
   if (key == NULL) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }
-
-  buf_len = EC_POINT_point2oct(key->group, key->pub_key, key->conv_form, NULL,
-                               0, NULL);
-
-  if (outp == NULL || buf_len == 0) {
-    // out == NULL => just return the length of the octet string
-    return buf_len;
+  CBB cbb;
+  if (!CBB_init(&cbb, 0) ||  //
+      !EC_POINT_point2cbb(&cbb, key->group, key->pub_key, key->conv_form,
+                          NULL)) {
+    CBB_cleanup(&cbb);
+    return -1;
   }
-
-  if (*outp == NULL) {
-    *outp = OPENSSL_malloc(buf_len);
-    if (*outp == NULL) {
-      OPENSSL_PUT_ERROR(EC, ERR_R_MALLOC_FAILURE);
-      return 0;
-    }
-    new_buffer = 1;
-  }
-  if (!EC_POINT_point2oct(key->group, key->pub_key, key->conv_form, *outp,
-                          buf_len, NULL)) {
-    OPENSSL_PUT_ERROR(EC, ERR_R_EC_LIB);
-    if (new_buffer) {
-      OPENSSL_free(*outp);
-      *outp = NULL;
-    }
-    return 0;
-  }
-
-  if (!new_buffer) {
-    *outp += buf_len;
-  }
-  return buf_len;
+  int ret = CBB_finish_i2d(&cbb, outp);
+  // Historically, this function used the wrong return value on error.
+  return ret > 0 ? ret : 0;
 }

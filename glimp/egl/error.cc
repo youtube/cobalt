@@ -16,24 +16,25 @@
 
 #include "glimp/egl/error.h"
 
-#include "starboard/once.h"
+#include <pthread.h>
+
 #include "starboard/thread.h"
 
 namespace glimp {
 namespace egl {
 
 namespace {
-SbOnceControl s_error_once_control = SB_ONCE_INITIALIZER;
-SbThreadLocalKey s_error_tls_key = kSbThreadLocalKeyInvalid;
+pthread_once_t s_error_once_control = PTHREAD_ONCE_INIT;
+pthread_key_t s_error_tls_key = 0;
 
 void InitializeError() {
-  s_error_tls_key = SbThreadCreateLocalKey(NULL);
+  pthread_key_create(&s_error_tls_key, NULL);
 }
 }  // namespace
 
 EGLint GetError() {
-  SbOnce(&s_error_once_control, &InitializeError);
-  void* local_value = SbThreadGetLocalValue(s_error_tls_key);
+  pthread_once(&s_error_once_control, &InitializeError);
+  void* local_value = pthread_getspecific(s_error_tls_key);
   if (local_value == NULL) {
     // The EGL error has never been set.  In this case, return EGL_SUCCESS as
     // that is the initial value for eglGetError().
@@ -45,8 +46,8 @@ EGLint GetError() {
 }
 
 void SetError(EGLint error) {
-  SbOnce(&s_error_once_control, &InitializeError);
-  SbThreadSetLocalValue(s_error_tls_key, reinterpret_cast<void*>(error));
+  pthread_once(&s_error_once_control, &InitializeError);
+  pthread_setspecific(s_error_tls_key, reinterpret_cast<void*>(error));
 }
 
 }  // namespace egl

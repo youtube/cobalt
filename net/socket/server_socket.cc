@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,17 @@ int ServerSocket::ListenWithAddressAndPort(const std::string& address_string,
     return ERR_ADDRESS_INVALID;
   }
 
-  return Listen(IPEndPoint(ip_address, port), backlog);
+  return Listen(IPEndPoint(ip_address, port), backlog,
+                /*ipv6_only=*/absl::nullopt);
+}
+
+int ServerSocket::Accept(std::unique_ptr<StreamSocket>* socket,
+                         net::CompletionOnceCallback callback,
+                         net::IPEndPoint* peer_address) {
+  if (peer_address) {
+    *peer_address = IPEndPoint();
+  }
+  return Accept(socket, std::move(callback));
 }
 
 }  // namespace net

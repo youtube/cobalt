@@ -19,21 +19,20 @@
 #include <string>
 #include <utility>
 
-#include "base/task/post_task.h"
-#include "base/task_runner_util.h"
+#include "base/task/bind_post_task.h"
+#include "base/time/time.h"
+#include "media/base/audio_codecs.h"
+#include "media/base/encryption_scheme.h"
+#include "media/base/sample_format.h"
+#include "media/base/starboard_utils.h"
+#include "media/base/video_types.h"
+#include "media/filters/h264_to_annex_b_bitstream_converter.h"
+#include "media/formats/mp4/box_definitions.h"
 #include "starboard/extension/demuxer.h"
 #include "starboard/system.h"
-#include "third_party/chromium/media/base/audio_codecs.h"
-#include "third_party/chromium/media/base/bind_to_current_loop.h"
-#include "third_party/chromium/media/base/encryption_scheme.h"
-#include "third_party/chromium/media/base/sample_format.h"
-#include "third_party/chromium/media/base/starboard_utils.h"
-#include "third_party/chromium/media/base/video_types.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/color_space.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
-#include "third_party/chromium/media/filters/h264_to_annex_b_bitstream_converter.h"
-#include "third_party/chromium/media/formats/mp4/box_definitions.h"
+#include "ui/gfx/color_space.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
@@ -136,11 +135,11 @@ class DemuxerExtensionWrapper::H264AnnexBConverter {
 
 DemuxerExtensionStream::DemuxerExtensionStream(
     CobaltExtensionDemuxer* demuxer,
-    scoped_refptr<base::SequencedTaskRunner> message_loop,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
     CobaltExtensionDemuxerVideoDecoderConfig config)
-    : demuxer_(demuxer), message_loop_(std::move(message_loop)) {
+    : demuxer_(demuxer), task_runner_(std::move(task_runner)) {
   CHECK(demuxer_);
-  CHECK(message_loop_);
+  CHECK(task_runner_);
   std::vector<uint8_t> extra_data;
   if (config.extra_data_size > 0 && config.extra_data != nullptr) {
     extra_data.assign(config.extra_data,
@@ -167,11 +166,11 @@ DemuxerExtensionStream::DemuxerExtensionStream(
 
 DemuxerExtensionStream::DemuxerExtensionStream(
     CobaltExtensionDemuxer* demuxer,
-    scoped_refptr<base::SequencedTaskRunner> message_loop,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
     CobaltExtensionDemuxerAudioDecoderConfig config)
-    : demuxer_(demuxer), message_loop_(std::move(message_loop)) {
+    : demuxer_(demuxer), task_runner_(std::move(task_runner)) {
   CHECK(demuxer_);
-  CHECK(message_loop_);
+  CHECK(task_runner_);
   std::vector<uint8_t> extra_data;
   if (config.extra_data_size > 0 && config.extra_data != nullptr) {
     extra_data.assign(config.extra_data,
@@ -189,8 +188,7 @@ DemuxerExtensionStream::DemuxerExtensionStream(
       << "Audio config is not valid!";
 }
 
-void DemuxerExtensionStream::Read(int max_number_of_buffers_to_read,
-                                  ReadCB read_cb) {
+void DemuxerExtensionStream::Read(uint32_t count, ReadCB read_cb) {
   DCHECK(!read_cb.is_null());
   base::AutoLock auto_lock(lock_);
   if (stopped_) {
@@ -293,7 +291,7 @@ void DemuxerExtensionStream::FlushBuffers() {
 }
 
 void DemuxerExtensionStream::Stop() {
-  DCHECK(message_loop_->RunsTasksInCurrentSequence());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
@@ -367,7 +365,7 @@ static int64_t CobaltExtensionDemuxerDataSource_GetSize(void* user_data) {
 
 std::unique_ptr<DemuxerExtensionWrapper> DemuxerExtensionWrapper::Create(
     DataSource* data_source,
-    scoped_refptr<base::SequencedTaskRunner> message_loop,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
     const CobaltExtensionDemuxerApi* demuxer_api) {
   if (demuxer_api == nullptr) {
     // Attempt to use the Cobalt extension.
@@ -385,8 +383,8 @@ std::unique_ptr<DemuxerExtensionWrapper> DemuxerExtensionWrapper::Create(
     return nullptr;
   }
 
-  if (!data_source || !message_loop) {
-    LOG(ERROR) << "data_source and message_loop cannot be null.";
+  if (!data_source || !task_runner) {
+    LOG(ERROR) << "data_source and task_runner cannot be null.";
     return nullptr;
   }
 
@@ -421,7 +419,7 @@ std::unique_ptr<DemuxerExtensionWrapper> DemuxerExtensionWrapper::Create(
 
   return std::unique_ptr<DemuxerExtensionWrapper>(new DemuxerExtensionWrapper(
       demuxer_api, demuxer, std::move(positional_data_source),
-      std::move(c_data_source), std::move(message_loop)));
+      std::move(c_data_source), std::move(task_runner)));
 }
 
 DemuxerExtensionWrapper::DemuxerExtensionWrapper(
@@ -429,18 +427,18 @@ DemuxerExtensionWrapper::DemuxerExtensionWrapper(
     CobaltExtensionDemuxer* demuxer,
     std::unique_ptr<PositionalDataSource> data_source,
     std::unique_ptr<CobaltExtensionDemuxerDataSource> c_data_source,
-    scoped_refptr<base::SequencedTaskRunner> message_loop)
+    scoped_refptr<base::SequencedTaskRunner> task_runner)
     : demuxer_api_(demuxer_api),
       impl_(demuxer),
       data_source_(std::move(data_source)),
       c_data_source_(std::move(c_data_source)),
       blocking_thread_("DemuxerExtensionWrapperBlockingThread"),
-      message_loop_(std::move(message_loop)) {
+      task_runner_(std::move(task_runner)) {
   CHECK(demuxer_api_);
   CHECK(impl_);
   CHECK(data_source_);
   CHECK(c_data_source_);
-  CHECK(message_loop_);
+  CHECK(task_runner_);
 }
 
 DemuxerExtensionWrapper::~DemuxerExtensionWrapper() {
@@ -468,7 +466,7 @@ std::string DemuxerExtensionWrapper::GetDisplayName() const {
 }
 void DemuxerExtensionWrapper::Initialize(DemuxerHost* host,
                                          PipelineStatusCallback status_cb) {
-  DCHECK(message_loop_->RunsTasksInCurrentSequence());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   host_ = host;
 
   // Start the blocking thread and have it download and parse the media config.
@@ -480,9 +478,8 @@ void DemuxerExtensionWrapper::Initialize(DemuxerHost* host,
 
   // |status_cb| cannot be called until this function returns, so we post a task
   // here.
-  base::PostTaskAndReplyWithResult(
-      blocking_thread_.message_loop()->task_runner().get(), FROM_HERE,
-      base::BindOnce(impl_->Initialize, impl_->user_data),
+  blocking_thread_.task_runner()->PostTaskAndReplyWithResult(
+      FROM_HERE, base::BindOnce(impl_->Initialize, impl_->user_data),
       base::BindOnce(&DemuxerExtensionWrapper::OnInitializeDone,
                      base::Unretained(this), std::move(status_cb)));
 }
@@ -501,7 +498,7 @@ void DemuxerExtensionWrapper::OnInitializeDone(
         std::move(status_cb).Run(::media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
         return;
       }
-      audio_stream_.emplace(impl_, message_loop_, std::move(audio_config));
+      audio_stream_.emplace(impl_, task_runner_, std::move(audio_config));
     }
     CobaltExtensionDemuxerVideoDecoderConfig video_config = {};
     if (impl_->GetVideoConfig(&video_config, impl_->user_data)) {
@@ -524,7 +521,7 @@ void DemuxerExtensionWrapper::OnInitializeDone(
         video_config.extra_data = nullptr;
         video_config.extra_data_size = 0;
       }
-      video_stream_.emplace(impl_, message_loop_, std::move(video_config));
+      video_stream_.emplace(impl_, task_runner_, std::move(video_config));
     }
 
     if (!audio_stream_.has_value() && !video_stream_.has_value()) {
@@ -544,7 +541,7 @@ void DemuxerExtensionWrapper::OnInitializeDone(
   } else {
     LOG(ERROR) << "Initialization failed with status " << status;
   }
-  std::move(status_cb).Run(static_cast<PipelineStatus>(status));
+  std::move(status_cb).Run(static_cast<PipelineStatus::Codes>(status));
 }
 
 void DemuxerExtensionWrapper::AbortPendingReads() {}
@@ -557,19 +554,17 @@ void DemuxerExtensionWrapper::Seek(base::TimeDelta time,
                                    PipelineStatusCallback status_cb) {
   // It's safe to use base::Unretained here because blocking_thread_ will be
   // stopped in this class's destructor.
-  blocking_thread_.message_loop()->task_runner()->PostTask(
+  blocking_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&DemuxerExtensionWrapper::SeekTask, base::Unretained(this),
-                     time, BindToCurrentLoop(std::move(status_cb))));
+                     time, BindPostTaskToCurrentDefault(std::move(status_cb))));
 }
 
 // TODO(b/232984963): Determine whether it's OK to have reads and seeks on the
 // same thread.
 void DemuxerExtensionWrapper::SeekTask(base::TimeDelta time,
                                        PipelineStatusCallback status_cb) {
-  CHECK(blocking_thread_.message_loop()
-            ->task_runner()
-            ->RunsTasksInCurrentSequence());
+  CHECK(blocking_thread_.task_runner()->RunsTasksInCurrentSequence());
 
   // clear any enqueued buffers on demuxer streams
   if (video_stream_.has_value()) video_stream_->FlushBuffers();
@@ -612,7 +607,7 @@ Ranges<base::TimeDelta> DemuxerExtensionWrapper::GetBufferedRanges() {
 }
 
 void DemuxerExtensionWrapper::Stop() {
-  DCHECK(message_loop_->RunsTasksInCurrentSequence());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   {
     base::AutoLock lock(lock_for_stopped_);
     stopped_ = true;
@@ -626,11 +621,11 @@ base::TimeDelta DemuxerExtensionWrapper::GetStartTime() const {
 }
 
 base::Time DemuxerExtensionWrapper::GetTimelineOffset() const {
-  const int64_t reported_time = impl_->GetTimelineOffset(impl_->user_data);
-  return reported_time == 0
+  const base::TimeDelta reported_time = base::TimeDelta::FromMicroseconds(
+      impl_->GetTimelineOffset(impl_->user_data));
+  return reported_time.is_zero()
              ? base::Time()
-             : base::Time::FromDeltaSinceWindowsEpoch(
-                   base::TimeDelta::FromMicroseconds(reported_time));
+             : base::Time::FromDeltaSinceWindowsEpoch(reported_time);
 }
 
 int64_t DemuxerExtensionWrapper::GetMemoryUsage() const {
@@ -659,7 +654,7 @@ void DemuxerExtensionWrapper::Request(DemuxerStream::Type type) {
     DCHECK(video_stream_.has_value());
   }
 
-  if (!blocking_thread_.task_runner()->BelongsToCurrentThread()) {
+  if (!blocking_thread_.task_runner()->RunsTasksInCurrentSequence()) {
     blocking_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&DemuxerExtensionWrapper::Request,
                               base::Unretained(this), type));
@@ -691,7 +686,7 @@ void DemuxerExtensionWrapper::Request(DemuxerStream::Type type) {
 
   if (total_buffer_size >= progressive_budget) {
     // Retry after a delay.
-    blocking_thread_.message_loop()->task_runner()->PostDelayedTask(
+    blocking_thread_.task_runner()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&DemuxerExtensionWrapper::Request, base::Unretained(this),
                    type),

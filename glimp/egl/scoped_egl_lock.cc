@@ -19,7 +19,7 @@
 namespace glimp {
 namespace egl {
 
-SbMutex ScopedEGLLock::mutex_ = SB_MUTEX_INITIALIZER;
+pthread_mutex_t ScopedEGLLock::mutex_ = PTHREAD_MUTEX_INITIALIZER;
 
 }  // namespace egl
 }  // namespace glimp

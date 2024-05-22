@@ -176,7 +176,7 @@ class Pipeline {
   void ShutdownRasterizer() { rasterizer_.reset(); }
 
 #if defined(ENABLE_DEBUGGER)
-  void OnDumpCurrentRenderTree(const std::string&);
+  std::string OnDumpCurrentRenderTree(const std::string&);
   void OnToggleFpsStdout(const std::string&);
   void OnToggleFpsOverlay(const std::string&);
 #endif  // defined(ENABLE_DEBUGGER)

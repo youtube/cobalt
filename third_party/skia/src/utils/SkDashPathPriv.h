@@ -26,7 +26,11 @@ namespace SkDashPath {
     bool FilterDashPath(SkPath* dst, const SkPath& src, SkStrokeRec*, const SkRect*,
                         const SkPathEffect::DashInfo& info);
 
+#ifdef SK_BUILD_FOR_FUZZER
+    const SkScalar kMaxDashCount = 10000;
+#else
     const SkScalar kMaxDashCount = 1000000;
+#endif
 
     /** See comments for InternalFilter */
     enum class StrokeRecApplication {
@@ -47,6 +51,6 @@ namespace SkDashPath {
                         StrokeRecApplication = StrokeRecApplication::kAllow);
 
     bool ValidDashPath(SkScalar phase, const SkScalar intervals[], int32_t count);
-}
+}  // namespace SkDashPath
 
 #endif

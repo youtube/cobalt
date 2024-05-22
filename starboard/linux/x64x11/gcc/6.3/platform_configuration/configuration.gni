@@ -14,7 +14,7 @@
 
 if (current_toolchain == default_toolchain &&
     build_with_separate_cobalt_toolchain) {
-  import("//starboard/evergreen/x64/platform_configuration/configuration.gni")
+  import("//starboard/build/config/modular/x64/configuration.gni")
   platform_tests_path =
       "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
   cobalt_font_package = "standard"

@@ -14,6 +14,8 @@
 
 #include "starboard/loader_app/installation_manager.h"
 
+#include <sys/stat.h>
+
 #include <set>
 #include <string>
 #include <vector>
@@ -30,7 +32,7 @@
 #if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/string.h"
 
 namespace starboard {
@@ -707,7 +709,9 @@ bool InstallationManager::CreateInstallationDirs() {
       return false;
     }
 
-    if (!SbDirectoryCreate(path.data())) {
+    struct stat info;
+    if (mkdir(path.data(), 0700) != 0 &&
+        !(stat(path.data(), &info) == 0 && S_ISDIR(info.st_mode))) {
       return false;
     }
   }

@@ -15,14 +15,15 @@
 #ifndef COBALT_BROWSER_WEB_MODULE_H_
 #define COBALT_BROWSER_WEB_MODULE_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/source_location.h"
@@ -87,7 +88,7 @@ namespace browser {
 // This necessarily implies that details contained within WebModule, such as the
 // DOM, are intentionally kept private, since these structures expect to be
 // accessed from only one thread.
-class WebModule : public base::MessageLoop::DestructionObserver,
+class WebModule : public base::CurrentThread::DestructionObserver,
                   public LifecycleObserver {
  public:
   struct Options {
@@ -166,15 +167,14 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     // will be assigned.  This is the thread responsible for performing resource
     // decoding, such as image decoding.  The default value is
     // base::ThreadPriority::BACKGROUND.
-    base::ThreadPriority loader_thread_priority =
-        base::ThreadPriority::BACKGROUND;
+    base::ThreadType loader_thread_priority = base::ThreadType::kBackground;
 
     // Specifies the priority that the web module's animated image decoding
     // thread will be assigned. This thread is responsible for decoding,
     // blending and constructing individual frames from animated images. The
     // default value is base::ThreadPriority::BACKGROUND.
-    base::ThreadPriority animated_image_decode_thread_priority =
-        base::ThreadPriority::BACKGROUND;
+    base::ThreadType animated_image_decode_thread_priority =
+        base::ThreadType::kBackground;
 
     // To support 3D camera movements.
     scoped_refptr<input::Camera3D> camera_3d;
@@ -279,7 +279,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
 
   // Injects an on screen keyboard input event into the web module. The value
   // for type represents beforeinput or input.
-  void InjectOnScreenKeyboardInputEvent(base::Token type,
+  void InjectOnScreenKeyboardInputEvent(base_token::Token type,
                                         const dom::InputEventInit& event);
   // Injects an on screen keyboard shown event into the web module.
   void InjectOnScreenKeyboardShownEvent(int ticket);
@@ -289,25 +289,24 @@ class WebModule : public base::MessageLoop::DestructionObserver,
   void InjectOnScreenKeyboardFocusedEvent(int ticket);
   // Injects an on screen keyboard blurred event into the web module.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
-  // Injects an on screen keyboard suggestions updated event into the web
-  // module.
-  void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
 
   void InjectWindowOnOnlineEvent(const base::Event* event);
   void InjectWindowOnOfflineEvent(const base::Event* event);
 
   // Injects a keyboard event into the web module. The value for type
   // represents the event name, for example 'keydown' or 'keyup'.
-  void InjectKeyboardEvent(base::Token type,
+  void InjectKeyboardEvent(base_token::Token type,
                            const dom::KeyboardEventInit& event);
 
   // Injects a pointer event into the web module. The value for type represents
   // the event name, for example 'pointerdown', 'pointerup', or 'pointermove'.
-  void InjectPointerEvent(base::Token type, const dom::PointerEventInit& event);
+  void InjectPointerEvent(base_token::Token type,
+                          const dom::PointerEventInit& event);
 
   // Injects a wheel event into the web module. The value for type represents
   // the event name, for example 'wheel'.
-  void InjectWheelEvent(base::Token type, const dom::WheelEventInit& event);
+  void InjectWheelEvent(base_token::Token type,
+                        const dom::WheelEventInit& event);
 
   // Injects a beforeunload event into the web module. If this event is not
   // handled by the web application, |on_before_unload_fired_but_not_handled_|
@@ -397,12 +396,16 @@ class WebModule : public base::MessageLoop::DestructionObserver,
                                              int64_t timestamp);
   void SetDeepLinkTimestamp(int64_t timestamp);
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   // Set document's load timing info's unload event start/end time.
   void SetUnloadEventTimingInfo(base::TimeTicks start_time,
                                 base::TimeTicks end_time);
+
+#if defined(ENABLE_DEBUGGER)
+  std::string OnBoxDumpMessage(const std::string& message);
+#endif  // ENABLE_DEBUGGER
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and
@@ -422,7 +425,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
                      int dom_max_element_depth, float layout_refresh_rate,
                      const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
 #if defined(ENABLE_DEBUGGER)
-                     starboard::atomic_bool* waiting_for_web_debugger,
+                     std::atomic_bool* waiting_for_web_debugger,
 #endif  // defined(ENABLE_DEBUGGER)
                      base::WaitableEvent* synchronous_loader_interrupt,
                      const Options& options)
@@ -462,7 +465,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     float layout_refresh_rate;
     scoped_refptr<ui_navigation::NavItem> ui_nav_root;
 #if defined(ENABLE_DEBUGGER)
-    starboard::atomic_bool* waiting_for_web_debugger;
+    std::atomic_bool* waiting_for_web_debugger;
 #endif  // defined(ENABLE_DEBUGGER)
     base::WaitableEvent* synchronous_loader_interrupt;
     Options options;
@@ -480,10 +483,10 @@ class WebModule : public base::MessageLoop::DestructionObserver,
 
   void GetIsReadyToFreeze(volatile bool* is_ready_to_freeze);
 
-  // The message loop this object is running on.
-  base::MessageLoop* message_loop() const {
+  // The task runner this object is running on.
+  base::SequencedTaskRunner* task_runner() const {
     DCHECK(web_agent_);
-    return web_agent_ ? web_agent_->message_loop() : nullptr;
+    return web_agent_ ? web_agent_->task_runner() : nullptr;
   }
 
   // Private implementation object.
@@ -501,7 +504,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
 #if defined(ENABLE_DEBUGGER)
   // Used to avoid a deadlock when running |Blur| while waiting for the web
   // debugger to connect. Initializes to false.
-  starboard::atomic_bool waiting_for_web_debugger_;
+  std::atomic_bool waiting_for_web_debugger_;
 #endif  // defined(ENABLE_DEBUGGER)
 
   // This event is used to interrupt the loader when JavaScript is loaded

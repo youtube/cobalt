@@ -1,12 +1,10 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/network_interfaces_getifaddrs.h"
 
 #include <string>
-
-#include "starboard/types.h"
 
 #include "build/build_config.h"
 #include "net/base/ip_endpoint.h"
@@ -16,15 +14,12 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
-// Starboard platforms do not have socklen_t defined.
-#if !defined(STARBOARD)
-
 namespace net {
 namespace {
 
 class IPAttributesGetterTest : public internal::IPAttributesGetter {
  public:
-  IPAttributesGetterTest() {}
+  IPAttributesGetterTest() = default;
 
   // internal::IPAttributesGetter interface.
   bool IsInitialized() const override { return true; }
@@ -183,5 +178,3 @@ TEST(NetworkInterfacesTest, IfaddrsToNetworkInterfaceList) {
 
 }  // namespace
 }  // namespace net
-
-#endif  // !defined(STARBOARD)

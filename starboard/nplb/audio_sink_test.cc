@@ -14,6 +14,8 @@
 
 #include "starboard/audio_sink.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 
 #include "starboard/nplb/audio_sink_helpers.h"
@@ -99,7 +101,7 @@ TEST(SbAudioSinkTest, Underflow) {
   environment.AppendFrame(frames_to_append);
 
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
-  SbThreadSleep(250'000);
+  usleep(250'000);
   ASSERT_GT(environment.GetFrameBufferFreeSpaceInFrames(), 0);
   environment.AppendFrame(environment.GetFrameBufferFreeSpaceInFrames());
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());

@@ -1,75 +1,87 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/win/startup_information.h"
+
 #include <windows.h>
+
 #include <stddef.h>
 
-#include <string>
-
-#include "base/command_line.h"
-#include "base/test/multiprocess_test.h"
+#include "base/files/file_path.h"
+#include "base/path_service.h"
+#include "base/strings/string_util.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/scoped_process_information.h"
-#include "base/win/startup_information.h"
-#include "testing/multiprocess_func_list.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-const wchar_t kSectionName[] = L"EventTestSection";
-const size_t kSectionSize = 4096;
+namespace {
+class ScopedProcessTerminator {
+ public:
+  explicit ScopedProcessTerminator(const PROCESS_INFORMATION& process_info)
+      : process_info_(process_info) {}
 
-MULTIPROCESS_TEST_MAIN(FireInheritedEvents) {
-  HANDLE section = ::OpenFileMappingW(PAGE_READWRITE, false, kSectionName);
-  HANDLE* events = reinterpret_cast<HANDLE*>(::MapViewOfFile(section,
-      PAGE_READWRITE, 0, 0, kSectionSize));
-  // This event should not be valid because it wasn't explicitly inherited.
-  if (::SetEvent(events[1]))
-    return -1;
-  // This event should be valid because it was explicitly inherited.
-  if (!::SetEvent(events[0]))
-    return -1;
+  ScopedProcessTerminator(const ScopedProcessTerminator&) = delete;
+  ScopedProcessTerminator& operator=(const ScopedProcessTerminator&) = delete;
 
-  return 0;
+  ~ScopedProcessTerminator() {
+    if (process_info_.IsValid())
+      ::TerminateProcess(process_info_.process_handle(), 0);
+  }
+
+ private:
+  base::win::ScopedProcessInformation process_info_;
+};
+
+base::win::ScopedHandle CreateInheritedHandle() {
+  HANDLE handle;
+  if (!::DuplicateHandle(::GetCurrentProcess(), ::GetCurrentProcess(),
+                         ::GetCurrentProcess(), &handle,
+                         PROCESS_QUERY_LIMITED_INFORMATION, TRUE, 0)) {
+    return base::win::ScopedHandle();
+  }
+  return base::win::ScopedHandle(handle);
 }
 
-class StartupInformationTest : public base::MultiProcessTest {};
+bool CheckInheritedHandle(HANDLE process, HANDLE check_handle) {
+  HANDLE temp_handle;
+  if (!::DuplicateHandle(process, check_handle, ::GetCurrentProcess(),
+                         &temp_handle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+    return false;
+  }
+  base::win::ScopedHandle dup_handle(temp_handle);
+  return ::GetProcessId(temp_handle) == ::GetCurrentProcessId();
+}
+}  // namespace
 
-// Verify that only the explicitly specified event is inherited.
-TEST_F(StartupInformationTest, InheritStdOut) {
+// Verify that only the explicitly specified process handle is inherited.
+TEST(StartupInformationTest, InheritStdOut) {
+  base::win::ScopedHandle handle_0 = CreateInheritedHandle();
+  ASSERT_TRUE(handle_0.is_valid());
+  base::win::ScopedHandle handle_1 = CreateInheritedHandle();
+  ASSERT_TRUE(handle_1.is_valid());
+  ASSERT_NE(handle_0.get(), handle_1.get());
+
   base::win::StartupInformation startup_info;
-
-  HANDLE section = ::CreateFileMappingW(INVALID_HANDLE_VALUE, NULL,
-                                        PAGE_READWRITE, 0, kSectionSize,
-                                        kSectionName);
-  ASSERT_TRUE(section);
-
-  HANDLE* events = reinterpret_cast<HANDLE*>(::MapViewOfFile(section,
-      FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, kSectionSize));
-
-  // Make two inheritable events.
-  SECURITY_ATTRIBUTES security_attributes = { sizeof(security_attributes),
-                                              NULL, true };
-  events[0] = ::CreateEvent(&security_attributes, false, false, NULL);
-  ASSERT_TRUE(events[0]);
-  events[1] = ::CreateEvent(&security_attributes, false, false, NULL);
-  ASSERT_TRUE(events[1]);
-
   ASSERT_TRUE(startup_info.InitializeProcThreadAttributeList(1));
-  ASSERT_TRUE(startup_info.UpdateProcThreadAttribute(
-      PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &events[0],
-      sizeof(events[0])));
 
-  std::wstring cmd_line =
-      MakeCmdLine("FireInheritedEvents").GetCommandLineString();
+  HANDLE inherit_process = handle_0.get();
+  ASSERT_TRUE(startup_info.UpdateProcThreadAttribute(
+      PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &inherit_process,
+      sizeof(inherit_process)));
+
+  base::FilePath exe_path;
+  ASSERT_TRUE(base::PathService::Get(base::FILE_EXE, &exe_path));
+  WCHAR cmd_line[] = L"dummy";
 
   PROCESS_INFORMATION temp_process_info = {};
-  ASSERT_TRUE(::CreateProcess(NULL, &cmd_line[0],
-                              NULL, NULL, true, EXTENDED_STARTUPINFO_PRESENT,
-                              NULL, NULL, startup_info.startup_info(),
-                              &temp_process_info)) << ::GetLastError();
-  base::win::ScopedProcessInformation process_info(temp_process_info);
-
-  // Only the first event should be signalled
-  EXPECT_EQ(WAIT_OBJECT_0, ::WaitForMultipleObjects(2, events, false,
-                                                    4000));
+  ASSERT_TRUE(::CreateProcess(
+      exe_path.value().c_str(), cmd_line, nullptr, nullptr, TRUE,
+      EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED, nullptr, nullptr,
+      startup_info.startup_info(), &temp_process_info))
+      << ::GetLastError();
+  ScopedProcessTerminator process(temp_process_info);
+  EXPECT_TRUE(CheckInheritedHandle(temp_process_info.hProcess, handle_0.get()));
+  EXPECT_FALSE(
+      CheckInheritedHandle(temp_process_info.hProcess, handle_1.get()));
 }
-

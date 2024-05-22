@@ -33,7 +33,7 @@ class NodeList;
 class MutationRecord : public script::Wrappable {
  public:
   // Web API: MutationRecord
-  const base::Token& type() { return type_; }
+  const base_token::Token& type() { return type_; }
   const scoped_refptr<dom::Node>& target() { return target_; }
   const scoped_refptr<dom::NodeList>& added_nodes() { return added_nodes_; }
   const scoped_refptr<dom::NodeList>& removed_nodes() { return removed_nodes_; }
@@ -72,10 +72,11 @@ class MutationRecord : public script::Wrappable {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  MutationRecord(const base::Token& type, const scoped_refptr<Node>& target);
+  MutationRecord(const base_token::Token& type,
+                 const scoped_refptr<Node>& target);
   ~MutationRecord();
 
-  base::Token type_;
+  base_token::Token type_;
   scoped_refptr<dom::Node> target_;
   scoped_refptr<dom::NodeList> added_nodes_;
   scoped_refptr<dom::NodeList> removed_nodes_;

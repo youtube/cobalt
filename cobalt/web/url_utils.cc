@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/logging.h"
 #include "cobalt/loader/origin.h"
 #include "url/gurl.h"
 

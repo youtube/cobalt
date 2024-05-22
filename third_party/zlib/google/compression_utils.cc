@@ -25,8 +25,8 @@ bool GzipCompress(base::StringPiece input,
   // uLongf can be larger than size_t.
   uLongf compressed_size_long = static_cast<uLongf>(output_buffer_size);
   if (zlib_internal::GzipCompressHelper(
-          bit_cast<Bytef*>(output_buffer), &compressed_size_long,
-          bit_cast<const Bytef*>(input.data()),
+          base::bit_cast<Bytef*>(output_buffer), &compressed_size_long,
+          base::bit_cast<const Bytef*>(input.data()),
           static_cast<uLongf>(input.size()), malloc_fn, free_fn) != Z_OK) {
     return false;
   }
@@ -51,7 +51,7 @@ bool GzipCompress(base::StringPiece input, std::string* output) {
   }
 
   if (zlib_internal::GzipCompressHelper(compressed_data, &compressed_data_size,
-                                        bit_cast<const Bytef*>(input.data()),
+                                        base::bit_cast<const Bytef*>(input.data()),
                                         input_size, nullptr, nullptr) != Z_OK) {
     free(compressed_data);
     return false;
@@ -78,8 +78,8 @@ bool GzipUncompress(const std::string& input, std::string* output) {
 
   uncompressed_output.resize(uncompressed_size);
   if (zlib_internal::GzipUncompressHelper(
-          bit_cast<Bytef*>(uncompressed_output.data()), &uncompressed_size,
-          bit_cast<const Bytef*>(input.data()),
+          base::bit_cast<Bytef*>(uncompressed_output.data()), &uncompressed_size,
+          base::bit_cast<const Bytef*>(input.data()),
           static_cast<uLongf>(input.length())) == Z_OK) {
     output->swap(uncompressed_output);
     return true;
@@ -92,8 +92,8 @@ bool GzipUncompress(base::StringPiece input, base::StringPiece output) {
   if (uncompressed_size > output.size())
     return false;
   return zlib_internal::GzipUncompressHelper(
-             bit_cast<Bytef*>(output.data()), &uncompressed_size,
-             bit_cast<const Bytef*>(input.data()),
+             base::bit_cast<Bytef*>(output.data()), &uncompressed_size,
+             base::bit_cast<const Bytef*>(input.data()),
              static_cast<uLongf>(input.length())) == Z_OK;
 }
 
@@ -103,14 +103,14 @@ bool GzipUncompress(base::StringPiece input, std::string* output) {
   uLongf uncompressed_size = GetUncompressedSize(input);
   output->resize(uncompressed_size);
   return zlib_internal::GzipUncompressHelper(
-             bit_cast<Bytef*>(output->data()), &uncompressed_size,
-             bit_cast<const Bytef*>(input.data()),
+             base::bit_cast<Bytef*>(output->data()), &uncompressed_size,
+             base::bit_cast<const Bytef*>(input.data()),
              static_cast<uLongf>(input.length())) == Z_OK;
 }
 
 uint32_t GetUncompressedSize(base::StringPiece compressed_data) {
   return zlib_internal::GetGzipUncompressedSize(
-      bit_cast<Bytef*>(compressed_data.data()), compressed_data.length());
+      base::bit_cast<Bytef*>(compressed_data.data()), compressed_data.length());
 }
 
 }  // namespace compression

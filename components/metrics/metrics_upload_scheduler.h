@@ -34,9 +34,6 @@ class MetricsUploadScheduler : public MetricsScheduler {
   void UploadOverDataUsageCap();
 
  private:
-  // Time to wait between uploads on success.
-  const base::TimeDelta unsent_logs_interval_;
-
   // Initial time to wait between upload retry attempts.
   const base::TimeDelta initial_backoff_interval_;
 

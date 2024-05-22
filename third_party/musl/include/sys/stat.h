@@ -111,8 +111,10 @@ int lchmod(const char *, mode_t);
 #endif
 
 #if _REDIR_TIME64
+#if !defined(STARBOARD)
 __REDIR(stat, __stat_time64);
 __REDIR(fstat, __fstat_time64);
+#endif  // !defined(STARBOARD)
 __REDIR(lstat, __lstat_time64);
 __REDIR(fstatat, __fstatat_time64);
 __REDIR(futimens, __futimens_time64);

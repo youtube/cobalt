@@ -61,7 +61,7 @@ static inline uint32_t compute_pointCount(SkScalar d, SkScalar tol) {
        return 1;
     } else {
        int temp = SkScalarCeilToInt(SkScalarSqrt(d / tol));
-       uint32_t count = SkMin32(SkNextPow2(temp), MAX_POINTS_PER_CURVE);
+       uint32_t count = std::min<uint32_t>(SkNextPow2(temp), MAX_POINTS_PER_CURVE);
        return count;
     }
 }
@@ -124,11 +124,9 @@ static bool one_d_pe(const int* array, const unsigned int count,
         uint32_t estimatedCount =
             quadraticPointCount_EE(path);
 
-        if (false) { // avoid bit rot, suppress warning
-            computedCount =
-                    quadraticPointCount_EC(path, SkIntToScalar(1));
-            estimatedCount =
-                    quadraticPointCount_CE(path);
+        if ((false)) { // avoid bit rot, suppress warning
+            computedCount = quadraticPointCount_EC(path, SkIntToScalar(1));
+            estimatedCount = quadraticPointCount_CE(path);
         }
         // Allow estimated to be high by a factor of two, but no less than
         // the computed value.

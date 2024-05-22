@@ -20,8 +20,8 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/once.h"
 #include "starboard/media.h"
-#include "starboard/once.h"
 
 namespace starboard {
 namespace shared {

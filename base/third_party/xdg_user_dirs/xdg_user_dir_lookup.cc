@@ -31,9 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "starboard/memory.h"
-#include "starboard/types.h"
-
 /**
  * xdg_user_dir_lookup_with_fallback:
  * @type: a string specifying the type of directory

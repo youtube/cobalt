@@ -16,7 +16,7 @@
 #include "base/metrics/sample_vector.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "base/sys_info.h"
+#include "base/system/sys_info.h"
 #include "base/time/time.h"
 #include "components/metrics/delegating_provider.h"
 #include "components/metrics/environment_recorder.h"

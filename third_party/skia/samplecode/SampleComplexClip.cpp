@@ -9,7 +9,6 @@
 #include "include/core/SkFont.h"
 #include "include/core/SkPath.h"
 #include "samplecode/Sample.h"
-#include "src/core/SkClipOpPriv.h"
 
 class ComplexClipView : public Sample {
     void onOnceBeforeDraw() override {
@@ -78,11 +77,8 @@ class ComplexClipView : public Sample {
             SkClipOp    fOp;
             const char* fName;
         } gOps[] = { //extra spaces in names for measureText
-            {kIntersect_SkClipOp,         "Isect "},
-            {kDifference_SkClipOp,        "Diff " },
-            {kUnion_SkClipOp,             "Union "},
-            {kXOR_SkClipOp,               "Xor "  },
-            {kReverseDifference_SkClipOp, "RDiff "}
+            {SkClipOp::kIntersect,         "Isect "},
+            {SkClipOp::kDifference,        "Diff " },
         };
 
         canvas->translate(0, SkIntToScalar(40));

@@ -535,6 +535,14 @@ class CSSComputedStyleData
     is_inline_before_blockification_ = value;
   }
 
+#ifdef ENABLE_DEBUGGER
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const CSSComputedStyleData& data) {
+    os << data.SerializeCSSDeclarationBlockInternal(false);
+    return os;
+  }
+#endif
+
  private:
   // Helper function that returns the computed value if the initial property
   // value is not computed or returns the initial value if it is computed.
@@ -542,6 +550,9 @@ class CSSComputedStyleData
       PropertyKey key) const;
 
   bool IsBorderStyleNoneOrHiddenForAnEdge(PropertyKey key) const;
+
+  std::string SerializeCSSDeclarationBlockInternal(
+      bool include_inherited) const;
 
   LonghandPropertiesBitset declared_properties_;
   PropertyValues declared_property_values_;

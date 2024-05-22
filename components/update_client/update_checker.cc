@@ -17,13 +17,13 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/macros.h"
+#include "base/sequence_checker.h"
 #include "base/strings/stringprintf.h"
-#include "base/task/post_task.h"
-#include "base/threading/thread_checker.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #if defined(STARBOARD)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #include "components/update_client/cobalt_slot_management.h"
 #endif
 #include "components/update_client/component.h"
@@ -113,7 +113,7 @@ class UpdateCheckerImpl : public UpdateChecker {
                          int error,
                          int retry_after_sec);
 
-  base::ThreadChecker thread_checker_;
+  SEQUENCE_CHECKER(sequence_checker_);
 
   const scoped_refptr<Configurator> config_;
   PersistedData* metadata_ = nullptr;
@@ -134,7 +134,7 @@ UpdateCheckerImpl::UpdateCheckerImpl(scoped_refptr<Configurator> config,
 }
 
 UpdateCheckerImpl::~UpdateCheckerImpl() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "UpdateCheckerImpl::~UpdateCheckerImpl";
 #endif
@@ -147,7 +147,7 @@ void UpdateCheckerImpl::CheckForUpdates(
     const base::flat_map<std::string, std::string>& additional_attributes,
     bool enabled_component_updates,
     UpdateCheckCallback update_check_callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "UpdateCheckerImpl::CheckForUpdates";
 #endif
@@ -155,7 +155,7 @@ void UpdateCheckerImpl::CheckForUpdates(
   ids_checked_ = ids_checked;
   update_check_callback_ = std::move(update_check_callback);
 
-  base::PostTaskWithTraitsAndReply(
+  base::ThreadPool::PostTaskAndReply(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&UpdateCheckerImpl::ReadUpdaterStateAttributes,
                      base::Unretained(this)),
@@ -187,7 +187,7 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
     const IdToComponentPtrMap& components,
     const base::flat_map<std::string, std::string>& additional_attributes,
     bool enabled_component_updates) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "UpdateCheckerImpl::CheckForUpdatesHelper";
 #endif
@@ -334,7 +334,7 @@ void UpdateCheckerImpl::OnRequestSenderComplete(
     int error,
     const std::string& response,
     int retry_after_sec) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (error) {
     VLOG(1) << "RequestSender failed " << error;
@@ -358,7 +358,7 @@ void UpdateCheckerImpl::OnRequestSenderComplete(
 void UpdateCheckerImpl::UpdateCheckSucceeded(
     const ProtocolParser::Results& results,
     int retry_after_sec) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   const int daynum = results.daystart_elapsed_days;
   if (daynum != ProtocolParser::kNoDaystart) {
@@ -377,20 +377,20 @@ void UpdateCheckerImpl::UpdateCheckSucceeded(
       metadata_->SetCohortHint(result.extension_id, entry->second);
   }
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(update_check_callback_),
-                     base::make_optional<ProtocolParser::Results>(results),
+                     absl::make_optional<ProtocolParser::Results>(results),
                      ErrorCategory::kNone, 0, retry_after_sec));
 }
 
 void UpdateCheckerImpl::UpdateCheckFailed(ErrorCategory error_category,
                                           int error,
                                           int retry_after_sec) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_NE(0, error);
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(update_check_callback_), base::nullopt,
                      error_category, error, retry_after_sec));

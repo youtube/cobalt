@@ -15,8 +15,8 @@
 #include "base/files/file_path.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/single_thread_task_runner.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
+#include "base/task/sequenced_task_runner.h"
 #include "url/gurl.h"
 
 #if defined(STARBOARD)
@@ -170,7 +170,7 @@ class CrxDownloader {
   // Returns the url which is currently being downloaded from.
   GURL url() const;
 
-  scoped_refptr<base::SingleThreadTaskRunner> main_task_runner() const {
+  scoped_refptr<base::SequencedTaskRunner> main_task_runner() const {
     return main_task_runner_;
   }
 
@@ -192,10 +192,10 @@ class CrxDownloader {
                            const Result& result,
                            const DownloadMetrics& download_metrics);
 
-  base::ThreadChecker thread_checker_;
+  SEQUENCE_CHECKER(sequence_checker_);
 
   // Used to post callbacks to the main thread.
-  scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> main_task_runner_;
 
   std::vector<GURL> urls_;
 

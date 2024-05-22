@@ -132,7 +132,6 @@ static int bn_blinding_create_param(BN_BLINDING *b, const BIGNUM *e,
 BN_BLINDING *BN_BLINDING_new(void) {
   BN_BLINDING *ret = OPENSSL_malloc(sizeof(BN_BLINDING));
   if (ret == NULL) {
-    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
   OPENSSL_memset(ret, 0, sizeof(BN_BLINDING));
@@ -165,6 +164,10 @@ void BN_BLINDING_free(BN_BLINDING *r) {
   BN_free(r->A);
   BN_free(r->Ai);
   OPENSSL_free(r);
+}
+
+void BN_BLINDING_invalidate(BN_BLINDING *b) {
+  b->counter = BN_BLINDING_COUNTER - 1;
 }
 
 static int bn_blinding_update(BN_BLINDING *b, const BIGNUM *e,

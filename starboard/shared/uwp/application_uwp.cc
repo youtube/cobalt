@@ -56,8 +56,10 @@
 #include "starboard/shared/uwp/watchdog_log.h"
 #include "starboard/shared/uwp/window_internal.h"
 #include "starboard/shared/win32/thread_private.h"
+#include "starboard/shared/win32/time_utils.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/shared/win32/wchar_utils.h"
+
 #include "starboard/system.h"
 
 namespace starboard {
@@ -73,6 +75,7 @@ using shared::starboard::NetLogWaitForClientConnected;
 using shared::uwp::ApplicationUwp;
 using shared::uwp::RunInMainThreadAsync;
 using shared::uwp::WaitForResult;
+using shared::win32::ConvertUsecToMillisRoundUp;
 using shared::win32::platformStringToString;
 using shared::win32::stringToPlatformString;
 using shared::win32::wchar_tToUTF8;
@@ -144,6 +147,9 @@ const Platform::String ^ kGenericPnpMonitorAqs = ref new Platform::String(
     L"True");
 
 const uint32_t kYuv420BitsPerPixelForHdr10Mode = 24;
+const uint32_t kHdr4kRefreshRateMaximum = 60;
+const uint32_t k4kResolutionWidth = 3840;
+const uint32_t k4kResolutionHeight = 2160;
 
 // Per Microsoft, HdcpProtection::On means HDCP 1.x required.
 const HdcpProtection kHDCPProtectionMode = HdcpProtection::On;
@@ -330,7 +336,7 @@ std::string GetBinaryName() {
 void OnDeviceAdded(DeviceWatcher ^, DeviceInformation ^) {
   SB_LOG(INFO) << "DisplayStatusWatcher::OnDeviceAdded";
   // We need delay to give time for the display initializing after connect.
-  SbThreadSleep(15'000);
+  Sleep(ConvertUsecToMillisRoundUp(15'000));
 
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 
@@ -713,8 +719,7 @@ ref class App sealed : public IFrameworkView {
         std::stringstream ss;
         ss << platformStringToString(
             Windows::Storage::ApplicationData::Current->LocalCacheFolder->Path);
-        ss << "\\"
-           << "" << command_line->GetSwitchValue(kLogPathSwitch);
+        ss << "\\" << "" << command_line->GetSwitchValue(kLogPathSwitch);
         std::string full_path_log_file = ss.str();
         shared::uwp::OpenLogFileWin32(full_path_log_file.c_str());
       } else {
@@ -983,17 +988,32 @@ void ApplicationUwp::UpdateDisplayPreferredMode() {
 
   preferred_display_mode_hdmi_ = hdmi_display_info->GetCurrentDisplayMode();
   for (auto mode : hdmi_display_info->GetSupportedDisplayModes()) {
-    if (mode->ResolutionWidthInRawPixels ==
-            preferred_display_mode_hdmi_->ResolutionWidthInRawPixels &&
-        mode->ResolutionHeightInRawPixels ==
-            preferred_display_mode_hdmi_->ResolutionHeightInRawPixels &&
-        mode->Is2086MetadataSupported && mode->IsSmpte2084Supported &&
-        mode->BitsPerPixel >= kYuv420BitsPerPixelForHdr10Mode &&
-        mode->ColorSpace == HdmiDisplayColorSpace::BT2020) {
-      if (!preferred_display_mode_hdr_ ||
-          preferred_display_mode_hdr_->RefreshRate < mode->RefreshRate) {
-        preferred_display_mode_hdr_ = mode;
-      }
+    // Check that resolution matches the preferred display mode.
+    if (mode->ResolutionWidthInRawPixels !=
+            preferred_display_mode_hdmi_->ResolutionWidthInRawPixels ||
+        mode->ResolutionHeightInRawPixels !=
+            preferred_display_mode_hdmi_->ResolutionHeightInRawPixels) {
+      continue;
+    }
+    // Verify HDR metadata and transfer function are supported.
+    if (!mode->Is2086MetadataSupported || !mode->IsSmpte2084Supported) {
+      continue;
+    }
+    // Verify we have enough bits per pixel and the correct color space for HDR.
+    if (mode->BitsPerPixel < kYuv420BitsPerPixelForHdr10Mode ||
+        mode->ColorSpace != HdmiDisplayColorSpace::BT2020) {
+      continue;
+    }
+    // We don't serve 4k HDR videos over 60fps, skipping display modes that will
+    // consume more power than needed.
+    if (mode->ResolutionWidthInRawPixels >= k4kResolutionWidth &&
+        mode->ResolutionHeightInRawPixels >= k4kResolutionHeight &&
+        mode->RefreshRate > kHdr4kRefreshRateMaximum) {
+      continue;
+    }
+    if (!preferred_display_mode_hdr_ ||
+        preferred_display_mode_hdr_->RefreshRate < mode->RefreshRate) {
+      preferred_display_mode_hdr_ = mode;
     }
   }
 }

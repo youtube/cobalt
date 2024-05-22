@@ -16,6 +16,8 @@
 
 #include "glimp/gles/context.h"
 
+#include <pthread.h>
+
 #include <algorithm>
 #include <string>
 
@@ -28,9 +30,9 @@
 #include "glimp/gles/pixel_format.h"
 #include "glimp/tracing/tracing.h"
 #include "starboard/common/log.h"
+#include "starboard/common/once.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/memory.h"
-#include "starboard/once.h"
 
 namespace glimp {
 namespace gles {
@@ -38,15 +40,16 @@ namespace gles {
 namespace {
 
 std::atomic_int s_context_id_counter_(0);
-SbOnceControl s_tls_current_context_key_once_control = SB_ONCE_INITIALIZER;
-SbThreadLocalKey s_tls_current_context_key = kSbThreadLocalKeyInvalid;
+pthread_once_t s_tls_current_context_key_once_control = PTHREAD_ONCE_INIT;
+pthread_key_t s_tls_current_context_key = 0;
 
 void InitializeThreadLocalKey() {
-  s_tls_current_context_key = SbThreadCreateLocalKey(NULL);
+  pthread_key_create(&s_tls_current_context_key, NULL);
 }
 
-SbThreadLocalKey GetThreadLocalKey() {
-  SbOnce(&s_tls_current_context_key_once_control, &InitializeThreadLocalKey);
+pthread_key_t GetThreadLocalKey() {
+  pthread_once(&s_tls_current_context_key_once_control,
+               &InitializeThreadLocalKey);
   return s_tls_current_context_key;
 }
 
@@ -79,7 +82,7 @@ Context::Context(std::unique_ptr<ContextImpl> context_impl,
 }
 
 Context* Context::GetTLSCurrentContext() {
-  return reinterpret_cast<Context*>(SbThreadGetLocalValue(GetThreadLocalKey()));
+  return reinterpret_cast<Context*>(pthread_getspecific(GetThreadLocalKey()));
 }
 
 bool Context::SetTLSCurrentContext(Context* context,
@@ -104,8 +107,7 @@ bool Context::SetTLSCurrentContext(Context* context,
     if (existing_context) {
       existing_context->ReleaseContext();
     }
-    SbThreadSetLocalValue(GetThreadLocalKey(),
-                          reinterpret_cast<void*>(context));
+    pthread_setspecific(GetThreadLocalKey(), reinterpret_cast<void*>(context));
   }
 
   context->MakeCurrent(draw, read);
@@ -116,7 +118,7 @@ void Context::ReleaseTLSCurrentContext() {
   Context* existing_context = GetTLSCurrentContext();
   if (existing_context) {
     existing_context->ReleaseContext();
-    SbThreadSetLocalValue(GetThreadLocalKey(), NULL);
+    pthread_setspecific(GetThreadLocalKey(), NULL);
   }
 }
 

@@ -24,14 +24,15 @@
 
 namespace {
 
-SbThreadLocalKey g_tls_key = kSbThreadLocalKeyInvalid;
+pthread_key_t g_tls_key = 0;
 JavaVM* g_vm = NULL;
 jobject g_application_class_loader = NULL;
 jobject g_starboard_bridge = NULL;
 
 void Destroy(void* value) {
-  // OnThreadShutdown() must be called on each thread before it is destroyed.
-  SB_DCHECK(value == NULL);
+  if (value != NULL) {
+    starboard::android::shared::JniEnvExt::OnThreadShutdown();
+  }
 }
 
 }  // namespace
@@ -44,8 +45,8 @@ namespace shared {
 
 // static
 void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
-  SB_DCHECK(g_tls_key == kSbThreadLocalKeyInvalid);
-  g_tls_key = SbThreadCreateLocalKey(Destroy);
+  SB_DCHECK(g_tls_key == 0);
+  pthread_key_create(&g_tls_key, Destroy);
 
   SB_DCHECK(g_vm == NULL);
   env->GetJavaVM(&g_vm);
@@ -65,9 +66,9 @@ void JniEnvExt::OnThreadShutdown() {
   // We must call DetachCurrentThread() before exiting, if we have ever
   // previously called AttachCurrentThread() on it.
   //   http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/invocation.html
-  if (SbThreadGetLocalValue(g_tls_key)) {
+  if (pthread_getspecific(g_tls_key)) {
     g_vm->DetachCurrentThread();
-    SbThreadSetLocalValue(g_tls_key, NULL);
+    pthread_setspecific(g_tls_key, NULL);
   }
 }
 
@@ -76,11 +77,11 @@ JniEnvExt* JniEnvExt::Get() {
   if (JNI_OK != g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6)) {
     // Tell the JVM our thread name so it doesn't change it.
     char thread_name[16];
-    SbThreadGetName(thread_name, sizeof(thread_name));
+    pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
     JavaVMAttachArgs args{JNI_VERSION_1_6, thread_name, NULL};
     g_vm->AttachCurrentThread(&env, &args);
     // We don't use the value, but any non-NULL means we have to detach.
-    SbThreadSetLocalValue(g_tls_key, env);
+    pthread_setspecific(g_tls_key, env);
   }
   // The downcast is safe since we only add methods, not fields.
   return static_cast<JniEnvExt*>(env);

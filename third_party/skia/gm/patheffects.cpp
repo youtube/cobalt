@@ -9,7 +9,7 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkMatrix.h"
 #include "include/core/SkPaint.h"
-#include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkPathEffect.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkRefCnt.h"
@@ -66,20 +66,20 @@ constexpr int gXY[] = {
 4, 0, 0, -4, 8, -4, 12, 0, 8, 4, 0, 4
 };
 
-static void scale(SkPath* path, SkScalar scale) {
+static SkPath scale(const SkPath& path, SkScalar scale) {
     SkMatrix m;
     m.setScale(scale, scale);
-    path->transform(m);
+    return path.makeTransform(m);
 }
 
 static void one_d_pe(SkPaint* paint) {
-    SkPath  path;
-    path.moveTo(SkIntToScalar(gXY[0]), SkIntToScalar(gXY[1]));
-    for (unsigned i = 2; i < SK_ARRAY_COUNT(gXY); i += 2)
-        path.lineTo(SkIntToScalar(gXY[i]), SkIntToScalar(gXY[i+1]));
-    path.close();
-    path.offset(SkIntToScalar(-6), 0);
-    scale(&path, 1.5f);
+    SkPathBuilder b;
+    b.moveTo(SkIntToScalar(gXY[0]), SkIntToScalar(gXY[1]));
+    for (unsigned i = 2; i < SK_ARRAY_COUNT(gXY); i += 2) {
+        b.lineTo(SkIntToScalar(gXY[i]), SkIntToScalar(gXY[i+1]));
+    }
+    b.close().offset(SkIntToScalar(-6), 0);
+    SkPath path = scale(b.detach(), 1.5f);
 
     paint->setPathEffect(SkPath1DPathEffect::Make(path, SkIntToScalar(21), 0,
                                                   SkPath1DPathEffect::kRotate_Style));
@@ -102,10 +102,7 @@ static sk_sp<SkPathEffect> MakeTileEffect() {
     SkMatrix m;
     m.setScale(SkIntToScalar(12), SkIntToScalar(12));
 
-    SkPath path;
-    path.addCircle(0, 0, SkIntToScalar(5));
-
-    return SkPath2DPathEffect::Make(m, path);
+    return SkPath2DPathEffect::Make(m, SkPath::Circle(0,0,5));
 }
 
 static void tile_pe(SkPaint* paint) {
@@ -131,12 +128,13 @@ protected:
         paint.setAntiAlias(true);
         paint.setStyle(SkPaint::kStroke_Style);
 
-        SkPath path;
-        path.moveTo(20, 20);
-        path.lineTo(70, 120);
-        path.lineTo(120, 30);
-        path.lineTo(170, 80);
-        path.lineTo(240, 50);
+        SkPath path = SkPath::Polygon({
+            {20, 20},
+            {70, 120},
+            {120, 30},
+            {170, 80},
+            {240, 50},
+        }, false);
 
         canvas->save();
         for (size_t i = 0; i < SK_ARRAY_COUNT(gPE); i++) {
@@ -148,9 +146,9 @@ protected:
 
         path.reset();
         SkRect r = { 0, 0, 250, 120 };
-        path.addOval(r, SkPathDirection::kCW);
-        r.inset(50, 50);
-        path.addRect(r, SkPathDirection::kCCW);
+        path = SkPathBuilder().addOval(r, SkPathDirection::kCW)
+                              .addRect(r.makeInset(50, 50), SkPathDirection::kCCW)
+                              .detach();
 
         canvas->translate(320, 20);
         for (size_t i = 0; i < SK_ARRAY_COUNT(gPE2); i++) {
@@ -171,12 +169,12 @@ protected:
     }
 
 private:
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 DEF_GM( return new PathEffectGM; )
 
-}
+}  // namespace skiagm
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -193,9 +191,10 @@ protected:
     SkISize onISize() override { return SkISize::Make(360, 630); }
 
     void onDraw(SkCanvas* canvas) override {
-        SkPath path0, path1, path2;
-        path0.addCircle(100, 100, 60);
-        path1.moveTo(20, 20); path1.cubicTo(20, 180, 140, 0, 140, 140);
+        SkPath path0 = SkPath::Circle(100, 100, 60),
+               path1 = SkPathBuilder().moveTo(20, 20)
+                                      .cubicTo(20, 180, 140, 0, 140, 140)
+                                      .detach();
 
         sk_sp<SkPathEffect> effects[] = {
             nullptr,
@@ -218,9 +217,9 @@ protected:
         paint.setColor(0xFF8888FF);
         paint.setAntiAlias(true);
 
-        for (auto& path : { path0, path1 }) {
+        for (const SkPath& path : { path0, path1 }) {
             canvas->save();
-            for (auto pe : effects) {
+            for (const sk_sp<SkPathEffect>& pe : effects) {
                 paint.setPathEffect(pe);
                 canvas->drawPath(path, paint);
                 canvas->drawPath(path, wireframe);
@@ -233,7 +232,180 @@ protected:
     }
 
 private:
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 DEF_GM(return new ComboPathEfectsGM;)
 
+#include "include/effects/SkStrokeAndFillPathEffect.h"
+
+// Test that we can replicate SkPaint::kStrokeAndFill_Style
+// with a patheffect. We expect the 2nd and 3rd columns to draw the same.
+DEF_SIMPLE_GM(stroke_and_fill_patheffect, canvas, 900, 450) {
+    const float kStrokeWidth = 20;
+
+    typedef SkPath (*Maker)();
+    const Maker makers[] = {
+        []() { return SkPath::Oval({0, 0, 100, 100}, SkPathDirection::kCW); },
+        []() { return SkPath::Oval({0, 0, 100, 100}, SkPathDirection::kCCW); },
+        []() {
+            const SkPoint pts[] = {
+                {0, 0}, {100, 100}, {0, 100}, {100, 0},
+            };
+            return SkPath::Polygon(pts, SK_ARRAY_COUNT(pts), true);
+        },
+    };
+
+    const struct {
+        SkPaint::Style  fStyle;
+        float           fWidth;
+        bool            fUsePE;
+        bool            fExpectStrokeAndFill;
+    } rec[] = {
+        { SkPaint::kStroke_Style,                   0, false, false },
+        { SkPaint::kFill_Style,                     0,  true, false },
+        { SkPaint::kStroke_Style,                   0,  true, false },
+        { SkPaint::kStrokeAndFill_Style, kStrokeWidth, false, true  },
+        { SkPaint::kStroke_Style,        kStrokeWidth,  true, true  },
+        { SkPaint::kStrokeAndFill_Style, kStrokeWidth,  true, true  },
+    };
+
+    SkPaint paint;
+    canvas->translate(20, 20);
+    for (auto maker : makers) {
+        const SkPath path = maker();
+        canvas->save();
+        for (const auto& r : rec) {
+            paint.setStyle(r.fStyle);
+            paint.setStrokeWidth(r.fWidth);
+            paint.setPathEffect(r.fUsePE ? SkStrokeAndFillPathEffect::Make() : nullptr);
+            paint.setColor(r.fExpectStrokeAndFill ? SK_ColorGRAY : SK_ColorBLACK);
+
+            canvas->drawPath(path, paint);
+            canvas->translate(150, 0);
+        }
+        canvas->restore();
+
+        canvas->translate(0, 150);
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+#include "include/core/SkStrokeRec.h"
+#include "src/core/SkPathEffectBase.h"
+
+namespace {
+/**
+ * Example path effect using CTM. This "strokes" a single line segment with some stroke width,
+ * and then inflates the result by some number of pixels.
+ */
+class StrokeLineInflated : public SkPathEffectBase {
+public:
+    StrokeLineInflated(float strokeWidth, float pxInflate)
+            : fRadius(strokeWidth / 2.f), fPxInflate(pxInflate) {}
+
+    bool onNeedsCTM() const final { return true; }
+
+    bool onFilterPath(SkPath* dst,
+                      const SkPath& src,
+                      SkStrokeRec* rec,
+                      const SkRect* cullR,
+                      const SkMatrix& ctm) const final {
+        SkASSERT(src.countPoints() == 2);
+        const SkPoint pts[2] = {src.getPoint(0), src.getPoint(1)};
+
+        SkMatrix invCtm;
+        if (!ctm.invert(&invCtm)) {
+            return false;
+        }
+
+        // For a line segment, we can just map the (scaled) normal vector to pixel-space,
+        // increase its length by the desired number of pixels, and then map back to canvas space.
+        SkPoint n = {pts[0].fY - pts[1].fY, pts[1].fX - pts[0].fX};
+        if (!n.setLength(fRadius)) {
+            return false;
+        }
+
+        SkPoint mappedN = ctm.mapVector(n.fX, n.fY);
+        if (!mappedN.setLength(mappedN.length() + fPxInflate)) {
+            return false;
+        }
+        n = invCtm.mapVector(mappedN.fX, mappedN.fY);
+
+        dst->moveTo(pts[0] + n);
+        dst->lineTo(pts[1] + n);
+        dst->lineTo(pts[1] - n);
+        dst->lineTo(pts[0] - n);
+        dst->close();
+
+        rec->setFillStyle();
+
+        return true;
+    }
+
+protected:
+    void flatten(SkWriteBuffer&) const final {}
+
+private:
+    SK_FLATTENABLE_HOOKS(StrokeLineInflated)
+
+    bool computeFastBounds(SkRect* bounds) const final { return false; }
+
+    const float fRadius;
+    const float fPxInflate;
+};
+
+sk_sp<SkFlattenable> StrokeLineInflated::CreateProc(SkReadBuffer&) { return nullptr; }
+
+}  // namespace
+
+class CTMPathEffectGM : public skiagm::GM {
+protected:
+    SkString onShortName() override { return SkString("ctmpatheffect"); }
+
+    SkISize onISize() override { return SkISize::Make(800, 600); }
+
+    // TODO: ctm-aware path effects are currently CPU only
+    DrawResult onGpuSetup(GrDirectContext* dctx, SkString*) override {
+        return dctx == nullptr ? DrawResult::kOk : DrawResult::kSkip;
+    }
+
+    void onDraw(SkCanvas* canvas) override {
+        const float strokeWidth = 16;
+        const float pxInflate = 0.5f;
+        sk_sp<SkPathEffect> pathEffect(new StrokeLineInflated(strokeWidth, pxInflate));
+
+        SkPath path;
+        path.moveTo(100, 100);
+        path.lineTo(200, 200);
+
+        // Draw the inflated path, and a scaled version, in blue.
+        SkPaint paint;
+        paint.setAntiAlias(true);
+        paint.setColor(SkColorSetA(SK_ColorBLUE, 0xff));
+        paint.setPathEffect(pathEffect);
+        canvas->drawPath(path, paint);
+        canvas->save();
+        canvas->translate(150, 0);
+        canvas->scale(2.5, 0.5f);
+        canvas->drawPath(path, paint);
+        canvas->restore();
+
+        // Draw the regular stroked version on top in green.
+        // The inflated version should be visible underneath as a blue "border".
+        paint.setPathEffect(nullptr);
+        paint.setStyle(SkPaint::kStroke_Style);
+        paint.setStrokeWidth(strokeWidth);
+        paint.setColor(SkColorSetA(SK_ColorGREEN, 0xff));
+        canvas->drawPath(path, paint);
+        canvas->save();
+        canvas->translate(150, 0);
+        canvas->scale(2.5, 0.5f);
+        canvas->drawPath(path, paint);
+        canvas->restore();
+    }
+
+private:
+    using INHERITED = GM;
+};
+DEF_GM(return new CTMPathEffectGM;)

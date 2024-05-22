@@ -561,7 +561,7 @@ bool MP4Map::ctts_AdvanceToSample(uint32 sample_number) {
       // number is undefined. While not a fatal error it's kind of a weird
       // state, we set the offset back to zero and extend the next_first_sample
       // to infinity
-      DLOG(WARNING) << base::StringPrintf(
+      LOG(WARNING) << base::StringPrintf(
           "out of range sample number %d in ctts, last valid sample number: %d",
           sample_number, ctts_next_first_sample_);
       ctts_sample_offset_ = 0;

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/files/file_path.h"
-#include "base/strings/string16.h"
 #include "net/base/net_export.h"
 
 class GURL;
@@ -17,7 +16,7 @@ namespace base {
 class FilePath;
 }
 
-namespace  net {
+namespace net {
 
 // Given the full path to a file name, creates a file: URL. The returned URL
 // may not be valid if the input is malformed.
@@ -25,8 +24,13 @@ NET_EXPORT GURL FilePathToFileURL(const base::FilePath& path);
 
 // Converts a file: URL back to a filename that can be passed to the OS. The
 // file URL must be well-formed (GURL::is_valid() must return true); we don't
-// handle degenerate cases here. Returns true on success, false if it isn't a
-// valid file URL. On failure, *file_path will be empty.
+// handle degenerate cases here. Returns true on success, false if |url| is
+// invalid or the file path cannot be extracted from |url|.
+// On failure, *file_path will be empty.
+//
+// Do not call this with a |url| that doesn't have a file:// scheme.
+// The implementation is specific to the platform filesystem, and not
+// applicable to other schemes.
 NET_EXPORT bool FileURLToFilePath(const GURL& url, base::FilePath* file_path);
 
 // Generates a filename using the first successful method from the following (in
@@ -37,7 +41,11 @@ NET_EXPORT bool FileURLToFilePath(const GURL& url, base::FilePath* file_path);
 // 2) |suggested_name| if specified.  |suggested_name| is assumed to be in
 //    UTF-8.
 // 3) The filename extracted from the |url|.  |referrer_charset| will be used to
-//    interpret the URL if there are non-ascii characters.
+//    interpret the URL if there are non-ascii characters.The file extension for
+//    filenames extracted from the URL are considered unreliable if the URL
+//    contains a query string. If a MIME type is available (i.e. |mime_type| is
+//    not empty) and that MIME type has a preferred extension, then the
+//    resulting filename will have that preferred extension.
 // 4) |default_name|.  If non-empty, |default_name| is assumed to be a filename
 //    and shouldn't contain a path.  |default_name| is not subject to validation
 //    or sanitization, and therefore shouldn't be a user supplied string.
@@ -56,7 +64,7 @@ NET_EXPORT bool FileURLToFilePath(const GURL& url, base::FilePath* file_path);
 //
 // Note: |mime_type| should only be specified if this function is called from a
 // thread that allows IO.
-NET_EXPORT base::string16 GetSuggestedFilename(
+NET_EXPORT std::u16string GetSuggestedFilename(
     const GURL& url,
     const std::string& content_disposition,
     const std::string& referrer_charset,
@@ -72,6 +80,18 @@ NET_EXPORT base::FilePath GenerateFileName(
     const std::string& suggested_name,
     const std::string& mime_type,
     const std::string& default_name);
+
+// Similar to GetSuggestedFilename(). If |should_replace_extension| is true, the
+// file extension extracted from a URL will always be considered unreliable and
+// the file extension will be determined by |mime_type|.
+NET_EXPORT base::FilePath GenerateFileName(
+    const GURL& url,
+    const std::string& content_disposition,
+    const std::string& referrer_charset,
+    const std::string& suggested_name,
+    const std::string& mime_type,
+    const std::string& default_name,
+    bool should_replace_extension);
 
 // Valid components:
 // * are not empty

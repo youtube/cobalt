@@ -1,126 +1,170 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/json/json_reader.h"
 
 #include <utility>
-#include <vector>
 
-#include "base/json/json_parser.h"
 #include "base/logging.h"
-#include "base/optional.h"
-#include "base/values.h"
+#include "base/rust_buildflags.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+
+#if BUILDFLAG(BUILD_RUST_JSON_READER)
+#include "base/strings/string_piece_rust.h"
+#include "third_party/rust/serde_json_lenient/v0_1/wrapper/functions.h"
+#include "third_party/rust/serde_json_lenient/v0_1/wrapper/lib.rs.h"
+#else
+#include "base/json/json_parser.h"
+#endif
 
 namespace base {
 
-// Chosen to support 99.9% of documents found in the wild late 2016.
-// http://crbug.com/673263
-const int JSONReader::kStackMaxDepth = 200;
+#if BUILDFLAG(BUILD_RUST_JSON_READER)
 
-// Values 1000 and above are used by JSONFileValueSerializer::JsonFileError.
-static_assert(JSONReader::JSON_PARSE_ERROR_COUNT < 1000,
-              "JSONReader error out of bounds");
+namespace {
+using serde_json_lenient::ContextPointer;
 
-const char JSONReader::kInvalidEscape[] =
-    "Invalid escape sequence.";
-const char JSONReader::kSyntaxError[] =
-    "Syntax error.";
-const char JSONReader::kUnexpectedToken[] =
-    "Unexpected token.";
-const char JSONReader::kTrailingComma[] =
-    "Trailing comma not allowed.";
-const char JSONReader::kTooMuchNesting[] =
-    "Too much nesting.";
-const char JSONReader::kUnexpectedDataAfterRoot[] =
-    "Unexpected data after root element.";
-const char JSONReader::kUnsupportedEncoding[] =
-    "Unsupported encoding. JSON must be UTF-8.";
-const char JSONReader::kUnquotedDictionaryKey[] =
-    "Dictionary keys must be quoted.";
-const char JSONReader::kInputTooLarge[] =
-    "Input string is too large (>2GB).";
+ContextPointer& ListAppendList(ContextPointer& ctx, size_t reserve) {
+  auto& value = reinterpret_cast<base::Value&>(ctx);
+  value.GetList().reserve(reserve);
+  value.GetList().Append(base::Value::List());
+  return reinterpret_cast<ContextPointer&>(value.GetList().back());
+}
 
-JSONReader::JSONReader(int options, int max_depth)
-    : parser_(new internal::JSONParser(options, max_depth)) {}
+ContextPointer& ListAppendDict(ContextPointer& ctx) {
+  auto& value = reinterpret_cast<base::Value&>(ctx);
+  value.GetList().Append(base::Value::Dict());
+  return reinterpret_cast<ContextPointer&>(value.GetList().back());
+}
 
-JSONReader::~JSONReader() = default;
+void ListAppendNone(ContextPointer& ctx) {
+  auto& value = reinterpret_cast<base::Value&>(ctx);
+  value.GetList().Append(base::Value());
+}
+
+template <class T, class As = T>
+void ListAppendValue(ContextPointer& ctx, T v) {
+  auto& value = reinterpret_cast<base::Value&>(ctx);
+  value.GetList().Append(As{v});
+}
+
+ContextPointer& DictSetList(ContextPointer& ctx,
+                            rust::Str key,
+                            size_t reserve) {
+  auto& value = reinterpret_cast<base::Value&>(ctx);
+  base::Value::List list;
+  list.reserve(reserve);
+  value.SetKey(base::RustStrToStringPiece(key), base::Value(std::move(list)));
+  return reinterpret_cast<ContextPointer&>(
+      *value.GetDict().Find(base::RustStrToStringPiece(key)));
+}
+
+ContextPointer& DictSetDict(ContextPointer& ctx, rust::Str key) {
+  auto& value = reinterpret_cast<base::Value&>(ctx);
+  value.SetKey(base::RustStrToStringPiece(key),
+               base::Value(base::Value::Dict()));
+  return reinterpret_cast<ContextPointer&>(
+      *value.GetDict().Find(base::RustStrToStringPiece(key)));
+}
+
+void DictSetNone(ContextPointer& ctx, rust::Str key) {
+  auto& value = reinterpret_cast<base::Value&>(ctx);
+  value.SetKey(base::RustStrToStringPiece(key), base::Value());
+}
+
+template <class T, class As = T>
+void DictSetValue(ContextPointer& ctx, rust::Str key, T v) {
+  auto& value = reinterpret_cast<base::Value&>(ctx);
+  value.SetKey(base::RustStrToStringPiece(key), base::Value(As{v}));
+}
+
+JSONReader::Result DecodeJSONInRust(const base::StringPiece& json,
+                                    int options,
+                                    size_t max_depth) {
+  const serde_json_lenient::JsonOptions rust_options = {
+      .allow_trailing_commas =
+          (options & base::JSON_ALLOW_TRAILING_COMMAS) != 0,
+      .replace_invalid_characters =
+          (options & base::JSON_REPLACE_INVALID_CHARACTERS) != 0,
+      .allow_comments = (options & base::JSON_ALLOW_COMMENTS) != 0,
+      .allow_control_chars = (options & base::JSON_ALLOW_CONTROL_CHARS) != 0,
+      .allow_vert_tab = (options & base::JSON_ALLOW_VERT_TAB) != 0,
+      .allow_x_escapes = (options & base::JSON_ALLOW_X_ESCAPES) != 0,
+      .max_depth = max_depth,
+  };
+  const serde_json_lenient::Functions functions = {
+      .list_append_none_fn = ListAppendNone,
+      .list_append_bool_fn = ListAppendValue<bool>,
+      .list_append_i32_fn = ListAppendValue<int32_t>,
+      .list_append_f64_fn = ListAppendValue<double>,
+      .list_append_str_fn = ListAppendValue<rust::Str, std::string>,
+      .list_append_list_fn = ListAppendList,
+      .list_append_dict_fn = ListAppendDict,
+      .dict_set_none_fn = DictSetNone,
+      .dict_set_bool_fn = DictSetValue<bool>,
+      .dict_set_i32_fn = DictSetValue<int32_t>,
+      .dict_set_f64_fn = DictSetValue<double>,
+      .dict_set_str_fn = DictSetValue<rust::Str, std::string>,
+      .dict_set_list_fn = DictSetList,
+      .dict_set_dict_fn = DictSetDict,
+  };
+
+  base::Value value(base::Value::Type::LIST);
+  auto& ctx = reinterpret_cast<ContextPointer&>(value);
+  serde_json_lenient::DecodeError error;
+  bool ok = serde_json_lenient::decode_json(
+      base::StringPieceToRustSlice(json), rust_options, functions, ctx, error);
+
+  if (!ok) {
+    return base::unexpected(base::JSONReader::Error{
+        .message = std::string(error.message),
+        .line = error.line,
+        .column = error.column,
+    });
+  }
+
+  return std::move(std::move(value.GetList()).back());
+}
+
+}  // anonymous namespace
+
+#endif  // BUILDFLAG(BUILD_RUST_JSON_READER)
 
 // static
-std::unique_ptr<Value> JSONReader::Read(StringPiece json,
-                                        int options,
-                                        int max_depth) {
+absl::optional<Value> JSONReader::Read(StringPiece json,
+                                       int options,
+                                       size_t max_depth) {
+#if BUILDFLAG(BUILD_RUST_JSON_READER)
+  JSONReader::Result result = DecodeJSONInRust(json, options, max_depth);
+  if (!result.has_value()) {
+    return absl::nullopt;
+  }
+  return std::move(*result);
+#else   // BUILDFLAG(BUILD_RUST_JSON_READER)
   internal::JSONParser parser(options, max_depth);
-  Optional<Value> root = parser.Parse(json);
-  return root ? std::make_unique<Value>(std::move(*root)) : nullptr;
+  return parser.Parse(json);
+#endif  // BUILDFLAG(BUILD_RUST_JSON_READER)
 }
 
-
 // static
-std::unique_ptr<Value> JSONReader::ReadAndReturnError(
-    StringPiece json,
-    int options,
-    int* error_code_out,
-    std::string* error_msg_out,
-    int* error_line_out,
-    int* error_column_out) {
+JSONReader::Result JSONReader::ReadAndReturnValueWithError(StringPiece json,
+                                                           int options) {
+#if BUILDFLAG(BUILD_RUST_JSON_READER)
+  return DecodeJSONInRust(json, options, internal::kAbsoluteMaxDepth);
+#else   // BUILDFLAG(BUILD_RUST_JSON_READER)
   internal::JSONParser parser(options);
-  Optional<Value> root = parser.Parse(json);
-  if (!root) {
-    if (error_code_out)
-      *error_code_out = parser.error_code();
-    if (error_msg_out)
-      *error_msg_out = parser.GetErrorMessage();
-    if (error_line_out)
-      *error_line_out = parser.error_line();
-    if (error_column_out)
-      *error_column_out = parser.error_column();
+  auto value = parser.Parse(json);
+  if (!value) {
+    Error error;
+    error.message = parser.GetErrorMessage();
+    error.line = parser.error_line();
+    error.column = parser.error_column();
+    return base::unexpected(std::move(error));
   }
 
-  return root ? std::make_unique<Value>(std::move(*root)) : nullptr;
-}
-
-// static
-std::string JSONReader::ErrorCodeToString(JsonParseError error_code) {
-  switch (error_code) {
-    case JSON_NO_ERROR:
-      return std::string();
-    case JSON_INVALID_ESCAPE:
-      return kInvalidEscape;
-    case JSON_SYNTAX_ERROR:
-      return kSyntaxError;
-    case JSON_UNEXPECTED_TOKEN:
-      return kUnexpectedToken;
-    case JSON_TRAILING_COMMA:
-      return kTrailingComma;
-    case JSON_TOO_MUCH_NESTING:
-      return kTooMuchNesting;
-    case JSON_UNEXPECTED_DATA_AFTER_ROOT:
-      return kUnexpectedDataAfterRoot;
-    case JSON_UNSUPPORTED_ENCODING:
-      return kUnsupportedEncoding;
-    case JSON_UNQUOTED_DICTIONARY_KEY:
-      return kUnquotedDictionaryKey;
-    case JSON_TOO_LARGE:
-      return kInputTooLarge;
-    case JSON_PARSE_ERROR_COUNT:
-      break;
-  }
-  NOTREACHED();
-  return std::string();
-}
-
-std::unique_ptr<Value> JSONReader::ReadToValue(StringPiece json) {
-  Optional<Value> value = parser_->Parse(json);
-  return value ? std::make_unique<Value>(std::move(*value)) : nullptr;
-}
-
-JSONReader::JsonParseError JSONReader::error_code() const {
-  return parser_->error_code();
-}
-
-std::string JSONReader::GetErrorMessage() const {
-  return parser_->GetErrorMessage();
+  return std::move(*value);
+#endif  // BUILDFLAG(BUILD_RUST_JSON_READER)
 }
 
 }  // namespace base

@@ -16,11 +16,14 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#include "starboard/shared/testing/no_inline.h"
+
 namespace starboard {
 namespace nplb {
 namespace {
 
-SB_C_NOINLINE int GetStackWithAnExtraFrame(void** out_stack, int stack_size) {
+SB_TEST_FORCE_NO_INLINE int GetStackWithAnExtraFrame(void** out_stack,
+                                                     int stack_size) {
   // These EXPECT_NE and EXPECT_LT should be enough to make function complicated
   // and avoid inlining with optimizations on some platforms. But we'll have to
   // keep an eye on it as this may not be enough on some other platforms.
@@ -31,7 +34,7 @@ SB_C_NOINLINE int GetStackWithAnExtraFrame(void** out_stack, int stack_size) {
   return ret;
 }
 
-SB_C_NOINLINE void WowThatsADeepStack() {
+SB_TEST_FORCE_NO_INLINE void WowThatsADeepStack() {
   void* stack1[10] = {0};
   void* stack2[10] = {0};
   EXPECT_LT(0, SbSystemGetStack(stack1, SB_ARRAY_SIZE_INT(stack1)));

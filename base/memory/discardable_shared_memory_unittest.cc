@@ -1,19 +1,22 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <fcntl.h>
+#include <stdint.h>
 
 #include "base/files/scoped_file.h"
 #include "base/memory/discardable_shared_memory.h"
+#include "base/memory/page_size.h"
 #include "base/memory/shared_memory_tracker.h"
-#include "base/process/process_metrics.h"
-#include "base/trace_event/memory_allocator_dump.h"
-#include "base/trace_event/process_memory_dump.h"
+#include "base/tracing_buildflags.h"
 #include "build/build_config.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+#include "base/trace_event/memory_allocator_dump.h"  // no-presubmit-check
+#include "base/trace_event/process_memory_dump.h"    // no-presubmit-check
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 namespace base {
 
@@ -151,6 +154,23 @@ TEST(DiscardableSharedMemoryTest, Purge) {
   ASSERT_FALSE(memory2.IsMemoryResident());
 }
 
+TEST(DiscardableSharedMemoryTest, PurgeAfterClose) {
+  const uint32_t kDataSize = 1024;
+
+  TestDiscardableSharedMemory memory;
+  bool rv = memory.CreateAndMap(kDataSize);
+  ASSERT_TRUE(rv);
+
+  // Unlock things so we can Purge().
+  memory.SetNow(Time::FromDoubleT(2));
+  memory.Unlock(0, 0);
+
+  // It should be safe to Purge() |memory| after Close()ing the handle.
+  memory.Close();
+  rv = memory.Purge(Time::FromDoubleT(4));
+  EXPECT_TRUE(rv);
+}
+
 TEST(DiscardableSharedMemoryTest, LastUsed) {
   const uint32_t kDataSize = 1024;
 
@@ -242,9 +262,14 @@ TEST(DiscardableSharedMemoryTest, LockShouldAlwaysFailAfterSuccessfulPurge) {
   EXPECT_EQ(DiscardableSharedMemory::FAILED, lock_rv);
 }
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 TEST(DiscardableSharedMemoryTest, LockShouldFailIfPlatformLockPagesFails) {
   const uint32_t kDataSize = 1024;
+
+  // This test cannot succeed on devices without a proper ashmem device
+  // because Lock() will always succeed.
+  if (!DiscardableSharedMemory::IsAshmemDeviceSupportedForTesting())
+    return;
 
   DiscardableSharedMemory memory1;
   bool rv1 = memory1.CreateAndMap(kDataSize);
@@ -273,12 +298,12 @@ TEST(DiscardableSharedMemoryTest, LockShouldFailIfPlatformLockPagesFails) {
       memory2.Lock(0, base::GetPageSize());
   EXPECT_EQ(DiscardableSharedMemory::FAILED, lock_rv);
 }
-#endif  // defined(OS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
 
 TEST(DiscardableSharedMemoryTest, LockAndUnlockRange) {
-  const uint32_t kDataSize = 32;
+  const size_t kDataSize = 32;
 
-  uint32_t data_size_in_bytes = kDataSize * base::GetPageSize();
+  size_t data_size_in_bytes = kDataSize * base::GetPageSize();
 
   TestDiscardableSharedMemory memory1;
   bool rv = memory1.CreateAndMap(data_size_in_bytes);
@@ -429,6 +454,7 @@ TEST(DiscardableSharedMemoryTest, ZeroFilledPagesAfterPurge) {
 }
 #endif
 
+#if BUILDFLAG(ENABLE_BASE_TRACING)
 TEST(DiscardableSharedMemoryTest, TracingOwnershipEdges) {
   const uint32_t kDataSize = 1024;
   TestDiscardableSharedMemory memory1;
@@ -453,5 +479,6 @@ TEST(DiscardableSharedMemoryTest, TracingOwnershipEdges) {
   // TODO(ssid): test for weak global dump once the
   // CreateWeakSharedMemoryOwnershipEdge() is fixed, crbug.com/661257.
 }
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 }  // namespace base

@@ -15,8 +15,10 @@
 #include <memory>
 #include <string>
 
+#include "base/logging.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/bindings/testing/utils.h"
+#include "cobalt/browser/on_screen_keyboard_extension_bridge.h"
 #include "cobalt/dom/testing/test_with_javascript.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
@@ -200,9 +202,9 @@ class OnScreenKeyboardTest : public testing::TestWithJavaScript {
 }  // namespace
 
 bool SkipLocale() {
-  bool skipTests = !SbWindowOnScreenKeyboardIsSupported();
+  bool skipTests = !browser::OnScreenKeyboardExtensionBridge::IsSupported();
   if (skipTests) {
-    SB_LOG(INFO) << "On screen keyboard not supported. Test skipped.";
+    LOG(INFO) << "On screen keyboard not supported. Test skipped.";
   }
   return skipTests;
 }

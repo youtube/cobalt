@@ -62,11 +62,11 @@ class Element : public Node {
       AttributeMap;
 
   explicit Element(Document* document);
-  Element(Document* document, base::Token local_name);
+  Element(Document* document, base_token::Token local_name);
 
   // Web API: Node
   //
-  base::Token node_name() const override { return tag_name(); }
+  base_token::Token node_name() const override { return tag_name(); }
   NodeType node_type() const override { return Node::kElementNode; }
 
   base::Optional<std::string> text_content() const override;
@@ -77,11 +77,11 @@ class Element : public Node {
 
   // Web API: Element
   //
-  base::Token local_name() const { return local_name_; }
+  base_token::Token local_name() const { return local_name_; }
 
-  base::Token tag_name() const;
+  base_token::Token tag_name() const;
 
-  base::Token id() const { return id_attribute_; }
+  base_token::Token id() const { return id_attribute_; }
   void set_id(const std::string& value) { SetAttribute("id", value); }
 
   std::string class_name() const { return GetAttribute("class").value_or(""); }
@@ -244,12 +244,12 @@ class Element : public Node {
   void EnsureIntersectionObserverModuleInitialized();
 
   // Local name of the element.
-  base::Token local_name_;
+  base_token::Token local_name_;
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;
   // The "id" attribute for this element. Stored here in addition to being
   // stored in |attribute_map_| as an optimization for id().
-  base::Token id_attribute_;
+  base_token::Token id_attribute_;
   // A weak pointer to a NamedNodeMap that proxies the actual attributes.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<NamedNodeMap> named_node_map_;

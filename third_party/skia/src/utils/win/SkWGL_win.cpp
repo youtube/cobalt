@@ -6,7 +6,7 @@
  */
 
 #include "include/core/SkTypes.h"
-#if defined(SK_BUILD_FOR_WIN) && !defined(_M_ARM64)
+#if defined(SK_BUILD_FOR_WIN) && !defined(_M_ARM64) && !defined(WINUWP)
 
 #include "src/utils/win/SkWGL.h"
 
@@ -147,12 +147,10 @@ int SkWGLExtensions::selectFormat(const int formats[],
                                      &kQueryAttr,
                                      &numSamples);
         rankedFormats[i].fFormat =  formats[i];
-        rankedFormats[i].fSampleCnt = SkTMax(1, numSamples);
+        rankedFormats[i].fSampleCnt = std::max(1, numSamples);
         rankedFormats[i].fChoosePixelFormatRank = i;
     }
-    SkTQSort(rankedFormats.begin(),
-             rankedFormats.begin() + rankedFormats.count() - 1,
-             SkTLessFunctionToFunctorAdaptor<PixelFormat, pf_less>());
+    SkTQSort(rankedFormats.begin(), rankedFormats.end(), pf_less);
     int idx = SkTSearch<PixelFormat, pf_less>(rankedFormats.begin(),
                                               rankedFormats.count(),
                                               desiredFormat,
@@ -176,11 +174,11 @@ namespace {
     #define STR_LIT(X) #X
 #endif
 
-#define DUMMY_CLASS STR_LIT("DummyClass")
+#define TEMP_CLASS STR_LIT("TempClass")
 
-HWND create_dummy_window() {
+HWND create_temp_window() {
     HMODULE module = GetModuleHandle(nullptr);
-    HWND dummy;
+    HWND wnd;
     RECT windowRect;
     windowRect.left = 0;
     windowRect.right = 8;
@@ -198,7 +196,7 @@ HWND create_dummy_window() {
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hbrBackground = nullptr;
     wc.lpszMenuName = nullptr;
-    wc.lpszClassName = DUMMY_CLASS;
+    wc.lpszClassName = TEMP_CLASS;
 
     if(!RegisterClass(&wc)) {
         return 0;
@@ -209,28 +207,28 @@ HWND create_dummy_window() {
     style = WS_SYSMENU;
 
     AdjustWindowRectEx(&windowRect, style, false, exStyle);
-    if(!(dummy = CreateWindowEx(exStyle,
-                                DUMMY_CLASS,
-                                STR_LIT("DummyWindow"),
-                                WS_CLIPSIBLINGS | WS_CLIPCHILDREN | style,
-                                0, 0,
-                                windowRect.right-windowRect.left,
-                                windowRect.bottom-windowRect.top,
-                                nullptr, nullptr,
-                                module,
-                                nullptr))) {
-        UnregisterClass(DUMMY_CLASS, module);
+    if(!(wnd = CreateWindowEx(exStyle,
+                              TEMP_CLASS,
+                              STR_LIT("PlaceholderWindow"),
+                              WS_CLIPSIBLINGS | WS_CLIPCHILDREN | style,
+                              0, 0,
+                              windowRect.right-windowRect.left,
+                              windowRect.bottom-windowRect.top,
+                              nullptr, nullptr,
+                              module,
+                              nullptr))) {
+        UnregisterClass(TEMP_CLASS, module);
         return nullptr;
     }
-    ShowWindow(dummy, SW_HIDE);
+    ShowWindow(wnd, SW_HIDE);
 
-    return dummy;
+    return wnd;
 }
 
-void destroy_dummy_window(HWND dummy) {
-    DestroyWindow(dummy);
+void destroy_temp_window(HWND wnd) {
+    DestroyWindow(wnd);
     HMODULE module = GetModuleHandle(nullptr);
-    UnregisterClass(DUMMY_CLASS, module);
+    UnregisterClass(TEMP_CLASS, module);
 }
 }
 
@@ -258,25 +256,30 @@ SkWGLExtensions::SkWGLExtensions() {
         HDC prevDC = wglGetCurrentDC();
         HGLRC prevGLRC = wglGetCurrentContext();
 
-        PIXELFORMATDESCRIPTOR dummyPFD;
+        PIXELFORMATDESCRIPTOR tempPFD;
 
-        ZeroMemory(&dummyPFD, sizeof(dummyPFD));
-        dummyPFD.nSize = sizeof(dummyPFD);
-        dummyPFD.nVersion = 1;
-        dummyPFD.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
-        dummyPFD.iPixelType = PFD_TYPE_RGBA;
-        dummyPFD.cColorBits  = 32;
-        dummyPFD.cDepthBits  = 0;
-        dummyPFD.cStencilBits = 8;
-        dummyPFD.iLayerType = PFD_MAIN_PLANE;
-        HWND dummyWND = create_dummy_window();
-        if (dummyWND) {
-            HDC dummyDC = GetDC(dummyWND);
-            int dummyFormat = ChoosePixelFormat(dummyDC, &dummyPFD);
-            SetPixelFormat(dummyDC, dummyFormat, &dummyPFD);
-            HGLRC dummyGLRC = wglCreateContext(dummyDC);
-            SkASSERT(dummyGLRC);
-            wglMakeCurrent(dummyDC, dummyGLRC);
+        ZeroMemory(&tempPFD, sizeof(tempPFD));
+        tempPFD.nSize = sizeof(tempPFD);
+        tempPFD.nVersion = 1;
+        tempPFD.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
+        tempPFD.iPixelType = PFD_TYPE_RGBA;
+        tempPFD.cColorBits  = 32;
+        tempPFD.cDepthBits  = 0;
+        tempPFD.cStencilBits = 8;
+        tempPFD.iLayerType = PFD_MAIN_PLANE;
+        HWND tempWND = create_temp_window();
+        if (tempWND) {
+            HDC tempDC = GetDC(tempWND);
+            int tempFormat = ChoosePixelFormat(tempDC, &tempPFD);
+            SetPixelFormat(tempDC, tempFormat, &tempPFD);
+            HGLRC tempGLRC = wglCreateContext(tempDC);
+            SkASSERT(tempGLRC);
+            wglMakeCurrent(tempDC, tempGLRC);
+
+            #if defined(__clang__)
+                #pragma clang diagnostic push
+                #pragma clang diagnostic ignored "-Wcast-function-type"
+            #endif
 
             GET_PROC(GetExtensionsString, ARB);
             GET_PROC(ChoosePixelFormat, ARB);
@@ -289,9 +292,13 @@ SkWGLExtensions::SkWGLExtensions() {
             GET_PROC(ReleasePbufferDC, ARB);
             GET_PROC(DestroyPbuffer, ARB);
 
-            wglMakeCurrent(dummyDC, nullptr);
-            wglDeleteContext(dummyGLRC);
-            destroy_dummy_window(dummyWND);
+            #if defined(__clang__)
+                #pragma clang diagnostic pop
+            #endif
+
+            wglMakeCurrent(tempDC, nullptr);
+            wglDeleteContext(tempGLRC);
+            destroy_temp_window(tempWND);
         }
 
         wglMakeCurrent(prevDC, prevGLRC);
@@ -336,7 +343,7 @@ static void get_pixel_formats_to_try(HDC dc, const SkWGLExtensions& extensions,
         unsigned int num;
         int formats[64];
         extensions.choosePixelFormat(dc, msaaIAttrs.begin(), fAttrs, 64, formats, &num);
-        num = SkTMin(num, 64U);
+        num = std::min(num, 64U);
         formatsToTry[0] = extensions.selectFormat(formats, num, dc, msaaSampleCount);
     }
 

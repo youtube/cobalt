@@ -53,7 +53,7 @@ static sk_sp<SkShader> create_checkerboard_shader(SkColor c1, SkColor c2, int si
     bm.eraseColor(c1);
     bm.eraseArea(SkIRect::MakeLTRB(0, 0, size, size), c2);
     bm.eraseArea(SkIRect::MakeLTRB(size, size, 2 * size, 2 * size), c2);
-    return bm.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat);
+    return bm.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, SkSamplingOptions());
 }
 
 // http://crrev.com/834303005
@@ -74,6 +74,6 @@ DEF_SIMPLE_GM(transparency_check, canvas, 1792, 1080) {
         auto surface(SkSurface::MakeRasterN32Premul(256, 9));
         make_transparency(surface->getCanvas(), 256.0f, 9.0f);
         canvas->scale(7.0f, 120.0f);
-        surface->draw(canvas, 0, 0, nullptr);
+        surface->draw(canvas, 0, 0);
     }
 }

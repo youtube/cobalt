@@ -68,7 +68,7 @@ extern "C" int StarboardMain(int argc, char** argv) {
   CoInitialize(nullptr);
   SbAudioSinkPrivate::Initialize();
   starboard::shared::win32::RegisterMainThread();
-  // TODO: Do this with SbOnce when media is first used instead.
+  // TODO: Do this with pthread_once when media is first used instead.
   HRESULT hr = MFStartup(MF_VERSION);
   SB_DCHECK(SUCCEEDED(hr));
 

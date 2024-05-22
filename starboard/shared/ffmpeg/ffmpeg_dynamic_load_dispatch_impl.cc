@@ -16,13 +16,13 @@
 // the libraries.
 
 #include <dlfcn.h>
+#include <pthread.h>
 
 #include <map>
 
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
-#include "starboard/once.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
@@ -36,7 +36,7 @@ const char kAVCodecLibraryName[] = "libavcodec.so";
 const char kAVFormatLibraryName[] = "libavformat.so";
 const char kAVUtilLibraryName[] = "libavutil.so";
 
-SbOnceControl g_dynamic_load_once = SB_ONCE_INITIALIZER;
+pthread_once_t g_dynamic_load_once = PTHREAD_ONCE_INIT;
 
 struct LibraryMajorVersions {
   int avcodec;
@@ -68,7 +68,7 @@ class FFMPEGDispatchImpl {
   FFMPEGDispatch* get_ffmpeg_dispatch();
 
  private:
-  SbMutex mutex_;
+  pthread_mutex_t mutex_;
   FFMPEGDispatch* ffmpeg_;
   // Load the ffmpeg shared libraries, return true if successful.
   bool OpenLibraries();
@@ -88,7 +88,7 @@ void construct_ffmpeg_dispatch_impl() {
 }
 
 FFMPEGDispatchImpl::FFMPEGDispatchImpl()
-    : mutex_(SB_MUTEX_INITIALIZER),
+    : mutex_(PTHREAD_MUTEX_INITIALIZER),
       ffmpeg_(NULL),
       avcodec_(NULL),
       avformat_(NULL),
@@ -110,7 +110,7 @@ FFMPEGDispatchImpl::~FFMPEGDispatchImpl() {
 // static
 FFMPEGDispatchImpl* FFMPEGDispatchImpl::GetInstance() {
   bool initialized =
-      SbOnce(&g_dynamic_load_once, construct_ffmpeg_dispatch_impl);
+      pthread_once(&g_dynamic_load_once, construct_ffmpeg_dispatch_impl) == 0;
   SB_DCHECK(initialized);
   return g_ffmpeg_dispatch_impl;
 }
@@ -119,7 +119,7 @@ bool FFMPEGDispatchImpl::RegisterSpecialization(int specialization,
                                                 int avcodec,
                                                 int avformat,
                                                 int avutil) {
-  SbMutexAcquire(&mutex_);
+  pthread_mutex_lock(&mutex_);
   auto result = versions_.insert(std::make_pair(
       specialization, LibraryMajorVersions(avcodec, avformat, avutil)));
   bool success = result.second;
@@ -131,21 +131,23 @@ bool FFMPEGDispatchImpl::RegisterSpecialization(int specialization,
               existing_versions.avformat == avformat &&
               existing_versions.avutil == avutil;
   }
-  SbMutexRelease(&mutex_);
+  pthread_mutex_unlock(&mutex_);
   return success;
 }
 
 FFMPEGDispatch* FFMPEGDispatchImpl::get_ffmpeg_dispatch() {
-  SbMutexAcquire(&mutex_);
+  pthread_mutex_lock(&mutex_);
   if (!ffmpeg_) {
     ffmpeg_ = new FFMPEGDispatch();
     // Dynamically load the libraries and retrieve the function pointers.
     if (OpenLibraries()) {
       LoadSymbols();
-      ffmpeg_->av_register_all();
+      if (ffmpeg_->avformat_version() < kAVFormatDoesNotHaveRegisterAll) {
+        ffmpeg_->av_register_all();
+      }
     }
   }
-  SbMutexRelease(&mutex_);
+  pthread_mutex_unlock(&mutex_);
   return ffmpeg_;
 }
 
@@ -267,8 +269,8 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   // Load symbols from the avutil shared library.
   INITSYMBOL(avutil_, avutil_version);
   SB_DCHECK(ffmpeg_->avutil_version);
-  SB_LOG(INFO) << "Opened avutil  - version is:" << ffmpeg_->avutil_version()
-               << std::endl;
+  SB_LOG(INFO) << "Opened libavutil  - version is:"
+               << ffmpeg_->avutil_version();
   INITSYMBOL(avutil_, av_malloc);
   INITSYMBOL(avutil_, av_freep);
   INITSYMBOL(avutil_, av_free);
@@ -284,7 +286,7 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_version);
   SB_DCHECK(ffmpeg_->avcodec_version);
   SB_LOG(INFO) << "Opened libavcodec - version is:"
-               << ffmpeg_->avcodec_version() << std::endl;
+               << ffmpeg_->avcodec_version();
 
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
     INITSYMBOL(avcodec_, av_frame_alloc);
@@ -304,8 +306,15 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_close);
   INITSYMBOL(avcodec_, avcodec_open2);
   INITSYMBOL(avcodec_, av_init_packet);
-  INITSYMBOL(avcodec_, avcodec_decode_audio4);
-  INITSYMBOL(avcodec_, avcodec_decode_video2);
+
+  if (ffmpeg_->avcodec_version() < kAVCodecHasUniformDecodeAPI) {
+    INITSYMBOL(avcodec_, avcodec_decode_audio4);
+    INITSYMBOL(avcodec_, avcodec_decode_video2);
+  } else {
+    INITSYMBOL(avcodec_, avcodec_send_packet);
+    INITSYMBOL(avcodec_, avcodec_receive_frame);
+  }
+
   INITSYMBOL(avcodec_, avcodec_flush_buffers);
   INITSYMBOL(avcodec_, avcodec_align_dimensions2);
 
@@ -322,9 +331,11 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avformat_, avformat_version);
   SB_DCHECK(ffmpeg_->avformat_version);
   SB_LOG(INFO) << "Opened libavformat - version is:"
-               << ffmpeg_->avformat_version() << std::endl;
-  INITSYMBOL(avformat_, av_register_all);
-  SB_DCHECK(ffmpeg_->av_register_all);
+               << ffmpeg_->avformat_version();
+  if (ffmpeg_->avformat_version() < kAVFormatDoesNotHaveRegisterAll) {
+    INITSYMBOL(avformat_, av_register_all);
+    SB_DCHECK(ffmpeg_->av_register_all);
+  }
   INITSYMBOL(avformat_, av_read_frame);
   INITSYMBOL(avformat_, av_seek_frame);
   INITSYMBOL(avformat_, avformat_open_input);

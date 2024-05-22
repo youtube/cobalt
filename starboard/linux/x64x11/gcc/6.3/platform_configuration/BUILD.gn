@@ -73,11 +73,7 @@ config("compiler_flags") {
 
   ldflags += [ "-Wl,-rpath=/usr/lib/gcc/x86_64-linux-gnu/6" ]
 
-  cflags_c += [
-    # Limit to C99. This allows Linux to be a canary build for any
-    # C11 features that are not supported on some platforms' compilers.
-    "-std=c99",
-  ]
+  cflags_c += [ "-std=c11" ]
 
   cflags_cc += [
     "-std=gnu++14",
@@ -105,7 +101,7 @@ config("compiler_flags") {
 config("platform_configuration") {
   if (current_toolchain == default_toolchain &&
       build_with_separate_cobalt_toolchain) {
-    configs = [ "//starboard/evergreen/x64/platform_configuration" ]
+    configs = [ "//starboard/build/config/modular/x64" ]
   } else {
     configs = [
       "//starboard/linux/shared/platform_configuration",

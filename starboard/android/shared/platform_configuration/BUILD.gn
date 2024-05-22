@@ -19,6 +19,12 @@ config("platform_configuration") {
   cflags = []
 
   defines = []
+
+  include_dirs = [
+    # POSIX emulation headers - these need to come *before* system include_dirs.
+    "//starboard/android/shared/posix_emu/include",
+  ]
+
   ldflags = [
     # The NDK default "ld" is actually the gold linker for all architectures
     # except arm64 (aarch64) where it"s the bfd linker. Don"t use either of
@@ -70,7 +76,6 @@ config("platform_configuration") {
     defines += [ "THREAD_SANITIZER" ]
   }
 
-  cflags_cc = [ "-std=c++17" ]
   cflags += [
     # libwebp uses the cpufeatures library to detect ARM NEON support
     "-I${android_ndk_path}/sources/android/cpufeatures",
@@ -163,6 +168,13 @@ config("platform_configuration") {
     # Wrapper synchronizes punch-out video bounds with the UI frame.
     "-Wl,--wrap=eglSwapBuffers",
   ]
+  if (!is_native_target_build) {
+    ldflags += [
+      "-Wl,--wrap=close",
+      "-Wl,--wrap=open",
+      "-Wl,--wrap=stat",
+    ]
+  }
 }
 
 config("size") {

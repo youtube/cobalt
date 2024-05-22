@@ -14,9 +14,14 @@
 
 #include "base/threading/platform_thread.h"
 
+#include <pthread.h>
+#include <sched.h>
+#include <unistd.h>
+
 #include "base/logging.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 
 namespace base {
@@ -26,13 +31,24 @@ namespace {
 struct ThreadParams {
   PlatformThread::Delegate* delegate;
   bool joinable;
+  SbThreadPriority thread_priority;
+  std::string thread_name;
 };
 
 void* ThreadFunc(void* params) {
   ThreadParams* thread_params = static_cast<ThreadParams*>(params);
   PlatformThread::Delegate* delegate = thread_params->delegate;
+
+#if SB_API_VERSION >= 16
+  if (kSbHasThreadPrioritySupport) {
+    SbThreadSetPriority(thread_params->thread_priority);
+  }
+#endif  // SB_API_VERSION >= 16
+  pthread_setname_np(pthread_self(), thread_params->thread_name.c_str());
+
+  absl::optional<ScopedDisallowSingleton> disallow_singleton;
   if (!thread_params->joinable) {
-    base::ThreadRestrictions::SetSingletonAllowed(false);
+    disallow_singleton.emplace();
   }
 
   delete thread_params;
@@ -50,9 +66,49 @@ void* ThreadFunc(void* params) {
   return NULL;
 }
 
+#if SB_API_VERSION >= 16
 bool CreateThread(size_t stack_size,
                   SbThreadPriority priority,
-                  SbThreadAffinity affinity,
+                  bool joinable,
+                  const char* name,
+                  PlatformThread::Delegate* delegate,
+                  PlatformThreadHandle* thread_handle) {
+  ThreadParams* params = new ThreadParams;
+  params->delegate = delegate;
+  params->joinable = joinable;
+  params->thread_priority = priority;
+  if (name != nullptr) {
+    params->thread_name = name;
+  }
+
+  pthread_attr_t attr;
+  if (pthread_attr_init(&attr) != 0) {
+    return false;
+  }
+
+  pthread_attr_setstacksize(&attr, stack_size);
+
+  if (!joinable) {
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  }
+
+  pthread_t thread = 0;
+  pthread_create(&thread, &attr, ThreadFunc, params);
+  pthread_attr_destroy(&attr);
+
+  if (thread != 0) {
+    if (thread_handle) {
+      *thread_handle = PlatformThreadHandle(thread);
+    }
+
+    return true;
+  }
+
+  return false;
+}
+#else
+bool CreateThread(size_t stack_size,
+                  SbThreadPriority priority,
                   bool joinable,
                   const char* name,
                   PlatformThread::Delegate* delegate,
@@ -61,7 +117,7 @@ bool CreateThread(size_t stack_size,
   params->delegate = delegate;
   params->joinable = joinable;
 
-  SbThread thread = SbThreadCreate(stack_size, priority, affinity, joinable,
+  SbThread thread = SbThreadCreate(stack_size, priority, kSbThreadNoAffinity, joinable,
                                    name, ThreadFunc, params);
   if (SbThreadIsValid(thread)) {
     if (thread_handle) {
@@ -73,9 +129,26 @@ bool CreateThread(size_t stack_size,
 
   return false;
 }
+#endif  // SB_API_VERSION >= 16
 
-inline SbThreadPriority toSbPriority(ThreadPriority priority) {
-  return static_cast<SbThreadPriority>(priority);
+inline SbThreadPriority toSbPriority(ThreadType priority) {
+  switch (priority) {
+    case ThreadType::kBackground:
+      return kSbThreadPriorityLowest;
+    case ThreadType::kUtility:
+      return kSbThreadPriorityLow;
+    case ThreadType::kResourceEfficient:
+      return kSbThreadPriorityNormal;
+    case ThreadType::kDefault:
+      return kSbThreadNoPriority;
+    case ThreadType::kCompositing:
+      return kSbThreadPriorityHigh;
+    case ThreadType::kDisplayCritical:
+      return kSbThreadPriorityHighest;
+    case ThreadType::kRealtimeAudio:
+      return kSbThreadPriorityRealTime;
+  };
+  NOTREACHED();
 }
 }  // namespace
 
@@ -86,28 +159,39 @@ PlatformThreadId PlatformThread::CurrentId() {
 
 // static
 PlatformThreadRef PlatformThread::CurrentRef() {
+#if SB_API_VERSION < 16
   return PlatformThreadRef(SbThreadGetCurrent());
+#else
+  return PlatformThreadRef(pthread_self());
+#endif  // SB_API_VERSION < 16
+
 }
 
 // static
 PlatformThreadHandle PlatformThread::CurrentHandle() {
+#if SB_API_VERSION < 16
   return PlatformThreadHandle(SbThreadGetCurrent());
+#else
+  return PlatformThreadHandle(pthread_self());
+#endif  // SB_API_VERSION < 16
 }
 
 // static
 void PlatformThread::YieldCurrentThread() {
-  SbThreadYield();
+  sched_yield();
 }
 
 // static
 void PlatformThread::Sleep(TimeDelta duration) {
-  SbThreadSleep(duration.InMicroseconds());
+  usleep(duration.InMicroseconds());
 }
 
 // static
 void PlatformThread::SetName(const std::string& name) {
   ThreadIdNameManager::GetInstance()->SetName(name);
-  SbThreadSetName(name.c_str());
+
+  std::string buffer(name, 0, kSbMaxThreadNameLength - 1);
+  pthread_setname_np(pthread_self(), buffer.c_str());
 }
 
 // static
@@ -116,20 +200,22 @@ const char* PlatformThread::GetName() {
 }
 
 // static
-bool PlatformThread::CreateWithPriority(size_t stack_size,
+bool PlatformThread::CreateWithType(size_t stack_size,
                                         Delegate* delegate,
                                         PlatformThreadHandle* thread_handle,
-                                        ThreadPriority priority) {
-  return CreateThread(stack_size, toSbPriority(priority), kSbThreadNoAffinity,
+                                        ThreadType priority,
+                                        MessagePumpType /* pump_type_hint */) {
+  return CreateThread(stack_size, toSbPriority(priority),
                       true /* joinable thread */, NULL, delegate,
                       thread_handle);
 }
 
 // static
-bool PlatformThread::CreateNonJoinableWithPriority(size_t stack_size,
+bool PlatformThread::CreateNonJoinableWithType(size_t stack_size,
                                                    Delegate* delegate,
-                                                   ThreadPriority priority) {
-  return CreateThread(stack_size, toSbPriority(priority), kSbThreadNoAffinity,
+                                                   ThreadType priority,
+                                                   MessagePumpType /* pump_type_hint */) {
+  return CreateThread(stack_size, toSbPriority(priority),
                       false /* joinable thread */, NULL, delegate, NULL);
 }
 
@@ -138,26 +224,39 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   // Joining another thread may block the current thread for a long time, since
   // the thread referred to by |thread_handle| may still be running long-lived /
   // blocking tasks.
-  AssertBlockingAllowed();
+  internal::AssertBlockingAllowed();
+#if SB_API_VERSION < 16
   SbThreadJoin(thread_handle.platform_handle(), NULL);
+#else
+  pthread_join(thread_handle.platform_handle(), NULL);
+#endif  // SB_API_VERSION < 16
 }
 
 void PlatformThread::Detach(PlatformThreadHandle thread_handle) {
+#if SB_API_VERSION < 16
   SbThreadDetach(thread_handle.platform_handle());
+#else
+  pthread_detach(thread_handle.platform_handle());
+#endif  // SB_API_VERSION < 16
 }
 
-void PlatformThread::SetCurrentThreadPriority(ThreadPriority priority) {
+void internal::SetCurrentThreadTypeImpl(ThreadType /* thread_type */, MessagePumpType /*pump_type_hint*/) {
   NOTIMPLEMENTED();
-}
-
-ThreadPriority PlatformThread::GetCurrentThreadPriority() {
-  NOTIMPLEMENTED();
-  return ThreadPriority::NORMAL;
 }
 
 // static
-bool PlatformThread::CanIncreaseThreadPriority(ThreadPriority priority) {
+bool PlatformThread::CanChangeThreadType(ThreadType /* from */, ThreadType /* to */) {
   return false;
+}
+
+size_t PlatformThread::GetDefaultThreadStackSize() {
+  return 0;
+}
+
+// static
+ThreadPriorityForTest PlatformThread::GetCurrentThreadPriorityForTest() {
+  NOTIMPLEMENTED();
+  return ThreadPriorityForTest::kNormal;
 }
 
 }  // namespace base

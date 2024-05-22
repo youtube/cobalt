@@ -17,14 +17,11 @@
 
 #include "starboard/configuration.h"
 
-// Define preprocessor macros that cannot be determined at GYP time for use in
+// Define preprocessor macros that cannot be determined at GN time for use in
 // IDL files with Conditionals (e.g. conditional interface definitions, or
 // conditional attributes). This is necessary to make macros for IDL
 // Conditionals that are dependent on Starboard feature macros that get defined
 // in header files.
 
-// This is used to conditionally define the On Screen Keyboard interface and
-// attribute.
-#define COBALT_ENABLE_ON_SCREEN_KEYBOARD
 
 #endif  // COBALT_BINDINGS_SHARED_IDL_CONDITIONAL_MACROS_H_

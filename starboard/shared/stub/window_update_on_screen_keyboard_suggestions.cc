@@ -14,7 +14,11 @@
 
 #include "starboard/window.h"
 
+#if SB_API_VERSION < 16
+
 void SbWindowUpdateOnScreenKeyboardSuggestions(SbWindow window,
                                                const char* suggestions[],
                                                int num_suggestions,
                                                int ticket) {}
+
+#endif  // SB_API_VERSION < 16

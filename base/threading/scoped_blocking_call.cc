@@ -1,91 +1,130 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/threading/scoped_blocking_call.h"
 
 #include "base/lazy_instance.h"
-#include "base/scoped_clear_last_error.h"
 #include "base/threading/thread_local.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/time/time.h"
+#include "base/trace_event/base_tracing.h"
+#include "base/tracing_buildflags.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+#include "third_party/perfetto/protos/perfetto/trace/track_event/source_location.pbzero.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+
+#if DCHECK_IS_ON()
+#include "base/auto_reset.h"
+#include "third_party/abseil-cpp/absl/base/attributes.h"
+#if defined(STARBOARD)
+#include <pthread.h>
+
+#include "base/check_op.h"
+#include "starboard/thread.h"
+#endif
+#endif
 
 namespace base {
 
 namespace {
 
-LazyInstance<ThreadLocalPointer<internal::BlockingObserver>>::Leaky
-    tls_blocking_observer = LAZY_INSTANCE_INITIALIZER;
+#if DCHECK_IS_ON()
+#if defined(STARBOARD)
+ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
-// Last ScopedBlockingCall instantiated on this thread.
-LazyInstance<ThreadLocalPointer<internal::UncheckedScopedBlockingCall>>::Leaky
-    tls_last_scoped_blocking_call = LAZY_INSTANCE_INITIALIZER;
+void InitThreadLocalKey() {
+  int res = pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(res == 0);
+}
+
+void EnsureThreadLocalKeyInited() {
+  pthread_once(&s_once_flag, InitThreadLocalKey);
+}
+
+bool GetConstructionInProgress() {
+  EnsureThreadLocalKeyInited();
+  void* construction_in_progress = pthread_getspecific(s_thread_local_key);
+  return !!construction_in_progress ? reinterpret_cast<intptr_t>(construction_in_progress) != 0 : false;
+}
+#else
+// Used to verify that the trace events used in the constructor do not result in
+// instantiating a ScopedBlockingCall themselves (which would cause an infinite
+// reentrancy loop).
+ABSL_CONST_INIT thread_local bool construction_in_progress = false;
+#endif
+#endif
 
 }  // namespace
 
-namespace internal {
+ScopedBlockingCall::ScopedBlockingCall(const Location& from_here,
+                                       BlockingType blocking_type)
+    : UncheckedScopedBlockingCall(
+          blocking_type,
+          UncheckedScopedBlockingCall::BlockingCallType::kRegular) {
+#if DCHECK_IS_ON()
+#if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
+#else
+  const AutoReset<bool> resetter(&construction_in_progress, true, false);
+#endif
+#endif
 
-UncheckedScopedBlockingCall::UncheckedScopedBlockingCall(
-    BlockingType blocking_type)
-    : blocking_observer_(tls_blocking_observer.Get().Get()),
-      previous_scoped_blocking_call_(tls_last_scoped_blocking_call.Get().Get()),
-      is_will_block_(blocking_type == BlockingType::WILL_BLOCK ||
-                     (previous_scoped_blocking_call_ &&
-                      previous_scoped_blocking_call_->is_will_block_)) {
-  tls_last_scoped_blocking_call.Get().Set(this);
+  internal::AssertBlockingAllowed();
+  TRACE_EVENT_BEGIN(
+      "base", "ScopedBlockingCall", [&](perfetto::EventContext ctx) {
+        ctx.event()->set_source_location_iid(
+            base::trace_event::InternedSourceLocation::Get(&ctx, from_here));
+      });
 
-  if (blocking_observer_) {
-    if (!previous_scoped_blocking_call_) {
-      blocking_observer_->BlockingStarted(blocking_type);
-    } else if (blocking_type == BlockingType::WILL_BLOCK &&
-               !previous_scoped_blocking_call_->is_will_block_) {
-      blocking_observer_->BlockingTypeUpgraded();
-    }
-  }
+#if DCHECK_IS_ON() && defined(STARBOARD)
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
+#endif
 }
 
-UncheckedScopedBlockingCall::~UncheckedScopedBlockingCall() {
-  // TLS affects result of GetLastError() on Windows. ScopedClearLastError
-  // prevents side effect.
-  base::internal::ScopedClearLastError save_last_error;
-  DCHECK_EQ(this, tls_last_scoped_blocking_call.Get().Get());
-  tls_last_scoped_blocking_call.Get().Set(previous_scoped_blocking_call_);
-  if (blocking_observer_ && !previous_scoped_blocking_call_)
-    blocking_observer_->BlockingEnded();
-}
-
-}  // namespace internal
-
-ScopedBlockingCall::ScopedBlockingCall(BlockingType blocking_type)
-    : UncheckedScopedBlockingCall(blocking_type) {
-  base::AssertBlockingAllowed();
+ScopedBlockingCall::~ScopedBlockingCall() {
+  TRACE_EVENT_END("base");
 }
 
 namespace internal {
 
 ScopedBlockingCallWithBaseSyncPrimitives::
-    ScopedBlockingCallWithBaseSyncPrimitives(BlockingType blocking_type)
-    : UncheckedScopedBlockingCall(blocking_type) {
+    ScopedBlockingCallWithBaseSyncPrimitives(const Location& from_here,
+                                             BlockingType blocking_type)
+    : UncheckedScopedBlockingCall(
+          blocking_type,
+          UncheckedScopedBlockingCall::BlockingCallType::kBaseSyncPrimitives) {
+#if DCHECK_IS_ON()
+#if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
+#else
+  const AutoReset<bool> resetter(&construction_in_progress, true, false);
+#endif
+#endif
+
   internal::AssertBaseSyncPrimitivesAllowed();
+  TRACE_EVENT_BEGIN(
+      "base", "ScopedBlockingCallWithBaseSyncPrimitives",
+      [&](perfetto::EventContext ctx) {
+        perfetto::protos::pbzero::SourceLocation* source_location_data =
+            ctx.event()->set_source_location();
+        source_location_data->set_file_name(from_here.file_name());
+        source_location_data->set_function_name(from_here.function_name());
+      });
+
+#if DCHECK_IS_ON() && defined(STARBOARD)
+  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
+#endif
 }
 
-void SetBlockingObserverForCurrentThread(BlockingObserver* blocking_observer) {
-  DCHECK(!tls_blocking_observer.Get().Get());
-  tls_blocking_observer.Get().Set(blocking_observer);
-}
-
-void ClearBlockingObserverForTesting() {
-  tls_blocking_observer.Get().Set(nullptr);
-}
-
-ScopedClearBlockingObserverForTesting::ScopedClearBlockingObserverForTesting()
-    : blocking_observer_(tls_blocking_observer.Get().Get()) {
-  tls_blocking_observer.Get().Set(nullptr);
-}
-
-ScopedClearBlockingObserverForTesting::
-    ~ScopedClearBlockingObserverForTesting() {
-  DCHECK(!tls_blocking_observer.Get().Get());
-  tls_blocking_observer.Get().Set(blocking_observer_);
+ScopedBlockingCallWithBaseSyncPrimitives::
+    ~ScopedBlockingCallWithBaseSyncPrimitives() {
+  TRACE_EVENT_END("base");
 }
 
 }  // namespace internal

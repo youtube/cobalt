@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,17 +11,16 @@
 #include "base/atomicops.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
 
 namespace base {
-class TaskRunner;
+class SequencedTaskRunner;
 }
 
 namespace net {
 
-#if !defined(USE_COBALT_CUSTOMIZATIONS)
 // This class provides an API for asynchronously listing the contents of a
 // directory on the filesystem.  It runs a task on a background thread, and
 // enumerates all files in the specified directory on that thread.  Destroying
@@ -46,7 +45,7 @@ class NET_EXPORT DirectoryLister  {
     virtual void OnListDone(int error) = 0;
 
    protected:
-    virtual ~DirectoryListerDelegate() {}
+    virtual ~DirectoryListerDelegate() = default;
   };
 
   // Listing options
@@ -66,6 +65,9 @@ class NET_EXPORT DirectoryLister  {
   DirectoryLister(const base::FilePath& dir,
                   ListingType type,
                   DirectoryListerDelegate* delegate);
+
+  DirectoryLister(const DirectoryLister&) = delete;
+  DirectoryLister& operator=(const DirectoryLister&) = delete;
 
   // Will invoke Cancel().
   ~DirectoryLister();
@@ -90,6 +92,8 @@ class NET_EXPORT DirectoryLister  {
   class Core : public base::RefCountedThreadSafe<Core> {
    public:
     Core(const base::FilePath& dir, ListingType type, DirectoryLister* lister);
+    Core(const Core&) = delete;
+    Core& operator=(const Core&) = delete;
 
     // May only be called on a worker pool thread.
     void Start();
@@ -112,17 +116,15 @@ class NET_EXPORT DirectoryLister  {
 
     const base::FilePath dir_;
     const ListingType type_;
-    const scoped_refptr<base::TaskRunner> origin_task_runner_;
+    const scoped_refptr<base::SequencedTaskRunner> origin_task_runner_;
 
     // Only used on the origin thread.
-    DirectoryLister* lister_;
+    raw_ptr<DirectoryLister> lister_;
 
     // Set to 1 on cancellation. Used both to abort listing files early on the
     // worker pool thread for performance reasons and to ensure |lister_| isn't
     // called after cancellation on the origin thread.
-    base::subtle::Atomic32 cancelled_;
-
-    DISALLOW_COPY_AND_ASSIGN(Core);
+    base::subtle::Atomic32 cancelled_ = 0;
   };
 
   // Call into the corresponding DirectoryListerDelegate. Must not be called
@@ -131,42 +133,9 @@ class NET_EXPORT DirectoryLister  {
   void OnListDone(int error);
 
   scoped_refptr<Core> core_;
-  DirectoryListerDelegate* const delegate_;
-
-  DISALLOW_COPY_AND_ASSIGN(DirectoryLister);
+  const raw_ptr<DirectoryListerDelegate> delegate_;
 };
 
-#else
-
-// TODO b/296715826 Fix stubbed out class.
-class NET_EXPORT DirectoryLister  {
- public:
-  struct DirectoryListerData {
-    base::FileEnumerator::FileInfo info;
-    base::FilePath path;
-    base::FilePath absolute_path;
-  };
-  class DirectoryListerDelegate {
-   public:
-    virtual void OnListFile(const DirectoryListerData& data) = 0;
-
-    virtual void OnListDone(int error) = 0;
-
-   protected:
-    virtual ~DirectoryListerDelegate() {}
-  };
-  enum ListingType {};
-  DirectoryLister(const base::FilePath& dir,
-                  DirectoryListerDelegate* delegate){};
-  DirectoryLister(const base::FilePath& dir,
-                  ListingType type,
-                  DirectoryListerDelegate* delegate){};
-  ~DirectoryLister(){};
-  void Start() {};
-  void Cancel() {};
-};
-
-#endif // !defined(USE_COBALT_CUSTOMIZATIONS)
 }  // namespace net
 
 #endif  // NET_BASE_DIRECTORY_LISTER_H_

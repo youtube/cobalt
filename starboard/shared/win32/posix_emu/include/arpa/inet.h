@@ -15,45 +15,11 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
 
-#if defined(STARBOARD) && defined(_MSC_VER)
-
 #include <stdint.h>
 #include <stdlib.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
-#include "starboard/configuration.h"
-
-inline uint32_t htonl(uint32_t in) {
-#if SB_IS(BIG_ENDIAN)
-  return in;
-#else
-  return _byteswap_ulong(in);
-#endif
-}
-
-inline uint16_t htons(uint16_t in) {
-#if SB_IS(BIG_ENDIAN)
-  return in;
-#else
-  return _byteswap_ushort(in);
-#endif
-}
-
-inline uint32_t ntohl(uint32_t in) {
-#if SB_IS(BIG_ENDIAN)
-  return in;
-#else
-  return _byteswap_ulong(in);
-#endif
-}
-
-inline uint16_t ntohs(uint16_t in) {
-#if SB_IS(BIG_ENDIAN)
-  return in;
-#else
-  return _byteswap_ushort(in);
-#endif
-}
-
-#endif  // defined(STARBOARD) && defined(_MSC_VER)
+#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
 
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_

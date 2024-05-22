@@ -12,7 +12,6 @@
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkScalar.h"
 #include "include/private/SkTo.h"
-#include "src/core/SkOSFile.h"  // Included for SkFile.
 
 #include <memory.h>
 
@@ -297,6 +296,8 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
+#include <stdio.h>
+
 /** A stream that wraps a C FILE* file stream. */
 class SK_API SkFILEStream : public SkStreamAsset {
 public:
@@ -307,10 +308,17 @@ public:
 
     /** Initialize the stream with an existing C FILE stream.
      *  The current position of the C FILE stream will be considered the
-     *  beginning of the SkFILEStream.
+     *  beginning of the SkFILEStream and the current seek end of the FILE will be the end.
      *  The C FILE stream will be closed in the destructor.
      */
-    explicit SkFILEStream(SkFile* file);
+    explicit SkFILEStream(FILE* file);
+
+    /** Initialize the stream with an existing C FILE stream.
+     *  The current position of the C FILE stream will be considered the
+     *  beginning of the SkFILEStream and size bytes later will be the end.
+     *  The C FILE stream will be closed in the destructor.
+     */
+    explicit SkFILEStream(FILE* file, size_t size);
 
     ~SkFILEStream() override;
 
@@ -344,19 +352,21 @@ public:
     size_t getLength() const override;
 
 private:
-    explicit SkFILEStream(std::shared_ptr<SkFile>, size_t size, size_t offset);
-    explicit SkFILEStream(std::shared_ptr<SkFile>, size_t size, size_t offset, size_t originalOffset);
+    explicit SkFILEStream(FILE*, size_t size, size_t start);
+    explicit SkFILEStream(std::shared_ptr<FILE>, size_t end, size_t start);
+    explicit SkFILEStream(std::shared_ptr<FILE>, size_t end, size_t start, size_t current);
 
     SkStreamAsset* onDuplicate() const override;
     SkStreamAsset* onFork() const override;
 
-    std::shared_ptr<SkFile> fFILE;
+    std::shared_ptr<FILE> fFILE;
     // My own council will I keep on sizes and offsets.
-    size_t fSize;
-    size_t fOffset;
-    size_t fOriginalOffset;
+    // These are seek positions in the underling FILE, not offsets into the stream.
+    size_t fEnd;
+    size_t fStart;
+    size_t fCurrent;
 
-    typedef SkStreamAsset INHERITED;
+    using INHERITED = SkStreamAsset;
 };
 
 class SK_API SkMemoryStream : public SkStreamMemory {
@@ -429,7 +439,7 @@ private:
     sk_sp<SkData>   fData;
     size_t          fOffset;
 
-    typedef SkStreamMemory INHERITED;
+    using INHERITED = SkStreamMemory;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -449,9 +459,9 @@ public:
     size_t bytesWritten() const override;
 
 private:
-    SkFile* fFILE;
+    FILE* fFILE;
 
-    typedef SkWStream INHERITED;
+    using INHERITED = SkWStream;
 };
 
 class SK_API SkDynamicMemoryWStream : public SkWStream {
@@ -508,7 +518,7 @@ private:
     friend class SkBlockMemoryStream;
     friend class SkBlockMemoryRefCnt;
 
-    typedef SkWStream INHERITED;
+    using INHERITED = SkWStream;
 };
 
 #endif

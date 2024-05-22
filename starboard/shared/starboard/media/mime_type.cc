@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/media/mime_type.h"
 
+#include <strings.h>
 #include <algorithm>
 #include <iosfwd>
 #include <locale>

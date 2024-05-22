@@ -39,6 +39,10 @@ std::unique_ptr<FFmpegDemuxer> FFmpegDemuxer::Create(
     case 571:
     case 581:
       return FFmpegDemuxerImpl<581>::Create(data_source);
+    case 591:
+      return FFmpegDemuxerImpl<591>::Create(data_source);
+    case 601:
+      return FFmpegDemuxerImpl<601>::Create(data_source);
     default:
       SB_LOG(WARNING) << "Unsupported FFMPEG specialization "
                       << ffmpeg->specialization_version();

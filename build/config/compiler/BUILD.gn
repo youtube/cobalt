@@ -1601,7 +1601,9 @@ config("default_warnings") {
 
       # -Wpacked-not-aligned complains all generated mojom-shared-internal.h
       # files.
+      if (!is_native_target_build) {
       cflags += [ "-Wno-packed-not-aligned" ]
+      }
     }
   }
 
@@ -1640,6 +1642,7 @@ config("default_warnings") {
         "-Wno-shadow",
         "-Wno-range-loop-bind-reference",
         "-Wno-range-loop-construct",
+        "-Wno-unused-result",
       ]
     }
 
@@ -1810,26 +1813,6 @@ config("chromium_code") {
       cflags += [
         # Warn on unnecessary extra semicolons outside of function definitions.
         "-Wextra-semi",
-      ]
-    }
-
-    # Suppress warning in old //net.
-    if (is_starboard) {
-      cflags += [
-        "-Wno-reorder-ctor",
-        "-Wno-unused-const-variable",
-        "-Wno-unused-variable",
-        "-Wno-unused-private-field",
-        "-Wno-missing-braces",
-        "-Wno-string-concatenation",
-      ]
-    }
-
-    # Suppress warnings in old //base and //net.
-    if (is_starboard) {
-      cflags += [
-        "-Wno-sign-compare",
-        "-Wno-shorten-64-to-32",
       ]
     }
 
@@ -2035,6 +2018,9 @@ config("no_exceptions") {
 config("wglobal_constructors") {
   if (is_clang) {
     cflags = [ "-Wglobal-constructors" ]
+    if (is_starboard) {
+      cflags -= [ "-Wglobal-constructors" ]
+    }
   }
 }
 

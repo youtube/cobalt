@@ -7,6 +7,7 @@ import("core.gni")
 import("effects.gni")
 import("effects_imagefilters.gni")
 import("gpu.gni")
+import("graphite.gni")
 import("opts.gni")
 import("pdf.gni")
 import("sksl.gni")
@@ -26,4 +27,5 @@ skia_opts = {
   sse42_sources = sse42
   avx_sources = avx
   hsw_sources = hsw
+  skx_sources = skx
 }

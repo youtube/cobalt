@@ -97,6 +97,7 @@ class MediaDecoder
                const FrameRenderedCB& frame_rendered_cb,
                int tunnel_mode_audio_session_id,
                bool force_big_endian_hdr_metadata,
+               int max_video_input_size,
                std::string* error_message);
   ~MediaDecoder();
 
@@ -111,6 +112,8 @@ class MediaDecoder
   }
 
   bool is_valid() const { return media_codec_bridge_ != NULL; }
+
+  bool Flush();
 
  private:
   struct Event {
@@ -202,7 +205,7 @@ class MediaDecoder
   bool first_call_on_handler_thread_ = true;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  SbThread decoder_thread_ = kSbThreadInvalid;
+  pthread_t decoder_thread_ = 0;
   scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 

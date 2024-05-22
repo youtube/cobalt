@@ -49,9 +49,6 @@ def initialize_jinja_env(cache_dir, templates_dir):
   """Initialize the Jinja2 environment."""
   assert os.path.isabs(templates_dir)
   assert os.path.isabs(SHARED_TEMPLATES_DIR)
-  # Ensure that we are using the version of jinja that's checked in to
-  # third_party.
-  assert jinja2.__version__ == '2.7.1'
   jinja_env = jinja2.Environment(
       loader=jinja2.FileSystemLoader([templates_dir, SHARED_TEMPLATES_DIR]),
       extensions=['jinja2.ext.do'],  # do statement

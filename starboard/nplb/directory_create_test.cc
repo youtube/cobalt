@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include <string>
 
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
@@ -25,9 +28,9 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const std::string kManyFileSeparators = std::string(kSbFileSepString) +
-                                        kSbFileSepString + kSbFileSepString +
-                                        kSbFileSepString;
+const std::string kManyFileSeparators =  // NOLINT(runtime/string)
+    std::string(kSbFileSepString) + kSbFileSepString + kSbFileSepString +
+    kSbFileSepString;
 
 // NOTE: There is a test missing here, for creating a directory right off of the
 // root. But, this is likely to fail due to permissions, so we can't make a
@@ -109,3 +112,4 @@ TEST(SbDirectoryCreateTest, FailureNotAbsolute) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif  // SB_API_VERSION < 16

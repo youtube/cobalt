@@ -33,7 +33,7 @@ class InputEvent : public UIEvent {
   //
   explicit InputEvent(const std::string& type);
   InputEvent(const std::string& type, const InputEventInit& init_dict);
-  InputEvent(base::Token type, const scoped_refptr<Window>& view,
+  InputEvent(base_token::Token type, const scoped_refptr<Window>& view,
              const InputEventInit& init_dict);
 
   void InitInputEvent(const std::string& type, bool bubbles, bool cancelable,

@@ -194,6 +194,7 @@ static_library("dom") {
     "media_settings.cc",
     "media_source.cc",
     "media_source.h",
+    "media_source_attachment.h",
     "memory_info.cc",
     "memory_info.h",
     "mime_type_array.cc",
@@ -310,10 +311,6 @@ static_library("dom") {
     "xml_serializer.h",
   ]
 
-  if (use_skia_next) {
-    defines = [ "USE_SKIA_NEXT" ]
-  }
-
   public_deps = [
     ":media_settings",
     "//cobalt/browser:generated_types",
@@ -408,6 +405,7 @@ target(gtest_target_type, "dom_test") {
     "rule_matching_test.cc",
     "screen_test.cc",
     "serializer_test.cc",
+    "source_buffer_metrics_test.cc",
     "storage_area_test.cc",
     "text_test.cc",
     "time_ranges_test.cc",

@@ -5,12 +5,14 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkBitmap.h"
 #include "src/core/SkDraw.h"
 #include "src/core/SkFontPriv.h"
+#include "src/core/SkMatrixProvider.h"
 #include "src/core/SkPaintPriv.h"
 #include "src/core/SkRasterClip.h"
+#include "src/core/SkScalerCache.h"
 #include "src/core/SkScalerContext.h"
-#include "src/core/SkStrike.h"
 #include "src/core/SkUtils.h"
 #include <climits>
 
@@ -33,16 +35,12 @@ static bool check_glyph_position(SkPoint position) {
              lt(position.fY, INT_MIN - (INT16_MIN + 0 /*UINT16_MIN*/)));
 }
 
-void SkDraw::paintMasks(SkDrawableGlyphBuffer* drawables, const SkPaint& paint) const {
+void SkDraw::paintMasks(SkDrawableGlyphBuffer* accepted, const SkPaint& paint) const {
 
     // The size used for a typical blitter.
     SkSTArenaAlloc<3308> alloc;
-    SkBlitter* blitter = SkBlitter::Choose(fDst, *fMatrix, paint, &alloc, false);
-    if (fCoverage) {
-        blitter = alloc.make<SkPairBlitter>(
-                blitter,
-                SkBlitter::Choose(*fCoverage, *fMatrix, SkPaint(), &alloc, true));
-    }
+    SkBlitter* blitter =
+            SkBlitter::Choose(fDst, *fMatrixProvider, paint, &alloc, false, fRC->clipShader());
 
     SkAAClipBlitterWrapper wrapper{*fRC, blitter};
     blitter = wrapper.getBlitter();
@@ -50,8 +48,8 @@ void SkDraw::paintMasks(SkDrawableGlyphBuffer* drawables, const SkPaint& paint) 
     bool useRegion = fRC->isBW() && !fRC->isRect();
 
     if (useRegion) {
-        for (auto [variant, pos] : drawables->drawable()) {
-            SkGlyph* glyph = variant.glyph();
+        for (auto [variant, pos] : accepted->accepted()) {
+            const SkGlyph* glyph = variant.glyph();
             if (check_glyph_position(pos)) {
                 SkMask mask = glyph->mask(pos);
 
@@ -77,8 +75,8 @@ void SkDraw::paintMasks(SkDrawableGlyphBuffer* drawables, const SkPaint& paint) 
     } else {
         SkIRect clipBounds = fRC->isBW() ? fRC->bwRgn().getBounds()
                                          : fRC->aaRgn().getBounds();
-        for (auto [variant, pos] : drawables->drawable()) {
-            SkGlyph* glyph = variant.glyph();
+        for (auto [variant, pos] : accepted->accepted()) {
+            const SkGlyph* glyph = variant.glyph();
             if (check_glyph_position(pos)) {
                 SkMask mask = glyph->mask(pos);
                 SkIRect storage;
@@ -107,19 +105,10 @@ void SkDraw::paintMasks(SkDrawableGlyphBuffer* drawables, const SkPaint& paint) 
     }
 }
 
-void SkDraw::paintPaths(SkDrawableGlyphBuffer* drawables,
-                        SkScalar scale,
-                        const SkPaint& paint) const {
-    for (auto [variant, pos] : drawables->drawable()) {
-        const SkPath* path = variant.path();
-        SkMatrix m;
-        m.setScaleTranslate(scale, scale, pos.x(), pos.y());
-        this->drawPath(*path, paint, &m, false);
-    }
-}
-
-void SkDraw::drawGlyphRunList(const SkGlyphRunList& glyphRunList,
-                              SkGlyphRunListPainter* glyphPainter) const {
+void SkDraw::drawGlyphRunList(SkCanvas* canvas,
+                              SkGlyphRunListPainter* glyphPainter,
+                              const SkGlyphRunList& glyphRunList,
+                              const SkPaint& paint) const {
 
     SkDEBUGCODE(this->validate();)
 
@@ -127,7 +116,8 @@ void SkDraw::drawGlyphRunList(const SkGlyphRunList& glyphRunList,
         return;
     }
 
-    glyphPainter->drawForBitmapDevice(glyphRunList, *fMatrix, this);
+    glyphPainter->drawForBitmapDevice(canvas, this, glyphRunList, paint,
+                                      fMatrixProvider->localToDevice());
 }
 
 #if defined _WIN32

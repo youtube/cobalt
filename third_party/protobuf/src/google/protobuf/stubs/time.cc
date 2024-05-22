@@ -5,10 +5,6 @@
 #include <google/protobuf/stubs/stringprintf.h>
 #include <google/protobuf/stubs/strutil.h>
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/eztime_poem.h"
-#endif
-
 namespace google {
 namespace protobuf {
 namespace internal {

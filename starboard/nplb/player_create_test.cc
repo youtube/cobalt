@@ -47,7 +47,6 @@ class SbPlayerTest : public ::testing::Test {
     if (output_mode != kSbPlayerOutputModeDecodeToTexture) {
       return;
     }
-#if SB_HAS(GLES2)
     fake_graphics_context_provider_.RunOnGlesContextThread([&]() {
       ASSERT_TRUE(SbPlayerIsValid(player));
       SbDecodeTarget frame = SbPlayerGetCurrentFrame(player);
@@ -55,7 +54,6 @@ class SbPlayerTest : public ::testing::Test {
         SbDecodeTargetRelease(frame);
       }
     });
-#endif  // SB_HAS(GLES2)
   }
 
   static void PlayerStatusFunc(SbPlayer player,

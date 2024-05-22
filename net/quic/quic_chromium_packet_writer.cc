@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,16 +7,16 @@
 #include <string>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/check_op.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/sparse_histogram.h"
+#include "base/task/sequenced_task_runner.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/quic/quic_chromium_client_session.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "starboard/memory.h"
 
 namespace net {
 
@@ -70,36 +70,30 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 }  // namespace
 
 QuicChromiumPacketWriter::ReusableIOBuffer::ReusableIOBuffer(size_t capacity)
-    : IOBuffer(capacity), capacity_(capacity), size_(0) {}
+    : IOBuffer(capacity), capacity_(capacity) {}
 
-QuicChromiumPacketWriter::ReusableIOBuffer::~ReusableIOBuffer() {}
+QuicChromiumPacketWriter::ReusableIOBuffer::~ReusableIOBuffer() = default;
 
 void QuicChromiumPacketWriter::ReusableIOBuffer::Set(const char* buffer,
                                                      size_t buf_len) {
   CHECK_LE(buf_len, capacity_);
   CHECK(HasOneRef());
   size_ = buf_len;
-  memcpy(data(), buffer, buf_len);
+  std::memcpy(data(), buffer, buf_len);
 }
-
-QuicChromiumPacketWriter::QuicChromiumPacketWriter() : weak_factory_(this) {}
 
 QuicChromiumPacketWriter::QuicChromiumPacketWriter(
     DatagramClientSocket* socket,
     base::SequencedTaskRunner* task_runner)
     : socket_(socket),
-      delegate_(nullptr),
-      packet_(base::MakeRefCounted<ReusableIOBuffer>(quic::kMaxPacketSize)),
-      write_in_progress_(false),
-      force_write_blocked_(false),
-      retry_count_(0),
-      weak_factory_(this) {
+      packet_(base::MakeRefCounted<ReusableIOBuffer>(
+          quic::kMaxOutgoingPacketSize)) {
   retry_timer_.SetTaskRunner(task_runner);
   write_callback_ = base::BindRepeating(
       &QuicChromiumPacketWriter::OnWriteComplete, weak_factory_.GetWeakPtr());
 }
 
-QuicChromiumPacketWriter::~QuicChromiumPacketWriter() {}
+QuicChromiumPacketWriter::~QuicChromiumPacketWriter() = default;
 
 void QuicChromiumPacketWriter::set_force_write_blocked(
     bool force_write_blocked) {
@@ -111,7 +105,7 @@ void QuicChromiumPacketWriter::set_force_write_blocked(
 void QuicChromiumPacketWriter::SetPacket(const char* buffer, size_t buf_len) {
   if (UNLIKELY(!packet_)) {
     packet_ = base::MakeRefCounted<ReusableIOBuffer>(
-        std::max(buf_len, static_cast<size_t>(quic::kMaxPacketSize)));
+        std::max(buf_len, static_cast<size_t>(quic::kMaxOutgoingPacketSize)));
     RecordNotReusableReason(NOT_REUSABLE_NULLPTR);
   }
   if (UNLIKELY(packet_->capacity() < buf_len)) {
@@ -120,7 +114,7 @@ void QuicChromiumPacketWriter::SetPacket(const char* buffer, size_t buf_len) {
   }
   if (UNLIKELY(!packet_->HasOneRef())) {
     packet_ = base::MakeRefCounted<ReusableIOBuffer>(
-        std::max(buf_len, static_cast<size_t>(quic::kMaxPacketSize)));
+        std::max(buf_len, static_cast<size_t>(quic::kMaxOutgoingPacketSize)));
     RecordNotReusableReason(NOT_REUSABLE_REF_COUNT);
   }
   packet_->Set(buffer, buf_len);
@@ -199,6 +193,10 @@ void QuicChromiumPacketWriter::SetWritable() {
   write_in_progress_ = false;
 }
 
+absl::optional<int> QuicChromiumPacketWriter::MessageTooBigErrorCode() const {
+  return ERR_MSG_TOO_BIG;
+}
+
 void QuicChromiumPacketWriter::OnWriteComplete(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   write_in_progress_ = false;
@@ -243,9 +241,9 @@ bool QuicChromiumPacketWriter::MaybeRetryAfterWriteError(int rv) {
   }
 
   retry_timer_.Start(
-      FROM_HERE, base::TimeDelta::FromMilliseconds(UINT64_C(1) << retry_count_),
-      base::Bind(&QuicChromiumPacketWriter::RetryPacketAfterNoBuffers,
-                 weak_factory_.GetWeakPtr()));
+      FROM_HERE, base::Milliseconds(UINT64_C(1) << retry_count_),
+      base::BindOnce(&QuicChromiumPacketWriter::RetryPacketAfterNoBuffers,
+                     weak_factory_.GetWeakPtr()));
   retry_count_++;
   write_in_progress_ = true;
   return true;
@@ -253,7 +251,7 @@ bool QuicChromiumPacketWriter::MaybeRetryAfterWriteError(int rv) {
 
 quic::QuicByteCount QuicChromiumPacketWriter::GetMaxPacketSize(
     const quic::QuicSocketAddress& peer_address) const {
-  return quic::kMaxPacketSize;
+  return quic::kMaxOutgoingPacketSize;
 }
 
 bool QuicChromiumPacketWriter::SupportsReleaseTime() const {
@@ -264,10 +262,10 @@ bool QuicChromiumPacketWriter::IsBatchMode() const {
   return false;
 }
 
-char* QuicChromiumPacketWriter::GetNextWriteLocation(
+quic::QuicPacketBuffer QuicChromiumPacketWriter::GetNextWriteLocation(
     const quic::QuicIpAddress& self_address,
     const quic::QuicSocketAddress& peer_address) {
-  return nullptr;
+  return {nullptr, nullptr};
 }
 
 quic::WriteResult QuicChromiumPacketWriter::Flush() {

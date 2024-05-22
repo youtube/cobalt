@@ -175,7 +175,7 @@ component("protobuf_lite") {
     ":protobuf_config",
 
     # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
-    "//build/config/compiler:no_size_t_to_int_warning",
+    # "//build/config/compiler:no_size_t_to_int_warning",
   ]
 
   if (use_cobalt_customizations) {
@@ -204,6 +204,10 @@ if (current_toolchain == host_toolchain) {
 static_library("protobuf_full") {
   # Prevent people from depending on this outside our file.
   visibility = [ ":*" ]
+
+  if (use_cobalt_customizations) {
+    visibility += [ "//third_party/perfetto/gn:protobuf_full" ]
+  }
 
   sources = protobuf_lite_sources
   sources += [

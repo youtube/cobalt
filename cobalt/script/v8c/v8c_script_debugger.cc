@@ -277,7 +277,7 @@ const script::ValueHandleHolder* V8cScriptDebugger::LookupRemoteObjectId(
   V8cValueHandleHolder* retval = holder.get();
   // Keep the scoped_ptr alive in a no-op task so the holder stays valid until
   // the bindings code gets the v8::Value out of it through the raw pointer.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::Bind([](std::unique_ptr<V8cValueHandleHolder>) {},
                             base::Passed(&holder)));
   return retval;

@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ namespace media_capture {
 namespace encoders {
 
 void AudioEncoder::AddListener(AudioEncoder::Listener* listener) {
-  starboard::ScopedLock lock(listeners_mutex_);
+  base::AutoLock lock(listeners_mutex_);
   if (std::find(listeners_.begin(), listeners_.end(), listener) !=
       listeners_.end()) {
     return;
@@ -30,14 +30,14 @@ void AudioEncoder::AddListener(AudioEncoder::Listener* listener) {
 }
 
 void AudioEncoder::RemoveListener(AudioEncoder::Listener* listener) {
-  starboard::ScopedLock lock(listeners_mutex_);
+  base::AutoLock lock(listeners_mutex_);
   listeners_.erase(std::remove(listeners_.begin(), listeners_.end(), listener),
                    listeners_.end());
 }
 
 void AudioEncoder::PushDataToAllListeners(const uint8* data, size_t data_size,
                                           base::TimeTicks timecode) {
-  starboard::ScopedLock lock(listeners_mutex_);
+  base::AutoLock lock(listeners_mutex_);
   for (AudioEncoder::Listener* listener : listeners_) {
     listener->OnEncodedDataAvailable(data, data_size, timecode);
   }

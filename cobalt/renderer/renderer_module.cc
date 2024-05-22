@@ -90,12 +90,8 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
     pipeline_ = base::WrapUnique(new renderer::Pipeline(
         base::Bind(options_.create_rasterizer_function, graphics_context_.get(),
                    options_),
-        display_->GetRenderTarget(), graphics_context_.get(),
-        // SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is deprecated in
-        // favor of the usage of 'CobaltExtensionGraphicsApi', use 'false' to
-        // deprecate the submit_even_if_render_tree_is_unchanged.
-        false, renderer::Pipeline::kClearAccordingToPlatform,
-        pipeline_options));
+        display_->GetRenderTarget(), graphics_context_.get(), false,
+        renderer::Pipeline::kClearAccordingToPlatform, pipeline_options));
   }
 }
 

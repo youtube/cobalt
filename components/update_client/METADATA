@@ -1,7 +1,15 @@
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src"
+  identifier {
+    type: "ChromiumVersion"
+    value: "78.0.3904.106"  # from https://chromereleases.googleblog.com/2019/11/stable-channel-update-for-chrome-os_19.html
   }
-  version: "78.0.3904.106"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "5d069f92aa014ded86ab785b26971ac2dbe74b8e"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "components/update_client"
+  }
 }

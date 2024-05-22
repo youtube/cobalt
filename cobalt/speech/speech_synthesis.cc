@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/logging.h"
 #include "cobalt/dom/navigator.h"
 #include "starboard/speech_synthesis.h"
 
@@ -48,7 +49,7 @@ SpeechSynthesis::~SpeechSynthesis() {}
 
 void SpeechSynthesis::set_onvoiceschanged(
     const EventListenerScriptValue& event_listener) {
-  base::Token event_name = base::Tokens::voiceschanged();
+  base_token::Token event_name = base::Tokens::voiceschanged();
   SetAttributeEventListener(event_name, event_listener);
   DispatchEvent(new web::Event(event_name));
 }
@@ -120,8 +121,8 @@ void SpeechSynthesis::Speak(
       return;
     }
 
-    SB_DLOG(INFO) << "Speaking: \"" << utterance->text() << "\" "
-                  << utterance->lang();
+    DLOG(INFO) << "Speaking: \"" << utterance->text() << "\" "
+               << utterance->lang();
     SbSpeechSynthesisSpeak(utterance->text().c_str());
     utterance->DispatchStartEvent();
     utterance->DispatchEndEvent();

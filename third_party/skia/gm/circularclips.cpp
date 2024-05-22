@@ -15,7 +15,6 @@
 #include "include/core/SkSize.h"
 #include "include/core/SkString.h"
 #include "include/core/SkTypes.h"
-#include "src/core/SkClipOpPriv.h"
 
 class CircularClipsGM : public skiagm::GM {
     SkScalar fX1, fX2, fY, fR;
@@ -28,8 +27,8 @@ protected:
         fY = 50;
         fR = 40;
 
-        fCircle1.addCircle(fX1, fY, fR, SkPathDirection::kCW);
-        fCircle2.addCircle(fX2, fY, fR, SkPathDirection::kCW);
+        fCircle1 = SkPath::Circle(fX1, fY, fR, SkPathDirection::kCW);
+        fCircle2 = SkPath::Circle(fX2, fY, fR, SkPathDirection::kCW);
     }
 
 
@@ -40,17 +39,13 @@ protected:
     }
 
     SkISize onISize() override {
-        return SkISize::Make(800, 600);
+        return SkISize::Make(800, 200);
     }
 
     void onDraw(SkCanvas* canvas) override {
         const SkClipOp ops[] = {
-            kDifference_SkClipOp,
-            kIntersect_SkClipOp,
-            kUnion_SkClipOp,
-            kXOR_SkClipOp,
-            kReverseDifference_SkClipOp,
-            kReplace_SkClipOp,
+            SkClipOp::kDifference,
+            SkClipOp::kIntersect
         };
 
         SkRect rect = SkRect::MakeLTRB(fX1 - fR, fY - fR, fX2 + fR, fY + fR);
@@ -95,7 +90,7 @@ protected:
     }
 
 private:
-    typedef skiagm::GM INHERITED;
+    using INHERITED = skiagm::GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////

@@ -101,14 +101,14 @@ bool SSLBuffer::EnsureCap(size_t header_len, size_t new_cap) {
 
 void SSLBuffer::DidWrite(size_t new_size) {
   if (new_size > cap() - size()) {
-    OPENSSL_port_abort();
+    abort();
   }
   size_ += new_size;
 }
 
 void SSLBuffer::Consume(size_t len) {
   if (len > size_) {
-    OPENSSL_port_abort();
+    abort();
   }
   offset_ += (uint16_t)len;
   size_ -= (uint16_t)len;
@@ -232,6 +232,7 @@ int ssl_handle_open_record(SSL *ssl, bool *out_retry, ssl_open_record_t ret,
       return 1;
 
     case ssl_open_record_close_notify:
+      ssl->s3->rwstate = SSL_ERROR_ZERO_RETURN;
       return 0;
 
     case ssl_open_record_error:

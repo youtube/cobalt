@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/memory/scoped_refptr.h"
 #include "net/base/proxy_delegate.h"
 #include "net/base/proxy_server.h"
 
@@ -21,9 +22,14 @@ class TestProxyDelegate : public ProxyDelegate {
   TestProxyDelegate();
   ~TestProxyDelegate() override;
 
-  void set_trusted_spdy_proxy(const ProxyServer& proxy_server) {
-    trusted_spdy_proxy_ = proxy_server;
+  bool on_before_tunnel_request_called() const {
+    return on_before_tunnel_request_called_;
   }
+
+  void VerifyOnTunnelHeadersReceived(
+      const ProxyServer& proxy_server,
+      const std::string& response_header_name,
+      const std::string& response_header_value) const;
 
   // ProxyDelegate implementation:
   void OnResolveProxy(const GURL& url,
@@ -31,18 +37,16 @@ class TestProxyDelegate : public ProxyDelegate {
                       const ProxyRetryInfoMap& proxy_retry_info,
                       ProxyInfo* result) override;
   void OnFallback(const ProxyServer& bad_proxy, int net_error) override;
-
-  void set_alternative_proxy_server(
-      const ProxyServer& alternative_proxy_server) {
-    alternative_proxy_server_ = alternative_proxy_server;
-  }
-  const ProxyServer& alternative_proxy_server() const {
-    return alternative_proxy_server_;
-  }
+  void OnBeforeTunnelRequest(const ProxyServer& proxy_server,
+                             HttpRequestHeaders* extra_headers) override;
+  Error OnTunnelHeadersReceived(
+      const ProxyServer& proxy_server,
+      const HttpResponseHeaders& response_headers) override;
 
  private:
-  ProxyServer trusted_spdy_proxy_;
-  ProxyServer alternative_proxy_server_;
+  bool on_before_tunnel_request_called_ = false;
+  ProxyServer on_tunnel_headers_received_proxy_server_;
+  scoped_refptr<HttpResponseHeaders> on_tunnel_headers_received_headers_;
 };
 
 }  // namespace net

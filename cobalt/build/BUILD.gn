@@ -13,15 +13,9 @@
 # limitations under the License.
 
 action("cobalt_build_id") {
-  cobalt_version = exec_script("get_build_id.py", [], "trim string")
-
   script = "build_id.py"
   outputs = [ "$root_gen_dir/cobalt_build_id.h" ]
-
-  args = [
-    rebase_path(outputs[0], root_build_dir),
-    cobalt_version,
-  ]
+  args = [ rebase_path(outputs[0], root_build_dir) ]
 }
 
 action("cobalt_build_info") {

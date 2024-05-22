@@ -22,44 +22,19 @@ _FILTERED_TESTS = {
     # Tracked by b/185820828
     'net_unittests': ['SpdyNetworkTransactionTest.SpdyBasicAuth',],
     'base_unittests': [
-        # Fails when run in a sharded configuration: b/233108722, b/216774170
-        'TaskQueueSelectorTest.TestHighestPriority',
-        'TaskQueueSelectorTest.TestHighPriority',
-        'TaskQueueSelectorTest.TestLowPriority',
-        'TaskQueueSelectorTest.TestBestEffortPriority',
-        'TaskQueueSelectorTest.TestControlPriority',
-        'TaskQueueSelectorTest.TestObserverWithEnabledQueue',
-        'TaskQueueSelectorTest.TestObserverWithSetQueuePriorityAndQueueAlreadyEnabled',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.TestDisableEnable',
-        'TaskQueueSelectorTest.TestDisableChangePriorityThenEnable',
-        'TaskQueueSelectorTest.TestEmptyQueues',
-        'TaskQueueSelectorTest.TestAge',
-        'TaskQueueSelectorTest.TestControlStarvesOthers',
-        'TaskQueueSelectorTest.TestHighestPriorityDoesNotStarveHigh',
-        'TaskQueueSelectorTest.TestHighestPriorityDoesNotStarveHighOrNormal',
-        'TaskQueueSelectorTest.TestHighestPriorityDoesNotStarveHighOrNormalOrLow',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.TestHighPriorityDoesNotStarveNormal',
-        'TaskQueueSelectorTest.TestHighPriorityDoesNotStarveNormalOrLow',
-        'TaskQueueSelectorTest.TestNormalPriorityDoesNotStarveLow',
-        'TaskQueueSelectorTest.TestBestEffortGetsStarved',
-        'TaskQueueSelectorTest.TestHighPriorityStarvationScoreIncreasedOnlyWhenTasksArePresent',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.TestNormalPriorityStarvationScoreIncreasedOnllWhenTasksArePresent',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.TestLowPriorityTaskStarvationOnlyIncreasedWhenTasksArePresent',  #pylint: disable=line-too-long
-        'TaskQueueSelectorTest.AllEnabledWorkQueuesAreEmpty',
-        'TaskQueueSelectorTest.AllEnabledWorkQueuesAreEmpty_ControlPriority',
-        'TaskQueueSelectorTest.ChooseOldestWithPriority_Empty',
-        'TaskQueueSelectorTest.ChooseOldestWithPriority_OnlyDelayed',
-        'TaskQueueSelectorTest.ChooseOldestWithPriority_OnlyImmediate',
-        'TaskQueueSelectorTest.TestObserverWithOneBlockedQueue',
-        'TaskQueueSelectorTest.TestObserverWithTwoBlockedQueues',
-        'HistogramTesterTest.GetHistogramSamplesSinceCreationNotNull',
-        'HistogramTesterTest.TestUniqueSample',
-        'HistogramTesterTest.TestBucketsSample',
-        'HistogramTesterTest.TestBucketsSampleWithScope',
-        'HistogramTesterTest.TestGetAllSamples',
-        'HistogramTesterTest.TestGetAllSamples_NoSamples',
-        'HistogramTesterTest.TestGetTotalCountsForPrefix',
-        'HistogramTesterTest.TestGetAllChangedHistograms',
+        # TODO: b/329269559 These have flaky ASAN heap-use-after-free
+        # during metrics collection.
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        # TODO: b/329507754 - Flaky after recent rebase.
+        'ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows',
+        'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
     ],
 }
 
@@ -98,15 +73,7 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
         # These tests are timing-sensitive, and are thus flaky on slower builds
         test_filter.TestFilter(
             'web_platform_tests',
-            'xhr/WebPlatformTest.Run/XMLHttpRequest_send_timeout_events_htm',
-            'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests',
-            'streams/WebPlatformTest.Run/streams_readable_streams_templated_html',  # pylint:disable=line-too-long
-            'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests',
-            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel')
+            'cors/WebPlatformTest.Run/cors_preflight_failure_htm')
     ])
     return filters
 

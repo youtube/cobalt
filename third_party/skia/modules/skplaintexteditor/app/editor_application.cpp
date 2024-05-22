@@ -181,7 +181,7 @@ struct EditorLayer : public sk_app::Window::Layer {
         } else if (skui::InputState::kUp == state) {
             fMouseDown = false;
         }
-        bool shiftOrDrag = skstd::Any(modifiers & skui::ModifierKey::kShift) || !mouseDown;
+        bool shiftOrDrag = sknonstd::Any(modifiers & skui::ModifierKey::kShift) || !mouseDown;
         if (fMouseDown) {
             return this->move(fEditor.getPosition({x - fMargin, y + fPos - fMargin}), shiftOrDrag);
         }
@@ -189,7 +189,7 @@ struct EditorLayer : public sk_app::Window::Layer {
     }
 
     bool onChar(SkUnichar c, skui::ModifierKey modi) override {
-        using skstd::Any;
+        using sknonstd::Any;
         modi &= ~skui::ModifierKey::kFirstPress;
         if (!Any(modi & (skui::ModifierKey::kControl |
                          skui::ModifierKey::kOption  |
@@ -209,7 +209,7 @@ struct EditorLayer : public sk_app::Window::Layer {
             switch (c) {
                 case 'p':
                     for (StringView str : fEditor.text()) {
-                        SkDebugf(">>  '%.*s'\n", str.size, str.data);
+                        SkDebugf(">>  '%.*s'\n", (int)str.size, str.data);
                     }
                     return true;
                 case 's':
@@ -306,7 +306,7 @@ struct EditorLayer : public sk_app::Window::Layer {
             return false;  // ignore keyup
         }
         // ignore other modifiers.
-        using skstd::Any;
+        using sknonstd::Any;
         skui::ModifierKey ctrlAltCmd = modifiers & (skui::ModifierKey::kControl |
                                               skui::ModifierKey::kOption  |
                                               skui::ModifierKey::kCommand);
@@ -348,7 +348,8 @@ struct EditorLayer : public sk_app::Window::Layer {
                 default:
                     break;
             }
-        } else if (skstd::Any(ctrlAltCmd & (skui::ModifierKey::kControl | skui::ModifierKey::kCommand))) {
+        } else if (sknonstd::Any(ctrlAltCmd & (skui::ModifierKey::kControl |
+                                               skui::ModifierKey::kCommand))) {
             switch (key) {
                 case skui::Key::kLeft:
                     return this->moveCursor(Editor::Movement::kWordLeft, shift);
@@ -365,8 +366,17 @@ struct EditorLayer : public sk_app::Window::Layer {
     }
 };
 
-//static constexpr sk_app::Window::BackendType kBackendType = sk_app::Window::kRaster_BackendType;
+#ifdef SK_VULKAN
+static constexpr sk_app::Window::BackendType kBackendType = sk_app::Window::kVulkan_BackendType;
+#elif SK_METAL
+static constexpr sk_app::Window::BackendType kBackendType = sk_app::Window::kMetal_BackendType;
+#elif SK_GL
 static constexpr sk_app::Window::BackendType kBackendType = sk_app::Window::kNativeGL_BackendType;
+#elif SK_DAWN
+static constexpr sk_app::Window::BackendType kBackendType = sk_app::Window::kDawn_BackendType;
+#else
+static constexpr sk_app::Window::BackendType kBackendType = sk_app::Window::kRaster_BackendType;
+#endif
 
 struct EditorApplication : public sk_app::Application {
     std::unique_ptr<sk_app::Window> fWindow;

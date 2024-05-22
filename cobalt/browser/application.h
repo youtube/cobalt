@@ -21,8 +21,8 @@
 #include "base/callback.h"
 #include "base/command_line.h"
 #include "base/macros.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
@@ -31,7 +31,7 @@
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/system_window/system_window.h"
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/updater_module.h"
+#include "chrome/updater/updater_module.h"
 #endif
 #include "starboard/event.h"
 
@@ -47,8 +47,8 @@
 namespace cobalt {
 namespace browser {
 
-// The Application class is meant to manage the main thread's UI message
-// loop. This class is not designed to be thread safe.
+// The Application class is meant to manage the main thread's UI task
+// runner. This class is not designed to be thread safe.
 class Application {
  public:
   // The passed in |quit_closure| can be called internally by the Application
@@ -63,7 +63,7 @@ class Application {
   void HandleStarboardEvent(const SbEvent* event);
 
  protected:
-  base::MessageLoop* message_loop() { return message_loop_; }
+  base::SequencedTaskRunner* task_runner() { return task_runner_; }
 
   // Called to handle a network event.
   void OnNetworkEvent(const base::Event* event);
@@ -78,7 +78,6 @@ class Application {
   void OnOnScreenKeyboardHiddenEvent(const base::Event* event);
   void OnOnScreenKeyboardFocusedEvent(const base::Event* event);
   void OnOnScreenKeyboardBlurredEvent(const base::Event* event);
-  void OnOnScreenKeyboardSuggestionsUpdatedEvent(const base::Event* event);
   void OnCaptionSettingsChangedEvent(const base::Event* event);
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
@@ -111,7 +110,6 @@ class Application {
   base::EventCallback on_screen_keyboard_hidden_event_callback_;
   base::EventCallback on_screen_keyboard_focused_event_callback_;
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
-  base::EventCallback on_screen_keyboard_suggestions_updated_event_callback_;
   base::EventCallback on_caption_settings_changed_event_callback_;
   base::EventCallback on_window_on_online_event_callback_;
   base::EventCallback on_window_on_offline_event_callback_;
@@ -185,8 +183,8 @@ class Application {
   base::TimeTicks unload_event_start_time_;
   base::TimeTicks unload_event_end_time_;
 
-  // The message loop that will handle UI events.
-  base::MessageLoop* message_loop_;
+  // The task runner that will handle UI events.
+  base::SequencedTaskRunner* const task_runner_;
 
   const base::Closure quit_closure_;
 

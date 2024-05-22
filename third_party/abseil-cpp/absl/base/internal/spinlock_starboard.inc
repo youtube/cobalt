@@ -17,8 +17,11 @@
 #if defined(STARBOARD)
 #include "starboard/thread.h"
 
+#include <unistd.h>
+
 #include <atomic>
 #include <ctime>
+#include <sched.h>
 
 #include "absl/base/internal/errno_saver.h"
 #include "absl/base/internal/scheduling_mode.h"
@@ -32,9 +35,9 @@ ABSL_ATTRIBUTE_WEAK void ABSL_INTERNAL_C_SYMBOL(AbslInternalSpinLockDelay)(
   absl::base_internal::ErrnoSaver errno_saver;
   if (loop == 0) {
   } else if (loop == 1) {
-    SbThreadYield();
+    sched_yield();
   } else {
-    SbThreadSleep(loop);
+    usleep(loop);
   }
 }
 

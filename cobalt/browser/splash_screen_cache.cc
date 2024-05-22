@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/splash_screen_cache.h"
 
+#include <sys/stat.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,7 +23,7 @@
 #include "base/base64.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/hash.h"
+#include "base/hash/hash.h"
 #include "base/optional.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
@@ -46,7 +48,9 @@ bool CreateDirsForKey(const std::string& key) {
     starboard::strlcat(path.data(),
                        key.substr(prev_found, found - prev_found).c_str(),
                        kSbFileMaxPath);
-    if (!SbDirectoryCreate(path.data())) {
+    struct stat info;
+    if (mkdir(path.data(), 0700) != 0 &&
+        !(stat(path.data(), &info) == 0 && S_ISDIR(info.st_mode))) {
       return false;
     }
     prev_found = found;
@@ -101,7 +105,8 @@ bool SplashScreenCache::IsSplashScreenCached() const {
   if (!key) return false;
   std::string full_path =
       std::string(path.data()) + kSbFileSepString + key.value();
-  return SbFileExists(full_path.c_str());
+  struct stat file_info;
+  return stat(full_path.c_str(), &file_info) == 0;
 }
 
 int SplashScreenCache::ReadCachedSplashScreen(

@@ -8,10 +8,8 @@
 #include "src/gpu/GrTestUtils.h"
 
 #include "include/core/SkMatrix.h"
-#include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkRRect.h"
-#include "include/gpu/GrContext.h"
-#include "src/core/SkMakeUnique.h"
 #include "src/core/SkRectPriv.h"
 #include "src/gpu/GrColorInfo.h"
 #include "src/gpu/GrProcessorUnitTest.h"
@@ -170,36 +168,43 @@ const SkPath& TestPath(SkRandom* random) {
     if (!gOnce) {
         gOnce = true;
         // line
-        gPath[0].moveTo(0.f, 0.f);
-        gPath[0].lineTo(10.f, 10.f);
+        gPath[0] = SkPathBuilder().moveTo(0.f, 0.f)
+                                  .lineTo(10.f, 10.f)
+                                  .detach();
         // quad
-        gPath[1].moveTo(0.f, 0.f);
-        gPath[1].quadTo(10.f, 10.f, 20.f, 20.f);
+        gPath[1] = SkPathBuilder().moveTo(0.f, 0.f)
+                                  .quadTo(10.f, 10.f, 20.f, 20.f)
+                                  .detach();
         // conic
-        gPath[2].moveTo(0.f, 0.f);
-        gPath[2].conicTo(10.f, 10.f, 20.f, 20.f, 1.f);
+        gPath[2] = SkPathBuilder().moveTo(0.f, 0.f)
+                                  .conicTo(10.f, 10.f, 20.f, 20.f, 1.f)
+                                  .detach();
         // cubic
-        gPath[3].moveTo(0.f, 0.f);
-        gPath[3].cubicTo(10.f, 10.f, 20.f, 20.f, 30.f, 30.f);
+        gPath[3] = SkPathBuilder().moveTo(0.f, 0.f)
+                                  .cubicTo(10.f, 10.f, 20.f, 20.f, 30.f, 30.f)
+                                  .detach();
         // all three
-        gPath[4].moveTo(0.f, 0.f);
-        gPath[4].lineTo(10.f, 10.f);
-        gPath[4].quadTo(10.f, 10.f, 20.f, 20.f);
-        gPath[4].conicTo(10.f, 10.f, 20.f, 20.f, 1.f);
-        gPath[4].cubicTo(10.f, 10.f, 20.f, 20.f, 30.f, 30.f);
+        gPath[4] = SkPathBuilder().moveTo(0.f, 0.f)
+                                  .lineTo(10.f, 10.f)
+                                  .quadTo(10.f, 10.f, 20.f, 20.f)
+                                  .conicTo(10.f, 10.f, 20.f, 20.f, 1.f)
+                                  .cubicTo(10.f, 10.f, 20.f, 20.f, 30.f, 30.f)
+                                  .detach();
         // convex
-        gPath[5].moveTo(0.0f, 0.0f);
-        gPath[5].lineTo(10.0f, 0.0f);
-        gPath[5].lineTo(10.0f, 10.0f);
-        gPath[5].lineTo(0.0f, 10.0f);
-        gPath[5].close();
+        gPath[5] = SkPathBuilder().moveTo(0.0f, 0.0f)
+                                  .lineTo(10.0f, 0.0f)
+                                  .lineTo(10.0f, 10.0f)
+                                  .lineTo(0.0f, 10.0f)
+                                  .close()
+                                  .detach();
         // concave
-        gPath[6].moveTo(0.0f, 0.0f);
-        gPath[6].lineTo(5.0f, 5.0f);
-        gPath[6].lineTo(10.0f, 0.0f);
-        gPath[6].lineTo(10.0f, 10.0f);
-        gPath[6].lineTo(0.0f, 10.0f);
-        gPath[6].close();
+        gPath[6] = SkPathBuilder().moveTo(0.0f, 0.0f)
+                                  .lineTo(5.0f, 5.0f)
+                                  .lineTo(10.0f, 0.0f)
+                                  .lineTo(10.0f, 10.0f)
+                                  .lineTo(0.0f, 10.0f)
+                                  .close()
+                                  .detach();
     }
 
     return gPath[random->nextULessThan(static_cast<uint32_t>(SK_ARRAY_COUNT(gPath)))];
@@ -211,28 +216,28 @@ const SkPath& TestPathConvex(SkRandom* random) {
     if (!gOnce) {
         gOnce = true;
         // narrow rect
-        gPath[0].moveTo(-1.5f, -50.0f);
-        gPath[0].lineTo(-1.5f, -50.0f);
-        gPath[0].lineTo( 1.5f, -50.0f);
-        gPath[0].lineTo( 1.5f,  50.0f);
-        gPath[0].lineTo(-1.5f,  50.0f);
+        gPath[0] = SkPath::Polygon({{-1.5f, -50.0f},
+                                    {-1.5f, -50.0f},
+                                    { 1.5f, -50.0f},
+                                    { 1.5f,  50.0f},
+                                    {-1.5f,  50.0f}}, false);
         // degenerate
-        gPath[1].moveTo(-0.025f, -0.025f);
-        gPath[1].lineTo(-0.025f, -0.025f);
-        gPath[1].lineTo( 0.025f, -0.025f);
-        gPath[1].lineTo( 0.025f,  0.025f);
-        gPath[1].lineTo(-0.025f,  0.025f);
+        gPath[1] = SkPath::Polygon({{-0.025f, -0.025f},
+                                    {-0.025f, -0.025f},
+                                    { 0.025f, -0.025f},
+                                    { 0.025f,  0.025f},
+                                    {-0.025f,  0.025f}}, false);
         // clipped triangle
-        gPath[2].moveTo(-10.0f, -50.0f);
-        gPath[2].lineTo(-10.0f, -50.0f);
-        gPath[2].lineTo( 10.0f, -50.0f);
-        gPath[2].lineTo( 50.0f,  31.0f);
-        gPath[2].lineTo( 40.0f,  50.0f);
-        gPath[2].lineTo(-40.0f,  50.0f);
-        gPath[2].lineTo(-50.0f,  31.0f);
+        gPath[2] = SkPath::Polygon({{-10.0f, -50.0f},
+                                    {-10.0f, -50.0f},
+                                    { 10.0f, -50.0f},
+                                    { 50.0f,  31.0f},
+                                    { 40.0f,  50.0f},
+                                    {-40.0f,  50.0f},
+                                    {-50.0f,  31.0f}}, false);
 
         for (size_t i = 0; i < SK_ARRAY_COUNT(gPath); i++) {
-            SkASSERT(SkPathConvexityType::kConvex == gPath[i].getConvexityType());
+            SkASSERT(gPath[i].isConvex());
         }
     }
 
@@ -287,8 +292,8 @@ TestDashPathEffect::TestDashPathEffect(const SkScalar* intervals, int count, SkS
                                    &fInitialDashIndex, &fIntervalLength, &fPhase);
 }
 
-    bool TestDashPathEffect::onFilterPath(SkPath* dst, const SkPath& src, SkStrokeRec* rec,
-                                          const SkRect* cullRect) const {
+bool TestDashPathEffect::onFilterPath(SkPath* dst, const SkPath& src, SkStrokeRec* rec,
+                                      const SkRect* cullRect, const SkMatrix&) const {
     return SkDashPath::InternalFilter(dst, src, rec, cullRect, fIntervals.get(), fCount,
                                       fInitialDashLength, fInitialDashIndex, fIntervalLength);
 }
@@ -337,13 +342,75 @@ sk_sp<GrColorSpaceXform> TestColorXform(SkRandom* random) {
 }
 
 TestAsFPArgs::TestAsFPArgs(GrProcessorTestData* d)
-        : fViewMatrixStorage(TestMatrix(d->fRandom))
-        , fColorInfoStorage(skstd::make_unique<GrColorInfo>(
+        : fMatrixProvider(TestMatrix(d->fRandom))
+        , fColorInfoStorage(std::make_unique<GrColorInfo>(
                   GrColorType::kRGBA_8888, kPremul_SkAlphaType, TestColorSpace(d->fRandom)))
-        , fArgs(d->context(), &fViewMatrixStorage, kNone_SkFilterQuality, fColorInfoStorage.get()) {
-}
+        , fArgs(d->context(),
+                fMatrixProvider,
+                fColorInfoStorage.get()) {}
 
 TestAsFPArgs::~TestAsFPArgs() {}
+
+GrColor RandomColor(SkRandom* random) {
+    // There are only a few cases of random colors which interest us
+    enum ColorMode {
+        kAllOnes_ColorMode,
+        kAllZeros_ColorMode,
+        kAlphaOne_ColorMode,
+        kRandom_ColorMode,
+        kLast_ColorMode = kRandom_ColorMode
+    };
+
+    ColorMode colorMode = ColorMode(random->nextULessThan(kLast_ColorMode + 1));
+    GrColor color SK_INIT_TO_AVOID_WARNING;
+    switch (colorMode) {
+        case kAllOnes_ColorMode:
+            color = GrColorPackRGBA(0xFF, 0xFF, 0xFF, 0xFF);
+            break;
+        case kAllZeros_ColorMode:
+            color = GrColorPackRGBA(0, 0, 0, 0);
+            break;
+        case kAlphaOne_ColorMode:
+            color = GrColorPackRGBA(random->nextULessThan(256),
+                                    random->nextULessThan(256),
+                                    random->nextULessThan(256),
+                                    0xFF);
+            break;
+        case kRandom_ColorMode: {
+                uint8_t alpha = random->nextULessThan(256);
+                color = GrColorPackRGBA(random->nextRangeU(0, alpha),
+                                        random->nextRangeU(0, alpha),
+                                        random->nextRangeU(0, alpha),
+                                        alpha);
+            break;
+        }
+    }
+    return color;
+}
+
+uint8_t RandomCoverage(SkRandom* random) {
+    enum CoverageMode {
+        kZero_CoverageMode,
+        kAllOnes_CoverageMode,
+        kRandom_CoverageMode,
+        kLast_CoverageMode = kRandom_CoverageMode
+    };
+
+    CoverageMode colorMode = CoverageMode(random->nextULessThan(kLast_CoverageMode + 1));
+    uint8_t coverage SK_INIT_TO_AVOID_WARNING;
+    switch (colorMode) {
+        case kZero_CoverageMode:
+            coverage = 0;
+            break;
+        case kAllOnes_CoverageMode:
+            coverage = 0xff;
+            break;
+        case kRandom_CoverageMode:
+            coverage = random->nextULessThan(256);
+            break;
+    }
+    return coverage;
+}
 
 }  // namespace GrTest
 

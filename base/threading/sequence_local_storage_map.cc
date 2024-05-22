@@ -1,50 +1,78 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/threading/sequence_local_storage_map.h"
 
+#include <ostream>
 #include <utility>
 
-#include "base/lazy_instance.h"
-#include "base/logging.h"
-#include "base/threading/thread_local.h"
+#include "base/check_op.h"
+#include "third_party/abseil-cpp/absl/base/attributes.h"
+
+#if defined(STARBOARD)
+#include <pthread.h>
+
+#include "base/check_op.h"
+#include "starboard/thread.h"
+#endif
 
 namespace base {
 namespace internal {
 
 namespace {
-LazyInstance<ThreadLocalPointer<SequenceLocalStorageMap>>::Leaky
-    tls_current_sequence_local_storage = LAZY_INSTANCE_INITIALIZER;
+
+#if defined(STARBOARD)
+ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
+
+void InitThreadLocalKey() {
+  int res = pthread_key_create(&s_thread_local_key , NULL);
+  DCHECK(res == 0);
+}
+
+void EnsureThreadLocalKeyInited() {
+  pthread_once(&s_once_flag, InitThreadLocalKey);
+}
+
+SequenceLocalStorageMap* GetCurrentSequenceLocalStorage() {
+  EnsureThreadLocalKeyInited();
+  return static_cast<SequenceLocalStorageMap*>(
+      pthread_getspecific(s_thread_local_key));
+}
+#else
+ABSL_CONST_INIT thread_local SequenceLocalStorageMap*
+    current_sequence_local_storage = nullptr;
+#endif
+
 }  // namespace
 
 SequenceLocalStorageMap::SequenceLocalStorageMap() = default;
 
 SequenceLocalStorageMap::~SequenceLocalStorageMap() = default;
 
-ScopedSetSequenceLocalStorageMapForCurrentThread::
-    ScopedSetSequenceLocalStorageMapForCurrentThread(
-        SequenceLocalStorageMap* sequence_local_storage) {
-  DCHECK(!tls_current_sequence_local_storage.Get().Get());
-  tls_current_sequence_local_storage.Get().Set(sequence_local_storage);
-}
-
-ScopedSetSequenceLocalStorageMapForCurrentThread::
-    ~ScopedSetSequenceLocalStorageMapForCurrentThread() {
-  tls_current_sequence_local_storage.Get().Set(nullptr);
-}
-
+// static
 SequenceLocalStorageMap& SequenceLocalStorageMap::GetForCurrentThread() {
-  SequenceLocalStorageMap* current_sequence_local_storage =
-      tls_current_sequence_local_storage.Get().Get();
-
-  DCHECK(current_sequence_local_storage)
+  DCHECK(IsSetForCurrentThread())
       << "SequenceLocalStorageSlot cannot be used because no "
          "SequenceLocalStorageMap was stored in TLS. Use "
          "ScopedSetSequenceLocalStorageMapForCurrentThread to store a "
          "SequenceLocalStorageMap object in TLS.";
 
+#if defined(STARBOARD)
+  return *GetCurrentSequenceLocalStorage();
+#else
   return *current_sequence_local_storage;
+#endif
+}
+
+// static
+bool SequenceLocalStorageMap::IsSetForCurrentThread() {
+#if defined(STARBOARD)
+  return GetCurrentSequenceLocalStorage() != nullptr;
+#else
+  return current_sequence_local_storage != nullptr;
+#endif
 }
 
 void* SequenceLocalStorageMap::Get(int slot_id) {
@@ -100,6 +128,31 @@ SequenceLocalStorageMap::ValueDestructorPair::operator=(
 
   return *this;
 }
+
+ScopedSetSequenceLocalStorageMapForCurrentThread::
+    ScopedSetSequenceLocalStorageMapForCurrentThread(
+        SequenceLocalStorageMap* sequence_local_storage)
+#if defined(STARBOARD)
+{
+  EnsureThreadLocalKeyInited();
+  pthread_setspecific(s_thread_local_key, sequence_local_storage);
+}
+#else
+    : resetter_(&current_sequence_local_storage,
+                sequence_local_storage,
+                nullptr) {}
+#endif
+
+#if defined(STARBOARD)
+ScopedSetSequenceLocalStorageMapForCurrentThread::
+    ~ScopedSetSequenceLocalStorageMapForCurrentThread() {
+  EnsureThreadLocalKeyInited();
+  pthread_setspecific(s_thread_local_key, nullptr);
+}
+#else
+ScopedSetSequenceLocalStorageMapForCurrentThread::
+    ~ScopedSetSequenceLocalStorageMapForCurrentThread() = default;
+#endif
 
 }  // namespace internal
 }  // namespace base

@@ -29,7 +29,7 @@ namespace memory_settings {
 
 struct AutoMemSettings {
   enum Type {
-    kTypeBuild,
+    kTypeConfig,
     kTypeCommandLine,
   };
 
@@ -49,7 +49,7 @@ struct AutoMemSettings {
   base::Optional<int64_t> reduce_gpu_memory_by;
 };
 
-AutoMemSettings GetDefaultBuildSettings();
+AutoMemSettings GetDefaultConfigSettings();
 AutoMemSettings GetSettings(const base::CommandLine& command_line);
 
 }  // namespace memory_settings

@@ -3,15 +3,19 @@ description:
   "Subtree at third_party/opus."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "/third_party/opus_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "96.0.4664.219"  # from https://chromereleases.googleblog.com/2022/08/long-term-support-channel-update-for_31.html
   }
-  url {
-    type: GIT
+  identifier {
+    type: "Git"
     value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "6a496db5ef7219101beacceca9566367c9cb1a09"
   }
-  version: "83.0.4103.119"
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/opus"
+  }
   last_upgrade_date {
     year: 2018
     month: 6

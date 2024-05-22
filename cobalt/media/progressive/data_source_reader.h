@@ -17,9 +17,9 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/media/base/data_source.h"
 
 namespace cobalt {
@@ -38,7 +38,7 @@ class DataSourceReader : public base::RefCountedThreadSafe<DataSourceReader> {
   DataSourceReader();
   virtual void SetDataSource(DataSource* data_source);
 
-  // Block the calling thread's message loop until read is complete.
+  // Block the calling thread's task runner until read is complete.
   // returns number of bytes read or kReadError on error.
   // Currently only single-threaded support.
   virtual int BlockingRead(int64 position, int size, uint8* data);

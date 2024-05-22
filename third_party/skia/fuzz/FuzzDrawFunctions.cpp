@@ -14,7 +14,7 @@
 #include "include/core/SkSurface.h"
 #include "include/core/SkTextBlob.h"
 #include "include/core/SkTypeface.h"
-#include "src/core/SkClipOpPriv.h"
+#include "src/core/SkPaintPriv.h"
 
 static const int kBmpSize = 24;
 static const int kMaxX = 250;
@@ -45,9 +45,6 @@ static void init_paint(Fuzz* fuzz, SkPaint* p) {
 
     fuzz->next(&b);
     p->setDither(b);
-
-    fuzz->nextRange(&tmp_u8, 0, (int)kHigh_SkFilterQuality);
-    p->setFilterQuality(static_cast<SkFilterQuality>(tmp_u8));
 
     fuzz->nextRange(&tmp_u8, 0, (int)SkPaint::kLast_Cap);
     p->setStrokeCap(static_cast<SkPaint::Cap>(tmp_u8));
@@ -195,7 +192,7 @@ static void fuzz_drawRect(Fuzz* fuzz) {
     fuzz->next(&bl);
     fuzz->next(&a, &b, &c, &d);
     r = SkRect::MakeXYWH(a, b, c, d);
-    cnv->clipRect(r, kIntersect_SkClipOp, bl);
+    cnv->clipRect(r, SkClipOp::kIntersect, bl);
 }
 
 static void fuzz_drawPath(Fuzz* fuzz) {
@@ -246,20 +243,7 @@ static void fuzz_drawPath(Fuzz* fuzz) {
 
     bool bl;
     fuzz->next(&bl);
-    cnv->clipPath(path, kIntersect_SkClipOp, bl);
-}
-
-static void fuzz_drawBitmap(Fuzz* fuzz) {
-    SkPaint p;
-    init_paint(fuzz, &p);
-    sk_sp<SkSurface> surface;
-    init_surface(fuzz, &surface);
-    SkBitmap bmp;
-    init_bitmap(fuzz, &bmp);
-
-    SkScalar a, b;
-    fuzz->next(&a, &b);
-    surface->getCanvas()->drawBitmap(bmp, a, b, &p);
+    cnv->clipPath(path, SkClipOp::kIntersect, bl);
 }
 
 static void fuzz_drawImage(Fuzz* fuzz) {
@@ -270,14 +254,14 @@ static void fuzz_drawImage(Fuzz* fuzz) {
     SkBitmap bmp;
     init_bitmap(fuzz, &bmp);
 
-    sk_sp<SkImage> image(SkImage::MakeFromBitmap(bmp));
+    sk_sp<SkImage> image(bmp.asImage());
 
     bool bl;
     fuzz->next(&bl);
     SkScalar a, b;
     fuzz->next(&a, &b);
     if (bl) {
-        surface->getCanvas()->drawImage(image, a, b, &p);
+        surface->getCanvas()->drawImage(image, a, b, SkSamplingOptions(), &p);
     }
     else {
         SkRect dst = SkRect::MakeWH(a, b);
@@ -286,7 +270,7 @@ static void fuzz_drawImage(Fuzz* fuzz) {
         uint8_t x;
         fuzz->nextRange(&x, 0, 1);
         SkCanvas::SrcRectConstraint cst = (SkCanvas::SrcRectConstraint)x;
-        surface->getCanvas()->drawImageRect(image, src, dst, &p, cst);
+        surface->getCanvas()->drawImageRect(image.get(), src, dst, SkSamplingOptions(), &p, cst);
     }
 }
 
@@ -335,10 +319,6 @@ DEF_FUZZ(DrawFunctions, fuzz) {
             fuzz_drawImage(fuzz);
             return;
         case 6:
-            SkDEBUGF("Fuzz DrawBitmap\n");
-            fuzz_drawBitmap(fuzz);
-            return;
-        case 7:
             SkDEBUGF("Fuzz DrawPaint\n");
             fuzz_drawPaint(fuzz);
             return;

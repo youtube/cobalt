@@ -1,21 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <android/looper.h>
 #include <stdarg.h>
 #include <string.h>
 
 #include "base/android/path_utils.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
-#include "base/message_loop/message_loop.h"
+#include "base/message_loop/message_pump.h"
 #include "base/message_loop/message_pump_android.h"
 #include "base/path_service.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/multiprocess_test.h"
-#include "starboard/types.h"
 
 namespace {
 
@@ -28,7 +28,7 @@ struct RunState {
         should_quit(false) {
   }
 
-  base::MessagePump::Delegate* delegate;
+  raw_ptr<base::MessagePump::Delegate> delegate;
 
   // Used to count how many Run() invocations are on the stack.
   int run_depth;
@@ -49,6 +49,9 @@ class Waitable {
                            base::LeakySingletonTraits<Waitable>>::get();
   }
 
+  Waitable(const Waitable&) = delete;
+  Waitable& operator=(const Waitable&) = delete;
+
   // Signals that there are more work to do.
   void Signal() { waitable_event_.Signal(); }
 
@@ -68,8 +71,6 @@ class Waitable {
                         base::WaitableEvent::InitialState::NOT_SIGNALED) {}
 
   base::WaitableEvent waitable_event_;
-
-  DISALLOW_COPY_AND_ASSIGN(Waitable);
 };
 
 // The MessagePumpForUI implementation for test purpose.
@@ -77,8 +78,6 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
  public:
   MessagePumpForUIStub() : base::MessagePumpForUI() { Waitable::GetInstance(); }
   ~MessagePumpForUIStub() override {}
-
-  bool IsTestImplementation() const override { return true; }
 
   // In tests, there isn't a native thread, as such RunLoop::Run() should be
   // used to run the loop instead of attaching and delegating to the native
@@ -93,12 +92,26 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
     RunState* previous_state = g_state;
     g_state = &state;
 
-    // When not nested we can use the real implementation, otherwise fall back
+    // When not nested we can use the looper, otherwise fall back
     // to the stub implementation.
     if (g_state->run_depth > 1) {
       RunNested(delegate);
     } else {
-      MessagePumpForUI::Run(delegate);
+      SetQuit(false);
+      SetDelegate(delegate);
+
+      // Pump the loop once in case we're starting off idle as ALooper_pollOnce
+      // will never return in that case.
+      ScheduleWork();
+      while (true) {
+        // Waits for either the delayed, or non-delayed fds to be signalled,
+        // calling either OnDelayedLooperCallback, or
+        // OnNonDelayedLooperCallback, respectively. This uses Android's Looper
+        // implementation, which is based off of epoll.
+        ALooper_pollOnce(-1, nullptr, nullptr, nullptr);
+        if (ShouldQuit())
+          break;
+      }
     }
 
     g_state = previous_state;
@@ -114,13 +127,8 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
           break;
       }
 
-      more_work_is_plausible = g_state->delegate->DoWork();
-      if (g_state->should_quit)
-        break;
-
-      base::TimeTicks delayed_work_time;
-      more_work_is_plausible |=
-          g_state->delegate->DoDelayedWork(&delayed_work_time);
+      Delegate::NextWorkInfo next_work_info = g_state->delegate->DoWork();
+      more_work_is_plausible = next_work_info.is_immediate();
       if (g_state->should_quit)
         break;
 
@@ -131,7 +139,7 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
       if (g_state->should_quit)
         break;
 
-      more_work_is_plausible |= !delayed_work_time.is_null();
+      more_work_is_plausible |= !next_work_info.delayed_run_time.is_max();
     }
   }
 
@@ -152,29 +160,33 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
     }
   }
 
-  void ScheduleDelayedWork(const base::TimeTicks& delayed_work_time) override {
+  void ScheduleDelayedWork(
+      const Delegate::NextWorkInfo& next_work_info) override {
     if (g_state && g_state->run_depth > 1) {
       Waitable::GetInstance()->Signal();
     } else {
-      MessagePumpForUI::ScheduleDelayedWork(delayed_work_time);
+      MessagePumpForUI::ScheduleDelayedWork(next_work_info);
     }
   }
 };
 
 std::unique_ptr<base::MessagePump> CreateMessagePumpForUIStub() {
   return std::unique_ptr<base::MessagePump>(new MessagePumpForUIStub());
-};
+}
 
-// Provides the test path for DIR_SOURCE_ROOT and DIR_ANDROID_APP_DATA.
+// Provides the test path for paths overridden during tests.
 bool GetTestProviderPath(int key, base::FilePath* result) {
   switch (key) {
+    // On Android, our tests don't have permission to write to DIR_MODULE.
+    // gtest/test_runner.py pushes data to external storage.
     // TODO(agrieve): Stop overriding DIR_ANDROID_APP_DATA.
     // https://crbug.com/617734
     // Instead DIR_ASSETS should be used to discover assets file location in
     // tests.
     case base::DIR_ANDROID_APP_DATA:
     case base::DIR_ASSETS:
-    case base::DIR_SOURCE_ROOT:
+    case base::DIR_SRC_TEST_DATA_ROOT:
+    case base::DIR_GEN_TEST_DATA_ROOT:
       CHECK(g_test_data_dir != nullptr);
       *result = *g_test_data_dir;
       return true;
@@ -196,31 +208,23 @@ void InitPathProvider(int key) {
 
 namespace base {
 
-void InitAndroidTestLogging() {
-  logging::LoggingSettings settings;
-  settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
-  logging::InitLogging(settings);
-  // To view log output with IDs and timestamps use "adb logcat -v threadtime".
-  logging::SetLogItems(false,    // Process ID
-                       false,    // Thread ID
-                       false,    // Timestamp
-                       false);   // Tick count
-}
-
 void InitAndroidTestPaths(const FilePath& test_data_dir) {
   if (g_test_data_dir) {
     CHECK(test_data_dir == *g_test_data_dir);
     return;
   }
   g_test_data_dir = new FilePath(test_data_dir);
-  InitPathProvider(DIR_SOURCE_ROOT);
   InitPathProvider(DIR_ANDROID_APP_DATA);
   InitPathProvider(DIR_ASSETS);
+  InitPathProvider(DIR_SRC_TEST_DATA_ROOT);
+  InitPathProvider(DIR_GEN_TEST_DATA_ROOT);
 }
 
 void InitAndroidTestMessageLoop() {
-  if (!MessageLoop::InitMessagePumpForUIFactory(&CreateMessagePumpForUIStub))
-    LOG(INFO) << "MessagePumpForUIFactory already set, unable to override.";
+  // NOTE something else such as a JNI call may have already overridden the UI
+  // factory.
+  if (!MessagePump::IsMessagePumpForUIFactoryOveridden())
+    MessagePump::OverrideMessagePumpForUIFactory(&CreateMessagePumpForUIStub);
 }
 
 }  // namespace base

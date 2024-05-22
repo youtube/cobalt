@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "base/test/task_environment.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
@@ -45,6 +46,8 @@ class DOMParserTest : public ::testing::Test {
   script::testing::StubScriptRunner stub_script_runner_;
   HTMLElementContext html_element_context_;
   scoped_refptr<DOMParser> dom_parser_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 DOMParserTest::DOMParserTest()
@@ -52,7 +55,7 @@ DOMParserTest::DOMParserTest()
       loader_factory_("Test" /* name */, &fetcher_factory_,
                       NULL /* resource provider */, null_debugger_hooks_,
                       0 /* encoded_image_cache_capacity */,
-                      base::ThreadPriority::DEFAULT),
+                      base::ThreadType::kDefault),
       dom_parser_parser_(new dom_parser::Parser()),
       html_element_context_(
           &environment_settings_, &fetcher_factory_, &loader_factory_,

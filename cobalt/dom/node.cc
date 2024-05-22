@@ -42,10 +42,6 @@
 #include "cobalt/web/dom_exception.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#define HANDLE_CORE_DUMP
-#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #endif  // defined(STARBOARD)
 
 namespace cobalt {

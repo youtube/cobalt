@@ -17,9 +17,9 @@
 #include <algorithm>
 
 #include "base/base64.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "cobalt/network/socket_address_parser.h"
-#include "net/base/escape.h"
 #include "starboard/common/socket.h"
 #include "url/url_canon_ip.h"
 #include "url/url_constants.h"
@@ -244,7 +244,7 @@ bool SourceList::ParseSource(const char* begin, const char* end,
     return false;
   }
 
-  if (base::LowerCaseEqualsASCII(begin, end, "'none'")) {
+  if (base::EqualsCaseInsensitiveASCII(begin, end, "'none'")) {
     return false;
   }
 
@@ -253,33 +253,34 @@ bool SourceList::ParseSource(const char* begin, const char* end,
     AddSourceStar();
     return true;
   }
-  if (base::LowerCaseEqualsASCII(begin, end, "'self'")) {
+  if (base::EqualsCaseInsensitiveASCII(begin, end, "'self'")) {
     AddSourceSelf();
     return true;
   }
 
-  if (base::LowerCaseEqualsASCII(begin, end, "'unsafe-inline'")) {
+  if (base::EqualsCaseInsensitiveASCII(begin, end, "'unsafe-inline'")) {
     AddSourceUnsafeInline();
     return true;
   }
 
-  if (base::LowerCaseEqualsASCII(begin, end, "'unsafe-eval'")) {
+  if (base::EqualsCaseInsensitiveASCII(begin, end, "'unsafe-eval'")) {
     AddSourceUnsafeEval();
     return true;
   }
 
   if (directive_name_.compare(ContentSecurityPolicy::kConnectSrc) == 0) {
-    if (base::LowerCaseEqualsASCII(begin, end, "'cobalt-insecure-localhost'")) {
+    if (base::EqualsCaseInsensitiveASCII(begin, end,
+                                         "'cobalt-insecure-localhost'")) {
       AddSourceLocalhost();
       return true;
     }
-    if (base::LowerCaseEqualsASCII(begin, end,
-                                   "'cobalt-insecure-local-network'")) {
+    if (base::EqualsCaseInsensitiveASCII(begin, end,
+                                         "'cobalt-insecure-local-network'")) {
       AddSourceLocalNetwork();
       return true;
     }
-    if (base::LowerCaseEqualsASCII(begin, end,
-                                   "'cobalt-insecure-private-range'")) {
+    if (base::EqualsCaseInsensitiveASCII(begin, end,
+                                         "'cobalt-insecure-private-range'")) {
       AddSourcePrivateRange();
       return true;
     }
@@ -565,10 +566,10 @@ bool SourceList::ParsePath(const char* begin, const char* end,
                                         *position);
   }
 
-  *path = net::UnescapeURLComponent(
+  *path = base::UnescapeURLComponent(
       ToString(begin, position),
-      net::UnescapeRule::SPACES | net::UnescapeRule::PATH_SEPARATORS |
-          net::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
+      base::UnescapeRule::SPACES | base::UnescapeRule::PATH_SEPARATORS |
+          base::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
 
   DCHECK_LE(position, end);
   DCHECK(position == end || (*position == '#' || *position == '?'));

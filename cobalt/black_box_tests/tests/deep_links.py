@@ -55,14 +55,26 @@ _script_loading_signal = threading.Event()
 _SERVER_ROOT_PATH = os.path.join(os.path.dirname(__file__), os.pardir)
 
 
+def is_deep_links_js(path):
+  """Check request path is for deep_links.js."""
+  parsed_path = urlparse(path)
+  return parsed_path.path == '/testdata/' + _DEEP_LINKS_JS
+
+
 class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
   """Proxies everything to SimpleHTTPRequestHandler, except some paths."""
 
+  def end_headers(self):
+    """Send the blank line ending the MIME headers."""
+    if is_deep_links_js(self.path):
+      # Prevent caching so |do_GET()| can delay response.
+      self.send_header('Cache-Control', 'no-store')
+
+    SimpleHTTPServer.SimpleHTTPRequestHandler.end_headers(self)
+
   def do_GET(self):  # pylint: disable=invalid-name
     """Handles HTTP GET requests for resources."""
-
-    parsed_path = urlparse(self.path)
-    if parsed_path.path == '/testdata/' + _DEEP_LINKS_JS:
+    if is_deep_links_js(self.path):
       # It is important not to send any response back, so we block.
       logging.info('Waiting on links to be fired.')
       _script_loading_signal.wait()

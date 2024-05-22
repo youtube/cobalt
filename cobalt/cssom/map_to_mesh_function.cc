@@ -38,9 +38,9 @@ std::string MapToMeshFunction::ToString() const {
         mesh_spec().resolution_matched_meshes();
     for (size_t mesh_index = 0; mesh_index < meshes.size(); ++mesh_index) {
       result.push_back(' ');
-      result.append(base::IntToString(meshes[mesh_index]->width_match()));
+      result.append(std::to_string(meshes[mesh_index]->width_match()));
       result.push_back(' ');
-      result.append(base::IntToString(meshes[mesh_index]->height_match()));
+      result.append(std::to_string(meshes[mesh_index]->height_match()));
       result.push_back(' ');
       result.append(meshes[mesh_index]->mesh_url()->ToString());
     }

@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,8 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#if SB_API_VERSION >= 16
 
 #include <sys/mman.h>
 #include <algorithm>
@@ -68,8 +66,6 @@ TEST(PosixMemoryMapTest, CanReadWriteToResult) {
 
   EXPECT_EQ(munmap(memory, kSize), 0);
 }
-
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
 
 typedef int (*SumFunction)(int, int);
 static int Sum(int x, int y) {
@@ -162,7 +158,6 @@ CopySumFunctionIntoMemory(void* memory) {
   return std::make_tuple(::testing::AssertionSuccess(), mapped_function,
                          original_function);
 }
-#endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
 TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
   int all_from_flags[] = {
@@ -172,14 +167,9 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
       PROT_READ | PROT_WRITE,
   };
   int all_to_flags[] = {
-    PROT_NONE,
-    PROT_READ,
-    PROT_WRITE,
-    PROT_READ | PROT_WRITE,
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
-    PROT_EXEC,
-    PROT_READ | PROT_EXEC,
-#endif
+      PROT_NONE,  PROT_READ,
+      PROT_WRITE, PROT_READ | PROT_WRITE,
+      PROT_EXEC,  PROT_READ | PROT_EXEC,
   };
 
   for (int from_flags : all_from_flags) {
@@ -193,31 +183,38 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
         continue;
       }
 
+#if SB_API_VERSION < 16
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      // We can only test the ability to execute memory after changing
-      // protections if we have write permissions either now or then, because
-      // we have to actually put a valid function into the mapped memory.
+      const bool kSbCanMapExecutableMemory = true;
+#else
+      const bool kSbCanMapExecutableMemory = false;
+#endif
+#endif
       SumFunction mapped_function = nullptr;
       SumFunction original_function = nullptr;
-      if (from_flags & PROT_WRITE) {
-        auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
-        ASSERT_TRUE(std::get<0>(copy_sum_function_result));
-        mapped_function = std::get<1>(copy_sum_function_result);
-        original_function = std::get<2>(copy_sum_function_result);
+      if (kSbCanMapExecutableMemory) {
+        // We can only test the ability to execute memory after changing
+        // protections if we have write permissions either now or then, because
+        // we have to actually put a valid function into the mapped memory.
+        if (from_flags & PROT_WRITE) {
+          auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
+          ASSERT_TRUE(std::get<0>(copy_sum_function_result));
+          mapped_function = std::get<1>(copy_sum_function_result);
+          original_function = std::get<2>(copy_sum_function_result);
+        }
       }
-#endif
 
       if (mprotect(memory, kSize, to_flags) != 0) {
         EXPECT_EQ(munmap(memory, kSize), 0);
         continue;
       }
 
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      if ((to_flags & PROT_EXEC) && mapped_function != nullptr) {
-        EXPECT_EQ(original_function(0xc0ba178, 0xbadf00d),
-                  mapped_function(0xc0ba178, 0xbadf00d));
+      if (kSbCanMapExecutableMemory) {
+        if ((to_flags & PROT_EXEC) && mapped_function != nullptr) {
+          EXPECT_EQ(original_function(0xc0ba178, 0xbadf00d),
+                    mapped_function(0xc0ba178, 0xbadf00d));
+        }
       }
-#endif
 
       if (to_flags & PROT_READ) {
         for (int i = 0; i < kSize; i++) {
@@ -238,4 +235,3 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 16

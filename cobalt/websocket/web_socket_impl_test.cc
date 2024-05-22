@@ -20,6 +20,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/network/network_module.h"
@@ -56,8 +57,8 @@ class WebSocketImplTest : public ::testing::Test {
     return web_context_->environment_settings();
   }
   void AddQuota(int quota) {
-    network_task_runner_->PostBlockingTask(
-        FROM_HERE,
+    base::task_runner_util::PostBlockingTask(
+        network_task_runner_, FROM_HERE,
         base::Bind(&WebSocketImpl::OnFlowControl, websocket_impl_, quota));
   }
 
@@ -84,8 +85,8 @@ class WebSocketImplTest : public ::testing::Test {
     websocket_impl_->delegate_task_runner_ = network_task_runner_;
     // The holder is only created to be base::Passed() on the next line, it will
     // be empty so do not use it later.
-    network_task_runner_->PostBlockingTask(
-        FROM_HERE,
+    base::task_runner_util::PostBlockingTask(
+        network_task_runner_, FROM_HERE,
         base::Bind(
             [](scoped_refptr<WebSocketImpl> websocket_impl,
                web::Context* web_context,
@@ -99,8 +100,8 @@ class WebSocketImplTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    network_task_runner_->PostBlockingTask(
-        FROM_HERE,
+    base::task_runner_util::PostBlockingTask(
+        network_task_runner_, FROM_HERE,
         base::Bind(&WebSocketImpl::OnClose, websocket_impl_, true /*was_clan*/,
                    net::kWebSocketNormalClosure /*error_code*/,
                    "" /*close_reason*/));

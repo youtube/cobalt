@@ -497,8 +497,10 @@ using swap_internal::StdSwapIsUnconstrained;
 // there.
 //
 // TODO(b/275003464): remove the opt-out once the bug is fixed.
-#if ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && \
-    !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64)))
+// TODO(b/322033799): remove the opt-out once the bug is fixed.
+#if ABSL_HAVE_BUILTIN(__is_trivially_relocatable) &&                 \
+    !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64))) && \
+    !defined(__APPLE__)
 template <class T>
 struct is_trivially_relocatable
     : std::integral_constant<bool, __is_trivially_relocatable(T)> {};

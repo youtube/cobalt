@@ -8,6 +8,8 @@
 #include "bench/Benchmark.h"
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
+#include "include/core/SkImage.h"
+#include "include/core/SkM44.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkShader.h"
 #include "include/core/SkString.h"
@@ -136,12 +138,10 @@ protected:
 
         SkPaint p;
         p.setColor(0xFF000000);
-        p.setFilterQuality(kLow_SkFilterQuality);
 
         SkPaint p2;         // for drawVertices path
         p2.setColor(0xFF000000);
-        p2.setFilterQuality(kLow_SkFilterQuality);
-        p2.setShader(fAtlas.makeShader());
+        p2.setShader(fAtlas->makeShader(SkSamplingOptions(SkFilterMode::kLinear)));
 
         for (int i = 0; i < loops; ++i, ++fNumSaved) {
             if (0 == i % kNumBeforeClear) {
@@ -191,7 +191,8 @@ protected:
             canvas->concat(mat);
             if (fUseAtlas) {
                 const int curCell = i % (kNumAtlasedX * kNumAtlasedY);
-                SkIRect src = fAtlasRects[curCell % (kNumAtlasedX)][curCell / (kNumAtlasedX)];
+                SkRect src = SkRect::Make(
+                              fAtlasRects[curCell % (kNumAtlasedX)][curCell / (kNumAtlasedX)]);
 
                 if (fUseDrawVertices) {
                     SkPoint uvs[4] = {
@@ -204,11 +205,11 @@ protected:
                                                               4, verts, uvs, nullptr, 6, indices),
                                          SkBlendMode::kModulate, p2);
                 } else {
-                    canvas->drawBitmapRect(fAtlas, src, dst, &p,
+                    canvas->drawImageRect(fAtlas, src, dst, SkSamplingOptions(), &p,
                                            SkCanvas::kFast_SrcRectConstraint);
                 }
             } else {
-                canvas->drawBitmapRect(fCheckerboard, dst, &p);
+                canvas->drawImageRect(fCheckerboard, dst, SkSamplingOptions(), &p);
             }
         }
     }
@@ -240,19 +241,19 @@ private:
     // 0 & 1 are always x & y translate. 2 is either scale or rotate.
     SkScalar fSaved[kNumBeforeClear][3];
 
-    SkBitmap fCheckerboard;
-    SkBitmap fAtlas;
+    sk_sp<SkImage> fCheckerboard, fAtlas;
     SkIRect  fAtlasRects[kNumAtlasedX][kNumAtlasedY];
 
     // Note: the resulting checker board has transparency
     void makeCheckerboard() {
         static int kCheckSize = 16;
 
-        fCheckerboard.allocN32Pixels(kCheckerboardWidth, kCheckerboardHeight);
+        SkBitmap bm;
+        bm.allocN32Pixels(kCheckerboardWidth, kCheckerboardHeight);
         for (int y = 0; y < kCheckerboardHeight; ++y) {
             int even = (y / kCheckSize) % 2;
 
-            SkPMColor* scanline = fCheckerboard.getAddr32(0, y);
+            SkPMColor* scanline = bm.getAddr32(0, y);
 
             for (int x = 0; x < kCheckerboardWidth; ++x) {
                 if (even == (x / kCheckSize) % 2) {
@@ -262,6 +263,7 @@ private:
                 }
             }
         }
+        fCheckerboard = bm.asImage();
     }
 
     // Note: the resulting atlas has transparency
@@ -280,13 +282,14 @@ private:
             }
         }
 
-        fAtlas.allocN32Pixels(kTotAtlasWidth, kTotAtlasHeight);
+        SkBitmap bm;
+        bm.allocN32Pixels(kTotAtlasWidth, kTotAtlasHeight);
 
         for (int y = 0; y < kTotAtlasHeight; ++y) {
             int colorY = y / (kAtlasCellHeight + kAtlasSpacer);
             bool inColorY = (y % (kAtlasCellHeight + kAtlasSpacer)) >= kAtlasSpacer;
 
-            SkPMColor* scanline = fAtlas.getAddr32(0, y);
+            SkPMColor* scanline = bm.getAddr32(0, y);
 
             for (int x = 0; x < kTotAtlasWidth; ++x, ++scanline) {
                 int colorX = x / (kAtlasCellWidth + kAtlasSpacer);
@@ -300,9 +303,10 @@ private:
                 }
             }
         }
+        fAtlas = bm.asImage();
     }
 
-    typedef Benchmark INHERITED;
+    using INHERITED = Benchmark;
 };
 
 // Partial clear
@@ -321,3 +325,65 @@ DEF_BENCH(return new GameBench(GameBench::kRotate_Type, GameBench::kFull_Clear);
 DEF_BENCH(return new GameBench(GameBench::kTranslate_Type, GameBench::kFull_Clear, false, true);)
 DEF_BENCH(return new GameBench(
                          GameBench::kTranslate_Type, GameBench::kFull_Clear, false, true, true);)
+
+
+class CanvasMatrixBench : public Benchmark {
+    SkString fName;
+public:
+    enum Type {
+        kTranslate_Type,
+        kScale_Type,
+        k2x3_Type,
+        k3x3_Type,
+        k4x4_Type,
+    };
+    Type fType;
+
+    CanvasMatrixBench(Type t) : fType(t) {
+        fName.set("canvas_matrix");
+        switch (fType) {
+            case kTranslate_Type: fName.append("_trans"); break;
+            case kScale_Type:     fName.append("_scale"); break;
+            case k2x3_Type:       fName.append("_2x3"); break;
+            case k3x3_Type:       fName.append("_3x3"); break;
+            case k4x4_Type:       fName.append("_4x4"); break;
+        }
+    }
+
+protected:
+    const char* onGetName() override {
+        return fName.c_str();
+    }
+
+    void onDraw(int loops, SkCanvas* canvas) override {
+        SkMatrix m;
+        m.setRotate(1);
+        if (fType == k3x3_Type) {
+            m[7] = 0.0001f;
+        }
+        SkM44 m4(m);
+
+        for (int i = 0; i < loops; ++i) {
+            canvas->save();
+            for (int j = 0; j < 10000; ++j) {
+                switch (fType) {
+                    case kTranslate_Type: canvas->translate(0.0001f, 0.0001f); break;
+                    case kScale_Type:     canvas->scale(1.0001f, 0.9999f); break;
+                    case k2x3_Type:       canvas->concat(m); break;
+                    case k3x3_Type:       canvas->concat(m); break;
+                    case k4x4_Type:       canvas->concat(m4); break;
+                }
+            }
+            canvas->restore();
+        }
+    }
+
+private:
+    using INHERITED = Benchmark;
+};
+
+DEF_BENCH(return new CanvasMatrixBench(CanvasMatrixBench::kTranslate_Type));
+DEF_BENCH(return new CanvasMatrixBench(CanvasMatrixBench::kScale_Type));
+DEF_BENCH(return new CanvasMatrixBench(CanvasMatrixBench::k2x3_Type));
+DEF_BENCH(return new CanvasMatrixBench(CanvasMatrixBench::k3x3_Type));
+DEF_BENCH(return new CanvasMatrixBench(CanvasMatrixBench::k4x4_Type));

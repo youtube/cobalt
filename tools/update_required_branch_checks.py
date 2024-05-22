@@ -54,7 +54,7 @@ EXCLUDED_CHECK_PATTERNS = [
 
 # Exclude rc_11 and COBALT_9 releases.
 MINIMUM_LTS_RELEASE_NUMBER = 19
-LATEST_LTS_RELEASE_NUMBER = 24
+LATEST_LTS_RELEASE_NUMBER = 25
 
 
 def get_protected_branches() -> List[str]:

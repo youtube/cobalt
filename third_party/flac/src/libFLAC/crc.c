@@ -1,5 +1,6 @@
 /* libFLAC - Free Lossless Audio Codec library
- * Copyright (C) 2000,2001,2002,2003,2004,2005,2006,2007  Josh Coalson
+ * Copyright (C) 2000-2009  Josh Coalson
+ * Copyright (C) 2011-2014  Xiph.Org Foundation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_CONFIG_H
+#ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
@@ -74,7 +75,7 @@ FLAC__byte const FLAC__crc8_table[256] = {
 
 /* CRC-16, poly = x^16 + x^15 + x^2 + x^0, init = 0 */
 
-unsigned FLAC__crc16_table[256] = {
+unsigned const FLAC__crc16_table[256] = {
 	0x0000,  0x8005,  0x800f,  0x000a,  0x801b,  0x001e,  0x0014,  0x8011,
 	0x8033,  0x0036,  0x003c,  0x8039,  0x0028,  0x802d,  0x8027,  0x0022,
 	0x8063,  0x0066,  0x006c,  0x8069,  0x0078,  0x807d,  0x8077,  0x0072,
@@ -115,13 +116,13 @@ void FLAC__crc8_update(const FLAC__byte data, FLAC__uint8 *crc)
 	*crc = FLAC__crc8_table[*crc ^ data];
 }
 
-void FLAC__crc8_update_block(const FLAC__byte *data, size_t len, FLAC__uint8 *crc)
+void FLAC__crc8_update_block(const FLAC__byte *data, unsigned len, FLAC__uint8 *crc)
 {
 	while(len--)
 		*crc = FLAC__crc8_table[*crc ^ *data++];
 }
 
-FLAC__uint8 FLAC__crc8(const FLAC__byte *data, size_t len)
+FLAC__uint8 FLAC__crc8(const FLAC__byte *data, unsigned len)
 {
 	FLAC__uint8 crc = 0;
 
@@ -131,7 +132,7 @@ FLAC__uint8 FLAC__crc8(const FLAC__byte *data, size_t len)
 	return crc;
 }
 
-unsigned FLAC__crc16(const FLAC__byte *data, size_t len)
+unsigned FLAC__crc16(const FLAC__byte *data, unsigned len)
 {
 	unsigned crc = 0;
 

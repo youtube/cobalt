@@ -14,13 +14,16 @@
 
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
 
+#include <pthread.h>
+#include <unistd.h>
+
 #include <algorithm>
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/thread.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
 namespace shared {
@@ -53,7 +56,7 @@ class StubAudioSink : public SbAudioSinkPrivate {
 
   int sampling_frequency_hz_;
 
-  SbThread audio_out_thread_;
+  pthread_t audio_out_thread_;
   ::starboard::Mutex mutex_;
 
   bool destroying_;
@@ -70,12 +73,11 @@ StubAudioSink::StubAudioSink(
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
       context_(context),
-      audio_out_thread_(kSbThreadInvalid),
+      audio_out_thread_(0),
       destroying_(false) {
-  audio_out_thread_ =
-      SbThreadCreate(0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
-                     "stub_audio_out", &StubAudioSink::ThreadEntryPoint, this);
-  SB_DCHECK(SbThreadIsValid(audio_out_thread_));
+  pthread_create(&audio_out_thread_, nullptr, &StubAudioSink::ThreadEntryPoint,
+                 this);
+  SB_DCHECK(audio_out_thread_ != 0);
 }
 
 StubAudioSink::~StubAudioSink() {
@@ -83,11 +85,14 @@ StubAudioSink::~StubAudioSink() {
     ScopedLock lock(mutex_);
     destroying_ = true;
   }
-  SbThreadJoin(audio_out_thread_, NULL);
+  pthread_join(audio_out_thread_, NULL);
 }
 
 // static
 void* StubAudioSink::ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "stub_audio_out");
+  shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+
   SB_DCHECK(context);
   StubAudioSink* sink = reinterpret_cast<StubAudioSink*>(context);
   sink->AudioThreadFunc();
@@ -113,11 +118,11 @@ void StubAudioSink::AudioThreadFunc() {
       int frames_to_consume =
           std::min(kMaxFramesToConsumePerRequest, frames_in_buffer);
 
-      SbThreadSleep(frames_to_consume * 1'000'000LL / sampling_frequency_hz_);
+      usleep(frames_to_consume * 1'000'000LL / sampling_frequency_hz_);
       consume_frames_func_(frames_to_consume, CurrentMonotonicTime(), context_);
     } else {
       // Wait for five millisecond if we are paused.
-      SbThreadSleep(5'000);
+      usleep(5'000);
     }
   }
 }

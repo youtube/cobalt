@@ -62,8 +62,8 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/event.h"
+#include "media/base/pipeline_status.h"
 #include "starboard/media.h"
-#include "third_party/chromium/media/base/pipeline_status.h"
 
 namespace cobalt {
 namespace dom {
@@ -129,6 +129,18 @@ int GetMaxSizeForImmediateJob(web::EnvironmentSettings* settings) {
           kDefaultMaxSize);
   DCHECK_GE(max_size, 0);
   return max_size;
+}
+
+// If this function returns true, MediaSource::GetSeekable() will short-circuit
+// getting the buffered range from HTMLMediaElement by directly calling to
+// MediaSource::GetBufferedRange(). This reduces potential cross-object,
+// cross-thread calls between MediaSource and HTMLMediaElement.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceBufferedRangeEnabled()
+      .value_or(false);
 }
 
 }  // namespace
@@ -273,6 +285,9 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
 
   DCHECK(source_buffer);
   source_buffers_->Add(source_buffer);
+  LOG(INFO) << "added SourceBuffer (0x" << source_buffer.get()
+            << ") to MediaSource (0x" << this << ") with type " << type
+            << " id = " << guid;
   return source_buffer;
 }
 
@@ -399,7 +414,8 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
   }
 }
 
-bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
+bool MediaSource::StartAttachingToMediaElement(
+    HTMLMediaElement* media_element) {
   if (attached_element_) {
     return false;
   }
@@ -423,15 +439,15 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
     LOG(INFO) << "Algorithm offloading enabled.";
     offload_algorithm_runner_.reset(
         new OffloadAlgorithmRunner<SourceBufferAlgorithm>(
-            algorithm_process_thread_->message_loop()->task_runner(),
-            base::ThreadTaskRunnerHandle::Get()));
+            algorithm_process_thread_->task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault()));
   } else {
     LOG(INFO) << "Algorithm offloading disabled.";
   }
   return true;
 }
 
-void MediaSource::SetChunkDemuxerAndOpen(ChunkDemuxer* chunk_demuxer) {
+void MediaSource::CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   DCHECK(!chunk_demuxer_);
   DCHECK(attached_element_);
@@ -497,7 +513,13 @@ scoped_refptr<TimeRanges> MediaSource::GetSeekable() const {
   }
 
   if (source_duration == std::numeric_limits<double>::infinity()) {
-    scoped_refptr<TimeRanges> buffered = attached_element_->buffered();
+    scoped_refptr<TimeRanges> buffered = nullptr;
+    if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+            environment_settings())) {
+      buffered = GetBufferedRange();
+    } else {
+      buffered = attached_element_->buffered();
+    }
 
     if (live_seekable_range_->length() != 0) {
       if (buffered->length() == 0) {
@@ -703,7 +725,7 @@ bool MediaSource::IsUpdating() const {
   return false;
 }
 
-void MediaSource::ScheduleEvent(base::Token event_name) {
+void MediaSource::ScheduleEvent(base_token::Token event_name) {
   scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_.Enqueue(event);

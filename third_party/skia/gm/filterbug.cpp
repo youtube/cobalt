@@ -10,7 +10,6 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkColorPriv.h"
-#include "include/core/SkFilterQuality.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkImageInfo.h"
 #include "include/core/SkMatrix.h"
@@ -22,7 +21,7 @@
 #include "include/core/SkString.h"
 #include "include/core/SkTileMode.h"
 
-static const sk_sp<SkImage> make_image(int firstBlackRow, int lastBlackRow) {
+static sk_sp<SkImage> make_image(int firstBlackRow, int lastBlackRow) {
     static const int kWidth = 25;
     static const int kHeight = 27;
 
@@ -38,7 +37,7 @@ static const sk_sp<SkImage> make_image(int firstBlackRow, int lastBlackRow) {
     bm.setAlphaType(SkAlphaType::kOpaque_SkAlphaType);
     bm.setImmutable();
 
-    return SkImage::MakeFromBitmap(bm);
+    return bm.asImage();
 }
 
 // GM to reproduce crbug.com/673261.
@@ -59,17 +58,17 @@ protected:
     }
 
     void onDraw(SkCanvas* canvas) override {
-        static const SkFilterQuality kFilterQuality = SkFilterQuality::kHigh_SkFilterQuality;
+        static const SkSamplingOptions kSampling(SkCubicResampler::Mitchell());
         static const bool kDoAA = true;
 
         {
             SkRect r1 = SkRect::MakeXYWH(50.0f, 0.0f, 50.0f, 50.0f);
             SkPaint p1;
             p1.setAntiAlias(kDoAA);
-            p1.setFilterQuality(kFilterQuality);
             SkMatrix localMat;
             localMat.setScaleTranslate(2.0f, 2.0f, 50.0f, 0.0f);
-            p1.setShader(fTop->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, &localMat));
+            p1.setShader(fTop->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                          kSampling, &localMat));
 
             canvas->drawRect(r1, p1);
         }
@@ -80,7 +79,6 @@ protected:
             SkPaint p2;
             p2.setColor(SK_ColorWHITE);
             p2.setAntiAlias(kDoAA);
-            p2.setFilterQuality(kFilterQuality);
 
             canvas->drawRect(r2, p2);
         }
@@ -90,10 +88,10 @@ protected:
 
             SkPaint p3;
             p3.setAntiAlias(kDoAA);
-            p3.setFilterQuality(kFilterQuality);
             SkMatrix localMat;
             localMat.setScaleTranslate(2.0f, 2.0f, 50.0f, 86.0f);
-            p3.setShader(fBot->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, &localMat));
+            p3.setShader(fBot->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                          kSampling, &localMat));
 
             canvas->drawRect(r3, p3);
         }
@@ -103,7 +101,7 @@ private:
     sk_sp<SkImage> fTop;
     sk_sp<SkImage> fBot;
 
-    typedef skiagm::GM INHERITED;
+    using INHERITED = skiagm::GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////

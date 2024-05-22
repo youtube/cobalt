@@ -6,6 +6,7 @@
  */
 
 #include "bench/Benchmark.h"
+#include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkString.h"
 #include "tools/ToolUtils.h"
@@ -57,7 +58,7 @@ private:
     SkColorType fColorType;
     SkString fName;
 
-    typedef Benchmark INHERITED;
+    using INHERITED = Benchmark;
 };
 
 

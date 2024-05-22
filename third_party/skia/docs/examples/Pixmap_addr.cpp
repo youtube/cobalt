@@ -8,11 +8,11 @@ void draw(SkCanvas* canvas) {
     pixels.resize(image->height() * image->width() * 4);
     SkPixmap pixmap(SkImageInfo::Make(image->width(), image->height(), kN32_SkColorType,
             image->alphaType()), (const void*) &pixels.front(), image->width() * 4);
-    image->readPixels(pixmap, 0, 0);
-    SkDebugf("pixels address: 0x%llx\n", pixmap.addr());
+    image->readPixels(nullptr, pixmap, 0, 0);
+    SkDebugf("pixels address: 0x%p\n", pixmap.addr());
     SkPixmap inset;
     if (pixmap.extractSubset(&inset, {128, 128, 512, 512})) {
-         SkDebugf("inset address:  0x%llx\n", inset.addr());
+        SkDebugf("inset address:  0x%p\n", inset.addr());
     }
 }
 }  // END FIDDLE

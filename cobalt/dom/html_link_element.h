@@ -41,7 +41,7 @@ class HTMLLinkElement : public HTMLElement {
   static const std::vector<std::string> kSupportedRelValues;
 
   explicit HTMLLinkElement(Document* document)
-      : HTMLElement(document, base::Token(kTagName)) {}
+      : HTMLElement(document, base_token::Token(kTagName)) {}
 
   // Web API: HTMLLinkElement
   //

@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/logging.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 

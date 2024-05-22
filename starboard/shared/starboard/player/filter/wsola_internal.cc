@@ -30,14 +30,15 @@
 #include <memory>
 
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 
-// TODO: Detect Neon on ARM platform and enable SIMD.
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 #define USE_SIMD 1
 #include <xmmintrin.h>
-#endif  // SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
+#elif (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+#define USE_SIMD 1
+#include <arm_neon.h>
+#endif
 
 namespace starboard {
 namespace shared {
@@ -111,7 +112,7 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
     // Reduce to a single float for this channel.
     float32x2_t m_half = vadd_f32(vget_high_f32(m_sum), vget_low_f32(m_sum));
     dot_product[ch] = vget_lane_f32(vpadd_f32(m_half, m_half), 0);
-#endif  // SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
+#endif
   }
 
   if (!rem) {
@@ -194,7 +195,7 @@ int DecimatedSearch(int decimation,
   int channels = search_segment->channels();
   int block_size = target_block->frames();
   int num_candidate_blocks = search_segment->frames() - (block_size - 1);
-  scoped_array<float> dot_prod(new float[channels]);
+  std::unique_ptr<float[]> dot_prod(new float[channels]);
   float similarity[3];  // Three elements for cubic interpolation.
 
   int n = 0;
@@ -273,7 +274,7 @@ int FullSearch(int low_limit,
                const float* energy_candidate_blocks) {
   int channels = search_block->channels();
   int block_size = target_block->frames();
-  scoped_array<float> dot_prod(new float[channels]);
+  std::unique_ptr<float[]> dot_prod(new float[channels]);
 
   float best_similarity = std::numeric_limits<float>::min();
   int optimal_index = 0;
@@ -319,8 +320,8 @@ int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
   // heuristically based on experiments.
   const int kSearchDecimation = 5;
 
-  scoped_array<float> energy_target_block(new float[channels]);
-  scoped_array<float> energy_candidate_blocks(
+  std::unique_ptr<float[]> energy_target_block(new float[channels]);
+  std::unique_ptr<float[]> energy_candidate_blocks(
       new float[channels * num_candidate_blocks]);
 
   // Energy of all candid frames.

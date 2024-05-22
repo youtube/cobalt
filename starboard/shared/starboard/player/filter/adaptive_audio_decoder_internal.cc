@@ -43,8 +43,26 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
   SB_DCHECK(audio_stream_info.codec != kSbMediaAudioCodecNone);
 }
 
+AdaptiveAudioDecoder::AdaptiveAudioDecoder(
+    const media::AudioStreamInfo& audio_stream_info,
+    SbDrmSystem drm_system,
+    const AudioDecoderCreator& audio_decoder_creator,
+    bool enable_reset_audio_decoder,
+    const OutputFormatAdjustmentCallback& output_adjustment_callback)
+    : AdaptiveAudioDecoder(audio_stream_info,
+                           drm_system,
+                           audio_decoder_creator,
+                           output_adjustment_callback) {
+  enable_reset_audio_decoder_ = enable_reset_audio_decoder;
+}
+
 AdaptiveAudioDecoder::~AdaptiveAudioDecoder() {
-  Reset();
+  SB_DCHECK(BelongsToCurrentThread());
+
+  if (audio_decoder_) {
+    TeardownAudioDecoder();
+  }
+  ResetInternal();
 }
 
 void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
@@ -75,6 +93,9 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(input_buffers.front()->audio_stream_info().codec !=
             kSbMediaAudioCodecNone);
 
+  if (!first_input_written_) {
+    first_input_written_ = true;
+  }
   if (!audio_decoder_) {
     InitializeAudioDecoder(input_buffers.front()->audio_stream_info());
     if (audio_decoder_) {
@@ -113,7 +134,7 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(!pending_consumed_cb_);
 
   stream_ended_ = true;
-  if (audio_decoder_) {
+  if (first_input_written_) {
     audio_decoder_->WriteEndOfStream();
   } else {
     decoded_audios_.push(new DecodedAudio);
@@ -146,17 +167,15 @@ void AdaptiveAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (audio_decoder_) {
-    TeardownAudioDecoder();
+    if (enable_reset_audio_decoder_) {
+      audio_decoder_->Reset();
+      resampler_.reset();
+      channel_mixer_.reset();
+    } else {
+      TeardownAudioDecoder();
+    }
   }
-  CancelPendingJobs();
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
-  pending_input_buffers_.clear();
-  pending_consumed_cb_ = nullptr;
-  flushing_ = false;
-  stream_ended_ = false;
-  first_output_received_ = false;
+  ResetInternal();
 }
 
 void AdaptiveAudioDecoder::InitializeAudioDecoder(
@@ -184,6 +203,21 @@ void AdaptiveAudioDecoder::TeardownAudioDecoder() {
   audio_decoder_.reset();
   resampler_.reset();
   channel_mixer_.reset();
+  first_input_written_ = false;
+}
+
+void AdaptiveAudioDecoder::ResetInternal() {
+  CancelPendingJobs();
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
+  pending_input_buffers_.clear();
+  pending_consumed_cb_ = nullptr;
+  flushing_ = false;
+  stream_ended_ = false;
+  first_output_received_ = false;
+  first_input_written_ = false;
+  output_format_checked_ = false;
 }
 
 void AdaptiveAudioDecoder::OnDecoderOutput() {

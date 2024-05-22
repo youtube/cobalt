@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,8 +46,8 @@ class HttpServerRequestInfo {
 
   // A map of the names -> values for HTTP headers. These should always
   // contain lower case field names.
-  typedef std::map<std::string, std::string> HeadersMap;
-  mutable HeadersMap headers;
+  using HeadersMap = std::map<std::string, std::string>;
+  HeadersMap headers;
 };
 
 }  // namespace net

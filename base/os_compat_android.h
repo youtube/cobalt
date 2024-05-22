@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,6 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <utime.h>
-
-#include "starboard/types.h"
 
 // Not implemented in Bionic.
 extern "C" int futimes(int fd, const struct timeval tv[2]);

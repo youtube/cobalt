@@ -630,7 +630,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
   set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
 }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void ReplacedBox::DumpProperties(std::ostream* stream) const {
   Box::DumpProperties(stream);
@@ -639,7 +639,7 @@ void ReplacedBox::DumpProperties(std::ostream* stream) const {
           << "bidi_level=" << paragraph_->GetBidiLevel(text_position_) << " ";
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
     CompositionNode::Builder* border_node_builder,
@@ -739,21 +739,12 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
   filter_node =
       new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
 
-#if !SB_HAS(VIRTUAL_REALITY)
   // Attach a 3D camera to the map-to-mesh node, so the rendering of its
   // content can be transformed.
   border_node_builder->AddChild(
       used_style_provider()->attach_camera_node_function().Run(
           filter_node, mtm_function->horizontal_fov_in_radians(),
           mtm_function->vertical_fov_in_radians()));
-#else
-  // Camera node unnecessary in VR, since the 3D scene is completely
-  // immersive, and the whole render tree is placed within it and subject to
-  // camera transforms, not just the map-to-mesh node.
-  // TODO: Reconcile both paths with respect to this if Cobalt adopts a global
-  // camera or a document-wide notion of 3D space layout.
-  border_node_builder->AddChild(filter_node);
-#endif
 }
 
 void ReplacedBox::RenderAndAnimateContentWithLetterboxing(

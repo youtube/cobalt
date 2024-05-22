@@ -10,6 +10,7 @@
 #include "src/gpu/GrGpu.h"
 #include "src/gpu/GrOpFlushState.h"
 #include "src/gpu/GrResourceAllocator.h"
+#include "src/gpu/GrResourceProvider.h"
 
 void GrTransferFromRenderTask::gatherProxyIntervals(GrResourceAllocator* alloc) const {
     // This renderTask doesn't have "normal" ops. In this case we still need to add an interval (so
@@ -24,7 +25,10 @@ bool GrTransferFromRenderTask::onExecute(GrOpFlushState* flushState) {
     if (!fSrcProxy->isInstantiated()) {
         return false;
     }
-    return flushState->gpu()->transferPixelsFrom(
-            fSrcProxy->peekSurface(), fSrcRect.fLeft, fSrcRect.fTop, fSrcRect.width(),
-            fSrcRect.height(), fSurfaceColorType, fDstColorType, fDstBuffer.get(), fDstOffset);
+    return flushState->gpu()->transferPixelsFrom(fSrcProxy->peekSurface(),
+                                                 fSrcRect,
+                                                 fSurfaceColorType,
+                                                 fDstColorType,
+                                                 fDstBuffer,
+                                                 fDstOffset);
 }

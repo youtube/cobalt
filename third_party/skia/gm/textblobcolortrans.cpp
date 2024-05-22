@@ -94,13 +94,13 @@ protected:
 private:
     sk_sp<SkTextBlob> fBlob;
 
-    static constexpr int kWidth = 675;
-    static constexpr int kHeight = 1600;
+    inline static constexpr int kWidth = 675;
+    inline static constexpr int kHeight = 1600;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new TextBlobColorTrans;)
-}
+}  // namespace skiagm

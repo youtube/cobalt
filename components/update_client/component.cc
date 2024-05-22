@@ -12,9 +12,10 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/single_thread_task_runner.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/task/post_task.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "components/update_client/action_runner.h"
@@ -77,17 +78,17 @@ using InstallOnBlockingTaskRunnerCompleteCallback = base::OnceCallback<
     void(ErrorCategory error_category, int error_code, int extra_code1)>;
 
 void InstallComplete(
-    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> main_task_runner,
     InstallOnBlockingTaskRunnerCompleteCallback callback,
     const base::FilePath& unpack_path,
     const CrxInstaller::Result& result) {
 #if defined(STARBOARD)
     LOG(INFO) << "InstallComplete";
 #endif
-  base::PostTaskWithTraits(
+  base::ThreadPool::PostTask(
       FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
       base::BindOnce(
-          [](scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+          [](scoped_refptr<base::SequencedTaskRunner> main_task_runner,
              InstallOnBlockingTaskRunnerCompleteCallback callback,
              const base::FilePath& unpack_path,
              const CrxInstaller::Result& result) {
@@ -111,7 +112,7 @@ void InstallComplete(
 }
 
 void InstallOnBlockingTaskRunner(
-    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> main_task_runner,
     const base::FilePath& unpack_path,
     const std::string& public_key,
 #if defined(STARBOARD)
@@ -195,7 +196,7 @@ void InstallOnBlockingTaskRunner(
 }
 
 void UnpackCompleteOnBlockingTaskRunner(
-    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> main_task_runner,
 #if defined(IN_MEMORY_UPDATES)
     const base::FilePath& installation_dir,
 #else
@@ -247,7 +248,7 @@ void UnpackCompleteOnBlockingTaskRunner(
     return;
   }
 
-  base::PostTaskWithTraits(
+  base::ThreadPool::PostTask(
       FROM_HERE, kTaskTraits,
                  base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
                                 result.unpack_path, result.public_key,
@@ -261,7 +262,7 @@ void UnpackCompleteOnBlockingTaskRunner(
 }
 
 void StartInstallOnBlockingTaskRunner(
-    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> main_task_runner,
     const std::vector<uint8_t>& pk_hash,
 #if defined(IN_MEMORY_UPDATES)
     const base::FilePath& installation_dir,
@@ -350,7 +351,7 @@ bool Component::is_foreground() const {
 }
 
 void Component::Handle(CallbackHandleComplete callback_handle_complete) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(state_);
 #if defined(STARBOARD)
   LOG(INFO) << "Component::Handle";
@@ -363,14 +364,14 @@ void Component::Handle(CallbackHandleComplete callback_handle_complete) {
 
 #if defined(STARBOARD)
 void Component::Cancel() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   is_cancelled_ = true;
   state_->Cancel();
 }
 #endif
 
 void Component::ChangeState(std::unique_ptr<State> next_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "Component::ChangeState next_state="
     << ((next_state)? next_state->state_name(): "nullptr");
@@ -382,12 +383,12 @@ void Component::ChangeState(std::unique_ptr<State> next_state) {
   else
     is_handled_ = true;
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, std::move(callback_handle_complete_));
 }
 
 CrxUpdateItem Component::GetCrxUpdateItem() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   CrxUpdateItem crx_update_item;
   crx_update_item.state = state_->state();
@@ -405,7 +406,7 @@ CrxUpdateItem Component::GetCrxUpdateItem() const {
 }
 
 void Component::SetParseResult(const ProtocolParser::Result& result) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   DCHECK_EQ(0, update_check_error_);
 
@@ -436,7 +437,7 @@ void Component::SetParseResult(const ProtocolParser::Result& result) {
 }
 
 void Component::Uninstall(const base::Version& version, int reason) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   DCHECK_EQ(ComponentState::kNew, state());
 
@@ -454,7 +455,7 @@ void Component::SetUpdateCheckResult(
     const base::Optional<ProtocolParser::Result>& result,
     ErrorCategory error_category,
     int error) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_EQ(ComponentState::kChecking, state());
 
   error_category_ = error_category;
@@ -462,7 +463,7 @@ void Component::SetUpdateCheckResult(
   if (result)
     SetParseResult(result.value());
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, std::move(update_check_complete_));
 }
 
@@ -473,12 +474,12 @@ bool Component::CanDoBackgroundDownload() const {
          update_context_.config->EnabledBackgroundDownloader();
 }
 
-void Component::AppendEvent(base::Value event) {
+void Component::AppendEvent(base::Value::Dict event) {
   events_.push_back(std::move(event));
 }
 
 void Component::NotifyObservers(UpdateClient::Observer::Events event) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(STARBOARD)
   if (!is_cancelled_) {
@@ -492,7 +493,7 @@ void Component::NotifyObservers(UpdateClient::Observer::Events event) const {
 }
 
 base::TimeDelta Component::GetUpdateDuration() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (update_begin_.is_null())
     return base::TimeDelta();
@@ -504,98 +505,98 @@ base::TimeDelta Component::GetUpdateDuration() const {
   return std::min(update_cost, max_update_delay);
 }
 
-base::Value Component::MakeEventUpdateComplete() const {
-  base::Value event(base::Value::Type::DICTIONARY);
-  event.SetKey("eventtype", base::Value(3));
-  event.SetKey(
+base::Value::Dict Component::MakeEventUpdateComplete() const {
+  base::Value::Dict event;
+  event.Set("eventtype", base::Value(3));
+  event.Set(
       "eventresult",
       base::Value(static_cast<int>(state() == ComponentState::kUpdated)));
   if (error_category() != ErrorCategory::kNone)
-    event.SetKey("errorcat", base::Value(static_cast<int>(error_category())));
+    event.Set("errorcat", base::Value(static_cast<int>(error_category())));
   if (error_code())
-    event.SetKey("errorcode", base::Value(error_code()));
+    event.Set("errorcode", base::Value(error_code()));
   if (extra_code1())
-    event.SetKey("extracode1", base::Value(extra_code1()));
+    event.Set("extracode1", base::Value(extra_code1()));
   if (HasDiffUpdate(*this)) {
     const int diffresult = static_cast<int>(!diff_update_failed());
-    event.SetKey("diffresult", base::Value(diffresult));
+    event.Set("diffresult", base::Value(diffresult));
   }
   if (diff_error_category() != ErrorCategory::kNone) {
     const int differrorcat = static_cast<int>(diff_error_category());
-    event.SetKey("differrorcat", base::Value(differrorcat));
+    event.Set("differrorcat", base::Value(differrorcat));
   }
   if (diff_error_code())
-    event.SetKey("differrorcode", base::Value(diff_error_code()));
+    event.Set("differrorcode", base::Value(diff_error_code()));
   if (diff_extra_code1())
-    event.SetKey("diffextracode1", base::Value(diff_extra_code1()));
+    event.Set("diffextracode1", base::Value(diff_extra_code1()));
   if (!previous_fp().empty())
-    event.SetKey("previousfp", base::Value(previous_fp()));
+    event.Set("previousfp", base::Value(previous_fp()));
   if (!next_fp().empty())
-    event.SetKey("nextfp", base::Value(next_fp()));
+    event.Set("nextfp", base::Value(next_fp()));
   DCHECK(previous_version().IsValid());
-  event.SetKey("previousversion", base::Value(previous_version().GetString()));
+  event.Set("previousversion", base::Value(previous_version().GetString()));
   if (next_version().IsValid())
-    event.SetKey("nextversion", base::Value(next_version().GetString()));
+    event.Set("nextversion", base::Value(next_version().GetString()));
   return event;
 }
 
-base::Value Component::MakeEventDownloadMetrics(
+base::Value::Dict Component::MakeEventDownloadMetrics(
     const CrxDownloader::DownloadMetrics& dm) const {
-  base::Value event(base::Value::Type::DICTIONARY);
-  event.SetKey("eventtype", base::Value(14));
-  event.SetKey("eventresult", base::Value(static_cast<int>(dm.error == 0)));
-  event.SetKey("downloader", base::Value(DownloaderToString(dm.downloader)));
+  base::Value::Dict event;
+  event.Set("eventtype", base::Value(14));
+  event.Set("eventresult", base::Value(static_cast<int>(dm.error == 0)));
+  event.Set("downloader", base::Value(DownloaderToString(dm.downloader)));
   if (dm.error)
-    event.SetKey("errorcode", base::Value(dm.error));
-  event.SetKey("url", base::Value(dm.url.spec()));
+    event.Set("errorcode", base::Value(dm.error));
+  event.Set("url", base::Value(dm.url.spec()));
 
   // -1 means that the  byte counts are not known.
   if (dm.total_bytes != -1 && dm.total_bytes < kProtocolMaxInt)
-    event.SetKey("total", base::Value(static_cast<double>(dm.total_bytes)));
+    event.Set("total", base::Value(static_cast<double>(dm.total_bytes)));
   if (dm.downloaded_bytes != -1 && dm.total_bytes < kProtocolMaxInt) {
-    event.SetKey("downloaded",
+    event.Set("downloaded",
                  base::Value(static_cast<double>(dm.downloaded_bytes)));
   }
   if (dm.download_time_ms && dm.total_bytes < kProtocolMaxInt) {
-    event.SetKey("download_time_ms",
+    event.Set("download_time_ms",
                  base::Value(static_cast<double>(dm.download_time_ms)));
   }
   DCHECK(previous_version().IsValid());
-  event.SetKey("previousversion", base::Value(previous_version().GetString()));
+  event.Set("previousversion", base::Value(previous_version().GetString()));
   if (next_version().IsValid())
-    event.SetKey("nextversion", base::Value(next_version().GetString()));
+    event.Set("nextversion", base::Value(next_version().GetString()));
   return event;
 }
 
-base::Value Component::MakeEventUninstalled() const {
+base::Value::Dict Component::MakeEventUninstalled() const {
   DCHECK(state() == ComponentState::kUninstalled);
-  base::Value event(base::Value::Type::DICTIONARY);
-  event.SetKey("eventtype", base::Value(4));
-  event.SetKey("eventresult", base::Value(1));
+  base::Value::Dict event;
+  event.Set("eventtype", base::Value(4));
+  event.Set("eventresult", base::Value(1));
   if (extra_code1())
-    event.SetKey("extracode1", base::Value(extra_code1()));
+    event.Set("extracode1", base::Value(extra_code1()));
   DCHECK(previous_version().IsValid());
-  event.SetKey("previousversion", base::Value(previous_version().GetString()));
+  event.Set("previousversion", base::Value(previous_version().GetString()));
   DCHECK(next_version().IsValid());
-  event.SetKey("nextversion", base::Value(next_version().GetString()));
+  event.Set("nextversion", base::Value(next_version().GetString()));
   return event;
 }
 
-base::Value Component::MakeEventActionRun(bool succeeded,
+base::Value::Dict Component::MakeEventActionRun(bool succeeded,
                                           int error_code,
                                           int extra_code1) const {
-  base::Value event(base::Value::Type::DICTIONARY);
-  event.SetKey("eventtype", base::Value(42));
-  event.SetKey("eventresult", base::Value(static_cast<int>(succeeded)));
+  base::Value::Dict event;
+  event.Set("eventtype", base::Value(42));
+  event.Set("eventresult", base::Value(static_cast<int>(succeeded)));
   if (error_code)
-    event.SetKey("errorcode", base::Value(error_code));
+    event.Set("errorcode", base::Value(error_code));
   if (extra_code1)
-    event.SetKey("extracode1", base::Value(extra_code1));
+    event.Set("extracode1", base::Value(extra_code1));
   return event;
 }
 
-std::vector<base::Value> Component::GetEvents() const {
-  std::vector<base::Value> events;
+std::vector<base::Value::Dict> Component::GetEvents() const {
+  std::vector<base::Value::Dict> events;
   for (const auto& event : events_)
     events.push_back(event.Clone());
   return events;
@@ -607,7 +608,7 @@ Component::State::State(Component* component, ComponentState state)
 Component::State::~State() {}
 
 void Component::State::Handle(CallbackNextState callback_next_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "Component::State::Handle";
 #endif
@@ -619,29 +620,29 @@ void Component::State::Handle(CallbackNextState callback_next_state) {
 
 #if defined(STARBOARD)
 void Component::State::Cancel() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Further work may be needed to ensure cancellation during any state results
   // in a clear result and no memory leaks.
 }
 #endif
 
 void Component::State::TransitionState(std::unique_ptr<State> next_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(next_state);
 #if defined(STARBOARD)
   LOG(INFO) << "Component::State::TransitionState next_state="
     << ((next_state)? next_state->state_name(): "nullptr");
 #endif
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(callback_next_state_), std::move(next_state)));
 }
 
 void Component::State::EndState() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback_next_state_), nullptr));
 }
 
@@ -649,11 +650,11 @@ Component::StateNew::StateNew(Component* component)
     : State(component, ComponentState::kNew) {}
 
 Component::StateNew::~StateNew() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void Component::StateNew::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
 
@@ -675,7 +676,7 @@ Component::StateChecking::StateChecking(Component* component)
     : State(component, ComponentState::kChecking) {}
 
 Component::StateChecking::~StateChecking() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 // Unlike how other states are handled, this function does not change the
@@ -685,7 +686,7 @@ Component::StateChecking::~StateChecking() {
 // together but the state machine defines the transitions for one component
 // at a time.
 void Component::StateChecking::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
   DCHECK(component.crx_component());
@@ -698,18 +699,18 @@ void Component::StateChecking::DoHandle() {
 }
 
 void Component::StateChecking::UpdateCheckComplete() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto& component = State::component();
 
 #if defined(STARBOARD)
   auto& config = component.update_context_.config;
   auto metadata = component.update_context_.update_checker->GetPersistedData();
   if (metadata != nullptr) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&PersistedData::SetUpdaterChannel,
                                   base::Unretained(metadata), component.id_,
                                   config->GetChannel()));
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&PersistedData::SetLatestChannel,
                                   base::Unretained(metadata),
                                   config->GetChannel()));
@@ -741,11 +742,11 @@ Component::StateUpdateError::StateUpdateError(Component* component)
     : State(component, ComponentState::kUpdateError) {}
 
 Component::StateUpdateError::~StateUpdateError() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void Component::StateUpdateError::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
 
@@ -771,11 +772,11 @@ Component::StateCanUpdate::StateCanUpdate(Component* component)
     : State(component, ComponentState::kCanUpdate) {}
 
 Component::StateCanUpdate::~StateCanUpdate() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void Component::StateCanUpdate::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
   DCHECK(component.crx_component());
@@ -814,11 +815,11 @@ Component::StateUpToDate::StateUpToDate(Component* component)
     : State(component, ComponentState::kUpToDate) {}
 
 Component::StateUpToDate::~StateUpToDate() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void Component::StateUpToDate::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
   DCHECK(component.crx_component());
@@ -831,18 +832,18 @@ Component::StateDownloadingDiff::StateDownloadingDiff(Component* component)
     : State(component, ComponentState::kDownloadingDiff) {}
 
 Component::StateDownloadingDiff::~StateDownloadingDiff() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 #if defined(STARBOARD)
 void Component::StateDownloadingDiff::Cancel() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   crx_downloader_->CancelDownload();
 }
 #endif
 
 void Component::StateDownloadingDiff::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(IN_MEMORY_UPDATES)
   auto& component = Component::State::component();
@@ -881,7 +882,7 @@ void Component::StateDownloadingDiff::DoHandle() {
 // times due to how the CRX downloader switches between different downloaders
 // and fallback urls.
 void Component::StateDownloadingDiff::DownloadProgress(const std::string& id) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   component().NotifyObservers(Events::COMPONENT_UPDATE_DOWNLOADING);
 }
@@ -889,7 +890,7 @@ void Component::StateDownloadingDiff::DownloadProgress(const std::string& id) {
 void Component::StateDownloadingDiff::DownloadComplete(
     const std::string& id,
     const CrxDownloader::Result& download_result) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = Component::State::component();
   for (const auto& download_metrics : crx_downloader_->download_metrics())
@@ -925,18 +926,18 @@ Component::StateDownloading::StateDownloading(Component* component)
     : State(component, ComponentState::kDownloading) {}
 
 Component::StateDownloading::~StateDownloading() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 #if defined(STARBOARD)
 void Component::StateDownloading::Cancel() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   crx_downloader_->CancelDownload();
 }
 #endif
 
 void Component::StateDownloading::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(IN_MEMORY_UPDATES)
   auto& component = Component::State::component();
@@ -975,7 +976,7 @@ void Component::StateDownloading::DoHandle() {
 // times due to how the CRX downloader switches between different downloaders
 // and fallback urls.
 void Component::StateDownloading::DownloadProgress(const std::string& id) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   component().NotifyObservers(Events::COMPONENT_UPDATE_DOWNLOADING);
 }
@@ -983,7 +984,7 @@ void Component::StateDownloading::DownloadProgress(const std::string& id) {
 void Component::StateDownloading::DownloadComplete(
     const std::string& id,
     const CrxDownloader::Result& download_result) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = Component::State::component();
 
@@ -1020,11 +1021,11 @@ Component::StateUpdatingDiff::StateUpdatingDiff(Component* component)
     : State(component, ComponentState::kUpdatingDiff) {}
 
 Component::StateUpdatingDiff::~StateUpdatingDiff() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void Component::StateUpdatingDiff::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(IN_MEMORY_UPDATES)
   auto& component = Component::State::component();
@@ -1037,12 +1038,12 @@ void Component::StateUpdatingDiff::DoHandle() {
 
   component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
 
-  base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
+  base::ThreadPool::CreateSequencedTaskRunner(kTaskTraits)
       ->PostTask(
           FROM_HERE,
           base::BindOnce(
               &update_client::StartInstallOnBlockingTaskRunner,
-              base::ThreadTaskRunnerHandle::Get(),
+              base::SequencedTaskRunner::GetCurrentDefault(),
               component.crx_component()->pk_hash,
 #if defined(IN_MEMORY_UPDATES)
               component.installation_dir_,
@@ -1066,7 +1067,7 @@ void Component::StateUpdatingDiff::DoHandle() {
 void Component::StateUpdatingDiff::InstallComplete(ErrorCategory error_category,
                                                    int error_code,
                                                    int extra_code1) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = Component::State::component();
 
@@ -1097,14 +1098,14 @@ Component::StateUpdating::StateUpdating(Component* component)
     : State(component, ComponentState::kUpdating) {}
 
 Component::StateUpdating::~StateUpdating() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void Component::StateUpdating::DoHandle() {
 #if defined(STARBOARD)
   LOG(INFO) << "Component::StateUpdating::DoHandle()";
 #endif
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(IN_MEMORY_UPDATES)
   auto& component = Component::State::component();
@@ -1117,11 +1118,11 @@ void Component::StateUpdating::DoHandle() {
 
   component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
 
-  base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
+  base::ThreadPool::CreateSequencedTaskRunner(kTaskTraits)
       ->PostTask(FROM_HERE,
                  base::BindOnce(
                      &update_client::StartInstallOnBlockingTaskRunner,
-                     base::ThreadTaskRunnerHandle::Get(),
+                     base::SequencedTaskRunner::GetCurrentDefault(),
                      component.crx_component()->pk_hash,
 #if defined(IN_MEMORY_UPDATES)
                      component.installation_dir_,
@@ -1145,7 +1146,7 @@ void Component::StateUpdating::DoHandle() {
 void Component::StateUpdating::InstallComplete(ErrorCategory error_category,
                                                int error_code,
                                                int extra_code1) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = Component::State::component();
 
@@ -1170,15 +1171,15 @@ void Component::StateUpdating::InstallComplete(ErrorCategory error_category,
 
 Component::StateUpdated::StateUpdated(Component* component)
     : State(component, ComponentState::kUpdated) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 Component::StateUpdated::~StateUpdated() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void Component::StateUpdated::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
   DCHECK(component.crx_component());
@@ -1194,15 +1195,15 @@ void Component::StateUpdated::DoHandle() {
 
 Component::StateUninstalled::StateUninstalled(Component* component)
     : State(component, ComponentState::kUninstalled) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 Component::StateUninstalled::~StateUninstalled() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void Component::StateUninstalled::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
   DCHECK(component.crx_component());
@@ -1216,11 +1217,11 @@ Component::StateRun::StateRun(Component* component)
     : State(component, ComponentState::kRun) {}
 
 Component::StateRun::~StateRun() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void Component::StateRun::DoHandle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   const auto& component = State::component();
   DCHECK(component.crx_component());
@@ -1233,7 +1234,7 @@ void Component::StateRun::DoHandle() {
 void Component::StateRun::ActionRunComplete(bool succeeded,
                                             int error_code,
                                             int extra_code1) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
 

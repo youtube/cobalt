@@ -265,7 +265,7 @@ void HandleInputEvent(const SbEvent* event) {
   if (g_the_window != nullptr) {
     g_the_window->HandleInputEvent(event);
   } else {
-    SB_LOG(ERROR) << "Missing SystemWindow";
+    LOG(ERROR) << "Missing SystemWindow";
   }
   return;
 }

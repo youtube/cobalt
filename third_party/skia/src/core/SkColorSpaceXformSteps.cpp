@@ -9,11 +9,12 @@
 #include "src/core/SkColorSpacePriv.h"
 #include "src/core/SkColorSpaceXformSteps.h"
 #include "src/core/SkRasterPipeline.h"
+#include "src/core/SkVM.h"
 
-// TODO(mtklein): explain the logic of this file
+// See skia.org/user/color  (== site/user/color.md).
 
-SkColorSpaceXformSteps::SkColorSpaceXformSteps(SkColorSpace* src, SkAlphaType srcAT,
-                                               SkColorSpace* dst, SkAlphaType dstAT) {
+SkColorSpaceXformSteps::SkColorSpaceXformSteps(const SkColorSpace* src, SkAlphaType srcAT,
+                                               const SkColorSpace* dst, SkAlphaType dstAT) {
     // Opaque outputs are treated as the same alpha type as the source input.
     // TODO: we'd really like to have a good way of explaining why we think this is useful.
     if (dstAT == kOpaque_SkAlphaType) {
@@ -64,9 +65,6 @@ SkColorSpaceXformSteps::SkColorSpaceXformSteps(SkColorSpace* src, SkAlphaType sr
     src->   transferFn(&this->srcTF   );
     dst->invTransferFn(&this->dstTFInv);
 
-    this->srcTF_is_sRGB = src->gammaCloseToSRGB();
-    this->dstTF_is_sRGB = dst->gammaCloseToSRGB();
-
     // If we linearize then immediately reencode with the same transfer function, skip both.
     if ( this->flags.linearize       &&
         !this->flags.gamut_transform &&
@@ -100,7 +98,8 @@ void SkColorSpaceXformSteps::apply(float* rgba) const {
         // I don't know why isfinite(x) stopped working on the Chromecast bots...
         auto is_finite = [](float x) { return x*0 == 0; };
 
-        float invA = is_finite(1.0f / rgba[3]) ? 1.0f / rgba[3] : 0;
+        float invA = sk_ieee_float_divide(1.0f, rgba[3]);
+        invA = is_finite(invA) ? invA : 0;
         rgba[0] *= invA;
         rgba[1] *= invA;
         rgba[2] *= invA;
@@ -130,28 +129,95 @@ void SkColorSpaceXformSteps::apply(float* rgba) const {
     }
 }
 
-void SkColorSpaceXformSteps::apply(SkRasterPipeline* p, bool src_is_normalized) const {
-#if defined(SK_LEGACY_SRGB_STAGE_CHOICE)
-    src_is_normalized = true;
-#endif
-    if (flags.unpremul) { p->append(SkRasterPipeline::unpremul); }
-    if (flags.linearize) {
-        if (src_is_normalized && srcTF_is_sRGB) {
-            p->append(SkRasterPipeline::from_srgb);
-        } else {
-            p->append_transfer_function(srcTF);
-        }
-    }
-    if (flags.gamut_transform) {
-        p->append(SkRasterPipeline::matrix_3x3, &src_to_dst_matrix);
-    }
-    if (flags.encode) {
-        if (src_is_normalized && dstTF_is_sRGB) {
-            p->append(SkRasterPipeline::to_srgb);
-        } else {
-            p->append_transfer_function(dstTFInv);
-        }
-    }
-    if (flags.premul) { p->append(SkRasterPipeline::premul); }
+void SkColorSpaceXformSteps::apply(SkRasterPipeline* p) const {
+    if (flags.unpremul)        { p->append(SkRasterPipeline::unpremul); }
+    if (flags.linearize)       { p->append_transfer_function(srcTF); }
+    if (flags.gamut_transform) { p->append(SkRasterPipeline::matrix_3x3, &src_to_dst_matrix); }
+    if (flags.encode)          { p->append_transfer_function(dstTFInv); }
+    if (flags.premul)          { p->append(SkRasterPipeline::premul); }
 }
 
+skvm::F32 sk_program_transfer_fn(
+    skvm::F32 v, TFKind tf_kind,
+    skvm::F32 G, skvm::F32 A, skvm::F32 B, skvm::F32 C, skvm::F32 D, skvm::F32 E, skvm::F32 F)
+{
+    // Strip off the sign bit and save it for later.
+    skvm::I32 bits = pun_to_I32(v),
+              sign = bits & 0x80000000;
+    v = pun_to_F32(bits ^ sign);
+
+    switch (tf_kind) {
+        case Bad_TF: SkASSERT(false); break;
+
+        case sRGBish_TF: {
+            v = select(v <= D, C*v + F
+                             , approx_powf(A*v + B, G) + E);
+        } break;
+
+        case PQish_TF: {
+            skvm::F32 vC = approx_powf(v, C);
+            v = approx_powf(max(B * vC + A, 0.0f) / (E * vC + D), F);
+        } break;
+
+        case HLGish_TF: {
+            skvm::F32 vA = v*A,
+                       K = F + 1.0f;
+            v = K*select(vA <= 1.0f, approx_powf(vA, B)
+                                   , approx_exp((v-E) * C + D));
+        } break;
+
+        case HLGinvish_TF: {
+            skvm::F32 K = F + 1.0f;
+            v /= K;
+            v = select(v <= 1.0f, A * approx_powf(v, B)
+                                , C * approx_log(v-D) + E);
+        } break;
+    }
+
+    // Re-apply the original sign bit on our way out the door.
+    return pun_to_F32(sign | pun_to_I32(v));
+}
+
+skvm::Color sk_program_transfer_fn(skvm::Builder* p, skvm::Uniforms* uniforms,
+                                   const skcms_TransferFunction& tf, skvm::Color c) {
+    skvm::F32 G = p->uniformF(uniforms->pushF(tf.g)),
+              A = p->uniformF(uniforms->pushF(tf.a)),
+              B = p->uniformF(uniforms->pushF(tf.b)),
+              C = p->uniformF(uniforms->pushF(tf.c)),
+              D = p->uniformF(uniforms->pushF(tf.d)),
+              E = p->uniformF(uniforms->pushF(tf.e)),
+              F = p->uniformF(uniforms->pushF(tf.f));
+    TFKind tf_kind = classify_transfer_fn(tf);
+    return {
+        sk_program_transfer_fn(c.r, tf_kind, G,A,B,C,D,E,F),
+        sk_program_transfer_fn(c.g, tf_kind, G,A,B,C,D,E,F),
+        sk_program_transfer_fn(c.b, tf_kind, G,A,B,C,D,E,F),
+        c.a,
+    };
+}
+
+skvm::Color SkColorSpaceXformSteps::program(skvm::Builder* p, skvm::Uniforms* uniforms,
+                                            skvm::Color c) const {
+    if (flags.unpremul) {
+        c = unpremul(c);
+    }
+    if (flags.linearize) {
+        c = sk_program_transfer_fn(p, uniforms, srcTF, c);
+    }
+    if (flags.gamut_transform) {
+        auto m = [&](int index) {
+            return p->uniformF(uniforms->pushF(src_to_dst_matrix[index]));
+        };
+        auto R = c.r * m(0) + c.g * m(3) + c.b * m(6),
+             G = c.r * m(1) + c.g * m(4) + c.b * m(7),
+             B = c.r * m(2) + c.g * m(5) + c.b * m(8);
+        c = {R, G, B, c.a};
+    }
+    if (flags.encode) {
+        c = sk_program_transfer_fn(p, uniforms, dstTFInv, c);
+    }
+    if (flags.premul) {
+        c = premul(c);
+    }
+    return c;
+}

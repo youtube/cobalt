@@ -21,21 +21,22 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
+#include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "cobalt/media/base/cval_stats.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/decoder_buffer_cache.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
+#include "media/base/audio_decoder_config.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/demuxer_stream.h"
+#include "media/base/video_decoder_config.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "third_party/chromium/media/base/audio_decoder_config.h"
-#include "third_party/chromium/media/base/decoder_buffer.h"
-#include "third_party/chromium/media/base/demuxer_stream.h"
-#include "third_party/chromium/media/base/video_decoder_config.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace cobalt {
 namespace media {
@@ -69,7 +70,7 @@ class SbPlayerBridge {
       OnEncryptedMediaInitDataEncounteredCB;
   // Create an SbPlayerBridge with url-based player.
   SbPlayerBridge(SbPlayerInterface* interface,
-                 const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+                 const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                  const std::string& url, SbWindow window, Host* host,
                  SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
@@ -81,7 +82,7 @@ class SbPlayerBridge {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Create a SbPlayerBridge with normal player
   SbPlayerBridge(SbPlayerInterface* interface,
-                 const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+                 const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                  const GetDecodeTargetGraphicsContextProviderFunc&
                      get_decode_target_graphics_context_provider_func,
                  const AudioDecoderConfig& audio_config,
@@ -94,7 +95,7 @@ class SbPlayerBridge {
                  SbPlayerOutputMode default_output_mode,
                  DecodeTargetProvider* const decode_target_provider,
                  const std::string& max_video_capabilities,
-                 std::string pipeline_identifier);
+                 int max_video_input_size, std::string pipeline_identifier);
 
   ~SbPlayerBridge();
 
@@ -147,7 +148,7 @@ class SbPlayerBridge {
   SbDecodeTarget GetCurrentSbDecodeTarget();
   SbPlayerOutputMode GetSbPlayerOutputMode();
 
-  void RecordSetDrmSystemReadyTime(int64_t timestamp) {
+  void RecordSetDrmSystemReadyTime(base::Time timestamp) {
     set_drm_system_ready_cb_time_ = timestamp;
   }
 
@@ -244,13 +245,14 @@ class SbPlayerBridge {
       SbPlayerOutputMode default_output_mode) const;
 
   void LogStartupLatency() const;
+  void SendColorSpaceHistogram() const;
 
 // The following variables are initialized in the ctor and never changed.
 #if SB_HAS(PLAYER_WITH_URL)
   std::string url_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   SbPlayerInterface* sbplayer_interface_;
-  const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const GetDecodeTargetGraphicsContextProviderFunc
       get_decode_target_graphics_context_provider_func_;
   scoped_refptr<CallbackHelper> callback_helper_;
@@ -301,18 +303,21 @@ class SbPlayerBridge {
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
+  // Set the maximum size in bytes of an input buffer for video.
+  int max_video_input_size_;
+
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
   std::string player_creation_error_message_;
 
   // Variables related to tracking player startup latencies.
-  int64_t set_drm_system_ready_cb_time_ = -1;
-  int64_t player_creation_time_ = 0;
-  int64_t sb_player_state_initialized_time_ = 0;
-  int64_t sb_player_state_prerolling_time_ = 0;
-  int64_t first_audio_sample_time_ = 0;
-  int64_t first_video_sample_time_ = 0;
-  int64_t sb_player_state_presenting_time_ = 0;
+  base::Time set_drm_system_ready_cb_time_{};
+  base::Time player_creation_time_{};
+  base::Time sb_player_state_initialized_time_{};
+  base::Time sb_player_state_prerolling_time_{};
+  base::Time first_audio_sample_time_{};
+  base::Time first_video_sample_time_{};
+  base::Time sb_player_state_presenting_time_{};
 
 #if SB_HAS(PLAYER_WITH_URL)
   const bool is_url_based_;

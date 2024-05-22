@@ -15,7 +15,6 @@
 #include "base/message_loop/message_pump_ui_starboard.h"
 
 #include "base/logging.h"
-#include "base/run_loop.h"
 #include "base/time/time.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
@@ -28,39 +27,68 @@ void CallMessagePumpImmediate(void* context) {
   DCHECK(context);
   MessagePumpUIStarboard* pump =
       reinterpret_cast<MessagePumpUIStarboard*>(context);
-  pump->RunOneAndReschedule(false /*delayed*/);
+  pump->CancelImmediate();
+  pump->RunUntilIdle();
 }
 
 void CallMessagePumpDelayed(void* context) {
   DCHECK(context);
   MessagePumpUIStarboard* pump =
       reinterpret_cast<MessagePumpUIStarboard*>(context);
-  pump->RunOneAndReschedule(true /*delayed*/);
+  pump->CancelDelayed();
+  pump->RunUntilIdle();
 }
 
 }  // namespace
 
-MessagePumpUIStarboard::MessagePumpUIStarboard() : delegate_(NULL) {}
+MessagePumpUIStarboard::MessagePumpUIStarboard() : delegate_(nullptr) {}
 
-void MessagePumpUIStarboard::RunOneAndReschedule(bool delayed) {
+void MessagePumpUIStarboard::CancelDelayed() {
+  base::AutoLock auto_lock(outstanding_events_lock_);
+  CancelDelayedLocked();
+}
+
+void MessagePumpUIStarboard::CancelImmediate() {
+  base::AutoLock auto_lock(outstanding_events_lock_);
+  CancelImmediateLocked();
+}
+
+void MessagePumpUIStarboard::RunUntilIdle() {
   DCHECK(delegate_);
-  if (delayed) {
-    CancelDelayed();
-  } else {
-    CancelImmediate();
-  }
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  // Abort if this is a QA build to signal that this is unexpected.
+  CHECK(delegate_);
+#endif
 
-  TimeTicks delayed_work_time;
+  if (should_quit())
+    return;
+
   for (;;) {
-    TimeTicks next_time;
-    if (!RunOne(&next_time)) {
-      delayed_work_time = next_time;
-      break;
-    }
-  }
+    // Do some work and see if the next task is ready right away.
+    Delegate::NextWorkInfo next_work_info = delegate_->DoWork();
+    bool attempt_more_work = next_work_info.is_immediate();
 
-  if (!delayed_work_time.is_null()) {
-    ScheduleDelayedWork(delayed_work_time);
+    if (should_quit())
+      break;
+
+    if (attempt_more_work)
+      continue;
+
+    attempt_more_work = delegate_->DoIdleWork();
+
+    if (should_quit())
+      break;
+
+    if (attempt_more_work)
+      continue;
+
+    // If there is delayed work.
+    if (!next_work_info.delayed_run_time.is_max()) {
+      ScheduleDelayedWork(next_work_info);
+    }
+
+    // Idle.
+    break;
   }
 }
 
@@ -72,56 +100,46 @@ void MessagePumpUIStarboard::Run(Delegate* delegate) {
   NOTREACHED();
 }
 
-void MessagePumpUIStarboard::Start(Delegate* delegate) {
-  run_loop_.reset(new base::RunLoop());
-  delegate_ = delegate;
+void MessagePumpUIStarboard::Attach(Delegate* delegate) {
+  // Since the Looper is controlled by the UI thread or JavaHandlerThread, we
+  // can't use Run() like we do on other platforms or we would prevent Java
+  // tasks from running. Instead we create and initialize a run loop here, then
+  // return control back to the Looper.
 
-  // Since the RunLoop was just created above, BeforeRun should be guaranteed to
-  // return true (it only returns false if the RunLoop has been Quit already).
-  // Note that Cobalt does not actually call RunLoop::Start() because
-  // Starboard manages its own pump.
-  run_loop_->BeforeRun();
+  SetDelegate(delegate);
 }
 
 void MessagePumpUIStarboard::Quit() {
-  delegate_ = NULL;
+  delegate_ = nullptr;
   CancelAll();
-  if (run_loop_) {
-    run_loop_->AfterRun();
-    run_loop_.reset();
-  }
 }
 
 void MessagePumpUIStarboard::ScheduleWork() {
-  base::AutoLock auto_lock(outstanding_events_lock_);
-  if (!outstanding_events_.empty()) {
-    // No need, already an outstanding event.
+  // Check if outstanding event already exists.
+  if (outstanding_event_)
     return;
-  }
 
-  outstanding_events_.insert(
-      SbEventSchedule(&CallMessagePumpImmediate, this, 0));
+  base::AutoLock auto_lock(outstanding_events_lock_);
+  outstanding_event_ =
+      SbEventSchedule(&CallMessagePumpImmediate, this, 0);
 }
 
 void MessagePumpUIStarboard::ScheduleDelayedWork(
-    const base::TimeTicks& delayed_work_time) {
-  base::TimeDelta delay;
-  if (!delayed_work_time.is_null()) {
-    delay = delayed_work_time - base::TimeTicks::Now();
-
-    if (delay <= base::TimeDelta()) {
-      delay = base::TimeDelta();
-    }
+    const Delegate::NextWorkInfo& next_work_info) {
+  if (next_work_info.is_immediate() || next_work_info.delayed_run_time.is_max()) {
+    return;
   }
 
-  {
-    base::AutoLock auto_lock(outstanding_events_lock_);
-    // Make sure any outstanding delayed event is canceled.
-    CancelDelayedLocked();
-
-    outstanding_delayed_events_.insert(
-        SbEventSchedule(&CallMessagePumpDelayed, this, delay.InMicroseconds()));
+  TimeDelta delay = next_work_info.remaining_delay();
+  if (delay.is_negative()) {
+    delay = base::TimeDelta();
   }
+
+  base::AutoLock auto_lock(outstanding_events_lock_);
+  // Make sure any outstanding delayed event is canceled.
+  CancelDelayedLocked();
+  outstanding_delayed_event_ =
+      SbEventSchedule(&CallMessagePumpDelayed, this, delay.InMicroseconds());
 }
 
 void MessagePumpUIStarboard::CancelAll() {
@@ -130,76 +148,26 @@ void MessagePumpUIStarboard::CancelAll() {
   CancelDelayedLocked();
 }
 
-void MessagePumpUIStarboard::CancelImmediate() {
-  base::AutoLock auto_lock(outstanding_events_lock_);
-  CancelImmediateLocked();
-}
-
-void MessagePumpUIStarboard::CancelDelayed() {
-  base::AutoLock auto_lock(outstanding_events_lock_);
-  CancelDelayedLocked();
-}
-
 void MessagePumpUIStarboard::CancelImmediateLocked() {
   outstanding_events_lock_.AssertAcquired();
-  for (SbEventIdSet::iterator it = outstanding_events_.begin();
-       it != outstanding_events_.end(); ++it) {
-    SbEventCancel(*it);
-  }
-  outstanding_events_.erase(outstanding_events_.begin(),
-                            outstanding_events_.end());
+  if (!outstanding_event_)
+    return;
+
+  SbEventCancel(*outstanding_event_);
+  outstanding_event_.reset();
 }
 
 void MessagePumpUIStarboard::CancelDelayedLocked() {
   outstanding_events_lock_.AssertAcquired();
-  for (SbEventIdSet::iterator it = outstanding_delayed_events_.begin();
-       it != outstanding_delayed_events_.end(); ++it) {
-    SbEventCancel(*it);
-  }
-  outstanding_delayed_events_.erase(outstanding_delayed_events_.begin(),
-                                    outstanding_delayed_events_.end());
+  if (!outstanding_delayed_event_)
+    return;
+
+  SbEventCancel(*outstanding_delayed_event_);
+  outstanding_delayed_event_.reset();
 }
 
-bool MessagePumpUIStarboard::RunOne(TimeTicks* out_delayed_work_time) {
-  DCHECK(out_delayed_work_time);
-
-  // We expect to start with a delegate, so we can DCHECK it, but any task we
-  // run could call Quit and remove it.
-  DCHECK(delegate_);
-  if (!delegate_) {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-    // Abort if this is a QA build to signal that this is unexpected.
-    CHECK(delegate_);
-#endif
-    // Drop the work if there is no delegate for it.
-    return false;
-  }
-
-  // Do immediate work.
-  bool did_work = delegate_->DoWork();
-
-  // Do all delayed work. Unlike Chromium, we drain all due delayed work before
-  // going back to the loop. See message_pump_io_starboard.cc for more
-  // information.
-  while (delegate_ && delegate_->DoDelayedWork(out_delayed_work_time)) {
-    did_work = true;
-  }
-
-  // If we did work, and we still have a delegate, return true, so we will be
-  // called again.
-  if (did_work) {
-    return !!delegate_;
-  }
-
-  // If the delegate has been removed, Quit() has been called, so no more work.
-  if (!delegate_) {
-    return false;
-  }
-
-  // No work was done, so only call back if there was idle work done, otherwise
-  // go to sleep. ScheduleWork or ScheduleDelayedWork will be called if new work
-  // is scheduled.
-  return delegate_->DoIdleWork();
+MessagePump::Delegate* MessagePumpForUI::SetDelegate(Delegate* delegate) {
+  return std::exchange(delegate_, delegate);
 }
 
 }  // namespace base

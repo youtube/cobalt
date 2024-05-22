@@ -1,5 +1,19 @@
+// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /*
- * Copyright (C) 2013 Google Inc. All Rights Reserved.
+ * Copyright (C) 2024 The Cobalt Authors. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -11,7 +25,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * Neither the name of Google Inc. nor the names of its
+ *     * Neither the name of The Cobalt Authors. nor the names of its
  * contributors may be used to endorse or promote products derived from
  * this software without specific prior written permission.
  *
@@ -28,20 +42,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #include "cobalt/dom/source_buffer.h"
 
 #include <algorithm>
@@ -50,7 +50,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -58,11 +58,12 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/media_settings.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/source_buffer_metrics.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/web_settings.h"
-#include "third_party/chromium/media/base/ranges.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
+#include "media/base/ranges.h"
+#include "media/base/timestamp_constants.h"
 
 namespace cobalt {
 namespace dom {
@@ -137,13 +138,13 @@ SourceBuffer::OnInitSegmentReceivedHelper::OnInitSegmentReceivedHelper(
 }
 
 void SourceBuffer::OnInitSegmentReceivedHelper::Detach() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   source_buffer_ = nullptr;
 }
 
 void SourceBuffer::OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived(
     std::unique_ptr<MediaTracks> tracks) {
-  if (!task_runner_->BelongsToCurrentThread()) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived,
@@ -237,7 +238,7 @@ scoped_refptr<TimeRanges> SourceBuffer::buffered(
 
 double SourceBuffer::timestamp_offset(
     script::ExceptionState* exception_state) const {
-  starboard::ScopedLock scoped_lock(timestamp_offset_mutex_);
+  base::AutoLock scoped_lock(timestamp_offset_mutex_);
   return timestamp_offset_;
 }
 
@@ -563,7 +564,7 @@ void SourceBuffer::OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
   // TODO: Implement track support.
 }
 
-void SourceBuffer::ScheduleEvent(base::Token event_name) {
+void SourceBuffer::ScheduleEvent(base_token::Token event_name) {
   scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_->Enqueue(event);
@@ -591,7 +592,7 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
     return false;
   }
 
-  metrics_.StartTracking();
+  metrics_.StartTracking(SourceBufferMetricsAction::PREPARE_APPEND);
   media_source_->OpenIfInEndedState();
 
   double current_time = media_source_->GetMediaElement()->current_time(NULL);
@@ -600,11 +601,11 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
           new_data_size + evict_extra_in_bytes_)) {
     web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
                              exception_state);
-    metrics_.EndTracking(0);
+    metrics_.EndTracking(SourceBufferMetricsAction::PREPARE_APPEND, 0);
     return false;
   }
 
-  metrics_.EndTracking(0);
+  metrics_.EndTracking(SourceBufferMetricsAction::PREPARE_APPEND, 0);
   return true;
 }
 
@@ -679,7 +680,7 @@ void SourceBuffer::OnAlgorithmFinalized() {
 }
 
 void SourceBuffer::UpdateTimestampOffset(base::TimeDelta timestamp_offset) {
-  starboard::ScopedLock scoped_lock(timestamp_offset_mutex_);
+  base::AutoLock scoped_lock(timestamp_offset_mutex_);
   // The check avoids overwriting |timestamp_offset_| when there is a small
   // difference between its float and its int64_t representation .
   if (DoubleToTimeDelta(timestamp_offset_) != timestamp_offset) {

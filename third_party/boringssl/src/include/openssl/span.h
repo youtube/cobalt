@@ -21,8 +21,9 @@
 
 extern "C++" {
 
+#include <stdlib.h>
+
 #include <algorithm>
-#include <cstdlib>
 #include <type_traits>
 
 BSSL_NAMESPACE_BEGIN
@@ -93,19 +94,16 @@ class SpanBase {
 template <typename T>
 class Span : private internal::SpanBase<const T> {
  private:
+  static const size_t npos = static_cast<size_t>(-1);
+
   // Heuristically test whether C is a container type that can be converted into
   // a Span by checking for data() and size() member functions.
   //
-  // TODO(davidben): Switch everything to std::enable_if_t when we remove
-  // support for MSVC 2015. Although we could write our own enable_if_t and MSVC
-  // 2015 has std::enable_if_t anyway, MSVC 2015's SFINAE implementation is
-  // problematic and does not work below unless we write the ::type at use.
+  // TODO(davidben): Require C++17 support for std::is_convertible_v, etc.
   template <typename C>
-  using EnableIfContainer = std::enable_if<
+  using EnableIfContainer = std::enable_if_t<
       std::is_convertible<decltype(std::declval<C>().data()), T *>::value &&
       std::is_integral<decltype(std::declval<C>().size())>::value>;
-
-  static const size_t npos = static_cast<size_t>(-1);
 
  public:
   constexpr Span() : Span(nullptr, 0) {}
@@ -114,14 +112,12 @@ class Span : private internal::SpanBase<const T> {
   template <size_t N>
   constexpr Span(T (&array)[N]) : Span(array, N) {}
 
-  template <
-      typename C, typename = typename EnableIfContainer<C>::type,
-      typename = typename std::enable_if<std::is_const<T>::value, C>::type>
+  template <typename C, typename = EnableIfContainer<C>,
+            typename = std::enable_if_t<std::is_const<T>::value, C>>
   Span(const C &container) : data_(container.data()), size_(container.size()) {}
 
-  template <
-      typename C, typename = typename EnableIfContainer<C>::type,
-      typename = typename std::enable_if<!std::is_const<T>::value, C>::type>
+  template <typename C, typename = EnableIfContainer<C>,
+            typename = std::enable_if_t<!std::is_const<T>::value, C>>
   explicit Span(C &container)
       : data_(container.data()), size_(container.size()) {}
 
@@ -136,20 +132,20 @@ class Span : private internal::SpanBase<const T> {
 
   T &front() const {
     if (size_ == 0) {
-      OPENSSL_port_abort();
+      abort();
     }
     return data_[0];
   }
   T &back() const {
     if (size_ == 0) {
-      OPENSSL_port_abort();
+      abort();
     }
     return data_[size_ - 1];
   }
 
   T &operator[](size_t i) const {
     if (i >= size_) {
-      OPENSSL_port_abort();
+      abort();
     }
     return data_[i];
   }
@@ -157,9 +153,28 @@ class Span : private internal::SpanBase<const T> {
 
   Span subspan(size_t pos = 0, size_t len = npos) const {
     if (pos > size_) {
-      OPENSSL_port_abort();  // absl::Span throws an exception here.
+      // absl::Span throws an exception here. Note std::span and Chromium
+      // base::span additionally forbid pos + len being out of range, with a
+      // special case at npos/dynamic_extent, while absl::Span::subspan clips
+      // the span. For now, we align with absl::Span in case we switch to it in
+      // the future.
+      abort();
     }
     return Span(data_ + pos, std::min(size_ - pos, len));
+  }
+
+  Span first(size_t len) {
+    if (len > size_) {
+      abort();
+    }
+    return Span(data_, len);
+  }
+
+  Span last(size_t len) {
+    if (len > size_) {
+      abort();
+    }
+    return Span(data_ + size_ - len, len);
   }
 
  private:

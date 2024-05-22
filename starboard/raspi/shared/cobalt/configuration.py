@@ -23,9 +23,6 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
   def GetTestFilters(self):
     filters = super().GetTestFilters()
     filters.extend([
-        # TODO: Remove this filter once the layout_tests slowdown in the debug
-        # configuration is resolved.
-        test_filter.TestFilter('layout_tests', test_filter.FILTER_ALL, 'debug'),
         # These tests are currently producing slightly different images on the
         # RasPi.
         test_filter.TestFilter('renderer_test',

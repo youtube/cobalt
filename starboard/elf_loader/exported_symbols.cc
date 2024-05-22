@@ -14,9 +14,16 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <ifaddrs.h>
+#include <netdb.h>
+#include <sched.h>
 #include <stdlib.h>
 #include <sys/mman.h>
-#include <time.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
@@ -36,17 +43,21 @@
 #include "starboard/gles.h"
 #if SB_API_VERSION < 16
 #include "starboard/image.h"
+#include "starboard/once.h"
 #endif  // SB_API_VERSION < 16
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/memory_reporter.h"
 #include "starboard/microphone.h"
 #include "starboard/mutex.h"
-#include "starboard/once.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
-#include "starboard/shared/modular/posix_mmap_wrappers.h"
-#include "starboard/shared/modular/posix_time_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
@@ -106,6 +117,9 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
 #endif  // SB_API_VERSION < 16
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(kSbCanMapExecutableMemory);
+#endif
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
@@ -135,9 +149,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCanOpen);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryClose);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCreate);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
   REGISTER_SYMBOL(SbDrmCloseSession);
@@ -154,7 +172,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileCanOpen);
   REGISTER_SYMBOL(SbFileClose);
   REGISTER_SYMBOL(SbFileDelete);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileExists);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
   REGISTER_SYMBOL(SbFileGetPathInfo);
@@ -244,7 +264,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMutexCreate);
   REGISTER_SYMBOL(SbMutexDestroy);
   REGISTER_SYMBOL(SbMutexRelease);
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbOnce);
+#endif  // SB_API_VERSION < 16
+
   REGISTER_SYMBOL(SbPlayerCreate);
   REGISTER_SYMBOL(SbPlayerDestroy);
 #if SB_API_VERSION >= 15
@@ -359,13 +383,25 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadContextGetPointer);
   REGISTER_SYMBOL(SbThreadCreate);
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadCreateLocalKey);
   REGISTER_SYMBOL(SbThreadDestroyLocalKey);
+#endif  // SB_API_VERSION < 16
+
   REGISTER_SYMBOL(SbThreadDetach);
   REGISTER_SYMBOL(SbThreadGetCurrent);
   REGISTER_SYMBOL(SbThreadGetId);
+
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(SbThreadGetPriority);
+#endif  // SB_API_VERSION >= 16
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadGetLocalValue);
   REGISTER_SYMBOL(SbThreadGetName);
+#endif  // SB_API_VERSION < 16
+
   REGISTER_SYMBOL(SbThreadIsEqual);
   REGISTER_SYMBOL(SbThreadJoin);
   REGISTER_SYMBOL(SbThreadSamplerCreate);
@@ -373,11 +409,22 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerFreeze);
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadSetLocalValue);
+#endif  // SB_API_VERSION < 16
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadSetName);
+#endif  // SB_API_VERSION < 16
+
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(SbThreadSetPriority);
+#endif  // SB_API_VERSION >= 16
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
   REGISTER_SYMBOL(SbTimeGetNow);
@@ -391,51 +438,169 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);
   REGISTER_SYMBOL(SbUserGetSignedIn);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowGetOnScreenKeyboardBoundingRect);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowHideOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowIsOnScreenKeyboardShown);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowSetOnScreenKeyboardKeepFocus);
   REGISTER_SYMBOL(SbWindowShowOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
+#endif  // SB_API_VERSION < 16
 
 #if SB_API_VERSION >= 16
   // POSIX APIs
-  REGISTER_SYMBOL(malloc);
-  REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(__errno_location);
+  REGISTER_SYMBOL(accept);
+  REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
-  REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(connect);
+  REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
-  REGISTER_SYMBOL(vsscanf);
-  REGISTER_SYMBOL(time);
-  REGISTER_SYMBOL(mmap);
+  REGISTER_SYMBOL(freeaddrinfo);
+  REGISTER_SYMBOL(freeifaddrs);
+  REGISTER_SYMBOL(fstat);
+  REGISTER_SYMBOL(fsync);
+  REGISTER_SYMBOL(ftruncate);
+  REGISTER_SYMBOL(getaddrinfo);
+  REGISTER_SYMBOL(getifaddrs);
+  REGISTER_SYMBOL(getsockname);
+  REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(lseek);
+  REGISTER_SYMBOL(malloc);
+  REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mprotect);
-  REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(msync);
+  REGISTER_SYMBOL(munmap);
+  REGISTER_SYMBOL(open);
+  REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(read);
+  REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(recv);
+  REGISTER_SYMBOL(send);
+  REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(rmdir);
+  REGISTER_SYMBOL(sched_yield);
+  REGISTER_SYMBOL(sendto);
+  REGISTER_SYMBOL(setsockopt);
+  REGISTER_SYMBOL(socket);
+  REGISTER_SYMBOL(snprintf);
+  REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(stat);
+  REGISTER_SYMBOL(unlink);
+  REGISTER_SYMBOL(usleep);
+  REGISTER_SYMBOL(vfwprintf);
+  REGISTER_SYMBOL(vsnprintf);
+  REGISTER_SYMBOL(vsscanf);
+  REGISTER_SYMBOL(write);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
   // Platform-specific types with musl-based types. These wrappers are defined
   // in //starboard/shared/modular.
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
-  map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
-  map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
-  map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
+  map_["clock_gettime"] =
+      reinterpret_cast<const void*>(&__abi_wrap_clock_gettime);
+  map_["fstat"] = reinterpret_cast<const void*>(&__abi_wrap_fstat);
+  map_["gettimeofday"] =
+      reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
+  map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
+  map_["lseek"] = reinterpret_cast<const void*>(&__abi_wrap_lseek);
+  map_["mmap"] = reinterpret_cast<const void*>(&__abi_wrap_mmap);
 
-  REGISTER_SYMBOL(sprintf);
-  REGISTER_SYMBOL(snprintf);
-  REGISTER_SYMBOL(vfwprintf);
-  REGISTER_SYMBOL(vsnprintf);
+  map_["pthread_attr_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_init);
+  map_["pthread_attr_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_destroy);
+  map_["pthread_attr_getdetachstate"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getdetachstate);
+  map_["pthread_attr_getstacksize"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstacksize);
+  map_["pthread_attr_setdetachstate"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setdetachstate);
+  map_["pthread_attr_setstacksize"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstacksize);
+  map_["pthread_cond_broadcast"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_broadcast);
+  map_["pthread_cond_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_destroy);
+  map_["pthread_cond_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_init);
+  map_["pthread_cond_signal"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_signal);
+  map_["pthread_cond_timedwait"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_timedwait);
+  map_["pthread_cond_wait"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_wait);
+  map_["pthread_condattr_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_destroy);
+  map_["pthread_condattr_getclock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_getclock);
+  map_["pthread_condattr_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_init);
+  map_["pthread_condattr_setclock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_setclock);
+  map_["pthread_create"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_create);
+  map_["pthread_detach"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_detach);
+  map_["pthread_equal"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_equal);
+  map_["pthread_getname_np"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_getname_np);
+  map_["pthread_getspecific"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_getspecific);
+  map_["pthread_join"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_join);
+  map_["pthread_key_create"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_key_create);
+  map_["pthread_key_delete"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_key_delete);
+  map_["pthread_mutex_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_destroy);
+  map_["pthread_mutex_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_init);
+  map_["pthread_mutex_lock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_lock);
+  map_["pthread_mutex_unlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_unlock);
+  map_["pthread_mutex_trylock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
+  map_["pthread_once"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
+  map_["pthread_self"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_self);
+  map_["pthread_setspecific"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
+  map_["pthread_setname_np"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
+  map_["read"] = reinterpret_cast<const void*>(&__abi_wrap_read);
+  map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
+  map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
+  map_["accept"] = reinterpret_cast<const void*>(&__abi_wrap_accept);
+  map_["bind"] = reinterpret_cast<const void*>(&__abi_wrap_bind);
+  map_["connect"] = reinterpret_cast<const void*>(&__abi_wrap_connect);
+  map_["getaddrinfo"] = reinterpret_cast<const void*>(&__abi_wrap_getaddrinfo);
+  map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
+  map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
+
 #if defined(_MSC_VER)
   // MSVC provides a template with the same name.
   // The cast helps the compiler to pick the correct C function pointer to be

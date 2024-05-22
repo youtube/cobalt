@@ -18,6 +18,4 @@
 #include "build/build_config.h"
 #include "starboard/configuration.h"
 
-#define SB_USE_SB_MICROPHONE 1
-
 #endif  // COBALT_SPEECH_SPEECH_CONFIGURATION_H_

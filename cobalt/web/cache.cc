@@ -102,7 +102,7 @@ void Cache::Fetcher::ReadResponse(net::URLRequest* request) {
 
   // Read completed synchronously. Call |OnReadCompleted()| asynchronously to
   // avoid blocking IO.
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&Cache::Fetcher::OnReadCompleted,
                                 base::Unretained(this), request, bytes_read));
 }
@@ -122,10 +122,10 @@ void Cache::Fetcher::OnResponseStarted(net::URLRequest* request,
   std::string value;
   while (
       request->response_headers()->EnumerateHeaderLines(&iter, &name, &value)) {
-    base::ListValue header;
-    header.GetList().emplace_back(name);
-    header.GetList().emplace_back(value);
-    headers_.GetList().push_back(std::move(header));
+    base::Value::List header;
+    header.Append(name);
+    header.Append(value);
+    headers_.Append(std::move(header));
   }
   int initial_capacity = request->response_headers()->HasHeader(
                              net::HttpRequestHeaders::kContentLength)
@@ -162,7 +162,7 @@ script::HandlePromiseAny Cache::Match(
   cache_utils::Trace(isolate, {resolver}, traced_globals, cleanup_traced);
   auto traced_resolver = traced_globals[0]->As<v8::Promise::Resolver>();
   auto context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](script::EnvironmentSettings* environment_settings, uint32_t key,
@@ -176,12 +176,14 @@ script::HandlePromiseAny Cache::Match(
                 cache::Cache::GetInstance()->Metadata(kResourceType, key);
             script::v8c::EntryScope entry_scope(isolate);
             auto resolver = traced_resolver.Get(isolate);
-            if (!cached || !metadata || !metadata->FindKey("options")) {
+            if (!cached || !metadata ||
+                !metadata->GetDict().FindDict("options")) {
               cache_utils::Resolve(resolver);
               return;
             }
-            auto response = cache_utils::CreateResponse(
-                isolate, *cached, *(metadata->FindKey("options")));
+            base::Value value(metadata->GetDict().FindDict("options")->Clone());
+            auto response =
+                cache_utils::CreateResponse(isolate, *cached, value);
             if (!response) {
               cache_utils::Reject(resolver);
               return;
@@ -236,7 +238,7 @@ script::HandlePromiseVoid Cache::Add(
       std::make_unique<script::ValuePromiseVoid::Reference>(global_wrappable,
                                                             promise);
   auto context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&Cache::PerformAdd, base::Unretained(this),
                      environment_settings, std::move(request_reference),
@@ -302,13 +304,13 @@ script::HandlePromiseVoid Cache::Put(
               promise_reference->value().Reject();
               return base::nullopt;
             }
-            base::DictionaryValue metadata;
-            metadata.SetKey("url", base::Value(url));
-            metadata.SetKey("options", std::move(options.value()));
+            base::Value::Dict metadata;
+            metadata.Set("url", base::Value(url));
+            metadata.Set("options", std::move(options.value()));
             cache::Cache::GetInstance()->Store(
                 kResourceType, key,
                 cache_utils::ToUint8Vector(array_buffer_promise->Result()),
-                std::move(metadata));
+                base::Value(std::move(metadata)));
             promise_reference->value().Resolve();
             return base::nullopt;
           },
@@ -331,7 +333,7 @@ script::HandlePromiseBool Cache::Delete(
       std::make_unique<script::ValuePromiseBool::Reference>(global_wrappable,
                                                             promise);
   auto context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](script::EnvironmentSettings* environment_settings,
@@ -363,7 +365,7 @@ script::HandlePromiseAny Cache::Keys(
   auto promise_reference = std::make_unique<script::ValuePromiseAny::Reference>(
       global_wrappable, promise);
   auto context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](script::EnvironmentSettings* environment_settings,
@@ -382,12 +384,12 @@ script::HandlePromiseAny Cache::Keys(
               if (!metadata) {
                 continue;
               }
-              auto url = metadata->FindKey("url");
+              auto url = metadata->GetDict().FindString("url");
               if (!url) {
                 continue;
               }
               base::Optional<v8::Local<v8::Value>> request =
-                  cache_utils::CreateRequest(isolate, url->GetString());
+                  cache_utils::CreateRequest(isolate, *url);
               if (request) {
                 requests.push_back(std::move(request.value()));
               }
@@ -405,7 +407,7 @@ void Cache::OnFetchCompleted(uint32_t key, bool success) {
   base::AutoLock auto_lock(fetcher_lock_);
   auto* environment_settings = fetch_contexts_[key].second;
   auto* context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&Cache::OnFetchCompletedMainThread,
                                 base::Unretained(this), key, success));
 }
@@ -426,16 +428,17 @@ void Cache::OnFetchCompletedMainThread(uint32_t key, bool success) {
     return;
   }
   {
-    base::DictionaryValue metadata;
-    metadata.SetKey("url", base::Value(fetcher->url().spec()));
-    base::DictionaryValue options;
-    options.SetKey("status", base::Value(status));
-    options.SetKey("statusText", base::Value(fetcher->status_text()));
-    options.SetKey("headers", std::move(fetcher->headers()));
-    metadata.SetKey("options", std::move(options));
+    base::Value::Dict metadata;
+    metadata.Set("url", base::Value(fetcher->url().spec()));
+    base::Value::Dict options;
+    options.Set("status", base::Value(status));
+    options.Set("statusText", base::Value(fetcher->status_text()));
+    options.Set("headers", std::move(fetcher->headers()));
+    metadata.Set("options", std::move(options));
 
-    cache::Cache::GetInstance()->Store(
-        kResourceType, key, fetcher->BufferToVector(), std::move(metadata));
+    cache::Cache::GetInstance()->Store(kResourceType, key,
+                                       fetcher->BufferToVector(),
+                                       base::Value(std::move(metadata)));
   }
   if (fetcher->mime_type() == "text/javascript") {
     auto* environment_settings = fetch_contexts_[key].second;

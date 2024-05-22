@@ -5,6 +5,7 @@
 
 # Recipe for uploading nanobench results.
 
+PYTHON_VERSION_COMPATIBILITY = "PY3"
 
 DEPS = [
   'recipe_engine/context',
@@ -53,7 +54,7 @@ def RunSteps(api):
 
 
 def GenTests(api):
-  builder = 'Perf-Debian9-Clang-GCE-CPU-AVX2-x86_64-All-Debug'
+  builder = 'Perf-Debian10-Clang-GCE-CPU-AVX2-x86_64-All-Debug'
   yield (
     api.test('normal_bot') +
     api.properties(buildername=builder,

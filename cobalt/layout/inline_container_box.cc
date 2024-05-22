@@ -443,7 +443,7 @@ LayoutUnit InlineContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
 
 bool InlineContainerBox::IsTransformable() const { return false; }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void InlineContainerBox::DumpClassName(std::ostream* stream) const {
   *stream << "InlineContainerBox ";
@@ -461,7 +461,7 @@ void InlineContainerBox::DumpProperties(std::ostream* stream) const {
           << std::noboolalpha;
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
     BaseDirection base_direction, LayoutUnit desired_offset,

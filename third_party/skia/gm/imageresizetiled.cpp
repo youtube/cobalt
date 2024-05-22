@@ -7,7 +7,6 @@
 
 #include "gm/gm.h"
 #include "include/core/SkCanvas.h"
-#include "include/core/SkFilterQuality.h"
 #include "include/core/SkFont.h"
 #include "include/core/SkImageFilter.h"
 #include "include/core/SkMatrix.h"
@@ -29,7 +28,7 @@ DEF_SIMPLE_GM(imageresizetiled, canvas, WIDTH, HEIGHT) {
         SkMatrix matrix;
         matrix.setScale(RESIZE_FACTOR, RESIZE_FACTOR);
         paint.setImageFilter(SkImageFilters::MatrixTransform(matrix,
-                                                             kNone_SkFilterQuality,
+                                                             SkSamplingOptions(),
                                                              nullptr));
 
         SkFont         font(ToolUtils::create_portable_typeface(), 100);

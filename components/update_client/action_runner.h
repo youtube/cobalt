@@ -15,7 +15,7 @@
 #include "base/files/file_path.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
 #include "build/build_config.h"
 #include "components/update_client/component_unpacker.h"
 
@@ -59,14 +59,14 @@ class ActionRunner {
   const Component& component_;
 
   // Used to post callbacks to the main thread.
-  scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> main_task_runner_;
 
   // Contains the unpack path for the component associated with the run action.
   base::FilePath unpack_path_;
 
   Callback run_complete_;
 
-  THREAD_CHECKER(thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
   DISALLOW_COPY_AND_ASSIGN(ActionRunner);
 };
 

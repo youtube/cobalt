@@ -21,14 +21,14 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/media/progressive/progressive_parser.h"
-#include "third_party/chromium/media/base/decoder_buffer.h"
-#include "third_party/chromium/media/base/demuxer.h"
-#include "third_party/chromium/media/base/demuxer_stream.h"
-#include "third_party/chromium/media/base/media_log.h"
-#include "third_party/chromium/media/base/ranges.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/demuxer.h"
+#include "media/base/demuxer_stream.h"
+#include "media/base/media_log.h"
+#include "media/base/ranges.h"
 
 namespace media {
 class DecoderBuffer;
@@ -47,12 +47,8 @@ class ProgressiveDemuxerStream : public ::media::DemuxerStream {
 
   ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer, Type type);
 
-// DemuxerStream implementation
-#if defined(STARBOARD)
-  void Read(int max_number_of_buffers_to_read, ReadCB read_cb) override;
-#else   // defined(STARBOARD)
-  void Read(ReadCB read_cb) override;
-#endif  // defined(STARBOARD)
+  // DemuxerStream implementation
+  void Read(uint32_t count, ReadCB read_cb) override;
   AudioDecoderConfig audio_decoder_config() override;
   VideoDecoderConfig video_decoder_config() override;
   Type type() const override;
@@ -115,18 +111,23 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   typedef ::media::VideoDecoderConfig VideoDecoderConfig;
 
   ProgressiveDemuxer(
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
       DataSource* data_source, MediaLog* const media_log);
   ~ProgressiveDemuxer() override;
 
   // Demuxer implementation.
   std::string GetDisplayName() const override { return "ProgressiveDemuxer"; }
+  ::media::DemuxerType GetDemuxerType() const override {
+    // kFFmpegDemuxer is used in Chromium media for progressive demuxing.
+    return ::media::DemuxerType::kFFmpegDemuxer;
+  }
   void Initialize(DemuxerHost* host, PipelineStatusCallback status_cb) override;
   void AbortPendingReads() override {}
   void StartWaitingForSeek(base::TimeDelta seek_time) override {}
   void CancelPendingSeek(base::TimeDelta seek_time) override {}
   void Stop() override;
   void Seek(base::TimeDelta time, PipelineStatusCallback cb) override;
+  bool IsSeekable() const override { return true; }
   std::vector<DemuxerStream*> GetAllStreams() override;
   base::TimeDelta GetStartTime() const override;
   base::Time GetTimelineOffset() const override { return base::Time(); }
@@ -149,6 +150,7 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
       base::TimeDelta currTime, TrackChangeCB change_completed_cb) override {
     NOTREACHED();
   }
+  void SetPlaybackRate(double rate) override { NOTREACHED(); }
 
   // TODO: Consider move the following functions to private section.
 
@@ -163,7 +165,9 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   const VideoDecoderConfig& VideoConfig();
 
   // Provide access to ProgressiveDemuxerStream.
-  bool MessageLoopBelongsToCurrentThread() const;
+  bool RunsTasksInCurrentSequence() const {
+    return task_runner_->RunsTasksInCurrentSequence();
+  }
 
  private:
   void ParseConfigDone(PipelineStatusCallback status_cb, PipelineStatus status);
@@ -177,7 +181,7 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   void IssueNextRequest();
   void SeekTask(base::TimeDelta time, PipelineStatusCallback cb);
 
-  scoped_refptr<base::SingleThreadTaskRunner> message_loop_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   DemuxerHost* host_;
 
   // Thread on which all blocking operations are executed.

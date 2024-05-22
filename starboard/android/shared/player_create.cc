@@ -16,6 +16,7 @@
 
 #include "starboard/player.h"
 
+#include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -207,6 +208,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
+  handler->SetMaxVideoInputSize(
+      starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
   SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, handler.Pass());

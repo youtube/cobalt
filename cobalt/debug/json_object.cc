@@ -14,31 +14,32 @@
 
 #include "cobalt/debug/json_object.h"
 
+#include <utility>
+
 #include "base/logging.h"
 
 namespace cobalt {
 namespace debug {
 
-JSONObject JSONParse(const std::string& json, int* parse_error) {
-  base::JSONReader json_reader;
-  base::Value* parsed = json_reader.ReadToValue(json).release();
-  base::DictionaryValue* dictionary = NULL;
-  if (parsed) {
-    parsed->GetAsDictionary(&dictionary);
-  }
-  if (parse_error) {
-    *parse_error = json_reader.error_code();
+JSONObject JSONParse(const std::string& json, std::string* parse_error) {
+  base::JSONReader::Result result =
+      base::JSONReader::ReadAndReturnValueWithError(json);
+  if (result.has_value()) {
+    DCHECK(result.value().is_dict());
+    return JSONObject(std::move(result.value().GetDict()));
+  } else if (parse_error) {
+    *parse_error = result.error().message;
   }
   // Scoped pointer may be NULL - caller must check.
-  return JSONObject(dictionary);
+  return JSONObject();
 }
 
 JSONObject JSONParse(const std::string& json) { return JSONParse(json, NULL); }
 
 std::string JSONStringify(const JSONObject& json_object) {
-  if (!json_object) return "{}";
+  if (json_object.empty()) return "{}";
   std::string json;
-  base::JSONWriter::Write(*(json_object.get()), &json);
+  base::JSONWriter::Write(json_object, &json);
   return json;
 }
 }  // namespace debug

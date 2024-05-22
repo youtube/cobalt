@@ -1,17 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_METRICS_HISTOGRAM_SAMPLES_H_
 #define BASE_METRICS_HISTOGRAM_SAMPLES_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <limits>
 #include <memory>
+#include <string>
 
 #include "base/atomicops.h"
-#include "base/macros.h"
+#include "base/base_export.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -46,17 +50,23 @@ class BASE_EXPORT HistogramSamples {
   // acquire/release operations to guarantee ordering with outside values.
   union BASE_EXPORT AtomicSingleSample {
     AtomicSingleSample() : as_atomic(0) {}
-    AtomicSingleSample(subtle::Atomic32 rhs) : as_atomic(rhs) {}
+    explicit AtomicSingleSample(subtle::Atomic32 rhs) : as_atomic(rhs) {}
 
     // Returns the single sample in an atomic manner. This in an "acquire"
     // load. The returned sample isn't shared and thus its fields can be safely
-    // accessed.
+    // accessed. If this object is disabled, this will return an empty sample
+    // (bucket count set to 0).
     SingleSample Load() const;
 
-    // Extracts the single sample in an atomic manner. If |disable| is true
-    // then this object will be set so it will never accumulate another value.
-    // This is "no barrier" so doesn't enforce ordering with other atomic ops.
-    SingleSample Extract(bool disable);
+    // Extracts and returns the single sample and changes it to |new_value| in
+    // an atomic manner. If this object is disabled, this will return an empty
+    // sample (bucket count set to 0).
+    SingleSample Extract(AtomicSingleSample new_value = AtomicSingleSample(0));
+
+    // Like Extract() above, but also disables this object so that it will
+    // never accumulate another value. If this object is already disabled, this
+    // will return an empty sample (bucket count set to 0).
+    SingleSample ExtractAndDisable();
 
     // Adds a given count to the held bucket. If not possible, it returns false
     // and leaves the parts unchanged. Once extracted/disabled, this always
@@ -111,7 +121,7 @@ class BASE_EXPORT HistogramSamples {
     // histogram types, there might be races during histogram accumulation
     // and snapshotting that we choose to accept. In this case, the tallies
     // might mismatch even when no memory corruption has happened.
-    HistogramBase::AtomicCount redundant_count;
+    HistogramBase::AtomicCount redundant_count{0};
 
     // A single histogram value and associated count. This allows histograms
     // that typically report only a single value to not require full storage
@@ -126,7 +136,8 @@ class BASE_EXPORT HistogramSamples {
     LocalMetadata();
   };
 
-  HistogramSamples(uint64_t id, Metadata* meta);
+  HistogramSamples(const HistogramSamples&) = delete;
+  HistogramSamples& operator=(const HistogramSamples&) = delete;
   virtual ~HistogramSamples();
 
   virtual void Accumulate(HistogramBase::Sample value,
@@ -134,17 +145,35 @@ class BASE_EXPORT HistogramSamples {
   virtual HistogramBase::Count GetCount(HistogramBase::Sample value) const = 0;
   virtual HistogramBase::Count TotalCount() const = 0;
 
-  virtual void Add(const HistogramSamples& other);
+  void Add(const HistogramSamples& other);
 
   // Add from serialized samples.
-  virtual bool AddFromPickle(PickleIterator* iter);
+  bool AddFromPickle(PickleIterator* iter);
 
-  virtual void Subtract(const HistogramSamples& other);
+  void Subtract(const HistogramSamples& other);
 
+  // Adds the samples from |other| while also resetting |other|'s sample counts
+  // to 0.
+  void Extract(HistogramSamples& other);
+
+  // Returns an iterator to read the sample counts.
   virtual std::unique_ptr<SampleCountIterator> Iterator() const = 0;
-  virtual void Serialize(Pickle* pickle) const;
 
-  // Accessor fuctions.
+  // Returns a special kind of iterator that resets the underlying sample count
+  // to 0 when Get() is called. The returned iterator must be consumed
+  // completely before being destroyed, otherwise samples may be lost (this is
+  // enforced by a DCHECK in the destructor).
+  virtual std::unique_ptr<SampleCountIterator> ExtractingIterator() = 0;
+
+  void Serialize(Pickle* pickle) const;
+
+  // Returns ASCII representation of histograms data for histogram samples.
+  // The dictionary returned will be of the form
+  // {"name":<string>, "header":<string>, "body": <string>}
+  base::Value::Dict ToGraphDict(StringPiece histogram_name,
+                                int32_t flags) const;
+
+  // Accessor functions.
   uint64_t id() const { return meta_->id; }
   int64_t sum() const {
 #ifdef ARCH_CPU_64_BITS
@@ -171,6 +200,9 @@ class BASE_EXPORT HistogramSamples {
     MAX_NEGATIVE_SAMPLE_REASONS
   };
 
+  HistogramSamples(uint64_t id, Metadata* meta);
+  HistogramSamples(uint64_t id, std::unique_ptr<Metadata> meta);
+
   // Based on |op| type, add or subtract sample counts data from the iterator.
   enum Operator { ADD, SUBTRACT };
   virtual bool AddSubtractImpl(SampleCountIterator* iter, Operator op) = 0;
@@ -194,15 +226,38 @@ class BASE_EXPORT HistogramSamples {
     return meta_->single_sample;
   }
 
+  // Produces an actual graph (set of blank vs non blank char's) for a bucket.
+  void WriteAsciiBucketGraph(double x_count,
+                             int line_length,
+                             std::string* output) const;
+
+  // Writes textual description of the bucket contents (relative to histogram).
+  // Output is the count in the buckets, as well as the percentage.
+  void WriteAsciiBucketValue(HistogramBase::Count current,
+                             double scaled_sum,
+                             std::string* output) const;
+
+  // Gets a body for this histogram samples.
+  virtual std::string GetAsciiBody() const;
+
+  // Gets a header message describing this histogram samples.
+  virtual std::string GetAsciiHeader(StringPiece histogram_name,
+                                     int32_t flags) const;
+
+  // Returns a string description of what goes in a given bucket.
+  const std::string GetSimpleAsciiBucketRange(
+      HistogramBase::Sample sample) const;
+
   Metadata* meta() { return meta_; }
 
  private:
-  // Depending on derived class meta values can come from local stoarge or
-  // external storage in which case HistogramSamples class cannot take ownership
-  // of Metadata*.
-  Metadata* meta_;
-
-  DISALLOW_COPY_AND_ASSIGN(HistogramSamples);
+  // Depending on derived class `meta_` can come from:
+  // - Local storage: Then `meta_owned_` is set and meta_ points to it.
+  // - External storage: Then `meta_owned_` is null, and `meta_` point toward an
+  //   external object. The callers guarantees the value will outlive this
+  //   instance.
+  std::unique_ptr<Metadata> meta_owned_;
+  raw_ptr<Metadata> meta_;
 };
 
 class BASE_EXPORT SampleCountIterator {
@@ -213,14 +268,13 @@ class BASE_EXPORT SampleCountIterator {
   virtual void Next() = 0;
 
   // Get the sample and count at current position.
-  // |min| |max| and |count| can be NULL if the value is not of interest.
   // Note: |max| is int64_t because histograms support logged values in the
   // full int32_t range and bucket max is exclusive, so it needs to support
   // values up to MAXINT32+1.
   // Requires: !Done();
   virtual void Get(HistogramBase::Sample* min,
                    int64_t* max,
-                   HistogramBase::Count* count) const = 0;
+                   HistogramBase::Count* count) = 0;
   static_assert(std::numeric_limits<HistogramBase::Sample>::max() <
                     std::numeric_limits<int64_t>::max(),
                 "Get() |max| must be able to hold Histogram::Sample max + 1");
@@ -235,11 +289,9 @@ class BASE_EXPORT SingleSampleIterator : public SampleCountIterator {
  public:
   SingleSampleIterator(HistogramBase::Sample min,
                        int64_t max,
-                       HistogramBase::Count count);
-  SingleSampleIterator(HistogramBase::Sample min,
-                       int64_t max,
                        HistogramBase::Count count,
-                       size_t bucket_index);
+                       size_t bucket_index,
+                       bool value_was_extracted);
   ~SingleSampleIterator() override;
 
   // SampleCountIterator:
@@ -247,7 +299,7 @@ class BASE_EXPORT SingleSampleIterator : public SampleCountIterator {
   void Next() override;
   void Get(HistogramBase::Sample* min,
            int64_t* max,
-           HistogramBase::Count* count) const override;
+           HistogramBase::Count* count) override;
 
   // SampleVector uses predefined buckets so iterator can return bucket index.
   bool GetBucketIndex(size_t* index) const override;
@@ -258,6 +310,10 @@ class BASE_EXPORT SingleSampleIterator : public SampleCountIterator {
   const int64_t max_;
   const size_t bucket_index_;
   HistogramBase::Count count_;
+
+  // Whether the value that this iterator holds was extracted from the
+  // underlying data (i.e., reset to 0).
+  const bool value_was_extracted_;
 };
 
 }  // namespace base

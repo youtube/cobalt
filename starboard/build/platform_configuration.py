@@ -159,18 +159,6 @@ class PlatformConfiguration(object):
     """Gets a dict of environment variables needed by unit test binaries."""
     return {}
 
-  def GetDeployPathPatterns(self):
-    """Gets deployment paths patterns for files to be included for deployment.
-
-    Example: ['deploy/*.exe', 'content/*']
-
-    Returns:
-      A list of path wildcard patterns within the PRODUCT_DIR
-      (src/out/<PLATFORM>_<CONFIG>) that need to be deployed in order for the
-      platform launcher to run target executable(s).
-    """
-    raise NotImplementedError()
-
   def GetTestTargets(self):
     """Gets all tests to be run in a unit test run.
 
@@ -179,21 +167,13 @@ class PlatformConfiguration(object):
     """
     # TODO(b/292007482): Replace static list with gn query.
     return [
-        'app_key_files_test',
-        'app_key_test',
-        'base_unittests',
         'common_test',
         'cwrappers_test',
-        'drain_file_test',
-        'elf_loader_test',
         'eztime_test',
-        'installation_manager_test',
         'nplb',
         # TODO(b/292138589): Fails on various linux configs.
         # 'nplb_evergreen_compat_tests',
         'player_filter_tests',
-        'reset_evergreen_update_test',
-        'slot_management_test',
         'starboard_platform_tests',
     ]
 

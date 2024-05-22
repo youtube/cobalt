@@ -17,10 +17,10 @@
 
 #include "base/callback.h"
 #include "base/strings/string_piece.h"
+#include "base/synchronization/lock.h"
 #include "cobalt/media_stream/media_track_settings.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/event_target.h"
-#include "starboard/common/mutex.h"
 
 namespace cobalt {
 namespace media_stream {
@@ -39,7 +39,7 @@ class MediaStreamTrack : public web::EventTarget {
 
   // Function exposed to JavaScript via IDL.
   const MediaTrackSettings& GetSettings() const {
-    starboard::ScopedLock lock(settings_mutex_);
+    base::AutoLock lock(settings_mutex_);
     return settings_;
   }
 
@@ -52,7 +52,7 @@ class MediaStreamTrack : public web::EventTarget {
       media_stream::MediaStreamTrack::ReadyState new_state) = 0;
 
   void SetMediaTrackSettings(const MediaTrackSettings& new_settings) {
-    starboard::ScopedLock lock(settings_mutex_);
+    base::AutoLock lock(settings_mutex_);
     settings_ = new_settings;
   }
 
@@ -62,7 +62,7 @@ class MediaStreamTrack : public web::EventTarget {
   MediaStreamTrack(const MediaStreamTrack&) = delete;
   MediaStreamTrack& operator=(const MediaStreamTrack&) = delete;
 
-  starboard::Mutex settings_mutex_;
+  mutable base::Lock settings_mutex_;
   MediaTrackSettings settings_;
 };
 

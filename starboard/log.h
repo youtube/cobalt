@@ -78,9 +78,9 @@ SB_EXPORT void SbLogRawFormat(const char* format, va_list args)
     SB_PRINTF_FORMAT(1, 0);
 
 // Inline wrapper of SbLogFormat to convert from ellipsis to va_args.
-static SB_C_INLINE void SbLogRawFormatF(const char* format, ...)
+static inline void SbLogRawFormatF(const char* format, ...)
     SB_PRINTF_FORMAT(1, 2);
-static SB_C_INLINE void SbLogRawFormatF(const char* format, ...) {
+static inline void SbLogRawFormatF(const char* format, ...) {
   va_list args;
   va_start(args, format);
   SbLogRawFormat(format, args);
@@ -93,9 +93,8 @@ SB_EXPORT void SbLogFormat(const char* format, va_list args)
     SB_PRINTF_FORMAT(1, 0);
 
 // Inline wrapper of SbLogFormat that converts from ellipsis to va_args.
-static SB_C_INLINE void SbLogFormatF(const char* format, ...)
-    SB_PRINTF_FORMAT(1, 2);
-static SB_C_INLINE void SbLogFormatF(const char* format, ...) {
+static inline void SbLogFormatF(const char* format, ...) SB_PRINTF_FORMAT(1, 2);
+static inline void SbLogFormatF(const char* format, ...) {
   va_list args;
   va_start(args, format);
   SbLogFormat(format, args);

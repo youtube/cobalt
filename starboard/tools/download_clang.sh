@@ -16,30 +16,17 @@
 
 set -e
 
-CLANG_VERSION="${1:-16-init-17653-g39da55e8-2}"
-TOOLCHAIN_ROOT="${HOME}/starboard-toolchains/"
-TOOLCHAIN_HOME="${TOOLCHAIN_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_VERSION}"
+readonly CLANG_VERSION="${1:-17-init-8029-g27f27d15-3}"
+readonly CLANG_DIR="${HOME}/starboard-toolchains/x86_64-linux-gnu-clang-chromium-${CLANG_VERSION}"
+readonly BASE_URL="https://commondatastorage.googleapis.com/chromium-browser-clang/Linux_x64"
 
-if [ -d "${TOOLCHAIN_HOME}" ]; then
-  echo "Clang is already downloaded, exiting."
+if [[ -d "${CLANG_DIR}" ]]; then
+  echo "already have Clang ${CLANG_VERSION}; not downloading"
   exit 0
 fi
 
-BASE_URL="https://commondatastorage.googleapis.com/chromium-browser-clang"
-
-cd /tmp
-mkdir -p ${TOOLCHAIN_HOME}
-
-# Download and extract clang.
-curl --silent -O -J ${BASE_URL}/Linux_x64/clang-llvmorg-${CLANG_VERSION}.tgz
-tar xf clang-llvmorg-${CLANG_VERSION}.tgz -C ${TOOLCHAIN_HOME}
-rm clang-llvmorg-${CLANG_VERSION}.tgz
-
-# Download and extract llvm coverage tools.
-curl --silent -O -J ${BASE_URL}/Linux_x64/llvm-code-coverage-llvmorg-${CLANG_VERSION}.tgz
-tar xf llvm-code-coverage-llvmorg-${CLANG_VERSION}.tgz -C ${TOOLCHAIN_HOME}
-rm llvm-code-coverage-llvmorg-${CLANG_VERSION}.tgz
-
-echo ${CLANG_VERSION} >> ${TOOLCHAIN_HOME}/cr_build_revision
-
-echo "Downloaded clang."
+mkdir -p "${CLANG_DIR}"
+curl -s "${BASE_URL}/clang-llvmorg-${CLANG_VERSION}.tgz" | tar xzC "${CLANG_DIR}"
+curl -s "${BASE_URL}/llvm-code-coverage-llvmorg-${CLANG_VERSION}.tgz" | tar xzC "${CLANG_DIR}"
+echo "${CLANG_VERSION}" > "${CLANG_DIR}/cr_build_revision"
+echo "downloaded to ${CLANG_DIR}"

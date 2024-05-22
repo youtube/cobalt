@@ -1,22 +1,20 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TASK_SEQUENCE_MANAGER_ENQUEUE_ORDER_H_
 #define BASE_TASK_SEQUENCE_MANAGER_ENQUEUE_ORDER_H_
 
-#include <atomic>
+#include <stdint.h>
 
-#ifdef STARBOARD
-#include "base/atomicops.h"
-#endif
-#include "base/base_export.h"
-#include "base/macros.h"
-#include "starboard/types.h"
+#include <limits>
 
 namespace base {
 namespace sequence_manager {
+
 namespace internal {
+class EnqueueOrderGenerator;
+}
 
 // 64-bit number which is used to order tasks.
 // SequenceManager assumes this number will never overflow.
@@ -28,6 +26,11 @@ class EnqueueOrder {
   static EnqueueOrder none() { return EnqueueOrder(kNone); }
   static EnqueueOrder blocking_fence() { return EnqueueOrder(kBlockingFence); }
 
+  // Returns an EnqueueOrder that compares greater than any other EnqueueOrder.
+  static EnqueueOrder max() {
+    return EnqueueOrder(std::numeric_limits<uint64_t>::max());
+  }
+
   // It's okay to use EnqueueOrder in boolean expressions keeping in mind
   // that some non-zero values have a special meaning.
   operator uint64_t() const { return value_; }
@@ -36,38 +39,11 @@ class EnqueueOrder {
     return EnqueueOrder(value);
   }
 
-  // EnqueueOrder can't be created from a raw number in non-test code.
-  // Generator is used to create it with strictly monotonic guarantee.
-  class BASE_EXPORT Generator {
-   public:
-    Generator();
-    ~Generator();
-
-    // Can be called from any thread.
-    EnqueueOrder GenerateNext() {
-#ifdef STARBOARD
-      // subtle::NoBarrier_AtomicIncrement returns the new value
-      // while std::atomic_fetch_add_explicit returns the old one, so let's
-      // subtract 1 back.
-      return EnqueueOrder(
-          subtle::NoBarrier_AtomicIncrement(&counter_, subtle::Atomic32(1)) -
-          1);
-    }
-
-   private:
-    subtle::Atomic32 counter_;
-#else
-      return EnqueueOrder(std::atomic_fetch_add_explicit(
-          &counter_, uint64_t(1), std::memory_order_relaxed));
-    }
-
-   private:
-    std::atomic<uint64_t> counter_;
-#endif
-    DISALLOW_COPY_AND_ASSIGN(Generator);
-  };
-
  private:
+  // EnqueueOrderGenerator is the only class allowed to create an EnqueueOrder
+  // with a non-default constructor.
+  friend class internal::EnqueueOrderGenerator;
+
   explicit EnqueueOrder(uint64_t value) : value_(value) {}
 
   enum SpecialValues : uint64_t {
@@ -79,7 +55,6 @@ class EnqueueOrder {
   uint64_t value_;
 };
 
-}  // namespace internal
 }  // namespace sequence_manager
 }  // namespace base
 

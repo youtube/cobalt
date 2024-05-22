@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_AUDIO_TRACK_AUDIO_SINK_TYPE_H_
 #define STARBOARD_ANDROID_SHARED_AUDIO_TRACK_AUDIO_SINK_TYPE_H_
 
+#include <pthread.h>
+
 #include <atomic>
 #include <functional>
 #include <map>
@@ -32,7 +34,6 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 namespace android {
@@ -77,6 +78,8 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   }
 
   void Destroy(SbAudioSink audio_sink) override {
+    // TODO(b/330793785): Use audio_sink.flush() instead of re-creating a new
+    // audio_sink.
     if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
       SB_LOG(WARNING) << "audio_sink is invalid.";
       return;
@@ -155,7 +158,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   int last_playback_head_position_ = 0;
 
   volatile bool quit_ = false;
-  SbThread audio_out_thread_ = kSbThreadInvalid;
+  pthread_t audio_out_thread_ = 0;
 
   Mutex mutex_;
   double playback_rate_ = 1.0;

@@ -11,6 +11,7 @@
 #include "include/core/SkStream.h"
 #include "include/core/SkSurface.h"
 #include "include/core/SkTime.h"
+#include "include/private/SkTPin.h"
 #include "modules/skottie/include/Skottie.h"
 #include "modules/skresources/include/SkResources.h"
 #include "src/utils/SkOSPath.h"
@@ -92,7 +93,7 @@ int main(int argc, char** argv) {
 
     SkVideoEncoder encoder;
 
-    GrContext* context = nullptr;
+    GrDirectContext* grctx = nullptr;
     sk_sp<SkSurface> surf;
     sk_sp<SkData> data;
 
@@ -108,15 +109,15 @@ int main(int argc, char** argv) {
         // lazily allocate the surfaces
         if (!surf) {
             if (FLAGS_gpu) {
-                context = factory.getContextInfo(contextType).grContext();
-                surf = SkSurface::MakeRenderTarget(context,
+                grctx = factory.getContextInfo(contextType).directContext();
+                surf = SkSurface::MakeRenderTarget(grctx,
                                                    SkBudgeted::kNo,
                                                    info,
                                                    0,
                                                    GrSurfaceOrigin::kTopLeft_GrSurfaceOrigin,
                                                    nullptr);
                 if (!surf) {
-                    context = nullptr;
+                    grctx = nullptr;
                 }
             }
             if (!surf) {
@@ -134,7 +135,7 @@ int main(int argc, char** argv) {
             produce_frame(surf.get(), animation.get(), frame);
 
             AsyncRec asyncRec = { info, &encoder };
-            if (context) {
+            if (grctx) {
                 auto read_pixels_cb = [](SkSurface::ReadPixelsContext ctx,
                                          std::unique_ptr<const SkSurface::AsyncReadResult> result) {
                     if (result && result->count() == 1) {
@@ -144,13 +145,19 @@ int main(int argc, char** argv) {
                 };
                 surf->asyncRescaleAndReadPixels(info, {0, 0, info.width(), info.height()},
                                                 SkSurface::RescaleGamma::kSrc,
-                                                kNone_SkFilterQuality,
+                                                SkImage::RescaleMode::kNearest,
                                                 read_pixels_cb, &asyncRec);
+                grctx->submit();
             } else {
                 SkPixmap pm;
                 SkAssertResult(surf->peekPixels(&pm));
                 encoder.addFrame(pm);
             }
+        }
+
+        if (grctx) {
+            // ensure all pending reads are completed
+            grctx->flushAndSubmit(true);
         }
         data = encoder.endRecording();
 

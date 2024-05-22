@@ -90,11 +90,11 @@ class TextBox : public Box {
       ContainerBox* stacking_context) const override;
   bool IsTransformable() const override;
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   void DumpClassName(std::ostream* stream) const override;
   void DumpProperties(std::ostream* stream) const override;
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const override;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
  private:
   // From |Box|.

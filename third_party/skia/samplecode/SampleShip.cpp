@@ -10,6 +10,7 @@
 #include "include/core/SkRSXform.h"
 #include "include/core/SkSurface.h"
 #include "samplecode/Sample.h"
+#include "src/core/SkPaintPriv.h"
 #include "tools/Resources.h"
 #include "tools/timer/Timer.h"
 
@@ -20,25 +21,26 @@ static const int kWidth = 960;
 static const int kHeight = 640;
 
 typedef void (*DrawAtlasProc)(SkCanvas*, SkImage*, const SkRSXform[], const SkRect[],
-const SkColor[], int, const SkRect*, const SkPaint*);
+const SkColor[], int, const SkRect*, const SkSamplingOptions&, const SkPaint*);
 
 static void draw_atlas(SkCanvas* canvas, SkImage* atlas, const SkRSXform xform[],
                        const SkRect tex[], const SkColor colors[], int count, const SkRect* cull,
-                       const SkPaint* paint) {
-    canvas->drawAtlas(atlas, xform, tex, colors, count, SkBlendMode::kModulate, cull, paint);
+                       const SkSamplingOptions& sampling, const SkPaint* paint) {
+    canvas->drawAtlas(atlas, xform, tex, colors, count, SkBlendMode::kModulate, sampling,
+                      cull, paint);
 }
 
 static void draw_atlas_sim(SkCanvas* canvas, SkImage* atlas, const SkRSXform xform[],
                            const SkRect tex[], const SkColor colors[], int count, const SkRect* cull,
-                           const SkPaint* paint) {
+                           const SkSamplingOptions& sampling, const SkPaint* paint) {
     for (int i = 0; i < count; ++i) {
         SkMatrix matrix;
         matrix.setRSXform(xform[i]);
 
         canvas->save();
         canvas->concat(matrix);
-        canvas->drawImageRect(atlas, tex[i], tex[i].makeOffset(-tex[i].x(), -tex[i].y()), paint,
-                              SkCanvas::kFast_SrcRectConstraint);
+        canvas->drawImageRect(atlas, tex[i], tex[i].makeOffset(-tex[i].x(), -tex[i].y()),
+                              sampling, paint, SkCanvas::kFast_SrcRectConstraint);
         canvas->restore();
     }
 }
@@ -96,7 +98,6 @@ protected:
         }
 
         SkPaint paint;
-        paint.setFilterQuality(kLow_SkFilterQuality);
         paint.setColor(SK_ColorWHITE);
 
         SkScalar anchorX = fAtlas->width()*0.5f;
@@ -117,7 +118,8 @@ protected:
             fXform[i].fTy += dy;
         }
 
-        fProc(canvas, fAtlas.get(), fXform, fTex, nullptr, kGrid*kGrid+1, nullptr, &paint);
+        fProc(canvas, fAtlas.get(), fXform, fTex, nullptr, kGrid*kGrid+1, nullptr,
+              SkSamplingOptions(SkFilterMode::kLinear), &paint);
     }
 
     bool onAnimate(double nanos) override {
@@ -135,7 +137,7 @@ private:
     SkRSXform   fXform[kGrid*kGrid+1];
     SkRect      fTex[kGrid*kGrid+1];
 
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 //////////////////////////////////////////////////////////////////////////////

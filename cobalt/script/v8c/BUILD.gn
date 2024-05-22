@@ -128,12 +128,13 @@ static_library("engine") {
 
   deps = [
     ":embed_v8c_resources_as_header_files",
+    "//base",
     "//cobalt/cache",
     "//cobalt/configuration",
     "//cobalt/script",
-    "//third_party/v8",
-    "//third_party/v8:v8_libplatform",
-    "//third_party/v8/third_party/inspector_protocol:crdtp",
+    "//v8",
+    "//v8:v8_libplatform",
+    "//v8/third_party/inspector_protocol:crdtp",
   ]
 }
 
@@ -147,7 +148,7 @@ target(final_executable_type, "v8c") {
     "//cobalt/base",
     "//cobalt/script:script",
     "//cobalt/script:standalone_javascript_runner",
-    "//third_party/v8",
-    "//third_party/v8:v8_libplatform",
+    "//v8",
+    "//v8:v8_libplatform",
   ]
 }

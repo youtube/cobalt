@@ -66,7 +66,7 @@ class H5vccRuntime : public script::Wrappable {
 
   // Track the task runner from where this object is created so deep link events
   // are handled from the same task runner.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.

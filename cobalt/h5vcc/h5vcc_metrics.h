@@ -26,7 +26,9 @@
 #include "cobalt/h5vcc/metric_event_handler_wrapper.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
 
 
@@ -58,10 +60,12 @@ class H5vccMetrics : public script::Wrappable {
       const MetricEventHandlerWrapper::ScriptValue& event_handler);
 
   // Enable Cobalt metrics logging.
-  void Enable();
+  script::HandlePromiseVoid Enable(
+      script::EnvironmentSettings* environment_settings);
 
   // Disable Cobalt metrics logging.
-  void Disable();
+  script::HandlePromiseVoid Disable(
+      script::EnvironmentSettings* environment_settings);
 
   // Returns current enabled state of metrics logging/reporting.
   bool IsEnabled();
@@ -74,7 +78,8 @@ class H5vccMetrics : public script::Wrappable {
 
  private:
   // Internal convenience method for toggling enabled/disabled state.
-  void ToggleMetricsEnabled(bool is_enabled);
+  void ToggleMetricsEnabled(
+      bool is_enabled, base::OnceClosure done_callback = base::OnceClosure());
 
   void RunEventHandler(const cobalt::h5vcc::H5vccMetricType& metric_type,
                        const std::string& serialized_proto);
@@ -88,7 +93,7 @@ class H5vccMetrics : public script::Wrappable {
 
   scoped_refptr<h5vcc::MetricEventHandlerWrapper> uploader_callback_;
 
-  scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
 
   persistent_storage::PersistentSettings* persistent_settings_;
 

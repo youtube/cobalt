@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <pthread.h>
+#include <sched.h>
 #include <algorithm>
 #include <numeric>
 #include <random>
@@ -32,30 +34,24 @@ namespace {
 // thread. Subclasses must override Run().
 class TestThread {
  public:
-  TestThread() : thread_(kSbThreadInvalid) {}
+  TestThread() : thread_(0) {}
   virtual ~TestThread() {}
 
   // Subclasses should override the Run method.
   virtual void Run() = 0;
 
-  // Calls SbThreadCreate() with default parameters.
+  // Calls pthread_create() with default parameters.
   void Start() {
-    SbThreadEntryPoint entry_point = ThreadEntryPoint;
+    pthread_create(&thread_, nullptr, ThreadEntryPoint, this);
 
-    thread_ = SbThreadCreate(0,                    // default stack_size.
-                             kSbThreadNoPriority,  // default priority.
-                             kSbThreadNoAffinity,  // default affinity.
-                             true,                 // joinable.
-                             "TestThread", entry_point, this);
-
-    if (kSbThreadInvalid == thread_) {
+    if (thread_ == 0) {
       ADD_FAILURE_AT(__FILE__, __LINE__) << "Invalid thread.";
     }
     return;
   }
 
   void Join() {
-    if (!SbThreadJoin(thread_, NULL)) {
+    if (pthread_join(thread_, NULL) != 0) {
       ADD_FAILURE_AT(__FILE__, __LINE__) << "Could not join thread.";
     }
   }
@@ -67,7 +63,7 @@ class TestThread {
     return NULL;
   }
 
-  SbThread thread_;
+  pthread_t thread_;
 
   TestThread(const TestThread&) = delete;
   void operator=(const TestThread&) = delete;
@@ -263,7 +259,7 @@ class CompareExchangeThread : public TestThread {
           // 1 in 3 chance of yielding.
           // Attempt to cause more contention by giving other threads a chance
           // to run.
-          SbThreadYield();
+          sched_yield();
         }
 
         const T prev_value = atomic_value_->load();
@@ -402,7 +398,7 @@ class IncrementAndDecrementThread : public TestThread {
         // 1 in 3 chance of yielding.
         // Attempt to cause more contention by giving other threads a chance
         // to run.
-        SbThreadYield();
+        sched_yield();
       }
       T prev_value = 0;
       if (operation_sequence_[i]) {
@@ -471,7 +467,7 @@ class FetchAddSubThread : public TestThread {
         // 1 in 3 chance of yielding.
         // Attempt to cause more contention by giving other threads a chance
         // to run.s
-        SbThreadYield();
+        sched_yield();
       }
 
       if (std::rand() % 2 == 0) {

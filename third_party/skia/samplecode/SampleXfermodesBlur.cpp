@@ -25,8 +25,8 @@
 #include "src/utils/SkUTF.h"
 
 #include "include/core/SkColorPriv.h"
+#include "include/core/SkMaskFilter.h"
 #include "include/core/SkStream.h"
-#include "include/effects/SkBlurMaskFilter.h"
 
 static void setNamedTypeface(SkFont* font, const char name[]) {
     font->setTypeface(SkTypeface::MakeFromName(name, SkFontStyle()));
@@ -73,9 +73,9 @@ public:
     }
 
 protected:
-    virtual SkString name() { return SkString("XfermodesBlur"); }
+    SkString name() override { return SkString("XfermodesBlur"); }
 
-    virtual void onDrawContent(SkCanvas* canvas) {
+    void onDrawContent(SkCanvas* canvas) override {
         canvas->translate(SkIntToScalar(10), SkIntToScalar(20));
 
         const SkBlendMode gModes[] = {
@@ -98,13 +98,13 @@ protected:
         const SkScalar h = SkIntToScalar(H);
         SkMatrix m;
         m.setScale(SkIntToScalar(6), SkIntToScalar(6));
-        auto s = fBG.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, &m);
+        auto s = fBG.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, SkSamplingOptions(), m);
 
         SkFont font;
         font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
         setNamedTypeface(&font, "Menlo Regular");
 
-        const int W = 5;
+        const int kWrap = 5;
 
         SkScalar x0 = 0;
         for (int twice = 0; twice < 2; twice++) {
@@ -131,7 +131,7 @@ protected:
                 SkTextUtils::DrawString(canvas, label, x + w/2, y - font.getSize()/2, font, SkPaint(),
                                         SkTextUtils::kCenter_Align);
                 x += w + SkIntToScalar(10);
-                if ((i % W) == W - 1) {
+                if ((i % kWrap) == kWrap - 1) {
                     x = x0;
                     y += h + SkIntToScalar(30);
                 }
@@ -141,7 +141,7 @@ protected:
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 //////////////////////////////////////////////////////////////////////////////

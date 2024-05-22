@@ -1,14 +1,18 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 #
 # Copyright 2019 Google Inc.
 #
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import StringIO
+
 import argparse
 import os
+import six
 import sys
+
+from six import StringIO
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-n', '--dry-run', action='store_true',
@@ -53,8 +57,9 @@ for root in roots:
       for file_name in files:
         if file_name.endswith('.h'):
           if file_name in headers:
-            print path, file_name, headers[file_name]
-          assert file_name not in headers
+            message = ('Header filename is used more than once!\n- ' + path + '/' + file_name +
+                       '\n- ' + headers[file_name])
+            assert file_name not in headers, message
           headers[file_name] = os.path.abspath(os.path.join(path, file_name))
 
 def to_rewrite():
@@ -70,21 +75,22 @@ def to_rewrite():
 # Rewrite any #includes relative to Skia's top-level directory.
 need_rewriting = []
 for file_path in to_rewrite():
-  if 'generated' in file_path or 'third_party/skcms' in file_path:
+  if ('/generated/' in file_path or
+      'tests/sksl/' in file_path or
+      'third_party/skcms' in file_path):
     continue
   if (file_path.endswith('.h') or
       file_path.endswith('.c') or
       file_path.endswith('.m') or
       file_path.endswith('.mm') or
       file_path.endswith('.inc') or
-      file_path.endswith('.fp') or
       file_path.endswith('.cc') or
       file_path.endswith('.cpp')):
     # Read the whole file into memory.
     lines = open(file_path).readlines()
 
     # Write it back out again line by line with substitutions for #includes.
-    output = StringIO.StringIO() if args.dry_run else open(file_path, 'wb')
+    output = StringIO() if args.dry_run else open(file_path, 'w')
 
     includes = []
     for line in lines:
@@ -107,9 +113,9 @@ for file_path in to_rewrite():
     output.close()
 
 if need_rewriting:
-  print 'Some files need rewritten #includes:'
+  print('Some files need rewritten #includes:')
   for path in need_rewriting:
-    print '\t' + path
-  print 'To do this automatically, run'
-  print 'python tools/rewrite_includes.py ' + ' '.join(need_rewriting)
+    print('\t' + path)
+  print('To do this automatically, run')
+  print('python tools/rewrite_includes.py ' + ' '.join(need_rewriting))
   sys.exit(1)

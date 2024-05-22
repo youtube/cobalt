@@ -7,6 +7,7 @@
 
 #include "fuzz/Fuzz.h"
 #include "fuzz/FuzzCommon.h"
+#include "src/core/SkPathPriv.h"
 
 // We don't always want to test NaNs and infinities.
 static void fuzz_nice_float(Fuzz* fuzz, float* f) {
@@ -44,9 +45,9 @@ void FuzzNicePath(Fuzz* fuzz, SkPath* path, int maxOps) {
             return;
         }
         // How many items in the switch statement below.
-        constexpr uint8_t PATH_OPERATIONS = 32;
+        constexpr uint8_t MAX_PATH_OPERATION = 32;
         uint8_t op;
-        fuzz->nextRange(&op, 0, PATH_OPERATIONS);
+        fuzz->nextRange(&op, 0, MAX_PATH_OPERATION);
         bool test;
         SkPath p;
         SkMatrix m;
@@ -205,15 +206,18 @@ void FuzzNicePath(Fuzz* fuzz, SkPath* path, int maxOps) {
                 break;
             case 30:
                 FuzzNicePath(fuzz, &p, maxOps-1);
-                FuzzNiceMatrix(fuzz, &m);
-                p.transform(m, path);
+                // transform can explode path sizes so skip this op if p too big
+                if (p.countPoints() <= 100000) {
+                    FuzzNiceMatrix(fuzz, &m);
+                    p.transform(m, path);
+                }
                 break;
             case 31:
                 fuzz_nice_float(fuzz, &a, &b);
                 path->setLastPt(a, b);
                 break;
-            case PATH_OPERATIONS:
-                path->shrinkToFit();
+            case MAX_PATH_OPERATION:
+                SkPathPriv::ShrinkToFit(path);
                 break;
 
             default:
@@ -297,14 +301,14 @@ void FuzzNiceMatrix(Fuzz* fuzz, SkMatrix* m) {
         case 1:  // translate
             fuzz->nextRange(&buffer[0], -4000.0f, 4000.0f);
             fuzz->nextRange(&buffer[1], -4000.0f, 4000.0f);
-            *m = SkMatrix::MakeTrans(buffer[0], buffer[1]);
+            *m = SkMatrix::Translate(buffer[0], buffer[1]);
             return;
         case 2:  // translate + scale
             fuzz->nextRange(&buffer[0], -400.0f, 400.0f);
             fuzz->nextRange(&buffer[1], -400.0f, 400.0f);
             fuzz->nextRange(&buffer[2], -4000.0f, 4000.0f);
             fuzz->nextRange(&buffer[3], -4000.0f, 4000.0f);
-            *m = SkMatrix::MakeScale(buffer[0], buffer[1]);
+            *m = SkMatrix::Scale(buffer[0], buffer[1]);
             m->postTranslate(buffer[2], buffer[3]);
             return;
         case 3:  // affine
@@ -327,13 +331,13 @@ void FuzzNiceRegion(Fuzz* fuzz, SkRegion* region, int maxN) {
     for (uint8_t i = 0; i < N; ++i) {
         SkIRect r;
         SkRegion::Op op;
-        // Avoid the sentinal value used by Region.
+        // Avoid the sentinel value used by Region.
         fuzz->nextRange(&r.fLeft,   -2147483646, 2147483646);
         fuzz->nextRange(&r.fTop,    -2147483646, 2147483646);
         fuzz->nextRange(&r.fRight,  -2147483646, 2147483646);
         fuzz->nextRange(&r.fBottom, -2147483646, 2147483646);
         r.sort();
-        fuzz->nextRange(&op, 0, SkRegion::kLastOp);
+        fuzz->nextEnum(&op, SkRegion::kLastOp);
         if (!region->op(r, op)) {
             return;
         }

@@ -14,7 +14,7 @@
 
 ARG BASE_OS
 ARG BASE_OS_TAG
-FROM ${BASE_OS:-gcr.io/cloud-marketplace-containers/google/debian10}:${BASE_OS_TAG:-latest}
+FROM ${BASE_OS:-gcr.io/cloud-marketplace-containers/google/debian11}:${BASE_OS_TAG:-latest}
 
 COPY base/clean-after-apt.sh /opt/clean-after-apt.sh
 

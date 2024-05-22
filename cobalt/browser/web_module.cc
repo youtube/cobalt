@@ -23,16 +23,18 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/stl_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/language.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/browser/splash_screen_cache.h"
@@ -43,12 +45,14 @@
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/input_event.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
+#include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigation_type.h"
 #include "cobalt/dom/navigator.h"
@@ -59,6 +63,7 @@
 #include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
+#include "cobalt/layout/container_box.h"
 #include "cobalt/layout/topmost_event_target.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/loader_factory.h"
@@ -75,7 +80,6 @@
 #include "cobalt/web/event.h"
 #include "cobalt/web/url.h"
 #include "starboard/accessibility.h"
-#include "starboard/common/log.h"
 #include "starboard/gles.h"
 
 #if defined(ENABLE_DEBUGGER)
@@ -85,7 +89,7 @@
 namespace cobalt {
 namespace browser {
 
-using cobalt::cssom::ViewportSize;
+using cssom::ViewportSize;
 
 namespace {
 
@@ -113,7 +117,7 @@ CacheUrlContentCallback(SplashScreenCache* splash_screen_cache) {
 void CancelScroll(ui_navigation::scroll_engine::ScrollEngine* scroll_engine,
                   const scoped_refptr<ui_navigation::NavItem>& nav_item) {
   auto nav_items = std::vector<scoped_refptr<ui_navigation::NavItem>>{nav_item};
-  scroll_engine->thread()->message_loop()->task_runner()->PostTask(
+  scroll_engine->thread()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&ui_navigation::scroll_engine::ScrollEngine::
                                 CancelActiveScrollsForNavItems,
                             base::Unretained(scroll_engine), nav_items));
@@ -133,7 +137,7 @@ dom::Window::NavItemCallback CancelScrollCallback(
 
 // Private WebModule implementation. Each WebModule owns a single instance of
 // this class, which performs all the actual work. All functions of this class
-// must be called on the message loop of the WebModule thread, so they
+// must be called on the task runner of the WebModule thread, so they
 // execute synchronously with respect to one another.
 class WebModule::Impl {
  public:
@@ -149,9 +153,9 @@ class WebModule::Impl {
   // Injects an on screen keyboard input event into the web module. Event is
   // directed at a specific element if the element is non-null. Otherwise, the
   // currently focused element receives the event. If element is specified, we
-  // must be on the WebModule's message loop.
+  // must be on the WebModule's task runner.
   void InjectOnScreenKeyboardInputEvent(
-      base::Token type, const dom::InputEventInit& event,
+      base_token::Token type, const dom::InputEventInit& event,
       scoped_refptr<dom::Element> element = scoped_refptr<dom::Element>());
   // Injects an on screen keyboard shown event into the web module. Event is
   // directed at the on screen keyboard element.
@@ -165,32 +169,29 @@ class WebModule::Impl {
   // Injects an on screen keyboard blurred event into the web module. Event is
   // directed at the on screen keyboard element.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
-  // Injects an on screen keyboard suggestions updated event into the web
-  // module. Event is directed at the on screen keyboard element.
-  void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
 
   // Injects a keyboard event into the web module. Event is directed at a
   // specific element if the element is non-null. Otherwise, the currently
   // focused element receives the event. If element is specified, we must be
-  // on the WebModule's message loop
+  // on the WebModule's task runner.
   void InjectKeyboardEvent(
-      base::Token type, const dom::KeyboardEventInit& event,
+      base_token::Token type, const dom::KeyboardEventInit& event,
       scoped_refptr<dom::Element> element = scoped_refptr<dom::Element>());
 
   // Injects a pointer event into the web module. Event is directed at a
   // specific element if the element is non-null. Otherwise, the currently
   // focused element receives the event. If element is specified, we must be
-  // on the WebModule's message loop
+  // on the WebModule's task runner.
   void InjectPointerEvent(
-      base::Token type, const dom::PointerEventInit& event,
+      base_token::Token type, const dom::PointerEventInit& event,
       scoped_refptr<dom::Element> element = scoped_refptr<dom::Element>());
 
   // Injects a wheel event into the web module. Event is directed at a
   // specific element if the element is non-null. Otherwise, the currently
   // focused element receives the event. If element is specified, we must be
-  // on the WebModule's message loop
+  // on the WebModule's task runner.
   void InjectWheelEvent(
-      base::Token type, const dom::WheelEventInit& event,
+      base_token::Token type, const dom::WheelEventInit& event,
       scoped_refptr<dom::Element> element = scoped_refptr<dom::Element>());
 
   // Injects a beforeunload event into the web module. If this event is not
@@ -211,8 +212,8 @@ class WebModule::Impl {
                          const base::SourceLocation& script_location,
                          std::string* result, bool* out_succeeded);
 
-  // Clears disables timer related objects
-  // so that the message loop can easily exit
+  // Clears disables timer related objects so that the task runner can easily
+  // exit.
   void ClearAllIntervalsAndTimeouts();
 
 #if defined(ENABLE_WEBDRIVER)
@@ -282,6 +283,10 @@ class WebModule::Impl {
   void SetUnloadEventTimingInfo(base::TimeTicks start_time,
                                 base::TimeTicks end_time);
 
+#if defined(ENABLE_DEBUGGER)
+  std::string OnBoxDumpMessage(const std::string& message);
+#endif  // ENABLE_DEBUGGER
+
  private:
   class DocumentLoadedObserver;
 
@@ -303,7 +308,7 @@ class WebModule::Impl {
   // tree with this callback attached. It includes the time the render tree was
   // produced.
   void OnRenderTreeRasterized(
-      scoped_refptr<base::SingleThreadTaskRunner> web_module_message_loop,
+      scoped_refptr<base::SequencedTaskRunner> web_module_task_runner,
       const base::TimeTicks& produced_time);
 
   // WebModule thread handling of the OnRenderTreeRasterized() callback. It
@@ -412,14 +417,14 @@ class WebModule::Impl {
   dom::MutationObserverTaskManager mutation_observer_task_manager_;
 
   // Object to register and retrieve MediaSource object with a string key.
-  std::unique_ptr<dom::MediaSource::Registry> media_source_registry_;
+  std::unique_ptr<dom::MediaSourceAttachment::Registry> media_source_registry_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
 
-  // Cache a WeakPtr in the WebModule that is bound to the Window's message loop
+  // Cache a WeakPtr in the WebModule that is bound to the Window's task runner
   // so we can ensure that all subsequently created WeakPtr's are also bound to
-  // the same loop.
+  // the same task runner.
   // See the documentation in base/memory/weak_ptr.h for details.
   base::WeakPtr<dom::Window> window_weak_;
 
@@ -446,7 +451,7 @@ class WebModule::Impl {
 
   // Used to avoid a deadlock when running |Impl::Pause| while waiting for the
   // web debugger to connect.
-  starboard::atomic_bool* waiting_for_web_debugger_;
+  std::atomic_bool* waiting_for_web_debugger_;
 
   // Interface to report behaviour relevant to the web debugger.
   debug::backend::DebuggerHooksImpl debugger_hooks_;
@@ -464,8 +469,7 @@ class WebModule::Impl {
 
   bool should_retain_remote_typeface_cache_on_freeze_;
 
-  scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>
-      system_caption_settings_;
+  scoped_refptr<dom::captions::SystemCaptionSettings> system_caption_settings_;
 
   // This event is used to interrupt the loader when JavaScript is loaded
   // synchronously.  It is manually reset so that events like Freeze can be
@@ -580,7 +584,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       web_context_->name(), data.options.track_event_stats));
   DCHECK(web_module_stat_tracker_);
 
-  media_source_registry_.reset(new dom::MediaSource::Registry);
+  media_source_registry_.reset(new dom::MediaSourceAttachment::Registry);
 
   const media::DecoderBufferMemoryInfo* memory_info = nullptr;
 
@@ -618,10 +622,10 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
 
 #if defined(ENABLE_DEBUGGER)
   if (data.options.enable_debugger && data.options.wait_for_web_debugger) {
-    // Post a task that blocks the message loop and waits for the web debugger.
+    // Post a task that blocks the task and waits for the web debugger.
     // This must be posted before the the window's task to load the document.
     waiting_for_web_debugger_->store(true);
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::Bind(&WebModule::Impl::WaitForWebDebugger,
                               base::Unretained(this)));
   }
@@ -819,7 +823,7 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
 }
 
 void WebModule::Impl::InjectOnScreenKeyboardInputEvent(
-    base::Token type, const dom::InputEventInit& event,
+    base_token::Token type, const dom::InputEventInit& event,
     scoped_refptr<dom::Element> element) {
   scoped_refptr<dom::InputEvent> input_event(
       new dom::InputEvent(type, window_, event));
@@ -862,18 +866,7 @@ void WebModule::Impl::InjectOnScreenKeyboardBlurredEvent(int ticket) {
   window_->on_screen_keyboard()->DispatchBlurEvent(ticket);
 }
 
-void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
-    int ticket) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(is_running_);
-  DCHECK(window_);
-  DCHECK(window_->on_screen_keyboard());
-
-  window_->on_screen_keyboard()->DispatchSuggestionsUpdatedEvent(ticket);
-}
-
-
-void WebModule::Impl::InjectKeyboardEvent(base::Token type,
+void WebModule::Impl::InjectKeyboardEvent(base_token::Token type,
                                           const dom::KeyboardEventInit& event,
                                           scoped_refptr<dom::Element> element) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
@@ -881,7 +874,7 @@ void WebModule::Impl::InjectKeyboardEvent(base::Token type,
   InjectInputEvent(element, keyboard_event);
 }
 
-void WebModule::Impl::InjectPointerEvent(base::Token type,
+void WebModule::Impl::InjectPointerEvent(base_token::Token type,
                                          const dom::PointerEventInit& event,
                                          scoped_refptr<dom::Element> element) {
   scoped_refptr<dom::PointerEvent> pointer_event(
@@ -889,7 +882,7 @@ void WebModule::Impl::InjectPointerEvent(base::Token type,
   InjectInputEvent(element, pointer_event);
 }
 
-void WebModule::Impl::InjectWheelEvent(base::Token type,
+void WebModule::Impl::InjectWheelEvent(base_token::Token type,
                                        const dom::WheelEventInit& event,
                                        scoped_refptr<dom::Element> element) {
   scoped_refptr<dom::WheelEvent> wheel_event(
@@ -957,7 +950,8 @@ void WebModule::Impl::OnRenderTreeProduced(
   LayoutResults layout_results_with_callback(
       layout_results.render_tree, layout_results.layout_time,
       base::Bind(&WebModule::Impl::OnRenderTreeRasterized,
-                 base::Unretained(this), base::ThreadTaskRunnerHandle::Get(),
+                 base::Unretained(this),
+                 base::SequencedTaskRunner::GetCurrentDefault(),
                  last_render_tree_produced_time_));
 
 #if defined(ENABLE_DEBUGGER)
@@ -972,9 +966,9 @@ void WebModule::Impl::OnRenderTreeProduced(
 }
 
 void WebModule::Impl::OnRenderTreeRasterized(
-    scoped_refptr<base::SingleThreadTaskRunner> web_module_message_loop,
+    scoped_refptr<base::SequencedTaskRunner> web_module_task_runner,
     const base::TimeTicks& produced_time) {
-  web_module_message_loop->PostTask(
+  web_module_task_runner->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::ProcessOnRenderTreeRasterized,
                             base::Unretained(this), produced_time,
                             base::TimeTicks::Now()));
@@ -1039,7 +1033,7 @@ void WebModule::Impl::CreateWindowDriver(
       base::Bind(&WebModule::Impl::global_environment, base::Unretained(this)),
       base::Bind(&WebModule::Impl::InjectKeyboardEvent, base::Unretained(this)),
       base::Bind(&WebModule::Impl::InjectPointerEvent, base::Unretained(this)),
-      base::ThreadTaskRunnerHandle::Get()));
+      base::SequencedTaskRunner::GetCurrentDefault()));
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
@@ -1298,7 +1292,7 @@ WebModule::WebModule(const std::string& name)
 }
 
 WebModule::~WebModule() {
-  DCHECK(message_loop());
+  DCHECK(task_runner());
   DCHECK(web_agent_);
   // This will cancel the timers for tasks, which help the thread exit
   ClearAllIntervalsAndTimeouts();
@@ -1333,8 +1327,8 @@ void WebModule::Run(
     for (Options::InjectedGlobalObjectAttributes::const_iterator iter =
              options.injected_global_object_attributes.begin();
          iter != options.injected_global_object_attributes.end(); ++iter) {
-      DCHECK(!ContainsKey(web_options.injected_global_object_attributes,
-                          iter->first));
+      DCHECK(!base::ContainsKey(web_options.injected_global_object_attributes,
+                                iter->first));
       // Trampoline to the given callback, adding a pointer to this WebModule.
       web_options.injected_global_object_attributes[iter->first] =
           base::Bind(iter->second, base::Unretained(this));
@@ -1349,7 +1343,7 @@ void WebModule::Run(
 
 void WebModule::InitializeTaskInThread(const ConstructionData& data,
                                        web::Context* context) {
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   impl_.reset(new Impl(context, data));
 }
 
@@ -1358,55 +1352,63 @@ void WebModule::InitializeTaskInThread(const ConstructionData& data,
 
 // Ensure that we are on the WebModule thread where we can dereference impl_.
 // Post a task to the given function if we are not.
-#define TASK_TO_ENSURE_IMPL_ON_THREAD0(task_function, function)               \
-  DCHECK(message_loop());                                                     \
-  if (base::MessageLoop::current() != message_loop()) {                       \
-    message_loop()->task_runner()->task_function(                             \
-        FROM_HERE, base::Bind(&WebModule::function, base::Unretained(this))); \
-    return;                                                                   \
-  } else {                                                                    \
-    DCHECK(impl_);                                                            \
+#define POST_TO_ENSURE_IMPL_ON_THREAD0(location, function)                   \
+  DCHECK(task_runner());                                                     \
+  if (base::SequencedTaskRunner::GetCurrentDefault() != task_runner()) {     \
+    task_runner()->PostTask(                                                 \
+        location, base::Bind(&WebModule::function, base::Unretained(this))); \
+    return;                                                                  \
+  } else {                                                                   \
+    DCHECK(impl_);                                                           \
   }
 
 // Ensure that we are on the WebModule thread where we can dereference impl_.
 // Post a task to the given function if we are not.
-#define TASK_TO_ENSURE_IMPL_ON_THREAD(task_function, function, ...)         \
-  DCHECK(message_loop());                                                   \
-  if (base::MessageLoop::current() != message_loop()) {                     \
-    message_loop()->task_runner()->task_function(                           \
-        FROM_HERE, base::Bind(&WebModule::function, base::Unretained(this), \
-                              ##__VA_ARGS__));                              \
-    return;                                                                 \
-  } else {                                                                  \
-    DCHECK(impl_);                                                          \
+#define POST_TO_ENSURE_IMPL_ON_THREAD(location, function, ...)             \
+  DCHECK(task_runner());                                                   \
+  if (base::SequencedTaskRunner::GetCurrentDefault() != task_runner()) {   \
+    task_runner()->PostTask(                                               \
+        location, base::Bind(&WebModule::function, base::Unretained(this), \
+                             ##__VA_ARGS__));                              \
+    return;                                                                \
+  } else {                                                                 \
+    DCHECK(impl_);                                                         \
   }
 
 // Ensure that we are on the WebModule thread where we can dereference impl_.
-// Post a task to the given function if we are not.
-#define POST_TO_ENSURE_IMPL_ON_THREAD0(function) \
-  TASK_TO_ENSURE_IMPL_ON_THREAD0(PostTask, function)
-
-// Ensure that we are on the WebModule thread where we can dereference impl_.
-// Post a task to the given function if we are not.
-#define POST_TO_ENSURE_IMPL_ON_THREAD(function, ...) \
-  TASK_TO_ENSURE_IMPL_ON_THREAD(PostTask, function, ##__VA_ARGS__)
+// Post a blocking task to the given function if we are not.
+#define POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD0(location, function)     \
+  DCHECK(task_runner());                                                 \
+  if (base::SequencedTaskRunner::GetCurrentDefault() != task_runner()) { \
+    base::task_runner_util::PostBlockingTask(                            \
+        task_runner(), location,                                         \
+        base::Bind(&WebModule::function, base::Unretained(this)));       \
+    return;                                                              \
+  } else {                                                               \
+    DCHECK(impl_);                                                       \
+  }
 
 // Ensure that we are on the WebModule thread where we can dereference impl_.
 // Post a blocking task to the given function if we are not.
-#define POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD0(function) \
-  TASK_TO_ENSURE_IMPL_ON_THREAD0(PostBlockingTask, function)
-
-// Ensure that we are on the WebModule thread where we can dereference impl_.
-// Post a blocking task to the given function if we are not.
-#define POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(function, ...) \
-  TASK_TO_ENSURE_IMPL_ON_THREAD(PostBlockingTask, function, ##__VA_ARGS__)
+#define POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(location, function, ...) \
+  DCHECK(task_runner());                                                 \
+  if (base::SequencedTaskRunner::GetCurrentDefault() != task_runner()) { \
+    base::task_runner_util::PostBlockingTask(                            \
+        task_runner(), location,                                         \
+        base::Bind(&WebModule::function, base::Unretained(this),         \
+                   ##__VA_ARGS__));                                      \
+    return;                                                              \
+  } else {                                                               \
+    DCHECK(impl_);                                                       \
+  }
 
 void WebModule::InjectOnScreenKeyboardInputEvent(
-    base::Token type, const dom::InputEventInit& event) {
+    base_token::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT1("cobalt::browser",
                "WebModule::InjectOnScreenKeyboardInputEvent()", "type",
                TRACE_STR_COPY(type.c_str()));
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectOnScreenKeyboardInputEvent, type, event);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectOnScreenKeyboardInputEvent,
+                                type, event);
   impl_->InjectOnScreenKeyboardInputEvent(type, event);
 }
 
@@ -1414,7 +1416,8 @@ void WebModule::InjectOnScreenKeyboardShownEvent(int ticket) {
   TRACE_EVENT1("cobalt::browser",
                "WebModule::InjectOnScreenKeyboardShownEvent()", "ticket",
                ticket);
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectOnScreenKeyboardShownEvent, ticket);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectOnScreenKeyboardShownEvent,
+                                ticket);
   impl_->InjectOnScreenKeyboardShownEvent(ticket);
 }
 
@@ -1422,7 +1425,8 @@ void WebModule::InjectOnScreenKeyboardHiddenEvent(int ticket) {
   TRACE_EVENT1("cobalt::browser",
                "WebModule::InjectOnScreenKeyboardHiddenEvent()", "ticket",
                ticket);
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectOnScreenKeyboardHiddenEvent, ticket);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectOnScreenKeyboardHiddenEvent,
+                                ticket);
   impl_->InjectOnScreenKeyboardHiddenEvent(ticket);
 }
 
@@ -1430,7 +1434,8 @@ void WebModule::InjectOnScreenKeyboardFocusedEvent(int ticket) {
   TRACE_EVENT1("cobalt::browser",
                "WebModule::InjectOnScreenKeyboardFocusedEvent()", "ticket",
                ticket);
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectOnScreenKeyboardFocusedEvent, ticket);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectOnScreenKeyboardFocusedEvent,
+                                ticket);
   impl_->InjectOnScreenKeyboardFocusedEvent(ticket);
 }
 
@@ -1438,72 +1443,63 @@ void WebModule::InjectOnScreenKeyboardBlurredEvent(int ticket) {
   TRACE_EVENT1("cobalt::browser",
                "WebModule::InjectOnScreenKeyboardBlurredEvent()", "ticket",
                ticket);
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectOnScreenKeyboardBlurredEvent, ticket);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectOnScreenKeyboardBlurredEvent,
+                                ticket);
   impl_->InjectOnScreenKeyboardBlurredEvent(ticket);
 }
 
-void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
-  TRACE_EVENT1("cobalt::browser",
-               "WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent()",
-               "ticket", ticket);
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectOnScreenKeyboardSuggestionsUpdatedEvent,
-                                ticket);
-  impl_->InjectOnScreenKeyboardSuggestionsUpdatedEvent(ticket);
-}
-
-
-void WebModule::InjectKeyboardEvent(base::Token type,
+void WebModule::InjectKeyboardEvent(base_token::Token type,
                                     const dom::KeyboardEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
                TRACE_STR_COPY(type.c_str()));
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectKeyboardEvent, type, event);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectKeyboardEvent, type, event);
   impl_->InjectKeyboardEvent(type, event);
 }
 
-void WebModule::InjectPointerEvent(base::Token type,
+void WebModule::InjectPointerEvent(base_token::Token type,
                                    const dom::PointerEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectPointerEvent()", "type",
                TRACE_STR_COPY(type.c_str()));
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectPointerEvent, type, event);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectPointerEvent, type, event);
   impl_->InjectPointerEvent(type, event);
 }
 
-void WebModule::InjectWheelEvent(base::Token type,
+void WebModule::InjectWheelEvent(base_token::Token type,
                                  const dom::WheelEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectWheelEvent()", "type",
                TRACE_STR_COPY(type.c_str()));
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectWheelEvent, type, event);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectWheelEvent, type, event);
   impl_->InjectWheelEvent(type, event);
 }
 
 void WebModule::InjectBeforeUnloadEvent() {
   TRACE_EVENT0("cobalt::browser", "WebModule::InjectBeforeUnloadEvent()");
-  POST_TO_ENSURE_IMPL_ON_THREAD0(InjectBeforeUnloadEvent);
+  POST_TO_ENSURE_IMPL_ON_THREAD0(FROM_HERE, InjectBeforeUnloadEvent);
   impl_->InjectBeforeUnloadEvent();
 }
 
 void WebModule::InjectCaptionSettingsChangedEvent() {
   TRACE_EVENT0("cobalt::browser",
                "WebModule::InjectCaptionSettingsChangedEvent()");
-  POST_TO_ENSURE_IMPL_ON_THREAD0(InjectCaptionSettingsChangedEvent);
+  POST_TO_ENSURE_IMPL_ON_THREAD0(FROM_HERE, InjectCaptionSettingsChangedEvent);
   impl_->InjectCaptionSettingsChangedEvent();
 }
 
 void WebModule::InjectWindowOnOnlineEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "WebModule::InjectWindowOnOnlineEvent()");
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectWindowOnOnlineEvent, event);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectWindowOnOnlineEvent, event);
   impl_->InjectWindowOnOnlineEvent();
 }
 
 void WebModule::InjectWindowOnOfflineEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "WebModule::InjectWindowOnOfflineEvent()");
-  POST_TO_ENSURE_IMPL_ON_THREAD(InjectWindowOnOfflineEvent, event);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, InjectWindowOnOfflineEvent, event);
   impl_->InjectWindowOnOfflineEvent();
 }
 
 void WebModule::UpdateDateTimeConfiguration() {
   TRACE_EVENT0("cobalt::browser", "WebModule::UpdateDateTimeConfiguration()");
-  POST_TO_ENSURE_IMPL_ON_THREAD0(UpdateDateTimeConfiguration);
+  POST_TO_ENSURE_IMPL_ON_THREAD0(FROM_HERE, UpdateDateTimeConfiguration);
   impl_->UpdateDateTimeConfiguration();
 }
 
@@ -1512,16 +1508,16 @@ void WebModule::ExecuteJavascript(const std::string& script_utf8,
                                   std::string* out_result,
                                   bool* out_succeeded) {
   TRACE_EVENT0("cobalt::browser", "WebModule::ExecuteJavascript()");
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(ExecuteJavascript, script_utf8,
-                                          script_location, out_result,
-                                          out_succeeded);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, ExecuteJavascript,
+                                          script_utf8, script_location,
+                                          out_result, out_succeeded);
   impl_->ExecuteJavascript(script_utf8, script_location, out_result,
                            out_succeeded);
 }
 
 void WebModule::ClearAllIntervalsAndTimeouts() {
   TRACE_EVENT0("cobalt::browser", "WebModule::ClearAllIntervalsAndTimeouts()");
-  POST_TO_ENSURE_IMPL_ON_THREAD0(ClearAllIntervalsAndTimeouts);
+  POST_TO_ENSURE_IMPL_ON_THREAD0(FROM_HERE, ClearAllIntervalsAndTimeouts);
   impl_->ClearAllIntervalsAndTimeouts();
 }
 
@@ -1529,8 +1525,8 @@ void WebModule::ClearAllIntervalsAndTimeouts() {
 void WebModule::CreateWindowDriver(
     const webdriver::protocol::WindowId& window_id,
     std::unique_ptr<webdriver::WindowDriver>* window_driver_out) {
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(CreateWindowDriver, window_id,
-                                          window_driver_out);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, CreateWindowDriver,
+                                          window_id, window_driver_out);
   impl_->CreateWindowDriver(window_id, window_driver_out);
 }
 #endif  // defined(ENABLE_WEBDRIVER)
@@ -1539,40 +1535,43 @@ void WebModule::CreateWindowDriver(
 // May be called from any thread.
 void WebModule::GetDebugDispatcher(
     debug::backend::DebugDispatcher** dispatcher) {
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(GetDebugDispatcher, dispatcher);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, GetDebugDispatcher,
+                                          dispatcher);
   if (dispatcher) *dispatcher = impl_->debug_dispatcher();
 }
 
 void WebModule::FreezeDebugger(
     std::unique_ptr<debug::backend::DebuggerState>* debugger_state) {
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FreezeDebugger, debugger_state);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, FreezeDebugger,
+                                          debugger_state);
   impl_->FreezeDebugger(debugger_state);
 }
 #endif  // defined(ENABLE_DEBUGGER)
 
 void WebModule::SetSize(const ViewportSize& viewport_size) {
-  POST_TO_ENSURE_IMPL_ON_THREAD(SetSize, viewport_size);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, SetSize, viewport_size);
   impl_->SetSize(viewport_size);
 }
 
 void WebModule::UpdateCamera3D(
     const scoped_refptr<input::Camera3D>& camera_3d) {
-  POST_TO_ENSURE_IMPL_ON_THREAD(UpdateCamera3D, camera_3d);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, UpdateCamera3D, camera_3d);
   impl_->UpdateCamera3D(camera_3d);
 }
 
 void WebModule::SetMediaModule(media::MediaModule* media_module) {
-  POST_TO_ENSURE_IMPL_ON_THREAD(SetMediaModule, media_module);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, SetMediaModule, media_module);
   impl_->SetMediaModule(media_module);
 }
 
 void WebModule::SetImageCacheCapacity(int64_t bytes) {
-  POST_TO_ENSURE_IMPL_ON_THREAD(SetImageCacheCapacity, bytes);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, SetImageCacheCapacity, bytes);
   impl_->SetImageCacheCapacity(bytes);
 }
 
 void WebModule::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
-  POST_TO_ENSURE_IMPL_ON_THREAD(SetRemoteTypefaceCacheCapacity, bytes);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, SetRemoteTypefaceCacheCapacity,
+                                bytes);
   impl_->SetRemoteTypefaceCacheCapacity(bytes);
 }
 
@@ -1581,14 +1580,14 @@ void WebModule::Blur(int64_t timestamp) {
 #if defined(ENABLE_DEBUGGER)
   // We normally need to block here so that the call doesn't return until the
   // web application has had a chance to process the whole event. However, our
-  // message loop is blocked while waiting for the web debugger to connect, so
+  // task runner is blocked while waiting for the web debugger to connect, so
   // we would deadlock here if the user switches to Chrome to run devtools on
   // the same machine where Cobalt is running. Therefore, while we're still
   // waiting for the debugger we post the pause task without blocking on it,
-  // letting it eventually run when the debugger connects and the message loop
+  // letting it eventually run when the debugger connects and the task runner
   // is unblocked again.
   if (waiting_for_web_debugger_.load()) {
-    POST_TO_ENSURE_IMPL_ON_THREAD(Blur, timestamp);
+    POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, Blur, timestamp);
     impl_->Blur(timestamp);
     return;
   }
@@ -1596,7 +1595,7 @@ void WebModule::Blur(int64_t timestamp) {
 
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Blur, timestamp);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, Blur, timestamp);
   impl_->Blur(timestamp);
 }
 
@@ -1605,7 +1604,7 @@ void WebModule::Conceal(render_tree::ResourceProvider* resource_provider,
   synchronous_loader_interrupt_.Signal();
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Conceal, resource_provider,
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, Conceal, resource_provider,
                                           timestamp);
   impl_->Conceal(resource_provider, timestamp);
 }
@@ -1613,7 +1612,7 @@ void WebModule::Conceal(render_tree::ResourceProvider* resource_provider,
 void WebModule::Freeze(int64_t timestamp) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Freeze, timestamp);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, Freeze, timestamp);
   impl_->Freeze(timestamp);
 }
 
@@ -1621,8 +1620,8 @@ void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider,
                          int64_t timestamp) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Unfreeze, resource_provider,
-                                          timestamp);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, Unfreeze,
+                                          resource_provider, timestamp);
   impl_->Unfreeze(resource_provider, timestamp);
 }
 
@@ -1630,14 +1629,15 @@ void WebModule::Reveal(render_tree::ResourceProvider* resource_provider,
                        int64_t timestamp) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Reveal, resource_provider, timestamp);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, Reveal, resource_provider,
+                                          timestamp);
   impl_->Reveal(resource_provider, timestamp);
 }
 
 void WebModule::Focus(int64_t timestamp) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Focus, timestamp);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, Focus, timestamp);
   impl_->Focus(timestamp);
 }
 
@@ -1645,7 +1645,7 @@ void WebModule::ReduceMemory() {
   synchronous_loader_interrupt_.Signal();
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD0(ReduceMemory);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD0(FROM_HERE, ReduceMemory);
   impl_->ReduceMemory();
 }
 
@@ -1657,7 +1657,7 @@ void WebModule::RequestJavaScriptHeapStatistics(
 void WebModule::GetIsReadyToFreeze(volatile bool* is_ready_to_freeze) {
   // We must block here so that the call doesn't return until the thread
   // has had a chance to fill in the return value.
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(GetIsReadyToFreeze,
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, GetIsReadyToFreeze,
                                           is_ready_to_freeze);
   impl_->IsReadyToFreeze(is_ready_to_freeze);
 }
@@ -1672,8 +1672,8 @@ void WebModule::DoSynchronousLayoutAndGetRenderTree(
     scoped_refptr<render_tree::Node>* render_tree) {
   TRACE_EVENT0("cobalt::browser",
                "WebModule::DoSynchronousLayoutAndGetRenderTree()");
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(DoSynchronousLayoutAndGetRenderTree,
-                                          render_tree);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(
+      FROM_HERE, DoSynchronousLayoutAndGetRenderTree, render_tree);
   impl_->DoSynchronousLayoutAndGetRenderTree(render_tree);
 }
 
@@ -1681,23 +1681,64 @@ void WebModule::SetApplicationStartOrPreloadTimestamp(bool is_preload,
                                                       int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser",
                "WebModule::SetApplicationStartOrPreloadTimestamp()");
-  POST_TO_ENSURE_IMPL_ON_THREAD(SetApplicationStartOrPreloadTimestamp,
-                                is_preload, timestamp);
+  POST_TO_ENSURE_IMPL_ON_THREAD(
+      FROM_HERE, SetApplicationStartOrPreloadTimestamp, is_preload, timestamp);
   impl_->SetApplicationStartOrPreloadTimestamp(is_preload, timestamp);
 }
 
 void WebModule::SetDeepLinkTimestamp(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::SetDeepLinkTimestamp()");
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(SetDeepLinkTimestamp, timestamp);
+  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, SetDeepLinkTimestamp,
+                                          timestamp);
   impl_->SetDeepLinkTimestamp(timestamp);
 }
 
 void WebModule::SetUnloadEventTimingInfo(base::TimeTicks start_time,
                                          base::TimeTicks end_time) {
   TRACE_EVENT0("cobalt::browser", "WebModule::SetUnloadEventTimingInfo()");
-  POST_TO_ENSURE_IMPL_ON_THREAD(SetUnloadEventTimingInfo, start_time, end_time);
+  POST_TO_ENSURE_IMPL_ON_THREAD(FROM_HERE, SetUnloadEventTimingInfo, start_time,
+                                end_time);
   impl_->SetUnloadEventTimingInfo(start_time, end_time);
 }
+
+#if defined(ENABLE_DEBUGGER)
+std::string WebModule::OnBoxDumpMessage(const std::string& message) {
+  if (task_runner()->RunsTasksInCurrentSequence()) {
+    return impl_->OnBoxDumpMessage(message);
+  } else {
+    std::string response;
+    base::task_runner_util::PostBlockingTask(
+        task_runner(), FROM_HERE,
+        base::Bind(
+            [](WebModule::Impl* impl, const std::string& message,
+               std::string* response) {
+              *response = impl->OnBoxDumpMessage(message);
+            },
+            base::Unretained(impl_.get()), message, &response));
+    return response;
+  }
+}
+
+std::string WebModule::Impl::OnBoxDumpMessage(const std::string& message) {
+  DCHECK(window_);
+  std::string boxdump;
+  dom::HTMLElement* html_element = window_->document()->html();
+  if (html_element->layout_boxes() &&
+      html_element->layout_boxes()->type() ==
+          dom::LayoutBoxes::kLayoutLayoutBoxes) {
+    layout::LayoutBoxes* layout_boxes =
+        base::polymorphic_downcast<layout::LayoutBoxes*>(
+            html_element->layout_boxes());
+    if (!layout_boxes->boxes().empty()) {
+      std::ostringstream out("", std::ios_base::ate);
+      layout_boxes->boxes()[0]->GetContainingBlock()->DumpWithIndent(&out, 0);
+      boxdump = out.str();
+    }
+  }
+  return boxdump;
+}
+
+#endif  // ENABLE_DEBUGGER
 
 }  // namespace browser
 }  // namespace cobalt

@@ -1,52 +1,51 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/http/http_auth.h"
 #include "net/http/http_auth_handler_ntlm.h"
 
-#include "base/rand_util.h"
-#include "base/time/time.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/net_errors.h"
-#include "net/base/network_interfaces.h"
-#include "net/http/http_auth_preferences.h"
+#include "net/http/http_auth_mechanism.h"
+#include "url/scheme_host_port.h"
 
 namespace net {
 
-namespace {
-
-uint64_t GetMSTime() {
-  return base::Time::Now().since_origin().InMicroseconds() * 10;
+int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
+    HttpAuthChallengeTokenizer* challenge,
+    HttpAuth::Target target,
+    const SSLInfo& ssl_info,
+    const NetworkAnonymizationKey& network_anonymization_key,
+    const url::SchemeHostPort& scheme_host_port,
+    CreateReason reason,
+    int digest_nonce_count,
+    const NetLogWithSource& net_log,
+    HostResolver* host_resolver,
+    std::unique_ptr<HttpAuthHandler>* handler) {
+  if (reason == CREATE_PREEMPTIVE)
+    return ERR_UNSUPPORTED_AUTH_SCHEME;
+  // TODO(cbentzel): Move towards model of parsing in the factory
+  //                 method and only constructing when valid.
+  // NOTE: Default credentials are not supported for the portable implementation
+  // of NTLM.
+  auto tmp_handler =
+      std::make_unique<HttpAuthHandlerNTLM>(http_auth_preferences());
+  if (!tmp_handler->InitFromChallenge(challenge, target, ssl_info,
+                                      network_anonymization_key,
+                                      scheme_host_port, net_log)) {
+    return ERR_INVALID_RESPONSE;
+  }
+  *handler = std::move(tmp_handler);
+  return OK;
 }
-
-void GenerateRandom(uint8_t* output, size_t n) {
-  base::RandBytes(output, n);
-}
-
-}  // namespace
-
-// static
-HttpAuthHandlerNTLM::GetMSTimeProc HttpAuthHandlerNTLM::get_ms_time_proc_ =
-    GetMSTime;
-
-// static
-HttpAuthHandlerNTLM::GenerateRandomProc
-    HttpAuthHandlerNTLM::generate_random_proc_ = GenerateRandom;
-
-// static
-HttpAuthHandlerNTLM::HostNameProc HttpAuthHandlerNTLM::get_host_name_proc_ =
-    GetHostName;
 
 HttpAuthHandlerNTLM::HttpAuthHandlerNTLM(
     const HttpAuthPreferences* http_auth_preferences)
-    : ntlm_client_(ntlm::NtlmFeatures(
-          http_auth_preferences ? http_auth_preferences->NtlmV2Enabled()
-                                : true)) {}
+    : mechanism_(http_auth_preferences) {}
 
 bool HttpAuthHandlerNTLM::NeedsIdentity() {
-  // This gets called for each round-trip.  Only require identity on
-  // the first call (when auth_data_ is empty).  On subsequent calls,
-  // we use the initially established identity.
-  return auth_data_.empty();
+  return mechanism_.NeedsIdentity();
 }
 
 bool HttpAuthHandlerNTLM::AllowsDefaultCredentials() {
@@ -55,84 +54,21 @@ bool HttpAuthHandlerNTLM::AllowsDefaultCredentials() {
   return false;
 }
 
-int HttpAuthHandlerNTLM::InitializeBeforeFirstChallenge() {
-  return OK;
+int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
+    const AuthCredentials* credentials,
+    const HttpRequestInfo* request,
+    CompletionOnceCallback callback,
+    std::string* auth_token) {
+  return mechanism_.GenerateAuthToken(credentials, CreateSPN(scheme_host_port_),
+                                      channel_bindings_, auth_token, net_log(),
+                                      std::move(callback));
+}
+
+HttpAuth::AuthorizationResult HttpAuthHandlerNTLM::ParseChallenge(
+    HttpAuthChallengeTokenizer* tok) {
+  return mechanism_.ParseChallenge(tok);
 }
 
 HttpAuthHandlerNTLM::~HttpAuthHandlerNTLM() = default;
-
-// static
-HttpAuthHandlerNTLM::GetMSTimeProc HttpAuthHandlerNTLM::SetGetMSTimeProc(
-    GetMSTimeProc proc) {
-  GetMSTimeProc old_proc = get_ms_time_proc_;
-  get_ms_time_proc_ = proc;
-  return old_proc;
-}
-
-// static
-HttpAuthHandlerNTLM::GenerateRandomProc
-HttpAuthHandlerNTLM::SetGenerateRandomProc(GenerateRandomProc proc) {
-  GenerateRandomProc old_proc = generate_random_proc_;
-  generate_random_proc_ = proc;
-  return old_proc;
-}
-
-// static
-HttpAuthHandlerNTLM::HostNameProc HttpAuthHandlerNTLM::SetHostNameProc(
-    HostNameProc proc) {
-  HostNameProc old_proc = get_host_name_proc_;
-  get_host_name_proc_ = proc;
-  return old_proc;
-}
-
-HttpAuthHandlerNTLM::Factory::Factory() = default;
-
-HttpAuthHandlerNTLM::Factory::~Factory() = default;
-
-std::vector<uint8_t> HttpAuthHandlerNTLM::GetNextToken(
-    base::span<const uint8_t> in_token) {
-  // If in_token is non-empty, then assume it contains a challenge message,
-  // and generate the Authenticate message in reply. Otherwise return the
-  // Negotiate message.
-  if (in_token.empty()) {
-    return ntlm_client_.GetNegotiateMessage();
-  }
-
-  std::string hostname = get_host_name_proc_();
-  if (hostname.empty())
-    return {};
-  uint8_t client_challenge[8];
-  generate_random_proc_(client_challenge, 8);
-  uint64_t client_time = get_ms_time_proc_();
-
-  return ntlm_client_.GenerateAuthenticateMessage(
-      domain_, credentials_.username(), credentials_.password(), hostname,
-      channel_bindings_, CreateSPN(origin_), client_time, client_challenge,
-      in_token);
-}
-
-int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
-    HttpAuthChallengeTokenizer* challenge,
-    HttpAuth::Target target,
-    const SSLInfo& ssl_info,
-    const GURL& origin,
-    CreateReason reason,
-    int digest_nonce_count,
-    const NetLogWithSource& net_log,
-    std::unique_ptr<HttpAuthHandler>* handler) {
-  if (reason == CREATE_PREEMPTIVE)
-    return ERR_UNSUPPORTED_AUTH_SCHEME;
-  // TODO(cbentzel): Move towards model of parsing in the factory
-  //                 method and only constructing when valid.
-  // NOTE: Default credentials are not supported for the portable implementation
-  // of NTLM.
-  std::unique_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNTLM(http_auth_preferences()));
-  if (!tmp_handler->InitFromChallenge(challenge, target, ssl_info, origin,
-                                      net_log))
-    return ERR_INVALID_RESPONSE;
-  handler->swap(tmp_handler);
-  return OK;
-}
 
 }  // namespace net

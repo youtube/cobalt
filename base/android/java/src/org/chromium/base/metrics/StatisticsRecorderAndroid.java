@@ -1,10 +1,11 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base.metrics;
 
 import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /**
  * Java API which exposes the registered histograms on the native side as
@@ -20,8 +21,11 @@ public final class StatisticsRecorderAndroid {
      * @return All the registered histograms as JSON text.
      */
     public static String toJson(@JSONVerbosityLevel int verbosityLevel) {
-        return nativeToJson(verbosityLevel);
+        return StatisticsRecorderAndroidJni.get().toJson(verbosityLevel);
     }
 
-    private static native String nativeToJson(@JSONVerbosityLevel int verbosityLevel);
+    @NativeMethods
+    interface Natives {
+        String toJson(@JSONVerbosityLevel int verbosityLevel);
+    }
 }

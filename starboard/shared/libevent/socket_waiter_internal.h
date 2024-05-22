@@ -15,12 +15,13 @@
 #ifndef STARBOARD_SHARED_LIBEVENT_SOCKET_WAITER_INTERNAL_H_
 #define STARBOARD_SHARED_LIBEVENT_SOCKET_WAITER_INTERNAL_H_
 
+#include <pthread.h>
+
 #include <map>
 
 #include "starboard/common/socket.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/socket_waiter.h"
-#include "starboard/thread.h"
 #include "starboard/types.h"
 #include "third_party/libevent/event.h"
 
@@ -115,7 +116,7 @@ struct SbSocketWaiterPrivate {
 
   // The thread this waiter was created on. Immutable, so accessible from any
   // thread.
-  const SbThread thread_;
+  const pthread_t thread_;
 
   // The libevent event_base backing this waiter. Immutable, so accessible from
   // any thread.
@@ -141,11 +142,9 @@ struct SbSocketWaiterPrivate {
   // Whether or not the waiter was woken up.
   bool woken_up_;
 
-#if !SB_HAS(PIPE)
   // Used to replace pipe.
   SbSocket server_socket_;
   SbSocket client_socket_;
-#endif
 };
 
 #endif  // STARBOARD_SHARED_LIBEVENT_SOCKET_WAITER_INTERNAL_H_

@@ -11,7 +11,7 @@
 #ifndef GrGLTypesPriv_DEFINED
 #define GrGLTypesPriv_DEFINED
 
-static constexpr int kGrGLFormatCount = static_cast<int>(GrGLFormat::kLast) + 1;
+static constexpr int kGrGLColorFormatCount = static_cast<int>(GrGLFormat::kLastColorFormat) + 1;
 
 class GrGLTextureParameters : public SkNVRefCnt<GrGLTextureParameters> {
 public:
@@ -48,9 +48,9 @@ public:
         NonsamplerState();
         void invalidate();
 
-        uint32_t fSwizzleKey;
         GrGLint fBaseMipMapLevel;
-        GrGLint fMaxMipMapLevel;
+        GrGLint fMaxMipmapLevel;
+        bool    fSwizzleIsRGBA;
     };
 
     void invalidate();
@@ -90,5 +90,18 @@ private:
     GrGLTextureInfo fInfo;
     GrGLTextureParameters* fParams;
 };
+
+struct GrGLTextureSpec {
+    GrGLTextureSpec() : fTarget(0), fFormat(0) {}
+    GrGLTextureSpec(const GrGLSurfaceInfo& info) : fTarget(info.fTarget), fFormat(info.fFormat) {}
+
+    GrGLenum fTarget;
+    GrGLenum fFormat;
+};
+
+GrGLSurfaceInfo GrGLTextureSpecToSurfaceInfo(const GrGLTextureSpec& glSpec,
+                                             uint32_t sampleCount,
+                                             uint32_t levelCount,
+                                             GrProtected isProtected);
 
 #endif

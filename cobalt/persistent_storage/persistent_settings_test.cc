@@ -17,14 +17,9 @@
 #include <utility>
 #include <vector>
 
-#include "base/bind.h"
-#include "base/bind_internal.h"
-#include "base/callback_forward.h"
-#include "base/synchronization/waitable_event.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "base/values.h"
 #include "starboard/common/file.h"
-#include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,31 +36,25 @@ class PersistentSettingTest : public testing::Test {
  protected:
   PersistentSettingTest()
       : scoped_task_environment_(
-            base::test::ScopedTaskEnvironment::MainThreadType::DEFAULT,
-            base::test::ScopedTaskEnvironment::ExecutionMode::ASYNC) {
+            base::test::TaskEnvironment::MainThreadType::DEFAULT,
+            base::test::TaskEnvironment::ThreadPoolExecutionMode::ASYNC) {
     std::vector<char> storage_dir(kSbFileMaxPath + 1, 0);
     SbSystemGetPath(kSbSystemPathCacheDirectory, storage_dir.data(),
                     kSbFileMaxPath);
-
     persistent_settings_file_ = std::string(storage_dir.data()) +
                                 kSbFileSepString + kPersistentSettingsJson;
   }
 
   void SetUp() final {
-    test_done_.Reset();
     starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
   }
 
   void TearDown() final {
-    test_done_.Reset();
     starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
   }
 
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::test::TaskEnvironment scoped_task_environment_;
   std::string persistent_settings_file_;
-  base::WaitableEvent test_done_ = {
-      base::WaitableEvent::ResetPolicy::MANUAL,
-      base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
 
 TEST_F(PersistentSettingTest, GetDefaultBool) {
@@ -78,17 +67,9 @@ TEST_F(PersistentSettingTest, GetDefaultBool) {
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
 
   // exists but invalid
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsInt("key", true));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-  persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(4.2), std::move(closure), true);
-  test_done_.Wait();
+  persistent_settings->SetPersistentSetting("key",
+                                            std::make_unique<base::Value>(4.2));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
 }
 
 TEST_F(PersistentSettingTest, GetSetBool) {
@@ -96,37 +77,14 @@ TEST_F(PersistentSettingTest, GetSetBool) {
       std::make_unique<PersistentSettings>(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", true));
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", false));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(true), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
-
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_FALSE(
-            persistent_settings->GetPersistentSettingAsBool("key", true));
-        EXPECT_FALSE(
-            persistent_settings->GetPersistentSettingAsBool("key", false));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
+      "key", std::make_unique<base::Value>(true));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(false), std::move(closure), true);
-
-  test_done_.Wait();
+      "key", std::make_unique<base::Value>(false));
+  EXPECT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
 }
 
 TEST_F(PersistentSettingTest, GetDefaultInt) {
@@ -140,17 +98,9 @@ TEST_F(PersistentSettingTest, GetDefaultInt) {
   ASSERT_EQ(42, persistent_settings->GetPersistentSettingAsInt("key", 42));
 
   // exists but invalid
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ(8, persistent_settings->GetPersistentSettingAsInt("key", 8));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
-  persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(4.2), std::move(closure), true);
-  test_done_.Wait();
+  persistent_settings->SetPersistentSetting("key",
+                                            std::make_unique<base::Value>(4.2));
+  EXPECT_EQ(8, persistent_settings->GetPersistentSettingAsInt("key", 8));
 }
 
 TEST_F(PersistentSettingTest, GetSetInt) {
@@ -158,40 +108,51 @@ TEST_F(PersistentSettingTest, GetSetInt) {
       std::make_unique<PersistentSettings>(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ(-1, persistent_settings->GetPersistentSettingAsInt("key", 8));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-  persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(-1), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+  persistent_settings->SetPersistentSetting("key",
+                                            std::make_unique<base::Value>(-1));
+  EXPECT_EQ(-1, persistent_settings->GetPersistentSettingAsInt("key", 8));
+  persistent_settings->SetPersistentSetting("key",
+                                            std::make_unique<base::Value>(0));
+  EXPECT_EQ(0, persistent_settings->GetPersistentSettingAsInt("key", 8));
+  persistent_settings->SetPersistentSetting("key",
+                                            std::make_unique<base::Value>(42));
+  EXPECT_EQ(42, persistent_settings->GetPersistentSettingAsInt("key", 8));
+}
 
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ(0, persistent_settings->GetPersistentSettingAsInt("key", 8));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-  persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(0), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+TEST_F(PersistentSettingTest, GetDefaultDouble) {
+  auto persistent_settings =
+      std::make_unique<PersistentSettings>(kPersistentSettingsJson);
+  persistent_settings->ValidatePersistentSettings();
 
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ(42, persistent_settings->GetPersistentSettingAsInt("key", 8));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
+  // does not exist
+  ASSERT_EQ(-1.1,
+            persistent_settings->GetPersistentSettingAsDouble("key", -1.1));
+  ASSERT_EQ(0.1, persistent_settings->GetPersistentSettingAsDouble("key", 0.1));
+  ASSERT_EQ(42.1,
+            persistent_settings->GetPersistentSettingAsDouble("key", 42.1));
+
+  // exists but invalid
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(42), std::move(closure), true);
-  test_done_.Wait();
+      "key", std::make_unique<base::Value>(true));
+  EXPECT_EQ(8.1, persistent_settings->GetPersistentSettingAsDouble("key", 8.1));
+}
+
+TEST_F(PersistentSettingTest, GetSetDouble) {
+  auto persistent_settings =
+      std::make_unique<PersistentSettings>(kPersistentSettingsJson);
+  persistent_settings->ValidatePersistentSettings();
+
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(-1.1));
+  EXPECT_EQ(-1.1,
+            persistent_settings->GetPersistentSettingAsDouble("key", 8.1));
+  persistent_settings->SetPersistentSetting("key",
+                                            std::make_unique<base::Value>(0.1));
+  EXPECT_EQ(0.1, persistent_settings->GetPersistentSettingAsDouble("key", 8.1));
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(42.1));
+  EXPECT_EQ(42.1,
+            persistent_settings->GetPersistentSettingAsDouble("key", 8.1));
 }
 
 TEST_F(PersistentSettingTest, GetDefaultString) {
@@ -211,17 +172,10 @@ TEST_F(PersistentSettingTest, GetDefaultString) {
             persistent_settings->GetPersistentSettingAsString("key", "\\n"));
 
   // exists but invalid
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ("hello", persistent_settings->GetPersistentSettingAsString(
-                               "key", "hello"));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-  persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(4.2), std::move(closure), true);
-  test_done_.Wait();
+  persistent_settings->SetPersistentSetting("key",
+                                            std::make_unique<base::Value>(4.2));
+  EXPECT_EQ("hello",
+            persistent_settings->GetPersistentSettingAsString("key", "hello"));
 }
 
 TEST_F(PersistentSettingTest, GetSetString) {
@@ -229,74 +183,26 @@ TEST_F(PersistentSettingTest, GetSetString) {
       std::make_unique<PersistentSettings>(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ("", persistent_settings->GetPersistentSettingAsString(
-                          "key", "hello"));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
-  persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(""), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
-
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ(
-            "hello there",
+  persistent_settings->SetPersistentSetting("key",
+                                            std::make_unique<base::Value>(""));
+  EXPECT_EQ("",
             persistent_settings->GetPersistentSettingAsString("key", "hello"));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>("hello there"), std::move(closure),
-      true);
-  test_done_.Wait();
-  test_done_.Reset();
-
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ("42", persistent_settings->GetPersistentSettingAsString(
-                            "key", "hello"));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
+      "key", std::make_unique<base::Value>("hello there"));
+  EXPECT_EQ("hello there",
+            persistent_settings->GetPersistentSettingAsString("key", "hello"));
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>("42"), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
-
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ("\n", persistent_settings->GetPersistentSettingAsString(
-                            "key", "hello"));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
+      "key", std::make_unique<base::Value>("42"));
+  EXPECT_EQ("42",
+            persistent_settings->GetPersistentSettingAsString("key", "hello"));
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>("\n"), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
-
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_EQ("\\n", persistent_settings->GetPersistentSettingAsString(
-                             "key", "hello"));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
+      "key", std::make_unique<base::Value>("\n"));
+  EXPECT_EQ("\n",
+            persistent_settings->GetPersistentSettingAsString("key", "hello"));
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>("\\n"), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+      "key", std::make_unique<base::Value>("\\n"));
+  EXPECT_EQ("\\n",
+            persistent_settings->GetPersistentSettingAsString("key", "hello"));
 }
 
 TEST_F(PersistentSettingTest, GetSetList) {
@@ -304,66 +210,39 @@ TEST_F(PersistentSettingTest, GetSetList) {
       std::make_unique<PersistentSettings>(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        auto test_list = persistent_settings->GetPersistentSettingAsList("key");
-        EXPECT_FALSE(test_list.empty());
-        EXPECT_EQ(1, test_list.size());
-        EXPECT_TRUE(test_list[0].is_string());
-        EXPECT_EQ("hello", test_list[0].GetString());
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
-  std::vector<base::Value> list;
-  list.emplace_back("hello");
+  base::Value list(base::Value::Type::LIST);
+  list.GetList().Append("hello");
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(list), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+      "key", base::Value::ToUniquePtrValue(list.Clone()));
+  auto test_list = persistent_settings->GetPersistentSettingAsList("key");
+  EXPECT_FALSE(test_list.empty());
+  EXPECT_EQ(1, test_list.size());
+  EXPECT_TRUE(test_list[0].is_string());
+  EXPECT_EQ("hello", test_list[0].GetString());
 
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        auto test_list = persistent_settings->GetPersistentSettingAsList("key");
-        EXPECT_FALSE(test_list.empty());
-        EXPECT_EQ(2, test_list.size());
-        EXPECT_TRUE(test_list[0].is_string());
-        EXPECT_EQ("hello", test_list[0].GetString());
-        EXPECT_TRUE(test_list[1].is_string());
-        EXPECT_EQ("there", test_list[1].GetString());
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
-  list.emplace_back("there");
+  list.GetList().Append("there");
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(list), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+      "key", base::Value::ToUniquePtrValue(list.Clone()));
+  test_list = persistent_settings->GetPersistentSettingAsList("key");
+  EXPECT_FALSE(test_list.empty());
+  EXPECT_EQ(2, test_list.size());
+  EXPECT_TRUE(test_list[0].is_string());
+  EXPECT_EQ("hello", test_list[0].GetString());
+  EXPECT_TRUE(test_list[1].is_string());
+  EXPECT_EQ("there", test_list[1].GetString());
 
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        auto test_list = persistent_settings->GetPersistentSettingAsList("key");
-        EXPECT_FALSE(test_list.empty());
-        EXPECT_EQ(3, test_list.size());
-        EXPECT_TRUE(test_list[0].is_string());
-        EXPECT_EQ("hello", test_list[0].GetString());
-        EXPECT_TRUE(test_list[1].is_string());
-        EXPECT_EQ("there", test_list[1].GetString());
-        EXPECT_TRUE(test_list[2].is_int());
-        EXPECT_EQ(42, test_list[2].GetInt());
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
-  list.emplace_back(42);
+  list.GetList().Append(42);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(list), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+      "key", base::Value::ToUniquePtrValue(list.Clone()));
+  test_list = persistent_settings->GetPersistentSettingAsList("key");
+  EXPECT_FALSE(test_list.empty());
+  EXPECT_EQ(3, test_list.size());
+  EXPECT_TRUE(test_list[0].is_string());
+  EXPECT_EQ("hello", test_list[0].GetString());
+  EXPECT_TRUE(test_list[1].is_string());
+  EXPECT_EQ("there", test_list[1].GetString());
+  EXPECT_TRUE(test_list[2].is_int());
+  EXPECT_EQ(42, test_list[2].GetInt());
 }
 
 TEST_F(PersistentSettingTest, GetSetDictionary) {
@@ -371,94 +250,40 @@ TEST_F(PersistentSettingTest, GetSetDictionary) {
       std::make_unique<PersistentSettings>(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        auto test_dict =
-            persistent_settings->GetPersistentSettingAsDictionary("key");
-        EXPECT_FALSE(test_dict.empty());
-        EXPECT_EQ(1, test_dict.size());
-        EXPECT_TRUE(test_dict["key_string"]->is_string());
-        EXPECT_EQ("hello", test_dict["key_string"]->GetString());
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
-  base::flat_map<std::string, std::unique_ptr<base::Value>> dict;
-  dict.try_emplace("key_string", std::make_unique<base::Value>("hello"));
+  base::Value dict(base::Value::Type::DICT);
+  dict.GetDict().Set("key_string", "hello");
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(dict), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+      "key", base::Value::ToUniquePtrValue(dict.Clone()));
+  auto test_dict = persistent_settings->GetPersistentSettingAsDictionary("key");
+  EXPECT_FALSE(test_dict.empty());
+  EXPECT_EQ(1, test_dict.size());
+  EXPECT_TRUE(test_dict["key_string"]->is_string());
+  EXPECT_EQ("hello", test_dict["key_string"]->GetString());
 
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        auto test_dict =
-            persistent_settings->GetPersistentSettingAsDictionary("key");
-        EXPECT_FALSE(test_dict.empty());
-        EXPECT_EQ(2, test_dict.size());
-        EXPECT_TRUE(test_dict["key_string"]->is_string());
-        EXPECT_EQ("hello", test_dict["key_string"]->GetString());
-        EXPECT_TRUE(test_dict["key_int"]->is_int());
-        EXPECT_EQ(42, test_dict["key_int"]->GetInt());
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
-  dict.try_emplace("key_int", std::make_unique<base::Value>(42));
+  dict.GetDict().Set("key_int", 42);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(dict), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
-}
+      "key", base::Value::ToUniquePtrValue(dict.Clone()));
+  test_dict = persistent_settings->GetPersistentSettingAsDictionary("key");
+  EXPECT_FALSE(test_dict.empty());
+  EXPECT_EQ(2, test_dict.size());
+  EXPECT_TRUE(test_dict["key_string"]->is_string());
+  EXPECT_EQ("hello", test_dict["key_string"]->GetString());
+  EXPECT_TRUE(test_dict["key_int"]->is_int());
+  EXPECT_EQ(42, test_dict["key_int"]->GetInt());
 
-TEST_F(PersistentSettingTest, URLAsKey) {
-  // Tests that json_pref_store has the correct SetValue and
-  // RemoveValue changes for using a URL as a PersistentSettings
-  // Key.
-  auto persistent_settings =
-      std::make_unique<PersistentSettings>(kPersistentSettingsJson);
-  persistent_settings->ValidatePersistentSettings();
-
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        auto test_dict = persistent_settings->GetPersistentSettingAsDictionary(
-            "http://127.0.0.1:45019/");
-        EXPECT_FALSE(test_dict.empty());
-        EXPECT_EQ(1, test_dict.size());
-        EXPECT_TRUE(test_dict["http://127.0.0.1:45019/"]->is_string());
-        EXPECT_EQ("Dictionary URL Key Works!",
-                  test_dict["http://127.0.0.1:45019/"]->GetString());
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-
-  // Test that json_pref_store uses SetKey instead of Set, making URL
-  // keys viable.
-  base::flat_map<std::string, std::unique_ptr<base::Value>> dict;
-  dict.try_emplace("http://127.0.0.1:45019/",
-                   std::make_unique<base::Value>("Dictionary URL Key Works!"));
-  persistent_settings->SetPersistentSetting("http://127.0.0.1:45019/",
-                                            std::make_unique<base::Value>(dict),
-                                            std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
-
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        auto test_dict = persistent_settings->GetPersistentSettingAsDictionary(
-            "http://127.0.0.1:45019/");
-        EXPECT_TRUE(test_dict.empty());
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-  persistent_settings->RemovePersistentSetting("http://127.0.0.1:45019/",
-                                               std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+  dict.GetDict().Set("http://127.0.0.1:45019/", "Dictionary URL Key Works!");
+  persistent_settings->SetPersistentSetting(
+      "key", base::Value::ToUniquePtrValue(dict.Clone()));
+  test_dict = persistent_settings->GetPersistentSettingAsDictionary("key");
+  EXPECT_FALSE(test_dict.empty());
+  EXPECT_EQ(3, test_dict.size());
+  EXPECT_TRUE(test_dict["key_string"]->is_string());
+  EXPECT_EQ("hello", test_dict["key_string"]->GetString());
+  EXPECT_TRUE(test_dict["key_int"]->is_int());
+  EXPECT_EQ(42, test_dict["key_int"]->GetInt());
+  EXPECT_TRUE(test_dict["http://127.0.0.1:45019/"]->is_string());
+  EXPECT_EQ("Dictionary URL Key Works!",
+            test_dict["http://127.0.0.1:45019/"]->GetString());
 }
 
 TEST_F(PersistentSettingTest, RemoveSetting) {
@@ -468,35 +293,13 @@ TEST_F(PersistentSettingTest, RemoveSetting) {
 
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
-
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", true));
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", false));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(true), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
-
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", true));
-        EXPECT_FALSE(
-            persistent_settings->GetPersistentSettingAsBool("key", false));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-  persistent_settings->RemovePersistentSetting("key", std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+      "key", std::make_unique<base::Value>(true));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  persistent_settings->RemovePersistentSetting("key");
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
 }
 
 TEST_F(PersistentSettingTest, DeleteSettings) {
@@ -506,35 +309,13 @@ TEST_F(PersistentSettingTest, DeleteSettings) {
 
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
-
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", true));
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", false));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(true), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
-
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", true));
-        EXPECT_FALSE(
-            persistent_settings->GetPersistentSettingAsBool("key", false));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
-  persistent_settings->DeletePersistentSettings(std::move(closure));
-  test_done_.Wait();
-  test_done_.Reset();
+      "key", std::make_unique<base::Value>(true));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  persistent_settings->DeletePersistentSettings();
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
 }
 
 TEST_F(PersistentSettingTest, InvalidSettings) {
@@ -544,48 +325,29 @@ TEST_F(PersistentSettingTest, InvalidSettings) {
 
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
-
-  base::OnceClosure closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", true));
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", false));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(true), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+      "key", std::make_unique<base::Value>(true), true);
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
 
   persistent_settings =
       std::make_unique<PersistentSettings>(kPersistentSettingsJson);
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
-
-  closure = base::BindOnce(
-      [](PersistentSettings* persistent_settings,
-         base::WaitableEvent* test_done) {
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", true));
-        EXPECT_TRUE(
-            persistent_settings->GetPersistentSettingAsBool("key", false));
-        test_done->Signal();
-      },
-      persistent_settings.get(), &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(false), std::move(closure), true);
-  test_done_.Wait();
-  test_done_.Reset();
+      "key", std::make_unique<base::Value>(false), true);
+  EXPECT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
 
   persistent_settings =
       std::make_unique<PersistentSettings>(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
-
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(true));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
+  EXPECT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
 }
 
 }  // namespace persistent_storage

@@ -38,7 +38,7 @@ typedef struct SbDirectoryPrivate* SbDirectory;
 #define kSbDirectoryInvalid ((SbDirectory)NULL)
 
 // Returns whether the given directory stream handle is valid.
-static SB_C_INLINE bool SbDirectoryIsValid(SbDirectory directory) {
+static inline bool SbDirectoryIsValid(SbDirectory directory) {
   return directory != kSbDirectoryInvalid;
 }
 
@@ -79,6 +79,7 @@ SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
                                   char* out_entry,
                                   size_t out_entry_size);
 
+#if SB_API_VERSION < 16
 // Indicates whether SbDirectoryOpen is allowed for the given |path|.
 //
 // |path|: The path to be checked.
@@ -90,6 +91,7 @@ SB_EXPORT bool SbDirectoryCanOpen(const char* path);
 //
 // |path|: The path to be created.
 SB_EXPORT bool SbDirectoryCreate(const char* path);
+#endif  // SB_API_VERSION < 16
 
 #ifdef __cplusplus
 }  // extern "C"

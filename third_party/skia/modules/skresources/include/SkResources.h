@@ -9,8 +9,11 @@
 #define SkResources_DEFINED
 
 #include "include/core/SkData.h"
+#include "include/core/SkMatrix.h"
 #include "include/core/SkRefCnt.h"
+#include "include/core/SkSamplingOptions.h"
 #include "include/core/SkString.h"
+#include "include/core/SkTypeface.h"
 #include "include/core/SkTypes.h"
 #include "include/private/SkMutex.h"
 #include "include/private/SkTHash.h"
@@ -33,9 +36,11 @@ public:
     virtual bool isMultiFrame() = 0;
 
     /**
+     * DEPRECATED: override getFrameData() instead.
+     *
      * Returns the SkImage for a given frame.
      *
-     * If the image asset is static, getImage() is only called once, at animation load time.
+     * If the image asset is static, getFrame() is only called once, at animation load time.
      * Otherwise, this gets invoked every time the animation time is adjusted (on every seek).
      *
      * Embedders should cache and serve the same SkImage whenever possible, for efficiency.
@@ -43,7 +48,29 @@ public:
      * @param t   Frame time code, in seconds, relative to the image layer timeline origin
      *            (in-point).
      */
-    virtual sk_sp<SkImage> getFrame(float t) = 0;
+    virtual sk_sp<SkImage> getFrame(float t);
+
+    struct FrameData {
+        // SkImage payload.
+        sk_sp<SkImage>    image;
+        // Resampling parameters.
+        SkSamplingOptions sampling;
+        // Additional image transform to be applied before AE scaling rules.
+        SkMatrix          matrix = SkMatrix::I();
+    };
+
+    /**
+     * Returns the payload for a given frame.
+     *
+     * If the image asset is static, getFrameData() is only called once, at animation load time.
+     * Otherwise, this gets invoked every time the animation time is adjusted (on every seek).
+     *
+     * Embedders should cache and serve the same SkImage whenever possible, for efficiency.
+     *
+     * @param t   Frame time code, in seconds, relative to the image layer timeline origin
+     *            (in-point).
+     */
+    virtual FrameData getFrameData(float t);
 };
 
 class MultiFrameImageAsset final : public ImageAsset {
@@ -64,10 +91,31 @@ public:
 private:
     explicit MultiFrameImageAsset(std::unique_ptr<SkAnimCodecPlayer>, bool predecode);
 
+    sk_sp<SkImage> generateFrame(float t);
+
     std::unique_ptr<SkAnimCodecPlayer> fPlayer;
+    sk_sp<SkImage>                     fCachedFrame;
     bool                               fPreDecode;
 
     using INHERITED = ImageAsset;
+};
+
+/**
+ * External track (e.g. audio playback) interface.
+ *
+ * Used to wrap data payload and playback controllers.
+ */
+class ExternalTrackAsset : public SkRefCnt {
+public:
+    /**
+     * Playback control callback, emitted for each corresponding Animation::seek().
+     *
+     * @param t  Frame time code, in seconds, relative to the layer's timeline origin
+     *           (in-point).
+     *
+     * Negative |t| values are used to signal off state (stop playback outside layer span).
+     */
+    virtual void seek(float t) = 0;
 };
 
 /**
@@ -96,6 +144,17 @@ public:
     }
 
     /**
+     * Load an external audio track specified by |path|/|name|/|id|.
+     */
+    virtual sk_sp<ExternalTrackAsset> loadAudioAsset(const char[] /* resource_path */,
+                                                     const char[] /* resource_name */,
+                                                     const char[] /* resource_id   */) {
+        return nullptr;
+    }
+
+    /**
+     * DEPRECATED: implement loadTypeface() instead.
+     *
      * Load an external font and return as SkData.
      *
      * @param name  font name    ("fName" Lottie property)
@@ -110,6 +169,17 @@ public:
      */
     virtual sk_sp<SkData> loadFont(const char[] /* name */,
                                    const char[] /* url  */) const {
+        return nullptr;
+    }
+
+    /**
+     * Load an external font and return as SkTypeface.
+     *
+     * @param name  font name
+     * @param url   web font URL
+     */
+    virtual sk_sp<SkTypeface> loadTypeface(const char[] /* name */,
+                                           const char[] /* url  */) const {
         return nullptr;
     }
 };
@@ -137,13 +207,15 @@ protected:
 
     sk_sp<SkData> load(const char[], const char[]) const override;
     sk_sp<ImageAsset> loadImageAsset(const char[], const char[], const char[]) const override;
+    sk_sp<SkTypeface> loadTypeface(const char[], const char[]) const override;
     sk_sp<SkData> loadFont(const char[], const char[]) const override;
+    sk_sp<ExternalTrackAsset> loadAudioAsset(const char[], const char[], const char[]) override;
 
 private:
     const sk_sp<ResourceProvider> fProxy;
 };
 
-class CachingResourceProvider final : public ResourceProviderProxyBase {
+class SK_API CachingResourceProvider final : public ResourceProviderProxyBase {
 public:
     static sk_sp<CachingResourceProvider> Make(sk_sp<ResourceProvider> rp) {
         return rp ? sk_sp<CachingResourceProvider>(new CachingResourceProvider(std::move(rp)))
@@ -170,6 +242,7 @@ private:
     DataURIResourceProviderProxy(sk_sp<ResourceProvider>, bool);
 
     sk_sp<ImageAsset> loadImageAsset(const char[], const char[], const char[]) const override;
+    sk_sp<SkTypeface> loadTypeface(const char[], const char[]) const override;
 
     const bool fPredecode;
 

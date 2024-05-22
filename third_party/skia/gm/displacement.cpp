@@ -36,17 +36,16 @@ protected:
     }
 
     void onOnceBeforeDraw() override {
-        fBitmap = ToolUtils::create_string_bitmap(80, 80, 0xFF884422, 15, 55, 96, "g");
+        fImage = ToolUtils::create_string_image(80, 80, 0xFF884422, 15, 55, 96, "g");
 
         SkColor c1 = ToolUtils::color_to_565(0xFF244484);
         SkColor c2 = ToolUtils::color_to_565(0xFF804020);
 
-        fCheckerboard =
-                SkImage::MakeFromBitmap(ToolUtils::create_checkerboard_bitmap(80, 80, c1, c2, 8));
-        fSmall  = SkImage::MakeFromBitmap(ToolUtils::create_checkerboard_bitmap(64, 64, c1, c2, 8));
-        fLarge  = SkImage::MakeFromBitmap(ToolUtils::create_checkerboard_bitmap(96, 96, c1, c2, 8));
-        fLargeW = SkImage::MakeFromBitmap(ToolUtils::create_checkerboard_bitmap(96, 64, c1, c2, 8));
-        fLargeH = SkImage::MakeFromBitmap(ToolUtils::create_checkerboard_bitmap(64, 96, c1, c2, 8));
+        fCheckerboard = ToolUtils::create_checkerboard_image(80, 80, c1, c2, 8);
+        fSmall  = ToolUtils::create_checkerboard_image(64, 64, c1, c2, 8);
+        fLarge  = ToolUtils::create_checkerboard_image(96, 96, c1, c2, 8);
+        fLargeW = ToolUtils::create_checkerboard_image(96, 64, c1, c2, 8);
+        fLargeH = ToolUtils::create_checkerboard_image(64, 96, c1, c2, 8);
     }
 
     SkISize onISize() override {
@@ -56,8 +55,8 @@ protected:
     void drawClippedBitmap(SkCanvas* canvas, int x, int y, const SkPaint& paint) const {
         canvas->save();
         canvas->translate(SkIntToScalar(x), SkIntToScalar(y));
-        canvas->clipRect(SkRect::MakeWH(SkIntToScalar(fBitmap.width()), SkIntToScalar(fBitmap.height())));
-        canvas->drawBitmap(fBitmap, 0, 0, &paint);
+        canvas->clipIRect(fImage->bounds());
+        canvas->drawImage(fImage, 0, 0, SkSamplingOptions(), &paint);
         canvas->restore();
     }
 
@@ -162,13 +161,13 @@ protected:
     }
 
 private:
-    SkBitmap fBitmap;
+    sk_sp<SkImage> fImage;
     sk_sp<SkImage> fCheckerboard, fSmall, fLarge, fLargeW, fLargeH;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new DisplacementMapGM;)
-}
+}  // namespace skiagm

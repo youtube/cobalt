@@ -29,22 +29,20 @@
 
 #include "base/bind.h"
 #include "base/rand_util.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/language.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/network/custom/url_fetcher.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_error.h"
-#include "net/base/escape.h"
-#include "net/url_request/url_fetcher.h"
-
-#if defined(SB_USE_SB_MICROPHONE)
+#include "net/base/net_errors.h"
 #include "starboard/system.h"
-#endif  // defined(SB_USE_SB_MICROPHONE)
 
 namespace cobalt {
 namespace speech {
@@ -61,7 +59,7 @@ GURL AppendPath(const GURL& url, const std::string& value) {
 
   if (!path.empty()) path += "/";
 
-  path += net::EscapePath(value);
+  path += base::EscapePath(value);
   GURL::Replacements replacements;
   replacements.SetPathStr(path);
   return url.ReplaceComponents(replacements);
@@ -73,10 +71,10 @@ GURL AppendQueryParameter(const GURL& url, const std::string& new_query,
 
   if (!query.empty()) query += "&";
 
-  query += net::EscapeQueryParamValue(new_query, true);
+  query += base::EscapeQueryParamValue(new_query, true);
 
   if (!value.empty()) {
-    query += "=" + net::EscapeQueryParamValue(value, true);
+    query += "=" + base::EscapeQueryParamValue(value, true);
   }
 
   GURL::Replacements replacements;
@@ -194,9 +192,8 @@ GoogleSpeechService::GoogleSpeechService(
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
-      wrappables_task_runner_(base::ThreadTaskRunnerHandle::Get()) {
-  thread_.StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
+      wrappables_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
+  thread_.StartWithOptions(base::Thread::Options(base::MessagePumpType::IO, 0));
 }
 
 GoogleSpeechService::~GoogleSpeechService() {
@@ -209,14 +206,14 @@ GoogleSpeechService::~GoogleSpeechService() {
 void GoogleSpeechService::Start(const SpeechRecognitionConfig& config,
                                 int sample_rate) {
   // Called by the speech recognition manager thread.
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&GoogleSpeechService::StartInternal,
                             base::Unretained(this), config, sample_rate));
 }
 
 void GoogleSpeechService::Stop() {
   // Called by the speech recognition manager thread.
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&GoogleSpeechService::StopInternal, base::Unretained(this)));
 }
@@ -224,7 +221,7 @@ void GoogleSpeechService::Stop() {
 void GoogleSpeechService::RecognizeAudio(std::unique_ptr<AudioBus> audio_bus,
                                          bool is_last_chunk) {
   // Called by the speech recognition manager thread.
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&GoogleSpeechService::UploadAudioDataInternal,
                             base::Unretained(this), base::Passed(&audio_bus),
                             is_last_chunk));
@@ -236,15 +233,16 @@ void GoogleSpeechService::RecognizeAudio(std::unique_ptr<AudioBus> audio_bus,
 void GoogleSpeechService::OnURLFetchDownloadProgress(
     const net::URLFetcher* source, int64_t current, int64_t total,
     int64_t current_network_bytes) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
   std::string data;
   download_data_writer_->GetAndResetData(&data);
 
-  const net::URLRequestStatus& status = source->GetStatus();
+  const net::Error status = source->GetStatus();
   const int response_code = source->GetResponseCode();
 
   if (source == downstream_fetcher_.get()) {
-    if (status.is_success() && IsResponseCodeSuccess(response_code)) {
+    if (status == net::OK && IsResponseCodeSuccess(response_code)) {
       chunked_byte_buffer_.Append(data);
       while (chunked_byte_buffer_.HasChunks()) {
         std::unique_ptr<std::vector<uint8_t> > chunk =
@@ -276,7 +274,8 @@ void GoogleSpeechService::OnURLFetchDownloadProgress(
 }
 
 void GoogleSpeechService::OnURLFetchComplete(const net::URLFetcher* source) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
   if (download_data_writer_->HasData()) {
     // Explicitly pass '-1' for all sizes, as it is not used by
     // OnURLFetchDownloadProgress();
@@ -299,7 +298,8 @@ base::Optional<std::string> GoogleSpeechService::GetSpeechAPIKey() {
 
 void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
                                         int sample_rate) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
 
   if (started_) {
     // Recognizer is already started.
@@ -310,7 +310,7 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
   encoder_.reset(new AudioEncoderFlac(sample_rate));
 
   // Required for streaming on both up and down connections.
-  std::string pair = base::Uint64ToString(base::RandUint64());
+  std::string pair = std::to_string(base::RandUint64());
 
   // Set up down stream first.
   GURL down_url(kBaseStreamURL);
@@ -349,7 +349,7 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
 
   if (config.max_alternatives) {
     up_url = AppendQueryParameter(up_url, "maxAlternatives",
-                                  base::UintToString(config.max_alternatives));
+                                  std::to_string(config.max_alternatives));
   }
 
   if (config.continuous) {
@@ -367,7 +367,8 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
 }
 
 void GoogleSpeechService::StopInternal() {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
 
   if (!started_) {
     // Recognizer is not started.
@@ -389,13 +390,14 @@ void GoogleSpeechService::StopInternal() {
 
 void GoogleSpeechService::ClearFinalResults() {
   // This method handles wrappables and should run on the MainWebModule thread.
-  DCHECK(wrappables_task_runner_->BelongsToCurrentThread());
+  DCHECK(wrappables_task_runner_->RunsTasksInCurrentSequence());
   final_results_.clear();
 }
 
 void GoogleSpeechService::UploadAudioDataInternal(
     std::unique_ptr<AudioBus> audio_bus, bool is_last_chunk) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(audio_bus);
 
   std::string encoded_audio_data;
@@ -415,7 +417,7 @@ void GoogleSpeechService::UploadAudioDataInternal(
 void GoogleSpeechService::ProcessAndFireSuccessEvent(
     proto::SpeechRecognitionEvent event) {
   // This method handles wrappables and should run on the MainWebModule thread.
-  DCHECK(wrappables_task_runner_->BelongsToCurrentThread());
+  DCHECK(wrappables_task_runner_->RunsTasksInCurrentSequence());
 
   SpeechRecognitionResults new_results = ProcessProtoSuccessResults(event);
 

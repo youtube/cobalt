@@ -15,9 +15,11 @@
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/logging.h"
 #include "cobalt/base/event_dispatcher.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -29,10 +31,9 @@ namespace metrics {
 CobaltMetricsServicesManager* CobaltMetricsServicesManager::instance_ = nullptr;
 
 CobaltMetricsServicesManager::CobaltMetricsServicesManager()
-    : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       metrics_services_manager::MetricsServicesManager(
           std::make_unique<CobaltMetricsServicesManagerClient>()) {}
-
 
 // Static Singleton getter for metrics services manager.
 CobaltMetricsServicesManager* CobaltMetricsServicesManager::GetInstance() {
@@ -65,12 +66,22 @@ void CobaltMetricsServicesManager::SetEventDispatcherInternal(
   client->SetEventDispatcher(event_dispatcher);
 }
 
-void CobaltMetricsServicesManager::ToggleMetricsEnabled(bool is_enabled) {
-  instance_->task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&CobaltMetricsServicesManager::ToggleMetricsEnabledInternal,
-                 base::Unretained(instance_), is_enabled));
+void CobaltMetricsServicesManager::ToggleMetricsEnabled(
+    bool is_enabled, base::OnceClosure done_callback) {
+  if (done_callback) {
+    instance_->task_runner_->PostTaskAndReply(
+        FROM_HERE,
+        base::Bind(&CobaltMetricsServicesManager::ToggleMetricsEnabledInternal,
+                   base::Unretained(instance_), is_enabled),
+        std::move(done_callback));
+  } else {
+    instance_->task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&CobaltMetricsServicesManager::ToggleMetricsEnabledInternal,
+                   base::Unretained(instance_), is_enabled));
+  }
 }
+
 void CobaltMetricsServicesManager::ToggleMetricsEnabledInternal(
     bool is_enabled) {
   CobaltMetricsServicesManagerClient* client =
@@ -101,7 +112,6 @@ void CobaltMetricsServicesManager::SetUploadIntervalInternal(
   LOG(INFO) << "Cobalt Telemetry metric upload interval changed to: "
             << interval_seconds;
 }
-
 
 }  // namespace metrics
 }  // namespace browser

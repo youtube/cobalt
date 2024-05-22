@@ -23,13 +23,13 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/strings/string_split.h"
+#include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
+#include "media/base/mime_util.h"
 #include "starboard/common/string.h"
-#include "starboard/extension/h5vcc_config.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
-#include "third_party/chromium/media/base/mime_util.h"
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/browser/switches.h"
@@ -128,8 +128,9 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
     } else {
       support_type = CanPlayType(mime_type, "");
     }
-    metrics.RecordAndLogQuery("HTMLMediaElement::canPlayType", mime_type, "",
-                              support_type);
+    metrics.RecordAndLogQuery(
+        FormatSupportQueryAction::HTML_MEDIA_ELEMENT_CAN_PLAY_TYPE, mime_type,
+        "", support_type);
     return support_type;
   }
 
@@ -138,8 +139,9 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
       const std::string& key_system) const override {
     media::FormatSupportQueryMetrics metrics;
     SbMediaSupportType support_type = CanPlayType(mime_type, key_system);
-    metrics.RecordAndLogQuery("MediaSource::IsTypeSupported", mime_type,
-                              key_system, support_type);
+    metrics.RecordAndLogQuery(
+        FormatSupportQueryAction::MEDIA_SOURCE_IS_TYPE_SUPPORTED, mime_type,
+        key_system, support_type);
     return support_type;
   }
 
@@ -199,32 +201,24 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " media metrics collection.";
     return true;
-  } else if (name == "BackgroundPlaybackEnabled") {
-    const StarboardExtensionH5vccConfigApi* h5vcc_config_api =
-        static_cast<const StarboardExtensionH5vccConfigApi*>(
-            SbSystemGetExtension(kStarboardExtensionH5vccConfigName));
-    if (h5vcc_config_api &&
-        strcmp(h5vcc_config_api->name, kStarboardExtensionH5vccConfigName) ==
-            0 &&
-        h5vcc_config_api->version >= 1) {
-      bool enable_background_playback = value;
-      LOG(INFO) << "Set BackgroundPlaybackEnabled to "
-                << (enable_background_playback ? "enabled" : "disabled");
-      h5vcc_config_api->EnableBackgroundPlayback(enable_background_playback);
-    }
-    return true;
 #if SB_API_VERSION >= 15
   } else if (name == "AudioWriteDurationLocal" && value > 0) {
-    audio_write_duration_local_ = value;
+    audio_write_duration_local_ = base::TimeDelta::FromMicroseconds(value);
     LOG(INFO) << "Set AudioWriteDurationLocal to "
-              << audio_write_duration_local_;
+              << audio_write_duration_local_.InMicroseconds();
     return true;
   } else if (name == "AudioWriteDurationRemote" && value > 0) {
-    audio_write_duration_remote_ = value;
+    audio_write_duration_remote_ = base::TimeDelta::FromMicroseconds(value);
     LOG(INFO) << "Set AudioWriteDurationRemote to "
-              << audio_write_duration_remote_;
+              << audio_write_duration_remote_.InMicroseconds();
     return true;
 #endif  // SB_API_VERSION >= 15
+  } else if (name == "PlayerConfiguration.DecodeToTexturePreferred") {
+    if (sbplayer_interface_->SetDecodeToTexturePreferred(value)) {
+      LOG(INFO) << "Set DecodeToTexturePreferred to "
+                << (value ? "true" : "false");
+      return true;
+    }
   }
 
   return false;
@@ -250,7 +244,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 }
 
 void MediaModule::Suspend() {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   suspended_ = true;
 
@@ -268,7 +262,7 @@ void MediaModule::Suspend() {
 }
 
 void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   resource_provider_ = resource_provider;
 
@@ -291,7 +285,7 @@ void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
 }
 
 void MediaModule::RegisterPlayer(WebMediaPlayer* player) {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   DCHECK(players_.find(player) == players_.end());
   players_.insert(std::make_pair(player, false));
@@ -302,7 +296,7 @@ void MediaModule::RegisterPlayer(WebMediaPlayer* player) {
 }
 
 void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   DCHECK(players_.find(player) != players_.end());
   players_.erase(players_.find(player));
@@ -310,7 +304,7 @@ void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
 
 void MediaModule::EnumerateWebMediaPlayers(
     const EnumeratePlayersCB& enumerate_callback) const {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   for (Players::const_iterator iter = players_.begin(); iter != players_.end();
        ++iter) {

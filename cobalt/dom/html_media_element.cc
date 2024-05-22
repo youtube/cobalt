@@ -26,8 +26,8 @@
 #include "base/guid.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
 #include "base/strings/string_util.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
@@ -40,6 +40,7 @@
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_settings.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/url_fetcher_data_source.h"
@@ -126,10 +127,33 @@ bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
   return false;
 }
 
+const MediaSettings& GetMediaSettings(
+    const web::EnvironmentSettings* settings) {
+  DCHECK(settings);
+  DCHECK(settings->context());
+  DCHECK(settings->context()->web_settings());
+
+  const auto& web_settings = settings->context()->web_settings();
+  return web_settings->media_settings();
+}
+
+// If this function returns true, HTMLMediaElement::buffered() will attempt to
+// call MediaSource::GetBufferedRange() if available, and fallback to
+// WebMediaPlayer::UpdateBufferedTimeRanges().
+// The default value is false.
+bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+    const web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceBufferedRangeEnabled()
+      .value_or(false);
+}
+
 }  // namespace
 
-HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
+HTMLMediaElement::HTMLMediaElement(Document* document,
+                                   base_token::Token tag_name)
     : HTMLElement(document, tag_name),
+      max_video_input_size_(0),
       load_state_(kWaitingForSource),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       playback_rate_(1.f),
@@ -215,6 +239,17 @@ uint16_t HTMLMediaElement::network_state() const {
 
 scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
   scoped_refptr<TimeRanges> buffered = new TimeRanges;
+
+  DCHECK(node_document());
+  DCHECK(node_document()->html_element_context());
+  DCHECK(node_document()->html_element_context()->environment_settings());
+  const auto* settings =
+      node_document()->html_element_context()->environment_settings();
+  if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(settings)) {
+    if (media_source_) {
+      return media_source_->GetBufferedRange();
+    }
+  }
 
   if (!player_) {
     LOG(INFO) << "(empty)";
@@ -641,21 +676,16 @@ void HTMLMediaElement::ScheduleEvent(const scoped_refptr<web::Event>& event) {
   event_queue_.Enqueue(event);
 }
 
-std::string HTMLMediaElement::h5vcc_audio_connectors(
-    script::ExceptionState* exception_state) const {
+std::string HTMLMediaElement::h5vcc_audio_connectors() const {
 #if SB_API_VERSION >= 15
   if (!player_) {
-    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
-                             exception_state);
-    return std::string();
+    return "";
   }
 
   std::vector<std::string> configs = player_->GetAudioConnectors();
   return base::JoinString(configs, ";");
 #else   // SB_API_VERSION >= 15
-  web::DOMException::Raise(web::DOMException::kNotSupportedErr,
-                           exception_state);
-  return std::string();
+  return "";
 #endif  // SB_API_VERSION >= 15
 }
 
@@ -863,18 +893,29 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
       return;
     }
 
-    media_source_ =
+    scoped_refptr<MediaSourceAttachment> attachment =
         html_element_context()->media_source_registry()->Retrieve(url.spec());
+
+    if (!attachment) {
+      NoneSupported("Media source is NULL.");
+      return;
+    }
+
+    media_source_ = attachment->media_source();
+
     if (!media_source_) {
       NoneSupported("Media source is NULL.");
       return;
     }
-    if (!media_source_->AttachToElement(this)) {
+    if (!media_source_->StartAttachingToMediaElement(this)) {
       media_source_ = nullptr;
       NoneSupported("Unable to attach media source.");
       return;
     }
     media_source_url_ = url;
+
+    LOG(INFO) << "Attached MediaSource (0x" << media_source_.get()
+              << ") to HTMLMediaElement (0x" << this << ")";
   }
   // The resource fetch algorithm
   network_state_ = kNetworkLoading;
@@ -909,7 +950,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
     DCHECK(node_document()->location());
     std::unique_ptr<DataSource> data_source(new media::URLFetcherDataSource(
-        base::ThreadTaskRunnerHandle::Get(), url, csp_callback,
+        base::SequencedTaskRunner::GetCurrentDefault(), url, csp_callback,
         html_element_context()->fetcher_factory()->network_module(),
         request_mode_, node_document()->location()->GetOriginAsObject()));
     player_->LoadProgressive(url, std::move(data_source));
@@ -982,11 +1023,6 @@ void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error,
     MediaEngineError(new MediaError(
         MediaError::kMediaErrDecode,
         message.empty() ? "Media loading failed with decode error." : message));
-  } else if (error == WebMediaPlayer::kNetworkStateCapabilityChangedError) {
-    MediaEngineError(new MediaError(
-        MediaError::kMediaErrCapabilityChanged,
-        message.empty() ? "Media loading failed with capability changed error."
-                        : message));
   } else if ((error == WebMediaPlayer::kNetworkStateFormatError ||
               error == WebMediaPlayer::kNetworkStateNetworkError) &&
              load_state_ == kLoadingFromSrcAttr) {
@@ -1090,7 +1126,7 @@ void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
   }
 }
 
-void HTMLMediaElement::ScheduleOwnEvent(base::Token event_name) {
+void HTMLMediaElement::ScheduleOwnEvent(base_token::Token event_name) {
   LOG_IF(INFO, event_name == base::Tokens::error())
       << "onerror event fired with error " << (error_ ? error_->code() : 0);
   MLOG() << event_name;
@@ -1230,7 +1266,6 @@ void HTMLMediaElement::SetNetworkState(WebMediaPlayer::NetworkState state) {
     case WebMediaPlayer::kNetworkStateFormatError:
     case WebMediaPlayer::kNetworkStateNetworkError:
     case WebMediaPlayer::kNetworkStateDecodeError:
-    case WebMediaPlayer::kNetworkStateCapabilityChangedError:
       NOTREACHED() << "Passed SetNetworkState an error state";
       break;
   }
@@ -1244,7 +1279,6 @@ void HTMLMediaElement::SetNetworkError(WebMediaPlayer::NetworkState state,
     case WebMediaPlayer::kNetworkStateFormatError:
     case WebMediaPlayer::kNetworkStateNetworkError:
     case WebMediaPlayer::kNetworkStateDecodeError:
-    case WebMediaPlayer::kNetworkStateCapabilityChangedError:
       MediaLoadingFailed(state, message);
       break;
     case WebMediaPlayer::kNetworkStateEmpty:
@@ -1653,7 +1687,7 @@ void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   BeginProcessingMediaPlayerCallback();
   DCHECK(media_source_);
-  media_source_->SetChunkDemuxerAndOpen(chunk_demuxer);
+  media_source_->CompleteAttachingToMediaElement(chunk_demuxer);
   EndProcessingMediaPlayerCallback();
 }
 
@@ -1663,6 +1697,10 @@ std::string HTMLMediaElement::SourceURL() const {
 
 std::string HTMLMediaElement::MaxVideoCapabilities() const {
   return max_video_capabilities_;
+}
+
+int HTMLMediaElement::MaxVideoInputSize() const {
+  return max_video_input_size_;
 }
 
 bool HTMLMediaElement::PreferDecodeToTexture() {
@@ -1758,6 +1796,21 @@ void HTMLMediaElement::SetMaxVideoCapabilities(
             << max_video_capabilities_ << "\" to \"" << max_video_capabilities
             << "\"";
   max_video_capabilities_ = max_video_capabilities;
+}
+
+void HTMLMediaElement::SetMaxVideoInputSize(
+    unsigned int max_video_input_size,
+    script::ExceptionState* exception_state) {
+  if (GetAttribute("src").value_or("").length() > 0) {
+    LOG(WARNING) << "Cannot set max_video_input_size after src is defined.";
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
+    return;
+  }
+
+  LOG(INFO) << "max_video_input_size is changed from " << max_video_input_size_
+            << " to " << max_video_input_size;
+  max_video_input_size_ = static_cast<int>(max_video_input_size);
 }
 
 }  // namespace dom

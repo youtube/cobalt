@@ -50,11 +50,11 @@ enum SrcType {
 const struct {
     SkBlendMode fMode;
     int         fSourceTypeMask;  // The source types to use this
-    // mode with. See draw_mode for
-    // an explanation of each type.
-    // PDF has to play some tricks
-    // to support the base modes,
-    // test those more extensively.
+                                  // mode with. See draw_mode for
+                                  // an explanation of each type.
+                                  // PDF has to play some tricks
+                                  // to support the base modes,
+                                  // test those more extensively.
 } gModes[] = {
     { SkBlendMode::kClear,        kAll_SrcType   },
     { SkBlendMode::kSrc,          kAll_SrcType   },
@@ -133,11 +133,12 @@ class XfermodesGM : public skiagm::GM {
      */
     void draw_mode(SkCanvas* canvas, SkBlendMode mode, SrcType srcType, SkScalar x, SkScalar y) {
         SkPaint p;
+        SkSamplingOptions sampling;
         SkMatrix m;
         bool restoreNeeded = false;
         m.setTranslate(x, y);
 
-        canvas->drawBitmap(fSrcB, x, y, &p);
+        canvas->drawImage(fSrcB.asImage(), x, y, sampling, &p);
         p.setBlendMode(mode);
         switch (srcType) {
             case kSmallTransparentImage_SrcType: {
@@ -145,7 +146,7 @@ class XfermodesGM : public skiagm::GM {
 
                 SkAutoCanvasRestore acr(canvas, true);
                 canvas->concat(m);
-                canvas->drawBitmap(fTransparent, 0, 0, &p);
+                canvas->drawImage(fTransparent.asImage(), 0, 0, sampling, &p);
                 break;
             }
             case kQuarterClearInLayer_SrcType: {
@@ -154,7 +155,7 @@ class XfermodesGM : public skiagm::GM {
                 canvas->saveLayer(&bounds, &p);
                 restoreNeeded = true;
                 p.setBlendMode(SkBlendMode::kSrcOver);
-                // Fall through.
+                [[fallthrough]];
             }
             case kQuarterClear_SrcType: {
                 SkScalar halfW = SkIntToScalar(W) / 2;
@@ -175,7 +176,7 @@ class XfermodesGM : public skiagm::GM {
                 SkScalar h = SkIntToScalar(H);
                 SkRect r = SkRect::MakeXYWH(x, y + h / 4, w, h * 23 / 60);
                 canvas->clipRect(r);
-                // Fall through.
+                [[fallthrough]];
             }
             case kRectangle_SrcType: {
                 SkScalar w = SkIntToScalar(W);
@@ -188,14 +189,14 @@ class XfermodesGM : public skiagm::GM {
             }
             case kSmallRectangleImageWithAlpha_SrcType:
                 m.postScale(SK_ScalarHalf, SK_ScalarHalf, x, y);
-                // Fall through.
+                [[fallthrough]];
             case kRectangleImageWithAlpha_SrcType:
                 p.setAlpha(0x88);
-                // Fall through.
+                [[fallthrough]];
             case kRectangleImage_SrcType: {
                 SkAutoCanvasRestore acr(canvas, true);
                 canvas->concat(m);
-                canvas->drawBitmap(fDstB, 0, 0, &p);
+                canvas->drawImage(fDstB.asImage(), 0, 0, sampling, &p);
                 break;
             }
             default:
@@ -236,14 +237,15 @@ protected:
         const SkScalar h = SkIntToScalar(H);
         SkMatrix m;
         m.setScale(SkIntToScalar(6), SkIntToScalar(6));
-        auto s = fBG.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, &m);
+        auto s = fBG.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                SkSamplingOptions(), m);
 
         SkPaint labelP;
         labelP.setAntiAlias(true);
 
         SkFont font(ToolUtils::create_portable_typeface());
 
-        const int W = 5;
+        const int kWrap = 5;
 
         SkScalar x0 = 0;
         SkScalar y0 = 0;
@@ -276,7 +278,7 @@ protected:
                                         font, labelP, SkTextUtils::kCenter_Align);
 #endif
                 x += w + SkIntToScalar(10);
-                if ((i % W) == W - 1) {
+                if ((i % kWrap) == kWrap - 1) {
                     x = x0;
                     y += h + SkIntToScalar(30);
                 }
@@ -294,6 +296,6 @@ protected:
     }
 
 private:
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 DEF_GM( return new XfermodesGM; )

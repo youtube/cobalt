@@ -10,19 +10,27 @@
 
 
 import argparse
-import common
 import os
 import subprocess
+import sys
+
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+INFRA_BOTS_DIR = os.path.realpath(os.path.join(FILE_DIR, os.pardir, os.pardir))
+sys.path.insert(0, INFRA_BOTS_DIR)
 import utils
 
 
-# Copied from CLANG_REVISION here:
-# https://cs.chromium.org/chromium/src/tools/clang/scripts/update.py
-CLANG_REVISION = '357692'
-CLANG_SUB_REVISION = '1'
-CLANG_PKG_VERSION = '%s-%s' % (CLANG_REVISION, CLANG_SUB_REVISION)
+# Copied from https://cs.chromium.org/chromium/src/tools/clang/scripts/update.py
+CLANG_REVISION = '0e41d647ceaeb2195d5d9ab5ff25c19292a36bf5'
+CLANG_SVN_REVISION = 'n354867'
+CLANG_SUB_REVISION = 2
+
+PACKAGE_VERSION = '%s-%s-%s' % (CLANG_SVN_REVISION, CLANG_REVISION[:8],
+                                CLANG_SUB_REVISION)
+# (End copying)
+
 GS_URL = ('https://commondatastorage.googleapis.com/chromium-browser-clang'
-          '/Win/clang-%s.tgz' % CLANG_PKG_VERSION)
+          '/Win/clang-%s.tgz' % PACKAGE_VERSION)
 
 
 def create_asset(target_dir):

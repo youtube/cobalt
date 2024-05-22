@@ -44,6 +44,7 @@ set(files
   __algorithm/iter_swap.h
   __algorithm/iterator_operations.h
   __algorithm/lexicographical_compare.h
+  __algorithm/lexicographical_compare_three_way.h
   __algorithm/lower_bound.h
   __algorithm/make_heap.h
   __algorithm/make_projected.h
@@ -183,6 +184,7 @@ set(files
   __algorithm/stable_partition.h
   __algorithm/stable_sort.h
   __algorithm/swap_ranges.h
+  __algorithm/three_way_comp_ref_type.h
   __algorithm/transform.h
   __algorithm/uniform_random_bit_generator_adaptor.h
   __algorithm/unique.h
@@ -191,6 +193,20 @@ set(files
   __algorithm/unwrap_range.h
   __algorithm/upper_bound.h
   __assert
+  __atomic/aliases.h
+  __atomic/atomic.h
+  __atomic/atomic_base.h
+  __atomic/atomic_flag.h
+  __atomic/atomic_init.h
+  __atomic/atomic_lock_free.h
+  __atomic/atomic_sync.h
+  __atomic/check_memory_order.h
+  __atomic/contention_t.h
+  __atomic/cxx_atomic_impl.h
+  __atomic/fence.h
+  __atomic/is_always_lock_free.h
+  __atomic/kill_dependency.h
+  __atomic/memory_order.h
   __availability
   __bit/bit_cast.h
   __bit/bit_ceil.h
@@ -209,11 +225,17 @@ set(files
   __bsd_locale_defaults.h
   __bsd_locale_fallbacks.h
   __charconv/chars_format.h
+  __charconv/from_chars_integral.h
   __charconv/from_chars_result.h
   __charconv/tables.h
+  __charconv/to_chars.h
   __charconv/to_chars_base_10.h
+  __charconv/to_chars_floating_point.h
+  __charconv/to_chars_integral.h
   __charconv/to_chars_result.h
+  __charconv/traits.h
   __chrono/calendar.h
+  __chrono/concepts.h
   __chrono/convert_to_timespec.h
   __chrono/convert_to_tm.h
   __chrono/day.h
@@ -272,6 +294,7 @@ set(files
   __concepts/semiregular.h
   __concepts/swappable.h
   __concepts/totally_ordered.h
+  __condition_variable/condition_variable.h
   __config
   __coroutine/coroutine_handle.h
   __coroutine/coroutine_traits.h
@@ -279,7 +302,11 @@ set(files
   __coroutine/trivial_awaitables.h
   __debug
   __debug_utils/randomize_range.h
-  __errc
+  __exception/exception.h
+  __exception/exception_ptr.h
+  __exception/nested_exception.h
+  __exception/operations.h
+  __exception/terminate.h
   __expected/bad_expected_access.h
   __expected/expected.h
   __expected/unexpect.h
@@ -414,6 +441,7 @@ set(files
   __mbstate_t.h
   __memory/addressof.h
   __memory/align.h
+  __memory/aligned_alloc.h
   __memory/allocate_at_least.h
   __memory/allocation_guard.h
   __memory/allocator.h
@@ -446,7 +474,10 @@ set(files
   __memory_resource/pool_options.h
   __memory_resource/synchronized_pool_resource.h
   __memory_resource/unsynchronized_pool_resource.h
-  __mutex_base
+  __mutex/lock_guard.h
+  __mutex/mutex.h
+  __mutex/tag_types.h
+  __mutex/unique_lock.h
   __node_handle
   __numeric/accumulate.h
   __numeric/adjacent_difference.h
@@ -537,8 +568,8 @@ set(files
   __ranges/views.h
   __ranges/zip_view.h
   __split_buffer
-  __std_stream
   __string/char_traits.h
+  __string/constexpr_c_functions.h
   __string/extern_template_lists.h
   __support/android/locale_bionic.h
   __support/fuchsia/xlocale.h
@@ -556,20 +587,25 @@ set(files
   __support/xlocale/__nop_locale_mgmt.h
   __support/xlocale/__posix_l_fallback.h
   __support/xlocale/__strtonum_fallback.h
+  __system_error/errc.h
+  __system_error/error_category.h
+  __system_error/error_code.h
+  __system_error/error_condition.h
+  __system_error/system_error.h
   __thread/poll_with_backoff.h
   __thread/timed_backoff_policy.h
   __threading_support
   __tree
-  __tuple_dir/apply_cv.h
-  __tuple_dir/make_tuple_types.h
-  __tuple_dir/pair_like.h
-  __tuple_dir/sfinae_helpers.h
-  __tuple_dir/tuple_element.h
-  __tuple_dir/tuple_indices.h
-  __tuple_dir/tuple_like.h
-  __tuple_dir/tuple_like_ext.h
-  __tuple_dir/tuple_size.h
-  __tuple_dir/tuple_types.h
+  __tuple/apply_cv.h
+  __tuple/make_tuple_types.h
+  __tuple/pair_like.h
+  __tuple/sfinae_helpers.h
+  __tuple/tuple_element.h
+  __tuple/tuple_indices.h
+  __tuple/tuple_like.h
+  __tuple/tuple_like_ext.h
+  __tuple/tuple_size.h
+  __tuple/tuple_types.h
   __type_traits/add_const.h
   __type_traits/add_cv.h
   __type_traits/add_lvalue_reference.h
@@ -619,6 +655,7 @@ set(files
   __type_traits/is_destructible.h
   __type_traits/is_empty.h
   __type_traits/is_enum.h
+  __type_traits/is_equality_comparable.h
   __type_traits/is_final.h
   __type_traits/is_floating_point.h
   __type_traits/is_function.h
@@ -683,6 +720,7 @@ set(files
   __type_traits/nat.h
   __type_traits/negation.h
   __type_traits/noexcept_move_assign_container.h
+  __type_traits/predicate_traits.h
   __type_traits/promote.h
   __type_traits/rank.h
   __type_traits/remove_all_extents.h
@@ -771,11 +809,8 @@ set(files
   expected
   experimental/__config
   experimental/__memory
-  experimental/algorithm
-  experimental/coroutine
   experimental/deque
   experimental/forward_list
-  experimental/functional
   experimental/iterator
   experimental/list
   experimental/map

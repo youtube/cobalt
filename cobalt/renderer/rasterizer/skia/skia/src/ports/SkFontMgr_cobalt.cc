@@ -24,6 +24,7 @@
 #include "SkTSearch.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/language.h"
@@ -32,6 +33,7 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "starboard/extension/font.h"
+#include "starboard/string.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 
 const char* ROBOTO_SCRIPT = "latn";
@@ -96,6 +98,7 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
 
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);
+  initial_families_ = default_families_;
 }
 
 void SkFontMgr_Cobalt::PurgeCaches() {
@@ -266,12 +269,10 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromData(sk_sp<SkData> data,
                         face_index);
 }
 
-#ifdef USE_SKIA_NEXT
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamArgs(
     std::unique_ptr<SkStreamAsset> stream, const SkFontArguments& args) const {
   return this->makeFromStream(std::move(stream), args.getCollectionIndex());
 }
-#endif
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamIndex(
     std::unique_ptr<SkStreamAsset> stream, int face_index) const {
@@ -320,6 +321,10 @@ void SkFontMgr_Cobalt::LoadLocaleDefault() {
   }
 
   default_fonts_loaded_event_.Signal();
+}
+
+void SkFontMgr_Cobalt::ClearLocaleDefault() {
+  default_families_ = initial_families_;
 }
 
 void SkFontMgr_Cobalt::ParseConfigAndBuildFamilies(
@@ -393,8 +398,8 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
               std::make_pair(family_info.names[j].c_str(), new_family.get()));
         } else {
           is_duplicate_font = true;
-          SB_LOG(WARNING) << "Duplicate Font name: \""
-                          << family_info.names[j].c_str() << "\"";
+          LOG(WARNING) << "Duplicate Font name: \""
+                       << family_info.names[j].c_str() << "\"";
         }
       }
     }
@@ -434,8 +439,8 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
           is_duplicate_font_face = true;
           const std::string font_face_name_type =
               i == 0 ? "Full Font" : "Postscript";
-          SB_LOG(WARNING) << "Duplicate " << font_face_name_type << " name: \""
-                          << font_face_name << "\"";
+          LOG(WARNING) << "Duplicate " << font_face_name_type << " name: \""
+                       << font_face_name << "\"";
         }
       }
     }

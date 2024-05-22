@@ -30,7 +30,7 @@ StyleSheetList::StyleSheetList(const StyleSheetVector& style_sheets,
   int index = 0;
   for (StyleSheetVector::const_iterator iter = style_sheets_.begin();
        iter != style_sheets_.end(); ++iter) {
-    StyleSheet* style_sheet = *iter;
+    StyleSheet* style_sheet = iter->get();
     style_sheet->AttachToStyleSheetList(this);
     style_sheet->set_index(index++);
   }
@@ -58,7 +58,7 @@ void StyleSheetList::TraceMembers(script::Tracer* tracer) {
 StyleSheetList::~StyleSheetList() {
   for (StyleSheetVector::const_iterator iter = style_sheets_.begin();
        iter != style_sheets_.end(); ++iter) {
-    StyleSheet* style_sheet = *iter;
+    StyleSheet* style_sheet = iter->get();
     if (style_sheet->ParentStyleSheetList() == this) {
       style_sheet->set_index(Appearance::kUnattached);
       style_sheet->DetachFromStyleSheetList();

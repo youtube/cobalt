@@ -22,60 +22,13 @@
 #include "base/atomicops.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "starboard/extension/crash_handler.h"
-
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-
 #include "starboard/system.h"
 
 namespace cobalt {
 namespace h5vcc {
-
-CrashLogDictionary* CrashLogDictionary::GetInstance() {
-  return base::Singleton<CrashLogDictionary, base::DefaultSingletonTraits<
-                                                 CrashLogDictionary>>::get();
-}
-
-void CrashLogDictionary::SetString(const std::string& key,
-                                   const std::string& value) {
-  base::AutoLock lock(mutex_);
-  // While the lock prevents contention between other calls to SetString(),
-  // the atomics guard against OnCrash(), which doesn't acquire |mutex_|, from
-  // accessing the data at the same time.  In the case that OnCrash() is
-  // being called, we give up and skip adding the data.
-  if (base::subtle::Acquire_CompareAndSwap(&accessing_log_data_, 0, 1) == 0) {
-    string_log_map_[key] = value;
-    base::subtle::Release_Store(&accessing_log_data_, 0);
-  }
-}
-
-CrashLogDictionary::CrashLogDictionary() : accessing_log_data_(0) {
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  SbCoreDumpRegisterHandler(&CoreDumpHandler, this);
-#endif
-}
-
-void CrashLogDictionary::CoreDumpHandler(void* context) {
-  CrashLogDictionary* crash_log_dictionary =
-      static_cast<CrashLogDictionary*>(context);
-  crash_log_dictionary->OnCrash();
-}
-
-void CrashLogDictionary::OnCrash() {
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  // Check that we're not already updating log data.  If we are, we just
-  // give up and skip recording any crash data, but hopefully this is rare.
-  if (base::subtle::Acquire_CompareAndSwap(&accessing_log_data_, 0, 1) == 0) {
-    for (StringMap::const_iterator iter = string_log_map_.begin();
-         iter != string_log_map_.end(); ++iter) {
-      SbCoreDumpLogString(iter->first.c_str(), iter->second.c_str());
-    }
-    base::subtle::Release_Store(&accessing_log_data_, 0);
-  }
-#endif
-}
 
 bool H5vccCrashLog::SetString(const std::string& key,
                               const std::string& value) {
@@ -85,14 +38,10 @@ bool H5vccCrashLog::SetString(const std::string& key,
   if (crash_handler_extension && crash_handler_extension->version >= 2) {
     return crash_handler_extension->SetString(key.c_str(), value.c_str());
   }
+
   // The platform has not implemented a version of the CrashHandler Cobalt
   // Extension appropriate for this use case.
-
-  // Forward the call to a global singleton so that we keep a consistent crash
-  // log globally.
-  CrashLogDictionary::GetInstance()->SetString(key, value);
-
-  return true;
+  return false;
 }
 
 void H5vccCrashLog::TriggerCrash(H5vccCrashType intent) {
@@ -225,6 +174,47 @@ bool H5vccCrashLog::GetPersistentSettingWatchdogCrash() {
 void H5vccCrashLog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) watchdog->SetPersistentSettingWatchdogCrash(can_trigger_crash);
+}
+
+bool H5vccCrashLog::GetPersistentSettingLogtraceEnable() {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) return watchdog->GetPersistentSettingLogtraceEnable();
+  return false;
+}
+
+void H5vccCrashLog::SetPersistentSettingLogtraceEnable(bool enable_logtrace) {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) watchdog->SetPersistentSettingLogtraceEnable(enable_logtrace);
+}
+
+bool H5vccCrashLog::LogEvent(const std::string& event) {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (!watchdog) {
+    return false;
+  }
+
+  return watchdog->LogEvent(event);
+}
+
+script::Sequence<std::string> H5vccCrashLog::GetLogTrace() {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+
+  script::Sequence<std::string> sequence;
+  if (watchdog) {
+    std::vector<std::string> logTrace = watchdog->GetLogTrace();
+    for (std::size_t i = 0; i < logTrace.size(); ++i) {
+      sequence.push_back(logTrace[i]);
+    }
+  }
+
+  return sequence;
+}
+
+void H5vccCrashLog::ClearLog() {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) {
+    watchdog->ClearLog();
+  }
 }
 
 }  // namespace h5vcc

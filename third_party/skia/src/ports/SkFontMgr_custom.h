@@ -38,7 +38,7 @@ private:
     const SkString fFamilyName;
     const int fIndex;
 
-    typedef SkTypeface_FreeType INHERITED;
+    using INHERITED = SkTypeface_FreeType;
 };
 
 /** The empty SkTypeface implementation for the custom font manager.
@@ -51,9 +51,10 @@ public:
 protected:
     std::unique_ptr<SkStreamAsset> onOpenStream(int*) const override;
     sk_sp<SkTypeface> onMakeClone(const SkFontArguments& args) const override;
+    std::unique_ptr<SkFontData> onMakeFontData() const override;
 
 private:
-    typedef SkTypeface_Custom INHERITED;
+    using INHERITED = SkTypeface_Custom;
 };
 
 /** The stream SkTypeface implementation for the custom font manager. */
@@ -67,11 +68,12 @@ protected:
     std::unique_ptr<SkStreamAsset> onOpenStream(int* ttcIndex) const override;
     std::unique_ptr<SkFontData> onMakeFontData() const override;
     sk_sp<SkTypeface> onMakeClone(const SkFontArguments& args) const override;
+    void onGetFontDescriptor(SkFontDescriptor* desc, bool* isLocal) const override;
 
 private:
     const std::unique_ptr<const SkFontData> fData;
 
-    typedef SkTypeface_Custom INHERITED;
+    using INHERITED = SkTypeface_Custom;
 };
 
 /** The file SkTypeface implementation for the custom font manager. */
@@ -83,11 +85,12 @@ public:
 protected:
     std::unique_ptr<SkStreamAsset> onOpenStream(int* ttcIndex) const override;
     sk_sp<SkTypeface> onMakeClone(const SkFontArguments& args) const override;
+    std::unique_ptr<SkFontData> onMakeFontData() const override;
 
 private:
     SkString fPath;
 
-    typedef SkTypeface_Custom INHERITED;
+    using INHERITED = SkTypeface_Custom;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -143,12 +146,9 @@ protected:
     SkTypeface* onMatchFamilyStyleCharacter(const char familyName[], const SkFontStyle&,
                                             const char* bcp47[], int bcp47Count,
                                             SkUnichar character) const override;
-    SkTypeface* onMatchFaceStyle(const SkTypeface* familyMember,
-                                 const SkFontStyle& fontStyle) const override;
     sk_sp<SkTypeface> onMakeFromData(sk_sp<SkData> data, int ttcIndex) const override;
     sk_sp<SkTypeface> onMakeFromStreamIndex(std::unique_ptr<SkStreamAsset>, int ttcIndex) const override;
     sk_sp<SkTypeface> onMakeFromStreamArgs(std::unique_ptr<SkStreamAsset>, const SkFontArguments&) const override;
-    sk_sp<SkTypeface> onMakeFromFontData(std::unique_ptr<SkFontData> data) const override;
     sk_sp<SkTypeface> onMakeFromFile(const char path[], int ttcIndex) const override;
     sk_sp<SkTypeface> onLegacyMakeTypeface(const char familyName[], SkFontStyle style) const override;
 

@@ -5,6 +5,7 @@
 
 # Recipe which runs the Skia infra tests.
 
+PYTHON_VERSION_COMPATIBILITY = "PY3"
 
 DEPS = [
   'infra',
@@ -21,9 +22,8 @@ DEPS = [
 
 def RunSteps(api):
   api.vars.setup()
-  api.infra.go_version()
-  with api.infra.MetadataFetch(api, 'key', 'file'):
-    pass
+  with api.context(env=api.infra.go_env):
+    api.step('hello', cmd=['echo', 'hello world'])
 
 
 def GenTests(api):

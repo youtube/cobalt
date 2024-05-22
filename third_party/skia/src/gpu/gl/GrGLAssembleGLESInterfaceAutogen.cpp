@@ -148,6 +148,10 @@ sk_sp<const GrGLInterface> GrGLMakeAssembledGLESInterface(void *ctx, GrGLGetProc
         GET_PROC(GetStringi);
     }
 
+    if (glVer >= GR_GL_VER(3,1)) {
+        GET_PROC(MemoryBarrier);
+    }
+
     if (glVer >= GR_GL_VER(3,0)) {
         GET_PROC(BindVertexArray);
         GET_PROC(DeleteVertexArrays);
@@ -156,6 +160,12 @@ sk_sp<const GrGLInterface> GrGLMakeAssembledGLESInterface(void *ctx, GrGLGetProc
         GET_PROC_SUFFIX(BindVertexArray, OES);
         GET_PROC_SUFFIX(DeleteVertexArrays, OES);
         GET_PROC_SUFFIX(GenVertexArrays, OES);
+    }
+
+    if (glVer >= GR_GL_VER(3,2)) {
+        GET_PROC(PatchParameteri);
+    } else if (extensions.has("GL_OES_tessellation_shader")) {
+        GET_PROC_SUFFIX(PatchParameteri, OES);
     }
 
     if (glVer >= GR_GL_VER(3,0) && extensions.has("GL_EXT_blend_func_extended")) {
@@ -183,6 +193,17 @@ sk_sp<const GrGLInterface> GrGLMakeAssembledGLESInterface(void *ctx, GrGLGetProc
     } else if (extensions.has("GL_EXT_draw_instanced")) {
         GET_PROC_SUFFIX(DrawArraysInstanced, EXT);
         GET_PROC_SUFFIX(DrawElementsInstanced, EXT);
+    } else if (extensions.has("GL_ANGLE_instanced_arrays")) {
+        GET_PROC_SUFFIX(DrawArraysInstanced, ANGLE);
+        GET_PROC_SUFFIX(DrawElementsInstanced, ANGLE);
+    }
+
+    if (extensions.has("GL_EXT_base_instance")) {
+        GET_PROC_SUFFIX(DrawArraysInstancedBaseInstance, EXT);
+        GET_PROC_SUFFIX(DrawElementsInstancedBaseVertexBaseInstance, EXT);
+    } else if (extensions.has("GL_ANGLE_base_vertex_base_instance")) {
+        GET_PROC_SUFFIX(DrawArraysInstancedBaseInstance, ANGLE);
+        GET_PROC_SUFFIX(DrawElementsInstancedBaseVertexBaseInstance, ANGLE);
     }
 
     if (glVer >= GR_GL_VER(3,0)) {
@@ -193,6 +214,11 @@ sk_sp<const GrGLInterface> GrGLMakeAssembledGLESInterface(void *ctx, GrGLGetProc
     if (glVer >= GR_GL_VER(3,1)) {
         GET_PROC(DrawArraysIndirect);
         GET_PROC(DrawElementsIndirect);
+    }
+
+    if (extensions.has("GL_ANGLE_base_vertex_base_instance")) {
+        GET_PROC_SUFFIX(MultiDrawArraysInstancedBaseInstance, ANGLE);
+        GET_PROC_SUFFIX(MultiDrawElementsInstancedBaseVertexBaseInstance, ANGLE);
     }
 
     if (glVer >= GR_GL_VER(3,0)) {
@@ -251,6 +277,8 @@ sk_sp<const GrGLInterface> GrGLMakeAssembledGLESInterface(void *ctx, GrGLGetProc
         GET_PROC(VertexAttribDivisor);
     } else if (extensions.has("GL_EXT_instanced_arrays")) {
         GET_PROC_SUFFIX(VertexAttribDivisor, EXT);
+    } else if (extensions.has("GL_ANGLE_instanced_arrays")) {
+        GET_PROC_SUFFIX(VertexAttribDivisor, ANGLE);
     }
 
     if (glVer >= GR_GL_VER(3,0)) {
@@ -273,6 +301,8 @@ sk_sp<const GrGLInterface> GrGLMakeAssembledGLESInterface(void *ctx, GrGLGetProc
 
     if (glVer >= GR_GL_VER(3,0)) {
         GET_PROC(BlitFramebuffer);
+    } else if (extensions.has("GL_NV_framebuffer_blit")) {
+        GET_PROC_SUFFIX(BlitFramebuffer, NV);
     } else if (extensions.has("GL_CHROMIUM_framebuffer_multisample")) {
         GET_PROC_SUFFIX(BlitFramebuffer, CHROMIUM);
     } else if (extensions.has("GL_ANGLE_framebuffer_blit")) {
@@ -335,66 +365,6 @@ sk_sp<const GrGLInterface> GrGLMakeAssembledGLESInterface(void *ctx, GrGLGetProc
         GET_PROC_SUFFIX(InsertEventMarker, EXT);
         GET_PROC_SUFFIX(PopGroupMarker, EXT);
         GET_PROC_SUFFIX(PushGroupMarker, EXT);
-    }
-
-    if (glVer >= GR_GL_VER(3,1)) {
-        GET_PROC(GetProgramResourceLocation);
-    }
-
-    if (extensions.has("GL_CHROMIUM_path_rendering")) {
-        GET_PROC_SUFFIX(MatrixLoadIdentity, CHROMIUM);
-        GET_PROC_SUFFIX(MatrixLoadf, CHROMIUM);
-    } else if (extensions.has("GL_NV_path_rendering")) {
-        GET_PROC_SUFFIX(MatrixLoadIdentity, EXT);
-        GET_PROC_SUFFIX(MatrixLoadf, EXT);
-    }
-
-    if (extensions.has("GL_CHROMIUM_path_rendering")) {
-        GET_PROC_SUFFIX(CoverFillPath, CHROMIUM);
-        GET_PROC_SUFFIX(CoverFillPathInstanced, CHROMIUM);
-        GET_PROC_SUFFIX(CoverStrokePath, CHROMIUM);
-        GET_PROC_SUFFIX(CoverStrokePathInstanced, CHROMIUM);
-        GET_PROC_SUFFIX(DeletePaths, CHROMIUM);
-        GET_PROC_SUFFIX(GenPaths, CHROMIUM);
-        GET_PROC_SUFFIX(IsPath, CHROMIUM);
-        GET_PROC_SUFFIX(PathCommands, CHROMIUM);
-        GET_PROC_SUFFIX(PathParameterf, CHROMIUM);
-        GET_PROC_SUFFIX(PathParameteri, CHROMIUM);
-        GET_PROC_SUFFIX(PathStencilFunc, CHROMIUM);
-        GET_PROC_SUFFIX(ProgramPathFragmentInputGen, CHROMIUM);
-        GET_PROC_SUFFIX(StencilFillPath, CHROMIUM);
-        GET_PROC_SUFFIX(StencilFillPathInstanced, CHROMIUM);
-        GET_PROC_SUFFIX(StencilStrokePath, CHROMIUM);
-        GET_PROC_SUFFIX(StencilStrokePathInstanced, CHROMIUM);
-        GET_PROC_SUFFIX(StencilThenCoverFillPath, CHROMIUM);
-        GET_PROC_SUFFIX(StencilThenCoverFillPathInstanced, CHROMIUM);
-        GET_PROC_SUFFIX(StencilThenCoverStrokePath, CHROMIUM);
-        GET_PROC_SUFFIX(StencilThenCoverStrokePathInstanced, CHROMIUM);
-    } else if (extensions.has("GL_NV_path_rendering")) {
-        GET_PROC_SUFFIX(CoverFillPath, NV);
-        GET_PROC_SUFFIX(CoverFillPathInstanced, NV);
-        GET_PROC_SUFFIX(CoverStrokePath, NV);
-        GET_PROC_SUFFIX(CoverStrokePathInstanced, NV);
-        GET_PROC_SUFFIX(DeletePaths, NV);
-        GET_PROC_SUFFIX(GenPaths, NV);
-        GET_PROC_SUFFIX(IsPath, NV);
-        GET_PROC_SUFFIX(PathCommands, NV);
-        GET_PROC_SUFFIX(PathParameterf, NV);
-        GET_PROC_SUFFIX(PathParameteri, NV);
-        GET_PROC_SUFFIX(PathStencilFunc, NV);
-        GET_PROC_SUFFIX(ProgramPathFragmentInputGen, NV);
-        GET_PROC_SUFFIX(StencilFillPath, NV);
-        GET_PROC_SUFFIX(StencilFillPathInstanced, NV);
-        GET_PROC_SUFFIX(StencilStrokePath, NV);
-        GET_PROC_SUFFIX(StencilStrokePathInstanced, NV);
-        GET_PROC_SUFFIX(StencilThenCoverFillPath, NV);
-        GET_PROC_SUFFIX(StencilThenCoverFillPathInstanced, NV);
-        GET_PROC_SUFFIX(StencilThenCoverStrokePath, NV);
-        GET_PROC_SUFFIX(StencilThenCoverStrokePathInstanced, NV);
-    }
-
-    if (extensions.has("GL_CHROMIUM_path_rendering")) {
-        GET_PROC_SUFFIX(BindFragmentInputLocation, CHROMIUM);
     }
 
     if (extensions.has("GL_CHROMIUM_framebuffer_mixed_samples")) {
@@ -486,6 +456,14 @@ sk_sp<const GrGLInterface> GrGLMakeAssembledGLESInterface(void *ctx, GrGLGetProc
 
     GET_PROC(GetShaderPrecisionFormat);
 
+    if (extensions.has("GL_NV_fence")) {
+        GET_PROC_SUFFIX(DeleteFences, NV);
+        GET_PROC_SUFFIX(FinishFence, NV);
+        GET_PROC_SUFFIX(GenFences, NV);
+        GET_PROC_SUFFIX(SetFence, NV);
+        GET_PROC_SUFFIX(TestFence, NV);
+    }
+
 
     // End autogenerated content
     // TODO(kjlubick): Do we want a feature that removes the extension if it doesn't have
@@ -504,6 +482,6 @@ sk_sp<const GrGLInterface> GrGLMakeAssembledGLESInterface(void *ctx, GrGLGetProc
     interface->fStandard = kGLES_GrGLStandard;
     interface->fExtensions.swap(&extensions);
 
-    return interface;
+    return std::move(interface);
 }
 #endif

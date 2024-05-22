@@ -21,14 +21,16 @@
 #include "starboard/extension/font.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/graphics.h"
-#include "starboard/extension/h5vcc_config.h"
 #include "starboard/extension/ifa.h"
 #include "starboard/extension/installation_manager.h"
 #include "starboard/extension/javascript_cache.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/player_configuration.h"
+#include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/time_zone.h"
 #include "starboard/extension/updater_notification.h"
 #include "starboard/extension/url_fetcher_observer.h"
@@ -482,9 +484,10 @@ TEST(ExtensionTest, Ifa) {
       << "Extension struct should be a singleton";
 }
 
-TEST(ExtensionTest, H5vccConfig) {
-  typedef StarboardExtensionH5vccConfigApi ExtensionApi;
-  const char* kExtensionName = kStarboardExtensionH5vccConfigName;
+TEST(ExtensionTest, PlayerSetMaxVideoInputSize) {
+  typedef StarboardExtensionPlayerSetMaxVideoInputSizeApi ExtensionApi;
+  const char* kExtensionName =
+      kStarboardExtensionPlayerSetMaxVideoInputSizeName;
 
   const ExtensionApi* extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
@@ -494,12 +497,71 @@ TEST(ExtensionTest, H5vccConfig) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
-  EXPECT_NE(extension_api->EnableBackgroundPlayback, nullptr);
+  EXPECT_NE(extension_api->SetMaxVideoInputSizeForCurrentThread, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   EXPECT_EQ(second_extension_api, extension_api)
       << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, LoaderAppMetrics) {
+  typedef StarboardExtensionLoaderAppMetricsApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionLoaderAppMetricsName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_GE(extension_api->version, 1u);
+  EXPECT_LE(extension_api->version, 2u);
+  EXPECT_NE(extension_api->SetCrashpadInstallationStatus, nullptr);
+  EXPECT_NE(extension_api->GetCrashpadInstallationStatus, nullptr);
+
+  if (extension_api->version >= 2) {
+    EXPECT_NE(extension_api->SetElfLibraryStoredCompressed, nullptr);
+    EXPECT_NE(extension_api->GetElfLibraryStoredCompressed, nullptr);
+
+    EXPECT_NE(extension_api->SetElfLoadDurationMicroseconds, nullptr);
+    EXPECT_NE(extension_api->GetElfLoadDurationMicroseconds, nullptr);
+
+    EXPECT_NE(extension_api->SetElfDecompressionDurationMicroseconds, nullptr);
+    EXPECT_NE(extension_api->GetElfDecompressionDurationMicroseconds, nullptr);
+
+    EXPECT_NE(extension_api->RecordUsedCpuBytesDuringElfLoad, nullptr);
+    EXPECT_NE(extension_api->GetMaxSampledUsedCpuBytesDuringElfLoad, nullptr);
+  }
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, PlayerConfiguration) {
+  typedef StarboardExtensionPlayerConfigurationApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionPlayerConfigurationName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+
+  if (extension_api->SetDecodeToTexturePreferred) {
+    extension_api->SetDecodeToTexturePreferred(true);
+    extension_api->SetDecodeToTexturePreferred(false);
+  }
+  if (extension_api->SetTunnelModePreferred) {
+    extension_api->SetTunnelModePreferred(true);
+    extension_api->SetTunnelModePreferred(false);
+  }
 }
 
 }  // namespace extension

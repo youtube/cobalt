@@ -17,7 +17,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"

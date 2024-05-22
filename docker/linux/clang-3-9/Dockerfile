@@ -24,7 +24,15 @@ RUN apt update -qqy \
     && add-apt-repository -y ppa:savoury1/backports \
     && apt update -qqy \
     && apt install -qqy --no-install-recommends git nasm \
+        python3.8 python3.8-dev python3.8-venv \
     && /opt/clean-after-apt.sh
 
-CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" using_old_compiler=true" && \
+# TODO(b/338650174): Upgrade the base linux distro to avoid backporting python
+# 3.8 manually. Additionally, this involves upgrading clang or backporting
+# the current version (3.9) to the new distro.
+RUN python3.8 -m venv /python38_env
+ENV VIRTUAL_ENV /python38_env
+ENV PATH /python38_env/bin:$PATH
+
+CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" using_old_compiler=true build_with_separate_cobalt_toolchain=true" && \
     ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_install}

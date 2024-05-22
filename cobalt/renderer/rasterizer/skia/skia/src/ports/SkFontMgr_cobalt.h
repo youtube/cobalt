@@ -68,6 +68,8 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   // Loads the font that matches the suggested script for the device's locale.
   void LoadLocaleDefault();
+  // Clears the font that matches the suggested script for the device's locale.
+  void ClearLocaleDefault();
 
  protected:
   // From SkFontMgr
@@ -101,11 +103,9 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   sk_sp<SkTypeface> onMakeFromData(sk_sp<SkData> data,
                                    int face_index) const override;
 
-#ifdef USE_SKIA_NEXT
   // NOTE: This returns NULL if the typeface cannot be created.
   sk_sp<SkTypeface> onMakeFromStreamArgs(std::unique_ptr<SkStreamAsset>,
                                          const SkFontArguments&) const override;
-#endif
 
   // NOTE: This returns NULL if the typeface cannot be created.
   sk_sp<SkTypeface> onMakeFromStreamIndex(std::unique_ptr<SkStreamAsset> stream,
@@ -172,6 +172,9 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   // List of default families that are used when no specific match is found
   // during a request.
   std::vector<SkFontStyleSet_Cobalt*> default_families_;
+
+  // List of initial families used for all locales.
+  std::vector<SkFontStyleSet_Cobalt*> initial_families_;
 
   // Used to delay font loading until default fonts are fully loaded.
   base::WaitableEvent default_fonts_loaded_event_;

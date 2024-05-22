@@ -32,13 +32,13 @@ InputPollerImpl::InputPollerImpl() : InputPoller() {
 }
 
 bool InputPollerImpl::IsPressed(SbKey keycode) {
-  starboard::ScopedLock lock(input_mutex_);
+  base::AutoLock lock(input_mutex_);
 
   return pressed_keys_.find(keycode) != pressed_keys_.end();
 }
 
 float InputPollerImpl::AnalogInput(SbKey analog_input_id) {
-  starboard::ScopedLock lock(input_mutex_);
+  base::AutoLock lock(input_mutex_);
 
   KeyOffsetMap::const_iterator found = key_offset_map_.find(analog_input_id);
   if (found == key_offset_map_.end()) {
@@ -50,7 +50,7 @@ float InputPollerImpl::AnalogInput(SbKey analog_input_id) {
 
 void InputPollerImpl::UpdateInputEvent(
     const system_window::InputEvent* input_event) {
-  starboard::ScopedLock lock(input_mutex_);
+  base::AutoLock lock(input_mutex_);
 
   switch (input_event->type()) {
     case system_window::InputEvent::kKeyDown:

@@ -7,6 +7,7 @@ on:
         type: choice
         description: Branch
         options:
+          - '25.lts.1+'
           - '24.lts.1+'
           - '23.lts.1+'
           - '22.lts.1+'

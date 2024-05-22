@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -275,31 +275,58 @@ sub ::asciz
 
 sub ::asm_finish
 {   &file_end();
-    my $comment = "#";
-    $comment = ";" if ($win32 || $netware);
+    my $comment = "//";
+    $comment = ";" if ($win32);
     print <<___;
 $comment This file is generated from a similarly-named Perl script in the BoringSSL
 $comment source tree. Do not edit by hand.
 
 ___
-    if ($win32 || $netware) {
+    if ($win32) {
         print <<___ unless $masm;
-%ifdef BORINGSSL_PREFIX
-%include "boringssl_prefix_symbols_nasm.inc"
-%endif
+\%ifdef BORINGSSL_PREFIX
+\%include "boringssl_prefix_symbols_nasm.inc"
+\%endif
+\%ifidn __OUTPUT_FORMAT__, win32
+___
+        print @out;
+        print <<___ unless $masm;
+\%else
+; Work around https://bugzilla.nasm.us/show_bug.cgi?id=3392738
+ret
+\%endif
 ___
     } else {
+        my $target;
+        if ($elf) {
+            $target = "defined(__ELF__)";
+        } elsif ($macosx) {
+            $target = "defined(__APPLE__)";
+        } else {
+            die "unknown target";
+        }
+
         print <<___;
-#if defined(__i386__)
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
+#define OPENSSL_NO_ASM
+#endif
+#endif
+
+#if !defined(OPENSSL_NO_ASM) && defined(__i386__) && $target
 #if defined(BORINGSSL_PREFIX)
 #include <boringssl_prefix_symbols_asm.h>
 #endif
 ___
+        print @out;
+        print <<___;
+#endif  // !defined(OPENSSL_NO_ASM) && defined(__i386__) && $target
+#if defined(__ELF__)
+// See https://www.airs.com/blog/archives/518.
+.section .note.GNU-stack,"",\%progbits
+#endif
+___
     }
-    print @out;
-    print "#endif\n" unless ($win32 || $netware);
-    # See https://www.airs.com/blog/archives/518.
-    print ".section\t.note.GNU-stack,\"\",\@progbits\n" if ($elf);
 }
 
 sub ::asm_init
@@ -307,7 +334,7 @@ sub ::asm_init
 
     $i386=$cpu;
 
-    $elf=$cpp=$coff=$aout=$macosx=$win32=$netware=$mwerks=$android=0;
+    $elf=$cpp=$coff=$aout=$macosx=$win32=$mwerks=$android=0;
     if    (($type eq "elf"))
     {	$elf=1;			require "x86gas.pl";	}
     elsif (($type eq "elf-1"))
@@ -318,10 +345,6 @@ sub ::asm_init
     {	$coff=1;		require "x86gas.pl";	}
     elsif (($type eq "win32n"))
     {	$win32=1;		require "x86nasm.pl";	}
-    elsif (($type eq "nw-nasm"))
-    {	$netware=1;		require "x86nasm.pl";	}
-    #elsif (($type eq "nw-mwasm"))
-    #{	$netware=1; $mwerks=1;	require "x86nasm.pl";	}
     elsif (($type eq "win32"))
     {	$win32=1; $masm=1;	require "x86masm.pl";	}
     elsif (($type eq "macosx"))
@@ -335,7 +358,6 @@ Pick one target type from
 	a.out	- DJGPP, elder OpenBSD, etc.
 	coff	- GAS/COFF such as Win32 targets
 	win32n	- Windows 95/Windows NT NASM format
-	nw-nasm - NetWare NASM format
 	macosx	- Mac OS X
 EOF
 	exit(1);

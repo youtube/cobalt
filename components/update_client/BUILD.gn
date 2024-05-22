@@ -103,6 +103,8 @@ static_library("update_client") {
   ]
 }
 
+if (sb_is_evergreen) {
+
 static_library("test_support") {
   testonly = true
   sources = [
@@ -118,6 +120,12 @@ static_library("test_support") {
     "unzip/unzip_impl_cobalt.cc",
     "unzip/unzip_impl_cobalt.h",
   ]
+
+  if (cobalt_pending_clean_up) {
+    sources -= [
+      "net/url_request_post_interceptor.cc",
+    ]
+  }
 
   deps = [
     ":update_client",
@@ -200,13 +208,22 @@ target(gtest_target_type, "update_client_test") {
     "utils_unittest.cc",
   ]
 
+  if (cobalt_pending_clean_up) {
+    sources -= [
+      "crx_downloader_unittest.cc",
+      "ping_manager_unittest.cc",
+      "update_checker_unittest.cc",
+    ]
+  }
+
   deps = [
     ":test_support",
     ":update_client",
     ":update_client_test_files",
+    "//chrome/updater",
     "//cobalt/base",
+    "//cobalt/network",
     "//cobalt/test:run_all_unittests",
-    "//cobalt/updater",
     "//components/crx_file",
     "//components/prefs",
     "//components/prefs:test_support",
@@ -231,8 +248,8 @@ target(gtest_target_type, "cobalt_slot_management_test") {
 
   deps = [
     ":update_client",
+    "//chrome/updater",
     "//cobalt/base",
-    "//cobalt/updater",
     "//components/crx_file",
     "//components/prefs",
     "//components/prefs:test_support",
@@ -240,11 +257,11 @@ target(gtest_target_type, "cobalt_slot_management_test") {
     "//net:test_support",
     "//starboard/loader_app:app_key_files",
     "//starboard/loader_app:drain_file",
+    "//starboard/loader_app:drain_file_helper",
     "//starboard/loader_app:installation_manager",
     "//testing/gmock",
     "//testing/gtest",
-
-    # TODO: b/296919440 - Make this a data dep 
-    "//starboard/loader_app($starboard_toolchain)",
   ]
+}  # sb_is_evergreen
+
 }

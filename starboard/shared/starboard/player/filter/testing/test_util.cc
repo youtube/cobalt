@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 
+#include <unistd.h>
+
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/directory.h"
@@ -200,7 +202,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
           test_params.push_back(std::make_tuple(filename, output_mode));
           break;
         } else if (need_to_check_with_wait && !decoder_has_been_checked_once) {
-          SbThreadSleep(1'000'000);
+          usleep(1'000'000);
         } else {
           break;
         }
@@ -215,10 +217,11 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
   return test_params;
 }
 
-bool CreateAudioComponents(bool using_stub_decoder,
-                           const media::AudioStreamInfo& audio_stream_info,
-                           scoped_ptr<AudioDecoder>* audio_decoder,
-                           scoped_ptr<AudioRendererSink>* audio_renderer_sink) {
+bool CreateAudioComponents(
+    bool using_stub_decoder,
+    const media::AudioStreamInfo& audio_stream_info,
+    unique_ptr_alias<AudioDecoder>* audio_decoder,
+    unique_ptr_alias<AudioRendererSink>* audio_renderer_sink) {
   SB_CHECK(audio_decoder);
   SB_CHECK(audio_renderer_sink);
 
@@ -228,7 +231,7 @@ bool CreateAudioComponents(bool using_stub_decoder,
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info);
 
-  scoped_ptr<PlayerComponents::Factory> factory;
+  unique_ptr_alias<PlayerComponents::Factory> factory;
   if (using_stub_decoder) {
     factory = StubPlayerComponentsFactory::Create();
   } else {

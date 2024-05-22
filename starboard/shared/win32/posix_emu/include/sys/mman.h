@@ -39,4 +39,5 @@ int msync(void*, size_t, int);
 #ifdef __cplusplus
 }
 #endif
+
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_MMAN_H_

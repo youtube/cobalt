@@ -31,7 +31,7 @@ static void check_inval(skiatest::Reporter* reporter, const sk_sp<sksg::Node>& r
     sksg::InvalidationController ic;
     const auto bbox = root->revalidate(&ic, SkMatrix::I());
 
-    if (0) {
+    if ((false)) {
         SkDebugf("** bbox: [%f %f %f %f], ibbox: [%f %f %f %f]\n",
                  bbox.fLeft, bbox.fTop, bbox.fRight, bbox.fBottom,
                  ic.bounds().left(), ic.bounds().top(), ic.bounds().right(), ic.bounds().bottom());
@@ -46,7 +46,7 @@ static void check_inval(skiatest::Reporter* reporter, const sk_sp<sksg::Node>& r
         for (size_t i = 0; i < std::min(expected_damage->size(), damage_count); ++i) {
             const auto r1 = (*expected_damage)[i],
                        r2 = ic.begin()[i];
-            if (0) {
+            if ((false)) {
                 SkDebugf("*** expected inval: [%f %f %f %f], actual: [%f %f %f %f]\n",
                          r1.left(), r1.top(), r1.right(), r1.bottom(),
                          r2.left(), r2.top(), r2.right(), r2.bottom());
@@ -167,7 +167,7 @@ static void inval_test1(skiatest::Reporter* reporter) {
 
     {
         // Update transform.
-        matrix->setMatrix(SkMatrix::MakeScale(2, 2));
+        matrix->setMatrix(SkMatrix::Scale(2, 2));
         std::vector<SkRect> damage = { {0, 0, 300, 200}, { 0, 0, 600, 400} };
         check_inval(reporter, root,
                     SkRect::MakeWH(600, 400),
@@ -250,7 +250,7 @@ static void inval_test2(skiatest::Reporter* reporter) {
 
     {
         // Update m2.
-        m2->setMatrix(SkMatrix::MakeScale(2, 2));
+        m2->setMatrix(SkMatrix::Scale(2, 2));
         std::vector<SkRect> damage = { {0, 0, 100, 100}, { 0, 0, 200, 200} };
         check_inval(reporter, root,
                     SkRect::MakeWH(200, 200),
@@ -260,7 +260,7 @@ static void inval_test2(skiatest::Reporter* reporter) {
 
     {
         // Update shared m1.
-        m1->setMatrix(SkMatrix::MakeTrans(100, 100));
+        m1->setMatrix(SkMatrix::Translate(100, 100));
         std::vector<SkRect> damage = { {   0,   0, 200, 200},   // draw1 prev bounds
                                        { 100, 100, 300, 300},   // draw1 new bounds
                                        {   0,   0, 100, 100},   // draw2 prev bounds

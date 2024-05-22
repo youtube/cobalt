@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/macros.h"
 #include "cobalt/loader/loader_types.h"
 #include "cobalt/web/url_utils.h"
 #include "net/base/load_timing_info.h"

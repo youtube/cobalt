@@ -8,6 +8,7 @@
 
 import calendar
 
+PYTHON_VERSION_COMPATIBILITY = "PY3"
 
 DEPS = [
   'recipe_engine/file',
@@ -81,7 +82,7 @@ def RunSteps(api):
 
 
 def GenTests(api):
-  builder = 'Upload-Test-Debian9-Clang-GCE-CPU-AVX2-x86_64-Debug-All'
+  builder = 'Upload-Test-Debian10-Clang-GCE-CPU-AVX2-x86_64-Debug-All'
   yield (
     api.test('normal_bot') +
     api.properties(buildername=builder,

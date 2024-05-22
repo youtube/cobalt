@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 
+#include "base/bind.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "base/command_line.h"
 #endif
@@ -55,9 +56,8 @@ bool ShouldLogTimedTrace() {
 JSONFileOutputter::JSONFileOutputter(const base::FilePath& output_path)
     : output_path_(output_path),
       output_trace_event_call_count_(0),
-      file_(base::kInvalidPlatformFile) {
-  file_ = SbFileOpen(output_path.value().c_str(),
-                     kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+      file_(output_path, base::File::Flags::FLAG_OPEN_ALWAYS |
+                             base::File::Flags::FLAG_WRITE) {
   if (GetError()) {
     DLOG(ERROR) << "Unable to open file for writing: " << output_path.value();
   } else {
@@ -93,7 +93,7 @@ bool JSONFileOutputter::Output(base::trace_event::TraceLog* trace_log) {
   // will call OutputTraceData(), possibly multiple times.  We have to do this
   // on a thread as there will be task posted to the current thread for data
   // writing.
-  thread.message_loop()->task_runner()->PostTask(
+  thread.task_runner()->PostTask(
       FROM_HERE,
       base::BindRepeating(&base::trace_event::TraceLog::Flush,
                           base::Unretained(trace_log), output_callback, false));
@@ -135,7 +135,7 @@ void JSONFileOutputter::Write(const char* buffer, int length) {
     return;
   }
 
-  int count = SbFileWrite(file_, buffer, length);
+  int count = file_.WriteAtCurrentPos(buffer, length);
   base::RecordFileWriteStat(count);
   if (count < 0) {
     Close();
@@ -147,8 +147,7 @@ void JSONFileOutputter::Close() {
     return;
   }
 
-  SbFileClose(file_);
-  file_ = base::kInvalidPlatformFile;
+  file_.Close();
 }
 
 }  // namespace trace_event

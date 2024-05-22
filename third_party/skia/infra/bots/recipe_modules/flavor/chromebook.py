@@ -5,8 +5,8 @@
 
 from recipe_engine import recipe_api
 
-import default
-import ssh
+from . import default
+from . import ssh
 
 
 """Chromebook flavor, used for running code on Chromebooks."""
@@ -14,8 +14,8 @@ import ssh
 
 class ChromebookFlavor(ssh.SSHFlavor):
 
-  def __init__(self, m):
-    super(ChromebookFlavor, self).__init__(m)
+  def __init__(self, m, app_name):
+    super(ChromebookFlavor, self).__init__(m, app_name)
     self.chromeos_homedir = '/home/chronos/user/'
     self.device_dirs = default.DeviceDirs(
       bin_dir        = self.chromeos_homedir + 'bin',
@@ -46,7 +46,8 @@ class ChromebookFlavor(ssh.SSHFlavor):
     import sys
     src = sys.argv[1] + '/*'
     dest   = sys.argv[2]
-    print subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)
+    print(subprocess.check_output(
+        'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))
     """, args=[src, dest], infra_step=True)
 
   def copy_directory_contents_to_device(self, host_path, device_path):

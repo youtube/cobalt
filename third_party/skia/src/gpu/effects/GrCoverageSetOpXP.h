@@ -36,15 +36,29 @@ private:
 
     sk_sp<const GrXferProcessor> makeXferProcessor(const GrProcessorAnalysisColor&,
                                                    GrProcessorAnalysisCoverage,
-                                                   bool hasMixedSamples,
                                                    const GrCaps&,
                                                    GrClampType) const override;
 
-    AnalysisProperties analysisProperties(const GrProcessorAnalysisColor&,
-                                          const GrProcessorAnalysisCoverage&,
+    AnalysisProperties analysisProperties(const GrProcessorAnalysisColor& color,
+                                          const GrProcessorAnalysisCoverage& coverage,
                                           const GrCaps&,
                                           GrClampType) const override {
-        return AnalysisProperties::kIgnoresInputColor;
+        auto props = AnalysisProperties::kIgnoresInputColor;
+        switch (fRegionOp) {
+            case SkRegion::kReplace_Op:
+                props |= AnalysisProperties::kUnaffectedByDstValue;
+                break;
+            case SkRegion::kUnion_Op:
+            case SkRegion::kDifference_Op:
+                // FIXME: If we can formalize the fact that this op only operates on alpha, we can
+                // set AnalysisProperties::kUnaffectedByDstValue if color/coverage are all opaque.
+                break;
+            case SkRegion::kIntersect_Op:
+            case SkRegion::kXOR_Op:
+            case SkRegion::kReverseDifference_Op:
+                break;
+        }
+        return props;
     }
 
 
@@ -53,7 +67,7 @@ private:
     SkRegion::Op fRegionOp;
     bool         fInvertCoverage;
 
-    typedef GrXPFactory INHERITED;
+    using INHERITED = GrXPFactory;
 };
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop

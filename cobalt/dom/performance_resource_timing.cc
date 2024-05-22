@@ -56,19 +56,19 @@ DOMHighResTimeStamp PerformanceResourceTiming::fetch_start() const {
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup_start() const {
-  if (timing_info_.connect_timing.dns_start.is_null()) {
+  if (timing_info_.connect_timing.domain_lookup_start.is_null()) {
     return PerformanceEntry::start_time();
   }
   return Performance::MonotonicTimeToDOMHighResTimeStamp(
-      time_origin_, timing_info_.connect_timing.dns_start);
+      time_origin_, timing_info_.connect_timing.domain_lookup_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup_end() const {
-  if (timing_info_.connect_timing.dns_end.is_null()) {
+  if (timing_info_.connect_timing.domain_lookup_end.is_null()) {
     return PerformanceEntry::start_time();
   }
   return Performance::MonotonicTimeToDOMHighResTimeStamp(
-      time_origin_, timing_info_.connect_timing.dns_end);
+      time_origin_, timing_info_.connect_timing.domain_lookup_end);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::connect_start() const {

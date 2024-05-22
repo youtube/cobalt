@@ -6,6 +6,7 @@
  */
 
 #include "bench/Benchmark.h"
+#include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkFont.h"
 #include "include/core/SkSurface.h"
@@ -32,15 +33,14 @@ protected:
     void makeBitmap() {
         const int w = this->isSmall() ? FILTER_WIDTH_SMALL : FILTER_WIDTH_LARGE;
         const int h = this->isSmall() ? FILTER_HEIGHT_SMALL : FILTER_HEIGHT_LARGE;
-        fBitmap.allocN32Pixels(w, h);
-        SkCanvas canvas(fBitmap);
-        canvas.clear(0x00000000);
+        auto surf = SkSurface::MakeRasterN32Premul(w, h);
         SkPaint paint;
         paint.setColor(0xFF884422);
 
         SkFont font;
         font.setSize(SkIntToScalar(96));
-        canvas.drawSimpleText("g", 1, SkTextEncoding::kUTF8, SkIntToScalar(15), SkIntToScalar(55), font, paint);
+        surf->getCanvas()->drawSimpleText("g", 1, SkTextEncoding::kUTF8, 15, 55, font, paint);
+        fImage = surf->makeImageSnapshot();
     }
 
     void makeCheckerboard() {
@@ -70,22 +70,19 @@ protected:
 
     void drawClippedBitmap(SkCanvas* canvas, int x, int y, const SkPaint& paint) {
         canvas->save();
-        canvas->clipRect(SkRect::MakeXYWH(SkIntToScalar(x), SkIntToScalar(y),
-                                          SkIntToScalar(fBitmap.width()),
-                                          SkIntToScalar(fBitmap.height())));
-        canvas->drawBitmap(fBitmap, SkIntToScalar(x), SkIntToScalar(y), &paint);
+        canvas->clipIRect(fImage->bounds().makeOffset(x, y));
+        canvas->drawImage(fImage, SkIntToScalar(x), SkIntToScalar(y), SkSamplingOptions(), &paint);
         canvas->restore();
     }
 
     inline bool isSmall() const { return fIsSmall; }
 
-    SkBitmap fBitmap;
-    sk_sp<SkImage> fCheckerboard;
+    sk_sp<SkImage> fImage, fCheckerboard;
 
 private:
     bool fInitialized;
     bool fIsSmall;
-    typedef Benchmark INHERITED;
+    using INHERITED = Benchmark;
 };
 
 class DisplacementZeroBench : public DisplacementBaseBench {
@@ -110,7 +107,7 @@ protected:
     }
 
 private:
-    typedef DisplacementBaseBench INHERITED;
+    using INHERITED = DisplacementBaseBench;
 };
 
 class DisplacementAlphaBench : public DisplacementBaseBench {
@@ -134,7 +131,7 @@ protected:
     }
 
 private:
-    typedef DisplacementBaseBench INHERITED;
+    using INHERITED = DisplacementBaseBench;
 };
 
 class DisplacementFullBench : public DisplacementBaseBench {
@@ -158,7 +155,7 @@ protected:
     }
 
 private:
-    typedef DisplacementBaseBench INHERITED;
+    using INHERITED = DisplacementBaseBench;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

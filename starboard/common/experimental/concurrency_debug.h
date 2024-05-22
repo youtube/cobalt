@@ -65,7 +65,8 @@ class ThreadTracker {
     }
 
     char name[kSbMaxThreadNameLength + 1];
-    SbThreadGetName(name, kSbMaxThreadNameLength);
+
+    pthread_getname_np(pthread_self(), name, kSbMaxThreadNameLength);
 
     int64_t thread_now = starboard::CurrentMonotonicThreadTime();
     SB_LOG(INFO) << "Thread " << name << " uses "

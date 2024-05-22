@@ -14,6 +14,8 @@
 
 #include "starboard/loader_app/drain_file_helper.h"
 
+#include <sys/stat.h>
+
 #include "starboard/common/file.h"
 #include "starboard/loader_app/drain_file.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -43,7 +45,8 @@ ScopedDrainFile::~ScopedDrainFile() {
 }
 
 bool ScopedDrainFile::Exists() const {
-  return SbFileExists(path_.c_str());
+  struct stat info;
+  return stat(path_.c_str(), &info) == 0;
 }
 
 const std::string& ScopedDrainFile::app_key() const {

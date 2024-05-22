@@ -1,19 +1,18 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_CERT_MERKLE_CONSISTENCY_PROOF_H_
 #define NET_CERT_MERKLE_CONSISTENCY_PROOF_H_
 
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
-namespace net {
-
-namespace ct {
+namespace net::ct {
 
 // Consistency proof between two STHs as defined in section 2.1.2. of RFC6962.
 struct NET_EXPORT MerkleConsistencyProof {
@@ -37,8 +36,6 @@ struct NET_EXPORT MerkleConsistencyProof {
   uint64_t second_tree_size = 0;
 };
 
-}  // namespace ct
-
-}  // namespace net
+}  // namespace net::ct
 
 #endif  // NET_CERT_MERKLE_CONSISTENCY_PROOF_H_

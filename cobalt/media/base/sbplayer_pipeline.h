@@ -19,11 +19,11 @@
 #include <string>
 #include <vector>
 
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/task_runner.h"
+#include "base/task/task_runner.h"
 #include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/math/size.h"
@@ -33,20 +33,23 @@
 #include "cobalt/media/base/playback_statistics.h"
 #include "cobalt/media/base/sbplayer_bridge.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
+#include "media/base/audio_decoder_config.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/demuxer.h"
+#include "media/base/demuxer_stream.h"
+#include "media/base/media_log.h"
+#include "media/base/pipeline_status.h"
+#include "media/base/ranges.h"
+#include "media/base/video_decoder_config.h"
 #include "starboard/configuration_constants.h"
-#include "third_party/chromium/media/base/audio_decoder_config.h"
-#include "third_party/chromium/media/base/decoder_buffer.h"
-#include "third_party/chromium/media/base/demuxer.h"
-#include "third_party/chromium/media/base/demuxer_stream.h"
-#include "third_party/chromium/media/base/media_log.h"
-#include "third_party/chromium/media/base/pipeline_status.h"
-#include "third_party/chromium/media/base/ranges.h"
-#include "third_party/chromium/media/base/video_decoder_config.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
+
+using base::Time;
+using base::TimeDelta;
 
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
 // interface internally.
@@ -55,18 +58,20 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                                       public SbPlayerBridge::Host {
  public:
   // Constructs a media pipeline that will execute on |task_runner|.
-  SbPlayerPipeline(
-      SbPlayerInterface* interface, PipelineWindow window,
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-      const GetDecodeTargetGraphicsContextProviderFunc&
-          get_decode_target_graphics_context_provider_func,
-      bool allow_resume_after_suspend, bool allow_batched_sample_write,
-      bool force_punch_out_by_default,
+  SbPlayerPipeline(SbPlayerInterface* interface, PipelineWindow window,
+                   const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+                   const GetDecodeTargetGraphicsContextProviderFunc&
+                       get_decode_target_graphics_context_provider_func,
+                   bool allow_resume_after_suspend,
+                   bool allow_batched_sample_write,
+                   bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
-      int64_t audio_write_duration_local, int64_t audio_write_duration_remote,
+                   TimeDelta audio_write_duration_local,
+                   TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
-      MediaLog* media_log, MediaMetricsProvider* media_metrics_provider,
-      DecodeTargetProvider* decode_target_provider);
+                   MediaLog* media_log,
+                   MediaMetricsProvider* media_metrics_provider,
+                   DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
 
   void Suspend() override;
@@ -81,7 +86,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
              const base::Closure& duration_change_cb,
              const base::Closure& output_mode_change_cb,
              const base::Closure& content_size_change_cb,
-             const std::string& max_video_capabilities) override;
+             const std::string& max_video_capabilities,
+             const int max_video_input_size) override;
 #if SB_HAS(PLAYER_WITH_URL)
   void Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
              const OnEncryptedMediaInitDataEncounteredCB&
@@ -95,7 +101,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   void Stop(const base::Closure& stop_cb) override;
-  void Seek(base::TimeDelta time, const SeekCB& seek_cb);
+  void Seek(TimeDelta time, const SeekCB& seek_cb);
   bool HasAudio() const override;
   bool HasVideo() const override;
 
@@ -104,11 +110,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   float GetVolume() const override;
   void SetVolume(float volume) override;
 
-  base::TimeDelta GetMediaTime() override;
-  ::media::Ranges<base::TimeDelta> GetBufferedTimeRanges() override;
-  base::TimeDelta GetMediaDuration() const override;
+  TimeDelta GetMediaTime() override;
+  ::media::Ranges<TimeDelta> GetBufferedTimeRanges() override;
+  TimeDelta GetMediaDuration() const override;
 #if SB_HAS(PLAYER_WITH_URL)
-  base::TimeDelta GetMediaStartDate() const override;
+  TimeDelta GetMediaStartDate() const override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void GetNaturalVideoSize(gfx::Size* out_size) const override;
   std::vector<std::string> GetAudioConnectors() const override;
@@ -132,6 +138,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
     base::Closure output_mode_change_cb;
     base::Closure content_size_change_cb;
     std::string max_video_capabilities;
+    int max_video_input_size;
 #if SB_HAS(PLAYER_WITH_URL)
     std::string source_url;
     bool is_url_based;
@@ -141,12 +148,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void StartTask(StartTaskParameters parameters);
   void SetVolumeTask(float volume);
   void SetPlaybackRateTask(float volume);
-  void SetDurationTask(base::TimeDelta duration);
+  void SetDurationTask(TimeDelta duration);
 
   // DemuxerHost implementation.
   void OnBufferedTimeRangesChanged(
-      const ::media::Ranges<base::TimeDelta>& ranges) override;
-  void SetDuration(base::TimeDelta duration) override;
+      const ::media::Ranges<TimeDelta>& ranges) override;
+  void SetDuration(TimeDelta duration) override;
   void OnDemuxerError(PipelineStatus error) override;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -161,7 +168,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnDemuxerStreamRead(
       ::media::DemuxerStream::Type type, int max_number_buffers_to_read,
       ::media::DemuxerStream::Status status,
-      const std::vector<scoped_refptr<::media::DecoderBuffer>>& buffers);
+      const std::vector<scoped_refptr<::media::DecoderBuffer>> buffers);
   // SbPlayerBridge::Host implementation.
   void OnNeedData(::media::DemuxerStream::Type type,
                   int max_number_of_buffers_to_write) override;
@@ -182,7 +189,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Store the media time retrieved by GetMediaTime so we can cache it as an
   // estimate and avoid calling SbPlayerGetInfo too frequently.
-  void StoreMediaTime(base::TimeDelta media_time);
+  void StoreMediaTime(TimeDelta media_time);
 
   // Retrieve the statistics as a string and append to message.
   std::string AppendStatisticsString(const std::string& message) const;
@@ -205,7 +212,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   SbPlayerInterface* sbplayer_interface_;
 
   // Message loop used to execute pipeline tasks.  It is thread-safe.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // Whether we should save DecoderBuffers for resume after suspend.
   const bool allow_resume_after_suspend_;
@@ -228,7 +235,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   mutable base::Lock lock_;
 
   // Amount of available buffered data.  Set by filters.
-  ::media::Ranges<base::TimeDelta> buffered_time_ranges_;
+  ::media::Ranges<TimeDelta> buffered_time_ranges_;
 
   // True when AddBufferedByteRange() has been called more recently than
   // DidLoadingProgress().
@@ -238,12 +245,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   gfx::Size natural_size_;
 
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
-  // via SetVolume() and a task is dispatched on the message loop to notify the
+  // via SetVolume() and a task is dispatched on the task runner to notify the
   // filters.
   base::CVal<float> volume_;
 
   // Current playback rate (>= 0.0f).  This value is set immediately via
-  // SetPlaybackRate() and a task is dispatched on the message loop to notify
+  // SetPlaybackRate() and a task is dispatched on the task runner to notify
   // the filters.
   base::CVal<float> playback_rate_;
 
@@ -280,10 +287,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   bool audio_read_in_progress_ = false;
   bool audio_read_delayed_ = false;
   bool video_read_in_progress_ = false;
-  base::CVal<base::TimeDelta> duration_;
+  base::CVal<TimeDelta> duration_;
 
 #if SB_HAS(PLAYER_WITH_URL)
-  base::TimeDelta start_date_;
+  TimeDelta start_date_;
   bool is_url_based_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -297,7 +304,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Temporary callback used for Start() and Seek().
   SeekCB seek_cb_;
-  base::TimeDelta seek_time_;
+  TimeDelta seek_time_;
   std::unique_ptr<SbPlayerBridge> player_bridge_;
   bool is_initial_preroll_ = true;
   base::CVal<bool> started_;
@@ -311,46 +318,56 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   DecodeTargetProvider* decode_target_provider_;
 
 #if SB_API_VERSION >= 15
-  const int64_t audio_write_duration_local_;
-  const int64_t audio_write_duration_remote_;
+  const TimeDelta audio_write_duration_local_;
+  const TimeDelta audio_write_duration_remote_;
 
   // The two variables below should always contain the same value.  They are
   // kept as separate variables so we can keep the existing implementation as
   // is, which simplifies the implementation across multiple Starboard versions.
-  int64_t audio_write_duration_ = 0;
-  int64_t audio_write_duration_for_preroll_ = audio_write_duration_;
+  TimeDelta audio_write_duration_;
+  TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
 #else   // SB_API_VERSION >= 15
   // Read audio from the stream if |timestamp_of_last_written_audio_| is less
   // than |seek_time_| + |audio_write_duration_for_preroll_|, this effectively
   // allows 10 seconds of audio to be written to the SbPlayer after playback
   // startup or seek.
-  int64_t audio_write_duration_for_preroll_ =
-      10 * base::Time::kMicrosecondsPerSecond;
+  TimeDelta audio_write_duration_for_preroll_ = TimeDelta::FromSeconds(10);
   // Don't read audio from the stream more than |audio_write_duration_| ahead of
   // the current media time during playing.
-  int64_t audio_write_duration_ = 1 * base::Time::kMicrosecondsPerSecond;
+  TimeDelta audio_write_duration_ = TimeDelta::FromSeconds(1);
 #endif  // SB_API_VERSION >= 15
   // Only call GetMediaTime() from OnNeedData if it has been
   // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
-  static const int64_t kMediaTimeCheckInterval =
-      0.1 * base::Time::kMicrosecondsPerSecond;
+  static constexpr TimeDelta kMediaTimeCheckInterval =
+      TimeDelta::FromMicroseconds(100);
   // Timestamp for the last written audio.
-  int64_t timestamp_of_last_written_audio_ = 0;
+  TimeDelta timestamp_of_last_written_audio_;
+  // Indicates if video end of stream has been written into the underlying
+  // player.
+  bool is_video_eos_written_ = false;
 
   // Last media time reported by GetMediaTime().
-  base::CVal<int64_t> last_media_time_;
+  base::CVal<TimeDelta> last_media_time_;
   // Timestamp microseconds when we last checked the media time.
-  int64_t last_time_media_time_retrieved_ = 0;
+  Time last_time_media_time_retrieved_;
   // Counter for retrograde media time.
   size_t retrograde_media_time_counter_ = 0;
   // The maximum video playback capabilities required for the playback.
   base::CVal<std::string> max_video_capabilities_;
+  // Set the maximum size in bytes of an input buffer for video.
+  int max_video_input_size_;
 
   PlaybackStatistics playback_statistics_;
 
-  int64_t last_resume_time_ = -1;
+  Time last_resume_time_;
 
-  int64_t set_drm_system_ready_cb_time_ = -1;
+  Time set_drm_system_ready_cb_time_;
+
+  // Message to signal a capability changed error.
+  // "MEDIA_ERR_CAPABILITY_CHANGED" must be in the error message to be
+  // understood as a capability changed error. Do not change this message.
+  static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
+      "MEDIA_ERR_CAPABILITY_CHANGED";
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };

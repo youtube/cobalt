@@ -1,10 +1,15 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright 2009 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Implementation of a Windows event trace controller class.
+
 #include "base/win/event_trace_controller.h"
-#include "base/logging.h"
+
+#include "base/check.h"
+#include "base/numerics/checked_math.h"
+
+constexpr size_t kDefaultRealtimeBufferSizeKb = 16;
 
 namespace base {
 namespace win {
@@ -16,8 +21,8 @@ EtwTraceProperties::EtwTraceProperties() {
   prop->Wnode.BufferSize = sizeof(buffer_);
   prop->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
   prop->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
-  prop->LogFileNameOffset = sizeof(EVENT_TRACE_PROPERTIES) +
-                            sizeof(wchar_t) * kMaxStringLen;
+  prop->LogFileNameOffset =
+      sizeof(EVENT_TRACE_PROPERTIES) + sizeof(wchar_t) * kMaxStringLen;
 }
 
 HRESULT EtwTraceProperties::SetLoggerName(const wchar_t* logger_name) {
@@ -25,9 +30,7 @@ HRESULT EtwTraceProperties::SetLoggerName(const wchar_t* logger_name) {
   if (kMaxStringLen < len)
     return E_INVALIDARG;
 
-  memcpy(buffer_ + get()->LoggerNameOffset,
-         logger_name,
-         sizeof(wchar_t) * len);
+  memcpy(buffer_ + get()->LoggerNameOffset, logger_name, sizeof(wchar_t) * len);
   return S_OK;
 }
 
@@ -36,25 +39,23 @@ HRESULT EtwTraceProperties::SetLoggerFileName(const wchar_t* logger_file_name) {
   if (kMaxStringLen < len)
     return E_INVALIDARG;
 
-  memcpy(buffer_ + get()->LogFileNameOffset,
-         logger_file_name,
+  memcpy(buffer_ + get()->LogFileNameOffset, logger_file_name,
          sizeof(wchar_t) * len);
   return S_OK;
 }
 
-EtwTraceController::EtwTraceController() : session_(NULL) {
-}
+EtwTraceController::EtwTraceController() = default;
 
 EtwTraceController::~EtwTraceController() {
   if (session_)
-    Stop(NULL);
+    Stop(nullptr);
 }
 
 HRESULT EtwTraceController::Start(const wchar_t* session_name,
-    EtwTraceProperties* prop) {
+                                  EtwTraceProperties* prop) {
   DCHECK(NULL == session_ && session_name_.empty());
   EtwTraceProperties ignore;
-  if (prop == NULL)
+  if (prop == nullptr)
     prop = &ignore;
 
   HRESULT hr = Start(session_name, prop, &session_);
@@ -65,36 +66,40 @@ HRESULT EtwTraceController::Start(const wchar_t* session_name,
 }
 
 HRESULT EtwTraceController::StartFileSession(const wchar_t* session_name,
-    const wchar_t* logfile_path, bool realtime) {
+                                             const wchar_t* logfile_path,
+                                             bool realtime) {
   DCHECK(NULL == session_ && session_name_.empty());
 
   EtwTraceProperties prop;
   prop.SetLoggerFileName(logfile_path);
   EVENT_TRACE_PROPERTIES& p = *prop.get();
-  p.Wnode.ClientContext = 1;  // QPC timer accuracy.
+  p.Wnode.ClientContext = 1;                         // QPC timer accuracy.
   p.LogFileMode = EVENT_TRACE_FILE_MODE_SEQUENTIAL;  // Sequential log.
   if (realtime)
     p.LogFileMode |= EVENT_TRACE_REAL_TIME_MODE;
 
   p.MaximumFileSize = 100;  // 100M file size.
-  p.FlushTimer = 30;  // 30 seconds flush lag.
+  p.FlushTimer = 30;        // 30 seconds flush lag.
   return Start(session_name, &prop);
 }
 
 HRESULT EtwTraceController::StartRealtimeSession(const wchar_t* session_name,
-    size_t buffer_size) {
+                                                 size_t buffer_size) {
   DCHECK(NULL == session_ && session_name_.empty());
+
   EtwTraceProperties prop;
   EVENT_TRACE_PROPERTIES& p = *prop.get();
   p.LogFileMode = EVENT_TRACE_REAL_TIME_MODE | EVENT_TRACE_USE_PAGED_MEMORY;
-  p.FlushTimer = 1;  // flush every second.
-  p.BufferSize = 16;  // 16 K buffers.
+  p.FlushTimer = 1;   // flush every second.
+  p.BufferSize = checked_cast<ULONG>(
+      buffer_size ? buffer_size : kDefaultRealtimeBufferSizeKb);
   p.LogFileNameOffset = 0;
   return Start(session_name, &prop);
 }
 
-HRESULT EtwTraceController::EnableProvider(REFGUID provider, UCHAR level,
-    ULONG flags) {
+HRESULT EtwTraceController::EnableProvider(REFGUID provider,
+                                           UCHAR level,
+                                           ULONG flags) {
   ULONG error = ::EnableTrace(TRUE, flags, level, &provider, session_);
   return HRESULT_FROM_WIN32(error);
 }
@@ -106,11 +111,11 @@ HRESULT EtwTraceController::DisableProvider(REFGUID provider) {
 
 HRESULT EtwTraceController::Stop(EtwTraceProperties* properties) {
   EtwTraceProperties ignore;
-  if (properties == NULL)
+  if (properties == nullptr)
     properties = &ignore;
 
-  ULONG error = ::ControlTrace(session_, NULL, properties->get(),
-    EVENT_TRACE_CONTROL_STOP);
+  ULONG error = ::ControlTrace(session_, nullptr, properties->get(),
+                               EVENT_TRACE_CONTROL_STOP);
   if (ERROR_SUCCESS != error)
     return HRESULT_FROM_WIN32(error);
 
@@ -121,10 +126,10 @@ HRESULT EtwTraceController::Stop(EtwTraceProperties* properties) {
 
 HRESULT EtwTraceController::Flush(EtwTraceProperties* properties) {
   EtwTraceProperties ignore;
-  if (properties == NULL)
+  if (properties == nullptr)
     properties = &ignore;
 
-  ULONG error = ::ControlTrace(session_, NULL, properties->get(),
+  ULONG error = ::ControlTrace(session_, nullptr, properties->get(),
                                EVENT_TRACE_CONTROL_FLUSH);
   if (ERROR_SUCCESS != error)
     return HRESULT_FROM_WIN32(error);
@@ -133,38 +138,39 @@ HRESULT EtwTraceController::Flush(EtwTraceProperties* properties) {
 }
 
 HRESULT EtwTraceController::Start(const wchar_t* session_name,
-    EtwTraceProperties* properties, TRACEHANDLE* session_handle) {
-  DCHECK(properties != NULL);
+                                  EtwTraceProperties* properties,
+                                  TRACEHANDLE* session_handle) {
+  DCHECK(properties != nullptr);
   ULONG err = ::StartTrace(session_handle, session_name, properties->get());
   return HRESULT_FROM_WIN32(err);
 }
 
 HRESULT EtwTraceController::Query(const wchar_t* session_name,
-    EtwTraceProperties* properties) {
+                                  EtwTraceProperties* properties) {
   ULONG err = ::ControlTrace(NULL, session_name, properties->get(),
                              EVENT_TRACE_CONTROL_QUERY);
   return HRESULT_FROM_WIN32(err);
-};
+}
 
 HRESULT EtwTraceController::Update(const wchar_t* session_name,
-    EtwTraceProperties* properties) {
-  DCHECK(properties != NULL);
+                                   EtwTraceProperties* properties) {
+  DCHECK(properties != nullptr);
   ULONG err = ::ControlTrace(NULL, session_name, properties->get(),
                              EVENT_TRACE_CONTROL_UPDATE);
   return HRESULT_FROM_WIN32(err);
 }
 
 HRESULT EtwTraceController::Stop(const wchar_t* session_name,
-    EtwTraceProperties* properties) {
-  DCHECK(properties != NULL);
+                                 EtwTraceProperties* properties) {
+  DCHECK(properties != nullptr);
   ULONG err = ::ControlTrace(NULL, session_name, properties->get(),
                              EVENT_TRACE_CONTROL_STOP);
   return HRESULT_FROM_WIN32(err);
 }
 
 HRESULT EtwTraceController::Flush(const wchar_t* session_name,
-    EtwTraceProperties* properties) {
-  DCHECK(properties != NULL);
+                                  EtwTraceProperties* properties) {
+  DCHECK(properties != nullptr);
   ULONG err = ::ControlTrace(NULL, session_name, properties->get(),
                              EVENT_TRACE_CONTROL_FLUSH);
   return HRESULT_FROM_WIN32(err);

@@ -24,6 +24,8 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "base/synchronization/lock.h"
+#include "base/time/time.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/can_play_type_handler.h"
@@ -34,9 +36,8 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
-#include "starboard/common/mutex.h"
+#include "media/base/media_log.h"
 #include "starboard/player.h"
-#include "third_party/chromium/media/base/media_log.h"
 
 namespace cobalt {
 namespace media {
@@ -117,7 +118,7 @@ class MediaModule : public WebMediaPlayerFactory,
   ::media::MediaLog media_log_;
 
   // Protect access to the list of players.
-  starboard::Mutex players_lock_;
+  mutable base::Lock players_lock_;
 
   Players players_;
   bool suspended_ = false;
@@ -133,8 +134,10 @@ class MediaModule : public WebMediaPlayerFactory,
   bool force_punch_out_by_default_ = false;
 
 #if SB_API_VERSION >= 15
-  int64_t audio_write_duration_local_ = kSbPlayerWriteDurationLocal;
-  int64_t audio_write_duration_remote_ = kSbPlayerWriteDurationRemote;
+  base::TimeDelta audio_write_duration_local_ =
+      base::TimeDelta::FromMicroseconds(kSbPlayerWriteDurationLocal);
+  base::TimeDelta audio_write_duration_remote_ =
+      base::TimeDelta::FromMicroseconds(kSbPlayerWriteDurationRemote);
 #endif  // SB_API_VERSION >= 15
 
   DecoderBufferAllocator decoder_buffer_allocator_;

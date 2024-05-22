@@ -12,7 +12,7 @@ Raspberry Pi device. They have been tested with Ubuntu:20.04 and a Raspberry Pi
 Download the latest Cobalt customized Raspbian image from <a
 href="https://storage.googleapis.com/cobalt-static-storage/2020-02-13-raspbian-buster-lite_shrunk_20210427.img">GCS bucket</a>
 (this is built via <a
-href="https://github.com/youtube/cobalt/tree/master/tools/raspi_image#readme">this
+href="https://github.com/youtube/cobalt/tree/main/cobalt/tools/raspi_image">this
 customization tool</a>)
 
 On MacOS, use an image flashing tool like <a href="https://www.balena.io/etcher/">balenaEtcher</a> to write the image to a 32GB SD-card.
@@ -40,7 +40,7 @@ default pi login, and run `sudo raspi-config`. You'll find wifi settings under
 
 <aside class="note">
 <b>Note:</b> Before proceeding further, refer to the documentation for
-<a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the
+<a href="setup-linux.md">"Set up your environment - Linux"</a>. Complete the
 sections <b>Set up your workstation</b> and <b>Set up developer tools</b>, then
 return and complete the following steps.
 </aside>
@@ -86,13 +86,13 @@ Raspberry Pi.
     following command:
 
     ```
-    $ cobalt/build/gn.py -p raspi-2
+    $ cobalt/build/gn.py -p raspi-2 -C devel
     ```
 
 1.  Compile the code from the `cobalt/` directory:
 
     ```
-    $ ninja -C out/raspi-2_debug cobalt
+    $ ninja -C out/raspi-2_devel cobalt_install
     ```
 
 1.  Run the following command to install your Cobalt binary (and content)
@@ -100,7 +100,7 @@ Raspberry Pi.
 
     ```
     $ rsync -avzLPh --exclude="obj*" --exclude="gen/" \
-          $COBALT_SRC/out/raspi-2_debug pi@$RASPI_ADDR:~/
+          $COBALT_SRC/out/raspi-2_devel pi@$RASPI_ADDR:~/
     ```
 
     The `rsyncs` get somewhat faster after the first time, as `rsync` is good at
@@ -112,8 +112,8 @@ Raspberry Pi.
 
     ```
     $ ssh pi@$RASPI_ADDR
-    $ cd raspi-2_debug
-    $ ./cobalt
+    $ cd raspi-2_devel/install/cobalt_loader
+    $ ./cobalt_loader
     ```
 
     With this approach, you can just hit `[CTRL-C]` to close Cobalt. If you

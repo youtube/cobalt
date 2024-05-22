@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,9 @@
 
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/spdy_framer.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/spdy_protocol.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -18,30 +18,31 @@ class HttpResponseInfo;
 struct HttpRequestInfo;
 class HttpRequestHeaders;
 
-// Convert a spdy::SpdyHeaderBlock into an HttpResponseInfo.
-// |headers| input parameter with the spdy::SpdyHeaderBlock.
-// |response| output parameter for the HttpResponseInfo.
-// Returns true if successfully converted.  False if the spdy::SpdyHeaderBlock
-// is incomplete (e.g. missing 'status' or 'version').
-NET_EXPORT bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
-                                          HttpResponseInfo* response);
+// Convert a spdy::Http2HeaderBlock into an HttpResponseInfo with some checks.
+// `headers` input parameter with the spdy::Http2HeaderBlock.
+// `response` output parameter for the HttpResponseInfo.
+// Returns OK if successfully converted.  An error is returned if the
+// spdy::Http2HeaderBlock is incomplete (e.g. missing 'status' or 'version') or
+// checks fail.
+NET_EXPORT int SpdyHeadersToHttpResponse(const spdy::Http2HeaderBlock& headers,
+                                         HttpResponseInfo* response);
 
-// Create a spdy::SpdyHeaderBlock from HttpRequestInfo and HttpRequestHeaders.
+// Create a spdy::Http2HeaderBlock from HttpRequestInfo and HttpRequestHeaders.
 NET_EXPORT void CreateSpdyHeadersFromHttpRequest(
     const HttpRequestInfo& info,
     const HttpRequestHeaders& request_headers,
-    spdy::SpdyHeaderBlock* headers);
+    spdy::Http2HeaderBlock* headers);
 
-// Create a spdy::SpdyHeaderBlock from HttpRequestInfo and HttpRequestHeaders
+// Create a spdy::Http2HeaderBlock from HttpRequestInfo and HttpRequestHeaders
 // for a WebSockets over HTTP/2 request.
 NET_EXPORT void CreateSpdyHeadersFromHttpRequestForWebSocket(
     const GURL& url,
     const HttpRequestHeaders& request_headers,
-    spdy::SpdyHeaderBlock* headers);
+    spdy::Http2HeaderBlock* headers);
 
-// Create HttpRequestHeaders from spdy::SpdyHeaderBlock.
+// Create HttpRequestHeaders from spdy::Http2HeaderBlock.
 NET_EXPORT void ConvertHeaderBlockToHttpRequestHeaders(
-    const spdy::SpdyHeaderBlock& spdy_headers,
+    const spdy::Http2HeaderBlock& spdy_headers,
     HttpRequestHeaders* http_headers);
 
 NET_EXPORT spdy::SpdyPriority ConvertRequestPriorityToSpdyPriority(

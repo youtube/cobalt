@@ -19,6 +19,7 @@
 #include <linux/input.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -32,6 +33,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
@@ -39,7 +41,6 @@
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/memory.h"
-#include "starboard/once.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
 namespace starboard {
@@ -779,7 +780,8 @@ std::vector<InputDeviceInfo> GetInputDevices() {
     path += "/";
     path += entry.data();
 
-    if (SbDirectoryCanOpen(path.c_str())) {
+    struct stat file_info;
+    if (stat(path.c_str(), &file_info) == 0 && S_ISDIR(file_info.st_mode)) {
       // This is a subdirectory. Skip.
       continue;
     }

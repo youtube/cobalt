@@ -15,8 +15,8 @@
 #include "cobalt/network/dial/dial_service.h"
 
 #include "base/bind.h"
-#include "base/message_loop/message_loop.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/task_environment.h"
 #include "cobalt/network/dial/dial_test_helpers.h"
 #include "net/server/http_server_request_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -28,7 +28,7 @@ namespace network {
 
 class DialServiceTest : public testing::Test {
  protected:
-  base::test::ScopedTaskEnvironment scoped_task_env_;
+  base::test::TaskEnvironment scoped_task_env_;
   std::unique_ptr<DialService> service_;
 
   void TearDown() override { service_.reset(); }
@@ -59,12 +59,12 @@ TEST_F(DialServiceTest, GetHandler) {
   GetHandlerTest("/apps/Foo/", "/", foo_handler);
   GetHandlerTest("/apps/Foo", "/", foo_handler);
 
-  GetHandlerTest("", "", NULL);
-  GetHandlerTest("/", "", NULL);
-  GetHandlerTest("/apps1/Foo/run", "", NULL);
-  GetHandlerTest("/apps/Bar/foo", "", NULL);
-  GetHandlerTest("/apps/FooBar/", "", NULL);
-  GetHandlerTest("/apps/BarFoo/", "", NULL);
+  GetHandlerTest("", "", nullptr);
+  GetHandlerTest("/", "", nullptr);
+  GetHandlerTest("/apps1/Foo/run", "", nullptr);
+  GetHandlerTest("/apps/Bar/foo", "", nullptr);
+  GetHandlerTest("/apps/FooBar/", "", nullptr);
+  GetHandlerTest("/apps/BarFoo/", "", nullptr);
 
   service_->Deregister(foo_handler);
   service_->Deregister(baz_handler);
@@ -79,7 +79,7 @@ TEST_F(DialServiceTest, ReleasedHandler) {
   scoped_refptr<MockServiceHandler> foo_handler = new MockServiceHandler("Foo");
   service_->Register(foo_handler);
   service_->Deregister(foo_handler);
-  foo_handler = NULL;
+  foo_handler = nullptr;
 
   service_->Terminate();
 }

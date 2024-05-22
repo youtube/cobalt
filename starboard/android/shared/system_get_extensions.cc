@@ -17,24 +17,26 @@
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
 #include "starboard/android/shared/graphics.h"
-#include "starboard/android/shared/h5vcc_config.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
+#include "starboard/android/shared/player_set_max_video_input_size.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"  // nogncheck
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/shared/starboard/crash_handler.h"
+#include "starboard/shared/starboard/loader_app_metrics.h"
 #else
 #include "starboard/android/shared/crash_handler.h"
 #endif
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/graphics.h"
-#include "starboard/extension/h5vcc_config.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/player_set_max_video_input_size.h"
 
 const void* SbSystemGetExtension(const char* name) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -70,8 +72,13 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformInfoName) == 0) {
     return starboard::android::shared::GetPlatformInfoApi();
   }
-  if (strcmp(name, kStarboardExtensionH5vccConfigName) == 0) {
-    return starboard::android::shared::GetH5vccConfigApi();
+  if (strcmp(name, kStarboardExtensionPlayerSetMaxVideoInputSizeName) == 0) {
+    return starboard::android::shared::GetPlayerSetMaxVideoInputSizeApi();
   }
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
+    return starboard::shared::starboard::GetLoaderAppMetricsApi();
+  }
+#endif
   return NULL;
 }

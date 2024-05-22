@@ -65,7 +65,7 @@ namespace java {
 namespace {
 
 struct FieldDescriptorCompare {
-  bool operator ()(const FieldDescriptor* f1, const FieldDescriptor* f2) {
+  bool operator ()(const FieldDescriptor* f1, const FieldDescriptor* f2) const {
     if(f1 == NULL) {
       return false;
     }
@@ -94,7 +94,9 @@ bool CollectExtensions(const Message& message,
   reflection->ListFields(message, &fields);
 
   for (int i = 0; i < fields.size(); i++) {
-    if (fields[i]->is_extension()) extensions->insert(fields[i]);
+    if (fields[i]->is_extension()) {
+      extensions->insert(fields[i]);
+    }
 
     if (GetJavaType(fields[i]) == JAVATYPE_MESSAGE) {
       if (fields[i]->is_repeated()) {

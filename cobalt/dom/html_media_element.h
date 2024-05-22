@@ -47,7 +47,7 @@ class HTMLMediaElement : public HTMLElement,
   typedef ::cobalt::media::WebMediaPlayer WebMediaPlayer;
   typedef ::cobalt::media::WebMediaPlayerClient WebMediaPlayerClient;
 
-  HTMLMediaElement(Document* document, base::Token tag_name);
+  HTMLMediaElement(Document* document, base_token::Token tag_name);
   ~HTMLMediaElement() override;
 
   // Web API: HTMLMediaElement
@@ -149,8 +149,7 @@ class HTMLMediaElement : public HTMLElement,
   // Returns semicolon separated names of audio connectors, like
   // "hdmi;bluetooth".
   // TODO(b/267678497): The current interface is tentative, to be refined.
-  std::string h5vcc_audio_connectors(
-      script::ExceptionState* exception_state) const;
+  std::string h5vcc_audio_connectors() const;
 
   // Set max video capabilities.
   void SetMaxVideoCapabilities(const std::string& max_video_capabilities,
@@ -158,6 +157,10 @@ class HTMLMediaElement : public HTMLElement,
   bool HasMaxVideoCapabilities() const {
     return !max_video_capabilities_.empty();
   }
+
+  // Set max video input size.
+  void SetMaxVideoInputSize(unsigned int max_video_input_size,
+                            script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(HTMLMediaElement);
   void TraceMembers(script::Tracer* tracer) override;
@@ -189,7 +192,7 @@ class HTMLMediaElement : public HTMLElement,
 
   // Events
   void ScheduleTimeupdateEvent(bool periodic_event);
-  void ScheduleOwnEvent(base::Token event_name);
+  void ScheduleOwnEvent(base_token::Token event_name);
   void CancelPendingEventsAndCallbacks();
   bool ProcessingMediaPlayerCallback() const {
     return processing_media_player_callback_ > 0;
@@ -240,6 +243,7 @@ class HTMLMediaElement : public HTMLElement,
   void SourceOpened(ChunkDemuxer* chunk_demuxer) override;
   std::string SourceURL() const override;
   std::string MaxVideoCapabilities() const override;
+  int MaxVideoInputSize() const override;
   bool PreferDecodeToTexture() override;
   void EncryptedMediaInitDataEncountered(
       const char* init_data_type, const unsigned char* init_data,
@@ -251,6 +255,8 @@ class HTMLMediaElement : public HTMLElement,
   std::string current_src_;
 
   std::string max_video_capabilities_;
+
+  int max_video_input_size_;
 
   // Loading state.
   enum LoadState { kWaitingForSource, kLoadingFromSrcAttr };

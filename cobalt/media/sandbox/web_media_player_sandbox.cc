@@ -21,9 +21,10 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "cobalt/base/wrap_main.h"
@@ -31,12 +32,12 @@
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
+#include "media/base/timestamp_constants.h"
+#include "media/filters/chunk_demuxer.h"
 #include "starboard/common/file.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace media {
@@ -44,6 +45,7 @@ namespace sandbox {
 namespace {
 
 using base::TimeDelta;
+using ::media::StreamParser;
 using render_tree::Image;
 using starboard::ScopedFile;
 
@@ -119,7 +121,7 @@ class Application {
                                        media_sandbox_.GetMediaModule());
 
       if (!guesstimator1.is_valid()) {
-        SB_LOG(ERROR) << "Invalid path or url: " << argv[argc - 1];
+        LOG(ERROR) << "Invalid path or url: " << argv[argc - 1];
         // Fall off to PrintUsage() and terminate.
       } else if (guesstimator1.is_progressive()) {
         InitializeProgressivePlayback(guesstimator1);
@@ -128,14 +130,14 @@ class Application {
         InitializeAdaptivePlayback(guesstimator1);
         return;
       } else if (guesstimator1.is_audio() && guesstimator2.is_audio()) {
-        SB_LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
-                      << " and " << argv[argc - 2]
-                      << " are audio streams, check usage for more details.";
+        LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
+                   << " and " << argv[argc - 2]
+                   << " are audio streams, check usage for more details.";
         // Fall off to PrintUsage() and terminate.
       } else if (!guesstimator1.is_audio() && !guesstimator2.is_audio()) {
-        SB_LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
-                      << " and " << argv[argc - 2]
-                      << " are video streams, check usage for more details.";
+        LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
+                   << " and " << argv[argc - 2]
+                   << " are video streams, check usage for more details.";
         // Fall off to PrintUsage() and terminate.
       } else if (guesstimator1.is_audio()) {
         InitializeAdaptivePlayback(guesstimator1, guesstimator2);
@@ -350,11 +352,18 @@ class Application {
       SB_DCHECK(evicted);
 
       file->Read(reinterpret_cast<char*>(buffer.data()), bytes_to_append);
+      bool appended = chunk_demuxer_->AppendToParseBuffer(id, buffer.data(),
+                                                          bytes_to_append);
+      StreamParser::ParseStatus result =
+          StreamParser::ParseStatus::kSuccessHasMoreData;
       base::TimeDelta timestamp_offset;
-      auto appended = chunk_demuxer_->AppendData(
-          id, buffer.data(), bytes_to_append, base::TimeDelta(),
-          ::media::kInfiniteDuration, &timestamp_offset);
-      SB_DCHECK(appended);
+      while (appended &&
+             result == StreamParser::ParseStatus::kSuccessHasMoreData) {
+        result = chunk_demuxer_->RunSegmentParserLoop(
+            id, base::TimeDelta(), ::media::kInfiniteDuration,
+            &timestamp_offset);
+      }
+      SB_DCHECK(appended && result == StreamParser::ParseStatus::kSuccess);
 
       *offset += bytes_to_append;
     }

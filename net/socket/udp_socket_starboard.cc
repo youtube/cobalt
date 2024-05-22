@@ -16,13 +16,11 @@
 
 #include "net/socket/udp_socket_starboard.h"
 
-#include "base/callback.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
 #include "base/rand_util.h"
-#include "base/task/post_task.h"
-#include "base/task_runner_util.h"
-#include "base/trace_event/trace_event.h"
+#include "base/task/current_thread.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -45,13 +43,14 @@ UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
       socket_(kSbSocketInvalid),
       socket_options_(0),
       bind_type_(bind_type),
+      socket_watcher_(FROM_HERE),
       read_buf_len_(0),
       recv_from_address_(NULL),
       write_buf_len_(0),
       net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::UDP_SOCKET)),
       weak_factory_(this) {
-  net_log_.BeginEvent(NetLogEventType::SOCKET_ALIVE,
-                      source.ToEventParametersCallback());
+  net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE,
+                      source);
 }
 
 UDPSocketStarboard::~UDPSocketStarboard() {
@@ -64,19 +63,42 @@ int UDPSocketStarboard::Open(AddressFamily address_family) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!SbSocketIsValid(socket_));
 
+  auto owned_socket_count = TryAcquireGlobalUDPSocketCount();
+  if (owned_socket_count.empty())
+    return ERR_INSUFFICIENT_RESOURCES;
+
+  owned_socket_count_ = std::move(owned_socket_count);
+
   address_type_ =
       (address_family == ADDRESS_FAMILY_IPV6 ? kSbSocketAddressTypeIpv6
                                              : kSbSocketAddressTypeIpv4);
   socket_ = SbSocketCreate(address_type_, kSbSocketProtocolUdp);
   if (!SbSocketIsValid(socket_)) {
-    return MapLastSystemError();
+    owned_socket_count_.Reset();
+    return MapSystemError(SbSystemGetLastError());
   }
 
   return OK;
 }
 
+int UDPSocketStarboard::AdoptOpenedSocket(AddressFamily address_family,
+                                          const SbSocket& socket) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_EQ(socket_, kSbSocketInvalid);
+  auto owned_socket_count = TryAcquireGlobalUDPSocketCount();
+  if (owned_socket_count.empty()) {
+    return ERR_INSUFFICIENT_RESOURCES;
+  }
+
+  owned_socket_count_ = std::move(owned_socket_count);
+  socket_ = socket;
+  return OK;
+}
+
 void UDPSocketStarboard::Close() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  owned_socket_count_.Reset();
 
   if (socket_ == kSbSocketInvalid)
     return;
@@ -122,11 +144,15 @@ int UDPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
   if (!local_address_.get()) {
     SbSocketAddress address;
     if (!SbSocketGetLocalAddress(socket_, &address))
-      return MapLastSocketError(socket_);
+      return MapSocketError(SbSocketGetLastError(socket_));
     std::unique_ptr<IPEndPoint> endpoint(new IPEndPoint());
     if (!endpoint->FromSbSocketAddress(&address))
       return ERR_FAILED;
     local_address_.reset(endpoint.release());
+    net_log_.AddEvent(NetLogEventType::UDP_LOCAL_ADDRESS, [&] {
+      return CreateNetLogUDPConnectParams(*local_address_,
+                                          handles::kInvalidNetworkHandle);
+    });
   }
 
   *address = *local_address_;
@@ -154,8 +180,8 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
   if (nread != ERR_IO_PENDING)
     return nread;
 
-  if (!base::MessageLoopForIO::current()->Watch(
-          socket_, true, base::MessageLoopCurrentForIO::WATCH_READ,
+  if (!base::CurrentIOThread::Get()->Watch(
+          socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
           &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchSocket failed on read";
     Error result = MapLastSocketError(socket_);
@@ -206,8 +232,8 @@ int UDPSocketStarboard::SendToOrWrite(IOBuffer* buf,
   if (result != ERR_IO_PENDING)
     return result;
 
-  if (!base::MessageLoopForIO::current()->Watch(
-          socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
+  if (!base::CurrentIOThread::Get()->Watch(
+          socket_, true, base::MessagePumpIOStarboard::WATCH_WRITE,
           &socket_watcher_, this)) {
     DVLOG(1) << "Watch failed on write, error "
              << SbSocketGetLastError(socket_);
@@ -228,10 +254,10 @@ int UDPSocketStarboard::SendToOrWrite(IOBuffer* buf,
 
 int UDPSocketStarboard::Connect(const IPEndPoint& address) {
   DCHECK(SbSocketIsValid(socket_));
-  net_log_.BeginEvent(
-      NetLogEventType::UDP_CONNECT,
-      CreateNetLogUDPConnectCallback(
-          &address, NetworkChangeNotifier::kInvalidNetworkHandle));
+  net_log_.BeginEvent(NetLogEventType::UDP_CONNECT, [&] {
+    return CreateNetLogUDPConnectParams(address,
+                                        handles::kInvalidNetworkHandle);
+  });
   int rv = InternalConnect(address);
   is_connected_ = (rv == OK);
   net_log_.EndEventWithNetErrorCode(NetLogEventType::UDP_CONNECT, rv);
@@ -272,8 +298,7 @@ int UDPSocketStarboard::Bind(const IPEndPoint& address) {
   return OK;
 }
 
-int UDPSocketStarboard::BindToNetwork(
-    NetworkChangeNotifier::NetworkHandle network) {
+int UDPSocketStarboard::BindToNetwork(handles::NetworkHandle network) {
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
 }
@@ -320,6 +345,18 @@ int UDPSocketStarboard::SetBroadcast(bool broadcast) {
   return SbSocketSetBroadcast(socket_, broadcast) ? OK : ERR_FAILED;
 }
 
+int UDPSocketStarboard::AllowAddressSharingForMulticast() {
+  DCHECK_NE(socket_, kSbSocketInvalid);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(!is_connected());
+
+  int rv = AllowAddressReuse();
+  if (rv != OK)
+    return rv;
+
+  return OK;
+}
+
 void UDPSocketStarboard::OnSocketReadyToRead(SbSocket /*socket*/) {
   if (!read_callback_.is_null())
     DidCompleteRead();
@@ -358,7 +395,7 @@ void UDPSocketStarboard::DoWriteCallback(int rv) {
   DCHECK(!write_callback_.is_null());
 
   // Run may result in Write being called.
-  base::ResetAndReturn(&write_callback_).Run(rv);
+  std::move(write_callback_).Run(rv);
 }
 
 void UDPSocketStarboard::DidCompleteRead() {
@@ -382,12 +419,11 @@ void UDPSocketStarboard::LogRead(int result,
   }
 
   if (net_log_.IsCapturing()) {
-    net_log_.AddEvent(
-        NetLogEventType::UDP_BYTES_RECEIVED,
-        CreateNetLogUDPDataTranferCallback(result, bytes, address));
+    NetLogUDPDataTransfer(net_log_, NetLogEventType::UDP_BYTES_RECEIVED, result,
+                          bytes, address);
   }
 
-  NetworkActivityMonitor::GetInstance()->IncrementBytesReceived(result);
+  activity_monitor::IncrementBytesReceived(result);
 }
 
 void UDPSocketStarboard::DidCompleteWrite() {
@@ -412,12 +448,11 @@ void UDPSocketStarboard::LogWrite(int result,
   }
 
   if (net_log_.IsCapturing()) {
-    net_log_.AddEvent(
-        NetLogEventType::UDP_BYTES_SENT,
-        CreateNetLogUDPDataTranferCallback(result, bytes, address));
+    NetLogUDPDataTransfer(net_log_, NetLogEventType::UDP_BYTES_SENT, result,
+                          bytes, address);
   }
 
-  NetworkActivityMonitor::GetInstance()->IncrementBytesSent(result);
+  activity_monitor::IncrementBytesReceived(result);
 }
 
 int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
@@ -433,6 +468,8 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
     // platform's implementation.
     if (address && !address->FromSbSocketAddress(&sb_address)) {
       result = ERR_ADDRESS_INVALID;
+    } else if (bytes_transferred == buf_len) {
+      result = ERR_MSG_TOO_BIG;
     }
   } else {
     result = MapLastSocketError(socket_);
@@ -478,7 +515,7 @@ int UDPSocketStarboard::DoBind(const IPEndPoint& address) {
   }
 
   SbSocketError rv = SbSocketBind(socket_, &sb_address);
-  return rv != kSbSocketOk ? MapLastSystemError() : OK;
+  return rv != kSbSocketOk ? MapSystemError(SbSystemGetLastError()) : OK;
 }
 
 int UDPSocketStarboard::RandomBind(const IPAddress& address) {
@@ -687,7 +724,8 @@ void UDPSocketStarboard::FlushPending() {
 // ways.
 base::SequencedTaskRunner* UDPSocketStarboard::GetTaskRunner() {
   if (task_runner_ == nullptr) {
-    task_runner_ = CreateSequencedTaskRunnerWithTraits(base::TaskTraits());
+    task_runner_ =
+        base::ThreadPool::CreateSequencedTaskRunner(base::TaskTraits());
   }
   return task_runner_.get();
 }
@@ -721,8 +759,8 @@ void UDPSocketStarboard::PostSendBuffers() {
            << write_async_outstanding_ << " total";
   SbSocketAddress sb_address;
   DCHECK(remote_address_.get()->ToSbSocketAddress(&sb_address));
-  base::PostTaskAndReplyWithResult(
-      GetTaskRunner(), FROM_HERE,
+  task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&UDPSocketStarboardSender::SendBuffers, sender_, socket_,
                      std::move(pending_writes_), sb_address),
       base::BindOnce(&UDPSocketStarboard::DidSendBuffers,
@@ -834,8 +872,8 @@ void UDPSocketStarboard::StopWatchingSocket() {
 }
 
 bool UDPSocketStarboard::InternalWatchSocket() {
-  return base::MessageLoopForIO::current()->Watch(
-      socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
+  return base::CurrentIOThread::Get()->Watch(
+      socket_, true, base::MessagePumpIOStarboard::WATCH_WRITE,
       &socket_watcher_, this);
 }
 

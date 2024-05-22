@@ -41,20 +41,36 @@ using std::placeholders::_3;
 using std::placeholders::_4;
 using testing::FakeGraphicsContextProvider;
 
-const char* kAudioTestFiles[] = {"beneath_the_canopy_aac_stereo.dmp",
-                                 "beneath_the_canopy_opus_stereo.dmp",
-                                 "sintel_329_ec3.dmp", "sintel_381_ac3.dmp"};
+const char* kAudioTestFiles[] = {
+    "beneath_the_canopy_aac_stereo.dmp",
+    "beneath_the_canopy_opus_stereo.dmp",
+    "sintel_329_ec3.dmp",
+    "sintel_381_ac3.dmp",
+};
 
 // For uncommon audio formats, we add audio only tests, without tests combined
 // with a video stream, to shorten the overall test time.
 const char* kAudioOnlyTestFiles[] = {
-    "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_mono.dmp",
-    "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_mono.dmp",
-    "heaac.dmp"};
+    "beneath_the_canopy_aac_5_1.dmp",
+    "beneath_the_canopy_aac_mono.dmp",
+    "beneath_the_canopy_opus_5_1.dmp",
+    "beneath_the_canopy_opus_mono.dmp",
+    "heaac.dmp",
+#if SB_API_VERSION >= 14
+    "sintel_5s_flac.dmp",
+    "sintel_5s_mp3.dmp",
+    "sintel_5s_pcm_s16le.dmp",
+#endif  // SB_API_VERSION >= 14
+    "sintel_5s_vorbis.dmp",
+};
 
-const char* kVideoTestFiles[] = {"beneath_the_canopy_137_avc.dmp",
-                                 "beneath_the_canopy_248_vp9.dmp",
-                                 "sintel_399_av1.dmp"};
+const char* kVideoTestFiles[] = {
+    "beneath_the_canopy_137_avc.dmp",
+    "beneath_the_canopy_248_vp9.dmp",
+    "sintel_399_av1.dmp",
+    "sintel_5s_vp8.dmp",
+    "sintel_5s_hevc.dmp",
+};
 
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                            kSbPlayerOutputModePunchOut};
@@ -390,6 +406,18 @@ bool IsPartialAudioSupported() {
 #else   // SB_API_VERSION >= 15
   return SbSystemGetExtension(kCobaltExtensionEnhancedAudioName) != nullptr;
 #endif  // SB_API_VERSION >= 15
+}
+
+bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
+  const char* audio_dmp_filename = config.audio_filename;
+  SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
+  if (audio_dmp_filename && strlen(audio_dmp_filename) > 0) {
+    VideoDmpReader audio_dmp_reader(audio_dmp_filename,
+                                    VideoDmpReader::kEnableReadOnDemand);
+    audio_codec = audio_dmp_reader.audio_codec();
+  }
+  return audio_codec == kSbMediaAudioCodecAc3 ||
+         audio_codec == kSbMediaAudioCodecEac3;
 }
 
 }  // namespace nplb

@@ -9,6 +9,147 @@ since the version previous to it.
 
 ## Version 16
 
+### Migrate the `SbThreadSampler` to use `pthread`.
+Switched the `SbThreadSampler` API to use `pthread` instead of `SbThread`.
+
+### Added support for pthread create attributes.
+The standard pthread APIs `pthread_attr_init`, `pthread_attr_destroy`,
+`pthread_attr_getdetachstate`, `pthread_attr_getstacksize`,
+`pthread_attr_setdetachstate`, `pthread_attr_setstacksize` were added.
+
+### Deprecated the `SbThreadSetName` and `SbThreadGetName` APIs.
+Replaced the `SbThreadSetName`/`SbThreadGetName` with the POSIX
+`pthread_setname_np`/`pthread_getname_np`.
+
+### Deprecated the `SbThreadLocalKey` APIs.
+Replaced the `SbThreadLocalKey` with the POSIX `pthread_key_t`.
+
+### Deprecated `SbOnce`
+Replaced the `SbOnce` with the POSIX `pthread_once`.
+
+### Deprecated `SbThreadSleep`
+Replaced the `SbThreadSleep` with the POSIX usleep() defined in the
+`<unistd.h>` header.
+
+### MAP_EXECUTABLE_MEMORY changed from build-time to runtime config
+SB_CAN_MAP_EXECUTABLE_MEMORY has been refactored into a run-time configuration
+constant `kSbCanMapExecutableMemory`.
+
+### Deprecated `SbThreadYield`
+Replaced the `SbThreadYield` with the POSIX sched_yield() defined in the
+`<sched.h>` header.
+
+### x86 ABI removed for Evergreen
+The x86 platform configurations, builds and ABI are no longer supported for
+Evergreen.
+
+### Added standard POSIX stat API and deprecated SbDirectoryCanOpen.
+The directory API SbDirectoryCanOpen has been deprecated and the standard API `stat` can
+be used from `sys/stat.h` instead.
+
+### Added standard POSIX mkdir API and deprecated SbDirectoryCreate.
+The directory API SbDirectoryCreate has been deprecated and the standard API `mkdir`
+can be used from `dirent.h` instead.
+
+## Removed configs for `SB_EXPORT_PLATFORM` and `SB_IMPORT_PLATFORM`
+These are auto-detected based on compilers, platforms can optionally override.
+
+## Removed configs for `SB_C_FORCE_INLINE`
+This is now automatically defined based on compilers, platforms must not provide
+a definition.
+
+## Deprecated `SB_C_INLINE`
+Use C99 standard `inline` function specifier instead.
+
+## Removed `SB_C_NOINLINE`
+This is only used for testing, a similar header is now found under
+`starboard/shared/testing/no_inline.h`
+
+## Deprecated `OnScreenKeyboard`
+OnScreenKeyboard Starboard API has been deprecated, an extension in
+`starboard/extension/on_screen_keyboard.h` is available instead. The removal
+includes the following functions:
+* `SbWindowBlurOnScreenKeyboard`
+* `SbWindowFocusOnScreenKeyboard`
+* `SbWindowGetOnScreenKeyboardBoundingRect`
+* `SbWindowHideOnScreenKeyboard`
+* `SbWindowIsOnScreenKeyboardShown`
+* `SbWindowOnScreenKeyboardIsSupported`
+* `SbWindowOnScreenKeyboardSuggestionsSupported`
+* `SbWindowSetOnScreenKeyboardKeepFocus`
+* `SbWindowShowOnScreenKeyboard`
+* `SbWindowUpdateOnScreenKeyboardSuggestions`
+
+The config value of `SB_HAS_ON_SCREEN_KEYBOARD` is also removed.
+
+## Removed configs for `FILESYSTEM_ZERO_FILEINFO_TIME` and `COARSE_ACCESS_TIME`
+These are no longer used in Starboard and Cobalt.
+
+## Removed `SB_HAS_PIPE`
+This flag is no longer used.
+
+## Removed `QUIRK_HASH_FILE_NAME`
+No platforms are using this config anymore.
+
+## Removed `QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES`
+This configuration is not used in Cobalt.
+
+## Removed `QUIRK_SOCKET_BSD_HEADERS` configuration
+This config flag is unused.
+
+## Removed `SB_HAS_SPEECH_SYNTHESIS` configuration
+This configuration has been replaced by `SbSpeechSynthesisIsSupported()`
+
+## Removed `VIRTUAL_REALITY` configuration
+This configuration not used in Cobalt.
+
+### Removed configuration for `abort_on_allocation_failure`
+This flag has no effect in builds, and checked allocations are removed
+in Starboard 16.
+
+### Removed SB_HAS_NV12_TEXTURE_SUPPORT
+This flag is resolved at run-time.
+
+### GLES2 configuration mandatory
+SB_HAS_GLES2 configuration has been removed, and `gl_type` GN config no longer
+accepts `none` as an option.
+
+### Removed pre-C++11 hash map configuration
+Build configurations for `SB_HAS_STD_UNORDERED_HASH`, `SB_HAS_LONG_LONG_HASH`,
+ `SB_HAS_STRING_HASH`, `SB_HAS_HASH_USING`, `SB_HAS_HASH_VALUE`,
+ `SB_HAS_HASH_WARNING`, `SB_HASH_MAP_INCLUDE`, `SB_HASH_NAMESPACE`, and
+ `SB_HASH_SET_INCLUDE` are fully removed. C++ standard `unordered_map` and
+ `unordered_set` are used in all builds.
+
+### Added standard POSIX socket getaddrinfo/freeaddrinfo APIs.
+The standard API `getaddrinfo` and `freeaddrinfo`, can be used from
+<netdb.h>.
+
+### Added standard POSIX file stat API and deprecated SbFileExists.
+The file API SbFileExists has been deprecated and the standard API `stat` can
+be used from `sys/stat.h` instead.
+
+### Added standard POSIX socket send/recv APIs.
+The standard API `send`, `sendto`, `recv`, `recvfrom`, can be used from <sys/socket.h> and
+`fcntl` can be used from <fcntl.h>, to set socket to non-blocking.
+
+### Added standard POSIX file open and close APIs.
+The standard API `open` can be used from `fcntl.h` and `close` can be used from
+<unistd.h>.
+
+### Added standard POSIX socket bind/listen/connect/accept APIs.
+The standard API `bind`, `listen`, `connect`, `accept` can be used from
+<sys/socket.h> and `getifaddrs`, `freeifaddrs` can be used from <ifaddrs.h>.
+
+### Added standard POSIX socket/close/setsockopt APIs.
+The standard API `socket`, `setsockopt` can be used from <sys/socket.h> and
+`close` can be called to close the socket by including <unistd.h>.
+
+### Changed InstallCrashpadHandler API
+This API doesn't support the option to start the crashpad handler at the
+same time as the app launches anymore. Instead, the crashpad handler is
+started when a crash happens. See details in starboard/doc/crash_handlers.md.
+
 ### Convert SbUiNavGetInterface Starboard API into an extension
 The `SbUiNavGetInterface` API is deprecated and replaced with a Starboard
 extension named `SbUiNavInterface`.
@@ -38,7 +179,20 @@ standard APIs `malloc`, `realloc`, `calloc`, `posix_memalign`, `free`
 from `<stdlib.h>` and `strdup` from `<string.h>` should be used instead.
 
 ### Deprecated SbMediaGetBufferAlignment
-The `SbMediaGetBufferAlignment` API was deprecated.
+The `SbMediaGetBufferAlignment` API was deprecated, its return value is no
+longer used when allocating media buffers and has to be always set to 1.  This
+is verified explicitly using nplb tests.
+The app MAY take best effort to allocate media buffers aligned to an optimal
+alignment for the platform, but not guaranteed.
+An implementation that has specific alignment requirement should check the
+alignment of the incoming buffer, and make a copy when necessary.
+
+### Deprecated SbMediaGetBufferPadding
+The SbMediaGetBufferPadding() API was deprecated, its return value is no longer
+used when allocating media buffers and has to be always set to 0.  This is
+verified explicitly using nplb tests.
+An implementation that has specific padding requirement should make a copy of
+the incoming buffer when necessary.
 
 ### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
 The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in
@@ -57,12 +211,17 @@ deprecated.
 The APIs defined in `starboard/image.h` are no longer used and have been
 deprecated.
 
-### Add a new enum `kIamfConfigObus` to `SbPlayerSampleSideDataType` in `starboard/player.h`
-This value allows IAMF samples to be written to Starboard along with IAMF
-Config OBUs as side data.
-
 ### Deprecated SbStringScan and SbStringScanF
 The APIs defined in `starboard/string.h` are deprecated and the standard API `vsscanf` and `sscanf` are used instead.
+
+### Deprecated SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
+
+`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES` can no longer be used to enable the
+use of `kSbMediaAudioSampleTypeInt16`.  The platform has to support AudioSink in
+float sample and is verified by nplb test.  The enum value of
+`kSbMediaAudioSampleTypeInt16Deprecated` was kept so the platform may still
+choose to implement int16 sample support.  It will be removed in a future
+version.
 
 ## Version 15
 

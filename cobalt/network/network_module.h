@@ -19,8 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "base/message_loop/message_loop.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/network/cobalt_net_log.h"
@@ -31,14 +30,12 @@
 #include "cobalt/network/url_request_context_getter.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/storage/storage_manager.h"
-#include "net/base/static_cookie_policy.h"
 #include "url/gurl.h"
 #if defined(DIAL_SERVER)
 // Including this header causes a link error on Windows, since we
 // don't have StreamListenSocket.
 #include "cobalt/network/dial/dial_service.h"
 #endif
-#include "net/url_request/http_user_agent_settings.h"
 #include "starboard/common/atomic.h"
 
 namespace base {
@@ -67,7 +64,7 @@ const char kQuicEnabledPersistentSettingsKey[] = "QUICEnabled";
 class NetworkSystem;
 // NetworkModule wraps various networking-related components such as
 // a URL request context. This is owned by BrowserModule.
-class NetworkModule : public base::MessageLoop::DestructionObserver {
+class NetworkModule : public base::CurrentThread::DestructionObserver {
  public:
   struct Options {
     Options()
@@ -90,7 +87,8 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   };
 
   // Simple constructor intended to be used only by tests.
-  explicit NetworkModule(const Options& options = Options());
+  NetworkModule() : NetworkModule(Options()) {}
+  explicit NetworkModule(const Options& options);
 
   // Constructor for production use.
   NetworkModule(const std::string& user_agent_string,
@@ -105,7 +103,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   URLRequestContext* url_request_context() const {
     return url_request_context_.get();
   }
-  NetworkDelegate* network_delegate() const { return network_delegate_.get(); }
+  NetworkDelegate* network_delegate() const { return network_delegate_; }
   std::string GetUserAgent() const;
   const std::string& preferred_language() const {
     return options_.preferred_language;
@@ -137,18 +135,22 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   void AddClientHintHeaders(net::URLFetcher& url_fetcher,
                             ClientHintHeadersCallType call_type) const;
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   // Used to capture NetLog from Devtools
   void StartNetLog();
   base::FilePath StopNetLog();
 
+#if defined(DIAL_SERVER)
+  void RestartDialService();
+#endif
 
  private:
   void Initialize(const std::string& user_agent_string,
                   base::EventDispatcher* event_dispatcher);
-  void OnCreate(base::WaitableEvent* creation_event);
+  void OnCreate(base::WaitableEvent* creation_event,
+                net::HttpUserAgentSettings* http_user_agent_settings);
   std::unique_ptr<network_bridge::NetPoster> CreateNetPoster();
 
   std::vector<std::string> client_hint_headers_;
@@ -156,18 +158,20 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   std::unique_ptr<base::Thread> thread_;
   std::unique_ptr<URLRequestContext> url_request_context_;
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;
-  std::unique_ptr<NetworkDelegate> network_delegate_;
+  NetworkDelegate* network_delegate_;
   std::unique_ptr<NetworkSystem> network_system_;
-  std::unique_ptr<net::HttpUserAgentSettings> http_user_agent_settings_;
   std::unique_ptr<network_bridge::CookieJar> cookie_jar_;
 #if defined(DIAL_SERVER)
+  void OnRestartDialService(base::WaitableEvent* creation_event);
   std::unique_ptr<network::DialService> dial_service_;
   scoped_refptr<network::DialServiceProxy> dial_service_proxy_;
 #endif
   std::unique_ptr<network_bridge::NetPoster> net_poster_;
 
   base::FilePath net_log_path_;
+#if defined(ENABLE_NETWORK_LOGGING)
   std::unique_ptr<CobaltNetLog> net_log_{nullptr};
+#endif
   Options options_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);

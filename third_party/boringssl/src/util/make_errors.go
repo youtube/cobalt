@@ -12,6 +12,8 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+//go:build ignore
+
 package main
 
 import (
@@ -34,19 +36,41 @@ const reservedReasonCode = 1000
 
 var resetFlag *bool = flag.Bool("reset", false, "If true, ignore current assignments and reassign from scratch")
 
-func makeErrors(reset bool) error {
+type libraryInfo struct {
+	sourceDirs []string
+	headerName string
+}
+
+func getLibraryInfo(lib string) libraryInfo {
+	var info libraryInfo
+	if lib == "ssl" {
+		info.sourceDirs = []string{"ssl"}
+	} else {
+		info.sourceDirs = []string{
+			filepath.Join("crypto", lib),
+			filepath.Join("crypto", lib+"_extra"),
+			filepath.Join("crypto", "fipsmodule", lib),
+		}
+	}
+	info.headerName = lib + ".h"
+
+	if lib == "evp" {
+		info.headerName = "evp_errors.h"
+		info.sourceDirs = append(info.sourceDirs, filepath.Join("crypto", "hpke"))
+	}
+
+	return info
+}
+
+func makeErrors(lib string, reset bool) error {
 	topLevelPath, err := findToplevel()
 	if err != nil {
 		return err
 	}
 
-	dirName, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	info := getLibraryInfo(lib)
 
-	lib := filepath.Base(dirName)
-	headerPath := filepath.Join(topLevelPath, "include", "openssl", lib+".h")
+	headerPath := filepath.Join(topLevelPath, "include", "openssl", info.headerName)
 	errDir := filepath.Join(topLevelPath, "crypto", "err")
 	dataPath := filepath.Join(errDir, lib+".errordata")
 
@@ -79,43 +103,30 @@ func makeErrors(reset bool) error {
 		return err
 	}
 
-	dir, err := os.Open(".")
-	if err != nil {
-		return err
-	}
-	defer dir.Close()
-
-	filenames, err := dir.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-
-	if filepath.Base(filepath.Dir(dirName)) == "fipsmodule" {
-		// Search the non-FIPS half of library for error codes as well.
-		extraPath := filepath.Join(topLevelPath, "crypto", lib+"_extra")
-		extraDir, err := os.Open(extraPath)
-		if err != nil && !os.IsNotExist(err) {
+	for _, sourceDir := range info.sourceDirs {
+		fullPath := filepath.Join(topLevelPath, sourceDir)
+		dir, err := os.Open(fullPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// Some directories in the search path may not exist.
+				continue
+			}
 			return err
 		}
-		if err == nil {
-			defer extraDir.Close()
-			extraFilenames, err := extraDir.Readdirnames(-1)
-			if err != nil {
+		defer dir.Close()
+		filenames, err := dir.Readdirnames(-1)
+		if err != nil {
+			return err
+		}
+
+		for _, name := range filenames {
+			if !strings.HasSuffix(name, ".c") && !strings.HasSuffix(name, ".cc") {
+				continue
+			}
+
+			if err := addReasons(reasons, filepath.Join(fullPath, name), prefix); err != nil {
 				return err
 			}
-			for _, extraFilename := range extraFilenames {
-				filenames = append(filenames, filepath.Join(extraPath, extraFilename))
-			}
-		}
-	}
-
-	for _, name := range filenames {
-		if !strings.HasSuffix(name, ".c") && !strings.HasSuffix(name, ".cc") {
-			continue
-		}
-
-		if err := addReasons(reasons, name, prefix); err != nil {
-			return err
 		}
 	}
 
@@ -155,12 +166,16 @@ func makeErrors(reset bool) error {
 }
 
 func findToplevel() (path string, err error) {
-	path = ".."
+	path = "."
 	buildingPath := filepath.Join(path, "BUILDING.md")
 
 	_, err = os.Stat(buildingPath)
 	for i := 0; i < 2 && err != nil && os.IsNotExist(err); i++ {
-		path = filepath.Join("..", path)
+		if i == 0 {
+			path = ".."
+		} else {
+			path = filepath.Join("..", path)
+		}
 		buildingPath = filepath.Join(path, "BUILDING.md")
 		_, err = os.Stat(buildingPath)
 	}
@@ -175,28 +190,13 @@ type assignment struct {
 	value int
 }
 
-type assignmentsSlice []assignment
-
-func (a assignmentsSlice) Len() int {
-	return len(a)
-}
-
-func (a assignmentsSlice) Less(i, j int) bool {
-	return a[i].value < a[j].value
-}
-
-func (a assignmentsSlice) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
 func outputAssignments(w io.Writer, assignments map[string]int) {
-	var sorted assignmentsSlice
-
+	sorted := make([]assignment, 0, len(assignments))
 	for key, value := range assignments {
 		sorted = append(sorted, assignment{key, value})
 	}
 
-	sort.Sort(sorted)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].value < sorted[j].value })
 
 	for _, assignment := range sorted {
 		fmt.Fprintf(w, "#define %s %d\n", assignment.key, assignment.value)
@@ -404,9 +404,15 @@ func parseHeader(lib string, file io.Reader) (reasons map[string]int, err error)
 
 func main() {
 	flag.Parse()
-
-	if err := makeErrors(*resetFlag); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+	if flag.NArg() == 0 {
+		fmt.Fprintf(os.Stderr, "Usage: make_errors.go LIB [LIB2...]\n")
 		os.Exit(1)
+	}
+
+	for _, lib := range flag.Args() {
+		if err := makeErrors(lib, *resetFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating errors for %q: %s\n", lib, err)
+			os.Exit(1)
+		}
 	}
 }

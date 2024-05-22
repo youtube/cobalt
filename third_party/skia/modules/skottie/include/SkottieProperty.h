@@ -31,20 +31,33 @@ namespace skottie {
 using ColorPropertyValue   = SkColor;
 using OpacityPropertyValue = float;
 
+enum class TextPaintOrder : uint8_t {
+    kFillStroke,
+    kStrokeFill,
+};
+
 struct TextPropertyValue {
-    sk_sp<SkTypeface>  fTypeface;
-    SkString           fText;
-    float              fTextSize    = 0,
-                       fStrokeWidth = 0,
-                       fLineHeight  = 0,
-                       fAscent      = 0;
-    SkTextUtils::Align fHAlign      = SkTextUtils::kLeft_Align;
-    Shaper::VAlign     fVAlign      = Shaper::VAlign::kTop;
-    SkRect             fBox         = SkRect::MakeEmpty();
-    SkColor            fFillColor   = SK_ColorTRANSPARENT,
-                       fStrokeColor = SK_ColorTRANSPARENT;
-    bool               fHasFill     = false,
-                       fHasStroke   = false;
+    sk_sp<SkTypeface>       fTypeface;
+    SkString                fText;
+    float                   fTextSize       = 0,
+                            fMinTextSize    = 0,                                 // when auto-sizing
+                            fMaxTextSize    = std::numeric_limits<float>::max(), // when auto-sizing
+                            fStrokeWidth    = 0,
+                            fLineHeight     = 0,
+                            fLineShift      = 0,
+                            fAscent         = 0;
+    SkTextUtils::Align      fHAlign         = SkTextUtils::kLeft_Align;
+    Shaper::VAlign          fVAlign         = Shaper::VAlign::kTop;
+    Shaper::ResizePolicy    fResize         = Shaper::ResizePolicy::kNone;
+    Shaper::LinebreakPolicy fLineBreak      = Shaper::LinebreakPolicy::kExplicit;
+    Shaper::Direction       fDirection      = Shaper::Direction::kLTR;
+    Shaper::Capitalization  fCapitalization = Shaper::Capitalization::kNone;
+    SkRect                  fBox            = SkRect::MakeEmpty();
+    SkColor                 fFillColor      = SK_ColorTRANSPARENT,
+                            fStrokeColor    = SK_ColorTRANSPARENT;
+    TextPaintOrder          fPaintOrder     = TextPaintOrder::kFillStroke;
+    bool                    fHasFill        = false,
+                            fHasStroke      = false;
 
     bool operator==(const TextPropertyValue& other) const;
     bool operator!=(const TextPropertyValue& other) const;
@@ -81,13 +94,21 @@ private:
     const sk_sp<NodeT> fNode;
 };
 
-namespace internal { class TextAdapter; }
+namespace internal {
+
+class TextAdapter;
 class TransformAdapter2D;
 
-using ColorPropertyHandle     = PropertyHandle<ColorPropertyValue    , sksg::Color         >;
-using OpacityPropertyHandle   = PropertyHandle<OpacityPropertyValue  , sksg::OpacityEffect >;
-using TextPropertyHandle      = PropertyHandle<TextPropertyValue     , internal::TextAdapter >;
-using TransformPropertyHandle = PropertyHandle<TransformPropertyValue, TransformAdapter2D  >;
+} // namespace internal
+
+using ColorPropertyHandle     = PropertyHandle<ColorPropertyValue,
+                                               sksg::Color>;
+using OpacityPropertyHandle   = PropertyHandle<OpacityPropertyValue,
+                                               sksg::OpacityEffect>;
+using TextPropertyHandle      = PropertyHandle<TextPropertyValue,
+                                               internal::TextAdapter>;
+using TransformPropertyHandle = PropertyHandle<TransformPropertyValue,
+                                               internal::TransformAdapter2D>;
 
 /**
  * A PropertyObserver can be used to track and manipulate certain properties of "interesting"
@@ -99,6 +120,8 @@ using TransformPropertyHandle = PropertyHandle<TransformPropertyValue, Transform
  */
 class SK_API PropertyObserver : public SkRefCnt {
 public:
+    enum class NodeType {COMPOSITION, LAYER, EFFECT, OTHER};
+
     template <typename T>
     using LazyHandle = std::function<std::unique_ptr<T>()>;
 
@@ -110,6 +133,8 @@ public:
                                      const LazyHandle<TextPropertyHandle>&);
     virtual void onTransformProperty(const char node_name[],
                                      const LazyHandle<TransformPropertyHandle>&);
+    virtual void onEnterNode(const char node_name[], NodeType node_type);
+    virtual void onLeavingNode(const char node_name[], NodeType node_type);
 };
 
 } // namespace skottie

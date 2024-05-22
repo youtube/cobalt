@@ -1,13 +1,19 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/sequence_token.h"
 
 #include "base/atomic_sequence_num.h"
-#include "base/lazy_instance.h"
+#include "third_party/abseil-cpp/absl/base/attributes.h"
+
+#if defined(STARBOARD)
+#include <pthread.h>
+
+#include "base/check_op.h"
+#include "starboard/thread.h"
 #include "base/logging.h"
-#include "base/threading/thread_local.h"
+#endif
 
 namespace base {
 
@@ -17,11 +23,71 @@ base::AtomicSequenceNumber g_sequence_token_generator;
 
 base::AtomicSequenceNumber g_task_token_generator;
 
-LazyInstance<ThreadLocalPointer<const SequenceToken>>::Leaky
-    tls_current_sequence_token = LAZY_INSTANCE_INITIALIZER;
+#if defined(STARBOARD)
+ABSL_CONST_INIT pthread_once_t  s_once_sequence_flag = PTHREAD_ONCE_INIT;
+ABSL_CONST_INIT pthread_key_t s_thread_local_sequence_key = 0;
 
-LazyInstance<ThreadLocalPointer<const TaskToken>>::Leaky
-    tls_current_task_token = LAZY_INSTANCE_INITIALIZER;
+void InitThreadLocalSequenceKey() {
+  int res = pthread_key_create(&s_thread_local_sequence_key, NULL);
+  DCHECK(res == 0);
+}
+
+void EnsureThreadLocalSequenceKeyInited() {
+  pthread_once(&s_once_sequence_flag, InitThreadLocalSequenceKey);
+}
+
+ABSL_CONST_INIT pthread_once_t s_once_set_sequence_flag = PTHREAD_ONCE_INIT;
+ABSL_CONST_INIT pthread_key_t s_thread_local_sequence_set_for_thread = 0;
+void InitThreadLocalSequenceBoolKey() {
+  int res = pthread_key_create(&s_thread_local_sequence_set_for_thread, NULL);
+  DCHECK(res == 0);
+}
+
+void EnsureThreadLocalSequenceBoolKeyInited() {
+  pthread_once(&s_once_set_sequence_flag, InitThreadLocalSequenceBoolKey);
+}
+
+bool IsSequenceSetForThread() {
+  EnsureThreadLocalSequenceBoolKeyInited();
+  void* set_for_thread =
+      pthread_getspecific(s_thread_local_sequence_set_for_thread);
+  return !!set_for_thread ? reinterpret_cast<intptr_t>(set_for_thread) != 0
+                          : false;
+}
+
+ABSL_CONST_INIT pthread_once_t s_once_task_flag = PTHREAD_ONCE_INIT;
+ABSL_CONST_INIT pthread_key_t s_thread_local_task_key = 0;
+
+void InitThreadLocalTaskKey() {
+  int res = pthread_key_create(&s_thread_local_task_key , NULL);
+  DCHECK(res == 0);
+}
+
+void EnsureThreadLocalTaskKeyInited() {
+  pthread_once(&s_once_task_flag, InitThreadLocalTaskKey);
+}
+
+ABSL_CONST_INIT pthread_once_t s_once_set_task_flag = PTHREAD_ONCE_INIT;
+ABSL_CONST_INIT pthread_key_t s_thread_local_task_set_for_thread = 0;
+void InitThreadLocalTaskBoolKey() {
+  int res = pthread_key_create(&s_thread_local_task_set_for_thread, NULL);
+  DCHECK(res == 0);
+}
+
+void EnsureThreadLocalTaskBoolKeyInited() {
+  pthread_once(&s_once_set_task_flag, InitThreadLocalTaskBoolKey);
+}
+
+bool IsTaskSetForThread() {
+  EnsureThreadLocalTaskBoolKeyInited();
+  void* set_for_thread = pthread_getspecific(s_thread_local_task_set_for_thread);
+  return !!set_for_thread ? reinterpret_cast<intptr_t>(set_for_thread) != 0
+                          : false;
+}
+#else
+ABSL_CONST_INIT thread_local SequenceToken current_sequence_token;
+ABSL_CONST_INIT thread_local TaskToken current_task_token;
+#endif
 
 }  // namespace
 
@@ -46,9 +112,18 @@ SequenceToken SequenceToken::Create() {
 }
 
 SequenceToken SequenceToken::GetForCurrentThread() {
-  const SequenceToken* current_sequence_token =
-      tls_current_sequence_token.Get().Get();
-  return current_sequence_token ? *current_sequence_token : SequenceToken();
+#if defined(STARBOARD)
+  if (IsSequenceSetForThread()) {
+    EnsureThreadLocalSequenceKeyInited();
+    int token = static_cast<int>(reinterpret_cast<intptr_t>(
+        pthread_getspecific(s_thread_local_sequence_key)));
+    return SequenceToken(token);
+  } else {
+    return SequenceToken();
+  }
+#else
+  return current_sequence_token;
+#endif
 }
 
 bool TaskToken::operator==(const TaskToken& other) const {
@@ -68,25 +143,77 @@ TaskToken TaskToken::Create() {
 }
 
 TaskToken TaskToken::GetForCurrentThread() {
-  const TaskToken* current_task_token = tls_current_task_token.Get().Get();
-  return current_task_token ? *current_task_token : TaskToken();
+#if defined(STARBOARD)
+  if (IsTaskSetForThread()) {
+    EnsureThreadLocalTaskKeyInited();
+    int token = static_cast<int>(reinterpret_cast<intptr_t>(
+        pthread_getspecific(s_thread_local_task_key)));
+    return TaskToken(token);
+  } else {
+    return TaskToken();
+  }
+#else
+  return current_task_token;
+#endif
 }
 
 ScopedSetSequenceTokenForCurrentThread::ScopedSetSequenceTokenForCurrentThread(
     const SequenceToken& sequence_token)
-    : sequence_token_(sequence_token), task_token_(TaskToken::Create()) {
-  DCHECK(!tls_current_sequence_token.Get().Get());
-  DCHECK(!tls_current_task_token.Get().Get());
-  tls_current_sequence_token.Get().Set(&sequence_token_);
-  tls_current_task_token.Get().Set(&task_token_);
-}
+#if defined(STARBOARD)
+{
+  EnsureThreadLocalSequenceKeyInited();
+  auto sequence_reset_token = TaskToken::GetForCurrentThread();
+  DCHECK(!sequence_reset_token.IsValid());
+  scoped_sequence_reset_value_ = reinterpret_cast<void*>(
+                            static_cast<intptr_t>(sequence_reset_token.GetToken()));
+  pthread_setspecific(s_thread_local_sequence_key,
+                        reinterpret_cast<void*>(
+                            static_cast<intptr_t>(sequence_token.GetToken())));
 
+  EnsureThreadLocalTaskKeyInited();
+  auto task_reset_token = TaskToken::GetForCurrentThread();
+  DCHECK(!task_reset_token.IsValid());
+  scoped_task_reset_value_ = reinterpret_cast<void*>(
+                            static_cast<intptr_t>(task_reset_token.GetToken()));
+  pthread_setspecific(s_thread_local_task_key,
+                        reinterpret_cast<void*>(static_cast<intptr_t>(
+                            TaskToken::Create().GetToken())));
+
+  EnsureThreadLocalSequenceBoolKeyInited();
+  pthread_setspecific(s_thread_local_sequence_set_for_thread,
+                        reinterpret_cast<void*>(static_cast<intptr_t>(true)));
+  EnsureThreadLocalTaskBoolKeyInited();
+  pthread_setspecific(s_thread_local_task_set_for_thread,
+                        reinterpret_cast<void*>(static_cast<intptr_t>(true)));
+}
+#else
+    // The lambdas here exist because invalid tokens don't compare equal, so
+    // passing invalid sequence/task tokens as the third args to AutoReset
+    // constructors doesn't work.
+    : sequence_token_resetter_(&current_sequence_token,
+                               [&sequence_token]() {
+                                 DCHECK(!current_sequence_token.IsValid());
+                                 return sequence_token;
+                               }()),
+      task_token_resetter_(&current_task_token, [] {
+        DCHECK(!current_task_token.IsValid());
+        return TaskToken::Create();
+      }()) {}
+#endif
+
+#if defined(STARBOARD)
 ScopedSetSequenceTokenForCurrentThread::
     ~ScopedSetSequenceTokenForCurrentThread() {
-  DCHECK_EQ(tls_current_sequence_token.Get().Get(), &sequence_token_);
-  DCHECK_EQ(tls_current_task_token.Get().Get(), &task_token_);
-  tls_current_sequence_token.Get().Set(nullptr);
-  tls_current_task_token.Get().Set(nullptr);
+  EnsureThreadLocalSequenceKeyInited();
+  pthread_setspecific(s_thread_local_sequence_key,
+                        scoped_sequence_reset_value_);
+
+  EnsureThreadLocalTaskKeyInited();
+  pthread_setspecific(s_thread_local_task_key, scoped_task_reset_value_);
 }
+#else
+ScopedSetSequenceTokenForCurrentThread::
+    ~ScopedSetSequenceTokenForCurrentThread() = default;
+#endif
 
 }  // namespace base

@@ -4,7 +4,7 @@
 # found in the LICENSE file.
 
 declare_args() {
-  skia_use_system_libpng = is_official_build
+  skia_use_system_libpng = is_official_build && !is_wasm
 }
 
 import("../third_party.gni")
@@ -21,9 +21,7 @@ if (skia_use_system_libpng) {
     ]
 
     defines = [ "PNG_SET_OPTION_SUPPORTED" ]
-    deps = [
-      "//third_party/zlib",
-    ]
+    deps = [ "//third_party/zlib" ]
     sources = [
       "../externals/libpng/png.c",
       "../externals/libpng/pngerror.c",

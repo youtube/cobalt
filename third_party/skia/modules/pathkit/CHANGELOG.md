@@ -6,8 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] 2022-02-03
+
 ### Changed
- - Updated to emscripten 1.38.47
+ - Now compile with emsdk 3.1.3
+ - Internal calls no longer use dynamic dispatch (skbug.com/12795)
+ - WASM Memory can grow beyond initial 32MB
+ - The debug and test builds of PathKit are no longer published to NPM.
+
+## [0.7.0] 2019-07-20
+
+### Changed
+ - Updated to emscripten 1.39.16
+ - Support wombat-dressing-room. go/npm-publish
+
+### Breaking
+ - `PathKitInit(...)` now directly returns a Promise. As such, `PathKitInit(...).ready()`
+   has been removed.
 
 ## [0.6.0] 2019-02-25
 

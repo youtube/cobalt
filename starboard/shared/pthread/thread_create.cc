@@ -47,14 +47,14 @@ void* ThreadFunc(void* context) {
   void* real_context = thread_params->context;
   SbThreadAffinity affinity = thread_params->affinity;
   if (thread_params->name[0] != '\0') {
-    SbThreadSetName(thread_params->name);
+    pthread_setname_np(pthread_self(), thread_params->name);
   }
 
   starboard::shared::pthread::ThreadSetPriority(thread_params->priority);
 
   delete thread_params;
 
-#if !SB_HAS_QUIRK(THREAD_AFFINITY_UNSUPPORTED)
+#if defined(_GNU_SOURCE)  // sched_setaffinity is a GNU extension
   if (SbThreadIsValidAffinity(affinity)) {
     cpu_set_t cpu_set;
     CPU_ZERO(&cpu_set);

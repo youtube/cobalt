@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,7 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/memory/singleton.h"
-#include "starboard/types.h"
 
 namespace base {
 namespace android {
@@ -32,6 +30,13 @@ enum SdkVersion {
   SDK_VERSION_NOUGAT = 24,
   SDK_VERSION_NOUGAT_MR1 = 25,
   SDK_VERSION_OREO = 26,
+  SDK_VERSION_O_MR1 = 27,
+  SDK_VERSION_P = 28,
+  SDK_VERSION_Q = 29,
+  SDK_VERSION_R = 30,
+  SDK_VERSION_S = 31,
+  SDK_VERSION_Sv2 = 32,
+  SDK_VERSION_T = 33,
 };
 
 // BuildInfo is a singleton class that stores android build and device
@@ -39,6 +44,8 @@ enum SdkVersion {
 // primarily in crash reporting.
 class BASE_EXPORT BuildInfo {
  public:
+  BuildInfo(const BuildInfo&) = delete;
+  BuildInfo& operator=(const BuildInfo&) = delete;
 
   ~BuildInfo() {}
 
@@ -115,13 +122,35 @@ class BASE_EXPORT BuildInfo {
 
   const char* abi_name() const { return abi_name_; }
 
-  std::string extracted_file_suffix() const { return extracted_file_suffix_; }
-
   int sdk_int() const {
     return sdk_int_;
   }
 
-  bool is_at_least_p() const { return is_at_least_p_; }
+  // Returns the targetSdkVersion of the currently running app. If called from a
+  // library, this returns the embedding app's targetSdkVersion.
+  //
+  // This can only be compared to finalized SDK versions, never against
+  // pre-release Android versions. For pre-release Android versions, see the
+  // targetsAtLeast*() methods in BuildInfo.java.
+  int target_sdk_version() const { return target_sdk_version_; }
+
+  bool is_debug_android() const { return is_debug_android_; }
+
+  bool is_tv() const { return is_tv_; }
+
+  const char* version_incremental() const { return version_incremental_; }
+
+  const char* hardware() const { return hardware_; }
+
+  bool is_at_least_t() const { return is_at_least_t_; }
+
+  bool is_automotive() const { return is_automotive_; }
+
+  bool is_at_least_u() const { return is_at_least_u_; }
+
+  bool targets_at_least_u() const { return targets_at_least_u_; }
+
+  const char* codename() const { return codename_; }
 
  private:
   friend struct BuildInfoSingletonTraits;
@@ -154,10 +183,16 @@ class BASE_EXPORT BuildInfo {
   const char* const custom_themes_;
   const char* const resources_version_;
   // Not needed by breakpad.
-  const std::string extracted_file_suffix_;
-  const int is_at_least_p_;
-
-  DISALLOW_COPY_AND_ASSIGN(BuildInfo);
+  const int target_sdk_version_;
+  const bool is_debug_android_;
+  const bool is_tv_;
+  const char* const version_incremental_;
+  const char* const hardware_;
+  const bool is_at_least_t_;
+  const bool is_automotive_;
+  const bool is_at_least_u_;
+  const bool targets_at_least_u_;
+  const char* const codename_;
 };
 
 }  // namespace android

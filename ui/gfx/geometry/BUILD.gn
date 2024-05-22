@@ -1,0 +1,38 @@
+# Copyright 2014 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+component("geometry") {
+  sources = [
+    "geometry_export.h",
+    "point.cc",
+    "point.h",
+    "point3_f.cc",
+    "point3_f.h",
+    "point_conversions.cc",
+    "point_conversions.h",
+    "point_f.cc",
+    "point_f.h",
+    "rect.cc",
+    "rect.h",
+    "size.cc",
+    "size.h",
+    "size_conversions.cc",
+    "size_conversions.h",
+    "size_f.cc",
+    "size_f.h",
+    "vector2d.cc",
+    "vector2d.h",
+    "vector2d_f.cc",
+    "vector2d_f.h",
+  ]
+
+  defines = [ "GEOMETRY_IMPLEMENTATION" ]
+
+  deps = [ "//base" ]
+
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_max" ]
+  }
+}

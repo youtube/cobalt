@@ -1,41 +1,43 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
-import static org.chromium.base.EarlyTraceEvent.AsyncEvent;
-import static org.chromium.base.EarlyTraceEvent.Event;
-
 import android.os.Process;
-import android.support.test.filters.SmallTest;
+import android.os.SystemClock;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.EarlyTraceEvent.AsyncEvent;
+import org.chromium.base.EarlyTraceEvent.Event;
 import org.chromium.base.library_loader.LibraryLoader;
-import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Feature;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Tests for {@link EarlyTraceEvent}.
  *
- * TODO(lizeb): Move to roboelectric tests.
+ * TODO(lizeb): Move to robolectric tests.
  */
 @RunWith(BaseJUnit4ClassRunner.class)
 public class EarlyTraceEventTest {
     private static final String EVENT_NAME = "MyEvent";
     private static final String EVENT_NAME2 = "MyOtherEvent";
     private static final long EVENT_ID = 1;
-    private static final long EVENT_ID2 = 2;
 
     @Before
-    public void setUp() throws Exception {
-        LibraryLoader.getInstance().ensureInitialized(LibraryProcessType.PROCESS_BROWSER);
-        EarlyTraceEvent.resetForTesting();
+    public void setUp() {
+        LibraryLoader.getInstance().ensureInitialized();
+        EarlyTraceEvent.reset();
     }
 
     @Test
@@ -44,20 +46,29 @@ public class EarlyTraceEventTest {
     public void testCanRecordEvent() {
         EarlyTraceEvent.enable();
         long myThreadId = Process.myTid();
-        long beforeNanos = Event.elapsedRealtimeNanos();
-        EarlyTraceEvent.begin(EVENT_NAME);
-        EarlyTraceEvent.end(EVENT_NAME);
-        long afterNanos = Event.elapsedRealtimeNanos();
+        long beforeNanos = System.nanoTime();
+        long beforeThreadMillis = SystemClock.currentThreadTimeMillis();
+        EarlyTraceEvent.begin(EVENT_NAME, false /*isToplevel*/);
+        EarlyTraceEvent.end(EVENT_NAME, false /*isToplevel*/);
+        Assert.assertTrue(EarlyTraceEvent.enabled());
+        long afterNanos = System.nanoTime();
+        long afterThreadMillis = SystemClock.currentThreadTimeMillis();
 
-        Assert.assertEquals(1, EarlyTraceEvent.sCompletedEvents.size());
-        Assert.assertTrue(EarlyTraceEvent.sPendingEventByKey.isEmpty());
-        Event event = EarlyTraceEvent.sCompletedEvents.get(0);
-        Assert.assertEquals(EVENT_NAME, event.mName);
-        Assert.assertEquals(myThreadId, event.mThreadId);
-        Assert.assertTrue(
-                beforeNanos <= event.mBeginTimeNanos && event.mBeginTimeNanos <= afterNanos);
-        Assert.assertTrue(event.mBeginTimeNanos <= event.mEndTimeNanos);
-        Assert.assertTrue(beforeNanos <= event.mEndTimeNanos && event.mEndTimeNanos <= afterNanos);
+        List<Event> matchingEvents =
+                EarlyTraceEvent.getMatchingCompletedEventsForTesting(EVENT_NAME);
+        Assert.assertEquals(2, matchingEvents.size());
+        Event beginEvent = matchingEvents.get(0);
+        Event endEvent = matchingEvents.get(1);
+        Assert.assertEquals(EVENT_NAME, beginEvent.mName);
+        Assert.assertEquals(myThreadId, beginEvent.mThreadId);
+        Assert.assertEquals(EVENT_NAME, endEvent.mName);
+        Assert.assertEquals(myThreadId, endEvent.mThreadId);
+        Assert.assertFalse(beginEvent.mIsToplevel);
+        Assert.assertFalse(endEvent.mIsToplevel);
+        Assert.assertTrue(beforeNanos <= beginEvent.mTimeNanos);
+        Assert.assertTrue(endEvent.mTimeNanos <= afterNanos);
+        Assert.assertTrue(beforeThreadMillis <= beginEvent.mThreadTimeMillis);
+        Assert.assertTrue(endEvent.mThreadTimeMillis <= afterThreadMillis);
     }
 
     @Test
@@ -65,37 +76,29 @@ public class EarlyTraceEventTest {
     @Feature({"Android-AppBase"})
     public void testCanRecordAsyncEvent() {
         EarlyTraceEvent.enable();
-        long beforeNanos = Event.elapsedRealtimeNanos();
+        long beforeNanos = System.nanoTime();
         EarlyTraceEvent.startAsync(EVENT_NAME, EVENT_ID);
         EarlyTraceEvent.finishAsync(EVENT_NAME, EVENT_ID);
-        long afterNanos = Event.elapsedRealtimeNanos();
+        long afterNanos = System.nanoTime();
 
-        Assert.assertEquals(2, EarlyTraceEvent.sAsyncEvents.size());
-        Assert.assertTrue(EarlyTraceEvent.sPendingEventByKey.isEmpty());
-        AsyncEvent eventStart = EarlyTraceEvent.sAsyncEvents.get(0);
-        AsyncEvent eventEnd = EarlyTraceEvent.sAsyncEvents.get(1);
+        List<AsyncEvent> matchingEvents = new ArrayList<AsyncEvent>();
+        synchronized (EarlyTraceEvent.sLock) {
+            for (AsyncEvent evt : EarlyTraceEvent.sAsyncEvents) {
+                if (evt.mName.equals(EVENT_NAME)) {
+                    matchingEvents.add(evt);
+                }
+            }
+        }
+        Assert.assertEquals(2, matchingEvents.size());
+        AsyncEvent eventStart = matchingEvents.get(0);
+        AsyncEvent eventEnd = matchingEvents.get(1);
         Assert.assertEquals(EVENT_NAME, eventStart.mName);
         Assert.assertEquals(EVENT_ID, eventStart.mId);
         Assert.assertEquals(EVENT_NAME, eventEnd.mName);
         Assert.assertEquals(EVENT_ID, eventEnd.mId);
-        Assert.assertTrue(beforeNanos <= eventStart.mTimestampNanos
-                && eventEnd.mTimestampNanos <= afterNanos);
-        Assert.assertTrue(eventStart.mTimestampNanos <= eventEnd.mTimestampNanos);
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"Android-AppBase"})
-    public void testRecordAsyncFinishEventWhenFinishing() {
-        EarlyTraceEvent.enable();
-        EarlyTraceEvent.startAsync(EVENT_NAME, EVENT_ID);
-        EarlyTraceEvent.disable();
-
-        Assert.assertEquals(EarlyTraceEvent.STATE_FINISHING, EarlyTraceEvent.sState);
-        Assert.assertTrue(EarlyTraceEvent.sAsyncEvents.isEmpty());
-        Assert.assertEquals(1, EarlyTraceEvent.sPendingAsyncEvents.size());
-        EarlyTraceEvent.finishAsync(EVENT_NAME, EVENT_ID);
-        Assert.assertEquals(EarlyTraceEvent.STATE_FINISHED, EarlyTraceEvent.sState);
+        Assert.assertTrue(
+                beforeNanos <= eventStart.mTimeNanos && eventEnd.mTimeNanos <= afterNanos);
+        Assert.assertTrue(eventStart.mTimeNanos <= eventEnd.mTimeNanos);
     }
 
     @Test
@@ -104,21 +107,23 @@ public class EarlyTraceEventTest {
     public void testCanRecordEventUsingTryWith() {
         EarlyTraceEvent.enable();
         long myThreadId = Process.myTid();
-        long beforeNanos = Event.elapsedRealtimeNanos();
+        long beforeNanos = System.nanoTime();
         try (TraceEvent e = TraceEvent.scoped(EVENT_NAME)) {
             // Required comment to pass presubmit checks.
         }
-        long afterNanos = Event.elapsedRealtimeNanos();
+        long afterNanos = System.nanoTime();
 
-        Assert.assertEquals(1, EarlyTraceEvent.sCompletedEvents.size());
-        Assert.assertTrue(EarlyTraceEvent.sPendingEventByKey.isEmpty());
-        Event event = EarlyTraceEvent.sCompletedEvents.get(0);
-        Assert.assertEquals(EVENT_NAME, event.mName);
-        Assert.assertEquals(myThreadId, event.mThreadId);
-        Assert.assertTrue(
-                beforeNanos <= event.mBeginTimeNanos && event.mBeginTimeNanos <= afterNanos);
-        Assert.assertTrue(event.mBeginTimeNanos <= event.mEndTimeNanos);
-        Assert.assertTrue(beforeNanos <= event.mEndTimeNanos && event.mEndTimeNanos <= afterNanos);
+        List<Event> matchingEvents =
+                EarlyTraceEvent.getMatchingCompletedEventsForTesting(EVENT_NAME);
+        Assert.assertEquals(2, matchingEvents.size());
+        Event beginEvent = matchingEvents.get(0);
+        Event endEvent = matchingEvents.get(1);
+        Assert.assertEquals(EVENT_NAME, beginEvent.mName);
+        Assert.assertEquals(myThreadId, beginEvent.mThreadId);
+        Assert.assertEquals(EVENT_NAME, endEvent.mName);
+        Assert.assertEquals(myThreadId, endEvent.mThreadId);
+        Assert.assertTrue(beforeNanos <= beginEvent.mTimeNanos);
+        Assert.assertTrue(endEvent.mTimeNanos <= afterNanos);
     }
 
     @Test
@@ -126,55 +131,28 @@ public class EarlyTraceEventTest {
     @Feature({"Android-AppBase"})
     public void testIncompleteEvent() {
         EarlyTraceEvent.enable();
-        EarlyTraceEvent.begin(EVENT_NAME);
+        EarlyTraceEvent.begin(EVENT_NAME, true /*isToplevel*/);
 
-        Assert.assertTrue(EarlyTraceEvent.sCompletedEvents.isEmpty());
-        Assert.assertEquals(1, EarlyTraceEvent.sPendingEventByKey.size());
-        EarlyTraceEvent.Event event = EarlyTraceEvent.sPendingEventByKey.get(
-                EarlyTraceEvent.makeEventKeyForCurrentThread(EVENT_NAME));
-        Assert.assertEquals(EVENT_NAME, event.mName);
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"Android-AppBase"})
-    public void testNoDuplicatePendingEventsFromSameThread() {
-        EarlyTraceEvent.enable();
-        EarlyTraceEvent.begin(EVENT_NAME);
-        try {
-            EarlyTraceEvent.begin(EVENT_NAME);
-        } catch (IllegalArgumentException e) {
-            // Expected.
-            return;
-        }
-        Assert.fail();
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"Android-AppBase"})
-    public void testDuplicatePendingEventsFromDifferentThreads() throws Exception {
-        EarlyTraceEvent.enable();
-
-        Thread otherThread = new Thread(() -> { EarlyTraceEvent.begin(EVENT_NAME); });
-        otherThread.start();
-        otherThread.join();
-
-        // At this point we have a pending event with EVENT_NAME name. But events are per
-        // thread, so we should be able to start EVENT_NAME event in a different thread.
-        EarlyTraceEvent.begin(EVENT_NAME);
+        List<Event> matchingEvents =
+                EarlyTraceEvent.getMatchingCompletedEventsForTesting(EVENT_NAME);
+        Assert.assertEquals(1, matchingEvents.size());
+        Event beginEvent = matchingEvents.get(0);
+        Assert.assertEquals(EVENT_NAME, beginEvent.mName);
+        Assert.assertTrue(beginEvent.mIsToplevel);
     }
 
     @Test
     @SmallTest
     @Feature({"Android-AppBase"})
     public void testIgnoreEventsWhenDisabled() {
-        EarlyTraceEvent.begin(EVENT_NAME);
-        EarlyTraceEvent.end(EVENT_NAME);
+        EarlyTraceEvent.begin(EVENT_NAME, false /*isToplevel*/);
+        EarlyTraceEvent.end(EVENT_NAME, false /*isToplevel*/);
         try (TraceEvent e = TraceEvent.scoped(EVENT_NAME2)) {
             // Required comment to pass presubmit checks.
         }
-        Assert.assertNull(EarlyTraceEvent.sCompletedEvents);
+        synchronized (EarlyTraceEvent.sLock) {
+            Assert.assertNull(EarlyTraceEvent.sEvents);
+        }
     }
 
     @Test
@@ -183,54 +161,9 @@ public class EarlyTraceEventTest {
     public void testIgnoreAsyncEventsWhenDisabled() {
         EarlyTraceEvent.startAsync(EVENT_NAME, EVENT_ID);
         EarlyTraceEvent.finishAsync(EVENT_NAME, EVENT_ID);
-        Assert.assertNull(EarlyTraceEvent.sAsyncEvents);
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"Android-AppBase"})
-    public void testIgnoreNewEventsWhenFinishing() {
-        EarlyTraceEvent.enable();
-        EarlyTraceEvent.begin(EVENT_NAME);
-        EarlyTraceEvent.disable();
-
-        Assert.assertEquals(EarlyTraceEvent.STATE_FINISHING, EarlyTraceEvent.sState);
-        EarlyTraceEvent.begin(EVENT_NAME2);
-        EarlyTraceEvent.end(EVENT_NAME2);
-
-        Assert.assertEquals(1, EarlyTraceEvent.sPendingEventByKey.size());
-        Assert.assertTrue(EarlyTraceEvent.sCompletedEvents.isEmpty());
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"Android-AppBase"})
-    public void testIgnoreNewAsyncEventsWhenFinishing() {
-        EarlyTraceEvent.enable();
-        EarlyTraceEvent.startAsync(EVENT_NAME, EVENT_ID);
-        EarlyTraceEvent.disable();
-
-        Assert.assertEquals(EarlyTraceEvent.STATE_FINISHING, EarlyTraceEvent.sState);
-        EarlyTraceEvent.startAsync(EVENT_NAME2, EVENT_ID2);
-
-        Assert.assertEquals(1, EarlyTraceEvent.sPendingAsyncEvents.size());
-        Assert.assertTrue(EarlyTraceEvent.sAsyncEvents.isEmpty());
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"Android-AppBase"})
-    public void testFinishingToFinished() {
-        EarlyTraceEvent.enable();
-        EarlyTraceEvent.begin(EVENT_NAME);
-        EarlyTraceEvent.disable();
-
-        Assert.assertEquals(EarlyTraceEvent.STATE_FINISHING, EarlyTraceEvent.sState);
-        EarlyTraceEvent.begin(EVENT_NAME2);
-        EarlyTraceEvent.end(EVENT_NAME2);
-        EarlyTraceEvent.end(EVENT_NAME);
-
-        Assert.assertEquals(EarlyTraceEvent.STATE_FINISHED, EarlyTraceEvent.sState);
+        synchronized (EarlyTraceEvent.sLock) {
+            Assert.assertNull(EarlyTraceEvent.sAsyncEvents);
+        }
     }
 
     @Test
@@ -238,8 +171,8 @@ public class EarlyTraceEventTest {
     @Feature({"Android-AppBase"})
     public void testCannotBeReenabledOnceFinished() {
         EarlyTraceEvent.enable();
-        EarlyTraceEvent.begin(EVENT_NAME);
-        EarlyTraceEvent.end(EVENT_NAME);
+        EarlyTraceEvent.begin(EVENT_NAME, false /*isToplevel*/);
+        EarlyTraceEvent.end(EVENT_NAME, false /*isToplevel*/);
         EarlyTraceEvent.disable();
         Assert.assertEquals(EarlyTraceEvent.STATE_FINISHED, EarlyTraceEvent.sState);
 
@@ -265,9 +198,13 @@ public class EarlyTraceEventTest {
         thread.start();
         thread.join();
 
-        Assert.assertEquals(1, EarlyTraceEvent.sCompletedEvents.size());
-        EarlyTraceEvent.Event event = EarlyTraceEvent.sCompletedEvents.get(0);
-        Assert.assertEquals(threadId[0], event.mThreadId);
+        List<Event> matchingEvents =
+                EarlyTraceEvent.getMatchingCompletedEventsForTesting(EVENT_NAME);
+        Assert.assertEquals(2, matchingEvents.size());
+        Event beginEvent = matchingEvents.get(0);
+        Event endEvent = matchingEvents.get(1);
+        Assert.assertEquals(threadId[0], beginEvent.mThreadId);
+        Assert.assertEquals(threadId[0], endEvent.mThreadId);
     }
 
     @Test
@@ -275,13 +212,13 @@ public class EarlyTraceEventTest {
     @Feature({"Android-AppBase"})
     public void testEnableAtStartup() {
         ThreadUtils.setThreadAssertsDisabledForTesting(true);
-        EarlyTraceEvent.maybeEnable();
+        EarlyTraceEvent.maybeEnableInBrowserProcess();
         Assert.assertFalse(EarlyTraceEvent.enabled());
         EarlyTraceEvent.setBackgroundStartupTracingFlag(false);
         Assert.assertFalse(EarlyTraceEvent.enabled());
 
         EarlyTraceEvent.setBackgroundStartupTracingFlag(true);
-        EarlyTraceEvent.maybeEnable();
+        EarlyTraceEvent.maybeEnableInBrowserProcess();
         Assert.assertTrue(EarlyTraceEvent.getBackgroundStartupTracingFlag());
         Assert.assertTrue(EarlyTraceEvent.enabled());
         EarlyTraceEvent.disable();
@@ -296,10 +233,40 @@ public class EarlyTraceEventTest {
         // Setting command line should disable the background tracing flag.
         CommandLine.getInstance().appendSwitch("trace-startup");
         EarlyTraceEvent.setBackgroundStartupTracingFlag(true);
-        EarlyTraceEvent.maybeEnable();
+        EarlyTraceEvent.maybeEnableInBrowserProcess();
         Assert.assertFalse(EarlyTraceEvent.getBackgroundStartupTracingFlag());
         Assert.assertTrue(EarlyTraceEvent.enabled());
         EarlyTraceEvent.disable();
         EarlyTraceEvent.setBackgroundStartupTracingFlag(false);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Android-AppBase"})
+    public void testEnableInChildProcess() {
+        ThreadUtils.setThreadAssertsDisabledForTesting(true);
+        EarlyTraceEvent.earlyEnableInChildWithoutCommandLine();
+        Assert.assertTrue(EarlyTraceEvent.enabled());
+        CommandLine.getInstance().appendSwitch("trace-early-java-in-child");
+        EarlyTraceEvent.onCommandLineAvailableInChildProcess();
+        Assert.assertTrue(EarlyTraceEvent.enabled());
+
+        // Eliminate side effects.
+        CommandLine.getInstance().removeSwitch("trace-early-java-in-child");
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Android-AppBase"})
+    public void testEnableInChildProcessCommandLineLaterOverrides() {
+        ThreadUtils.setThreadAssertsDisabledForTesting(true);
+        EarlyTraceEvent.earlyEnableInChildWithoutCommandLine();
+        Assert.assertTrue(EarlyTraceEvent.enabled());
+        CommandLine.getInstance().removeSwitch("trace-early-java-in-child");
+        EarlyTraceEvent.onCommandLineAvailableInChildProcess();
+        Assert.assertFalse(EarlyTraceEvent.enabled());
+        synchronized (EarlyTraceEvent.sLock) {
+            Assert.assertNull(EarlyTraceEvent.sEvents);
+        }
     }
 }

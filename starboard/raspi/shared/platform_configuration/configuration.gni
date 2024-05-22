@@ -14,8 +14,7 @@
 
 if (current_toolchain == default_toolchain &&
     build_with_separate_cobalt_toolchain) {
-  import(
-      "//starboard/evergreen/arm/softfp/platform_configuration/configuration.gni")
+  import("//starboard/build/config/modular/arm/hardfp/configuration.gni")
 
   platform_tests_path = "//starboard/raspi/shared:starboard_platform_tests_install($starboard_toolchain)"
   cobalt_font_package = "standard"

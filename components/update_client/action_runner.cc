@@ -14,8 +14,8 @@
 #include "base/files/file_util.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/task/post_task.h"
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #include "components/crx_file/crx_verifier.h"
@@ -59,18 +59,18 @@ namespace update_client {
 ActionRunner::ActionRunner(const Component& component)
     : is_per_user_install_(component.config()->IsPerUserInstall()),
       component_(component),
-      main_task_runner_(base::ThreadTaskRunnerHandle::Get()) {}
+      main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
 
 ActionRunner::~ActionRunner() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void ActionRunner::Run(Callback run_complete) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   run_complete_ = std::move(run_complete);
 
-  base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
+  base::ThreadPool::CreateSequencedTaskRunner(kTaskTraits)
       ->PostTask(
           FROM_HERE,
           base::BindOnce(&ActionRunner::RunOnTaskRunner, base::Unretained(this),
@@ -116,7 +116,7 @@ void ActionRunner::UnpackComplete(const ComponentUnpacker::Result& result) {
   }
 
   unpack_path_ = result.unpack_path;
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&ActionRunner::RunCommand, base::Unretained(this),
                      MakeCommandLine(result.unpack_path)));

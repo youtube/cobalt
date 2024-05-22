@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -31,6 +32,13 @@
 #include "third_party/libevent/event.h"
 
 namespace sbposix = starboard::shared::posix;
+
+#if (defined(_GNU_SOURCE) || defined(_POSIX_VERSION)) && \
+    !(PLAYSTATION_GENERATION <= 5)
+#define USE_POSIX_PIPE 1
+#else
+#define USE_POSIX_PIPE 0
+#endif
 
 namespace {
 // We do this because it's our style to use explicitly-sized ints when not just
@@ -64,13 +72,13 @@ SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
     }
 
     // Just being polite.
-    SbThreadYield();
+    sched_yield();
   }
 
   return kSbSocketInvalid;
 }
 
-#if !SB_HAS(PIPE)
+#if !USE_POSIX_PIPE
 void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
   int result;
   SbSocketError sb_socket_result;
@@ -111,11 +119,11 @@ void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()
-    : thread_(SbThreadGetCurrent()),
+    : thread_(pthread_self()),
       base_(event_base_new()),
       waiting_(false),
       woken_up_(false) {
-#if SB_HAS(PIPE)
+#if USE_POSIX_PIPE
   int fds[2];
   int result = pipe(fds);
   SB_DCHECK(result == 0);
@@ -155,7 +163,7 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
   event_del(&wakeup_event_);
   event_base_free(base_);
 
-#if SB_HAS(PIPE)
+#if USE_POSIX_PIPE
   close(wakeup_read_fd_);
   close(wakeup_write_fd_);
 #else
@@ -169,7 +177,7 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
                                 SbSocketWaiterCallback callback,
                                 int interests,
                                 bool persistent) {
-  SB_DCHECK(SbThreadIsCurrent(thread_));
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
 
   if (!SbSocketIsValid(socket)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
@@ -226,7 +234,7 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
 }
 
 bool SbSocketWaiterPrivate::Remove(SbSocket socket) {
-  SB_DCHECK(SbThreadIsCurrent(thread_));
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
   if (!SbSocketIsValid(socket)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
     return false;
@@ -253,7 +261,7 @@ bool SbSocketWaiterPrivate::Remove(SbSocket socket) {
 }
 
 void SbSocketWaiterPrivate::Wait() {
-  SB_DCHECK(SbThreadIsCurrent(thread_));
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
 
   // We basically wait for the largest amount of time to achieve an indefinite
   // block.
@@ -261,7 +269,7 @@ void SbSocketWaiterPrivate::Wait() {
 }
 
 SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
-  SB_DCHECK(SbThreadIsCurrent(thread_));
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
 
   // The way to do this is apparently to create a timeout event, call WakeUp
   // inside that callback, and then just do a normal wait.
@@ -387,3 +395,5 @@ SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::RemoveWaitee(
   waitees_.erase(it);
   return result;
 }
+
+#undef USE_POSIX_PIPE

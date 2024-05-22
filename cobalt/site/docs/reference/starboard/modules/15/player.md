@@ -100,7 +100,7 @@ typedef struct SbPlayerPrivate* SbPlayer
 
 Callback to free the given sample buffer data. When more than one buffer are
 sent in SbPlayerWriteSample(), the implementation only has to call this callback
-with `sample_buffer` points to the the first buffer.
+with `sample_buffer` points to the first buffer.
 
 #### Definition
 

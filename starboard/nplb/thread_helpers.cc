@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "starboard/nplb/thread_helpers.h"
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
-#include "starboard/thread.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -46,7 +47,7 @@ void* TakeThenSignalEntryPoint(void* context) {
   test_context->do_signal.Take();
 
   if (test_context->delay_after_signal > 0) {
-    SbThreadSleep(test_context->delay_after_signal);
+    usleep(test_context->delay_after_signal);
   }
 
   // Signal the condition variable.

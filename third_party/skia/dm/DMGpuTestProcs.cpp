@@ -7,9 +7,19 @@
 
 #include "tests/Test.h"
 
+#include "include/gpu/GrDirectContext.h"
+
+#ifdef SK_GRAPHITE_ENABLED
+#include "experimental/graphite/include/Context.h"
+#include "tools/graphite/ContextFactory.h"
+#endif
+
 using sk_gpu_test::GrContextFactory;
-using sk_gpu_test::GLTestContext;
 using sk_gpu_test::ContextInfo;
+
+#ifdef SK_GL
+using sk_gpu_test::GLTestContext;
+#endif
 
 namespace skiatest {
 
@@ -22,12 +32,14 @@ bool IsVulkanContextType(sk_gpu_test::GrContextFactory::ContextType type) {
 bool IsMetalContextType(sk_gpu_test::GrContextFactory::ContextType type) {
     return GrBackendApi::kMetal == GrContextFactory::ContextTypeBackend(type);
 }
+bool IsDirect3DContextType(sk_gpu_test::GrContextFactory::ContextType type) {
+    return GrBackendApi::kDirect3D == GrContextFactory::ContextTypeBackend(type);
+}
+bool IsDawnContextType(sk_gpu_test::GrContextFactory::ContextType type) {
+    return GrBackendApi::kDawn == GrContextFactory::ContextTypeBackend(type);
+}
 bool IsRenderingGLContextType(sk_gpu_test::GrContextFactory::ContextType type) {
     return IsGLContextType(type) && GrContextFactory::IsRenderingContext(type);
-}
-bool IsRenderingGLOrMetalContextType(sk_gpu_test::GrContextFactory::ContextType type) {
-    return (IsGLContextType(type) || IsMetalContextType(type)) &&
-           GrContextFactory::IsRenderingContext(type);
 }
 bool IsMockContextType(sk_gpu_test::GrContextFactory::ContextType type) {
     return type == GrContextFactory::kMock_ContextType;
@@ -62,10 +74,34 @@ void RunWithGPUTestContexts(GrContextTestFn* test, GrContextTypeFilterFn* contex
         }
 
         ReporterContext ctx(reporter, SkString(GrContextFactory::ContextTypeName(contextType)));
-        if (ctxInfo.grContext()) {
+        if (ctxInfo.directContext()) {
             (*test)(reporter, ctxInfo);
-            ctxInfo.grContext()->flush();
+            // In case the test changed the current context make sure we move it back before
+            // calling flush.
+            ctxInfo.testContext()->makeCurrent();
+            // Sync so any release/finished procs get called.
+            ctxInfo.directContext()->flushAndSubmit(/*sync*/true);
         }
     }
 }
+
+#ifdef SK_GRAPHITE_ENABLED
+
+namespace graphite {
+
+void RunWithGraphiteTestContexts(GraphiteTestFn* test, Reporter* reporter) {
+    ContextFactory factory;
+
+    auto [_, context] = factory.getContextInfo(ContextFactory::ContextType::kMetal);
+    if (!context) {
+        return;
+    }
+
+    (*test)(reporter, context);
+}
+
+} // namespace graphite
+
+#endif // SK_GRAPHITE_ENABLED
+
 } // namespace skiatest

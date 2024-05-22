@@ -235,12 +235,12 @@ class FontCache {
 
   // Given a string of text, returns the glyph buffer needed to render it.
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const base::char16* text_buffer, int32 text_length, bool is_rtl,
+      const char16_t* text_buffer, int32 text_length, bool is_rtl,
       FontList* font_list);
 
   // Given a string of text, return its width. This is faster than
   // CreateGlyphBuffer().
-  float GetTextWidth(const base::char16* text_buffer, int32 text_length,
+  float GetTextWidth(const char16_t* text_buffer, int32 text_length,
                      bool is_rtl, FontList* font_list,
                      render_tree::FontVector* maybe_used_fonts);
 

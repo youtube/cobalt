@@ -62,7 +62,7 @@
  */
 #include <time.h>
 
-#if !U_PLATFORM_USES_ONLY_WIN32_APII && !defined(STARBOARD)
+#if !U_PLATFORM_USES_ONLY_WIN32_API
 #include <sys/time.h>
 #endif
 
@@ -78,17 +78,11 @@
 #include "ucln_cmn.h"
 #include "charstr.h"
 
-#if defined(STARBOARD)
-// Must be after "umitex.h" which includes "time.h" on some platforms.
-#include "starboard/client_porting/poem/eztime_poem.h"
-#endif  // defined(STARBOARD)
-
-#include <math.h>
-
 /* Include standard headers. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <locale.h>
 #include <float.h>
 

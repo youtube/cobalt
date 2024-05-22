@@ -1,26 +1,33 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/process/process_metrics.h"
 
 #include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "base/allocator/buildflags.h"
 #include "base/logging.h"
 #include "build/build_config.h"
 
-#if !defined(OS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA)
 #include <sys/resource.h>
 #endif
 
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
 #include <malloc/malloc.h>
 #else
 #include <malloc.h>
+#endif
 
-#include "starboard/types.h"
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#include <features.h>
+
+#include "base/numerics/safe_conversions.h"
 #endif
 
 namespace base {
@@ -32,25 +39,23 @@ int64_t TimeValToMicroseconds(const struct timeval& tv) {
   return ret;
 }
 
-ProcessMetrics::~ProcessMetrics() = default;
+#if !BUILDFLAG(IS_FUCHSIA)
 
-#if !defined(OS_FUCHSIA)
-
-#if defined(OS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 static const rlim_t kSystemDefaultMaxFds = 8192;
-#elif defined(OS_MACOSX)
+#elif BUILDFLAG(IS_APPLE)
 static const rlim_t kSystemDefaultMaxFds = 256;
-#elif defined(OS_SOLARIS)
+#elif BUILDFLAG(IS_SOLARIS)
 static const rlim_t kSystemDefaultMaxFds = 8192;
-#elif defined(OS_FREEBSD)
+#elif BUILDFLAG(IS_FREEBSD)
 static const rlim_t kSystemDefaultMaxFds = 8192;
-#elif defined(OS_NETBSD)
+#elif BUILDFLAG(IS_NETBSD)
 static const rlim_t kSystemDefaultMaxFds = 1024;
-#elif defined(OS_OPENBSD)
+#elif BUILDFLAG(IS_OPENBSD)
 static const rlim_t kSystemDefaultMaxFds = 256;
-#elif defined(OS_ANDROID)
+#elif BUILDFLAG(IS_ANDROID)
 static const rlim_t kSystemDefaultMaxFds = 1024;
-#elif defined(OS_AIX)
+#elif BUILDFLAG(IS_AIX)
 static const rlim_t kSystemDefaultMaxFds = 8192;
 #endif
 
@@ -71,10 +76,19 @@ size_t GetMaxFds() {
   return static_cast<size_t>(max_fds);
 }
 
+size_t GetHandleLimit() {
+#if BUILDFLAG(IS_APPLE)
+  // Taken from a small test that allocated ports in a loop.
+  return static_cast<size_t>(1 << 18);
+#else
+  return GetMaxFds();
+#endif
+}
+
 void IncreaseFdLimitTo(unsigned int max_descriptors) {
   struct rlimit limits;
   if (getrlimit(RLIMIT_NOFILE, &limits) == 0) {
-    unsigned int new_limit = max_descriptors;
+    rlim_t new_limit = max_descriptors;
     if (max_descriptors <= limits.rlim_cur)
       return;
     if (limits.rlim_max > 0 && limits.rlim_max < max_descriptors) {
@@ -89,25 +103,37 @@ void IncreaseFdLimitTo(unsigned int max_descriptors) {
   }
 }
 
-#endif  // !defined(OS_FUCHSIA)
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
-size_t GetPageSize() {
-  return getpagesize();
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+namespace {
+
+size_t GetMallocUsageMallinfo() {
+#if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
+#if __GLIBC_PREREQ(2, 33)
+#define MALLINFO2_FOUND_IN_LIBC
+  struct mallinfo2 minfo = mallinfo2();
+#endif
+#endif  // defined(__GLIBC__) && defined(__GLIBC_PREREQ)
+#if !defined(MALLINFO2_FOUND_IN_LIBC)
+  struct mallinfo minfo = mallinfo();
+#endif
+#undef MALLINFO2_FOUND_IN_LIBC
+  return checked_cast<size_t>(minfo.hblkhd + minfo.arena);
 }
 
+}  // namespace
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_ANDROID)
+
 size_t ProcessMetrics::GetMallocUsage() {
-#if defined(OS_MACOSX) || defined(OS_IOS)
+#if BUILDFLAG(IS_APPLE)
   malloc_statistics_t stats = {0};
   malloc_zone_statistics(nullptr, &stats);
   return stats.size_in_use;
-#elif defined(OS_LINUX) || defined(OS_ANDROID)
-  struct mallinfo minfo = mallinfo();
-#if defined(USE_TCMALLOC)
-  return minfo.uordblks;
-#else
-  return minfo.hblkhd + minfo.arena;
-#endif
-#elif defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  return GetMallocUsageMallinfo();
+#elif BUILDFLAG(IS_FUCHSIA)
   // TODO(fuchsia): Not currently exposed. https://crbug.com/735087.
   return 0;
 #endif

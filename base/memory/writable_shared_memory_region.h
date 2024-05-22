@@ -1,15 +1,19 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MEMORY_WRITABLE_SHARED_MEMORY_REGION_H_
 #define BASE_MEMORY_WRITABLE_SHARED_MEMORY_REGION_H_
 
-#include "base/macros.h"
+#include "base/base_export.h"
+#include "base/check.h"
 #include "base/memory/platform_shared_memory_region.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/unsafe_shared_memory_region.h"
+#include "build/build_config.h"
+
+#include <stdint.h>
 
 namespace base {
 
@@ -22,19 +26,18 @@ namespace base {
 // ReadOnlySharedMemoryRegion. However, unlike ReadOnlySharedMemoryRegion and
 // UnsafeSharedMemoryRegion, ownership of this region (while writable) is unique
 // and may only be transferred, not duplicated.
+//
+// Unlike ReadOnlySharedMemoryRegion and UnsafeSharedMemoryRegion,
+// WritableSharedMemoryRegion doesn't provide GetPlatformHandle() method to
+// ensure that the region is never duplicated while writable.
 class BASE_EXPORT WritableSharedMemoryRegion {
  public:
   using MappingType = WritableSharedMemoryMapping;
   // Creates a new WritableSharedMemoryRegion instance of a given
   // size that can be used for mapping writable shared memory into the virtual
   // address space.
-  //
-  // This call will fail if the process does not have sufficient permissions to
-  // create a shared memory region itself. See
-  // mojo::CreateWritableSharedMemoryRegion in
-  // mojo/public/cpp/base/shared_memory_utils.h for creating a shared memory
-  // region from a an unprivileged process where a broker must be used.
   static WritableSharedMemoryRegion Create(size_t size);
+  using CreateFunction = decltype(Create);
 
   // Returns a WritableSharedMemoryRegion built from a platform handle that was
   // taken from another WritableSharedMemoryRegion instance. Returns an invalid
@@ -69,6 +72,10 @@ class BASE_EXPORT WritableSharedMemoryRegion {
   WritableSharedMemoryRegion(WritableSharedMemoryRegion&&);
   WritableSharedMemoryRegion& operator=(WritableSharedMemoryRegion&&);
 
+  WritableSharedMemoryRegion(const WritableSharedMemoryRegion&) = delete;
+  WritableSharedMemoryRegion& operator=(const WritableSharedMemoryRegion&) =
+      delete;
+
   // Destructor closes shared memory region if valid.
   // All created mappings will remain valid.
   ~WritableSharedMemoryRegion();
@@ -77,14 +84,23 @@ class BASE_EXPORT WritableSharedMemoryRegion {
   // access. The mapped address is guaranteed to have an alignment of
   // at least |subtle::PlatformSharedMemoryRegion::kMapMinimumAlignment|.
   // Returns a valid WritableSharedMemoryMapping instance on success, invalid
-  // otherwise.
-  WritableSharedMemoryMapping Map() const;
+  // otherwise. A custom |SharedMemoryMapper| for mapping (and later unmapping)
+  // the region can be provided using the optional |mapper| parameter.
+  WritableSharedMemoryMapping Map(SharedMemoryMapper* mapper = nullptr) const;
 
-  // Same as above, but maps only |size| bytes of the shared memory block
-  // starting with the given |offset|. |offset| must be aligned to value of
-  // |SysInfo::VMAllocationGranularity()|. Returns an invalid mapping if
-  // requested bytes are out of the region limits.
-  WritableSharedMemoryMapping MapAt(off_t offset, size_t size) const;
+  // Similar to `Map()`, but maps only `size` bytes of the shared memory block
+  // at byte `offset`. Returns an invalid mapping if requested bytes are out of
+  // the region limits.
+  //
+  // `offset` does not need to be aligned; if `offset` is not a multiple of
+  // `subtle::PlatformSharedMemoryRegion::kMapMinimumAlignment`, then the
+  // returned mapping will not respect alignment either. Internally, `offset`
+  // and `size` are still first adjusted to respect alignment when mapping in
+  // the shared memory region, but the returned mapping will be "unadjusted" to
+  // match the exact `offset` and `size` requested.
+  WritableSharedMemoryMapping MapAt(uint64_t offset,
+                                    size_t size,
+                                    SharedMemoryMapper* mapper = nullptr) const;
 
   // Whether underlying platform handles are valid.
   bool IsValid() const;
@@ -101,13 +117,26 @@ class BASE_EXPORT WritableSharedMemoryRegion {
     return handle_.GetGUID();
   }
 
+#if BUILDFLAG(IS_WIN)
+  // On Windows it is necessary in rare cases to take a writable handle from a
+  // region that will be converted to read-only. On this platform it is a safe
+  // operation, as the handle returned from this method will remain writable
+  // after the region is converted to read-only. However, it breaks chromium's
+  // WritableSharedMemoryRegion semantics and so should be use with care.
+  HANDLE UnsafeGetPlatformHandle() const { return handle_.GetPlatformHandle(); }
+#endif
+
  private:
+  friend class SharedMemoryHooks;
+
   explicit WritableSharedMemoryRegion(
       subtle::PlatformSharedMemoryRegion handle);
 
-  subtle::PlatformSharedMemoryRegion handle_;
+  static void set_create_hook(CreateFunction* hook) { create_hook_ = hook; }
 
-  DISALLOW_COPY_AND_ASSIGN(WritableSharedMemoryRegion);
+  static CreateFunction* create_hook_;
+
+  subtle::PlatformSharedMemoryRegion handle_;
 };
 
 }  // namespace base

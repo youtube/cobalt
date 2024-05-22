@@ -24,7 +24,7 @@
 // copies, and also avoiding pushing data between CPU and GPU memory
 // unnecessarily.
 //
-// # SbDecodeTargetFormat
+// * SbDecodeTargetFormat
 //
 // SbDecodeTargets support several different formats that can be used to decode
 // into and render from. Some formats may be easier to decode into, and others
@@ -33,7 +33,7 @@
 // an error. Each decoder provides a way to check if a given
 // SbDecodeTargetFormat is supported by that decoder.
 //
-// # SbDecodeTargetGraphicsContextProvider
+// * SbDecodeTargetGraphicsContextProvider
 //
 // Some components may need to acquire SbDecodeTargets compatible with a certain
 // rendering context, which may need to be created on a particular thread. The
@@ -42,11 +42,11 @@
 // rendering context that will be used to render the SbDecodeTarget objects.
 // For GLES renderers, it also provides functionality to enable the Starboard
 // implementation to run arbitrary code on the application's renderer thread
-// with the renderer's EGLContext held current.  This may be useful if your
+// with the renderer's EGLContext held current. This may be useful if your
 // SbDecodeTarget creation code needs to execute GLES commands like, for
 // example, glGenTextures().
 //
-// The primary usage is likely to be the the SbPlayer implementation on some
+// The primary usage is likely to be the SbPlayer implementation on some
 // platforms.
 
 #ifndef STARBOARD_DECODE_TARGET_H_
@@ -104,10 +104,10 @@ typedef enum SbDecodeTargetFormat {
 #endif  // SB_API_VERSION >= 14
 
   // A decoder target format consisting of a single plane with pixels laid out
-  // in the format UYVY.  Since there are two Y values per sample, but only one
+  // in the format UYVY. Since there are two Y values per sample, but only one
   // U value and only one V value, horizontally the Y resolution is twice the
-  // size of both the U and V resolutions.  Vertically, they Y, U and V all
-  // have the same resolution.  This is a YUV 422 format.  When using this
+  // size of both the U and V resolutions. Vertically, the Y, U, and V planes
+  // all have the same resolution. This is a YUV 422 format. When using this
   // format with GL platforms, it is expected that the underlying texture will
   // be set to the GL_RGBA format, and the width of the texture will be equal to
   // the number of UYVY tuples per row (e.g. the u/v width resolution).
@@ -157,19 +157,19 @@ typedef void (*SbDecodeTargetGlesContextRunner)(
 
 // In general, the SbDecodeTargetGraphicsContextProvider structure provides
 // information about the graphics context that will be used to render
-// SbDecodeTargets.  Some Starboard implementations may need to have references
+// SbDecodeTargets. Some Starboard implementations may need to have references
 // to some graphics objects when creating/destroying resources used by
-// SbDecodeTarget.  References to SbDecodeTargetGraphicsContextProvider objects
+// SbDecodeTarget. References to SbDecodeTargetGraphicsContextProvider objects
 // should be provided to all Starboard functions that might create
 // SbDecodeTargets.
 typedef struct SbDecodeTargetGraphicsContextProvider {
   // A reference to the EGLDisplay object that hosts the EGLContext that will
-  // be used to render any produced SbDecodeTargets.  Note that it has the
-  // type |void*| in order to avoid #including the EGL header files here.
+  // be used to render any produced SbDecodeTargets. Note that it has the
+  // type |void*| in order to avoid including the EGL header files here.
   void* egl_display;
   // The EGLContext object that will be used to render any produced
-  // SbDecodeTargets.  Note that it has the
-  // type |void*| in order to avoid #including the EGL header files here.
+  // SbDecodeTargets. Note that it has the type |void*| in order to avoid
+  // including the EGL header files here.
   void* egl_context;
 
   // The |gles_context_runner| function pointer is passed in from the
@@ -220,9 +220,9 @@ typedef struct SbDecodeTargetInfoPlane {
   int height;
 
   // The following properties specify a rectangle indicating a region within
-  // the texture/surface that contains valid image data.  The top-left corner
-  // is (0, 0) and increases to the right and to the bottom.  The units
-  // specified by these parameters are number of pixels.  The range for
+  // the texture/surface that contains valid image data. The top-left corner
+  // is (0, 0) and increases to the right and to the bottom. The units
+  // specified by these parameters are number of pixels. The range for
   // left/right is [0, width], and for top/bottom it is [0, height].
   SbDecodeTargetInfoContentRegion content_region;
 } SbDecodeTargetInfoPlane;
@@ -234,16 +234,16 @@ typedef struct SbDecodeTargetInfo {
   // expected in |planes|.
   SbDecodeTargetFormat format;
 
-  // Specifies whether the decode target is opaque.  The underlying
-  // source of this value is expected to be properly maintained by the Starboard
-  // implementation.  So, for example, if an opaque only image type were decoded
+  // Specifies whether the decode target is opaque. The underlying source of
+  // this value is expected to be properly maintained by the Starboard
+  // implementation. So, for example, if an opaque only image type were decoded
   // into an SbDecodeTarget, then the implementation would configure things in
-  // such a way that this value is set to true.  By opaque, it is meant
-  // that all alpha values are guaranteed to be 255, if the decode target is of
-  // a format that has alpha values.  If the decode target is of a format that
-  // does not have alpha values, then this value should be set to true.
-  // Applications may rely on this value in order to implement certain
-  // optimizations such as occlusion culling.
+  // such a way that this value is set to true. By opaque, it is meant that all
+  // alpha values are guaranteed to be 255, if the decode target is of a format
+  // that has alpha values. If the decode target is of a format that does not
+  // have alpha values, then this value should be set to true. Applications may
+  // rely on this value in order to implement certain optimizations such as
+  // occlusion culling.
   bool is_opaque;
 
   // The width of the image represented by this decode target.
@@ -252,7 +252,7 @@ typedef struct SbDecodeTargetInfo {
   int height;
 
   // The image planes (e.g. kSbDecodeTargetPlaneRGBA, or {kSbDecodeTargetPlaneY,
-  //  kSbDecodeTargetPlaneU, kSbDecodeTargetPlaneV} associated with this
+  // kSbDecodeTargetPlaneU, kSbDecodeTargetPlaneV}) associated with this
   // decode target.
   SbDecodeTargetInfoPlane planes[3];
 } SbDecodeTargetInfo;
@@ -265,17 +265,16 @@ typedef struct SbDecodeTargetInfo {
 // --- Functions -------------------------------------------------------------
 
 // Returns whether the given file handle is valid.
-static SB_C_INLINE bool SbDecodeTargetIsValid(SbDecodeTarget handle) {
+static inline bool SbDecodeTargetIsValid(SbDecodeTarget handle) {
   return handle != kSbDecodeTargetInvalid;
 }
 
 // Returns whether a given format is valid.
-static SB_C_INLINE bool SbDecodeTargetIsFormatValid(
-    SbDecodeTargetFormat format) {
+static inline bool SbDecodeTargetIsFormatValid(SbDecodeTargetFormat format) {
   return format != kSbDecodeTargetFormatInvalid;
 }
 
-static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
+static inline int SbDecodeTargetNumberOfPlanesForFormat(
     SbDecodeTargetFormat format) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
@@ -300,23 +299,22 @@ static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
 // Returns ownership of |decode_target| to the Starboard implementation.
 // This function will likely result in the destruction of the SbDecodeTarget and
 // all its associated surfaces, though in some cases, platforms may simply
-// adjust a reference count.  In the case where SB_HAS(GLES2), this function
-// must be called on a thread with the context
+// adjust a reference count. This function must be called on a thread with
+// the context.
 SB_EXPORT void SbDecodeTargetRelease(SbDecodeTarget decode_target);
 
-// Writes all information about |decode_target| into |out_info|.
-// The |decode_target| must not be kSbDecodeTargetInvalid.
-// The |out_info| pointer must not be NULL.
-// Returns false if the provided |out_info| structure is not zero initialized.
+// Writes all information about |decode_target| into |out_info|. The
+// |decode_target| must not be kSbDecodeTargetInvalid. The |out_info| pointer
+// must not be NULL. Returns false if the provided |out_info| structure is
+// not zero initialized.
 SB_EXPORT bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
                                      SbDecodeTargetInfo* out_info);
 
-#if SB_HAS(GLES2)
 // Inline convenience function to run an arbitrary
 // SbDecodeTargetGlesContextRunnerTarget function through a
-// SbDecodeTargetGraphicsContextProvider.  This is intended to be called by
+// SbDecodeTargetGraphicsContextProvider. This is intended to be called by
 // Starboard implementations, if it is necessary.
-static SB_C_INLINE void SbDecodeTargetRunInGlesContext(
+static inline void SbDecodeTargetRunInGlesContext(
     SbDecodeTargetGraphicsContextProvider* provider,
     SbDecodeTargetGlesContextRunnerTarget target,
     void* target_context) {
@@ -327,22 +325,20 @@ static SB_C_INLINE void SbDecodeTargetRunInGlesContext(
 
 // This function is just an implementation detail of
 // SbDecodeTargetReleaseInGlesContext() and should not be called directly.
-static SB_C_INLINE void PrivateDecodeTargetReleaser(void* context) {
+static inline void PrivateDecodeTargetReleaser(void* context) {
   SbDecodeTarget decode_target = (SbDecodeTarget)context;
   SbDecodeTargetRelease(decode_target);
 }
 
 // Helper function that is possibly useful to Starboard implementations that
 // will release a decode target on the thread with the GLES context current.
-static SB_C_INLINE void SbDecodeTargetReleaseInGlesContext(
+static inline void SbDecodeTargetReleaseInGlesContext(
     SbDecodeTargetGraphicsContextProvider* provider,
     SbDecodeTarget decode_target) {
   SbDecodeTargetRunInGlesContext(provider, &PrivateDecodeTargetReleaser,
                                  // Nolint on reinterpret_cast, C shared code
                                  (void*)decode_target);  // NOLINT
 }
-
-#endif  // SB_HAS(GLES2)
 
 #ifdef __cplusplus
 }  // extern "C"

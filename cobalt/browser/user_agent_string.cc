@@ -14,13 +14,17 @@
 
 #include "cobalt/browser/user_agent_string.h"
 
+#include <string.h>
+#include <sys/stat.h>
+
+#include <cstddef>
 #include <vector>
 
 #include "base/command_line.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/browser/switches.h"
-#include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/log.h"
 #include "starboard/system.h"
 
 namespace cobalt {

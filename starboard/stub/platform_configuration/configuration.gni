@@ -17,9 +17,6 @@ import("//starboard/build/config/base_configuration.gni")
 # Stub does not use a filter-based player.
 sb_filter_based_player = false
 
-# No GL drivers available.
-gl_type = "none"
-
 sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 
 install_target_path = "//starboard/build/install/install_target.gni"

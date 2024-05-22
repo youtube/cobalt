@@ -14,6 +14,9 @@
 
 // Adapted from base's atomicops_unittest.
 
+#include <sched.h>
+#include <unistd.h>
+
 #include "starboard/common/atomic.h"
 #include "starboard/memory.h"
 #include "starboard/thread.h"
@@ -321,7 +324,7 @@ void SetData(SbAtomicType* state,
   // (out_data). The paired Release_Store is above in the initialization
   // clause.
   while (atomic::Acquire_Load(state) == kInitializing) {
-    SbThreadYield();
+    sched_yield();
   }
 }
 
@@ -337,9 +340,10 @@ struct TestOnceContext {
 // The entry point for all the threads spawned during TestOnce().
 template <class SbAtomicType>
 void* TestOnceEntryPoint(void* raw_context) {
+  pthread_setname_np(pthread_self(), "TestOnceThread");
   // Force every thread to sleep immediately so the first thread doesn't always
   // just win.
-  SbThreadSleep(1000);
+  usleep(1000);
   TestOnceContext<SbAtomicType>* context =
       reinterpret_cast<TestOnceContext<SbAtomicType>*>(raw_context);
   SetData(context->state, context->out_data, context->data, context->size);
@@ -373,21 +377,20 @@ TYPED_TEST(AdvancedSbAtomicTest, OnceMultipleThreads) {
 
     // Start up kNumThreads to fight over initializing |target_data|.
     TestOnceContext<TypeParam> contexts[kNumThreads] = {0};
-    SbThread threads[kNumThreads] = {0};
+    pthread_t threads[kNumThreads] = {0};
     for (int i = 0; i < kNumThreads; ++i) {
       contexts[i].data = data + i * kDataPerThread;
       contexts[i].out_data = target_data;
       contexts[i].state = &state;
       contexts[i].size = kDataPerThread;
-      threads[i] = SbThreadCreate(
-          0, kSbThreadNoPriority, kSbThreadNoAffinity, true, "TestOnceThread",
-          TestOnceEntryPoint<TypeParam>, &(contexts[i]));
-      EXPECT_TRUE(SbThreadIsValid(threads[i]));
+      pthread_create(&threads[i], nullptr, TestOnceEntryPoint<TypeParam>,
+                     &(contexts[i]));
+      EXPECT_TRUE(threads[i] != 0);
     }
 
     // Wait for all threads to complete, and clean up their resources.
     for (int i = 0; i < kNumThreads; ++i) {
-      EXPECT_TRUE(SbThreadJoin(threads[i], NULL));
+      EXPECT_EQ(pthread_join(threads[i], NULL), 0);
     }
 
     // Ensure that exactly one thread initialized the data.
@@ -409,6 +412,7 @@ const int kNumIncrements = 4000;
 
 template <class SbAtomicType>
 void* IncrementEntryPoint(void* raw_context) {
+  pthread_setname_np(pthread_self(), "TestIncrementThread");
   SbAtomicType* target = reinterpret_cast<SbAtomicType*>(raw_context);
   for (int i = 0; i < kNumIncrements; ++i) {
     atomic::NoBarrier_Increment(target, 1);
@@ -418,6 +422,7 @@ void* IncrementEntryPoint(void* raw_context) {
 
 template <class SbAtomicType>
 void* DecrementEntryPoint(void* raw_context) {
+  pthread_setname_np(pthread_self(), "TestDecrementThread");
   SbAtomicType* target = reinterpret_cast<SbAtomicType*>(raw_context);
   for (int i = 0; i < kNumIncrements; ++i) {
     atomic::NoBarrier_Increment(target, -1);
@@ -436,27 +441,25 @@ TYPED_TEST(AdvancedSbAtomicTest, IncrementDecrementMultipleThreads) {
     TypeParam value = kTestValue;
 
     // Start up kNumThreads to fight.
-    SbThread threads[kNumThreads] = {0};
+    pthread_t threads[kNumThreads] = {0};
 
     // First half are incrementers.
     for (int i = 0; i < kNumThreads / 2; ++i) {
-      threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                  true, "TestIncrementThread",
-                                  IncrementEntryPoint<TypeParam>, &value);
-      EXPECT_TRUE(SbThreadIsValid(threads[i]));
+      pthread_create(&threads[i], nullptr, IncrementEntryPoint<TypeParam>,
+                     &value);
+      EXPECT_TRUE(threads[i] != 0);
     }
 
     // Second half are decrementers.
     for (int i = kNumThreads / 2; i < kNumThreads; ++i) {
-      threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                  true, "TestDecrementThread",
-                                  DecrementEntryPoint<TypeParam>, &value);
-      EXPECT_TRUE(SbThreadIsValid(threads[i]));
+      pthread_create(&threads[i], nullptr, DecrementEntryPoint<TypeParam>,
+                     &value);
+      EXPECT_TRUE(threads[i] != 0);
     }
 
     // Wait for all threads to complete, and clean up their resources.
     for (int i = 0; i < kNumThreads; ++i) {
-      EXPECT_TRUE(SbThreadJoin(threads[i], NULL));
+      EXPECT_EQ(pthread_join(threads[i], NULL), 0);
     }
 
     // |value| should be back to its original value. If the increment/decrement

@@ -93,7 +93,7 @@ class Element;
 class History;
 class LocalStorageDatabase;
 class Location;
-class MediaSource;
+class MediaSourceAttachment;
 class Navigator;
 class OnScreenKeyboard;
 class Performance;
@@ -119,7 +119,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
   // base::TimeDelta parameter will contain the document's timeline time when
   // close() was called.
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
-  typedef web::UrlRegistry<MediaSource> MediaSourceRegistry;
+  typedef web::UrlRegistry<MediaSourceAttachment> MediaSourceRegistry;
   typedef base::Callback<void(const std::string&,
                               const base::Optional<std::string>&)>
       CacheCallback;

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/memory.h"
 
 #include <sys/mman.h>
@@ -44,3 +46,5 @@ void SbMemoryFlush(void* virtual_address, int64_t size_bytes) {
   __clear_cache(memory, memory + size_bytes);
 #endif
 }
+
+#endif

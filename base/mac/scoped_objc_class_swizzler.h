@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,8 @@
 #import <objc/runtime.h>
 
 #include "base/base_export.h"
-#include "base/macros.h"
 
-namespace base {
-namespace mac {
+namespace base::mac {
 
 // Within a given scope, swaps method implementations of a class interface, or
 // between two class interfaces. The argument and return types must match.
@@ -26,12 +24,25 @@ class BASE_EXPORT ScopedObjCClassSwizzler {
   // and |alternate|.
   ScopedObjCClassSwizzler(Class target, SEL original, SEL alternate);
 
+  ScopedObjCClassSwizzler(const ScopedObjCClassSwizzler&) = delete;
+  ScopedObjCClassSwizzler& operator=(const ScopedObjCClassSwizzler&) = delete;
+
   ~ScopedObjCClassSwizzler();
 
   // Return a callable function pointer for the replaced method. To call this
   // from the replacing function, the first two arguments should be |self| and
   // |_cmd|. These are followed by the (variadic) method arguments.
-  IMP GetOriginalImplementation();
+  IMP GetOriginalImplementation() const;
+
+  // Invoke the original function directly, optionally with some arguments.
+  // Prefer this to hanging onto pointers to the original implementation
+  // function or to casting the result of GetOriginalImplementation() yourself.
+  template <typename Ret, typename... Args>
+  Ret InvokeOriginal(id receiver, SEL selector, Args... args) const {
+    auto func = reinterpret_cast<Ret (*)(id, SEL, Args...)>(
+        GetOriginalImplementation());
+    return func(receiver, selector, args...);
+  }
 
  private:
   // Delegated constructor.
@@ -39,11 +50,8 @@ class BASE_EXPORT ScopedObjCClassSwizzler {
 
   Method old_selector_impl_;
   Method new_selector_impl_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedObjCClassSwizzler);
 };
 
-}  // namespace mac
-}  // namespace base
+}  // namespace base::mac
 
 #endif  // BASE_MAC_SCOPED_OBJC_CLASS_SWIZZLER_H_

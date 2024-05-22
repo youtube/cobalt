@@ -20,8 +20,6 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/instance_counter.h"
 
 namespace cobalt {
@@ -86,7 +84,7 @@ DrmSystem::DrmSystem(const char* key_system)
           key_system, this, OnSessionUpdateRequestGeneratedFunc,
           OnSessionUpdatedFunc, OnSessionKeyStatusesChangedFunc,
           OnServerCertificateUpdatedFunc, OnSessionClosedFunc)),
-      message_loop_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
   ON_INSTANCE_CREATED(DrmSystem);
@@ -112,13 +110,13 @@ DrmSystem::~DrmSystem() {
 std::unique_ptr<DrmSystem::Session> DrmSystem::CreateSession(
     SessionUpdateKeyStatusesCallback session_update_key_statuses_callback,
     SessionClosedCallback session_closed_callback) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   return std::unique_ptr<DrmSystem::Session>(new Session(
       this, session_update_key_statuses_callback, session_closed_callback));
 }
 
 bool DrmSystem::IsServerCertificateUpdatable() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(is_valid());
 
   if (SbDrmIsServerCertificateUpdatable(wrapped_drm_system_)) {
@@ -134,7 +132,7 @@ bool DrmSystem::IsServerCertificateUpdatable() {
 void DrmSystem::UpdateServerCertificate(
     const uint8_t* certificate, int certificate_size,
     ServerCertificateUpdatedCallback server_certificate_updated_callback) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(IsServerCertificateUpdatable());
   DCHECK(is_valid());
 
@@ -159,7 +157,7 @@ void DrmSystem::UpdateServerCertificate(
 }
 
 bool DrmSystem::GetMetrics(std::vector<uint8_t>* metrics) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(metrics);
   int size = 0;
   const uint8_t* raw_metrics =
@@ -182,7 +180,7 @@ void DrmSystem::GenerateSessionUpdateRequest(
         session_update_request_generated_callback,
     const SessionUpdateRequestDidNotGenerateCallback&
         session_update_request_did_not_generate_callback) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(is_valid());
 
   if (!init_data) {
@@ -220,7 +218,7 @@ void DrmSystem::UpdateSession(
     const std::string& session_id, const uint8_t* key, int key_length,
     const SessionUpdatedCallback& session_updated_callback,
     const SessionDidNotUpdateCallback& session_did_not_update_callback) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(is_valid());
 
   // Store the context of the call.
@@ -245,7 +243,7 @@ void DrmSystem::UpdateSession(
 }
 
 void DrmSystem::CloseSession(const std::string& session_id) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(is_valid());
 
   LOG(INFO) << "Close session of drm system (" << wrapped_drm_system_
@@ -258,7 +256,7 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
     SessionTicketAndOptionalId ticket_and_optional_id, SbDrmStatus status,
     SbDrmSessionRequestType type, const std::string& error_message,
     std::unique_ptr<uint8[]> message, int message_size) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   int ticket = ticket_and_optional_id.ticket;
   const base::Optional<std::string>& session_id = ticket_and_optional_id.id;
@@ -345,7 +343,7 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
 
 void DrmSystem::OnSessionUpdated(int ticket, SbDrmStatus status,
                                  const std::string& error_message) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   LOG(INFO) << "Receiving session updated notification from drm system ("
             << wrapped_drm_system_ << "), status: " << status
@@ -374,7 +372,7 @@ void DrmSystem::OnSessionUpdated(int ticket, SbDrmStatus status,
 void DrmSystem::OnSessionKeyStatusChanged(
     const std::string& session_id, const std::vector<std::string>& key_ids,
     const std::vector<SbDrmKeyStatus>& key_statuses) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   LOG(INFO) << "Receiving session key status changed notification from drm"
             << " system (" << wrapped_drm_system_
@@ -397,7 +395,7 @@ void DrmSystem::OnSessionKeyStatusChanged(
 }
 
 void DrmSystem::OnSessionClosed(const std::string& session_id) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   LOG(INFO) << "Receiving session closed notification from drm system ("
             << wrapped_drm_system_ << "), session id: " << session_id;
@@ -419,7 +417,7 @@ void DrmSystem::OnSessionClosed(const std::string& session_id) {
 
 void DrmSystem::OnServerCertificateUpdated(int ticket, SbDrmStatus status,
                                            const std::string& error_message) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   LOG(INFO) << "Receiving server certificate updated notification from drm"
             << " system (" << wrapped_drm_system_ << "), ticket: " << ticket
@@ -455,7 +453,7 @@ void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
     memcpy(content_copy.get(), content, content_size);
   }
 
-  drm_system->message_loop_->PostTask(
+  drm_system->task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&DrmSystem::OnSessionUpdateRequestGenerated,
                  drm_system->weak_this_,
@@ -475,7 +473,7 @@ void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
   DrmSystem* drm_system = static_cast<DrmSystem*>(context);
   DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
 
-  drm_system->message_loop_->PostTask(
+  drm_system->task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&DrmSystem::OnSessionUpdated, drm_system->weak_this_, ticket,
                  status, error_message ? std::string(error_message) : ""));
@@ -507,7 +505,7 @@ void DrmSystem::OnSessionKeyStatusesChangedFunc(
     key_statuses_copy[i] = key_statuses[i];
   }
 
-  drm_system->message_loop_->PostTask(
+  drm_system->task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&DrmSystem::OnSessionKeyStatusChanged, drm_system->weak_this_,
                  session_id_copy, key_ids_copy, key_statuses_copy));
@@ -522,7 +520,7 @@ void DrmSystem::OnServerCertificateUpdatedFunc(SbDrmSystem wrapped_drm_system,
   DrmSystem* drm_system = static_cast<DrmSystem*>(context);
   DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
 
-  drm_system->message_loop_->PostTask(
+  drm_system->task_runner_->PostTask(
       FROM_HERE, base::Bind(&DrmSystem::OnServerCertificateUpdated,
                             drm_system->weak_this_, ticket, status,
                             error_message ? std::string(error_message) : ""));
@@ -542,7 +540,7 @@ void DrmSystem::OnSessionClosedFunc(SbDrmSystem wrapped_drm_system,
       std::string(static_cast<const char*>(session_id),
                   static_cast<const char*>(session_id) + session_id_size);
 
-  drm_system->message_loop_->PostTask(
+  drm_system->task_runner_->PostTask(
       FROM_HERE, base::Bind(&DrmSystem::OnSessionClosed, drm_system->weak_this_,
                             session_id_copy));
 }
