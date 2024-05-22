@@ -18,6 +18,21 @@
 namespace starboard {
 namespace nplb {
 
+#if SB_API_VERSION >= 16
+
+TEST(SbAudioSinkIsAudioSampleTypeSupportedTest, SunnyDay) {
+  bool float32_supported =
+      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32);
+  // All platforms must support the float32 sample type.
+  EXPECT_TRUE(float32_supported);
+
+  // It's ok for a platform to not support int16 sample type, but the call with
+  // `kSbMediaAudioSampleTypeInt16Deprecated` as a parameter shouldn't crash.
+  SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16Deprecated);
+}
+
+#else  // SB_API_VERSION >= 16
+
 TEST(SbAudioSinkIsAudioSampleTypeSupportedTest, SunnyDay) {
   bool int16_supported = SbAudioSinkIsAudioSampleTypeSupported(
       kSbMediaAudioSampleTypeInt16Deprecated);
@@ -26,6 +41,8 @@ TEST(SbAudioSinkIsAudioSampleTypeSupportedTest, SunnyDay) {
   // A platform must support at least one of the sample types.
   EXPECT_TRUE(int16_supported || float32_supported);
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace nplb
 }  // namespace starboard

@@ -17,18 +17,18 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
 #include "cobalt/base/statistics.h"
+#include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/once.h"
 #include "starboard/types.h"
 
 namespace cobalt {
 namespace dom {
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-
 namespace {
 
 int GetBandwidth(std::size_t size, int64_t duration_us) {
@@ -63,18 +63,28 @@ double GetWallToThreadTimeRatio(int64_t wall_time, int64_t thread_time) {
 }  // namespace
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 
-void SourceBufferMetrics::StartTracking() {
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
+void SourceBufferMetrics::StartTracking(SourceBufferMetricsAction action) {
   if (!is_primary_video_) {
     return;
   }
 
   DCHECK(!is_tracking_);
+  DCHECK(current_action_ == SourceBufferMetricsAction::NO_ACTION);
+  DCHECK(action != SourceBufferMetricsAction::NO_ACTION);
+
   is_tracking_ = true;
-  wall_start_time_ = starboard::CurrentMonotonicTime();
+  current_action_ = action;
+  wall_start_time_ = clock_->NowTicks();
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   thread_start_time_ = starboard::CurrentMonotonicThreadTime();
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
-void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
+void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
+                                      std::size_t size_appended) {
   if (!is_primary_video_) {
     return;
   }
@@ -82,16 +92,25 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
   DCHECK(is_tracking_);
   is_tracking_ = false;
 
-  int64_t wall_duration = starboard::CurrentMonotonicTime() - wall_start_time_;
+  DCHECK(action == current_action_);
+  current_action_ = SourceBufferMetricsAction::NO_ACTION;
+
+  base::TimeDelta wall_duration = clock_->NowTicks() - wall_start_time_;
+
+  RecordUMATelemetry(action, wall_duration, size_appended);
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   int64_t thread_duration =
       starboard::CurrentMonotonicThreadTime() - thread_start_time_;
-  total_wall_time_ += wall_duration;
+
+  total_wall_time_ += wall_duration.InMicroseconds();
   total_thread_time_ += thread_duration;
 
   total_size_ += size_appended;
 
   if (size_appended > 0) {
-    int wall_bandwidth = GetBandwidth(size_appended, wall_duration);
+    int wall_bandwidth =
+        GetBandwidth(size_appended, wall_duration.InMicroseconds());
     int thread_bandwidth = GetBandwidth(size_appended, thread_duration);
 
     max_wall_bandwidth_ = std::max(max_wall_bandwidth_, wall_bandwidth);
@@ -99,7 +118,48 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
     max_thread_bandwidth_ = std::max(max_thread_bandwidth_, thread_bandwidth);
     min_thread_bandwidth_ = std::min(min_thread_bandwidth_, thread_bandwidth);
   }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
+
+void SourceBufferMetrics::RecordUMATelemetry(
+    SourceBufferMetricsAction action, const base::TimeDelta& action_duration,
+    size_t size_appended) {
+  switch (action) {
+    case SourceBufferMetricsAction::PREPARE_APPEND:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SourceBuffer.PrepareAppend.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(25), 50);
+      break;
+    case SourceBufferMetricsAction::APPEND_BUFFER:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SourceBuffer.AppendBuffer.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(25), 50);
+
+      UMA_HISTOGRAM_COUNTS_10M(
+          "Cobalt.Media.SourceBuffer.AppendBuffer.BytesAppended",
+          size_appended);
+
+      if (action_duration.InMicroseconds() > 0) {
+        int64_t bytes_per_microsecond =
+            size_appended / action_duration.InMicroseconds();
+        UMA_HISTOGRAM_COUNTS_100000(
+            "Cobalt.Media.SourceBuffer.AppendBuffer."
+            "BytesAppendedPerMicrosecond",
+            bytes_per_microsecond);
+      }
+      break;
+    default:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SourceBuffer.Other.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(25), 50);
+      break;
+  }
+}
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 
 void SourceBufferMetrics::PrintCurrentMetricsAndUpdateAccumulatedMetrics() {
   if (!is_primary_video_) {

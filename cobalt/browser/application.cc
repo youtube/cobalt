@@ -30,7 +30,9 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/current_thread.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -48,7 +50,6 @@
 #include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
-#include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/base/starboard_stats_tracker.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/version_compatibility.h"
@@ -57,6 +58,7 @@
 #include "cobalt/base/window_size_changed_event.h"
 #include "cobalt/browser/client_hint_headers.h"
 #include "cobalt/browser/device_authentication.h"
+#include "cobalt/browser/loader_app_metrics.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/browser/switches.h"
@@ -82,11 +84,12 @@
 #include "starboard/event.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/installation_manager.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 #include "url/gurl.h"
 
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #endif
 
 using cobalt::cssom::ViewportSize;
@@ -482,11 +485,12 @@ int StringToLogLevel(const std::string& log_level) {
 
 void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
-    int32 out;
-    if (base::StringToInt32(
-            base::CommandLine::ForCurrentProcess()->GetSwitchValueNative(
-                switch_name),
-            &out)) {
+    size_t idx;
+    std::string str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueNative(
+            switch_name);
+    int32 out = std::stoi(str, &idx);
+    if (str.size() != idx) {
       LOG(INFO) << "Command line switch '" << switch_name << "': Modifying "
                 << *output << " -> " << out;
       *output = out;
@@ -613,9 +617,8 @@ void AddCrashLogApplicationState(base::ApplicationState state) {
     return;
   }
 
-  // Crash handler is not supported, fallback to crash log dictionary.
-  h5vcc::CrashLogDictionary::GetInstance()->SetString("application_state",
-                                                      application_state);
+  LOG(ERROR) << "Crash handler extension not implemented, at least not at the "
+             << "required version, so not sending application state.";
 }
 
 }  // namespace
@@ -626,7 +629,8 @@ int64 Application::lifetime_in_ms_ = 0;
 
 Application::Application(const base::Closure& quit_closure, bool should_preload,
                          int64_t timestamp)
-    : message_loop_(base::MessageLoop::current()), quit_closure_(quit_closure) {
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+      quit_closure_(quit_closure) {
   DCHECK(!quit_closure_.is_null());
   if (should_preload) {
     preload_timestamp_ = timestamp;
@@ -643,10 +647,14 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 
   TRACE_EVENT0("cobalt::browser", "Application::Application()");
 
-  DCHECK(base::MessageLoop::current());
-  DCHECK_EQ(
-      base::MessageLoop::TYPE_UI,
-      static_cast<base::MessageLoop*>(base::MessageLoop::current())->type());
+
+  // A one-per-process task scheduler is needed for usage of APIs in
+  // base/post_task.h which will be used by some net APIs like
+  // URLRequestContext;
+  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
+      "Cobalt TaskScheduler");
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(base::CurrentUIThread::IsSet());
 
   DETACH_FROM_THREAD(network_event_thread_checker_);
   DETACH_FROM_THREAD(application_event_thread_checker_);
@@ -672,11 +680,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // Get the system language and initialize our localized strings.
   std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
-
-  // A one-per-process task scheduler is needed for usage of APIs in
-  // base/post_task.h which will be used by some net APIs like
-  // URLRequestContext;
-  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
 
   starboard::StatsTrackerContainer::GetInstance()->set_stats_tracker(
       std::make_unique<StarboardStatsTracker>());
@@ -715,7 +718,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   options.persistent_settings = persistent_settings_.get();
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
-  options.build_auto_mem_settings = memory_settings::GetDefaultBuildSettings();
+  options.config_api_auto_mem_settings =
+      memory_settings::GetDefaultConfigSettings();
   options.fallback_splash_screen_url = fallback_splash_screen_url;
 
   ParseFallbackSplashScreenTopics(fallback_splash_screen_url,
@@ -889,8 +893,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   AddCrashHandlerAnnotations(platform_info);
 
 #if SB_IS(EVERGREEN)
-  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
-      !command_line->HasSwitch(switches::kDisableUpdaterModule)) {
+  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
     uint64_t update_check_delay_sec =
         cobalt::updater::kDefaultUpdateCheckDelaySeconds;
     if (command_line->HasSwitch(browser::switches::kUpdateCheckDelaySeconds)) {
@@ -944,12 +947,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
-  on_screen_keyboard_suggestions_updated_event_callback_ =
-      base::Bind(&Application::OnOnScreenKeyboardSuggestionsUpdatedEvent,
-                 base::Unretained(this));
-  event_dispatcher_.AddEventCallback(
-      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
-      on_screen_keyboard_suggestions_updated_event_callback_);
   on_caption_settings_changed_event_callback_ = base::Bind(
       &Application::OnCaptionSettingsChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(
@@ -1017,13 +1014,16 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
     // If the "shutdown_after" command line option is specified, setup a delayed
     // message to quit the application after the specified number of seconds
     // have passed.
-    message_loop_->task_runner()->PostDelayedTask(
+    task_runner_->PostDelayedTask(
         FROM_HERE, quit_closure_,
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   AddCrashLogApplicationState(base::kApplicationStateStarted);
+  RecordLoaderAppMetrics(
+      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
+          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName)));
 }
 
 Application::~Application() {
@@ -1053,9 +1053,6 @@ Application::~Application() {
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
   event_dispatcher_.RemoveEventCallback(
-      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
-      on_screen_keyboard_suggestions_updated_event_callback_);
-  event_dispatcher_.RemoveEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
   event_dispatcher_.RemoveEventCallback(
@@ -1066,8 +1063,8 @@ Application::~Application() {
 }
 
 void Application::Start(int64_t timestamp) {
-  if (base::MessageLoop::current() != message_loop_) {
-    message_loop_->task_runner()->PostTask(
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&Application::Start, base::Unretained(this), timestamp));
     return;
@@ -1081,8 +1078,8 @@ void Application::Start(int64_t timestamp) {
 }
 
 void Application::Quit() {
-  if (base::MessageLoop::current() != message_loop_) {
-    message_loop_->task_runner()->PostTask(
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
         FROM_HERE, base::Bind(&Application::Quit, base::Unretained(this)));
     return;
   }
@@ -1093,7 +1090,7 @@ void Application::Quit() {
 
 void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
   DCHECK(starboard_event);
-  DCHECK_EQ(base::MessageLoop::current(), message_loop_);
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // Forward input events to |SystemWindow|.
   if (starboard_event->type == kSbEventTypeInput) {
@@ -1137,10 +1134,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::OnScreenKeyboardBlurredEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-      DispatchEventInternal(new base::OnScreenKeyboardSuggestionsUpdatedEvent(
-          *static_cast<int*>(starboard_event->data)));
-      break;
     case kSbEventTypeLink: {
       DispatchDeepLink(static_cast<const char*>(starboard_event->data),
                        starboard_event->timestamp);
@@ -1175,6 +1168,11 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeStop:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
+#if SB_API_VERSION >= 16
+    case kSbEventTypeReserved1:
+#else
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+#endif  // SB_API_VERSION >= 16
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
   }
@@ -1252,7 +1250,6 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardShown:
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
     case kSbEventTypeAccessibilitySettingsChanged:
     case kSbEventTypeInput:
     case kSbEventTypeLink:
@@ -1262,6 +1259,11 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
+#if SB_API_VERSION >= 16
+    case kSbEventTypeReserved1:
+#else
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+#endif  // SB_API_VERSION >= 16
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
@@ -1317,15 +1319,6 @@ void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
   browser_module_->OnOnScreenKeyboardBlurred(
       base::polymorphic_downcast<const base::OnScreenKeyboardBlurredEvent*>(
           event));
-}
-
-void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
-    const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser",
-               "Application::OnOnScreenKeyboardSuggestionsUpdatedEvent()");
-  browser_module_->OnOnScreenKeyboardSuggestionsUpdated(
-      base::polymorphic_downcast<
-          const base::OnScreenKeyboardSuggestionsUpdatedEvent*>(event));
 }
 
 void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {
@@ -1513,7 +1506,8 @@ void Application::InitMetrics() {
   // Must be called early as it initializes global state which is then read by
   // all threads without synchronization.
   // RecordAction task runner must be called before metric initialization.
-  base::SetRecordActionTaskRunner(base::ThreadTaskRunnerHandle::Get());
+  base::SetRecordActionTaskRunner(
+      base::SingleThreadTaskRunner::GetCurrentDefault());
   metrics_services_manager_ =
       metrics::CobaltMetricsServicesManager::GetInstance();
   // Before initializing metrics manager, set any persisted settings like if

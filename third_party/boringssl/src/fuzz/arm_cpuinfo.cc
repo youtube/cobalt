@@ -12,13 +12,11 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include "../crypto/cpu-arm-linux.h"
+#include "../crypto/cpu_arm_linux.h"
 
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   STRING_PIECE sp = {reinterpret_cast<const char *>(buf), len};
-  crypto_get_arm_hwcap_from_cpuinfo(&sp);
   crypto_get_arm_hwcap2_from_cpuinfo(&sp);
-  crypto_cpuinfo_has_broken_neon(&sp);
   return 0;
 }

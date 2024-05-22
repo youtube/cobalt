@@ -35,7 +35,7 @@ static void make_paint(SkPaint* paint, SkTileMode tm) {
     SkBitmap bm;
     make_bitmap(&bm);
 
-    paint->setShader(bm.makeShader(tm, tm));
+    paint->setShader(bm.makeShader(tm, tm, SkSamplingOptions()));
 }
 
 class RepeatTileView : public Sample {
@@ -57,7 +57,7 @@ protected:
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 //////////////////////////////////////////////////////////////////////////////

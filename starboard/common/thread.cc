@@ -16,6 +16,9 @@
 
 #include "starboard/common/thread.h"
 
+#include <pthread.h>
+#include <unistd.h>
+
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -26,17 +29,11 @@ namespace starboard {
 
 struct Thread::Data {
   std::string name_;
-  SbThread thread_ = kSbThreadInvalid;
+  pthread_t thread_ = 0;
   atomic_bool started_;
   atomic_bool join_called_;
   Semaphore join_sema_;
-  optional<Thread::Options> options_;
 };
-
-Thread::Options::Options()
-    : stack_size(0),  // Signal for default stack size.
-      priority_(kSbThreadNoPriority),
-      joinable(true) {}
 
 Thread::Thread(const std::string& name) {
   d_.reset(new Thread::Data);
@@ -47,25 +44,18 @@ Thread::~Thread() {
   SB_DCHECK(d_->join_called_.load()) << "Join not called on thread.";
 }
 
-void Thread::Start(const Options& options) {
-  SbThreadEntryPoint entry_point = ThreadEntryPoint;
-
+void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
-  SB_DCHECK(!d_->options_.has_engaged());
   d_->started_.store(true);
-  d_->options_ = options;
 
-  d_->thread_ =
-      SbThreadCreate(options.stack_size, options.priority_,
-                     kSbThreadNoAffinity,  // default affinity.
-                     options.joinable, d_->name_.c_str(), entry_point, this);
+  pthread_create(&d_->thread_, NULL, ThreadEntryPoint, this);
 
-  // SbThreadCreate() above produced an invalid thread handle.
-  SB_DCHECK(d_->thread_ != kSbThreadInvalid);
+  // pthread_create() above produced an invalid thread handle.
+  SB_DCHECK(d_->thread_ != 0);
 }
 
 void Thread::Sleep(int64_t microseconds) {
-  SbThreadSleep(microseconds);
+  usleep(microseconds);
 }
 
 void Thread::SleepMilliseconds(int value) {
@@ -90,18 +80,18 @@ starboard::atomic_bool* Thread::joined_bool() {
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
+  pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
   this_ptr->Run();
   return NULL;
 }
 
 void Thread::Join() {
   SB_DCHECK(d_->join_called_.load() == false);
-  SB_DCHECK(d_->options_->joinable) << "Detached thread should not be joined.";
 
   d_->join_called_.store(true);
   d_->join_sema_.Put();
 
-  if (!SbThreadJoin(d_->thread_, NULL)) {
+  if (pthread_join(d_->thread_, NULL) != 0) {
     SB_DCHECK(false) << "Could not join thread.";
   }
 }

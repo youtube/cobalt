@@ -10,15 +10,10 @@
 
 #include <stdlib.h>
 #include <complex>
+#include <cstring>
 #include <limits>
 #include <string>
 #include <vector>
-
-#if !defined(STARBOARD)
-#include <cstring>
-#else
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
 
 #include <brotli/encode.h>
 #include "./buffer.h"
@@ -33,12 +28,8 @@
 
 namespace woff2 {
 
+
 namespace {
-
-
-using std::string;
-using std::vector;
-
 
 const size_t kWoff2HeaderSize = 48;
 const size_t kWoff2EntrySize = 20;
@@ -188,7 +179,7 @@ size_t MaxWOFF2CompressedSize(const uint8_t* data, size_t length) {
 }
 
 size_t MaxWOFF2CompressedSize(const uint8_t* data, size_t length,
-    const string& extended_metadata) {
+                              const std::string& extended_metadata) {
   // Except for the header size, which is 32 bytes larger in woff2 format,
   // all other parts should be smaller (table header in short format,
   // transformations and compression). Just to be sure, we will give some

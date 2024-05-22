@@ -52,7 +52,7 @@ debug::console::DebugConsoleMode DebugHub::GetDebugConsoleMode() const {
 }
 
 void DebugHub::Attach(const AttachCallbackArg& callback) {
-  last_error_ = base::nullopt;
+  last_error_ = absl::nullopt;
   debug_client_ = create_debug_client_callback_.Run(this);
 
   // |debug_client_| may be NULL if the WebModule is not available at this time.
@@ -66,7 +66,7 @@ void DebugHub::Attach(const AttachCallbackArg& callback) {
 }
 
 void DebugHub::Detach(const AttachCallbackArg& callback) {
-  last_error_ = base::nullopt;
+  last_error_ = absl::nullopt;
   debug_client_.reset();
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
@@ -90,12 +90,12 @@ std::string DebugHub::ReadDebugContentText(const std::string& filename) {
 void DebugHub::SendCommand(const std::string& method,
                            const std::string& json_params,
                            const ResponseCallbackArg& callback) {
-  last_error_ = base::nullopt;
+  last_error_ = absl::nullopt;
   if (!debug_client_ || !debug_client_->IsAttached()) {
-    std::unique_ptr<base::DictionaryValue> response(new base::DictionaryValue);
-    response->SetString("error.message", "Debugger is not connected.");
+    std::unique_ptr<base::Value::Dict> response(new base::Value::Dict);
+    response->Set("error.message", "Debugger is not connected.");
     std::string json_response;
-    auto* response_as_value = static_cast<const base::Value*>(response.get());
+    auto response_as_value = response.get();
     base::JSONWriter::Write(*response_as_value, &json_response);
     ResponseCallbackArg::Reference callback_ref(this, callback);
     callback_ref.value().Run(json_response);
@@ -127,12 +127,12 @@ const script::Sequence<ConsoleCommand> DebugHub::console_commands() const {
   return result;
 }
 
-void DebugHub::SendConsoleCommand(const std::string& command,
-                                  const std::string& message) {
+std::string DebugHub::SendConsoleCommand(const std::string& command,
+                                         const std::string& message) {
   ConsoleCommandManager* console_command_manager =
       ConsoleCommandManager::GetInstance();
   DCHECK(console_command_manager);
-  console_command_manager->HandleCommand(command, message);
+  return console_command_manager->HandleCommand(command, message);
 }
 
 void DebugHub::TraceMembers(script::Tracer* tracer) {
@@ -142,7 +142,7 @@ void DebugHub::TraceMembers(script::Tracer* tracer) {
 void DebugHub::OnCommandResponse(
     const scoped_refptr<ResponseCallbackInfo>& callback_info,
     const base::Optional<std::string>& response) const {
-  // Run the script callback on the message loop the command was sent from.
+  // Run the script callback on the task runner the command was sent from.
   callback_info->task_runner->PostTask(
       FROM_HERE, base::Bind(&DebugHub::RunResponseCallback, this, callback_info,
                             response));
@@ -151,22 +151,23 @@ void DebugHub::OnCommandResponse(
 void DebugHub::OnDebugClientEvent(const std::string& method,
                                   const std::string& params) {
   // Pass to the onEvent handler. The handler will notify the JavaScript
-  // listener on the message loop the listener was registered on.
+  // listener on the task runner the listener was registered on.
   on_event_->DispatchEvent(method, params);
 }
 
 void DebugHub::OnDebugClientDetach(const std::string& reason) {
   DLOG(INFO) << "Debugger detached: " + reason;
   const std::string method = "Inspector.detached";
-  JSONObject params(new base::DictionaryValue());
-  params->SetString("reason", reason);
+  JSONObject params;
+  params.Set("reason", reason);
   on_event_->DispatchEvent(method, JSONStringify(params));
 }
 
 void DebugHub::RunResponseCallback(
     const scoped_refptr<ResponseCallbackInfo>& callback_info,
     base::Optional<std::string> response) const {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), callback_info->task_runner);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            callback_info->task_runner);
   callback_info->callback.value().Run(std::move(response));
 }
 

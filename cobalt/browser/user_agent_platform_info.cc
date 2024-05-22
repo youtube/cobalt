@@ -25,7 +25,6 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
-#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/system_property.h"
 #include "starboard/extension/platform_info.h"
@@ -34,7 +33,7 @@
 #endif  // SB_IS(EVERGREEN)
 #include "starboard/system.h"
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #endif
 
 using starboard::kSystemPropertyMaxLength;

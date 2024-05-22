@@ -17,10 +17,34 @@
 #include <string>
 
 #include "base/logging.h"
+#include "starboard/extension/player_configuration.h"
 #include "starboard/system.h"
 
 namespace cobalt {
 namespace media {
+
+bool SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
+  const StarboardExtensionPlayerConfigurationApi* extension_api =
+      static_cast<const StarboardExtensionPlayerConfigurationApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerConfigurationName));
+  if (!extension_api) {
+    return false;
+  }
+
+  DCHECK_EQ(extension_api->name,
+            // Avoid comparing raw string pointers for equal.
+            std::string(kStarboardExtensionPlayerConfigurationName));
+  DCHECK_EQ(extension_api->version, 1u);
+
+  // SetDecodeToTexturePreferred api could be NULL.
+  if (extension_api->SetDecodeToTexturePreferred) {
+    extension_api->SetDecodeToTexturePreferred(preferred);
+    return true;
+  } else {
+    LOG(INFO) << "DecodeToTextureModePreferred is not supported.";
+    return false;
+  }
+}
 
 DefaultSbPlayerInterface::DefaultSbPlayerInterface() {
   const CobaltExtensionEnhancedAudioApi* extension_api =
@@ -45,9 +69,12 @@ SbPlayer DefaultSbPlayerInterface::Create(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func, SbPlayerErrorFunc player_error_func,
     void* context, SbDecodeTargetGraphicsContextProvider* context_provider) {
-  return SbPlayerCreate(window, creation_param, sample_deallocate_func,
-                        decoder_status_func, player_status_func,
-                        player_error_func, context, context_provider);
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_CREATE);
+  auto player = SbPlayerCreate(window, creation_param, sample_deallocate_func,
+                               decoder_status_func, player_status_func,
+                               player_error_func, context, context_provider);
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_CREATE);
+  return player;
 }
 
 SbPlayerOutputMode DefaultSbPlayerInterface::GetPreferredOutputMode(
@@ -56,15 +83,18 @@ SbPlayerOutputMode DefaultSbPlayerInterface::GetPreferredOutputMode(
 }
 
 void DefaultSbPlayerInterface::Destroy(SbPlayer player) {
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_DESTROY);
   SbPlayerDestroy(player);
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_DESTROY);
 }
 
-void DefaultSbPlayerInterface::Seek(SbPlayer player, int64_t seek_to_timestamp,
+void DefaultSbPlayerInterface::Seek(SbPlayer player,
+                                    base::TimeDelta seek_to_timestamp,
                                     int ticket) {
 #if SB_API_VERSION >= 15
-  SbPlayerSeek(player, seek_to_timestamp, ticket);
+  SbPlayerSeek(player, seek_to_timestamp.InMicroseconds(), ticket);
 #else   // SB_API_VERSION >= 15
-  SbPlayerSeek2(player, seek_to_timestamp, ticket);
+  SbPlayerSeek2(player, seek_to_timestamp.InMicroseconds(), ticket);
 #endif  // SB_API_VERSION >= 15
 }
 
@@ -138,9 +168,14 @@ SbPlayer DefaultSbPlayerInterface::CreateUrlPlayer(
     SbPlayerEncryptedMediaInitDataEncounteredCB
         encrypted_media_init_data_encountered_cb,
     SbPlayerErrorFunc player_error_func, void* context) {
-  return SbUrlPlayerCreate(url, window, player_status_func,
-                           encrypted_media_init_data_encountered_cb,
-                           player_error_func, context);
+  media_metrics_provider_.StartTrackingAction(
+      MediaAction::SBPLAYER_CREATE_URL_PLAYER);
+  auto player = SbUrlPlayerCreate(url, window, player_status_func,
+                                  encrypted_media_init_data_encountered_cb,
+                                  player_error_func, context);
+  media_metrics_provider_.EndTrackingAction(
+      MediaAction::SBPLAYER_CREATE_URL_PLAYER);
+  return player;
 }
 
 void DefaultSbPlayerInterface::SetUrlPlayerDrmSystem(SbPlayer player,

@@ -10,12 +10,17 @@
 
 
 import argparse
-import common
+import os
 import subprocess
 import sys
+
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+INFRA_BOTS_DIR = os.path.realpath(os.path.join(FILE_DIR, os.pardir, os.pardir))
+sys.path.insert(0, INFRA_BOTS_DIR)
 import utils
 
-SDK_VERSION='1.1.97.0'
+
+SDK_VERSION='1.2.141.0'
 SDK_URL=('https://sdk.lunarg.com/sdk/download/%s/linux/'
          'vulkansdk-linux-x86_64-%s.tar.gz' % (SDK_VERSION, SDK_VERSION))
 
@@ -31,9 +36,10 @@ def create_asset(target_dir):
                            '--strip-components=2',
                            '%s/x86_64' % SDK_VERSION])
 
+
 def main():
   if 'linux' not in sys.platform:
-    print >> sys.stderr, 'This script only runs on Linux.'
+    print('This script only runs on Linux.', file=sys.stderr)
     sys.exit(1)
   parser = argparse.ArgumentParser()
   parser.add_argument('--target_dir', '-t', required=True)

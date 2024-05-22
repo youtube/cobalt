@@ -98,12 +98,11 @@ void StatsLayer::onPaint(SkSurface* surface) {
     canvas->save();
 
     // Scale the canvas while keeping the right edge in place.
-    canvas->concat(SkMatrix::MakeRectToRect(SkRect::Make(canvasSize),
-                                            SkRect::MakeXYWH(canvasSize.width()  * (1 - kScale),
-                                                             0,
-                                                             canvasSize.width()  * kScale,
-                                                             canvasSize.height() * kScale),
-                                            SkMatrix::kFill_ScaleToFit));
+    canvas->concat(SkMatrix::RectToRect(SkRect::Make(canvasSize),
+                                        SkRect::MakeXYWH(canvasSize.width()  * (1 - kScale),
+                                                         0,
+                                                         canvasSize.width()  * kScale,
+                                                         canvasSize.height() * kScale)));
 
     paint.setColor(SK_ColorBLACK);
     canvas->drawRect(rect, paint);
@@ -130,7 +129,7 @@ void StatsLayer::onPaint(SkSurface* surface) {
         double inc = 0;
         for (int timer = 0; timer < fTimers.count(); ++timer) {
             int height = (int)(fTimers[timer].fTimes[i] * kPixelPerMS + 0.5);
-            int endY = SkTMax(startY - height, kDisplayPadding + kTextHeight);
+            int endY = std::max(startY - height, kDisplayPadding + kTextHeight);
             paint.setColor(fTimers[timer].fColor);
             canvas->drawLine(SkIntToScalar(x), SkIntToScalar(startY),
                              SkIntToScalar(x), SkIntToScalar(endY), paint);
@@ -140,8 +139,8 @@ void StatsLayer::onPaint(SkSurface* surface) {
         }
 
         int height = (int)(fTotalTimes[i] * kPixelPerMS + 0.5);
-        height = SkTMax(0, height - (SkScalarTruncToInt(rect.fBottom) - startY));
-        int endY = SkTMax(startY - height, kDisplayPadding + kTextHeight);
+        height = std::max(0, height - (SkScalarTruncToInt(rect.fBottom) - startY));
+        int endY = std::max(startY - height, kDisplayPadding + kTextHeight);
         paint.setColor(SK_ColorWHITE);
         canvas->drawLine(SkIntToScalar(x), SkIntToScalar(startY),
                          SkIntToScalar(x), SkIntToScalar(endY), paint);
@@ -161,15 +160,15 @@ void StatsLayer::onPaint(SkSurface* surface) {
 
     SkFont font(nullptr, 16);
     paint.setColor(SK_ColorWHITE);
-    double time = totalTime / SkTMax(1, totalCount);
-    double measure = fCumulativeMeasurementTime / SkTMax(1, fCumulativeMeasurementCount);
+    double time = totalTime / std::max(1, totalCount);
+    double measure = fCumulativeMeasurementTime / std::max(1, fCumulativeMeasurementCount);
     canvas->drawString(SkStringPrintf("%4.3f ms -> %4.3f ms", time, measure),
                        rect.fLeft + 3, rect.fTop + 14, font, paint);
 
     for (int timer = 0; timer < fTimers.count(); ++timer) {
         paint.setColor(fTimers[timer].fLabelColor);
         canvas->drawString(SkStringPrintf("%s: %4.3f ms", fTimers[timer].fLabel.c_str(),
-                                          sumTimes[timer] / SkTMax(1, count)),
+                                          sumTimes[timer] / std::max(1, count)),
                            rect.fLeft + 3, rect.fTop + 28 + (14 * timer), font, paint);
     }
 

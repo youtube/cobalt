@@ -5,6 +5,7 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "src/core/SkImagePriv.h"
 #include "tests/Test.h"
@@ -26,14 +27,14 @@ DEF_TEST(SkImageFromBitmap_extractSubset, reporter) {
         canvas.drawIRect(r, p);
         SkBitmap dstBitmap;
         srcBitmap.extractSubset(&dstBitmap, r);
-        image = SkImage::MakeFromBitmap(dstBitmap);
+        image = dstBitmap.asImage();
     }
 
     SkBitmap tgt;
     tgt.allocN32Pixels(gWidth, gHeight);
     SkCanvas canvas(tgt);
     canvas.clear(SK_ColorTRANSPARENT);
-    canvas.drawImage(image, 0, 0, nullptr);
+    canvas.drawImage(image, 0, 0);
 
     uint32_t pixel = 0;
     SkImageInfo info = SkImageInfo::Make(1, 1, kBGRA_8888_SkColorType, kUnpremul_SkAlphaType);

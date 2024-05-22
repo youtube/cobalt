@@ -34,7 +34,7 @@ std::vector<SkTextBlobTrace::Record> SkTextBlobTrace::CreateBlobTrace(SkStream* 
     while (!readBuffer.eof()) {
         SkTextBlobTrace::Record record;
         record.origUniqueID = readBuffer.readUInt();
-        readBuffer.readPaint(&record.paint, nullptr);
+        record.paint = readBuffer.readPaint();
         readBuffer.readPoint(&record.offset);
         record.blob = SkTextBlobPriv::MakeFromBuffer(readBuffer);
         trace.push_back(std::move(record));
@@ -63,8 +63,8 @@ void SkTextBlobTrace::DumpTrace(const std::vector<SkTextBlobTrace::Record>& trac
                     font.getScaleX(),
                     font.getSkewX(),
                     SkFontPriv::Flags(font),
-                    font.getEdging(),
-                    font.getHinting());
+                    (int)font.getEdging(),
+                    (int)font.getHinting());
             uint32_t glyphCount = iter.glyphCount();
             const uint16_t* glyphs = iter.glyphs();
             for (uint32_t i = 0; i < glyphCount; i++) {
@@ -83,11 +83,11 @@ SkTextBlobTrace::Capture::Capture() : fTypefaceSet(new SkRefCntSet) {
 
 SkTextBlobTrace::Capture::~Capture() = default;
 
-void SkTextBlobTrace::Capture::capture(const SkGlyphRunList& glyphRunList) {
+void SkTextBlobTrace::Capture::capture(const SkGlyphRunList& glyphRunList, const SkPaint& paint) {
     const SkTextBlob* blob = glyphRunList.blob();
     if (blob != nullptr) {
         fWriteBuffer.writeUInt(blob->uniqueID());
-        fWriteBuffer.writePaint(glyphRunList.paint());
+        fWriteBuffer.writePaint(paint);
         fWriteBuffer.writePoint(glyphRunList.origin());
         SkTextBlobPriv::Flatten(*blob, fWriteBuffer);
         fBlobCount++;
@@ -98,7 +98,7 @@ void SkTextBlobTrace::Capture::dump(SkWStream* dst) const {
     SkTLazy<SkFILEWStream> fileStream;
     if (!dst) {
         uint32_t id = SkChecksum::Mix(reinterpret_cast<uintptr_t>(this));
-        SkString f = SkStringPrintf("diff-canvas-%08x-%04d.trace", id, fBlobCount);
+        SkString f = SkStringPrintf("diff-canvas-%08x-%04zu.trace", id, fBlobCount);
         dst = fileStream.init(f.c_str());
         if (!fileStream->isValid()) {
             SkDebugf("Error opening '%s'.\n", f.c_str());

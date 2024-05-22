@@ -5,8 +5,11 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkBBHFactory.h"
 #include "include/core/SkImage.h"
 #include "src/core/SkCanvasPriv.h"
+#include "src/core/SkColorFilterBase.h"
+#include "src/core/SkImageFilter_Base.h"
 #include "src/core/SkRecordDraw.h"
 #include "src/utils/SkPatchUtils.h"
 
@@ -27,11 +30,11 @@ void SkRecordDraw(const SkRecord& record,
         // lets us query the BBH.
         SkRect query = canvas->getLocalClipBounds();
 
-        SkTDArray<int> ops;
+        std::vector<int> ops;
         bbh->search(query, &ops);
 
         SkRecords::Draw draw(canvas, drawablePicts, drawables, drawableCount);
-        for (int i = 0; i < ops.count(); i++) {
+        for (int i = 0; i < (int)ops.size(); i++) {
             if (callback && callback->abort()) {
                 return;
             }
@@ -58,10 +61,10 @@ void SkRecordDraw(const SkRecord& record,
 void SkRecordPartialDraw(const SkRecord& record, SkCanvas* canvas,
                          SkPicture const* const drawablePicts[], int drawableCount,
                          int start, int stop,
-                         const SkMatrix& initialCTM) {
+                         const SkM44& initialCTM) {
     SkAutoCanvasRestore saveRestore(canvas, true /*save now, restore at exit*/);
 
-    stop = SkTMin(stop, record.count());
+    stop = std::min(stop, record.count());
     SkRecords::Draw draw(canvas, drawablePicts, nullptr, drawableCount, &initialCTM);
     for (int i = start; i < stop; i++) {
         record.visit(i, draw);
@@ -77,12 +80,11 @@ template <> void Draw::draw(const NoOp&) {}
 DRAW(Flush, flush());
 DRAW(Restore, restore());
 DRAW(Save, save());
-DRAW(SaveLayer, saveLayer(SkCanvas::SaveLayerRec(r.bounds,
-                                                 r.paint,
-                                                 r.backdrop.get(),
-                                                 r.clipMask.get(),
-                                                 r.clipMatrix,
-                                                 r.saveLayerFlags)));
+DRAW(SaveLayer, saveLayer(SkCanvasPriv::ScaledBackdropLayer(r.bounds,
+                                                            r.paint,
+                                                            r.backdrop.get(),
+                                                            r.backdropScale,
+                                                            r.saveLayerFlags)));
 
 template <> void Draw::draw(const SaveBehind& r) {
     SkCanvasPriv::SaveBehind(fCanvas, r.subset);
@@ -92,18 +94,26 @@ template <> void Draw::draw(const DrawBehind& r) {
     SkCanvasPriv::DrawBehind(fCanvas, r.paint);
 }
 
-DRAW(SetMatrix, setMatrix(SkMatrix::Concat(fInitialCTM, r.matrix)));
+DRAW(SetMatrix, setMatrix(fInitialCTM.asM33() * r.matrix));
+DRAW(SetM44, setMatrix(fInitialCTM * r.matrix));
+DRAW(Concat44, concat(r.matrix));
 DRAW(Concat, concat(r.matrix));
 DRAW(Translate, translate(r.dx, r.dy));
+DRAW(Scale, scale(r.sx, r.sy));
 
 DRAW(ClipPath, clipPath(r.path, r.opAA.op(), r.opAA.aa()));
 DRAW(ClipRRect, clipRRect(r.rrect, r.opAA.op(), r.opAA.aa()));
 DRAW(ClipRect, clipRect(r.rect, r.opAA.op(), r.opAA.aa()));
 DRAW(ClipRegion, clipRegion(r.region, r.op));
+DRAW(ClipShader, clipShader(r.shader, r.op));
+
+template <> void Draw::draw(const ResetClip& r) {
+    SkCanvasPriv::ResetClip(fCanvas);
+}
 
 DRAW(DrawArc, drawArc(r.oval, r.startAngle, r.sweepAngle, r.useCenter, r.paint));
 DRAW(DrawDRRect, drawDRRect(r.outer, r.inner, r.paint));
-DRAW(DrawImage, drawImage(r.image.get(), r.left, r.top, r.paint));
+DRAW(DrawImage, drawImage(r.image.get(), r.left, r.top, r.sampling, r.paint));
 
 template <> void Draw::draw(const DrawImageLattice& r) {
     SkCanvas::Lattice lattice;
@@ -114,11 +124,10 @@ template <> void Draw::draw(const DrawImageLattice& r) {
     lattice.fRectTypes = (0 == r.flagCount) ? nullptr : r.flags;
     lattice.fColors = (0 == r.flagCount) ? nullptr : r.colors;
     lattice.fBounds = &r.src;
-    fCanvas->drawImageLattice(r.image.get(), lattice, r.dst, r.paint);
+    fCanvas->drawImageLattice(r.image.get(), lattice, r.dst, r.filter, r.paint);
 }
 
-DRAW(DrawImageRect, legacy_drawImageRect(r.image.get(), r.src, r.dst, r.paint, r.constraint));
-DRAW(DrawImageNine, drawImageNine(r.image.get(), r.center, r.dst, r.paint));
+DRAW(DrawImageRect, drawImageRect(r.image.get(), r.src, r.dst, r.sampling, r.paint, r.constraint));
 DRAW(DrawOval, drawOval(r.oval, r.paint));
 DRAW(DrawPaint, drawPaint(r.paint));
 DRAW(DrawPath, drawPath(r.path, r.paint));
@@ -129,16 +138,16 @@ DRAW(DrawRRect, drawRRect(r.rrect, r.paint));
 DRAW(DrawRect, drawRect(r.rect, r.paint));
 DRAW(DrawRegion, drawRegion(r.region, r.paint));
 DRAW(DrawTextBlob, drawTextBlob(r.blob.get(), r.x, r.y, r.paint));
-DRAW(DrawAtlas, drawAtlas(r.atlas.get(),
-                          r.xforms, r.texs, r.colors, r.count, r.mode, r.cull, r.paint));
-DRAW(DrawVertices, drawVertices(r.vertices, r.bones, r.boneCount, r.bmode, r.paint));
+DRAW(DrawAtlas, drawAtlas(r.atlas.get(), r.xforms, r.texs, r.colors, r.count, r.mode, r.sampling,
+                          r.cull, r.paint));
+DRAW(DrawVertices, drawVertices(r.vertices, r.bmode, r.paint));
 DRAW(DrawShadowRec, private_draw_shadow_rec(r.path, r.rec));
 DRAW(DrawAnnotation, drawAnnotation(r.rect, r.key.c_str(), r.value.get()));
 
 DRAW(DrawEdgeAAQuad, experimental_DrawEdgeAAQuad(
         r.rect, r.clip, r.aa, r.color, r.mode));
 DRAW(DrawEdgeAAImageSet, experimental_DrawEdgeAAImageSet(
-        r.set.get(), r.count, r.dstClips, r.preViewMatrices, r.paint, r.constraint));
+        r.set.get(), r.count, r.dstClips, r.preViewMatrices, r.sampling, r.paint, r.constraint));
 
 #undef DRAW
 
@@ -173,9 +182,11 @@ template <> void Draw::draw(const DrawDrawable& r) {
 // in for all the control ops we stashed away.
 class FillBounds : SkNoncopyable {
 public:
-    FillBounds(const SkRect& cullRect, const SkRecord& record, SkRect bounds[])
+    FillBounds(const SkRect& cullRect, const SkRecord& record,
+               SkRect bounds[], SkBBoxHierarchy::Metadata meta[])
         : fCullRect(cullRect)
-        , fBounds(bounds) {
+        , fBounds(bounds)
+        , fMeta(meta) {
         fCTM = SkMatrix::I();
 
         // We push an extra save block to track the bounds of any top-level control operations.
@@ -246,7 +257,10 @@ private:
     template <typename T> void updateCTM(const T&) {}
     void updateCTM(const Restore& op)   { fCTM = op.matrix; }
     void updateCTM(const SetMatrix& op) { fCTM = op.matrix; }
+    void updateCTM(const SetM44& op)    { fCTM = op.matrix.asM33(); }
+    void updateCTM(const Concat44& op)  { fCTM.preConcat(op.matrix.asM33()); }
     void updateCTM(const Concat& op)    { fCTM.preConcat(op.matrix); }
+    void updateCTM(const Scale& op)     { fCTM.preScale(op.sx, op.sy); }
     void updateCTM(const Translate& op) { fCTM.preTranslate(op.dx, op.dy); }
 
     // The bounds of these ops must be calculated when we hit the Restore
@@ -254,20 +268,30 @@ private:
     void trackBounds(const Save&)          { this->pushSaveBlock(nullptr); }
     void trackBounds(const SaveLayer& op)  { this->pushSaveBlock(op.paint); }
     void trackBounds(const SaveBehind&)    { this->pushSaveBlock(nullptr); }
-    void trackBounds(const Restore&) { fBounds[fCurrentOp] = this->popSaveBlock(); }
+    void trackBounds(const Restore&) {
+        const bool isSaveLayer = fSaveStack.top().paint != nullptr;
+        fBounds[fCurrentOp] = this->popSaveBlock();
+        fMeta  [fCurrentOp].isDraw = isSaveLayer;
+    }
 
     void trackBounds(const SetMatrix&)         { this->pushControl(); }
+    void trackBounds(const SetM44&)            { this->pushControl(); }
     void trackBounds(const Concat&)            { this->pushControl(); }
+    void trackBounds(const Concat44&)          { this->pushControl(); }
+    void trackBounds(const Scale&)             { this->pushControl(); }
     void trackBounds(const Translate&)         { this->pushControl(); }
     void trackBounds(const ClipRect&)          { this->pushControl(); }
     void trackBounds(const ClipRRect&)         { this->pushControl(); }
     void trackBounds(const ClipPath&)          { this->pushControl(); }
     void trackBounds(const ClipRegion&)        { this->pushControl(); }
+    void trackBounds(const ClipShader&)        { this->pushControl(); }
+    void trackBounds(const ResetClip&)         { this->pushControl(); }
 
 
     // For all other ops, we can calculate and store the bounds directly now.
     template <typename T> void trackBounds(const T& op) {
         fBounds[fCurrentOp] = this->bounds(op);
+        fMeta  [fCurrentOp].isDraw = true;
         this->updateSaveBounds(fBounds[fCurrentOp]);
     }
 
@@ -289,8 +313,15 @@ private:
     static bool PaintMayAffectTransparentBlack(const SkPaint* paint) {
         if (paint) {
             // FIXME: this is very conservative
-            if (paint->getImageFilter() || paint->getColorFilter()) {
+            if ((paint->getImageFilter() &&
+                 as_IFB(paint->getImageFilter())->affectsTransparentBlack()) ||
+                (paint->getColorFilter() &&
+                 as_CFB(paint->getColorFilter())->affectsTransparentBlack())) {
                 return true;
+            }
+            const auto bm = paint->asBlendMode();
+            if (!bm) {
+                return true;    // can we query other blenders for this?
             }
 
             // Unusual blendmodes require us to process a saved layer
@@ -298,7 +329,7 @@ private:
             // For example, DstIn is used by masking layers.
             // https://code.google.com/p/skia/issues/detail?id=1291
             // https://crbug.com/401593
-            switch (paint->getBlendMode()) {
+            switch (bm.value()) {
                 // For each of the following transfer modes, if the source
                 // alpha is zero (our transparent black), the resulting
                 // blended alpha is not necessarily equal to the original
@@ -344,6 +375,7 @@ private:
 
     void popControl(const Bounds& bounds) {
         fBounds[fControlIndices.top()] = bounds;
+        fMeta  [fControlIndices.top()].isDraw = false;
         fControlIndices.pop();
     }
 
@@ -386,9 +418,6 @@ private:
     Bounds bounds(const DrawImageRect& op) const {
         return this->adjustAndMap(op.dst, op.paint);
     }
-    Bounds bounds(const DrawImageNine& op) const {
-        return this->adjustAndMap(op.dst, op.paint);
-    }
     Bounds bounds(const DrawPath& op) const {
         return op.path.isInverseFillType() ? fCullRect
                                            : this->adjustAndMap(op.path.getBounds(), &op.paint);
@@ -398,7 +427,7 @@ private:
         dst.setBounds(op.pts, op.count);
 
         // Pad the bounding box a little to make sure hairline points' bounds aren't empty.
-        SkScalar stroke = SkMaxScalar(op.paint.getStrokeWidth(), 0.01f);
+        SkScalar stroke = std::max(op.paint.getStrokeWidth(), 0.01f);
         dst.outset(stroke/2, stroke/2);
 
         return this->adjustAndMap(dst, &op.paint);
@@ -505,6 +534,9 @@ private:
     // Conservative identity-space bounds for each op in the SkRecord.
     Bounds* fBounds;
 
+    // Parallel array to fBounds, holding metadata for each bounds rect.
+    SkBBoxHierarchy::Metadata* fMeta;
+
     // We walk fCurrentOp through the SkRecord,
     // as we go using updateCTM() to maintain the exact CTM (fCTM).
     int fCurrentOp;
@@ -517,13 +549,13 @@ private:
 
 }  // namespace SkRecords
 
-void SkRecordFillBounds(const SkRect& cullRect, const SkRecord& record, SkRect bounds[]) {
+void SkRecordFillBounds(const SkRect& cullRect, const SkRecord& record,
+                        SkRect bounds[], SkBBoxHierarchy::Metadata meta[]) {
     {
-        SkRecords::FillBounds visitor(cullRect, record, bounds);
+        SkRecords::FillBounds visitor(cullRect, record, bounds, meta);
         for (int i = 0; i < record.count(); i++) {
             visitor.setCurrentOp(i);
             record.visit(i, visitor);
         }
     }
 }
-

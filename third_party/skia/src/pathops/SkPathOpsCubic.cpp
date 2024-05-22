@@ -4,6 +4,7 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+#include "include/private/SkTPin.h"
 #include "src/core/SkGeometry.h"
 #include "src/core/SkTSort.h"
 #include "src/pathops/SkLineParameters.h"
@@ -195,11 +196,11 @@ bool SkDCubic::hullIntersects(const SkDPoint* pts, int ptCount, bool* isLinear) 
 }
 
 bool SkDCubic::hullIntersects(const SkDCubic& c2, bool* isLinear) const {
-    return hullIntersects(c2.fPts, c2.kPointCount, isLinear);
+    return hullIntersects(c2.fPts, SkDCubic::kPointCount, isLinear);
 }
 
 bool SkDCubic::hullIntersects(const SkDQuad& quad, bool* isLinear) const {
-    return hullIntersects(quad.fPts, quad.kPointCount, isLinear);
+    return hullIntersects(quad.fPts, SkDQuad::kPointCount, isLinear);
 }
 
 bool SkDCubic::hullIntersects(const SkDConic& conic, bool* isLinear) const {
@@ -215,11 +216,11 @@ bool SkDCubic::isLinear(int startIndex, int endIndex) const {
     lineParameters.cubicEndPoints(*this, startIndex, endIndex);
     // FIXME: maybe it's possible to avoid this and compare non-normalized
     lineParameters.normalize();
-    double tiniest = SkTMin(SkTMin(SkTMin(SkTMin(SkTMin(SkTMin(SkTMin(fPts[0].fX, fPts[0].fY),
+    double tiniest = std::min(std::min(std::min(std::min(std::min(std::min(std::min(fPts[0].fX, fPts[0].fY),
             fPts[1].fX), fPts[1].fY), fPts[2].fX), fPts[2].fY), fPts[3].fX), fPts[3].fY);
-    double largest = SkTMax(SkTMax(SkTMax(SkTMax(SkTMax(SkTMax(SkTMax(fPts[0].fX, fPts[0].fY),
+    double largest = std::max(std::max(std::max(std::max(std::max(std::max(std::max(fPts[0].fX, fPts[0].fY),
             fPts[1].fX), fPts[1].fY), fPts[2].fX), fPts[2].fY), fPts[3].fX), fPts[3].fY);
-    largest = SkTMax(largest, -tiniest);
+    largest = std::max(largest, -tiniest);
     double distance = lineParameters.controlPtDistance(*this, 1);
     if (!approximately_zero_when_compared_to(distance, largest)) {
         return false;
@@ -257,7 +258,7 @@ int SkDCubic::ComplexBreak(const SkPoint pointsPtr[4], SkScalar* t) {
                 return (int) (t[0] > 0 && t[0] < 1);
             }
         }
-        // fall through if no t value found
+        [[fallthrough]]; // fall through if no t value found
         case SkCubicType::kSerpentine:
         case SkCubicType::kLocalCusp:
         case SkCubicType::kCuspAtInfinity: {
@@ -313,9 +314,10 @@ int SkDCubic::ComplexBreak(const SkPoint pointsPtr[4], SkScalar* t) {
                 }
                 return resultCount;
             }
+            break;
         }
         default:
-            ;
+            break;
     }
     return 0;
 }
@@ -343,7 +345,7 @@ int SkDCubic::searchRoots(double extremeTs[6], int extrema, double axisIntercept
     extremeTs[extrema++] = 0;
     extremeTs[extrema] = 1;
     SkASSERT(extrema < 6);
-    SkTQSort(extremeTs, extremeTs + extrema);
+    SkTQSort(extremeTs, extremeTs + extrema + 1);
     int validCount = 0;
     for (int index = 0; index < extrema; ) {
         double min = extremeTs[index];
@@ -398,6 +400,7 @@ nextRoot:
 
 int SkDCubic::RootsReal(double A, double B, double C, double D, double s[3]) {
 #ifdef SK_DEBUG
+    #if ONE_OFF_DEBUG && ONE_OFF_DEBUG_MATHEMATICA
     // create a string mathematica understands
     // GDB set print repe 15 # if repeated digits is a bother
     //     set print elements 400 # if line doesn't fit
@@ -406,9 +409,8 @@ int SkDCubic::RootsReal(double A, double B, double C, double D, double s[3]) {
     SK_SNPRINTF(str, sizeof(str), "Solve[%1.19g x^3 + %1.19g x^2 + %1.19g x + %1.19g == 0, x]",
             A, B, C, D);
     SkPathOpsDebug::MathematicaIze(str, sizeof(str));
-#if ONE_OFF_DEBUG && ONE_OFF_DEBUG_MATHEMATICA
     SkDebugf("%s\n", str);
-#endif
+    #endif
 #endif
     if (approximately_zero(A)
             && approximately_zero_when_compared_to(A, B)
@@ -472,7 +474,7 @@ int SkDCubic::RootsReal(double A, double B, double C, double D, double s[3]) {
         }
     } else {  // we have 1 real root
         double sqrtR2MinusQ3 = sqrt(R2MinusQ3);
-        double A = fabs(R) + sqrtR2MinusQ3;
+        A = fabs(R) + sqrtR2MinusQ3;
         A = SkDCubeRoot(A);
         if (R > 0) {
             A = -A;

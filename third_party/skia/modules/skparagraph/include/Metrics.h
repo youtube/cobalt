@@ -69,9 +69,9 @@ public:
     // descent`. Ascent and descent are provided as positive numbers. Raw numbers
     // for specific runs of text can be obtained in run_metrics_map. These values
     // are the cumulative metrics for the entire line.
-    double fAscent = 0.0;
-    double fDescent = 0.0;
-    double fUnscaledAscent = 0.0;
+    double fAscent = SK_ScalarMax;
+    double fDescent = SK_ScalarMin;
+    double fUnscaledAscent = SK_ScalarMax;
     // Total height of the paragraph including the current line.
     //
     // The height of the current line is `round(ascent + descent)`.
@@ -92,7 +92,7 @@ public:
     std::map<size_t, StyleMetrics> fLineMetrics;
 };
 
-}  // namespace skia
+}  // namespace textlayout
 }  // namespace skia
 
 #endif  // Metrics_DEFINED

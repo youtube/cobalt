@@ -1,4 +1,3 @@
-/* pem_xaux.c */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
  * 2001.
@@ -55,9 +54,7 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <stdio.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>

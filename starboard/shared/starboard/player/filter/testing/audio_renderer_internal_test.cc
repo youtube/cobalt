@@ -116,8 +116,8 @@ class AudioRendererTest : public ::testing::Test {
     const int kMaxCachedFrames = 256 * 1024;
     const int kMaxFramesPerAppend = 16384;
     audio_renderer_.reset(new AudioRendererPcm(
-        make_scoped_ptr<AudioDecoder>(audio_decoder_),
-        make_scoped_ptr<AudioRendererSink>(audio_renderer_sink_),
+        unique_ptr_alias<AudioDecoder>(audio_decoder_),
+        unique_ptr_alias<AudioRendererSink>(audio_renderer_sink_),
         GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
     audio_renderer_->Initialize(
         std::bind(&AudioRendererTest::OnError, this),
@@ -235,7 +235,7 @@ class AudioRendererTest : public ::testing::Test {
   AudioDecoder::ConsumedCB consumed_cb_;
   bool prerolled_ = true;
 
-  scoped_ptr<AudioRendererPcm> audio_renderer_;
+  std::unique_ptr<AudioRendererPcm> audio_renderer_;
   MockAudioDecoder* audio_decoder_;
   MockAudioRendererSink* audio_renderer_sink_;
   AudioRendererSink::RenderCallback* renderer_callback_;
@@ -382,7 +382,6 @@ TEST_F(AudioRendererTest, SunnyDay) {
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
 
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   if (HasAsyncAudioFramesReporting()) {
     SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
@@ -393,7 +392,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   // Resets |audio_renderer_sink_|, so all the gtest codes need to be below
   // this line.
-  ResetToFormat(kSbMediaAudioSampleTypeInt16,
+  ResetToFormat(kSbMediaAudioSampleTypeInt16Deprecated,
                 kSbMediaAudioFrameStorageTypeInterleaved);
 
   {
@@ -465,7 +464,6 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 
 TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   if (HasAsyncAudioFramesReporting()) {

@@ -12,6 +12,8 @@
 #include "src/core/SkRectPriv.h"
 #include "tests/Test.h"
 
+#include <limits.h>
+
 static bool has_green_pixels(const SkBitmap& bm) {
     for (int j = 0; j < bm.height(); ++j) {
         for (int i = 0; i < bm.width(); ++i) {
@@ -148,16 +150,122 @@ static float make_big_value(skiatest::Reporter* reporter) {
     return reporter ? SK_ScalarMax * 0.75f : 0;
 }
 
-DEF_TEST(Rect_center, reporter) {
-    // ensure we can compute center even when the width/height might overflow
+DEF_TEST(Rect_whOverflow, reporter) {
     const SkScalar big = make_big_value(reporter);
     const SkRect r = { -big, -big, big, big };
 
     REPORTER_ASSERT(reporter, r.isFinite());
-    REPORTER_ASSERT(reporter, SkScalarIsFinite(r.centerX()));
-    REPORTER_ASSERT(reporter, SkScalarIsFinite(r.centerY()));
     REPORTER_ASSERT(reporter, !SkScalarIsFinite(r.width()));
     REPORTER_ASSERT(reporter, !SkScalarIsFinite(r.height()));
+
+    // ensure we can compute center even when the width/height might overflow
+    REPORTER_ASSERT(reporter, SkScalarIsFinite(r.centerX()));
+    REPORTER_ASSERT(reporter, SkScalarIsFinite(r.centerY()));
+
+
+    // ensure we can compute halfWidth and halfHeight even when width/height might overflow,
+    // i.e. for use computing the radii filling a rectangle.
+    REPORTER_ASSERT(reporter, SkScalarIsFinite(SkRectPriv::HalfWidth(r)));
+    REPORTER_ASSERT(reporter, SkScalarIsFinite(SkRectPriv::HalfHeight(r)));
+}
+
+DEF_TEST(Rect_subtract, reporter) {
+    struct Expectation {
+        SkIRect fA;
+        SkIRect fB;
+        SkIRect fExpected;
+        bool    fExact;
+    };
+
+    SkIRect a = SkIRect::MakeLTRB(2, 3, 12, 15);
+    Expectation tests[] = {
+        // B contains A == empty rect
+        {a, a.makeOutset(2, 2), SkIRect::MakeEmpty(), true},
+        // A contains B, producing 4x12 (left), 2x12 (right), 4x10(top), and 5x10(bottom)
+        {a, {6, 6, 10, 10}, {2, 10, 12, 15}, false},
+        // A is empty, B is not == empty rect
+        {SkIRect::MakeEmpty(), a, SkIRect::MakeEmpty(), true},
+        // A is not empty, B is empty == a
+        {a, SkIRect::MakeEmpty(), a, true},
+        // A and B are empty == empty
+        {SkIRect::MakeEmpty(), SkIRect::MakeEmpty(), SkIRect::MakeEmpty(), true},
+        // A and B do not intersect == a
+        {a, {15, 17, 20, 40}, a, true},
+        // B cuts off left side of A, producing 6x12 (right)
+        {a, {0, 0, 6, 20}, {6, 3, 12, 15}, true},
+        // B cuts off right side of A, producing 4x12 (left)
+        {a, {6, 0, 20, 20}, {2, 3, 6, 15}, true},
+        // B cuts off top side of A, producing 10x9 (bottom)
+        {a, {0, 0, 20, 6}, {2, 6, 12, 15}, true},
+        // B cuts off bottom side of A, producing 10x7 (top)
+        {a, {0, 10, 20, 20}, {2, 3, 12, 10}, true},
+        // B splits A horizontally, producing 10x3 (top) or 10x5 (bottom)
+        {a, {0, 6, 20, 10}, {2, 10, 12, 15}, false},
+        // B splits A vertically, producing 4x12 (left) or 2x12 (right)
+        {a, {6, 0, 10, 20}, {2, 3, 6, 15}, false},
+        // B cuts top-left of A, producing 8x12 (right) or 10x11 (bottom)
+        {a, {0, 0, 4, 4}, {2, 4, 12, 15}, false},
+        // B cuts top-right of A, producing 8x12 (left) or 10x8 (bottom)
+        {a, {10, 0, 14, 7}, {2, 3, 10, 15}, false},
+        // B cuts bottom-left of A, producing 7x12 (right) or 10x9 (top)
+        {a, {0, 12, 5, 20}, {2, 3, 12, 12}, false},
+        // B cuts bottom-right of A, producing 8x12 (left) or 10x9 (top)
+        {a, {10, 12, 20, 20}, {2, 3, 10, 15}, false},
+        // B crosses the left of A, producing 4x12 (right) or 10x3 (top) or 10x5 (bottom)
+        {a, {0, 6, 8, 10}, {2, 10, 12, 15}, false},
+        // B crosses the right side of A, producing 6x12 (left) or 10x3 (top) or 10x5 (bottom)
+        {a, {8, 6, 20, 10}, {2, 3, 8, 15}, false},
+        // B crosses the top side of A, producing 4x12 (left) or 2x12 (right) or 10x8 (bottom)
+        {a, {6, 0, 10, 7}, {2, 7, 12, 15}, false},
+        // B crosses the bottom side of A, producing 1x12 (left) or 4x12 (right) or 10x3 (top)
+        {a, {4, 6, 8, 20}, {8, 3, 12, 15}, false}
+    };
+
+    for (const Expectation& e : tests) {
+        SkIRect difference;
+        bool exact = SkRectPriv::Subtract(e.fA, e.fB, &difference);
+        REPORTER_ASSERT(reporter, exact == e.fExact);
+        REPORTER_ASSERT(reporter, difference == e.fExpected);
+
+        // Generate equivalent tests for the SkRect case by moving the input rects by 0.5px
+        SkRect af = SkRect::Make(e.fA);
+        SkRect bf = SkRect::Make(e.fB);
+        SkRect ef = SkRect::Make(e.fExpected);
+        af.offset(0.5f, 0.5f);
+        bf.offset(0.5f, 0.5f);
+        ef.offset(0.5f, 0.5f);
+
+        SkRect df;
+        exact = SkRectPriv::Subtract(af, bf, &df);
+        REPORTER_ASSERT(reporter, exact == e.fExact);
+        REPORTER_ASSERT(reporter, (df.isEmpty() && ef.isEmpty()) || (df == ef));
+    }
+}
+
+DEF_TEST(Rect_subtract_overflow, reporter) {
+    // This rectangle is sorted but whose int32 width overflows and appears negative (so
+    // isEmpty() returns true).
+    SkIRect reallyBig = SkIRect::MakeLTRB(-INT_MAX + 1000, 0, INT_MAX - 1000, 100);
+    // However, because it's sorted, an intersection with a reasonably sized rectangle is still
+    // valid so the assumption that SkIRect::Intersects() returns false when either input is
+    // empty is invalid, leading to incorrect use of negative width (see crbug.com/1243206)
+    SkIRect reasonable = SkIRect::MakeLTRB(-50, -5, 50, 125);
+
+    // Ignoring overflow, "reallyBig - reasonable" should report exact = false and select either the
+    // left or right portion of 'reallyBig' that excludes 'reasonable', e.g.
+    // {-INT_MAX+1000, 0, -50, 100} or {150, 0, INT_MAX-1000, 100}.
+    // This used to assert, but now it should be detected that 'reallyBig' overflows and is
+    // technically empty, so the result should be itself and exact.
+    SkIRect difference;
+    bool exact = SkRectPriv::Subtract(reallyBig, reasonable, &difference);
+    REPORTER_ASSERT(reporter, exact);
+    REPORTER_ASSERT(reporter, difference == reallyBig);
+
+    // Similarly, if we subtract 'reallyBig', since it's technically empty then we expect the
+    // answer to remain 'reasonable'.
+    exact = SkRectPriv::Subtract(reasonable, reallyBig, &difference);
+    REPORTER_ASSERT(reporter, exact);
+    REPORTER_ASSERT(reporter, difference == reasonable);
 }
 
 #include "include/core/SkSurface.h"

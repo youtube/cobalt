@@ -16,6 +16,7 @@
 #include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/test/test_suite.h"
+#include "base/threading/platform_thread.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/path_provider.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
@@ -32,7 +33,8 @@ int InitAndRunAllTests(int argc, char** argv) {
 
   // Copy the Starboard thread name to the PlatformThread name.
   char thread_name[128] = {'\0'};
-  SbThreadGetName(thread_name, 127);
+  pthread_getname_np(pthread_self(), thread_name, 127);
+
   base::PlatformThread::SetName(thread_name);
   return test_suite.Run();
 }

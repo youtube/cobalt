@@ -42,7 +42,7 @@ static void makebm(SkBitmap* bm, int w, int h) {
     bm->eraseColor(SK_ColorTRANSPARENT);
 
     SkCanvas    canvas(*bm);
-    SkScalar    s = SkIntToScalar(SkMin32(w, h));
+    SkScalar    s = SkIntToScalar(std::min(w, h));
     static const SkPoint     kPts0[] = { { 0, 0 }, { s, s } };
     static const SkPoint     kPts1[] = { { s/2, 0 }, { s/2, s } };
     static const SkScalar    kPos[] = { 0, SK_Scalar1/2, SK_Scalar1 };
@@ -113,7 +113,8 @@ protected:
         int w = 40;
         int h = 40;
         makebm(&fBmp, w, h);
-        fBmShader = fBmp.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat);
+        fBmShader = fBmp.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                    SkSamplingOptions(SkFilterMode::kLinear));
         int offset = 2;
         int count = 0;
         for (int j = 0; j < NY; ++j) {
@@ -144,7 +145,6 @@ protected:
     void onDraw(int loops, SkCanvas* canvas) override {
         SkPaint paint;
         paint.setAntiAlias(false);
-        paint.setFilterQuality(kLow_SkFilterQuality);
 
         for (int i = 0; i < loops; ++i) {
             for (int j = 0; j < NUM_DRAWS; ++j) {
@@ -160,7 +160,7 @@ protected:
     }
 
 private:
-    typedef Benchmark INHERITED;
+    using INHERITED = Benchmark;
 };
 
 DEF_BENCH(return new AlternatingColorPatternBench(kWhite_ColorPattern,

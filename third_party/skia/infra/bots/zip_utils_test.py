@@ -24,13 +24,13 @@ class ZipUtilsTest(unittest.TestCase):
       fw = test_utils.FileWriter(os.path.join(os.getcwd(), 'input'))
       # Create input files and directories.
       fw.mkdir('mydir')
-      fw.mkdir('anotherdir', 0666)
-      fw.mkdir('dir3', 0600)
+      fw.mkdir('anotherdir', 0o666)
+      fw.mkdir('dir3', 0o600)
       fw.mkdir('subdir')
-      fw.write('a.txt', 0777)
-      fw.write('b.txt', 0751)
-      fw.write('c.txt', 0640)
-      fw.write(os.path.join('subdir', 'd.txt'), 0640)
+      fw.write('a.txt', 0o777)
+      fw.write('b.txt', 0o751)
+      fw.write('c.txt', 0o640)
+      fw.write(os.path.join('subdir', 'd.txt'), 0o640)
 
       # Zip, unzip.
       zip_utils.zip('input', 'test.zip')
@@ -39,7 +39,7 @@ class ZipUtilsTest(unittest.TestCase):
       # Compare the inputs and outputs.
       test_utils.compare_trees(self, 'input', 'output')
 
-  def test_blacklist(self):
+  def test_to_skip(self):
     with utils.tmp_dir():
       # Create input files and directories.
       fw = test_utils.FileWriter(os.path.join(os.getcwd(), 'input'))
@@ -51,7 +51,7 @@ class ZipUtilsTest(unittest.TestCase):
       fw.write('.pycfile')
 
       # Zip, unzip.
-      zip_utils.zip('input', 'test.zip', blacklist=['.git', '.DS*', '*.pyc'])
+      zip_utils.zip('input', 'test.zip', to_skip=['.git', '.DS*', '*.pyc'])
       zip_utils.unzip('test.zip', 'output')
 
       # Remove the files/dirs we don't expect to see in output, so that we can

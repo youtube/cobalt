@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
 
+#include <unistd.h>
+
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
@@ -31,7 +33,7 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
                                                      int64_t render_interval)
     : player_(player),
       render_interval_(render_interval),
-      thread_(kSbThreadInvalid),
+      thread_(0),
       z_index_(0),
       x_(0),
       y_(0),
@@ -41,9 +43,9 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
 }
 
 PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
-  if (SbThreadIsValid(thread_)) {
+  if (thread_ != 0) {
     stop_requested_.store(true);
-    SbThreadJoin(thread_, NULL);
+    pthread_join(thread_, NULL);
   }
 }
 
@@ -53,9 +55,8 @@ void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
 
   render_cb_ = render_cb;
 
-  thread_ = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                           "punchoutvidsink",
-                           &PunchoutVideoRendererSink::ThreadEntryPoint, this);
+  pthread_create(&thread_, nullptr,
+                 &PunchoutVideoRendererSink::ThreadEntryPoint, this);
 }
 
 void PunchoutVideoRendererSink::SetBounds(int z_index,
@@ -75,7 +76,7 @@ void PunchoutVideoRendererSink::SetBounds(int z_index,
 void PunchoutVideoRendererSink::RunLoop() {
   while (!stop_requested_.load()) {
     render_cb_(std::bind(&PunchoutVideoRendererSink::DrawFrame, this, _1, _2));
-    SbThreadSleep(render_interval_);
+    usleep(render_interval_);
   }
   ScopedLock lock(mutex_);
   shared::starboard::Application::Get()->HandleFrame(
@@ -95,6 +96,7 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
 
 // static
 void* PunchoutVideoRendererSink::ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "punchoutvidsink");
   PunchoutVideoRendererSink* this_ptr =
       static_cast<PunchoutVideoRendererSink*>(context);
   this_ptr->RunLoop();

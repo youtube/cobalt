@@ -10,20 +10,27 @@
 
 
 import argparse
+import os
 import subprocess
+import sys
+
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+INFRA_BOTS_DIR = os.path.realpath(os.path.join(FILE_DIR, os.pardir, os.pardir))
+sys.path.insert(0, INFRA_BOTS_DIR)
+import utils
 
 
 # Remember to also update the go_win asset when this is updated.
-GO_URL = "https://dl.google.com/go/go1.12.4.linux-amd64.tar.gz"
+GO_URL = "https://golang.org/dl/go1.16.3.linux-amd64.tar.gz"
 
 
 def create_asset(target_dir):
   """Create the asset."""
-  p1 = subprocess.Popen(["curl", GO_URL], stdout=subprocess.PIPE)
-  p2 = subprocess.Popen(["tar", "-C", target_dir, "-xzf" "-"], stdin=p1.stdout)
-  p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits.
-  _,_ = p2.communicate()
-
+  with utils.tmp_dir():
+    cwd = os.getcwd()
+    zipfile = os.path.join(cwd, 'go.tar.gz')
+    subprocess.check_call(["wget", '-O', zipfile, GO_URL])
+    subprocess.check_call(["tar", "-xzf", zipfile, "-C", target_dir])
 
 def main():
   parser = argparse.ArgumentParser()

@@ -66,7 +66,7 @@ loader::RequestMode GetRequestMode(
 const char HTMLScriptElement::kTagName[] = "script";
 
 HTMLScriptElement::HTMLScriptElement(Document* document)
-    : HTMLElement(document, base::Token(kTagName)),
+    : HTMLElement(document, base_token::Token(kTagName)),
       is_already_started_(false),
       is_parser_inserted_(false),
       is_ready_(false),
@@ -164,7 +164,7 @@ HTMLScriptElement::~HTMLScriptElement() {
 void HTMLScriptElement::Prepare() {
   // Custom, not in any spec.
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(base::MessageLoop::current());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(!loader_ || is_already_started_);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Prepare()");
 
@@ -335,7 +335,7 @@ void HTMLScriptElement::Prepare() {
       // will stay false.  This can happen if the loader was interrupted, or
       // failed for another reason.
       loader::LoadSynchronously(
-          html_element_context()->sync_load_thread()->message_loop(),
+          html_element_context()->sync_load_thread()->task_runner(),
           synchronous_loader_interrupt_,
           base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
@@ -606,7 +606,7 @@ void HTMLScriptElement::OnReadyToExecute() {
   }
 
   // Post a task to release the loader.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::Bind(&HTMLScriptElement::ReleaseLoader, this));
 }
 
@@ -706,7 +706,7 @@ void HTMLScriptElement::Execute(const std::string& content,
 }
 
 void HTMLScriptElement::PreventGarbageCollectionAndPostToDispatchEvent(
-    const base::Location& location, const base::Token& token,
+    const base::Location& location, const base_token::Token& token,
     std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
         scoped_prevent_gc) {
   // Ensure that this HTMLScriptElement is not garbage collected until the event

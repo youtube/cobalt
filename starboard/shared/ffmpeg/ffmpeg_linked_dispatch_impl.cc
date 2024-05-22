@@ -18,12 +18,14 @@
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 
 #include <dlfcn.h>
+#include <pthread.h>
+
 #include <map>
 
 #include "starboard/common/log.h"
+#include "starboard/common/once.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
-#include "starboard/once.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
@@ -33,7 +35,7 @@ namespace ffmpeg {
 namespace {
 
 FFMPEGDispatch* g_ffmpeg_dispatch_impl;
-SbOnceControl g_construct_ffmpeg_dispatch_once = SB_ONCE_INITIALIZER;
+pthread_once_t g_construct_ffmpeg_dispatch_once = PTHREAD_ONCE_INIT;
 
 void construct_ffmpeg_dispatch() {
   g_ffmpeg_dispatch_impl = new FFMPEGDispatch();
@@ -77,8 +79,13 @@ void LoadSymbols(FFMPEGDispatch* ffmpeg) {
   INITSYMBOL(avcodec_close);
   INITSYMBOL(avcodec_open2);
   INITSYMBOL(av_init_packet);
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 137, 100)
   INITSYMBOL(avcodec_decode_audio4);
   INITSYMBOL(avcodec_decode_video2);
+#else
+  INITSYMBOL(avcodec_send_packet);
+  INITSYMBOL(avcodec_receive_frame);
+#endif  // LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 137, 100)
   INITSYMBOL(avcodec_flush_buffers);
 #if LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avcodec_alloc_frame);
@@ -121,8 +128,8 @@ FFMPEGDispatch::~FFMPEGDispatch() {}
 
 // static
 FFMPEGDispatch* FFMPEGDispatch::GetInstance() {
-  bool initialized =
-      SbOnce(&g_construct_ffmpeg_dispatch_once, construct_ffmpeg_dispatch);
+  bool initialized = pthread_once(&g_construct_ffmpeg_dispatch_once,
+                                  construct_ffmpeg_dispatch) == 0;
   SB_DCHECK(initialized);
   return g_ffmpeg_dispatch_impl;
 }

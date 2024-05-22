@@ -14,6 +14,8 @@
 
 #include "starboard/loader_app/drain_file.h"
 
+#include <sys/stat.h>
+
 #include <string>
 #include <vector>
 
@@ -46,12 +48,23 @@ class DrainFileTest : public ::testing::Test {
     // Use dedicated dir for testing to avoid meddling with other files.
     starboard::strlcat(temp_dir_.data(), kSbFileSepString, kSbFileMaxPath);
     starboard::strlcat(temp_dir_.data(), "df", kSbFileMaxPath);
-    ASSERT_TRUE(SbDirectoryCreate(temp_dir_.data()));
+    ASSERT_TRUE(EnsureDirectoryExists(temp_dir_.data()));
   }
 
   void TearDown() override { DrainFileClearForApp(GetTempDir(), ""); }
 
   const char* GetTempDir() const { return temp_dir_.data(); }
+
+  bool FileExists(const char* path) {
+    struct stat info;
+    return stat(path, &info) == 0;
+  }
+
+  bool EnsureDirectoryExists(const char* path) {
+    struct stat info;
+    return mkdir(path, 0700) == 0 ||
+           (stat(path, &info) == 0 && S_ISDIR(info.st_mode));
+  }
 
  private:
   std::vector<char> temp_dir_;
@@ -129,11 +142,11 @@ TEST_F(DrainFileTest, SunnyDayClearExpired) {
 
   EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
   EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyTwo));
-  EXPECT_TRUE(SbFileExists(stale_file.path().c_str()));
+  EXPECT_TRUE(FileExists(stale_file.path().c_str()));
 
   DrainFileClearExpired(GetTempDir());
 
-  EXPECT_FALSE(SbFileExists(stale_file.path().c_str()));
+  EXPECT_FALSE(FileExists(stale_file.path().c_str()));
 }
 
 // Clearing drain files for an app.
@@ -148,14 +161,14 @@ TEST_F(DrainFileTest, SunnyDayClearForApp) {
 
   EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
   EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyTwo));
-  EXPECT_TRUE(SbFileExists(stale_file.path().c_str()));
+  EXPECT_TRUE(FileExists(stale_file.path().c_str()));
 
   // clean all drain files for an app
   DrainFileClearForApp(GetTempDir(), kAppKeyOne);
 
   EXPECT_FALSE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
   EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyTwo));
-  EXPECT_TRUE(SbFileExists(stale_file.path().c_str()));
+  EXPECT_TRUE(FileExists(stale_file.path().c_str()));
 }
 
 // Ranking drain files should first be done by timestamp, with the app key being
@@ -203,6 +216,16 @@ TEST_F(DrainFileTest, SunnyDayRankCorrectlyIgnoresExpired) {
   EXPECT_TRUE(SbFileDelete(early_and_expired.path().c_str()));
 }
 
+// Tests the "racing updaters" scenario.
+TEST_F(DrainFileTest, RankAndCheckWithFirstRankedFileFromOtherAppReturnsFalse) {
+  const int64_t timestamp = PosixTimeToWindowsTime(CurrentPosixTime());
+
+  ScopedDrainFile earlier(GetTempDir(), "a", timestamp);
+  ScopedDrainFile later(GetTempDir(), "b", timestamp + kDrainFileAgeUnitUsec);
+
+  EXPECT_FALSE(DrainFileRankAndCheck(GetTempDir(), "b"));
+}
+
 // All files in the directory should be cleared except for drain files with an
 // app key matching the provided app key.
 TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
@@ -213,8 +236,8 @@ TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
   dir.append(kSbFileSepString);
   dir.append("to_delete");
 
-  EXPECT_TRUE(SbDirectoryCreate(dir.c_str()));
-  EXPECT_TRUE(SbFileExists(dir.c_str()));
+  EXPECT_TRUE(EnsureDirectoryExists(dir.c_str()));
+  EXPECT_TRUE(FileExists(dir.c_str()));
 
   // Create a file with the app key in the name.
   std::string path(GetTempDir());
@@ -225,13 +248,13 @@ TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
     ScopedFile file(path.c_str(), kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
   }
 
-  EXPECT_TRUE(SbFileExists(path.c_str()));
+  EXPECT_TRUE(FileExists(path.c_str()));
 
   DrainFilePrepareDirectory(GetTempDir(), kAppKeyOne);
 
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), kAppKeyOne));
-  EXPECT_FALSE(SbFileExists(dir.c_str()));
-  EXPECT_FALSE(SbFileExists(path.c_str()));
+  EXPECT_FALSE(FileExists(dir.c_str()));
+  EXPECT_FALSE(FileExists(path.c_str()));
 
   DrainFilePrepareDirectory(GetTempDir(), "nonexistent");
 

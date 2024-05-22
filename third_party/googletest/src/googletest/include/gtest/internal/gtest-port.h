@@ -263,12 +263,12 @@
 #include <string.h>
 
 #ifndef _WIN32_WCE
-#include <sys/stat.h>
 #include <sys/types.h>
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
 
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "starboard/common/log.h"
 #include "starboard/common/spin_lock.h"
@@ -573,7 +573,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
    GTEST_OS_HAIKU || GTEST_OS_GNU_HURD)
 #endif  // GTEST_HAS_PTHREAD
 
-#if GTEST_HAS_PTHREAD
+#if GTEST_HAS_PTHREAD || GTEST_OS_STARBOARD
 // gtest-port.h guarantees to #include <pthread.h> when GTEST_HAS_PTHREAD is
 // true.
 #include <pthread.h>  // NOLINT
@@ -1216,17 +1216,17 @@ class Mutex {
   // statically initialized to 0 (effectively setting it to kStatic) and on
   // ThreadSafeLazyInit() to lazily initialize the rest of the members.
   explicit Mutex(StaticConstructorSelector /*dummy*/) {}
-  Mutex() : type_(kDynamic) { SbMutexCreate(&mutex_); }
+  Mutex() : type_(kDynamic) { pthread_mutex_init(&mutex_, nullptr); }
   ~Mutex() {
     if (type_ != kStatic) {
-      SbMutexDestroy(&mutex_);
+      pthread_mutex_destroy(&mutex_);
     }
   }
   void Lock() {
     LazyInit();
-    SbMutexAcquire(&mutex_);
+    pthread_mutex_lock(&mutex_);
   }
-  void Unlock() { SbMutexRelease(&mutex_); }
+  void Unlock() { pthread_mutex_unlock(&mutex_); }
   void AssertHeld() const {}
  private:
   void LazyInit() {
@@ -1234,13 +1234,13 @@ class Mutex {
       static starboard::SpinLock s_lock;
       s_lock.Acquire();
       if (!initialized_) {
-        SbMutexCreate(&mutex_);
+        pthread_mutex_init(&mutex_, nullptr);
         initialized_ = true;
       }
       s_lock.Release();
     }
   }
-  SbMutex mutex_;
+  pthread_mutex_t mutex_;
   friend class GTestMutexLock;
   bool initialized_ = false;
   // For static mutexes, we rely on type_ member being initialized to zero
@@ -1270,16 +1270,15 @@ template <typename T>
 class ThreadLocal {
  public:
   ThreadLocal() {
-    key_ = SbThreadCreateLocalKey(
-        [](void* value) { delete static_cast<T*>(value); });
-    SB_DCHECK(key_ != kSbThreadLocalKeyInvalid);
+    int res = pthread_key_create(&key_, [](void* value) { delete static_cast<T*>(value); });
+    SB_DCHECK(res == 0);
   }
   explicit ThreadLocal(const T& value) : ThreadLocal() {
     default_value_ = value;
     set(value);
   }
   ~ThreadLocal() {
-    SbThreadDestroyLocalKey(key_);
+    pthread_key_delete(key_);
   }
   T* pointer() { return GetOrCreateValue(); }
   const T* pointer() const { return GetOrCreateValue(); }
@@ -1287,18 +1286,18 @@ class ThreadLocal {
   void set(const T& value) { *GetOrCreateValue() = value; }
  private:
   T* GetOrCreateValue() const {
-    T* ptr = static_cast<T*>(SbThreadGetLocalValue(key_));
+    T* ptr = static_cast<T*>(pthread_getspecific(key_));
     if (ptr) {
       return ptr;
     } else {
       T* new_value = new T(default_value_);
-      bool is_set = SbThreadSetLocalValue(key_, new_value);
-      SB_CHECK(is_set);
+      int res = pthread_setspecific(key_, new_value);
+      SB_CHECK(res == 0);
       return new_value;
     }
   }
   T default_value_;
-  SbThreadLocalKey key_;
+  pthread_key_t key_;
 };
 
 #else  // GTEST_OS_STARBOARD
@@ -2135,7 +2134,7 @@ inline void *MemSet(void *s, int c, size_t n) {
 inline void Assert(bool b) { SB_CHECK(b); }
 
 inline int MkDir(const char* path, int /*mode*/) {
-  return SbDirectoryCreate(path) ? 0 : -1;
+  return mkdir(path, 0700);
 }
 
 inline void VPrintF(const char* format, va_list args) {
@@ -2153,7 +2152,6 @@ inline void Flush() { SbLogFlush(); }
 
 inline void *Malloc(size_t n) { return malloc(n); }
 inline void Free(void *p) { return free(p); }
-
 
 #else // GTEST_OS_STARBOARD
 

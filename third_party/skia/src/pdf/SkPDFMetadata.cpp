@@ -11,6 +11,7 @@
 #include "src/core/SkMD5.h"
 #include "src/core/SkUtils.h"
 #include "src/pdf/SkPDFTypes.h"
+#include "src/utils/SkUTF.h"
 
 #include <utility>
 
@@ -132,7 +133,7 @@ std::unique_ptr<SkPDFObject> SkPDFMetadata::MakeDocumentInformationDict(
     if (metadata.fModified != kZeroTime) {
         dict->insertString("ModDate", pdf_date(metadata.fModified));
     }
-    return dict;
+    return std::move(dict);
 }
 
 SkUUID SkPDFMetadata::CreateUUID(const SkPDF::Metadata& metadata) {
@@ -162,7 +163,7 @@ SkUUID SkPDFMetadata::CreateUUID(const SkPDF::Metadata& metadata) {
     digest.data[8] = (digest.data[6] & 0x3F) | 0x80;
     static_assert(sizeof(digest) == sizeof(SkUUID), "uuid_size");
     SkUUID uuid;
-    memcpy(&uuid, &digest, sizeof(digest));
+    memcpy((void*)&uuid, &digest, sizeof(digest));
     return uuid;
 }
 
@@ -176,7 +177,7 @@ std::unique_ptr<SkPDFObject> SkPDFMetadata::MakePdfId(const SkUUID& doc,
             SkString(reinterpret_cast<const char*>(&doc), sizeof(SkUUID)));
     array->appendString(
             SkString(reinterpret_cast<const char*>(&instance), sizeof(SkUUID)));
-    return array;
+    return std::move(array);
 }
 
 // Convert a block of memory to hexadecimal.  Input and output pointers will be
@@ -246,9 +247,9 @@ static int count_xml_escape_size(const SkString& input) {
     return extra;
 }
 
-const SkString escape_xml(const SkString& input,
-                          const char* before = nullptr,
-                          const char* after = nullptr) {
+SkString escape_xml(const SkString& input,
+                    const char* before = nullptr,
+                    const char* after = nullptr) {
     if (input.size() == 0) {
         return input;
     }
@@ -346,8 +347,8 @@ SkPDFIndirectReference SkPDFMetadata::MakeXMPObject(
                        "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">",
                        "</rdf:li></rdf:Alt></dc:title>\n");
     SkString author =
-            escape_xml(metadata.fAuthor, "<dc:creator><rdf:Bag><rdf:li>",
-                       "</rdf:li></rdf:Bag></dc:creator>\n");
+            escape_xml(metadata.fAuthor, "<dc:creator><rdf:Seq><rdf:li>",
+                       "</rdf:li></rdf:Seq></dc:creator>\n");
     // TODO: in theory, XMP can support multiple authors.  Split on a delimiter?
     SkString subject = escape_xml(
             metadata.fSubject,

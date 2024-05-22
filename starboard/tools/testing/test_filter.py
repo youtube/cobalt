@@ -19,12 +19,21 @@
 FILTER_ALL = 'FILTER_ALL'
 DISABLE_TESTING = 'DISABLE_TESTING'
 
-EVERGREEN_ONLY_TESTS = {
-    'elf_loader_test': {FILTER_ALL},
-    'installation_manager_test': {FILTER_ALL},
-    'reset_evergreen_update_test': {FILTER_ALL},
-    'slot_management_test': {FILTER_ALL},
-}
+# Tests added for Evergreen only
+EVERGREEN_TESTS = [
+    'app_key_test', 'app_key_files_test', 'drain_file_test',
+    'slot_management_test'
+]
+
+# Tests that can only be run on Evergreen compatible host platforms, as set
+# by sb_is_evergreen_compatible GN config flag.
+EVERGREEN_COMPATIBLE_TESTS = [
+    # TODO(b/292138589): Fails on various linux configs.
+    # 'nplb_evergreen_compat_tests',
+    'elf_loader_test',
+    'installation_manager_test',
+    'reset_evergreen_update_test',
+]
 
 
 class TestFilter(object):
@@ -35,12 +44,8 @@ class TestFilter(object):
   target_name:  The name of the unit test binary from which to remove tests.
   test_name:  The name of a specific test from the provided test target, or a
     constant from this module defining a group of tests to filter.
-  config: An optional argument specifying for which build configuration
-    the test should be excluded.  If this name is not provided, the test
-    will be excluded from all test runs.
   """
 
-  def __init__(self, target_name, test_name, config=None):
+  def __init__(self, target_name, test_name):
     self.target_name = target_name
     self.test_name = test_name
-    self.config = config

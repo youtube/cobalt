@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,10 @@
 
 #include <memory>
 
-#include "base/bind.h"
-#include "base/callback_forward.h"
-#include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -45,15 +43,14 @@ class MultiThreadedTest {
       : state_(kInvalidApplicationState),
         event_(WaitableEvent::ResetPolicy::AUTOMATIC,
                WaitableEvent::InitialState::NOT_SIGNALED),
-        thread_("ApplicationStatusTest thread"),
-        main_() {}
+        thread_("ApplicationStatusTest thread") {}
 
   void Run() {
     // Start the thread and tell it to register for events.
     thread_.Start();
     thread_.task_runner()->PostTask(
-        FROM_HERE, base::Bind(&MultiThreadedTest::RegisterThreadForEvents,
-                              base::Unretained(this)));
+        FROM_HERE, base::BindOnce(&MultiThreadedTest::RegisterThreadForEvents,
+                                  base::Unretained(this)));
 
     // Wait for its completion.
     event_.Wait();
@@ -73,7 +70,7 @@ class MultiThreadedTest {
 
  private:
   void ExpectOnThread() {
-    EXPECT_EQ(thread_.message_loop(), base::MessageLoop::current());
+    EXPECT_TRUE(thread_.task_runner()->BelongsToCurrentThread());
   }
 
   void RegisterThreadForEvents() {
@@ -93,21 +90,21 @@ class MultiThreadedTest {
   ApplicationState state_;
   base::WaitableEvent event_;
   base::Thread thread_;
-  base::MessageLoop main_;
+  test::TaskEnvironment task_environment_;
   std::unique_ptr<ApplicationStatusListener> listener_;
 };
 
 }  // namespace
 
 TEST(ApplicationStatusListenerTest, SingleThread) {
-  MessageLoop message_loop;
+  test::TaskEnvironment task_environment;
 
   ApplicationState result = kInvalidApplicationState;
 
   // Create a new listener that stores the new state into |result| on every
   // state change.
   auto listener = ApplicationStatusListener::New(
-      base::Bind(&StoreStateTo, base::Unretained(&result)));
+      base::BindRepeating(&StoreStateTo, base::Unretained(&result)));
 
   EXPECT_EQ(kInvalidApplicationState, result);
 

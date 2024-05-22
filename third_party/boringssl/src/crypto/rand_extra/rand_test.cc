@@ -18,9 +18,9 @@
 
 #include <gtest/gtest.h>
 
-#include <openssl/cpu.h>
 #include <openssl/span.h>
 
+#include "../fipsmodule/rand/fork_detect.h"
 #include "../fipsmodule/rand/internal.h"
 #include "../test/abi_test.h"
 #include "../test/test_util.h"

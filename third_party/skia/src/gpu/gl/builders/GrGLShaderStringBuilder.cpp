@@ -6,40 +6,30 @@
  */
 
 #include "src/core/SkAutoMalloc.h"
-#include "src/gpu/GrShaderUtils.h"
+#include "src/core/SkTraceEvent.h"
 #include "src/gpu/gl/GrGLGpu.h"
 #include "src/gpu/gl/builders/GrGLShaderStringBuilder.h"
 #include "src/sksl/SkSLCompiler.h"
-#include "src/sksl/SkSLGLSLCodeGenerator.h"
+#include "src/sksl/codegen/SkSLGLSLCodeGenerator.h"
 #include "src/sksl/ir/SkSLProgram.h"
+#include "src/utils/SkShaderUtils.h"
 
 // Print the source code for all shaders generated.
 static const bool gPrintSKSL = false;
 static const bool gPrintGLSL = false;
 
-void print_shader_banner(SkSL::Program::Kind programKind) {
-    const char* typeName = "Unknown";
-    switch (programKind) {
-        case SkSL::Program::kVertex_Kind:   typeName = "Vertex";   break;
-        case SkSL::Program::kGeometry_Kind: typeName = "Geometry"; break;
-        case SkSL::Program::kFragment_Kind: typeName = "Fragment"; break;
-        default: break;
-    }
-    SkDebugf("---- %s shader ----------------------------------------------------\n", typeName);
-}
-
-std::unique_ptr<SkSL::Program> GrSkSLtoGLSL(const GrGLContext& context,
-                                            SkSL::Program::Kind programKind,
-                                            const SkSL::String& sksl,
+std::unique_ptr<SkSL::Program> GrSkSLtoGLSL(const GrGLGpu* gpu,
+                                            SkSL::ProgramKind programKind,
+                                            const std::string& sksl,
                                             const SkSL::Program::Settings& settings,
-                                            SkSL::String* glsl,
+                                            std::string* glsl,
                                             GrContextOptions::ShaderErrorHandler* errorHandler) {
-    SkSL::Compiler* compiler = context.compiler();
+    SkSL::Compiler* compiler = gpu->shaderCompiler();
     std::unique_ptr<SkSL::Program> program;
 #ifdef SK_DEBUG
-    SkSL::String src = GrShaderUtils::PrettyPrint(sksl);
+    std::string src = SkShaderUtils::PrettyPrint(sksl);
 #else
-    const SkSL::String& src = sksl;
+    const std::string& src = sksl;
 #endif
     program = compiler->convertProgram(programKind, src, settings);
     if (!program || !compiler->toGLSL(*program, glsl)) {
@@ -48,12 +38,14 @@ std::unique_ptr<SkSL::Program> GrSkSLtoGLSL(const GrGLContext& context,
     }
 
     if (gPrintSKSL || gPrintGLSL) {
-        print_shader_banner(programKind);
+        SkShaderUtils::PrintShaderBanner(programKind);
         if (gPrintSKSL) {
-            GrShaderUtils::PrintLineByLine("SKSL:", GrShaderUtils::PrettyPrint(sksl));
+            SkDebugf("SKSL:\n");
+            SkShaderUtils::PrintLineByLine(SkShaderUtils::PrettyPrint(sksl));
         }
         if (gPrintGLSL) {
-            GrShaderUtils::PrintLineByLine("GLSL:", GrShaderUtils::PrettyPrint(*glsl));
+            SkDebugf("GLSL:\n");
+            SkShaderUtils::PrintLineByLine(SkShaderUtils::PrettyPrint(*glsl));
         }
     }
 
@@ -63,10 +55,11 @@ std::unique_ptr<SkSL::Program> GrSkSLtoGLSL(const GrGLContext& context,
 GrGLuint GrGLCompileAndAttachShader(const GrGLContext& glCtx,
                                     GrGLuint programId,
                                     GrGLenum type,
-                                    const SkSL::String& glsl,
-                                    GrGpu::Stats* stats,
+                                    const std::string& glsl,
+                                    GrThreadSafePipelineBuilder::Stats* stats,
                                     GrContextOptions::ShaderErrorHandler* errorHandler) {
-    const GrGLInterface* gli = glCtx.interface();
+    TRACE_EVENT0_ALWAYS("skia.shaders", "driver_compile_shader");
+    const GrGLInterface* gli = glCtx.glInterface();
 
     // Specify GLSL source to the driver.
     GrGLuint shaderId;
@@ -81,12 +74,10 @@ GrGLuint GrGLCompileAndAttachShader(const GrGLContext& glCtx,
     stats->incShaderCompilations();
     GR_GL_CALL(gli, CompileShader(shaderId));
 
-    // Calling GetShaderiv in Chromium is quite expensive. Assume success in release builds.
-    bool checkCompiled = kChromium_GrGLDriver != glCtx.driver();
-#ifdef SK_DEBUG
-    checkCompiled = true;
-#endif
+    bool checkCompiled = !glCtx.caps()->skipErrorChecks();
+
     if (checkCompiled) {
+        ATRACE_ANDROID_FRAMEWORK("checkCompiled");
         GrGLint compiled = GR_GL_INIT_ZERO;
         GR_GL_CALL(gli, GetShaderiv(shaderId, GR_GL_COMPILE_STATUS, &compiled));
 

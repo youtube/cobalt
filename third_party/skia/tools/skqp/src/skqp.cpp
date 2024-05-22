@@ -13,8 +13,8 @@
 #include "include/core/SkStream.h"
 #include "include/core/SkSurface.h"
 #include "include/encode/SkPngEncoder.h"
-#include "include/gpu/GrContext.h"
 #include "include/gpu/GrContextOptions.h"
+#include "include/gpu/GrDirectContext.h"
 #include "include/private/SkImageInfoPriv.h"
 #include "src/core/SkFontMgrPriv.h"
 #include "src/core/SkOSFile.h"
@@ -33,8 +33,17 @@
 #include <algorithm>
 #include <cinttypes>
 #include <sstream>
+#include <regex>
 
-#include "tools/skqp/src/skqp_model.h"
+namespace skqp {
+
+/** Prefered colortype for comparing test outcomes. */
+constexpr SkColorType kColorType = kRGBA_8888_SkColorType;
+
+/** Prefered alphatype for comparing test outcomes. */
+constexpr SkAlphaType kAlphaType = kUnpremul_SkAlphaType;
+
+}
 
 #define IMAGES_DIRECTORY_PATH "images"
 #define PATH_MAX_PNG "max.png"
@@ -45,7 +54,7 @@
 
 static constexpr char kRenderTestCSVReport[] = "out.csv";
 static constexpr char kRenderTestReportPath[] = "report.html";
-static constexpr char kRenderTestsPath[] = "skqp/rendertests.txt";
+static constexpr char kDefaultRenderTestsPath[] = "skqp/rendertests.txt";
 static constexpr char kUnitTestReportPath[] = "unit_tests.txt";
 static constexpr char kUnitTestsPath[]   = "skqp/unittests.txt";
 
@@ -65,32 +74,48 @@ static void readlines(const void* data, size_t size, F f) {
     }
 }
 
-static void get_unit_tests(SkQPAssetManager* mgr, std::vector<SkQP::UnitTest>* unitTests) {
-    std::unordered_set<std::string> testset;
-    auto insert = [&testset](const char* s, size_t l) {
+// Parses the unittests.txt file.
+// when exclude is true, all tests are run except those matching lines from the file
+// when exclude is false, only tests matching lines from the file are run.
+// Each line is a regular expression matching test names.
+// Lines may start with # to indicate a comment
+static void get_unit_tests(SkQPAssetManager* mgr, std::vector<SkQP::UnitTest>* unitTests, bool exclude) {
+    std::vector<std::regex> patterns;
+    auto insert = [&patterns](const char* s, size_t l) {
         SkASSERT(l > 1) ;
         if (l > 0 && s[l - 1] == '\n') {  // strip line endings.
             --l;
         }
-        if (l > 0) {  // only add non-empty strings.
-            testset.insert(std::string(s, l));
+        if (l > 0 && s[0] != '#') {  // only add non-empty strings, and ignore comments.
+            patterns.emplace_back(std::string(s, l));
         }
     };
     if (sk_sp<SkData> dat = mgr->open(kUnitTestsPath)) {
         readlines(dat->data(), dat->size(), insert);
     }
     for (const skiatest::Test& test : skiatest::TestRegistry::Range()) {
-        if ((testset.empty() || testset.count(std::string(test.name)) > 0) && test.needsGpu) {
+        bool matches_one = false;
+        for (const auto& pat : patterns) {
+            if (std::regex_match(std::string(test.fName), pat)) {
+                matches_one = true;
+                continue;
+            }
+        }
+        if (exclude != matches_one && test.fNeedsGpu) {
             unitTests->push_back(&test);
         }
     }
-    auto lt = [](SkQP::UnitTest u, SkQP::UnitTest v) { return strcmp(u->name, v->name) < 0; };
+    auto lt = [](SkQP::UnitTest u, SkQP::UnitTest v) { return strcmp(u->fName, v->fName) < 0; };
     std::sort(unitTests->begin(), unitTests->end(), lt);
 }
 
 static void get_render_tests(SkQPAssetManager* mgr,
+                             const char *renderTestsIn,
                              std::vector<SkQP::GMFactory>* gmlist,
                              std::unordered_map<std::string, int64_t>* gmThresholds) {
+    // Runs all render tests if the |renderTests| file can't be found or is empty.
+    const char *renderTests = (renderTestsIn && renderTestsIn[0]) ?
+        renderTestsIn : kDefaultRenderTestsPath;
     auto insert = [gmThresholds](const char* s, size_t l) {
         SkASSERT(l > 1) ;
         if (l > 0 && s[l - 1] == '\n') {  // strip line endings.
@@ -117,7 +142,7 @@ static void get_render_tests(SkQPAssetManager* mgr,
         }
         gmThresholds->insert({std::move(key), value});  // (*gmThresholds)[s] = value;
     };
-    if (sk_sp<SkData> dat = mgr->open(kRenderTestsPath)) {
+    if (sk_sp<SkData> dat = mgr->open(renderTests)) {
         readlines(dat->data(), dat->size(), insert);
     }
     using GmAndName = std::pair<SkQP::GMFactory, std::string>;
@@ -182,7 +207,7 @@ static std::vector<SkQP::SkiaBackend> get_backends() {
         std::unique_ptr<sk_gpu_test::TestContext> testCtx = make_test_context(backend);
         if (testCtx) {
             testCtx->makeCurrent();
-            if (nullptr != testCtx->makeGrContext(context_options())) {
+            if (nullptr != testCtx->makeContext(context_options())) {
                 result.push_back(backend);
             }
         }
@@ -199,7 +224,7 @@ static void print_backend_info(const char* dstPath,
     for (SkQP::SkiaBackend backend : backends) {
         if (std::unique_ptr<sk_gpu_test::TestContext> testCtx = make_test_context(backend)) {
             testCtx->makeCurrent();
-            if (sk_sp<GrContext> ctx = testCtx->makeGrContext(context_options())) {
+            if (sk_sp<GrDirectContext> ctx = testCtx->makeContext(context_options())) {
                 SkString info = ctx->dump();
                 // remove null
                 out.write(info.c_str(), info.size());
@@ -209,19 +234,6 @@ static void print_backend_info(const char* dstPath,
     }
     out.writeText("]\n");
 #endif
-}
-
-static void encode_png(const SkBitmap& src, const std::string& dst) {
-    SkFILEWStream wStream(dst.c_str());
-    SkPngEncoder::Options options;
-    bool success = wStream.isValid() && SkPngEncoder::Encode(&wStream, src.pixmap(), options);
-    SkASSERT_RELEASE(success);
-}
-
-static void write_to_file(const sk_sp<SkData>& src, const std::string& dst) {
-    SkFILEWStream wStream(dst.c_str());
-    bool success = wStream.isValid() && wStream.write(src->data(), src->size());
-    SkASSERT_RELEASE(success);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -240,13 +252,13 @@ std::string SkQP::GetGMName(SkQP::GMFactory f) {
     return std::string(gm ? gm->getName() : "");
 }
 
-const char* SkQP::GetUnitTestName(SkQP::UnitTest t) { return t->name; }
+const char* SkQP::GetUnitTestName(SkQP::UnitTest t) { return t->fName; }
 
 SkQP::SkQP() {}
 
 SkQP::~SkQP() {}
 
-void SkQP::init(SkQPAssetManager* am, const char* reportDirectory) {
+void SkQP::init(SkQPAssetManager* am, const char* renderTests, const char* reportDirectory) {
     SkASSERT_RELEASE(!fAssetManager);
     SkASSERT_RELEASE(am);
     fAssetManager = am;
@@ -255,12 +267,12 @@ void SkQP::init(SkQPAssetManager* am, const char* reportDirectory) {
     SkGraphics::Init();
     gSkFontMgr_DefaultFactory = &ToolUtils::MakePortableFontMgr;
 
-    /* If the file "skqp/rendertests.txt" does not exist or is empty, run all
-       render tests.  Otherwise only run tests mentioned in that file.  */
-    get_render_tests(fAssetManager, &fGMs, &fGMThresholds);
+    get_render_tests(fAssetManager, renderTests, &fGMs, &fGMThresholds);
     /* If the file "skqp/unittests.txt" does not exist or is empty, run all gpu
-       unit tests.  Otherwise only run tests mentioned in that file.  */
-    get_unit_tests(fAssetManager, &fUnitTests);
+       unit tests.  Otherwise run only tests that do not match a line in that file.
+       The list is checked in at platform_tools/android/apps/skqp/src/main/assets/skqp/unittests.txt
+    */
+    get_unit_tests(fAssetManager, &fUnitTests, true);
     fSupportedBackends = get_backends();
 
     print_backend_info((fReportDirectory + "/grdump.txt").c_str(), fSupportedBackends);
@@ -281,16 +293,15 @@ std::tuple<SkQP::RenderOutcome, std::string> SkQP::evaluateGM(SkQP::SkiaBackend 
     SkASSERT(gmFact);
     std::unique_ptr<skiagm::GM> gm(gmFact());
     SkASSERT(gm);
-    const char* const name = gm->getName();
     const SkISize size = gm->getISize();
     const int w = size.width();
     const int h = size.height();
     const SkImageInfo info =
         SkImageInfo::Make(w, h, skqp::kColorType, kPremul_SkAlphaType, nullptr);
-    const SkSurfaceProps props(0, SkSurfaceProps::kLegacyFontHost_InitType);
+    const SkSurfaceProps props(0, kRGB_H_SkPixelGeometry);
 
     sk_sp<SkSurface> surf = SkSurface::MakeRenderTarget(
-            testCtx->makeGrContext(context_options(gm.get())).get(),
+            testCtx->makeContext(context_options(gm.get())).get(),
             SkBudgeted::kNo, info, 0, &props);
     if (!surf) {
         return std::make_tuple(kError, "Skia Failure: gr-context");
@@ -306,37 +317,8 @@ std::tuple<SkQP::RenderOutcome, std::string> SkQP::evaluateGM(SkQP::SkiaBackend 
     if (!surf->readPixels(image.pixmap(), 0, 0)) {
         return std::make_tuple(kError, "Skia Failure: read pixels");
     }
-    int64_t passingThreshold = fGMThresholds.empty() ? -1 : fGMThresholds[std::string(name)];
 
-    if (-1 == passingThreshold) {
-        return std::make_tuple(kPass, "");
-    }
-    skqp::ModelResult modelResult =
-        skqp::CheckAgainstModel(name, image.pixmap(), fAssetManager);
-
-    if (!modelResult.fErrorString.empty()) {
-        return std::make_tuple(kError, std::move(modelResult.fErrorString));
-    }
-    fRenderResults.push_back(SkQP::RenderResult{backend, gmFact, modelResult.fOutcome});
-    if (modelResult.fOutcome.fMaxError <= passingThreshold) {
-        return std::make_tuple(kPass, "");
-    }
-    std::string imagesDirectory = fReportDirectory + "/" IMAGES_DIRECTORY_PATH;
-    if (!sk_mkdir(imagesDirectory.c_str())) {
-        SkDebugf("ERROR: sk_mkdir('%s');\n", imagesDirectory.c_str());
-        return std::make_tuple(modelResult.fOutcome, "");
-    }
-    std::ostringstream tmp;
-    tmp << imagesDirectory << '/' << SkQP::GetBackendName(backend) << '_' << name << '_';
-    std::string imagesPathPrefix1 = tmp.str();
-    tmp = std::ostringstream();
-    tmp << imagesDirectory << '/' << PATH_MODEL << '_' << name << '_';
-    std::string imagesPathPrefix2 = tmp.str();
-    encode_png(image,                  imagesPathPrefix1 + PATH_IMG_PNG);
-    encode_png(modelResult.fErrors,    imagesPathPrefix1 + PATH_ERR_PNG);
-    write_to_file(modelResult.fMaxPng, imagesPathPrefix2 + PATH_MAX_PNG);
-    write_to_file(modelResult.fMinPng, imagesPathPrefix2 + PATH_MIN_PNG);
-    return std::make_tuple(modelResult.fOutcome, "");
+    return std::make_tuple(kPass, "");
 }
 
 std::vector<std::string> SkQP::executeTest(SkQP::UnitTest test) {
@@ -353,7 +335,7 @@ std::vector<std::string> SkQP::executeTest(SkQP::UnitTest test) {
     if (test->fContextOptionsProc) {
         test->fContextOptionsProc(&options);
     }
-    test->proc(&r, options);
+    test->fProc(&r, options);
     fUnitTestResults.push_back(UnitTestResult{test, r.fErrors});
     return r.fErrors;
 }
@@ -492,7 +474,7 @@ void SkQP::makeReport() {
         if (result.fErrors.empty()) {
             unitOut.writeText(" PASSED\n* * *\n");
         } else {
-            write(&unitOut, SkStringPrintf(" FAILED (%u errors)\n", result.fErrors.size()));
+            write(&unitOut, SkStringPrintf(" FAILED (%zu errors)\n", result.fErrors.size()));
             for (const std::string& err : result.fErrors) {
                 write(&unitOut, err);
                 unitOut.newline();

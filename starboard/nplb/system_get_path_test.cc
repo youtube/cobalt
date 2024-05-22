@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <string.h>
+#include <sys/stat.h>
 
 #include <algorithm>
 
@@ -20,6 +21,7 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/directory.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
@@ -64,6 +66,16 @@ void UnmodifiedOnFailureTest(SbSystemPathId id, int line) {
       ASSERT_EQ('\xCD', ch) << "Context : id=" << id << ", line=" << line;
     }
   }
+}
+
+bool FileExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0;
+}
+
+bool DirectoryExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
 }
 
 TEST(SbSystemGetPathTest, ReturnsRequiredPaths) {
@@ -126,19 +138,21 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
         kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
     EXPECT_GT(starboard::strlcat(path.data(), sub_path.c_str(), kPathSize), 0);
     EXPECT_TRUE(SbFileDelete(path.data()));
-    EXPECT_FALSE(SbFileExists(path.data()));
+    EXPECT_FALSE(FileExists(path.data()));
 
     // Create the directory and confirm it exists and can be opened.
-    EXPECT_TRUE(SbDirectoryCreate(path.data()));
-    EXPECT_TRUE(SbFileExists(path.data()));
-    EXPECT_TRUE(SbDirectoryCanOpen(path.data()));
+    struct stat info;
+    EXPECT_TRUE(mkdir(path.data(), 0700) == 0 ||
+                (DirectoryExists(path.data())));
+    EXPECT_TRUE(FileExists(path.data()));
+    EXPECT_TRUE(DirectoryExists(path.data()));
     SbDirectory directory = SbDirectoryOpen(path.data(), NULL);
     EXPECT_TRUE(SbDirectoryIsValid(directory));
 
     // Lastly, close and delete the directory.
     EXPECT_TRUE(SbDirectoryClose(directory));
     EXPECT_TRUE(SbFileDelete(path.data()));
-    EXPECT_FALSE(SbFileExists(path.data()));
+    EXPECT_FALSE(FileExists(path.data()));
   }
 }
 
@@ -157,7 +171,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
         kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
     EXPECT_GT(starboard::strlcat(path.data(), sub_path.c_str(), kPathSize), 0);
     EXPECT_TRUE(SbFileDelete(path.data()));
-    EXPECT_FALSE(SbFileExists(path.data()));
+    EXPECT_FALSE(FileExists(path.data()));
 
     // Write to the file and check that we can read from it.
     std::string content_to_write = "test content";
@@ -169,7 +183,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
                                     static_cast<int>(content_to_write.size())),
           0);
     }
-    EXPECT_TRUE(SbFileExists(path.data()));
+    EXPECT_TRUE(FileExists(path.data()));
     SbFileInfo info;
     EXPECT_TRUE(SbFileGetPathInfo(path.data(), &info));
     const int kFileSize = static_cast<int>(info.size);
@@ -185,7 +199,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
 
     // Lastly, delete the file.
     EXPECT_TRUE(SbFileDelete(path.data()));
-    EXPECT_FALSE(SbFileExists(path.data()));
+    EXPECT_FALSE(FileExists(path.data()));
   }
 }
 

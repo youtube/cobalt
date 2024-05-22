@@ -6,6 +6,7 @@
 # found in the LICENSE file.
 
 
+from __future__ import print_function
 import datetime
 import errno
 import os
@@ -21,7 +22,7 @@ SKIA_REPO = 'https://skia.googlesource.com/skia.git'
 
 GCLIENT = 'gclient.bat' if sys.platform == 'win32' else 'gclient'
 WHICH = 'where' if sys.platform == 'win32' else 'which'
-GIT = subprocess.check_output([WHICH, 'git']).splitlines()[0]
+GIT = subprocess.check_output([WHICH, 'git']).decode('utf-8').splitlines()[0]
 
 class print_timings(object):
   def __init__(self):
@@ -29,12 +30,12 @@ class print_timings(object):
 
   def __enter__(self):
     self._start = datetime.datetime.utcnow()
-    print 'Task started at %s GMT' % str(self._start)
+    print('Task started at %s GMT' % str(self._start))
 
   def __exit__(self, t, v, tb):
     finish = datetime.datetime.utcnow()
     duration = (finish-self._start).total_seconds()
-    print 'Task finished at %s GMT (%f seconds)' % (str(finish), duration)
+    print('Task finished at %s GMT (%f seconds)' % (str(finish), duration))
 
 
 class tmp_dir(object):
@@ -89,21 +90,21 @@ class git_branch(object):
     self._stashed = False
 
   def __enter__(self):
-    output = subprocess.check_output([GIT, 'stash'])
+    output = subprocess.check_output([GIT, 'stash']).decode('utf-8')
     self._stashed = 'No local changes' not in output
 
     # Get the original branch name or commit hash.
     self._orig_branch = subprocess.check_output([
-        GIT, 'rev-parse', '--abbrev-ref', 'HEAD']).rstrip()
+        GIT, 'rev-parse', '--abbrev-ref', 'HEAD']).decode('utf-8').rstrip()
     if self._orig_branch == 'HEAD':
       self._orig_branch = subprocess.check_output([
-          GIT, 'rev-parse', 'HEAD']).rstrip()
+          GIT, 'rev-parse', 'HEAD']).decode('utf-8').rstrip()
 
-    # Check out a new branch, based at updated origin/master.
+    # Check out a new branch, based at updated origin/main.
     subprocess.check_call([GIT, 'fetch', 'origin'])
     self._branch = '_tmp_%s' % uuid.uuid4()
     subprocess.check_call([GIT, 'checkout', '-b', self._branch,
-                           '-t', 'origin/master'])
+                           '-t', 'origin/main'])
     return self
 
   def __exit__(self, exc_type, _value, _traceback):
@@ -140,12 +141,12 @@ def RemoveDirectory(*path):
   if sys.platform == 'win32':
     # Give up and use cmd.exe's rd command.
     file_path = os.path.normcase(file_path)
-    for _ in xrange(3):
-      print 'RemoveDirectory running %s' % (' '.join(
-          ['cmd.exe', '/c', 'rd', '/q', '/s', file_path]))
+    for _ in range(3):
+      print('RemoveDirectory running %s' % (' '.join(
+          ['cmd.exe', '/c', 'rd', '/q', '/s', file_path])))
       if not subprocess.call(['cmd.exe', '/c', 'rd', '/q', '/s', file_path]):
         break
-      print '  Failed'
+      print('  Failed')
       time.sleep(3)
     return
 
@@ -183,7 +184,7 @@ def RemoveDirectory(*path):
       if exception_value.errno == errno.ENOENT:
         # File does not exist, and we're trying to delete, so we can ignore the
         # failure.
-        print 'WARNING:  Failed to list %s during rmtree.  Ignoring.\n' % path
+        print('WARNING:  Failed to list %s during rmtree.  Ignoring.\n' % path)
       else:
         raise
     else:
@@ -192,7 +193,7 @@ def RemoveDirectory(*path):
   for root, dirs, files in os.walk(file_path, topdown=False):
     # For POSIX:  making the directory writable guarantees removability.
     # Windows will ignore the non-read-only bits in the chmod value.
-    os.chmod(root, 0770)
+    os.chmod(root, 0o770)
     for name in files:
       remove_with_retry(os.remove, os.path.join(root, name))
     for name in dirs:

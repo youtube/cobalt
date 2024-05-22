@@ -189,20 +189,10 @@ DEF_TEST(RecordOpts_NoopSaveLayerDrawRestore, r) {
 
     // saveLayer w/ backdrop should NOT go away
     sk_sp<SkImageFilter> filter(SkImageFilters::Blur(3, 3, nullptr));
-    recorder.saveLayer({ nullptr, nullptr, filter.get(), nullptr, nullptr, 0});
+    recorder.saveLayer({ nullptr, nullptr, filter.get(), 0});
         recorder.drawRect(draw, opaqueDrawPaint);
     recorder.restore();
     assert_savelayer_draw_restore(r, &record, 18, false);
-
-    // saveLayer w/ clip mask should also NOT go away
-    {
-        sk_sp<SkSurface> surface(SkSurface::MakeRasterN32Premul(10, 10));
-        recorder.saveLayer({ nullptr, nullptr, nullptr, surface->makeImageSnapshot().get(),
-                             nullptr, 0});
-            recorder.drawRect(draw, opaqueDrawPaint);
-        recorder.restore();
-        assert_savelayer_draw_restore(r, &record, 21, false);
-    }
 }
 #endif
 
@@ -243,12 +233,12 @@ DEF_TEST(RecordOpts_MergeSvgOpacityAndFilterLayers, r) {
     translucentFilterLayerPaint.setColor(0x0F020202);  // Not opaque.
     sk_sp<SkPicture> shape;
     {
-        SkPictureRecorder recorder;
-        SkCanvas* canvas = recorder.beginRecording(SkIntToScalar(100), SkIntToScalar(100));
+        SkPictureRecorder picRecorder;
+        SkCanvas* canvas = picRecorder.beginRecording(SkIntToScalar(100), SkIntToScalar(100));
         SkPaint shapePaint;
         shapePaint.setColor(SK_ColorWHITE);
         canvas->drawRect(SkRect::MakeWH(SkIntToScalar(50), SkIntToScalar(50)), shapePaint);
-        shape = recorder.finishRecordingAsPicture();
+        shape = picRecorder.finishRecordingAsPicture();
     }
     translucentFilterLayerPaint.setImageFilter(SkImageFilters::Picture(shape));
 
@@ -274,12 +264,10 @@ DEF_TEST(RecordOpts_MergeSvgOpacityAndFilterLayers, r) {
                             for (size_t m = 0; m < SK_ARRAY_COUNT(secondPaints); ++m) {
                                 bool innerNoOped = !secondBounds[k] && !secondPaints[m] && !innerF;
 
-                                recorder.saveLayer({firstBounds[i], firstPaints[j], outerF,
-                                                    nullptr, nullptr, 0});
+                                recorder.saveLayer({firstBounds[i], firstPaints[j], outerF, 0});
                                 recorder.save();
                                 recorder.clipRect(clip);
-                                recorder.saveLayer({secondBounds[k], secondPaints[m], innerF,
-                                                    nullptr, nullptr, 0});
+                                recorder.saveLayer({secondBounds[k], secondPaints[m], innerF, 0});
                                 recorder.restore();
                                 recorder.restore();
                                 recorder.restore();

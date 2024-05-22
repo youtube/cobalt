@@ -31,6 +31,10 @@ public:
 #if SK_SUPPORT_GPU
     std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
 #endif
+    void addToKey(SkShaderCodeDictionary*,
+                  SkBackend,
+                  SkPaintParamsKeyBuilder*,
+                  SkUniformBlock*) const override;
 
 private:
     SK_FLATTENABLE_HOOKS(SkColorShader)
@@ -44,11 +48,9 @@ private:
 
     bool onAppendStages(const SkStageRec&) const override;
 
-    bool onProgram(skvm::Builder*,
-                   SkColorSpace* dstCS,
-                   skvm::Uniforms* uniforms,
-                   skvm::F32 x, skvm::F32 y,
-                   skvm::F32* r, skvm::F32* g, skvm::F32* b, skvm::F32* a) const override;
+    skvm::Color onProgram(skvm::Builder*, skvm::Coord device, skvm::Coord local, skvm::Color paint,
+                          const SkMatrixProvider&, const SkMatrix* localM, const SkColorInfo& dst,
+                          skvm::Uniforms* uniforms, SkArenaAlloc*) const override;
 
     SkColor fColor;
 };
@@ -63,6 +65,10 @@ public:
 #if SK_SUPPORT_GPU
     std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
 #endif
+    void addToKey(SkShaderCodeDictionary*,
+                  SkBackend,
+                  SkPaintParamsKeyBuilder*,
+                  SkUniformBlock*) const override;
 
 private:
     SK_FLATTENABLE_HOOKS(SkColor4Shader)
@@ -70,11 +76,9 @@ private:
     void flatten(SkWriteBuffer&) const override;
     bool onAppendStages(const SkStageRec&) const override;
 
-    bool onProgram(skvm::Builder*,
-                   SkColorSpace* dstCS,
-                   skvm::Uniforms* uniforms,
-                   skvm::F32 x, skvm::F32 y,
-                   skvm::F32* r, skvm::F32* g, skvm::F32* b, skvm::F32* a) const override;
+    skvm::Color onProgram(skvm::Builder*, skvm::Coord device, skvm::Coord local, skvm::Color paint,
+                          const SkMatrixProvider&, const SkMatrix* localM, const SkColorInfo& dst,
+                          skvm::Uniforms* uniforms, SkArenaAlloc*) const override;
 
     sk_sp<SkColorSpace> fColorSpace;
     const SkColor4f     fColor;

@@ -9,6 +9,7 @@
 """Check the DEPS file for correctness."""
 
 
+from __future__ import print_function
 import os
 import re
 import subprocess
@@ -25,13 +26,14 @@ def main():
   """Load the DEPS file and verify that all entries are valid."""
   # Find gclient.py and run that instead of simply "gclient", which calls into
   # update_depot_tools.
-  gclient = subprocess.check_output([utils.WHICH, utils.GCLIENT])
+  gclient = subprocess.check_output([
+      utils.WHICH, utils.GCLIENT]).decode('utf-8')
   gclient_py = os.path.join(os.path.dirname(gclient), 'gclient.py')
   python = sys.executable or 'python'
 
   # Obtain the DEPS mapping.
   output = subprocess.check_output(
-      [python, gclient_py, 'revinfo'], cwd=SKIA_DIR)
+      [python, gclient_py, 'revinfo'], cwd=SKIA_DIR).decode('utf-8')
 
   # Check each entry.
   errs = []
@@ -40,23 +42,28 @@ def main():
     if len(split) != 2:
       errs.append(
           'Failed to parse `gclient revinfo` output; invalid format: %s' % e)
+      continue
     if split[0] == 'skia':
       continue
     split = split[1].split('@')
     if len(split) != 2:
       errs.append(
           'Failed to parse `gclient revinfo` output; invalid format: %s' % e)
+      continue
     repo = split[0]
     rev = split[1]
+    if 'chrome-infra-packages' in repo:
+      continue
     if not 'googlesource.com' in repo:
       errs.append(
-          'DEPS must be hosted on googlesource.com; %s is not allowed.' % repo)
+          'DEPS must be hosted on googlesource.com; %s is not allowed. '
+          'See http://go/new-skia-git-mirror' % repo)
     if not re.match(r'^[a-z0-9]{40}$', rev):
       errs.append('%s: "%s" does not look like a commit hash.' % (repo, rev))
   if errs:
-    print >> sys.stderr, 'Found problems in DEPS:'
+    print('Found problems in DEPS:', file=sys.stderr)
     for err in errs:
-      print >> sys.stderr, err
+      print(err, file=sys.stderr)
     sys.exit(1)
 
 

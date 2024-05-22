@@ -9,6 +9,7 @@
 """Run all infrastructure-related tests."""
 
 
+from __future__ import print_function
 import os
 import subprocess
 import sys
@@ -29,13 +30,14 @@ def python_unit_tests(train):
   if train:
     return None
   return test(
-      ['python', '-m', 'unittest', 'discover', '-s', '.', '-p', '*_test.py'],
+      ['python', '-u', '-m', 'unittest', 'discover', '-s', '.', '-p',
+       '*_test.py'],
       INFRA_BOTS_DIR)
 
 
 def recipe_test(train):
   cmd = [
-      'python', os.path.join(INFRA_BOTS_DIR, 'recipes.py'), 'test']
+      'python', '-u', os.path.join(INFRA_BOTS_DIR, 'recipes.py'), 'test']
   if train:
     cmd.append('train')
   else:
@@ -72,17 +74,17 @@ def main():
       errs.append(err)
 
   if len(errs) > 0:
-    print >> sys.stderr, 'Test failures:\n'
+    print('Test failures:\n', file=sys.stderr)
     for err in errs:
-      print >> sys.stderr, '=============================='
-      print >> sys.stderr, err
-      print >> sys.stderr, '=============================='
+      print('==============================', file=sys.stderr)
+      print(err, file=sys.stderr)
+      print('==============================', file=sys.stderr)
     sys.exit(1)
 
   if train:
-    print 'Trained tests successfully.'
+    print('Trained tests successfully.')
   else:
-    print 'All tests passed!'
+    print('All tests passed!')
 
 
 if __name__ == '__main__':

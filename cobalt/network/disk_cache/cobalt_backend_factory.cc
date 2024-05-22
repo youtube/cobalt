@@ -31,12 +31,12 @@ CobaltBackendFactory::CobaltBackendFactory(
 
 CobaltBackendFactory::~CobaltBackendFactory() = default;
 
-int CobaltBackendFactory::CreateBackend(
-    net::NetLog* net_log, std::unique_ptr<::disk_cache::Backend>* backend,
-    net::CompletionOnceCallback callback) {
+// This function stubs out the backend and callback
+::disk_cache::BackendResult CobaltBackendFactory::CreateBackend(
+    net::NetLog* net_log, ::disk_cache::BackendResultCallback callback) {
   DCHECK_GE(max_bytes_, 0);
-  return CreateCobaltCacheBackend(path_, max_bytes_, net_log, backend,
-                                  std::move(callback), url_request_context_);
+  return ::disk_cache::BackendResult::MakeError(CreateCobaltCacheBackend(
+      path_, max_bytes_, net_log, std::move(callback), url_request_context_));
 }
 
 }  // namespace disk_cache

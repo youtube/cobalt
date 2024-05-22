@@ -15,6 +15,7 @@
 #include "cobalt/h5vcc/h5vcc_metrics.h"
 
 #include <string>
+#include <utility>
 
 #include "base/values.h"
 #include "cobalt/base/event.h"
@@ -24,6 +25,7 @@
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
 #include "cobalt/h5vcc/metric_event_handler_wrapper.h"
+#include "cobalt/web/environment_settings_helper.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -32,7 +34,7 @@ namespace h5vcc {
 H5vccMetrics::H5vccMetrics(
     persistent_storage::PersistentSettings* persistent_settings,
     base::EventDispatcher* event_dispatcher)
-    : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       persistent_settings_(persistent_settings),
       event_dispatcher_(event_dispatcher) {
   DCHECK(event_dispatcher_);
@@ -79,16 +81,49 @@ void H5vccMetrics::RunEventHandlerInternal(
   }
 }
 
-void H5vccMetrics::Enable() { ToggleMetricsEnabled(true); }
+script::HandlePromiseVoid H5vccMetrics::Enable(
+    script::EnvironmentSettings* environment_settings) {
+  auto* global_wrappable = web::get_global_wrappable(environment_settings);
+  script::HandlePromiseVoid promise =
+      web::get_script_value_factory(environment_settings)
+          ->CreateBasicPromise<void>();
+  auto promise_reference =
+      std::make_unique<script::ValuePromiseVoid::Reference>(global_wrappable,
+                                                            promise);
+  ToggleMetricsEnabled(
+      true,
+      base::BindOnce(
+          [](std::unique_ptr<script::ValuePromiseVoid::Reference>
+                 promise_reference) { promise_reference->value().Resolve(); },
+          std::move(promise_reference)));
+  return promise;
+}
 
-void H5vccMetrics::Disable() { ToggleMetricsEnabled(false); }
+script::HandlePromiseVoid H5vccMetrics::Disable(
+    script::EnvironmentSettings* environment_settings) {
+  auto* global_wrappable = web::get_global_wrappable(environment_settings);
+  script::HandlePromiseVoid promise =
+      web::get_script_value_factory(environment_settings)
+          ->CreateBasicPromise<void>();
+  auto promise_reference =
+      std::make_unique<script::ValuePromiseVoid::Reference>(global_wrappable,
+                                                            promise);
+  ToggleMetricsEnabled(
+      false,
+      base::BindOnce(
+          [](std::unique_ptr<script::ValuePromiseVoid::Reference>
+                 promise_reference) { promise_reference->value().Resolve(); },
+          std::move(promise_reference)));
+  return promise;
+}
 
-void H5vccMetrics::ToggleMetricsEnabled(bool is_enabled) {
+void H5vccMetrics::ToggleMetricsEnabled(bool is_enabled,
+                                        base::OnceClosure done_callback) {
   persistent_settings_->SetPersistentSetting(
       browser::metrics::kMetricEnabledSettingName,
       std::make_unique<base::Value>(is_enabled));
   browser::metrics::CobaltMetricsServicesManager::GetInstance()
-      ->ToggleMetricsEnabled(is_enabled);
+      ->ToggleMetricsEnabled(is_enabled, std::move(done_callback));
 }
 
 bool H5vccMetrics::IsEnabled() {

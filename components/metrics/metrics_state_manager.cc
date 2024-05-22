@@ -133,7 +133,7 @@ bool MetricsStateManager::instance_exists_ = false;
 MetricsStateManager::MetricsStateManager(
     PrefService* local_state,
     EnabledStateProvider* enabled_state_provider,
-    const base::string16& backup_registry_key,
+    const std::wstring& backup_registry_key,
     const StoreClientInfoCallback& store_client_info,
     const LoadClientInfoCallback& retrieve_client_info)
     : local_state_(local_state),
@@ -257,7 +257,7 @@ MetricsStateManager::CreateDefaultEntropyProvider() {
 
     UpdateEntropySourceReturnedValue(ENTROPY_SOURCE_HIGH);
     const std::string high_entropy_source =
-        client_id_ + base::IntToString(low_entropy_source_value);
+        client_id_ + std::to_string(low_entropy_source_value);
     return std::unique_ptr<const base::FieldTrial::EntropyProvider>(
         new variations::SHA1EntropyProvider(high_entropy_source));
   }
@@ -285,7 +285,7 @@ MetricsStateManager::CreateLowEntropyProvider() {
 std::unique_ptr<MetricsStateManager> MetricsStateManager::Create(
     PrefService* local_state,
     EnabledStateProvider* enabled_state_provider,
-    const base::string16& backup_registry_key,
+    const std::wstring& backup_registry_key,
     const StoreClientInfoCallback& store_client_info,
     const LoadClientInfoCallback& retrieve_client_info) {
   std::unique_ptr<MetricsStateManager> result;

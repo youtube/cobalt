@@ -1,0 +1,5 @@
+int public;
+
+/*%%*
+'public' is a reserved word
+*%%*/

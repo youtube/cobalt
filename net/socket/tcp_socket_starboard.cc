@@ -17,8 +17,9 @@
 #include <memory>
 #include <utility>
 
-#include "base/callback_helpers.h"
-#include "base/time/time.h"
+#include "base/functional/callback_helpers.h"
+#include "base/message_loop/message_pump_for_io.h"
+#include "base/task/current_thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_activity_monitor.h"
 #include "net/socket/socket_net_log_params.h"
@@ -33,13 +34,13 @@ TCPSocketStarboard::TCPSocketStarboard(
     const NetLogSource& source)
     : socket_performance_watcher_(std::move(socket_performance_watcher)),
       socket_(kSbSocketInvalid),
+      socket_watcher_(FROM_HERE),
       family_(ADDRESS_FAMILY_UNSPECIFIED),
       logging_multiple_connect_attempts_(false),
       net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::SOCKET)),
       listening_(false),
       waiting_connect_(false) {
-  net_log_.BeginEvent(NetLogEventType::SOCKET_ALIVE,
-                      source.ToEventParametersCallback());
+  net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE, source);
 }
 
 TCPSocketStarboard::~TCPSocketStarboard() {
@@ -138,8 +139,8 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
   int result = AcceptInternal(socket, address);
 
   if (result == ERR_IO_PENDING) {
-    if (!base::MessageLoopForIO::current()->Watch(
-            socket_, true, base::MessageLoopCurrentForIO::WATCH_READ,
+    if (!base::CurrentIOThread::Get()->Watch(
+            socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
             &socket_watcher_, this)) {
       DLOG(ERROR) << "WatchSocket failed on read";
       return MapLastSocketError(socket_);
@@ -230,7 +231,7 @@ int TCPSocketStarboard::AcceptInternal(
   *socket = std::move(tcp_socket);
   *address = ip_end_point;
   net_log_.EndEvent(NetLogEventType::TCP_ACCEPT,
-                    CreateNetLogIPEndPointCallback(&ip_end_point));
+                    [&] { return CreateNetLogIPEndPointParams(&ip_end_point); });
   return OK;
 }
 
@@ -321,7 +322,7 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
   }
 
   net_log_.BeginEvent(NetLogEventType::TCP_CONNECT_ATTEMPT,
-                      CreateNetLogIPEndPointCallback(&address));
+                      [&] { return CreateNetLogIPEndPointParams(&address); });
 
   SbSocketAddress storage;
   if (!address.ToSbSocketAddress(&storage)) {
@@ -341,8 +342,8 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
   write_callback_ = std::move(callback);
 
   // When it is ready to write, it will have connected.
-  base::MessageLoopForIO::current()->Watch(
-      socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
+  base::CurrentIOThread::Get()->Watch(
+      socket_, true, base::MessagePumpIOStarboard::WATCH_WRITE,
       &socket_watcher_, this);
 
   return ERR_IO_PENDING;
@@ -351,8 +352,8 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
 int TCPSocketStarboard::HandleConnectCompleted(int rv) {
   // Log the end of this attempt (and any OS error it threw).
   if (rv != OK) {
-    net_log_.EndEvent(NetLogEventType::TCP_CONNECT_ATTEMPT,
-                      NetLog::IntCallback("mapped_error", rv));
+    net_log_.EndEventWithIntParams(NetLogEventType::TCP_CONNECT_ATTEMPT,
+                                   "os_error", errno);
   } else {
     net_log_.EndEvent(NetLogEventType::TCP_CONNECT_ATTEMPT);
   }
@@ -408,7 +409,7 @@ void TCPSocketStarboard::EndLoggingMultipleConnectAttempts(int net_error) {
 
 void TCPSocketStarboard::LogConnectBegin(const AddressList& addresses) const {
   net_log_.BeginEvent(NetLogEventType::TCP_CONNECT,
-                      addresses.CreateNetLogCallback());
+                      [&] { return addresses.NetLogParams(); });
 }
 
 void TCPSocketStarboard::LogConnectEnd(int net_error) {
@@ -457,8 +458,8 @@ int TCPSocketStarboard::ReadIfReady(IOBuffer* buf,
   }
 
   read_if_ready_callback_ = std::move(callback);
-  base::MessageLoopForIO::current()->Watch(
-      socket_, true, base::MessageLoopCurrentForIO::WATCH_READ,
+    base::CurrentIOThread::Get()->Watch(
+      socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
       &socket_watcher_, this);
 
   return rv;
@@ -488,7 +489,7 @@ void TCPSocketStarboard::RetryRead(int rv) {
   }
   read_buf_ = nullptr;
   read_buf_len_ = 0;
-  base::ResetAndReturn(&read_callback_).Run(rv);
+  std::move(read_callback_).Run(rv);
 }
 
 int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
@@ -497,16 +498,16 @@ int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
   if (bytes_read >= 0) {
     net_log_.AddByteTransferEvent(NetLogEventType::SOCKET_BYTES_RECEIVED,
                                   bytes_read, buf->data());
-    NetworkActivityMonitor::GetInstance()->IncrementBytesReceived(bytes_read);
+    activity_monitor::IncrementBytesReceived(bytes_read);
 
     return bytes_read;
   } else {
     // If |bytes_read| < 0, some kind of error occurred.
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     int rv = MapSocketError(starboard_error);
-    net_log_.AddEvent(NetLogEventType::SOCKET_READ_ERROR,
-                      CreateNetLogSocketErrorCallback(rv, starboard_error));
     if (rv != ERR_IO_PENDING) {
+      NetLogSocketError(net_log_, NetLogEventType::SOCKET_READ_ERROR, rv,
+                        starboard_error);
       DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
     }
     return rv;
@@ -541,8 +542,8 @@ int TCPSocketStarboard::Write(
     write_buf_ = buf;
     write_buf_len_ = buf_len;
     write_callback_ = std::move(callback);
-    base::MessageLoopForIO::current()->Watch(
-        socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
+    base::CurrentIOThread::Get()->Watch(
+        socket_, true, base::MessagePumpIOStarboard::WATCH_WRITE,
         &socket_watcher_, this);
   }
 
@@ -555,14 +556,13 @@ int TCPSocketStarboard::DoWrite(IOBuffer* buf, int buf_len) {
   if (bytes_sent >= 0) {
     net_log_.AddByteTransferEvent(NetLogEventType::SOCKET_BYTES_SENT,
                                   bytes_sent, buf->data());
-    NetworkActivityMonitor::GetInstance()->IncrementBytesSent(bytes_sent);
 
     return bytes_sent;
   } else {
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     int rv = MapSocketError(starboard_error);
-    net_log_.AddEvent(NetLogEventType::SOCKET_WRITE_ERROR,
-                      CreateNetLogSocketErrorCallback(rv, starboard_error));
+    NetLogSocketError(net_log_, NetLogEventType::SOCKET_WRITE_ERROR, rv,
+                      starboard_error);
     if (rv != ERR_IO_PENDING) {
       DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
     }
@@ -598,11 +598,14 @@ bool TCPSocketStarboard::SetSendBufferSize(int32_t size) {
 }
 
 bool TCPSocketStarboard::SetKeepAlive(bool enable, int delay) {
-  return SbSocketSetTcpKeepAlive(socket_, enable, delay);
+  int delay_second = delay * base::Time::kMicrosecondsPerSecond;
+  return SbSocketSetTcpKeepAlive(socket_, enable, delay_second);
 }
 
 bool TCPSocketStarboard::SetNoDelay(bool no_delay) {
-  return SetTCPNoDelay(socket_, no_delay);
+  if (!socket_)
+    return false;
+  return SetTCPNoDelay(socket_, no_delay) == OK;
 }
 
 bool TCPSocketStarboard::GetEstimatedRoundTripTime(
@@ -668,6 +671,16 @@ void TCPSocketStarboard::ClearWatcherIfOperationsNotPending() {
     bool ok = socket_watcher_.StopWatchingSocket();
     DCHECK(ok);
   }
+}
+
+int TCPSocketStarboard::BindToNetwork(handles::NetworkHandle network) {
+  NOTIMPLEMENTED();
+  return ERR_NOT_IMPLEMENTED;
+}
+
+int TCPSocketStarboard::SetIPv6Only(bool ipv6_only) {
+    NOTIMPLEMENTED();
+    return 0;
 }
 
 }  // namespace net

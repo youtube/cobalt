@@ -21,48 +21,12 @@
 #include "cobalt/script/source_code.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#define HANDLE_CORE_DUMP
-#include "base/lazy_instance.h"
-#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace script {
 
 namespace {
-
-#if defined(HANDLE_CORE_DUMP)
-
-class ScriptRunnerLog {
- public:
-  ScriptRunnerLog() : success_count_(0), fail_count_(0) {
-    SbCoreDumpRegisterHandler(CoreDumpHandler, this);
-  }
-  ~ScriptRunnerLog() { SbCoreDumpUnregisterHandler(CoreDumpHandler, this); }
-
-  static void CoreDumpHandler(void* context) {
-    SbCoreDumpLogInteger(
-        "ScriptRunner successful executions",
-        static_cast<ScriptRunnerLog*>(context)->success_count_);
-    SbCoreDumpLogInteger("ScriptRunner failed executions",
-                         static_cast<ScriptRunnerLog*>(context)->fail_count_);
-  }
-
-  void IncrementSuccessCount() { success_count_++; }
-  void IncrementFailCount() { fail_count_++; }
-
- private:
-  int success_count_;
-  int fail_count_;
-  DISALLOW_COPY_AND_ASSIGN(ScriptRunnerLog);
-};
-
-base::LazyInstance<ScriptRunnerLog>::DestructorAtExit script_runner_log =
-    LAZY_INSTANCE_INITIALIZER;
-
-#endif  // defined(HANDLE_CORE_DUMP)
 
 class ScriptRunnerImpl : public ScriptRunner {
  public:
@@ -96,14 +60,8 @@ std::string ScriptRunnerImpl::Execute(
   std::string result;
   if (!global_environment_->EvaluateScript(source_code, &result)) {
     LOG(WARNING) << "Failed to execute JavaScript: " << result;
-#if defined(HANDLE_CORE_DUMP)
-    script_runner_log.Get().IncrementFailCount();
-#endif
     return result;
   }
-#if defined(HANDLE_CORE_DUMP)
-  script_runner_log.Get().IncrementSuccessCount();
-#endif
   if (out_succeeded) {
     *out_succeeded = true;
   }

@@ -138,7 +138,7 @@ class Document : public Node,
   // Web API: Node
   //
   NodeType node_type() const override { return Node::kDocumentNode; }
-  base::Token node_name() const override;
+  base_token::Token node_name() const override;
 
   // Web API: Document
   //
@@ -244,7 +244,7 @@ class Document : public Node,
 
   FontCache* font_cache() const { return font_cache_.get(); }
 
-  scoped_refptr<HTMLHtmlElement> html() const;
+  scoped_refptr<HTMLElement> html() const;
 
   // List of scripts that will execute in order as soon as possible.
   //   https://www.w3.org/TR/html50/scripting-1.html#list-of-scripts-that-will-execute-in-order-as-soon-as-possible

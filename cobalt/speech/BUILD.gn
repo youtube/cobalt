@@ -12,20 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//third_party/protobuf/proto_library.gni")
+
 config("enable_fake_microphone_public") {
   defines = [ "ENABLE_FAKE_MICROPHONE" ]
 }
 
 config("speech_config") {
-  if (is_win) {
-    cflags = [
-      # Dereferencing NULL pointer in generated file
-      # google_streaming_api.pb.cc.
-      "/wd6011",
-    ]
-  }
-
   include_dirs = [ "//third_party/protobuf/src" ]
+}
+
+proto_library("google_streaming_api_proto") {
+  sources = [ "google_streaming_api.proto" ]
+  generate_python = false
 }
 
 copy("speech_testdata") {
@@ -56,8 +55,6 @@ static_library("speech") {
     "endpointer_delegate.h",
     "google_speech_service.cc",
     "google_speech_service.h",
-    "google_streaming_api.pb.cc",
-    "google_streaming_api.pb.h",
     "microphone.h",
     "microphone_manager.cc",
     "microphone_manager.h",
@@ -98,6 +95,7 @@ static_library("speech") {
   ]
 
   deps = [
+    ":google_streaming_api_proto",
     "//cobalt/base",
     "//cobalt/loader",
     "//cobalt/media",

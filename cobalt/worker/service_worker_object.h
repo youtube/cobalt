@@ -15,6 +15,7 @@
 #ifndef COBALT_WORKER_SERVICE_WORKER_OBJECT_H_
 #define COBALT_WORKER_SERVICE_WORKER_OBJECT_H_
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <set>
@@ -24,7 +25,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/message_loop/message_loop_current.h"
+#include "base/task/current_thread.h"
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/web_settings.h"
@@ -53,7 +54,7 @@ class ServiceWorkerRegistrationObject;
 class ServiceWorkerObject
     : public base::RefCountedThreadSafe<ServiceWorkerObject>,
       public base::SupportsWeakPtr<ServiceWorkerObject>,
-      public base::MessageLoop::DestructionObserver {
+      public base::CurrentThread::DestructionObserver {
  public:
   // Worker Options needed at thread run time.
   struct Options {
@@ -134,7 +135,7 @@ class ServiceWorkerObject
     return worker_global_scope_;
   }
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   void store_start_failed(bool value) { start_failed_.store(value); }
@@ -144,11 +145,11 @@ class ServiceWorkerObject
 
   // Algorithm for Should Skip Event:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#should-skip-event-algorithm
-  bool ShouldSkipEvent(base::Token event_name);
+  bool ShouldSkipEvent(base_token::Token event_name);
 
   std::string options_name() { return options_.name; }
 
-  std::set<base::Token>& set_of_event_types_to_handle() {
+  std::set<base_token::Token>& set_of_event_types_to_handle() {
     return set_of_event_types_to_handle_;
   }
 
@@ -158,9 +159,9 @@ class ServiceWorkerObject
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#run-service-worker-algorithm
   void Initialize(web::Context* context);
 
-  // The message loop this object is running on.
-  base::MessageLoop* message_loop() const {
-    return web_agent_ ? web_agent_->message_loop() : nullptr;
+  // The task runner this object is running on.
+  base::SequencedTaskRunner* task_runner() const {
+    return web_agent_ ? web_agent_->task_runner() : nullptr;
   }
 
 #if defined(ENABLE_DEBUGGER)
@@ -196,12 +197,12 @@ class ServiceWorkerObject
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-start-status
   std::unique_ptr<std::string> start_status_;
 
-  starboard::atomic_bool start_failed_;
+  std::atomic_bool start_failed_;
 
   scoped_refptr<WorkerGlobalScope> worker_global_scope_;
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-set-of-event-types-to-handle
-  std::set<base::Token> set_of_event_types_to_handle_;
+  std::set<base_token::Token> set_of_event_types_to_handle_;
 };
 
 }  // namespace worker

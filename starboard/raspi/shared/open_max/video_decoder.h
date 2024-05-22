@@ -85,7 +85,7 @@ class VideoDecoder
   bool eos_written_;
   bool first_input_written_ = false;
 
-  SbThread thread_;
+  pthread_t thread_;
   bool request_thread_termination_;
   Queue<Event*> queue_;
 

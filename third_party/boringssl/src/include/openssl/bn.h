@@ -136,7 +136,16 @@ extern "C" {
 
 // BN provides support for working with arbitrary sized integers. For example,
 // although the largest integer supported by the compiler might be 64 bits, BN
-// will allow you to work with numbers until you run out of memory.
+// will allow you to work with much larger numbers.
+//
+// This library is developed for use inside BoringSSL, and uses implementation
+// strategies that may not be ideal for other applications. Non-cryptographic
+// uses should use a more general-purpose integer library, especially if
+// performance-sensitive.
+//
+// Many functions in BN scale quadratically or higher in the bit length of their
+// input. Callers at this layer are assumed to have capped input sizes within
+// their performance tolerances.
 
 
 // BN_ULONG is the native word size when working with big integers.
@@ -148,14 +157,14 @@ extern "C" {
 // Projects which use |BN_*_FMT*| with outdated C headers may need to define it
 // externally.
 #if defined(OPENSSL_64_BIT)
-#define BN_ULONG uint64_t
+typedef uint64_t BN_ULONG;
 #define BN_BITS2 64
 #define BN_DEC_FMT1 "%" PRIu64
 #define BN_DEC_FMT2 "%019" PRIu64
 #define BN_HEX_FMT1 "%" PRIx64
 #define BN_HEX_FMT2 "%016" PRIx64
 #elif defined(OPENSSL_32_BIT)
-#define BN_ULONG uint32_t
+typedef uint32_t BN_ULONG;
 #define BN_BITS2 32
 #define BN_DEC_FMT1 "%" PRIu32
 #define BN_DEC_FMT2 "%09" PRIu32
@@ -205,6 +214,10 @@ OPENSSL_EXPORT unsigned BN_num_bits(const BIGNUM *bn);
 
 // BN_num_bytes returns the minimum number of bytes needed to represent the
 // absolute value of |bn|.
+//
+// While |size_t| is the preferred type for byte counts, callers can assume that
+// |BIGNUM|s are bounded such that this value, and its corresponding bit count,
+// will always fit in |int|.
 OPENSSL_EXPORT unsigned BN_num_bytes(const BIGNUM *bn);
 
 // BN_zero sets |bn| to zero.
@@ -280,6 +293,10 @@ OPENSSL_EXPORT int BN_hex2bn(BIGNUM **outp, const char *in);
 // BN_bn2dec returns an allocated string that contains a NUL-terminated,
 // decimal representation of |bn|. If |bn| is negative, the first char in the
 // resulting string will be '-'. Returns NULL on allocation failure.
+//
+// Converting an arbitrarily large integer to decimal is quadratic in the bit
+// length of |a|. This function assumes the caller has capped the input within
+// performance tolerances.
 OPENSSL_EXPORT char *BN_bn2dec(const BIGNUM *a);
 
 // BN_dec2bn parses the leading decimal number from |in|, which may be
@@ -288,6 +305,10 @@ OPENSSL_EXPORT char *BN_bn2dec(const BIGNUM *a);
 // decimal number and stores it in |*outp|. If |*outp| is NULL then it
 // allocates a new BIGNUM and updates |*outp|. It returns the number of bytes
 // of |in| processed or zero on error.
+//
+// Converting an arbitrarily large integer to decimal is quadratic in the bit
+// length of |a|. This function assumes the caller has capped the input within
+// performance tolerances.
 OPENSSL_EXPORT int BN_dec2bn(BIGNUM **outp, const char *in);
 
 // BN_asc2bn acts like |BN_dec2bn| or |BN_hex2bn| depending on whether |in|
@@ -584,9 +605,14 @@ OPENSSL_EXPORT int BN_mod_lshift1_quick(BIGNUM *r, const BIGNUM *a,
                                         const BIGNUM *m);
 
 // BN_mod_sqrt returns a newly-allocated |BIGNUM|, r, such that
-// r^2 == a (mod p). |p| must be a prime. It returns NULL on error or if |a| is
-// not a square mod |p|. In the latter case, it will add |BN_R_NOT_A_SQUARE| to
-// the error queue.
+// r^2 == a (mod p). It returns NULL on error or if |a| is not a square mod |p|.
+// In the latter case, it will add |BN_R_NOT_A_SQUARE| to the error queue.
+// If |a| is a square and |p| > 2, there are two possible square roots. This
+// function may return either and may even select one non-deterministically.
+//
+// This function only works if |p| is a prime. If |p| is composite, it may fail
+// or return an arbitrary value. Callers should not pass attacker-controlled
+// values of |p|.
 OPENSSL_EXPORT BIGNUM *BN_mod_sqrt(BIGNUM *in, const BIGNUM *a, const BIGNUM *p,
                                    BN_CTX *ctx);
 
@@ -658,6 +684,14 @@ struct bn_gencb_st {
   int (*callback)(int event, int n, struct bn_gencb_st *);
 };
 
+// BN_GENCB_new returns a newly-allocated |BN_GENCB| object, or NULL on
+// allocation failure. The result must be released with |BN_GENCB_free| when
+// done.
+OPENSSL_EXPORT BN_GENCB *BN_GENCB_new(void);
+
+// BN_GENCB_free releases memory associated with |callback|.
+OPENSSL_EXPORT void BN_GENCB_free(BN_GENCB *callback);
+
 // BN_GENCB_set configures |callback| to call |f| and sets |callout->arg| to
 // |arg|.
 OPENSSL_EXPORT void BN_GENCB_set(BN_GENCB *callback,
@@ -667,6 +701,9 @@ OPENSSL_EXPORT void BN_GENCB_set(BN_GENCB *callback,
 // BN_GENCB_call calls |callback|, if not NULL, and returns the return value of
 // the callback, or 1 if |callback| is NULL.
 OPENSSL_EXPORT int BN_GENCB_call(BN_GENCB *callback, int event, int n);
+
+// BN_GENCB_get_arg returns |callback->arg|.
+OPENSSL_EXPORT void *BN_GENCB_get_arg(const BN_GENCB *callback);
 
 // BN_generate_prime_ex sets |ret| to a prime number of |bits| length. If safe
 // is non-zero then the prime will be such that (ret-1)/2 is also a prime.
@@ -684,10 +721,22 @@ OPENSSL_EXPORT int BN_generate_prime_ex(BIGNUM *ret, int bits, int safe,
                                         const BIGNUM *add, const BIGNUM *rem,
                                         BN_GENCB *cb);
 
-// BN_prime_checks is magic value that can be used as the |checks| argument to
-// the primality testing functions in order to automatically select a number of
-// Miller-Rabin checks that gives a false positive rate of ~2^{-80}.
-#define BN_prime_checks 0
+// BN_prime_checks_for_validation can be used as the |checks| argument to the
+// primarily testing functions when validating an externally-supplied candidate
+// prime. It gives a false positive rate of at most 2^{-128}. (The worst case
+// false positive rate for a single iteration is 1/4 per
+// https://eprint.iacr.org/2018/749. (1/4)^64 = 2^{-128}.)
+#define BN_prime_checks_for_validation 64
+
+// BN_prime_checks_for_generation can be used as the |checks| argument to the
+// primality testing functions when generating random primes. It gives a false
+// positive rate at most the security level of the corresponding RSA key size.
+//
+// Note this value only performs enough checks if the candidate prime was
+// selected randomly. If validating an externally-supplied candidate, especially
+// one that may be selected adversarially, use |BN_prime_checks_for_validation|
+// instead.
+#define BN_prime_checks_for_generation 0
 
 // bn_primality_result_t enumerates the outcomes of primality-testing.
 enum bn_primality_result_t {
@@ -698,7 +747,7 @@ enum bn_primality_result_t {
 
 // BN_enhanced_miller_rabin_primality_test tests whether |w| is probably a prime
 // number using the Enhanced Miller-Rabin Test (FIPS 186-4 C.3.2) with
-// |iterations| iterations and returns the result in |out_result|. Enhanced
+// |checks| iterations and returns the result in |out_result|. Enhanced
 // Miller-Rabin tests primality for odd integers greater than 3, returning
 // |bn_probably_prime| if the number is probably prime,
 // |bn_non_prime_power_composite| if the number is a composite that is not the
@@ -706,12 +755,10 @@ enum bn_primality_result_t {
 // success and zero on failure. If |cb| is not NULL, then it is called during
 // each iteration of the primality test.
 //
-// If |iterations| is |BN_prime_checks|, then a value that results in a false
-// positive rate lower than the number-field sieve security level of |w| is
-// used, provided |w| was generated randomly. |BN_prime_checks| is not suitable
-// for inputs potentially crafted by an adversary.
+// See |BN_prime_checks_for_validation| and |BN_prime_checks_for_generation| for
+// recommended values of |checks|.
 OPENSSL_EXPORT int BN_enhanced_miller_rabin_primality_test(
-    enum bn_primality_result_t *out_result, const BIGNUM *w, int iterations,
+    enum bn_primality_result_t *out_result, const BIGNUM *w, int checks,
     BN_CTX *ctx, BN_GENCB *cb);
 
 // BN_primality_test sets |*is_probably_prime| to one if |candidate| is
@@ -720,11 +767,9 @@ OPENSSL_EXPORT int BN_enhanced_miller_rabin_primality_test(
 //
 // If |do_trial_division| is non-zero then |candidate| will be tested against a
 // list of small primes before Miller-Rabin tests. The probability of this
-// function returning a false positive is 2^{2*checks}. If |checks| is
-// |BN_prime_checks| then a value that results in a false positive rate lower
-// than the number-field sieve security level of |candidate| is used, provided
-// |candidate| was generated randomly. |BN_prime_checks| is not suitable for
-// inputs potentially crafted by an adversary.
+// function returning a false positive is at most 2^{2*checks}. See
+// |BN_prime_checks_for_validation| and |BN_prime_checks_for_generation| for
+// recommended values of |checks|.
 //
 // If |cb| is not NULL then it is called during the checking process. See the
 // comment above |BN_GENCB|.
@@ -740,11 +785,9 @@ OPENSSL_EXPORT int BN_primality_test(int *is_probably_prime,
 //
 // If |do_trial_division| is non-zero then |candidate| will be tested against a
 // list of small primes before Miller-Rabin tests. The probability of this
-// function returning one when |candidate| is composite is 2^{2*checks}. If
-// |checks| is |BN_prime_checks| then a value that results in a false positive
-// rate lower than the number-field sieve security level of |candidate| is used,
-// provided |candidate| was generated randomly. |BN_prime_checks| is not
-// suitable for inputs potentially crafted by an adversary.
+// function returning one when |candidate| is composite is at most 2^{2*checks}.
+// See |BN_prime_checks_for_validation| and |BN_prime_checks_for_generation| for
+// recommended values of |checks|.
 //
 // If |cb| is not NULL then it is called during the checking process. See the
 // comment above |BN_GENCB|.
@@ -791,8 +834,9 @@ OPENSSL_EXPORT BIGNUM *BN_mod_inverse(BIGNUM *out, const BIGNUM *a,
 // Note this function may incorrectly report |a| has no inverse if the random
 // blinding value has no inverse. It should only be used when |n| has few
 // non-invertible elements, such as an RSA modulus.
-int BN_mod_inverse_blinded(BIGNUM *out, int *out_no_inverse, const BIGNUM *a,
-                           const BN_MONT_CTX *mont, BN_CTX *ctx);
+OPENSSL_EXPORT int BN_mod_inverse_blinded(BIGNUM *out, int *out_no_inverse,
+                                          const BIGNUM *a,
+                                          const BN_MONT_CTX *mont, BN_CTX *ctx);
 
 // BN_mod_inverse_odd sets |out| equal to |a|^-1, mod |n|. |a| must be
 // non-negative and must be less than |n|. |n| must be odd. This function
@@ -829,15 +873,6 @@ OPENSSL_EXPORT void BN_MONT_CTX_free(BN_MONT_CTX *mont);
 // NULL on error.
 OPENSSL_EXPORT BN_MONT_CTX *BN_MONT_CTX_copy(BN_MONT_CTX *to,
                                              const BN_MONT_CTX *from);
-
-// BN_MONT_CTX_set_locked takes |lock| and checks whether |*pmont| is NULL. If
-// so, it creates a new |BN_MONT_CTX| and sets the modulus for it to |mod|. It
-// then stores it as |*pmont|. It returns one on success and zero on error. Note
-// this function assumes |mod| is public.
-//
-// If |*pmont| is already non-NULL then it does nothing and returns one.
-int BN_MONT_CTX_set_locked(BN_MONT_CTX **pmont, CRYPTO_MUTEX *lock,
-                           const BIGNUM *mod, BN_CTX *bn_ctx);
 
 // BN_to_montgomery sets |ret| equal to |a| in the Montgomery domain. |a| is
 // assumed to be in the range [0, n), where |n| is the Montgomery modulus. It
@@ -938,6 +973,15 @@ OPENSSL_EXPORT int BN_MONT_CTX_set(BN_MONT_CTX *mont, const BIGNUM *mod,
 //
 // Use |BN_bn2bin_padded| instead. It is |size_t|-clean.
 OPENSSL_EXPORT int BN_bn2binpad(const BIGNUM *in, uint8_t *out, int len);
+
+// BN_prime_checks is a deprecated alias for |BN_prime_checks_for_validation|.
+// Use |BN_prime_checks_for_generation| or |BN_prime_checks_for_validation|
+// instead. (This defaults to the |_for_validation| value in order to be
+// conservative.)
+#define BN_prime_checks BN_prime_checks_for_validation
+
+// BN_secure_new calls |BN_new|.
+OPENSSL_EXPORT BIGNUM *BN_secure_new(void);
 
 
 // Private functions

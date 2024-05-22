@@ -8,9 +8,11 @@
 
 
 import calendar
+import json
 import re
 import string
 
+PYTHON_VERSION_COMPATIBILITY = "PY3"
 
 DEPS = [
   'flavor',
@@ -42,7 +44,6 @@ def perf_steps(api):
       test_data=['lottie1.json', 'lottie(test)\'!2.json', 'lottie 3!.json',
                  'LICENSE'])
   perf_results = {}
-  push_dm = True
   # Run DM on each lottie file and parse the trace files.
   for idx, lottie_file in enumerate(lottie_files):
     lottie_filename = api.path.basename(lottie_file)
@@ -68,11 +69,7 @@ def perf_steps(api):
       dm_args.extend(['--config', 'gles', '--nocpu'])
     elif api.vars.builder_cfg.get('cpu_or_gpu') == 'CPU':
       dm_args.extend(['--config', '8888', '--nogpu'])
-    api.run(api.flavor.step, 'dm', cmd=dm_args, abort_on_failure=False,
-            skip_binary_push=not push_dm)
-    # We already pushed the binary once. No need to waste time by pushing
-    # the same binary for future runs.
-    push_dm = False
+    api.run(api.flavor.step, 'dm', cmd=dm_args, abort_on_failure=False)
 
     trace_test_data = api.properties.get('trace_test_data', '{}')
     trace_file_content = api.flavor.read_file_on_device(trace_output_path)
@@ -123,13 +120,9 @@ def perf_steps(api):
   ts = int(calendar.timegm(now.utctimetuple()))
   json_path = api.flavor.host_dirs.perf_data_dir.join(
       'perf_%s_%d.json' % (api.properties['revision'], ts))
-  api.run(
-      api.python.inline,
-      'write output JSON',
-      program="""import json
-with open('%s', 'w') as outfile:
-  json.dump(obj=%s, fp=outfile, indent=4)
-  """ % (json_path, perf_json))
+  json_contents = json.dumps(
+      perf_json, indent=4, sort_keys=True, separators=(',', ': '))
+  api.file.write_text('write output JSON', json_path, json_contents)
 
 
 def get_trace_match(lottie_filename, is_android):
@@ -226,7 +219,7 @@ def parse_trace(trace_json, lottie_filename, api):
 def RunSteps(api):
   api.vars.setup()
   api.file.ensure_directory('makedirs tmp_dir', api.vars.tmp_dir)
-  api.flavor.setup()
+  api.flavor.setup('dm')
 
   with api.context():
     try:
@@ -266,9 +259,9 @@ def GenTests(api):
   }
   android_buildername = ('Perf-Android-Clang-AndroidOne-GPU-Mali400MP2-arm-'
                          'Release-All-Android_SkottieTracing')
-  gpu_buildername = ('Perf-Debian9-Clang-NUC7i5BNK-GPU-IntelIris640-x86_64-'
+  gpu_buildername = ('Perf-Debian10-Clang-NUC7i5BNK-GPU-IntelIris640-x86_64-'
                      'Release-All-SkottieTracing')
-  cpu_buildername = ('Perf-Debian9-Clang-GCE-CPU-AVX2-x86_64-Release-All-'
+  cpu_buildername = ('Perf-Debian10-Clang-GCE-CPU-AVX2-x86_64-Release-All-'
                      'SkottieTracing')
   yield (
       api.test(android_buildername) +

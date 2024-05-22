@@ -16,6 +16,9 @@
 
 #include <alsa/asoundlib.h>
 
+#include <pthread.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <vector>
 
@@ -27,7 +30,7 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/shared/alsa/alsa_util.h"
-#include "starboard/thread.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
 namespace shared {
@@ -139,7 +142,7 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   int sampling_frequency_hz_;
   SbMediaAudioSampleType sample_type_;
 
-  SbThread audio_out_thread_;
+  pthread_t audio_out_thread_;
   starboard::Mutex mutex_;
   starboard::ConditionVariable creation_signal_;
 
@@ -175,7 +178,7 @@ AlsaAudioSink::AlsaAudioSink(
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
       context_(context),
-      audio_out_thread_(kSbThreadInvalid),
+      audio_out_thread_(0),
       creation_signal_(mutex_),
       time_to_wait_(kFramesPerRequest * 1'000'000LL / sampling_frequency_hz /
                     2),
@@ -194,10 +197,9 @@ AlsaAudioSink::AlsaAudioSink(
          channels * kFramesPerRequest * GetSampleSize(sample_type));
 
   ScopedLock lock(mutex_);
-  audio_out_thread_ =
-      SbThreadCreate(0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
-                     "alsa_audio_out", &AlsaAudioSink::ThreadEntryPoint, this);
-  SB_DCHECK(SbThreadIsValid(audio_out_thread_));
+  pthread_create(&audio_out_thread_, nullptr, &AlsaAudioSink::ThreadEntryPoint,
+                 this);
+  SB_DCHECK(audio_out_thread_ != 0);
   creation_signal_.Wait();
 }
 
@@ -206,13 +208,15 @@ AlsaAudioSink::~AlsaAudioSink() {
     ScopedLock lock(mutex_);
     destroying_ = true;
   }
-  SbThreadJoin(audio_out_thread_, NULL);
+  pthread_join(audio_out_thread_, NULL);
 
   delete[] static_cast<uint8_t*>(silence_frames_);
 }
 
 // static
 void* AlsaAudioSink::ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "alsa_audio_out");
+  starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
   SB_DCHECK(context);
   AlsaAudioSink* sink = reinterpret_cast<AlsaAudioSink*>(context);
   sink->AudioThreadFunc();
@@ -281,7 +285,7 @@ bool AlsaAudioSink::IdleLoop() {
       AlsaWriteFrames(playback_handle_, silence_frames_, kFramesPerRequest);
       AlsaDrain(playback_handle_);
     }
-    SbThreadSleep(time_to_wait_);
+    usleep(time_to_wait_);
   }
 
   return false;
@@ -324,7 +328,7 @@ bool AlsaAudioSink::PlaybackLoop() {
       WriteFrames(playback_rate, std::min(kFramesPerRequest, frames_in_buffer),
                   frames_in_buffer, offset_in_frames);
     } else {
-      SbThreadSleep(time_to_wait_);
+      usleep(time_to_wait_);
     }
   }
 

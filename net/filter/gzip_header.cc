@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,8 @@
 
 #include <algorithm>
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "third_party/zlib/zlib.h"
-
-#include "starboard/client_porting/poem/string_poem.h"
 
 namespace net {
 
@@ -29,9 +27,9 @@ void GZipHeader::Reset() {
   extra_length_ = 0;
 }
 
-GZipHeader::Status GZipHeader::ReadMore(const char* inbuf, int inbuf_len,
+GZipHeader::Status GZipHeader::ReadMore(const char* inbuf,
+                                        size_t inbuf_len,
                                         const char** header_end) {
-  DCHECK_GE(inbuf_len, 0);
   const uint8_t* pos = reinterpret_cast<const uint8_t*>(inbuf);
   const uint8_t* const end = pos + inbuf_len;
 
@@ -104,7 +102,7 @@ GZipHeader::Status GZipHeader::ReadMore(const char* inbuf, int inbuf_len,
         // We intentionally fall through, because if we have a
         // zero-length FEXTRA, we want to check to notice that we're
         // done reading the FEXTRA before we exit this loop...
-        FALLTHROUGH;
+        [[fallthrough]];
 
       case IN_FEXTRA: {
         // Grab the rest of the bytes in the extra field, or as many
@@ -127,7 +125,7 @@ GZipHeader::Status GZipHeader::ReadMore(const char* inbuf, int inbuf_len,
         }
         // See if we can find the end of the \0-terminated FNAME field.
         pos = reinterpret_cast<const uint8_t*>(memchr(pos, '\0', (end - pos)));
-        if ( pos != NULL ) {
+        if (pos != nullptr) {
           pos++;  // advance past the '\0'
           flags_ &= ~FLAG_FNAME;   // we're done with the FNAME stuff
           state_ = IN_FCOMMENT;
@@ -143,7 +141,7 @@ GZipHeader::Status GZipHeader::ReadMore(const char* inbuf, int inbuf_len,
         }
         // See if we can find the end of the \0-terminated FCOMMENT field.
         pos = reinterpret_cast<const uint8_t*>(memchr(pos, '\0', (end - pos)));
-        if ( pos != NULL ) {
+        if (pos != nullptr) {
           pos++;  // advance past the '\0'
           flags_ &= ~FLAG_FCOMMENT;   // we're done with the FCOMMENT stuff
           state_ = IN_FHCRC_BYTE_0;

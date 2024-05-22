@@ -15,7 +15,7 @@
 #include <dlfcn.h>
 
 #include "starboard/common/log.h"
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
 
 namespace starboard {

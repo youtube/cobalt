@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,7 +24,7 @@ void ProxyClientSocket::SetStreamPriority(RequestPriority priority) {}
 // static
 void ProxyClientSocket::BuildTunnelRequest(
     const HostPortPair& endpoint,
-    const HttpRequestHeaders& auth_headers,
+    const HttpRequestHeaders& extra_headers,
     const std::string& user_agent,
     std::string* request_line,
     HttpRequestHeaders* request_headers) {
@@ -41,7 +41,7 @@ void ProxyClientSocket::BuildTunnelRequest(
   if (!user_agent.empty())
     request_headers->SetHeader(HttpRequestHeaders::kUserAgent, user_agent);
 
-  request_headers->MergeFrom(auth_headers);
+  request_headers->MergeFrom(extra_headers);
 }
 
 // static
@@ -52,15 +52,15 @@ int ProxyClientSocket::HandleProxyAuthChallenge(
   DCHECK(response->headers.get());
   int rv = auth->HandleAuthChallenge(response->headers, response->ssl_info,
                                      false, true, net_log);
-  response->auth_challenge = auth->auth_info();
+  auth->TakeAuthInfo(&response->auth_challenge);
   if (rv == OK)
     return ERR_PROXY_AUTH_REQUESTED;
   return rv;
 }
 
 // static
-bool ProxyClientSocket::SanitizeProxyAuth(HttpResponseInfo* response) {
-  DCHECK(response && response->headers.get());
+void ProxyClientSocket::SanitizeProxyAuth(HttpResponseInfo& response) {
+  DCHECK(response.headers);
 
   // Copy status line and all hop-by-hop headers to preserve keep-alive
   // behavior.
@@ -79,8 +79,8 @@ bool ProxyClientSocket::SanitizeProxyAuth(HttpResponseInfo* response) {
   std::string header_name;
   std::string header_value;
   std::unordered_set<std::string> headers_to_remove;
-  while (response->headers->EnumerateHeaderLines(&iter, &header_name,
-                                                 &header_value)) {
+  while (response.headers->EnumerateHeaderLines(&iter, &header_name,
+                                                &header_value)) {
     bool remove = true;
     for (const char* header : kHeadersToKeep) {
       if (base::EqualsCaseInsensitiveASCII(header, header_name)) {
@@ -92,33 +92,7 @@ bool ProxyClientSocket::SanitizeProxyAuth(HttpResponseInfo* response) {
       headers_to_remove.insert(header_name);
   }
 
-  response->headers->RemoveHeaders(headers_to_remove);
-
-  return true;
-}
-
-// static
-bool ProxyClientSocket::SanitizeProxyRedirect(HttpResponseInfo* response) {
-  DCHECK(response && response->headers.get());
-
-  std::string location;
-  if (!response->headers->IsRedirect(&location))
-    return false;
-
-  // Return minimal headers; set "Content-Length: 0" to ignore response body.
-  std::string fake_response_headers = base::StringPrintf(
-      "HTTP/1.0 302 Found\n"
-      "Location: %s\n"
-      "Content-Length: 0\n"
-      "Connection: close\n"
-      "\n",
-      location.c_str());
-  std::string raw_headers =
-      HttpUtil::AssembleRawHeaders(fake_response_headers.data(),
-                                   fake_response_headers.length());
-  response->headers = new HttpResponseHeaders(raw_headers);
-
-  return true;
+  response.headers->RemoveHeaders(headers_to_remove);
 }
 
 }  // namespace net

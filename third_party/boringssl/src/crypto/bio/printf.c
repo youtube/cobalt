@@ -63,10 +63,6 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 
-#ifdef STARBOARD
-#include "starboard/client_porting/poem/stdio_poem.h"
-#endif
-
 int BIO_printf(BIO *bio, const char *format, ...) {
   va_list args;
   char buf[256], *out, out_malloced = 0;
@@ -75,18 +71,6 @@ int BIO_printf(BIO *bio, const char *format, ...) {
   va_start(args, format);
   out_len = vsnprintf(buf, sizeof(buf), format, args);
   va_end(args);
-
-#if defined(OPENSSL_WINDOWS)
-  // On Windows, vsnprintf returns -1 rather than the requested length on
-  // truncation
-  if (out_len < 0) {
-    va_start(args, format);
-    out_len = _vscprintf(format, args);
-    va_end(args);
-    assert(out_len >= (int)sizeof(buf));
-  }
-#endif
-
   if (out_len < 0) {
     return -1;
   }
@@ -99,7 +83,6 @@ int BIO_printf(BIO *bio, const char *format, ...) {
     out = OPENSSL_malloc(requested_len + 1);
     out_malloced = 1;
     if (out == NULL) {
-      OPENSSL_PUT_ERROR(BIO, ERR_R_MALLOC_FAILURE);
       return -1;
     }
     va_start(args, format);

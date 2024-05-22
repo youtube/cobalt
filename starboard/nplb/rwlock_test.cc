@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "starboard/common/rwlock.h"
+#include "starboard/common/semaphore.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
-#include "starboard/nplb/thread_helpers.h"
-#include "starboard/thread.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Increasing threads by 2x increases testing time by 3x, due to write
@@ -41,7 +43,7 @@ TEST(RWLock, Use) {
 }
 
 // Enters a RWLock as a reader and then increments a counter indicating that it
-class ReadAndSignalTestThread : public AbstractTestThread {
+class ReadAndSignalTestThread : public posix::AbstractTestThread {
  public:
   struct SharedData {
     SharedData()
@@ -98,7 +100,7 @@ TEST(RWLock, ReadAcquisitionTwoThreads) {
 
 // Tests the expectation that a read lock will be blocked for X milliseconds
 // while the thread is holding the write lock.
-class ThreadHoldsWriteLockForTime : public AbstractTestThread {
+class ThreadHoldsWriteLockForTime : public posix::AbstractTestThread {
  public:
   struct SharedData {
     explicit SharedData(int64_t time_hold) : time_to_hold(time_hold) {}
@@ -112,7 +114,7 @@ class ThreadHoldsWriteLockForTime : public AbstractTestThread {
   void Run() override {
     ScopedWriteLock write_lock(&shared_data_->rw_lock);
     shared_data_->signal_write_lock.Put();
-    SbThreadSleep(shared_data_->time_to_hold);
+    usleep(shared_data_->time_to_hold);
   }
 
  private:
@@ -142,7 +144,7 @@ TEST(RWLock, FLAKY_HoldsLockForTime) {
 
 // This thread tests RWLock by generating numbers and writing to a
 // shared set<int32_t>. Additionally readbacks are interleaved in writes.
-class ThreadRWLockStressTest : public AbstractTestThread {
+class ThreadRWLockStressTest : public posix::AbstractTestThread {
  public:
   struct SharedData {
     RWLock rw_lock;
@@ -157,8 +159,6 @@ class ThreadRWLockStressTest : public AbstractTestThread {
         shared_data_(shared_data) {}
 
   void Run() override {
-    SbThread current_thread = SbThreadGetCurrent();
-
     for (int32_t i = begin_value_; i < end_value_; ++i) {
       DoReadAll();
       DoWrite(i);
@@ -197,7 +197,7 @@ TEST(RWLock, RWLockStressTest) {
       kNumValuesEachThread * NUM_STRESS_THREADS;
 
   ThreadRWLockStressTest::SharedData shared_data;
-  std::vector<AbstractTestThread*> threads;
+  std::vector<posix::AbstractTestThread*> threads;
 
   for (int i = 0; i < NUM_STRESS_THREADS; ++i) {
     int32_t start_value = i * kNumValuesEachThread;

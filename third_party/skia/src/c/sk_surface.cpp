@@ -11,7 +11,7 @@
 #include "include/core/SkMaskFilter.h"
 #include "include/core/SkMatrix.h"
 #include "include/core/SkPaint.h"
-#include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkPictureRecorder.h"
 #include "include/core/SkSurface.h"
 
@@ -94,6 +94,10 @@ static const SkPath& AsPath(const sk_path_t& cpath) {
     return reinterpret_cast<const SkPath&>(cpath);
 }
 
+static SkPathBuilder* as_pathbuilder(sk_pathbuilder_t* cbuilder) {
+    return reinterpret_cast<SkPathBuilder*>(cbuilder);
+}
+
 static SkPath* as_path(sk_path_t* cpath) {
     return reinterpret_cast<SkPath*>(cpath);
 }
@@ -142,9 +146,8 @@ sk_image_t* sk_image_new_raster_copy(const sk_imageinfo_t* cinfo, const void* pi
     return (sk_image_t*)SkImage::MakeRasterCopy(SkPixmap(*info, pixels, rowBytes)).release();
 }
 
-sk_image_t* sk_image_new_from_encoded(const sk_data_t* cdata, const sk_irect_t* subset) {
-    return ToImage(SkImage::MakeFromEncoded(sk_ref_sp(AsData(cdata)),
-                                           reinterpret_cast<const SkIRect*>(subset)).release());
+sk_image_t* sk_image_new_from_encoded(const sk_data_t* cdata) {
+    return ToImage(SkImage::MakeFromEncoded(sk_ref_sp(AsData(cdata))).release());
 }
 
 sk_data_t* sk_image_encode(const sk_image_t* cimage) {
@@ -173,49 +176,64 @@ uint32_t sk_image_get_unique_id(const sk_image_t* cimage) {
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-sk_path_t* sk_path_new() { return (sk_path_t*)new SkPath; }
+sk_pathbuilder_t* sk_pathbuilder_new() { return (sk_pathbuilder_t*)new SkPathBuilder; }
+
+void sk_pathbuilder_delete(sk_pathbuilder_t* cbuilder) { delete as_pathbuilder(cbuilder); }
+
+void sk_pathbuilder_move_to(sk_pathbuilder_t* cbuilder, float x, float y) {
+    as_pathbuilder(cbuilder)->moveTo(x, y);
+}
+
+void sk_pathbuilder_line_to(sk_pathbuilder_t* cbuilder, float x, float y) {
+    as_pathbuilder(cbuilder)->lineTo(x, y);
+}
+
+void sk_pathbuilder_quad_to(sk_pathbuilder_t* cbuilder,
+                            float x0, float y0, float x1, float y1) {
+    as_pathbuilder(cbuilder)->quadTo(x0, y0, x1, y1);
+}
+
+void sk_pathbuilder_conic_to(sk_pathbuilder_t* cbuilder,
+                             float x0, float y0, float x1, float y1, float w) {
+    as_pathbuilder(cbuilder)->conicTo(x0, y0, x1, y1, w);
+}
+
+void sk_pathbuilder_cubic_to(sk_pathbuilder_t* cbuilder,
+                             float x0, float y0, float x1, float y1, float x2, float y2) {
+    as_pathbuilder(cbuilder)->cubicTo(x0, y0, x1, y1, x2, y2);
+}
+
+void sk_pathbuilder_close(sk_pathbuilder_t* cbuilder) {
+    as_pathbuilder(cbuilder)->close();
+}
+
+void sk_pathbuilder_add_rect(sk_pathbuilder_t* cbuilder, const sk_rect_t* crect, sk_path_direction_t cdir) {
+    SkPathDirection dir;
+    if (!from_c_path_direction(cdir, &dir)) {
+        return;
+    }
+    as_pathbuilder(cbuilder)->addRect(AsRect(*crect), dir);
+}
+
+void sk_pathbuilder_add_oval(sk_pathbuilder_t* cbuilder, const sk_rect_t* crect, sk_path_direction_t cdir) {
+    SkPathDirection dir;
+    if (!from_c_path_direction(cdir, &dir)) {
+        return;
+    }
+    as_pathbuilder(cbuilder)->addOval(AsRect(*crect), dir);
+}
+
+sk_path_t* sk_pathbuilder_detach_path(sk_pathbuilder_t* cbuilder) {
+    return (sk_path_t*)(new SkPath(as_pathbuilder(cbuilder)->detach()));
+}
+
+sk_path_t* sk_pathbuilder_snapshot_path(sk_pathbuilder_t* cbuilder) {
+    return (sk_path_t*)(new SkPath(as_pathbuilder(cbuilder)->snapshot()));
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 void sk_path_delete(sk_path_t* cpath) { delete as_path(cpath); }
-
-void sk_path_move_to(sk_path_t* cpath, float x, float y) {
-    as_path(cpath)->moveTo(x, y);
-}
-
-void sk_path_line_to(sk_path_t* cpath, float x, float y) {
-    as_path(cpath)->lineTo(x, y);
-}
-
-void sk_path_quad_to(sk_path_t* cpath, float x0, float y0, float x1, float y1) {
-    as_path(cpath)->quadTo(x0, y0, x1, y1);
-}
-
-void sk_path_conic_to(sk_path_t* cpath, float x0, float y0, float x1, float y1, float w) {
-    as_path(cpath)->conicTo(x0, y0, x1, y1, w);
-}
-
-void sk_path_cubic_to(sk_path_t* cpath, float x0, float y0, float x1, float y1, float x2, float y2) {
-    as_path(cpath)->cubicTo(x0, y0, x1, y1, x2, y2);
-}
-
-void sk_path_close(sk_path_t* cpath) {
-    as_path(cpath)->close();
-}
-
-void sk_path_add_rect(sk_path_t* cpath, const sk_rect_t* crect, sk_path_direction_t cdir) {
-    SkPathDirection dir;
-    if (!from_c_path_direction(cdir, &dir)) {
-        return;
-    }
-    as_path(cpath)->addRect(AsRect(*crect), dir);
-}
-
-void sk_path_add_oval(sk_path_t* cpath, const sk_rect_t* crect, sk_path_direction_t cdir) {
-    SkPathDirection dir;
-    if (!from_c_path_direction(cdir, &dir)) {
-        return;
-    }
-    as_path(cpath)->addOval(AsRect(*crect), dir);
-}
 
 bool sk_path_get_bounds(const sk_path_t* cpath, sk_rect_t* crect) {
     const SkPath& path = AsPath(*cpath);
@@ -255,7 +273,7 @@ void sk_canvas_scale(sk_canvas_t* ccanvas, float sx, float sy) {
     AsCanvas(ccanvas)->scale(sx, sy);
 }
 
-void sk_canvas_rotate_degress(sk_canvas_t* ccanvas, float degrees) {
+void sk_canvas_rotate_degrees(sk_canvas_t* ccanvas, float degrees) {
     AsCanvas(ccanvas)->rotate(degrees);
 }
 
@@ -303,29 +321,42 @@ void sk_canvas_draw_path(sk_canvas_t* ccanvas, const sk_path_t* cpath, const sk_
     AsCanvas(ccanvas)->drawPath(AsPath(*cpath), AsPaint(*cpaint));
 }
 
+static SkSamplingOptions to_sampling(const sk_sampling_options_t* s) {
+    if (s) {
+        if (s->useCubic) {
+            return SkSamplingOptions({s->cubic.B, s->cubic.C});
+        } else {
+            return SkSamplingOptions(SkFilterMode(s->filter), SkMipmapMode(s->mipmap));
+        }
+    }
+    return SkSamplingOptions();
+}
+
 void sk_canvas_draw_image(sk_canvas_t* ccanvas, const sk_image_t* cimage, float x, float y,
-                          const sk_paint_t* cpaint) {
-    AsCanvas(ccanvas)->drawImage(AsImage(cimage), x, y, AsPaint(cpaint));
+                          const sk_sampling_options_t* csamp, const sk_paint_t* cpaint) {
+    AsCanvas(ccanvas)->drawImage(AsImage(cimage), x, y, to_sampling(csamp), AsPaint(cpaint));
 }
 
 void sk_canvas_draw_image_rect(sk_canvas_t* ccanvas, const sk_image_t* cimage,
                                const sk_rect_t* csrcR, const sk_rect_t* cdstR,
-                               const sk_paint_t* cpaint) {
+                               const sk_sampling_options_t* csamp, const sk_paint_t* cpaint) {
     SkCanvas* canvas = AsCanvas(ccanvas);
     const SkImage* image = AsImage(cimage);
     const SkRect& dst = AsRect(*cdstR);
+    const SkSamplingOptions sampling = to_sampling(csamp);
     const SkPaint* paint = AsPaint(cpaint);
 
     if (csrcR) {
-        canvas->drawImageRect(image, AsRect(*csrcR), dst, paint);
+        canvas->drawImageRect(image, AsRect(*csrcR), dst, sampling, paint,
+                              SkCanvas::kStrict_SrcRectConstraint);
     } else {
-        canvas->drawImageRect(image, dst, paint);
+        canvas->drawImageRect(image, dst, sampling, paint);
     }
 }
 
 void sk_canvas_draw_picture(sk_canvas_t* ccanvas, const sk_picture_t* cpicture,
                             const sk_matrix_t* cmatrix, const sk_paint_t* cpaint) {
-    const SkMatrix* matrixPtr = NULL;
+    const SkMatrix* matrixPtr = nullptr;
     SkMatrix matrix;
     if (cmatrix) {
         from_c_matrix(cmatrix, &matrix);
@@ -341,7 +372,7 @@ sk_surface_t* sk_surface_new_raster(const sk_imageinfo_t* cinfo,
     const SkImageInfo* info = reinterpret_cast<const SkImageInfo*>(cinfo);
     SkPixelGeometry geo = kUnknown_SkPixelGeometry;
     if (props && !from_c_pixelgeometry(props->pixelGeometry, &geo)) {
-        return NULL;
+        return nullptr;
     }
 
     SkSurfaceProps surfProps(0, geo);
@@ -354,7 +385,7 @@ sk_surface_t* sk_surface_new_raster_direct(const sk_imageinfo_t* cinfo, void* pi
     const SkImageInfo* info = reinterpret_cast<const SkImageInfo*>(cinfo);
     SkPixelGeometry geo = kUnknown_SkPixelGeometry;
     if (props && !from_c_pixelgeometry(props->pixelGeometry, &geo)) {
-        return NULL;
+        return nullptr;
     }
 
     SkSurfaceProps surfProps(0, geo);

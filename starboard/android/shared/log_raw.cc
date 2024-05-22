@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <android/log.h>
+#include <unistd.h>
 
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/log.h"
@@ -20,5 +21,5 @@
 
 void SbLogRaw(const char* message) {
   __android_log_write(ANDROID_LOG_INFO, "starboard", message);
-  SbThreadSleep(::starboard::android::shared::GetLogSleepTime());
+  usleep(::starboard::android::shared::GetLogSleepTime());
 }

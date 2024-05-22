@@ -55,13 +55,13 @@ void BlockLevelReplacedBox::UpdateHorizontalMargins(
       maybe_margin_left, maybe_margin_right);
 }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void BlockLevelReplacedBox::DumpClassName(std::ostream* stream) const {
   *stream << "BlockLevelReplacedBox ";
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 }  // namespace layout
 }  // namespace cobalt

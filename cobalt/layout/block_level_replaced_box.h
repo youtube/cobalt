@@ -50,9 +50,9 @@ class BlockLevelReplacedBox : public ReplacedBox {
 
  protected:
   // From |Box|.
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   void DumpClassName(std::ostream* stream) const override;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   // From |ReplacedBox|.
   void UpdateHorizontalMargins(

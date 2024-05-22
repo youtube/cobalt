@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,18 +7,14 @@
 
 #include "base/memory/platform_shared_memory_region.h"
 #include "base/memory/read_only_shared_memory_region.h"
-#include "base/memory/shared_memory_handle.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
-// Check that the shared memory |handle| cannot be used to perform
-// a writable mapping with low-level system APIs like mmap(). Return true
-// in case of success (i.e. writable mappings are _not_ allowed), or false
-// otherwise.
-bool CheckReadOnlySharedMemoryHandleForTesting(SharedMemoryHandle handle);
-
+// Check that the shared memory |region| cannot be used to perform a writable
+// mapping with low-level system APIs like mmap(). Return true in case of
+// success (i.e. writable mappings are _not_ allowed), or false otherwise.
 bool CheckReadOnlyPlatformSharedMemoryRegionForTesting(
     subtle::PlatformSharedMemoryRegion region);
 
@@ -30,7 +26,7 @@ bool CheckReadOnlyPlatformSharedMemoryRegionForTesting(
 // be wrapped with {Writable,Unsafe,ReadOnly}SharedMemoryRegion.
 WritableSharedMemoryMapping MapAtForTesting(
     subtle::PlatformSharedMemoryRegion* region,
-    off_t offset,
+    uint64_t offset,
     size_t size);
 
 WritableSharedMemoryMapping MapForTesting(

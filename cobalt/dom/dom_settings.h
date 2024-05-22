@@ -39,14 +39,14 @@ class GlobalEnvironment;
 class JavaScriptEngine;
 }  // namespace script
 namespace dom {
-class MediaSource;
+class MediaSourceAttachment;
 class Window;
 
 // A package of global state to be passed around to script objects
 // that ask for it in their IDL custom attributes.
 class DOMSettings : public web::EnvironmentSettings {
  public:
-  typedef web::UrlRegistry<MediaSource> MediaSourceRegistry;
+  typedef web::UrlRegistry<MediaSourceAttachment> MediaSourceRegistry;
   // Hold optional settings for DOMSettings.
   struct Options {
     // Microphone options.

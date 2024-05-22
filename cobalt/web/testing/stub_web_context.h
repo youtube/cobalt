@@ -17,9 +17,11 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
-#include "base/message_loop/message_loop.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/task_environment.h"
+#include "cobalt/js_profiler/profiler_group.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/global_environment.h"
@@ -53,12 +55,29 @@ class StubWebContext final : public Context {
     global_environment_ = javascript_engine_->CreateGlobalEnvironment();
     blob_registry_.reset(new Blob::Registry);
     web_settings_.reset(new WebSettingsImpl());
+    profiler_group_.reset(
+        new js_profiler::ProfilerGroup(global_environment_->isolate()));
     network_module_.reset(new network::NetworkModule());
     fetcher_factory_.reset(new loader::FetcherFactory(
         network_module_.get(),
         URL::MakeBlobResolverCallback(blob_registry_.get())));
   }
-  ~StubWebContext() final { blob_registry_.reset(); }
+
+  ~StubWebContext() final {
+    network_module_.reset();
+    environment_settings_.reset();
+    blob_registry_.reset();
+
+    // Ensure that global_environment_ is null before it's destroyed.
+    scoped_refptr<script::GlobalEnvironment> global_environment(
+        std::move(global_environment_));
+    DCHECK(!global_environment_);
+    global_environment = nullptr;
+
+    javascript_engine_.reset();
+    fetcher_factory_.reset();
+    script_loader_factory_.reset();
+  }
 
   void AddEnvironmentSettingsChangeObserver(
       Context::EnvironmentSettingsChangeObserver* observer) final {}
@@ -67,8 +86,8 @@ class StubWebContext final : public Context {
 
   // WebInstance
   //
-  base::MessageLoop* message_loop() const final {
-    return base::MessageLoop::current();
+  base::SequencedTaskRunner* task_runner() const final {
+    return base::SequencedTaskRunner::GetCurrentDefault();
   }
   void ShutDownJavaScriptEngine() final { NOTREACHED(); }
   loader::FetcherFactory* fetcher_factory() const final {
@@ -108,6 +127,10 @@ class StubWebContext final : public Context {
   network::NetworkModule* network_module() const final {
     DCHECK(network_module_);
     return network_module_.get();
+  }
+  js_profiler::ProfilerGroup* profiler_group() const final {
+    DCHECK(profiler_group_);
+    return profiler_group_.get();
   }
 
   worker::ServiceWorkerContext* service_worker_context() const final {
@@ -202,12 +225,15 @@ class StubWebContext final : public Context {
     return service_worker_object_;
   }
 
+  void set_profiler_group(
+      std::unique_ptr<js_profiler::ProfilerGroup> profiler_group) {
+    profiler_group_ = std::move(profiler_group);
+  }
+
   // Other
  private:
   // Name of the web instance.
   const std::string name_;
-
-  base::test::ScopedTaskEnvironment env_;
 
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   std::unique_ptr<Blob::Registry> blob_registry_;
@@ -217,11 +243,16 @@ class StubWebContext final : public Context {
 
   std::unique_ptr<WebSettingsImpl> web_settings_;
   std::unique_ptr<network::NetworkModule> network_module_;
+  std::unique_ptr<js_profiler::ProfilerGroup> profiler_group_;
   // Environment Settings object
   std::unique_ptr<EnvironmentSettings> environment_settings_;
   UserAgentPlatformInfo* platform_info_ = nullptr;
   scoped_refptr<worker::ServiceWorkerObject> service_worker_object_;
   MockUserAgentPlatformInfo mock_platform_info_;
+
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::DEFAULT,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 }  // namespace testing

@@ -16,6 +16,7 @@
 #define COBALT_MEDIA_BASE_DECODE_TARGET_PROVIDER_H_
 
 #include "base/callback.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"

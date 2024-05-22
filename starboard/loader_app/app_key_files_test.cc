@@ -14,6 +14,8 @@
 
 #include "starboard/loader_app/app_key_files.h"
 
+#include <sys/stat.h>
+
 #include <string>
 #include <vector>
 
@@ -36,7 +38,12 @@ class AppKeyFilesTest : public testing::Test {
     dir_ = temp_path.data();
     dir_ += kSbFileSepString;
     dir_ += kTestAppKeyDir;
-    SbDirectoryCreate(dir_.c_str());
+    mkdir(dir_.c_str(), 0700);
+  }
+
+  bool FileExists(const char* path) {
+    struct stat info;
+    return stat(path, &info) == 0;
   }
 
   std::string dir_;
@@ -45,24 +52,24 @@ class AppKeyFilesTest : public testing::Test {
 TEST_F(AppKeyFilesTest, TestGoodKeyFile) {
   std::string file_path = GetGoodAppKeyFilePath(dir_, kTestAppKey);
   ASSERT_FALSE(file_path.empty());
-  if (SbFileExists(file_path.c_str())) {
+  if (FileExists(file_path.c_str())) {
     SbFileDelete(file_path.c_str());
   }
-  ASSERT_FALSE(SbFileExists(file_path.c_str()));
+  ASSERT_FALSE(FileExists(file_path.c_str()));
   ASSERT_TRUE(CreateAppKeyFile(file_path));
-  ASSERT_TRUE(SbFileExists(file_path.c_str()));
+  ASSERT_TRUE(FileExists(file_path.c_str()));
   SbFileDelete(file_path.c_str());
 }
 
 TEST_F(AppKeyFilesTest, TestBadKeyFile) {
   std::string file_path = GetBadAppKeyFilePath(dir_, kTestAppKey);
   ASSERT_FALSE(file_path.empty());
-  if (SbFileExists(file_path.c_str())) {
+  if (FileExists(file_path.c_str())) {
     SbFileDelete(file_path.c_str());
   }
-  ASSERT_FALSE(SbFileExists(file_path.c_str()));
+  ASSERT_FALSE(FileExists(file_path.c_str()));
   ASSERT_TRUE(CreateAppKeyFile(file_path));
-  ASSERT_TRUE(SbFileExists(file_path.c_str()));
+  ASSERT_TRUE(FileExists(file_path.c_str()));
   SbFileDelete(file_path.c_str());
 }
 
@@ -87,7 +94,7 @@ TEST_F(AppKeyFilesTest, TestAnyGoodKeyFile) {
   std::string file_path = GetGoodAppKeyFilePath(dir_, kTestAppKey);
   ASSERT_FALSE(file_path.empty());
   ASSERT_TRUE(CreateAppKeyFile(file_path));
-  ASSERT_TRUE(SbFileExists(file_path.c_str()));
+  ASSERT_TRUE(FileExists(file_path.c_str()));
   ASSERT_TRUE(AnyGoodAppKeyFile(dir_));
   SbFileDelete(file_path.c_str());
 }

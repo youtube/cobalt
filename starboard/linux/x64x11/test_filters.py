@@ -14,6 +14,12 @@
 """Starboard Linux X64 X11 Platform Test Filters."""
 
 from starboard.linux.shared import test_filters as shared_test_filters
+from starboard.tools.testing import test_filter
+
+_FILTERED_TESTS = {
+    # TODO(b/321315344): Re-enable once the coverage build is fixed.
+    'nplb': ['PosixMemoryMapTest.CanChangeMemoryProtection',],
+}
 
 
 def CreateTestFilters():
@@ -25,4 +31,6 @@ class LinuxX64X11TestFilters(shared_test_filters.TestFilters):
 
   def GetTestFilters(self):
     filters = super().GetTestFilters()
+    for target, tests in _FILTERED_TESTS.items():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

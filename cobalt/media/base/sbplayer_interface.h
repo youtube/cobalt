@@ -15,7 +15,9 @@
 #ifndef COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
 #define COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
 
+#include "base/time/time.h"
 #include "cobalt/media/base/cval_stats.h"
+#include "cobalt/media/base/metrics_provider.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/player.h"
 
@@ -40,7 +42,8 @@ class SbPlayerInterface {
   virtual SbPlayerOutputMode GetPreferredOutputMode(
       const SbPlayerCreationParam* creation_param) = 0;
   virtual void Destroy(SbPlayer player) = 0;
-  virtual void Seek(SbPlayer player, int64_t seek_to_timestamp, int ticket) = 0;
+  virtual void Seek(SbPlayer player, base::TimeDelta seek_to_timestamp,
+                    int ticket) = 0;
 
   virtual bool IsEnhancedAudioExtensionEnabled() const = 0;
   virtual void WriteSamples(SbPlayer player, SbMediaType sample_type,
@@ -92,6 +95,9 @@ class SbPlayerInterface {
     cval_stats_.Enable(should_enable);
   }
   CValStats cval_stats_;
+  MediaMetricsProvider media_metrics_provider_;
+
+  bool SetDecodeToTexturePreferred(bool preferred);
 };
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
@@ -108,7 +114,8 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   SbPlayerOutputMode GetPreferredOutputMode(
       const SbPlayerCreationParam* creation_param) override;
   void Destroy(SbPlayer player) override;
-  void Seek(SbPlayer player, int64_t seek_to_timestamp, int ticket) override;
+  void Seek(SbPlayer player, base::TimeDelta seek_to_timestamp,
+            int ticket) override;
   bool IsEnhancedAudioExtensionEnabled() const override;
   void WriteSamples(SbPlayer player, SbMediaType sample_type,
                     const SbPlayerSampleInfo* sample_infos,

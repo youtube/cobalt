@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,29 +8,43 @@
 #include <map>
 #include <memory>
 
-#include "base/macros.h"
-#include "base/threading/thread_checker.h"
+#include "base/files/file_path.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_config.h"
 #include "net/dns/dns_hosts.h"
+#include "net/dns/serial_worker.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace net {
 
 // Service for reading system DNS settings, on demand or when signalled by
-// internal watchers and NetworkChangeNotifier.
+// internal watchers and NetworkChangeNotifier. This object is not thread-safe
+// and methods may perform blocking I/O so methods must be called on a sequence
+// that allows blocking (i.e. base::MayBlock).
 class NET_EXPORT_PRIVATE DnsConfigService {
  public:
   // Callback interface for the client, called on the same thread as
   // ReadConfig() and WatchConfig().
-  typedef base::Callback<void(const DnsConfig& config)> CallbackType;
+  typedef base::RepeatingCallback<void(const DnsConfig& config)> CallbackType;
 
-  // Creates the platform-specific DnsConfigService.
+  // DHCP and user-induced changes are on the order of seconds, so 150ms should
+  // not add perceivable delay. On the other hand, config readers should finish
+  // within 150ms with the rare exception of I/O block or extra large HOSTS.
+  static const base::TimeDelta kInvalidationTimeout;
+
+  // Creates the platform-specific DnsConfigService. May return |nullptr| if
+  // reading system DNS settings is not supported on the current platform.
   static std::unique_ptr<DnsConfigService> CreateSystemService();
 
-  DnsConfigService();
+  DnsConfigService(const DnsConfigService&) = delete;
+  DnsConfigService& operator=(const DnsConfigService&) = delete;
+
   virtual ~DnsConfigService();
 
   // Attempts to read the configuration. Will run |callback| when succeeded.
@@ -43,18 +57,120 @@ class NET_EXPORT_PRIVATE DnsConfigService {
   // Might require MessageLoopForIO.
   void WatchConfig(const CallbackType& callback);
 
+  // Triggers invalidation and re-read of the current configuration (followed by
+  // invocation of the callback). For use only on platforms expecting
+  // network-stack-external notifications of DNS config changes.
+  virtual void RefreshConfig();
+
+  void set_watch_failed_for_testing(bool watch_failed) {
+    watch_failed_ = watch_failed;
+  }
+
+  // Simulates a watcher trigger by calling OnConfigChanged().
+  void TriggerOnConfigChangedForTesting(bool succeeded) {
+    // Directly call ...Delayed() version to skip past delay logic.
+    OnConfigChangedDelayed(succeeded);
+  }
+
  protected:
-  enum WatchStatus {
-    DNS_CONFIG_WATCH_STARTED = 0,
-    DNS_CONFIG_WATCH_FAILED_TO_START_CONFIG,
-    DNS_CONFIG_WATCH_FAILED_TO_START_HOSTS,
-    DNS_CONFIG_WATCH_FAILED_CONFIG,
-    DNS_CONFIG_WATCH_FAILED_HOSTS,
-    DNS_CONFIG_WATCH_MAX,
+  // Watcher to observe for changes to DNS config or HOSTS (via overriding
+  // `Watch()` with platform specifics) and trigger necessary refreshes on
+  // changes.
+  class NET_EXPORT_PRIVATE Watcher {
+   public:
+    // `service` is expected to own the created Watcher and thus stay valid for
+    // the lifetime of the created Watcher.
+    explicit Watcher(DnsConfigService& service);
+    virtual ~Watcher();
+
+    Watcher(const Watcher&) = delete;
+    Watcher& operator=(const Watcher&) = delete;
+
+    virtual bool Watch() = 0;
+
+   protected:
+    // Hooks for detected changes. `succeeded` false to indicate that there was
+    // an error watching for the change.
+    void OnConfigChanged(bool succeeded);
+    void OnHostsChanged(bool succeeded);
+
+    void CheckOnCorrectSequence();
+
+   private:
+    void OnConfigChangedDelayed(bool success);
+
+    // Back pointer. `this` is expected to be owned by `service_`, making this
+    // raw pointer safe.
+    const raw_ptr<DnsConfigService> service_;
+
+    SEQUENCE_CHECKER(sequence_checker_);
   };
 
+  // Reader of HOSTS files. In this base implementation, uses standard logic
+  // appropriate to most platforms to read the HOSTS file located at
+  // `hosts_file_path`.
+  class NET_EXPORT_PRIVATE HostsReader : public SerialWorker {
+   public:
+    // `service` is expected to own the created reader and thus stay valid for
+    // the lifetime of the created reader.
+    HostsReader(base::FilePath::StringPieceType hosts_file_path,
+                DnsConfigService& service);
+    ~HostsReader() override;
+
+    HostsReader(const HostsReader&) = delete;
+    HostsReader& operator=(const HostsReader&) = delete;
+
+   protected:
+    class NET_EXPORT_PRIVATE WorkItem : public SerialWorker::WorkItem {
+     public:
+      explicit WorkItem(std::unique_ptr<DnsHostsParser> dns_hosts_parser);
+      ~WorkItem() override;
+
+      // Override if needed to implement platform-specific behavior, e.g. for a
+      // platform-specific HOSTS format.
+      virtual absl::optional<DnsHosts> ReadHosts();
+
+      // Adds any necessary additional entries to the given `DnsHosts`. Returns
+      // false on failure.
+      //
+      // Override if needed to implement platform-specific behavior.
+      virtual bool AddAdditionalHostsTo(DnsHosts& in_out_dns_hosts);
+
+      // SerialWorker::WorkItem:
+      void DoWork() final;
+
+     private:
+      friend HostsReader;
+
+      absl::optional<DnsHosts> hosts_;
+      std::unique_ptr<DnsHostsParser> dns_hosts_parser_;
+    };
+
+    // SerialWorker:
+    std::unique_ptr<SerialWorker::WorkItem> CreateWorkItem() override;
+    bool OnWorkFinished(
+        std::unique_ptr<SerialWorker::WorkItem> work_item) final;
+
+   private:
+    // Raw pointer to owning DnsConfigService. This must never be accessed
+    // inside DoWork(), since service may be destroyed while SerialWorker is
+    // running on worker thread.
+    const raw_ptr<DnsConfigService> service_;
+
+    const base::FilePath hosts_file_path_;
+  };
+
+  // On detecting config change, will post and wait `config_change_delay` before
+  // triggering refreshes. Will trigger refreshes synchronously on nullopt.
+  // Useful for platforms where multiple changes may be made and detected before
+  // the config is stabilized and ready to be read.
+  explicit DnsConfigService(base::FilePath::StringPieceType hosts_file_path,
+                            absl::optional<base::TimeDelta>
+                                config_change_delay = base::Milliseconds(50));
+
   // Immediately attempts to read the current configuration.
-  virtual void ReadNow() = 0;
+  virtual void ReadConfigNow() = 0;
+  virtual void ReadHostsNow();
   // Registers system watchers. Returns true iff succeeds.
   virtual bool StartWatching() = 0;
 
@@ -64,13 +180,11 @@ class NET_EXPORT_PRIVATE DnsConfigService {
   void InvalidateHosts();
 
   // Called with new config. |config|.hosts is ignored.
-  void OnConfigRead(const DnsConfig& config);
+  void OnConfigRead(DnsConfig config);
   // Called with new hosts. Rest of the config is assumed unchanged.
-  void OnHostsRead(const DnsHosts& hosts);
+  void OnHostsRead(DnsHosts hosts);
 
-  void set_watch_failed(bool value) { watch_failed_ = value; }
-
-  THREAD_CHECKER(thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
 
  private:
   // The timer counts from the last Invalidate* until complete config is read.
@@ -79,32 +193,39 @@ class NET_EXPORT_PRIVATE DnsConfigService {
   // Called when the config becomes complete. Stops the timer.
   void OnCompleteConfig();
 
+  // Hooks for Watcher change notifications. `succeeded` false to indicate that
+  // there was an error watching for the change.
+  void OnConfigChanged(bool succeeded);
+  void OnHostsChanged(bool succeeded);
+  void OnConfigChangedDelayed(bool succeeded);
+
   CallbackType callback_;
 
   DnsConfig dns_config_;
 
   // True if any of the necessary watchers failed. In that case, the service
   // will communicate changes via OnTimeout, but will only send empty DnsConfig.
-  bool watch_failed_;
+  bool watch_failed_ = false;
   // True after On*Read, before Invalidate*. Tells if the config is complete.
-  bool have_config_;
-  bool have_hosts_;
+  bool have_config_ = false;
+  bool have_hosts_ = false;
   // True if receiver needs to be updated when the config becomes complete.
-  bool need_update_;
+  bool need_update_ = false;
   // True if the last config sent was empty (instead of |dns_config_|).
   // Set when |timer_| expires.
-  bool last_sent_empty_;
+  bool last_sent_empty_ = true;
 
-  // Initialized and updated on Invalidate* call.
-  base::TimeTicks last_invalidate_config_time_;
-  base::TimeTicks last_invalidate_hosts_time_;
-  // Initialized and updated when |timer_| expires.
-  base::TimeTicks last_sent_empty_time_;
+  const absl::optional<base::TimeDelta> config_change_delay_;
+  const base::FilePath hosts_file_path_;
+
+  // Created only if needed in ReadHostsNow() to avoid creating unnecessarily if
+  // overridden for a platform-specific implementation.
+  std::unique_ptr<HostsReader> hosts_reader_;
 
   // Started in Invalidate*, cleared in On*Read.
   base::OneShotTimer timer_;
 
-  DISALLOW_COPY_AND_ASSIGN(DnsConfigService);
+  base::WeakPtrFactory<DnsConfigService> weak_factory_{this};
 };
 
 }  // namespace net

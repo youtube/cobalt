@@ -1,16 +1,18 @@
-/* Copyright (c) 2016, Google Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
+// Copyright (c) 2016, Google Inc.
+//
+// Permission to use, copy, modify, and/or distribute this software for any
+// purpose with or without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+//go:build ignore
 
 package main
 
@@ -31,8 +33,19 @@ var (
 
 func mapName(path string) string {
 	path = strings.Replace(path, filepath.FromSlash("/fipsmodule/"), string(filepath.Separator), 1)
-	switch filepath.ToSlash(path) {
-	case "crypto/cipher_extra/asm/aes128gcmsiv-x86_64.pl", "crypto/cipher_extra/asm/chacha20_poly1305_x86_64.pl", "crypto/rand/asm/rdrand-x86_64.pl":
+	pathSlash := filepath.ToSlash(path)
+	if strings.HasPrefix(pathSlash, "crypto/test/") {
+		return ""
+	}
+	switch pathSlash {
+	case "crypto/aes/asm/vpaes-armv7.pl",
+		"crypto/cipher_extra/asm/aes128gcmsiv-x86_64.pl",
+		"crypto/cipher_extra/asm/chacha20_poly1305_x86_64.pl",
+		"crypto/ec/asm/p256_beeu-x86_64-asm.pl",
+		"crypto/modes/asm/ghash-neon-armv8.pl",
+		"crypto/modes/asm/ghash-ssse3-x86.pl",
+		"crypto/modes/asm/ghash-ssse3-x86_64.pl",
+		"crypto/rand/asm/rdrand-x86_64.pl":
 		return ""
 	case "crypto/ec/asm/p256-x86_64-asm.pl":
 		return filepath.FromSlash("crypto/ec/asm/ecp_nistz256-x86_64.pl")

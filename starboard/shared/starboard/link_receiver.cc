@@ -39,14 +39,12 @@ namespace {
 scoped_ptr<Socket> CreateServerSocket(SbSocketAddressType address_type) {
   scoped_ptr<Socket> socket(new Socket(address_type));
   if (!socket->IsValid()) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketCreate failed";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketCreate failed";
     return scoped_ptr<Socket>().Pass();
   }
 
   if (!socket->SetReuseAddress(true)) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketSetReuseAddress failed";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketSetReuseAddress failed";
     return scoped_ptr<Socket>().Pass();
   }
 
@@ -69,8 +67,8 @@ scoped_ptr<Socket> CreateLocallyBoundSocket(SbSocketAddressType address_type,
   }
   SbSocketError result = socket->Bind(&address);
   if (result != kSbSocketOk) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketBind to " << port << " failed: " << result;
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketBind to " << port
+                  << " failed: " << result;
     return scoped_ptr<Socket>().Pass();
   }
 
@@ -117,8 +115,7 @@ std::string GetTemporaryDirectory() {
   bool has_temp = SbSystemGetPath(kSbSystemPathTempDirectory, temp_path.get(),
                                   kMaxPathLength);
   if (!has_temp) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "No temporary directory.";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "No temporary directory.";
     return "";
   }
 
@@ -136,8 +133,7 @@ void CreateTemporaryFile(const char* name, const char* contents, int size) {
   path += name;
   ScopedFile file(path.c_str(), kSbFileCreateAlways | kSbFileWrite);
   if (!file.IsValid()) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "Unable to create: " << path;
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "Unable to create: " << path;
     return;
   }
 
@@ -212,7 +208,7 @@ class LinkReceiver::Impl {
   int actual_port_;
 
   // The thread owned by this server.
-  SbThread thread_;
+  pthread_t thread_;
 
   // An atomic flag that indicates whether to quit to the server thread.
   atomic_bool quit_;
@@ -239,24 +235,22 @@ class LinkReceiver::Impl {
 LinkReceiver::Impl::Impl(Application* application, int port)
     : application_(application),
       specified_port_(port),
-      thread_(kSbThreadInvalid),
+      thread_(0),
       waiter_(kSbSocketWaiterInvalid) {
-  thread_ =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                     "LinkReceiver", &LinkReceiver::Impl::RunThread, this);
+  pthread_create(&thread_, nullptr, &LinkReceiver::Impl::RunThread, this);
 
   // Block until waiter is set.
   waiter_initialized_.Take();
 }
 
 LinkReceiver::Impl::~Impl() {
-  SB_DCHECK(!SbThreadIsEqual(thread_, SbThreadGetCurrent()));
+  SB_DCHECK(!pthread_equal(thread_, pthread_self()));
   quit_.store(true);
   if (SbSocketWaiterIsValid(waiter_)) {
     SbSocketWaiterWakeUp(waiter_);
   }
   destroy_waiter_.Put();
-  SbThreadJoin(thread_, NULL);
+  pthread_join(thread_, NULL);
 }
 
 void LinkReceiver::Impl::Run() {
@@ -322,8 +316,7 @@ bool LinkReceiver::Impl::AddForAccept(Socket* socket) {
   if (!SbSocketWaiterAdd(waiter_, socket->socket(), this,
                          &LinkReceiver::Impl::HandleAccept,
                          kSbSocketWaiterInterestRead, true)) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketWaiterAdd failed.";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketWaiterAdd failed.";
     return false;
   }
   return true;
@@ -333,8 +326,7 @@ bool LinkReceiver::Impl::AddForRead(Connection* connection) {
   if (!SbSocketWaiterAdd(waiter_, connection->socket->socket(), this,
                          &LinkReceiver::Impl::HandleRead,
                          kSbSocketWaiterInterestRead, false)) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketWaiterAdd failed.";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketWaiterAdd failed.";
     return false;
   }
   return true;
@@ -393,6 +385,7 @@ void LinkReceiver::Impl::OnReadReady(Connection* connection) {
 // static
 void* LinkReceiver::Impl::RunThread(void* context) {
   SB_DCHECK(context);
+  pthread_setname_np(pthread_self(), "LinkReceiver");
   reinterpret_cast<LinkReceiver::Impl*>(context)->Run();
   return NULL;
 }

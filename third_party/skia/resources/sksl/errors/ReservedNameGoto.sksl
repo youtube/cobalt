@@ -1,0 +1,5 @@
+int goto;
+
+/*%%*
+'goto' is a reserved word
+*%%*/

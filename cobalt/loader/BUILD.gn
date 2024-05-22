@@ -114,7 +114,7 @@ static_library("loader") {
     "//cobalt/renderer/test/png_utils",
     "//cobalt/web",
     "//net",
-    "//third_party/libjpeg-turbo:libjpeg",
+    "//third_party/libjpeg_turbo:libjpeg",
     "//third_party/libpng",
     "//third_party/libwebp",
     "//third_party/protobuf:protobuf_lite",
@@ -175,6 +175,7 @@ target(gtest_target_type, "loader_test") {
 
   sources = [
     "blob_fetcher_test.cc",
+    "fetcher_cache_test.cc",
     "fetcher_factory_test.cc",
     "fetcher_test.h",
     "file_fetcher_test.cc",
@@ -183,6 +184,7 @@ target(gtest_target_type, "loader_test") {
     "image/image_decoder_unit_test.cc",
     "loader_test.cc",
     "mesh/mesh_decoder_test.cc",
+    "net_fetcher_test.cc",
     "text_decoder_test.cc",
   ]
 
@@ -201,6 +203,7 @@ target(gtest_target_type, "loader_test") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/ots:ots",
+    "//url",
   ]
 
   data_deps = [ ":copy_loader_test_data" ]

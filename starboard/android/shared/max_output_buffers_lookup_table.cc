@@ -15,8 +15,8 @@
 #include "starboard/android/shared/max_output_buffers_lookup_table.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/once.h"
 #include "starboard/common/string.h"
-#include "starboard/once.h"
 
 namespace starboard {
 namespace android {

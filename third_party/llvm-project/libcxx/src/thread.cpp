@@ -75,7 +75,8 @@ thread::detach()
 unsigned
 thread::hardware_concurrency() noexcept
 {
-#if defined(_SC_NPROCESSORS_ONLN)
+// Excluded from Modular builds as Starboard doesn't provide sysconf
+#if defined(_SC_NPROCESSORS_ONLN) && !SB_IS(MODULAR)
     long result = sysconf(_SC_NPROCESSORS_ONLN);
     // sysconf returns -1 if the name is invalid, the option does not exist or
     // does not have a definite limit.

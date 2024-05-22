@@ -19,9 +19,9 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/memory/ref_counted.h"
+#include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/base/wrap_main.h"
-#include "cobalt/media/base/bind_to_loop.h"
 #include "cobalt/media/sandbox/fuzzer_app.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/media_source_demuxer.h"
@@ -34,7 +34,6 @@ namespace sandbox {
 namespace {
 
 using base::Time;
-using ::media::BindToCurrentLoop;
 using ::media::DecoderBuffer;
 using ::media::ShellRawVideoDecoder;
 using ::media::VideoFrame;
@@ -52,9 +51,10 @@ class VideoDecoderFuzzer {
 
   void Fuzz() {
     UpdateCurrentAUBuffer();
-    decoder_->Decode(current_au_buffer_, BindToCurrentLoop(base::Bind(
-                                             &VideoDecoderFuzzer::FrameDecoded,
-                                             base::Unretained(this))));
+    decoder_->Decode(
+        current_au_buffer_,
+        BindPostTaskToCurrentDefault(base::Bind(
+            &VideoDecoderFuzzer::FrameDecoded, base::Unretained(this))));
     base::RunLoop().RunUntilIdle();
     DCHECK(IsEnded());
   }
@@ -103,8 +103,8 @@ class VideoDecoderFuzzer {
     if (!IsEnded()) {
       decoder_->Decode(
           current_au_buffer_,
-          BindToCurrentLoop(base::Bind(&VideoDecoderFuzzer::FrameDecoded,
-                                       base::Unretained(this))));
+          BindPostTaskToCurrentDefault(base::Bind(
+              &VideoDecoderFuzzer::FrameDecoded, base::Unretained(this))));
     }
   }
   bool IsEnded() const {

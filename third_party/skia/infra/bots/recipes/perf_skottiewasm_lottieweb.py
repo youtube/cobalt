@@ -5,8 +5,10 @@
 # Recipe which runs Skottie-WASM and Lottie-Web perf.
 
 import calendar
+import json
 import re
 
+PYTHON_VERSION_COMPATIBILITY = "PY3"
 
 # trim
 DEPS = [
@@ -26,14 +28,13 @@ DEPS = [
   'vars',
 ]
 
-LOTTIE_WEB_BLACKLIST = [
+LOTTIE_WEB_EXCLUDE = [
   # See https://bugs.chromium.org/p/skia/issues/detail?id=9187#c4
   'lottiefiles.com - Progress Success.json',
   # Fails with "val2 is not defined".
   'lottiefiles.com - VR.json',
   'vr_animation.json',
   # Times out.
-  'obama_caricature.json',
   'lottiefiles.com - Nudge.json',
   'lottiefiles.com - Retweet.json',
   # Trace file has majority main_frame_aborted terminations in it and < 25
@@ -44,7 +45,7 @@ LOTTIE_WEB_BLACKLIST = [
   'stacking.json',
 ]
 
-SKOTTIE_WASM_BLACKLIST = [
+SKOTTIE_WASM_EXCLUDE = [
   # Trace file has majority main_frame_aborted terminations in it and < 25
   # occurrences of submitted_frame + missed_frame.
   # Below descriptions are added from fmalita@'s comments in
@@ -73,7 +74,7 @@ SKOTTIE_WASM_BLACKLIST = [
 ]
 
 # These files work in SVG but not in Canvas.
-LOTTIE_WEB_CANVAS_BLACKLIST = LOTTIE_WEB_BLACKLIST + [
+LOTTIE_WEB_CANVAS_EXCLUDE = LOTTIE_WEB_EXCLUDE + [
   'Hello World.json',
   'interactive_menu.json',
   'Name.json',
@@ -82,7 +83,7 @@ LOTTIE_WEB_CANVAS_BLACKLIST = LOTTIE_WEB_BLACKLIST + [
 
 def RunSteps(api):
   api.vars.setup()
-  api.flavor.setup()
+  api.flavor.setup(None)
   checkout_root = api.path['start_dir']
   buildername = api.properties['buildername']
   node_path = api.path['start_dir'].join('node', 'node', 'bin', 'node')
@@ -104,7 +105,7 @@ def RunSteps(api):
         '--canvaskit_wasm', canvaskit_wasm_path,
     ]
     lottie_files = [x for x in lottie_files
-                    if api.path.basename(x) not in SKOTTIE_WASM_BLACKLIST]
+                    if api.path.basename(x) not in SKOTTIE_WASM_EXCLUDE]
   elif 'LottieWeb' in buildername:
     source_type = 'lottie-web'
     renderer = 'lottie-web'
@@ -112,11 +113,11 @@ def RunSteps(api):
       backend = 'canvas'
       lottie_files = [
           x for x in lottie_files
-          if api.path.basename(x) not in LOTTIE_WEB_CANVAS_BLACKLIST]
+          if api.path.basename(x) not in LOTTIE_WEB_CANVAS_EXCLUDE]
     else:
       backend = 'svg'
       lottie_files = [x for x in lottie_files
-                      if api.path.basename(x) not in LOTTIE_WEB_BLACKLIST]
+                      if api.path.basename(x) not in LOTTIE_WEB_EXCLUDE]
 
     perf_app_dir = checkout_root.join('skia', 'tools', 'lottie-web-perf')
     lottie_web_js_path = perf_app_dir.join('lottie-web-perf.js')
@@ -196,13 +197,9 @@ def RunSteps(api):
   ts = int(calendar.timegm(now.utctimetuple()))
   json_path = api.flavor.host_dirs.perf_data_dir.join(
       'perf_%s_%d.json' % (api.properties['revision'], ts))
-  api.run(
-      api.python.inline,
-      'write output JSON',
-      program="""import json
-with open('%s', 'w') as outfile:
-  json.dump(obj=%s, fp=outfile, indent=4)
-  """ % (json_path, perf_json))
+  json_contents = json.dumps(
+      perf_json, indent=4, sort_keys=True, separators=(',', ': '))
+  api.file.write_text('write output JSON', json_path, json_contents)
 
 
 def parse_trace(trace_json, lottie_filename, api, renderer):
@@ -230,10 +227,10 @@ def parse_trace(trace_json, lottie_filename, api, renderer):
   renderer = sys.argv[3]  # Unused for now but might be useful in the future.
 
   # Output data about the GPU that was used.
-  print 'GPU data:'
-  print trace_json['metadata'].get('gpu-gl-renderer')
-  print trace_json['metadata'].get('gpu-driver')
-  print trace_json['metadata'].get('gpu-gl-vendor')
+  print('GPU data:')
+  print(trace_json['metadata'].get('gpu-gl-renderer'))
+  print(trace_json['metadata'].get('gpu-driver'))
+  print(trace_json['metadata'].get('gpu-gl-vendor'))
 
   erroneous_termination_statuses = [
       'replaced_by_new_reporter_at_same_stage',
@@ -261,7 +258,7 @@ def parse_trace(trace_json, lottie_filename, api, renderer):
       elif args and (args.get('termination_status') in
                      accepted_termination_statuses):
         if not frame_id_to_start_ts.get(frame_id):
-          print '[No start ts found for %s]' % frame_id
+          print('[No start ts found for %s]' % frame_id)
           continue
         current_frame_duration = trace['ts'] - frame_id_to_start_ts[frame_id]
         total_frames += 1
@@ -273,15 +270,15 @@ def parse_trace(trace_json, lottie_filename, api, renderer):
 
         # We are done with this frame_id so remove it from the dict.
         frame_id_to_start_ts.pop(frame_id)
-        print '%d (%s with %s): %d' % (
+        print('%d (%s with %s): %d' % (
             total_frames, frame_id, args['termination_status'],
-            current_frame_duration)
+            current_frame_duration))
       elif args and (args.get('termination_status') in
                      erroneous_termination_statuses):
         # Invalidate previously collected results for this frame_id.
         if frame_id_to_start_ts.get(frame_id):
-          print '[Invalidating %s due to %s]' % (
-              frame_id, args['termination_status'])
+          print('[Invalidating %s due to %s]' % (
+              frame_id, args['termination_status']))
           frame_id_to_start_ts.pop(frame_id)
 
   # Calculate metrics for total completed frames.
@@ -291,8 +288,8 @@ def parse_trace(trace_json, lottie_filename, api, renderer):
                     total_completed_frames)
   # Get frame avg/min/max for the middle 25 frames.
   start = (total_completed_frames - 25)/2
-  print 'Got %d total completed frames. Using indexes [%d, %d).' % (
-      total_completed_frames, start, start+25)
+  print('Got %d total completed frames. Using indexes [%d, %d).' % (
+      total_completed_frames, start, start+25))
   frame_max = 0
   frame_min = 0
   frame_cumulative = 0
@@ -321,8 +318,8 @@ def parse_trace(trace_json, lottie_filename, api, renderer):
                     total_drawn_frames)
   # Get drawn frame avg/min/max from the middle 25 frames.
   start = (total_drawn_frames - 25)/2
-  print 'Got %d total drawn frames. Using indexes [%d-%d).' % (
-        total_drawn_frames, start, start+25)
+  print('Got %d total drawn frames. Using indexes [%d-%d).' % (
+        total_drawn_frames, start, start+25))
   for frame_id, duration in drawn_frame_id_and_duration[start:start+25]:
     drawn_frame_max = max(drawn_frame_max, duration)
     drawn_frame_min = (min(drawn_frame_min, duration)
@@ -333,7 +330,7 @@ def parse_trace(trace_json, lottie_filename, api, renderer):
   perf_results['drawn_frame_min_us'] = drawn_frame_min
   perf_results['drawn_frame_avg_us'] = drawn_frame_cumulative/25
 
-  print 'Final perf_results dict: %s' % perf_results
+  print('Final perf_results dict: %s' % perf_results)
 
   # Write perf_results to the output json.
   with open(output_json_file, 'w') as f:
@@ -359,7 +356,7 @@ def GenTests(api):
   }
 
 
-  skottie_cpu_buildername = ('Perf-Debian9-EMCC-GCE-CPU-AVX2-wasm-Release-All-'
+  skottie_cpu_buildername = ('Perf-Debian10-EMCC-GCE-CPU-AVX2-wasm-Release-All-'
                              'SkottieWASM')
   yield (
       api.test('skottie_wasm_perf') +
@@ -399,7 +396,7 @@ def GenTests(api):
                     api.json.output(parse_trace_json))
   )
 
-  skottie_gpu_buildername = ('Perf-Debian9-EMCC-NUC7i5BNK-GPU-IntelIris640-'
+  skottie_gpu_buildername = ('Perf-Debian10-EMCC-NUC7i5BNK-GPU-IntelIris640-'
                              'wasm-Release-All-SkottieWASM')
   yield (
       api.test('skottie_wasm_perf_gpu') +
@@ -417,7 +414,7 @@ def GenTests(api):
                     api.json.output(parse_trace_json))
   )
 
-  lottieweb_cpu_buildername = ('Perf-Debian9-none-GCE-CPU-AVX2-x86_64-Release-'
+  lottieweb_cpu_buildername = ('Perf-Debian10-none-GCE-CPU-AVX2-x86_64-Release-'
                                'All-LottieWeb')
   yield (
       api.test('lottie_web_perf') +
@@ -458,7 +455,7 @@ def GenTests(api):
   )
 
   lottieweb_canvas_cpu_buildername = (
-      'Perf-Debian9-none-GCE-CPU-AVX2-x86_64-Release-All-LottieWeb_Canvas')
+      'Perf-Debian10-none-GCE-CPU-AVX2-x86_64-Release-All-LottieWeb_Canvas')
   yield (
       api.test('lottie_web_canvas_perf') +
       api.properties(buildername=lottieweb_canvas_cpu_buildername,
@@ -497,7 +494,7 @@ def GenTests(api):
                     api.json.output(parse_trace_json))
   )
 
-  unrecognized_buildername = ('Perf-Debian9-none-GCE-CPU-AVX2-x86_64-Release-'
+  unrecognized_buildername = ('Perf-Debian10-none-GCE-CPU-AVX2-x86_64-Release-'
                               'All-Unrecognized')
   yield (
       api.test('unrecognized_builder') +

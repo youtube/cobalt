@@ -18,8 +18,8 @@
 
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/progressive/progressive_parser.h"
-#include "third_party/chromium/media/base/decoder_buffer.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/timestamp_constants.h"
 
 namespace cobalt {
 namespace media {
@@ -32,7 +32,7 @@ using ::media::DemuxerStream;
 bool ReadBytes(uint64 offset, size_t size, uint8* buffer,
                DataSourceReader* reader) {
   if (reader->BlockingRead(offset, size, buffer) != size) {
-    DLOG(ERROR) << "unable to download AU";
+    LOG(ERROR) << "unable to download AU";
     return false;
   }
   return true;
@@ -125,7 +125,7 @@ bool AudioAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
     return false;
 
   if (!parser_->Prepend(this, buffer)) {
-    DLOG(ERROR) << "prepend fail";
+    LOG(ERROR) << "prepend fail";
     return false;
   }
 
@@ -237,7 +237,7 @@ bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
   }
 
   if (au_left != 0) {
-    DLOG(ERROR) << "corrupted NALU";
+    LOG(ERROR) << "corrupted NALU";
     return false;
   }
 
@@ -245,7 +245,7 @@ bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
   buffer->shrink_to(size_);
 
   if (!parser_->Prepend(this, buffer)) {
-    DLOG(ERROR) << "prepend fail";
+    LOG(ERROR) << "prepend fail";
     return false;
   }
 

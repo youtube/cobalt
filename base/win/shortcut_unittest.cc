@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,10 +11,10 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/macros.h"
 #include "base/test/test_file_util.h"
 #include "base/test/test_shortcut_win.h"
 #include "base/win/scoped_com_initializer.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -31,12 +31,13 @@ class ShortcutTest : public testing::Test {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(temp_dir_2_.CreateUniqueTempDir());
 
-    link_file_ = temp_dir_.GetPath().Append(L"My Link.lnk");
+    link_file_ = temp_dir_.GetPath().Append(FILE_PATH_LITERAL("My Link.lnk"));
 
     // Shortcut 1's properties
     {
-      const FilePath target_file(temp_dir_.GetPath().Append(L"Target 1.txt"));
-      WriteFile(target_file, kFileContents, arraysize(kFileContents));
+      const FilePath target_file(
+          temp_dir_.GetPath().Append(FILE_PATH_LITERAL("Target 1.txt")));
+      WriteFile(target_file, kFileContents, std::size(kFileContents));
 
       link_properties_.set_target(target_file);
       link_properties_.set_working_dir(temp_dir_.GetPath());
@@ -57,8 +58,9 @@ class ShortcutTest : public testing::Test {
 
     // Shortcut 2's properties (all different from properties of shortcut 1).
     {
-      const FilePath target_file_2(temp_dir_.GetPath().Append(L"Target 2.txt"));
-      WriteFile(target_file_2, kFileContents2, arraysize(kFileContents2));
+      const FilePath target_file_2(
+          temp_dir_.GetPath().Append(FILE_PATH_LITERAL("Target 2.txt")));
+      WriteFile(target_file_2, kFileContents2, std::size(kFileContents2));
 
       FilePath icon_path_2;
       CreateTemporaryFileInDir(temp_dir_.GetPath(), &icon_path_2);
@@ -92,9 +94,9 @@ class ShortcutTest : public testing::Test {
 
 TEST_F(ShortcutTest, CreateAndResolveShortcutProperties) {
   // Test all properties.
-  FilePath file_1(temp_dir_.GetPath().Append(L"Link1.lnk"));
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      file_1, link_properties_, SHORTCUT_CREATE_ALWAYS));
+  FilePath file_1(temp_dir_.GetPath().Append(FILE_PATH_LITERAL("Link1.lnk")));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(file_1, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
   ShortcutProperties properties_read_1;
   ASSERT_TRUE(ResolveShortcutProperties(
@@ -114,11 +116,11 @@ TEST_F(ShortcutTest, CreateAndResolveShortcutProperties) {
             properties_read_1.toast_activator_clsid);
 
   // Test simple shortcut with no special properties set.
-  FilePath file_2(temp_dir_.GetPath().Append(L"Link2.lnk"));
+  FilePath file_2(temp_dir_.GetPath().Append(FILE_PATH_LITERAL("Link2.lnk")));
   ShortcutProperties only_target_properties;
   only_target_properties.set_target(link_properties_.target);
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      file_2, only_target_properties, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(file_2, only_target_properties,
+                                         ShortcutOperation::kCreateAlways));
 
   ShortcutProperties properties_read_2;
   ASSERT_TRUE(ResolveShortcutProperties(
@@ -141,27 +143,27 @@ TEST_F(ShortcutTest, CreateAndResolveShortcut) {
   ShortcutProperties only_target_properties;
   only_target_properties.set_target(link_properties_.target);
 
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, only_target_properties, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, only_target_properties,
+                                         ShortcutOperation::kCreateAlways));
 
   FilePath resolved_name;
-  EXPECT_TRUE(ResolveShortcut(link_file_, &resolved_name, NULL));
+  EXPECT_TRUE(ResolveShortcut(link_file_, &resolved_name, nullptr));
 
-  char read_contents[arraysize(kFileContents)];
-  base::ReadFile(resolved_name, read_contents, arraysize(read_contents));
+  char read_contents[std::size(kFileContents)];
+  base::ReadFile(resolved_name, read_contents, std::size(read_contents));
   EXPECT_STREQ(kFileContents, read_contents);
 }
 
 TEST_F(ShortcutTest, ResolveShortcutWithArgs) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
   FilePath resolved_name;
-  string16 args;
+  std::wstring args;
   EXPECT_TRUE(ResolveShortcut(link_file_, &resolved_name, &args));
 
-  char read_contents[arraysize(kFileContents)];
-  base::ReadFile(resolved_name, read_contents, arraysize(read_contents));
+  char read_contents[std::size(kFileContents)];
+  base::ReadFile(resolved_name, read_contents, std::size(read_contents));
   EXPECT_STREQ(kFileContents, read_contents);
   EXPECT_EQ(link_properties_.arguments, args);
 }
@@ -171,63 +173,61 @@ TEST_F(ShortcutTest, CreateShortcutWithOnlySomeProperties) {
   target_and_args_properties.set_target(link_properties_.target);
   target_and_args_properties.set_arguments(link_properties_.arguments);
 
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, target_and_args_properties,
-      SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, target_and_args_properties,
+                                         ShortcutOperation::kCreateAlways));
 
   ValidateShortcut(link_file_, target_and_args_properties);
 }
 
 TEST_F(ShortcutTest, CreateShortcutVerifyProperties) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
   ValidateShortcut(link_file_, link_properties_);
 }
 
-TEST_F(ShortcutTest, UpdateShortcutVerifyProperties) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_CREATE_ALWAYS));
+TEST_F(ShortcutTest, UpdateShortcutVerifyPropertiess) {
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_2_, SHORTCUT_UPDATE_EXISTING));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_2_,
+                                         ShortcutOperation::kUpdateExisting));
 
   ValidateShortcut(link_file_, link_properties_2_);
 }
 
 TEST_F(ShortcutTest, UpdateShortcutUpdateOnlyTargetAndResolve) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
   ShortcutProperties update_only_target_properties;
   update_only_target_properties.set_target(link_properties_2_.target);
 
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, update_only_target_properties,
-      SHORTCUT_UPDATE_EXISTING));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_,
+                                         update_only_target_properties,
+                                         ShortcutOperation::kUpdateExisting));
 
   ShortcutProperties expected_properties = link_properties_;
   expected_properties.set_target(link_properties_2_.target);
   ValidateShortcut(link_file_, expected_properties);
 
   FilePath resolved_name;
-  EXPECT_TRUE(ResolveShortcut(link_file_, &resolved_name, NULL));
+  EXPECT_TRUE(ResolveShortcut(link_file_, &resolved_name, nullptr));
 
-  char read_contents[arraysize(kFileContents2)];
-  base::ReadFile(resolved_name, read_contents, arraysize(read_contents));
+  char read_contents[std::size(kFileContents2)];
+  base::ReadFile(resolved_name, read_contents, std::size(read_contents));
   EXPECT_STREQ(kFileContents2, read_contents);
 }
 
 TEST_F(ShortcutTest, UpdateShortcutMakeDualMode) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
   ShortcutProperties make_dual_mode_properties;
   make_dual_mode_properties.set_dual_mode(true);
 
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, make_dual_mode_properties,
-      SHORTCUT_UPDATE_EXISTING));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, make_dual_mode_properties,
+                                         ShortcutOperation::kUpdateExisting));
 
   ShortcutProperties expected_properties = link_properties_;
   expected_properties.set_dual_mode(true);
@@ -235,15 +235,15 @@ TEST_F(ShortcutTest, UpdateShortcutMakeDualMode) {
 }
 
 TEST_F(ShortcutTest, UpdateShortcutRemoveDualMode) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_2_, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_2_,
+                                         ShortcutOperation::kCreateAlways));
 
   ShortcutProperties remove_dual_mode_properties;
   remove_dual_mode_properties.set_dual_mode(false);
 
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, remove_dual_mode_properties,
-      SHORTCUT_UPDATE_EXISTING));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_,
+                                         remove_dual_mode_properties,
+                                         ShortcutOperation::kUpdateExisting));
 
   ShortcutProperties expected_properties = link_properties_2_;
   expected_properties.set_dual_mode(false);
@@ -251,75 +251,73 @@ TEST_F(ShortcutTest, UpdateShortcutRemoveDualMode) {
 }
 
 TEST_F(ShortcutTest, UpdateShortcutClearArguments) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
   ShortcutProperties clear_arguments_properties;
-  clear_arguments_properties.set_arguments(string16());
+  clear_arguments_properties.set_arguments(std::wstring());
 
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, clear_arguments_properties,
-      SHORTCUT_UPDATE_EXISTING));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, clear_arguments_properties,
+                                         ShortcutOperation::kUpdateExisting));
 
   ShortcutProperties expected_properties = link_properties_;
-  expected_properties.set_arguments(string16());
+  expected_properties.set_arguments(std::wstring());
   ValidateShortcut(link_file_, expected_properties);
 }
 
 TEST_F(ShortcutTest, FailUpdateShortcutThatDoesNotExist) {
-  ASSERT_FALSE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_UPDATE_EXISTING));
+  ASSERT_FALSE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                          ShortcutOperation::kUpdateExisting));
   ASSERT_FALSE(PathExists(link_file_));
 }
 
 TEST_F(ShortcutTest, ReplaceShortcutAllProperties) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_2_, SHORTCUT_REPLACE_EXISTING));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_2_,
+                                         ShortcutOperation::kReplaceExisting));
 
   ValidateShortcut(link_file_, link_properties_2_);
 }
 
 TEST_F(ShortcutTest, ReplaceShortcutSomeProperties) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
   ShortcutProperties new_properties;
   new_properties.set_target(link_properties_2_.target);
   new_properties.set_arguments(link_properties_2_.arguments);
   new_properties.set_description(link_properties_2_.description);
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, new_properties, SHORTCUT_REPLACE_EXISTING));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, new_properties,
+                                         ShortcutOperation::kReplaceExisting));
 
   // Expect only properties in |new_properties| to be set, all other properties
   // should have been overwritten.
   ShortcutProperties expected_properties(new_properties);
   expected_properties.set_working_dir(FilePath());
   expected_properties.set_icon(FilePath(), 0);
-  expected_properties.set_app_id(string16());
+  expected_properties.set_app_id(std::wstring());
   expected_properties.set_dual_mode(false);
   ValidateShortcut(link_file_, expected_properties);
 }
 
 TEST_F(ShortcutTest, FailReplaceShortcutThatDoesNotExist) {
-  ASSERT_FALSE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_REPLACE_EXISTING));
+  ASSERT_FALSE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                          ShortcutOperation::kReplaceExisting));
   ASSERT_FALSE(PathExists(link_file_));
 }
 
 // Test that the old arguments remain on the replaced shortcut when not
 // otherwise specified.
 TEST_F(ShortcutTest, ReplaceShortcutKeepOldArguments) {
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_, SHORTCUT_CREATE_ALWAYS));
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_,
+                                         ShortcutOperation::kCreateAlways));
 
   // Do not explicitly set the arguments.
-  link_properties_2_.options &=
-      ~ShortcutProperties::PROPERTIES_ARGUMENTS;
-  ASSERT_TRUE(CreateOrUpdateShortcutLink(
-      link_file_, link_properties_2_, SHORTCUT_REPLACE_EXISTING));
+  link_properties_2_.options &= ~ShortcutProperties::PROPERTIES_ARGUMENTS;
+  ASSERT_TRUE(CreateOrUpdateShortcutLink(link_file_, link_properties_2_,
+                                         ShortcutOperation::kReplaceExisting));
 
   ShortcutProperties expected_properties(link_properties_2_);
   expected_properties.set_arguments(link_properties_.arguments);

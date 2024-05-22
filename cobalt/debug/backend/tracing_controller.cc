@@ -80,7 +80,7 @@ void TraceEventAgent::StopAgentTracing(
   //  will call OutputTraceData(), possibly multiple times.  We have to do this
   //  on a thread as there will be tasks posted to the current thread for data
   //  writing.
-  thread.message_loop()->task_runner()->PostTask(
+  thread.task_runner()->PostTask(
       FROM_HERE, base::BindRepeating(&base::trace_event::TraceLog::Flush,
                                      base::Unretained(trace_log),
                                      collect_data_callback, false));
@@ -89,7 +89,8 @@ void TraceEventAgent::StopAgentTracing(
 
   std::move(on_stop_callback)
       .Run(agent_name_, agent_event_label_,
-           base::RefCountedString::TakeString(&json_output_.json_output));
+           base::MakeRefCounted<base::RefCountedString>(
+               std::move(json_output_.json_output)));
 }
 
 
@@ -115,7 +116,8 @@ void TraceV8Agent::FlushTraceEvents() {
   trace_buffer_.Finish();
   std::move(on_stop_callback_)
       .Run(agent_name_, agent_event_label_,
-           base::RefCountedString::TakeString(&json_output_.json_output));
+           base::MakeRefCounted<base::RefCountedString>(
+               std::move(json_output_.json_output)));
 }
 
 void TraceV8Agent::StartAgentTracing(const TraceConfig& trace_config,
@@ -124,7 +126,9 @@ void TraceV8Agent::StartAgentTracing(const TraceConfig& trace_config,
   trace_buffer_.SetOutputCallback(json_output_.GetCallback());
   trace_buffer_.Start();
 
-  script_debugger_->StartTracing(std::vector<std::string>(), this);
+  std::vector<std::string> categories = {"v8", "v8.wasm", "v8.compile",
+                                         "v8.stack_trace"};
+  script_debugger_->StartTracing(categories, this);
   std::move(callback).Run(agent_name_, true);
 }
 
@@ -148,19 +152,22 @@ TracingController::TracingController(DebugDispatcher* dispatcher,
       base::Bind(&TracingController::Start, base::Unretained(this));
 
   agents_.push_back(std::make_unique<TraceEventAgent>());
-  // agents_.push_back(std::make_unique<TraceV8Agent>(script_debugger));
+  agents_.push_back(std::make_unique<TraceV8Agent>(script_debugger));
 }
 
 void TracingController::Thaw(JSONObject agent_state) {
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
-  if (!agent_state) return;
+  if (agent_state.empty()) return;
 
   // Restore state
   categories_.clear();
-  for (const auto& category : agent_state->FindKey(kCategories)->GetList()) {
-    categories_.emplace_back(category.GetString());
+  const base::Value::List* categories = agent_state.FindList(kCategories);
+  if (categories) {
+    for (const auto& category : *categories) {
+      categories_.emplace_back(category.GetString());
+    }
   }
-  tracing_started_ = agent_state->FindKey(kStarted)->GetBool();
+  tracing_started_ = agent_state.FindBool(kStarted).value_or(false);
   if (tracing_started_) {
     agents_responded_ = 0;
     auto config = base::trace_event::TraceConfig();
@@ -183,13 +190,13 @@ JSONObject TracingController::Freeze() {
   dispatcher_->RemoveDomain(kInspectorDomain);
 
   // Save state
-  JSONObject agent_state(new base::DictionaryValue());
-  agent_state->SetKey(kStarted, base::Value(tracing_started_));
-  base::Value::ListStorage categories_list;
+  JSONObject agent_state;
+  agent_state.Set(kStarted, base::Value(tracing_started_));
+  base::Value::List categories_list;
   for (const auto& category : categories_) {
-    categories_list.emplace_back(category);
+    categories_list.Append(category);
   }
-  agent_state->SetKey(kCategories, base::Value(std::move(categories_list)));
+  agent_state.Set(kCategories, base::Value(std::move(categories_list)));
 
   return agent_state;
 }
@@ -218,17 +225,17 @@ void TracingController::Start(Command command) {
   JSONObject params = JSONParse(command.GetParams());
   // Parse comma-separated tracing categories parameter.
   categories_.clear();
-  std::string category_param;
-  if (params->GetString("categories", &category_param)) {
-    for (size_t pos = 0, comma; pos < category_param.size(); pos = comma + 1) {
-      comma = category_param.find(',', pos);
-      if (comma == std::string::npos) comma = category_param.size();
-      std::string category = category_param.substr(pos, comma - pos);
+  std::string* category_param = params.FindString("categories");
+  if (category_param) {
+    for (size_t pos = 0, comma; pos < category_param->size(); pos = comma + 1) {
+      comma = category_param->find(',', pos);
+      if (comma == std::string::npos) comma = category_param->size();
+      std::string category = category_param->substr(pos, comma - pos);
       categories_.push_back(category);
     }
   }
 
-  collected_events_.reset(new base::ListValue());
+  collected_events_.clear();
 
   agents_responded_ = 0;
   auto config = base::trace_event::TraceConfig();
@@ -252,28 +259,10 @@ void TracingController::OnStopTracing(
     const scoped_refptr<base::RefCountedString>& events_str_ptr) {
   LOG(INFO) << "Tracing Agent:" << agent_name << " Stop tracing.";
 
-  std::unique_ptr<base::Value> root =
+  absl::optional<base::Value> events_value =
       base::JSONReader::Read(events_str_ptr->data(), base::JSON_PARSE_RFC);
-
-  if (!root.get()) {
-    LOG(ERROR) << "Couldn't parse the events string.";
-  }
-
-  base::ListValue* root_list = nullptr;
-  root->GetAsList(&root_list);
-
-  // Move items into our aggregate collection
-  while (root_list->GetSize()) {
-    if (!collected_events_) {
-      collected_events_.reset(new base::ListValue());
-    }
-    std::unique_ptr<base::Value> item;
-    root_list->Remove(0, &item);
-    collected_events_->Append(std::move(item));
-
-    if (collected_events_->GetSize() >= 100) {
-      SendDataCollectedEvent();
-    }
+  if (events_value.has_value() && events_value.value().GetIfList()) {
+    collected_events_ = events_value.value().GetList().Clone();
   }
   FlushTraceEvents();
 }
@@ -285,12 +274,10 @@ void TracingController::OnCancelTracing(
 }
 
 void TracingController::SendDataCollectedEvent() {
-  if (collected_events_) {
-    std::string events;
-    collected_events_->GetString(0, &events);
-    JSONObject params(new base::DictionaryValue());
+  if (!collected_events_.empty()) {
+    JSONObject params;
     // Releasing the list into the value param avoids copying it.
-    params->Set("value", std::move(collected_events_));
+    params.Set("value", std::move(collected_events_));
     dispatcher_->SendEvent(std::string(kInspectorDomain) + ".dataCollected",
                            params);
     collected_size_ = 0;

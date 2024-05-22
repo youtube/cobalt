@@ -28,13 +28,6 @@
 
 #include "starboard/common/log.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#define STRCHR_QR strchr
-#else
-#define STRCHR_QR std::strchr
-#endif
-
 #define throw SB_CHECK(false) <<
 
 using std::uint8_t;
@@ -112,7 +105,7 @@ QrSegment QrSegment::makeAlphanumeric(const char *text) {
 	int accumCount = 0;
 	int charCount = 0;
 	for (; *text != '\0'; text++, charCount++) {
-          const char* temp = STRCHR_QR(ALPHANUMERIC_CHARSET, *text);
+		const char *temp = std::strchr(ALPHANUMERIC_CHARSET, *text);
 		if (temp == nullptr)
 			throw "String contains unencodable characters in alphanumeric mode";
 		accumData = accumData * 45 + (temp - ALPHANUMERIC_CHARSET);
@@ -203,7 +196,7 @@ int QrSegment::getTotalBits(const vector<QrSegment> &segs, int version) {
 
 bool QrSegment::isAlphanumeric(const char *text) {
 	for (; *text != '\0'; text++) {
-          if (STRCHR_QR(ALPHANUMERIC_CHARSET, *text) == nullptr)
+		if (std::strchr(ALPHANUMERIC_CHARSET, *text) == nullptr)
 			return false;
 	}
 	return true;
@@ -238,5 +231,3 @@ const std::vector<bool> &QrSegment::getData() const {
 const char *QrSegment::ALPHANUMERIC_CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
 
 }
-
-#undef STRCHR_QR

@@ -8,10 +8,10 @@
 #ifndef GrGLVertexArray_DEFINED
 #define GrGLVertexArray_DEFINED
 
-#include "include/gpu/GrGpuResource.h"
 #include "include/gpu/gl/GrGLTypes.h"
 #include "include/private/GrTypesPriv.h"
 #include "include/private/SkTArray.h"
+#include "src/gpu/GrGpuResource.h"
 #include "src/gpu/gl/GrGLDefines.h"
 
 class GrBuffer;
@@ -41,7 +41,7 @@ public:
              int attribIndex,
              const GrBuffer* vertexBuffer,
              GrVertexAttribType cpuType,
-             GrSLType gpuType,
+             SkSLType gpuType,
              GrGLsizei stride,
              size_t offsetInBytes,
              int divisor = 0);
@@ -66,7 +66,7 @@ public:
     int count() const { return fAttribArrayStates.count(); }
 
 private:
-    static constexpr int kInvalidDivisor = -1;
+    inline static constexpr int kInvalidDivisor = -1;
 
     /**
      * Tracks the state of glVertexAttribArray for an attribute index.
@@ -81,7 +81,7 @@ private:
         GrGpuResource::UniqueID   fVertexBufferUniqueID;
         bool                      fUsingCpuBuffer;
         GrVertexAttribType        fCPUType;
-        GrSLType                  fGPUType;
+        SkSLType                  fGPUType;
         GrGLsizei                 fStride;
         const GrGLvoid*           fOffset;
         int                       fDivisor;

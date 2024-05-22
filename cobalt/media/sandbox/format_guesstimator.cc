@@ -19,7 +19,9 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/logging.h"
 #include "base/path_service.h"
+#include "base/run_loop.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
@@ -29,6 +31,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_tracks.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/chunk_demuxer.h"
@@ -38,8 +41,7 @@
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
-#include "third_party/chromium/media/base/timestamp_constants.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
@@ -48,11 +50,13 @@ namespace sandbox {
 namespace {
 
 using ::media::ChunkDemuxer;
+using ::media::StreamParser;
 
 // The possible mime type configurations that are supported by cobalt.
 const std::vector<std::string> kSupportedMimeTypes = {
     "audio/mp4; codecs=\"ac-3\"",
     "audio/mp4; codecs=\"ec-3\"",
+    "audio/mp4; codecs=\"iamf\"",
     "audio/mp4; codecs=\"mp4a.40.2\"",
     "audio/webm; codecs=\"opus\"",
 
@@ -91,7 +95,7 @@ base::FilePath ResolvePath(const std::string& path) {
 // of the file is less than 256kb, the function reads all of its content.
 std::vector<uint8_t> ReadHeader(const base::FilePath& path) {
   // Size of the input file to be read into memory for checking the validity
-  // of ChunkDemuxer::AppendData() calls.
+  // of ChunkDemuxer::AppendToParseBuffer() calls.
   const int64_t kHeaderSize = 256 * 1024;  // 256kb
   starboard::ScopedFile file(path.value().c_str(),
                              kSbFileOpenOnly | kSbFileRead);
@@ -150,7 +154,7 @@ FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url,
     bool is_from_root = !path_or_url.empty() && path_or_url[0] == '/';
     auto path_from_root = (is_from_root ? "" : "/") + path_or_url;
     progressive_url_ = GURL("file://" + path_from_root);
-    SB_LOG(INFO) << progressive_url_.spec();
+    LOG(INFO) << progressive_url_.spec();
     mime_type_ = "video/mp4; codecs=\"avc1.640028, mp4a.40.2\"";
   }
 }
@@ -203,15 +207,23 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
                        << static_cast<int>(warning);
         }));
 
+    bool success =
+        chunk_demuxer->AppendToParseBuffer(id, header.data(), header.size());
+    StreamParser::ParseStatus result =
+        StreamParser::ParseStatus::kSuccessHasMoreData;
     base::TimeDelta unused_timestamp;
-    if (!chunk_demuxer->AppendData(
-            id, header.data(), header.size(), base::TimeDelta(),
-            ::media::kInfiniteDuration, &unused_timestamp)) {
-      // Failing to |AppendData()| means the chosen format is not the file's
+    while (success &&
+           result == StreamParser::ParseStatus::kSuccessHasMoreData) {
+      result = chunk_demuxer->RunSegmentParserLoop(
+          id, base::TimeDelta(), ::media::kInfiniteDuration, &unused_timestamp);
+    }
+    success &= result == StreamParser::ParseStatus::kSuccess;
+    if (!success) {
+      // Failing to append data means the chosen format is not the file's
       // true format.
       continue;
     }
-    // Succeeding |AppendData()| may be a false positive (i.e. the expected
+    // Succeeding appending data may be a false positive (i.e. the expected
     // configuration does not match with the configuration determined by the
     // ChunkDemuxer). To confirm, we check the decoder configuration determined
     // by the ChunkDemuxer against the chosen format.

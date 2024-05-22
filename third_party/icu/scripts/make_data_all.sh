@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -x
+set -x -e # stop if fail
 
 ICUROOT="$(dirname "$0")/.."
 

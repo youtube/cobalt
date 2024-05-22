@@ -52,7 +52,6 @@
 #include <openssl/base.h>
 
 #include <openssl/aes.h>
-#include <openssl/cpu.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -63,27 +62,6 @@
 extern "C" {
 #endif
 
-
-static inline uint32_t GETU32(const void *in) {
-  uint32_t v;
-  OPENSSL_memcpy(&v, in, sizeof(v));
-  return CRYPTO_bswap4(v);
-}
-
-static inline void PUTU32(void *out, uint32_t v) {
-  v = CRYPTO_bswap4(v);
-  OPENSSL_memcpy(out, &v, sizeof(v));
-}
-
-static inline size_t load_word_le(const void *in) {
-  size_t v;
-  OPENSSL_memcpy(&v, in, sizeof(v));
-  return v;
-}
-
-static inline void store_word_le(void *out, size_t v) {
-  OPENSSL_memcpy(out, &v, sizeof(v));
-}
 
 // block128_f is the type of an AES block cipher implementation.
 //
@@ -158,9 +136,9 @@ typedef struct gcm128_key_st {
 
   block128_f block;
 
-  // use_aesni_gcm_crypt is true if this context should use the assembly
-  // functions |aesni_gcm_encrypt| and |aesni_gcm_decrypt| to process data.
-  unsigned use_aesni_gcm_crypt:1;
+  // use_hw_gcm_crypt is true if this context should use platform-specific
+  // assembly to process GCM data.
+  unsigned use_hw_gcm_crypt:1;
 } GCM128_KEY;
 
 // GCM128_CONTEXT contains state for a single GCM operation. The structure
@@ -171,7 +149,7 @@ typedef struct {
     uint64_t u[2];
     uint32_t d[4];
     uint8_t c[16];
-    size_t t[16 / sizeof(size_t)];
+    crypto_word_t t[16 / sizeof(crypto_word_t)];
   } Yi, EKi, EK0, len, Xi;
 
   // Note that the order of |Xi| and |gcm_key| is fixed by the MOVBE-based,
@@ -275,10 +253,6 @@ void gcm_gmult_clmul(uint64_t Xi[2], const u128 Htable[16]);
 void gcm_ghash_clmul(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
                      size_t len);
 
-OPENSSL_INLINE char gcm_ssse3_capable(void) {
-  return (OPENSSL_ia32cap_get()[1] & (1 << (41 - 32))) != 0;
-}
-
 // |gcm_gmult_ssse3| and |gcm_ghash_ssse3| require |Htable| to be
 // 16-byte-aligned, but |gcm_init_ssse3| does not.
 void gcm_init_ssse3(u128 Htable[16], const uint64_t Xi[2]);
@@ -293,7 +267,7 @@ void gcm_gmult_avx(uint64_t Xi[2], const u128 Htable[16]);
 void gcm_ghash_avx(uint64_t Xi[2], const u128 Htable[16], const uint8_t *in,
                    size_t len);
 
-#define AESNI_GCM
+#define HW_GCM
 size_t aesni_gcm_encrypt(const uint8_t *in, uint8_t *out, size_t len,
                          const AES_KEY *key, uint8_t ivec[16], uint64_t *Xi);
 size_t aesni_gcm_decrypt(const uint8_t *in, uint8_t *out, size_t len,
@@ -305,6 +279,7 @@ size_t aesni_gcm_decrypt(const uint8_t *in, uint8_t *out, size_t len,
 #endif  // OPENSSL_X86
 
 #elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
+
 #define GHASH_ASM_ARM
 #define GCM_FUNCREF
 
@@ -324,13 +299,15 @@ void gcm_gmult_neon(uint64_t Xi[2], const u128 Htable[16]);
 void gcm_ghash_neon(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
                     size_t len);
 
-#elif defined(OPENSSL_PPC64LE)
-#define GHASH_ASM_PPC64LE
-#define GCM_FUNCREF
-void gcm_init_p8(u128 Htable[16], const uint64_t Xi[2]);
-void gcm_gmult_p8(uint64_t Xi[2], const u128 Htable[16]);
-void gcm_ghash_p8(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
-                  size_t len);
+#if defined(OPENSSL_AARCH64)
+#define HW_GCM
+// These functions are defined in aesv8-gcm-armv8.pl.
+void aes_gcm_enc_kernel(const uint8_t *in, uint64_t in_bits, void *out,
+                        void *Xi, uint8_t *ivec, const AES_KEY *key);
+void aes_gcm_dec_kernel(const uint8_t *in, uint64_t in_bits, void *out,
+                        void *Xi, uint8_t *ivec, const AES_KEY *key);
+#endif
+
 #endif
 #endif  // OPENSSL_NO_ASM
 

@@ -11,8 +11,11 @@
 #include "modules/particles/include/SkParticleEffect.h"
 #include "modules/particles/include/SkParticleSerialization.h"
 #include "modules/skresources/include/SkResources.h"
+#include "src/sksl/codegen/SkSLVMCodeGenerator.h"
 
 #include <string>
+
+#include "modules/canvaskit/WasmCommon.h"
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
@@ -74,22 +77,76 @@ private:
 
 }
 
+struct ParticleUniform {
+    int columns;
+    int rows;
+    int slot; // the index into the uniforms array that this uniform begins.
+};
+
+ParticleUniform fromUniform(const SkSL::UniformInfo::Uniform& u) {
+    ParticleUniform su;
+    su.columns = u.fColumns;
+    su.rows = u.fRows;
+    su.slot = u.fSlot;
+    return su;
+}
+
 EMSCRIPTEN_BINDINGS(Particles) {
-    class_<SkParticleEffect>("SkParticleEffect")
+    class_<SkParticleEffect>("ParticleEffect")
         .smart_ptr<sk_sp<SkParticleEffect>>("sk_sp<SkParticleEffect>")
         .function("draw", &SkParticleEffect::draw, allow_raw_pointers())
+        .function("_uniformPtr", optional_override([](SkParticleEffect& self)->WASMPointerF32 {
+            return reinterpret_cast<WASMPointerF32>(self.uniformData());
+        }))
+        .function("getUniformCount", optional_override([](SkParticleEffect& self)->int {
+            auto info = self.uniformInfo();
+            if (!info) {
+                return -1;
+            }
+            return info->fUniforms.size();
+        }))
+        .function("getUniformFloatCount", optional_override([](SkParticleEffect& self)->int {
+            auto info = self.uniformInfo();
+            if (!info) {
+                return -1;
+            }
+            return info->fUniformSlotCount;
+        }))
+        .function("getUniformName", optional_override([](SkParticleEffect& self, int i)->JSString {
+            auto info = self.uniformInfo();
+            if (!info) {
+                return emscripten::val::null();
+            }
+            return emscripten::val(info->fUniforms[i].fName.c_str());
+        }))
+        .function("getUniform", optional_override([](SkParticleEffect& self, int i)->ParticleUniform {
+            ParticleUniform su;
+            auto info = self.uniformInfo();
+            if (!info) {
+                return su;
+            }
+            su = fromUniform(info->fUniforms[i]);
+            return su;
+        }))
+        .function("_setPosition", optional_override([](SkParticleEffect& self,
+                                                       SkScalar x, SkScalar y)->void {
+            self.setPosition({x, y});
+        }))
+        .function("setRate", select_overload<void (float)>(&SkParticleEffect::setRate))
         .function("start", select_overload<void (double, bool)>(&SkParticleEffect::start))
-        .function("update", select_overload<void (double)>(&SkParticleEffect::update))
-        .function("setPosition", select_overload<void (SkPoint)>(&SkParticleEffect::setPosition))
-        .function("setRate", select_overload<void (float)>(&SkParticleEffect::setRate));
+        .function("update", select_overload<void (double)>(&SkParticleEffect::update));
+
+    value_object<ParticleUniform>("ParticleUniform")
+        .field("columns", &ParticleUniform::columns)
+        .field("rows",    &ParticleUniform::rows)
+        .field("slot",    &ParticleUniform::slot);
 
     function("_MakeParticles", optional_override([](std::string json,
                                                    size_t assetCount,
-                                                   uintptr_t /* char**    */ nptr,
-                                                   uintptr_t /* uint8_t** */ dptr,
-                                                   uintptr_t /* size_t*   */ sptr)
+                                                   WASMPointerU32 nptr,
+                                                   WASMPointerU32 dptr,
+                                                   WASMPointerU32 sptr)
                                                 ->sk_sp<SkParticleEffect> {
-        // See the comment in canvaskit_bindings.cpp about the use of uintptr_t
         static bool didInit = false;
         if (!didInit) {
             SkParticleEffect::RegisterParticleTypes();
@@ -109,14 +166,13 @@ EMSCRIPTEN_BINDINGS(Particles) {
             assets.push_back(std::make_pair(std::move(name), std::move(bytes)));
         }
 
-        SkRandom r;
         sk_sp<SkParticleEffectParams> params(new SkParticleEffectParams());
         skjson::DOM dom(json.c_str(), json.length());
         SkFromJsonVisitor fromJson(dom.root());
         params->visitFields(&fromJson);
         params->prepare(skresources::DataURIResourceProviderProxy::Make(
                             ParticleAssetProvider::Make(std::move(assets))).get());
-        return sk_sp<SkParticleEffect>(new SkParticleEffect(std::move(params), r));
+        return sk_sp<SkParticleEffect>(new SkParticleEffect(std::move(params)));
     }));
     constant("particles", true);
 

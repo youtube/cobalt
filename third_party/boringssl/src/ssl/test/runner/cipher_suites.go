@@ -16,6 +16,8 @@ import (
 	"crypto/sha512"
 	"crypto/x509"
 	"hash"
+
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 // a keyAgreement implements the client and server side of a TLS key agreement
@@ -125,11 +127,6 @@ var cipherSuites = []*cipherSuite{
 	{TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA, 32, 20, ivLenAES, ecdhePSKKA, suiteECDHE | suitePSK, cipherAES, macSHA1, nil},
 	{TLS_PSK_WITH_AES_128_CBC_SHA, 16, 20, ivLenAES, pskKA, suitePSK, cipherAES, macSHA1, nil},
 	{TLS_PSK_WITH_AES_256_CBC_SHA, 32, 20, ivLenAES, pskKA, suitePSK, cipherAES, macSHA1, nil},
-	{TLS_RSA_WITH_NULL_SHA, 0, 20, noIV, rsaKA, 0, cipherNull, macSHA1, nil},
-}
-
-func noIV(vers uint16) int {
-	return 0
 }
 
 func ivLenChaCha20Poly1305(vers uint16) int {
@@ -175,50 +172,18 @@ func cipherAES(key, iv []byte, isRead bool) interface{} {
 
 // macSHA1 returns a macFunction for the given protocol version.
 func macSHA1(version uint16, key []byte) macFunction {
-	if version == VersionSSL30 {
-		mac := ssl30MAC{
-			h:   sha1.New(),
-			key: make([]byte, len(key)),
-		}
-		copy(mac.key, key)
-		return mac
-	}
 	return tls10MAC{hmac.New(sha1.New, key)}
 }
 
 func macMD5(version uint16, key []byte) macFunction {
-	if version == VersionSSL30 {
-		mac := ssl30MAC{
-			h:   md5.New(),
-			key: make([]byte, len(key)),
-		}
-		copy(mac.key, key)
-		return mac
-	}
 	return tls10MAC{hmac.New(md5.New, key)}
 }
 
 func macSHA256(version uint16, key []byte) macFunction {
-	if version == VersionSSL30 {
-		mac := ssl30MAC{
-			h:   sha256.New(),
-			key: make([]byte, len(key)),
-		}
-		copy(mac.key, key)
-		return mac
-	}
 	return tls10MAC{hmac.New(sha256.New, key)}
 }
 
 func macSHA384(version uint16, key []byte) macFunction {
-	if version == VersionSSL30 {
-		mac := ssl30MAC{
-			h:   sha512.New384(),
-			key: make([]byte, len(key)),
-		}
-		copy(mac.key, key)
-		return mac
-	}
 	return tls10MAC{hmac.New(sha512.New384, key)}
 }
 
@@ -305,7 +270,7 @@ func (x *xorNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]byt
 }
 
 func aeadCHACHA20POLY1305(version uint16, key, fixedNonce []byte) *tlsAead {
-	aead, err := newChaCha20Poly1305(key)
+	aead, err := chacha20poly1305.New(key)
 	if err != nil {
 		panic(err)
 	}
@@ -315,43 +280,6 @@ func aeadCHACHA20POLY1305(version uint16, key, fixedNonce []byte) *tlsAead {
 	copy(nonce2, fixedNonce)
 
 	return &tlsAead{&xorNonceAEAD{nonce1, nonce2, aead}, false}
-}
-
-// ssl30MAC implements the SSLv3 MAC function, as defined in
-// www.mozilla.org/projects/security/pki/nss/ssl/draft302.txt section 5.2.3.1
-type ssl30MAC struct {
-	h   hash.Hash
-	key []byte
-}
-
-func (s ssl30MAC) Size() int {
-	return s.h.Size()
-}
-
-var ssl30Pad1 = [48]byte{0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36}
-
-var ssl30Pad2 = [48]byte{0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c}
-
-func (s ssl30MAC) MAC(digestBuf, seq, header, length, data []byte) []byte {
-	padLength := 48
-	if s.h.Size() == 20 {
-		padLength = 40
-	}
-
-	s.h.Reset()
-	s.h.Write(s.key)
-	s.h.Write(ssl30Pad1[:padLength])
-	s.h.Write(seq)
-	s.h.Write(header[:1])
-	s.h.Write(length)
-	s.h.Write(data)
-	digestBuf = s.h.Sum(digestBuf[:0])
-
-	s.h.Reset()
-	s.h.Write(s.key)
-	s.h.Write(ssl30Pad2[:padLength])
-	s.h.Write(digestBuf)
-	return s.h.Sum(digestBuf[:0])
 }
 
 // tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
@@ -431,7 +359,6 @@ func cipherSuiteFromID(id uint16) *cipherSuite {
 // A list of the possible cipher suite ids. Taken from
 // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml
 const (
-	TLS_RSA_WITH_NULL_SHA                         uint16 = 0x0002
 	TLS_RSA_WITH_3DES_EDE_CBC_SHA                 uint16 = 0x000a
 	TLS_RSA_WITH_AES_128_CBC_SHA                  uint16 = 0x002f
 	TLS_RSA_WITH_AES_256_CBC_SHA                  uint16 = 0x0035

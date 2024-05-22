@@ -7,44 +7,54 @@
 
 #include "include/private/GrVkTypesPriv.h"
 
+#include "src/gpu/GrBackendSurfaceMutableStateImpl.h"
 #include "src/gpu/vk/GrVkImageLayout.h"
 
-void GrVkBackendSurfaceInfo::cleanup() {
-    SkSafeUnref(fLayout);
-    fLayout = nullptr;
-};
+void GrVkBackendSurfaceInfo::cleanup() {};
 
 void GrVkBackendSurfaceInfo::assign(const GrVkBackendSurfaceInfo& that, bool isThisValid) {
     fImageInfo = that.fImageInfo;
-    GrVkImageLayout* oldLayout = fLayout;
-    fLayout = SkSafeRef(that.fLayout);
-    if (isThisValid) {
-        SkSafeUnref(oldLayout);
-    }
 }
 
-void GrVkBackendSurfaceInfo::setImageLayout(VkImageLayout layout) {
-    SkASSERT(fLayout);
-    fLayout->setImageLayout(layout);
+GrVkImageInfo GrVkBackendSurfaceInfo::snapImageInfo(
+        const GrBackendSurfaceMutableStateImpl* mutableState) const {
+    SkASSERT(mutableState);
+    GrVkImageInfo newInfo = fImageInfo;
+    newInfo.fImageLayout = mutableState->getImageLayout();
+    newInfo.fCurrentQueueFamily = mutableState->getQueueFamilyIndex();
+    return newInfo;
 }
 
-sk_sp<GrVkImageLayout> GrVkBackendSurfaceInfo::getGrVkImageLayout() const {
-    SkASSERT(fLayout);
-    return sk_ref_sp(fLayout);
-}
+GrVkSurfaceInfo GrVkImageSpecToSurfaceInfo(const GrVkImageSpec& vkSpec,
+                                           uint32_t sampleCount,
+                                           uint32_t levelCount,
+                                           GrProtected isProtected) {
+    GrVkSurfaceInfo info;
+    // Shared info
+    info.fSampleCount = sampleCount;
+    info.fLevelCount = levelCount;
+    info.fProtected = isProtected;
 
-GrVkImageInfo GrVkBackendSurfaceInfo::snapImageInfo() const {
-    return GrVkImageInfo(fImageInfo, fLayout->getImageLayout());
+    // Vulkan info
+    info.fImageTiling = vkSpec.fImageTiling;
+    info.fFormat = vkSpec.fFormat;
+    info.fImageUsageFlags = vkSpec.fImageUsageFlags;
+    info.fYcbcrConversionInfo = vkSpec.fYcbcrConversionInfo;
+    info.fSharingMode = vkSpec.fSharingMode;
+
+    return info;
 }
 
 #if GR_TEST_UTILS
 bool GrVkBackendSurfaceInfo::operator==(const GrVkBackendSurfaceInfo& that) const {
     GrVkImageInfo cpyInfoThis = fImageInfo;
     GrVkImageInfo cpyInfoThat = that.fImageInfo;
-    // We don't care about the fImageLayout here since we require they use the same
-    // GrVkImageLayout.
+    // We don't care about the fImageLayout or fCurrentQueueFamily here since we require they use
+    // the same mutableState.
     cpyInfoThis.fImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     cpyInfoThat.fImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    return cpyInfoThis == cpyInfoThat && fLayout == that.fLayout;
+    cpyInfoThis.fCurrentQueueFamily = VK_QUEUE_FAMILY_IGNORED;
+    cpyInfoThat.fCurrentQueueFamily = VK_QUEUE_FAMILY_IGNORED;
+    return cpyInfoThis == cpyInfoThat;
 }
 #endif

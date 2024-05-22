@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,14 +25,14 @@ struct ThreadParams {
 };
 
 // Note, this must use all native functions to avoid instantiating the
-// ActiveVerifier. e.g. can't use base::Thread or even base::PlatformThread.
+// HandleVerifier. e.g. can't use base::Thread or even base::PlatformThread.
 DWORD __stdcall ThreadFunc(void* params) {
   ThreadParams* thread_params = reinterpret_cast<ThreadParams*>(params);
   HANDLE handle = ::CreateMutex(nullptr, false, nullptr);
 
   ::SetEvent(thread_params->ready_event);
   ::WaitForSingleObject(thread_params->start_event, INFINITE);
-  ScopedHandle handle_holder(handle);
+  CheckedScopedHandle handle_holder(handle);
   return 0;
 }
 
@@ -52,7 +52,7 @@ bool InternalRunThreadTest() {
   if (!ready_event)
     return false;
 
-  ThreadParams thread_params = { ready_event, start_event };
+  ThreadParams thread_params = {ready_event, start_event};
 
   for (size_t i = 0; i < kNumThreads; i++) {
     HANDLE thread_handle =
@@ -88,7 +88,7 @@ bool InternalRunLocationTest() {
   HANDLE handle = ::CreateMutex(nullptr, false, nullptr);
   if (!handle)
     return false;
-  ScopedHandle handle_holder(handle);
+  CheckedScopedHandle handle_holder(handle);
 
   HMODULE verifier_module =
       base::win::internal::GetHandleVerifierModuleForTesting();
@@ -100,15 +100,15 @@ bool InternalRunLocationTest() {
   if (!my_module)
     return false;
 
-  HMODULE main_module = ::GetModuleHandle(NULL);
+  HMODULE main_module = ::GetModuleHandle(nullptr);
 
 #if BUILDFLAG(SINGLE_MODULE_MODE_HANDLE_VERIFIER)
-  // In a component build ActiveVerifier will always be created inside base.dll
+  // In a component build HandleVerifier will always be created inside base.dll
   // as the code always lives there.
   if (verifier_module == my_module || verifier_module == main_module)
     return false;
 #else
-  // In a non-component build, ActiveVerifier should always be created in the
+  // In a non-component build, HandleVerifier should always be created in the
   // version of base linked with the main executable.
   if (verifier_module == my_module || verifier_module != main_module)
     return false;
@@ -122,6 +122,6 @@ bool RunTest() {
   return InternalRunThreadTest() && InternalRunLocationTest();
 }
 
-}  // testing
-}  // win
-}  // base
+}  // namespace testing
+}  // namespace win
+}  // namespace base

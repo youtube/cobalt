@@ -19,9 +19,11 @@
 
 #include <stdlib.h>
 
+#include <string>
+
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/thread.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
 namespace shared {
@@ -109,7 +111,7 @@ VideoDecoderImpl<FFMPEG>::VideoDecoderImpl(
       av_frame_(NULL),
       stream_ended_(false),
       error_occurred_(false),
-      decoder_thread_(kSbThreadInvalid),
+      decoder_thread_(0),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -163,11 +165,10 @@ void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
     return;
   }
 
-  if (!SbThreadIsValid(decoder_thread_)) {
-    decoder_thread_ = SbThreadCreate(
-        0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true, "ff_video_dec",
-        &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
-    SB_DCHECK(SbThreadIsValid(decoder_thread_));
+  if (decoder_thread_ == 0) {
+    pthread_create(&decoder_thread_, nullptr,
+                   &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
+    SB_DCHECK(decoder_thread_ != 0);
   }
   queue_.Put(Event(input_buffer));
 }
@@ -179,7 +180,7 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
   // Decode() is not called when the stream is ended.
   stream_ended_ = true;
 
-  if (!SbThreadIsValid(decoder_thread_)) {
+  if (decoder_thread_ == 0) {
     // In case there is no WriteInputBuffers() call before WriteEndOfStream(),
     // don't create the decoder thread and send the EOS frame directly.
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
@@ -191,16 +192,16 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
 
 void VideoDecoderImpl<FFMPEG>::Reset() {
   // Join the thread to ensure that all callbacks in process are finished.
-  if (SbThreadIsValid(decoder_thread_)) {
+  if (decoder_thread_ != 0) {
     queue_.Put(Event(kReset));
-    SbThreadJoin(decoder_thread_, NULL);
+    pthread_join(decoder_thread_, NULL);
   }
 
   if (codec_context_ != NULL) {
     ffmpeg_->avcodec_flush_buffers(codec_context_);
   }
 
-  decoder_thread_ = kSbThreadInvalid;
+  decoder_thread_ = 0;
   stream_ended_ = false;
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -219,6 +220,8 @@ bool VideoDecoderImpl<FFMPEG>::is_valid() const {
 
 // static
 void* VideoDecoderImpl<FFMPEG>::ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "ff_video_dec");
+  shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
   SB_DCHECK(context);
   VideoDecoderImpl<FFMPEG>* decoder =
       reinterpret_cast<VideoDecoderImpl<FFMPEG>*>(context);
@@ -270,23 +273,68 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
   } else {
     ffmpeg_->avcodec_get_frame_defaults(av_frame_);
   }
-  int frame_decoded = 0;
-  int decode_result = ffmpeg_->avcodec_decode_video2(codec_context_, av_frame_,
-                                                     &frame_decoded, packet);
-  if (decode_result < 0) {
-    SB_DLOG(ERROR) << "avcodec_decode_video2() failed with result "
-                   << decode_result;
-    error_cb_(kSbPlayerErrorDecode,
-              FormatString("avcodec_decode_video2() failed with result %d.",
-                           decode_result));
-    error_occurred_ = true;
-    return false;
+  int decode_result = 0;
+
+  if (ffmpeg_->avcodec_version() < kAVCodecHasUniformDecodeAPI) {
+    // Old decode API.
+    int frame_decoded = 0;
+    decode_result = ffmpeg_->avcodec_decode_video2(codec_context_, av_frame_,
+                                                   &frame_decoded, packet);
+    if (decode_result < 0) {
+      SB_DLOG(ERROR) << "avcodec_decode_video2() failed with result "
+                     << decode_result;
+      error_cb_(kSbPlayerErrorDecode,
+                FormatString("avcodec_decode_video2() failed with result %d.",
+                             decode_result));
+      error_occurred_ = true;
+      return false;
+    }
+
+    if (frame_decoded == 0) {
+      return false;
+    }
+
+    return ProcessDecodedFrame(*av_frame_);
   }
-  if (frame_decoded == 0) {
+
+  // Newer decode API.
+  const int send_packet_result =
+      ffmpeg_->avcodec_send_packet(codec_context_, packet);
+  if (send_packet_result != 0) {
+    const std::string error_message = FormatString(
+        "avcodec_send_packet() failed with result %d.", send_packet_result);
+    SB_DLOG(WARNING) << error_message;
+    error_cb_(kSbPlayerErrorDecode, error_message);
     return false;
   }
 
-  if (av_frame_->opaque == NULL) {
+  // Keep receiving frames until the decoder has processed the entire packet.
+  for (;;) {
+    decode_result = ffmpeg_->avcodec_receive_frame(codec_context_, av_frame_);
+    if (decode_result != 0) {
+      // We either hit an error or are done processing packet.
+      break;
+    }
+
+    if (!ProcessDecodedFrame(*av_frame_)) {
+      return false;
+    }
+  }
+
+  // A return value of AVERROR(EAGAIN) signifies that the decoder needs
+  // another packet, so we are done processing the existing packet at that
+  // point.
+  if (decode_result != AVERROR(EAGAIN)) {
+    SB_DLOG(WARNING) << "avcodec_receive_frame() failed with result: "
+                     << decode_result;
+    return false;
+  }
+
+  return true;
+}
+
+bool VideoDecoderImpl<FFMPEG>::ProcessDecodedFrame(const AVFrame& av_frame) {
+  if (av_frame.opaque == NULL) {
     SB_DLOG(ERROR) << "Video frame was produced yet has invalid frame data.";
     error_cb_(kSbPlayerErrorDecode,
               "Video frame was produced yet has invalid frame data.");
@@ -294,21 +342,21 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
     return false;
   }
 
-  int codec_aligned_width = av_frame_->width;
-  int codec_aligned_height = av_frame_->height;
+  int codec_aligned_width = av_frame.width;
+  int codec_aligned_height = av_frame.height;
   int codec_linesize_align[AV_NUM_DATA_POINTERS];
   ffmpeg_->avcodec_align_dimensions2(codec_context_, &codec_aligned_width,
                                      &codec_aligned_height,
                                      codec_linesize_align);
 
-  int y_pitch = AlignUp(av_frame_->width, codec_linesize_align[0] * 2);
-  int uv_pitch = av_frame_->linesize[1];
+  int y_pitch = AlignUp(av_frame.width, codec_linesize_align[0] * 2);
+  int uv_pitch = av_frame.linesize[1];
 
   const int kBitDepth = 8;
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      kBitDepth, av_frame_->width, av_frame_->height, y_pitch, uv_pitch,
-      av_frame_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
-      av_frame_->data[2]);
+      kBitDepth, av_frame.width, av_frame.height, y_pitch, uv_pitch,
+      av_frame.reordered_opaque, av_frame.data[0], av_frame.data[1],
+      av_frame.data[2]);
 
   bool result = true;
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {

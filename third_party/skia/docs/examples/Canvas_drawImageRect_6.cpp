@@ -9,12 +9,12 @@ void draw(SkCanvas* canvas) {
     SkBitmap bitmap;
     bitmap.installPixels(SkImageInfo::MakeN32Premul(2, 2),
             (void*) pixels, sizeof(pixels[0]));
-    sk_sp<SkImage> image = SkImage::MakeFromBitmap(bitmap);
+    sk_sp<SkImage> image = bitmap.asImage();
     SkPaint paint;
     canvas->scale(4, 4);
     for (auto color : { SK_ColorRED, SK_ColorBLUE, SK_ColorGREEN } ) {
         paint.setColorFilter(SkColorFilters::Blend(color, SkBlendMode::kPlus));
-        canvas->drawImageRect(image, SkRect::MakeWH(8, 8), &paint);
+        canvas->drawImageRect(image, SkRect::MakeWH(8, 8), SkSamplingOptions(), &paint);
         canvas->translate(8, 0);
     }
 }

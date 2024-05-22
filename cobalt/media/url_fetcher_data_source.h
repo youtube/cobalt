@@ -21,18 +21,18 @@
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/circular_buffer_shell.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/loader/origin.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/media/base/data_source.h"
+#include "cobalt/network/custom/url_fetcher.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
 #include "cobalt/network/network_module.h"
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_fetcher_delegate.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -65,7 +65,7 @@ class URLFetcherDataSource : public DataSource,
   // ctor and dtor are also called from the |task_runner|, which is checked in
   // the ctor and dtor.
   URLFetcherDataSource(
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
       const GURL& url, const csp::SecurityCallback& security_callback,
       network::NetworkModule* network_module, loader::RequestMode request_mode,
       loader::Origin origin);
@@ -73,7 +73,7 @@ class URLFetcherDataSource : public DataSource,
 
   // DataSource methods.
   void Read(int64 position, int size, uint8* data,
-            const ReadCB& read_cb) override;
+            const ReadCB read_cb) override;
   void Stop() override;
   void Abort() override {}
   bool GetSize(int64* size_out) override;
@@ -105,13 +105,12 @@ class URLFetcherDataSource : public DataSource,
 
   void CreateNewFetcher();
   void UpdateDownloadingStatus(bool is_downloading);
-  void Read_Locked(uint64 position, size_t size, uint8* data,
-                   const ReadCB& read_cb);
+  void Read_Locked(uint64 position, size_t size, uint8* data, ReadCB read_cb);
   void ProcessPendingRead_Locked();
   void TryToSendRequest_Locked();
 
   base::Lock lock_;
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   GURL url_;
   network::NetworkModule* network_module_;
   std::unique_ptr<net::URLFetcher> fetcher_;

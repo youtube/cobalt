@@ -18,15 +18,14 @@
 
 #include "base/bind.h"
 #include "base/files/file_path.h"
-#include "base/test/scoped_task_environment.h"
-#include "starboard/common/log.h"
+#include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace media {
 
 void OnReadFinished(int* bytes_read_out, int bytes_read_in) {
-  SB_CHECK(bytes_read_out);
+  CHECK(bytes_read_out);
   *bytes_read_out = bytes_read_in;
 }
 
@@ -34,7 +33,7 @@ TEST(FileDataSourceTest, SunnyDay) {
   // TODO(b/292134341): Test fails on all platforms.
   GTEST_SKIP();
 
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::test::TaskEnvironment scoped_task_environment_;
   FileDataSource data_source(
       GURL("file:///cobalt/media/testing/data/"
            "progressive_aac_44100_stereo_h264_1280_720.mp4"));
@@ -66,7 +65,7 @@ TEST(FileDataSourceTest, SunnyDay) {
 }
 
 TEST(FileDataSourceTest, RainyDay) {
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::test::TaskEnvironment scoped_task_environment_;
   FileDataSource data_source(
       GURL("file:///cobalt/media/testing/data/do_not_exist.invalid"));
 

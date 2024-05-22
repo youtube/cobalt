@@ -18,9 +18,8 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/size.h"
@@ -33,7 +32,7 @@
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
@@ -64,7 +63,6 @@ class MediaSandbox::Impl {
                  base::TimeDelta time);
 
   base::Lock lock_;
-  base::MessageLoop message_loop_;
   MediaSandbox::FrameCB frame_cb_;
 
   std::unique_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
@@ -83,7 +81,8 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;
-  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
+  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
+      "Cobalt TaskScheduler");
   network::NetworkModule::Options network_options;
   network_options.https_requirement = network::kHTTPSOptional;
 

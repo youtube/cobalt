@@ -35,7 +35,7 @@ typedef CobaltExtensionPlatformServicePrivate* CobaltExtensionPlatformService;
   "dev.cobalt.extension.PlatformService"
 
 // Checks whether a |CobaltExtensionPlatformService| is valid.
-static SB_C_INLINE bool CobaltExtensionPlatformServiceIsValid(
+static inline bool CobaltExtensionPlatformServiceIsValid(
     CobaltExtensionPlatformService service) {
   return service != kCobaltExtensionPlatformServiceInvalid;
 }

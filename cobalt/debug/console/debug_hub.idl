@@ -34,7 +34,7 @@
 
   // Provides list of custom commands for the debug console.
   readonly attribute sequence<ConsoleCommand> consoleCommands;
-  void sendConsoleCommand(DOMString command, DOMString message);
+  DOMString sendConsoleCommand(DOMString command, DOMString message);
 };
 
 callback AttachCallback = void();

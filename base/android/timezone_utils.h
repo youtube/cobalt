@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,15 +7,15 @@
 
 #include <jni.h>
 
+#include <string>
+
 #include "base/base_export.h"
-#include "base/strings/string16.h"
-#include "starboard/types.h"
 
 namespace base {
 namespace android {
 
 // Return an ICU timezone created from the host timezone.
-BASE_EXPORT base::string16 GetDefaultTimeZoneId();
+BASE_EXPORT std::u16string GetDefaultTimeZoneId();
 
 }  // namespace android
 }  // namespace base

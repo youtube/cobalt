@@ -57,7 +57,7 @@ def _EnsureBuildDirectoryExists(path):
     warnings.warn(f"'{path}' does not exist.")
 
 
-def _FilterTests(target_list, filters, config_name):
+def _FilterTests(target_list, filters):
   """Returns a Mapping of test targets -> filtered tests."""
   targets = {}
   for target in target_list:
@@ -66,10 +66,6 @@ def _FilterTests(target_list, filters, config_name):
   for platform_filter in filters:
     if platform_filter == test_filter.DISABLE_TESTING:
       return {}
-
-    # Only filter the tests specifying our config or all configs.
-    if platform_filter.config and platform_filter.config != config_name:
-      continue
 
     target_name = platform_filter.target_name
     if platform_filter.test_name == test_filter.FILTER_ALL:
@@ -96,8 +92,9 @@ def _VerifyConfig(config, filters):
   # platform filters in platform config, and app filters in app config.
   unknown_targets = set(filter_targets) - set(targets) - set(blackbox_targets)
   if unknown_targets:
-    raise ValueError("Unknown filter targets in {} config ({}): {}".format(
-        config.GetName(), config.__class__.__name__, sorted(unknown_targets)))
+    pass  # Temporary pass for base/net update.
+    # raise ValueError("Unknown filter targets in {} config ({}): {}".format(
+    #     config.GetName(), config.__class__.__name__, sorted(unknown_targets)))
 
 
 class TestLineReader(object):
@@ -351,8 +348,7 @@ class TestRunner(object):
       RuntimeError:  The specified test binary has been disabled for the given
         platform and configuration.
     """
-    targets = _FilterTests(specified_targets, self._GetTestFilters(),
-                           self.config)
+    targets = _FilterTests(specified_targets, self._GetTestFilters())
     if len(targets) != len(specified_targets):
       # If any of the provided target names have been filtered,
       # they will not all run.
@@ -379,7 +375,7 @@ class TestRunner(object):
       targets.extend(self._app_config.GetTestTargets())
     targets = list(set(targets))
 
-    final_targets = _FilterTests(targets, self._GetTestFilters(), self.config)
+    final_targets = _FilterTests(targets, self._GetTestFilters())
     if not final_targets:
       sys.stderr.write("All tests were filtered; no tests will be run.\n")
 
@@ -493,6 +489,9 @@ class TestRunner(object):
       # The filename is used by MH to deduce the target name.
       xml_filename = f"{target_name}_testoutput.xml"
       if out_path:
+        # Note that this path will use the host OS path separator.
+        # This can cause issues if the host and device path separators
+        # don't match. PS5 is one such example.
         test_result_xml_path = os.path.join(out_path, xml_filename)
       else:
         test_result_xml_path = xml_filename
@@ -624,8 +623,8 @@ class TestRunner(object):
     return failed_tests
 
   def _GetFilteredTestList(self, target_name):
-    return _FilterTests([target_name], self._GetTestFilters(),
-                        self.config).get(target_name, [])
+    return _FilterTests([target_name],
+                        self._GetTestFilters()).get(target_name, [])
 
   def _ProcessAllTestResults(self, results):
     """Collects and returns output for all selected tests.

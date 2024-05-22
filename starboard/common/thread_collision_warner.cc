@@ -4,6 +4,8 @@
 
 #include "starboard/common/thread_collision_warner.h"
 
+#include <pthread.h>
+
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
@@ -34,7 +36,9 @@ ThreadCollisionWarner::Check::Check(ThreadCollisionWarner* warner)
 ThreadCollisionWarner::Check::~Check() {}
 
 static SbAtomic32 CurrentThread() {
-  const SbThreadId current_thread_id = SbThreadGetId();
+  uintptr_t current_thread_id =
+      reinterpret_cast<uintptr_t>(reinterpret_cast<void*>(pthread_self()));
+
   // We need to get the thread id into an atomic data type. This might be a
   // truncating conversion, but any loss-of-information just increases the
   // chance of a false negative, not a false positive.

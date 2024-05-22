@@ -67,8 +67,7 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/event_target.h"
-#include "cobalt/web/url_registry.h"
-#include "third_party/chromium/media/filters/chunk_demuxer.h"
+#include "media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {
@@ -79,7 +78,6 @@ namespace dom {
 class MediaSource : public web::EventTarget {
  public:
   typedef ::media::ChunkDemuxer ChunkDemuxer;
-  typedef web::UrlRegistry<MediaSource> Registry;
 
   // Custom, not in any spec.
   //
@@ -113,8 +111,8 @@ class MediaSource : public web::EventTarget {
   // Custom, not in any spec.
   //
   // HTMLMediaSource
-  bool AttachToElement(HTMLMediaElement* media_element);
-  void SetChunkDemuxerAndOpen(ChunkDemuxer* chunk_demuxer);
+  bool StartAttachingToMediaElement(HTMLMediaElement* media_element);
+  void CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer);
   void Close();
   bool IsClosed() const;
   scoped_refptr<TimeRanges> GetBufferedRange() const;
@@ -137,7 +135,7 @@ class MediaSource : public web::EventTarget {
  private:
   void SetReadyState(MediaSourceReadyState ready_state);
   bool IsUpdating() const;
-  void ScheduleEvent(base::Token event_name);
+  void ScheduleEvent(base_token::Token event_name);
 
   // Set to true to offload SourceBuffer buffer append and removal algorithms to
   // a non-web thread.

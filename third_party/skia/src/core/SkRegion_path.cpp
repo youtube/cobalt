@@ -322,11 +322,10 @@ static bool check_inverse_on_empty_return(SkRegion* dst, const SkPath& path, con
 bool SkRegion::setPath(const SkPath& path, const SkRegion& clip) {
     SkDEBUGCODE(SkRegionPriv::Validate(*this));
 
-    if (clip.isEmpty() || !path.isFinite()) {
-        return this->setEmpty();
-    }
-
-    if (path.isEmpty()) {
+    if (clip.isEmpty() || !path.isFinite() || path.isEmpty()) {
+        // This treats non-finite paths as empty as well, so this returns empty or 'clip' if
+        // it's inverse-filled. If clip is also empty, path's fill type doesn't really matter
+        // and this region ends up empty.
         return check_inverse_on_empty_return(this, path, clip);
     }
 
@@ -350,8 +349,8 @@ bool SkRegion::setPath(const SkPath& path, const SkRegion& clip) {
     int clipTop, clipBot;
     int clipTransitions = clip.count_runtype_values(&clipTop, &clipBot);
 
-    int top = SkMax32(pathTop, clipTop);
-    int bot = SkMin32(pathBot, clipBot);
+    int top = std::max(pathTop, clipTop);
+    int bot = std::min(pathBot, clipBot);
     if (top >= bot) {
         return check_inverse_on_empty_return(this, path, clip);
     }
@@ -359,7 +358,7 @@ bool SkRegion::setPath(const SkPath& path, const SkRegion& clip) {
     SkRgnBuilder builder;
 
     if (!builder.init(bot - top,
-                      SkMax32(pathTransitions, clipTransitions),
+                      std::max(pathTransitions, clipTransitions),
                       path.isInverseFillType())) {
         // can't allocate working space, so return false
         return this->setEmpty();
@@ -413,7 +412,7 @@ struct Edge {
     }
 
     int top() const {
-        return SkMin32(fY0, fY1);
+        return std::min(fY0, fY1);
     }
 };
 
@@ -525,7 +524,7 @@ bool SkRegion::getBoundaryPath(SkPath* path) const {
     int count = edges.count();
     Edge* start = edges.begin();
     Edge* stop = start + count;
-    SkTQSort<Edge>(start, stop - 1, EdgeLT());
+    SkTQSort<Edge>(start, stop, EdgeLT());
 
     Edge* e;
     for (e = start; e != stop; e++) {

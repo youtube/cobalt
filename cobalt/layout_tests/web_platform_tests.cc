@@ -20,10 +20,10 @@
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/json/json_reader.h"
-#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "cobalt/browser/service_worker_registry.h"
@@ -151,17 +151,17 @@ const char* kLogSuppressions[] = {
 };
 
 void Quit(base::RunLoop* run_loop) {
-  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                run_loop->QuitClosure());
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop->QuitClosure());
 }
 
 // Called upon window.close(), which indicates that the test has finished.
-// We use this signal to stop the WebModule's message loop since our work is
+// We use this signal to stop the WebModule's task runner since our work is
 // done once the window is closed. A timeout will also trigger window.close().
 void WindowCloseCallback(base::RunLoop* run_loop,
-                         base::MessageLoop* message_loop,
+                         base::SequencedTaskRunner* task_runner,
                          base::TimeDelta delta) {
-  message_loop->task_runner()->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
+  task_runner->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
 // Called when layout completes.
@@ -171,13 +171,13 @@ void WebModuleOnRenderTreeProducedCallback(
   out_results->emplace(results.render_tree, results.layout_time);
 }
 
-// This callback, when called, quits a message loop, outputs the error message
+// This callback, when called, quits a task runner, outputs the error message
 // and sets the success flag to false.
 void WebModuleErrorCallback(base::RunLoop* run_loop,
-                            base::MessageLoop* message_loop, const GURL& url,
-                            const std::string& error) {
+                            base::SequencedTaskRunner* task_runner,
+                            const GURL& url, const std::string& error) {
   LOG(FATAL) << "Error loading document: " << error << ". URL: " << url;
-  message_loop->task_runner()->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
+  task_runner->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
 std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
@@ -186,10 +186,10 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
     log_filter.Add(kLogSuppressions[i]);
   }
 
-  // Setup a message loop for the current thread since we will be constructing
-  // a WebModule, which requires a message loop to exist for the current
+  // Setup a task runner for the current thread since we will be constructing
+  // a WebModule, which requires a task runner to exist for the current
   // thread.
-  base::test::ScopedTaskEnvironment scoped_task_environment;
+  base::test::TaskEnvironment scoped_task_environment;
 
   const ViewportSize kDefaultViewportSize(640, 360);
 
@@ -247,8 +247,9 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
       url, base::kApplicationStateStarted, nullptr /* scroll_engine */,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results),
       base::Bind(&WebModuleErrorCallback, &run_loop,
-                 base::MessageLoop::current()),
-      base::Bind(&WindowCloseCallback, &run_loop, base::MessageLoop::current()),
+                 base::SequencedTaskRunner::GetCurrentDefault()),
+      base::Bind(&WindowCloseCallback, &run_loop,
+                 base::SequencedTaskRunner::GetCurrentDefault()),
       base::Closure() /* window_minimize_callback */,
       can_play_type_handler.get(), media_module.get(), kDefaultViewportSize,
       &resource_provider, 60.0f, web_module_options);
@@ -269,39 +270,54 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
 HarnessResult ParseResults(const std::string& json_results) {
   HarnessResult harness_result;
   std::vector<TestResult>& test_results = harness_result.test_results;
+  (void)test_results;
 
-  std::unique_ptr<base::Value> root;
-  base::JSONReader reader(
-      base::JSONParserOptions::JSON_REPLACE_INVALID_CHARACTERS);
-  root = reader.ReadToValue(json_results);
+  base::JSONReader::Result root = base::JSONReader::ReadAndReturnValueWithError(
+      json_results, base::JSONParserOptions::JSON_REPLACE_INVALID_CHARACTERS);
   // Expect that parsing test result succeeded.
-  EXPECT_EQ(base::JSONReader::JSON_NO_ERROR, reader.error_code());
-  if (!root) {
+  EXPECT_TRUE(root.has_value());
+  if (!root.has_value()) {
     // Unparsable JSON, or empty string.
     LOG(ERROR) << "Web Platform Tests returned unparsable JSON test result!";
     return harness_result;
   }
 
-  base::DictionaryValue* root_as_dict;
-  EXPECT_EQ(true, root->GetAsDictionary(&root_as_dict));
+  EXPECT_TRUE(root->is_dict());
+  base::Value::Dict* root_as_dict = root->GetIfDict();
 
-  EXPECT_EQ(true, root_as_dict->GetInteger("status", &harness_result.status));
+  auto status = root_as_dict->FindInt("status");
+  EXPECT_TRUE(status.has_value());
+  harness_result.status = status.value();
   // "message" field might not be set
-  root_as_dict->GetString("message", &harness_result.message);
+  auto harness_result_message = root_as_dict->FindString("message");
+  if (harness_result_message) {
+    harness_result.message = *harness_result_message;
+  }
 
-  base::ListValue* test_list;
-  EXPECT_EQ(true, root_as_dict->GetList("tests", &test_list));
+  const base::Value::List* test_list = root_as_dict->FindList("tests");
+  EXPECT_TRUE(!!test_list);
 
-  for (size_t i = 0; i < test_list->GetSize(); ++i) {
+  for (size_t i = 0; i < test_list->size(); ++i) {
     TestResult result;
-    base::DictionaryValue* test_dict;
-    EXPECT_EQ(true, test_list->GetDictionary(i, &test_dict));
-    EXPECT_EQ(true, test_dict->GetInteger("status", &result.status));
-    EXPECT_EQ(true, test_dict->GetString("name", &result.name));
+    const base::Value::Dict* test_dict = (*test_list)[i].GetIfDict();
+    EXPECT_TRUE(!!test_dict);
 
-    // These fields may be null.
-    test_dict->GetString("message", &result.message);
-    test_dict->GetString("stack", &result.stack);
+    auto result_status = test_dict->FindInt("status");
+    EXPECT_TRUE(result_status.has_value());
+    result.status = result_status.value();
+
+    auto result_name = test_dict->FindString("name");
+    EXPECT_TRUE(!!result_name);
+    result.name = *result_name;
+
+    auto result_message = test_dict->FindString("message");
+    if (result_message) {
+      result.message = *result_message;
+    }
+    auto result_stack = test_dict->FindString("stack");
+    if (result_stack) {
+      result.stack = *result_stack;
+    }
     test_results.push_back(result);
   }
   return harness_result;

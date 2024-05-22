@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,16 +6,15 @@
 
 #include <utility>
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/memory/read_only_shared_memory_region.h"
-#include "starboard/memory.h"
 
 namespace base {
 
 bool RefCountedMemory::Equals(
     const scoped_refptr<RefCountedMemory>& other) const {
   return other.get() && size() == other->size() &&
-         (memcmp(front(), other->front(), size()) == 0);
+         (size() == 0 || (memcmp(front(), other->front(), size()) == 0));
 }
 
 RefCountedMemory::RefCountedMemory() = default;
@@ -35,8 +34,10 @@ RefCountedStaticMemory::~RefCountedStaticMemory() = default;
 RefCountedBytes::RefCountedBytes() = default;
 
 RefCountedBytes::RefCountedBytes(const std::vector<unsigned char>& initializer)
-    : data_(initializer) {
-}
+    : data_(initializer) {}
+
+RefCountedBytes::RefCountedBytes(base::span<const unsigned char> initializer)
+    : data_(initializer.begin(), initializer.end()) {}
 
 RefCountedBytes::RefCountedBytes(const unsigned char* p, size_t size)
     : data_(p, p + size) {}
@@ -66,13 +67,7 @@ RefCountedString::RefCountedString() = default;
 
 RefCountedString::~RefCountedString() = default;
 
-// static
-scoped_refptr<RefCountedString> RefCountedString::TakeString(
-    std::string* to_destroy) {
-  auto self = MakeRefCounted<RefCountedString>();
-  to_destroy->swap(self->data_);
-  return self;
-}
+RefCountedString::RefCountedString(std::string str) : data_(std::move(str)) {}
 
 const unsigned char* RefCountedString::front() const {
   return data_.empty() ? nullptr
@@ -83,26 +78,19 @@ size_t RefCountedString::size() const {
   return data_.size();
 }
 
-// Cobalt does not support multiple process and shared memory.
-#if !defined(STARBOARD)
-RefCountedSharedMemory::RefCountedSharedMemory(
-    std::unique_ptr<SharedMemory> shm,
-    size_t size)
-    : shm_(std::move(shm)), size_(size) {
-  DCHECK(shm_);
-  DCHECK(shm_->memory());
-  DCHECK_GT(size_, 0U);
-  DCHECK_LE(size_, shm_->mapped_size());
+RefCountedString16::RefCountedString16() = default;
+
+RefCountedString16::~RefCountedString16() = default;
+
+RefCountedString16::RefCountedString16(std::u16string str)
+    : data_(std::move(str)) {}
+
+const unsigned char* RefCountedString16::front() const {
+  return reinterpret_cast<const unsigned char*>(data_.data());
 }
 
-RefCountedSharedMemory::~RefCountedSharedMemory() = default;
-
-const unsigned char* RefCountedSharedMemory::front() const {
-  return static_cast<const unsigned char*>(shm_->memory());
-}
-
-size_t RefCountedSharedMemory::size() const {
-  return size_;
+size_t RefCountedString16::size() const {
+  return data_.size() * sizeof(char16_t);
 }
 
 RefCountedSharedMemoryMapping::RefCountedSharedMemoryMapping(
@@ -130,6 +118,5 @@ RefCountedSharedMemoryMapping::CreateFromWholeRegion(
     return nullptr;
   return MakeRefCounted<RefCountedSharedMemoryMapping>(std::move(mapping));
 }
-#endif  // !defined(STARBOARD)
 
 }  //  namespace base

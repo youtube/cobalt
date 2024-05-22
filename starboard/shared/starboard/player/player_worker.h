@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 
+#include <pthread.h>
+
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -29,7 +31,6 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/thread.h"
 #include "starboard/window.h"
 
 namespace starboard {
@@ -110,6 +111,8 @@ class PlayerWorker {
 
     virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 
+    virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
+
    private:
     Handler(const Handler&) = delete;
     Handler& operator=(const Handler&) = delete;
@@ -118,7 +121,7 @@ class PlayerWorker {
   static PlayerWorker* CreateInstance(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
-      scoped_ptr<Handler> handler,
+      unique_ptr_alias<Handler> handler,
       UpdateMediaInfoCB update_media_info_cb,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
@@ -179,7 +182,7 @@ class PlayerWorker {
  private:
   PlayerWorker(SbMediaAudioCodec audio_codec,
                SbMediaVideoCodec video_codec,
-               scoped_ptr<Handler> handler,
+               unique_ptr_alias<Handler> handler,
                UpdateMediaInfoCB update_media_info_cb,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
@@ -213,12 +216,12 @@ class PlayerWorker {
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
-  SbThread thread_;
-  scoped_ptr<JobQueue> job_queue_;
+  pthread_t thread_;
+  std::unique_ptr<JobQueue> job_queue_;
 
   SbMediaAudioCodec audio_codec_;
   SbMediaVideoCodec video_codec_;
-  scoped_ptr<Handler> handler_;
+  unique_ptr_alias<Handler> handler_;
   UpdateMediaInfoCB update_media_info_cb_;
 
   SbPlayerDecoderStatusFunc decoder_status_func_;

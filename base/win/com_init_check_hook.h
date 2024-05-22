@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,12 @@
 #define BASE_WIN_COM_INIT_CHECK_HOOK_H_
 
 #include "base/base_export.h"
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/check_op.h"
 #include "build/build_config.h"
+
+namespace device {
+class XrDeviceService;
+}  // namespace device
 
 namespace base {
 namespace win {
@@ -17,9 +20,8 @@ namespace win {
 // binaries contain a convenient 2 byte hotpatch noop. This doesn't exist in
 // 64-bit binaries.
 
-#if DCHECK_IS_ON() && defined(ARCH_CPU_X86_FAMILY) &&             \
-    defined(ARCH_CPU_32_BITS) && !defined(GOOGLE_CHROME_BUILD) && \
-    !defined(OFFICIAL_BUILD) &&                                   \
+#if DCHECK_IS_ON() && defined(ARCH_CPU_X86_FAMILY) &&        \
+    defined(ARCH_CPU_32_BITS) && !defined(OFFICIAL_BUILD) && \
     !defined(COM_INIT_CHECK_HOOK_DISABLED)  // See crbug/737090 for details.
 #define COM_INIT_CHECK_HOOK_ENABLED
 #endif
@@ -31,10 +33,20 @@ namespace win {
 class BASE_EXPORT ComInitCheckHook {
  public:
   ComInitCheckHook();
+
+  ComInitCheckHook(const ComInitCheckHook&) = delete;
+  ComInitCheckHook& operator=(const ComInitCheckHook&) = delete;
+
   ~ComInitCheckHook();
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ComInitCheckHook);
+  // For components that cannot use COM_INIT_CHECK_HOOK_DISABLED, call
+  // DisableCOMChecksForProcess() below. This should only be for code that calls
+  // into Windows components that don't explicitly initialize the MTA in the
+  // Windows thread pool.
+  friend class device::XrDeviceService;
+
+  static void DisableCOMChecksForProcess();
 };
 
 }  // namespace win

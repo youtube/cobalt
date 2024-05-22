@@ -1,4 +1,4 @@
-# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Copyright 2012 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -16,9 +16,9 @@ def web_socket_transfer_data(request):
   if line is None:
     return
   if line == '-':
-    data = ''
+    data = b''
   elif line == '--':
-    data = 'X'
+    data = b'X'
   else:
     code, reason = line.split(' ', 1)
     data = struct.pack('!H', int(code)) + reason.encode('utf-8')

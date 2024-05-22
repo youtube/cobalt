@@ -11,10 +11,10 @@
 #include "include/core/SkFontStyle.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkTypeface.h"
+#include "include/private/chromium/SkChromeRemoteGlyphCache.h"
 #include "src/core/SkAdvancedTypefaceMetrics.h"
 #include "src/core/SkDescriptor.h"
 #include "src/core/SkFontDescriptor.h"
-#include "src/core/SkRemoteGlyphCache.h"
 #include "src/core/SkScalerContext.h"
 
 class SkTypefaceProxy;
@@ -27,38 +27,36 @@ public:
                          const SkDescriptor* desc,
                          sk_sp<SkStrikeClient::DiscardableHandleManager> manager);
 
-    void initCache(SkStrike*, SkStrikeCache*);
-
 protected:
-    unsigned generateGlyphCount() override;
     bool generateAdvance(SkGlyph* glyph) override;
-    void generateMetrics(SkGlyph* glyph) override;
+    void generateMetrics(SkGlyph* glyph, SkArenaAlloc*) override;
     void generateImage(const SkGlyph& glyph) override;
-    bool generatePath(SkGlyphID glyphID, SkPath* path) override;
+    bool generatePath(const SkGlyph& glyphID, SkPath* path) override;
+    sk_sp<SkDrawable> generateDrawable(const SkGlyph&) override;
     void generateFontMetrics(SkFontMetrics* metrics) override;
     SkTypefaceProxy* getProxyTypeface() const;
 
 private:
     sk_sp<SkStrikeClient::DiscardableHandleManager> fDiscardableManager;
-    SkStrike* fCache = nullptr;
-    SkStrikeCache* fStrikeCache = nullptr;
-    typedef SkScalerContext INHERITED;
+    using INHERITED = SkScalerContext;
 };
 
 class SkTypefaceProxy : public SkTypeface {
 public:
-    SkTypefaceProxy(SkFontID fontId,
+    SkTypefaceProxy(SkTypefaceID typefaceID,
                     int glyphCount,
                     const SkFontStyle& style,
                     bool isFixed,
+                    bool glyphMaskNeedsCurrentColor,
                     sk_sp<SkStrikeClient::DiscardableHandleManager> manager,
                     bool isLogging = true)
             : INHERITED{style, false}
-            , fFontId{fontId}
+            , fTypefaceID{typefaceID}
             , fGlyphCount{glyphCount}
             , fIsLogging{isLogging}
+            , fGlyphMaskNeedsCurrentColor(glyphMaskNeedsCurrentColor)
             , fDiscardableManager{std::move(manager)} {}
-    SkFontID remoteTypefaceID() const {return fFontId;}
+    SkTypefaceID remoteTypefaceID() const {return fTypefaceID;}
     int glyphCount() const {return fGlyphCount;}
     bool isLogging() const {return fIsLogging;}
 
@@ -67,11 +65,11 @@ protected:
     std::unique_ptr<SkStreamAsset> onOpenStream(int* ttcIndex) const override {
         SK_ABORT("Should never be called.");
     }
-    std::unique_ptr<SkFontData> onMakeFontData() const override {
-        SK_ABORT("Should never be called.");
-    }
     sk_sp<SkTypeface> onMakeClone(const SkFontArguments& args) const override {
         SK_ABORT("Should never be called.");
+    }
+    bool onGlyphMaskNeedsCurrentColor() const override {
+        return fGlyphMaskNeedsCurrentColor;
     }
     int onGetVariationDesignPosition(SkFontArguments::VariationPosition::Coordinate coordinates[],
                                      int coordinateCount) const override {
@@ -85,6 +83,9 @@ protected:
         // Used by SkStrikeCache::DumpMemoryStatistics.
         *familyName = "";
     }
+    bool onGetPostScriptName(SkString*) const override {
+        SK_ABORT("Should never be called.");
+    }
     SkTypeface::LocalizedStrings* onCreateFamilyNameIterator() const override {
         SK_ABORT("Should never be called.");
     }
@@ -94,10 +95,11 @@ protected:
     size_t onGetTableData(SkFontTableTag, size_t offset, size_t length, void* data) const override {
         SK_ABORT("Should never be called.");
     }
-    SkScalerContext* onCreateScalerContext(const SkScalerContextEffects& effects,
-                                           const SkDescriptor* desc) const override {
-        return new SkScalerContextProxy(sk_ref_sp(const_cast<SkTypefaceProxy*>(this)), effects,
-                                        desc, fDiscardableManager);
+    std::unique_ptr<SkScalerContext> onCreateScalerContext(
+        const SkScalerContextEffects& effects, const SkDescriptor* desc) const override
+    {
+        return std::make_unique<SkScalerContextProxy>(
+                sk_ref_sp(const_cast<SkTypefaceProxy*>(this)), effects, desc, fDiscardableManager);
     }
     void onFilterRec(SkScalerContextRec* rec) const override {
         // The rec filtering is already applied by the server when generating
@@ -129,13 +131,14 @@ protected:
     }
 
 private:
-    const SkFontID                                  fFontId;
+    const SkTypefaceID                              fTypefaceID;
     const int                                       fGlyphCount;
     const bool                                      fIsLogging;
+    const bool                                      fGlyphMaskNeedsCurrentColor;
     sk_sp<SkStrikeClient::DiscardableHandleManager> fDiscardableManager;
 
 
-    typedef SkTypeface INHERITED;
+    using INHERITED = SkTypeface;
 };
 
 #endif  // SkRemoteTypeface_DEFINED

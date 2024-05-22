@@ -14,6 +14,10 @@
 
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 
+#include <unistd.h>
+
+#include "starboard/shared/pthread/thread_create_priority.h"
+
 namespace starboard {
 namespace raspi {
 namespace shared {
@@ -32,7 +36,7 @@ const int64_t kUpdateIntervalUsec = 5'000;
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
     : resource_pool_(new DispmanxResourcePool(kResourcePoolSize)),
       eos_written_(false),
-      thread_(kSbThreadInvalid),
+      thread_(0),
       request_thread_termination_(false) {
   SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
   update_job_ = std::bind(&VideoDecoder::Update, this);
@@ -40,12 +44,12 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
 }
 
 VideoDecoder::~VideoDecoder() {
-  if (SbThreadIsValid(thread_)) {
+  if (thread_ != 0) {
     {
       ScopedLock scoped_lock(mutex_);
       request_thread_termination_ = true;
     }
-    SbThreadJoin(thread_, NULL);
+    pthread_join(thread_, NULL);
   }
   RemoveJobByToken(update_job_token_);
 }
@@ -60,11 +64,9 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
 
-  SB_DCHECK(!SbThreadIsValid(thread_));
-  thread_ = SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
-                           "omx_video_decoder", &VideoDecoder::ThreadEntryPoint,
-                           this);
-  SB_DCHECK(SbThreadIsValid(thread_));
+  SB_DCHECK(thread_ == 0);
+  pthread_create(&thread_, nullptr, &VideoDecoder::ThreadEntryPoint, this);
+  SB_DCHECK(thread_ != 0);
 }
 
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
@@ -77,7 +79,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   const auto& input_buffer = input_buffers[0];
   queue_.Put(new Event(input_buffer));
   if (!TryToDeliverOneFrame()) {
-    SbThreadSleep(1000);
+    usleep(1000);
     // Call the callback with NULL frame to ensure that the host knows that
     // more data is expected.
     decoder_status_cb_(kNeedMoreInput, NULL);
@@ -132,6 +134,8 @@ bool VideoDecoder::TryToDeliverOneFrame() {
 
 // static
 void* VideoDecoder::ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "omx_video_decoder");
+  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
   VideoDecoder* decoder = reinterpret_cast<VideoDecoder*>(context);
   decoder->RunLoop();
   return NULL;
@@ -185,7 +189,7 @@ void VideoDecoder::RunLoop() {
         current_buffer = NULL;
         offset = 0;
       } else {
-        SbThreadSleep(1000);
+        usleep(1000);
         continue;
       }
     }

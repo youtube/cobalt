@@ -25,9 +25,10 @@
 #include <vector>
 
 #include "base/containers/hash_tables.h"
+#include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "cobalt/network/custom/url_fetcher.h"
 #include "net/http/http_request_headers.h"
-#include "net/url_request/url_fetcher.h"
 #include "starboard/common/string.h"
 #include "url/gurl.h"
 
@@ -73,7 +74,7 @@ class CORSPreflightCache : public base::RefCounted<CORSPreflightCache> {
     // Non-wildcard request-header name is "Authentication".
     bool allow_all_headers_except_non_wildcard;
     base::Time expiration_time;
-    std::set<net::URLFetcher::RequestType> methods;
+    std::set<int> methods;
     std::set<std::string, CaseInsensitiveCompare> headernames;
 
     CORSPreflightCacheEntry()

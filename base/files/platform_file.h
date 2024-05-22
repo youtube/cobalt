@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 #include "starboard/file.h"
 #endif
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_types.h"
 #endif
@@ -27,8 +27,7 @@ namespace base {
 using PlatformFile = SbFile;
 using ScopedPlatformFile = ::base::ScopedFD;
 constexpr PlatformFile kInvalidPlatformFile = kSbFileInvalid;
-#else
-#if defined(OS_WIN)
+#elif BUILDFLAG(IS_WIN)
 
 using PlatformFile = HANDLE;
 using ScopedPlatformFile = ::base::win::ScopedHandle;
@@ -38,7 +37,7 @@ using ScopedPlatformFile = ::base::win::ScopedHandle;
 // disallowed in constexpr. Visual Studio accepts this, however.
 const PlatformFile kInvalidPlatformFile = INVALID_HANDLE_VALUE;
 
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 using PlatformFile = int;
 using ScopedPlatformFile = ::base::ScopedFD;
@@ -46,8 +45,7 @@ using ScopedPlatformFile = ::base::ScopedFD;
 constexpr PlatformFile kInvalidPlatformFile = -1;
 
 #endif
-#endif
 
-}  // namespace
+}  // namespace base
 
 #endif  // BASE_FILES_PLATFORM_FILE_H_

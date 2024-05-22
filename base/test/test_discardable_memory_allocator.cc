@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,9 @@
 #include <cstdint>
 #include <cstring>
 
-#include "base/logging.h"
+#include "base/check.h"
 #include "base/memory/discardable_memory.h"
 #include "base/memory/ptr_util.h"
-#include "starboard/memory.h"
 
 namespace base {
 namespace {
@@ -40,6 +39,8 @@ class DiscardableMemoryImpl : public DiscardableMemory {
     return data_.get();
   }
 
+  void DiscardForTesting() override {}
+
   trace_event::MemoryAllocatorDump* CreateMemoryAllocatorDump(
       const char* name,
       trace_event::ProcessMemoryDump* pmd) const override {
@@ -57,6 +58,10 @@ class DiscardableMemoryImpl : public DiscardableMemory {
 std::unique_ptr<DiscardableMemory>
 TestDiscardableMemoryAllocator::AllocateLockedDiscardableMemory(size_t size) {
   return std::make_unique<DiscardableMemoryImpl>(size);
+}
+
+size_t TestDiscardableMemoryAllocator::GetBytesAllocated() const {
+  return 0U;
 }
 
 }  // namespace base

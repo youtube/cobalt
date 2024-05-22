@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/base_export.h"
 #include "base/unguessable_token.h"
-#include "starboard/types.h"
 
 namespace base {
 namespace android {
@@ -23,7 +22,7 @@ class BASE_EXPORT UnguessableTokenAndroid {
       const base::UnguessableToken& token);
 
   // Create a native UnguessableToken from Java UnguessableToken |token|.
-  static base::UnguessableToken FromJavaUnguessableToken(
+  static absl::optional<base::UnguessableToken> FromJavaUnguessableToken(
       JNIEnv* env,
       const JavaRef<jobject>& token);
 
@@ -34,8 +33,9 @@ class BASE_EXPORT UnguessableTokenAndroid {
       JNIEnv* env,
       const JavaRef<jobject>& token);
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(UnguessableTokenAndroid);
+  UnguessableTokenAndroid() = delete;
+  UnguessableTokenAndroid(const UnguessableTokenAndroid&) = delete;
+  UnguessableTokenAndroid& operator=(const UnguessableTokenAndroid&) = delete;
 };
 
 }  // namespace android

@@ -20,7 +20,7 @@
 #define COBALT_SCRIPT_CALLBACK_FUNCTION_H_
 
 #include "base/callback.h"
-#include "base/callback_internal.h"
+#include "base/functional/callback_internal.h"
 
 // Abstract template interface that represents an IDL callback function
 // http://heycam.github.io/webidl/#idl-callback-functions

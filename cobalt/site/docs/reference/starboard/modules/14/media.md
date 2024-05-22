@@ -227,7 +227,7 @@ Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
     The number of bytes per second expected with this format.
 *   `uint16_t block_alignment`
 
-    Byte block alignment, e.g, 4.
+    Byte block alignment, e.g., 4.
 *   `uint16_t bits_per_sample`
 
     The bit depth for the stream this represents, e.g. `8` or `16`.

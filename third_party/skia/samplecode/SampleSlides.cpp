@@ -7,7 +7,6 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkVertices.h"
-#include "include/effects/SkBlurMaskFilter.h"
 #include "include/effects/SkGradientShader.h"
 #include "samplecode/Sample.h"
 #include "src/core/SkBlurMask.h"
@@ -246,7 +245,7 @@ static sk_sp<SkShader> make_shader0(SkIPoint* size) {
 
     decode_file("/skimages/logo.gif", &bm);
     size->set(bm.width(), bm.height());
-    return bm.makeShader();
+    return bm.makeShader(SkSamplingOptions(SkFilterMode::kLinear));
 }
 
 static sk_sp<SkShader> make_shader1(const SkIPoint& size) {
@@ -363,7 +362,6 @@ static void mesh_slide(SkCanvas* canvas) {
 
     SkPaint paint;
     paint.setDither(true);
-    paint.setFilterQuality(kLow_SkFilterQuality);
 
     for (size_t i = 0; i < SK_ARRAY_COUNT(fRecs); i++) {
         auto verts = SkVertices::MakeCopy(fRecs[i].fMode, fRecs[i].fCount,
@@ -429,7 +427,7 @@ public:
             gProc[i](&canvas);
             canvas.restore();
             SkString str;
-            str.printf("/skimages/slide_" SK_SIZE_T_SPECIFIER ".png", i);
+            str.printf("/skimages/slide_%zu.png", i);
             ToolUtils::EncodeImageToFile(str.c_str(), bm, SkEncodedImageFormat::kPNG, 100);
         }
         this->setBGColor(BG_COLOR);
@@ -450,7 +448,7 @@ protected:
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 //////////////////////////////////////////////////////////////////////////////

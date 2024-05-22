@@ -47,31 +47,14 @@ static const VorbisLayout vorbis_mappings[8] = {
 
 OpusAudioDecoder::OpusAudioDecoder(const AudioStreamInfo& audio_stream_info)
     : audio_stream_info_(audio_stream_info) {
-  int error;
-  int channels = audio_stream_info_.number_of_channels;
-  if (channels > 8 || channels < 1) {
-    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
-    return;
-  }
-
-  decoder_ = opus_multistream_decoder_create(
-      audio_stream_info_.samples_per_second, channels,
-      vorbis_mappings[channels - 1].nb_streams,
-      vorbis_mappings[channels - 1].nb_coupled_streams,
-      vorbis_mappings[channels - 1].mapping, &error);
-  if (error != OPUS_OK) {
-    SB_LOG(ERROR) << "Failed to create decoder with error: "
-                  << opus_strerror(error);
-    decoder_ = NULL;
-    return;
-  }
-  SB_DCHECK(decoder_ != NULL);
+  InitializeCodec();
 }
 
 OpusAudioDecoder::~OpusAudioDecoder() {
-  if (decoder_) {
-    opus_multistream_decoder_destroy(decoder_);
+  if (is_valid()) {
+    opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
   }
+  TeardownCodec();
 }
 
 void OpusAudioDecoder::Initialize(const OutputCB& output_cb,
@@ -150,19 +133,19 @@ bool OpusAudioDecoder::DecodeInternal(
       audio_stream_info_.number_of_channels * frames_per_au_ *
           starboard::media::GetBytesPerSample(GetSampleType()));
 
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#if SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode";
   int decoded_frames = opus_multistream_decode(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(),
       reinterpret_cast<opus_int16*>(decoded_audio->data()), frames_per_au_, 0);
-#else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#else   // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(), reinterpret_cast<float*>(decoded_audio->data()),
       frames_per_au_, 0);
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   if (decoded_frames == OPUS_BUFFER_TOO_SMALL &&
       frames_per_au_ < kMaxOpusFramesPerAU) {
     frames_per_au_ = kMaxOpusFramesPerAU;
@@ -215,6 +198,35 @@ void OpusAudioDecoder::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
+void OpusAudioDecoder::InitializeCodec() {
+  int error;
+  int channels = audio_stream_info_.number_of_channels;
+  if (channels > 8 || channels < 1) {
+    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
+    return;
+  }
+
+  decoder_ = opus_multistream_decoder_create(
+      audio_stream_info_.samples_per_second, channels,
+      vorbis_mappings[channels - 1].nb_streams,
+      vorbis_mappings[channels - 1].nb_coupled_streams,
+      vorbis_mappings[channels - 1].mapping, &error);
+  if (error != OPUS_OK) {
+    SB_LOG(ERROR) << "Failed to create decoder with error: "
+                  << opus_strerror(error);
+    decoder_ = NULL;
+    return;
+  }
+  SB_DCHECK(decoder_ != NULL);
+}
+
+void OpusAudioDecoder::TeardownCodec() {
+  if (is_valid()) {
+    opus_multistream_decoder_destroy(decoder_);
+    decoder_ = NULL;
+  }
+}
+
 scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
     int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
@@ -233,6 +245,19 @@ scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
 void OpusAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
+  if (is_valid()) {
+    int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
+    if (error != OPUS_OK) {
+      SB_LOG(ERROR) << "Failed to reset OpusAudioDecoder with error: "
+                    << opus_strerror(error);
+
+      // If fail to reset opus decoder, re-create it.
+      TeardownCodec();
+      InitializeCodec();
+    }
+  }
+
+  frames_per_au_ = kMaxOpusFramesPerAU;
   stream_ended_ = false;
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
@@ -249,11 +274,11 @@ bool OpusAudioDecoder::is_valid() const {
 
 SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
   SB_DCHECK(BelongsToCurrentThread());
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#if SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeInt16;
-#else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#else   // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeFloat32;
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 }
 
 }  // namespace opus

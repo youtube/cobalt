@@ -27,7 +27,7 @@ CDATASection::CDATASection(Document* document,
                            const base::StringPiece& cdata_section)
     : Text(document, cdata_section) {}
 
-base::Token CDATASection::node_name() const {
+base_token::Token CDATASection::node_name() const {
   return base::Tokens::cdata_section_node_name();
 }
 

@@ -1,0 +1,9 @@
+Name: OTS (OpenType Sanitizer)
+URL: https://github.com/khaledhosny/ots.git
+Version: 46bea9879127d0ff1c6601b078e2ce98e83fcd33
+Security Critical: yes
+License: BSD
+
+Local Modifications:
+- BUILD.gn: Added.
+- fuzz/: Added.

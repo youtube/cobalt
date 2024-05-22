@@ -26,21 +26,26 @@ struct GrVkImageInfo;
 
 class GrVkTextureRenderTarget: public GrVkTexture, public GrVkRenderTarget {
 public:
-    static sk_sp<GrVkTextureRenderTarget> MakeNewTextureRenderTarget(GrVkGpu*, SkBudgeted,
-                                                                     const GrSurfaceDesc&,
-                                                                     int sampleCnt,
-                                                                     const GrVkImage::ImageDesc&,
-                                                                     GrMipMapsStatus);
+    static sk_sp<GrVkTextureRenderTarget> MakeNewTextureRenderTarget(
+            GrVkGpu* gpu,
+            SkBudgeted budgeted,
+            SkISize dimensions,
+            VkFormat format,
+            uint32_t mipLevels,
+            int sampleCnt,
+            GrMipmapStatus mipmapStatus,
+            GrProtected isProtected);
 
-    static sk_sp<GrVkTextureRenderTarget> MakeWrappedTextureRenderTarget(GrVkGpu*,
-                                                                         const GrSurfaceDesc&,
-                                                                         int sampleCnt,
-                                                                         GrWrapOwnership,
-                                                                         GrWrapCacheable,
-                                                                         const GrVkImageInfo&,
-                                                                         sk_sp<GrVkImageLayout>);
+    static sk_sp<GrVkTextureRenderTarget> MakeWrappedTextureRenderTarget(
+            GrVkGpu*,
+            SkISize dimensions,
+            int sampleCnt,
+            GrWrapOwnership,
+            GrWrapCacheable,
+            const GrVkImageInfo&,
+            sk_sp<GrBackendSurfaceMutableStateImpl>);
 
-    GrBackendFormat backendFormat() const override { return this->getBackendFormat(); }
+    GrBackendFormat backendFormat() const override { return GrVkTexture::backendFormat(); }
 
 protected:
     void onAbandon() override {
@@ -56,65 +61,34 @@ protected:
     }
 
 private:
-    // MSAA, not-wrapped
     GrVkTextureRenderTarget(GrVkGpu* gpu,
                             SkBudgeted budgeted,
-                            const GrSurfaceDesc& desc,
-                            int sampleCnt,
-                            const GrVkImageInfo& info,
-                            sk_sp<GrVkImageLayout> layout,
-                            const GrVkImageView* texView,
-                            const GrVkImageInfo& msaaInfo,
-                            sk_sp<GrVkImageLayout> msaaLayout,
-                            const GrVkImageView* colorAttachmentView,
-                            const GrVkImageView* resolveAttachmentView,
-                            GrMipMapsStatus);
+                            SkISize dimensions,
+                            sk_sp<GrVkImage> texture,
+                            sk_sp<GrVkImage> colorAttachment,
+                            sk_sp<GrVkImage> resolveAttachment,
+                            GrMipmapStatus);
 
-    // non-MSAA, not-wrapped
     GrVkTextureRenderTarget(GrVkGpu* gpu,
-                            SkBudgeted budgeted,
-                            const GrSurfaceDesc& desc,
-                            const GrVkImageInfo& info,
-                            sk_sp<GrVkImageLayout> layout,
-                            const GrVkImageView* texView,
-                            const GrVkImageView* colorAttachmentView,
-                            GrMipMapsStatus);
-
-    // MSAA, wrapped
-    GrVkTextureRenderTarget(GrVkGpu* gpu,
-                            const GrSurfaceDesc& desc,
-                            int sampleCnt,
-                            const GrVkImageInfo& info,
-                            sk_sp<GrVkImageLayout> layout,
-                            const GrVkImageView* texView,
-                            const GrVkImageInfo& msaaInfo,
-                            sk_sp<GrVkImageLayout> msaaLayout,
-                            const GrVkImageView* colorAttachmentView,
-                            const GrVkImageView* resolveAttachmentView,
-                            GrMipMapsStatus,
-                            GrBackendObjectOwnership,
+                            SkISize dimensions,
+                            sk_sp<GrVkImage> texture,
+                            sk_sp<GrVkImage> colorAttachment,
+                            sk_sp<GrVkImage> resolveAttachment,
+                            GrMipmapStatus,
                             GrWrapCacheable);
 
-    // non-MSAA, wrapped
-    GrVkTextureRenderTarget(GrVkGpu* gpu,
-                            const GrSurfaceDesc& desc,
-                            const GrVkImageInfo& info,
-                            sk_sp<GrVkImageLayout> layout,
-                            const GrVkImageView* texView,
-                            const GrVkImageView* colorAttachmentView,
-                            GrMipMapsStatus,
-                            GrBackendObjectOwnership,
-                            GrWrapCacheable);
-
-    // GrGLRenderTarget accounts for the texture's memory and any MSAA renderbuffer's memory.
     size_t onGpuMemorySize() const override;
 
     // In Vulkan we call the release proc after we are finished with the underlying
     // GrVkImage::Resource object (which occurs after the GPU has finished all work on it).
     void onSetRelease(sk_sp<GrRefCntedCallback> releaseHelper) override {
         // Forward the release proc on to GrVkImage
-        this->setResourceRelease(std::move(releaseHelper));
+        GrVkTexture::onSetRelease(std::move(releaseHelper));
     }
 };
+
+#ifdef SK_BUILD_FOR_WIN
+#pragma warning(pop)
+#endif
 
 #endif

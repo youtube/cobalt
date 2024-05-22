@@ -7,11 +7,12 @@
 
 #include "include/core/SkTypes.h"
 
-#ifdef SK_XML
+#if defined(SK_ENABLE_SVG)
 
-#include "experimental/svg/model/SkSVGDOM.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkStream.h"
+#include "modules/svg/include/SkSVGDOM.h"
+#include "modules/svg/include/SkSVGNode.h"
 #include "samplecode/Sample.h"
 #include "src/core/SkOSFile.h"
 #include "src/utils/SkOSPath.h"
@@ -29,17 +30,11 @@ protected:
     void onOnceBeforeDraw() override {
         SkFILEStream svgStream(fPath.c_str());
         if (!svgStream.isValid()) {
-            SkDebugf("file not found: \"path\"\n", fPath.c_str());
+            SkDebugf("file not found: \"%s\"\n", fPath.c_str());
             return;
         }
 
-        SkDOM xmlDom;
-        if (!xmlDom.build(svgStream)) {
-            SkDebugf("XML parsing failed: \"path\"\n", fPath.c_str());
-            return;
-        }
-
-        fDom = SkSVGDOM::MakeFromDOM(xmlDom);
+        fDom = SkSVGDOM::MakeFromStream(svgStream);
         if (fDom) {
             fDom->setContainerSize(SkSize::Make(this->width(), this->height()));
         }
@@ -66,7 +61,7 @@ private:
     SkString        fPath;
     SkString        fLabel;
 
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 } // anonymous namespace
@@ -75,4 +70,4 @@ Sample* CreateSampleSVGFileView(const SkString& filename);
 Sample* CreateSampleSVGFileView(const SkString& filename) {
     return new SVGFileView(filename);
 }
-#endif  // SK_XML
+#endif  // defined(SK_ENABLE_SVG)

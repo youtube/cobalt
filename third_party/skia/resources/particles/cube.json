@@ -4,14 +4,12 @@
       "Type": "SkCircleDrawable",
       "Radius": 4
    },
-   "EffectCode": [
+   "Code": [
       "void effectSpawn(inout Effect effect) {",
       "  effect.lifetime = 2;",
       "  effect.rate = 200;",
       "}",
-      ""
-   ],
-   "Code": [
+      "",
       "void spawn(inout Particle p) {",
       "  p.lifetime = 10;",
       "}",
@@ -44,8 +42,8 @@
       "}",
       "",
       "void update(inout Particle p) {",
-      "  float3 pos = float3(rand, rand, rand);",
-      "  if (rand < 0.33) {",
+      "  float3 pos = float3(rand(p.seed), rand(p.seed), rand(p.seed));",
+      "  if (rand(p.seed) < 0.33) {",
       "    if (pos.x > 0.5) {",
       "      pos.x = 1;",
       "      p.color.rgb = float3(1, 0.2, 0.2);",
@@ -53,7 +51,7 @@
       "      pos.x = 0;",
       "      p.color.rgb = float3(0.2, 1, 1);",
       "    }",
-      "  } else if (rand < 0.5) {",
+      "  } else if (rand(p.seed) < 0.5) {",
       "    if (pos.y > 0.5) {",
       "      pos.y = 1;",
       "      p.color.rgb = float3(0.2, 0.2, 1);",
@@ -78,7 +76,7 @@
       "  pos = mix(pos, normalize(pos), s);",
       "  pos = pos * 100;",
       "",
-      "  float age = effect.loop + effect.age;",
+      "  float age = float(effect.loop) + effect.age;",
       "  float4x4 mat = rx(age * radians(60))",
       "               * ry(age * radians(70))",
       "               * rz(age * radians(80));",

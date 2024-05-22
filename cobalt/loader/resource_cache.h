@@ -34,7 +34,7 @@
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
-#include "net/base/linked_hash_map.h"
+#include "net/third_party/quiche/src/quiche/common/quiche_linked_hash_map.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -438,7 +438,7 @@ class ResourceCacheBase {
   };
 
   typedef base::hash_set<std::string> ResourceSet;
-  typedef net::linked_hash_map<std::string, ResourceCallbackInfo>
+  typedef quiche::QuicheLinkedHashMap<std::string, ResourceCallbackInfo>
       ResourceCallbackMap;
 
   ResourceCacheBase(const std::string& name,
@@ -573,8 +573,9 @@ class ResourceCache : public ResourceCacheBase {
 
  private:
   typedef base::hash_map<std::string, CachedResourceType*> CachedResourceMap;
-  typedef net::linked_hash_map<std::string, int> WeakCachedResourceRefCountMap;
-  typedef net::linked_hash_map<std::string, scoped_refptr<ResourceType>>
+  typedef quiche::QuicheLinkedHashMap<std::string, int>
+      WeakCachedResourceRefCountMap;
+  typedef quiche::QuicheLinkedHashMap<std::string, scoped_refptr<ResourceType>>
       ResourceMap;
 
   std::unique_ptr<Loader> StartLoadingResource(

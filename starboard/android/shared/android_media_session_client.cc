@@ -14,11 +14,11 @@
 
 #include "starboard/android/shared/android_media_session_client.h"
 
+#include <pthread.h>
+
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
-#include "starboard/once.h"
 
 namespace starboard {
 namespace android {
@@ -118,8 +118,8 @@ CobaltExtensionMediaSessionAction PlaybackStateActionToMediaSessionAction(
   return result;
 }
 
-SbOnceControl once_flag = SB_ONCE_INITIALIZER;
-SbMutex mutex;
+pthread_once_t once_flag = PTHREAD_ONCE_INIT;
+pthread_mutex_t mutex;
 
 // Callbacks to the last MediaSessionClient to become active, or null.
 // Used to route Java callbacks.
@@ -131,12 +131,12 @@ CobaltExtensionMediaSessionInvokeActionCallback g_invoke_action_callback = NULL;
 void* g_callback_context = NULL;
 
 void OnceInit() {
-  SbMutexCreate(&mutex);
+  pthread_mutex_init(&mutex, nullptr);
 }
 
 void NativeInvokeAction(jlong action, jlong seek_ms) {
-  SbOnce(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
+  pthread_once(&once_flag, OnceInit);
+  pthread_mutex_lock(&mutex);
 
   if (g_invoke_action_callback != NULL && g_callback_context != NULL) {
     CobaltExtensionMediaSessionActionDetails details = {};
@@ -149,20 +149,20 @@ void NativeInvokeAction(jlong action, jlong seek_ms) {
     g_invoke_action_callback(details, g_callback_context);
   }
 
-  SbMutexRelease(&mutex);
+  pthread_mutex_unlock(&mutex);
 }
 
 void UpdateActiveSessionPlatformPlaybackState(
     CobaltExtensionMediaSessionPlaybackState state) {
-  SbOnce(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
+  pthread_once(&once_flag, OnceInit);
+  pthread_mutex_lock(&mutex);
 
   if (g_update_platform_playback_state_callback != NULL &&
       g_callback_context != NULL) {
     g_update_platform_playback_state_callback(state, g_callback_context);
   }
 
-  SbMutexRelease(&mutex);
+  pthread_mutex_unlock(&mutex);
 }
 
 void OnMediaSessionStateChanged(
@@ -171,11 +171,6 @@ void OnMediaSessionStateChanged(
 
   jint playback_state = CobaltExtensionPlaybackStateToPlaybackState(
       session_state.actual_playback_state);
-
-  SbOnce(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
-
-  SbMutexRelease(&mutex);
 
   jlong playback_state_actions = MediaSessionActionsToPlaybackStateActions(
       session_state.available_actions);
@@ -251,26 +246,29 @@ void RegisterMediaSessionCallbacks(
     CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback,
     CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
         update_platform_playback_state_callback) {
-  SbOnce(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
+  pthread_once(&once_flag, OnceInit);
+  pthread_mutex_lock(&mutex);
 
   g_callback_context = callback_context;
   g_invoke_action_callback = invoke_action_callback;
   g_update_platform_playback_state_callback =
       update_platform_playback_state_callback;
 
-  SbMutexRelease(&mutex);
+  pthread_mutex_unlock(&mutex);
 }
 
 void DestroyMediaSessionClientCallback() {
-  SbOnce(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
+  pthread_once(&once_flag, OnceInit);
+  pthread_mutex_lock(&mutex);
 
   g_callback_context = NULL;
   g_invoke_action_callback = NULL;
   g_update_platform_playback_state_callback = NULL;
 
-  SbMutexRelease(&mutex);
+  pthread_mutex_unlock(&mutex);
+
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("deactivateMediaSession", "()V");
 }
 
 }  // namespace

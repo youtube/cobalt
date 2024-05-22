@@ -19,9 +19,11 @@
 #include <string>
 #include <vector>
 
+#include "base/basictypes.h"
+#include "base/macros.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
 #include "cobalt/network_bridge/net_poster.h"
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_fetcher_delegate.h"
+#include "net/url_request/url_request.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -29,7 +31,9 @@ namespace network {
 class NetworkModule;
 
 // Simple class to manage some fire-and-forget POST requests.
-class NetPoster : public network_bridge::NetPoster, net::URLFetcherDelegate {
+class NetPoster : public network_bridge::NetPoster,
+                  net::URLRequest::Delegate,
+                  net::URLFetcherDelegate {
  public:
   explicit NetPoster(NetworkModule* network_module);
   ~NetPoster();
@@ -44,6 +48,7 @@ class NetPoster : public network_bridge::NetPoster, net::URLFetcherDelegate {
  private:
   // From net::URLFetcherDelegate
   void OnURLFetchComplete(const net::URLFetcher* source) override;
+  void OnReadCompleted(net::URLRequest* request, int bytes_read) override;
 
   NetworkModule* network_module_;
   std::vector<std::unique_ptr<net::URLFetcher>> fetchers_;

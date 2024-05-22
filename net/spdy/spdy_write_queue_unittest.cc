@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,9 @@
 #include <string>
 #include <utility>
 
-#include "base/logging.h"
+#include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "net/base/request_priority.h"
 #include "net/log/net_log_with_source.h"
@@ -43,7 +44,7 @@ std::unique_ptr<SpdyBufferProducer> StringToProducer(const std::string& s) {
 // Makes a SpdyBufferProducer producing a frame with the data in the
 // given int (converted to a string).
 std::unique_ptr<SpdyBufferProducer> IntToProducer(int i) {
-  return StringToProducer(base::IntToString(i));
+  return StringToProducer(base::NumberToString(i));
 }
 
 // Producer whose produced buffer will enqueue yet another buffer into the
@@ -51,24 +52,19 @@ std::unique_ptr<SpdyBufferProducer> IntToProducer(int i) {
 class RequeingBufferProducer : public SpdyBufferProducer {
  public:
   explicit RequeingBufferProducer(SpdyWriteQueue* queue) {
-    buffer_ = std::make_unique<SpdyBuffer>(kOriginal, arraysize(kOriginal));
+    buffer_ = std::make_unique<SpdyBuffer>(kOriginal, std::size(kOriginal));
     buffer_->AddConsumeCallback(
-        base::Bind(RequeingBufferProducer::ConsumeCallback, queue));
+        base::BindRepeating(RequeingBufferProducer::ConsumeCallback, queue));
   }
 
   std::unique_ptr<SpdyBuffer> ProduceBuffer() override {
     return std::move(buffer_);
   }
 
-  size_t EstimateMemoryUsage() const override {
-    NOTREACHED();
-    return 0;
-  }
-
   static void ConsumeCallback(SpdyWriteQueue* queue,
                               size_t size,
                               SpdyBuffer::ConsumeSource source) {
-    auto buffer = std::make_unique<SpdyBuffer>(kRequeued, arraysize(kRequeued));
+    auto buffer = std::make_unique<SpdyBuffer>(kRequeued, std::size(kRequeued));
     auto buffer_producer =
         std::make_unique<SimpleBufferProducer>(std::move(buffer));
 
@@ -102,7 +98,8 @@ int ProducerToInt(std::unique_ptr<SpdyBufferProducer> producer) {
 std::unique_ptr<SpdyStream> MakeTestStream(RequestPriority priority) {
   return std::make_unique<SpdyStream>(
       SPDY_BIDIRECTIONAL_STREAM, base::WeakPtr<SpdySession>(), GURL(), priority,
-      0, 0, NetLogWithSource(), TRAFFIC_ANNOTATION_FOR_TESTS);
+      0, 0, NetLogWithSource(), TRAFFIC_ANNOTATION_FOR_TESTS,
+      false /* detect_broken_connection */);
 }
 
 // Add some frame producers of different priority. The producers
@@ -267,13 +264,13 @@ TEST_F(SpdyWriteQueueTest, RemovePendingWritesForStreamsAfter) {
 
   for (int i = 0; i < 100; ++i) {
     write_queue.Enqueue(DEFAULT_PRIORITY, spdy::SpdyFrameType::HEADERS,
-                        IntToProducer(i), streams[i % arraysize(streams)],
+                        IntToProducer(i), streams[i % std::size(streams)],
                         TRAFFIC_ANNOTATION_FOR_TESTS);
   }
 
   write_queue.RemovePendingWritesForStreamsAfter(stream1->stream_id());
 
-  for (int i = 0; i < 100; i += arraysize(streams)) {
+  for (int i = 0; i < 100; i += std::size(streams)) {
     spdy::SpdyFrameType frame_type = spdy::SpdyFrameType::DATA;
     std::unique_ptr<SpdyBufferProducer> frame_producer;
     base::WeakPtr<SpdyStream> stream;

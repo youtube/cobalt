@@ -9,16 +9,14 @@
 #include "src/gpu/gl/GrGLDefines.h"
 #include "src/gpu/gl/GrGLUtil.h"
 
-#include "src/core/SkMakeUnique.h"
 #include "src/core/SkTSearch.h"
 #include "src/core/SkTSort.h"
-#include "src/utils/SkJSONWriter.h"
 
 namespace { // This cannot be static because it is used as a template parameter.
 inline bool extension_compare(const SkString& a, const SkString& b) {
     return strcmp(a.c_str(), b.c_str()) < 0;
 }
-}
+}  // namespace
 
 // finds the index of ext in strings or a negative result if ext is not found.
 static int find_string(const SkTArray<SkString>& strings, const char ext[]) {
@@ -118,8 +116,7 @@ bool GrGLExtensions::init(GrGLStandard standard,
         eat_space_sep_strings(&fStrings, extensions);
     }
     if (!fStrings.empty()) {
-        SkTLessFunctionToFunctorAdaptor<SkString, extension_compare> cmp;
-        SkTQSort(&fStrings.front(), &fStrings.back(), cmp);
+        SkTQSort(fStrings.begin(), fStrings.end(), extension_compare);
     }
     fInitialized = true;
     return true;
@@ -141,8 +138,7 @@ bool GrGLExtensions::remove(const char ext[]) {
     // most a handful of times when our test programs start.
     fStrings.removeShuffle(idx);
     if (idx != fStrings.count()) {
-        SkTLessFunctionToFunctorAdaptor<SkString, extension_compare> cmp;
-        SkTInsertionSort(&(fStrings.operator[](idx)), &fStrings.back(), cmp);
+        SkTInsertionSort(fStrings.begin() + idx, fStrings.size() - idx, extension_compare);
     }
     return true;
 }
@@ -153,12 +149,13 @@ void GrGLExtensions::add(const char ext[]) {
         // This is not the most effecient approach since we end up looking at all of the
         // extensions after the add
         fStrings.emplace_back(ext);
-        SkTLessFunctionToFunctorAdaptor<SkString, extension_compare> cmp;
-        SkTInsertionSort(&fStrings.front(), &fStrings.back(), cmp);
+        SkTInsertionSort(fStrings.begin(), fStrings.size(), extension_compare);
     }
 }
 
 #ifdef SK_ENABLE_DUMP_GPU
+#include "src/utils/SkJSONWriter.h"
+
 void GrGLExtensions::dumpJSON(SkJSONWriter* writer) const {
     writer->beginArray();
     for (int i = 0; i < fStrings.count(); ++i) {

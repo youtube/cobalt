@@ -29,6 +29,7 @@
 #else
 #if defined(_POSIX_C_SOURCE) || defined(__ANDROID_API_)
 #include <libgen.h>
+#include <signal.h>
 #endif
 #endif
 
@@ -53,6 +54,7 @@ static const Tool kTools[] = {
   { "client", Client },
 #endif
   { "isfips", IsFIPS },
+  { "generate-ech", GenerateECH},
   { "generate-ed25519", GenerateEd25519Key },
   { "genrsa", GenerateRSAKey },
   { "md5sum", MD5Sum },
@@ -68,6 +70,7 @@ static const Tool kTools[] = {
   { "sha256sum", SHA256Sum },
   { "sha384sum", SHA384Sum },
   { "sha512sum", SHA512Sum },
+  { "sha512256sum", SHA512256Sum },
   { "sign", Sign },
   { "speed", Speed },
   { "", nullptr },
@@ -118,6 +121,8 @@ int main(int argc, char **argv) {
     perror("_setmode(_fileno(stderr), O_BINARY)");
     return 1;
   }
+#else
+  signal(SIGPIPE, SIG_IGN);
 #endif
 
   CRYPTO_library_init();

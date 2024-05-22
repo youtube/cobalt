@@ -17,20 +17,13 @@
 #ifndef STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 
+#include <string>
+
 #include "starboard/common/storage.h"
 #include "starboard/common/string.h"
 #include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/get_home_directory.h"
-
-#if SB_HAS_QUIRK(HASH_FILE_NAME)
-#include <ios>
-#include <sstream>
-#include <string>
-#include "starboard/common/murmurhash2.h"
-#include "starboard/common/scoped_ptr.h"
-#include "starboard/memory.h"
-#endif
 
 struct SbStorageRecordPrivate {
   void* unused_user;  // deprecated in SB 16
@@ -42,9 +35,9 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 // Gets the path to the storage file.
-static SB_C_INLINE bool GetStorageFilePath(const char* name,
-                                           char* out_path,
-                                           int path_size) {
+static inline bool GetStorageFilePath(const char* name,
+                                      char* out_path,
+                                      int path_size) {
   bool success = GetHomeDirectory(out_path, path_size);
   if (!success) {
     return false;
@@ -54,18 +47,7 @@ static SB_C_INLINE bool GetStorageFilePath(const char* name,
   ::starboard::strlcat(out_path, "/.starboard", path_size);
   if (n > 0) {
     ::starboard::strlcat(out_path, ".", path_size);
-#if SB_HAS_QUIRK(HASH_FILE_NAME)
-    size_t n = strlen(name);
-    // Two 32 bit hashes will create a 64 bit hash with extremely low
-    // probability of collisions. The seed term was chosen arbitrary.
-    uint32_t hash1 = MurmurHash2_32(name, n, 0x8df88a67);
-    uint32_t hash2 = MurmurHash2_32(name, n, 0x5bdac960);
-    std::stringstream name_stringstream;
-    name_stringstream << std::hex << hash1 << hash2;
-    ::starboard::strlcat(out_path, name_stringstream.str().c_str(), path_size);
-#else
     ::starboard::strlcat(out_path, name, path_size);
-#endif
   }
   ::starboard::strlcat(out_path, ".storage", path_size);
   return true;

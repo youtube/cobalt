@@ -963,7 +963,7 @@ const ContainerBox* Box::AsContainerBox() const { return NULL; }
 TextBox* Box::AsTextBox() { return NULL; }
 const TextBox* Box::AsTextBox() const { return NULL; }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void Box::SetGeneratingNode(dom::Node* generating_node) {
   std::stringstream stream;
@@ -975,7 +975,12 @@ void Box::SetGeneratingNode(dom::Node* generating_node) {
 void Box::DumpWithIndent(std::ostream* stream, int indent) const {
   if (!generating_html_.empty()) {
     DumpIndent(stream, indent);
-    *stream << "# " << generating_html_ << "\n";
+    *stream << "# \"" << generating_html_ << "\"\n";
+  }
+
+  if (computed_style()) {
+    DumpIndent(stream, indent);
+    *stream << "# Declared \"" << *computed_style() << "\"\n";
   }
 
   DumpIndent(stream, indent);
@@ -987,7 +992,7 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
   DumpChildrenWithIndent(stream, indent + INDENT_SIZE);
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 namespace {
 void PopulateBaseStyleForBackgroundColorNode(
@@ -1132,7 +1137,7 @@ bool Box::HasNonZeroMarginOrBorderOrPadding() const {
   return width() != GetMarginBoxWidth() || height() != GetMarginBoxHeight();
 }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void Box::DumpIndent(std::ostream* stream, int indent) const {
   while (indent--) {
@@ -1160,7 +1165,7 @@ void Box::DumpProperties(std::ostream* stream) const {
 
 void Box::DumpChildrenWithIndent(std::ostream* stream, int indent) const {}
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 const ContainerBox* Box::GetAbsoluteContainingBlock() const {
   // If the element has 'position: absolute', the containing block is

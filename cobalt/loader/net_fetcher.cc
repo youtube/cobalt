@@ -26,52 +26,22 @@
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/fetch_interceptor_coordinator.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
+#include "cobalt/network/custom/url_fetcher.h"
 #include "cobalt/network/disk_cache/cobalt_backend_impl.h"
 #include "cobalt/network/network_module.h"
 #include "net/base/mime_util.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_transaction_factory.h"
-#include "net/url_request/url_fetcher.h"
+#include "net/http/http_util.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#define HANDLE_CORE_DUMP
-#include "base/lazy_instance.h"
-#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace loader {
 
 namespace {
-
-#if defined(HANDLE_CORE_DUMP)
-
-class NetFetcherLog {
- public:
-  NetFetcherLog() : total_fetched_bytes_(0) {
-    SbCoreDumpRegisterHandler(CoreDumpHandler, this);
-  }
-  ~NetFetcherLog() { SbCoreDumpUnregisterHandler(CoreDumpHandler, this); }
-
-  static void CoreDumpHandler(void* context) {
-    SbCoreDumpLogInteger(
-        "NetFetcher total fetched bytes",
-        static_cast<NetFetcherLog*>(context)->total_fetched_bytes_);
-  }
-
-  void IncrementFetchedBytes(int length) { total_fetched_bytes_ += length; }
-
- private:
-  int total_fetched_bytes_;
-  DISALLOW_COPY_AND_ASSIGN(NetFetcherLog);
-};
-
-base::LazyInstance<NetFetcherLog>::DestructorAtExit net_fetcher_log =
-    LAZY_INSTANCE_INITIALIZER;
-
-#endif  // defined(HANDLE_CORE_DUMP)
 
 bool IsResponseCodeSuccess(int response_code) {
   // NetFetcher only considers success to be if the network request
@@ -110,9 +80,9 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
       origin_(origin),
       request_script_(options.resource_type ==
                       network::disk_cache::kUncompiledScript),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       skip_fetch_intercept_(options.skip_fetch_intercept),
-      will_destroy_current_message_loop_(false),
+      will_destroy_current_task_runner_(false),
       main_resource_(main_resource) {
   url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
   if (!options.headers.IsEmpty()) {
@@ -131,31 +101,37 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
 
   if (url.SchemeIsHTTPOrHTTPS()) {
     auto url_request_context = network_module->url_request_context();
-    std::string key = net::HttpUtil::SpecForRequest(url);
-    url_request_context->AssociateKeyWithResourceType(key,
-                                                      options.resource_type);
+    auto key = net::HttpCache::GenerateCacheKey(
+        url,
+        /*load_flags=*/0, net::NetworkIsolationKey(),
+        /*upload_data_identifier=*/0,
+        /*is_subframe_document_resource=*/false,
+        /*use_single_keyed_cache=*/false,
+        /*single_key_checksum=*/std::string());
+    if (key) {
+      url_request_context->AssociateKeyWithResourceType(key.value(),
+                                                        options.resource_type);
+    }
   }
 
   if ((request_cross_origin_ &&
        (request_mode == kCORSModeSameOriginCredentials)) ||
       request_mode == kCORSModeOmitCredentials) {
-    const uint32 kDisableCookiesLoadFlags =
-        net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
-        net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
-    url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
+    url_fetcher_->SetAllowCredentials(false);
   }
+
   network_module->AddClientHintHeaders(*url_fetcher_, network::kCallTypeLoader);
 
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()
   // while a loader is still being constructed.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                start_callback_.callback());
-  base::MessageLoop::current()->AddDestructionObserver(this);
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, start_callback_.callback());
+  base::CurrentThread::Get()->AddDestructionObserver(this);
 }
 
 void NetFetcher::WillDestroyCurrentMessageLoop() {
-  will_destroy_current_message_loop_.store(true);
+  will_destroy_current_task_runner_.store(true);
 }
 
 void NetFetcher::Start() {
@@ -186,10 +162,10 @@ void NetFetcher::Start() {
 void NetFetcher::InterceptFallback() { url_fetcher_->Start(); }
 
 void NetFetcher::OnFetchIntercepted(std::unique_ptr<std::string> body) {
-  if (will_destroy_current_message_loop_.load()) {
+  if (will_destroy_current_task_runner_.load()) {
     return;
   }
-  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (task_runner_ != base::SequencedTaskRunner::GetCurrentDefault()) {
     task_runner_->PostTask(
         FROM_HERE, base::BindOnce(&NetFetcher::OnFetchIntercepted,
                                   base::Unretained(this), std::move(body)));
@@ -261,9 +237,9 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT1("cobalt::loader", "NetFetcher::OnURLFetchComplete", "url",
                url_fetcher_->GetOriginalURL().spec());
-  const net::URLRequestStatus& status = source->GetStatus();
+  const net::Error status = source->GetStatus();
   const int response_code = source->GetResponseCode();
-  if (status.is_success() && IsResponseCodeSuccess(response_code)) {
+  if (status == net::Error::OK && IsResponseCodeSuccess(response_code)) {
     auto* download_data_writer =
         base::polymorphic_downcast<URLFetcherStringWriter*>(
             source->GetResponseWriter());
@@ -280,20 +256,19 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
     // Check for response codes and errors that are considered transient. These
     // are the ones that net::URLFetcherCore is willing to attempt retries on,
     // along with ERR_NAME_RESOLUTION_FAILED, which indicates a socket error.
-    if (response_code >= 500 ||
-        status.error() == net::ERR_TEMPORARILY_THROTTLED ||
-        status.error() == net::ERR_NETWORK_CHANGED ||
-        status.error() == net::ERR_NAME_RESOLUTION_FAILED ||
-        status.error() == net::ERR_CONNECTION_RESET ||
-        status.error() == net::ERR_CONNECTION_CLOSED ||
-        status.error() == net::ERR_CONNECTION_ABORTED) {
+    if (response_code >= 500 || status == net::ERR_TEMPORARILY_THROTTLED ||
+        status == net::ERR_NETWORK_CHANGED ||
+        status == net::ERR_NAME_RESOLUTION_FAILED ||
+        status == net::ERR_CONNECTION_RESET ||
+        status == net::ERR_CONNECTION_CLOSED ||
+        status == net::ERR_CONNECTION_ABORTED) {
       did_fail_from_transient_error_ = true;
     }
 
-    std::string msg(base::StringPrintf(
-        "NetFetcher error on %s: %s, response code %d",
-        source->GetURL().spec().c_str(),
-        net::ErrorToString(status.error()).c_str(), response_code));
+    std::string msg(
+        base::StringPrintf("NetFetcher error on %s: %s, response code %d",
+                           source->GetURL().spec().c_str(),
+                           net::ErrorToString(status).c_str(), response_code));
     return HandleError(msg).InvalidateThis();
   }
 }
@@ -310,10 +285,6 @@ void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
     if (data.empty()) {
       return;
     }
-#if defined(HANDLE_CORE_DUMP)
-    net_fetcher_log.Get().IncrementFetchedBytes(
-        static_cast<int>(data.length()));
-#endif
     handler()->OnReceivedPassed(
         this, std::unique_ptr<std::string>(new std::string(std::move(data))));
   }
@@ -326,8 +297,8 @@ void NetFetcher::ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) {
 NetFetcher::~NetFetcher() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   start_callback_.Cancel();
-  if (!will_destroy_current_message_loop_.load()) {
-    base::MessageLoop::current()->RemoveDestructionObserver(this);
+  if (!will_destroy_current_task_runner_.load()) {
+    base::CurrentThread::Get()->RemoveDestructionObserver(this);
   }
 }
 

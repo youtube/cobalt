@@ -13,7 +13,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/sys_info.h"
+#include "base/system/sys_info.h"
 #include "base/version.h"
 #include "build/build_config.h"
 #include "components/update_client/activity_data_service.h"
@@ -138,7 +138,7 @@ protocol_request::Request MakeProtocolRequest(
 #endif
 
   if (updater_state_attributes) {
-    request.updater = base::make_optional<protocol_request::Updater>();
+    request.updater = absl::make_optional<protocol_request::Updater>();
     auto it = updater_state_attributes->find("name");
     if (it != updater_state_attributes->end())
       request.updater->name = it->second;
@@ -182,7 +182,7 @@ protocol_request::Request MakeProtocolRequest(
 protocol_request::App MakeProtocolApp(
     const std::string& app_id,
     const base::Version& version,
-    base::Optional<std::vector<base::Value>> events) {
+    absl::optional<std::vector<base::Value::Dict>> events) {
   protocol_request::App app;
   app.app_id = app_id;
   app.version = version.GetString();

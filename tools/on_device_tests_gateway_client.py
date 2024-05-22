@@ -78,6 +78,7 @@ class OnDeviceTestsGatewayClient():
             tag=args.tag,
             labels=args.label,
             builder_name=args.builder_name,
+            builder_url=args.builder_url,
             change_id=args.change_id,
             build_number=args.build_number,
             loader_platform=args.loader_platform,
@@ -189,6 +190,8 @@ def main():
       type=str,
       help='Name of the builder that built the artifacts, '
       'if any. Saved with performance test results')
+  trigger_parser.add_argument(
+      '--builder_url', type=str, help='Url to the run, if any.')
   trigger_parser.add_argument(
       '-n',
       '--build_number',

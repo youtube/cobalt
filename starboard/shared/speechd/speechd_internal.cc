@@ -27,7 +27,7 @@
 #include <sanitizer/lsan_interface.h>
 #endif  // HAS_LEAK_SANITIZER
 
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/shared/starboard/application.h"
 
 namespace starboard {

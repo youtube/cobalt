@@ -48,6 +48,11 @@ static const struct argument kArguments[] = {
         "An OpenSSL-style ECDH curves list that configures the offered curves",
     },
     {
+        "-sigalgs", kOptionalArgument,
+        "An OpenSSL-style signature algorithms list that configures the "
+        "signature algorithm preferences",
+    },
+    {
         "-max-version", kOptionalArgument,
         "The maximum acceptable protocol version",
     },
@@ -57,6 +62,13 @@ static const struct argument kArguments[] = {
     },
     {
         "-server-name", kOptionalArgument, "The server name to advertise",
+    },
+    {
+        "-ech-grease", kBooleanArgument, "Enable ECH GREASE",
+    },
+    {
+        "-ech-config-list", kOptionalArgument,
+        "Path to file containing serialized ECHConfigs",
     },
     {
         "-select-next-proto", kOptionalArgument,
@@ -111,22 +123,30 @@ static const struct argument kArguments[] = {
         "-grease", kBooleanArgument, "Enable GREASE",
     },
     {
+        "-permute-extensions",
+        kBooleanArgument,
+        "Permute extensions in handshake messages",
+    },
+    {
         "-test-resumption", kBooleanArgument,
         "Connect to the server twice. The first connection is closed once a "
         "session is established. The second connection offers it.",
     },
     {
         "-root-certs", kOptionalArgument,
-        "A filename containing one of more PEM root certificates. Implies that "
+        "A filename containing one or more PEM root certificates. Implies that "
         "verification is required.",
+    },
+    {
+        "-root-cert-dir", kOptionalArgument,
+        "A directory containing one or more root certificate PEM files in "
+        "OpenSSL's hashed-directory format. Implies that verification is "
+        "required.",
     },
     {
         "-early-data", kOptionalArgument, "Enable early data. The argument to "
         "this flag is the early data to send or if it starts with '@', the "
         "file to read from for early data.",
-    },
-    {
-        "-ed25519", kBooleanArgument, "Advertise Ed25519 support",
     },
     {
         "-http-tunnel", kOptionalArgument,
@@ -257,6 +277,24 @@ static bool DoConnection(SSL_CTX *ctx,
     SSL_set_tlsext_host_name(ssl.get(), args_map["-server-name"].c_str());
   }
 
+  if (args_map.count("-ech-grease") != 0) {
+    SSL_set_enable_ech_grease(ssl.get(), 1);
+  }
+
+  if (args_map.count("-ech-config-list") != 0) {
+    const char *filename = args_map["-ech-config-list"].c_str();
+    ScopedFILE f(fopen(filename, "rb"));
+    std::vector<uint8_t> data;
+    if (f == nullptr || !ReadAll(&data, f.get())) {
+      fprintf(stderr, "Error reading %s.\n", filename);
+      return false;
+    }
+    if (!SSL_set1_ech_config_list(ssl.get(), data.data(), data.size())) {
+      fprintf(stderr, "Error setting ECHConfigList\n");
+      return false;
+    }
+  }
+
   if (args_map.count("-session-in") != 0) {
     bssl::UniquePtr<BIO> in(BIO_new_file(args_map["-session-in"].c_str(),
                                          "rb"));
@@ -305,15 +343,17 @@ static bool DoConnection(SSL_CTX *ctx,
       }
       early_data = std::string(data.begin(), data.end());
     }
-    int ed_size = early_data.size();
-    int ssl_ret = SSL_write(ssl.get(), early_data.data(), ed_size);
-    if (ssl_ret <= 0) {
-      int ssl_err = SSL_get_error(ssl.get(), ssl_ret);
-      PrintSSLError(stderr, "Error while writing", ssl_err, ssl_ret);
-      return false;
-    } else if (ssl_ret != ed_size) {
-      fprintf(stderr, "Short write from SSL_write.\n");
-      return false;
+    if (!early_data.empty()) {
+      int ed_size = early_data.size();
+      int ssl_ret = SSL_write(ssl.get(), early_data.data(), ed_size);
+      if (ssl_ret <= 0) {
+        int ssl_err = SSL_get_error(ssl.get(), ssl_ret);
+        PrintSSLError(stderr, "Error while writing", ssl_err, ssl_ret);
+        return false;
+      } else if (ssl_ret != ed_size) {
+        fprintf(stderr, "Short write from SSL_write.\n");
+        return false;
+      }
     }
   }
 
@@ -371,6 +411,12 @@ bool Client(const std::vector<std::string> &args) {
   if (args_map.count("-curves") != 0 &&
       !SSL_CTX_set1_curves_list(ctx.get(), args_map["-curves"].c_str())) {
     fprintf(stderr, "Failed setting curves list\n");
+    return false;
+  }
+
+  if (args_map.count("-sigalgs") != 0 &&
+      !SSL_CTX_set1_sigalgs_list(ctx.get(), args_map["-sigalgs"].c_str())) {
+    fprintf(stderr, "Failed setting signature algorithms list\n");
     return false;
   }
 
@@ -490,6 +536,10 @@ bool Client(const std::vector<std::string> &args) {
     SSL_CTX_set_grease_enabled(ctx.get(), 1);
   }
 
+  if (args_map.count("-permute-extensions") != 0) {
+    SSL_CTX_set_permute_extensions(ctx.get(), 1);
+  }
+
   if (args_map.count("-root-certs") != 0) {
     if (!SSL_CTX_load_verify_locations(
             ctx.get(), args_map["-root-certs"].c_str(), nullptr)) {
@@ -500,12 +550,18 @@ bool Client(const std::vector<std::string> &args) {
     SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_PEER, nullptr);
   }
 
-  if (args_map.count("-early-data") != 0) {
-    SSL_CTX_set_early_data_enabled(ctx.get(), 1);
+  if (args_map.count("-root-cert-dir") != 0) {
+    if (!SSL_CTX_load_verify_locations(
+            ctx.get(), nullptr, args_map["-root-cert-dir"].c_str())) {
+      fprintf(stderr, "Failed to load root certificates.\n");
+      ERR_print_errors_fp(stderr);
+      return false;
+    }
+    SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_PEER, nullptr);
   }
 
-  if (args_map.count("-ed25519") != 0) {
-    SSL_CTX_set_ed25519_enabled(ctx.get(), 1);
+  if (args_map.count("-early-data") != 0) {
+    SSL_CTX_set_early_data_enabled(ctx.get(), 1);
   }
 
   if (args_map.count("-debug") != 0) {

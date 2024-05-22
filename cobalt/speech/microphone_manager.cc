@@ -17,6 +17,11 @@
 #include <memory>
 #include <utility>
 
+#include "base/bind.h"
+#include "base/check.h"
+#include "base/message_loop/message_pump_type.h"
+#include "cobalt/base/task_runner_util.h"
+
 namespace cobalt {
 namespace speech {
 
@@ -39,30 +44,31 @@ MicrophoneManager::MicrophoneManager(
       microphone_creator_(microphone_creator),
       state_(kStopped),
       thread_("MicrophoneThd") {
-  thread_.StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
+  thread_.StartWithOptions(base::Thread::Options(base::MessagePumpType::IO, 0));
 }
 
 MicrophoneManager::~MicrophoneManager() {
-  thread_.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&MicrophoneManager::DestroyInternal, base::Unretained(this)));
+  base::task_runner_util::PostBlockingTask(
+      thread_.task_runner(), FROM_HERE,
+      base::BindOnce(&MicrophoneManager::DestroyInternal,
+                     base::Unretained(this)));
 }
 
 void MicrophoneManager::Open() {
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE,
-      base::Bind(&MicrophoneManager::OpenInternal, base::Unretained(this)));
+      base::BindOnce(&MicrophoneManager::OpenInternal, base::Unretained(this)));
 }
 
 void MicrophoneManager::Close() {
-  thread_.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&MicrophoneManager::CloseInternal, base::Unretained(this)));
+  base::task_runner_util::PostBlockingTask(
+      thread_.task_runner(), FROM_HERE,
+      base::BindOnce(&MicrophoneManager::CloseInternal,
+                     base::Unretained(this)));
 }
 
 bool MicrophoneManager::CreateIfNecessary() {
-  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->RunsTasksInCurrentSequence());
 
   if (microphone_) {
     return true;
@@ -83,7 +89,7 @@ bool MicrophoneManager::CreateIfNecessary() {
 }
 
 void MicrophoneManager::OpenInternal() {
-  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->RunsTasksInCurrentSequence());
 
   // Try to create a valid microphone if necessary.
   if (state_ == kStarted || !CreateIfNecessary()) {
@@ -111,7 +117,7 @@ void MicrophoneManager::OpenInternal() {
 }
 
 void MicrophoneManager::CloseInternal() {
-  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->RunsTasksInCurrentSequence());
 
   if (state_ == kStopped) {
     return;
@@ -134,7 +140,7 @@ void MicrophoneManager::CloseInternal() {
 }
 
 void MicrophoneManager::Read() {
-  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->RunsTasksInCurrentSequence());
 
   DCHECK(state_ == kStarted);
   DCHECK(microphone_);
@@ -159,7 +165,7 @@ void MicrophoneManager::Read() {
 }
 
 void MicrophoneManager::DestroyInternal() {
-  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->RunsTasksInCurrentSequence());
 
   microphone_.reset();
   state_ = kStopped;

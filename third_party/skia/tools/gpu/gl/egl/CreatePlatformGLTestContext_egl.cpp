@@ -1,44 +1,19 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "tools/gpu/gl/GLTestContext.h"
-
-#define GL_GLEXT_PROTOTYPES
-
-#include <GLES2/gl2.h>
-
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 
 #include "src/gpu/gl/GrGLDefines.h"
 #include "src/gpu/gl/GrGLUtil.h"
+#include "tools/gpu/gl/GLTestContext.h"
+
+#define GL_GLEXT_PROTOTYPES
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 namespace {
-
-// TODO: Share this class with ANGLE if/when it gets support for EGL_KHR_fence_sync.
-class EGLFenceSync : public sk_gpu_test::FenceSync {
-public:
-    static std::unique_ptr<EGLFenceSync> MakeIfSupported(EGLDisplay);
-
-    sk_gpu_test::PlatformFence SK_WARN_UNUSED_RESULT insertFence() const override;
-    bool waitFence(sk_gpu_test::PlatformFence fence) const override;
-    void deleteFence(sk_gpu_test::PlatformFence fence) const override;
-
-private:
-    EGLFenceSync(EGLDisplay display);
-
-    PFNEGLCREATESYNCKHRPROC       fEGLCreateSyncKHR;
-    PFNEGLCLIENTWAITSYNCKHRPROC   fEGLClientWaitSyncKHR;
-    PFNEGLDESTROYSYNCKHRPROC      fEGLDestroySyncKHR;
-
-    EGLDisplay                    fDisplay;
-
-    typedef sk_gpu_test::FenceSync INHERITED;
-};
 
 std::function<void()> context_restorer() {
     auto display = eglGetCurrentDisplay();
@@ -63,9 +38,9 @@ public:
 private:
     void destroyGLContext();
 
+    void onPlatformMakeNotCurrent() const override;
     void onPlatformMakeCurrent() const override;
     std::function<void()> onPlatformGetAutoContextRestore() const override;
-    void onPlatformSwapBuffers() const override;
     GrGLFuncPtr onPlatformGetProcAddress(const char*) const override;
 
     PFNEGLCREATEIMAGEKHRPROC fEglCreateImageProc = nullptr;
@@ -199,6 +174,7 @@ EGLGLTestContext::EGLGLTestContext(GrGLStandard forcedGpuAPI, EGLGLTestContext* 
             continue;
         }
 
+#ifdef SK_GL
         gl = GrGLMakeNativeInterface();
         if (!gl) {
             SkDebugf("Failed to create gl interface.\n");
@@ -218,7 +194,13 @@ EGLGLTestContext::EGLGLTestContext(GrGLStandard forcedGpuAPI, EGLGLTestContext* 
                     (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
         }
 
-        this->init(std::move(gl), EGLFenceSync::MakeIfSupported(fDisplay));
+        this->init(std::move(gl));
+#else
+        // Allow the GLTestContext creation to succeed without a GrGLInterface to support
+        // GrContextFactory's persistent GL context workaround for Vulkan. We won't need the
+        // GrGLInterface since we're not running the GL backend.
+        this->init(nullptr);
+#endif
         break;
     }
 }
@@ -250,12 +232,17 @@ void EGLGLTestContext::destroyGLContext() {
 }
 
 GrEGLImage EGLGLTestContext::texture2DToEGLImage(GrGLuint texID) const {
+#ifdef SK_GL
     if (!this->gl()->hasExtension("EGL_KHR_gl_texture_2D_image") || !fEglCreateImageProc) {
         return GR_EGL_NO_IMAGE;
     }
     EGLint attribs[] = { GR_EGL_GL_TEXTURE_LEVEL, 0, GR_EGL_NONE };
     GrEGLClientBuffer clientBuffer = reinterpret_cast<GrEGLClientBuffer>(texID);
     return fEglCreateImageProc(fDisplay, fContext, GR_EGL_GL_TEXTURE_2D, clientBuffer, attribs);
+#else
+    (void)fEglCreateImageProc;
+    return nullptr;
+#endif
 }
 
 void EGLGLTestContext::destroyEGLImage(GrEGLImage image) const {
@@ -263,7 +250,8 @@ void EGLGLTestContext::destroyEGLImage(GrEGLImage image) const {
 }
 
 GrGLuint EGLGLTestContext::eglImageToExternalTexture(GrEGLImage image) const {
-    GrGLClearErr(this->gl());
+#ifdef SK_GL
+    while (this->gl()->fFunctions.fGetError() != GR_GL_NO_ERROR) {}
     if (!this->gl()->hasExtension("GL_OES_EGL_image_external")) {
         return 0;
     }
@@ -280,16 +268,19 @@ GrGLuint EGLGLTestContext::eglImageToExternalTexture(GrEGLImage image) const {
         return 0;
     }
     GR_GL_CALL_NOERRCHECK(this->gl(), BindTexture(GR_GL_TEXTURE_EXTERNAL, texID));
-    if (GR_GL_GET_ERROR(this->gl()) != GR_GL_NO_ERROR) {
+    if (this->gl()->fFunctions.fGetError() != GR_GL_NO_ERROR) {
         GR_GL_CALL(this->gl(), DeleteTextures(1, &texID));
         return 0;
     }
     glEGLImageTargetTexture2D(GR_GL_TEXTURE_EXTERNAL, image);
-    if (GR_GL_GET_ERROR(this->gl()) != GR_GL_NO_ERROR) {
+    if (this->gl()->fFunctions.fGetError() != GR_GL_NO_ERROR) {
         GR_GL_CALL(this->gl(), DeleteTextures(1, &texID));
         return 0;
     }
     return texID;
+#else
+    return 0;
+#endif
 }
 
 std::unique_ptr<sk_gpu_test::GLTestContext> EGLGLTestContext::makeNew() const {
@@ -299,6 +290,12 @@ std::unique_ptr<sk_gpu_test::GLTestContext> EGLGLTestContext::makeNew() const {
         ctx->makeCurrent();
     }
     return ctx;
+}
+
+void EGLGLTestContext::onPlatformMakeNotCurrent() const {
+    if (!eglMakeCurrent(fDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT )) {
+        SkDebugf("Could not reset the context.\n");
+    }
 }
 
 void EGLGLTestContext::onPlatformMakeCurrent() const {
@@ -314,66 +311,9 @@ std::function<void()> EGLGLTestContext::onPlatformGetAutoContextRestore() const 
     return context_restorer();
 }
 
-void EGLGLTestContext::onPlatformSwapBuffers() const {
-    if (!eglSwapBuffers(fDisplay, fSurface)) {
-        SkDebugf("Could not complete eglSwapBuffers.\n");
-    }
-}
-
 GrGLFuncPtr EGLGLTestContext::onPlatformGetProcAddress(const char* procName) const {
     return eglGetProcAddress(procName);
 }
-
-static bool supports_egl_extension(EGLDisplay display, const char* extension) {
-    size_t extensionLength = strlen(extension);
-    const char* extensionsStr = eglQueryString(display, EGL_EXTENSIONS);
-    while (const char* match = strstr(extensionsStr, extension)) {
-        // Ensure the string we found is its own extension, not a substring of a larger extension
-        // (e.g. GL_ARB_occlusion_query / GL_ARB_occlusion_query2).
-        if ((match == extensionsStr || match[-1] == ' ') &&
-            (match[extensionLength] == ' ' || match[extensionLength] == '\0')) {
-            return true;
-        }
-        extensionsStr = match + extensionLength;
-    }
-    return false;
-}
-
-std::unique_ptr<EGLFenceSync> EGLFenceSync::MakeIfSupported(EGLDisplay display) {
-    if (!display || !supports_egl_extension(display, "EGL_KHR_fence_sync")) {
-        return nullptr;
-    }
-    return std::unique_ptr<EGLFenceSync>(new EGLFenceSync(display));
-}
-
-EGLFenceSync::EGLFenceSync(EGLDisplay display)
-    : fDisplay(display) {
-    fEGLCreateSyncKHR = (PFNEGLCREATESYNCKHRPROC) eglGetProcAddress("eglCreateSyncKHR");
-    fEGLClientWaitSyncKHR = (PFNEGLCLIENTWAITSYNCKHRPROC) eglGetProcAddress("eglClientWaitSyncKHR");
-    fEGLDestroySyncKHR = (PFNEGLDESTROYSYNCKHRPROC) eglGetProcAddress("eglDestroySyncKHR");
-    SkASSERT(fEGLCreateSyncKHR && fEGLClientWaitSyncKHR && fEGLDestroySyncKHR);
-}
-
-sk_gpu_test::PlatformFence EGLFenceSync::insertFence() const {
-    EGLSyncKHR eglsync = fEGLCreateSyncKHR(fDisplay, EGL_SYNC_FENCE_KHR, nullptr);
-    return reinterpret_cast<sk_gpu_test::PlatformFence>(eglsync);
-}
-
-bool EGLFenceSync::waitFence(sk_gpu_test::PlatformFence platformFence) const {
-    EGLSyncKHR eglsync = reinterpret_cast<EGLSyncKHR>(platformFence);
-    return EGL_CONDITION_SATISFIED_KHR ==
-            fEGLClientWaitSyncKHR(fDisplay,
-                                  eglsync,
-                                  EGL_SYNC_FLUSH_COMMANDS_BIT_KHR,
-                                  EGL_FOREVER_KHR);
-}
-
-void EGLFenceSync::deleteFence(sk_gpu_test::PlatformFence platformFence) const {
-    EGLSyncKHR eglsync = reinterpret_cast<EGLSyncKHR>(platformFence);
-    fEGLDestroySyncKHR(fDisplay, eglsync);
-}
-
-GR_STATIC_ASSERT(sizeof(EGLSyncKHR) <= sizeof(sk_gpu_test::PlatformFence));
 
 }  // anonymous namespace
 

@@ -17,7 +17,7 @@
 
 #include <stdlib.h>
 
-#include <openssl/cpu.h>
+#include "../../internal.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -30,18 +30,14 @@ extern "C" {
 #define HWAES
 #define HWAES_ECB
 
-OPENSSL_INLINE int hwaes_capable(void) {
-  return (OPENSSL_ia32cap_get()[1] & (1 << (57 - 32))) != 0;
-}
+OPENSSL_INLINE int hwaes_capable(void) { return CRYPTO_is_AESNI_capable(); }
 
 #define VPAES
 #if defined(OPENSSL_X86_64)
 #define VPAES_CTR32
 #endif
 #define VPAES_CBC
-OPENSSL_INLINE int vpaes_capable(void) {
-  return (OPENSSL_ia32cap_get()[1] & (1 << (41 - 32))) != 0;
-}
+OPENSSL_INLINE int vpaes_capable(void) { return CRYPTO_is_SSSE3_capable(); }
 
 #elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
 #define HWAES
@@ -63,12 +59,6 @@ OPENSSL_INLINE int vpaes_capable(void) { return CRYPTO_is_NEON_capable(); }
 OPENSSL_INLINE int vpaes_capable(void) { return CRYPTO_is_NEON_capable(); }
 #endif
 
-#elif defined(OPENSSL_PPC64LE)
-#define HWAES
-
-OPENSSL_INLINE int hwaes_capable(void) {
-  return CRYPTO_is_PPC64LE_vcrypto_capable();
-}
 #endif
 
 #endif  // !NO_ASM
@@ -218,19 +208,17 @@ OPENSSL_INLINE void vpaes_cbc_encrypt(const uint8_t *in, uint8_t *out,
 #endif  // !VPAES
 
 
-void aes_nohw_encrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
-void aes_nohw_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
 int aes_nohw_set_encrypt_key(const uint8_t *key, unsigned bits,
                              AES_KEY *aeskey);
 int aes_nohw_set_decrypt_key(const uint8_t *key, unsigned bits,
                              AES_KEY *aeskey);
-
-#if !defined(OPENSSL_NO_ASM) && \
-    (defined(OPENSSL_X86_64) || defined(OPENSSL_X86))
-#define AES_NOHW_CBC
+void aes_nohw_encrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
+void aes_nohw_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
+void aes_nohw_ctr32_encrypt_blocks(const uint8_t *in, uint8_t *out,
+                                   size_t blocks, const AES_KEY *key,
+                                   const uint8_t ivec[16]);
 void aes_nohw_cbc_encrypt(const uint8_t *in, uint8_t *out, size_t len,
                           const AES_KEY *key, uint8_t *ivec, const int enc);
-#endif
 
 
 #if defined(__cplusplus)

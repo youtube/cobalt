@@ -20,7 +20,7 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media/file_data_source.h"
 #include "cobalt/media/url_fetcher_data_source.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace cobalt {
 namespace media {
@@ -54,6 +54,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   }
   std::string SourceURL() const override { return ""; }
   std::string MaxVideoCapabilities() const override { return std::string(); };
+  int MaxVideoInputSize() const override { return 0; };
 
   void EncryptedMediaInitDataEncountered(const char*, const unsigned char*,
                                          unsigned) override {}
@@ -89,9 +90,9 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
     player_->LoadProgressive(video_url, std::move(data_source));
   } else {
     std::unique_ptr<DataSource> data_source(new URLFetcherDataSource(
-        base::ThreadTaskRunnerHandle::Get(), video_url, csp::SecurityCallback(),
-        fetcher_factory->network_module(), loader::kNoCORSMode,
-        loader::Origin()));
+        base::SequencedTaskRunner::GetCurrentDefault(), video_url,
+        csp::SecurityCallback(), fetcher_factory->network_module(),
+        loader::kNoCORSMode, loader::Origin()));
     player_->LoadProgressive(video_url, std::move(data_source));
   }
 

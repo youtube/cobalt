@@ -35,10 +35,35 @@ std::ostream &operator<<(std::ostream &os, const Bytes &in) {
   }
 
   // Print a byte slice as hex.
-  static const char hex[] = "0123456789abcdef";
-  for (uint8_t b : in.span_) {
-    os << hex[b >> 4];
-    os << hex[b & 0xf];
-  }
+  os << EncodeHex(in.span_);
   return os;
 }
+
+bool DecodeHex(std::vector<uint8_t> *out, const std::string &in) {
+  out->clear();
+  if (in.size() % 2 != 0) {
+    return false;
+  }
+  out->reserve(in.size() / 2);
+  for (size_t i = 0; i < in.size(); i += 2) {
+    uint8_t hi, lo;
+    if (!OPENSSL_fromxdigit(&hi, in[i]) ||
+        !OPENSSL_fromxdigit(&lo, in[i + 1])) {
+      return false;
+    }
+    out->push_back((hi << 4) | lo);
+  }
+  return true;
+}
+
+std::string EncodeHex(bssl::Span<const uint8_t> in) {
+  static const char kHexDigits[] = "0123456789abcdef";
+  std::string ret;
+  ret.reserve(in.size() * 2);
+  for (uint8_t b : in) {
+    ret += kHexDigits[b >> 4];
+    ret += kHexDigits[b & 0xf];
+  }
+  return ret;
+}
+

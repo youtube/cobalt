@@ -14,9 +14,21 @@
 
 #include "base/rand_util.h"
 
+#include "base/notreached.h"
 #include "starboard/system.h"
 
 namespace base {
+
+namespace internal {
+
+void ConfigureBoringSSLBackedRandBytesFieldTrial() {}
+
+double RandDoubleAvoidAllocation() {
+  NOTREACHED();
+  return 0.0;
+}
+
+}
 
 // NOTE: This function must be cryptographically secure. http://crbug.com/140076
 void RandBytes(void* output, size_t output_length) {

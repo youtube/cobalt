@@ -7,7 +7,8 @@
 
 #include "base/bind.h"
 #include "base/location.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/logging.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_engine.h"
 
@@ -33,14 +34,14 @@ TaskUpdate::TaskUpdate(scoped_refptr<UpdateEngine> update_engine,
 }
 
 TaskUpdate::~TaskUpdate() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "TaskUpdate::~TaskUpdate";
 #endif
 }
 
 void TaskUpdate::Run() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "TaskUpdate::Run begin";
   if(is_completed_) {
@@ -67,7 +68,7 @@ void TaskUpdate::Run() {
 }
 
 void TaskUpdate::Cancel() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if defined(STARBOARD)
   LOG(INFO) << "TaskUpdate::Cancel";
@@ -84,7 +85,7 @@ std::vector<std::string> TaskUpdate::GetIds() const {
 }
 
 void TaskUpdate::TaskComplete(Error error) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(STARBOARD)
   LOG(INFO) << "TaskUpdate::TaskComplete";
 
@@ -98,7 +99,7 @@ void TaskUpdate::TaskComplete(Error error) {
   is_completed_ = true;
 #endif
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback_),
                                 scoped_refptr<TaskUpdate>(this), error));
 }

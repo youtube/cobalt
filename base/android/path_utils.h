@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -41,6 +40,10 @@ BASE_EXPORT bool GetDownloadsDirectory(FilePath* result);
 // directory, and a private directory on external SD card.
 BASE_EXPORT std::vector<FilePath> GetAllPrivateDownloadsDirectories();
 
+// Retrieves the paths to all secondary storage download directories. e.g.
+// /storage/1AEF-1A1E/Download/.
+BASE_EXPORT std::vector<FilePath> GetSecondaryStorageDownloadDirectories();
+
 // Retrieves the path to the native JNI libraries via
 // ApplicationInfo.nativeLibraryDir on the Java side. The result is placed in
 // the FilePath pointed to by 'result'.
@@ -49,10 +52,6 @@ BASE_EXPORT bool GetNativeLibraryDirectory(FilePath* result);
 // Retrieves the absolute path to the external storage directory. The result
 // is placed in the FilePath pointed to by 'result'.
 BASE_EXPORT bool GetExternalStorageDirectory(FilePath* result);
-
-// Retrieves the absolute path the base APK. The result is placed in the
-// FilePath pointed to by 'result'.
-BASE_EXPORT bool GetPathToBaseApk(FilePath* result);
 
 }  // namespace android
 }  // namespace base

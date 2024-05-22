@@ -51,9 +51,6 @@
 
 // --- Common Helper Macros --------------------------------------------------
 
-#define SB_TRUE #error "The macro SB_TRUE is deprecated."
-#define SB_FALSE #error "The macro SB_FALSE is deprecated."
-
 // Determines a compile-time capability of the system.
 #define SB_CAN(SB_FEATURE) \
   ((defined SB_CAN_##SB_FEATURE) && SB_CAN_##SB_FEATURE)
@@ -110,9 +107,6 @@ struct CompileAssert {};
 // Standard CPP trick to stringify an evaluated macro definition.
 #define SB_STRINGIFY(x) SB_STRINGIFY2(x)
 #define SB_STRINGIFY2(x) #x
-
-#define SB_DISALLOW_COPY_AND_ASSIGN \
-  #error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
 
 // An enumeration of values for the kSbPreferredByteOrder configuration
 // variable.  Setting this up properly means avoiding slow color swizzles when
@@ -186,13 +180,6 @@ struct CompileAssert {};
 #define SB_WARN_UNUSED_RESULT
 #endif  // COMPILER_GCC
 #endif  // SB_WARN_UNUSED_RESULT
-
-// Declares a function as overriding a virtual function on compilers that
-// support it.
-#define SB_OVERRIDE                                                   \
-  #error                                                              \
-      "The SB_OVERRIDE macro is deprecated. Please use \"override\" " \
-      "instead."
 
 // Declare numeric literals of signed 64-bit type.
 #if !defined(SB_INT64_C)
@@ -339,366 +326,76 @@ struct CompileAssert {};
 #error "You can't define SB_IS_WCHAR_T_SIGNED and SB_IS_WCHAR_T_UNSIGNED."
 #endif
 
+// SB_C_FORCE_INLINE annotation for forcing a C function to be inlined.
+#if SB_API_VERSION < 16
 #if !defined(SB_C_FORCE_INLINE)
 #error "Your platform must define SB_C_FORCE_INLINE."
 #endif
+#else  //  SB_API_VERSION < 16
+#if defined(SB_C_FORCE_INLINE)
+#error "Your platform must not define SB_C_FORCE_INLINE"
+#else  // defined(SB_C_FORCE_INLINE)
+#if SB_IS(COMPILER_GCC)
+#define SB_C_FORCE_INLINE inline __attribute__((always_inline))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_C_FORCE_INLINE __forceinline
+#else  // Fallback to standard keyword with no enforcing
+#define SB_C_FORCE_INLINE inline
+#endif
+#endif  // defined(SB_C_FORCE_INLINE)
+#endif  // SB_API_VERSION < 16
 
+#if SB_API_VERSION < 16
 #if !defined(SB_C_INLINE)
 #error "Your platform must define SB_C_INLINE."
 #endif
+#else
+#if defined(SB_C_INLINE)
+#error "Your platform should not define SB_C_INLINE, it is deprecated."
+#else
+#define SB_C_INLINE inline
+#endif
+#endif
 
+#if SB_API_VERSION >= 16
+#if defined(SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES)
+#error "SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES is deprecated in SB16 or later"
+#endif  // defined(SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION >= 16
+
+// SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries.
+#if SB_API_VERSION < 16
 #if !defined(SB_EXPORT_PLATFORM)
 #error "Your platform must define SB_EXPORT_PLATFORM."
 #endif
+#else                             // SB_API_VERSION >= 16
+#if !defined(SB_EXPORT_PLATFORM)  // auto-configure
+#if SB_IS(COMPILER_GCC)
+#define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_EXPORT_PLATFORM __declspec(dllexport)
+#else  // Fallback to standard keyword with no enforcing
+#error "Could not determine compiler, you must define SB_EXPORT_PLATFORM."
+#endif
+#endif  // !defined(SB_EXPORT_PLATFORM)
+#endif  // SB_API_VERSION >= 16
 
+// SB_IMPORT_PLATFORM annotates symbols as imported from shared libraries.
+#if SB_API_VERSION < 16
 #if !defined(SB_IMPORT_PLATFORM)
 #error "Your platform must define SB_IMPORT_PLATFORM."
 #endif
-
-#if !SB_HAS(STD_UNORDERED_HASH)
-
-#if !defined(SB_HASH_MAP_INCLUDE)
-#error \
-    "Your platform must define SB_HASH_MAP_INCLUDE or "\
-    "define SB_HAS_STD_UNORDERED_HASH 1."
+#else                             // SB_API_VERSION >= 16
+#if !defined(SB_IMPORT_PLATFORM)  // auto-configure
+#if SB_IS(COMPILER_GCC)
+#define SB_IMPORT_PLATFORM
+#elif SB_IS(COMPILER_MSVC)
+#define SB_IMPORT_PLATFORM __declspec(dllimport)
+#else  // Fallback to standard keyword with no enforcing
+#error "Could not determine compiler, you must define SB_IMPORT_PLATFORM."
 #endif
-
-#if !defined(SB_HASH_NAMESPACE)
-#error \
-    "Your platform must define SB_HASH_NAMESPACE or "\
-    "define SB_HAS_STD_UNORDERED_HASH 1."
-#endif
-
-#if !defined(SB_HASH_SET_INCLUDE)
-#error \
-    "Your platform must define SB_HASH_SET_INCLUDE or "\
-    "define SB_HAS_STD_UNORDERED_HASH 1."
-#endif
-
-#endif  // !SB_HAS(STD_UNORDERED_HASH)
-
-#if defined(SB_DEFAULT_MMAP_THRESHOLD)
-#error \
-    "SB_DEFAULT_MMAP_THRESHOLD should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbDefaultMmapThreshold in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_FILE_MAX_NAME)
-#error \
-    "SB_FILE_MAX_NAME should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbFileMaxName in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_FILE_MAX_OPEN)
-#error \
-    "SB_FILE_MAX_OPEN should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbFileMaxOpen in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_FILE_ALT_SEP_CHAR)
-#error \
-    "SB_FILE_ALT_SEP_CHAR should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbFileAltSepChar in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_FILE_ALT_SEP_STRING)
-#error \
-    "SB_FILE_ALT_SEP_STRING should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbFileAltSepString in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_FILE_MAX_PATH)
-#error \
-    "SB_FILE_MAX_PATH should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbFileMaxPath in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_FILE_SEP_CHAR)
-#error \
-    "SB_FILE_SEP_CHAR should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbFileSepChar in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_FILE_SEP_STRING)
-#error \
-    "SB_FILE_SEP_STRING should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbFileSepString in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_HAS_AC3_AUDIO)
-#error \
-    "SB_HAS_AC3_AUDIO should not be defined in Starboard " \
-"versions 12 and later."
-#endif
-
-#if defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
-#error \
-    "SB_HAS_MEDIA_WEBM_VP9_SUPPORT should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbHasMediaWebmVp9Support in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
-#error \
-    "SB_HAS_THREAD_PRIORITY_SUPPORT should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbHasThreadPrioritySupport in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_MALLOC_ALIGNMENT)
-#error \
-    "SB_MALLOC_ALIGNMENT should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbMallocAlignment in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_MAX_THREADS)
-#error \
-    "SB_MAX_THREADS should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbMaxThreads in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_MAX_THREAD_LOCAL_KEYS)
-#error \
-    "SB_MAX_THREAD_LOCAL_KEYS should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbMaxThreadLocalKeys in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_MAX_THREAD_NAME_LENGTH)
-#error \
-    "SB_MAX_THREAD_NAME_LENGTH should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbMaxThreadNameLength in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_MEDIA_MAXIMUM_VIDEO_FRAMES)
-#error \
-    "SB_MEDIA_MAXIMUM_VIDEO_FRAMES should not be defined in Starboard " \
-"versions 12 and later."
-#endif
-
-#if defined(SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES)
-#error \
-    "SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES should not be defined in " \
-"Starboard versions 12 and later."
-#endif
-
-#if defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
-#error \
-    "SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND should not be defined in " \
-"Starboard versions 12 and later. Instead, define " \
-"kSbMediaMaxAudioBitrateInBitsPerSecond in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND)
-#error \
-    "SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND should not be defined in " \
-"Starboard versions 12 and later. Instead, define " \
-"kSbMediaMaxVideoBitrateInBitsPerSecond in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_MEDIA_VIDEO_FRAME_ALIGNMENT)
-#error \
-    "SB_MEDIA_VIDEO_FRAME_ALIGNMENT should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbMediaVideoFrameAlignment in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_MEMORY_LOG_PATH)
-#error \
-    "SB_MEMORY_LOG_PATH should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbMemoryLogPath in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_MEMORY_PAGE_SIZE)
-#error \
-    "SB_MEMORY_PAGE_SIZE should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbMemoryPageSize in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_NETWORK_RECEIVE_BUFFER_SIZE)
-#error \
-    "SB_NETWORK_RECEIVE_BUFFER_SIZE should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbNetworkReceiveBufferSize in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_PATH_SEP_CHAR)
-#error \
-    "SB_PATH_SEP_CHAR should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbPathSepChar in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_PATH_SEP_STRING)
-#error \
-    "SB_PATH_SEP_STRING should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbPathSepString in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_PREFERRED_RGBA_BYTE_ORDER)
-#error \
-    "SB_PREFERRED_RGBA_BYTE_ORDER should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbPreferredRgbaByteOrder in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
-#if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
-    defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
-#error "New versions of Starboard specify player output mode at runtime."
-#endif
-
-#if !defined(SB_HAS_NV12_TEXTURE_SUPPORT)
-#error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
-#endif
-
-#if defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
-#error "SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is deprecated."
-#error "Use `CobaltExtensionGraphicsApi` instead."
-#error "See [`CobaltExtensionGraphicsApi`](../extension/graphics.h)."
-#endif
-
-#if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
-#error "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET is deprecated."
-#error "Implement |SbMediaGetAudioBufferBudget| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
-
-#if defined(COBALT_MEDIA_BUFFER_ALIGNMENT)
-#error "COBALT_MEDIA_BUFFER_ALIGNMENT is deprecated."
-#error "Implement |SbMediaGetBufferAlignment| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_ALIGNMENT
-
-#if defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT)
-#error "COBALT_MEDIA_BUFFER_ALLOCATION_UNIT is deprecated."
-#error "Implement |SbMediaGetBufferAllocationUnit| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT
-
-#if defined( \
-    COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
-#error "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS"
-#error "is deprecated. Implement"
-#error "|SbMediaGetBufferGarbageCollectionDurationThreshold| instead."
-#endif  // defined(
-// COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
-
-#if defined(COBALT_MEDIA_BUFFER_PADDING)
-#error "COBALT_MEDIA_BUFFER_PADDING is deprecated."
-#error "Implement |SbMediaGetBufferPadding| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_PADDING)
-
-#if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE)
-#error "COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE is deprecated."
-#error "Implement |SbMediaGetBufferStorageType| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE)
-
-#if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
-#error "COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY is deprecated."
-#error "Implement |SbMediaGetBufferStorageType| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
-
-#if defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
-#error "COBALT_MEDIA_BUFFER_INITIAL_CAPACITY is deprecated."
-#error "implement |SbMediaGetInitialBufferCapacity| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
-
-#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
-#error "COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P is deprecated."
-#error "Implement |SbMediaGetMaxBufferCapacity| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
-
-#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
-#error "COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K is deprecated."
-#error "Implement |SbMediaGetMaxBufferCapacity| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
-
-#if defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET)
-#error "COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET is deprecated."
-#error "Implement |SbMediaGetProgressiveBufferBudget| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET)
-
-#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P)
-#error "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P is deprecated."
-#error "Implement |SbMediaGetVideoBufferBudget| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P)
-
-#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K)
-#error "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K is deprecated."
-#error "Implement |SbMediaGetVideoBufferBudget| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K)
-
-#if defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
-#error "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND is deprecated."
-#error "Implement |SbMediaIsBufferPoolAllocateOnDemand| instead."
-#endif  // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
-
-#if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
-#error "SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT is deprecated."
-#error "Implement function |SbMediaGetAudioBufferBudget| instead."
-#endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
-
-#if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
-#error "SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT is deprecated."
-#error "Implement function |SbMediaGetVideoBufferBudget| instead."
-#endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
-
-#if defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
-#error "SB_MEDIA_MAIN_BUFFER_BUDGET is deprecated."
-#endif  // defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
-
-#if defined(SB_MEDIA_GPU_BUFFER_BUDGET)
-#error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
-#endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
-
-#if defined(SB_HAS_AUDIOLESS_VIDEO)
-#error "SB_HAS_AUDIOLESS_VIDEO is deprecated."
-#endif  // defined(SB_HAS_AUDIOLESS_VIDEO)
-
-#if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#error \
-    "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT should not be defined for " \
-           "API version >= 12."
-#endif  // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-
-#if defined(SB_HAS_DRM_SESSION_CLOSED)
-#error "SB_HAS_DRM_SESSION_CLOSED should not be defined for API version >= 10."
-#endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
-
-#if defined(SB_HAS_PLAYER_FILTER_TESTS)
-#error "SB_HAS_PLAYER_FILTER_TESTS should not be defined in API versions >= 10."
-#endif  // defined(SB_HAS_PLAYER_FILTER_TESTS)
-
-#if defined(SB_HAS_PLAYER_ERROR_MESSAGE)
-#error \
-    "SB_HAS_PLAYER_ERROR_MESSAGE should not be defined in API versions " \
-       ">= 10."
-#endif  // defined(SB_HAS_PLAYER_ERROR_MESSAGE)
-
-#if defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#error \
-    "SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT should not be " \
-        "defined in API versions >= 12."
-#endif  // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
-#if SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
-#error \
-    "SB_HAS_QUIRK_SEEK_TO_KEYFRAME is deprecated in Starboard 12 or later." \
-         " Please see configuration-public.md for more details."
-#endif  // SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+#endif  // !defined(SB_IMPORT_PLATFORM)
+#endif  // SB_API_VERSION >= 16
 
 // --- Derived Configuration -------------------------------------------------
 
@@ -714,20 +411,6 @@ struct CompileAssert {};
 #define SB_FUNCTION __PRETTY_FUNCTION__
 #else
 #define SB_FUNCTION __FUNCTION__
-#endif
-
-// --- Gyp Derived Configuration -----------------------------------------------
-
-// Specifies whether this platform has a performant OpenGL ES 2 implementation,
-// which allows client applications to use GL rendering paths.  Derived from
-// the gyp variable `gl_type` which indicates what kind of GL implementation
-// is available.
-#if !defined(SB_HAS_GLES2)
-#if defined(SB_GN_GL_TYPE_IS_NONE)
-#define SB_HAS_GLES2 !SB_GN_GL_TYPE_IS_NONE
-#else
-#define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
-#endif
 #endif
 
 // --- Deprecated Feature Macros -----------------------------------------------

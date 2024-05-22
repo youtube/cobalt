@@ -23,10 +23,6 @@
 #include <immintrin.h>
 #include <wmmintrin.h>
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
-
 #define CRC_LOAD(s) \
     do { \
         __m128i xmm_crc0 = _mm_loadu_si128((__m128i *)s->crc0 + 0);\

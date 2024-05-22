@@ -22,29 +22,13 @@ FROM ${FROM_IMAGE}
 SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
        "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
+COPY dockerized_install_visual_studio_2022.ps1 /dockerized_install_visual_studio_2022.ps1
+
 # Pins Visual Studio 2022 release version to 17.4.6 (includes Clang 15.0.1).
 # This should be kept in sync with the VS installer used in the dev workstation
 # setup script in: `tools/install_visual_studio_22.ps1`
-ARG MSVS_INSTALLER_URL="https://download.visualstudio.microsoft.com/download/pr/d1ed8638-9e88-461e-92b7-4e29cc6172c3/38b09fc09ae9e590b73ae6752a0ebfd62579798969041bd341689273b842bc10/vs_BuildTools.exe"
-RUN mkdir C:\TEMP;`
-    Write-Host ('Downloading vs_buildtools.exe');`
-    Invoke-WebRequest -Uri ${env:MSVS_INSTALLER_URL} `
-      -OutFile C:\TEMP\vs_buildtools.exe
-
-RUN Write-Host ('Installing vs_buildtools.exe');`
-    Start-Process C:\TEMP\vs_buildtools.exe -Wait -NoNewWindow`
-        -ArgumentList '--quiet --wait --norestart --nocache`
-        --installPath C:\BuildTools `
-        --add Microsoft.VisualStudio.Component.VC.14.34.17.4.x86.x64  `
-        --add Microsoft.VisualStudio.Component.VC.Llvm.Clang          `
-        --add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset   `
-        --add Microsoft.VisualStudio.Component.Windows10SDK.18362';   `
-    Write-Host ('Cleaning up vs_buildtools.exe');`
-    Remove-Item -Force -Recurse ${env:ProgramFiles(x86)}\'Microsoft Visual Studio'\Installer;`
-    Remove-Item -Force -Recurse $env:TEMP\*;`
-    Remove-Item -Force -Recurse $env:ProgramData\'Package Cache'\;`
-    Remove-Item -Force -Recurse C:\BuildTools\Common7\IDE;`
-    Remove-Item C:\TEMP\vs_buildtools.exe
+ARG MSVS_INSTALLER_URL="https://download.visualstudio.microsoft.com/download/pr/63fee7e3-bede-41ad-97a2-97b8b9f535d1/d4af71832828f344373f7366c2af3461a83569d297dee8b43d30b7da71e9b5ed/vs_BuildTools.exe"
+RUN C:\dockerized_install_visual_studio_2022.ps1 ${env:MSVS_INSTALLER_URL}
 
 ENV VSINSTALLDIR "C:\BuildTools"
 

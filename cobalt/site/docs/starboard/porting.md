@@ -26,9 +26,8 @@ $ git clone https://cobalt.googlesource.com/cobalt
 ```
 
 If you prefer, you can instead complete the instructions for
-[setting up a Cobalt development environment on Linux](
-/cobalt/development/setup-linux.html). Checking out the Cobalt source
-code is one step in that process.
+[setting up a Cobalt development environment on Linux](../development/setup-linux.md).
+Checking out the Cobalt source code is one step in that process.
 
 ## Porting steps
 
@@ -141,7 +140,7 @@ among the required files for each `binary-variant` directory:
 
 The Starboard `Application` class is designed to do the following:
 
-*   Integrate a generic message loop function with a system message pump that
+*   Integrate a generic task runner function with a system message pump that
     can deliver either input or application lifecycle events like
     suspend/resume.
 *   Provide a place for graceful platform-specific initialization and teardown.

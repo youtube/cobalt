@@ -1128,500 +1128,500 @@ PropertyKey GetLexicographicalLonghandPropertyKey(const size_t index) {
 PropertyKey GetPropertyKey(const std::string& property_name) {
   switch (property_name.size()) {
     case 3:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kTopProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kTopProperty))) {
         return kTopProperty;
       }
       return kNoneProperty;
 
     case 4:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFlexProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kFlexProperty))) {
         return kFlexProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFontProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kFontProperty))) {
         return kFontProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kLeftProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kLeftProperty))) {
         return kLeftProperty;
       }
       return kNoneProperty;
 
     case 5:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kColorProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kColorProperty))) {
         return kColorProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kOrderProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kOrderProperty))) {
         return kOrderProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kRightProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kRightProperty))) {
         return kRightProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kWidthProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kWidthProperty))) {
         return kWidthProperty;
       }
       return kNoneProperty;
 
     case 6:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBorderProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kBorderProperty))) {
         return kBorderProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBottomProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kBottomProperty))) {
         return kBottomProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFilterProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kFilterProperty))) {
         return kFilterProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kHeightProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kHeightProperty))) {
         return kHeightProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kMarginProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kMarginProperty))) {
         return kMarginProperty;
       }
       return kNoneProperty;
 
     case 7:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kContentProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kContentProperty))) {
         return kContentProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kDisplayProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kDisplayProperty))) {
         return kDisplayProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kOpacityProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kOpacityProperty))) {
         return kOpacityProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kOutlineProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kOutlineProperty))) {
         return kOutlineProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kPaddingProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kPaddingProperty))) {
         return kPaddingProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kZIndexProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(property_name,
+                                           GetPropertyName(kZIndexProperty))) {
         return kZIndexProperty;
       }
       return kNoneProperty;
 
     case 8:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kOverflowProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kOverflowProperty))) {
         return kOverflowProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kPositionProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kPositionProperty))) {
         return kPositionProperty;
       }
       return kNoneProperty;
 
     case 9:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kAnimationProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kAnimationProperty))) {
         return kAnimationProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFlexFlowProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFlexFlowProperty))) {
         return kFlexFlowProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFlexGrowProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFlexGrowProperty))) {
         return kFlexGrowProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFlexWrapProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFlexWrapProperty))) {
         return kFlexWrapProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFontSizeProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFontSizeProperty))) {
         return kFontSizeProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kMaxWidthProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kMaxWidthProperty))) {
         return kMaxWidthProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kMinWidthProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kMinWidthProperty))) {
         return kMinWidthProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kTransformProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kTransformProperty))) {
         return kTransformProperty;
       }
       return kNoneProperty;
 
     case 10:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kAlignSelfProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kAlignSelfProperty))) {
         return kAlignSelfProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBackgroundProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBackgroundProperty))) {
         return kBackgroundProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBorderTopProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBorderTopProperty))) {
         return kBorderTopProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBoxShadowProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBoxShadowProperty))) {
         return kBoxShadowProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFlexBasisProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFlexBasisProperty))) {
         return kFlexBasisProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFontStyleProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFontStyleProperty))) {
         return kFontStyleProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kMarginTopProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kMarginTopProperty))) {
         return kMarginTopProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kMaxHeightProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kMaxHeightProperty))) {
         return kMaxHeightProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kMinHeightProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kMinHeightProperty))) {
         return kMinHeightProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kTextAlignProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kTextAlignProperty))) {
         return kTextAlignProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kTransitionProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kTransitionProperty))) {
         return kTransitionProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kVisibilityProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kVisibilityProperty))) {
         return kVisibilityProperty;
       }
       return kNoneProperty;
 
     case 11:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kAlignItemsProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kAlignItemsProperty))) {
         return kAlignItemsProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBorderLeftProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBorderLeftProperty))) {
         return kBorderLeftProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFlexShrinkProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFlexShrinkProperty))) {
         return kFlexShrinkProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFontFamilyProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFontFamilyProperty))) {
         return kFontFamilyProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFontWeightProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFontWeightProperty))) {
         return kFontWeightProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kLineHeightProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kLineHeightProperty))) {
         return kLineHeightProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kMarginLeftProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kMarginLeftProperty))) {
         return kMarginLeftProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kPaddingTopProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kPaddingTopProperty))) {
         return kPaddingTopProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kTextIndentProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kTextIndentProperty))) {
         return kTextIndentProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kTextShadowProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kTextShadowProperty))) {
         return kTextShadowProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kWhiteSpaceProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kWhiteSpaceProperty))) {
         return kWhiteSpaceProperty;
       }
       return kNoneProperty;
 
     case 12:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBorderColorProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBorderColorProperty))) {
         return kBorderColorProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBorderRightProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBorderRightProperty))) {
         return kBorderRightProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBorderStyleProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBorderStyleProperty))) {
         return kBorderStyleProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBorderWidthProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBorderWidthProperty))) {
         return kBorderWidthProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kMarginRightProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kMarginRightProperty))) {
         return kMarginRightProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kPaddingLeftProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kPaddingLeftProperty))) {
         return kPaddingLeftProperty;
       }
       return kNoneProperty;
 
     case 13:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kAlignContentProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kAlignContentProperty))) {
         return kAlignContentProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBorderBottomProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBorderBottomProperty))) {
         return kBorderBottomProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kBorderRadiusProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kBorderRadiusProperty))) {
         return kBorderRadiusProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kMarginBottomProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kMarginBottomProperty))) {
         return kMarginBottomProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kOutlineColorProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kOutlineColorProperty))) {
         return kOutlineColorProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kOutlineStyleProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kOutlineStyleProperty))) {
         return kOutlineStyleProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kOutlineWidthProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kOutlineWidthProperty))) {
         return kOutlineWidthProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kOverflowWrapProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kOverflowWrapProperty))) {
         return kOverflowWrapProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kPaddingRightProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kPaddingRightProperty))) {
         return kPaddingRightProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kTextOverflowProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kTextOverflowProperty))) {
         return kTextOverflowProperty;
       }
       return kNoneProperty;
 
     case 14:
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kAnimationNameProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kAnimationNameProperty))) {
         return kAnimationNameProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kFlexDirectionProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kFlexDirectionProperty))) {
         return kFlexDirectionProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kPaddingBottomProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kPaddingBottomProperty))) {
         return kPaddingBottomProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kPointerEventsProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kPointerEventsProperty))) {
         return kPointerEventsProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kTextTransformProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kTextTransformProperty))) {
         return kTextTransformProperty;
       }
-      if (base::LowerCaseEqualsASCII(property_name,
-                                     GetPropertyName(kVerticalAlignProperty))) {
+      if (base::EqualsCaseInsensitiveASCII(
+              property_name, GetPropertyName(kVerticalAlignProperty))) {
         return kVerticalAlignProperty;
       }
       return kNoneProperty;
 
     case 15:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kAnimationDelayProperty))) {
         return kAnimationDelayProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBackgroundSizeProperty))) {
         return kBackgroundSizeProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kJustifyContentProperty))) {
         return kJustifyContentProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kTextDecorationProperty))) {
         return kTextDecorationProperty;
       }
       return kNoneProperty;
 
     case 16:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBackgroundColorProperty))) {
         return kBackgroundColorProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderTopColorProperty))) {
         return kBorderTopColorProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderTopStyleProperty))) {
         return kBorderTopStyleProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderTopWidthProperty))) {
         return kBorderTopWidthProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBackgroundImageProperty))) {
         return kBackgroundImageProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kTransformOriginProperty))) {
         return kTransformOriginProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kTransitionDelayProperty))) {
         return kTransitionDelayProperty;
       }
       return kNoneProperty;
 
     case 17:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBackgroundRepeatProperty))) {
         return kBackgroundRepeatProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderLeftColorProperty))) {
         return kBorderLeftColorProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderLeftStyleProperty))) {
         return kBorderLeftStyleProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderLeftWidthProperty))) {
         return kBorderLeftWidthProperty;
       }
       return kNoneProperty;
 
     case 18:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kAnimationDurationProperty))) {
         return kAnimationDurationProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderRightColorProperty))) {
         return kBorderRightColorProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderRightStyleProperty))) {
         return kBorderRightStyleProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderRightWidthProperty))) {
         return kBorderRightWidthProperty;
       }
       return kNoneProperty;
 
     case 19:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kAnimationDirectionProperty))) {
         return kAnimationDirectionProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kAnimationFillModeProperty))) {
         return kAnimationFillModeProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBackgroundPositionProperty))) {
         return kBackgroundPositionProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderBottomColorProperty))) {
         return kBorderBottomColorProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderBottomStyleProperty))) {
         return kBorderBottomStyleProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderBottomWidthProperty))) {
         return kBorderBottomWidthProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kTransitionDurationProperty))) {
         return kTransitionDurationProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kTransitionPropertyProperty))) {
         return kTransitionPropertyProperty;
       }
       return kNoneProperty;
 
     case 20:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kTextDecorationLineProperty))) {
         return kTextDecorationLineProperty;
       }
       return kNoneProperty;
 
     case 21:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kTextDecorationColorProperty))) {
         return kTextDecorationColorProperty;
       }
       return kNoneProperty;
 
     case 22:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderTopLeftRadiusProperty))) {
         return kBorderTopLeftRadiusProperty;
       }
       return kNoneProperty;
 
     case 23:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name, GetPropertyName(kBorderTopRightRadiusProperty))) {
         return kBorderTopRightRadiusProperty;
       }
       return kNoneProperty;
 
     case 25:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name,
               GetPropertyName(kAnimationIterationCountProperty))) {
         return kAnimationIterationCountProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name,
               GetPropertyName(kAnimationTimingFunctionProperty))) {
         return kAnimationTimingFunctionProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name,
               GetPropertyName(kBorderBottomLeftRadiusProperty))) {
         return kBorderBottomLeftRadiusProperty;
@@ -1629,12 +1629,12 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 26:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name,
               GetPropertyName(kBorderBottomRightRadiusProperty))) {
         return kBorderBottomRightRadiusProperty;
       }
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name,
               GetPropertyName(kTransitionTimingFunctionProperty))) {
         return kTransitionTimingFunctionProperty;
@@ -1642,7 +1642,7 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 33:
-      if (base::LowerCaseEqualsASCII(
+      if (base::EqualsCaseInsensitiveASCII(
               property_name,
               GetPropertyName(kIntersectionObserverRootMarginProperty))) {
         return kIntersectionObserverRootMarginProperty;

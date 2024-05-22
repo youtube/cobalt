@@ -12,15 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/socket_helpers.h"
-
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <sched.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <utility>
 
+#include "starboard/nplb/socket_helpers.h"
+
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/socket.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/once.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -30,7 +37,7 @@ namespace nplb {
 namespace {
 
 int port_number_for_tests = 0;
-SbOnceControl valid_port_once_control = SB_ONCE_INITIALIZER;
+pthread_once_t valid_port_once_control = PTHREAD_ONCE_INIT;
 
 void InitializePortNumberForTests() {
   // Create a listening socket. Let the system choose a port for us.
@@ -51,9 +58,13 @@ void InitializePortNumberForTests() {
 
 int GetPortNumberForTests() {
 #if defined(SB_SOCKET_OVERRIDE_PORT_FOR_TESTS)
-  return SB_SOCKET_OVERRIDE_PORT_FOR_TESTS;
+  static int incremental = 0;
+  if (incremental + SB_SOCKET_OVERRIDE_PORT_FOR_TESTS == 65535) {
+    incremental = 0;
+  }
+  return SB_SOCKET_OVERRIDE_PORT_FOR_TESTS + ++incremental;
 #else
-  SbOnce(&valid_port_once_control, &InitializePortNumberForTests);
+  pthread_once(&valid_port_once_control, &InitializePortNumberForTests);
   return port_number_for_tests;
 #endif
 }
@@ -263,7 +274,7 @@ SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
     }
 
     // Just being polite.
-    SbThreadYield();
+    sched_yield();
   }
 
   return kSbSocketInvalid;
@@ -286,7 +297,7 @@ scoped_ptr<Socket> AcceptBySpinning(Socket* server_socket, int64_t timeout) {
     }
 
     // Just being polite.
-    SbThreadYield();
+    sched_yield();
   }
 
   return scoped_ptr<Socket>().Pass();
@@ -313,7 +324,7 @@ bool WriteBySpinning(SbSocket socket,
       return false;
     }
 
-    SbThreadYield();
+    sched_yield();
   }
 
   return true;
@@ -340,7 +351,7 @@ bool WriteBySpinning(Socket* socket,
       return false;
     }
 
-    SbThreadYield();
+    sched_yield();
   }
 
   return true;
@@ -368,7 +379,7 @@ bool ReadBySpinning(SbSocket socket,
       return false;
     }
 
-    SbThreadYield();
+    sched_yield();
   }
 
   return true;
@@ -396,7 +407,7 @@ bool ReadBySpinning(Socket* socket,
       return false;
     }
 
-    SbThreadYield();
+    sched_yield();
   }
 
   return true;

@@ -10,9 +10,8 @@
 
 #include "include/core/SkPaint.h"
 #include "include/core/SkPoint.h"
+#include "include/core/SkSpan.h"
 #include "include/core/SkTypes.h"
-#include "src/core/SkGlyph.h"
-#include "src/core/SkSpan.h"
 
 #include <memory>
 
@@ -22,6 +21,8 @@ class SkGlyph;
 class SkMaskFilter;
 class SkPathEffect;
 class SkSourceGlyphBuffer;
+class SkStrike;
+class SkStrikeSpec;
 class SkTypeface;
 struct SkGlyphPositionRoundingSpec;
 struct SkScalerContextEffects;
@@ -32,18 +33,24 @@ public:
     virtual const SkDescriptor& getDescriptor() const = 0;
 
     virtual void prepareForMaskDrawing(
-            SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) = 0;
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) = 0;
 
     virtual void prepareForSDFTDrawing(
-            SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) = 0;
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) = 0;
 
     virtual void prepareForPathDrawing(
-            SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) = 0;
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) = 0;
+
+    virtual void prepareForDrawableDrawing(
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) = 0;
 
     virtual const SkGlyphPositionRoundingSpec& roundingSpec() const = 0;
 
     // Used with SkScopedStrikeForGPU to take action at the end of a scope.
     virtual void onAboutToExitScope() = 0;
+
+    // Return underlying SkStrike for building SubRuns while processing glyph runs.
+    virtual sk_sp<SkStrike> getUnderlyingStrike() const = 0;
 
     // Common categories for glyph types used by GPU.
     static bool CanDrawAsMask(const SkGlyph& glyph);
@@ -64,8 +71,6 @@ using SkScopedStrikeForGPU = std::unique_ptr<SkStrikeForGPU, SkStrikeForGPU::Del
 class SkStrikeForGPUCacheInterface {
 public:
     virtual ~SkStrikeForGPUCacheInterface() = default;
-    virtual SkScopedStrikeForGPU findOrCreateScopedStrike(const SkDescriptor& desc,
-                                                          const SkScalerContextEffects& effects,
-                                                          const SkTypeface& typeface) = 0;
+    virtual SkScopedStrikeForGPU findOrCreateScopedStrike(const SkStrikeSpec& strikeSpec) = 0;
 };
 #endif  //SkStrikeInterface_DEFINED

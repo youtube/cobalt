@@ -1,41 +1,55 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_PROXY_PAC_FILE_DECIDER_H_
-#define NET_PROXY_PAC_FILE_DECIDER_H_
+#ifndef NET_PROXY_RESOLUTION_PAC_FILE_DECIDER_H_
+#define NET_PROXY_RESOLUTION_PAC_FILE_DECIDER_H_
 
+#include <stddef.h>
+
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
-#include "base/strings/string16.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "net/base/address_list.h"
+#include "base/values.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/dns/host_resolver.h"
 #include "net/log/net_log_with_source.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
 #include "net/proxy_resolution/proxy_resolver.h"
-#include "starboard/types.h"
 #include "url/gurl.h"
-
-namespace base {
-class Value;
-}
 
 namespace net {
 
 class DhcpPacFileFetcher;
 class NetLog;
-class NetLogCaptureMode;
 class ProxyResolver;
 class PacFileFetcher;
 
-// PacFileDecider is a helper class used by ProxyResolutionService to
+// Structure that encapsulates the result a PacFileData along with an
+// indication of its origin: was it obtained implicitly from auto-detect,
+// or was it read from a more explicitly configured URL.
+//
+// Note that |!from_auto_detect| does NOT imply the script was securely
+// delivered. Most commonly PAC scripts are configured from http:// URLs,
+// both for auto-detect and not.
+struct NET_EXPORT_PRIVATE PacFileDataWithSource {
+  PacFileDataWithSource();
+  PacFileDataWithSource(const PacFileDataWithSource&);
+  ~PacFileDataWithSource();
+
+  PacFileDataWithSource& operator=(const PacFileDataWithSource&);
+
+  scoped_refptr<PacFileData> data;
+  bool from_auto_detect = false;
+};
+
+// PacFileDecider is a helper class used by ConfiguredProxyResolutionService to
 // determine which PAC script to use given our proxy configuration.
 //
 // This involves trying to use PAC scripts in this order:
@@ -62,6 +76,9 @@ class NET_EXPORT_PRIVATE PacFileDecider {
                  DhcpPacFileFetcher* dhcp_pac_file_fetcher,
                  NetLog* net_log);
 
+  PacFileDecider(const PacFileDecider&) = delete;
+  PacFileDecider& operator=(const PacFileDecider&) = delete;
+
   // Aborts any in-progress request.
   ~PacFileDecider();
 
@@ -81,12 +98,13 @@ class NET_EXPORT_PRIVATE PacFileDecider {
             CompletionOnceCallback callback);
 
   // Shuts down any in-progress DNS requests, and cancels any ScriptFetcher
-  // requests.  Does not call OnShutdown on the [Dhcp]PacFileFetcher.
+  // requests. Does not call OnShutdown() on the [Dhcp]PacFileFetcher. Any
+  // pending callback will not be invoked.
   void OnShutdown();
 
   const ProxyConfigWithAnnotation& effective_config() const;
 
-  const scoped_refptr<PacFileData>& script_data() const;
+  const PacFileDataWithSource& script_data() const;
 
   void set_quick_check_enabled(bool enabled) { quick_check_enabled_ = enabled; }
 
@@ -100,12 +118,10 @@ class NET_EXPORT_PRIVATE PacFileDecider {
 
     PacSource(Type type, const GURL& url) : type(type), url(url) {}
 
-    // Returns a Value representing the PacSource.  |effective_pac_url| must
-    // be non-NULL and point to the URL derived from information contained in
+    // Returns a Value representing the PacSource.  |effective_pac_url| is the
+    // URL derived from information contained in
     // |this|, if Type is not WPAD_DHCP.
-    std::unique_ptr<base::Value> NetLogCallback(
-        const GURL* effective_pac_url,
-        NetLogCaptureMode capture_mode) const;
+    base::Value::Dict NetLogParams(const GURL& effective_pac_url) const;
 
     Type type;
     GURL url;  // Empty unless |type == PAC_SOURCE_CUSTOM|.
@@ -162,29 +178,29 @@ class NET_EXPORT_PRIVATE PacFileDecider {
   void DidComplete();
   void Cancel();
 
-  PacFileFetcher* pac_file_fetcher_;
-  DhcpPacFileFetcher* dhcp_pac_file_fetcher_;
+  raw_ptr<PacFileFetcher> pac_file_fetcher_;
+  raw_ptr<DhcpPacFileFetcher> dhcp_pac_file_fetcher_;
 
   CompletionOnceCallback callback_;
 
-  size_t current_pac_source_index_;
+  size_t current_pac_source_index_ = 0u;
 
   // Filled when the PAC script fetch completes.
-  base::string16 pac_script_;
+  std::u16string pac_script_;
 
   // Flag indicating whether the caller requested a mandatory PAC script
   // (i.e. fallback to direct connections are prohibited).
-  bool pac_mandatory_;
+  bool pac_mandatory_ = false;
 
   // Whether we have an existing custom PAC URL.
   bool have_custom_pac_url_;
 
   PacSourceList pac_sources_;
-  State next_state_;
+  State next_state_ = STATE_NONE;
 
   NetLogWithSource net_log_;
 
-  bool fetch_pac_bytes_;
+  bool fetch_pac_bytes_ = false;
 
   base::TimeDelta wait_delay_;
   base::OneShotTimer wait_timer_;
@@ -192,20 +208,17 @@ class NET_EXPORT_PRIVATE PacFileDecider {
   net::MutableNetworkTrafficAnnotationTag traffic_annotation_;
 
   // Whether to do DNS quick check
-  bool quick_check_enabled_;
+  bool quick_check_enabled_ = true;
 
   // Results.
   ProxyConfigWithAnnotation effective_config_;
-  scoped_refptr<PacFileData> script_data_;
+  PacFileDataWithSource script_data_;
 
-  AddressList wpad_addresses_;
+  std::unique_ptr<HostResolver::ResolveHostRequest> resolve_request_;
+
   base::OneShotTimer quick_check_timer_;
-  std::unique_ptr<HostResolver::Request> request_;
-  base::Time quick_check_start_time_;
-
-  DISALLOW_COPY_AND_ASSIGN(PacFileDecider);
 };
 
 }  // namespace net
 
-#endif  // NET_PROXY_PAC_FILE_DECIDER_H_
+#endif  // NET_PROXY_RESOLUTION_PAC_FILE_DECIDER_H_

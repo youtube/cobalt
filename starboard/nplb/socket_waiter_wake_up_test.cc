@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <pthread.h>
+#include <unistd.h>
+
+#include "starboard/common/semaphore.h"
 #include "starboard/common/time.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/nplb/thread_helpers.h"
 #include "starboard/socket_waiter.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -31,6 +34,8 @@ struct WakeUpContext {
   Semaphore semaphore;
 };
 
+typedef void* (*ThreadEntryPoint)(void*);
+
 void* WakeUpEntryPoint(void* context) {
   SbSocketWaiter waiter = reinterpret_cast<SbSocketWaiter>(context);
   SbSocketWaiterWakeUp(waiter);
@@ -41,24 +46,23 @@ void* WakeUpSleepEntryPoint(void* context) {
   WakeUpContext* wake_up_context = reinterpret_cast<WakeUpContext*>(context);
   SbSocketWaiter waiter = wake_up_context->waiter;
   wake_up_context->semaphore.Take();
-  SbThreadSleep(kSocketTimeout);
+  usleep(kSocketTimeout);
   SbSocketWaiterWakeUp(waiter);
   return NULL;
 }
 
-SbThread Spawn(void* context, SbThreadEntryPoint entry) {
-  SbThread thread =
-      SbThreadCreate(0, kSbThreadPriorityNormal, kSbThreadNoAffinity, true,
-                     NULL, entry, context);
-  EXPECT_TRUE(SbThreadIsValid(thread));
+pthread_t Spawn(void* context, ThreadEntryPoint entry) {
+  pthread_t thread = 0;
+  pthread_create(&thread, nullptr, entry, context);
+  EXPECT_TRUE(thread != 0);
   return thread;
 }
 
-void Join(SbThread thread) {
-  EXPECT_TRUE(SbThreadJoin(thread, NULL));
+void Join(pthread_t thread) {
+  EXPECT_EQ(pthread_join(thread, NULL), 0);
 }
 
-void SpawnJoin(void* context, SbThreadEntryPoint entry) {
+void SpawnJoin(void* context, ThreadEntryPoint entry) {
   Join(Spawn(context, entry));
 }
 
@@ -125,7 +129,7 @@ TEST(SbSocketWaiterWakeUpTest, CallFromOtherThreadWakesUp) {
     WakeUpContext context;
     context.waiter = waiter;
 
-    SbThread thread = Spawn(&context, &WakeUpSleepEntryPoint);
+    pthread_t thread = Spawn(&context, &WakeUpSleepEntryPoint);
     int64_t start = CurrentMonotonicTime();
     context.semaphore.Put();
     TimedWait(waiter);

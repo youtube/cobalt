@@ -125,9 +125,9 @@ static void test_symbolfont(skiatest::Reporter* reporter) {
 }
 
 static void test_tables(skiatest::Reporter* reporter, const sk_sp<SkTypeface>& face) {
-    if (false) { // avoid bit rot, suppress warning
-        SkFontID fontID = face->uniqueID();
-        REPORTER_ASSERT(reporter, fontID);
+    if ((false)) { // avoid bit rot, suppress warning
+        SkTypefaceID typefaceID = face->uniqueID();
+        REPORTER_ASSERT(reporter, typefaceID);
     }
 
     int count = face->countTables();

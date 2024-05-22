@@ -56,6 +56,8 @@ public:
     }
 
     V* insert(const K& key, V value) {
+        SkASSERT(!this->find(key));
+
         Entry* entry = new Entry(key, std::move(value));
         fMap.set(entry);
         fLRU.addToHead(entry);
@@ -65,16 +67,25 @@ public:
         return &entry->fValue;
     }
 
+    V* insert_or_update(const K& key, V value) {
+        if (V* found = this->find(key)) {
+            *found = std::move(value);
+            return found;
+        } else {
+            return this->insert(key, std::move(value));
+        }
+    }
+
     int count() {
         return fMap.count();
     }
 
-    template <typename Fn>  // f(V*)
+    template <typename Fn>  // f(K*, V*)
     void foreach(Fn&& fn) {
         typename SkTInternalLList<Entry>::Iter iter;
         for (Entry* e = iter.init(fLRU, SkTInternalLList<Entry>::Iter::kHead_IterStart); e;
              e = iter.next()) {
-            fn(&e->fValue);
+            fn(&e->fKey, &e->fValue);
         }
     }
 

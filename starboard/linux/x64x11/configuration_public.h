@@ -29,22 +29,9 @@
 // available on this platform. For a definitive measure, the application should
 // still call SbSystemGetNumberOfProcessors at runtime.
 
-// --- Graphics Configuration ------------------------------------------------
-
-// Indicates whether or not the given platform supports rendering of NV12
-// textures. These textures typically originate from video decoders.
-#define SB_HAS_NV12_TEXTURE_SUPPORT 1
-
 // --- Shared Configuration and Overrides ------------------------------------
 
 // Include the Linux configuration that's common between all Desktop Linuxes.
 #include "starboard/linux/shared/configuration_public.h"
-
-// Whether the current platform implements the on screen keyboard interface.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform has speech synthesis.
-#undef SB_HAS_SPEECH_SYNTHESIS
-#define SB_HAS_SPEECH_SYNTHESIS 0
 
 #endif  // STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_

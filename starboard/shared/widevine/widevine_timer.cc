@@ -40,18 +40,17 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
                                void* context) {
   ScopedLock scoped_lock(mutex_);
   if (active_clients_.empty()) {
-    SB_DCHECK(!SbThreadIsValid(thread_));
+    SB_DCHECK(thread_ == 0);
     SB_DCHECK(!job_queue_);
 
     ConditionVariable condition_variable(mutex_);
     ThreadParam thread_param = {this, &condition_variable};
-    thread_ =
-        SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                       "wv_timer", &WidevineTimer::ThreadFunc, &thread_param);
+    pthread_create(&thread_, nullptr, &WidevineTimer::ThreadFunc,
+                   &thread_param);
     condition_variable.Wait();
   }
 
-  SB_DCHECK(SbThreadIsValid(thread_));
+  SB_DCHECK(thread_ != 0);
   SB_DCHECK(job_queue_);
 
   auto iter = active_clients_.find(client);
@@ -82,8 +81,8 @@ void WidevineTimer::cancel(IClient* client) {
   if (active_clients_.empty()) {
     // Kill the thread on the last |client|.
     job_queue_->StopSoon();
-    SbThreadJoin(thread_, NULL);
-    thread_ = kSbThreadInvalid;
+    pthread_join(thread_, NULL);
+    thread_ = 0;
     job_queue_ = NULL;
   }
 }
@@ -91,6 +90,7 @@ void WidevineTimer::cancel(IClient* client) {
 // static
 void* WidevineTimer::ThreadFunc(void* param) {
   SB_DCHECK(param);
+  pthread_setname_np(pthread_self(), "wv_timer");
   ThreadParam* thread_param = static_cast<ThreadParam*>(param);
   thread_param->timer->RunLoop(thread_param->condition_variable);
   return NULL;

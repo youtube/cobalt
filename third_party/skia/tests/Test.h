@@ -9,10 +9,11 @@
 
 #include "include/core/SkString.h"
 #include "include/core/SkTypes.h"
-#include "src/core/SkClipOpPriv.h"
 #include "src/core/SkTraceEvent.h"
 #include "tools/Registry.h"
 #include "tools/gpu/GrContextFactory.h"
+
+namespace skgpu { class Context; }
 
 namespace skiatest {
 
@@ -70,11 +71,20 @@ typedef void (*TestProc)(skiatest::Reporter*, const GrContextOptions&);
 typedef void (*ContextOptionsProc)(GrContextOptions*);
 
 struct Test {
-    Test(const char* n, bool g, TestProc p, ContextOptionsProc optionsProc = nullptr)
-        : name(n), needsGpu(g), proc(p), fContextOptionsProc(optionsProc) {}
-    const char* name;
-    bool needsGpu;
-    TestProc proc;
+    Test(const char* name,
+         bool needsGpu,
+         bool needsGraphite,
+         TestProc proc,
+         ContextOptionsProc optionsProc = nullptr)
+            : fName(name)
+            , fNeedsGpu(needsGpu)
+            , fNeedsGraphite(needsGraphite)
+            , fProc(proc)
+            , fContextOptionsProc(optionsProc) {}
+    const char* fName;
+    bool fNeedsGpu;
+    bool fNeedsGraphite;
+    TestProc fProc;
     ContextOptionsProc fContextOptionsProc;
 
     void modifyGrContextOptions(GrContextOptions* options) {
@@ -84,8 +94,8 @@ struct Test {
     }
 
     void run(skiatest::Reporter* r, const GrContextOptions& options) const {
-        TRACE_EVENT1("test", TRACE_FUNC, "name", this->name/*these are static*/);
-        this->proc(r, options);
+        TRACE_EVENT1("test", TRACE_FUNC, "name", this->fName/*these are static*/);
+        this->fProc(r, options);
     }
 };
 
@@ -118,11 +128,20 @@ typedef bool GrContextTypeFilterFn(GrContextFactoryContextType);
 extern bool IsGLContextType(GrContextFactoryContextType);
 extern bool IsVulkanContextType(GrContextFactoryContextType);
 extern bool IsMetalContextType(GrContextFactoryContextType);
+extern bool IsDawnContextType(GrContextFactoryContextType);
+extern bool IsDirect3DContextType(GrContextFactoryContextType);
 extern bool IsRenderingGLContextType(GrContextFactoryContextType);
-extern bool IsRenderingGLOrMetalContextType(GrContextFactoryContextType);
 extern bool IsMockContextType(GrContextFactoryContextType);
 void RunWithGPUTestContexts(GrContextTestFn*, GrContextTypeFilterFn*, Reporter*,
                             const GrContextOptions&);
+
+namespace graphite {
+
+typedef void GraphiteTestFn(Reporter*, skgpu::Context*);
+
+void RunWithGraphiteTestContexts(GraphiteTestFn*, Reporter*);
+
+} // namespace graphite
 
 /** Timer provides wall-clock duration since its creation. */
 class Timer {
@@ -165,24 +184,62 @@ private:
         }                            \
     } while (0)
 
-#define DEF_TEST(name, reporter)                                                          \
-    static void test_##name(skiatest::Reporter*, const GrContextOptions&);                \
-    skiatest::TestRegistry name##TestRegistry(skiatest::Test(#name, false, test_##name)); \
+#define DEF_TEST(name, reporter)                                                            \
+    static void test_##name(skiatest::Reporter*, const GrContextOptions&);                  \
+    skiatest::TestRegistry name##TestRegistry(                                              \
+            skiatest::Test(#name, /*gpu*/ false, /*graphite*/ false, test_##name));         \
     void test_##name(skiatest::Reporter* reporter, const GrContextOptions&)
+
+#define DEF_TEST_DISABLED(name, reporter) \
+    static void test_##name(skiatest::Reporter*, const GrContextOptions&);                  \
+    skiatest::TestRegistry name##TestRegistry(                                              \
+            skiatest::Test(#name, /*gpu*/ false, /*graphite*/ false, test_##name));         \
+    void test_##name(skiatest::Reporter* reporter, const GrContextOptions&) {               \
+            /* SkDebugf("Disabled:"#name "\n"); */                                          \
+    }                                                                                       \
+    void disabled_##name(skiatest::Reporter* reporter, const GrContextOptions&)
+
+#ifdef SK_BUILD_FOR_UNIX
+    #define UNIX_ONLY_TEST DEF_TEST
+#else
+    #define UNIX_ONLY_TEST DEF_TEST_DISABLED
+#endif
+
+#define DEF_GRAPHITE_TEST(name, reporter)                                                   \
+    static void test_##name(skiatest::Reporter*);                                           \
+    static void test_graphite_##name(skiatest::Reporter* reporter,                          \
+                                     const GrContextOptions& /*unused*/) {                  \
+        test_##name(reporter);                                                              \
+    }                                                                                       \
+    skiatest::TestRegistry name##TestRegistry(                                              \
+            skiatest::Test(#name, /*gpu*/ false, /*graphite*/ true, test_graphite_##name)); \
+    void test_##name(skiatest::Reporter* reporter)
+
+#define DEF_GRAPHITE_TEST_FOR_CONTEXTS(name, reporter, graphite_context)                    \
+    static void test_##name(skiatest::Reporter*, skgpu::Context*);                          \
+    static void test_graphite_contexts_##name(skiatest::Reporter* _reporter,                \
+                                              const GrContextOptions& /*unused*/) {         \
+        skiatest::graphite::RunWithGraphiteTestContexts(test_##name, _reporter);            \
+    }                                                                                       \
+    skiatest::TestRegistry name##TestRegistry(                                              \
+            skiatest::Test(#name, /*gpu*/ false, /*graphite*/ true,                         \
+                           test_graphite_contexts_##name));                                 \
+    void test_##name(skiatest::Reporter* reporter, skgpu::Context* graphite_context)
 
 #define DEF_GPUTEST(name, reporter, options)                                             \
     static void test_##name(skiatest::Reporter*, const GrContextOptions&);               \
-    skiatest::TestRegistry name##TestRegistry(skiatest::Test(#name, true, test_##name)); \
+    skiatest::TestRegistry name##TestRegistry(                                           \
+            skiatest::Test(#name, /*gpu*/ true, /*graphite*/ false, test_##name));       \
     void test_##name(skiatest::Reporter* reporter, const GrContextOptions& options)
 
 #define DEF_GPUTEST_FOR_CONTEXTS(name, context_filter, reporter, context_info, options_filter)  \
-    static void test_##name(skiatest::Reporter*, const sk_gpu_test::ContextInfo& context_info); \
+    static void test_##name(skiatest::Reporter*, const sk_gpu_test::ContextInfo&);              \
     static void test_gpu_contexts_##name(skiatest::Reporter* reporter,                          \
                                          const GrContextOptions& options) {                     \
         skiatest::RunWithGPUTestContexts(test_##name, context_filter, reporter, options);       \
     }                                                                                           \
     skiatest::TestRegistry name##TestRegistry(                                                  \
-            skiatest::Test(#name, true, test_gpu_contexts_##name, options_filter));             \
+            skiatest::Test(#name, /*gpu*/ true, /*graphite*/ false, test_gpu_contexts_##name, options_filter));             \
     void test_##name(skiatest::Reporter* reporter, const sk_gpu_test::ContextInfo& context_info)
 
 #define DEF_GPUTEST_FOR_ALL_CONTEXTS(name, reporter, context_info)                          \
@@ -206,6 +263,12 @@ private:
 #define DEF_GPUTEST_FOR_METAL_CONTEXT(name, reporter, context_info)                         \
         DEF_GPUTEST_FOR_CONTEXTS(name, &skiatest::IsMetalContextType,                       \
                                  reporter, context_info, nullptr)
+#define DEF_GPUTEST_FOR_D3D_CONTEXT(name, reporter, context_info)                           \
+    DEF_GPUTEST_FOR_CONTEXTS(name, &skiatest::IsDirect3DContextType,                        \
+                             reporter, context_info, nullptr)
+#define DEF_GPUTEST_FOR_DAWN_CONTEXT(name, reporter, context_info)                          \
+    DEF_GPUTEST_FOR_CONTEXTS(name, &skiatest::IsDawnContextType,                            \
+                             reporter, context_info, nullptr)
 
 #define REQUIRE_PDF_DOCUMENT(TEST_NAME, REPORTER)                          \
     do {                                                                   \

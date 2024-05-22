@@ -50,7 +50,7 @@ static CGContextRef make_cg_ctx(const SkPixmap& pm) {
 
     switch (pm.colorType()) {
         case kRGBA_8888_SkColorType:
-            info = kCGBitmapByteOrder32Host | kCGImageAlphaNoneSkipFirst;
+            info = kCGBitmapByteOrder32Host | (CGBitmapInfo)kCGImageAlphaNoneSkipFirst;
             cs = CGColorSpaceCreateDeviceRGB();
             break;
         case kGray_8_SkColorType:
@@ -91,7 +91,7 @@ static void test_mac_fonts(SkCanvas* canvas, SkScalar size, SkScalar xpos) {
             CGContextSetShouldSmoothFonts(ctx, smooth);
             CGContextShowTextAtPoint(ctx, 2 + xpos, 2, "A", 1);
 
-            surf->draw(canvas, x, y, nullptr);
+            surf->draw(canvas, x, y);
             x += pm.width();
         }
         y += pm.height();

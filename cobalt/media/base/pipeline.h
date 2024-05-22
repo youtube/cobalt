@@ -20,17 +20,17 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/sbplayer_interface.h"
+#include "media/base/demuxer.h"
+#include "media/base/media_log.h"
+#include "media/base/pipeline_status.h"
+#include "media/base/ranges.h"
 #include "starboard/drm.h"
 #include "starboard/window.h"
-#include "third_party/chromium/media/base/demuxer.h"
-#include "third_party/chromium/media/base/media_log.h"
-#include "third_party/chromium/media/base/pipeline_status.h"
-#include "third_party/chromium/media/base/ranges.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
@@ -126,7 +126,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                      const base::Closure& duration_change_cb,
                      const base::Closure& output_mode_change_cb,
                      const base::Closure& content_size_change_cb,
-                     const std::string& max_video_capabilities) = 0;
+                     const std::string& max_video_capabilities,
+                     const int max_video_input_size) = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)
   // Build a pipeline with an url-base player.

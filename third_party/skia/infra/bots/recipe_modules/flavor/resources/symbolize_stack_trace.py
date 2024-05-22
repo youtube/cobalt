@@ -4,11 +4,14 @@
 # found in the LICENSE file.
 # pylint: disable=line-too-long
 
+
+from __future__ import print_function
 import collections
 import os
 import re
 import subprocess
 import sys
+
 
 # Run a command and symbolize anything that looks like a stacktrace in the
 # stdout/stderr. This will return with the same error code as the command.
@@ -28,16 +31,18 @@ import sys
 # Aside from specifying stdout/stderr, there are no ways to capture or reason
 # about the logs of previous steps without using a wrapper like this.
 
+
 def main(basedir, cmd):
   logs = collections.deque(maxlen=500)
 
   proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT)
   for line in iter(proc.stdout.readline, ''):
+    line = line.decode('utf-8')
     sys.stdout.write(line)
     logs.append(line)
   proc.wait()
-  print 'Command exited with code %s' % proc.returncode
+  print('Command exited with code %s' % proc.returncode)
   # Stacktraces generally look like:
   # /lib/x86_64-linux-gnu/libc.so.6(abort+0x16a) [0x7fa90e8d0c62]
   # /b/s/w/irISUIyA/linux_vulkan_intel_driver_debug/./libvulkan_intel.so(+0x1f4d0a) [0x7fa909eead0a]
@@ -60,9 +65,9 @@ def main(basedir, cmd):
     m = re.search(stack_line, line)
     if m:
       if is_first:
-        print '#######################################'
-        print 'symbolized stacktrace follows'
-        print '#######################################'
+        print('#######################################')
+        print('symbolized stacktrace follows')
+        print('#######################################')
         is_first = False
 
       path = m.group('path')
@@ -71,7 +76,11 @@ def main(basedir, cmd):
       if os.path.exists(path):
         if not addr or not addr.startswith('0x'):
           addr = addr2
-        sym = subprocess.check_output(['addr2line', '-Cfpe', path, addr])
+        try:
+          sym = subprocess.check_output([
+              'addr2line', '-Cfpe', path, addr]).decode('utf-8')
+        except subprocess.CalledProcessError:
+          sym = ''
         sym = sym.strip()
         # If addr2line doesn't return anything useful, we don't replace the
         # original address, so the human can see it.
@@ -80,13 +89,14 @@ def main(basedir, cmd):
             path = path[len(basedir)+1:]
           sym = re.sub(extra_path, '', sym)
           line = path + ' ' + sym
-      print line
+      print(line)
 
   sys.exit(proc.returncode)
 
 
 if __name__ == '__main__':
   if len(sys.argv) < 3:
-    print >> sys.stderr, 'USAGE: %s working_dir cmd_and_args...' % sys.argv[0]
+    print('USAGE: %s working_dir cmd_and_args...' % sys.argv[0],
+        file=sys.stderr)
     sys.exit(1)
   main(sys.argv[1], sys.argv[2:])

@@ -21,7 +21,6 @@
 #include "include/core/SkTypeface.h"
 #include "include/core/SkTypes.h"
 #include "src/core/SkAAClip.h"
-#include "src/core/SkClipOpPriv.h"
 #include "src/core/SkMask.h"
 #include "tools/ToolUtils.h"
 
@@ -43,10 +42,11 @@ static void paint_rgn(SkCanvas* canvas, const SkAAClip& clip,
 
     ToolUtils::copy_to(&bm2, bm.colorType(), bm);
 
-    canvas->drawBitmap(bm2,
-                       SK_Scalar1 * mask.fBounds.fLeft,
-                       SK_Scalar1 * mask.fBounds.fTop,
-                       &paint);
+    canvas->drawImage(bm2.asImage(),
+                      SK_Scalar1 * mask.fBounds.fLeft,
+                      SK_Scalar1 * mask.fBounds.fTop,
+                      SkSamplingOptions(),
+                      &paint);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -83,11 +83,11 @@ protected:
     }
 
     void buildRgn(SkAAClip* clip, SkClipOp op) {
-        clip->setPath(fBasePath, nullptr, true);
+        clip->setPath(fBasePath, fBasePath.getBounds().roundOut(), true);
 
         SkAAClip clip2;
-        clip2.setPath(fRectPath, nullptr, true);
-        clip->op(clip2, (SkRegion::Op)op);
+        clip2.setPath(fRectPath, fRectPath.getBounds().roundOut(), true);
+        clip->op(clip2, op);
     }
 
     void drawOrig(SkCanvas* canvas) {
@@ -151,7 +151,7 @@ protected:
     }
 
     SkISize onISize() override {
-        return SkISize::Make(640, 480);
+        return SkISize::Make(500, 240);
     }
 
     void onDraw(SkCanvas* canvas) override {
@@ -161,12 +161,8 @@ protected:
             const char*     fName;
             SkClipOp        fOp;
         } gOps[] = {
-                {SK_ColorBLACK, "Difference", kDifference_SkClipOp},
-                {SK_ColorRED, "Intersect", kIntersect_SkClipOp},
-                {ToolUtils::color_to_565(0xFF008800), "Union", kUnion_SkClipOp},
-                {SK_ColorGREEN, "Rev Diff", kReverseDifference_SkClipOp},
-                {SK_ColorYELLOW, "Replace", kReplace_SkClipOp},
-                {SK_ColorBLUE, "XOR", kXOR_SkClipOp},
+                {SK_ColorBLACK, "Difference", SkClipOp::kDifference},
+                {SK_ColorRED, "Intersect", SkClipOp::kIntersect},
         };
 
         SkPaint textPaint;
@@ -201,7 +197,7 @@ private:
     SkPath fBasePath;       // fBase as a round rect
     SkPath fRectPath;       // fRect as a round rect
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -211,4 +207,4 @@ DEF_GM( return new SimpleClipGM(SimpleClipGM::kRect_GeomType); )
 DEF_GM( return new SimpleClipGM(SimpleClipGM::kPath_GeomType); )
 DEF_GM( return new SimpleClipGM(SimpleClipGM::kAAClip_GeomType); )
 
-}
+}  // namespace skiagm

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "starboard/common/socket.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/socket_helpers.h"
@@ -92,7 +94,7 @@ TEST(SbSocketJoinMulticastGroupTest, SunnyDay) {
         receive_socket, buf, SB_ARRAY_SIZE_INT(buf), &receive_address);
     if (received < 0 &&
         SbSocketGetLastError(receive_socket) == kSbSocketPending) {
-      SbThreadSleep(1000);
+      usleep(1000);
       continue;
     }
     EXPECT_EQ(SB_ARRAY_SIZE_INT(kBuf), received);

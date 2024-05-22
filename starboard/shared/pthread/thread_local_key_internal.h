@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_PTHREAD_THREAD_LOCAL_KEY_INTERNAL_H_
 #define STARBOARD_SHARED_PTHREAD_THREAD_LOCAL_KEY_INTERNAL_H_
 
+#if SB_API_VERSION < 16
+
 #include <pthread.h>
 
 #include "starboard/shared/internal_only.h"
@@ -26,4 +28,5 @@ struct SbThreadLocalKeyPrivate {
   pthread_key_t key;
 };
 
+#endif  // SB_API_VERSION < 16
 #endif  // STARBOARD_SHARED_PTHREAD_THREAD_LOCAL_KEY_INTERNAL_H_

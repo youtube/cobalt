@@ -10,55 +10,90 @@
 
 #include "include/gpu/vk/GrVkTypes.h"
 #include "include/private/GrTypesPriv.h"
-#include "src/gpu/vk/GrVkResource.h"
+#include "src/gpu/GrGeometryProcessor.h"
+#include "src/gpu/GrXferProcessor.h"
+#include "src/gpu/vk/GrVkManagedResource.h"
+
+#include <cinttypes>
 
 class GrPipeline;
-class GrPrimitiveProcessor;
+class GrProgramInfo;
 class GrRenderTarget;
-class GrXferProcessor;
 class GrStencilSettings;
 class GrVkCommandBuffer;
 class GrVkGpu;
 class GrVkRenderPass;
 struct SkIRect;
 
-class GrVkPipeline : public GrVkResource {
+namespace skgpu {
+class Swizzle;
+}
+
+class GrVkPipeline : public GrVkManagedResource {
 public:
-    static GrVkPipeline* Create(GrVkGpu*,
-                                const GrProgramInfo&,
-                                VkPipelineShaderStageCreateInfo* shaderStageInfo,
-                                int shaderStageCount,
-                                VkRenderPass compatibleRenderPass,
-                                VkPipelineLayout layout,
-                                VkPipelineCache cache);
+    static sk_sp<GrVkPipeline> Make(GrVkGpu*,
+                                    const GrGeometryProcessor::AttributeSet& vertexAttribs,
+                                    const GrGeometryProcessor::AttributeSet& instanceAttribs,
+                                    GrPrimitiveType,
+                                    GrSurfaceOrigin,
+                                    const GrStencilSettings&,
+                                    int numSamples,
+                                    bool isHWAntialiasState,
+                                    const GrXferProcessor::BlendInfo&,
+                                    bool isWireframe,
+                                    bool useConservativeRaster,
+                                    uint32_t subpass,
+                                    VkPipelineShaderStageCreateInfo* shaderStageInfo,
+                                    int shaderStageCount,
+                                    VkRenderPass compatibleRenderPass,
+                                    VkPipelineLayout layout,
+                                    bool ownsLayout,
+                                    VkPipelineCache cache);
+
+    static sk_sp<GrVkPipeline> Make(GrVkGpu*,
+                                    const GrProgramInfo&,
+                                    VkPipelineShaderStageCreateInfo* shaderStageInfo,
+                                    int shaderStageCount,
+                                    VkRenderPass compatibleRenderPass,
+                                    VkPipelineLayout layout,
+                                    VkPipelineCache cache,
+                                    uint32_t subpass);
 
     VkPipeline pipeline() const { return fPipeline; }
-    VkPipelineLayout layout() const { return fPipelineLayout; }
+    VkPipelineLayout layout() const {
+        SkASSERT(fPipelineLayout != VK_NULL_HANDLE);
+        return fPipelineLayout;
+    }
 
-    static void SetDynamicScissorRectState(GrVkGpu*, GrVkCommandBuffer*, const GrRenderTarget*,
+    static void SetDynamicScissorRectState(GrVkGpu*,
+                                           GrVkCommandBuffer*,
+                                           SkISize colorAttachmentDimensions,
                                            GrSurfaceOrigin, const SkIRect& scissorRect);
-    static void SetDynamicViewportState(GrVkGpu*, GrVkCommandBuffer*, const GrRenderTarget*);
-    static void SetDynamicBlendConstantState(GrVkGpu*, GrVkCommandBuffer*,
-                                             const GrSwizzle& outputSwizzle,
+    static void SetDynamicViewportState(GrVkGpu*,
+                                        GrVkCommandBuffer*,
+                                        SkISize colorAttachmentDimensions);
+    static void SetDynamicBlendConstantState(GrVkGpu*,
+                                             GrVkCommandBuffer*,
+                                             const skgpu::Swizzle& writeSwizzle,
                                              const GrXferProcessor&);
 
-#ifdef SK_TRACE_VK_RESOURCES
+#ifdef SK_TRACE_MANAGED_RESOURCES
     void dumpInfo() const override {
-        SkDebugf("GrVkPipeline: %d (%d refs)\n", fPipeline, this->getRefCnt());
+        SkDebugf("GrVkPipeline: %" PRIdPTR " (%d refs)\n", (intptr_t)fPipeline, this->getRefCnt());
     }
 #endif
 
 protected:
-    GrVkPipeline(VkPipeline pipeline, VkPipelineLayout layout)
-            : INHERITED(), fPipeline(pipeline), fPipelineLayout(layout) {}
+    GrVkPipeline(const GrVkGpu* gpu, VkPipeline pipeline, VkPipelineLayout layout)
+            : INHERITED(gpu), fPipeline(pipeline), fPipelineLayout(layout) {}
 
     VkPipeline  fPipeline;
     VkPipelineLayout  fPipelineLayout;
 
 private:
-    void freeGPUData(GrVkGpu* gpu) const override;
+    void freeGPUData() const override;
 
-    typedef GrVkResource INHERITED;
+    using INHERITED = GrVkManagedResource;
 };
 
 #endif

@@ -16,6 +16,7 @@
 #define COBALT_TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
 
 #include "base/callback.h"
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/platform_file.h"
 #include "base/memory/ref_counted.h"
@@ -37,7 +38,9 @@ class JSONFileOutputter {
   // success, otherwise returns false.
   bool Output(base::trace_event::TraceLog* trace_log);
 
-  bool GetError() const { return file_ == base::kInvalidPlatformFile; }
+  bool GetError() const {
+    return file_.GetPlatformFile() == base::kInvalidPlatformFile;
+  }
 
  private:
   void OutputTraceData(
@@ -48,7 +51,7 @@ class JSONFileOutputter {
   void Close();
 
   base::FilePath output_path_;
-  base::PlatformFile file_;
+  base::File file_;
 
   int output_trace_event_call_count_;
 };

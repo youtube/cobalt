@@ -25,7 +25,6 @@
 #include "net/base/net_string_util.h"
 
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/string.h"
 #include "starboard/types.h"
 #endif

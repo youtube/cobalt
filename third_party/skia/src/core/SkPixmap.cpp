@@ -15,11 +15,13 @@
 #include "include/private/SkHalf.h"
 #include "include/private/SkImageInfoPriv.h"
 #include "include/private/SkNx.h"
+#include "include/private/SkTPin.h"
 #include "include/private/SkTemplates.h"
 #include "include/private/SkTo.h"
 #include "src/core/SkConvertPixels.h"
 #include "src/core/SkDraw.h"
 #include "src/core/SkMask.h"
+#include "src/core/SkMatrixProvider.h"
 #include "src/core/SkPixmapPriv.h"
 #include "src/core/SkRasterClip.h"
 #include "src/core/SkUtils.h"
@@ -106,6 +108,8 @@ float SkPixmap::getAlphaf(int x, int y) const {
         case kRGB_565_SkColorType:
         case kRGB_888x_SkColorType:
         case kRGB_101010x_SkColorType:
+        case kBGR_101010x_SkColorType:
+        case kR8_unorm_SkColorType:
             return 1;
         case kAlpha_8_SkColorType:
             value = static_cast<const uint8_t*>(srcPtr)[0] * (1.0f/255);
@@ -125,9 +129,11 @@ float SkPixmap::getAlphaf(int x, int y) const {
         }
         case kRGBA_8888_SkColorType:
         case kBGRA_8888_SkColorType:
+        case kSRGBA_8888_SkColorType:
             value = static_cast<const uint8_t*>(srcPtr)[3] * (1.0f/255);
             break;
-        case kRGBA_1010102_SkColorType: {
+        case kRGBA_1010102_SkColorType:
+        case kBGRA_1010102_SkColorType: {
             uint32_t u32 = static_cast<const uint32_t*>(srcPtr)[0];
             value = (u32 >> 30) * (1.0f/3);
             break;
@@ -164,18 +170,18 @@ bool SkPixmap::readPixels(const SkImageInfo& dstInfo, void* dstPixels, size_t ds
 
     const void* srcPixels = this->addr(rec.fX, rec.fY);
     const SkImageInfo srcInfo = fInfo.makeDimensions(rec.fInfo.dimensions());
-    SkConvertPixels(rec.fInfo, rec.fPixels, rec.fRowBytes, srcInfo, srcPixels, this->rowBytes());
-    return true;
+    return SkConvertPixels(rec.fInfo, rec.fPixels, rec.fRowBytes, srcInfo, srcPixels,
+                           this->rowBytes());
 }
 
 bool SkPixmap::erase(SkColor color, const SkIRect& subset) const {
     return this->erase(SkColor4f::FromColor(color), &subset);
 }
 
-bool SkPixmap::erase(const SkColor4f& color, const SkIRect* subset) const {
+bool SkPixmap::erase(const SkColor4f& color, SkColorSpace* cs, const SkIRect* subset) const {
     SkPaint paint;
     paint.setBlendMode(SkBlendMode::kSrc);
-    paint.setColor4f(color, this->colorSpace());
+    paint.setColor4f(color, cs);
 
     SkIRect clip = this->bounds();
     if (subset && !clip.intersect(*subset)) {
@@ -184,15 +190,16 @@ bool SkPixmap::erase(const SkColor4f& color, const SkIRect* subset) const {
     SkRasterClip rc{clip};
 
     SkDraw draw;
-    draw.fDst    = *this;
-    draw.fMatrix = &SkMatrix::I();
-    draw.fRC     = &rc;
+    SkMatrixProvider matrixProvider(SkMatrix::I());
+    draw.fDst            = *this;
+    draw.fMatrixProvider = &matrixProvider;
+    draw.fRC             = &rc;
 
     draw.drawPaint(paint);
     return true;
 }
 
-bool SkPixmap::scalePixels(const SkPixmap& actualDst, SkFilterQuality quality) const {
+bool SkPixmap::scalePixels(const SkPixmap& actualDst, const SkSamplingOptions& sampling) const {
     // We may need to tweak how we interpret these just a little below, so we make copies.
     SkPixmap src = *this,
              dst = actualDst;
@@ -228,16 +235,13 @@ bool SkPixmap::scalePixels(const SkPixmap& actualDst, SkFilterQuality quality) c
         return false;
     }
     bitmap.setImmutable();        // Don't copy when we create an image.
-    bitmap.setIsVolatile(true);   // Disable any caching.
 
-    SkMatrix scale = SkMatrix::MakeRectToRect(SkRect::Make(src.bounds()),
-                                              SkRect::Make(dst.bounds()),
-                                              SkMatrix::kFill_ScaleToFit);
+    SkMatrix scale = SkMatrix::RectToRect(SkRect::Make(src.bounds()), SkRect::Make(dst.bounds()));
 
-    // We'll create a shader to do this draw so we have control over the bicubic clamp.
-    sk_sp<SkShader> shader = SkImageShader::Make(SkImage::MakeFromBitmap(bitmap),
+    sk_sp<SkShader> shader = SkImageShader::Make(bitmap.asImage(),
                                                  SkTileMode::kClamp,
                                                  SkTileMode::kClamp,
+                                                 sampling,
                                                  &scale,
                                                  clampAsIfUnpremul);
 
@@ -250,7 +254,6 @@ bool SkPixmap::scalePixels(const SkPixmap& actualDst, SkFilterQuality quality) c
 
     SkPaint paint;
     paint.setBlendMode(SkBlendMode::kSrc);
-    paint.setFilterQuality(quality);
     paint.setShader(std::move(shader));
     surface->getCanvas()->drawPaint(paint);
     return true;
@@ -273,6 +276,10 @@ SkColor SkPixmap::getColor(int x, int y) const {
         case kGray_8_SkColorType: {
             uint8_t value = *this->addr8(x, y);
             return SkColorSetRGB(value, value, value);
+        }
+        case kR8_unorm_SkColorType: {
+            uint8_t value = *this->addr8(x, y);
+            return SkColorSetRGB(value, 0, 0);
         }
         case kAlpha_8_SkColorType: {
             return SkColorSetA(0, *this->addr8(x, y));
@@ -325,6 +332,30 @@ SkColor SkPixmap::getColor(int x, int y) const {
             SkPMColor c = SkSwizzle_RGBA_to_PMColor(value);
             return toColor(c);
         }
+        case kSRGBA_8888_SkColorType: {
+            auto srgb_to_linear = [](float x) {
+                return (x <= 0.04045f) ? x * (1 / 12.92f)
+                                       : sk_float_pow(x * (1 / 1.055f) + (0.055f / 1.055f), 2.4f);
+            };
+
+            uint32_t value = *this->addr32(x, y);
+            float r = ((value >>  0) & 0xff) * (1/255.0f),
+                  g = ((value >>  8) & 0xff) * (1/255.0f),
+                  b = ((value >> 16) & 0xff) * (1/255.0f),
+                  a = ((value >> 24) & 0xff) * (1/255.0f);
+            r = srgb_to_linear(r);
+            g = srgb_to_linear(g);
+            b = srgb_to_linear(b);
+            if (a != 0 && needsUnpremul) {
+                r = SkTPin(r/a, 0.0f, 1.0f);
+                g = SkTPin(g/a, 0.0f, 1.0f);
+                b = SkTPin(b/a, 0.0f, 1.0f);
+            }
+            return (uint32_t)( r * 255.0f ) << 16
+                 | (uint32_t)( g * 255.0f ) <<  8
+                 | (uint32_t)( b * 255.0f ) <<  0
+                 | (uint32_t)( a * 255.0f ) << 24;
+        }
         case kRGB_101010x_SkColorType: {
             uint32_t value = *this->addr32(x, y);
             // Convert 10-bit rgb to 8-bit bgr, and mask in 0xff alpha at the top.
@@ -333,13 +364,25 @@ SkColor SkPixmap::getColor(int x, int y) const {
                  | (uint32_t)( ((value >> 20) & 0x3ff) * (255/1023.0f) ) <<  0
                  | 0xff000000;
         }
-        case kRGBA_1010102_SkColorType: {
+        case kBGR_101010x_SkColorType: {
+            uint32_t value = *this->addr32(x, y);
+            // Convert 10-bit bgr to 8-bit bgr, and mask in 0xff alpha at the top.
+            return (uint32_t)( ((value >>  0) & 0x3ff) * (255/1023.0f) ) <<  0
+                 | (uint32_t)( ((value >> 10) & 0x3ff) * (255/1023.0f) ) <<  8
+                 | (uint32_t)( ((value >> 20) & 0x3ff) * (255/1023.0f) ) << 16
+                 | 0xff000000;
+        }
+        case kRGBA_1010102_SkColorType:
+        case kBGRA_1010102_SkColorType: {
             uint32_t value = *this->addr32(x, y);
 
             float r = ((value >>  0) & 0x3ff) * (1/1023.0f),
                   g = ((value >> 10) & 0x3ff) * (1/1023.0f),
                   b = ((value >> 20) & 0x3ff) * (1/1023.0f),
                   a = ((value >> 30) & 0x3  ) * (1/   3.0f);
+            if (this->colorType() == kBGRA_1010102_SkColorType) {
+                std::swap(r,b);
+            }
             if (a != 0 && needsUnpremul) {
                 r = SkTPin(r/a, 0.0f, 1.0f);
                 g = SkTPin(g/a, 0.0f, 1.0f);
@@ -395,10 +438,11 @@ SkColor SkPixmap::getColor(int x, int y) const {
             // p4 is RGBA, but we want BGRA, so we need to swap next
             return SkSwizzle_RB(c);
         }
-        default:
-            SkDEBUGFAIL("");
-            return SkColorSetARGB(0, 0, 0, 0);
+        case kUnknown_SkColorType:
+            break;
     }
+    SkDEBUGFAIL("");
+    return SkColorSetARGB(0, 0, 0, 0);
 }
 
 bool SkPixmap::computeIsOpaque() const {
@@ -450,6 +494,8 @@ bool SkPixmap::computeIsOpaque() const {
         case kR16G16_float_SkColorType:
         case kRGB_888x_SkColorType:
         case kRGB_101010x_SkColorType:
+        case kBGR_101010x_SkColorType:
+        case kR8_unorm_SkColorType:
             return true;
             break;
         case kARGB_4444_SkColorType: {
@@ -466,7 +512,8 @@ bool SkPixmap::computeIsOpaque() const {
             return true;
         }
         case kBGRA_8888_SkColorType:
-        case kRGBA_8888_SkColorType: {
+        case kRGBA_8888_SkColorType:
+        case kSRGBA_8888_SkColorType: {
             SkPMColor c = (SkPMColor)~0;
             for (int y = 0; y < height; ++y) {
                 const SkPMColor* row = this->addr32(0, y);
@@ -504,7 +551,8 @@ bool SkPixmap::computeIsOpaque() const {
             }
             return true;
         }
-        case kRGBA_1010102_SkColorType: {
+        case kRGBA_1010102_SkColorType:
+        case kBGRA_1010102_SkColorType: {
             uint32_t c = ~0;
             for (int y = 0; y < height; ++y) {
                 const uint32_t* row = this->addr32(0, y);
@@ -548,12 +596,12 @@ static bool draw_orientation(const SkPixmap& dst, const SkPixmap& src, SkEncoded
     SkBitmap bm;
     bm.installPixels(src);
 
-    SkMatrix m = SkEncodedOriginToMatrix(origin, src.width(), src.height());
+    SkMatrix m = SkEncodedOriginToMatrix(origin, dst.width(), dst.height());
 
     SkPaint p;
     p.setBlendMode(SkBlendMode::kSrc);
     surf->getCanvas()->concat(m);
-    surf->getCanvas()->drawBitmap(bm, 0, 0, &p);
+    surf->getCanvas()->drawImage(SkImage::MakeFromBitmap(bm), 0, 0, SkSamplingOptions(), &p);
     return true;
 }
 
@@ -565,7 +613,7 @@ bool SkPixmapPriv::Orient(const SkPixmap& dst, const SkPixmap& src, SkEncodedOri
 
     int w = src.width();
     int h = src.height();
-    if (ShouldSwapWidthHeight(origin)) {
+    if (SkEncodedOriginSwapsWidthHeight(origin)) {
         using std::swap;
         swap(w, h);
     }
@@ -581,11 +629,6 @@ bool SkPixmapPriv::Orient(const SkPixmap& dst, const SkPixmap& src, SkEncodedOri
         return kTopLeft_SkEncodedOrigin == origin;
     }
     return draw_orientation(dst, src, origin);
-}
-
-bool SkPixmapPriv::ShouldSwapWidthHeight(SkEncodedOrigin origin) {
-    // The last four SkEncodedOrigin values involve 90 degree rotations
-    return origin >= kLeftTop_SkEncodedOrigin;
 }
 
 SkImageInfo SkPixmapPriv::SwapWidthHeight(const SkImageInfo& info) {

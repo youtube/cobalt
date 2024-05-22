@@ -1,6 +1,7 @@
 {
   "docker_service": "build-win-win32",
   "docker_runner_service": "runner-win-win32",
+  "runner_tag": "win32",
   "platforms": [
     "win32"
   ],

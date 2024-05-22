@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/web/context.h"
@@ -42,7 +43,7 @@ scoped_refptr<H5vccPlatformService> H5vccPlatformService::Open(
       static_cast<const ExtPlatformServiceApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformServiceName));
   if (!platform_service_api) {
-    SB_DLOG(WARNING) << "PlatformService is not implemented on this platform.";
+    DLOG(WARNING) << "PlatformService is not implemented on this platform.";
     return NULL;
   }
   scoped_refptr<H5vccPlatformService> service = new H5vccPlatformService(
@@ -67,12 +68,12 @@ H5vccPlatformService::H5vccPlatformService(
     : environment_(environment),
       platform_service_api_(platform_service_api),
       receive_callback_(this, receive_callback),
-      main_message_loop_(base::ThreadTaskRunnerHandle::Get()),
+      main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())) {
   DCHECK(platform_service_api_);
-  DCHECK(main_message_loop_);
+  DCHECK(main_task_runner_);
 }
 
 H5vccPlatformService::~H5vccPlatformService() {
@@ -148,13 +149,13 @@ void H5vccPlatformService::Receive(void* context, const void* data,
 
 void H5vccPlatformService::ReceiveInternal(std::vector<uint8_t> data) {
   // ReceiveInternal may be called by another thread.
-  if (!main_message_loop_->BelongsToCurrentThread()) {
-    main_message_loop_->PostTask(
+  if (!main_task_runner_->RunsTasksInCurrentSequence()) {
+    main_task_runner_->PostTask(
         FROM_HERE, base::Bind(&H5vccPlatformService::ReceiveInternal,
                               weak_this_, std::move(data)));
     return;
   }
-  DCHECK(main_message_loop_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_->RunsTasksInCurrentSequence());
   if (!IsOpen()) {
     LOG(ERROR) << "Closed service cannot Receive.";
     return;
@@ -172,7 +173,7 @@ void H5vccPlatformService::ReceiveInternal(std::vector<uint8_t> data) {
 }
 
 void H5vccPlatformService::Close() {
-  DCHECK(main_message_loop_->BelongsToCurrentThread());
+  DCHECK(main_task_runner_->RunsTasksInCurrentSequence());
 
   if (!IsOpen()) {
     LOG(ERROR) << "Cannot close service that is not open.";

@@ -130,11 +130,11 @@ DEF_TEST(SixtyOvalsOneOff, reporter) {
 
 #if DEBUG_SIMPLIFY_FAILS
 static bool simplify_fails(skiatest::Reporter* reporter, const SkPath& path) {
-    SkPath dummy;
-    bool failed = !Simplify(path, &dummy);
+    SkPath simplifiedPath;
+    bool failed = !Simplify(path, &simplifiedPath);
     if (!failed) {
         SkBitmap bitmap;
-        failed = !!comparePaths(reporter, __FUNCTION__, path, dummy, bitmap);
+        failed = !!comparePaths(reporter, __FUNCTION__, path, simplifiedPath, bitmap);
     }
     return failed;
 }
@@ -626,17 +626,19 @@ const char ovalsAsQuads[] = "M 146.4187316894531 136.5"
 #include "include/utils/SkParsePath.h"
 
 DEF_TEST(PathOpsOvalsAsQuads, reporter) {
-    return; // don't execute this for now
-    SkPath path;
-    SkParsePath::FromSVGString(ovalsAsQuads, &path);
-    Simplify(path, &path);
+    if ((false)) { // don't execute this for now
+        SkPath path;
+        SkParsePath::FromSVGString(ovalsAsQuads, &path);
+        Simplify(path, &path);
+    }
 }
 
 DEF_TEST(PathOps64OvalsAsQuads, reporter) {
-    return; // don't execute this for now
-    SkPath path, result;
-    SkOpBuilder builder;
-    SkParsePath::FromSVGString(ovalsAsQuads, &path);
-    OvalSet set = {{0, 0, 0, 0}, 2, 3, 9, 100, 100};
-    testOvalSet(set, path, &builder, nullptr, &result);
+    if ((false)) { // don't execute this for now
+        SkPath path, result;
+        SkOpBuilder builder;
+        SkParsePath::FromSVGString(ovalsAsQuads, &path);
+        OvalSet set = {{0, 0, 0, 0}, 2, 3, 9, 100, 100};
+        testOvalSet(set, path, &builder, nullptr, &result);
+    }
 }

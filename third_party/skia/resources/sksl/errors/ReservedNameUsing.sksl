@@ -1,0 +1,5 @@
+int using;
+
+/*%%*
+'using' is a reserved word
+*%%*/

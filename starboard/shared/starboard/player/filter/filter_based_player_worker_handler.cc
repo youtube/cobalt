@@ -82,6 +82,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       audio_stream_info_(creation_param->audio_sample_info),
 #endif  // SB_API_VERSION >= 15
       output_mode_(creation_param->output_mode),
+      max_video_input_size_(0),
       decode_target_graphics_context_provider_(provider),
 #if SB_API_VERSION >= 15
       video_stream_info_(creation_param->video_stream_info) {
@@ -114,7 +115,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
   update_player_state_cb_ = update_player_state_cb;
   update_player_error_cb_ = update_player_error_cb;
 
-  scoped_ptr<PlayerComponents::Factory> factory =
+  unique_ptr_alias<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
   SB_DCHECK(factory);
 
@@ -137,7 +138,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      decode_target_graphics_context_provider_, drm_system_);
+      max_video_input_size_, decode_target_graphics_context_provider_,
+      drm_system_);
 
   {
     ::starboard::ScopedLock lock(player_components_existence_mutex_);
@@ -399,8 +401,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
     bounds_.z_index = bounds.z_index;
     bool bounds_changed = memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0;
     SB_LOG_IF(INFO, bounds_changed)
-        << "Set bounds to "
-        << "x: " << bounds.x << ", y: " << bounds.y
+        << "Set bounds to " << "x: " << bounds.x << ", y: " << bounds.y
         << ", width: " << bounds.width << ", height: " << bounds.height
         << ", z_index: " << bounds.z_index;
 
@@ -516,14 +517,14 @@ void FilterBasedPlayerWorkerHandler::Stop() {
 
   RemoveJobByToken(update_job_token_);
 
-  scoped_ptr<PlayerComponents> player_components;
+  unique_ptr_alias<PlayerComponents> player_components;
   {
     // Set |player_components_| to null with the lock, but we actually destroy
     // it outside of the lock.  This is because the VideoRenderer destructor
     // may post a task to destroy the SbDecodeTarget to the same thread that
     // might call GetCurrentDecodeTarget(), which would try to take this lock.
     ::starboard::ScopedLock lock(player_components_existence_mutex_);
-    player_components = player_components_.Pass();
+    player_components = std::move(player_components_);
     media_time_provider_ = nullptr;
     audio_renderer_ = nullptr;
     video_renderer_ = nullptr;
@@ -543,6 +544,13 @@ SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
     player_components_existence_mutex_.Release();
   }
   return decode_target;
+}
+
+void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
+    int max_video_input_size) {
+  SB_LOG(INFO) << "Set max_video_input_size from " << max_video_input_size_
+               << " to " << max_video_input_size;
+  max_video_input_size_ = max_video_input_size;
 }
 
 }  // namespace filter

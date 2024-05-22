@@ -12,25 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("sabi_flags") {
-  cflags = [
-    "-mfloat-abi=hard",
-    "-target",
-    "armv7a-none-eabihf",
-  ]
-}
-
 config("platform_configuration") {
   configs = [
-    "//starboard/build/config/sabi",
-    "//starboard/evergreen/arm/shared/platform_configuration:sabi_flags",
-    ":sabi_flags",
+    "//starboard/build/config/modular/arm/hardfp",
     "//starboard/evergreen/arm/shared/platform_configuration",
   ]
-  if (sb_is_evergreen) {
-    ldflags = [
-      "-Wl,-m",
-      "-Wl,armelf",
-    ]
-  }
+  ldflags = [
+    "-Wl,-m",
+    "-Wl,armelf",
+  ]
 }

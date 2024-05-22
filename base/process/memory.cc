@@ -1,41 +1,35 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/debug/alias.h"
-#include "base/logging.h"
 #include "base/process/memory.h"
+
+#include <string.h>
+
+#include "base/allocator/buildflags.h"
+#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/cxx17_backports.h"
+#include "base/debug/alias.h"
+#include "base/immediate_crash.h"
+#include "base/logging.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include "starboard/memory.h"
+#if BUILDFLAG(USE_PARTITION_ALLOC)
+#include "base/allocator/partition_allocator/page_allocator.h"
 #endif
+
+#if BUILDFLAG(IS_WIN)
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace base {
 
-// Defined in memory_win.cc for Windows.
-#if !defined(OS_WIN)
-
-namespace {
-
-// Breakpad server classifies base::`anonymous namespace'::OnNoMemory as
-// out-of-memory crash.
-NOINLINE void OnNoMemory(size_t size) {
-  size_t tmp_size = size;
-  base::debug::Alias(&tmp_size);
-  LOG(FATAL) << "Out of memory. size=" << tmp_size;
-}
-
-}  // namespace
-
-void TerminateBecauseOutOfMemory(size_t size) {
-  OnNoMemory(size);
-}
-
-#endif
-
-// Defined in memory_mac.mm for Mac.
-#if !defined(OS_MACOSX)
+// Defined in memory_mac.mm for macOS + use_partition_alloc_as_malloc=false.
+// In case of use_partition_alloc_as_malloc=true, no need to route the call to
+// the system default calloc of macOS.
+#if !BUILDFLAG(IS_APPLE) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 bool UncheckedCalloc(size_t num_items, size_t size, void** result) {
   const size_t alloc_size = num_items * size;
@@ -53,6 +47,16 @@ bool UncheckedCalloc(size_t num_items, size_t size, void** result) {
   return true;
 }
 
+#endif  // !BUILDFLAG(IS_APPLE) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+
+namespace internal {
+bool ReleaseAddressSpaceReservation() {
+#if BUILDFLAG(USE_PARTITION_ALLOC)
+  return partition_alloc::ReleaseReservation();
+#else
+  return false;
 #endif
+}
+}  // namespace internal
 
 }  // namespace base

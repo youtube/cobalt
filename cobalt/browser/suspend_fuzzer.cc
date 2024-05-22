@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/suspend_fuzzer.h"
 
+#include "base/logging.h"
 #include "base/threading/thread_task_runner_handle.h"
 
 namespace cobalt {
@@ -36,7 +37,7 @@ const base::TimeDelta kInterval = base::TimeDelta::FromSeconds(10);
 SuspendFuzzer::SuspendFuzzer()
     : thread_("suspend_fuzzer"), step_type_(kShouldRequestFreeze) {
   thread_.Start();
-  thread_.message_loop()->task_runner()->PostDelayedTask(
+  thread_.task_runner()->PostDelayedTask(
       FROM_HERE, base::Bind(&SuspendFuzzer::DoStep, base::Unretained(this)),
       kBeginTimeout);
 }
@@ -44,20 +45,21 @@ SuspendFuzzer::SuspendFuzzer()
 SuspendFuzzer::~SuspendFuzzer() { thread_.Stop(); }
 
 void SuspendFuzzer::DoStep() {
-  DCHECK(base::MessageLoop::current() == thread_.message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
+         thread_.task_runner());
   if (step_type_ == kShouldRequestFreeze) {
-    SB_DLOG(INFO) << "suspend_fuzzer: Requesting freeze.";
+    DLOG(INFO) << "suspend_fuzzer: Requesting freeze.";
     SbSystemRequestFreeze();
     step_type_ = kShouldRequestFocus;
   } else if (step_type_ == kShouldRequestFocus) {
-    SB_DLOG(INFO) << "suspend_fuzzer: Requesting focus.";
+    DLOG(INFO) << "suspend_fuzzer: Requesting focus.";
     SbSystemRequestFocus();
     step_type_ = kShouldRequestFocus;
   } else {
     NOTREACHED();
   }
 
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, base::Bind(&SuspendFuzzer::DoStep, base::Unretained(this)),
       kInterval);
 }

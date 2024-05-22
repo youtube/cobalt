@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,30 +7,24 @@
 #include <memory>
 #include <utility>
 
+#include "base/base_switches.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/power_monitor/power_monitor_device_source.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/power_monitor_test.h"
+#include "base/test/scoped_command_line.h"
+#include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 TEST(HiResTimerManagerTest, ToggleOnOff) {
-  // The power monitor creates Window to receive power notifications from
-  // Windows, which makes this test flaky if you run while the machine
-  // goes in or out of AC power.
-  test::ScopedTaskEnvironment scoped_task_environment(
-      test::ScopedTaskEnvironment::MainThreadType::UI);
-  std::unique_ptr<base::PowerMonitorSource> power_monitor_source(
-      new base::PowerMonitorDeviceSource());
-  std::unique_ptr<base::PowerMonitor> power_monitor(
-      new base::PowerMonitor(std::move(power_monitor_source)));
+  test::TaskEnvironment task_environment;
+  base::test::ScopedPowerMonitorTestSource power_monitor_source;
 
   HighResolutionTimerManager manager;
-  // Simulate a on-AC power event to get to a known initial state.
-  manager.OnPowerStateChange(false);
 
   // Loop a few times to test power toggling.
   for (int times = 0; times != 3; ++times) {
@@ -44,12 +38,13 @@ TEST(HiResTimerManagerTest, ToggleOnOff) {
     EXPECT_TRUE(base::Time::IsHighResolutionTimerInUse());
 
     // Simulate a on-battery power event.
-    manager.OnPowerStateChange(true);
+    power_monitor_source.GeneratePowerStateEvent(true);
+
     EXPECT_FALSE(manager.hi_res_clock_available());
     EXPECT_FALSE(base::Time::IsHighResolutionTimerInUse());
 
     // Back to on-AC power.
-    manager.OnPowerStateChange(false);
+    power_monitor_source.GeneratePowerStateEvent(false);
     EXPECT_TRUE(manager.hi_res_clock_available());
     EXPECT_TRUE(base::Time::IsHighResolutionTimerInUse());
 
@@ -57,6 +52,34 @@ TEST(HiResTimerManagerTest, ToggleOnOff) {
     base::Time::ActivateHighResolutionTimer(false);
   }
 }
-#endif  // defined(OS_WIN)
+
+TEST(HiResTimerManagerTest, DisableFromCommandLine) {
+  base::test::ScopedCommandLine command_line;
+  command_line.GetProcessCommandLine()->AppendSwitch(
+      switches::kDisableHighResTimer);
+
+  // Reset to known initial state. Test suite implementation
+  // enables the high resolution timer by default.
+  Time::EnableHighResolutionTimer(false);
+
+  HighResolutionTimerManager manager;
+
+  // The high resolution clock is disabled via the command line flag.
+  EXPECT_FALSE(manager.hi_res_clock_available());
+
+  // Time class has it off as well, because it hasn't been activated.
+  EXPECT_FALSE(base::Time::IsHighResolutionTimerInUse());
+
+  // Try to activate the high resolution timer.
+  base::Time::ActivateHighResolutionTimer(true);
+  EXPECT_FALSE(base::Time::IsHighResolutionTimerInUse());
+
+  // De-activate the high resolution timer.
+  base::Time::ActivateHighResolutionTimer(false);
+
+  // Re-enable the high-resolution timer for testing.
+  Time::EnableHighResolutionTimer(true);
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace base

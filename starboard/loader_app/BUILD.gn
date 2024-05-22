@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//starboard/build/config/os_definitions.gni")
+import("//third_party/protobuf/proto_library.gni")
 
 _common_loader_app_sources = [
   "loader_app.cc",
@@ -22,23 +23,20 @@ _common_loader_app_sources = [
   "system_get_extension_shim.h",
 ]
 
-group("common_loader_app_dependencies") {
-  public_deps = [
-    ":app_key",
-    ":installation_manager",
-    ":memory_tracker_thread",
-    ":reset_evergreen_update",
-    ":slot_management",
-    "//starboard:starboard_group",
-    "//starboard/elf_loader:constants",
-    "//starboard/elf_loader:evergreen_info",
-    "//starboard/elf_loader:sabi_string",
-  ]
-
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-    public_deps += [ "//third_party/crashpad/wrapper" ]
-  } else {
-    public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  group("common_loader_app_dependencies") {
+    public_deps = [
+      ":app_key",
+      ":installation_manager",
+      ":memory_tracker_thread",
+      ":reset_evergreen_update",
+      ":slot_management",
+      "//starboard:starboard_group",
+      "//starboard/elf_loader:constants",
+      "//starboard/elf_loader:evergreen_info",
+      "//starboard/elf_loader:sabi_string",
+      "//third_party/crashpad/crashpad/wrapper",
+    ]
   }
 }
 
@@ -75,15 +73,14 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
     install_content = true
     sources = [ "$root_out_dir/native_target/crashpad_handler" ]
     outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
-    deps = [ "//third_party/crashpad/handler:crashpad_handler(//starboard/android/arm/toolchain:native_target)" ]
+    deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//starboard/android/arm/toolchain:native_target)" ]
   }
 }
 
-if (current_toolchain == starboard_toolchain) {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "loader_app") {
     build_loader = false
-    if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
-        target_cpu == "arm64") {
+    if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
       data_deps = [ "//third_party/icu:icudata" ]
       if (cobalt_font_package == "empty") {
         data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
@@ -123,8 +120,8 @@ if (current_toolchain == starboard_toolchain) {
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   # TODO: b/261635039 enable this target on Android
   target(starboard_level_final_executable_type, "loader_app_sys") {
-    if ((target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
-         target_cpu == "arm64") && target_os != "android") {
+    if ((target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") &&
+        target_os != "android") {
       sources = _common_loader_app_sources
 
       starboard_syms_path =
@@ -150,17 +147,19 @@ static_library("app_key_files") {
   deps = [ "//starboard:starboard_group" ]
 }
 
-target(gtest_target_type, "app_key_files_test") {
-  testonly = true
-  sources = [
-    "//starboard/common/test_main.cc",
-    "app_key_files_test.cc",
-  ]
-  deps = [
-    ":app_key_files",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+if (sb_is_evergreen) {
+  target(gtest_target_type, "app_key_files_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "app_key_files_test.cc",
+    ]
+    deps = [
+      ":app_key_files",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }
 
 static_library("app_key") {
@@ -176,17 +175,19 @@ static_library("app_key") {
   ]
 }
 
-target(gtest_target_type, "app_key_test") {
-  testonly = true
-  sources = [
-    "//starboard/common/test_main.cc",
-    "app_key_test.cc",
-  ]
-  deps = [
-    ":app_key",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+if (sb_is_evergreen) {
+  target(gtest_target_type, "app_key_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "app_key_test.cc",
+    ]
+    deps = [
+      ":app_key",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }
 
 static_library("drain_file") {
@@ -197,27 +198,38 @@ static_library("drain_file") {
   deps = [ "//starboard/common" ]
 }
 
-target(gtest_target_type, "drain_file_test") {
+static_library("drain_file_helper") {
   testonly = true
   sources = [
-    "//starboard/common/test_main.cc",
     "drain_file_helper.cc",
     "drain_file_helper.h",
-    "drain_file_test.cc",
   ]
   deps = [
     ":drain_file",
-    "//testing/gmock",
+    "//starboard/common",
     "//testing/gtest",
   ]
 }
 
-static_library("installation_store_proto") {
-  sources = [
-    "installation_store.pb.cc",
-    "installation_store.pb.h",
-  ]
-  public_deps = [ "//third_party/protobuf:protobuf_lite" ]
+if (sb_is_evergreen) {
+  target(gtest_target_type, "drain_file_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "drain_file_test.cc",
+    ]
+    deps = [
+      ":drain_file",
+      ":drain_file_helper",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
+
+proto_library("installation_store_proto") {
+  sources = [ "installation_store.proto" ]
+  generate_python = false
 }
 
 static_library("installation_manager") {
@@ -238,9 +250,8 @@ static_library("installation_manager") {
   ]
 }
 
-# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
-  target(gtest_target_type, "installation_manager_test") {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  target(starboard_level_gtest_target_type, "installation_manager_test") {
     testonly = true
     sources = [
       "//starboard/common/test_main.cc",
@@ -251,12 +262,15 @@ if (!is_host_win) {
       ":installation_manager",
       ":installation_store_proto",
       ":pending_restart",
+      "//starboard:starboard_with_main",
       "//testing/gmock",
       "//testing/gtest",
     ]
   }
 }
 
+## NOTE: This target is shared between Evergreen and EG platform code
+## It needs to be built with both Starboard and Cobalt toolchains
 static_library("slot_management") {
   sources = [
     "slot_management.cc",
@@ -273,14 +287,12 @@ static_library("slot_management") {
   ]
 
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-    deps += [ "//third_party/crashpad/wrapper" ]
+    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
   } else {
-    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
   }
 }
-
-# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (current_toolchain == starboard_toolchain && !is_host_win) {
+if (sb_is_evergreen) {
   target(starboard_level_gtest_target_type, "slot_management_test") {
     testonly = true
     build_loader = false
@@ -312,29 +324,28 @@ static_library("pending_restart") {
   public_deps = [ "//starboard:starboard_headers_only" ]
 }
 
-static_library("memory_tracker_thread") {
-  sources = [
-    "memory_tracker_thread.cc",
-    "memory_tracker_thread.h",
-  ]
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  static_library("memory_tracker_thread") {
+    sources = [
+      "memory_tracker_thread.cc",
+      "memory_tracker_thread.h",
+    ]
 
-  deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/common",
-  ]
-}
+    deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common",
+    ]
+  }
 
-static_library("reset_evergreen_update") {
-  sources = [
-    "reset_evergreen_update.cc",
-    "reset_evergreen_update.h",
-  ]
-  deps = [ "//starboard:starboard_group" ]
-}
+  static_library("reset_evergreen_update") {
+    sources = [
+      "reset_evergreen_update.cc",
+      "reset_evergreen_update.h",
+    ]
+    deps = [ "//starboard:starboard_group" ]
+  }
 
-# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
-  target(gtest_target_type, "reset_evergreen_update_test") {
+  target(starboard_level_gtest_target_type, "reset_evergreen_update_test") {
     testonly = true
     sources = [
       "//starboard/common/test_main.cc",
@@ -342,6 +353,7 @@ if (!is_host_win) {
     ]
     deps = [
       ":reset_evergreen_update",
+      "//starboard:starboard_with_main",
       "//testing/gmock",
       "//testing/gtest",
     ]

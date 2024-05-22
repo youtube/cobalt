@@ -5,13 +5,16 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColorPriv.h"
 #include "include/core/SkShader.h"
 #include "include/core/SkSurface.h"
 #include "include/effects/SkGradientShader.h"
 #include "include/private/SkTemplates.h"
+#include "src/core/SkMatrixProvider.h"
 #include "src/core/SkTLazy.h"
+#include "src/gpu/GrColorInfo.h"
 #include "src/shaders/SkColorShader.h"
 #include "tests/Test.h"
 
@@ -368,6 +371,36 @@ static void test_degenerate_linear(skiatest::Reporter*) {
     // Passes if we don't trigger asserts.
 }
 
+// http://crbug.com/1149216
+static void test_unsorted_degenerate(skiatest::Reporter* r) {
+    // Passes if a valid solid color is computed for the degenerate gradient
+    // (unsorted positions are fixed during regular gradient construction, so this ensures the
+    // same fixing happens for degenerate gradients as well). If they aren't fixed, this test
+    // case produces a negative alpha, which asserts during SkPMColor4f::isOpaque().
+    const SkColor4f colors[] = { {0.f, 0.f, 0.f, 0.f},
+                                 {0.00784314f, 0.f, 0.f, 0.0627451f},
+                                 {0.f, 0.00392157f, 0.f, 0.f} };
+    const SkScalar positions[] = {0.00753367f, 8.54792e-44f, 1.46955e-39f};
+
+    const SkPoint points[] { { 0.f, 0.f }, { 1e-20f, -1e-8f }}; // must be degenerate
+    // Use kMirror to go through average color stop calculation, vs. kClamp which would pick a color
+    sk_sp<SkShader> gradient = SkGradientShader::MakeLinear(points, colors, nullptr, positions, 3,
+                                                            SkTileMode::kMirror);
+
+    // The degenerate gradient shouldn't be null
+    REPORTER_ASSERT(r, SkToBool(gradient));
+    // And it shouldn't crash when creating a fragment processor
+
+    SkMatrixProvider provider(SkMatrix::I());
+    GrColorInfo dstColorInfo(GrColorType::kRGBA_8888, kPremul_SkAlphaType,
+                             SkColorSpace::MakeSRGB());
+    GrMockOptions options;
+    auto context = GrDirectContext::MakeMock(&options);
+
+    GrFPArgs args(context.get(), provider, &dstColorInfo);
+    as_SB(gradient)->asFragmentProcessor(args);
+}
+
 // "Interesting" fuzzer values.
 static void test_linear_fuzzer(skiatest::Reporter*) {
     static const SkColor gColors0[] = { 0x30303030, 0x30303030 };
@@ -456,7 +489,7 @@ static void test_linear_fuzzer(skiatest::Reporter*) {
 
     SkPaint paint;
 
-    for (auto colorSpace : colorSpaces) {
+    for (const SkColorSpace* colorSpace : colorSpaces) {
 
         sk_sp<SkSurface> surface = SkSurface::MakeRaster(SkImageInfo::Make(100, 100,
                                                                            kN32_SkColorType,
@@ -469,7 +502,7 @@ static void test_linear_fuzzer(skiatest::Reporter*) {
             SkTLazy<SkMatrix> localMatrix;
             if (config.fLocalMatrix) {
                 localMatrix.init();
-                localMatrix.get()->set9(config.fLocalMatrix);
+                localMatrix->set9(config.fLocalMatrix);
             }
 
             paint.setShader(SkGradientShader::MakeLinear(config.fPts,
@@ -550,4 +583,5 @@ DEF_TEST(Gradient, reporter) {
     test_degenerate_linear(reporter);
     test_linear_fuzzer(reporter);
     test_sweep_fuzzer(reporter);
+    test_unsorted_degenerate(reporter);
 }

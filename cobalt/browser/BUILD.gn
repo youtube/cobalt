@@ -71,7 +71,7 @@ target(final_executable_type, "cobalt") {
     ]
   }
   if (sb_is_evergreen) {
-    data_deps += [ "//cobalt/updater/version_manifest:copy_version_manifest" ]
+    data_deps += [ "//chrome/updater/version_manifest:copy_version_manifest" ]
   }
   if (!is_gold) {
     data_deps += [
@@ -94,7 +94,10 @@ target(final_executable_type, "cobalt") {
 ##############################
 
 config("bindings_includes") {
-  include_dirs = [ _generated_source_output_dir ]
+  include_dirs = [
+    "//third_party/skia",
+    _generated_source_output_dir,
+  ]
 }
 
 source_set("browser_switches") {
@@ -118,8 +121,10 @@ static_library("browser") {
     "client_hint_headers.h",
     "device_authentication.cc",
     "device_authentication.h",
-    "on_screen_keyboard_starboard_bridge.cc",
-    "on_screen_keyboard_starboard_bridge.h",
+    "loader_app_metrics.cc",
+    "loader_app_metrics.h",
+    "on_screen_keyboard_extension_bridge.cc",
+    "on_screen_keyboard_extension_bridge.h",
     "render_tree_combiner.cc",
     "render_tree_combiner.h",
     "screen_shot_writer.cc",
@@ -224,7 +229,7 @@ static_library("browser") {
   }
 
   if (sb_is_evergreen) {
-    deps += [ "//cobalt/updater" ]
+    deps += [ "//chrome/updater" ]
   } else {
     deps += cobalt_platform_dependencies
   }
@@ -237,6 +242,7 @@ target(gtest_target_type, "browser_test") {
   sources = [
     "client_hint_headers_test.cc",
     "device_authentication_test.cc",
+    "loader_app_metrics_test.cc",
     "memory_settings/auto_mem_settings_test.cc",
     "memory_settings/auto_mem_test.cc",
     "memory_settings/calculations_test.cc",

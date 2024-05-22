@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,12 +10,9 @@
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
-
-// Forward declaration for openssl/*.h
-typedef struct env_md_ctx_st EVP_MD_CTX;
+#include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace crypto {
 
@@ -30,6 +27,9 @@ class CRYPTO_EXPORT SignatureCreator {
     SHA1,
     SHA256,
   };
+
+  SignatureCreator(const SignatureCreator&) = delete;
+  SignatureCreator& operator=(const SignatureCreator&) = delete;
 
   ~SignatureCreator();
 
@@ -57,9 +57,7 @@ class CRYPTO_EXPORT SignatureCreator {
   // Private constructor. Use the Create() method instead.
   SignatureCreator();
 
-  EVP_MD_CTX* sign_context_;
-
-  DISALLOW_COPY_AND_ASSIGN(SignatureCreator);
+  bssl::UniquePtr<EVP_MD_CTX> sign_context_;
 };
 
 }  // namespace crypto

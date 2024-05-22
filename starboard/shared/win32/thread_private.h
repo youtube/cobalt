@@ -22,20 +22,33 @@
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
-#include "starboard/once.h"
+#include "starboard/common/once.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/thread.h"
+
+#define kSbThreadLocalKeyInvalid (SbThreadLocalKey) NULL
 
 struct SbThreadLocalKeyPrivate {
   DWORD tls_index;
   SbThreadLocalDestructor destructor;
 };
 
+typedef SbThreadLocalKeyPrivate* SbThreadLocalKey;
+
+static inline bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
+  return key != kSbThreadLocalKeyInvalid;
+}
+
 namespace starboard {
 namespace shared {
 namespace win32 {
 
 class ThreadSubsystemSingleton;
+
+SbThreadLocalKey ThreadCreateLocalKey(SbThreadLocalDestructor destructor);
+void ThreadDestroyLocalKey(SbThreadLocalKey key);
+void* ThreadGetLocalValue(SbThreadLocalKey key);
+bool ThreadSetLocalValue(SbThreadLocalKey key, void* value);
 
 // Creates a SbThreadLocalKey given a ThreadSubsystemSingleton. Used
 // to create the first SbThreadLocalKey.
@@ -103,6 +116,14 @@ class SbThreadPrivate {
 
 // Obtains the current thread's SbThreadPrivate* from thread-local storage.
 SbThreadPrivate* GetCurrentSbThreadPrivate();
+
+class ThreadCreateInfo {
+ public:
+  SbThreadPrivate thread_private_;
+  SbThreadEntryPoint entry_point_;
+  void* user_context_;
+  std::string name_;
+};
 
 }  // namespace win32
 }  // namespace shared

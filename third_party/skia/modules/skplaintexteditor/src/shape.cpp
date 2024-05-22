@@ -100,9 +100,9 @@ void RunHandler::beginLine() {
 void RunHandler::runInfo(const SkShaper::RunHandler::RunInfo& info) {
     SkFontMetrics metrics;
     info.fFont.getMetrics(&metrics);
-    fMaxRunAscent = SkTMin(fMaxRunAscent, metrics.fAscent);
-    fMaxRunDescent = SkTMax(fMaxRunDescent, metrics.fDescent);
-    fMaxRunLeading = SkTMax(fMaxRunLeading, metrics.fLeading);
+    fMaxRunAscent = std::min(fMaxRunAscent, metrics.fAscent);
+    fMaxRunDescent = std::max(fMaxRunDescent, metrics.fDescent);
+    fMaxRunLeading = std::max(fMaxRunLeading, metrics.fLeading);
 }
 
 void RunHandler::commitRunInfo() {
@@ -113,8 +113,7 @@ SkShaper::RunHandler::Buffer RunHandler::runBuffer(const RunInfo& info) {
     int glyphCount = SkTFitsIn<int>(info.glyphCount) ? info.glyphCount : INT_MAX;
     int utf8RangeSize = SkTFitsIn<int>(info.utf8Range.size()) ? info.utf8Range.size() : INT_MAX;
 
-    const auto& runBuffer = SkTextBlobBuilderPriv::AllocRunTextPos(&fBuilder, info.fFont, glyphCount,
-                                                                   utf8RangeSize, SkString());
+    const auto& runBuffer = fBuilder.allocRunTextPos(info.fFont, glyphCount, utf8RangeSize);
     fCurrentGlyphs = runBuffer.glyphs;
     fCurrentPoints = runBuffer.points();
 
@@ -154,7 +153,7 @@ void RunHandler::commitRunBuffer(const RunInfo& info) {
         fClusters[i] -= fClusterOffset;
     }
     fCurrentPosition += info.fAdvance;
-    fTextOffset = SkTMax(fTextOffset, info.utf8Range.end());
+    fTextOffset = std::max(fTextOffset, info.utf8Range.end());
 }
 
 void RunHandler::commitLine() {

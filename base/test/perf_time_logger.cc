@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,7 +20,9 @@ void PerfTimeLogger::Done() {
   // we use a floating-point millisecond value because it is more
   // intuitive than microseconds and we want more precision than
   // integer milliseconds
+#if !defined(STARBOARD)
   LogPerfResult(test_name_.c_str(), timer_.Elapsed().InMillisecondsF(), "ms");
+#endif
   logged_ = true;
 }
 

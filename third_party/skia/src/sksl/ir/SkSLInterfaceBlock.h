@@ -8,7 +8,10 @@
 #ifndef SKSL_INTERFACEBLOCK
 #define SKSL_INTERFACEBLOCK
 
-#include "src/sksl/ir/SkSLProgramElement.h"
+#include <memory>
+#include <string_view>
+
+#include "include/private/SkSLProgramElement.h"
 #include "src/sksl/ir/SkSLSymbolTable.h"
 #include "src/sksl/ir/SkSLVarDeclarations.h"
 
@@ -24,60 +27,83 @@ namespace SkSL {
  *
  * At the IR level, this is represented by a single variable of struct type.
  */
-struct InterfaceBlock : public ProgramElement {
-    InterfaceBlock(int offset, const Variable* var, String typeName, String instanceName,
-                   std::vector<std::unique_ptr<Expression>> sizes,
-                   std::shared_ptr<SymbolTable> typeOwner)
-    : INHERITED(offset, kInterfaceBlock_Kind)
-    , fVariable(*var)
-    , fTypeName(std::move(typeName))
-    , fInstanceName(std::move(instanceName))
-    , fSizes(std::move(sizes))
-    , fTypeOwner(typeOwner) {}
+class InterfaceBlock final : public ProgramElement {
+public:
+    inline static constexpr Kind kProgramElementKind = Kind::kInterfaceBlock;
 
-    std::unique_ptr<ProgramElement> clone() const override {
-        std::vector<std::unique_ptr<Expression>> sizesClone;
-        for (const auto& s : fSizes) {
-            sizesClone.push_back(s->clone());
-        }
-        return std::unique_ptr<ProgramElement>(new InterfaceBlock(fOffset, &fVariable, fTypeName,
-                                                                  fInstanceName,
-                                                                  std::move(sizesClone),
-                                                                  fTypeOwner));
+    InterfaceBlock(int line,
+                   const Variable& var,
+                   std::string_view typeName,
+                   std::string_view instanceName,
+                   int arraySize,
+                   std::shared_ptr<SymbolTable> typeOwner)
+            : INHERITED(line, kProgramElementKind)
+            , fVariable(var)
+            , fTypeName(typeName)
+            , fInstanceName(instanceName)
+            , fArraySize(arraySize)
+            , fTypeOwner(std::move(typeOwner)) {
+        SkASSERT(fVariable.type().isInterfaceBlock() ||
+                 (fVariable.type().isArray() &&
+                  fVariable.type().componentType().isInterfaceBlock()));
     }
 
-    String description() const override {
-        String result = fVariable.fModifiers.description() + fTypeName + " {\n";
-        const Type* structType = &fVariable.fType;
-        while (structType->kind() == Type::kArray_Kind) {
+    const Variable& variable() const {
+        return fVariable;
+    }
+
+    std::string_view typeName() const {
+        return fTypeName;
+    }
+
+    std::string_view instanceName() const {
+        return fInstanceName;
+    }
+
+    const std::shared_ptr<SymbolTable>& typeOwner() const {
+        return fTypeOwner;
+    }
+
+    int arraySize() const {
+        return fArraySize;
+    }
+
+    std::unique_ptr<ProgramElement> clone() const override {
+        return std::make_unique<InterfaceBlock>(fLine, this->variable(), this->typeName(),
+                                                this->instanceName(), this->arraySize(),
+                                                SymbolTable::WrapIfBuiltin(this->typeOwner()));
+    }
+
+    std::string description() const override {
+        std::string result = this->variable().modifiers().description() +
+                             std::string(this->typeName()) + " {\n";
+        const Type* structType = &this->variable().type();
+        if (structType->isArray()) {
             structType = &structType->componentType();
         }
         for (const auto& f : structType->fields()) {
             result += f.description() + "\n";
         }
         result += "}";
-        if (fInstanceName.size()) {
-            result += " " + fInstanceName;
-            for (const auto& size : fSizes) {
-                result += "[";
-                if (size) {
-                    result += size->description();
-                }
-                result += "]";
+        if (!this->instanceName().empty()) {
+            result += " " + std::string(this->instanceName());
+            if (this->arraySize() > 0) {
+                String::appendf(&result, "[%d]", this->arraySize());
             }
         }
         return result + ";";
     }
 
+private:
     const Variable& fVariable;
-    const String fTypeName;
-    const String fInstanceName;
-    std::vector<std::unique_ptr<Expression>> fSizes;
-    const std::shared_ptr<SymbolTable> fTypeOwner;
+    std::string_view fTypeName;
+    std::string_view fInstanceName;
+    int fArraySize;
+    std::shared_ptr<SymbolTable> fTypeOwner;
 
-    typedef ProgramElement INHERITED;
+    using INHERITED = ProgramElement;
 };
 
-} // namespace
+}  // namespace SkSL
 
 #endif

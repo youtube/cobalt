@@ -10,7 +10,7 @@
 #include "base/files/file_util.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/strings/stringprintf.h"
 #include "components/update_client/test_configurator.h"
 #include "net/base/upload_bytes_element_reader.h"
@@ -20,7 +20,6 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_filter.h"
 #include "net/url_request/url_request_interceptor.h"
-#include "net/url_request/url_request_simple_job.h"
 #include "net/url_request/url_request_test_util.h"
 
 namespace update_client {

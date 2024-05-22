@@ -17,7 +17,7 @@
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
-#include "starboard/nplb/thread_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -161,6 +161,11 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
         << "The platform doesn't support partial audio. Skip the tests.";
     return;
   }
+  if (IsAudioPassthroughUsed(GetParam())) {
+    SB_LOG(INFO) << "The audio passthrough doesn't support partial audio. Skip "
+                    "the tests.";
+    return;
+  }
 
   SbPlayerTestFixture player_fixture(GetParam(),
                                      &fake_graphics_context_provider_);
@@ -230,11 +235,16 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
                 << ".";
 }
 
-TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
+TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   if (!IsPartialAudioSupported()) {
     // TODO: Use GTEST_SKIP when we have a newer version of gtest.
     SB_LOG(INFO)
         << "The platform doesn't support partial audio. Skip the tests.";
+    return;
+  }
+  if (IsAudioPassthroughUsed(GetParam())) {
+    SB_LOG(INFO) << "The audio passthrough doesn't support partial audio. Skip "
+                    "the tests.";
     return;
   }
 
@@ -319,7 +329,7 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
                 << ".";
 }
 
-class SecondaryPlayerTestThread : public AbstractTestThread {
+class SecondaryPlayerTestThread : public posix::AbstractTestThread {
  public:
   SecondaryPlayerTestThread(
       const SbPlayerTestConfig& config,

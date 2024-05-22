@@ -14,12 +14,13 @@
 
 #include "starboard/client_porting/eztime/eztime.h"
 
+#include <pthread.h>
+
 #include <string>
 
 #include "starboard/client_porting/icu_init/icu_init.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
-#include "starboard/once.h"
 #include "starboard/system.h"
 
 #include "third_party/icu/source/common/unicode/udata.h"
@@ -37,7 +38,7 @@ const int kMaxTimeZoneSize = 32;
 UChar g_timezones[kEzTimeZoneCount][kMaxTimeZoneSize];
 
 // Once control for initializing eztime static data.
-SbOnceControl g_eztime_initialization_once = SB_ONCE_INITIALIZER;
+pthread_once_t g_eztime_initialization_once = PTHREAD_ONCE_INIT;
 
 // The timezone names in ASCII (UTF8-compatible) literals. This must match the
 // order of the EzTimeZone enum.
@@ -93,7 +94,7 @@ UDate SbTimeToUDate(int64_t sb_time) {
 // Gets the cached TimeZone ID from |g_timezones| for the given EzTimeZone
 // |timezone|.
 const UChar* GetTimeZoneId(EzTimeZone timezone) {
-  SbOnce(&g_eztime_initialization_once, &Initialize);
+  pthread_once(&g_eztime_initialization_once, &Initialize);
   const UChar* timezone_id = g_timezones[timezone];
   if (timezone_id[0] == 0) {
     return NULL;

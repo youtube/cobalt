@@ -17,8 +17,9 @@
 
 #include <memory>
 
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/current_thread.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/watchdog/watchdog.h"
@@ -31,17 +32,19 @@ namespace browser {
 // The Service Worker Registry tracks all registered service workers, processes
 // mutations to the registry in a thread, and ensures that the scripts and
 // metadata are stored persistently on disk.
-class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
+class ServiceWorkerRegistry : public base::CurrentThread::DestructionObserver {
  public:
   ServiceWorkerRegistry(web::WebSettings* web_settings,
                         network::NetworkModule* network_module,
                         web::UserAgentPlatformInfo* platform_info);
   ~ServiceWorkerRegistry();
 
-  // The message loop this object is running on.
-  base::MessageLoop* message_loop() const { return thread_.message_loop(); }
+  // The task runner this object is running on.
+  base::SequencedTaskRunner* task_runner() const {
+    return thread_.task_runner();
+  }
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   void EnsureServiceWorkerStarted(const url::Origin& storage_key,
@@ -69,7 +72,7 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
   base::Thread thread_;
 
   // This event is used to signal when the destruction observers have been
-  // added to the message loop. This is then used in Stop() to ensure that
+  // added to the task runner. This is then used in Stop() to ensure that
   // processing doesn't continue until the thread is cleanly shutdown.
   base::WaitableEvent destruction_observer_added_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,

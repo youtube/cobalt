@@ -12,6 +12,8 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+//go:build ignore
+
 // read_symbols scans one or more .a files and, for each object contained in
 // the .a files, reads the list of symbols in that object file.
 package main
@@ -119,8 +121,8 @@ func main() {
 			// should not be prefixed. It is a limitation of this
 			// symbol-prefixing strategy that we cannot distinguish
 			// our own inline symbols (which should be prefixed)
-			// from the system's (which should not), so we blacklist
-			// known system symbols.
+			// from the system's (which should not), so we skip known
+			// system symbols.
 			"__local_stdio_printf_options",
 			"__local_stdio_scanf_options",
 			"_vscprintf",
@@ -176,6 +178,9 @@ func listSymbolsELF(contents []byte) ([]string, error) {
 		return nil, err
 	}
 	syms, err := f.Symbols()
+	if err == elf.ErrNoSymbols {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}

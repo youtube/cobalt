@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/files/file_path.h"
 
-#include "jni/PathUtils_jni.h"
+#include "base/base_jni_headers/PathUtils_jni.h"
 
 namespace base {
 namespace android {
@@ -52,7 +52,19 @@ std::vector<FilePath> GetAllPrivateDownloadsDirectories() {
   std::vector<std::string> dirs;
   JNIEnv* env = AttachCurrentThread();
   auto jarray = Java_PathUtils_getAllPrivateDownloadsDirectories(env);
-  base::android::AppendJavaStringArrayToStringVector(env, jarray.obj(), &dirs);
+  base::android::AppendJavaStringArrayToStringVector(env, jarray, &dirs);
+
+  std::vector<base::FilePath> file_paths;
+  for (const auto& dir : dirs)
+    file_paths.emplace_back(dir);
+  return file_paths;
+}
+
+std::vector<FilePath> GetSecondaryStorageDownloadDirectories() {
+  std::vector<std::string> dirs;
+  JNIEnv* env = AttachCurrentThread();
+  auto jarray = Java_PathUtils_getExternalDownloadVolumesNames(env);
+  base::android::AppendJavaStringArrayToStringVector(env, jarray, &dirs);
 
   std::vector<base::FilePath> file_paths;
   for (const auto& dir : dirs)
@@ -75,15 +87,6 @@ bool GetExternalStorageDirectory(FilePath* result) {
       Java_PathUtils_getExternalStorageDirectory(env);
   FilePath storage_path(ConvertJavaStringToUTF8(path));
   *result = storage_path;
-  return true;
-}
-
-bool GetPathToBaseApk(FilePath* result) {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jstring> path =
-      Java_PathUtils_getPathToBaseApk(env);
-  FilePath apk_path(ConvertJavaStringToUTF8(path));
-  *result = apk_path;
   return true;
 }
 

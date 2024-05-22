@@ -16,6 +16,9 @@ _is_python2 = exec_script("//starboard/build/util/is_python2.py", [], "json")
 assert(!_is_python2, "`python` must resolve to Python 3 when building with GN.")
 
 declare_args() {
+  # Temporary gn arg for work on base/net update.
+  cobalt_pending_clean_up = true
+
   is_clang = true
 
   build_type = "devel"
@@ -35,6 +38,8 @@ declare_args() {
   using_old_compiler = false
 
   build_with_separate_cobalt_toolchain = false
+
+  use_xcode_clang = false
 }
 
 _is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")
@@ -160,10 +165,15 @@ default_compiler_configs = [
   "//starboard/build/config:target",
   "//starboard/build/config:warnings_as_errors",
   "//starboard/build/config:default_compiler_flags",
+  "//starboard/build/config:default_cpp_standard",
+  "//build/config/compiler:thin_archive",
+  "//build/config/compiler:default_optimization",
+  "//build/config/compiler:chromium_code",
+  "//build/config/sanitizers:default_sanitizer_flags",
 ]
 
-if (use_thin_archive) {
-  default_compiler_configs += [ "//build/config/compiler:thin_archive" ]
+if (cobalt_pending_clean_up) {
+  default_compiler_configs += [ "//starboard/build/config:hacky_build_config" ]
 }
 
 if (is_starboard) {
@@ -176,6 +186,10 @@ if (is_qa || is_gold || sb_use_no_rtti) {
 
 if (is_win) {
   default_compiler_configs += [ "//build/config/win:lean_and_mean" ]
+}
+
+if (is_native_target_build) {
+  default_compiler_configs += [ "//starboard/build/config:native_target" ]
 }
 
 set_defaults("static_library") {
@@ -218,6 +232,9 @@ template("target_with_platform_configs") {
     configs += [ toolchain_config_path ]
     if (!has_pedantic_warnings) {
       configs += [ "//starboard/build/config:no_pedantic_warnings" ]
+    }
+    if (cobalt_pending_clean_up) {
+      configs += [ "//starboard/build/config:hacky_wnos" ]
     }
   }
 }
@@ -377,7 +394,7 @@ template("evergreen_loader") {
     ]
 
     if (!sb_is_evergreen_compatible) {
-      deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+      deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
     }
   }
   if (separate_install_targets_for_bundling) {
@@ -611,7 +628,10 @@ template("shared_library") {
       not_needed([ "installable_target_dep" ])
       type = "shared_library"
 
-      deps = []
+      # When we build "{target_name}_install", we expect all files
+      # needed for a working target to be present.
+      deps = [ ":${actual_target_name}" ]
+
       if (defined(invoker.deps)) {
         deps += invoker.deps
       }

@@ -78,9 +78,9 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
       render_tree::CompositionNode::Builder* border_node_builder,
       ContainerBox* stacking_context) const override;
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const override;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   // Returns true if the given style allows a container box to act as a
   // containing block for absolutely positioned elements.  For example it will

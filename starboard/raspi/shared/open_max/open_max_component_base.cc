@@ -14,10 +14,11 @@
 
 #include "starboard/raspi/shared/open_max/open_max_component_base.h"
 
+#include <pthread.h>
+
 #include <algorithm>
 
 #include "starboard/configuration.h"
-#include "starboard/once.h"
 
 namespace starboard {
 namespace raspi {
@@ -32,7 +33,7 @@ const OMX_INDEXTYPE kPortTypes[] = {
     OMX_IndexParamAudioInit, OMX_IndexParamVideoInit, OMX_IndexParamImageInit,
     OMX_IndexParamOtherInit};
 
-SbOnceControl s_open_max_initialization_once = SB_ONCE_INITIALIZER;
+pthread_once_t s_open_max_initialization_once = PTHREAD_ONCE_INIT;
 
 void DoInitializeOpenMax() {
   OMX_ERRORTYPE error = OMX_Init();
@@ -42,7 +43,7 @@ void DoInitializeOpenMax() {
 
 void InitializeOpenMax() {
   bool initialized =
-      SbOnce(&s_open_max_initialization_once, DoInitializeOpenMax);
+      pthread_once(&s_open_max_initialization_once, DoInitializeOpenMax) == 0;
   SB_DCHECK(initialized);
 }
 

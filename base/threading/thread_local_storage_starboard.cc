@@ -14,7 +14,7 @@
 
 #include "base/threading/thread_local_storage.h"
 
-#include "base/logging.h"
+#include "base/notreached.h"
 
 namespace base {
 
@@ -22,9 +22,8 @@ namespace internal {
 
 // static
 bool PlatformThreadLocalStorage::AllocTLS(TLSKey* key) {
-  *key = SbThreadCreateLocalKey(
-      base::internal::PlatformThreadLocalStorage::OnThreadExit);
-  if (!SbThreadIsValidLocalKey(*key)) {
+  int res = pthread_key_create(key, base::internal::PlatformThreadLocalStorage::OnThreadExit);
+  if (res != 0) {
     NOTREACHED();
     return false;
   }
@@ -34,12 +33,12 @@ bool PlatformThreadLocalStorage::AllocTLS(TLSKey* key) {
 
 // static
 void PlatformThreadLocalStorage::FreeTLS(TLSKey key) {
-  SbThreadDestroyLocalKey(key);
+  pthread_key_delete(key);
 }
 
 // static
 void PlatformThreadLocalStorage::SetTLSValue(TLSKey key, void* value) {
-  if (!SbThreadSetLocalValue(key, value)) {
+  if (pthread_setspecific(key, value) != 0) {
     NOTREACHED();
   }
 }

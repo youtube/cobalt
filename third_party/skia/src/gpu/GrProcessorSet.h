@@ -33,18 +33,14 @@ public:
 
     ~GrProcessorSet();
 
-    int numColorFragmentProcessors() const { return fColorFragmentProcessorCnt; }
-    int numCoverageFragmentProcessors() const {
-        return this->numFragmentProcessors() - fColorFragmentProcessorCnt;
-    }
+    bool hasColorFragmentProcessor() const { return fColorFragmentProcessor != nullptr; }
+    bool hasCoverageFragmentProcessor() const { return fCoverageFragmentProcessor != nullptr; }
 
-    const GrFragmentProcessor* colorFragmentProcessor(int idx) const {
-        SkASSERT(idx < fColorFragmentProcessorCnt);
-        return fFragmentProcessors[idx + fFragmentProcessorOffset].get();
+    const GrFragmentProcessor* colorFragmentProcessor() const {
+        return fColorFragmentProcessor.get();
     }
-    const GrFragmentProcessor* coverageFragmentProcessor(int idx) const {
-        return fFragmentProcessors[idx + fColorFragmentProcessorCnt +
-                                   fFragmentProcessorOffset].get();
+    const GrFragmentProcessor* coverageFragmentProcessor() const {
+        return fCoverageFragmentProcessor.get();
     }
 
     const GrXferProcessor* xferProcessor() const {
@@ -56,14 +52,12 @@ public:
         return sk_ref_sp(fXP.fProcessor);
     }
 
-    std::unique_ptr<const GrFragmentProcessor> detachColorFragmentProcessor(int idx) {
-        SkASSERT(idx < fColorFragmentProcessorCnt);
-        return std::move(fFragmentProcessors[idx + fFragmentProcessorOffset]);
+    std::unique_ptr<GrFragmentProcessor> detachColorFragmentProcessor() {
+        return std::move(fColorFragmentProcessor);
     }
 
-    std::unique_ptr<const GrFragmentProcessor> detachCoverageFragmentProcessor(int idx) {
-        return std::move(
-                fFragmentProcessors[idx + fFragmentProcessorOffset + fColorFragmentProcessorCnt]);
+    std::unique_ptr<GrFragmentProcessor> detachCoverageFragmentProcessor() {
+        return std::move(fCoverageFragmentProcessor);
     }
 
     /** Comparisons are only legal on finalized processor sets. */
@@ -79,6 +73,8 @@ public:
         Analysis(const Analysis&) = default;
         Analysis() { *reinterpret_cast<uint32_t*>(this) = 0; }
 
+        Analysis& operator=(const Analysis &other) = default;
+
         bool isInitialized() const { return fIsInitialized; }
         bool usesLocalCoords() const { return fUsesLocalCoords; }
         bool requiresDstTexture() const { return fRequiresDstTexture; }
@@ -91,6 +87,8 @@ public:
         bool inputColorIsOverridden() const {
             return fInputColorType == kOverridden_InputColorType;
         }
+        bool usesNonCoherentHWBlending() const { return fUsesNonCoherentHWBlending; }
+        bool unaffectedByDstValue() const { return fUnaffectedByDstValue; }
 
     private:
         constexpr Analysis(Empty)
@@ -100,6 +98,8 @@ public:
                 , fRequiresNonOverlappingDraws(false)
                 , fHasColorFragmentProcessor(false)
                 , fIsInitialized(true)
+                , fUsesNonCoherentHWBlending(false)
+                , fUnaffectedByDstValue(false)
                 , fInputColorType(kOriginal_InputColorType) {}
         enum InputColorType : uint32_t {
             kOriginal_InputColorType,
@@ -117,11 +117,13 @@ public:
         PackedBool fRequiresNonOverlappingDraws : 1;
         PackedBool fHasColorFragmentProcessor : 1;
         PackedBool fIsInitialized : 1;
+        PackedBool fUsesNonCoherentHWBlending : 1;
+        PackedBool fUnaffectedByDstValue : 1;
         PackedInputColorType fInputColorType : 2;
 
         friend class GrProcessorSet;
     };
-    GR_STATIC_ASSERT(sizeof(Analysis) <= sizeof(uint32_t));
+    static_assert(sizeof(Analysis) <= sizeof(uint32_t));
 
     /**
      * This analyzes the processors given an op's input color and coverage as well as a clip. The
@@ -137,37 +139,29 @@ public:
      * that owns a processor set is recorded to ensure pending and writes are propagated to
      * resources referred to by the processors. Otherwise, data hazards may occur.
      */
-    Analysis finalize(
-            const GrProcessorAnalysisColor&, const GrProcessorAnalysisCoverage,
-            const GrAppliedClip*, const GrUserStencilSettings*, bool hasMixedSampledCoverage,
-            const GrCaps&, GrClampType, SkPMColor4f* inputColorOverride);
+    Analysis finalize(const GrProcessorAnalysisColor&, const GrProcessorAnalysisCoverage,
+                      const GrAppliedClip*, const GrUserStencilSettings*, const GrCaps&,
+                      GrClampType, SkPMColor4f* inputColorOverride);
 
     bool isFinalized() const { return SkToBool(kFinalized_Flag & fFlags); }
 
     /** These are valid only for non-LCD coverage. */
     static const GrProcessorSet& EmptySet();
     static GrProcessorSet MakeEmptySet();
-    static constexpr const Analysis EmptySetAnalysis() { return Analysis(Empty::kEmpty); }
+    static constexpr Analysis EmptySetAnalysis() { return Analysis(Empty::kEmpty); }
 
-#ifdef SK_DEBUG
+#if GR_TEST_UTILS
     SkString dumpProcessors() const;
 #endif
 
-    void visitProxies(const GrOp::VisitProxyFunc& func) const;
+    void visitProxies(const GrVisitProxyFunc&) const;
 
 private:
     GrProcessorSet(Empty) : fXP((const GrXferProcessor*)nullptr), fFlags(kFinalized_Flag) {}
 
     int numFragmentProcessors() const {
-        return fFragmentProcessors.count() - fFragmentProcessorOffset;
+        return (fColorFragmentProcessor ? 1 : 0) + (fCoverageFragmentProcessor ? 1 : 0);
     }
-
-    const GrFragmentProcessor* fragmentProcessor(int idx) const {
-        return fFragmentProcessors[idx + fFragmentProcessorOffset].get();
-    }
-
-    // This absurdly large limit allows Analysis and this to pack fields together.
-    static constexpr int kMaxColorProcessors = UINT8_MAX;
 
     enum Flags : uint16_t { kFinalized_Flag = 0x1 };
 
@@ -187,11 +181,10 @@ private:
         return fXP.fFactory;
     }
 
-    SkAutoSTArray<4, std::unique_ptr<const GrFragmentProcessor>> fFragmentProcessors;
+    std::unique_ptr<GrFragmentProcessor> fColorFragmentProcessor;
+    std::unique_ptr<GrFragmentProcessor> fCoverageFragmentProcessor;
     XP fXP;
-    uint8_t fColorFragmentProcessorCnt = 0;
-    uint8_t fFragmentProcessorOffset = 0;
-    uint8_t fFlags;
+    uint8_t fFlags = 0;
 };
 
 #endif

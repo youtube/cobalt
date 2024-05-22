@@ -14,11 +14,13 @@
 
 #include "net/cert/internal/trust_store_in_memory_starboard.h"
 
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/path_service.h"
+#include "base/logging.h"
 #include "base/time/time.h"
-#include "net/cert/internal/cert_errors.h"
-#include "net/cert/pem_tokenizer.h"
+#include "net/cert/pki/cert_errors.h"
+#include "net/cert/pem.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "starboard/configuration_constants.h"
@@ -91,7 +93,7 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
 }
 }  // namespace
 
-scoped_refptr<ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCert(
+std::shared_ptr<const ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCert(
     const base::StringPiece& cert_name) const {
   auto hash = CertNameHash(cert_name.data(), cert_name.length());
   char cert_file_name[256];
@@ -106,29 +108,23 @@ scoped_refptr<ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCert(
   SbFileError out_error;
   char cert_buffer[kCertBufferSize];
   base::FilePath cert_path = GetCertificateDirPath().Append(cert_file_name);
-  SbFile sb_cert_file =
-      SbFileOpen(cert_path.value().c_str(), kSbFileOpenOnly | kSbFileRead,
-                 nullptr, &out_error);
+  base::File cert_file(cert_path, base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);
   // The file was in certs directory when we iterated the directory at startup,
   // opening it should not fail.
-  if (!SbFileIsValid(sb_cert_file)) {
+  if (!cert_file.IsValid()) {
     NOTREACHED() << "ssl/certs/" << cert_path << " failed to open.";
     return nullptr;
   }
-  int cert_size = SbFileReadAll(sb_cert_file, cert_buffer, kCertBufferSize);
-  SbFileClose(sb_cert_file);
+  int cert_size = cert_file.ReadAtCurrentPos(cert_buffer, kCertBufferSize);
   PEMTokenizer pem_tokenizer(base::StringPiece(cert_buffer, cert_size),
                              {kCertificateHeader});
   pem_tokenizer.GetNext();
   std::string decoded(pem_tokenizer.data());
   DCHECK(!pem_tokenizer.GetNext());
-  bssl::UniquePtr<CRYPTO_BUFFER> crypto_buffer =
-      X509Certificate::CreateCertBufferFromBytes(decoded.data(),
-                                                 decoded.length());
-  DCHECK(crypto_buffer);
+  auto crypto_buffer = x509_util::CreateCryptoBuffer(decoded);
   CertErrors errors;
   auto parsed = ParsedCertificate::Create(
-      bssl::UpRef(crypto_buffer.get()),
+      std::move(crypto_buffer),
       x509_util::DefaultParseCertificateOptions(), &errors);
   CHECK(parsed) << errors.ToDebugString();
   return parsed;
@@ -144,13 +140,13 @@ void TrustStoreInMemoryStarboard::SyncGetIssuersOf(
     ParsedCertificateList* issuers) {
   DCHECK(issuers);
   DCHECK(issuers->empty());
-  starboard::ScopedLock scoped_lock(load_mutex_);
+  base::AutoLock scoped_lock(load_mutex_);
   // Look up the request certificate first in the trust store in memory.
   underlying_trust_store_.SyncGetIssuersOf(cert, issuers);
   if (issuers->empty()) {
     // If the requested certificate is not found, compute certificate hash name
     // and see if the certificate is stored on disk.
-    auto parsed_cert = TryLoadCert(cert->normalized_issuer().AsStringPiece());
+    auto parsed_cert = TryLoadCert(cert->normalized_issuer().AsStringView());
     if (parsed_cert.get()) {
       issuers->push_back(parsed_cert);
       underlying_trust_store_.AddTrustAnchor(parsed_cert);
@@ -158,23 +154,23 @@ void TrustStoreInMemoryStarboard::SyncGetIssuersOf(
   }
 }
 
-void TrustStoreInMemoryStarboard::GetTrust(
-    const scoped_refptr<ParsedCertificate>& cert,
-    CertificateTrust* trust) const {
-  DCHECK(trust);
-  starboard::ScopedLock scoped_lock(load_mutex_);
+CertificateTrust TrustStoreInMemoryStarboard::GetTrust(const ParsedCertificate* cert,
+                          base::SupportsUserData* debug_data) {
+  base::AutoLock scoped_lock(load_mutex_);
   // Loop up the request certificate first in the trust store in memory.
-  underlying_trust_store_.GetTrust(cert, trust);
-  if (trust->HasUnspecifiedTrust()) {
+  CertificateTrust trust = underlying_trust_store_.GetTrust(cert, debug_data);
+  if (trust.HasUnspecifiedTrust()) {
     // If the requested certificate is not found, compute certificate hash name
     // and see if the certificate is stored on disk.
-    auto parsed_cert = TryLoadCert(cert->normalized_subject().AsStringPiece());
+    auto parsed_cert = TryLoadCert(cert->normalized_subject().AsStringView());
     if (parsed_cert.get()) {
-      *trust = CertificateTrust::ForTrustAnchor();
+      trust = CertificateTrust::ForTrustAnchor();
       const_cast<TrustStoreInMemoryStarboard*>(this)
           ->underlying_trust_store_.AddTrustAnchor(parsed_cert);
     }
   }
+  return trust;
 }
 
 }  // namespace net
+

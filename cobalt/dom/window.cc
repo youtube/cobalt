@@ -37,7 +37,7 @@
 #include "cobalt/dom/input_event.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/location.h"
-#include "cobalt/dom/media_source.h"
+#include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigator.h"
@@ -102,7 +102,7 @@ Window::Window(
     script::ExecutionState* execution_state,
     script::ScriptRunner* script_runner,
     script::ScriptValueFactory* script_value_factory,
-    MediaSource::Registry* media_source_registry,
+    MediaSourceAttachment::Registry* media_source_registry,
     DomStatTracker* dom_stat_tracker, const std::string& font_language_script,
     const base::Callback<void(const GURL&)> navigation_callback,
     const loader::Decoder::OnCompleteFunction& load_complete_callback,
@@ -197,7 +197,7 @@ Window::Window(
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
   // loading begins.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::Bind(&Window::StartDocumentLoad, base::Unretained(this),
                             fetcher_factory, settings->creation_url(),
                             dom_parser, load_complete_callback));
@@ -317,8 +317,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
     // 3. If pseudoElt is as an ASCII case-insensitive match for either
     // ':before' or '::before' let obj be the ::before pseudo-element of elt.
-    if (base::LowerCaseEqualsASCII(pseudo_elt, ":before") ||
-        base::LowerCaseEqualsASCII(pseudo_elt, "::before")) {
+    if (base::EqualsCaseInsensitiveASCII(pseudo_elt, ":before") ||
+        base::EqualsCaseInsensitiveASCII(pseudo_elt, "::before")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kBeforePseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
@@ -327,8 +327,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
     // 4. If pseudoElt is as an ASCII case-insensitive match for either ':after'
     // or '::after' let obj be the ::after pseudo-element of elt.
-    if (base::LowerCaseEqualsASCII(pseudo_elt, ":after") ||
-        base::LowerCaseEqualsASCII(pseudo_elt, "::after")) {
+    if (base::EqualsCaseInsensitiveASCII(pseudo_elt, ":after") ||
+        base::EqualsCaseInsensitiveASCII(pseudo_elt, "::after")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kAfterPseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
@@ -363,10 +363,9 @@ const scoped_refptr<Screen>& Window::screen() { return screen_; }
 std::string Window::Btoa(const std::string& string_to_encode,
                          script::ExceptionState* exception_state) {
   TRACE_EVENT0("cobalt::dom", "Window::Btoa()");
-  LOG_ONCE(WARNING)
-      << "In older Cobalt(<19), btoa() can not take a string"
-         " containing NULL. Be careful that you don't need to stay "
-         "compatible with old versions of Cobalt if you use btoa.";
+  LOG(WARNING) << "In older Cobalt(<19), btoa() can not take a string"
+                  " containing NULL. Be careful that you don't need to stay "
+                  "compatible with old versions of Cobalt if you use btoa.";
   auto output = ForgivingBase64Encode(string_to_encode);
   if (!output) {
     web::DOMException::Raise(web::DOMException::kInvalidCharacterErr,

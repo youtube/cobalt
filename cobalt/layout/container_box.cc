@@ -871,7 +871,7 @@ void ContainerBox::RenderAndAnimateContent(
       content_box_offset, stacking_context);
 }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void ContainerBox::DumpChildrenWithIndent(std::ostream* stream,
                                           int indent) const {
@@ -884,7 +884,7 @@ void ContainerBox::DumpChildrenWithIndent(std::ostream* stream,
   }
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 }  // namespace layout
 }  // namespace cobalt

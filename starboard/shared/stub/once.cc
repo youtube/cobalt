@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/once.h"
+#if SB_API_VERSION < 16
+
+#include "starboard/common/once.h"
 
 bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
   return false;
 }
+
+#endif  // SB_API_VERSION < 16

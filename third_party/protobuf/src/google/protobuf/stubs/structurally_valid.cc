@@ -1,10 +1,6 @@
 // Copyright 2005-2008 Google Inc. All Rights Reserved.
 // Author: jrm@google.com (Jim Meehan)
 
-#ifdef STARBOARD
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
-
 #include <google/protobuf/stubs/common.h>
 
 #include <google/protobuf/stubs/stringpiece.h>

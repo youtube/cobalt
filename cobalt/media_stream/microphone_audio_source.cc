@@ -23,10 +23,6 @@
 #include "cobalt/speech/microphone_fake.h"
 #include "cobalt/speech/microphone_starboard.h"
 
-#if SB_USE_SB_MICROPHONE && !defined(DISABLE_MICROPHONE_IDL)
-#define ENABLE_MICROPHONE_IDL
-#endif
-
 namespace cobalt {
 namespace media_stream {
 
@@ -43,16 +39,12 @@ void MicrophoneAudioSource::EnsureSourceIsStopped() {
 std::unique_ptr<cobalt::speech::Microphone>
 MicrophoneAudioSource::CreateMicrophone(
     const cobalt::speech::Microphone::Options& options, int buffer_size_bytes) {
-#if !defined(ENABLE_MICROPHONE_IDL)
-  return std::unique_ptr<speech::Microphone>();
-#else
   std::unique_ptr<speech::Microphone> mic;
 
 #if defined(ENABLE_FAKE_MICROPHONE)
   if (options.enable_fake_microphone) {
     mic.reset(new speech::MicrophoneFake(options));
   }
-#else
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
   if (!mic) {
@@ -68,7 +60,6 @@ MicrophoneAudioSource::CreateMicrophone(
   }
 
   return mic;
-#endif  // defined(ENABLE_MICROPHONE_IDL)
 }
 
 MicrophoneAudioSource::MicrophoneAudioSource(
@@ -82,7 +73,8 @@ MicrophoneAudioSource::MicrophoneAudioSource(
     // Furthermore, it is an error to destruct the microphone manager
     // without stopping it, so these callbacks are not to be called
     // during the destruction of the object.
-    : javascript_thread_task_runner_(base::ThreadTaskRunnerHandle::Get()),
+    : javascript_thread_task_runner_(
+          base::SequencedTaskRunner::GetCurrentDefault()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       successful_open_callback_(successful_open),
       completion_callback_(completion),
@@ -106,7 +98,8 @@ void MicrophoneAudioSource::OnDataReceived(
 }
 
 void MicrophoneAudioSource::OnDataCompletion() {
-  if (javascript_thread_task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (javascript_thread_task_runner_ !=
+      base::SequencedTaskRunner::GetCurrentDefault()) {
     javascript_thread_task_runner_->PostTask(
         FROM_HERE, base::Bind(&MicrophoneAudioSource::OnDataCompletion,
                               weak_ptr_factory_.GetWeakPtr()));
@@ -122,7 +115,8 @@ void MicrophoneAudioSource::OnDataCompletion() {
 }
 
 void MicrophoneAudioSource::OnMicrophoneOpen() {
-  if (javascript_thread_task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (javascript_thread_task_runner_ !=
+      base::SequencedTaskRunner::GetCurrentDefault()) {
     javascript_thread_task_runner_->PostTask(
         FROM_HERE, base::Bind(&MicrophoneAudioSource::OnMicrophoneOpen,
                               weak_ptr_factory_.GetWeakPtr()));
@@ -137,7 +131,8 @@ void MicrophoneAudioSource::OnMicrophoneOpen() {
 void MicrophoneAudioSource::OnMicrophoneError(
     speech::MicrophoneManager::MicrophoneError error,
     std::string error_message) {
-  if (javascript_thread_task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (javascript_thread_task_runner_ !=
+      base::SequencedTaskRunner::GetCurrentDefault()) {
     javascript_thread_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&MicrophoneAudioSource::OnMicrophoneError,

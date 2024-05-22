@@ -13,27 +13,30 @@
 #include "include/utils/SkRandom.h"
 #include "include/utils/SkTextUtils.h"
 #include "samplecode/Sample.h"
+#include "src/core/SkPaintPriv.h"
 
 typedef void (*DrawAtlasProc)(SkCanvas*, SkImage*, const SkRSXform[], const SkRect[],
-                              const SkColor[], int, const SkRect*, const SkPaint*);
+                              const SkColor[], int, const SkRect*, const SkSamplingOptions&,
+                              const SkPaint*);
 
 static void draw_atlas(SkCanvas* canvas, SkImage* atlas, const SkRSXform xform[],
                        const SkRect tex[], const SkColor colors[], int count, const SkRect* cull,
-                       const SkPaint* paint) {
-    canvas->drawAtlas(atlas, xform, tex, colors, count, SkBlendMode::kModulate, cull, paint);
+                       const SkSamplingOptions& sampling, const SkPaint* paint) {
+    canvas->drawAtlas(atlas, xform, tex, colors, count, SkBlendMode::kModulate,
+                      sampling, cull, paint);
 }
 
 static void draw_atlas_sim(SkCanvas* canvas, SkImage* atlas, const SkRSXform xform[],
                            const SkRect tex[], const SkColor colors[], int count, const SkRect* cull,
-                           const SkPaint* paint) {
+                           const SkSamplingOptions& sampling, const SkPaint* paint) {
     for (int i = 0; i < count; ++i) {
         SkMatrix matrix;
         matrix.setRSXform(xform[i]);
 
         canvas->save();
         canvas->concat(matrix);
-        canvas->drawImageRect(atlas, tex[i], tex[i].makeOffset(-tex[i].x(), -tex[i].y()), paint,
-                              SkCanvas::kFast_SrcRectConstraint);
+        canvas->drawImageRect(atlas, tex[i], tex[i].makeOffset(-tex[i].x(), -tex[i].y()),
+                              sampling, paint, SkCanvas::kFast_SrcRectConstraint);
         canvas->restore();
     }
 }
@@ -183,11 +186,11 @@ protected:
             }
         }
         SkPaint paint;
-        paint.setFilterQuality(kLow_SkFilterQuality);
+        SkSamplingOptions sampling(SkFilterMode::kLinear);
 
         const SkRect cull = this->getBounds();
         const SkColor* colorsPtr = fUseColors ? colors : nullptr;
-        fProc(canvas, fAtlas.get(), xform, fTex, colorsPtr, N, &cull, &paint);
+        fProc(canvas, fAtlas.get(), xform, fTex, colorsPtr, N, &cull, sampling, &paint);
     }
 
     SkRect onGetBounds() override {
@@ -198,7 +201,7 @@ protected:
     }
 
 private:
-    typedef SkDrawable INHERITED;
+    using INHERITED = SkDrawable;
 };
 
 class DrawAtlasView : public Sample {
@@ -239,7 +242,7 @@ protected:
 #endif
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 //////////////////////////////////////////////////////////////////////////////

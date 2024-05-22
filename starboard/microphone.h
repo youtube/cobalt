@@ -76,7 +76,7 @@ typedef struct SbMicrophoneIdPrivate* SbMicrophoneId;
 #define kSbMicrophoneIdInvalid ((SbMicrophoneId)NULL)
 
 // Indicates whether the given microphone ID is valid.
-static SB_C_INLINE bool SbMicrophoneIdIsValid(SbMicrophoneId id) {
+static inline bool SbMicrophoneIdIsValid(SbMicrophoneId id) {
   return id != kSbMicrophoneIdInvalid;
 }
 
@@ -108,7 +108,7 @@ typedef struct SbMicrophonePrivate* SbMicrophone;
 #define kSbMicrophoneInvalid ((SbMicrophone)NULL)
 
 // Indicates whether the given microphone is valid.
-static SB_C_INLINE bool SbMicrophoneIsValid(SbMicrophone microphone) {
+static inline bool SbMicrophoneIsValid(SbMicrophone microphone) {
   return microphone != kSbMicrophoneInvalid;
 }
 

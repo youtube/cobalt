@@ -14,6 +14,8 @@
 
 // Thread joining is mostly tested in the other tests.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -44,3 +46,5 @@ TEST(SbThreadGetNameTest, SunnyDay) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif

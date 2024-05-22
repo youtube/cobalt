@@ -160,7 +160,7 @@ class FlexItem {
   bool min_violation_ = false;
 };
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 inline std::ostream& operator<<(std::ostream& stream, const FlexItem& item) {
   stream << "flex_base_size= " << item.flex_base_size()
@@ -171,7 +171,7 @@ inline std::ostream& operator<<(std::ostream& stream, const FlexItem& item) {
   return stream;
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 }  // namespace layout
 }  // namespace cobalt

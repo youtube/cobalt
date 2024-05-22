@@ -15,8 +15,6 @@
 # This file handles the removal of platform-specific files from the
 # Skia build.
 
-import("//cobalt/renderer/rasterizer/skia/skia/skia_next.gni")
-
 template("skia_common") {
   # This list will contain all defines that also need to be exported to
   # dependent components.
@@ -59,9 +57,9 @@ template("skia_common") {
     forward_variables_from(invoker, "*", [ "configs" ])
 
     if (defined(include_dirs)) {
-      include_dirs += [ "//third_party/$skia_subdir" ]
+      include_dirs += [ "//third_party/skia" ]
     } else {
-      include_dirs = [ "//third_party/$skia_subdir" ]
+      include_dirs = [ "//third_party/skia" ]
     }
 
     if (!defined(defines)) {
@@ -82,7 +80,7 @@ template("skia_common") {
 
       # Use scalar portable implementations instead of Clang/GCC vector extensions
       # in SkVx.h, as this causes an internal compiler error for raspi-2.
-      "SKNX_NO_SIMD",
+      # "SKNX_NO_SIMD",
     ]
 
     configs += [ ":skia_common_config_$target_name" ]

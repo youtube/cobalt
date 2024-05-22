@@ -14,6 +14,8 @@
 
 #include "cobalt/base/init_cobalt.h"
 
+#include <pthread.h>
+
 #include <string>
 
 #include "base/at_exit.h"
@@ -37,6 +39,12 @@ base::LazyInstance<std::string>::DestructorAtExit::DestructorAtExit
 
 void InitCobalt(int argc, char* argv[], const char* link) {
   base::CommandLine::Init(argc, argv);
+
+  logging::LoggingSettings settings;
+  settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
+  logging::InitLogging(settings);
+  logging::SetLogItems(false, true, true, false);
+
   if (link) {
     s_initial_deep_link.Get() = link;
   }
@@ -49,7 +57,7 @@ void InitCobalt(int argc, char* argv[], const char* link) {
 
   // Copy the Starboard thread name to the PlatformThread name.
   char thread_name[128] = {'\0'};
-  SbThreadGetName(thread_name, 127);
+  pthread_getname_np(pthread_self(), thread_name, 127);
   base::PlatformThread::SetName(thread_name);
 }
 

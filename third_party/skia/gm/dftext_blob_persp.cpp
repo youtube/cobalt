@@ -27,8 +27,6 @@
 
 #include <initializer_list>
 
-class GrContext;
-
 /**
  * This GM tests reusing the same text blobs with distance fields rendering using various
  * combinations of perspective and non-perspetive matrices, scissor clips, and different x,y params
@@ -60,20 +58,22 @@ protected:
     }
 
     void onDraw(SkCanvas* inputCanvas) override {
-    // set up offscreen rendering with distance field text
-        GrContext* ctx = inputCanvas->getGrContext();
+        // set up offscreen rendering with distance field text
+        auto ctx = inputCanvas->recordingContext();
         SkISize size = this->onISize();
         if (!inputCanvas->getBaseLayerSize().isEmpty()) {
             size = inputCanvas->getBaseLayerSize();
         }
         SkImageInfo info = SkImageInfo::MakeN32(size.width(), size.height(), kPremul_SkAlphaType,
                                                 inputCanvas->imageInfo().refColorSpace());
-        SkSurfaceProps props(SkSurfaceProps::kUseDeviceIndependentFonts_Flag,
-                             SkSurfaceProps::kLegacyFontHost_InitType);
+        SkSurfaceProps inputProps;
+        inputCanvas->getProps(&inputProps);
+        SkSurfaceProps props(SkSurfaceProps::kUseDeviceIndependentFonts_Flag | inputProps.flags(),
+                             inputProps.pixelGeometry());
         auto surface = SkSurface::MakeRenderTarget(ctx, SkBudgeted::kNo, info, 0, &props);
         SkCanvas* canvas = surface ? surface->getCanvas() : inputCanvas;
         // init our new canvas with the old canvas's matrix
-        canvas->setMatrix(inputCanvas->getTotalMatrix());
+        canvas->setMatrix(inputCanvas->getLocalToDeviceAs3x3());
         SkScalar x = 0, y = 0;
         SkScalar maxH = 0;
         for (auto twm : {TranslateWithMatrix::kNo, TranslateWithMatrix::kYes}) {
@@ -90,7 +90,7 @@ protected:
                         }
                         this->drawBlob(canvas, blob.get(), SK_ColorBLACK, x, y + h, pm, twm);
                         x += w + 20.f;
-                        maxH = SkTMax(h, maxH);
+                        maxH = std::max(h, maxH);
                         canvas->restore();
                     }
                 }
@@ -104,7 +104,7 @@ protected:
             SkAutoCanvasRestore acr(inputCanvas, true);
             // since we prepended this matrix already, we blit using identity
             inputCanvas->resetMatrix();
-            inputCanvas->drawImage(surface->makeImageSnapshot().get(), 0, 0, nullptr);
+            inputCanvas->drawImage(surface->makeImageSnapshot().get(), 0, 0);
         }
     }
 
@@ -131,8 +131,8 @@ private:
                 persp.setPerspY(-0.0015f);
                 break;
         }
-        persp = SkMatrix::Concat(persp, SkMatrix::MakeTrans(-x, -y));
-        persp = SkMatrix::Concat(SkMatrix::MakeTrans(x, y), persp);
+        persp = SkMatrix::Concat(persp, SkMatrix::Translate(-x, -y));
+        persp = SkMatrix::Concat(SkMatrix::Translate(x, y), persp);
         canvas->concat(persp);
         if (TranslateWithMatrix::kYes == translateWithMatrix) {
             canvas->translate(x, y);
@@ -146,7 +146,7 @@ private:
     }
 
     SkTArray<sk_sp<SkTextBlob>> fBlobs;
-    typedef skiagm::GM INHERITED;
+    using INHERITED = skiagm::GM;
 };
 
 DEF_GM(return new DFTextBlobPerspGM;)

@@ -26,9 +26,10 @@ class GrFragmentProcessor;
 class GrPaint;
 class GrRecordingContext;
 class GrRenderTarget;
-class GrRenderTargetContext;
+namespace skgpu { namespace v1 { class SurfaceDrawContext; }}
 class GrResourceProvider;
-class GrShape;
+class GrStyledShape;
+class GrSurfaceProxyView;
 class GrTexture;
 class GrTextureProxy;
 
@@ -102,7 +103,7 @@ public:
      *        filterMaskGPU(devShape, ...)
      * this would hide the RRect special case and the mask generation
      */
-    virtual bool canFilterMaskGPU(const GrShape&,
+    virtual bool canFilterMaskGPU(const GrStyledShape&,
                                   const SkIRect& devSpaceShapeBounds,
                                   const SkIRect& clipBounds,
                                   const SkMatrix& ctm,
@@ -113,11 +114,11 @@ public:
      *  successful. If false is returned then paint is unmodified.
      */
     virtual bool directFilterMaskGPU(GrRecordingContext*,
-                                     GrRenderTargetContext*,
+                                     skgpu::v1::SurfaceDrawContext*,
                                      GrPaint&& paint,
-                                     const GrClip&,
+                                     const GrClip*,
                                      const SkMatrix& viewMatrix,
-                                     const GrShape& shape) const;
+                                     const GrStyledShape& shape) const;
 
     /**
      * This function is used to implement filters that require an explicit src mask. It should only
@@ -126,12 +127,12 @@ public:
      * Implementations are free to get the GrContext from the src texture in order to create
      * additional textures and perform multiple passes.
      */
-    virtual sk_sp<GrTextureProxy> filterMaskGPU(GrRecordingContext*,
-                                                sk_sp<GrTextureProxy> srcProxy,
-                                                GrColorType srcColorType,
-                                                SkAlphaType srcAlphaType,
-                                                const SkMatrix& ctm,
-                                                const SkIRect& maskRect) const;
+    virtual GrSurfaceProxyView filterMaskGPU(GrRecordingContext*,
+                                             GrSurfaceProxyView srcView,
+                                             GrColorType srcColorType,
+                                             SkAlphaType srcAlphaType,
+                                             const SkMatrix& ctm,
+                                             const SkIRect& maskRect) const;
 #endif
 
     /**
@@ -140,7 +141,7 @@ public:
      * paint as its src param and the filter adjust those bounds using its
      * current mask and returns the result using the dest param. Callers are
      * allowed to provide the same struct for both src and dest so each
-     * implementation must accomodate that behavior.
+     * implementation must accommodate that behavior.
      *
      *  The default impl calls filterMask with the src mask having no image,
      *  but subclasses may override this if they can compute the rect faster.
@@ -157,6 +158,14 @@ public:
      *  and ignore the BlurRec parameter.
      */
     virtual bool asABlur(BlurRec*) const;
+
+    static SkFlattenable::Type GetFlattenableType() {
+        return kSkMaskFilter_Type;
+    }
+
+    SkFlattenable::Type getFlattenableType() const override {
+        return kSkMaskFilter_Type;
+    }
 
 protected:
     SkMaskFilterBase() {}
@@ -227,7 +236,7 @@ private:
     bool filterRRect(const SkRRect& devRRect, const SkMatrix& ctm, const SkRasterClip&,
                      SkBlitter*) const;
 
-    typedef SkFlattenable INHERITED;
+    using INHERITED = SkFlattenable;
 };
 
 inline SkMaskFilterBase* as_MFB(SkMaskFilter* mf) {
@@ -241,5 +250,8 @@ inline const SkMaskFilterBase* as_MFB(const SkMaskFilter* mf) {
 inline const SkMaskFilterBase* as_MFB(const sk_sp<SkMaskFilter>& mf) {
     return static_cast<SkMaskFilterBase*>(mf.get());
 }
+
+// For RegisterFlattenables access to the blur mask filter implementation
+extern void sk_register_blur_maskfilter_createproc();
 
 #endif

@@ -14,6 +14,8 @@
 
 #include "starboard/loader_app/reset_evergreen_update.h"
 
+#include <sys/stat.h>
+
 #include <string>
 #include <vector>
 
@@ -26,6 +28,11 @@
 namespace starboard {
 namespace loader_app {
 namespace {
+
+bool FileExists(const char* path) {
+  struct stat info;
+  return stat(path, &info) == 0;
+}
 
 TEST(ResetEvergreenUpdateTest, TestSunnyDayFile) {
   std::vector<char> storage_path(kSbFileMaxPath);
@@ -46,12 +53,12 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDayFile) {
     int bytes_written = file.WriteAll(data.c_str(), data.size());
   }
 
-  ASSERT_TRUE(SbFileExists(file_path.data()));
+  ASSERT_TRUE(FileExists(file_path.data()));
 
   ASSERT_TRUE(ResetEvergreenUpdate());
 
-  ASSERT_FALSE(SbFileExists(file_path.data()));
-  ASSERT_TRUE(SbFileExists(storage_path.data()));
+  ASSERT_FALSE(FileExists(file_path.data()));
+  ASSERT_TRUE(FileExists(storage_path.data()));
 }
 
 TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
@@ -62,7 +69,9 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
   std::string subdir_path = storage_path.data();
   subdir_path += kSbFileSepString;
   subdir_path += "test";
-  ASSERT_TRUE(SbDirectoryCreate(subdir_path.c_str()));
+  struct stat info;
+  ASSERT_TRUE(mkdir(subdir_path.c_str(), 0700) == 0 ||
+              (stat(subdir_path.c_str(), &info) == 0 && S_ISDIR(info.st_mode)));
 
   std::string file_path = subdir_path.data();
   file_path += kSbFileSepString;
@@ -78,12 +87,12 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
     int bytes_written = file.WriteAll(data.c_str(), data.size());
   }
 
-  ASSERT_TRUE(SbFileExists(file_path.data()));
+  ASSERT_TRUE(FileExists(file_path.data()));
 
   ASSERT_TRUE(ResetEvergreenUpdate());
 
-  ASSERT_FALSE(SbFileExists(file_path.data()));
-  ASSERT_TRUE(SbFileExists(storage_path.data()));
+  ASSERT_FALSE(FileExists(file_path.data()));
+  ASSERT_TRUE(FileExists(storage_path.data()));
 }
 }  // namespace
 }  // namespace loader_app

@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -35,7 +36,6 @@
 #include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
-#include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
 #include "cobalt/browser/memory_settings/checker.h"
@@ -84,7 +84,7 @@
 #endif                                  // ENABLE_DEBUGGER
 
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/updater_module.h"
+#include "chrome/updater/updater_module.h"
 #endif
 
 namespace cobalt {
@@ -102,7 +102,8 @@ class BrowserModule {
     Options()
         : command_line_auto_mem_settings(
               memory_settings::AutoMemSettings::kTypeCommandLine),
-          build_auto_mem_settings(memory_settings::AutoMemSettings::kTypeBuild),
+          config_api_auto_mem_settings(
+              memory_settings::AutoMemSettings::kTypeConfig),
           enable_splash_screen_on_reloads(true) {}
     renderer::RendererModule::Options renderer_module_options;
     WebModule::Options web_module_options;
@@ -110,7 +111,7 @@ class BrowserModule {
     persistent_storage::PersistentSettings* persistent_settings;
     WebModuleCreatedCallback web_module_created_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
-    memory_settings::AutoMemSettings build_auto_mem_settings;
+    memory_settings::AutoMemSettings config_api_auto_mem_settings;
     base::Optional<GURL> fallback_splash_screen_url;
     std::map<std::string, GURL> fallback_splash_screen_topic_map;
     base::Optional<cssom::ViewportSize> requested_viewport_size;
@@ -222,8 +223,6 @@ class BrowserModule {
       const base::OnScreenKeyboardFocusedEvent* event);
   void OnOnScreenKeyboardBlurred(
       const base::OnScreenKeyboardBlurredEvent* event);
-  void OnOnScreenKeyboardSuggestionsUpdated(
-      const base::OnScreenKeyboardSuggestionsUpdatedEvent* event);
   void OnCaptionSettingsChanged(
       const base::AccessibilityCaptionSettingsChangedEvent* event);
 
@@ -243,16 +242,11 @@ class BrowserModule {
   // Pass the deeplink timestamp from Starboard.
   void SetDeepLinkTimestamp(int64_t timestamp);
 
- private:
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  static void CoreDumpHandler(void* browser_module_as_void);
-  int on_error_triggered_count_;
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  int recovery_mechanism_triggered_count_;
-  int timeout_response_trigger_count_;
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#if defined(ENABLE_DEBUGGER)
+  std::string OnBoxDumpMessage(const std::string& message);
+#endif  // ENABLE_DEBUGGER
 
+ private:
   // Called when the WebModule's Window.onload event is fired.
   void OnLoad();
 
@@ -291,35 +285,36 @@ class BrowserModule {
   // Glue function to deal with the production of an input event from an on
   // screen keyboard input device, and manage handing it off to the web module
   // for interpretation.
-  void OnOnScreenKeyboardInputEventProduced(base::Token type,
+  void OnOnScreenKeyboardInputEventProduced(base_token::Token type,
                                             const dom::InputEventInit& event);
 
   // Glue function to deal with the production of a keyboard input event from a
   // keyboard input device, and manage handing it off to the web module for
   // interpretation.
-  void OnKeyEventProduced(base::Token type,
+  void OnKeyEventProduced(base_token::Token type,
                           const dom::KeyboardEventInit& event);
 
   // Glue function to deal with the production of a pointer input event from a
   // pointer input device, and manage handing it off to the web module for
   // interpretation.
-  void OnPointerEventProduced(base::Token type,
+  void OnPointerEventProduced(base_token::Token type,
                               const dom::PointerEventInit& event);
 
   // Glue function to deal with the production of a wheel input event from a
   // wheel input device, and manage handing it off to the web module for
   // interpretation.
-  void OnWheelEventProduced(base::Token type, const dom::WheelEventInit& event);
+  void OnWheelEventProduced(base_token::Token type,
+                            const dom::WheelEventInit& event);
 
   // Injects an on screen keyboard input event directly into the main web
   // module.
   void InjectOnScreenKeyboardInputEventToMainWebModule(
-      base::Token type, const dom::InputEventInit& event);
+      base_token::Token type, const dom::InputEventInit& event);
 
   // Injects a key event directly into the main web module, useful for setting
   // up an input fuzzer whose input should be sent directly to the main
   // web module and not filtered into the debug console.
-  void InjectKeyEventToMainWebModule(base::Token type,
+  void InjectKeyEventToMainWebModule(base_token::Token type,
                                      const dom::KeyboardEventInit& event);
 
   // Error callback for any error that stops the program.
@@ -338,12 +333,13 @@ class BrowserModule {
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEvent(base::Token type, const dom::KeyboardEventInit& event);
+  bool FilterKeyEvent(base_token::Token type,
+                      const dom::KeyboardEventInit& event);
 
   // Filters a key event for hotkeys.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEventForHotkeys(base::Token type,
+  bool FilterKeyEventForHotkeys(base_token::Token type,
                                 const dom::KeyboardEventInit& event);
 
   void NavigateResetErrorHandling();
@@ -537,8 +533,8 @@ class BrowserModule {
   // A copy of the BrowserModule Options passed into the constructor.
   Options options_;
 
-  // The browser module runs on this message loop.
-  base::MessageLoop* const self_message_loop_;
+  // The browser module runs with this task runner.
+  base::SequencedTaskRunner* const task_runner_;
 
   // Handler for system errors, which is owned by browser module.
   SystemPlatformErrorHandler system_platform_error_handler_;
@@ -655,6 +651,11 @@ class BrowserModule {
   // Command handler object for toggling the input fuzzer on/off.
   debug::console::ConsoleCommandManager::CommandHandler
       fuzzer_toggle_command_handler_;
+#if defined(ENABLE_DEBUGGER)
+  // Command handler object for boxdump command from the debug console.
+  debug::console::ConsoleCommandManager::CommandHandler
+      boxdump_command_handler_;
+#endif
 
   // Command handler object for screenshot command from the debug console.
   debug::console::ConsoleCommandManager::CommandHandler

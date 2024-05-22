@@ -8,12 +8,18 @@
 #include "samplecode/Sample.h"
 
 #include "src/gpu/geometry/GrQuad.h"
-#include "src/gpu/ops/GrQuadPerEdgeAA.h"
+#include "src/gpu/ops/QuadPerEdgeAA.h"
 
 #include "include/core/SkCanvas.h"
 #include "include/core/SkPaint.h"
 #include "include/effects/SkDashPathEffect.h"
 #include "include/pathops/SkPathOps.h"
+#include "include/private/SkTPin.h"
+
+using VertexSpec = skgpu::v1::QuadPerEdgeAA::VertexSpec;
+using ColorType = skgpu::v1::QuadPerEdgeAA::ColorType;
+using Subset = skgpu::v1::QuadPerEdgeAA::Subset;
+using IndexBufferOption = skgpu::v1::QuadPerEdgeAA::IndexBufferOption;
 
 // Draw a line through the two points, outset by a fixed length in screen space
 static void draw_extended_line(SkCanvas* canvas, const SkPaint paint,
@@ -216,11 +222,11 @@ static SkScalar get_framed_coverage(const SkPoint outer[4], const SkScalar outer
             SkScalar coverage = bary[0] * c0 + bary[1] * c1 + bary[2] * c2;
             if (coverage < 0.5f) {
                 // Check distances to domain
-                SkScalar l = SkScalarPin(point.fX - geomDomain.fLeft, 0.f, 1.f);
-                SkScalar t = SkScalarPin(point.fY - geomDomain.fTop, 0.f, 1.f);
-                SkScalar r = SkScalarPin(geomDomain.fRight - point.fX, 0.f, 1.f);
-                SkScalar b = SkScalarPin(geomDomain.fBottom - point.fY, 0.f, 1.f);
-                coverage = SkMinScalar(coverage, l * t * r * b);
+                SkScalar l = SkTPin(point.fX - geomDomain.fLeft, 0.f, 1.f);
+                SkScalar t = SkTPin(point.fY - geomDomain.fTop, 0.f, 1.f);
+                SkScalar r = SkTPin(geomDomain.fRight - point.fX, 0.f, 1.f);
+                SkScalar b = SkTPin(geomDomain.fBottom - point.fY, 0.f, 1.f);
+                coverage = std::min(coverage, l * t * r * b);
             }
             return coverage;
         }
@@ -406,10 +412,10 @@ private:
     void getTessellatedPoints(SkPoint inset[4], SkScalar insetCoverage[4], SkPoint outset[4],
                               SkScalar outsetCoverage[4], SkRect* domain) const {
         // Fixed vertex spec for extracting the picture frame geometry
-        static const GrQuadPerEdgeAA::VertexSpec kSpec =
-            {GrQuad::Type::kGeneral, GrQuadPerEdgeAA::ColorType::kNone,
-             GrQuad::Type::kAxisAligned, false, GrQuadPerEdgeAA::Domain::kNo,
-             GrAAType::kCoverage, false, GrQuadPerEdgeAA::IndexBufferOption::kPictureFramed};
+        static const VertexSpec kSpec =
+            {GrQuad::Type::kGeneral, ColorType::kNone,
+             GrQuad::Type::kAxisAligned, false, Subset::kNo,
+             GrAAType::kCoverage, false, IndexBufferOption::kPictureFramed};
         static const GrQuad kIgnored(SkRect::MakeEmpty());
 
         GrQuadAAFlags flags = GrQuadAAFlags::kNone;
@@ -421,7 +427,7 @@ private:
         GrQuad quad = GrQuad::MakeFromSkQuad(fCorners, SkMatrix::I());
 
         float vertices[56]; // 2 quads, with x, y, coverage, and geometry domain (7 floats x 8 vert)
-        GrQuadPerEdgeAA::Tessellator tessellator(kSpec, (char*) vertices);
+        skgpu::v1::QuadPerEdgeAA::Tessellator tessellator(kSpec, (char*) vertices);
         tessellator.append(&quad, nullptr, {1.f, 1.f, 1.f, 1.f},
                            SkRect::MakeEmpty(), flags);
 
@@ -448,7 +454,7 @@ private:
         *domain = {vertices[52], vertices[53], vertices[54], vertices[55]};
     }
 
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 class DegenerateQuadSample::Click : public Sample::Click {
@@ -474,8 +480,8 @@ private:
     void drag(SkPoint* point) {
         SkPoint delta = fCurr - fPrev;
         *point += SkPoint::Make(delta.x() / kViewScale, delta.y() / kViewScale);
-        point->fX = SkMinScalar(fOuterRect.fRight, SkMaxScalar(point->fX, fOuterRect.fLeft));
-        point->fY = SkMinScalar(fOuterRect.fBottom, SkMaxScalar(point->fY, fOuterRect.fTop));
+        point->fX = std::min(fOuterRect.fRight, std::max(point->fX, fOuterRect.fLeft));
+        point->fY = std::min(fOuterRect.fBottom, std::max(point->fY, fOuterRect.fTop));
     }
 };
 

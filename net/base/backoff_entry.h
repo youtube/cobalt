@@ -1,15 +1,16 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_BACKOFF_ENTRY_H_
 #define NET_BASE_BACKOFF_ENTRY_H_
 
-#include "base/macros.h"
+#include <stdint.h>
+
+#include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace base {
 class TickClock;
@@ -69,6 +70,8 @@ class NET_EXPORT BackoffEntry {
   // |policy| pointer must be valid but isn't dereferenced during construction.
   // |clock| pointer may be null.
   BackoffEntry(const Policy* policy, const base::TickClock* clock);
+  BackoffEntry(const BackoffEntry&) = delete;
+  BackoffEntry& operator=(const BackoffEntry&) = delete;
   virtual ~BackoffEntry();
 
   // Inform this item that a request for the network resource it is
@@ -121,13 +124,11 @@ class NET_EXPORT BackoffEntry {
   // Counts request errors; decremented on success.
   int failure_count_;
 
-  const Policy* const policy_;  // Not owned.
+  const raw_ptr<const Policy> policy_;  // Not owned.
 
-  const base::TickClock* const clock_;  // Not owned.
+  const raw_ptr<const base::TickClock> clock_;  // Not owned.
 
   THREAD_CHECKER(thread_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(BackoffEntry);
 };
 
 }  // namespace net

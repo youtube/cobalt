@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include "game-activity/GameActivity.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -28,22 +30,24 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/starboard_switches.h"
 #include "starboard/thread.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
-#include "third_party/crashpad/wrapper/wrapper.h"  // nogncheck
+#include "third_party/crashpad/crashpad/wrapper/wrapper.h"  // nogncheck
 #endif
 
 namespace starboard {
 namespace android {
 namespace shared {
+
+atomic_bool g_block_swapbuffers;
+
 namespace {
 
 using ::starboard::shared::starboard::CommandLine;
 typedef ::starboard::android::shared::ApplicationAndroid::AndroidCommand
     AndroidCommand;
 
-SbThread g_starboard_thread = kSbThreadInvalid;
+pthread_t g_starboard_thread = 0;
 Semaphore* g_app_created_semaphore = nullptr;
 
 // Safeguard to avoid sending AndroidCommands either when there is no instance
@@ -166,7 +170,8 @@ std::string ExtractCertificatesToFileSystem() {
   apk_path.append(std::string(kSbFileSepString) + "app" + kSbFileSepString +
                   "cobalt" + kSbFileSepString + "content" + kSbFileSepString +
                   "ssl" + kSbFileSepString + "certs");
-  if (!SbFileExists(apk_path.c_str())) {
+  struct stat info;
+  if (stat(apk_path.c_str(), &info) != 0) {
     SB_LOG(WARNING) << "CA certificates directory not found in APK";
     return "";
   }
@@ -181,7 +186,10 @@ std::string ExtractCertificatesToFileSystem() {
 
   std::string file_system_path(file_system_path_buffer.data());
   file_system_path.append(std::string(kSbFileSepString) + "certs");
-  if (!SbDirectoryCreate(file_system_path.c_str())) {
+  struct stat fileinfo;
+  if (mkdir(file_system_path.c_str(), 0700) &&
+      !(stat(file_system_path.c_str(), &fileinfo) == 0 &&
+        S_ISDIR(fileinfo.st_mode))) {
     SB_LOG(WARNING) << "Failed to create new dir for CA certificates";
     return "";
   }
@@ -195,15 +203,6 @@ std::string ExtractCertificatesToFileSystem() {
 }
 
 void InstallCrashpadHandler(const CommandLine& command_line) {
-  if (command_line.HasSwitch(
-          starboard::shared::starboard::kStartHandlerAtLaunch)) {
-    SB_LOG(WARNING) << "--"
-                    << starboard::shared::starboard::kStartHandlerAtLaunch
-                    << " not supported for AOSP Evergreen, not installing "
-                    << "Crashpad handler";
-    return;
-  }
-
   std::string extracted_ca_certificates_path =
       ExtractCertificatesToFileSystem();
   if (extracted_ca_certificates_path.empty()) {
@@ -213,11 +212,12 @@ void InstallCrashpadHandler(const CommandLine& command_line) {
   }
 
   third_party::crashpad::wrapper::InstallCrashpadHandler(
-      /*start_at_crash=*/true, extracted_ca_certificates_path);
+      extracted_ca_certificates_path);
 }
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 void* ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "StarboardMain");
   g_app_created_semaphore = static_cast<Semaphore*>(context);
 
 #if SB_API_VERSION >= 15
@@ -318,6 +318,7 @@ void OnWindowFocusChanged(GameActivity* activity, bool focused) {
 }
 
 void OnNativeWindowCreated(GameActivity* activity, ANativeWindow* window) {
+  g_block_swapbuffers.store(false);
   if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         AndroidCommand::kNativeWindowCreated, window);
@@ -325,6 +326,7 @@ void OnNativeWindowCreated(GameActivity* activity, ANativeWindow* window) {
 }
 
 void OnNativeWindowDestroyed(GameActivity* activity, ANativeWindow* window) {
+  g_block_swapbuffers.store(true);
   if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         AndroidCommand::kNativeWindowDestroyed);
@@ -336,12 +338,17 @@ extern "C" SB_EXPORT_PLATFORM void GameActivity_onCreate(
     void* savedState,
     size_t savedStateSize) {
   // Start the Starboard thread the first time an Activity is created.
-  if (!SbThreadIsValid(g_starboard_thread)) {
+  if (g_starboard_thread == 0) {
     Semaphore semaphore;
 
-    g_starboard_thread =
-        SbThreadCreate(0, kSbThreadPriorityNormal, kSbThreadNoAffinity, false,
-                       "StarboardMain", &ThreadEntryPoint, &semaphore);
+    pthread_attr_t attributes;
+    pthread_attr_init(&attributes);
+    pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+
+    pthread_create(&g_starboard_thread, &attributes, &ThreadEntryPoint,
+                   &semaphore);
+
+    pthread_attr_destroy(&attributes);
 
     // Wait for the ApplicationAndroid to be created.
     semaphore.Take();

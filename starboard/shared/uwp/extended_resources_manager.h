@@ -46,6 +46,7 @@ class ExtendedResourcesManager {
   void AcquireExtendedResources();
   void ReleaseExtendedResources();
   void Quit();
+  void ReleaseBuffersHeap();
 
   // Returns true when the d3d12 device, buffer heap
   // and command queue can be used.

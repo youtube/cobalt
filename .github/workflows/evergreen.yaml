@@ -12,7 +12,7 @@ on:
       - feature/*
   schedule:
     # GMT timezone.
-    - cron: '0 5 * * *'
+    - cron: '0 9 * * *'
   workflow_dispatch:
     inputs:
       nightly:
@@ -49,15 +49,6 @@ jobs:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-  evergreen-arm-softfp-no-loader:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-arm-softfp-no-loader
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
   evergreen-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -65,14 +56,5 @@ jobs:
       pull-requests: write
     with:
       platform: evergreen-arm64
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-  evergreen-x86:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-x86
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true

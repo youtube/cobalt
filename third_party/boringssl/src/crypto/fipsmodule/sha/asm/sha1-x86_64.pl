@@ -107,16 +107,8 @@ die "can't locate x86_64-xlate.pl";
 # In upstream, this is controlled by shelling out to the compiler to check
 # versions, but BoringSSL is intended to be used with pre-generated perlasm
 # output, so this isn't useful anyway.
-#
-# TODO(davidben): Enable AVX2 code after testing by setting $avx to 2. Is it
-# necessary to disable AVX2 code when SHA Extensions code is disabled? Upstream
-# did not tie them together until after $shaext was added.
-$avx = 1;
-
-# TODO(davidben): Consider enabling the Intel SHA Extensions code once it's
-# been tested.
-$shaext=0;	### set to zero if compiling for 1.0.1
-$avx=1		if (!$shaext && $avx);
+$avx = 2;
+$shaext=1;	### set to zero if compiling for 1.0.1
 
 open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
@@ -397,6 +389,7 @@ $code.=<<___;
 	lea		0x40($inp),%r8		# next input block
 	paddd		@MSG[0],$E
 	cmovne		%r8,$inp
+	prefetcht0	512($inp)
 	movdqa		$ABCD,$ABCD_SAVE	# offload $ABCD
 ___
 for($i=0;$i<20-4;$i+=2) {
@@ -461,8 +454,8 @@ $code.=<<___ if ($win64);
 .Lepilogue_shaext:
 ___
 $code.=<<___;
-.cfi_endproc
 	ret
+.cfi_endproc
 .size	sha1_block_data_order_shaext,.-sha1_block_data_order_shaext
 ___
 }}}
@@ -1823,6 +1816,7 @@ ___
 }
 }
 $code.=<<___;
+.section .rodata
 .align	64
 K_XX_XX:
 .long	0x5a827999,0x5a827999,0x5a827999,0x5a827999	# K_00_19
@@ -1841,6 +1835,7 @@ ___
 $code.=<<___;
 .asciz	"SHA1 block transform for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
 .align	64
+.text
 ___
 
 # EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,
@@ -2122,4 +2117,4 @@ foreach (split("\n",$code)) {
 
 	print $_,"\n";
 }
-close STDOUT or die "error closing STDOUT";
+close STDOUT or die "error closing STDOUT: $!";

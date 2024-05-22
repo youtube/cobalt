@@ -62,11 +62,18 @@ SKCMS_API bool skcms_TransferFunction_makePQish(skcms_TransferFunction*,
                                                 float A, float B, float C,
                                                 float D, float E, float F);
 // HLGish:
-//            { sign(encoded) * ( (R|encoded|)^G )          when 0   <= |encoded| <= 1/R
-//   linear = { sign(encoded) * ( e^(a(|encoded|-c)) + b )  when 1/R <  |encoded|
-SKCMS_API bool skcms_TransferFunction_makeHLGish(skcms_TransferFunction*,
-                                                float R, float G,
-                                                float a, float b, float c);
+//            { K * sign(encoded) * ( (R|encoded|)^G )          when 0   <= |encoded| <= 1/R
+//   linear = { K * sign(encoded) * ( e^(a(|encoded|-c)) + b )  when 1/R <  |encoded|
+SKCMS_API bool skcms_TransferFunction_makeScaledHLGish(skcms_TransferFunction*,
+                                                       float K, float R, float G,
+                                                       float a, float b, float c);
+
+// Compatibility shim with K=1 for old callers.
+static inline bool skcms_TransferFunction_makeHLGish(skcms_TransferFunction* fn,
+                                                     float R, float G,
+                                                     float a, float b, float c) {
+    return skcms_TransferFunction_makeScaledHLGish(fn, 1.0f, R,G, a,b,c);
+}
 
 // PQ mapping encoded [0,1] to linear [0,1].
 static inline bool skcms_TransferFunction_makePQ(skcms_TransferFunction* tf) {
@@ -78,6 +85,11 @@ static inline bool skcms_TransferFunction_makeHLG(skcms_TransferFunction* tf) {
     return skcms_TransferFunction_makeHLGish(tf, 2.0f, 2.0f
                                                , 1/0.17883277f, 0.28466892f, 0.55991073f);
 }
+
+// Is this an ordinary sRGB-ish transfer function, or one of the HDR forms we support?
+SKCMS_API bool skcms_TransferFunction_isSRGBish(const skcms_TransferFunction*);
+SKCMS_API bool skcms_TransferFunction_isPQish  (const skcms_TransferFunction*);
+SKCMS_API bool skcms_TransferFunction_isHLGish (const skcms_TransferFunction*);
 
 // Unified representation of 'curv' or 'para' tag data, or a 1D table from 'mft1' or 'mft2'
 typedef union skcms_Curve {
@@ -92,8 +104,12 @@ typedef union skcms_Curve {
     };
 } skcms_Curve;
 
+// Complex transforms between device space (A) and profile connection space (B):
+//   A2B:  device -> [ "A" curves -> CLUT ] -> [ "M" curves -> matrix ] -> "B" curves -> PCS
+//   B2A:  device <- [ "A" curves <- CLUT ] <- [ "M" curves <- matrix ] <- "B" curves <- PCS
+
 typedef struct skcms_A2B {
-    // Optional: N 1D curves, followed by an N-dimensional CLUT.
+    // Optional: N 1D "A" curves, followed by an N-dimensional CLUT.
     // If input_channels == 0, these curves and CLUT are skipped,
     // Otherwise, input_channels must be in [1, 4].
     uint32_t        input_channels;
@@ -102,17 +118,40 @@ typedef struct skcms_A2B {
     const uint8_t*  grid_8;
     const uint8_t*  grid_16;
 
-    // Optional: 3 1D curves, followed by a color matrix.
+    // Optional: 3 1D "M" curves, followed by a color matrix.
     // If matrix_channels == 0, these curves and matrix are skipped,
     // Otherwise, matrix_channels must be 3.
     uint32_t        matrix_channels;
     skcms_Curve     matrix_curves[3];
     skcms_Matrix3x4 matrix;
 
-    // Required: 3 1D curves. Always present, and output_channels must be 3.
+    // Required: 3 1D "B" curves. Always present, and output_channels must be 3.
     uint32_t        output_channels;
     skcms_Curve     output_curves[3];
 } skcms_A2B;
+
+typedef struct skcms_B2A {
+    // Required: 3 1D "B" curves. Always present, and input_channels must be 3.
+    uint32_t        input_channels;
+    skcms_Curve     input_curves[3];
+
+    // Optional: a color matrix, followed by 3 1D "M" curves.
+    // If matrix_channels == 0, this matrix and these curves are skipped,
+    // Otherwise, matrix_channels must be 3.
+    uint32_t        matrix_channels;
+    skcms_Matrix3x4 matrix;
+    skcms_Curve     matrix_curves[3];
+
+    // Optional: an N-dimensional CLUT, followed by N 1D "A" curves.
+    // If output_channels == 0, this CLUT and these curves are skipped,
+    // Otherwise, output_channels must be in [1, 4].
+    uint32_t        output_channels;
+    uint8_t         grid_points[4];
+    const uint8_t*  grid_8;
+    const uint8_t*  grid_16;
+    skcms_Curve     output_curves[4];
+} skcms_B2A;
+
 
 typedef struct skcms_ICCProfile {
     const uint8_t* buffer;
@@ -134,10 +173,18 @@ typedef struct skcms_ICCProfile {
     bool                   has_toXYZD50;
     skcms_Matrix3x3        toXYZD50;
 
-    // If the profile has a valid A2B0 tag, skcms_Parse() sets A2B to that data,
-    // and has_A2B to true.
+    // If the profile has a valid A2B0 or A2B1 tag, skcms_Parse() sets A2B to
+    // that data, and has_A2B to true.  skcms_ParseWithA2BPriority() does the
+    // same following any user-provided prioritization of A2B0, A2B1, or A2B2.
     bool                   has_A2B;
     skcms_A2B              A2B;
+
+    // If the profile has a valid B2A0 or B2A1 tag, skcms_Parse() sets B2A to
+    // that data, and has_B2A to true.  skcms_ParseWithA2BPriority() does the
+    // same following any user-provided prioritization of B2A0, B2A1, or B2A2.
+    bool                   has_B2A;
+    skcms_B2A              B2A;
+
 } skcms_ICCProfile;
 
 // The sRGB color profile is so commonly used that we offer a canonical skcms_ICCProfile for it.
@@ -168,9 +215,20 @@ SKCMS_API bool skcms_TRCs_AreApproximateInverse(const skcms_ICCProfile* profile,
                                                 const skcms_TransferFunction* inv_tf);
 
 // Parse an ICC profile and return true if possible, otherwise return false.
-// The buffer is not copied, it must remain valid as long as the skcms_ICCProfile
-// will be used.
-SKCMS_API bool skcms_Parse(const void*, size_t, skcms_ICCProfile*);
+// Selects an A2B profile (if present) according to priority list (each entry 0-2).
+// The buffer is not copied; it must remain valid as long as the skcms_ICCProfile will be used.
+SKCMS_API bool skcms_ParseWithA2BPriority(const void*, size_t,
+                                          const int priority[], int priorities,
+                                          skcms_ICCProfile*);
+
+static inline bool skcms_Parse(const void* buf, size_t len, skcms_ICCProfile* profile) {
+    // For continuity of existing user expectations,
+    // prefer A2B0 (perceptual) over A2B1 (relative colormetric), and ignore A2B2 (saturation).
+    const int priority[] = {0,1};
+    return skcms_ParseWithA2BPriority(buf, len,
+                                      priority, sizeof(priority)/sizeof(*priority),
+                                      profile);
+}
 
 SKCMS_API bool skcms_ApproximateCurve(const skcms_Curve* curve,
                                       skcms_TransferFunction* approx,
@@ -209,6 +267,8 @@ typedef enum skcms_PixelFormat {
     skcms_PixelFormat_BGR_888,
     skcms_PixelFormat_RGBA_8888,
     skcms_PixelFormat_BGRA_8888,
+    skcms_PixelFormat_RGBA_8888_sRGB,   // Automatic sRGB encoding / decoding.
+    skcms_PixelFormat_BGRA_8888_sRGB,   // (Generally used with linear transfer functions.)
 
     skcms_PixelFormat_RGBA_1010102,
     skcms_PixelFormat_BGRA_1010102,
@@ -293,11 +353,20 @@ SKCMS_API bool skcms_MakeUsableAsDestination(skcms_ICCProfile* profile);
 // profile unchanged and return false.
 SKCMS_API bool skcms_MakeUsableAsDestinationWithSingleCurve(skcms_ICCProfile* profile);
 
+// Returns a matrix to adapt XYZ color from given the whitepoint to D50.
+SKCMS_API bool skcms_AdaptToXYZD50(float wx, float wy,
+                                   skcms_Matrix3x3* toXYZD50);
+
+// Returns a matrix to convert RGB color into XYZ adapted to D50, given the
+// primaries and whitepoint of the RGB model.
 SKCMS_API bool skcms_PrimariesToXYZD50(float rx, float ry,
                                        float gx, float gy,
                                        float bx, float by,
                                        float wx, float wy,
                                        skcms_Matrix3x3* toXYZD50);
+
+// Call before your first call to skcms_Transform() to skip runtime CPU detection.
+SKCMS_API void skcms_DisableRuntimeCPUDetection(void);
 
 // Utilities for programmatically constructing profiles
 static inline void skcms_Init(skcms_ICCProfile* p) {

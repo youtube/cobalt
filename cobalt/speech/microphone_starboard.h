@@ -15,13 +15,10 @@
 #ifndef COBALT_SPEECH_MICROPHONE_STARBOARD_H_
 #define COBALT_SPEECH_MICROPHONE_STARBOARD_H_
 
-#include "cobalt/speech/speech_configuration.h"
-
-#if defined(SB_USE_SB_MICROPHONE)
-
 #include <string>
 
 #include "cobalt/speech/microphone.h"
+#include "cobalt/speech/speech_configuration.h"
 #include "starboard/microphone.h"
 
 namespace cobalt {
@@ -55,5 +52,4 @@ class MicrophoneStarboard : public Microphone {
 }  // namespace speech
 }  // namespace cobalt
 
-#endif  // defined(SB_USE_SB_MICROPHONE)
 #endif  // COBALT_SPEECH_MICROPHONE_STARBOARD_H_

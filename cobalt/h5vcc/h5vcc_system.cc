@@ -14,27 +14,50 @@
 
 #include "cobalt/h5vcc/h5vcc_system.h"
 
+#include <utility>
+
 #include "base/strings/stringprintf.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/version.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
 #include "starboard/common/system_property.h"
-#include "starboard/system.h"
-
-#if SB_API_VERSION < 14
 #include "starboard/extension/ifa.h"
-#endif  // SB_API_VERSION < 14
+#include "starboard/system.h"
 
 using starboard::kSystemPropertyMaxLength;
 
 namespace cobalt {
 namespace h5vcc {
 
+H5vccSystem::H5vccSystem(
 #if SB_IS(EVERGREEN)
-H5vccSystem::H5vccSystem(H5vccUpdater* updater) : updater_(updater) {}
+    H5vccUpdater* updater)
+    : updater_(updater),
 #else
-H5vccSystem::H5vccSystem() {}
+    )
+    :
 #endif
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+      ifa_extension_(static_cast<const StarboardExtensionIfaApi*>(
+          SbSystemGetExtension(kStarboardExtensionIfaName))) {
+  if (ifa_extension_ && ifa_extension_->version >= 2) {
+    ifa_extension_->RegisterTrackingAuthorizationCallback(
+        this, [](void* context) {
+          DCHECK(context) << "Callback called with NULL context";
+          if (context) {
+            static_cast<H5vccSystem*>(context)
+                ->ReceiveTrackingAuthorizationComplete();
+          }
+        });
+  }
+}
+
+H5vccSystem::~H5vccSystem() {
+  if (ifa_extension_ && ifa_extension_->version >= 2) {
+    ifa_extension_->UnregisterTrackingAuthorizationCallback();
+  }
+}
 
 bool H5vccSystem::are_keys_reversed() const {
   return SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack);
@@ -65,19 +88,14 @@ std::string H5vccSystem::advertising_id() const {
 #if SB_API_VERSION >= 14
   if (!SbSystemGetProperty(kSbSystemPropertyAdvertisingId, property,
                            SB_ARRAY_SIZE_INT(property))) {
-    DLOG(FATAL) << "Failed to get kSbSystemPropertyAdvertisingId.";
+    DLOG(INFO) << "Failed to get kSbSystemPropertyAdvertisingId.";
   } else {
     result = property;
   }
 #else
-  static auto const* ifa_extension =
-      static_cast<const StarboardExtensionIfaApi*>(
-          SbSystemGetExtension(kStarboardExtensionIfaName));
-  if (ifa_extension &&
-      strcmp(ifa_extension->name, kStarboardExtensionIfaName) == 0 &&
-      ifa_extension->version >= 1) {
-    if (!ifa_extension->GetAdvertisingId(property,
-                                         SB_ARRAY_SIZE_INT(property))) {
+  if (ifa_extension_ && ifa_extension_->version >= 1) {
+    if (!ifa_extension_->GetAdvertisingId(property,
+                                          SB_ARRAY_SIZE_INT(property))) {
       DLOG(FATAL) << "Failed to get AdvertisingId from IFA extension.";
     } else {
       result = property;
@@ -92,20 +110,14 @@ bool H5vccSystem::limit_ad_tracking() const {
 #if SB_API_VERSION >= 14
   if (!SbSystemGetProperty(kSbSystemPropertyLimitAdTracking, property,
                            SB_ARRAY_SIZE_INT(property))) {
-    DLOG(FATAL) << "Failed to get kSbSystemPropertyAdvertisingId.";
+    DLOG(INFO) << "Failed to get kSbSystemPropertyAdvertisingId.";
   } else {
     result = std::atoi(property);
   }
 #else
-  static auto const* ifa_extension =
-      static_cast<const StarboardExtensionIfaApi*>(
-          SbSystemGetExtension(kStarboardExtensionIfaName));
-
-  if (ifa_extension &&
-      strcmp(ifa_extension->name, kStarboardExtensionIfaName) == 0 &&
-      ifa_extension->version >= 1) {
-    if (!ifa_extension->GetLimitAdTracking(property,
-                                           SB_ARRAY_SIZE_INT(property))) {
+  if (ifa_extension_ && ifa_extension_->version >= 1) {
+    if (!ifa_extension_->GetLimitAdTracking(property,
+                                            SB_ARRAY_SIZE_INT(property))) {
       DLOG(FATAL) << "Failed to get LimitAdTracking from IFA extension.";
     } else {
       result = std::atoi(property);
@@ -113,6 +125,67 @@ bool H5vccSystem::limit_ad_tracking() const {
   }
 #endif
   return result;
+}
+
+std::string H5vccSystem::tracking_authorization_status() const {
+  if (ifa_extension_ && ifa_extension_->version >= 2) {
+    std::string result = "UNKNOWN";
+    char property[kSystemPropertyMaxLength] = {0};
+    if (!ifa_extension_->GetTrackingAuthorizationStatus(
+            property, SB_ARRAY_SIZE_INT(property))) {
+      DLOG(FATAL)
+          << "Failed to get TrackingAuthorizationStatus from IFA extension.";
+    } else {
+      result = property;
+    }
+    return result;
+  }
+  return "NOT_SUPPORTED";
+}
+
+void H5vccSystem::ReceiveTrackingAuthorizationComplete() {
+  // May be called by another thread.
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&H5vccSystem::ReceiveTrackingAuthorizationComplete,
+                   base::Unretained(this)));
+    return;
+  }
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  // Mark all promises complete and release the references.
+  for (auto& promise : request_tracking_authorization_promises_) {
+    promise->value().Resolve();
+  }
+  request_tracking_authorization_promises_.clear();
+}
+
+script::HandlePromiseVoid H5vccSystem::RequestTrackingAuthorization(
+    script::EnvironmentSettings* environment_settings) {
+  auto* global_wrappable = web::get_global_wrappable(environment_settings);
+  script::HandlePromiseVoid promise =
+      web::get_script_value_factory(environment_settings)
+          ->CreateBasicPromise<void>();
+
+  auto promise_reference =
+      std::make_unique<script::ValuePromiseVoid::Reference>(global_wrappable,
+                                                            promise);
+  if (ifa_extension_ && ifa_extension_->version >= 2) {
+    request_tracking_authorization_promises_.emplace_back(
+        std::move(promise_reference));
+    ifa_extension_->RequestTrackingAuthorization();
+  } else {
+    // Reject the promise since the API isn't available.
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](std::unique_ptr<script::ValuePromiseVoid::Reference>
+                   promise_reference) { promise_reference->value().Reject(); },
+            std::move(promise_reference)));
+  }
+
+  return promise;
 }
 
 std::string H5vccSystem::region() const {

@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/media_decoder.h"
 
+#include <sched.h>
+
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -118,6 +120,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            const FrameRenderedCB& frame_rendered_cb,
                            int tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
+                           int max_video_input_size,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -135,7 +138,7 @@ MediaDecoder::MediaDecoder(Host* host,
       video_codec, width_hint, height_hint, fps, max_width, max_height, this,
       j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, error_message);
+      force_big_endian_hdr_metadata, max_video_input_size, error_message);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
@@ -150,9 +153,9 @@ MediaDecoder::~MediaDecoder() {
     condition_variable_.Signal();
   }
 
-  if (SbThreadIsValid(decoder_thread_)) {
-    SbThreadJoin(decoder_thread_, NULL);
-    decoder_thread_ = kSbThreadInvalid;
+  if (decoder_thread_ != 0) {
+    pthread_join(decoder_thread_, NULL);
+    decoder_thread_ = 0;
   }
 
   if (is_valid()) {
@@ -194,14 +197,10 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     return;
   }
 
-  if (!SbThreadIsValid(decoder_thread_)) {
-    decoder_thread_ = SbThreadCreate(
-        0,
-        media_type_ == kSbMediaTypeAudio ? kSbThreadPriorityNormal
-                                         : kSbThreadPriorityHigh,
-        kSbThreadNoAffinity, true, GetDecoderName(media_type_),
-        &MediaDecoder::DecoderThreadEntryPoint, this);
-    SB_DCHECK(SbThreadIsValid(decoder_thread_));
+  if (decoder_thread_ == 0) {
+    pthread_create(&decoder_thread_, nullptr,
+                   &MediaDecoder::DecoderThreadEntryPoint, this);
+    SB_DCHECK(decoder_thread_ != 0);
   }
 
   ScopedLock scoped_lock(mutex_);
@@ -237,6 +236,13 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   SB_DCHECK(context);
   MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+  pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
+  if (decoder->media_type_ == kSbMediaTypeAudio) {
+    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityNormal);
+  } else {
+    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  }
+
   decoder->DecoderThreadFunc();
   return NULL;
 }
@@ -264,6 +270,9 @@ void MediaDecoder::DecoderThreadFunc() {
           }
         }
         SB_DCHECK(dequeue_output_results.empty());
+        if (destroying_.load()) {
+          break;
+        }
         CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
                                   &dequeue_output_results);
       }
@@ -311,6 +320,9 @@ void MediaDecoder::DecoderThreadFunc() {
         collect_pending_data = !has_input || !has_output;
       }
 
+      if (destroying_.load()) {
+        break;
+      }
       if (collect_pending_data) {
         ScopedLock scoped_lock(mutex_);
         CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
@@ -545,7 +557,7 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
     SB_LOG(INFO) << "|" << action_name << "| failed with status: "
                  << GetNameForMediaCodecStatus(status)
                  << ", will try again after a delay.";
-    SbThreadYield();
+    sched_yield();
   } else {
     SB_LOG(ERROR) << "|" << action_name << "| failed with status: "
                   << GetNameForMediaCodecStatus(status) << ".";
@@ -615,6 +627,12 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   SB_DCHECK(media_codec_bridge_);
   SB_DCHECK(buffer_index >= 0);
 
+  // TODO(b/291959069): After |decoder_thread_| is destroyed, it may still
+  // receive output buffer, discard this invalid output buffer.
+  if (destroying_.load() || decoder_thread_ == 0) {
+    return;
+  }
+
   DequeueOutputResult dequeue_output_result;
   dequeue_output_result.status = 0;
   dequeue_output_result.index = buffer_index;
@@ -640,8 +658,65 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 }
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
-  SB_DCHECK(tunnel_mode_enabled_);
   frame_rendered_cb_(frame_timestamp);
+}
+
+bool MediaDecoder::Flush() {
+  // Try to flush if we can, otherwise return |false| to recreate the codec
+  // completely. Flush() is called by `player_worker` thread,
+  // but MediaDecoder is on `audio_decoder` and `video_decoder`
+  // threads, let `player_worker` destroy `audio_decoder` and
+  // `video_decoder` threads to clean up all pending tasks,
+  // and Flush()/Start() |media_codec_bridge_|.
+
+  // 1. Destroy `audio_decoder` and `video_decoder` threads.
+  destroying_.store(true);
+  {
+    ScopedLock scoped_lock(mutex_);
+    condition_variable_.Signal();
+  }
+  if (decoder_thread_ != 0) {
+    pthread_join(decoder_thread_, NULL);
+    decoder_thread_ = 0;
+  }
+
+  // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
+  if (is_valid()) {
+    // 2.1. Flush() |media_codec_bridge_|.
+    host_->OnFlushing();
+    jint status = media_codec_bridge_->Flush();
+    if (status != MEDIA_CODEC_OK) {
+      SB_LOG(ERROR) << "Failed to flush media codec.";
+      return false;
+    }
+
+    // 2.2. Clean up pending_tasks and input_buffer/output_buffer indices.
+    number_of_pending_tasks_.store(0);
+    pending_tasks_.clear();
+    input_buffer_indices_.clear();
+    dequeue_output_results_.clear();
+    pending_queue_input_buffer_task_ = nullopt_t();
+
+    // 2.3. Add OutputFormatChanged to get current output format after Flush().
+    DequeueOutputResult dequeue_output_result = {};
+    dequeue_output_result.index = -1;
+    dequeue_output_results_.push_back(dequeue_output_result);
+
+    // 2.4. Start() |media_codec_bridge_|. As the codec is configured in
+    // asynchronous mode, call Start() after Flush() has returned to
+    // resume codec operations. After Start(), input_buffer_index should
+    // start with 0.
+    if (!media_codec_bridge_->Start()) {
+      SB_LOG(ERROR) << "Failed to start media codec.";
+      return false;
+    }
+  }
+
+  // 3. Recreate `audio_decoder` and `video_decoder` threads in
+  // WriteInputBuffers().
+  stream_ended_.store(false);
+  destroying_.store(false);
+  return true;
 }
 
 }  // namespace shared

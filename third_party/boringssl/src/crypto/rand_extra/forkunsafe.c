@@ -29,7 +29,7 @@ static struct CRYPTO_STATIC_MUTEX g_lock = CRYPTO_STATIC_MUTEX_INIT;
 void RAND_enable_fork_unsafe_buffering(int fd) {
   // We no longer support setting the file-descriptor with this function.
   if (fd != -1) {
-    OPENSSL_port_abort();
+    abort();
   }
 
   CRYPTO_STATIC_MUTEX_lock_write(&g_lock);

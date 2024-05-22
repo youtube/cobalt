@@ -166,6 +166,9 @@ static_library("starboard_platform") {
     "//starboard/shared/pthread/mutex_destroy.cc",
     "//starboard/shared/pthread/mutex_release.cc",
     "//starboard/shared/pthread/once.cc",
+    "//starboard/shared/pthread/thread_context_get_pointer.cc",
+    "//starboard/shared/pthread/thread_context_internal.cc",
+    "//starboard/shared/pthread/thread_context_internal.h",
     "//starboard/shared/pthread/thread_create_local_key.cc",
     "//starboard/shared/pthread/thread_create_priority.h",
     "//starboard/shared/pthread/thread_destroy_local_key.cc",
@@ -174,6 +177,13 @@ static_library("starboard_platform") {
     "//starboard/shared/pthread/thread_get_local_value.cc",
     "//starboard/shared/pthread/thread_is_equal.cc",
     "//starboard/shared/pthread/thread_join.cc",
+    "//starboard/shared/pthread/thread_sampler_create.cc",
+    "//starboard/shared/pthread/thread_sampler_destroy.cc",
+    "//starboard/shared/pthread/thread_sampler_freeze.cc",
+    "//starboard/shared/pthread/thread_sampler_internal.cc",
+    "//starboard/shared/pthread/thread_sampler_internal.h",
+    "//starboard/shared/pthread/thread_sampler_is_supported.cc",
+    "//starboard/shared/pthread/thread_sampler_thaw.cc",
     "//starboard/shared/pthread/thread_set_local_value.cc",
     "//starboard/shared/pthread/thread_yield.cc",
     "//starboard/shared/signal/crash_signals.h",
@@ -250,13 +260,17 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/system_request_focus.cc",
     "//starboard/shared/stub/system_request_reveal.cc",
     "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
-    "//starboard/shared/stub/thread_context_get_pointer.cc",
-    "//starboard/shared/stub/thread_sampler_create.cc",
-    "//starboard/shared/stub/thread_sampler_destroy.cc",
-    "//starboard/shared/stub/thread_sampler_freeze.cc",
-    "//starboard/shared/stub/thread_sampler_is_supported.cc",
-    "//starboard/shared/stub/thread_sampler_thaw.cc",
     "//starboard/shared/stub/ui_nav_get_interface.cc",
+    "//starboard/shared/stub/window_blur_on_screen_keyboard.cc",
+    "//starboard/shared/stub/window_focus_on_screen_keyboard.cc",
+    "//starboard/shared/stub/window_get_on_screen_keyboard_bounding_rect.cc",
+    "//starboard/shared/stub/window_hide_on_screen_keyboard.cc",
+    "//starboard/shared/stub/window_is_on_screen_keyboard_shown.cc",
+    "//starboard/shared/stub/window_on_screen_keyboard_is_supported.cc",
+    "//starboard/shared/stub/window_on_screen_keyboard_suggestions_supported.cc",
+    "//starboard/shared/stub/window_set_on_screen_keyboard_keep_focus.cc",
+    "//starboard/shared/stub/window_show_on_screen_keyboard.cc",
+    "//starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc",
     "accessibility_get_caption_settings.cc",
     "accessibility_get_display_settings.cc",
     "accessibility_get_text_to_speech_settings.cc",
@@ -265,6 +279,8 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
+    "asset_manager.cc",
+    "asset_manager.h",
     "atomic_public.h",
     "audio_decoder.cc",
     "audio_decoder.h",
@@ -319,8 +335,6 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-    "h5vcc_config.cc",
-    "h5vcc_config.h",
     "input_events_generator.cc",
     "input_events_generator.h",
     "jni_env_ext.cc",
@@ -363,7 +377,13 @@ static_library("starboard_platform") {
     "player_destroy.cc",
     "player_get_preferred_output_mode.cc",
     "player_set_bounds.cc",
+    "player_set_max_video_input_size.cc",
+    "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
+    "posix_emu/errno.cc",
+    "posix_emu/file.cc",
+    "posix_emu/pthread.cc",
+    "posix_emu/stat.cc",
     "sanitizer_options.cc",
     "socket_get_interface_address.cc",
     "speech_synthesis_cancel.cc",
@@ -392,26 +412,18 @@ static_library("starboard_platform") {
     "video_decoder.h",
     "video_frame_tracker.cc",
     "video_frame_tracker.h",
+    "video_max_video_input_size.cc",
+    "video_max_video_input_size.h",
     "video_render_algorithm.cc",
     "video_render_algorithm.h",
     "video_window.cc",
     "video_window.h",
-    "window_blur_on_screen_keyboard.cc",
     "window_create.cc",
     "window_destroy.cc",
-    "window_focus_on_screen_keyboard.cc",
     "window_get_diagonal_size_in_inches.cc",
-    "window_get_on_screen_keyboard_bounding_rect.cc",
     "window_get_platform_handle.cc",
     "window_get_size.cc",
-    "window_hide_on_screen_keyboard.cc",
     "window_internal.h",
-    "window_is_on_screen_keyboard_shown.cc",
-    "window_on_screen_keyboard_is_supported.cc",
-    "window_on_screen_keyboard_suggestions_supported.cc",
-    "window_set_on_screen_keyboard_keep_focus.cc",
-    "window_show_on_screen_keyboard.cc",
-    "window_update_on_screen_keyboard_suggestions.cc",
   ]
 
   sources += game_activity_source_files
@@ -450,8 +462,8 @@ static_library("starboard_platform") {
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
-      "//starboard/shared/starboard/starboard_switches.cc",
-      "//starboard/shared/starboard/starboard_switches.h",
+      "//starboard/shared/starboard/loader_app_metrics.cc",
+      "//starboard/shared/starboard/loader_app_metrics.h",
     ]
 
     public_deps += [
@@ -459,7 +471,7 @@ static_library("starboard_platform") {
       "//starboard/loader_app:pending_restart",
     ]
 
-    deps += [ "//third_party/crashpad/wrapper" ]
+    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
   }
 
   if (sb_evergreen_compatible_use_libunwind) {
@@ -473,7 +485,13 @@ static_library("starboard_base_symbolize") {
     "//third_party/symbolize/symbolize.cc",
   ]
 
-  public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common:common_headers_only",
+  ]
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+    public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+  }
 }
 
 target(gtest_target_type, "starboard_platform_tests") {

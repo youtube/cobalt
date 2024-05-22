@@ -10,7 +10,7 @@ void draw(SkCanvas* canvas) {
     srcPixels.resize(height * width  * 4);
     SkPixmap pixmap(SkImageInfo::MakeN32Premul(width, height), (const void*) &srcPixels.front(),
                     width * 4);
-    image->readPixels(pixmap, 0, 0);
+    image->readPixels(nullptr, pixmap, 0, 0);
     canvas->scale(.5f, .5f);
     width /= 4;
     height /= 4;
@@ -19,7 +19,7 @@ void draw(SkCanvas* canvas) {
             SkBitmap bitmap;
             bitmap.allocPixels(SkImageInfo::MakeN32Premul(width, height));
             bitmap.writePixels(pixmap, -y * width, -x * height);
-            canvas->drawBitmap(bitmap, x * width, y * height);
+            canvas->drawImage(bitmap.asImage(), x * width, y * height);
         }
     }
 }

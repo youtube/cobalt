@@ -21,7 +21,6 @@
 #include "base/logging.h"
 #include "base/optional.h"
 #include "starboard/common/file.h"
-#include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 
@@ -88,7 +87,7 @@ bool LocalizedStrings::LoadStrings(const std::string& language) {
   auto file_path = opt_file_path.value();
   std::string file_contents;
   if (!base::ReadFileToString(file_path, &file_contents)) {
-    DLOG_ONCE(ERROR) << "Error reading i18n file.";
+    DLOG(ERROR) << "Error reading i18n file.";
     return false;
   }
   DCHECK_GT(file_contents.length(), 0);
@@ -114,7 +113,7 @@ bool LocalizedStrings::LoadSingleString(const std::string& message) {
   // A single message is a key/value pair with separator.
   size_t separator_pos = message.find(';');
   if (separator_pos == std::string::npos) {
-    SB_DLOG(ERROR) << "No separator found in: " << message;
+    DLOG(ERROR) << "No separator found in: " << message;
     return false;
   }
 

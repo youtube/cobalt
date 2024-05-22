@@ -23,7 +23,6 @@ config("sabi_flags") {
 config("platform_configuration") {
   configs = [
     "//starboard/build/config/sabi",
-    "//starboard/evergreen/arm/shared/platform_configuration:sabi_flags",
     ":sabi_flags",
     "//starboard/evergreen/arm/shared/platform_configuration",
   ]
