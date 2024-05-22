@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/pthread/thread_create_priority.h"
-
 #include <sched.h>
 #include <sys/resource.h>
 
@@ -21,6 +19,23 @@
 #include "starboard/thread.h"
 
 namespace {
+int SbPriorityToNice(SbThreadPriority priority) {
+  switch (priority) {
+    case kSbThreadPriorityLowest:
+      return 19;
+    case kSbThreadPriorityLow:
+      return 10;
+    case kSbThreadNoPriority:
+    case kSbThreadPriorityNormal:
+      return 0;
+    case kSbThreadPriorityHigh:
+      return -8;
+    case kSbThreadPriorityHighest:
+      return -16;
+    case kSbThreadPriorityRealTime:
+      return -19;
+  }
+}
 
 SbThreadPriority NiceToSbPriority(int nice) {
   if (nice == 19) {
@@ -44,56 +59,10 @@ SbThreadPriority NiceToSbPriority(int nice) {
 }
 
 }  // namespace
-namespace starboard {
-namespace shared {
-namespace pthread {
-
-void SetNiceValue(int nice) {
-  int result = setpriority(PRIO_PROCESS, 0, nice);
-  if (result != 0) {
-    SB_NOTREACHED();
-  }
-}
-
-void ThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport)
-    return;
-
-  // Nice value settings are selected from looking at:
-  //   https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
-  switch (priority) {
-    case kSbThreadPriorityLowest:
-      SetNiceValue(19);
-      break;
-    case kSbThreadPriorityLow:
-      SetNiceValue(10);
-      break;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
-      SetNiceValue(0);
-      break;
-    case kSbThreadPriorityHigh:
-      SetNiceValue(-8);
-      break;
-    case kSbThreadPriorityHighest:
-      SetNiceValue(-16);
-      break;
-    case kSbThreadPriorityRealTime:
-      SetNiceValue(-19);
-      break;
-    default:
-      SB_NOTREACHED();
-      break;
-  }
-}
-
-}  // namespace pthread
-}  // namespace shared
-}  // namespace starboard
 
 bool SbThreadSetPriority(SbThreadPriority priority) {
-  starboard::shared::pthread::ThreadSetPriority(priority);
-  return true;
+  int res = setpriority(PRIO_PROCESS, 0, SbPriorityToNice(priority));
+  return res == 0;
 }
 
 bool SbThreadGetPriority(SbThreadPriority* priority) {
@@ -103,6 +72,5 @@ bool SbThreadGetPriority(SbThreadPriority* priority) {
     return false;
   }
   *priority = NiceToSbPriority(ret);
-
   return true;
 }

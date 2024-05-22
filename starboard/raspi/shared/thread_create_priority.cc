@@ -132,3 +132,44 @@ void ThreadSetPriority(SbThreadPriority priority) {
 }  // namespace pthread
 }  // namespace shared
 }  // namespace starboard
+
+bool SbThreadSetPriority(SbThreadPriority priority) {
+  ::starboard::shared::pthread::ThreadSetPriority(priority);
+  return true;
+}
+
+bool SbThreadGetPriority(SbThreadPriority* priority) {
+  int scheduler = sched_getscheduler(0);
+  if (scheduler == -1) {
+    return false;
+  }
+  switch (scheduler) {
+    case SCHED_IDLE:
+      *priority = kSbThreadPriorityLowest;
+      return true;
+    case SCHED_OTHER:
+      *priority = kSbThreadPriorityNormal;
+      return true;
+  }
+  if (scheduler == SCHED_RR) {
+    struct sched_param param;
+    int res = sched_getparam(0, &param);
+    if (res == -1) {
+      return false;
+    }
+    switch (param.sched_priority) {
+      case 0:
+        *priority = kSbThreadPriorityHigh;
+        return true;
+      case 1:
+        *priority = kSbThreadPriorityHighest;
+        return true;
+      case 2:
+        *priority = kSbThreadPriorityRealTime;
+        return true;
+      default:
+        return false;
+    }
+  }
+  return false;
+}
