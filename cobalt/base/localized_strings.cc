@@ -114,7 +114,7 @@ bool LocalizedStrings::LoadSingleString(const std::string& message) {
   // A single message is a key/value pair with separator.
   size_t separator_pos = message.find(';');
   if (separator_pos == std::string::npos) {
-    SB_DLOG(ERROR) << "No separator found in: " << message;
+    DLOG(ERROR) << "No separator found in: " << message;
     return false;
   }
 
