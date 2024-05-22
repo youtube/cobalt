@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/logging.h"
 #include "cobalt/dom/navigator.h"
 #include "starboard/speech_synthesis.h"
 
@@ -120,8 +121,8 @@ void SpeechSynthesis::Speak(
       return;
     }
 
-    SB_DLOG(INFO) << "Speaking: \"" << utterance->text() << "\" "
-                  << utterance->lang();
+    DLOG(INFO) << "Speaking: \"" << utterance->text() << "\" "
+               << utterance->lang();
     SbSpeechSynthesisSpeak(utterance->text().c_str());
     utterance->DispatchStartEvent();
     utterance->DispatchEndEvent();

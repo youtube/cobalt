@@ -15,6 +15,7 @@
 #ifndef COBALT_WORKER_SERVICE_WORKER_JOBS_H_
 #define COBALT_WORKER_SERVICE_WORKER_JOBS_H_
 
+#include <atomic>
 #include <deque>
 #include <map>
 #include <memory>
@@ -83,7 +84,7 @@ class ServiceWorkerJobs {
     bool is_pending() const { return is_pending_.load(); }
 
    private:
-    starboard::atomic_bool is_pending_{true};
+    std::atomic_bool is_pending_{true};
     std::unique_ptr<script::ValuePromiseBool::Reference>
         promise_bool_reference_;
     std::unique_ptr<script::ValuePromiseWrappable::Reference>

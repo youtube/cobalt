@@ -14,6 +14,7 @@
 
 #include "cobalt/worker/service_worker_jobs.h"
 
+#include <atomic>
 #include <vector>
 
 #include "base/bind.h"
@@ -814,8 +815,7 @@ void ServiceWorkerJobs::Install(
   // Using a shared pointer because this flag is explicitly defined in the spec
   // to be modified from the worker's event loop, at asynchronous promise
   // completion that may occur after a timeout.
-  std::shared_ptr<starboard::atomic_bool> install_failed(
-      new starboard::atomic_bool(false));
+  std::shared_ptr<std::atomic_bool> install_failed(new std::atomic_bool(false));
 
   // 2. Let newestWorker be the result of running Get Newest Worker algorithm
   //    passing registration as its argument.
@@ -905,7 +905,7 @@ void ServiceWorkerJobs::Install(
           base::Bind(
               [](ServiceWorkerObject* installing_worker,
                  base::WaitableEvent* done_event,
-                 std::shared_ptr<starboard::atomic_bool> install_failed) {
+                 std::shared_ptr<std::atomic_bool> install_failed) {
                 // 11.3.1.1. Let e be the result of creating an event with
                 //           ExtendableEvent.
                 // 11.3.1.2. Initialize e’s type attribute to install.
@@ -922,7 +922,7 @@ void ServiceWorkerJobs::Install(
                 //         If task is discarded, set installFailed to true.
                 auto done_callback = base::BindOnce(
                     [](base::WaitableEvent* done_event,
-                       std::shared_ptr<starboard::atomic_bool> install_failed,
+                       std::shared_ptr<std::atomic_bool> install_failed,
                        bool was_rejected) {
                       if (was_rejected) install_failed->store(true);
                       done_event->Signal();

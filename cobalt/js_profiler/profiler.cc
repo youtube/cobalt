@@ -56,7 +56,7 @@ Profiler::Profiler(script::EnvironmentSettings* settings,
   }
   sample_interval_ = effective_sample_interval_ms;
 
-  SB_LOG(INFO) << "[PROFILER] START " + profiler_id_;
+  LOG(INFO) << "[PROFILER] START " + profiler_id_;
   auto status = profiler_group_->ProfilerStart(
       this, settings,
       v8::CpuProfilingOptions(v8::kLeafNodeLineNumbers,
@@ -95,7 +95,7 @@ void Profiler::DispatchSampleBufferFullEvent() {
 
 Profiler::ProfilerTracePromise Profiler::Stop(
     script::EnvironmentSettings* environment_settings) {
-  SB_LOG(INFO) << "[PROFILER] STOPPING " + profiler_id_;
+  LOG(INFO) << "[PROFILER] STOPPING " + profiler_id_;
   script::HandlePromiseWrappable promise =
       web::get_script_value_factory(environment_settings)
           ->CreateInterfacePromise<scoped_refptr<ProfilerTraceWrapper>>();
@@ -123,7 +123,7 @@ void Profiler::PerformStop(
     ProfilerGroup* profiler_group,
     std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
     base::TimeTicks time_origin, std::string profiler_id) {
-  SB_LOG(INFO) << "[PROFILER] STOPPED " + profiler_id_;
+  LOG(INFO) << "[PROFILER] STOPPED " + profiler_id_;
   auto trace = profiler_group->ProfilerStop(this);
   scoped_refptr<ProfilerTraceWrapper> result(new ProfilerTraceWrapper(trace));
   promise_reference->value().Resolve(result);

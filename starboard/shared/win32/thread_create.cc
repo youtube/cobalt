@@ -153,6 +153,25 @@ int SbThreadPriorityToWin32Priority(SbThreadPriority priority) {
   SB_NOTREACHED() << "Invalid priority " << priority;
   return 0;
 }
+
+SbThreadPriority Win32PriorityToSbThreadPriority(int priority) {
+  switch (priority) {
+    case THREAD_PRIORITY_LOWEST:
+      return kSbThreadPriorityLowest;
+    case THREAD_PRIORITY_BELOW_NORMAL:
+      return kSbThreadPriorityLow;
+    case THREAD_PRIORITY_NORMAL:
+      return kSbThreadPriorityNormal;
+    case THREAD_PRIORITY_ABOVE_NORMAL:
+      return kSbThreadPriorityHigh;
+    case THREAD_PRIORITY_HIGHEST:
+      return kSbThreadPriorityHighest;
+    case THREAD_PRIORITY_TIME_CRITICAL:
+      return kSbThreadPriorityRealTime;
+  }
+  SB_NOTREACHED() << "Invalid priority " << priority;
+  return kSbThreadPriorityNormal;
+}
 }  // namespace
 
 // Note that SetThreadAffinityMask() is not available on some
@@ -198,4 +217,15 @@ SbThread SbThreadCreate(int64_t stack_size,
   ResumeThread(info->thread_private_.handle_);
 
   return &info->thread_private_;
+}
+
+bool SbThreadSetPriority(SbThreadPriority priority) {
+  return SetThreadPriority(GetCurrentThread(),
+                           SbThreadPriorityToWin32Priority(priority));
+}
+
+bool SbThreadGetPriority(SbThreadPriority* priority) {
+  int res = GetThreadPriority(GetCurrentThread());
+  *priority = Win32PriorityToSbThreadPriority(res);
+  return true;
 }

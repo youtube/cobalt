@@ -23,7 +23,6 @@ files: |
 exclude: |
     (?x)^(
         (
-            cobalt/updater|
             glimp/include|
             internal/kokoro/third-party|
             internal/starboard/shared/playstation/glimp/shaders|
@@ -141,7 +140,6 @@ repos:
                 cobalt/math/|
                 cobalt/media/|
                 cobalt/streams/|
-                cobalt/updater/|
                 cobalt/webdriver/screencast/|
                 cobalt/websocket/|
                 components/crx_file/|

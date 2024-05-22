@@ -606,9 +606,6 @@ behavior can be easily configured on a per-app basis with simple command-line fl
 The configurable options for Cobalt Updater configuration are:
 * `--evergreen_lite` *Use the System Image version of Cobalt under Slot_0 and turn
   off the updater for the specified application.*
-* `--disable_updater_module` *Stay on the current version of Cobalt that might be the
-  system image or an installed update, and turn off the updater for the
-  specified application.*
 
 Each app’s Cobalt Updater will perform an independent, regular check for new
 Cobalt Evergreen updates. Note that all apps will share the same set of slots,
@@ -637,7 +634,7 @@ existing slot. In this case, `APP_1` and `APP_2` are now using the same Cobalt
 binaries in SLOT_2.
 
 If `APP_3` has not been launched, not run through a regular Cobalt Updater
-check, or launched with the `--evergreen_lite`/`--disable_updater_module` flag,
+check, or launched with the `--evergreen_lite` flag,
 it stays with its current configuration.
 
 #### AFTER COBALT UPDATE
@@ -664,15 +661,14 @@ loader_app --url="<YOUR_APP_2_URL>"
 loader_app --url="<YOUR_APP_3_URL>"
 
 
-# Only APP_1 gets Evergreen Updates, APP_2 disables the updater and uses an alternate splash screen, APP_3 uses
+# APP_1 gets Evergreen Updates, APP_2 uses an alternate splash screen, APP_3 uses
 # the system image and disables the updater
 [APP_1] (Cobalt Updater ENABLED)
-[APP_2] (Cobalt Updater DISABLED)
+[APP_2] (Cobalt Updater ENABLED)
 [APP_3] (System Image loaded, Cobalt Updater DISABLED)
 
 loader_app --url="<YOUR_APP_1_URL>"
-loader_app --url="<YOUR_APP_2_URL>" --disable_updater_module \
---fallback_splash_screen_url="/<PATH_TO_APP_2>/app_2_splash_screen.html"
+loader_app --url="<YOUR_APP_2_URL>" --fallback_splash_screen_url="/<PATH_TO_APP_2>/app_2_splash_screen.html"
 loader_app --url="<YOUR_APP_3_URL>" --evergreen_lite
 
 

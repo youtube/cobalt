@@ -19,9 +19,6 @@ config("h5vcc_internal_config") {
 
 config("h5vcc_external_config") {
   defines = []
-  if (enable_extended_ifa_in_h5vcc) {
-    defines += [ "COBALT_ENABLE_EXTENDED_IFA" ]
-  }
 }
 
 static_library("h5vcc") {
@@ -108,7 +105,7 @@ static_library("h5vcc") {
       "h5vcc_updater.cc",
       "h5vcc_updater.h",
     ]
-    deps += [ "//cobalt/updater" ]
+    deps += [ "//chrome/updater" ]
   }
 }
 

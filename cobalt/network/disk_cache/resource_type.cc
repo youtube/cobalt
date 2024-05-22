@@ -14,6 +14,8 @@
 
 #include "cobalt/network/disk_cache/resource_type.h"
 
+#include <atomic>
+
 #include "base/logging.h"
 
 namespace cobalt {
@@ -85,27 +87,24 @@ namespace settings {
 
 namespace {
 
-starboard::atomic_int32_t other_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kOther));
-starboard::atomic_int32_t html_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kHTML));
-starboard::atomic_int32_t css_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kCSS));
-starboard::atomic_int32_t image_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kImage));
-starboard::atomic_int32_t font_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kFont));
-starboard::atomic_int32_t splash_screen_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kSplashScreen));
-starboard::atomic_int32_t uncompiled_script_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kUncompiledScript));
-starboard::atomic_int32_t compiled_script_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kCompiledScript));
-starboard::atomic_int32_t cache_api_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kCacheApi));
-starboard::atomic_int32_t service_worker_script_quota =
-    starboard::atomic_int32_t(defaults::GetQuota(kServiceWorkerScript));
-starboard::atomic_bool cache_enabled = starboard::atomic_bool(true);
+std::atomic_int32_t other_quota =
+    std::atomic_int32_t(defaults::GetQuota(kOther));
+std::atomic_int32_t html_quota = std::atomic_int32_t(defaults::GetQuota(kHTML));
+std::atomic_int32_t css_quota = std::atomic_int32_t(defaults::GetQuota(kCSS));
+std::atomic_int32_t image_quota =
+    std::atomic_int32_t(defaults::GetQuota(kImage));
+std::atomic_int32_t font_quota = std::atomic_int32_t(defaults::GetQuota(kFont));
+std::atomic_int32_t splash_screen_quota =
+    std::atomic_int32_t(defaults::GetQuota(kSplashScreen));
+std::atomic_int32_t uncompiled_script_quota =
+    std::atomic_int32_t(defaults::GetQuota(kUncompiledScript));
+std::atomic_int32_t compiled_script_quota =
+    std::atomic_int32_t(defaults::GetQuota(kCompiledScript));
+std::atomic_int32_t cache_api_quota =
+    std::atomic_int32_t(defaults::GetQuota(kCacheApi));
+std::atomic_int32_t service_worker_script_quota =
+    std::atomic_int32_t(defaults::GetQuota(kServiceWorkerScript));
+std::atomic_bool cache_enabled = std::atomic_bool(true);
 
 }  // namespace
 

@@ -15,6 +15,7 @@
 #ifndef COBALT_MEDIA_DECODER_BUFFER_ALLOCATOR_H_
 #define COBALT_MEDIA_DECODER_BUFFER_ALLOCATOR_H_
 
+#include <atomic>
 #include <memory>
 
 #include "base/compiler_specific.h"
@@ -75,7 +76,7 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   int max_buffer_capacity_ = 0;
 
   // Monitor memory allocation and use when |using_memory_pool_| is false
-  starboard::atomic_int32_t sbmemory_bytes_used_;
+  std::atomic_int32_t sbmemory_bytes_used_;
 };
 
 }  // namespace media

@@ -41,7 +41,6 @@ H5vccSystem::H5vccSystem(
       task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       ifa_extension_(static_cast<const StarboardExtensionIfaApi*>(
           SbSystemGetExtension(kStarboardExtensionIfaName))) {
-#if defined(COBALT_ENABLE_EXTENDED_IFA)
   if (ifa_extension_ && ifa_extension_->version >= 2) {
     ifa_extension_->RegisterTrackingAuthorizationCallback(
         this, [](void* context) {
@@ -52,15 +51,12 @@ H5vccSystem::H5vccSystem(
           }
         });
   }
-#endif  // defined(COBALT_ENABLE_EXTENDED_IFA)
 }
 
 H5vccSystem::~H5vccSystem() {
-#if defined(COBALT_ENABLE_EXTENDED_IFA)
   if (ifa_extension_ && ifa_extension_->version >= 2) {
     ifa_extension_->UnregisterTrackingAuthorizationCallback();
   }
-#endif  // defined(COBALT_ENABLE_EXTENDED_IFA)
 }
 
 bool H5vccSystem::are_keys_reversed() const {
@@ -131,12 +127,10 @@ bool H5vccSystem::limit_ad_tracking() const {
   return result;
 }
 
-#if defined(COBALT_ENABLE_EXTENDED_IFA)
-
 std::string H5vccSystem::tracking_authorization_status() const {
-  std::string result = "UNKNOWN";
-  char property[kSystemPropertyMaxLength] = {0};
   if (ifa_extension_ && ifa_extension_->version >= 2) {
+    std::string result = "UNKNOWN";
+    char property[kSystemPropertyMaxLength] = {0};
     if (!ifa_extension_->GetTrackingAuthorizationStatus(
             property, SB_ARRAY_SIZE_INT(property))) {
       DLOG(FATAL)
@@ -144,8 +138,9 @@ std::string H5vccSystem::tracking_authorization_status() const {
     } else {
       result = property;
     }
+    return result;
   }
-  return result;
+  return "NOT_SUPPORTED";
 }
 
 void H5vccSystem::ReceiveTrackingAuthorizationComplete() {
@@ -192,8 +187,6 @@ script::HandlePromiseVoid H5vccSystem::RequestTrackingAuthorization(
 
   return promise;
 }
-
-#endif  // defined(COBALT_ENABLE_EXTENDED_IFA)
 
 std::string H5vccSystem::region() const {
   // No region information.
