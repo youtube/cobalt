@@ -242,8 +242,9 @@ jobs:
       - name: Setup Gradle
         if: startsWith( matrix.target_platform , 'android')
         run: |
-          for i in `seq 1 5`; do
-            starboard/android/apk/gradlew --version || true
+          for i in {1..5}; do
+              if starboard/android/apk/gradlew --version; then break ; fi
+              rm -rf ~/.gradle/wrapper
           done
       - name: GN
         uses: ./.github/actions/gn
