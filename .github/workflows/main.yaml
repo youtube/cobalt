@@ -239,6 +239,12 @@ jobs:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
           persist-credentials: false
+      - name: Setup Gradle
+        if: startsWith( matrix.target_platform , 'android')
+        run: |
+          for i in `seq 1 5`; do
+            starboard/android/apk/gradlew --version || true
+          done
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
