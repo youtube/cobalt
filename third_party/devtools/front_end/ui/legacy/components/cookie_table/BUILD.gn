@@ -1,0 +1,54 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../../../scripts/build/ninja/devtools_module.gni")
+import("../../../../../scripts/build/ninja/generate_css.gni")
+import("../../visibility.gni")
+
+generate_css("css_files") {
+  sources = [ "cookiesTable.css" ]
+}
+
+devtools_module("cookie_table") {
+  sources = [ "CookiesTable.ts" ]
+
+  deps = [
+    "../../../../core/common:bundle",
+    "../../../../core/i18n:bundle",
+    "../../../../core/platform:bundle",
+    "../../../../core/root:bundle",
+    "../../../../core/sdk:bundle",
+    "../../../../generated:protocol",
+    "../../../../models/issues_manager:bundle",
+    "../../../../panels/network/forward:bundle",
+    "../../../../ui/legacy:bundle",
+    "../../../../ui/legacy/components/data_grid:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "cookie_table.ts"
+
+  deps = [
+    ":cookie_table",
+    ":css_files",
+  ]
+
+  visibility = [
+    ":*",
+    "../../../../panels/application/*",
+    "../../../../panels/network/*",
+  ]
+
+  visibility += devtools_ui_legacy_visibility
+}
+
+devtools_entrypoint("legacy") {
+  entrypoint = "cookie_table-legacy.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [ "../../../..:legacy_entrypoints" ]
+}

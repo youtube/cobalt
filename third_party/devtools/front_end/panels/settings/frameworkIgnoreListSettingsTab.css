@@ -1,0 +1,112 @@
+/*
+ * Copyright 2015 The Chromium Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+:host {
+  overflow: hidden;
+}
+
+.header {
+  padding: 0 0 6px;
+  border-bottom: var(--legacy-divider-border);
+  font-size: 18px;
+  font-weight: normal;
+  flex: none;
+}
+
+.intro {
+  margin-top: 10px;
+}
+
+.ignore-list-option {
+  flex: none;
+  padding: 3px 6px;
+  min-height: 30px;
+}
+
+.ignore-list-option-group {
+  margin-top: 16px;
+  margin-bottom: 3px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.add-button {
+  margin: 10px 2px;
+  align-self: flex-start;
+  flex: none;
+}
+
+.ignore-list {
+  max-width: 500px;
+  flex: 0 1 auto;
+}
+
+.ignore-list-global-enable {
+  padding: 3px 0;
+  color: var(--color-text-secondary);
+  font-size: 120%;
+  margin-top: 20px;
+}
+
+.ignore-list-item {
+  padding: 3px 5px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex: auto 1 1;
+}
+
+.ignore-list-pattern {
+  flex: auto;
+  min-width: 100px;
+}
+
+.ignore-list-item .ignore-list-pattern {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: none;
+  color: var(--color-text-primary);
+  overflow: hidden;
+}
+
+.ignore-list-edit-row {
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  margin: 6px 5px;
+  align-items: center;
+}
+
+.ignore-list-edit-row input,
+.ignore-list-edit-row select {
+  width: 100%;
+  text-align: inherit;
+}
+
+.ignore-list-options {
+  margin-left: 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ignore-list-options.ignore-listing-disabled {
+  opacity: 30%;
+}
+
+.list:has(.ignore-list-empty),
+.list:has(.ignore-list-edit-row),
+.list:has(.ignore-list-item) {
+  border: none;
+}
+
+.editor-container:has(.ignore-list-edit-row) {
+  background: var(--color-background-elevation-0);
+}
+
+.ignore-list.list-editing ~ .add-button {
+  display: none;
+}

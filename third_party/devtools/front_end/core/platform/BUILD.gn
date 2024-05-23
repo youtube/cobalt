@@ -1,0 +1,65 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+import("../../../scripts/build/ninja/devtools_pre_built.gni")
+import("../../../scripts/build/ninja/node.gni")
+import("../../../scripts/build/ninja/vars.gni")
+
+node_action("generate_dcheck") {
+  script = "front_end/core/platform/generate-dcheck.js"
+
+  args = [ rebase_path(target_gen_dir, root_build_dir) ]
+
+  if (devtools_dcheck_always_on) {
+    args += [ "--should-dcheck" ]
+  }
+
+  outputs = [ "$target_gen_dir/dcheck.js" ]
+  data = outputs
+
+  if (is_debug) {
+    metadata = {
+      grd_files = outputs
+    }
+  }
+}
+
+devtools_pre_built("dcheck") {
+  sources = [
+    "dcheck-tsconfig.json",
+    "dcheck.d.ts",
+  ]
+
+  deps = [ ":generate_dcheck" ]
+}
+
+devtools_module("platform") {
+  sources = [
+    "DevToolsPath.ts",
+    "UIString.ts",
+    "UserVisibleError.ts",
+    "array-utilities.ts",
+    "brand.ts",
+    "date-utilities.ts",
+    "dom-utilities.ts",
+    "keyboard-utilities.ts",
+    "map-utilities.ts",
+    "number-utilities.ts",
+    "set-utilities.ts",
+    "string-utilities.ts",
+    "typescript-utilities.ts",
+  ]
+
+  deps = [ ":dcheck" ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "platform.ts"
+
+  deps = [ ":platform" ]
+
+  visibility = [ "*" ]
+}

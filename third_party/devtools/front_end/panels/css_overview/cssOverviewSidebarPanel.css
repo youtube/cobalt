@@ -1,0 +1,57 @@
+/**
+ * Copyright 2019 The Chromium Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+.overview-sidebar-panel {
+  overflow: auto;
+  display: flex;
+  background: var(--color-background-elevation-1);
+}
+
+.overview-sidebar-panel-item {
+  height: 30px;
+  padding-left: 30px;
+  display: flex;
+  align-items: center;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.overview-sidebar-panel-container {
+  min-width: fit-content;
+}
+
+.overview-sidebar-panel-item:hover,
+.overview-sidebar-panel-item:focus {
+  background: var(--color-background-highlight);
+}
+
+.overview-sidebar-panel-item.selected {
+  background: var(--color-primary-old);
+  color: var(--color-background);
+}
+
+.overview-toolbar {
+  border-bottom: 1px solid var(--color-details-hairline);
+  flex: 0 0 auto;
+}
+
+.overview-sidebar-panel-item:focus-visible {
+  outline-width: unset;
+}
+
+@media (forced-colors: active) {
+  .overview-sidebar-panel-item.selected {
+    forced-color-adjust: none; /* crbug.com/1166705 workaround */
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .overview-sidebar-panel-item:hover {
+    forced-color-adjust: none; /* crbug.com/1166705 workaround */
+    background: Highlight;
+    color: HighlightText;
+  }
+}

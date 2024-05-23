@@ -1,0 +1,31 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../../scripts/build/ninja/copy.gni")
+
+copy_to_gen("application") {
+  sources = [
+    "app-manifest-id.html",
+    "app-manifest-no-id.html",
+    "cookies.html",
+    "cross-origin-cookies.html",
+    "dedicated-worker.js",
+    "frame-tree.html",
+    "iframe.html",
+    "js-oopif.html",
+    "main-frame.html",
+    "main.css",
+    "manifest-id.json",
+    "manifest-no-id.json",
+    "reporting-api.html",
+    "reporting-api.rawresponse",
+    "service-worker-network.html",
+    "service-worker.js",
+    "session-storage.html",
+    "set-cookies.rawresponse",
+    "shared-storage.html",
+    "storage-quota.html",
+    "websql-database.html",
+  ]
+}

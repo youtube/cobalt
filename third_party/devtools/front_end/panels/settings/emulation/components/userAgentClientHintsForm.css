@@ -1,0 +1,117 @@
+/*
+ * Copyright 2021 The Chromium Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+.root {
+  color: var(--color-text-primary);
+  width: 100%;
+}
+
+.tree-title {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+}
+
+.rotate-icon {
+  transform: rotate(90deg);
+}
+
+.form-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 8px;
+  padding: 0 10px;
+}
+
+.full-row {
+  grid-column: 1 / 5;
+}
+
+.half-row {
+  grid-column: span 2;
+}
+
+.mobile-checkbox-container {
+  display: flex;
+}
+
+.device-model-input {
+  grid-column: 1 / 4;
+}
+
+.input-field {
+  color: var(--color-text-primary);
+  padding: 3px 6px;
+  border: none;
+  border-radius: 2px;
+  box-shadow: var(--legacy-focus-ring-inactive-shadow);
+  background-color: var(--color-background);
+  font-size: inherit;
+  height: 18px;
+}
+
+.input-field:focus {
+  box-shadow: var(--legacy-focus-ring-active-shadow);
+  outline-width: 0;
+}
+
+.add-container {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.add-icon {
+  margin-right: 5px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.brand-row > input {
+  width: 100%;
+}
+
+.info-icon {
+  margin-left: 5px;
+  margin-right: 1px;
+}
+
+.link,
+.devtools-link {
+  color: var(--color-link);
+  text-decoration: underline;
+  cursor: pointer;
+  outline-offset: 2px;
+  font-weight: 400;
+}
+
+.hide-container {
+  display: none;
+}
+
+.input-field-label-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (forced-colors: active) {
+  .input-field {
+    border: 1px solid;
+  }
+
+  .tree-title[aria-disabled="true"] {
+    color: GrayText;
+  }
+}

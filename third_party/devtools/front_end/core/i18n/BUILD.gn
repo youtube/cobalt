@@ -1,0 +1,81 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+import("../../../scripts/build/ninja/devtools_pre_built.gni")
+import("../../../scripts/build/ninja/node.gni")
+
+import("//$devtools_root_location/config/gni/i18n.gni")
+
+devtools_module("i18n") {
+  sources = [
+    "DevToolsLocale.ts",
+    "i18nImpl.ts",
+    "i18nTypes.ts",
+    "time-utilities.ts",
+  ]
+
+  deps = [
+    ":locales_js",
+    "../../core/platform:bundle",
+    "../../core/root:bundle",
+    "../../third_party/i18n:bundle",
+    "../../third_party/intl-messageformat:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "i18n.ts"
+  deps = [ ":i18n" ]
+
+  visibility = [ "*" ]
+}
+
+node_action("generate_locales_js") {
+  script = "front_end/core/i18n/generate-locales-js.js"
+
+  args = [
+    "--target-gen-dir",
+    rebase_path(target_gen_dir, root_build_dir),
+  ]
+  args += [ "--remote-locales" ]
+  args += remote_devtools_locales
+
+  args += [ "--bundled-locales" ]
+  args += bundled_devtools_locales
+
+  args += [
+    "--default-locale",
+    devtools_default_locale,
+  ]
+
+  args += [
+    "--remote-fetch-pattern",
+    remote_fetch_pattern,
+  ]
+
+  args += [
+    "--local-fetch-pattern",
+    local_fetch_pattern,
+  ]
+
+  outputs = [ "$target_gen_dir/locales.js" ]
+  data = outputs
+
+  if (is_debug) {
+    metadata = {
+      grd_files = outputs
+    }
+  }
+}
+
+devtools_pre_built("locales_js") {
+  sources = [
+    "locales.d.ts",
+    "locales_js-tsconfig.json",
+  ]
+
+  deps = [ ":generate_locales_js" ]
+}

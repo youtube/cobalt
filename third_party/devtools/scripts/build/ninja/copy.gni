@@ -1,0 +1,33 @@
+# Copyright 2021 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("./node.gni")
+import("./vars.gni")
+template("copy_to_gen") {
+  node_action(target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "sources",
+                             "visibility",
+                             "deps",
+                             "testonly",
+                           ])
+
+    script = "scripts/build/ninja/copy-files.js"
+
+    _copy_src = rebase_path(get_path_info(target_name, "dir"), root_build_dir)
+    _copy_dest = rebase_path(target_gen_dir, root_build_dir)
+
+    args = [
+      _copy_src,
+      _copy_dest,
+      string_join(",", sources),
+    ]
+
+    outputs = []
+    foreach(_input, sources) {
+      outputs += [ "$target_gen_dir/$_input" ]
+    }
+  }
+}

@@ -31,7 +31,7 @@ declare_args() {
   } else {
     # DevTools is building a standalone version
     devtools_location = ""
-    devtools_root_location = ""
+    devtools_root_location = "third_party/devtools"
     devtools_grd_location = ""
   }
 }

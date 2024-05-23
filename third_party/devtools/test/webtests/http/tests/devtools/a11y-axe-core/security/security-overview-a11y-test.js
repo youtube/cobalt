@@ -3,20 +3,21 @@
 // found in the LICENSE file.
 
 (async function() {
-  await TestRunner.loadModule('security_test_runner');
-  await TestRunner.loadModule('axe_core_test_runner');
+  await TestRunner.loadTestModule('security_test_runner');
+  await TestRunner.loadTestModule('axe_core_test_runner');
   await TestRunner.showPanel('security');
 
-  const pageSecurityState = new Security.PageSecurityState(Protocol.Security.SecurityState.Secure, /* explanations= */ [], null);
-
+  const pageVisibleSecurityState = new Security.PageVisibleSecurityState(
+    Protocol.Security.SecurityState.Secure, /* certificateSecurityState= */ null,
+    /* safetyTipsInfo= */ null, /* securityStateIssueIds= */ []);
   TestRunner.mainTarget.model(Security.SecurityModel).dispatchEventToListeners(
-    Security.SecurityModel.Events.SecurityStateChanged, pageSecurityState);
+    Security.SecurityModel.Events.VisibleSecurityStateChanged, pageVisibleSecurityState);
   const request = new SDK.NetworkRequest(0, 'http://foo.test', 'https://foo.test', 0, 0, null);
   request.setBlockedReason(Protocol.Network.BlockedReason.MixedContent);
   request.mixedContentType = 'blockable';
   SecurityTestRunner.dispatchRequestFinished(request);
-  const securityPanel = runtime.sharedInstance(Security.SecurityPanel);
-  await AxeCoreTestRunner.runValidation(securityPanel._mainView.contentElement);
+  const securityPanel = Security.SecurityPanel.instance();
+  await AxeCoreTestRunner.runValidation(securityPanel.mainView.contentElement);
 
   TestRunner.completeTest();
 })();
