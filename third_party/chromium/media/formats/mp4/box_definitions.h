@@ -408,7 +408,7 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   FlacSpecificBox dfla;
   OpusSpecificBox dops;
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  IamfSpecificBox iamf;
+  IamfSpecificBox iacb;
 #endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 };
 
