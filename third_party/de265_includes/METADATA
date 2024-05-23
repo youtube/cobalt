@@ -5,11 +5,11 @@ description:
   "from the installed package."
 
 third_party {
-  url {
-    type: GIT
+  identifier {
+    type: "Git"
     value: "https://github.com/strukturag/libde265"
+    version: "7f848e2e257d7a29e2a73c7f4950ef596804789d"
   }
-  version: "7f848e2e257d7a29e2a73c7f4950ef596804789d"
   last_upgrade_date {
     year: 2018
     month: 4

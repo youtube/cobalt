@@ -1,3 +1,5 @@
+name: "crx_file"
+
 third_party {
   identifier {
     type: "ChromiumVersion"
