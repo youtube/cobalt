@@ -1933,15 +1933,23 @@ if (!is_robolectric && enable_java_templates) {
             "_RESOURCES_VERSION_VARIABLE=${invoker.resources_version_variable}",
           ]
         }
+      } else if (is_cronet_build && !is_java_debug) {
+        # Cronet never uses use_final_fields=true, so make this a reasonable default.
+        defines += [ "_DISABLE_DEBUG_LOGS" ]
       }
 
-      if (defined(testonly) && testonly) {
+      _test_only = defined(testonly) && testonly
+      if (_test_only) {
         defines += [ "_IS_FOR_TEST" ]
       }
 
       if (defined(invoker.write_clang_profiling_data) &&
           invoker.write_clang_profiling_data) {
         defines += [ "_WRITE_CLANG_PROFILING_DATA" ]
+      }
+
+      if (!is_java_debug && !_test_only) {
+        defines += [ "_DISABLE_DEBUG_LOGS" ]
       }
     }
   }
