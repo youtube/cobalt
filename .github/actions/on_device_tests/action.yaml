@@ -108,7 +108,7 @@ runs:
       uses: actions/upload-artifact@v3
       if: env.TEST_TYPE == 'unit_test'
       with:
-        name: logs
+        name: ${{ matrix.platform }}_${{ matrix.shard }} logs
         path: |
           ${RESULTS_PATH}/
           !${RESULTS_PATH}/*.zip
