@@ -15,6 +15,7 @@
 #ifndef COBALT_WORKER_SERVICE_WORKER_OBJECT_H_
 #define COBALT_WORKER_SERVICE_WORKER_OBJECT_H_
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <set>
@@ -196,7 +197,7 @@ class ServiceWorkerObject
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-start-status
   std::unique_ptr<std::string> start_status_;
 
-  starboard::atomic_bool start_failed_;
+  std::atomic_bool start_failed_;
 
   scoped_refptr<WorkerGlobalScope> worker_global_scope_;
 

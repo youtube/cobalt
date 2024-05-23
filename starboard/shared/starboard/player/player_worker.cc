@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/player_worker.h"
 
+#include <pthread.h>
+
 #include <string>
 #include <utility>
 
@@ -22,6 +24,7 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/reset_and_return.h"
 #include "starboard/memory.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
 namespace shared {
@@ -77,7 +80,7 @@ PlayerWorker* PlayerWorker::CreateInstance(
                        update_media_info_cb, decoder_status_func,
                        player_status_func, player_error_func, player, context);
 
-  if (ret && SbThreadIsValid(ret->thread_)) {
+  if (ret && ret->thread_ != 0) {
     return ret;
   }
   delete ret;
@@ -87,10 +90,10 @@ PlayerWorker* PlayerWorker::CreateInstance(
 PlayerWorker::~PlayerWorker() {
   ON_INSTANCE_RELEASED(PlayerWorker);
 
-  if (SbThreadIsValid(thread_)) {
+  if (thread_ != 0) {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
-    SbThreadJoin(thread_, NULL);
-    thread_ = kSbThreadInvalid;
+    pthread_join(thread_, NULL);
+    thread_ = 0;
 
     // Now the whole pipeline has been torn down and no callback will be called.
     // The caller can ensure that upon the return of SbPlayerDestroy() all side
@@ -107,7 +110,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbPlayerErrorFunc player_error_func,
                            SbPlayer player,
                            void* context)
-    : thread_(kSbThreadInvalid),
+    : thread_(0),
       audio_codec_(audio_codec),
       video_codec_(video_codec),
       handler_(std::move(handler)),
@@ -125,10 +128,15 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   ON_INSTANCE_CREATED(PlayerWorker);
 
   ThreadParam thread_param(this);
-  thread_ = SbThreadCreate(kPlayerStackSize, kSbThreadPriorityHigh,
-                           kSbThreadNoAffinity, true, "player_worker",
-                           &PlayerWorker::ThreadEntryPoint, &thread_param);
-  if (!SbThreadIsValid(thread_)) {
+
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+  pthread_attr_setstacksize(&attributes, kPlayerStackSize);
+  pthread_create(&thread_, &attributes, &PlayerWorker::ThreadEntryPoint,
+                 &thread_param);
+  pthread_attr_destroy(&attributes);
+
+  if (thread_ == 0) {
     SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
     return;
   }
@@ -184,6 +192,8 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
 
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "player_worker");
+  shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
   ThreadParam* param = static_cast<ThreadParam*>(context);
   SB_DCHECK(param != NULL);
   PlayerWorker* player_worker = param->player_worker;

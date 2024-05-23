@@ -34,6 +34,9 @@ config("common") {
   defines = [
     "_UNICODE",
     "UNICODE",
+
+    # min and max collide with std::min and std::max
+    "NOMINMAX",
   ]
 
   # msvs_base
@@ -224,7 +227,7 @@ config("common") {
     # but it's a universally acceptable price for better performance.
     "/wd4820",
 
-    # warning C4828: character 'ü' in net/dns/dns_names_util_unittest.cc
+    # warning C4828: character 'ï¿½' in net/dns/dns_names_util_unittest.cc
     "/wd4828",
 
     # Disable static analyzer warning for std::min and std::max with

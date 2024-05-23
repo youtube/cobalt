@@ -1631,6 +1631,7 @@ TEST_F(TracingServiceImplTest, ProducerIDWrapping) {
   ASSERT_EQ(6u, connect_producer_and_get_id("6"));
 }
 
+#if !defined(STARBOARD)
 // Note: file_write_period_ms is set to a large enough to have exactly one flush
 // of the tracing buffers (and therefore at most one synchronization section),
 // unless the test runs unrealistically slowly, or the implementation of the
@@ -1712,6 +1713,7 @@ TEST_F(TracingServiceImplTest, WriteIntoFileAndStopOnMaxSize) {
     ASSERT_EQ(kPayload + std::to_string(i++), tp.for_testing().str());
   }
 }
+#endif
 
 TEST_F(TracingServiceImplTest, WriteIntoFileWithPath) {
   auto tmp_file = base::TempFile::Create();
@@ -1765,6 +1767,7 @@ TEST_F(TracingServiceImplTest, WriteIntoFileWithPath) {
                   Property(&protos::gen::TestEvent::str, Eq("payload")))));
 }
 
+#if !defined(STARBOARD)
 TEST_F(TracingServiceImplTest, WriteIntoFileFilterMultipleChunks) {
   static const size_t kNumTestPackets = 5;
   static const size_t kPayloadSize = 500 * 1024UL;
@@ -1831,6 +1834,7 @@ TEST_F(TracingServiceImplTest, WriteIntoFileFilterMultipleChunks) {
   EXPECT_EQ(total_size, stats.filter_stats().output_bytes());
   EXPECT_GT(total_size, kNumTestPackets * kPayloadSize);
 }
+#endif
 
 // Test the logic that allows the trace config to set the shm total size and
 // page size from the trace config. Also check that, if the config doesn't
@@ -2406,6 +2410,7 @@ TEST_F(TracingServiceImplTest, SessionId) {
   }
 }
 
+#if !defined(STARBOARD)
 // Writes a long trace and then tests that the trace parsed in partitions
 // derived by the synchronization markers is identical to the whole trace parsed
 // in one go.
@@ -2484,6 +2489,7 @@ TEST_F(TracingServiceImplTest, ResynchronizeTraceStreamUsingSyncMarker) {
   ASSERT_EQ(whole_trace.packet_size(), merged_trace.packet_size());
   EXPECT_EQ(whole_trace.SerializeAsString(), merged_trace.SerializeAsString());
 }
+#endif
 
 // Creates a tracing session with |deferred_start| and checks that data sources
 // are started only after calling StartTracing().

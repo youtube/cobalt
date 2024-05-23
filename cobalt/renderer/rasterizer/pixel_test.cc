@@ -19,6 +19,7 @@
 #include "base/files/file_path.h"
 #include "base/i18n/char_iterator.h"
 #include "base/i18n/icu_string_conversions.h"
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
 #include "cobalt/base/unicode/character.h"
@@ -4040,7 +4041,7 @@ scoped_refptr<Node> CreateMapToMeshTestRenderTree(
 
 TEST_F(PixelTest, MapToMeshRGBTest) {
   if (!IsMapToMeshEnabled()) {
-    SB_LOG(INFO) << "Map to mesh not supported. Test skipped.";
+    LOG(INFO) << "Map to mesh not supported. Test skipped.";
     return;
   }
 

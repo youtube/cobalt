@@ -21,6 +21,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/path_service.h"
 #include "base/task/sequenced_task_runner.h"
@@ -120,7 +121,7 @@ class Application {
                                        media_sandbox_.GetMediaModule());
 
       if (!guesstimator1.is_valid()) {
-        SB_LOG(ERROR) << "Invalid path or url: " << argv[argc - 1];
+        LOG(ERROR) << "Invalid path or url: " << argv[argc - 1];
         // Fall off to PrintUsage() and terminate.
       } else if (guesstimator1.is_progressive()) {
         InitializeProgressivePlayback(guesstimator1);
@@ -129,14 +130,14 @@ class Application {
         InitializeAdaptivePlayback(guesstimator1);
         return;
       } else if (guesstimator1.is_audio() && guesstimator2.is_audio()) {
-        SB_LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
-                      << " and " << argv[argc - 2]
-                      << " are audio streams, check usage for more details.";
+        LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
+                   << " and " << argv[argc - 2]
+                   << " are audio streams, check usage for more details.";
         // Fall off to PrintUsage() and terminate.
       } else if (!guesstimator1.is_audio() && !guesstimator2.is_audio()) {
-        SB_LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
-                      << " and " << argv[argc - 2]
-                      << " are video streams, check usage for more details.";
+        LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
+                   << " and " << argv[argc - 2]
+                   << " are video streams, check usage for more details.";
         // Fall off to PrintUsage() and terminate.
       } else if (guesstimator1.is_audio()) {
         InitializeAdaptivePlayback(guesstimator1, guesstimator2);

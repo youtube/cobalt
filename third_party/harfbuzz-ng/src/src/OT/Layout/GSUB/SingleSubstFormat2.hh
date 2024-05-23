@@ -36,8 +36,24 @@ struct SingleSubstFormat2_4
 
   void closure (hb_closure_context_t *c) const
   {
-    + hb_zip (this+coverage, substitute)
-    | hb_filter (c->parent_active_glyphs (), hb_first)
+    auto &cov = this+coverage;
+    auto &glyph_set = c->parent_active_glyphs ();
+
+    if (substitute.len > glyph_set.get_population () * 4)
+    {
+      for (auto g : glyph_set)
+      {
+	unsigned i = cov.get_coverage (g);
+	if (i == NOT_COVERED || i >= substitute.len)
+	  continue;
+	c->output->add (substitute.arrayZ[i]);
+      }
+
+      return;
+    }
+
+    + hb_zip (cov, substitute)
+    | hb_filter (glyph_set, hb_first)
     | hb_map (hb_second)
     | hb_sink (c->output)
     ;
@@ -59,6 +75,31 @@ struct SingleSubstFormat2_4
   bool would_apply (hb_would_apply_context_t *c) const
   { return c->len == 1 && (this+coverage).get_coverage (c->glyphs[0]) != NOT_COVERED; }
 
+  unsigned
+  get_glyph_alternates (hb_codepoint_t  glyph_id,
+                        unsigned        start_offset,
+                        unsigned       *alternate_count  /* IN/OUT.  May be NULL. */,
+                        hb_codepoint_t *alternate_glyphs /* OUT.     May be NULL. */) const
+  {
+    unsigned int index = (this+coverage).get_coverage (glyph_id);
+    if (likely (index == NOT_COVERED))
+    {
+      if (alternate_count)
+        *alternate_count = 0;
+      return 0;
+    }
+
+    if (alternate_count && *alternate_count)
+    {
+      glyph_id = substitute[index];
+
+      *alternate_glyphs = glyph_id;
+      *alternate_count = 1;
+    }
+
+    return 1;
+  }
+
   bool apply (hb_ot_apply_context_t *c) const
   {
     TRACE_APPLY (this);
@@ -71,7 +112,7 @@ struct SingleSubstFormat2_4
     {
       c->buffer->sync_so_far ();
       c->buffer->message (c->font,
-			  "replacing glyph at %d (single substitution)",
+			  "replacing glyph at %u (single substitution)",
 			  c->buffer->idx);
     }
 
@@ -80,8 +121,8 @@ struct SingleSubstFormat2_4
     if (HB_BUFFER_MESSAGE_MORE && c->buffer->messaging ())
     {
       c->buffer->message (c->font,
-			  "replaced glyph at %d (single substitution)",
-			  c->buffer->idx - 1);
+			  "replaced glyph at %u (single substitution)",
+			  c->buffer->idx - 1u);
     }
 
     return_trace (true);

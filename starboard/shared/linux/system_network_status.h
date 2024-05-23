@@ -17,7 +17,6 @@
 
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 
 class NetworkNotifier : public starboard::Singleton<NetworkNotifier> {
  public:
@@ -29,7 +28,7 @@ class NetworkNotifier : public starboard::Singleton<NetworkNotifier> {
   void set_online(bool is_online) { is_online_ = is_online; }
 
  private:
-  SbThread notifier_thread_;
+  pthread_t notifier_thread_;
   bool is_online_ = true;
 };
 

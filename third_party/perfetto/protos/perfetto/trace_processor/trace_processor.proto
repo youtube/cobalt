@@ -75,8 +75,8 @@ message TraceProcessorRpc {
     TPM_FINALIZE_TRACE_DATA = 2;
     TPM_QUERY_STREAMING = 3;
     // Previously: TPM_QUERY_RAW_DEPRECATED
-    reserved 4;
-    reserved "TPM_QUERY_RAW_DEPRECATED";
+    //reserved 4;
+    //reserved "TPM_QUERY_RAW_DEPRECATED";
     TPM_COMPUTE_METRIC = 5;
     TPM_GET_METRIC_DESCRIPTORS = 6;
     TPM_RESTORE_INITIAL_TABLES = 7;

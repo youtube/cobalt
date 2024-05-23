@@ -15,20 +15,18 @@
 #endif
 #endif
 
-#if !defined(STARBOARD)
 /* How to obtain thread-local storage */
 #if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
 #define THREAD_LOCAL  __declspec(thread)
 #else
 #define THREAD_LOCAL  __thread
 #endif
-#endif
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME  "libjpeg-turbo"
 
 /* Version number of package */
-#define VERSION  "2.1.4"
+#define VERSION  "2.1.5.1"
 
 /* The size of `size_t', as computed by sizeof. */
 #include <stdint.h>

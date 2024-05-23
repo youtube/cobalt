@@ -1,8 +1,9 @@
 project('harfbuzz', 'c', 'cpp',
   meson_version: '>= 0.55.0',
-  version: '5.3.1',
+  version: '7.1.0',
   default_options: [
-    'cpp_rtti=false',       # Just to support msvc, we are passing -fno-exceptions also anyway
+    'cpp_eh=none',          # Just to support msvc, we are passing -fno-exceptions also anyway
+    'cpp_rtti=false',       # Just to support msvc, we are passing -fno-rtti also anyway
     'cpp_std=c++11',
     'wrap_mode=nofallback', # Use --wrap-mode=default to revert, https://github.com/harfbuzz/harfbuzz/pull/2548
   ],
@@ -14,7 +15,7 @@ hb_version_minor = hb_version_arr[1].to_int()
 hb_version_micro = hb_version_arr[2].to_int()
 
 # libtool versioning
-hb_version_int = hb_version_major*10000 + hb_version_minor*100 + hb_version_micro
+hb_version_int = 60000 + hb_version_major*100 + hb_version_minor*10 + hb_version_micro
 hb_libtool_version_info = '@0@:0:@0@'.format(hb_version_int)
 
 pkgmod = import('pkgconfig')
@@ -27,17 +28,12 @@ if cpp.get_argument_syntax() == 'msvc'
   # If a warning is harmless but hard to fix, use '/woXXXX' so it's shown once
   # NOTE: Only add warnings here if you are sure they're spurious
   msvc_args = [
-    '/wd4018', # implicit signed/unsigned conversion
-    '/wd4146', # unary minus on unsigned (beware INT_MIN)
     '/wd4244', # lossy type conversion (e.g. double -> int)
-    '/wd4305', # truncating type conversion (e.g. double -> float)
     cpp.get_supported_arguments(['/utf-8']), # set the input encoding to utf-8
   ]
   add_project_arguments(msvc_args, language: ['c', 'cpp'])
   # Disable SAFESEH with MSVC for libs that use external deps that are built with MinGW
   # noseh_link_args = ['/SAFESEH:NO']
-  # disable exception handling
-  add_project_arguments(['/EHs-', '/EHc-'], language: 'cpp')
 endif
 
 add_project_link_arguments(cpp.get_supported_link_arguments([
@@ -83,20 +79,35 @@ check_funcs = [
 
 m_dep = cpp.find_library('m', required: false)
 
-
-# Try pkgconfig name
-freetype_dep = dependency('freetype2', required: false)
-if not freetype_dep.found()
-  # Try cmake name
-  freetype_dep = dependency('freetype', required: false)
-endif
-if not freetype_dep.found()
-  # Subproject fallback, `allow_fallback: true` means the fallback will be
-  # tried even if the freetype option is set to `auto`.
-  freetype_dep = dependency('freetype2',
+if meson.version().version_compare('>=0.60.0')
+  # pkg-config: freetype2, cmake: Freetype
+  freetype_dep = dependency('freetype2', 'Freetype',
                             required: get_option('freetype'),
                             default_options: ['harfbuzz=disabled'],
                             allow_fallback: true)
+else
+  # painful hack to handle multiple dependencies but also respect options
+  freetype_opt = get_option('freetype')
+  # we want to handle enabled manually after fallbacks, but also handle disabled normally
+  if freetype_opt.enabled()
+    freetype_opt = false
+  endif
+  # try pkg-config name
+  freetype_dep = dependency('freetype2', method: 'pkg-config', required: freetype_opt)
+  # when disabled, leave it not-found
+  if not freetype_dep.found() and not get_option('freetype').disabled()
+    # Try cmake name
+    freetype_dep = dependency('Freetype', method: 'cmake', required: false)
+    # Subproject fallback, `allow_fallback: true` means the fallback will be
+    # tried even if the freetype option is set to `auto`.
+    if not freetype_dep.found()
+      freetype_dep = dependency('freetype2',
+                                method: 'pkg-config',
+                                required: get_option('freetype'),
+                                default_options: ['harfbuzz=disabled'],
+                                allow_fallback: true)
+    endif
+  endif
 endif
 
 glib_dep = dependency('glib-2.0', required: get_option('glib'))
@@ -104,18 +115,36 @@ gobject_dep = dependency('gobject-2.0', required: get_option('gobject'))
 graphite2_dep = dependency('graphite2', required: get_option('graphite2'))
 graphite_dep = dependency('graphite2', required: get_option('graphite'))
 
-# Try pkgconfig name
-icu_dep = dependency('icu-uc', required: false)
-if not icu_dep.found()
-  # Try cmake name
-  icu_dep = dependency('ICU',
-                       required: false,
-                       components: 'uc',
-                       method: 'cmake')
-endif
-if not icu_dep.found()
-  # Subproject fallback if icu option is enabled
-  icu_dep = dependency('icu-uc', required: get_option('icu'))
+if meson.version().version_compare('>=0.60.0')
+  # pkg-config: icu-uc, cmake: ICU but with components
+  icu_dep = dependency('icu-uc', 'ICU',
+                            components: 'uc',
+                            required: get_option('icu'),
+                            default_options: ['harfbuzz=disabled'],
+                            allow_fallback: true)
+else
+  # painful hack to handle multiple dependencies but also respect options
+  icu_opt = get_option('icu')
+  # we want to handle enabled manually after fallbacks, but also handle disabled normally
+  if icu_opt.enabled()
+    icu_opt = false
+  endif
+  # try pkg-config name
+  icu_dep = dependency('icu-uc', method: 'pkg-config', required: icu_opt)
+  # when disabled, leave it not-found
+  if not icu_dep.found() and not get_option('icu').disabled()
+    # Try cmake name
+    icu_dep = dependency('ICU', method: 'cmake', components: 'uc', required: false)
+    # Try again with subproject fallback. `allow_fallback: true` means the
+    # fallback will be tried even if the icu option is set to `auto`, but
+    # we cannot pass this option until Meson 0.59.0, because no wrap file
+    # is checked into git.
+    if not icu_dep.found()
+      icu_dep = dependency('icu-uc',
+                           method: 'pkg-config',
+                           required: get_option('icu'))
+    endif
+  endif
 endif
 
 if icu_dep.found() and icu_dep.type_name() == 'pkgconfig'
@@ -148,7 +177,8 @@ if not get_option('cairo').disabled()
     # harfbuzz support disabled, so when cairo will lookup freetype2 dependency
     # it will be forced to use that one.
     cairo_dep = dependency('cairo', required: get_option('cairo'))
-    cairo_ft_dep = dependency('cairo-ft', required: get_option('cairo'))
+    cairo_ft_required = get_option('cairo').enabled() and get_option('freetype').enabled()
+    cairo_ft_dep = dependency('cairo-ft', required: cairo_ft_required)
   endif
 endif
 
@@ -175,10 +205,19 @@ endif
 
 if cairo_dep.found()
   conf.set('HAVE_CAIRO', 1)
+  check_cairo_funcs = [
+    ['cairo_user_font_face_set_render_color_glyph_func', {'deps': cairo_dep}],
+    ['cairo_font_options_get_custom_palette_color', {'deps': cairo_dep}],
+    ['cairo_user_scaled_font_get_foreground_source', {'deps': cairo_dep}],
+  ]
+
   if cairo_dep.type_name() == 'internal'
-    conf.set('HAVE_CAIRO_USER_FONT_FACE_SET_RENDER_COLOR_GLYPH_FUNC', 1)
+    foreach func: check_cairo_funcs
+      name = func[0]
+      conf.set('HAVE_@0@'.format(name.to_upper()), 1)
+    endforeach
   else
-    check_funcs += [['cairo_user_font_face_set_render_color_glyph_func', {'deps': cairo_dep}]]
+    check_funcs += check_cairo_funcs
   endif
 endif
 
@@ -334,7 +373,10 @@ foreach check : check_funcs
 endforeach
 
 subdir('src')
-subdir('util')
+
+if not get_option('utilities').disabled()
+  subdir('util')
+endif
 
 if not get_option('tests').disabled()
   subdir('test')
@@ -350,6 +392,9 @@ endif
 
 configure_file(output: 'config.h', configuration: conf)
 
+alias_target('lib', libharfbuzz)
+alias_target('libs', libharfbuzz, libharfbuzz_subset)
+
 build_summary = {
   'Directories':
     {'prefix': get_option('prefix'),
@@ -364,7 +409,8 @@ build_summary = {
      'ICU': conf.get('HAVE_ICU', 0) == 1,
     },
   'Font callbacks (the more the merrier)':
-    {'FreeType': conf.get('HAVE_FREETYPE', 0) == 1,
+    {'Builtin' : true,
+     'FreeType': conf.get('HAVE_FREETYPE', 0) == 1,
     },
   'Dependencies used for command-line utilities':
     {'Cairo': conf.get('HAVE_CAIRO', 0) == 1,
@@ -381,6 +427,7 @@ build_summary = {
   'Other features':
     {'Documentation': conf.get('HAVE_GTK_DOC', 0) == 1,
      'GObject bindings': conf.get('HAVE_GOBJECT', 0) == 1,
+     'Cairo integration': conf.get('HAVE_CAIRO', 0) == 1,
      'Introspection': conf.get('HAVE_INTROSPECTION', 0) == 1,
      'Experimental APIs': conf.get('HB_EXPERIMENTAL_API', 0) == 1,
     },

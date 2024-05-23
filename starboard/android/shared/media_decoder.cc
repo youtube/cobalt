@@ -153,9 +153,9 @@ MediaDecoder::~MediaDecoder() {
     condition_variable_.Signal();
   }
 
-  if (SbThreadIsValid(decoder_thread_)) {
-    SbThreadJoin(decoder_thread_, NULL);
-    decoder_thread_ = kSbThreadInvalid;
+  if (decoder_thread_ != 0) {
+    pthread_join(decoder_thread_, NULL);
+    decoder_thread_ = 0;
   }
 
   if (is_valid()) {
@@ -197,14 +197,10 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     return;
   }
 
-  if (!SbThreadIsValid(decoder_thread_)) {
-    decoder_thread_ = SbThreadCreate(
-        0,
-        media_type_ == kSbMediaTypeAudio ? kSbThreadPriorityNormal
-                                         : kSbThreadPriorityHigh,
-        kSbThreadNoAffinity, true, GetDecoderName(media_type_),
-        &MediaDecoder::DecoderThreadEntryPoint, this);
-    SB_DCHECK(SbThreadIsValid(decoder_thread_));
+  if (decoder_thread_ == 0) {
+    pthread_create(&decoder_thread_, nullptr,
+                   &MediaDecoder::DecoderThreadEntryPoint, this);
+    SB_DCHECK(decoder_thread_ != 0);
   }
 
   ScopedLock scoped_lock(mutex_);
@@ -240,6 +236,13 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   SB_DCHECK(context);
   MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+  pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
+  if (decoder->media_type_ == kSbMediaTypeAudio) {
+    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityNormal);
+  } else {
+    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  }
+
   decoder->DecoderThreadFunc();
   return NULL;
 }
@@ -626,7 +629,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 
   // TODO(b/291959069): After |decoder_thread_| is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.
-  if (destroying_.load() || !SbThreadIsValid(decoder_thread_)) {
+  if (destroying_.load() || decoder_thread_ == 0) {
     return;
   }
 
@@ -672,9 +675,9 @@ bool MediaDecoder::Flush() {
     ScopedLock scoped_lock(mutex_);
     condition_variable_.Signal();
   }
-  if (SbThreadIsValid(decoder_thread_)) {
-    SbThreadJoin(decoder_thread_, NULL);
-    decoder_thread_ = kSbThreadInvalid;
+  if (decoder_thread_ != 0) {
+    pthread_join(decoder_thread_, NULL);
+    decoder_thread_ = 0;
   }
 
   // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.

@@ -52,8 +52,9 @@ class SourceBufferMetrics {
   SourceBufferMetrics(const SourceBufferMetrics&) = delete;
   SourceBufferMetrics& operator=(const SourceBufferMetrics&) = delete;
 
-  void RecordTelemetry(SourceBufferMetricsAction action,
-                       const base::TimeDelta& action_duration);
+  void RecordUMATelemetry(SourceBufferMetricsAction action,
+                          const base::TimeDelta& action_duration,
+                          size_t size_appended);
 
   base::TimeTicks wall_start_time_;
 

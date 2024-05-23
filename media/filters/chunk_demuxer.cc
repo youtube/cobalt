@@ -506,6 +506,13 @@ void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
   // Other cases are kOk and just return the buffers.
   DCHECK(!buffers.empty());
   requested_buffer_count_ = 0;
+#if defined(STARBOARD)
+  for (auto&& buffer : buffers) {
+    if (!buffer->end_of_stream()) {
+      write_head_ = std::max(write_head_, buffer->timestamp());
+    }
+  }
+#endif  // defined(STARBOARD)
   std::move(read_cb_).Run(kOk, std::move(buffers));
 }
 

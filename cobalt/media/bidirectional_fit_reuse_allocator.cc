@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "starboard/common/log.h"
+#include "base/logging.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/types.h"
 
@@ -38,7 +38,7 @@ BidirectionalFitReuseAllocator::FindFreeBlock(std::size_t size,
                                               FreeBlockSet::iterator begin,
                                               FreeBlockSet::iterator end,
                                               bool* allocate_from_front) {
-  SB_DCHECK(allocate_from_front);
+  DCHECK(allocate_from_front);
 
   *allocate_from_front = size > small_allocation_threshold_;
 

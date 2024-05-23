@@ -1,6 +1,7 @@
 TESTS = \
 	tests/32bit_var_store.tests \
 	tests/basics.tests \
+	tests/preprocess.tests \
 	tests/cbdt.tests \
 	tests/cff-full-font.tests \
 	tests/cff-japanese.tests \
@@ -10,6 +11,7 @@ TESTS = \
 	tests/colr.tests \
 	tests/colr_glyphs.tests \
 	tests/colrv1.tests \
+	tests/colrv1_copy_varstore.tests \
 	tests/colr_with_components.tests \
 	tests/full-font.tests \
 	tests/glyf_bug_3131.tests \
@@ -41,12 +43,26 @@ TESTS = \
 	tests/layout.duplicate_features.tests \
 	tests/layout.unsorted_featurelist.tests \
 	tests/layout.drop_feature.tests \
+	tests/no_layout_closure.tests \
         tests/sbix.tests \
 	tests/variable.tests \
 	tests/glyph_names.tests \
 	tests/math.tests \
 	tests/math_coverage_offset.tests \
 	tests/post.tests \
+	tests/full_instance.tests \
+	tests/instance_feature_variations.tests \
+	tests/instantiate_glyf.tests \
+	tests/instantiate_cff2.tests \
+	tests/pin_all_at_default.tests \
+	tests/instance_no_double_free.tests \
+	tests/mvar_full_instance.tests \
+	tests/instance_comp_glyph_empty_child.tests \
+	tests/post_apply_mvar_delta.tests \
+	tests/apply_cvar_delta.tests \
+	tests/collect_name_ids.tests \
+	tests/instantiate_colrv1.tests \
+	tests/instantiate_cff2_update_metrics.tests \
 	$(NULL)
 
 # TODO: re-enable once colrv1 subsetting is stabilized.
@@ -59,8 +75,4 @@ XFAIL_TESTS = \
 
 # Disabled because instancing is only available w/ experimental API on.
 DISABLED_TESTS = \
-	tests/full_instance.tests \
-	tests/instance_feature_variations.tests \
-	tests/instantiate_glyf.tests \
-	tests/pin_all_at_default.tests \
 	$(NULL)

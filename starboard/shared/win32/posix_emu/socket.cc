@@ -289,7 +289,23 @@ int close(int fd) {
   return _close(handle.file);
 }
 
-off_t sb_lseek(int fd, off_t offset, int origin) {
+int fsync(int fd) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _commit(handle.file);
+}
+
+int ftruncate(int fd, off_t length) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _chsize(handle.file, length);
+}
+
+long lseek(int fd, long offset, int origin) {  // NOLINT
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
     return -1;
@@ -297,12 +313,28 @@ off_t sb_lseek(int fd, off_t offset, int origin) {
   return _lseek(handle.file, offset, origin);
 }
 
-ssize_t sb_read(int fd, void* buf, size_t nbyte) {
+int sb_fstat(int fd, struct stat* buffer) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
     return -1;
   }
-  return _read(handle.file, buf, nbyte);
+  return _fstat(handle.file, (struct _stat*)buffer);
+}
+
+int read(int fd, void* buffer, unsigned int buffer_size) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _read(handle.file, buffer, buffer_size);
+}
+
+int write(int fd, const void* buffer, unsigned int count) {
+  FileOrSocket handle = handle_db_get(fd, false);
+  if (!handle.is_file) {
+    return -1;
+  }
+  return _write(handle.file, buffer, count);
 }
 
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
@@ -463,14 +495,6 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
     }
   }
   return 0;
-}
-
-int sb_fstat(int fd, struct stat* buffer) {
-  FileOrSocket handle = handle_db_get(fd, false);
-  if (!handle.is_file) {
-    return -1;
-  }
-  return _fstat(handle.file, (struct _stat*)buffer);
 }
 
 }  // extern "C"
