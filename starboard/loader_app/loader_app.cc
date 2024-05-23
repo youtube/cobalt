@@ -27,10 +27,12 @@
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/app_key.h"
 #include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/memory_tracker_thread.h"
+#include "starboard/loader_app/record_loader_app_status.h"
 #include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
@@ -259,6 +261,8 @@ void SbEventHandle(const SbEvent* event) {
     }
 
     if (is_evergreen_lite) {
+      starboard::loader_app::RecordSlotSelectionStatus(
+          SlotSelectionStatus::kEGLite);
       LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
     } else {
       std::string url =
