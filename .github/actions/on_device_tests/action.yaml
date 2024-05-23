@@ -94,26 +94,27 @@ runs:
     - name: Download ${{ matrix.platform }} Test Results
       if: env.TEST_TYPE == 'unit_test'
       env:
-        RESULTS_PATH: results
         COBALT_XMLS_FILENAME: cobalt_xmls.zip
+        RESULTS_PATH: results
+        UNIT_TEST_RESULTS: unit-test-results
       run: |
         set -eux
         mkdir results
         gsutil -d cp -r "${GCS_PATH}/results/${GITHUB_RUN_ID}" ${RESULTS_PATH}
-        mkdir -p unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}/
-        unzip ${RESULTS_PATH}/${COBALT_XMLS_FILENAME} -d unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}/
-        # Since we're uploading the contents of the zip file we can skip uploading it.
-        rm ${RESULTS_PATH}/${COBALT_XMLS_FILENAME}
+        mkdir -p ${UNIT_TEST_RESULTS}/${{ matrix.platform }}/${{ matrix.shard }}/
+        unzip ${RESULTS_PATH}/${COBALT_XMLS_FILENAME} -d ${UNIT_TEST_RESULTS}/${{ matrix.platform }}/${{ matrix.shard }}/
       shell: bash
     - name: Archive Unit Test Logs
       uses: actions/upload-artifact@v3
       if: env.TEST_TYPE == 'unit_test'
       with:
         name: logs
-        path: ${RESULTS_PATH}/
+        path: |
+          ${RESULTS_PATH}/
+          !${RESULTS_PATH}/*.zip
     - name: Archive Unit Test Results
       uses: actions/upload-artifact@v3
       if: env.TEST_TYPE == 'unit_test'
       with:
         name: unit-test-results
-        path: unit-test-results/
+        path: ${UNIT_TEST_RESULTS}/
