@@ -25,6 +25,23 @@ extern "C" {
 #define kCobaltExtensionOnScreenKeyboardName \
   "dev.cobalt.extension.OnScreenKeyboard"
 
+#if SB_API_VERSION >= 16
+
+// System-triggered OnScreenKeyboard events have ticket value
+// kSbEventOnScreenKeyboardInvalidTicket.
+#define kSbEventOnScreenKeyboardInvalidTicket (-1)
+
+// Defines a rectangle via a point |(x, y)| and a size |(width, height)|. This
+// structure is used as output for GetBoundingRect.
+typedef struct SbWindowRect {
+  float x;
+  float y;
+  float width;
+  float height;
+} SbWindowRect;
+
+#endif  // #if SB_API_VERSION >= 16
+
 typedef struct CobaltExtensionOnScreenKeyboardApi {
   // Name should be the string
   // |kCobaltExtensionOnScreenKeyboardName|. This helps to validate that

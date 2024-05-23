@@ -14,6 +14,7 @@
 
 #include "cobalt/audio/audio_destination_node.h"
 
+#include "base/logging.h"
 #include "cobalt/audio/audio_context.h"
 
 namespace cobalt {
@@ -59,7 +60,7 @@ void AudioDestinationNode::OnInputNodeConnected() {
   if (!audio_device_) {
     audio_device_.reset(
         new AudioDevice(static_cast<int>(channel_count(NULL)), this));
-    SB_LOG(INFO) << "Created audio device " << audio_device_.get() << '.';
+    LOG(INFO) << "Created audio device " << audio_device_.get() << '.';
     context()->PreventGarbageCollection();
   }
   delete_audio_device_ = false;
@@ -79,8 +80,8 @@ void AudioDestinationNode::FillAudioBus(bool all_consumed, AudioBus* audio_bus,
   bool all_finished = true;
   Input(0)->FillAudioBus(audio_bus, silence, &all_finished);
   if (all_consumed && all_finished) {
-    SB_LOG(INFO) << "Schedule to destroy audio device " << audio_device_.get()
-                 << '.';
+    LOG(INFO) << "Schedule to destroy audio device " << audio_device_.get()
+              << '.';
     delete_audio_device_ = true;
     task_runner_->PostTask(FROM_HERE,
                            base::Bind(&AudioDestinationNode::DestroyAudioDevice,
@@ -94,7 +95,7 @@ void AudioDestinationNode::DestroyAudioDevice() {
     return;
   }
   if (delete_audio_device_) {
-    SB_LOG(INFO) << "Destroying audio device " << audio_device_.get() << '.';
+    LOG(INFO) << "Destroying audio device " << audio_device_.get() << '.';
     audio_device_.reset();
     context()->AllowGarbageCollection();
     delete_audio_device_ = false;

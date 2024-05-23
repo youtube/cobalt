@@ -89,7 +89,7 @@
 #include "url/gurl.h"
 
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #endif
 
 using cobalt::cssom::ViewportSize;
@@ -893,8 +893,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   AddCrashHandlerAnnotations(platform_info);
 
 #if SB_IS(EVERGREEN)
-  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
-      !command_line->HasSwitch(switches::kDisableUpdaterModule)) {
+  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
     uint64_t update_check_delay_sec =
         cobalt::updater::kDefaultUpdateCheckDelaySeconds;
     if (command_line->HasSwitch(browser::switches::kUpdateCheckDelaySeconds)) {

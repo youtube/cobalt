@@ -254,6 +254,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/pthread/thread_get_local_value.cc",
     "//starboard/shared/pthread/thread_is_equal.cc",
     "//starboard/shared/pthread/thread_join.cc",
+    "//starboard/shared/pthread/thread_priority.cc",
     "//starboard/shared/pthread/thread_sampler_create.cc",
     "//starboard/shared/pthread/thread_sampler_destroy.cc",
     "//starboard/shared/pthread/thread_sampler_freeze.cc",

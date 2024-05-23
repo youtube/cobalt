@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/string_split.h"
@@ -153,7 +154,7 @@ FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url,
     bool is_from_root = !path_or_url.empty() && path_or_url[0] == '/';
     auto path_from_root = (is_from_root ? "" : "/") + path_or_url;
     progressive_url_ = GURL("file://" + path_from_root);
-    SB_LOG(INFO) << progressive_url_.spec();
+    LOG(INFO) << progressive_url_.spec();
     mime_type_ = "video/mp4; codecs=\"avc1.640028, mp4a.40.2\"";
   }
 }

@@ -142,6 +142,14 @@ static inline bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
 }
 #endif
 
+#if SB_API_VERSION >= 16
+// Set the thread priority of the current thread.
+SB_EXPORT bool SbThreadSetPriority(SbThreadPriority priority);
+
+// Get the thread priority of the current thread.
+SB_EXPORT bool SbThreadGetPriority(SbThreadPriority* priority);
+#endif
+
 // Creates a new thread, which starts immediately.
 // - If the function succeeds, the return value is a handle to the newly
 //   created thread.
@@ -335,7 +343,11 @@ SB_EXPORT bool SbThreadSamplerIsSupported();
 //
 // If successful, this function returns the newly created handle.
 // If unsuccessful, this function returns |kSbThreadSamplerInvalid|.
+#if SB_API_VERSION < 16
+SB_EXPORT SbThreadSampler SbThreadSamplerCreate(SbThread thread);
+#else
 SB_EXPORT SbThreadSampler SbThreadSamplerCreate(pthread_t thread);
+#endif
 
 // Destroys the |sampler| and frees whatever resources it was using.
 SB_EXPORT void SbThreadSamplerDestroy(SbThreadSampler sampler);

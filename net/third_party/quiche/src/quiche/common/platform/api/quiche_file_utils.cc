@@ -12,6 +12,7 @@ absl::optional<std::string> ReadFileContents(absl::string_view file) {
   return ReadFileContentsImpl(file);
 }
 
+#if !defined(STARBOARD)
 bool EnumerateDirectory(absl::string_view path,
                         std::vector<std::string>& directories,
                         std::vector<std::string>& files) {
@@ -41,11 +42,17 @@ bool EnumerateDirectoryRecursivelyInner(absl::string_view path,
   }
   return true;
 }
+#endif  // !defined(STARBOARD)
 
 bool EnumerateDirectoryRecursively(absl::string_view path,
                                    std::vector<std::string>& files) {
+#if defined(STARBOARD)
+  // TODO(b/341949298): Use |base::FileEnumerator| and upstream change.
+  return EnumerateDirectoryRecursivelyImpl(path, files);
+#else
   constexpr int kRecursionLimit = 20;
   return EnumerateDirectoryRecursivelyInner(path, kRecursionLimit, files);
+#endif
 }
 
 }  // namespace quiche

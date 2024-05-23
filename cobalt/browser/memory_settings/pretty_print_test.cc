@@ -23,10 +23,10 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/logging.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "cobalt/browser/switches.h"
-#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
@@ -46,7 +46,7 @@ bool HasTokensInOrder(const std::string& value,
     EXPECT_NE(position, std::string::npos);
     EXPECT_GE(position, current_position);
     if (position == std::string::npos) {
-      SB_DLOG(INFO) << "Token \"" << token << "\" not found in order.";
+      DLOG(INFO) << "Token \"" << token << "\" not found in order.";
       return false;
     }
     current_position = position + strlen(token);
