@@ -83,6 +83,7 @@ public class Log {
     }
 
     /**
+<<<<<<< HEAD
      * In debug: Forwards to {@link android.util.Log#isLoggable(String, int)}, but always
      * In release: Always returns false (via proguard rule).
 >>>>>>> 18c2154a7f2 (Android: Remove Log.isDebug())
@@ -94,6 +95,17 @@ public class Log {
 =======
         return android.util.Log.isLoggable(tag, level);
 >>>>>>> 18c2154a7f2 (Android: Remove Log.isDebug())
+=======
+     * When BuildConfig.ENABLE_DEBUG_LOGS=true, returns true. Otherwise, forwards to {@link
+     * android.util.Log#isLoggable(String, int)} (which returns false for levels < INFO, unless
+     * configured otherwise by R8's -maximumremovedandroidloglevel).
+     *
+     * <p>https://stackoverflow.com/questions/7948204/does-log-isloggable-returns-wrong-values
+     */
+    @AlwaysInline
+    public static boolean isLoggable(String tag, int level) {
+        return BuildConfig.ENABLE_DEBUG_LOGS || android.util.Log.isLoggable(tag, level);
+>>>>>>> 4ee1bf16b34 (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
     }
 
     /**

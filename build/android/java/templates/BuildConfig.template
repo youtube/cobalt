@@ -71,6 +71,7 @@ public class BuildConfig {
     public static boolean IS_FOR_TEST;
 #endif
 
+<<<<<<< HEAD
 #if defined(_IS_CRONET_BUILD)
     public static boolean IS_CRONET_BUILD = true;
 #else
@@ -112,4 +113,11 @@ public class BuildConfig {
 #endif
 
     public static final String LOGTAG_PREFIX = QUOTE(_LOGTAG_PREFIX);
+=======
+#if defined(_DISABLE_DEBUG_LOGS)
+    public static MAYBE_FINAL boolean ENABLE_DEBUG_LOGS MAYBE_FALSE;
+#else
+    public static MAYBE_FINAL boolean ENABLE_DEBUG_LOGS = true;
+#endif
+>>>>>>> 4ee1bf16b34 (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
 }

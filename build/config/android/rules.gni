@@ -1946,6 +1946,7 @@ if (!is_robolectric && enable_java_templates) {
         defines += [ "_IS_INCREMENTAL_INSTALL" ]
       }
 
+<<<<<<< HEAD
       if (defined(invoker.min_sdk_version)) {
         defines += [ "_MIN_SDK_VERSION=${invoker.min_sdk_version}" ]
       } else {
@@ -1966,6 +1967,25 @@ if (!is_robolectric && enable_java_templates) {
           "_APK_ASSETS_SUFFIXED_LIST=${invoker.apk_assets_suffixed_list}",
           "_APK_ASSETS_SUFFIX=${invoker.apk_assets_suffix}",
         ]
+=======
+      if (invoker.use_final_fields) {
+        forward_variables_from(invoker, [ "deps" ])
+        defines += [ "USE_FINAL" ]
+        if (invoker.enable_multidex) {
+          defines += [ "ENABLE_MULTIDEX" ]
+        }
+        if (defined(invoker.min_sdk_version)) {
+          defines += [ "_MIN_SDK_VERSION=${invoker.min_sdk_version}" ]
+        }
+        if (defined(invoker.resources_version_variable)) {
+          defines += [
+            "_RESOURCES_VERSION_VARIABLE=${invoker.resources_version_variable}",
+          ]
+        }
+      } else if (is_cronet_build && !is_java_debug) {
+        # Cronet never uses use_final_fields=true, so make this a reasonable default.
+        defines += [ "_DISABLE_DEBUG_LOGS" ]
+>>>>>>> 4ee1bf16b34 (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
       }
 
       _test_only = defined(testonly) && testonly
@@ -1973,6 +1993,7 @@ if (!is_robolectric && enable_java_templates) {
         defines += [ "_IS_FOR_TEST" ]
       }
 
+<<<<<<< HEAD
       if (!is_java_debug && (!_test_only || is_cronet_build)) {
         defines += [ "_DISABLE_DEBUG_LOGS" ]
       }
@@ -1996,6 +2017,11 @@ if (!is_robolectric && enable_java_templates) {
           invoker.disable_strict_mode_context) {
         defines += [ "_DISABLE_STRICT_MODE_CONTEXT" ]
       }
+=======
+      if (!is_java_debug && !_test_only) {
+        defines += [ "_DISABLE_DEBUG_LOGS" ]
+      }
+>>>>>>> 4ee1bf16b34 (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
     }
   }
 
