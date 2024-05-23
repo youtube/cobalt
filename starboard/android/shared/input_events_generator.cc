@@ -175,15 +175,15 @@ SbKey AInputEventToSbKey(GameActivityKeyEvent* event) {
 
     // D-pad
     case AKEYCODE_DPAD_UP:
-      return kSbKeyGamepadDPadUp;
+      return kSbKeyUp;
     case AKEYCODE_DPAD_DOWN:
-      return kSbKeyGamepadDPadDown;
+      return kSbKeyDown;
     case AKEYCODE_DPAD_LEFT:
-      return kSbKeyGamepadDPadLeft;
+      return kSbKeyLeft;
     case AKEYCODE_DPAD_RIGHT:
-      return kSbKeyGamepadDPadRight;
+      return kSbKeyRight;
     case AKEYCODE_DPAD_CENTER:
-      return kSbKeyGamepad1;
+      return kSbKeyReturn;
 
     // Game controller
     case AKEYCODE_BUTTON_A:
