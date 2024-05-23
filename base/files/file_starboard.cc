@@ -24,10 +24,9 @@
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/notreached.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
-#include "starboard/common/file.h"
-#include "starboard/common/log.h"
 #include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/file.h"
 
@@ -312,7 +311,7 @@ bool File::SetLength(int64_t length) {
   DCHECK(IsValid());
 
   SCOPED_FILE_TRACE_WITH_SIZE("SetLength", length);
-  return ftruncate(file_.get(), length) == 0;
+  return !ftruncate(file_.get(), length);
 }
 
 bool File::SetTimes(Time last_access_time, Time last_modified_time) {
@@ -413,40 +412,45 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   }
 
   if (flags & FLAG_CREATE_ALWAYS) {
-    DCHECK(!open_flags);
+    SB_DCHECK(!open_flags);
     open_flags = O_CREAT | O_TRUNC;
   }
 
   if (flags & FLAG_OPEN_TRUNCATED) {
-    DCHECK(!open_flags);
-    DCHECK(flags & FLAG_WRITE);
+    SB_DCHECK(!open_flags);
+    SB_DCHECK(flags & FLAG_WRITE);
     open_flags = O_TRUNC;
   }
 
   if (!open_flags && !(flags & FLAG_OPEN) && !(flags & FLAG_OPEN_ALWAYS)) {
-    NOTREACHED() << "Passed incompatible flags: " << flags;
-    error_details_ = FILE_ERROR_FAILED;
+    SB_NOTREACHED();
+    errno = EOPNOTSUPP;
   }
 
-  if (flags & FLAG_WRITE || flags & FLAG_APPEND && flags & FLAG_READ) {
+  if (flags & FLAG_WRITE && flags & FLAG_READ) {
     open_flags |= O_RDWR;
-  } else if (flags & FLAG_WRITE || flags & FLAG_APPEND) {
+  } else if (flags & FLAG_WRITE) {
     open_flags |= O_WRONLY;
   }
 
+  SB_COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
+
   int mode = S_IRUSR | S_IWUSR;
-  int descriptor = open(path.value().c_str(), open_flags, mode);
+  int descriptor = HANDLE_EINTR(open(path.value().c_str(), open_flags, mode));
+
+  if (descriptor >= 0)
+    created_ = true;
 
   if (flags & FLAG_OPEN_ALWAYS) {
     if (descriptor < 0) {
       open_flags |= O_CREAT;
-      descriptor = open(path.value().c_str(), open_flags, mode);
+      descriptor = HANDLE_EINTR(open(path.value().c_str(), open_flags, mode));
+      if (descriptor >= 0)
+        created_ = true;
     }
   }
 
-  file_.reset(descriptor);
-
-  if (file_.get() < 0) {
+  if (descriptor < 0) {
     error_details_ = OSErrorToFileError(g_sb_file_error);
   } else {
     error_details_ = FILE_OK;
@@ -467,7 +471,7 @@ bool File::Flush() {
   DCHECK(IsValid());
   SCOPED_FILE_TRACE("Flush");
 
-  return fsync(file_.get());
+  return !fsync(file_.get());
 }
 
 void File::SetPlatformFile(PlatformFile file) {

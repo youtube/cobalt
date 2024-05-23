@@ -140,7 +140,7 @@ void TrustStoreInMemoryStarboard::SyncGetIssuersOf(
     ParsedCertificateList* issuers) {
   DCHECK(issuers);
   DCHECK(issuers->empty());
-  starboard::ScopedLock scoped_lock(load_mutex_);
+  base::AutoLock scoped_lock(load_mutex_);
   // Look up the request certificate first in the trust store in memory.
   underlying_trust_store_.SyncGetIssuersOf(cert, issuers);
   if (issuers->empty()) {
@@ -156,7 +156,7 @@ void TrustStoreInMemoryStarboard::SyncGetIssuersOf(
 
 CertificateTrust TrustStoreInMemoryStarboard::GetTrust(const ParsedCertificate* cert,
                           base::SupportsUserData* debug_data) {
-  starboard::ScopedLock scoped_lock(load_mutex_);
+  base::AutoLock scoped_lock(load_mutex_);
   // Loop up the request certificate first in the trust store in memory.
   CertificateTrust trust = underlying_trust_store_.GetTrust(cert, debug_data);
   if (trust.HasUnspecifiedTrust()) {

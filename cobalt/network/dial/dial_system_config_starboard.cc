@@ -81,11 +81,8 @@ std::string DialSystemConfig::GeneratePlatformUuid() {
   path.append(kInAppDialUuidFilename);
 
   bool created;
-  SbFileError error;
-  starboard::ScopedFile file(path.c_str(),
-                             kSbFileOpenAlways | kSbFileRead | kSbFileWrite,
-                             &created, &error);
-  if (error != kSbFileOk) {
+  starboard::ScopedFile file(path.c_str(), O_RDWR | O_CREAT | O_WRONLY);
+  if (!file.IsValid()) {
     LOG(ERROR) << "Unable to open or create " << path;
     return GenerateRandomUuid();
   }

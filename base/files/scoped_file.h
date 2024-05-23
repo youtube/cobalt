@@ -25,7 +25,7 @@ namespace base {
 namespace internal {
 
 #if defined(STARBOARD)
-struct BASE_EXPORT ScopedSbFileCloseTraits {
+struct BASE_EXPORT ScopedFDCloseTraits {
   static int InvalidValue() { return -1; }
   static void Free(int file) { close(file); }
 };
@@ -108,7 +108,7 @@ void BASE_EXPORT ResetFDOwnership();
 
 // -----------------------------------------------------------------------------
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || #if defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
 // A low-level Posix file descriptor closer class. Use this when writing
 // platform-specific code, especially that does non-file-like things with the
 // FD (like sockets).

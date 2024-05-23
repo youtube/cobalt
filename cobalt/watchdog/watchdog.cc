@@ -25,6 +25,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/time/time.h"
 #include "starboard/common/file.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
@@ -131,8 +132,7 @@ std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
   // previous Watchdog violations file containing violations before app start,
   // if it exists.
   if (violations_map_ == nullptr) {
-    starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(),
-                                    kSbFileOpenOnly | kSbFileRead);
+    starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(), O_RDWR);
     if (read_file.IsValid()) {
       int64_t kFileSize = read_file.GetSize();
       std::vector<char> buffer(kFileSize + 1, 0);
@@ -169,7 +169,7 @@ std::vector<std::string> Watchdog::GetWatchdogViolationClientNames() {
 
   if (is_disabled_) return names;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   auto violation_map = GetViolationsMap()->GetDict().Clone();
   for (base::Value::Dict::iterator it = violation_map.begin();
        it != violation_map.end(); ++it) {
@@ -181,7 +181,7 @@ std::vector<std::string> Watchdog::GetWatchdogViolationClientNames() {
 void Watchdog::UpdateState(base::ApplicationState state) {
   if (is_disabled_) return;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   state_ = state;
 }
 
@@ -191,7 +191,7 @@ void Watchdog::WriteWatchdogViolations() {
   base::JSONWriter::Write(*GetViolationsMap(), &watchdog_json);
   LOG(INFO) << "[Watchdog] Writing violations to JSON:\n" << watchdog_json;
   starboard::ScopedFile watchdog_file(GetWatchdogFilePath().c_str(),
-                                      kSbFileCreateAlways | kSbFileWrite);
+                                      O_CREAT | O_WRONLY);
   watchdog_file.WriteAll(watchdog_json.c_str(),
                          static_cast<int>(watchdog_json.size()));
   pending_write_ = false;
@@ -200,7 +200,7 @@ void Watchdog::WriteWatchdogViolations() {
 
 void* Watchdog::Monitor(void* context) {
   pthread_setname_np(pthread_self(), "Watchdog");
-  starboard::ScopedLock scoped_lock(static_cast<Watchdog*>(context)->mutex_);
+  base::AutoLock scoped_lock(static_cast<Watchdog*>(context)->mutex_);
   while (1) {
     int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
     bool watchdog_violation = false;
@@ -226,8 +226,9 @@ void* Watchdog::Monitor(void* context) {
     if (watchdog_violation) MaybeTriggerCrash(context);
 
     // Wait
-    static_cast<Watchdog*>(context)->monitor_wait_.WaitTimed(
+    base::TimeDelta timeout = base::Microseconds(
         static_cast<Watchdog*>(context)->watchdog_monitor_frequency_);
+    static_cast<Watchdog*>(context)->monitor_wait_.TimedWait(timeout);
 
     // Shutdown
     if (!(static_cast<Watchdog*>(context)->is_monitoring_.load())) break;
@@ -464,7 +465,7 @@ bool Watchdog::Register(std::string name, std::string description,
                         int64_t time_wait_microseconds, Replace replace) {
   if (is_disabled_) return true;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   int64_t current_time = starboard::CurrentPosixTime();
   int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
@@ -508,7 +509,7 @@ std::shared_ptr<Client> Watchdog::RegisterByClient(
     int64_t time_wait_microseconds) {
   if (is_disabled_) return nullptr;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   int64_t current_time = starboard::CurrentPosixTime();
   int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
@@ -564,9 +565,13 @@ bool Watchdog::Unregister(const std::string& name, bool lock) {
   if (is_disabled_) return true;
 
   // Unregisters.
-  if (lock) mutex_.Acquire();
-  auto result = client_map_.erase(name);
-  if (lock) mutex_.Release();
+  int result = 0;
+  if (lock) {
+    base::AutoLock lock(mutex_);
+    result = client_map_.erase(name);
+  } else {
+    result = client_map_.erase(name);
+  }
 
   if (result) {
     DLOG(INFO) << "[Watchdog] Unregistered: " << name;
@@ -579,7 +584,7 @@ bool Watchdog::Unregister(const std::string& name, bool lock) {
 bool Watchdog::UnregisterByClient(std::shared_ptr<Client> client) {
   if (is_disabled_) return true;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   std::string name = "";
   if (client) name = client->name;
@@ -601,7 +606,7 @@ bool Watchdog::Ping(const std::string& name) { return Ping(name, ""); }
 bool Watchdog::Ping(const std::string& name, const std::string& info) {
   if (is_disabled_) return true;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   auto it = client_map_.find(name);
   bool client_exists = it != client_map_.end();
@@ -625,7 +630,7 @@ bool Watchdog::PingByClient(std::shared_ptr<Client> client,
   std::string name = "";
   if (client) name = client->name;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   for (auto it = client_list_.begin(); it != client_list_.end(); it++) {
     if (client == *it) {
@@ -675,7 +680,7 @@ std::string Watchdog::GetWatchdogViolations(
 
   std::string fetched_violations_json = "";
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   if (GetViolationsMap()->DictSize() != 0) {
     if (clients.empty()) {
@@ -838,7 +843,7 @@ void Watchdog::SetPersistentSettingLogtraceEnable(bool enable_logtrace) {
 void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
   if (is_disabled_) return;
 
-  starboard::ScopedLock scoped_lock(delay_mutex_);
+  base::AutoLock scoped_lock(delay_mutex_);
 
   if (name != delay_name_) return;
 

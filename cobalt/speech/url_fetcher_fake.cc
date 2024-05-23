@@ -24,7 +24,6 @@
 #include "cobalt/network/custom/url_fetcher_response_writer.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
 #include "net/base/io_buffer.h"
-#include "starboard/common/log.h"
 
 namespace cobalt {
 namespace speech {

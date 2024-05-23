@@ -875,7 +875,8 @@ Cobalt */
 /* Cobalt
       base::ScopedFILE input(base::OpenFile(kioslaverc, "r"));
 Cobalt */
-      base::ScopedFILE input(new starboard::ScopedFile(kioslaverc.value().c_str(), kSbFileOpenOnly | kSbFileRead));
+      base::ScopedFILE input(
+          new starboard::ScopedFile(kioslaverc.value().c_str(), O_RDWR));
       if (!input.get())
         continue;
 

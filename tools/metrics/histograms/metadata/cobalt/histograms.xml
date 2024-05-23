@@ -327,6 +327,30 @@ Always run the pretty print utility on this file after editing:
   <summary>Transfer id used in SDR playbacks.</summary>
 </histogram>
 
+<histogram name="Cobalt.Media.SourceBuffer.AppendBuffer.BytesAppended"
+    units="bytes" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer metrics. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The number of bytes appended during `SourceBuffer.appendBuffer` calls.
+  </summary>
+</histogram>
+
+<histogram
+    name="Cobalt.Media.SourceBuffer.AppendBuffer.BytesAppendedPerMicrosecond"
+    units="bytes per microsecond" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer metrics. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    A measure of the rate at which `SourceBuffer.appendBuffer` calls are able
+    to process data over time.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Media.SourceBuffer.AppendBuffer.Timing"
     units="microseconds" expires_after="never">
 <!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->

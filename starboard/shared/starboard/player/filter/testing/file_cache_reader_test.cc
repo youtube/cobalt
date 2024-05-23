@@ -49,8 +49,7 @@ TEST_F(FileCacheReaderTest, FileCacheReader) {
   {
     // Use a 5MB snippet from the true file to compare against.
     const size_t kTestSize = 5 * 1024 * 1024;
-    ScopedFile file(file_cache_reader_.GetAbsolutePathName().c_str(),
-                    kSbFileOpenOnly | kSbFileRead);
+    ScopedFile file(file_cache_reader_.GetAbsolutePathName().c_str(), O_RDWR);
     true_contents.resize(kTestSize);
     int bytes_read = file.ReadAll(true_contents.data(), kTestSize);
     SB_CHECK(bytes_read == kTestSize);

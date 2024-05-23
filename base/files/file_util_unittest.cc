@@ -339,14 +339,12 @@ void CreateTextFile(const FilePath& filename,
 #if defined(STARBOARD)
   const std::string contents_ascii = UTF16ToASCII(WideToUTF16(contents));
 
-  // TODO: handle error with errno.
-  SbFileError file_error = kSbFileOk;
   int file =
       open(filename.value().c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
-  SB_CHECK((file_error == kSbFileOk));
+  SB_CHECK(file >= 0);
   SB_CHECK(starboard::WriteAll(file, contents_ascii.data(),contents_ascii.size()) ==
            contents_ascii.size());
-  SB_CHECK(::close(file) == 0);
+  SB_CHECK(!::close(file));
 #else   // !defined(STARBOARD)
   std::wofstream file;
 #if BUILDFLAG(IS_WIN)
@@ -365,11 +363,10 @@ std::wstring ReadTextFile(const FilePath& filename) {
 #if defined(STARBOARD)
   const int size_in_bytes = 64 * sizeof(wchar_t);
   char contents[size_in_bytes]{0};
-  SbFileError file_error = kSbFileOk;
   int file = open(filename.value().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
-  SB_CHECK(file_error == kSbFileOk);
+  SB_CHECK(file >= 0);
   SB_CHECK(starboard::ReadAll(file, contents, size_in_bytes) != -1);
-  SB_CHECK(::close(file) == 0);
+  SB_CHECK(!::close(file));
   return UTF16ToWide(ASCIIToUTF16(contents));
 #else   // !defined(STARBOARD)
   wchar_t contents[64];

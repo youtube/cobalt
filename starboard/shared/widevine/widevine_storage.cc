@@ -32,7 +32,7 @@ namespace {
 void ReadFile(const std::string& path_name, std::vector<uint8_t>* content) {
   SB_DCHECK(content);
 
-  ScopedFile file(path_name.c_str(), kSbFileOpenOnly | kSbFileRead);
+  ScopedFile file(path_name.c_str(), O_RDWR);
 
   if (!file.IsValid()) {
     content->clear();
@@ -60,7 +60,7 @@ void ReadFile(const std::string& path_name, std::vector<uint8_t>* content) {
 
 bool WriteFile(const std::string& path_name,
                const std::vector<uint8_t>& content) {
-  ScopedFile file(path_name.c_str(), kSbFileCreateAlways | kSbFileWrite);
+  ScopedFile file(path_name.c_str(), O_CREAT | O_WRONLY);
 
   if (!file.IsValid()) {
     SB_LOG(INFO) << "Failed to create " << path_name << " for writing.";

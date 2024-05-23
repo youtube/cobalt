@@ -39,12 +39,14 @@ namespace {
 scoped_ptr<Socket> CreateServerSocket(SbSocketAddressType address_type) {
   scoped_ptr<Socket> socket(new Socket(address_type));
   if (!socket->IsValid()) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketCreate failed";
+    SB_LOG(ERROR) << __FUNCTION__ << ": "
+                  << "SbSocketCreate failed";
     return scoped_ptr<Socket>().Pass();
   }
 
   if (!socket->SetReuseAddress(true)) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketSetReuseAddress failed";
+    SB_LOG(ERROR) << __FUNCTION__ << ": "
+                  << "SbSocketSetReuseAddress failed";
     return scoped_ptr<Socket>().Pass();
   }
 
@@ -67,8 +69,8 @@ scoped_ptr<Socket> CreateLocallyBoundSocket(SbSocketAddressType address_type,
   }
   SbSocketError result = socket->Bind(&address);
   if (result != kSbSocketOk) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketBind to " << port
-                  << " failed: " << result;
+    SB_LOG(ERROR) << __FUNCTION__ << ": "
+                  << "SbSocketBind to " << port << " failed: " << result;
     return scoped_ptr<Socket>().Pass();
   }
 
@@ -115,7 +117,8 @@ std::string GetTemporaryDirectory() {
   bool has_temp = SbSystemGetPath(kSbSystemPathTempDirectory, temp_path.get(),
                                   kMaxPathLength);
   if (!has_temp) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": " << "No temporary directory.";
+    SB_LOG(ERROR) << __FUNCTION__ << ": "
+                  << "No temporary directory.";
     return "";
   }
 
@@ -131,9 +134,10 @@ void CreateTemporaryFile(const char* name, const char* contents, int size) {
 
   path += kSbFileSepString;
   path += name;
-  ScopedFile file(path.c_str(), kSbFileCreateAlways | kSbFileWrite);
+  ScopedFile file(path.c_str(), O_CREAT | O_WRONLY);
   if (!file.IsValid()) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": " << "Unable to create: " << path;
+    SB_LOG(ERROR) << __FUNCTION__ << ": "
+                  << "Unable to create: " << path;
     return;
   }
 
@@ -316,7 +320,8 @@ bool LinkReceiver::Impl::AddForAccept(Socket* socket) {
   if (!SbSocketWaiterAdd(waiter_, socket->socket(), this,
                          &LinkReceiver::Impl::HandleAccept,
                          kSbSocketWaiterInterestRead, true)) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketWaiterAdd failed.";
+    SB_LOG(ERROR) << __FUNCTION__ << ": "
+                  << "SbSocketWaiterAdd failed.";
     return false;
   }
   return true;
@@ -326,7 +331,8 @@ bool LinkReceiver::Impl::AddForRead(Connection* connection) {
   if (!SbSocketWaiterAdd(waiter_, connection->socket->socket(), this,
                          &LinkReceiver::Impl::HandleRead,
                          kSbSocketWaiterInterestRead, false)) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketWaiterAdd failed.";
+    SB_LOG(ERROR) << __FUNCTION__ << ": "
+                  << "SbSocketWaiterAdd failed.";
     return false;
   }
   return true;

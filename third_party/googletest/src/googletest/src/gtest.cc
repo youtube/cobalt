@@ -4193,11 +4193,8 @@ class XmlUnitTestResultPrinter : public EmptyTestEventListener {
 
 #if GTEST_OS_STARBOARD
 void WriteOuputFile(const std::string &output_file, const std::string &data) {
-  SbFileError err;
-  starboard::ScopedFile cache_file(
-      output_file.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, &err);
-  // TODO: Change to SB_DCHECK once all platforms are verified
-  if(err != kSbFileOk) {
+  starboard::ScopedFile cache_file(output_file.c_str(), O_CREAT | O_WRONLY);
+  if (!cache_file.IsValid()) {
     SB_LOG(ERROR) << "Unable to open file " << output_file << " for XML output";
   }
   cache_file.WriteAll(data.c_str(), static_cast<int>(data.size()));

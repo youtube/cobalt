@@ -176,8 +176,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
     // Write to the file and check that we can read from it.
     std::string content_to_write = "test content";
     {
-      starboard::ScopedFile test_file_writer(
-          path.data(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+      starboard::ScopedFile test_file_writer(path.data(), O_CREAT | O_WRONLY);
       EXPECT_GT(
           test_file_writer.WriteAll(content_to_write.c_str(),
                                     static_cast<int>(content_to_write.size())),
@@ -191,8 +190,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
     const int kBufferLength = 16 * 1024;
     char content_read[kBufferLength] = {0};
     {
-      starboard::ScopedFile test_file_reader(
-          path.data(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+      starboard::ScopedFile test_file_reader(path.data(), O_RDWR);
       EXPECT_GT(test_file_reader.ReadAll(content_read, kFileSize), 0);
     }
     EXPECT_EQ(content_read, content_to_write);

@@ -22,7 +22,6 @@
 #include "cobalt/base/task_runner_util.h"
 #include "components/prefs/json_pref_store.h"
 #include "starboard/common/file.h"
-#include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
