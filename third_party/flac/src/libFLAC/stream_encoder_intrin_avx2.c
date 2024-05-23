@@ -1,6 +1,6 @@
 /* libFLAC - Free Lossless Audio Codec library
  * Copyright (C) 2000-2009  Josh Coalson
- * Copyright (C) 2011-2014  Xiph.Org Foundation
+ * Copyright (C) 2011-2022  Xiph.Org Foundation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,8 +34,10 @@
 #  include <config.h>
 #endif
 
+#include "private/cpu.h"
+
 #ifndef FLAC__NO_ASM
-#if (defined FLAC__CPU_IA32 || defined FLAC__CPU_X86_64) && defined FLAC__HAS_X86INTRIN
+#if (defined FLAC__CPU_IA32 || defined FLAC__CPU_X86_64) && FLAC__HAS_X86INTRIN
 #include "private/stream_encoder.h"
 #include "private/bitmath.h"
 #ifdef FLAC__AVX2_SUPPORTED
@@ -46,85 +48,87 @@
 
 FLAC__SSE_TARGET("avx2")
 void FLAC__precompute_partition_info_sums_intrin_avx2(const FLAC__int32 residual[], FLAC__uint64 abs_residual_partition_sums[],
-		unsigned residual_samples, unsigned predictor_order, unsigned min_partition_order, unsigned max_partition_order, unsigned bps)
+		uint32_t residual_samples, uint32_t predictor_order, uint32_t min_partition_order, uint32_t max_partition_order, uint32_t bps)
 {
-	const unsigned default_partition_samples = (residual_samples + predictor_order) >> max_partition_order;
-	unsigned partitions = 1u << max_partition_order;
+	const uint32_t default_partition_samples = (residual_samples + predictor_order) >> max_partition_order;
+	uint32_t partitions = 1u << max_partition_order;
 
 	FLAC__ASSERT(default_partition_samples > predictor_order);
 
 	/* first do max_partition_order */
 	{
-		unsigned partition, residual_sample, end = (unsigned)(-(int)predictor_order);
-		__m256i res256, sum256;
-		__m128i res128, sum128;
+		const uint32_t threshold = 32 - FLAC__bitmath_ilog2(default_partition_samples);
+		uint32_t partition, residual_sample, end = (uint32_t)(-(int32_t)predictor_order);
 
-		if(FLAC__bitmath_ilog2(default_partition_samples) + bps + FLAC__MAX_EXTRA_RESIDUAL_BPS < 32) {
+		if(bps + FLAC__MAX_EXTRA_RESIDUAL_BPS < threshold) {
 			for(partition = residual_sample = 0; partition < partitions; partition++) {
+				__m256i sum256 = _mm256_setzero_si256();
+				__m128i sum128;
 				end += default_partition_samples;
-				sum256 = _mm256_setzero_si256();
 
 				for( ; (int)residual_sample < (int)end-7; residual_sample+=8) {
-					res256 = _mm256_abs_epi32(_mm256_loadu_si256((const __m256i*)(residual+residual_sample)));
+					__m256i res256 = _mm256_abs_epi32(_mm256_loadu_si256((const __m256i*)(const void*)(residual+residual_sample)));
 					sum256 = _mm256_add_epi32(sum256, res256);
 				}
 
 				sum128 = _mm_add_epi32(_mm256_extracti128_si256(sum256, 1), _mm256_castsi256_si128(sum256));
 
 				for( ; (int)residual_sample < (int)end-3; residual_sample+=4) {
-					res128 = _mm_abs_epi32(_mm_loadu_si128((const __m128i*)(residual+residual_sample)));
+					__m128i res128 = _mm_abs_epi32(_mm_loadu_si128((const __m128i*)(const void*)(residual+residual_sample)));
 					sum128 = _mm_add_epi32(sum128, res128);
 				}
 
 				for( ; residual_sample < end; residual_sample++) {
-					res128 = _mm_cvtsi32_si128(residual[residual_sample]);
-					res128 = _mm_abs_epi32(res128);
+					__m128i res128 = _mm_abs_epi32(_mm_cvtsi32_si128(residual[residual_sample]));
 					sum128 = _mm_add_epi32(sum128, res128);
 				}
 
-				sum128 = _mm_hadd_epi32(sum128, sum128);
-				sum128 = _mm_hadd_epi32(sum128, sum128);
+				sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_SHUFFLE(1,0,3,2)));
+				sum128 = _mm_add_epi32(sum128, _mm_shufflelo_epi16(sum128, _MM_SHUFFLE(1,0,3,2)));
 				abs_residual_partition_sums[partition] = (FLAC__uint32)_mm_cvtsi128_si32(sum128);
+/* workaround for MSVC bugs (at least versions 2015 and 2017 are affected) */
+#if (defined _MSC_VER) && (defined FLAC__CPU_X86_64)
+				abs_residual_partition_sums[partition] &= 0xFFFFFFFF; /**/
+#endif
 			}
 		}
 		else { /* have to pessimistically use 64 bits for accumulator */
 			for(partition = residual_sample = 0; partition < partitions; partition++) {
+				__m256i sum256 = _mm256_setzero_si256();
+				__m128i sum128;
 				end += default_partition_samples;
-				sum256 = _mm256_setzero_si256();
 
 				for( ; (int)residual_sample < (int)end-3; residual_sample+=4) {
-					res128 = _mm_abs_epi32(_mm_loadu_si128((const __m128i*)(residual+residual_sample)));
-					res256 = _mm256_cvtepu32_epi64(res128);
+					__m128i res128 = _mm_abs_epi32(_mm_loadu_si128((const __m128i*)(const void*)(residual+residual_sample)));
+					__m256i res256 = _mm256_cvtepu32_epi64(res128);
 					sum256 = _mm256_add_epi64(sum256, res256);
 				}
 
 				sum128 = _mm_add_epi64(_mm256_extracti128_si256(sum256, 1), _mm256_castsi256_si128(sum256));
 
 				for( ; (int)residual_sample < (int)end-1; residual_sample+=2) {
-					res128 = _mm_loadl_epi64((const __m128i*)(residual+residual_sample));
-					res128 = _mm_abs_epi32(res128);
+					__m128i res128 = _mm_abs_epi32(_mm_loadl_epi64((const __m128i*)(const void*)(residual+residual_sample)));
 					res128 = _mm_cvtepu32_epi64(res128);
 					sum128 = _mm_add_epi64(sum128, res128);
 				}
 
 				for( ; residual_sample < end; residual_sample++) {
-					res128 = _mm_cvtsi32_si128(residual[residual_sample]);
-					res128 = _mm_abs_epi32(res128);
+					__m128i res128 = _mm_abs_epi32(_mm_cvtsi32_si128(residual[residual_sample]));
 					sum128 = _mm_add_epi64(sum128, res128);
 				}
 
 				sum128 = _mm_add_epi64(sum128, _mm_srli_si128(sum128, 8));
-				_mm_storel_epi64((__m128i*)(abs_residual_partition_sums+partition), sum128);
+				_mm_storel_epi64((__m128i*)(void*)(abs_residual_partition_sums+partition), sum128);
 			}
 		}
 	}
 
 	/* now merge partitions for lower orders */
 	{
-		unsigned from_partition = 0, to_partition = partitions;
+		uint32_t from_partition = 0, to_partition = partitions;
 		int partition_order;
 		for(partition_order = (int)max_partition_order - 1; partition_order >= (int)min_partition_order; partition_order--) {
-			unsigned i;
+			uint32_t i;
 			partitions >>= 1;
 			for(i = 0; i < partitions; i++) {
 				abs_residual_partition_sums[to_partition++] =
