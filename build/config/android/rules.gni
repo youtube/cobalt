@@ -2021,6 +2021,10 @@ if (!is_robolectric && enable_java_templates) {
           invoker.disable_strict_mode_context) {
         defines += [ "_DISABLE_STRICT_MODE_CONTEXT" ]
       }
+
+      if (!is_java_debug && !_test_only) {
+        defines += [ "_DISABLE_DEBUG_LOGS" ]
+      }
     }
   }
 

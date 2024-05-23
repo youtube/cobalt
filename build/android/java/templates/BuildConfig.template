@@ -116,4 +116,10 @@ public class BuildConfig {
 #else
     public static boolean DISABLE_STRICT_MODE_CONTEXT;
 #endif
+
+#if defined(_DISABLE_DEBUG_LOGS)
+    public static MAYBE_FINAL boolean ENABLE_DEBUG_LOGS MAYBE_FALSE;
+#else
+    public static MAYBE_FINAL boolean ENABLE_DEBUG_LOGS = true;
+#endif
 }
