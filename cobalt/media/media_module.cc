@@ -27,6 +27,7 @@
 #include "cobalt/media/base/format_support_query_metrics.h"
 #include "media/base/mime_util.h"
 #include "starboard/common/string.h"
+#include "starboard/extension/h5vcc_config.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
 
@@ -216,6 +217,19 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     sbplayer_interface_->SetDecodeToTexturePreferred(value);
     LOG(INFO) << "Set DecodeToTexturePreferred to "
               << (value ? "true" : "false");
+    return true;
+  } else if (name == "EnableMediaPlaybackService") {
+    const StarboardExtensionH5vccConfigApi* h5vcc_config_api =
+        static_cast<const StarboardExtensionH5vccConfigApi*>(
+            SbSystemGetExtension(kStarboardExtensionH5vccConfigName));
+    if (h5vcc_config_api &&
+        strcmp(h5vcc_config_api->name, kStarboardExtensionH5vccConfigName) ==
+            0 &&
+        h5vcc_config_api->version >= 1) {
+      LOG(INFO) << "Set EnableMediaPlaybackService to "
+                << (value ? "true" : "false");
+      h5vcc_config_api->EnableMediaPlaybackService(value);
+    }
     return true;
   }
 

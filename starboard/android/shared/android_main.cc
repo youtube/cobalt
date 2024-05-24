@@ -55,6 +55,8 @@ Semaphore* g_app_created_semaphore = nullptr;
 // ALooper receiving the commands is no longer being polled.
 atomic_bool g_app_running;
 
+atomic_bool g_enable_media_playback_service;
+
 std::vector<std::string> GetArgs() {
   std::vector<std::string> args;
   // Fake program name as args[0]
@@ -269,20 +271,24 @@ void OnStart(GameActivity* activity) {
 
 void OnResume(GameActivity* activity) {
   if (g_app_running.load()) {
-    // Stop the MediaPlaybackService if activity state transits from background
-    // to foreground. Note that the MediaPlaybackService may already have
-    // been stopped before Cobalt's lifecycle state transits from Concealed
-    // to Frozen.
-    ApplicationAndroid::Get()->StopMediaPlaybackService();
+    if (g_enable_media_playback_service.load()) {
+      // Stop the MediaPlaybackService if activity state transits from
+      // background to foreground. Note that the MediaPlaybackService may
+      // already have been stopped before Cobalt's lifecycle state transits from
+      // Concealed to Frozen.
+      ApplicationAndroid::Get()->StopMediaPlaybackService();
+    }
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kResume);
   }
 }
 
 void OnPause(GameActivity* activity) {
   if (g_app_running.load()) {
-    // Start the MediaPlaybackService before activity state transits from
-    // foreground to background.
-    ApplicationAndroid::Get()->StartMediaPlaybackService();
+    if (g_enable_media_playback_service.load()) {
+      // Start the MediaPlaybackService before activity state transits from
+      // foreground to background.
+      ApplicationAndroid::Get()->StartMediaPlaybackService();
+    }
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kPause);
   }
 }
@@ -395,6 +401,14 @@ Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
   if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendKeyboardInject(SbKey::kSbKeyVolumeMute);
   }
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_StarboardBridge_nativeEnableMediaPlaybackService(
+    JNIEnv* env,
+    jobject jcaller,
+    jboolean value) {
+  g_enable_media_playback_service.store(value);
 }
 
 }  // namespace
