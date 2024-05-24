@@ -264,13 +264,8 @@ int __abi_wrap_pthread_condattr_getclock(const musl_pthread_condattr_t* attr,
     return EINVAL;
   }
 
-#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   return pthread_condattr_getclock(CONST_PTHREAD_INTERNAL_CONDITION_ATTR(attr),
                                    clock_id);
-#else
-  SB_DCHECK(false) << "pthread_condattr_getclock unsupported";
-  return EINVAL;
-#endif
 }
 
 int __abi_wrap_pthread_condattr_init(musl_pthread_condattr_t* attr) {
@@ -285,13 +280,8 @@ int __abi_wrap_pthread_condattr_setclock(musl_pthread_condattr_t* attr,
   if (!attr) {
     return EINVAL;
   }
-#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   return pthread_condattr_setclock(PTHREAD_INTERNAL_CONDITION_ATTR(attr),
                                    clock_id);
-#else
-  SB_DCHECK(false) << "pthread_condattr_setclock unsupported";
-  return EINVAL;
-#endif
 }
 
 int __abi_wrap_pthread_once(musl_pthread_once_t* once_control,
