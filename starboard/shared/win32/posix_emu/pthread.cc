@@ -125,9 +125,11 @@ int pthread_cond_timedwait(pthread_cond_t* cond,
     return -1;
   }
 
-  int64_t now_ms = starboard::CurrentMonotonicTime() / 1000;
+  int64_t now_ms = starboard::CurrentPosixTime() / 1000;
+
   int64_t timeout_duration_ms = t->tv_sec * 1000 + t->tv_nsec / 1000000;
   timeout_duration_ms -= now_ms;
+
   bool result = SleepConditionVariableSRW(
       reinterpret_cast<PCONDITION_VARIABLE>(cond->buffer),
       reinterpret_cast<PSRWLOCK>(mutex->buffer), timeout_duration_ms, 0);
