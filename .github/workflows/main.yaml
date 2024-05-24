@@ -242,18 +242,11 @@ jobs:
       - name: Cache Gradle
         uses: actions/cache@v3
         if: startsWith( matrix.target_platform , 'android')
-<<<<<<< HEAD
-        run: |
-          for i in `seq 1 5`; do
-            starboard/android/apk/gradlew --version || true
-          done
-=======
         with:
           key: gradle-cache-${{ hashFiles('starboard/android/apk/**/*gradle*') }}
           path: |
             /root/.gradle/caches
             /root/.gradle/wrapper
->>>>>>> 9b5edf1729a (Switch to caching Gradle wrapper and components (#3348))
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
