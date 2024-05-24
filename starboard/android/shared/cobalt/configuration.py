@@ -75,7 +75,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
             '5_2_use_system_fallback_if_no_matching_family_is_found_emoji'),
       ],
       'crypto_unittests': ['P224.*'],
-      'net_unittest': [
+      'net_unittests': [
         # TODO(b/342649087): Flaky tests from QuicheFileUtilsTest.
         'QuicheFileUtilsTest.ReadFileContents',
         'QuicheFileUtilsTest.EnumerateDirectoryRecursively',

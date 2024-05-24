@@ -36,7 +36,7 @@ _FILTERED_TESTS = {
         'ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows',
         'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
     ],
-    'net_unittest': [
+    'net_unittests': [
         # TODO: b/329507754 - Flaky after recent rebase.
         'CookieMonsterTest.DeleteExpiredPartitionedCookiesAfterTimeElapsed',
     ]
