@@ -20,8 +20,8 @@
 #ifndef STARBOARD_COMMON_RWLOCK_H_
 #define STARBOARD_COMMON_RWLOCK_H_
 
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
+#include <pthread.h>
+#include <stdint.h>
 
 namespace starboard {
 
@@ -63,8 +63,8 @@ class RWLock {
   void ReleaseWriteLock();
 
  private:
-  SbMutex mutex_;
-  SbConditionVariable condition_;
+  pthread_mutex_t mutex_;
+  pthread_cond_t condition_;
   int32_t readers_;
   bool writing_;
 
