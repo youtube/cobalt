@@ -100,8 +100,10 @@ extern const char kDisableMapToMesh[];
 extern const char kDisableMapToMeshHelp[];
 extern const char kDisableTimerResolutionLimit[];
 extern const char kDisableTimerResolutionLimitHelp[];
+#if SB_API_VERSION < 16
 extern const char kDisableUpdaterModule[];
 extern const char kDisableUpdaterModuleHelp[];
+#endif
 extern const char kEncodedImageCacheSizeInBytes[];
 extern const char kEncodedImageCacheSizeInBytesHelp[];
 extern const char kForceMigrationForStoragePartitioning[];

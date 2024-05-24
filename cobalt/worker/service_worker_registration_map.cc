@@ -70,12 +70,8 @@ void ServiceWorkerRegistrationMap::ReadPersistentSettings() {
 }
 
 void ServiceWorkerRegistrationMap::DeletePersistentSettings() {
-  base::OnceClosure closure = base::BindOnce(
-      [](std::map<RegistrationMapKey,
-                  scoped_refptr<ServiceWorkerRegistrationObject>>*
-             registration_map) { (*registration_map).clear(); },
-      &registration_map_);
-  service_worker_persistent_settings_->DeleteAll(std::move(closure));
+  service_worker_persistent_settings_->DeleteAll();
+  registration_map_.clear();
 }
 
 scoped_refptr<ServiceWorkerRegistrationObject>

@@ -15,13 +15,26 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_
 
+#include <starboard/types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// This function will handle both files and sockets. The implementation is
-// located in socket.cc.
+// The implementation of the following functions are located in socket.cc.
+
+// This function will handle both files and sockets.
 int close(int fd);
+
+int fsync(int fd);
+
+int ftruncate(int fd, off_t length);
+
+long lseek(int fd, long offset, int origin);  // NOLINT
+
+int read(int fd, void* buffer, unsigned int buffer_size);
+
+int write(int fd, const void* buffer, unsigned int count);
 
 int usleep(unsigned int useconds);
 

@@ -84,9 +84,8 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     if (!persistent_settings_) {
       return false;
     } else {
-      persistent_settings_->SetPersistentSetting(
-          network::kQuicEnabledPersistentSettingsKey,
-          std::make_unique<base::Value>(value.AsType<int32>() != 0));
+      persistent_settings_->Set(network::kQuicEnabledPersistentSettingsKey,
+                                base::Value(value.AsType<int32>() != 0));
       // Tell NetworkModule (if exists) to re-query persistent settings.
       if (network_module_) {
         network_module_->SetEnableQuicFromPersistentSettings();
@@ -107,16 +106,16 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
 void H5vccSettings::SetPersistentSettingAsInt(const std::string& key,
                                               int value) const {
   if (persistent_settings_) {
-    persistent_settings_->SetPersistentSetting(
-        key, std::make_unique<base::Value>(value));
+    persistent_settings_->Set(key, base::Value(value));
   }
 }
 
 int H5vccSettings::GetPersistentSettingAsInt(const std::string& key,
                                              int default_setting) const {
   if (persistent_settings_) {
-    return persistent_settings_->GetPersistentSettingAsInt(key,
-                                                           default_setting);
+    base::Value value;
+    persistent_settings_->Get(key, &value);
+    return value.GetIfInt().value_or(default_setting);
   }
   return default_setting;
 }

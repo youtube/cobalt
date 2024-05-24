@@ -51,7 +51,7 @@ uint32 FixPointUnsignedMultiply(uint32 fixed, uint32 alpha) {
 // static
 void DecodingFailed(png_structp png, png_const_charp) {
   DLOG(WARNING) << "Decoding failed.";
-  longjmp(png->jmpbuf, 1);
+  longjmp(png_jmpbuf(png), 1);
 }
 
 // static
@@ -99,7 +99,7 @@ size_t PNGImageDecoder::DecodeChunkInternal(const uint8* data, size_t size) {
   MSVC_PUSH_DISABLE_WARNING(4611);
   // warning C4611: interaction between '_setjmp' and C++ object destruction is
   // non-portable.
-  if (setjmp(png_->jmpbuf)) {
+  if (setjmp(png_jmpbuf(png_))) {
     // image data is empty.
     DLOG(WARNING) << "Decoder encounters an error.";
     set_state(kError);
@@ -181,7 +181,7 @@ void PNGImageDecoder::HeaderAvailableCallback() {
     DLOG(WARNING) << "Large PNG with width: " << width
                   << ", height: " << height;
     set_state(kError);
-    longjmp(png_->jmpbuf, 1);
+    longjmp(png_jmpbuf(png_), 1);
     return;
   }
 
@@ -251,7 +251,7 @@ void PNGImageDecoder::HeaderAvailableCallback() {
     if (!interlace_buffer_) {
       DLOG(WARNING) << "Allocate interlace buffer failed.";
       set_state(kError);
-      longjmp(png_->jmpbuf, 1);
+      longjmp(png_jmpbuf(png_), 1);
       return;
     }
   }
@@ -261,7 +261,7 @@ void PNGImageDecoder::HeaderAvailableCallback() {
       has_alpha_);
   if (!decoded_image_data_) {
     set_state(kError);
-    longjmp(png_->jmpbuf, 1);
+    longjmp(png_jmpbuf(png_), 1);
     return;
   }
 

@@ -85,6 +85,21 @@ services:
     depends_on:
       - base
 
+  crashpad-symbolize:
+    build:
+      args:
+        - GITHUB_TAG=${GITHUB_TAG:-24.lts.30}
+        - ARCHITECTURE=${ARCHITECTURE:-arm64}
+        - SB_API_VERSION=${SB_API_VERSION:-15}
+        - CONFIG=${CONFIG:-qa}
+      context: ./docker/crashpad_symbolize
+      dockerfile: Dockerfile
+    image: crashpad-symbolize
+    volumes:
+      - ${MINIDUMP_PATH:-./minidump.dmp}:/root/minidump_directory/minidump.dmp
+    depends_on:
+      - base
+
 #### Cobalt build containers
   base:
     build:

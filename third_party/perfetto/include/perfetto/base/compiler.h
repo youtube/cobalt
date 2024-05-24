@@ -75,7 +75,7 @@
 #define PERFETTO_PRINTF_FORMAT(x, y)
 #endif
 
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_IOS)
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_IOS) || defined(STARBOARD)
 // TODO(b/158814068): For iOS builds, thread_local is only supported since iOS
 // 8. We'd have to use pthread for thread local data instead here. For now, just
 // define it to nothing since we don't support running perfetto or the client

@@ -16,7 +16,7 @@
 
 #include "cobalt/browser/memory_settings/table_printer.h"
 
-#include "starboard/common/log.h"
+#include "base/logging.h"
 #include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -46,7 +46,7 @@ bool HasTokensInOrder(const std::string& value,
     EXPECT_NE(position, std::string::npos);
     EXPECT_GE(position, current_position);
     if (position == std::string::npos) {
-      SB_DLOG(INFO) << "Token \"" << token << "\" not found in order.";
+      DLOG(INFO) << "Token \"" << token << "\" not found in order.";
       return false;
     }
     current_position = position + strlen(token);

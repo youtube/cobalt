@@ -23,6 +23,7 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/strings/string_split.h"
+#include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
 #include "media/base/mime_util.h"
@@ -257,7 +258,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 }
 
 void MediaModule::Suspend() {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   suspended_ = true;
 
@@ -275,7 +276,7 @@ void MediaModule::Suspend() {
 }
 
 void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   resource_provider_ = resource_provider;
 
@@ -298,7 +299,7 @@ void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
 }
 
 void MediaModule::RegisterPlayer(WebMediaPlayer* player) {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   DCHECK(players_.find(player) == players_.end());
   players_.insert(std::make_pair(player, false));
@@ -309,7 +310,7 @@ void MediaModule::RegisterPlayer(WebMediaPlayer* player) {
 }
 
 void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   DCHECK(players_.find(player) != players_.end());
   players_.erase(players_.find(player));
@@ -317,7 +318,7 @@ void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
 
 void MediaModule::EnumerateWebMediaPlayers(
     const EnumeratePlayersCB& enumerate_callback) const {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   for (Players::const_iterator iter = players_.begin(); iter != players_.end();
        ++iter) {

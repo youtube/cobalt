@@ -360,15 +360,6 @@ MediaCodecBridge::~MediaCodecBridge() {
   }
 
   if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
-    // Since the native media_codec_bridge object is about to be destroyed,
-    // remove its reference from the Java MediaCodecBridge object to prevent
-    // further access. Otherwise it could lead to an application crash. The
-    // de-reference has to happen before the java MediaCodecBridge object is
-    // destroyed.
-    JniEnvExt* env = JniEnvExt::Get();
-    env->CallVoidMethodOrAbort(j_media_codec_bridge_,
-                               "resetNativeMediaCodecBridge", "()V");
-
     if (MediaCodecBridgeEradicator::GetInstance()->Destroy(
             j_media_codec_bridge_, j_reused_get_output_format_result_)) {
       return;

@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (use_cobalt_customizations) {
+import("vars.gni")
+import("../toolchain/llvm.gni")
+} else {
 import("//gn/standalone/android.gni")
 import("//gn/standalone/sanitizers/vars.gni")
 import("//gn/standalone/toolchain/llvm.gni")
+}
 
 _sanitizer_lib_base_name = ""
 if (is_asan || is_tsan || is_ubsan) {
@@ -48,7 +53,7 @@ declare_args() {
       # sanitizer_lib_dir is unused on linux. All usages of sanitizer_lib_dir
       # are gated by an if (!sanitizer_lib_dir_is_static).
     }
-    if (is_android) {
+    if (is_android && !is_starboard) {
       sanitizer_lib = "${_sanitizer_lib_base_name}-${android_llvm_arch}-android"
       sanitizer_lib_dir = android_clangrt_dir
     }

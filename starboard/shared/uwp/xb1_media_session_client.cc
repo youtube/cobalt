@@ -52,7 +52,7 @@ MediaPlaybackStatus MediaSessionPlaybackStateToMediaPlaybackState(
 }
 
 pthread_once_t once_flag = PTHREAD_ONCE_INIT;
-SbMutex mutex;
+pthread_mutex_t mutex;
 
 // Callbacks to the last MediaSessionClient to become active, or null.
 // In practice, only one MediaSessionClient will become active at a time.
@@ -66,7 +66,7 @@ bool active = false;
 bool media_playing = false;
 
 void OnceInit() {
-  SbMutexCreate(&mutex);
+  pthread_mutex_init(&mutex, nullptr);
 }
 
 void InitButtonCallbackOnce() {
@@ -125,13 +125,13 @@ void OnMediaSessionStateChanged(
       session_state.actual_playback_state;
 
   pthread_once(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
+  pthread_mutex_lock(&mutex);
 
   InitButtonCallbackOnce();
   Platform::Agile<SystemMediaTransportControls> transport_controls =
       GetTransportControls();
 
-  SbMutexRelease(&mutex);
+  pthread_mutex_unlock(&mutex);
 
   const bool sessionActive = kCobaltExtensionMediaSessionNone == playback_state;
 
@@ -190,36 +190,36 @@ void RegisterMediaSessionCallbacks(
     CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
         update_platform_playback_state_callback) {
   pthread_once(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
+  pthread_mutex_lock(&mutex);
 
   g_callback_context = callback_context;
   g_update_platform_playback_state_callback =
       update_platform_playback_state_callback;
 
-  SbMutexRelease(&mutex);
+  pthread_mutex_unlock(&mutex);
 }
 
 void DestroyMediaSessionClientCallback() {
   pthread_once(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
+  pthread_mutex_lock(&mutex);
 
   g_callback_context = NULL;
   g_update_platform_playback_state_callback = NULL;
 
-  SbMutexRelease(&mutex);
+  pthread_mutex_unlock(&mutex);
 }
 
 void UpdateActiveSessionPlatformPlaybackState(
     CobaltExtensionMediaSessionPlaybackState state) {
   pthread_once(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
+  pthread_mutex_lock(&mutex);
 
   if (g_update_platform_playback_state_callback != NULL &&
       g_callback_context != NULL) {
     g_update_platform_playback_state_callback(state, g_callback_context);
   }
 
-  SbMutexRelease(&mutex);
+  pthread_mutex_unlock(&mutex);
 }
 }  // namespace
 

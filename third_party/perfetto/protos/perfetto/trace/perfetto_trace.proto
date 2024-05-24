@@ -320,11 +320,11 @@ enum BuiltinClock {
   BUILTIN_CLOCK_BOOTTIME = 6;
   BUILTIN_CLOCK_MAX_ID = 63;
 
-  reserved 7, 8;
+  //reserved 7, 8;
 
   // An internal CL (ag/16521245) has taken this for BUILTIN_CLOCK_TSC.
   // That might get upstreamed later on. Avoid diverging on this ID in future.
-  reserved 9;
+  //reserved 9;
 }
 
 // End of protos/perfetto/common/builtin_clock.proto
@@ -4219,7 +4219,7 @@ message ClockSnapshot {
       BOOTTIME = 6;
       BUILTIN_CLOCK_MAX_ID = 63;
 
-      reserved 7, 8;
+      //reserved 7, 8;
     }
 
     // Clock IDs have the following semantic:

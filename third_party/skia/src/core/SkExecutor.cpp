@@ -13,29 +13,9 @@
 #include <deque>
 #include <thread>
 
-#if defined(STARBOARD)
-#include "starboard/thread.h"
-#endif
-
 namespace {
 
-#if defined(STARBOARD)
-// Starboardize std::thread as thread creation is undefined for stub builds.
-class SkThread {
-public:
-    SkThread(SbThreadEntryPoint entry_point, void* context) {
-        SbThreadCreate(0,                    // default stack_size.
-                       kSbThreadNoPriority,  // default priority.
-                       kSbThreadNoAffinity,  // default affinity.
-                       true,                 // joinable.
-                       "SkThread", entry_point, this);
-    }
-
-    bool join() { return SbThreadJoin((SbThread)this, NULL); }
-};
-#else
 typedef std::thread SkThread;
-#endif
 
 }  // namespace
 

@@ -54,10 +54,13 @@
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include <linux/capability.h>
 
 #include "linux_syscall_support.h"
+
+#define SKIP_TEST_EXIT_STATUS 77
 
 void assert_buffers_eq_len(const void *buf1, const void *buf2, size_t len) {
   const uint8_t *u8_1 = (const uint8_t *)buf1;
@@ -70,3 +73,17 @@ void assert_buffers_eq_len(const void *buf1, const void *buf2, size_t len) {
   }
 }
 #define assert_buffers_eq(obj1, obj2) assert_buffers_eq_len(obj1, obj2, sizeof(*obj1))
+
+// Returns true iff pointed timevals are equal.
+static inline bool kernel_timeval_eq(const struct kernel_timeval* lhs,
+                                     const struct kernel_timeval* rhs) {
+  return (lhs->tv_sec == rhs->tv_sec) && (lhs->tv_usec == rhs->tv_usec);
+}
+
+// Returns true iff pointed itimervals are equal.
+static inline bool kernel_itimerval_eq(const struct kernel_itimerval* lhs,
+                                       const struct kernel_itimerval* rhs) {
+  return kernel_timeval_eq(&lhs->it_interval, &rhs->it_interval) &&
+         kernel_timeval_eq(&lhs->it_value, &rhs->it_value);
+}
+

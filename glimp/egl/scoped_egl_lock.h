@@ -17,7 +17,7 @@
 #ifndef GLIMP_EGL_SCOPED_EGL_LOCK_H_
 #define GLIMP_EGL_SCOPED_EGL_LOCK_H_
 
-#include "starboard/common/mutex.h"
+#include <pthread.h>
 
 namespace glimp {
 namespace egl {
@@ -25,11 +25,11 @@ namespace egl {
 // A helper class to enable easy locking of the glimp EGL global mutex.
 class ScopedEGLLock {
  public:
-  ScopedEGLLock() { SbMutexAcquire(&mutex_); }
-  ~ScopedEGLLock() { SbMutexRelease(&mutex_); }
+  ScopedEGLLock() { pthread_mutex_lock(&mutex_); }
+  ~ScopedEGLLock() { pthread_mutex_unlock(&mutex_); }
 
  private:
-  static SbMutex mutex_;
+  static pthread_mutex_t mutex_;
 };
 
 }  // namespace egl

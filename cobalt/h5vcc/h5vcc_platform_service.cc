@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/web/context.h"
@@ -42,7 +43,7 @@ scoped_refptr<H5vccPlatformService> H5vccPlatformService::Open(
       static_cast<const ExtPlatformServiceApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformServiceName));
   if (!platform_service_api) {
-    SB_DLOG(WARNING) << "PlatformService is not implemented on this platform.";
+    DLOG(WARNING) << "PlatformService is not implemented on this platform.";
     return NULL;
   }
   scoped_refptr<H5vccPlatformService> service = new H5vccPlatformService(

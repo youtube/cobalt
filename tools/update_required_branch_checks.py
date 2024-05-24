@@ -49,7 +49,10 @@ EXCLUDED_CHECK_PATTERNS = [
     'evergreen_test',
 
     # Excludes templated check names.
-    '${{'
+    '${{',
+
+    # Excludes artifact upload jobs.
+    'upload-release-artifacts',
 ]
 
 # Exclude rc_11 and COBALT_9 releases.
@@ -161,15 +164,16 @@ def main() -> None:
   args = parse_args()
   repo = initialize_repo_connection()
 
-  if not args.apply:
-    print('This is a dry-run, printing pending changes only.')
+  if args.apply:
+    print('Applying changes to required branch checks.\n')
+  else:
+    print('This is a dry-run, printing pending changes only.\n')
 
   for branch in args.branch:
     required_checks = get_required_checks_for_branch(repo, branch)
+    print_checks(repo, branch, required_checks, args.print_unchanged)
     if args.apply:
       update_protection_for_branch(repo, branch, required_checks)
-    else:
-      print_checks(repo, branch, required_checks, args.print_unchanged)
 
   if not args.apply:
     print('Re-run with --apply to apply the changes.')

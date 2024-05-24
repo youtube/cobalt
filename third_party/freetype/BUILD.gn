@@ -4,6 +4,7 @@
 
 import("//build/config/chromecast_build.gni")
 import("//build/config/freetype/freetype.gni")
+import("//third_party/harfbuzz-ng/harfbuzz.gni")
 
 assert(!use_system_freetype, "Not used when using system freetype.")
 
@@ -61,7 +62,9 @@ config("freetype-warnings") {
   }
 }
 
-static_library("freetype") {
+source_set("freetype_source") {
+  visibility = [ "//third_party:freetype_harfbuzz" ]
+
   defines = []
 
   # FreeType only exposes ft2build.h, all other FreeType headers are accessed by macro names.
@@ -137,6 +140,12 @@ static_library("freetype") {
 
   defines += [ "FT2_BUILD_LIBRARY" ]
 
+  if (use_system_harfbuzz) {
+    configs += [ "//third_party/harfbuzz-ng:harfbuzz_from_pkgconfig" ]
+  } else {
+    configs += [ "//third_party/harfbuzz-ng:harfbuzz_config" ]
+  }
+  configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ "//build/config/sanitizers:cfi_icall_generalize_pointers" ]
   configs += [ ":freetype-warnings" ]

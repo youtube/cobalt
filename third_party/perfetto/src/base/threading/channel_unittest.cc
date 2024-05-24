@@ -32,6 +32,10 @@
 #include <poll.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace perfetto {
 namespace base {
 namespace {
@@ -40,7 +44,10 @@ using ReadResult = Channel<int>::ReadResult;
 using WriteResult = Channel<int>::WriteResult;
 
 bool IsReady(base::PlatformHandle fd) {
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+#if defined(STARBOARD)
+  SB_NOTIMPLEMENTED();
+  return false;
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
   std::array<base::PlatformHandle, 1> poll_fds{fd};
   DWORD ret =
       WaitForMultipleObjects(static_cast<DWORD>(poll_fds.size()), &poll_fds[0],

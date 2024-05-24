@@ -26,16 +26,29 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/thread.h"
 
+#define kSbThreadLocalKeyInvalid (SbThreadLocalKey) NULL
+
 struct SbThreadLocalKeyPrivate {
   DWORD tls_index;
   SbThreadLocalDestructor destructor;
 };
+
+typedef SbThreadLocalKeyPrivate* SbThreadLocalKey;
+
+static inline bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
+  return key != kSbThreadLocalKeyInvalid;
+}
 
 namespace starboard {
 namespace shared {
 namespace win32 {
 
 class ThreadSubsystemSingleton;
+
+SbThreadLocalKey ThreadCreateLocalKey(SbThreadLocalDestructor destructor);
+void ThreadDestroyLocalKey(SbThreadLocalKey key);
+void* ThreadGetLocalValue(SbThreadLocalKey key);
+bool ThreadSetLocalValue(SbThreadLocalKey key, void* value);
 
 // Creates a SbThreadLocalKey given a ThreadSubsystemSingleton. Used
 // to create the first SbThreadLocalKey.

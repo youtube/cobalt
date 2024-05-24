@@ -43,7 +43,7 @@
 
 #include <google/protobuf/stubs/common.h>
 
-#ifndef STARBOARD
+#ifndef USE_COBALT_CUSTOMIZATIONS
 
 #define GOOGLE_PROTOBUF_HAVE_HASH_MAP 1
 #define GOOGLE_PROTOBUF_HAVE_HASH_SET 1

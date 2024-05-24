@@ -24,29 +24,28 @@ namespace android {
 namespace shared {
 
 pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  int res = pthread_key_create(&s_thread_local_key, NULL);
+  SB_DCHECK(res == 0);
 }
 
 void EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 
 int GetMaxVideoInputSizeForCurrentThread() {
   EnsureThreadLocalKeyInited();
   // If the key is not valid or there is no value associated
   // with the key, it returns 0.
-  return reinterpret_cast<uintptr_t>(SbThreadGetLocalValue(s_thread_local_key));
+  return reinterpret_cast<uintptr_t>(pthread_getspecific(s_thread_local_key));
 }
 
 void SetMaxVideoInputSizeForCurrentThread(int max_video_input_size) {
   EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key,
-                        reinterpret_cast<void*>(max_video_input_size));
+  pthread_setspecific(s_thread_local_key,
+                      reinterpret_cast<void*>(max_video_input_size));
 }
 
 }  // namespace shared
