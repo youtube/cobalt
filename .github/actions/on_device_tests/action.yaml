@@ -13,7 +13,10 @@ runs:
         python -m grpc_tools.protoc -Itools/ --python_out=tools/ --grpc_python_out=tools/ tools/on_device_tests_gateway.proto
       shell: bash
     - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      uses: Wandalen/wretry.action@96605825122f94418f745bb54775d049581bbc6b
+      with:
+        action: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+        attempt_limit: 3
     - name: Set env vars
       env:
         WORKFLOW: ${{ github.workflow }}
