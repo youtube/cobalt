@@ -5,12 +5,11 @@
 # Do not use the targets in this file unless you need a certain libjpeg
 # implementation. Use the meta target //third_party:jpeg instead.
 
+import("//build/config/features.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
 }
-
-assert(!is_ios, "This is not used on iOS, don't drag it in unintentionally")
 
 source_set("libjpeg_headers") {
   sources = [
@@ -200,9 +199,7 @@ static_library("simd") {
 
     defines += [ "NEON_INTRINSICS" ]
 
-    if (!is_starboard) {
     configs -= [ "//build/config/compiler:default_optimization" ]
-    }
     configs += [ "//build/config/compiler:optimize_speed" ]
 
     if (is_starboard && sb_is_modular && current_cpu == "arm") {
@@ -304,13 +301,6 @@ static_library("libjpeg") {
     # This is defined in code.
     defines -= [ "NO_GETENV" ]
     defines -= [ "NO_PUTENV" ]
-  }
-
-  if (is_clang_16) {
-    cflags_c = [
-          # jerror.c a function definition without a prototype
-          "-Wno-deprecated-non-prototype",
-        ]
   }
 
   configs += [ ":libjpeg_config" ]

@@ -37,6 +37,9 @@ source_set("sorter") {
     "../types",
     "../util:bump_allocator",
   ]
+  if (is_starboard) {
+    deps += [ "//starboard/common:common_headers_only" ]
+  }
 }
 
 perfetto_unittest_source_set("unittests") {

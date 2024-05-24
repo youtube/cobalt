@@ -14,6 +14,7 @@
 
 #include "cobalt/web/navigator_ua_data.h"
 
+#include "base/logging.h"
 #include "base/strings/stringprintf.h"
 
 namespace cobalt {
@@ -24,7 +25,7 @@ NavigatorUAData::NavigatorUAData(
     script::ScriptValueFactory* script_value_factory)
     : script_value_factory_(script_value_factory) {
   if (platform_info == nullptr) {
-    SB_DLOG(WARNING)
+    DLOG(WARNING)
         << "No UserAgentPlatformInfo object passed to NavigatorUAData";
     return;
   }

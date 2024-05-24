@@ -64,9 +64,55 @@ struct shape_options_t
   }
 
   void populate_buffer (hb_buffer_t *buffer, const char *text, int text_len,
-			const char *text_before, const char *text_after)
+			const char *text_before, const char *text_after,
+			hb_font_t *font)
   {
     hb_buffer_clear_contents (buffer);
+
+    if (glyphs)
+    {
+      /* Call the setup_buffer first while the buffer is empty,
+       * as guess_segment_properties doesn't like glyphs in the buffer. */
+
+      setup_buffer (buffer);
+      char *glyphs_text = (char *) text;
+      int glyphs_len = text_len;
+      if (glyphs_len < 0)
+	glyphs_len = strlen (glyphs_text);
+
+      if (glyphs_len && glyphs_text[glyphs_len - 1] != ']')
+      {
+	glyphs_text = g_strdup_printf ("%*s]", glyphs_len, glyphs_text);
+	glyphs_len = -1;
+      }
+
+      hb_buffer_deserialize_glyphs (buffer,
+				    glyphs_text, glyphs_len,
+				    nullptr,
+				    font,
+				    HB_BUFFER_SERIALIZE_FORMAT_TEXT);
+
+      if (!strchr (glyphs_text, '+'))
+      {
+        scale_advances = false;
+        unsigned count;
+	hb_direction_t direction = hb_buffer_get_direction (buffer);
+	hb_glyph_info_t *infos = hb_buffer_get_glyph_infos (buffer, &count);
+	hb_glyph_position_t *positions = hb_buffer_get_glyph_positions (buffer, &count);
+	for (unsigned i = 0; i < count; i++)
+	  hb_font_get_glyph_advance_for_direction (font,
+						   infos[i].codepoint,
+						   direction,
+						   &positions[i].x_advance,
+						   &positions[i].y_advance);
+      }
+
+      if (glyphs_text != text)
+        g_free (glyphs_text);
+
+      return;
+    }
+
     if (text_before) {
       unsigned int len = strlen (text_before);
       hb_buffer_add_utf8 (buffer, text_before, len, len, 0);
@@ -93,11 +139,74 @@ struct shape_options_t
 
   hb_bool_t shape (hb_font_t *font, hb_buffer_t *buffer, const char **error=nullptr)
   {
-    if (!hb_shape_full (font, buffer, features, num_features, shapers))
+    if (glyphs)
     {
-      if (error)
-	*error = "Shaping failed.";
-      goto fail;
+      /* Scale positions. */
+      int x_scale, y_scale;
+      hb_font_get_scale (font, &x_scale, &y_scale);
+      unsigned upem = hb_face_get_upem (hb_font_get_face (font));
+      unsigned count;
+      auto *positions = hb_buffer_get_glyph_positions (buffer, &count);
+      for (unsigned i = 0; i < count; i++)
+      {
+	auto &pos = positions[i];
+	pos.x_offset = pos.x_offset * x_scale / upem;
+	pos.y_offset = pos.y_offset * y_scale / upem;
+	if (scale_advances)
+	{
+	  pos.x_advance = pos.x_advance * x_scale / upem;
+	  pos.y_advance = pos.y_advance * y_scale / upem;
+	}
+      }
+    }
+    else
+    {
+      if (advance <= 0)
+      {
+	if (!hb_shape_full (font, buffer, features, num_features, shapers))
+	{
+	  if (error)
+	    *error = "Shaping failed.";
+	  goto fail;
+	}
+
+	if (advance < 0)
+	{
+	  float unit = (1 << SUBPIXEL_BITS);
+
+	  /* Calculate buffer advance */
+	  float w = 0;
+	  unsigned count = 0;
+	  hb_glyph_position_t *pos = hb_buffer_get_glyph_positions (buffer, &count);
+	  if (HB_DIRECTION_IS_HORIZONTAL (hb_buffer_get_direction (buffer)))
+	    for (unsigned i = 0; i < count; i++)
+	      w += pos[i].x_advance;
+	  else
+	    for (unsigned i = 0; i < count; i++)
+	      w += pos[i].y_advance;
+
+	  printf ("Default size: %u\n", (unsigned) roundf (w / unit));
+	  exit (0);
+	}
+      }
+#ifdef HB_EXPERIMENTAL_API
+      else
+      {
+        float unit = (1 << SUBPIXEL_BITS);
+        float target_advance = advance * unit;
+	float w = 0;
+	hb_tag_t var_tag;
+	float var_value;
+	if (!hb_shape_justify (font, buffer, features, num_features, shapers,
+			       target_advance - unit * 0.5f, target_advance + unit * 0.5f,
+			       &w, &var_tag, &var_value))
+	{
+	  if (error)
+	    *error = "Shaping failed.";
+	  goto fail;
+	}
+      }
+#endif
     }
 
     if (normalize_glyphs)
@@ -133,11 +242,14 @@ struct shape_options_t
   hb_feature_t *features = nullptr;
   unsigned int num_features = 0;
   char **shapers = nullptr;
+  signed advance = 0;
   hb_bool_t utf8_clusters = false;
   hb_codepoint_t invisible_glyph = 0;
   hb_codepoint_t not_found_glyph = 0;
   hb_buffer_cluster_level_t cluster_level = HB_BUFFER_CLUSTER_LEVEL_DEFAULT;
   hb_bool_t normalize_glyphs = false;
+  hb_bool_t glyphs = false;
+  bool scale_advances = true;
   hb_bool_t verify = false;
   hb_bool_t unsafe_to_concat = false;
   hb_bool_t safe_to_insert_tatweel = false;
@@ -257,6 +369,10 @@ shape_options_t::add_options (option_parser_t *parser)
     {"script",		0, 0, G_OPTION_ARG_STRING,	&this->script,			"Set text script (default: auto)",	"ISO-15924 tag"},
     {"bot",		0, 0, G_OPTION_ARG_NONE,	&this->bot,			"Treat text as beginning-of-paragraph",	nullptr},
     {"eot",		0, 0, G_OPTION_ARG_NONE,	&this->eot,			"Treat text as end-of-paragraph",	nullptr},
+#ifdef HB_EXPERIMENTAL_API
+    {"justify-to",	0, 0,
+			      G_OPTION_ARG_INT,		&this->advance,			"Target size to justify to",		"SIZE, or -1"},
+#endif
     {"preserve-default-ignorables",0, 0, G_OPTION_ARG_NONE,	&this->preserve_default_ignorables,	"Preserve Default-Ignorable characters",	nullptr},
     {"remove-default-ignorables",0, 0, G_OPTION_ARG_NONE,	&this->remove_default_ignorables,	"Remove Default-Ignorable characters",	nullptr},
     {"invisible-glyph",	0, 0, G_OPTION_ARG_INT,		&this->invisible_glyph,		"Glyph value to replace Default-Ignorables with",	nullptr},
@@ -266,8 +382,9 @@ shape_options_t::add_options (option_parser_t *parser)
     {"normalize-glyphs",0, 0, G_OPTION_ARG_NONE,	&this->normalize_glyphs,	"Rearrange glyph clusters in nominal order",	nullptr},
     {"unsafe-to-concat",0, 0, G_OPTION_ARG_NONE,	&this->unsafe_to_concat,	"Produce unsafe-to-concat glyph flag",	nullptr},
     {"safe-to-insert-tatweel",0, 0, G_OPTION_ARG_NONE,	&this->safe_to_insert_tatweel,	"Produce safe-to-insert-tatweel glyph flag",	nullptr},
+    {"glyphs",		0, 0, G_OPTION_ARG_NONE,	&this->glyphs,			"Interpret input as glyph string",	nullptr},
     {"verify",		0, 0, G_OPTION_ARG_NONE,	&this->verify,			"Perform sanity checks on shaping results",	nullptr},
-    {"num-iterations", 'n', G_OPTION_FLAG_IN_MAIN,
+    {"num-iterations",	'n',G_OPTION_FLAG_IN_MAIN,
 			      G_OPTION_ARG_INT,		&this->num_iterations,		"Run shaper N times (default: 1)",	"N"},
     {nullptr}
   };

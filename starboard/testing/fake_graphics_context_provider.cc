@@ -105,7 +105,7 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
   functor_queue_.Put(
       std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
   functor_queue_.Wake();
-  SbThreadJoin(decode_target_context_thread_, NULL);
+  pthread_join(decode_target_context_thread_, NULL);
   EGL_CALL(eglDestroySurface(display_, surface_));
   EGL_CALL(eglTerminate(display_));
   SbWindowDestroy(window_);
@@ -113,7 +113,7 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
     const std::function<void()>& functor) {
-  if (SbThreadIsCurrent(decode_target_context_thread_)) {
+  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
     functor();
     return;
   }
@@ -131,7 +131,7 @@ void FakeGraphicsContextProvider::RunOnGlesContextThread(
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     SbDecodeTarget decode_target) {
-  if (SbThreadIsCurrent(decode_target_context_thread_)) {
+  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
     SbDecodeTargetRelease(decode_target);
     return;
   }
@@ -150,6 +150,7 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
 
 // static
 void* FakeGraphicsContextProvider::ThreadEntryPoint(void* context) {
+  pthread_setname_np(pthread_self(), "dt_context");
   auto provider = static_cast<FakeGraphicsContextProvider*>(context);
   provider->RunLoop();
 
@@ -241,9 +242,8 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
   decoder_target_provider_.gles_context_runner_context = this;
 
-  decode_target_context_thread_ = SbThreadCreate(
-      0, kSbThreadPriorityNormal, kSbThreadNoAffinity, true, "dt_context",
-      &FakeGraphicsContextProvider::ThreadEntryPoint, this);
+  pthread_create(&decode_target_context_thread_, nullptr,
+                 &FakeGraphicsContextProvider::ThreadEntryPoint, this);
   MakeNoContextCurrent();
 
   functor_queue_.Put(
@@ -253,7 +253,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
-  if (SbThreadIsCurrent(decode_target_context_thread_)) {
+  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
     target_function(target_function_context);
     return;
   }

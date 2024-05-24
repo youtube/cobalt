@@ -29,22 +29,6 @@ class CobaltLinuxX64X11Gcc63Configuration(
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  def GetWebPlatformTestFilters(self):
-    filters = super().GetWebPlatformTestFilters()
-    for target, tests in self.__FILTERED_WPT_TESTS.items():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
-    return filters
-
-  # pylint: disable=line-too-long
-  __FILTERED_WPT_TESTS = {  # pylint: disable=invalid-name
-      'web_platform_tests': [
-          # TODO(b/332367155): Re-enable web_platform_tests once fixed.
-          'xhr/WebPlatformTest.Run/XMLHttpRequest_send_sync_blocks_async_htm',
-          'dom/WebPlatformTest.Run/dom_nodes_MutationObserver_attributes_html',
-          'html/WebPlatformTest.Run/html_dom_documents_dom_tree_accessors_Document_currentScript_sub_html',
-      ],
-  }
-
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'base_unittests': [

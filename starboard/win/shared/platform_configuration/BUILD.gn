@@ -34,9 +34,6 @@ config("platform_configuration") {
     # By defining this, M_PI will get #defined.
     "_USE_MATH_DEFINES",
 
-    # min and max collide with std::min and std::max
-    "NOMINMAX",
-
     # Conform with C99 spec.
     "_CRT_STDIO_ISO_WIDE_SPECIFIERS",
   ]
@@ -70,6 +67,7 @@ config("platform_configuration") {
       "/wd4245",
       "/wd4700",
       "/wd4702",
+      "/wd4717",
     ]
     defines += [ "_ITERATOR_DEBUG_LEVEL=0" ]
   }

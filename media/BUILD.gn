@@ -13,7 +13,10 @@
 # limitations under the License.
 
 config("media_config") {
-  include_dirs = [ "//third_party/abseil-cpp" ]
+  include_dirs = [
+    "//third_party/abseil-cpp",
+    "//third_party/libwebm/source",
+  ]
   if (is_win) {
     cflags = [
       "/wd4267",  # Conversion from 'size_t' to 'type', possible loss of data.
@@ -37,15 +40,17 @@ config("media_config_public") {
   # TODO: Make include_dirs other than the first one private.
   include_dirs = [
     "//third_party/abseil-cpp",
+    "//third_party/libwebm/source",
+    "//third_party/skia",
     "..",
     "cobalt",
-    "//third_party/skia",
   ]
 }
 
 config("external_config") {
   include_dirs = [
     "//third_party/abseil-cpp",
+    "//third_party/libwebm/source",
     "..",
     "cobalt",
     "../../skia",

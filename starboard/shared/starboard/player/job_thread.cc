@@ -14,7 +14,10 @@
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
+#include <string>
+
 #include "starboard/common/condition_variable.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
 namespace shared {
@@ -24,11 +27,18 @@ namespace player {
 namespace {
 
 struct ThreadParam {
-  explicit ThreadParam(JobThread* job_thread)
-      : condition_variable(mutex), job_thread(job_thread) {}
+  explicit ThreadParam(JobThread* job_thread,
+                       const char* name,
+                       SbThreadPriority priority)
+      : condition_variable(mutex),
+        job_thread(job_thread),
+        thread_name(name),
+        thread_priority(priority) {}
   Mutex mutex;
   ConditionVariable condition_variable;
   JobThread* job_thread;
+  std::string thread_name;
+  SbThreadPriority thread_priority;
 };
 
 }  // namespace
@@ -36,11 +46,19 @@ struct ThreadParam {
 JobThread::JobThread(const char* thread_name,
                      int64_t stack_size,
                      SbThreadPriority priority) {
-  ThreadParam thread_param(this);
-  thread_ =
-      SbThreadCreate(stack_size, priority, kSbThreadNoAffinity, true,
-                     thread_name, &JobThread::ThreadEntryPoint, &thread_param);
-  SB_DCHECK(SbThreadIsValid(thread_));
+  ThreadParam thread_param(this, thread_name, priority);
+
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+  if (stack_size > 0) {
+    pthread_attr_setstacksize(&attributes, stack_size);
+  }
+
+  pthread_create(&thread_, &attributes, &JobThread::ThreadEntryPoint,
+                 &thread_param);
+  pthread_attr_destroy(&attributes);
+
+  SB_DCHECK(thread_ != 0);
   ScopedLock scoped_lock(thread_param.mutex);
   while (!job_queue_) {
     thread_param.condition_variable.Wait();
@@ -55,13 +73,17 @@ JobThread::~JobThread() {
   if (job_queue_) {
     job_queue_->Schedule(std::bind(&JobQueue::StopSoon, job_queue_.get()));
   }
-  SbThreadJoin(thread_, nullptr);
+  pthread_join(thread_, nullptr);
 }
 
 // static
 void* JobThread::ThreadEntryPoint(void* context) {
   ThreadParam* param = static_cast<ThreadParam*>(context);
   SB_DCHECK(param != nullptr);
+
+  pthread_setname_np(pthread_self(), param->thread_name.c_str());
+  shared::pthread::ThreadSetPriority(param->thread_priority);
+
   JobThread* job_thread = param->job_thread;
   {
     ScopedLock scoped_lock(param->mutex);

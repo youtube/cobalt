@@ -35,8 +35,10 @@
 #include "config.h"
 #endif
 
-#ifndef HB_EXPERIMENTAL
+#ifndef HB_EXPERIMENTAL_API
 #define HB_NO_BEYOND_64K
+#define HB_NO_CUBIC_GLYF
+#define HB_NO_VAR_COMPOSITES
 #endif
 
 #ifdef HB_TINY
@@ -79,11 +81,13 @@
 #define HB_NO_MMAP
 #define HB_NO_NAME
 #define HB_NO_OPEN
-#define HB_NO_SETLOCALE
 #define HB_NO_OT_FONT_GLYPH_NAMES
 #define HB_NO_OT_SHAPE_FRACTIONS
+#define HB_NO_PAINT
+#define HB_NO_SETLOCALE
 #define HB_NO_STYLE
 #define HB_NO_SUBSET_LAYOUT
+#define HB_NO_VERTICAL
 #define HB_NO_VAR
 #endif
 
@@ -113,6 +117,11 @@
 #define HB_IF_NOT_DEPRECATED(x) x
 #endif
 
+#ifdef HB_NO_SHAPER
+#define HB_NO_OT_SHAPE
+#define HB_NO_AAT_SHAPE
+#endif
+
 #ifdef HB_NO_AAT
 #define HB_NO_OT_NAME_LANGUAGE_AAT
 #define HB_NO_AAT_SHAPE
@@ -125,6 +134,10 @@
 #ifdef HB_NO_CFF
 #define HB_NO_OT_FONT_CFF
 #define HB_NO_SUBSET_CFF
+#endif
+
+#ifdef HB_NO_DRAW
+#define HB_NO_OUTLINE
 #endif
 
 #ifdef HB_NO_GETENV
@@ -159,6 +172,7 @@
 #define HB_NO_OT_SHAPER_HEBREW_FALLBACK
 #define HB_NO_OT_SHAPER_THAI_FALLBACK
 #define HB_NO_OT_SHAPER_VOWEL_CONSTRAINTS
+#define HB_NO_OT_SHAPER_MYANMAR_ZAWGYI
 #endif
 
 #ifdef NDEBUG

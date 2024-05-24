@@ -19,8 +19,8 @@
 #include <vector>
 
 #include "base/containers/ring_buffer.h"
+#include "base/synchronization/lock.h"
 #include "base/values.h"
-#include "starboard/common/mutex.h"
 
 namespace cobalt {
 namespace watchdog {
@@ -51,7 +51,7 @@ class InstrumentationLog {
 
   // Mutex to guard buffer operations. E.g. LogEvent() called from h5vcc API
   // handler and getLogTrace() called from watchdog monitoring thread.
-  starboard::Mutex buffer_mutex_;
+  base::Lock buffer_mutex_;
 };
 
 }  // namespace watchdog

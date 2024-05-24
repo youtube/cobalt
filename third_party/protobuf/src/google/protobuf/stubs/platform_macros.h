@@ -39,7 +39,7 @@
 //   http://www.agner.org/optimize/calling_conventions.pdf
 //   or with gcc, run: "echo | gcc -E -dM -"
 #if defined(STARBOARD)
-#include "starboard/configuration.h"
+#include "starboard/configuration.h"  // nogncheck
 #if SB_IS(32_BIT)
 #define GOOGLE_PROTOBUF_ARCH_32_BIT 1
 #elif SB_IS(64_BIT)

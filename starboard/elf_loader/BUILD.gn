@@ -58,9 +58,12 @@ static_library("elf_loader") {
     ":evergreen_info",
     "//starboard:starboard_group",
     "//starboard/common",
-    "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
     "//third_party/lz4_lib:lz4",
   ]
+
+  if (current_toolchain == starboard_toolchain) {
+    deps += [ "//starboard/shared/modular:starboard_layer_posix_abi_wrappers" ]
+  }
 }
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {

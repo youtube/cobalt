@@ -702,6 +702,8 @@ void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
     return;
   }
 
+  LOG(INFO) << "SbPlayerPipeline::OnDemuxerError() called with error " << error;
+
   if (error != ::media::PIPELINE_OK) {
     CallErrorCB(error, "Demuxer error.");
   }

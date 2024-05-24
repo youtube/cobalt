@@ -12,12 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (use_cobalt_customizations) {
+import("../perfetto_check_build_deps.gni")
+import("libc++/libc++.gni")
+import("sanitizers/sanitizers.gni")
+import("toolchain/msvc.gni")
+import("wasm.gni")
+} else {
 import("//gn/perfetto_check_build_deps.gni")
 import("//gn/standalone/android.gni")
 import("//gn/standalone/libc++/libc++.gni")
 import("//gn/standalone/sanitizers/sanitizers.gni")
 import("//gn/standalone/toolchain/msvc.gni")
 import("//gn/standalone/wasm.gni")
+}
 
 # These warnings have been introduced with the newest version of clang (only in
 # the hermetic build) and are enabled just with -Werror.
@@ -307,7 +315,7 @@ config("default") {
     }
   }
 
-  if (is_android) {
+  if (is_android && !is_starboard) {
     asmflags += [ "--target=$android_abi_target" ]
     cflags += [
       "--sysroot=$android_compile_sysroot",

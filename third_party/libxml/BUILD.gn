@@ -334,6 +334,10 @@ if (!use_cobalt_customizations) {
   public_deps = [ "//third_party/icu:icuuc" ]
   deps = [ "//third_party/zlib" ]
 
+  if (is_starboard) {
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
+
   if (is_apple || is_android || is_fuchsia) {
     # http://www.xmlsoft.org/threads.html says that this is required when using
     # libxml from several threads, which can possibly happen in chrome. On

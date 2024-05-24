@@ -125,12 +125,16 @@ shared_library("heapprofd_api_noop") {
 
   # This target does absolutely nothing, so we do not want to depend on
   # liblog.
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:android_liblog" ]
+  }
   sources = [ "client_api_noop.cc" ]
 }
 
 shared_library("heapprofd_client_api") {
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:android_liblog" ]
+  }
   if (perfetto_build_with_android) {
     cflags = [ "-DPERFETTO_ANDROID_ASYNC_SAFE_LOG" ]
   } else {

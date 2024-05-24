@@ -19,7 +19,6 @@
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 
-#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/types.h"
 

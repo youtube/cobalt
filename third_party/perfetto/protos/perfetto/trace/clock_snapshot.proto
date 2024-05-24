@@ -34,7 +34,7 @@ message ClockSnapshot {
       BOOTTIME = 6;
       BUILTIN_CLOCK_MAX_ID = 63;
 
-      reserved 7, 8;
+      //reserved 7, 8;
     }
 
     // Clock IDs have the following semantic:
