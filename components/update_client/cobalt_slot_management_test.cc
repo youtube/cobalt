@@ -20,8 +20,8 @@
 #include <vector>
 
 #include "base/strings/string_util.h"
+#include "base/time/time.h"
 #include "starboard/common/file.h"
-#include "starboard/common/time.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
@@ -206,7 +206,7 @@ TEST_F(CobaltSlotManagementTest, ConfirmSlotBailsIfOtherAppStartedDrainFirst) {
   // In order to be higher ranked, the other app's drain file needs to be older
   // but not expired.
   int64_t current_time_us =
-      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime());
+      base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds();
   starboard::loader_app::ScopedDrainFile racing_drain_file(
       slot_path, kTestAppKey2,
       current_time_us - (kDrainFileMaximumAgeUsec / 2));

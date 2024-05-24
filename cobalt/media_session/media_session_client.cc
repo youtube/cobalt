@@ -22,7 +22,6 @@
 #include "base/logging.h"
 #include "cobalt/media_session/media_image.h"
 #include "cobalt/script/sequence.h"
-#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace media_session {
@@ -70,7 +69,8 @@ void GuessMediaPositionState(MediaSessionState* session_state,
     position_state.set_position((*guess_player)->GetCurrentTime());
 
     *session_state = MediaSessionState(
-        session_state->metadata(), starboard::CurrentMonotonicTime(),
+        session_state->metadata(),
+        (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds(),
         position_state, session_state->actual_playback_state(),
         session_state->available_actions());
   }

@@ -31,7 +31,6 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
-#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -92,7 +91,8 @@ class SerializedAlgorithmRunner {
           // Crash if we are trying to re-acquire again on the same thread.
           CHECK(!pthread_equal(acquired_thread_id_, pthread_self()));
 
-          int64_t start_usec = starboard::CurrentMonotonicTime();
+          int64_t start_usec =
+              (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
           int64_t wait_interval_usec =
               1 * base::Time::kMicrosecondsPerMillisecond;
           constexpr int64_t kMaxWaitIntervalUsec =
@@ -108,8 +108,10 @@ class SerializedAlgorithmRunner {
             wait_interval_usec =
                 std::min(wait_interval_usec * 2, kMaxWaitIntervalUsec);
             // Crash if we've been waiting for too long (1 second).
-            CHECK_LT(starboard::CurrentMonotonicTime() - start_usec,
-                     1 * base::Time::kMicrosecondsPerSecond);
+            CHECK_LT(
+                (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() -
+                    start_usec,
+                1 * base::Time::kMicrosecondsPerSecond);
           }
           acquired_thread_id_ = pthread_self();
         }
