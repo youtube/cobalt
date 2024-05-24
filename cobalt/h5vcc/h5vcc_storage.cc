@@ -372,9 +372,9 @@ H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
 }
 
 void H5vccStorage::EnableCache() {
-  persistent_settings_->SetPersistentSetting(
+  persistent_settings_->Set(
       network::disk_cache::kCacheEnabledPersistentSettingsKey,
-      std::make_unique<base::Value>(true));
+      base::Value(true));
 
   network::disk_cache::settings::SetCacheEnabled(true);
 
@@ -384,9 +384,9 @@ void H5vccStorage::EnableCache() {
 }
 
 void H5vccStorage::DisableCache() {
-  persistent_settings_->SetPersistentSetting(
+  persistent_settings_->Set(
       network::disk_cache::kCacheEnabledPersistentSettingsKey,
-      std::make_unique<base::Value>(false));
+      base::Value(false));
 
   network::disk_cache::settings::SetCacheEnabled(false);
 
