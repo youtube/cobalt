@@ -52,7 +52,7 @@ message OnDeviceTestsCommand {
   string start_timeout = 20;
   string test_timeout = 21;
   string builder_url = 22;
-  string gcs_xml_result_path = 23;
+  string gcs_result_path = 23;
 }
 
 // Working directory and command line arguments to be passed to the gateway.
