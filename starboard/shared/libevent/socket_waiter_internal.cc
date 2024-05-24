@@ -33,9 +33,12 @@
 
 namespace sbposix = starboard::shared::posix;
 
-#if (defined(_GNU_SOURCE) || defined(_POSIX_VERSION)) && \
-    !(PLAYSTATION_GENERATION <= 5)
+#if defined(_GNU_SOURCE) || defined(_POSIX_VERSION)
+#if defined(PLAYSTATION_GENERATION) && (PLAYSTATION_GENERATION <= 5)
+#define USE_POSIX_PIPE 0
+#else
 #define USE_POSIX_PIPE 1
+#endif
 #else
 #define USE_POSIX_PIPE 0
 #endif
