@@ -556,6 +556,8 @@ rm -rf $TEMP_DIR
 gn format --in-place $BASE_DIR/BUILD.gn
 gn format --in-place $BASE_DIR/libvpx_srcs.gni
 
+[[ "${COBALT_CONFIG}" == "true" ]] && exit  # don't modify README.chromium
+
 cd $BASE_DIR/$LIBVPX_SRC_DIR
 update_readme
 
