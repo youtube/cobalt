@@ -43,9 +43,6 @@ namespace sbposix = starboard::shared::posix;
 #define USE_POSIX_PIPE 0
 #endif
 
-SB_COMPILE_ASSERT(USE_POSIX_PIPE == 1, this_shouldnt_happen);
-static_assert(USE_POSIX_PIPE == 1, "this shouldn't happen");
-
 namespace {
 // We do this because it's our style to use explicitly-sized ints when not just
 // using int, but libevent uses shorts explicitly in its interface.
