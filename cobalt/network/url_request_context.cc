@@ -71,9 +71,10 @@ void LoadDiskCacheQuotaSettings(
     disk_cache::ResourceType resource_type = (disk_cache::ResourceType)i;
     std::string directory =
         disk_cache::defaults::GetSubdirectory(resource_type);
-    uint32_t bucket_size =
-        static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
-            directory, disk_cache::defaults::GetQuota(resource_type)));
+    base::Value value;
+    settings->Get(directory, &value);
+    uint32_t bucket_size = static_cast<uint32_t>(value.GetIfDouble().value_or(
+        disk_cache::defaults::GetQuota(resource_type)));
     quotas[resource_type] = bucket_size;
     total_size += bucket_size;
   }
@@ -93,9 +94,7 @@ void LoadDiskCacheQuotaSettings(
     disk_cache::settings::SetQuota(resource_type, default_quota);
     std::string directory =
         disk_cache::defaults::GetSubdirectory(resource_type);
-    settings->SetPersistentSetting(
-        directory,
-        std::make_unique<base::Value>(static_cast<double>(default_quota)));
+    settings->Set(directory, base::Value(static_cast<double>(default_quota)));
   }
 }
 
@@ -283,9 +282,10 @@ URLRequestContext::URLRequestContext(
                       /* max_bytes */ max_cache_bytes, url_request_context));
               http_cache->set_can_disable_by_mime_type(true);
               if (persistent_settings != nullptr) {
-                auto cache_enabled =
-                    persistent_settings->GetPersistentSettingAsBool(
-                        disk_cache::kCacheEnabledPersistentSettingsKey, true);
+                base::Value value;
+                persistent_settings->Get(
+                    disk_cache::kCacheEnabledPersistentSettingsKey, &value);
+                auto cache_enabled = value.GetIfBool().value_or(true);
                 disk_cache::settings::SetCacheEnabled(cache_enabled);
                 if (!cache_enabled) {
                   http_cache->set_mode(net::HttpCache::Mode::DISABLE);
@@ -338,13 +338,12 @@ void URLRequestContext::OnQuicToggle(const std::string& message) {
 void URLRequestContext::UpdateCacheSizeSetting(disk_cache::ResourceType type,
                                                uint32_t bytes) {
   CHECK(cache_persistent_settings_);
-  cache_persistent_settings_->SetPersistentSetting(
-      disk_cache::defaults::GetSubdirectory(type),
-      std::make_unique<base::Value>(static_cast<double>(bytes)));
+  cache_persistent_settings_->Set(disk_cache::defaults::GetSubdirectory(type),
+                                  base::Value(static_cast<double>(bytes)));
 }
 
 void URLRequestContext::ValidateCachePersistentSettings() {
-  cache_persistent_settings_->ValidatePersistentSettings();
+  cache_persistent_settings_->Validate();
 }
 
 void URLRequestContext::AssociateKeyWithResourceType(
