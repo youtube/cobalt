@@ -2236,7 +2236,8 @@ config("optimize") {
   } else if (optimize_for_size) {
     # Favor size over speed.
     if (is_clang) {
-      cflags = [ "-Oz" ] + common_optimize_on_cflags
+      #cflags = [ "-Oz" ] + common_optimize_on_cflags
+      cflags = [ "-DOZ_IS_CLANG1" ] + common_optimize_on_cflags
 
       if (use_ml_inliner && is_a_target_toolchain) {
         cflags += [
@@ -2292,7 +2293,8 @@ config("no_optimize") {
     # On Android we kind of optimize some things that don't affect debugging
     # much even when optimization is disabled to get the binary size down.
     if (is_clang) {
-      cflags = [ "-Oz" ] + common_optimize_on_cflags
+      #cflags = [ "-Oz" ] + common_optimize_on_cflags
+      cflags = [ "-DOZ_IS_CLANG2" ] + common_optimize_on_cflags
     } else {
       cflags = [ "-Os" ] + common_optimize_on_cflags
     }
