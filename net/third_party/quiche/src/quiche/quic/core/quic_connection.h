@@ -1074,6 +1074,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // sent immediately after receiving an ACK.
   void set_defer_send_in_response_to_packets(bool defer) {
     defer_send_in_response_to_packets_ = defer;
+    LOG(INFO) << __FUNCTION__ << " QUIC defer_send_in_response_to_packets_="
+              << defer_send_in_response_to_packets_;
   }
 
   // Sets the current per-packet options for the connection. The QuicConnection

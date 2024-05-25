@@ -27,8 +27,9 @@ class URLRequestContext;
 
 class URLRequestContextGetter : public net::URLRequestContextGetter {
  public:
-  URLRequestContextGetter(URLRequestContext* url_request_context,
-                          base::Thread* io_thread);
+  URLRequestContextGetter(
+      URLRequestContext* url_request_context,
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner);
 
   // Implementation for net::UrlRequestContextGetter.
   net::URLRequestContext* GetURLRequestContext() override;

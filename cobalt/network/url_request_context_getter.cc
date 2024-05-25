@@ -20,9 +20,10 @@ namespace cobalt {
 namespace network {
 
 URLRequestContextGetter::URLRequestContextGetter(
-    URLRequestContext* url_request_context, base::Thread* io_thread)
+    URLRequestContext* url_request_context,
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner)
     : url_request_context_(url_request_context) {
-  network_task_runner_ = io_thread->task_runner();
+  network_task_runner_ = task_runner;
   DCHECK(network_task_runner_);
 }
 
