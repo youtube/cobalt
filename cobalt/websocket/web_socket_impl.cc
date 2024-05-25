@@ -156,15 +156,13 @@ void WebSocketImpl::TrampolineClose(const CloseInfo &close_info) {
 
 void WebSocketImpl::OnHandshakeComplete(
     const std::string &selected_subprotocol) {
+  if (websocket_channel_->ReadFrames() !=
+      net::WebSocketChannel::CHANNEL_ALIVE) {
+    LOG(ERROR) << "Channel is closed before reading completes.";
+  }
   owner_task_runner_->PostTask(
       FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketConnected, this,
                             selected_subprotocol));
-}
-
-void WebSocketImpl::OnFlowControl(int64_t quota) {
-  DCHECK_GE(current_quota_, 0);
-  current_quota_ += quota;
-  ProcessSendQueue();
 }
 
 void WebSocketImpl::OnWebSocketConnected(
@@ -205,8 +203,9 @@ void WebSocketImpl::OnClose(bool was_clean, int error_code,
 
   std::uint16_t close_code = static_cast<std::uint16_t>(error_code);
 
-  DLOG(INFO) << "WebSocket is closing." << " code[" << close_code << "] reason["
-             << close_reason << "]" << " was_clean: " << was_clean;
+  DLOG(INFO) << "WebSocket is closing."
+             << " code[" << close_code << "] reason[" << close_reason << "]"
+             << " was_clean: " << was_clean;
 
   // Queue the deletion of |websocket_channel_|.  We would do it here, but this
   // function may be called as a callback *by* |websocket_channel_|;
@@ -263,44 +262,11 @@ void WebSocketImpl::SendOnDelegateThread(
     DLOG(WARNING) << "Attempt to send over a closed channel.";
     return;
   }
-  SendQueueMessage new_message = {io_buffer, length, op_code};
-  send_queue_.push(std::move(new_message));
-  ProcessSendQueue();
-}
-
-void WebSocketImpl::ProcessSendQueue() {
-  DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
-  while (current_quota_ > 0 && !send_queue_.empty()) {
-    SendQueueMessage message = send_queue_.front();
-    size_t current_message_length = message.length - sent_size_of_top_message_;
-    bool final = false;
-    bool continuation = sent_size_of_top_message_ > 0 ? true : false;
-    if (current_quota_ < static_cast<int64_t>(current_message_length)) {
-      // quota is not enough to send the top message.
-      scoped_refptr<net::IOBuffer> new_io_buffer(
-          new net::IOBuffer(static_cast<size_t>(current_quota_)));
-      memcpy(new_io_buffer->data(),
-             message.io_buffer->data() + sent_size_of_top_message_,
-             current_quota_);
-      sent_size_of_top_message_ += current_quota_;
-      message.io_buffer = new_io_buffer;
-      current_message_length = current_quota_;
-      current_quota_ = 0;
-    } else {
-      // Sent all of the remaining top message.
-      final = true;
-      send_queue_.pop();
-      sent_size_of_top_message_ = 0;
-      current_quota_ -= current_message_length;
-    }
-    auto channel_state = websocket_channel_->SendFrame(
-        final,
-        continuation ? net::WebSocketFrameHeader::kOpCodeContinuation
-                     : message.op_code,
-        message.io_buffer, current_message_length);
-    if (channel_state == net::WebSocketChannel::CHANNEL_DELETED) {
-      websocket_channel_.reset();
-    }
+  SendQueueMessage message = {io_buffer, length, op_code};
+  auto channel_state = websocket_channel_->SendFrame(
+      true, message.op_code, message.io_buffer, message.length);
+  if (channel_state == net::WebSocketChannel::CHANNEL_DELETED) {
+    websocket_channel_.reset();
   }
 }
 

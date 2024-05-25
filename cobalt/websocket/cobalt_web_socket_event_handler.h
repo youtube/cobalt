@@ -21,8 +21,6 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "cobalt/websocket/web_socket_frame_container.h"
-#include "cobalt/websocket/web_socket_handshake_helper.h"
 #include "net/base/io_buffer.h"
 #include "net/websockets/websocket_event_interface.h"
 #include "net/websockets/websocket_frame_parser.h"
@@ -134,8 +132,7 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
   // move more thing
   WebSocketImpl* creator_;
   // This vector should store data of data frames from the same message.
-  typedef std::vector<std::pair<scoped_refptr<net::IOBuffer>, size_t>>
-      FrameDataVector;
+  typedef std::vector<std::string> FrameDataVector;
   FrameDataVector frame_data_;
   WebSocketMessageType message_type_ =
       net::WebSocketFrameHeader::kOpCodeControlUnused;

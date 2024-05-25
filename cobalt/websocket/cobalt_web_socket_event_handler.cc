@@ -24,12 +24,11 @@
 namespace cobalt {
 namespace websocket {
 namespace {
-typedef std::vector<std::pair<scoped_refptr<net::IOBuffer>, size_t>>
-    FrameDataVector;
+typedef std::vector<std::string> FrameDataVector;
 std::size_t GetMessageLength(const FrameDataVector& frame_data) {
   std::size_t total_length = 0;
   for (const auto& i : frame_data) {
-    total_length += i.second;
+    total_length += i.size();
   }
   return total_length;
 }
@@ -42,12 +41,10 @@ std::size_t CombineFramesChunks(FrameDataVector::const_iterator begin,
   std::size_t bytes_available = buffer_length;
   for (FrameDataVector::const_iterator iterator = begin; iterator != end;
        ++iterator) {
-    const scoped_refptr<net::IOBuffer>& data = iterator->first;
-
-    std::size_t frame_chunk_size = iterator->second;
-
+    const auto& data = iterator->data();
+    std::size_t frame_chunk_size = iterator->size();
     if (bytes_available >= frame_chunk_size) {
-      memcpy(out_destination, data->data(), frame_chunk_size);
+      memcpy(out_destination, data, frame_chunk_size);
       out_destination += frame_chunk_size;
       bytes_written += frame_chunk_size;
       bytes_available -= frame_chunk_size;
@@ -64,18 +61,18 @@ void CobaltWebSocketEventHandler::OnAddChannelResponse(
     const std::string& selected_subprotocol, const std::string& extensions) {
   creator_->OnHandshakeComplete(selected_subprotocol);
 }
+
 void CobaltWebSocketEventHandler::OnDataFrame(bool fin,
                                               WebSocketMessageType type,
                                               base::span<const char> payload) {
+  std::string message(payload.data(), payload.size());
   if (message_type_ == net::WebSocketFrameHeader::kOpCodeControlUnused) {
     message_type_ = type;
   }
   if (type != net::WebSocketFrameHeader::kOpCodeContinuation) {
     DCHECK_EQ(message_type_, type);
   }
-#ifndef COBALT_PENDING_CLEAN_UP
-  frame_data_.push_back(std::make_pair(std::move(payload), buffer_size));
-#endif
+  frame_data_.push_back(std::move(message));
   if (fin) {
     std::size_t message_length = GetMessageLength(frame_data_);
     scoped_refptr<net::IOBufferWithSize> buf =
