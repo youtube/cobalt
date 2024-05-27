@@ -22,11 +22,12 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/files/file.h"
+#include "base/files/file_path.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/time/time.h"
-#include "starboard/common/file.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 
@@ -132,12 +133,13 @@ std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
   // previous Watchdog violations file containing violations before app start,
   // if it exists.
   if (violations_map_ == nullptr) {
-    starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(),
-                                    kSbFileOpenOnly | kSbFileRead);
+    base::FilePath file_path(GetWatchdogFilePath());
+    base::File read_file(
+        file_path, base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);
     if (read_file.IsValid()) {
-      int64_t kFileSize = read_file.GetSize();
+      int64_t kFileSize = read_file.GetLength();
       std::vector<char> buffer(kFileSize + 1, 0);
-      read_file.ReadAll(buffer.data(), kFileSize);
+      read_file.ReadAtCurrentPos(buffer.data(), kFileSize);
       violations_map_ = base::Value::ToUniquePtrValue(
           base::JSONReader::Read(std::string(buffer.data()))
               .value_or(base::Value(base::Value::Type::DICT)));
