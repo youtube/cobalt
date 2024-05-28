@@ -414,14 +414,14 @@ typedef int8_t UBool;
         defined(U_I18N_IMPLEMENTATION) || defined(U_IO_IMPLEMENTATION)
     // Inside the ICU library code, never configurable.
     typedef char16_t UChar;
-#elif defined(UCHAR_TYPE)
-    typedef UCHAR_TYPE UChar;
-#elif (U_CPLUSPLUS_VERSION >= 11)
-    typedef char16_t UChar;
 #elif defined(STARBOARD) && U_SIZEOF_WCHAR_T==2
     typedef wchar_t UChar;
 #elif defined(STARBOARD) && U_SIZEOF_WCHAR_T==4
     typedef uint16_t UChar;
+#elif defined(UCHAR_TYPE)
+    typedef UCHAR_TYPE UChar;
+#elif (U_CPLUSPLUS_VERSION >= 11)
+    typedef char16_t UChar;
 #else
     typedef uint16_t UChar;
 #endif
