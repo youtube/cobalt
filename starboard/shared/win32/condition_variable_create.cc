@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/common/condition_variable.h"
 
 #include <windows.h>
@@ -29,3 +31,5 @@ bool SbConditionVariableCreate(SbConditionVariable* out_condition,
   InitializeConditionVariable(SB_WIN32_INTERNAL_CONDITION(out_condition));
   return true;
 }
+
+#endif  // SB_API_VERSION < 16

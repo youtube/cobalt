@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/thread.h"
 
 #include <pthread.h>
@@ -127,3 +129,5 @@ SbThread SbThreadCreate(int64_t stack_size,
 
   return kSbThreadInvalid;
 }
+
+#endif  // SB_API_VERSION < 16
