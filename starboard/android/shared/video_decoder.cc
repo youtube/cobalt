@@ -601,8 +601,10 @@ void VideoDecoder::WriteEndOfStream() {
 void VideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  // If fail to flush |media_decoder_|, then re-create |media_decoder_|.
-  if (!enable_flush_during_seek_ || !media_decoder_->Flush()) {
+  // If fail to flush |media_decoder_| or |media_decoder_| is null, then
+  // re-create |media_decoder_|.
+  if (!enable_flush_during_seek_ || !media_decoder_ ||
+      !media_decoder_->Flush()) {
     TeardownCodec();
 
     input_buffer_written_ = 0;
