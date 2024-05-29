@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pthread.h>
-
 #if SB_API_VERSION >= 16
+
+#include <pthread.h>
 #include <sys/time.h>
-#else
-#include "starboard/time.h"
-#endif  // SB_API_VERSION >= 16
 
 #include "starboard/common/time.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
@@ -30,9 +27,7 @@ namespace nplb {
 namespace {
 
 void InitCondition(pthread_cond_t* condition, bool use_monotonic) {
-#if (SB_API_VERSION >= 16 || !SB_IS(MODULAR)) && \
-    !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT) && !defined(_WIN32)
-
+#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   pthread_condattr_t attribute;
   EXPECT_EQ(pthread_condattr_init(&attribute), 0);
   if (use_monotonic) {
@@ -49,43 +44,25 @@ int64_t CurrentTime(bool use_monotonic) {
   if (use_monotonic) {
     return starboard::CurrentMonotonicTime();
   } else {
-#if SB_API_VERSION >= 16
-    struct timeval tv;
-    EXPECT_EQ(gettimeofday(&tv, NULL), 0);
-    return tv.tv_sec;
-#else   // SB_API_VERSION >= 16
-    return SbTimeGetNow() / 1'000'000;
-#endif  // SB_API_VERSION >= 16
+    return starboard::CurrentPosixTime();
   }
 }
 
-struct timespec CalculateDelayTimestampUsec(int64_t delay) {
-  int64_t timeout_time_usec = CurrentTime(true /* use_monotonic */);
-  timeout_time_usec += delay;
+struct timespec CalculateDelayTimestamp(int64_t delay_us, bool use_monotonic) {
+  int64_t timeout_time_usec = 0;
+  if (use_monotonic) {
+    timeout_time_usec = starboard::CurrentMonotonicTime();
+  } else {
+    timeout_time_usec = starboard::CurrentPosixTime();
+  }
+  timeout_time_usec += delay_us;
   EXPECT_GT(timeout_time_usec, 0);
 
   struct timespec delay_timestamp;
   delay_timestamp.tv_sec = timeout_time_usec / 1'000'000;
   delay_timestamp.tv_nsec = (timeout_time_usec % 1'000'000) * 1000;
+
   return delay_timestamp;
-}
-
-struct timespec CalculateDelayTimestampSec(int64_t delay) {
-  int64_t timeout_sec = CurrentTime(false /* use_monotonic */) + delay;
-  EXPECT_GT(timeout_sec, 0);
-
-  struct timespec delay_timestamp;
-  delay_timestamp.tv_sec = timeout_sec;
-  delay_timestamp.tv_nsec = 0;
-  return delay_timestamp;
-}
-
-struct timespec CalculateDelayTimestamp(int64_t delay, bool use_monotonic) {
-  if (use_monotonic) {
-    return CalculateDelayTimestampUsec(delay);
-  } else {
-    return CalculateDelayTimestampSec(delay);
-  }
 }
 
 // The SunnyDay, SunnyDayAutoInit, and SunnyDayNearMaxTime test cases directly
@@ -105,12 +82,6 @@ void DoSunnyDay(posix::TakeThenSignalContext* context,
   // Allow two-millisecond-level precision.
   const int64_t kPrecisionUs = 2'000;  // 2ms
 
-  const int64_t kDelayS = 3;      // 3s
-  const int64_t kPrecisionS = 1;  // 1s
-
-  const int64_t kDelay = (use_monotonic) ? kDelayUs : kDelayS;
-  const int64_t kPrecision = (use_monotonic) ? kPrecisionUs : kPrecisionS;
-
   // We know the thread hasn't signaled the condition variable yet, and won't
   // unless we tell it, so it should wait at least the whole delay time.
   if (check_timeout) {
@@ -118,15 +89,16 @@ void DoSunnyDay(posix::TakeThenSignalContext* context,
     int64_t start = CurrentTime(use_monotonic);
 
     struct timespec delay_timestamp =
-        CalculateDelayTimestamp(kDelay, use_monotonic);
+        CalculateDelayTimestamp(kDelayUs, use_monotonic);
+
     EXPECT_EQ(pthread_cond_timedwait(&context->condition, &context->mutex,
                                      &delay_timestamp),
               ETIMEDOUT);
     int64_t end = CurrentTime(use_monotonic);
     int64_t elapsed = end - start;
 
-    EXPECT_LE(kDelay, elapsed + kPrecision);
-    EXPECT_GT(kDelay * 2, elapsed - kPrecision);
+    EXPECT_LE(kDelayUs, elapsed + kPrecisionUs);
+    EXPECT_GT(kDelayUs * 2, elapsed - kPrecisionUs);
     EXPECT_EQ(pthread_mutex_unlock(&context->mutex), 0);
   }
 
@@ -143,13 +115,13 @@ void DoSunnyDay(posix::TakeThenSignalContext* context,
     // signaling, and ensuring we are waiting before it signals.
 
     struct timespec delay_timestamp =
-        CalculateDelayTimestamp(kDelay, use_monotonic);
+        CalculateDelayTimestamp(kDelayUs, use_monotonic);
     EXPECT_EQ(pthread_cond_timedwait(&context->condition, &context->mutex,
                                      &delay_timestamp),
               0);
 
     // We should have waited only a very small amount of time.
-    EXPECT_GT(kDelay, CurrentTime(use_monotonic) - start);
+    EXPECT_GT(kDelayUs, CurrentTime(use_monotonic) - start);
 
     EXPECT_EQ(pthread_mutex_unlock(&context->mutex), 0);
   }
@@ -172,13 +144,10 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDay) {
   DoSunnyDay(&context, true, true /* use_monotonic */);
 #else
   InitCondition(&context.condition, false);
-  DoSunnyDay(&context, true, false /* use_monotinic */);
+  DoSunnyDay(&context, true, false /* use_monotonic */);
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
 }
 
-// For Starboard < 16 only monotonic time is used for
-// conditional waits.
-#if SB_API_VERSION >= 16 && !defined(_WIN32)
 // Test marked as flaky because it calls DoSunnyDay().
 TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
   {
@@ -246,7 +215,8 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
   EXPECT_EQ(pthread_mutex_destroy(&context.mutex), 0);
 }
 
-#endif  // SB_API_VERSION >= 16
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION >= 16

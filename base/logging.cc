@@ -49,7 +49,7 @@
 #include "starboard/file.h"
 #include "starboard/system.h"
 typedef SbFile FileHandle;
-typedef SbMutex MutexHandle;
+typedef pthread_mutex_t MutexHandle;
 #else
 #if BUILDFLAG(IS_WIN)
 #include <io.h>

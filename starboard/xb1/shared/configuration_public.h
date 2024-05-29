@@ -54,4 +54,7 @@
 // Specifies whether this platform supports IPV6.
 #define SB_HAS_IPV6 1
 
+// --- Platform Specific Quirks ----------------------------------------------
+#define SB_HAS_QUIRK_NO_CONDATTR_SETCLOCK_SUPPORT 1
+
 #endif  // STARBOARD_XB1_SHARED_CONFIGURATION_PUBLIC_H_
