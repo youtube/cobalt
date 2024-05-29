@@ -1472,12 +1472,14 @@ template("angle_libGLESv2") {
   }
 }
 
+if (!is_starboard) {
 angle_libGLESv2("libGLESv2") {
   if (angle_with_capture_by_default) {
     deps = [ ":libANGLE_with_capture" ]
   } else {
     deps = [ ":libANGLE" ]
   }
+}
 }
 
 if (angle_enable_vulkan) {
@@ -1550,6 +1552,7 @@ angle_static_library("libGLESv2_static") {
   public_deps = [ ":libANGLE" ]
 }
 
+if (!is_starboard) {
 angle_shared_library("libGLESv1_CM") {
   sources = libglesv1_cm_sources
   output_name = "libGLESv1_CM${angle_libs_suffix}"
@@ -1571,6 +1574,7 @@ angle_shared_library("libGLESv1_CM") {
     sources += [ "src/libGLESv1_CM/libGLESv1_CM.def" ]
     deps += [ ":angle_version" ]
   }
+}
 }
 
 config("libEGL_egl_loader_config") {
@@ -1640,6 +1644,7 @@ template("libEGL_shared_template") {
   }
 }
 
+if (!is_starboard) {
 libEGL_template("libEGL") {
   defines = [ "ANGLE_DISPATCH_LIBRARY=\"${_angle_glesv2_library_name}\"" ]
   gles_library = "libGLESv2"
@@ -1671,6 +1676,7 @@ libEGL_template("libEGL") {
    }
 
    data_deps = [ ":${gles_library}" ]
+}
 }
 
 if (angle_enable_vulkan) {
@@ -1857,6 +1863,7 @@ if ((angle_standalone || build_with_chromium) && is_android &&
   }
 }
 
+if (!is_starboard) {
 group("angle") {
   data_deps = [
     ":libEGL",
@@ -1873,6 +1880,7 @@ group("angle") {
     # Need to bundle the libraries inside the .app.
     deps = data_deps
   }
+}
 }
 
 group("angle_static") {
