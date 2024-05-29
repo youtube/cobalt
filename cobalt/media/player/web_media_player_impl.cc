@@ -316,7 +316,9 @@ void WebMediaPlayerImpl::Play() {
   pipeline_->SetPlaybackRate(state_.playback_rate);
 
   media_log_->AddEvent<::media::MediaLogEvent::kPlay>();
-  media_metrics_provider_.SetHasPlayed();
+  if (!suppress_telemetry_) {
+    media_metrics_provider_.SetHasPlayed();
+  }
 }
 
 void WebMediaPlayerImpl::Pause() {
@@ -351,7 +353,10 @@ void WebMediaPlayerImpl::Seek(double seconds) {
     return;
   }
 
-  media_metrics_provider_.StartTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
+  if (!suppress_telemetry_) {
+    media_metrics_provider_.StartTrackingAction(
+        MediaAction::WEBMEDIAPLAYER_SEEK);
+  }
   media_log_->AddEvent<::media::MediaLogEvent::kSeek>(seconds);
 
   base::TimeDelta seek_time = ConvertSecondsToTimestamp(seconds);
@@ -633,8 +638,8 @@ void WebMediaPlayerImpl::OnPipelineSeek(::media::PipelineStatus status,
   // WebMediaPlayerImpl::OnPipelineSeek() is called frequently, more than just
   // when WebMediaPlayerImpl::Seek() is called. This helps to filter out when
   // the pipeline seeks without being initiated by WebMediaPlayerImpl.
-  if (media_metrics_provider_.IsActionCurrentlyTracked(
-          MediaAction::WEBMEDIAPLAYER_SEEK)) {
+  if (!suppress_telemetry_ && media_metrics_provider_.IsActionCurrentlyTracked(
+                                  MediaAction::WEBMEDIAPLAYER_SEEK)) {
     media_metrics_provider_.EndTrackingAction(MediaAction::WEBMEDIAPLAYER_SEEK);
   }
 }
@@ -657,7 +662,9 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
   if (suppress_destruction_errors_) return;
 
   media_log_->NotifyError(error);
-  media_metrics_provider_.OnError(error);
+  if (!suppress_telemetry_) {
+    media_metrics_provider_.OnError(error);
+  }
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) {
     // Any error that occurs before reaching ReadyStateHaveMetadata should
@@ -785,7 +792,9 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
       break;
     case Pipeline::kPrerollCompleted:
       SetReadyState(WebMediaPlayer::kReadyStateHaveEnoughData);
-      media_metrics_provider_.SetHaveEnough();
+      if (!suppress_telemetry_) {
+        media_metrics_provider_.SetHaveEnough();
+      }
       break;
   }
 }
@@ -899,6 +908,9 @@ void WebMediaPlayerImpl::Destroy() {
     return;
   }
 
+  // Suppress further telemetry while the player is destroyed.
+  suppress_telemetry_ = true;
+
   // Tell the data source to abort any pending reads so that the pipeline is
   // not blocked when issuing stop commands to the other filters.
   suppress_destruction_errors_ = true;
@@ -965,7 +977,9 @@ void WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper(
       NOTREACHED();
       break;
   }
-  media_metrics_provider_.SetIsEME();
+  if (!suppress_telemetry_) {
+    media_metrics_provider_.SetIsEME();
+  }
 }
 
 WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {
