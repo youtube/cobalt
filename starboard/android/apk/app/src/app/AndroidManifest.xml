@@ -72,11 +72,6 @@
       </intent-filter>
     </activity>
 
-    <service android:name="dev.cobalt.coat.MediaPlaybackService"
-      android:enabled="true"
-      android:exported="false"
-      android:foregroundServiceType="mediaPlayback"/>
-
   </application>
 
   <queries>
