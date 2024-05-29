@@ -20,11 +20,13 @@
 
 #include <pthread.h>
 
+#if SB_API_VERSION < 16
 #include "starboard/mutex.h"
+#endif  // SB_API_VERSION < 16
 
 namespace starboard {
 
-// Inline class wrapper for SbMutex.
+// Inline class wrapper for mutex.
 class Mutex {
  public:
   Mutex();
@@ -50,9 +52,13 @@ class Mutex {
 #endif
 
   friend class ConditionVariable;
+#if SB_API_VERSION < 16
   SbMutex* mutex() const;
   mutable SbMutex mutex_;
-
+#else
+  pthread_mutex_t* mutex() const;
+  mutable pthread_mutex_t mutex_;
+#endif  // SB_API_VERSION < 16
   Mutex(const Mutex&) = delete;
   void operator=(const Mutex&) = delete;
 };
