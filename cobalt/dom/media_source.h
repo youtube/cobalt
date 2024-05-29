@@ -56,6 +56,7 @@
 #include "cobalt/dom/audio_track.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_media_element.h"
+#include "cobalt/dom/media_source_attachment_supplement.h"
 #include "cobalt/dom/media_source_end_of_stream_error.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/dom/serialized_algorithm_runner.h"
@@ -111,7 +112,8 @@ class MediaSource : public web::EventTarget {
   // Custom, not in any spec.
   //
   // HTMLMediaSource
-  bool StartAttachingToMediaElement(HTMLMediaElement* media_element);
+  bool StartAttachingToMediaElement(
+      MediaSourceAttachmentSupplement* media_source_attachment);
   void CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer);
   void Close();
   bool IsClosed() const;
@@ -124,7 +126,7 @@ class MediaSource : public web::EventTarget {
   void OpenIfInEndedState();
   bool IsOpen() const;
   void SetSourceBufferActive(SourceBuffer* source_buffer, bool is_active);
-  HTMLMediaElement* GetMediaElement() const;
+  MediaSourceAttachmentSupplement* GetMediaSourceAttachment() const;
   bool MediaElementHasMaxVideoCapabilities() const;
   SerializedAlgorithmRunner<SourceBufferAlgorithm>* GetAlgorithmRunner(
       int job_size);
@@ -163,7 +165,7 @@ class MediaSource : public web::EventTarget {
   ChunkDemuxer* chunk_demuxer_;
   MediaSourceReadyState ready_state_;
   EventQueue event_queue_;
-  base::WeakPtr<HTMLMediaElement> attached_element_;
+  base::WeakPtr<MediaSourceAttachmentSupplement> media_source_attachment_;
 
   scoped_refptr<SourceBufferList> source_buffers_;
   scoped_refptr<SourceBufferList> active_source_buffers_;

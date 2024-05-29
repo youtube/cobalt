@@ -39,7 +39,6 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_settings.h"
-#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -72,7 +71,7 @@ namespace {
 
 #endif  // LOG_MEDIA_ELEMENT_ACTIVITIES
 
-constexpr char kMediaSourceUrlProtocol[] = "blob";
+constexpr char kMediaSourceAttachmentUrlProtocol[] = "blob";
 constexpr int kTimeupdateEventIntervalInMilliseconds = 200;
 
 DECLARE_INSTANCE_COUNTER(HTMLMediaElement);
@@ -175,8 +174,9 @@ HTMLMediaElement::HTMLMediaElement(Document* document,
       controls_(false),
       last_time_update_event_movie_time_(std::numeric_limits<double>::max()),
       processing_media_player_callback_(0),
-      media_source_url_(std::string(kMediaSourceUrlProtocol) + ':' +
-                        base::GenerateGUID()),
+      media_source_attachment_url_(
+          std::string(kMediaSourceAttachmentUrlProtocol) + ':' +
+          base::GenerateGUID()),
       pending_load_(false),
       sent_stalled_event_(false),
       sent_end_event_(false),
@@ -190,7 +190,7 @@ HTMLMediaElement::HTMLMediaElement(Document* document,
 HTMLMediaElement::~HTMLMediaElement() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::~HTMLMediaElement()");
   LOG(INFO) << "Destroy HTMLMediaElement.";
-  ClearMediaSource();
+  ClearMediaSourceAttachment();
   ON_INSTANCE_RELEASED(HTMLMediaElement);
 }
 
@@ -246,8 +246,8 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
   const auto* settings =
       node_document()->html_element_context()->environment_settings();
   if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(settings)) {
-    if (media_source_) {
-      return media_source_->GetBufferedRange();
+    if (media_source_attachment_) {
+      return media_source_attachment_->GetBufferedRange();
     }
   }
 
@@ -648,7 +648,7 @@ void HTMLMediaElement::TraceMembers(script::Tracer* tracer) {
 
   tracer->Trace(event_queue_);
   tracer->Trace(played_time_ranges_);
-  tracer->Trace(media_source_);
+  tracer->Trace(media_source_attachment_);
   tracer->Trace(error_);
   tracer->Trace(media_keys_);
 }
@@ -883,8 +883,8 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     return;
   }
 
-  DCHECK(!media_source_);
-  if (url.SchemeIs(kMediaSourceUrlProtocol)) {
+  DCHECK(!media_source_attachment_);
+  if (url.SchemeIs(kMediaSourceAttachmentUrlProtocol)) {
     // Check whether url is allowed by security policy.
     if (!node_document()->GetCSPDelegate()->CanLoad(web::CspDelegate::kMedia,
                                                     url, false)) {
@@ -893,28 +893,21 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
       return;
     }
 
-    scoped_refptr<MediaSourceAttachment> attachment =
+
+    media_source_attachment_ =
         html_element_context()->media_source_registry()->Retrieve(url.spec());
-
-    if (!attachment) {
+    if (!media_source_attachment_) {
       NoneSupported("Media source is NULL.");
       return;
     }
-
-    media_source_ = attachment->media_source();
-
-    if (!media_source_) {
-      NoneSupported("Media source is NULL.");
-      return;
-    }
-    if (!media_source_->StartAttachingToMediaElement(this)) {
-      media_source_ = nullptr;
+    if (!media_source_attachment_->StartAttachingToMediaElement(this)) {
+      media_source_attachment_ = nullptr;
       NoneSupported("Unable to attach media source.");
       return;
     }
-    media_source_url_ = url;
+    media_source_attachment_url_ = url;
 
-    LOG(INFO) << "Attached MediaSource (0x" << media_source_.get()
+    LOG(INFO) << "Attached MediaSource (0x" << media_source_attachment_.get()
               << ") to HTMLMediaElement (0x" << this << ")";
   }
   // The resource fetch algorithm
@@ -961,7 +954,7 @@ void HTMLMediaElement::ClearMediaPlayer() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ClearMediaPlayer()");
   LOG(INFO) << "Clear media player.";
 
-  ClearMediaSource();
+  ClearMediaSourceAttachment();
 
   player_.reset(NULL);
 
@@ -1005,7 +998,7 @@ void HTMLMediaElement::NoneSupported(const std::string& message) {
   // 7 - Queue a task to fire a simple event named error at the media element.
   ScheduleOwnEvent(base::Tokens::error());
 
-  ClearMediaSource();
+  ClearMediaSourceAttachment();
 }
 
 void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error,
@@ -1347,8 +1340,8 @@ void HTMLMediaElement::Seek(double time) {
   // Always notify the media engine of a seek if the source is not closed. This
   // ensures that the source is always in a flushed state when the 'seeking'
   // event fires.
-  if (media_source_ &&
-      media_source_->ready_state() != kMediaSourceReadyStateClosed) {
+  if (media_source_attachment_ && media_source_attachment_->GetReadyState() !=
+                                      kMediaSourceReadyStateClosed) {
     no_seek_required = false;
   }
 
@@ -1531,7 +1524,7 @@ void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   // 3 - Queue a task to fire a simple event named error at the media element.
   ScheduleOwnEvent(base::Tokens::error());
 
-  ClearMediaSource();
+  ClearMediaSourceAttachment();
 
   // 4 - Set the element's networkState attribute to the kNetworkEmpty value and
   // queue a task to fire a simple event called emptied at the element.
@@ -1686,13 +1679,13 @@ void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened()");
   DCHECK(chunk_demuxer);
   BeginProcessingMediaPlayerCallback();
-  DCHECK(media_source_);
-  media_source_->CompleteAttachingToMediaElement(chunk_demuxer);
+  DCHECK(media_source_attachment_);
+  media_source_attachment_->CompleteAttachingToMediaElement(chunk_demuxer);
   EndProcessingMediaPlayerCallback();
 }
 
 std::string HTMLMediaElement::SourceURL() const {
-  return media_source_url_.spec();
+  return media_source_attachment_url_.spec();
 }
 
 std::string HTMLMediaElement::MaxVideoCapabilities() const {
@@ -1775,10 +1768,10 @@ void HTMLMediaElement::EncryptedMediaInitDataEncountered(
       environment_settings, "encrypted", media_encrypted_event_init));
 }
 
-void HTMLMediaElement::ClearMediaSource() {
-  if (media_source_) {
-    media_source_->Close();
-    media_source_ = NULL;
+void HTMLMediaElement::ClearMediaSourceAttachment() {
+  if (media_source_attachment_) {
+    media_source_attachment_->Close();
+    media_source_attachment_ = NULL;
   }
 }
 

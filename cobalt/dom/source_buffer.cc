@@ -170,9 +170,11 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
       chunk_demuxer_(chunk_demuxer),
       event_queue_(event_queue),
       audio_tracks_(
-          new AudioTrackList(settings, media_source->GetMediaElement())),
+          media_source->GetMediaSourceAttachment()->CreateAudioTrackList(
+              settings)),
       video_tracks_(
-          new VideoTrackList(settings, media_source->GetMediaElement())),
+          media_source->GetMediaSourceAttachment()->CreateVideoTrackList(
+              settings)),
       metrics_(!media_source_->MediaElementHasMaxVideoCapabilities()) {
   DCHECK(!id_.empty());
   DCHECK(media_source_);
@@ -481,8 +483,10 @@ void SourceBuffer::OnRemovedFromMediaSource() {
   DCHECK(media_source_);
 
   // TODO: Implement track support.
-  // if (media_source_->GetMediaElement()->audio_tracks().length() > 0 ||
-  //     media_source_->GetMediaElement()->audio_tracks().length() > 0) {
+  // if (media_source_->GetMediaSourceAttachment()->audio_tracks().length() > 0
+  // ||
+  //     media_source_->GetMediaSourceAttachment()->audio_tracks().length() > 0)
+  //     {
   //   RemoveMediaTracks();
   // }
 
@@ -585,8 +589,8 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
     return false;
   }
 
-  DCHECK(media_source_->GetMediaElement());
-  if (media_source_->GetMediaElement()->error()) {
+  DCHECK(media_source_->GetMediaSourceAttachment());
+  if (media_source_->GetMediaSourceAttachment()->GetElementError()) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return false;
@@ -595,7 +599,8 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
   metrics_.StartTracking(SourceBufferMetricsAction::PREPARE_APPEND);
   media_source_->OpenIfInEndedState();
 
-  double current_time = media_source_->GetMediaElement()->current_time(NULL);
+  double current_time =
+      media_source_->GetMediaSourceAttachment()->GetRecentMediaTime();
   if (!chunk_demuxer_->EvictCodedFrames(
           id_, base::TimeDelta::FromSecondsD(current_time),
           new_data_size + evict_extra_in_bytes_)) {

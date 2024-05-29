@@ -16,9 +16,12 @@
 #define COBALT_DOM_MEDIA_SOURCE_ATTACHMENT_H_
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/media_source.h"
+#include "cobalt/dom/html_media_element.h"
+#include "cobalt/dom/media_source_ready_state.h"
+#include "cobalt/dom/time_ranges.h"
 #include "cobalt/script/tracer.h"
 #include "cobalt/web/url_registry.h"
+#include "media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {
@@ -32,20 +35,19 @@ class MediaSourceAttachment
  public:
   typedef web::UrlRegistry<MediaSourceAttachment> Registry;
 
-  explicit MediaSourceAttachment(scoped_refptr<MediaSource> media_source)
-      : media_source_(media_source) {}
+  MediaSourceAttachment() = default;
+  ~MediaSourceAttachment() = default;
 
-  scoped_refptr<MediaSource> media_source() const { return media_source_; }
-
-  void TraceMembers(script::Tracer* tracer) override {
-    tracer->Trace(media_source_);
-  }
+  virtual bool StartAttachingToMediaElement(
+      HTMLMediaElement* media_element) = 0;
+  virtual void CompleteAttachingToMediaElement(
+      ::media::ChunkDemuxer* chunk_demuxer) = 0;
+  virtual void Close() = 0;
+  virtual scoped_refptr<TimeRanges> GetBufferedRange() const = 0;
+  virtual MediaSourceReadyState GetReadyState() const = 0;
 
  private:
   friend class base::RefCountedThreadSafe<MediaSourceAttachment>;
-  ~MediaSourceAttachment() = default;
-
-  scoped_refptr<MediaSource> media_source_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaSourceAttachment);
 };

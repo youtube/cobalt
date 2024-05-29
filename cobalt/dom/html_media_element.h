@@ -36,7 +36,7 @@
 namespace cobalt {
 namespace dom {
 
-class MediaSource;
+class MediaSourceAttachment;
 
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
 //   https://www.w3.org/TR/html50/embedded-content-0.html#media-element
@@ -248,7 +248,7 @@ class HTMLMediaElement : public HTMLElement,
   void EncryptedMediaInitDataEncountered(
       const char* init_data_type, const unsigned char* init_data,
       unsigned int init_data_length) override;
-  void ClearMediaSource();
+  void ClearMediaSourceAttachment();
 
   std::unique_ptr<WebMediaPlayer> player_;
 
@@ -298,8 +298,8 @@ class HTMLMediaElement : public HTMLElement,
   // we can avoid calling the low level player recursively.
   int processing_media_player_callback_;
 
-  GURL media_source_url_;
-  scoped_refptr<MediaSource> media_source_;
+  GURL media_source_attachment_url_;
+  scoped_refptr<MediaSourceAttachment> media_source_attachment_;
 
   bool pending_load_;
 

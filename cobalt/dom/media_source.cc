@@ -59,6 +59,8 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/media_settings.h"
+#include "cobalt/dom/media_source_attachment_supplement.h"
+#include "cobalt/dom/same_thread_media_source_attachment.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/event.h"
@@ -225,7 +227,6 @@ void MediaSource::set_duration(double duration,
             std::isnan(old_duration) ? 0 : old_duration);
 
   // 4. Update duration to new duration.
-  bool request_seek = attached_element_->current_time(NULL) > duration;
   chunk_demuxer_->SetDuration(duration);
 
   // 5. If a user agent is unable to partially render audio frames or text cues
@@ -237,7 +238,7 @@ void MediaSource::set_duration(double duration,
 
   // 6. Update the media controller duration to new duration and run the
   //    HTMLMediaElement duration change algorithm.
-  attached_element_->DurationChanged(duration, request_seek);
+  media_source_attachment_->DurationChanged(duration);
 }
 
 scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
@@ -415,16 +416,17 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
 }
 
 bool MediaSource::StartAttachingToMediaElement(
-    HTMLMediaElement* media_element) {
-  if (attached_element_) {
+    MediaSourceAttachmentSupplement* media_source_attachment) {
+  if (media_source_attachment_) {
     return false;
   }
 
   DCHECK(IsClosed());
   DCHECK(!algorithm_process_thread_);
 
-  attached_element_ = base::AsWeakPtr(media_element);
-  has_max_video_capabilities_ = media_element->HasMaxVideoCapabilities();
+  media_source_attachment_ = base::AsWeakPtr(media_source_attachment);
+  has_max_video_capabilities_ =
+      media_source_attachment->HasMaxVideoCapabilities();
 
   if (algorithm_offload_enabled_) {
     algorithm_process_thread_.reset(new base::Thread("MSEAlgorithm"));
@@ -450,7 +452,7 @@ bool MediaSource::StartAttachingToMediaElement(
 void MediaSource::CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   DCHECK(!chunk_demuxer_);
-  DCHECK(attached_element_);
+  DCHECK(media_source_attachment_);
   chunk_demuxer_ = chunk_demuxer;
   SetReadyState(kMediaSourceReadyStateOpen);
 }
@@ -518,7 +520,14 @@ scoped_refptr<TimeRanges> MediaSource::GetSeekable() const {
             environment_settings())) {
       buffered = GetBufferedRange();
     } else {
-      buffered = attached_element_->buffered();
+      // Only MediaSourceAttachments on the same thread should use this
+      // codepath. Cross-thread attachments should use GetBufferedRange to
+      // avoid cross-thread, cross-element calls where possible.
+      auto* attachment =
+          base::polymorphic_downcast<SameThreadMediaSourceAttachment*>(
+              media_source_attachment_.get());
+      DCHECK(attachment);
+      buffered = attachment->GetElementBufferedRange();
     }
 
     if (live_seekable_range_->length() != 0) {
@@ -619,12 +628,12 @@ void MediaSource::SetSourceBufferActive(SourceBuffer* source_buffer,
   active_source_buffers_->Insert(insert_position, source_buffer);
 }
 
-HTMLMediaElement* MediaSource::GetMediaElement() const {
-  return attached_element_;
+MediaSourceAttachmentSupplement* MediaSource::GetMediaSourceAttachment() const {
+  return media_source_attachment_;
 }
 
 bool MediaSource::MediaElementHasMaxVideoCapabilities() const {
-  SB_DCHECK(attached_element_);
+  SB_DCHECK(media_source_attachment_);
   return has_max_video_capabilities_;
 }
 
@@ -656,7 +665,7 @@ void MediaSource::TraceMembers(script::Tracer* tracer) {
   web::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(event_queue_);
-  tracer->Trace(attached_element_);
+  tracer->Trace(media_source_attachment_);
   tracer->Trace(source_buffers_);
   tracer->Trace(active_source_buffers_);
   tracer->Trace(live_seekable_range_);
@@ -702,7 +711,7 @@ void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
   }
   source_buffers_->Clear();
 
-  attached_element_.reset();
+  media_source_attachment_.reset();
 
   ScheduleEvent(base::Tokens::sourceclose());
 
