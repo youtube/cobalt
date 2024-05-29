@@ -84,45 +84,23 @@ std::string H5vccSystem::platform() const {
 std::string H5vccSystem::advertising_id() const {
   std::string result;
   char property[kSystemPropertyMaxLength] = {0};
-#if SB_API_VERSION >= 14
   if (!SbSystemGetProperty(kSbSystemPropertyAdvertisingId, property,
                            SB_ARRAY_SIZE_INT(property))) {
     DLOG(INFO) << "Failed to get kSbSystemPropertyAdvertisingId.";
   } else {
     result = property;
   }
-#else
-  if (ifa_extension_ && ifa_extension_->version >= 1) {
-    if (!ifa_extension_->GetAdvertisingId(property,
-                                          SB_ARRAY_SIZE_INT(property))) {
-      DLOG(FATAL) << "Failed to get AdvertisingId from IFA extension.";
-    } else {
-      result = property;
-    }
-  }
-#endif
   return result;
 }
 bool H5vccSystem::limit_ad_tracking() const {
   bool result = false;
   char property[kSystemPropertyMaxLength] = {0};
-#if SB_API_VERSION >= 14
   if (!SbSystemGetProperty(kSbSystemPropertyLimitAdTracking, property,
                            SB_ARRAY_SIZE_INT(property))) {
     DLOG(INFO) << "Failed to get kSbSystemPropertyAdvertisingId.";
   } else {
     result = std::atoi(property);
   }
-#else
-  if (ifa_extension_ && ifa_extension_->version >= 1) {
-    if (!ifa_extension_->GetLimitAdTracking(property,
-                                            SB_ARRAY_SIZE_INT(property))) {
-      DLOG(FATAL) << "Failed to get LimitAdTracking from IFA extension.";
-    } else {
-      result = std::atoi(property);
-    }
-  }
-#endif
   return result;
 }
 

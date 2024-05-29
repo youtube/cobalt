@@ -148,10 +148,8 @@ SB_EXPORT extern const char* kSbPathSepString;
 SB_EXPORT extern const uint32_t kSbUserMaxSignedIn;
 #endif  // SB_API_VERSION < 16
 
-#if SB_API_VERSION >= 14
 // The maximum size the cache directory is allowed to use in bytes.
 SB_EXPORT extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
-#endif
 
 #if SB_API_VERSION >= 16
 // Whether this platform can map executable memory. This is required for

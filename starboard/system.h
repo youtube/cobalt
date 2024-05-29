@@ -116,7 +116,6 @@ typedef enum SbSystemPropertyId {
   // A field that, if available, is appended to the user agent
   kSbSystemPropertyUserAgentAuxField,
 
-#if SB_API_VERSION >= 14
   // Advertising ID or IFA, typically a 128-bit UUID
   // Please see https://iabtechlab.com/OTT-IFA for details.
   // Corresponds to 'ifa' field. Note: `ifa_type` field is not provided.
@@ -125,7 +124,6 @@ typedef enum SbSystemPropertyId {
   // Limit advertising tracking, treated as boolean. Set to nonzero to indicate
   // a true value. Corresponds to 'lmt' field.
   kSbSystemPropertyLimitAdTracking,
-#endif
 
 #if SB_API_VERSION >= 15
   // Type of the device, e.g. such as "TV", "STB", "OTT"
@@ -161,10 +159,8 @@ typedef enum SbSystemDeviceType {
   // An Android TV Device.
   kSbSystemDeviceTypeAndroidTV,
 
-#if SB_API_VERSION >= 14
   // A wall video projector.
   kSbSystemDeviceTypeVideoProjector,
-#endif  // SB_API_VERSION >= 14
 
   // Unknown device.
   kSbSystemDeviceTypeUnknown,

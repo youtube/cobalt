@@ -134,10 +134,8 @@ const int kSbPreferredRgbaByteOrder = SB_PREFERRED_RGBA_BYTE_ORDER_RGBA;
 const uint32_t kSbUserMaxSignedIn = 1;
 #endif  // SB_API_VERSION < 16
 
-#if SB_API_VERSION >= 14
 // The maximum size the cache directory is allowed to use in bytes.
 const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
-#endif
 
 #if SB_API_VERSION >= 16
 // Whether this platform can map executable memory. This is required for

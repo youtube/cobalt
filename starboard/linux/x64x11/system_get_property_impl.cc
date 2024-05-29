@@ -32,11 +32,7 @@ const char kModelName[] = "ModelName";
 const char kPlatformName[] = "X11; Linux x86_64";
 const char kSystemIntegratorName[] = "SystemIntegratorName";
 
-#if SB_API_VERSION >= 14
 const char kModelYear[] = "2023";
-#else
-const char kModelYear[] = "2022";
-#endif  // SB_API_VERSION
 }  // namespace
 
 // Omit namespace linux due to symbol name conflict.
@@ -109,7 +105,6 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertySpeechApiKey:
     case kSbSystemPropertyUserAgentAuxField:
       return false;
-#if SB_API_VERSION >= 14
     // Implementation provided for testing purposes only
     case kSbSystemPropertyAdvertisingId:
       return CopyStringAndTestIfSuccess(
@@ -119,7 +114,6 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(
           out_value, value_length,
           GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
-#endif
 #if SB_API_VERSION >= 15
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
