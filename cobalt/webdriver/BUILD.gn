@@ -131,6 +131,7 @@ target(gtest_target_type, "webdriver_test") {
   testonly = true
 
   sources = [
+    "dispatcher_test.cc",
     "execute_test.cc",
     "get_element_text_test.cc",
     "is_displayed_test.cc",
@@ -150,6 +151,7 @@ target(gtest_target_type, "webdriver_test") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/devtools:devtools_all_files",
+    "//url",
   ]
 
   data_deps = [
