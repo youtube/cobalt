@@ -117,6 +117,8 @@ public class StarboardBridge {
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
 
+  public static boolean enableMediaPlaybackService = false;
+
   public StarboardBridge(
       Context appContext,
       Holder<Activity> activityHolder,
@@ -842,5 +844,13 @@ public class StarboardBridge {
   @UsedByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
+  }
+
+  private native void nativeEnableMediaPlaybackService(boolean value);
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected void enableMediaPlaybackService(boolean value) {
+    nativeEnableMediaPlaybackService(value);
   }
 }

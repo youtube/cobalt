@@ -103,4 +103,12 @@ function setupKeyHandler() {
   };
 }
 
+function enableMediaPlaybackService() {
+  if (window.h5vcc && window.h5vcc.settings) {
+      h5vcc.settings.set('Media.EnableMediaPlaybackService', 1);
+  }
+}
+
+enableMediaPlaybackService();
+
 downloadMediaData(setupKeyHandler);
