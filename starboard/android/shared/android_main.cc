@@ -267,20 +267,12 @@ void OnStart(GameActivity* activity) {
 
 void OnResume(GameActivity* activity) {
   if (g_app_running.load()) {
-    // Stop the MediaPlaybackService if activity state transits from background
-    // to foreground. Note that the MediaPlaybackService may already have
-    // been stopped before Cobalt's lifecycle state transits from Concealed
-    // to Frozen.
-    ApplicationAndroid::Get()->StopMediaPlaybackService();
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kResume);
   }
 }
 
 void OnPause(GameActivity* activity) {
   if (g_app_running.load()) {
-    // Start the MediaPlaybackService before activity state transits from
-    // foreground to background.
-    ApplicationAndroid::Get()->StartMediaPlaybackService();
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kPause);
   }
 }
