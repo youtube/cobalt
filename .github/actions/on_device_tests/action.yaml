@@ -17,6 +17,7 @@ runs:
     - name: Set env vars
       run: |
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        echo "GCS_RESULTS_PATH=gs://cobalt-unittest-storage/results/${GITHUB_RUN_ID}/" >> $GITHUB_ENV
 
         # Boot loader env
         if [ "${COBALT_EVERGREEN_LOADER}" != "null" ]; then
@@ -41,8 +42,7 @@ runs:
       shell: bash
     - name: Run ${{ env.SHARD_NAME }} Tests on ${{ matrix.platform }} Platform
       env:
-        GCS_PATH: gs://${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ env.GITHUB_RUN_NUMBER }}/${{ matrix.platform }}_${{ matrix.config }}
-        GCS_RESULTS_PATH: gs://cobalt-unittest-storage/results
+        GCS_PATH: gs://${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}_${{ matrix.config }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -57,6 +57,7 @@ runs:
         GITHUB_COMMIT_AUTHOR_EMAIL: ${{ github.event.commits[0].author.email }}
         GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
         GITHUB_RUN_ID: ${{ github.run_id }}
+        GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
       run: |
@@ -65,7 +66,7 @@ runs:
           --token ${GITHUB_TOKEN} \
           --change_id ${GITHUB_PR_NUMBER:-postsubmit} \
           trigger \
-          --test_type ${{ env.TEST_TYPE }} \
+          --test_type ${TEST_TYPE} \
           --platform ${{ matrix.target_platform }} \
           --config ${{ matrix.config }} \
           --tag cobalt_github_${GITHUB_EVENT_NAME} \
@@ -78,7 +79,7 @@ runs:
           ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
           --archive_path "${GCS_PATH}/artifacts.tar" \
-          --gcs_result_path "${GCS_RESULTS_PATH}/${GITHUB_RUN_ID}/" \
+          --gcs_result_path "${GCS_RESULTS_PATH}" \
           --label github \
           --label ${GITHUB_EVENT_NAME} \
           --label ${GITHUB_WORKFLOW} \
@@ -95,13 +96,13 @@ runs:
       env:
         COBALT_XMLS_FILENAME: cobalt_xmls.zip
         RESULTS_PATH: results
-        UNIT_TEST_RESULTS: unit-test-results
+        UNIT_TEST_RESULTS: unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}
       run: |
         set -eux
         mkdir results
-        gsutil -d cp -r "${GCS_PATH}/results/${GITHUB_RUN_ID}" ${RESULTS_PATH}
-        mkdir -p ${UNIT_TEST_RESULTS}/${{ matrix.platform }}/${{ matrix.shard }}/
-        unzip ${RESULTS_PATH}/${COBALT_XMLS_FILENAME} -d ${UNIT_TEST_RESULTS}/${{ matrix.platform }}/${{ matrix.shard }}/
+        gsutil -d cp -r "${GCS_RESULTS_PATH}" "${RESULTS_PATH}"
+        mkdir -p ${UNIT_TEST_RESULTS}/
+        unzip ${RESULTS_PATH}/${COBALT_XMLS_FILENAME} -d ${UNIT_TEST_RESULTS}/
       shell: bash
     - name: Archive Unit Test Logs
       uses: actions/upload-artifact@v3
