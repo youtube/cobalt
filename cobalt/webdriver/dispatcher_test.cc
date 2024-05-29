@@ -18,6 +18,7 @@
 
 #include "base/optional.h"
 #include "base/values.h"
+#include "cobalt/webdriver/protocol/log_type.h"
 #include "cobalt/webdriver/protocol/window_id.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "cobalt/webdriver/util/command_result.h"
@@ -39,6 +40,20 @@ TEST(FromValueTest, WindowID) {
 TEST(FromValueTest, WindowID_Fail) {
   base::Value empty;
   auto result = util::internal::FromValue<protocol::WindowId>(&empty);
+  EXPECT_EQ(result, base::nullopt);
+}
+
+TEST(FromValueTest, LogType) {
+  base::Value::Dict dict;
+  dict.Set("type", "foo");
+  base::Value value(std::move(dict));
+  auto result = util::internal::FromValue<protocol::LogType>(&value);
+  EXPECT_EQ(result->type(), "foo");
+}
+
+TEST(FromValueTest, LogType_Fail) {
+  base::Value empty;
+  auto result = util::internal::FromValue<protocol::LogType>(&empty);
   EXPECT_EQ(result, base::nullopt);
 }
 
