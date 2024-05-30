@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <pthread.h>
 #include <stdio.h>
+
 #include <string>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 
 namespace {
-SbMutex log_line_mutex = SB_MUTEX_INITIALIZER;
+pthread_mutex_t log_line_mutex = PTHREAD_MUTEX_INITIALIZER;
 std::stringstream log_line;
 const int kFormatBufferSizeBytes = 16 * 1024;
 
@@ -39,7 +40,7 @@ void SbLogFormat(const char* format, va_list arguments) {
 
   const char* newline = strchr(formatted_buffer, '\n');
 
-  SbMutexAcquire(&log_line_mutex);
+  pthread_mutex_lock(&log_line_mutex);
   std::string buffer_string(formatted_buffer);
   log_line << buffer_string;
   if (newline != NULL) {
@@ -50,5 +51,5 @@ void SbLogFormat(const char* format, va_list arguments) {
     log_line.str("");
     log_line.clear();
   }
-  SbMutexRelease(&log_line_mutex);
+  pthread_mutex_unlock(&log_line_mutex);
 }
