@@ -131,7 +131,7 @@ class SbSocketWaiterPrivate {
 
   // The thread this waiter was created on. Immutable, so accessible from any
   // thread.
-  const SbThread thread_;
+  const pthread_t thread_;
 
   // The registry of currently registered Waitees.
   WaiteeRegistry waitees_;
