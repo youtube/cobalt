@@ -474,7 +474,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
     scoped_refptr<ScriptExecutor> script_executor =
         ScriptExecutor::Create(this, global_environment);
     if (!script_executor) {
-      DLOG(INFO) << "Failed to create ScriptExecutor.";
+      LOG(ERROR) << "Failed to create ScriptExecutor.";
       return CommandResult(protocol::Response::kUnknownError);
     }
     script_executor_ = base::AsWeakPtr(script_executor.get());
