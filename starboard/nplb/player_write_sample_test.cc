@@ -17,7 +17,7 @@
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
-#include "starboard/nplb/thread_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -329,7 +329,7 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
                 << ".";
 }
 
-class SecondaryPlayerTestThread : public AbstractTestThread {
+class SecondaryPlayerTestThread : public posix::AbstractTestThread {
  public:
   SecondaryPlayerTestThread(
       const SbPlayerTestConfig& config,

@@ -793,7 +793,7 @@ void BrowserModule::OnLoad() {
 
   web_module_loaded_.Signal();
 
-  options_.persistent_settings->ValidatePersistentSettings();
+  options_.persistent_settings->Validate();
   ValidateCacheBackendSettings();
 }
 
@@ -1714,7 +1714,7 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
         kRenderTimeoutErrorPercentage * (UINT64_MAX / 100)) {
       OnError(url, std::string("Rendering Timeout"));
     } else {
-      SB_DLOG(INFO) << "Received OnRenderTimeout, ignoring by random chance.";
+      DLOG(INFO) << "Received OnRenderTimeout, ignoring by random chance.";
     }
   } else {
     timeout_polling_thread_.task_runner()->PostDelayedTask(

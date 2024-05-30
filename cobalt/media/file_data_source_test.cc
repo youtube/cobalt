@@ -19,14 +19,13 @@
 #include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/test/task_environment.h"
-#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace media {
 
 void OnReadFinished(int* bytes_read_out, int bytes_read_in) {
-  SB_CHECK(bytes_read_out);
+  CHECK(bytes_read_out);
   *bytes_read_out = bytes_read_in;
 }
 

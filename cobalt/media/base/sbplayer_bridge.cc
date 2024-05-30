@@ -946,6 +946,7 @@ void SbPlayerBridge::WriteBuffersInternal(
 
     if (buffer->side_data_size() > 0) {
       // We only support at most one side data currently.
+      side_data->type = kMatroskaBlockAdditional;
       side_data->data = buffer->side_data();
       side_data->size = buffer->side_data_size();
       sample_info.side_data = side_data;

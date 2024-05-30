@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "starboard/common/log.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/win32/dx_context_video_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/hardware_decode_target_internal.h"
@@ -520,7 +521,7 @@ void VideoDecoder::InitializeCodec() {
 }
 
 void VideoDecoder::ShutdownCodec() {
-  SB_DCHECK(!SbThreadIsValid(decoder_thread_));
+  SB_DCHECK(decoder_thread_ == 0);
   SB_DCHECK(thread_outputs_.empty());
   if (!decoder_) {
     return;
@@ -564,7 +565,7 @@ void VideoDecoder::EnsureDecoderThreadRunning() {
   // then StopDecoderThread) before WriteInputBuffers or WriteEndOfStream again.
   SB_DCHECK(!decoder_thread_stopped_);
 
-  if (!SbThreadIsValid(decoder_thread_)) {
+  if (decoder_thread_ == 0) {
     if (!decoder_) {
       error_cb_(kSbPlayerErrorDecode, "Decoder is not valid.");
       return;
@@ -572,21 +573,20 @@ void VideoDecoder::EnsureDecoderThreadRunning() {
     SB_DCHECK(decoder_ != nullptr);
     SB_DCHECK(thread_events_.empty());
     decoder_thread_stop_requested_ = false;
-    decoder_thread_ =
-        SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
-                       "VideoDecoder", &VideoDecoder::DecoderThreadEntry, this);
-    SB_DCHECK(SbThreadIsValid(decoder_thread_));
+    pthread_create(&decoder_thread_, nullptr, &VideoDecoder::DecoderThreadEntry,
+                   this);
+    SB_DCHECK(decoder_thread_ != 0);
   }
 }
 
 void VideoDecoder::StopDecoderThread() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  if (SbThreadIsValid(decoder_thread_)) {
+  if (decoder_thread_ != 0) {
     decoder_thread_stop_requested_ = true;
-    SbThreadJoin(decoder_thread_, nullptr);
+    pthread_join(decoder_thread_, nullptr);
     SB_DCHECK(decoder_thread_stopped_);
     decoder_thread_stopped_ = false;
-    decoder_thread_ = kSbThreadInvalid;
+    decoder_thread_ = 0;
   }
   thread_events_.clear();
 }
@@ -780,6 +780,9 @@ void VideoDecoder::DecoderThreadRun() {
 
 // static
 void* VideoDecoder::DecoderThreadEntry(void* context) {
+  pthread_setname_np(pthread_self(), "VideoDecoder");
+  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+
   SB_DCHECK(context);
   VideoDecoder* decoder = static_cast<VideoDecoder*>(context);
   decoder->DecoderThreadRun();

@@ -45,7 +45,6 @@ template("starboard_platform_target") {
     }
     public_deps = [
       "//starboard/client_porting/cwrappers",
-      "//starboard/client_porting/eztime",
       "//starboard/common",
       "//starboard/egl_and_gles",
     ]

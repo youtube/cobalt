@@ -14,9 +14,33 @@
 """Base cobalt configuration for GYP."""
 
 from starboard.build import application_configuration
+from starboard.tools.testing import test_filter
 
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
+
+# A map of failing or crashing tests per target
+_FILTERED_TESTS = {
+    'base_unittests': [
+        # TODO: b/329269559 These have flaky ASAN heap-use-after-free
+        # during metrics collection.
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        # TODO: b/329507754 - Flaky after recent rebase.
+        'ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows',
+        'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
+    ],
+    'net_unittests': [
+        # TODO: b/329507754 - Flaky after recent rebase.
+        'CookieMonsterTest.DeleteExpiredPartitionedCookiesAfterTimeElapsed',
+    ]
+}
 
 
 class CobaltConfiguration(application_configuration.ApplicationConfiguration):
@@ -24,6 +48,12 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
   Cobalt per-platform configurations, if defined, must subclass from this class.
   """
+
+  def GetTestFilters(self):
+    filters = super().GetTestFilters()
+    for target, tests in _FILTERED_TESTS.items():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters
 
   def GetWebPlatformTestFilters(self):
     """Gets all tests to be excluded from a black box test run."""
@@ -136,7 +166,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'websockets/WebPlatformTest.Run/websockets_keeping_connection_open_001_html',
         'websockets/WebPlatformTest.Run/websockets_opening_handshake_003_html',
         'websockets/WebPlatformTest.Run/websockets_opening_handshake_005_html',
-        'service_workers/WebPlatformTest.Run/service_workers_service_worker_register_wait_forever_in_install_worker_https_html',
     ]
     return filters
 

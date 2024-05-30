@@ -26,11 +26,15 @@ extern "C" {
 // This function will handle both files and sockets.
 int close(int fd);
 
-off_t sb_lseek(int fd, off_t offset, int origin);
-#define lseek sb_lseek
+int fsync(int fd);
 
-ssize_t sb_read(int fildes, void* buf, size_t nbyte);
-#define read sb_read
+int ftruncate(int fd, off_t length);
+
+long lseek(int fd, long offset, int origin);  // NOLINT
+
+int read(int fd, void* buffer, unsigned int buffer_size);
+
+int write(int fd, const void* buffer, unsigned int count);
 
 int usleep(unsigned int useconds);
 

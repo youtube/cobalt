@@ -16,6 +16,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
+#include <pthread.h>
 #include "starboard/thread.h"
 #elif BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
@@ -36,7 +37,11 @@ namespace base {
 class PlatformThreadRef {
  public:
 #if defined(STARBOARD)
+#if SB_API_VERSION < 16
   typedef SbThread RefType;
+#else
+  using RefType = pthread_t;
+#endif
 #elif BUILDFLAG(IS_WIN)
   using RefType = DWORD;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)

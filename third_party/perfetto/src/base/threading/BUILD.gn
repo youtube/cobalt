@@ -36,6 +36,9 @@ perfetto_unittest_source_set("unittests") {
     "../../../gn:default_deps",
     "../../../gn:gtest_and_gmock",
   ]
+  if (is_starboard) {
+    deps += [ "//starboard/common:common_headers_only" ]
+  }
   sources = [
     "channel_unittest.cc",
     "future_unittest.cc",

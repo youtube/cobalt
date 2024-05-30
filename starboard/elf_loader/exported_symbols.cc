@@ -52,12 +52,12 @@
 #include "starboard/mutex.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
-#include "starboard/shared/modular/starboard_layer_posix_file_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
@@ -393,6 +393,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadGetCurrent);
   REGISTER_SYMBOL(SbThreadGetId);
 
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(SbThreadGetPriority);
+#endif  // SB_API_VERSION >= 16
+
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadGetLocalValue);
   REGISTER_SYMBOL(SbThreadGetName);
@@ -412,6 +416,13 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadSetName);
+#endif  // SB_API_VERSION < 16
+
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(SbThreadSetPriority);
+#endif  // SB_API_VERSION >= 16
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
@@ -466,6 +477,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(freeaddrinfo);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fstat);
+  REGISTER_SYMBOL(fsync);
+  REGISTER_SYMBOL(ftruncate);
   REGISTER_SYMBOL(getaddrinfo);
   REGISTER_SYMBOL(getifaddrs);
   REGISTER_SYMBOL(getsockname);
@@ -483,6 +496,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_yield);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(setsockopt);
@@ -490,10 +504,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
   REGISTER_SYMBOL(stat);
+  REGISTER_SYMBOL(unlink);
+  REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);
-  REGISTER_SYMBOL(usleep);
+  REGISTER_SYMBOL(write);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
@@ -508,6 +524,19 @@ ExportedSymbols::ExportedSymbols() {
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
   map_["lseek"] = reinterpret_cast<const void*>(&__abi_wrap_lseek);
   map_["mmap"] = reinterpret_cast<const void*>(&__abi_wrap_mmap);
+
+  map_["pthread_attr_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_init);
+  map_["pthread_attr_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_destroy);
+  map_["pthread_attr_getdetachstate"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getdetachstate);
+  map_["pthread_attr_getstacksize"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstacksize);
+  map_["pthread_attr_setdetachstate"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setdetachstate);
+  map_["pthread_attr_setstacksize"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstacksize);
   map_["pthread_cond_broadcast"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_broadcast);
   map_["pthread_cond_destroy"] =

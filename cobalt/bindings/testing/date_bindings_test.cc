@@ -91,8 +91,8 @@ TEST_F(DateBindingsTest, StarboardTimeZone) {
   EvaluateScript("new Date().toString();", &result);
   base::Time now = base::Time::Now();
 
-  SB_LOG(INFO) << "JavaScript Date now is : " << result;
-  SB_LOG(INFO) << "and base::Time is: " << now;
+  LOG(INFO) << "JavaScript Date now is : " << result;
+  LOG(INFO) << "and base::Time is: " << now;
 
   base::Time::Exploded exploded;
   now.LocalExplode(&exploded);

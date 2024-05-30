@@ -65,7 +65,9 @@ struct hb_face_t
     hb_shape_plan_t *shape_plan;
     plan_node_t *next;
   };
+#ifndef HB_NO_SHAPER
   hb_atomic_ptr_t<plan_node_t> shape_plans;
+#endif
 
   hb_blob_t *reference_table (hb_tag_t tag) const
   {
@@ -74,7 +76,7 @@ struct hb_face_t
     if (unlikely (!reference_table_func))
       return hb_blob_get_empty ();
 
-    blob = reference_table_func (/*XXX*/const_cast<hb_face_t *> (this), tag, user_data);
+    blob = reference_table_func (/*Oh, well.*/const_cast<hb_face_t *> (this), tag, user_data);
     if (unlikely (!blob))
       return hb_blob_get_empty ();
 

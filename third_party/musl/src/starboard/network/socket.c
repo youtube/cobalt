@@ -257,6 +257,48 @@ int fstat(int fildes, struct stat* buf) {
   return 0;
 }
 
+int fsync(int fildes) {
+  if (fildes < 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  FileOrSocket* fileOrSock = NULL;
+  if (get(fildes, false, &fileOrSock) != 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (fileOrSock == NULL || !fileOrSock->is_file) {
+    errno = EBADF;
+    return -1;
+  }
+
+  int result = SbFileFlush(fileOrSock->file) ? 0 : -1;
+  return result;
+}
+
+int ftruncate(int fildes, off_t length) {
+  if (fildes < 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  FileOrSocket* fileOrSock = NULL;
+  if (get(fildes, false, &fileOrSock) != 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (fileOrSock == NULL || !fileOrSock->is_file) {
+    errno = EBADF;
+    return -1;
+  }
+
+  int result = SbFileTruncate(fileOrSock->file, length) ? 0 : -1;
+  return result;
+}
+
 off_t lseek(int fildes, off_t offset, int whence) {
   if (fildes < 0) {
     errno = EBADF;
@@ -284,7 +326,6 @@ off_t lseek(int fildes, off_t offset, int whence) {
   } else {
     return -1;
   }
-
   return (off_t)SbFileSeek(fileOrSock->file, sbWhence, (int64_t)offset);
 }
 
@@ -300,19 +341,29 @@ int open(const char* path, int oflag, ...) {
   memset(value, 0, sizeof(struct FileOrSocket));
   value->is_file = true;
 
-  int sbFileFlags = 0;
-  int accessModeFlag = 0;
+  // Check if mode is specified. Mode is hard-coded to S_IRUSR | S_IWUSR in
+  // SbFileOpen. Any other modes are not supported.
+  if (oflag & O_CREAT) {
+    mode_t sb_file_mode = S_IRUSR | S_IWUSR;
+    va_list args;
+    va_start(args, oflag);
+    mode_t mode = va_arg(args, int);
+    if (mode != sb_file_mode) {
+      out_error = kSbFileErrorFailed;
+      return -1;
+    }
+  }
+
+  int sb_file_flags = 0;
+  int access_mode_flag = 0;
 
   if ((oflag & O_ACCMODE) == O_RDONLY) {
-    accessModeFlag |= kSbFileRead;
-    if (oflag == O_RDONLY) {
-      sbFileFlags = kSbFileOpenOnly;
-    }
+    access_mode_flag |= kSbFileRead;
   } else if ((oflag & O_ACCMODE) == O_WRONLY) {
-    accessModeFlag |= kSbFileWrite;
+    access_mode_flag |= kSbFileWrite;
     oflag &= ~O_WRONLY;
   } else if ((oflag & O_ACCMODE) == O_RDWR) {
-    accessModeFlag |= kSbFileRead | kSbFileWrite;
+    access_mode_flag |= kSbFileRead | kSbFileWrite;
     oflag &= ~O_RDWR;
   } else {
     // Applications shall specify exactly one of the first three file access
@@ -321,30 +372,34 @@ int open(const char* path, int oflag, ...) {
     return -1;
   }
 
+  if (!oflag) {
+    sb_file_flags = kSbFileOpenOnly;
+  }
+
   if (oflag & O_CREAT && oflag & O_EXCL) {
-    sbFileFlags = kSbFileCreateOnly;
+    sb_file_flags = kSbFileCreateOnly;
     oflag &= ~(O_CREAT | O_EXCL);
   }
   if (oflag & O_CREAT && oflag & O_TRUNC) {
-    sbFileFlags = kSbFileCreateAlways;
+    sb_file_flags = kSbFileCreateAlways;
     oflag &= ~(O_CREAT | O_TRUNC);
   }
   if (oflag & O_CREAT) {
-    sbFileFlags = kSbFileOpenAlways;
+    sb_file_flags = kSbFileOpenAlways;
     oflag &= ~O_CREAT;
   }
   if (oflag & O_TRUNC) {
-    sbFileFlags = kSbFileOpenTruncated;
+    sb_file_flags = kSbFileOpenTruncated;
     oflag &= ~O_TRUNC;
   }
 
   // SbFileOpen does not support any other combination of flags.
-  if (oflag || !sbFileFlags) {
+  if (oflag || !sb_file_flags) {
     out_error = kSbFileErrorFailed;
     return -1;
   }
 
-  int open_flags = sbFileFlags | accessModeFlag;
+  int open_flags = sb_file_flags | access_mode_flag;
 
   value->file = SbFileOpen(path, open_flags, &out_created, &out_error);
   if (!SbFileIsValid(value->file)){
@@ -378,8 +433,26 @@ ssize_t read(int fildes, void* buf, size_t nbyte) {
     errno = EBADF;
     return -1;
   }
-
   return (ssize_t)SbFileRead(fileOrSock->file, buf, (int)nbyte);
+}
+
+ssize_t write(int fildes, const void* buf, size_t nbyte) {
+  if (fildes < 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  FileOrSocket* fileOrSock = NULL;
+  if (get(fildes, false, &fileOrSock) != 0) {
+    errno = EBADF;
+    return -1;
+  }
+
+  if (fileOrSock == NULL || !fileOrSock->is_file) {
+    errno = EBADF;
+    return -1;
+  }
+  return (ssize_t)SbFileWrite(fileOrSock->file, buf, (int)nbyte);
 }
 
 int socket(int domain, int type, int protocol){

@@ -37,10 +37,10 @@ typedef SbConditionVariable __libcpp_condvar_t;
 typedef pthread_once_t __libcpp_exec_once_flag;
 #define _LIBCPP_EXEC_ONCE_INITIALIZER PTHREAD_ONCE_INIT
 
-typedef SbThread __libcpp_thread_t;
-typedef SbThread __libcpp_thread_id;
+typedef pthread_t __libcpp_thread_t;
+typedef pthread_t __libcpp_thread_id;
 typedef pthread_key_t __libcpp_tls_key;
-#define _LIBCPP_NULL_THREAD kSbThreadInvalid
+#define _LIBCPP_NULL_THREAD 0
 
 // The calling-convention for the thread-local storage destructor. This is
 // mostly used on Windows platforms, and documentation can be found at
@@ -223,7 +223,7 @@ int __libcpp_execute_once(__libcpp_exec_once_flag* flag,
 }
 
 bool __libcpp_thread_id_equal(__libcpp_thread_id t1, __libcpp_thread_id t2) {
-  return SbThreadIsEqual(t1, t2);
+  return pthread_equal(t1, t2);
 }
 
 bool __libcpp_thread_id_less(__libcpp_thread_id t1, __libcpp_thread_id t2) {
@@ -231,34 +231,26 @@ bool __libcpp_thread_id_less(__libcpp_thread_id t1, __libcpp_thread_id t2) {
 }
 
 bool __libcpp_thread_isnull(const __libcpp_thread_t* __t) {
-  return !SbThreadIsValid(*__t);
+  return *__t == 0;
 }
 
 int __libcpp_thread_create(__libcpp_thread_t* __t, void* (*__func)(void*),
                            void* __arg) {
-  *__t = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, "",
-                        __func, __arg);
-  if (*__t == kSbThreadInvalid) {
-    return 1;
-  }
-  return 0;
+  return pthread_create(__t, nullptr, __func, __arg);
 }
 
-__libcpp_thread_id __libcpp_thread_get_current_id() { return SbThreadGetCurrent(); }
+__libcpp_thread_id __libcpp_thread_get_current_id() { return pthread_self(); }
 
 __libcpp_thread_id __libcpp_thread_get_id(const __libcpp_thread_t* __t) {
   return *__t;
 }
 
 int __libcpp_thread_join(__libcpp_thread_t* __t) {
-  if (SbThreadJoin(*__t, nullptr)) {
-    return 0;
-  }
-  return 1;
+  return pthread_join(*__t, nullptr);
 }
 
 int __libcpp_thread_detach(__libcpp_thread_t* __t) {
-  SbThreadDetach(*__t);
+  pthread_detach(*__t);
   return 0;
 }
 

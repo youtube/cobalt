@@ -25,6 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/shared/linux/system_network_status.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
 
@@ -96,15 +97,26 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
 }  // namespace
 
 bool NetworkNotifier::Initialize() {
-  SB_DCHECK(!SbThreadIsValid(notifier_thread_));
-  notifier_thread_ = SbThreadCreate(
-      0, kSbThreadPriorityLow, kSbThreadNoAffinity, false, "NetworkNotifier",
-      &NetworkNotifier::NotifierThreadEntry, this);
-  SB_DCHECK(SbThreadIsValid(notifier_thread_));
+  SB_DCHECK(notifier_thread_ == 0);
+
+  pthread_attr_t attributes;
+  int result = pthread_attr_init(&attributes);
+  if (result != 0) {
+    return false;
+  }
+
+  pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+  pthread_create(&notifier_thread_, &attributes,
+                 &NetworkNotifier::NotifierThreadEntry, this);
+  pthread_attr_destroy(&attributes);
+
+  SB_DCHECK(notifier_thread_ != 0);
   return true;
 }
 
 void* NetworkNotifier::NotifierThreadEntry(void* context) {
+  pthread_setname_np(pthread_self(), "NetworkNotifier");
+  starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityLow);
   auto* notifier = static_cast<NetworkNotifier*>(context);
   int netlink_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   bool is_online;

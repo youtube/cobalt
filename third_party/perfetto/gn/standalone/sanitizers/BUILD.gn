@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (use_cobalt_customizations) {
+import("sanitizers.gni")
+} else {
 import("//gn/standalone/sanitizers/sanitizers.gni")
+}
 
 # Link dependencies for sanitizers for executables.
 group("deps") {
