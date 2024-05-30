@@ -51,14 +51,14 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
   // error, but the current implementation will return "invalid parameter".
   const base::Value::Dict* dictionary_value = value->GetIfDict();
   if (!dictionary_value) {
-    DLOG(INFO) << "Parameter is not a dictionary.";
+    LOG(ERROR) << "Parameter is not a dictionary.";
     return base::nullopt;
   }
 
   const base::Value::Dict* cookie_dictionary_value =
       dictionary_value->FindDict(kCookieKey);
   if (!cookie_dictionary_value) {
-    DLOG(INFO) << base::StringPrintf("Value of key [%s] is not a JSON object.",
+    LOG(ERROR) << base::StringPrintf("Value of key [%s] is not a JSON object.",
                                      kCookieKey);
     return base::nullopt;
   }
@@ -69,7 +69,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
       cookie_dictionary_value->FindString(kValueKey);
   // Name and value are required.
   if (!cookie_name || !cookie_value) {
-    DLOG(INFO) << base::StringPrintf(
+    LOG(ERROR) << base::StringPrintf(
         "cookie.%s or cookie.%s either does not exist or is not a string",
         kNameKey, kValueKey);
     return base::nullopt;
@@ -82,7 +82,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
   if (domain_value) {
     new_cookie.domain_ = *domain_value;
   } else if (cookie_dictionary_value->contains(kDomainKey)) {
-    DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kDomainKey);
+    LOG(ERROR) << base::StringPrintf("cookie.%s is not a string", kDomainKey);
     return base::nullopt;
   }
 
@@ -90,7 +90,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
   if (path_value) {
     new_cookie.path_ = *path_value;
   } else if (cookie_dictionary_value->contains(kPathKey)) {
-    DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kPathKey);
+    LOG(ERROR) << base::StringPrintf("cookie.%s is not a string", kPathKey);
     return base::nullopt;
   }
 
@@ -99,7 +99,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
   if (secure_value.has_value()) {
     new_cookie.secure_ = secure_value.value();
   } else if (cookie_dictionary_value->contains(kSecureKey)) {
-    DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean", kSecureKey);
+    LOG(ERROR) << base::StringPrintf("cookie.%s is not a boolean", kSecureKey);
     return base::nullopt;
   }
 
@@ -108,7 +108,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
   if (http_only_value.has_value()) {
     new_cookie.http_only_ = http_only_value.value();
   } else if (cookie_dictionary_value->contains(kHttpOnlyKey)) {
-    DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
+    LOG(ERROR) << base::StringPrintf("cookie.%s is not a boolean",
                                      kHttpOnlyKey);
     return base::nullopt;
   }
@@ -119,7 +119,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
     base::TimeDelta seconds_since_epoch = base::Seconds(expiry_value.value());
     new_cookie.expiry_time_ = base::Time::UnixEpoch() + seconds_since_epoch;
   } else if (cookie_dictionary_value->contains(kExpiryKey)) {
-    DLOG(INFO) << base::StringPrintf("cookie.%s is not an integer", kExpiryKey);
+    LOG(ERROR) << base::StringPrintf("cookie.%s is not an integer", kExpiryKey);
     return base::nullopt;
   }
   return new_cookie;
