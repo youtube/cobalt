@@ -22,7 +22,6 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/web/csp_delegate.h"
-#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -92,11 +91,13 @@ void HTMLStyleElement::Process() {
   const std::string& text = content.value_or(base::EmptyString());
   if (bypass_csp || csp_delegate->AllowInline(web::CspDelegate::kStyle,
                                               inline_style_location_, text)) {
-    auto before_parse_micros = starboard::CurrentMonotonicTime();
+    auto before_parse_micros =
+        (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
     scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
         document->html_element_context()->css_parser()->ParseStyleSheet(
             text, inline_style_location_);
-    auto after_parse_micros = starboard::CurrentMonotonicTime();
+    auto after_parse_micros =
+        (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
     auto css_kb = text.length() / 1000;
     // Only measure non-trivial css sizes and inlined HTML style elements.
     if (css_kb > 0 &&

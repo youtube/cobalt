@@ -29,7 +29,6 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/wrappable.h"
-#include "starboard/common/time.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
