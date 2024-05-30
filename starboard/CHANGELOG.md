@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated `SbMutex`, `SbConditionVariable` and `SbThread`.
+The standard POSIX `pthread` APIs replace the Starboard concurrency
+primitives.
+
 ### Migrate the `SbThreadSampler` to use `pthread`.
 Switched the `SbThreadSampler` API to use `pthread` instead of `SbThread`.
 

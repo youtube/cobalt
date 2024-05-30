@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/common/condition_variable.h"
 
 #include <windows.h>
@@ -22,3 +24,5 @@ bool SbConditionVariableDestroy(SbConditionVariable* condition) {
   }
   return true;
 }
+
+#endif  // SB_API_VERSION < 16
