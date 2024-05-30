@@ -10,7 +10,6 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/time/time.h"
-#include "starboard/common/time.h"
 #include "third_party/zlib/google/zip.h"
 
 namespace cobalt {
@@ -24,10 +23,10 @@ class UnzipperImpl : public update_client::Unzipper {
 
   void Unzip(const base::FilePath& zip_path, const base::FilePath& output_path,
              UnzipCompleteCallback callback) override {
-    int64_t time_before_unzip = starboard::CurrentMonotonicTime();
+    int64_t time_before_unzip = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
     std::move(callback).Run(zip::Unzip(zip_path, output_path));
     int64_t time_unzip_took_usec =
-        starboard::CurrentMonotonicTime() - time_before_unzip;
+        (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() - time_before_unzip;
     LOG(INFO) << "Unzip file path = " << zip_path;
     LOG(INFO) << "output_path = " << output_path;
     LOG(INFO) << "Unzip took "
@@ -38,10 +37,10 @@ class UnzipperImpl : public update_client::Unzipper {
 #if defined(IN_MEMORY_UPDATES)
   void Unzip(const std::string& zip_str, const base::FilePath& output_path,
              UnzipCompleteCallback callback) override {
-    int64_t time_before_unzip = starboard::CurrentMonotonicTime();
+    int64_t time_before_unzip = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
     std::move(callback).Run(zip::Unzip(zip_str, output_path));
     int64_t time_unzip_took_usec =
-        starboard::CurrentMonotonicTime() - time_before_unzip;
+        (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() - time_before_unzip;
     LOG(INFO) << "Unzip from string";
     LOG(INFO) << "output_path = " << output_path;
     LOG(INFO) << "Unzip took "

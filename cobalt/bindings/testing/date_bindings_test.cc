@@ -17,7 +17,6 @@
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/interface_with_date.h"
 #include "starboard/client_porting/eztime/eztime.h"
-#include "starboard/common/time.h"
 #include "starboard/time_zone.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -79,7 +78,7 @@ TEST_F(DateBindingsTest, PosixEpoch) {
   EvaluateScript("Date.now();", &result);
   auto js_now_ms = std::stoll(result);
   auto posix_now_ms =
-      starboard::CurrentPosixTime() / base::Time::kMicrosecondsPerMillisecond;
+      (base::Time::Now() - base::Time::UnixEpoch()).InMilliseconds();
   EXPECT_LT(std::abs(posix_now_ms - js_now_ms), 1000);
 }
 
@@ -106,8 +105,8 @@ TEST_F(DateBindingsTest, StarboardTimeZone) {
 }
 
 TEST_F(DateBindingsTest, TimezoneOffset) {
-  EzTimeT ezttnow = static_cast<EzTimeT>(starboard::CurrentPosixTime() /
-                                         base::Time::kMicrosecondsPerSecond);
+  EzTimeT ezttnow = static_cast<EzTimeT>(
+      (base::Time::Now() - base::Time::UnixEpoch()).InSeconds());
   EzTimeExploded ez_exploded_local;
   EzTimeTExplodeLocal(&ezttnow, &ez_exploded_local);
   // ez_exploded_local is already local time, use UTC method to convert to

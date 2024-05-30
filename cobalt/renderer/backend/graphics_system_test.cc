@@ -21,7 +21,6 @@
 #include "base/time/time.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
-#include "starboard/common/time.h"
 #include "starboard/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -44,17 +43,26 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsSystemCanBeInitializedOften) {
   graphics_system = CreateDefaultGraphicsSystem();
   graphics_system.reset();
 
-  int64_t start = starboard::CurrentMonotonicTime();
+  int64_t start = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   for (int i = 0; i < kReferenceCount; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_system.reset();
   }
   int64_t time_per_initialization_usec =
+<<<<<<< HEAD
       (starboard::CurrentMonotonicTime() - start) / kReferenceCount;
   SB_LOG(INFO) << "Measured duration "
                << time_per_initialization_usec /
                       base::Time::kMicrosecondsPerMillisecond
                << "ms per initialization.";
+=======
+      ((base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() - start) /
+      kReferenceCount;
+  LOG(INFO) << "Measured duration "
+            << time_per_initialization_usec /
+                   base::Time::kMicrosecondsPerMillisecond
+            << "ms per initialization.";
+>>>>>>> aa8822b3207 (Remove starboard/common/time usage above Starboard (#3345))
 
   // Graphics system initializations should not take more than the maximum of
   // 250ms or three times as long as the time we just measured.
@@ -62,11 +70,11 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsSystemCanBeInitializedOften) {
       std::max<int64_t>(3 * time_per_initialization_usec,
                         250 * base::Time::kMicrosecondsPerMillisecond);
 
-  int64_t last = starboard::CurrentMonotonicTime();
+  int64_t last = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   for (int i = 0; i < 20; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_system.reset();
-    int64_t now = starboard::CurrentMonotonicTime();
+    int64_t now = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
     int64_t elapsed_time_usec = now - last;
     SB_LOG(INFO) << "Test duration "
                  << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
@@ -89,7 +97,7 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
   graphics_context.reset();
   graphics_system.reset();
 
-  int64_t start = starboard::CurrentMonotonicTime();
+  int64_t start = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   for (int i = 0; i < kReferenceCount; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_context = graphics_system->CreateGraphicsContext();
@@ -99,11 +107,20 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
   }
   int64_t time_per_initialization_usec =
       base::Time::kMicrosecondsPerMillisecond +
+<<<<<<< HEAD
       (starboard::CurrentMonotonicTime() - start) / kReferenceCount;
   SB_LOG(INFO) << "Measured duration "
                << time_per_initialization_usec /
                       base::Time::kMicrosecondsPerMillisecond
                << "ms per initialization.";
+=======
+      ((base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() - start) /
+          kReferenceCount;
+  LOG(INFO) << "Measured duration "
+            << time_per_initialization_usec /
+                   base::Time::kMicrosecondsPerMillisecond
+            << "ms per initialization.";
+>>>>>>> aa8822b3207 (Remove starboard/common/time usage above Starboard (#3345))
 
   // Graphics system and context initializations should not take more than the
   // maximum of 250ms or three times as long as the time we just measured.
@@ -111,7 +128,7 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
       std::max<int64_t>(3 * time_per_initialization_usec,
                         250 * base::Time::kMicrosecondsPerMillisecond);
 
-  int64_t last = starboard::CurrentMonotonicTime();
+  int64_t last = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   for (int i = 0; i < 20; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_context = graphics_system->CreateGraphicsContext();
@@ -119,7 +136,7 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
     graphics_context.reset();
     graphics_system.reset();
 
-    int64_t now = starboard::CurrentMonotonicTime();
+    int64_t now = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
     int64_t elapsed_time_usec = now - last;
     SB_LOG(INFO) << "Test duration "
                  << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
