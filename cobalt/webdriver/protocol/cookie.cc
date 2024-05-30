@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/webdriver/protocol/cookie.h"
+
+#include <memory>
 
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
@@ -49,13 +49,13 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
   // error, but the current implementation will return "invalid parameter".
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
-    DLOG(INFO) << "Parameter is not a dictionary.";
+    LOG(ERROR) << "Parameter is not a dictionary.";
     return base::nullopt;
   }
 
   const base::DictionaryValue* cookie_dictionary_value;
   if (!dictionary_value->GetDictionary(kCookieKey, &cookie_dictionary_value)) {
-    DLOG(INFO) << base::StringPrintf("Value of key [%s] is not a JSON object.",
+    LOG(ERROR) << base::StringPrintf("Value of key [%s] is not a JSON object.",
                                      kCookieKey);
     return base::nullopt;
   }
@@ -65,7 +65,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
   // Name and value are required.
   if (!cookie_dictionary_value->GetString(kNameKey, &cookie_name) ||
       !cookie_dictionary_value->GetString(kValueKey, &cookie_value)) {
-    DLOG(INFO) << base::StringPrintf(
+    LOG(ERROR) << base::StringPrintf(
         "cookie.%s or cookie.%s either does not exist or is not a string",
         kNameKey, kValueKey);
     return base::nullopt;
@@ -78,7 +78,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
     if (cookie_dictionary_value->GetString(kDomainKey, &string_value)) {
       new_cookie.domain_ = string_value;
     } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kDomainKey);
+      LOG(ERROR) << base::StringPrintf("cookie.%s is not a string", kDomainKey);
       return base::nullopt;
     }
   }
@@ -86,7 +86,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
     if (cookie_dictionary_value->GetString(kPathKey, &string_value)) {
       new_cookie.path_ = string_value;
     } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kPathKey);
+      LOG(ERROR) << base::StringPrintf("cookie.%s is not a string", kPathKey);
       return base::nullopt;
     }
   }
@@ -96,7 +96,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
     if (cookie_dictionary_value->GetBoolean(kSecureKey, &bool_value)) {
       new_cookie.secure_ = bool_value;
     } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
+      LOG(ERROR) << base::StringPrintf("cookie.%s is not a boolean",
                                        kSecureKey);
       return base::nullopt;
     }
@@ -105,7 +105,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
     if (cookie_dictionary_value->GetBoolean(kHttpOnlyKey, &bool_value)) {
       new_cookie.http_only_ = bool_value;
     } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
+      LOG(ERROR) << base::StringPrintf("cookie.%s is not a boolean",
                                        kHttpOnlyKey);
       return base::nullopt;
     }
@@ -118,7 +118,7 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
           base::TimeDelta::FromSeconds(timestamp_value);
       new_cookie.expiry_time_ = base::Time::UnixEpoch() + seconds_since_epoch;
     } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not an integer",
+      LOG(ERROR) << base::StringPrintf("cookie.%s is not an integer",
                                        kExpiryKey);
       return base::nullopt;
     }
