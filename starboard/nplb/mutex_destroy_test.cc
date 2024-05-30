@@ -14,6 +14,8 @@
 
 // Destroy is mostly Sunny Day tested in Create.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/configuration.h"
 #include "starboard/mutex.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -36,3 +38,5 @@ TEST(SbMutexDestroyTest, RainyDayNull) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16

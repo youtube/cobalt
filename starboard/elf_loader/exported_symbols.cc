@@ -137,13 +137,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbByteSwapU16);
   REGISTER_SYMBOL(SbByteSwapU32);
   REGISTER_SYMBOL(SbByteSwapU64);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbConditionVariableBroadcast);
   REGISTER_SYMBOL(SbConditionVariableCreate);
   REGISTER_SYMBOL(SbConditionVariableDestroy);
   REGISTER_SYMBOL(SbConditionVariableSignal);
   REGISTER_SYMBOL(SbConditionVariableWait);
   REGISTER_SYMBOL(SbConditionVariableWaitTimed);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
@@ -257,16 +257,14 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMicrophoneIsSampleRateSupported);
   REGISTER_SYMBOL(SbMicrophoneOpen);
   REGISTER_SYMBOL(SbMicrophoneRead);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMutexAcquire);
   REGISTER_SYMBOL(SbMutexAcquireTry);
   REGISTER_SYMBOL(SbMutexCreate);
   REGISTER_SYMBOL(SbMutexDestroy);
   REGISTER_SYMBOL(SbMutexRelease);
-
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbOnce);
 #endif  // SB_API_VERSION < 16
-
   REGISTER_SYMBOL(SbPlayerCreate);
   REGISTER_SYMBOL(SbPlayerDestroy);
 #if SB_API_VERSION >= 15
@@ -380,46 +378,36 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadContextGetPointer);
-  REGISTER_SYMBOL(SbThreadCreate);
-
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbThreadCreate);
   REGISTER_SYMBOL(SbThreadCreateLocalKey);
   REGISTER_SYMBOL(SbThreadDestroyLocalKey);
-#endif  // SB_API_VERSION < 16
-
   REGISTER_SYMBOL(SbThreadDetach);
   REGISTER_SYMBOL(SbThreadGetCurrent);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadGetId);
-
 #if SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbThreadGetPriority);
 #endif  // SB_API_VERSION >= 16
-
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadGetLocalValue);
   REGISTER_SYMBOL(SbThreadGetName);
-#endif  // SB_API_VERSION < 16
-
   REGISTER_SYMBOL(SbThreadIsEqual);
   REGISTER_SYMBOL(SbThreadJoin);
+#endif  // SB_API_VERSION < 16
+
   REGISTER_SYMBOL(SbThreadSamplerCreate);
   REGISTER_SYMBOL(SbThreadSamplerDestroy);
   REGISTER_SYMBOL(SbThreadSamplerFreeze);
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
-
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadSetLocalValue);
-#endif  // SB_API_VERSION < 16
-
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadSetName);
 #endif  // SB_API_VERSION < 16
-
 #if SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbThreadSetPriority);
 #endif  // SB_API_VERSION >= 16
-
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
