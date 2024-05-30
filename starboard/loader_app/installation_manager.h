@@ -15,6 +15,8 @@
 #ifndef STARBOARD_LOADER_APP_INSTALLATION_MANAGER_H_
 #define STARBOARD_LOADER_APP_INSTALLATION_MANAGER_H_
 
+#include "starboard/extension/loader_app_metrics.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -122,7 +124,7 @@ int ImRollForward(int installation_index);
 // Revert to a previous successful installation.
 // Returns the installation to which it was reverted.
 // Returns |IM_ERROR| on error.
-int ImRevertToSuccessfulInstallation();
+int ImRevertToSuccessfulInstallation(SlotSelectionStatus status);
 
 // Request the installation at |installation_index| to be rolled
 // forward next time the Loader App tries to load the app.
