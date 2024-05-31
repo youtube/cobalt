@@ -22,6 +22,7 @@
 #include "base/strings/strcat.h"
 #include "base/values.h"
 #include "gmock/gmock.h"
+#include "starboard/common/file.h"
 #include "starboard/directory.h"
 #include "starboard/extension/installation_manager.h"
 #include "starboard/file.h"

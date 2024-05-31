@@ -14,10 +14,11 @@
 
 #include "cobalt/overlay_info/overlay_info_registry.h"
 
+#include <cstring>
+
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
-#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace overlay_info {

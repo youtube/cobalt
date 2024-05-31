@@ -21,6 +21,7 @@
 
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
+#include "starboard/common/file.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
