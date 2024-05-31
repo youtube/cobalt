@@ -18,6 +18,33 @@ from starboard.build import application_configuration
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
 
+<<<<<<< HEAD
+=======
+# A map of failing or crashing tests per target
+_FILTERED_TESTS = {
+    'base_unittests': [
+        # TODO: b/329269559 These have flaky ASAN heap-use-after-free
+        # during metrics collection.
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMockTaskRunner',  # pylint: disable=line-too-long
+        # TODO: b/329507754 - Flaky after recent rebase.
+        'ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows',
+        'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
+    ],
+    'net_unittests': [
+        # TODO: b/329507754 - Flaky after recent rebase.
+        'CookieMonsterTest.DeleteExpiredPartitionedCookiesAfterTimeElapsed',
+    ]
+}
+
+>>>>>>> b6a2f44efb9 (Filter another flaky test (#3391))
 
 class CobaltConfiguration(application_configuration.ApplicationConfiguration):
   """Base Cobalt configuration class.
