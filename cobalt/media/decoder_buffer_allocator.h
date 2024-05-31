@@ -26,7 +26,6 @@
 #include "cobalt/media/starboard_memory_allocator.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_decoder_config.h"
-#include "starboard/common/atomic.h"
 #include "starboard/media.h"
 
 namespace cobalt {

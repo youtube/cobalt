@@ -20,7 +20,6 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/optional.h"
-#include "starboard/common/file.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 
