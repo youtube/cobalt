@@ -523,10 +523,10 @@ scoped_refptr<TimeRanges> MediaSource::GetSeekable() const {
       // Only MediaSourceAttachments on the same thread should use this
       // codepath. Cross-thread attachments should use GetBufferedRange to
       // avoid cross-thread, cross-element calls where possible.
+      DCHECK(media_source_attachment_);
       auto* attachment =
           base::polymorphic_downcast<SameThreadMediaSourceAttachment*>(
               media_source_attachment_.get());
-      DCHECK(attachment);
       buffered = attachment->GetElementBufferedRange();
     }
 
