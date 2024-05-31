@@ -29,6 +29,7 @@ jobs:
       # Needed to publish results and get a badge (see publish_results below).
       id-token: write
 
+    timeout-minutes: 15
     steps:
       - name: "Checkout code"
         uses: actions/checkout@v3

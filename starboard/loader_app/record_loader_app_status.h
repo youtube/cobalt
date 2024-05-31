@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
+#ifndef STARBOARD_LOADER_APP_RECORD_LOADER_APP_STATUS_H_
+#define STARBOARD_LOADER_APP_RECORD_LOADER_APP_STATUS_H_
 
-#include "starboard/common/condition_variable.h"
+#include <string>
 
-bool SbConditionVariableBroadcast(SbConditionVariable* condition) {
-  return false;
-}
-#endif  // SB_API_VERSION < 16
+#include "starboard/extension/loader_app_metrics.h"
+
+namespace starboard {
+namespace loader_app {
+
+// Persist the slot selection status so that it can be read in the Cobalt layer
+void RecordSlotSelectionStatus(SlotSelectionStatus status);
+
+}  // namespace loader_app
+}  // namespace starboard
+
+#endif  // STARBOARD_LOADER_APP_RECORD_LOADER_APP_STATUS_H_

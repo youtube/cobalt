@@ -79,10 +79,10 @@ void EnsureInitialized(struct CRYPTO_STATIC_MUTEX* lock) {
 }  // namespace
 
 void CRYPTO_MUTEX_init(CRYPTO_MUTEX* lock) {
-  if (!SbMutexCreate(&lock->mutex)) {
+  if (pthread_mutex_init(&lock->mutex, nullptr) != 0) {
     SbSystemBreakIntoDebugger();
   }
-  if (!SbConditionVariableCreate(&lock->condition, &lock->mutex)) {
+  if (pthread_cond_init(&lock->condition, nullptr) != 0) {
     SbSystemBreakIntoDebugger();
   }
   lock->readers = 0;
@@ -91,74 +91,71 @@ void CRYPTO_MUTEX_init(CRYPTO_MUTEX* lock) {
 
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
 void CRYPTO_MUTEX_lock_read(CRYPTO_MUTEX* lock) {
-  if (SbMutexAcquire(&lock->mutex) != kSbMutexAcquired) {
+  if (pthread_mutex_lock(&lock->mutex) != 0) {
     SbSystemBreakIntoDebugger();
   }
   while (lock->writing) {
-    if (SbConditionVariableWait(&lock->condition, &lock->mutex) ==
-        kSbConditionVariableFailed) {
+    if (pthread_cond_wait(&lock->condition, &lock->mutex) != 0) {
       SbSystemBreakIntoDebugger();
     }
   }
   ++(lock->readers);
-  if (!SbMutexRelease(&lock->mutex)) {
+  if (pthread_mutex_unlock(&lock->mutex) != 0) {
     SbSystemBreakIntoDebugger();
   }
 }
 
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
 void CRYPTO_MUTEX_lock_write(CRYPTO_MUTEX* lock) {
-  if (SbMutexAcquire(&lock->mutex) != kSbMutexAcquired) {
+  if (pthread_mutex_lock(&lock->mutex) != 0) {
     SbSystemBreakIntoDebugger();
   }
   while (lock->writing) {
-    if (SbConditionVariableWait(&lock->condition, &lock->mutex) ==
-        kSbConditionVariableFailed) {
+    if (pthread_cond_wait(&lock->condition, &lock->mutex) != 0) {
       SbSystemBreakIntoDebugger();
     }
   }
   lock->writing = true;
   while (lock->readers > 0) {
-    if (SbConditionVariableWait(&lock->condition, &lock->mutex) ==
-        kSbConditionVariableFailed) {
+    if (pthread_cond_wait(&lock->condition, &lock->mutex) != 0) {
       SbSystemBreakIntoDebugger();
     }
   }
-  if (!SbMutexRelease(&lock->mutex)) {
+  if (pthread_mutex_unlock(&lock->mutex) != 0) {
     SbSystemBreakIntoDebugger();
   }
 }
 
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
 void CRYPTO_MUTEX_unlock_read(CRYPTO_MUTEX* lock) {
-  if (SbMutexAcquire(&lock->mutex) != kSbMutexAcquired) {
+  if (pthread_mutex_lock(&lock->mutex) != 0) {
     SbSystemBreakIntoDebugger();
   }
   if (--(lock->readers) == 0) {
-    SbConditionVariableBroadcast(&lock->condition);
+    pthread_cond_broadcast(&lock->condition);
   }
-  if (!SbMutexRelease(&lock->mutex)) {
+  if (pthread_mutex_unlock(&lock->mutex) != 0) {
     SbSystemBreakIntoDebugger();
   }
 }
 
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
 void CRYPTO_MUTEX_unlock_write(CRYPTO_MUTEX* lock) {
-  if (SbMutexAcquire(&lock->mutex) != kSbMutexAcquired) {
+  if (pthread_mutex_lock(&lock->mutex) != 0) {
     SbSystemBreakIntoDebugger();
   }
   lock->writing = false;
-  SbConditionVariableBroadcast(&lock->condition);
-  if (!SbMutexRelease(&lock->mutex)) {
+  pthread_cond_broadcast(&lock->condition);
+  if (pthread_mutex_unlock(&lock->mutex) != 0) {
     SbSystemBreakIntoDebugger();
   }
 }
 
 void CRYPTO_MUTEX_cleanup(CRYPTO_MUTEX* lock) {
-  if (!SbConditionVariableDestroy(&lock->condition)) {
+  if (pthread_cond_destroy(&lock->condition) != 0) {
     SbSystemBreakIntoDebugger();
   }
-  if (!SbMutexDestroy(&lock->mutex)) {
+  if (pthread_mutex_destroy(&lock->mutex) != 0) {
     SbSystemBreakIntoDebugger();
   }
 }

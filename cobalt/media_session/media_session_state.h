@@ -23,7 +23,6 @@
 #include "cobalt/media_session/media_position_state.h"
 #include "cobalt/media_session/media_session_action.h"
 #include "cobalt/media_session/media_session_playback_state.h"
-#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace media_session {
@@ -61,11 +60,12 @@ class MediaSessionState {
   // https://wicg.github.io/mediasession/#current-playback-position
   // Returns the position
   int64_t current_playback_position() const {
-    return GetCurrentPlaybackPosition(starboard::CurrentMonotonicTime());
+    return GetCurrentPlaybackPosition(
+        (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds());
   }
 
   // Returns the position of the current playback, given the current time.
-  // This may be used for testing without calling |CurrentMonotonicTime|.
+  // This may be used for testing without calling |base::TimeTicks::Now|.
   int64_t GetCurrentPlaybackPosition(int64_t monotonic_now) const;
 
   // Returns a coefficient of the current playback rate. e.g. 1.0 is normal

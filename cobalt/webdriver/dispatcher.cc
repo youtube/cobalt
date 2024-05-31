@@ -48,6 +48,7 @@ class CommandResultHandlerImpl
     if (status_code == protocol::Response::kSuccess) {
       response_handler_->Success(std::move(response));
     } else {
+      LOG(ERROR) << "SendResult status code:" << status_code;
       response_handler_->FailedCommand(std::move(response));
     }
   }
@@ -58,6 +59,8 @@ class CommandResultHandlerImpl
     if (status_code == protocol::Response::kSuccess) {
       response_handler_->SuccessData(content_type, data, len);
     } else {
+      LOG(ERROR) << "SendResultWithContentType :" << content_type
+                 << "status code:" << status_code << " [" << data << "]";
       std::unique_ptr<base::Value> response =
           protocol::Response::CreateResponse(base::nullopt, status_code, NULL);
       response_handler_->FailedCommand(std::move(response));
@@ -68,9 +71,13 @@ class CommandResultHandlerImpl
                                   const std::string& error_string) override {
     switch (error) {
       case kInvalidParameters:
+        LOG(ERROR) << "SendInvalidRequestResponse::kInvalidParameters ("
+                   << error_string << ")";
         response_handler_->MissingCommandParameters(error_string);
         break;
       case kInvalidPathVariable:
+        LOG(ERROR) << "SendInvalidRequestResponse::kInvalidPathVariabl ("
+                   << error_string << ")";
         response_handler_->VariableResourceNotFound(error_string);
         break;
     }

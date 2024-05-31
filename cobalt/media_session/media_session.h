@@ -31,7 +31,6 @@
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
-#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace media_session {
@@ -97,7 +96,7 @@ class MediaSession : public script::Wrappable {
 
   // Returns a time representing right now - may be overridden for testing.
   virtual int64_t GetMonotonicNow() const {
-    return starboard::CurrentMonotonicTime();
+    return (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   }
 
   ActionMap action_map_;

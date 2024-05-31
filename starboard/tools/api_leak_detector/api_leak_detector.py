@@ -141,7 +141,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'pthread_cond_signal',
     'pthread_cond_timedwait',
     'pthread_cond_wait',
-    'pthread_condattr_destroy'
+    'pthread_condattr_destroy',
     'pthread_condattr_getclock',
     'pthread_condattr_init',
     'pthread_condattr_setclock',
