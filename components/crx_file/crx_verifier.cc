@@ -592,7 +592,7 @@ VerifierResult Verify(
       ReadAndHashLittleEndianUInt32FromString(&it, file_hash.get());
   VerifierResult result;
   if (version == 2)
-    SB_LOG(WARNING) << "The string is in CRX2 format, which is deprecated and "
+    LOG(WARNING) << "The string is in CRX2 format, which is deprecated and "
                     << "will not be supported in M78+";
   if (format == VerifierFormat::CRX2_OR_CRX3 &&
       (version == 2 || (diff && version == 0))) {

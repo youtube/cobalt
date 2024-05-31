@@ -274,8 +274,8 @@ void URLFetcherResponseWriter::Buffer::Write(const void* buffer,
   if (type_ == kString) {
     if (capacity_known_ &&
         num_bytes + data_as_string_.size() >= data_as_string_.capacity()) {
-      SB_LOG(WARNING) << "Data written is larger than the preset capacity "
-                      << data_as_string_.capacity();
+      LOG(WARNING) << "Data written is larger than the preset capacity "
+                   << data_as_string_.capacity();
     }
     data_as_string_.append(data, num_bytes);
     return;
@@ -285,8 +285,8 @@ void URLFetcherResponseWriter::Buffer::Write(const void* buffer,
     if (data_as_array_buffer_size_ + num_bytes >
         data_as_array_buffer_.byte_length()) {
       if (capacity_known_) {
-        SB_LOG(WARNING) << "Data written is larger than the preset capacity "
-                        << data_as_array_buffer_.byte_length();
+        LOG(WARNING) << "Data written is larger than the preset capacity "
+                     << data_as_array_buffer_.byte_length();
       }
       size_t new_size = std::max(
           std::min(data_as_array_buffer_.byte_length() * kResizingMultiplier,
