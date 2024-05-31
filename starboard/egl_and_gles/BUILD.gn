@@ -38,7 +38,7 @@ config("egl_and_gles_glimp_public_config") {
 if (gl_type == "glimp") {
   group("egl_and_gles_glimp") {
     public_configs = [ ":egl_and_gles_glimp_public_config" ]
-    public_deps = [ "//glimp" ]
+    public_deps = [ "//internal/starboard/shared/glimp" ]
   }
 }
 

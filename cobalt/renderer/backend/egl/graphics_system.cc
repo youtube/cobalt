@@ -28,7 +28,7 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #if defined(ENABLE_GLIMP_TRACING)
-#include "glimp/tracing/tracing.h"  // nogncheck
+#include "internal/starboard/shared/glimp/tracing/tracing.h"
 #endif
 
 #include "cobalt/renderer/egl_and_gles.h"
