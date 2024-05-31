@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/file.h"
-#include "starboard/nplb/posix_compliance/posix_file_helpers.h"
+#include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -28,7 +26,6 @@ namespace {
 
 void BasicTest(bool existing,
                int open_flags,
-               bool expected_created,
                bool expected_success,
                int original_line,
                mode_t mode = S_IRUSR | S_IWUSR) {
@@ -37,8 +34,7 @@ void BasicTest(bool existing,
   const std::string& filename = random_file.filename();
 #define SB_FILE_OPEN_TEST_CONTEXT                                      \
   "existing=" << existing << ", flags=0x" << std::hex << open_flags    \
-              << std::dec << ", expected_created=" << expected_created \
-              << ", expected_success=" << expected_success             \
+              << std::dec << ", expected_success=" << expected_success \
               << ", filename=" << filename                             \
               << ", original_line=" << original_line
 
@@ -51,7 +47,6 @@ void BasicTest(bool existing,
     }
   }
 
-  bool created = !expected_created;
   int fd;
 #ifdef _WIN32
   // File mode is set along with O_CREAT flag.
@@ -86,52 +81,54 @@ void BasicTest(bool existing,
 }
 
 TEST(PosixFileOpenTest, OpenOnlyOpensExistingFile) {
-  BasicTest(true, O_RDONLY, false, true, __LINE__);
+  BasicTest(true, O_RDONLY, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenOnlyDoesNotOpenNonExistingFile) {
-  BasicTest(false, O_RDONLY, false, false, __LINE__);
+  BasicTest(false, O_RDONLY, false, __LINE__);
 }
 
 TEST(PosixFileOpenTest, CreateOnlyDoesNotCreateExistingFile) {
-  BasicTest(true, O_CREAT | O_EXCL | O_WRONLY, false, false, __LINE__);
+  BasicTest(true, O_CREAT | O_EXCL | O_WRONLY, false, __LINE__);
 }
 
 TEST(PosixFileOpenTest, CreateOnlyCreatesNonExistingFile) {
-  BasicTest(false, O_CREAT | O_EXCL | O_WRONLY, true, true, __LINE__);
+  BasicTest(false, O_CREAT | O_EXCL | O_WRONLY, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenAlwaysOpensExistingFile) {
-  BasicTest(true, O_CREAT | O_WRONLY, false, true, __LINE__);
+  BasicTest(true, O_CREAT | O_WRONLY, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenAlwaysCreatesNonExistingFile) {
-  BasicTest(false, O_CREAT | O_WRONLY, true, true, __LINE__);
+  BasicTest(false, O_CREAT | O_WRONLY, true, __LINE__);
 }
 
+#if SB_API_VERSION >= 16
+
 TEST(PosixFileOpenTest, OpenAlwaysWithLinuxSpecificMode) {
-  BasicTest(false, O_CREAT | O_TRUNC | O_WRONLY, true, true, __LINE__,
+  BasicTest(false, O_CREAT | O_TRUNC | O_WRONLY, true, __LINE__,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 }
 
+#endif  // SB_API_VERSION >= 16
+
 TEST(PosixFileOpenTest, CreateAlwaysTruncatesExistingFile) {
-  BasicTest(true, O_CREAT | O_TRUNC | O_WRONLY, true, true, __LINE__);
+  BasicTest(true, O_CREAT | O_TRUNC | O_WRONLY, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, CreateAlwaysCreatesNonExistingFile) {
-  BasicTest(false, O_CREAT | O_TRUNC | O_WRONLY, true, true, __LINE__);
+  BasicTest(false, O_CREAT | O_TRUNC | O_WRONLY, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenTruncatedTruncatesExistingFile) {
-  BasicTest(true, O_TRUNC | O_WRONLY, false, true, __LINE__);
+  BasicTest(true, O_TRUNC | O_WRONLY, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenTruncatedDoesNotCreateNonExistingFile) {
-  BasicTest(false, O_TRUNC | O_WRONLY, false, false, __LINE__);
+  BasicTest(false, O_TRUNC | O_WRONLY, false, __LINE__);
 }
 
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 16

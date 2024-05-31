@@ -45,7 +45,9 @@ TARGET_TEMPLATE = """
   sources = {srcs}
   public_deps = {deps}
   public_configs = ["..:{config_name}"]
+  if (!use_cobalt_customizations) {
   configs -= [ "//gn/standalone:extra_warnings" ]
+  }
 }}"""
 
 LIBRARY_IGNORE_LIST = set([

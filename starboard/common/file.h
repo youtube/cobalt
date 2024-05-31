@@ -22,7 +22,11 @@
 
 #include "starboard/file.h"
 
+#include <sys/types.h>
+
 namespace starboard {
+
+ssize_t ReadAll(int fd, void* data, int size);
 
 void RecordFileWriteStat(int write_file_result);
 
@@ -37,6 +41,8 @@ void RecordFileWriteStat(int write_file_result);
 // |path|: The absolute path of the file, symlink, or directory to be deleted.
 // |preserve_root|: Whether or not the root directory should be preserved.
 bool SbFileDeleteRecursive(const char* path, bool preserve_root);
+
+ssize_t WriteAll(int fd, const void* data, int size);
 
 // A class that opens an SbFile in its constructor and closes it in its
 // destructor, so the file is open for the lifetime of the object. Member

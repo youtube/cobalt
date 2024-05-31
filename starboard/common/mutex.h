@@ -18,11 +18,15 @@
 #ifndef STARBOARD_COMMON_MUTEX_H_
 #define STARBOARD_COMMON_MUTEX_H_
 
+#include <pthread.h>
+
+#if SB_API_VERSION < 16
 #include "starboard/mutex.h"
+#endif  // SB_API_VERSION < 16
 
 namespace starboard {
 
-// Inline class wrapper for SbMutex.
+// Inline class wrapper for mutex.
 class Mutex {
  public:
   Mutex();
@@ -39,7 +43,7 @@ class Mutex {
   void debugSetReleased() const;
   void debugPreAcquire() const;
   void debugSetAcquired() const;
-  mutable SbThread current_thread_acquired_;
+  mutable pthread_t current_thread_acquired_;
 #else
   void debugInit();
   void debugSetReleased() const;
@@ -48,9 +52,13 @@ class Mutex {
 #endif
 
   friend class ConditionVariable;
+#if SB_API_VERSION < 16
   SbMutex* mutex() const;
   mutable SbMutex mutex_;
-
+#else
+  pthread_mutex_t* mutex() const;
+  mutable pthread_mutex_t mutex_;
+#endif  // SB_API_VERSION < 16
   Mutex(const Mutex&) = delete;
   void operator=(const Mutex&) = delete;
 };

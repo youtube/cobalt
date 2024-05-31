@@ -42,14 +42,14 @@ namespace cobalt {
 namespace dom {
 
 class HTMLElementFactory;
-class MediaSource;
+class MediaSourceAttachment;
 
 // This class contains references to several objects that are required by HTML
 // elements, including HTML element factory, which is used to create new
 // HTML elements.
 class HTMLElementContext {
  public:
-  typedef web::UrlRegistry<MediaSource> MediaSourceRegistry;
+  typedef web::UrlRegistry<MediaSourceAttachment> MediaSourceRegistry;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   // No-args constructor for tests.

@@ -23,6 +23,8 @@ extern "C" {
 
 #define kStarboardExtensionIfaName "dev.cobalt.extension.Ifa"
 
+typedef void (*RequestTrackingAuthorizationCallback)(void* callback_context);
+
 typedef struct StarboardExtensionIfaApi {
   // Name should be the string |kCobaltExtensionIfaName|.
   // This helps to validate that the extension API is correct.
@@ -46,9 +48,38 @@ typedef struct StarboardExtensionIfaApi {
   // In Starboard 14 this the value is retrieved through the system
   // property `kSbSystemPropertyLimitAdTracking` defined in
   // `starboard/system.h`.
-
   bool (*GetLimitAdTracking)(char* out_value, int value_length);
 
+  // The fields below this point were added in version 2 or later.
+
+  // Returns the the user's authorization status for using IFA in this app.
+  // Valid strings that can be returned are:
+  //   * NOT_SUPPORTED - if this platform doesn't support this extension
+  //   * UNKNOWN - if the system isn't able to determine a status
+  //   * NOT_DETERMINED - the user hasn't made a decision yet
+  //   * RESTRICTED - the system doesn't allow the user a choice
+  //   * AUTHORIZED - the user agreed to tracking
+  //   * DENIED - the user declined tracking
+  // This is optional and only implemented on some platforms.
+  bool (*GetTrackingAuthorizationStatus)(char* out_value, int value_length);
+
+  // Registers the provided callback context and function to allow notification
+  // when |RequestTrackingAuthorization| completes.
+  // This is optional and only implemented on some platforms.
+  void (*RegisterTrackingAuthorizationCallback)(
+      void* callback_context,
+      RequestTrackingAuthorizationCallback callback);
+
+  // Unregisters any callback context and function set via
+  // |RegisterTrackingAuthorizationCallback|.
+  // This is optional and only implemented on some platforms.
+  void (*UnregisterTrackingAuthorizationCallback)();
+
+  // Asks the OS to request a user prompt to allow IFA in this app.
+  // If a callback is registered (via |RegisterTrackingAuthorizationCallback|),
+  // it will be called once the request completes.
+  // This is optional and only implemented on some platforms.
+  void (*RequestTrackingAuthorization)();
 } CobaltExtensionIfaApi;
 
 #ifdef __cplusplus

@@ -203,7 +203,7 @@ static_library("test_support") {
 
   if (enable_base_tracing) {
     public_deps += [ "//third_party/perfetto:perfetto_test_support" ]
-    if (!is_chromeos) {
+    if (!is_chromeos && !is_starboard) {
       # TODO(rasikan): Add to ios and chromeos when unblocked by the chromiumos
       # change to add the shared lib to the chrome-binary-tests directory.
       public_deps += [ ":test_trace_processor" ]
@@ -524,7 +524,7 @@ executable("test_child_process") {
 }
 }
 
-if (enable_base_tracing) {
+if (enable_base_tracing && !use_cobalt_customizations) {
   # We encapsulate the trace processor in a separate shared library to prevent
   # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
   # base via a public_dep on libperfetto; libtrace_processor also depends on

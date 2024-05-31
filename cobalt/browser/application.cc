@@ -893,8 +893,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   AddCrashHandlerAnnotations(platform_info);
 
 #if SB_IS(EVERGREEN)
+#if SB_API_VERSION < 16
   if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
       !command_line->HasSwitch(switches::kDisableUpdaterModule)) {
+#else
+  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+#endif
     uint64_t update_check_delay_sec =
         cobalt::updater::kDefaultUpdateCheckDelaySeconds;
     if (command_line->HasSwitch(browser::switches::kUpdateCheckDelaySeconds)) {

@@ -87,8 +87,7 @@ class SkMutex : public SkBaseMutex {
   ~SkMutex() { pthread_mutex_destroy(&mutex_); }
 };
 
-#define SK_BASE_MUTEX_INIT \
-  { SB_MUTEX_INITIALIZER }
+#define SK_BASE_MUTEX_INIT {PTHREAD_MUTEX_INITIALIZER}
 
 // Using POD-style initialization prevents the generation of a static
 // initializer.

@@ -15,6 +15,7 @@
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/environment.h"
+#include "base/logging.h"
 #include "base/test/gtest_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time_override.h"
@@ -1486,7 +1487,7 @@ ThreadTicks ThreadTicksOverride::now_ticks_;
 #endif
 TEST(ThreadTicks, MAYBE_NowOverride) {
   if (starboard::CurrentMonotonicThreadTime() == 0) {
-    SB_LOG(INFO) << "Time thread now not supported. Test skipped.";
+    LOG(INFO) << "Time thread now not supported. Test skipped.";
     return;
   }
 

@@ -14,26 +14,42 @@
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/log.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
 Mutex::Mutex() : mutex_() {
+#if SB_API_VERSION < 16
   SbMutexCreate(&mutex_);
+#else
+  pthread_mutex_init(&mutex_, nullptr);
+#endif  // SB_API_VERSION < 16
   debugInit();
 }
 
 Mutex::~Mutex() {
+#if SB_API_VERSION < 16
   SbMutexDestroy(&mutex_);
+#else
+  pthread_mutex_destroy(&mutex_);
+#endif  // SB_API_VERSION < 16
 }
 
 void Mutex::Acquire() const {
   debugPreAcquire();
+#if SB_API_VERSION < 16
   SbMutexAcquire(&mutex_);
+#else
+  pthread_mutex_lock(&mutex_);
+#endif  // SB_API_VERSION < 16
   debugSetAcquired();
 }
+
 bool Mutex::AcquireTry() const {
+#if SB_API_VERSION < 16
   bool ok = SbMutexAcquireTry(&mutex_) == kSbMutexAcquired;
+#else
+  bool ok = pthread_mutex_trylock(&mutex_) == 0;
+#endif  // SB_API_VERSION < 16
   if (ok) {
     debugSetAcquired();
   }
@@ -42,33 +58,37 @@ bool Mutex::AcquireTry() const {
 
 void Mutex::Release() const {
   debugSetReleased();
+#if SB_API_VERSION < 16
   SbMutexRelease(&mutex_);
+#else
+  pthread_mutex_unlock(&mutex_);
+#endif  // SB_API_VERSION < 16
 }
 
 void Mutex::DCheckAcquired() const {
 #ifdef _DEBUG
-  SB_DCHECK(current_thread_acquired_ == SbThreadGetCurrent());
+  SB_DCHECK(pthread_equal(current_thread_acquired_, pthread_self()));
 #endif  // _DEBUG
 }
 
 #ifdef _DEBUG
 void Mutex::debugInit() {
-  current_thread_acquired_ = kSbThreadInvalid;
+  current_thread_acquired_ = 0;
 }
 void Mutex::debugSetReleased() const {
-  SbThread current_thread = SbThreadGetCurrent();
-  SB_DCHECK(current_thread_acquired_ == current_thread);
-  current_thread_acquired_ = kSbThreadInvalid;
+  pthread_t current_thread = pthread_self();
+  SB_DCHECK(pthread_equal(current_thread_acquired_, current_thread));
+  current_thread_acquired_ = 0;
 }
 void Mutex::debugPreAcquire() const {
   // Check that the mutex is not held by the current thread.
-  SbThread current_thread = SbThreadGetCurrent();
-  SB_DCHECK(current_thread_acquired_ != current_thread);
+  pthread_t current_thread = pthread_self();
+  SB_DCHECK(!pthread_equal(current_thread_acquired_, current_thread));
 }
 void Mutex::debugSetAcquired() const {
   // Check that the thread has already not been held.
-  SB_DCHECK(current_thread_acquired_ == kSbThreadInvalid);
-  current_thread_acquired_ = SbThreadGetCurrent();
+  SB_DCHECK(current_thread_acquired_ == 0);
+  current_thread_acquired_ = pthread_self();
 }
 #else
 void Mutex::debugInit() {}
@@ -77,7 +97,11 @@ void Mutex::debugPreAcquire() const {}
 void Mutex::debugSetAcquired() const {}
 #endif
 
+#if SB_API_VERSION < 16
 SbMutex* Mutex::mutex() const {
+#else
+pthread_mutex_t* Mutex::mutex() const {
+#endif
   return &mutex_;
 }
 

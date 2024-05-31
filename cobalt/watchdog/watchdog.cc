@@ -24,8 +24,9 @@
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/logging.h"
+#include "base/time/time.h"
 #include "starboard/common/file.h"
-#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 
@@ -103,10 +104,10 @@ bool Watchdog::InitializeCustom(
 
   // Starts monitor thread.
   is_monitoring_.store(true);
-  SB_DCHECK(!SbThreadIsValid(watchdog_thread_));
-  watchdog_thread_ = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                    true, "Watchdog", &Watchdog::Monitor, this);
-  SB_DCHECK(SbThreadIsValid(watchdog_thread_));
+
+  int res =
+      pthread_create(&watchdog_thread_, nullptr, &Watchdog::Monitor, this);
+  SB_DCHECK(res == 0);
   return true;
 }
 
@@ -123,7 +124,7 @@ void Watchdog::Uninitialize() {
   is_monitoring_.store(false);
   monitor_wait_.Signal();
   mutex_.Release();
-  SbThreadJoin(watchdog_thread_, nullptr);
+  pthread_join(watchdog_thread_, nullptr);
 }
 
 std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
@@ -143,7 +144,7 @@ std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
     }
 
     if (violations_map_ == nullptr) {
-      SB_LOG(INFO) << "[Watchdog] No previous violations JSON.";
+      LOG(INFO) << "[Watchdog] No previous violations JSON.";
       violations_map_ = std::make_unique<base::Value>(base::Value::Type::DICT);
     }
   }
@@ -159,7 +160,7 @@ std::string Watchdog::GetWatchdogFilePath() {
                     kSbFileMaxPath);
     watchdog_file_path_ =
         std::string(cache_dir.data()) + kSbFileSepString + watchdog_file_name_;
-    SB_LOG(INFO) << "[Watchdog] Violations filepath: " << watchdog_file_path_;
+    LOG(INFO) << "[Watchdog] Violations filepath: " << watchdog_file_path_;
   }
   return watchdog_file_path_;
 }
@@ -169,7 +170,7 @@ std::vector<std::string> Watchdog::GetWatchdogViolationClientNames() {
 
   if (is_disabled_) return names;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   auto violation_map = GetViolationsMap()->GetDict().Clone();
   for (base::Value::Dict::iterator it = violation_map.begin();
        it != violation_map.end(); ++it) {
@@ -181,7 +182,7 @@ std::vector<std::string> Watchdog::GetWatchdogViolationClientNames() {
 void Watchdog::UpdateState(base::ApplicationState state) {
   if (is_disabled_) return;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   state_ = state;
 }
 
@@ -189,7 +190,7 @@ void Watchdog::WriteWatchdogViolations() {
   // Writes Watchdog violations to persistent storage as a json file.
   std::string watchdog_json;
   base::JSONWriter::Write(*GetViolationsMap(), &watchdog_json);
-  SB_LOG(INFO) << "[Watchdog] Writing violations to JSON:\n" << watchdog_json;
+  LOG(INFO) << "[Watchdog] Writing violations to JSON:\n" << watchdog_json;
   starboard::ScopedFile watchdog_file(GetWatchdogFilePath().c_str(),
                                       kSbFileCreateAlways | kSbFileWrite);
   watchdog_file.WriteAll(watchdog_json.c_str(),
@@ -199,7 +200,8 @@ void Watchdog::WriteWatchdogViolations() {
 }
 
 void* Watchdog::Monitor(void* context) {
-  starboard::ScopedLock scoped_lock(static_cast<Watchdog*>(context)->mutex_);
+  pthread_setname_np(pthread_self(), "Watchdog");
+  base::AutoLock scoped_lock(static_cast<Watchdog*>(context)->mutex_);
   while (1) {
     int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
     bool watchdog_violation = false;
@@ -225,8 +227,9 @@ void* Watchdog::Monitor(void* context) {
     if (watchdog_violation) MaybeTriggerCrash(context);
 
     // Wait
-    static_cast<Watchdog*>(context)->monitor_wait_.WaitTimed(
+    base::TimeDelta timeout = base::Microseconds(
         static_cast<Watchdog*>(context)->watchdog_monitor_frequency_);
+    static_cast<Watchdog*>(context)->monitor_wait_.TimedWait(timeout);
 
     // Shutdown
     if (!(static_cast<Watchdog*>(context)->is_monitoring_.load())) break;
@@ -452,7 +455,7 @@ void Watchdog::MaybeTriggerCrash(void* context) {
   if (static_cast<Watchdog*>(context)->GetPersistentSettingWatchdogCrash()) {
     if (static_cast<Watchdog*>(context)->pending_write_)
       static_cast<Watchdog*>(context)->WriteWatchdogViolations();
-    SB_LOG(ERROR) << "[Watchdog] Triggering violation Crash!";
+    LOG(ERROR) << "[Watchdog] Triggering violation Crash!";
     *(reinterpret_cast<volatile char*>(0)) = 0;
   }
 }
@@ -463,7 +466,7 @@ bool Watchdog::Register(std::string name, std::string description,
                         int64_t time_wait_microseconds, Replace replace) {
   if (is_disabled_) return true;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   int64_t current_time = starboard::CurrentPosixTime();
   int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
@@ -494,9 +497,9 @@ bool Watchdog::Register(std::string name, std::string description,
   auto result = client_map_.emplace(name, std::move(client));
 
   if (result.second) {
-    SB_DLOG(INFO) << "[Watchdog] Registered: " << name;
+    DLOG(INFO) << "[Watchdog] Registered: " << name;
   } else {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
+    DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
   }
   return result.second;
 }
@@ -507,7 +510,7 @@ std::shared_ptr<Client> Watchdog::RegisterByClient(
     int64_t time_wait_microseconds) {
   if (is_disabled_) return nullptr;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   int64_t current_time = starboard::CurrentPosixTime();
   int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
@@ -521,7 +524,7 @@ std::shared_ptr<Client> Watchdog::RegisterByClient(
   // Registers.
   client_list_.emplace_back(client);
 
-  SB_DLOG(INFO) << "[Watchdog] Registered: " << name;
+  DLOG(INFO) << "[Watchdog] Registered: " << name;
   return client;
 }
 
@@ -533,12 +536,12 @@ std::unique_ptr<Client> Watchdog::CreateClient(
   // Validates parameters.
   if (time_interval_microseconds < watchdog_monitor_frequency_ ||
       time_wait_microseconds < 0) {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
+    DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
     if (time_interval_microseconds < watchdog_monitor_frequency_) {
-      SB_DLOG(ERROR) << "[Watchdog] Time interval less than min: "
-                     << watchdog_monitor_frequency_;
+      DLOG(ERROR) << "[Watchdog] Time interval less than min: "
+                  << watchdog_monitor_frequency_;
     } else {
-      SB_DLOG(ERROR) << "[Watchdog] Time wait is negative.";
+      DLOG(ERROR) << "[Watchdog] Time wait is negative.";
     }
     return nullptr;
   }
@@ -563,14 +566,18 @@ bool Watchdog::Unregister(const std::string& name, bool lock) {
   if (is_disabled_) return true;
 
   // Unregisters.
-  if (lock) mutex_.Acquire();
-  auto result = client_map_.erase(name);
-  if (lock) mutex_.Release();
+  int result = 0;
+  if (lock) {
+    base::AutoLock lock(mutex_);
+    result = client_map_.erase(name);
+  } else {
+    result = client_map_.erase(name);
+  }
 
   if (result) {
-    SB_DLOG(INFO) << "[Watchdog] Unregistered: " << name;
+    DLOG(INFO) << "[Watchdog] Unregistered: " << name;
   } else {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Unregister: " << name;
+    DLOG(ERROR) << "[Watchdog] Unable to Unregister: " << name;
   }
   return result;
 }
@@ -578,7 +585,7 @@ bool Watchdog::Unregister(const std::string& name, bool lock) {
 bool Watchdog::UnregisterByClient(std::shared_ptr<Client> client) {
   if (is_disabled_) return true;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   std::string name = "";
   if (client) name = client->name;
@@ -587,11 +594,11 @@ bool Watchdog::UnregisterByClient(std::shared_ptr<Client> client) {
   for (auto it = client_list_.begin(); it != client_list_.end(); it++) {
     if (client == *it) {
       client_list_.erase(it);
-      SB_DLOG(INFO) << "[Watchdog] Unregistered: " << name;
+      DLOG(INFO) << "[Watchdog] Unregistered: " << name;
       return true;
     }
   }
-  SB_DLOG(ERROR) << "[Watchdog] Unable to Unregister: " << name;
+  DLOG(ERROR) << "[Watchdog] Unable to Unregister: " << name;
   return false;
 }
 
@@ -600,7 +607,7 @@ bool Watchdog::Ping(const std::string& name) { return Ping(name, ""); }
 bool Watchdog::Ping(const std::string& name, const std::string& info) {
   if (is_disabled_) return true;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   auto it = client_map_.find(name);
   bool client_exists = it != client_map_.end();
@@ -609,7 +616,7 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
     Client* client = it->second.get();
     return PingHelper(client, name, info);
   }
-  SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+  DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
   return false;
 }
 
@@ -624,14 +631,14 @@ bool Watchdog::PingByClient(std::shared_ptr<Client> client,
   std::string name = "";
   if (client) name = client->name;
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   for (auto it = client_list_.begin(); it != client_list_.end(); it++) {
     if (client == *it) {
       return PingHelper(client.get(), name, info);
     }
   }
-  SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+  DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
   return false;
 }
 
@@ -639,9 +646,9 @@ bool Watchdog::PingHelper(Client* client, const std::string& name,
                           const std::string& info) {
   // Validates parameters.
   if (info.length() > kWatchdogMaxPingInfoLength) {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
-    SB_DLOG(ERROR) << "[Watchdog] Ping info length exceeds max: "
-                   << kWatchdogMaxPingInfoLength;
+    DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+    DLOG(ERROR) << "[Watchdog] Ping info length exceeds max: "
+                << kWatchdogMaxPingInfoLength;
     return false;
   }
 
@@ -674,7 +681,7 @@ std::string Watchdog::GetWatchdogViolations(
 
   std::string fetched_violations_json = "";
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   if (GetViolationsMap()->DictSize() != 0) {
     if (clients.empty()) {
@@ -704,10 +711,9 @@ std::string Watchdog::GetWatchdogViolations(
         EvictOldWatchdogViolations();
       }
     }
-    SB_LOG(INFO) << "[Watchdog] Reading violations:\n"
-                 << fetched_violations_json;
+    LOG(INFO) << "[Watchdog] Reading violations:\n" << fetched_violations_json;
   } else {
-    SB_LOG(INFO) << "[Watchdog] No violations.";
+    LOG(INFO) << "[Watchdog] No violations.";
   }
   return fetched_violations_json;
 }
@@ -838,7 +844,7 @@ void Watchdog::SetPersistentSettingLogtraceEnable(bool enable_logtrace) {
 void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
   if (is_disabled_) return;
 
-  starboard::ScopedLock scoped_lock(delay_mutex_);
+  base::AutoLock scoped_lock(delay_mutex_);
 
   if (name != delay_name_) return;
 

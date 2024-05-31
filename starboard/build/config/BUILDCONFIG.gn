@@ -188,6 +188,10 @@ if (is_win) {
   default_compiler_configs += [ "//build/config/win:lean_and_mean" ]
 }
 
+if (is_native_target_build) {
+  default_compiler_configs += [ "//starboard/build/config:native_target" ]
+}
+
 set_defaults("static_library") {
   configs = default_compiler_configs + static_library_configs
   has_pedantic_warnings = false
@@ -624,7 +628,10 @@ template("shared_library") {
       not_needed([ "installable_target_dep" ])
       type = "shared_library"
 
-      deps = []
+      # When we build "{target_name}_install", we expect all files
+      # needed for a working target to be present.
+      deps = [ ":${actual_target_name}" ]
+
       if (defined(invoker.deps)) {
         deps += invoker.deps
       }

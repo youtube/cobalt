@@ -20,6 +20,8 @@ interface H5vccSystem {
   readonly attribute DOMString version;
   readonly attribute DOMString advertisingId;
   readonly attribute boolean limitAdTracking;
+  readonly attribute DOMString trackingAuthorizationStatus;
+  [CallWith=EnvironmentSettings, NewObject] Promise<void> requestTrackingAuthorization();
   boolean triggerHelp();
 
   // enum UserOnExitStrategy

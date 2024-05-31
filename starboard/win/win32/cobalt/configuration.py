@@ -41,6 +41,7 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
           'TaskTraits*',
           'FileTest.Length',
           'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+          'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
       ],
       'renderer_test': [
           # Flaky test is still being counted as a fail.

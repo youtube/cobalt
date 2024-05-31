@@ -20,6 +20,8 @@
 #ifndef STARBOARD_MUTEX_H_
 #define STARBOARD_MUTEX_H_
 
+#if SB_API_VERSION < 16
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/thread.h"
@@ -47,8 +49,7 @@ typedef union SbMutex {
 #define SB_MUTEX_INITIALIZER \
   {}
 #else
-#define SB_MUTEX_INITIALIZER \
-  { 0 }
+#define SB_MUTEX_INITIALIZER {0}
 #endif
 
 // Enumeration of possible results from acquiring a mutex.
@@ -108,4 +109,5 @@ SB_EXPORT bool SbMutexRelease(SbMutex* mutex);
 }  // extern "C"
 #endif
 
+#endif  // SB_API_VERSION < 16
 #endif  // STARBOARD_MUTEX_H_

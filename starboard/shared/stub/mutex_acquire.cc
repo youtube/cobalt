@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/mutex.h"
 
 SbMutexResult SbMutexAcquire(SbMutex* mutex) {
   return kSbMutexDestroyed;
 }
+#endif  // SB_API_VERSION < 16

@@ -169,8 +169,10 @@ void AudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
-  // If fail to flush |media_decoder_|, then re-create |media_decoder_|.
-  if (!enable_flush_during_seek_ || !media_decoder_->Flush()) {
+  // If fail to flush |media_decoder_| or |media_decoder_| is null, then
+  // re-create |media_decoder_|.
+  if (!enable_flush_during_seek_ || !media_decoder_ ||
+      !media_decoder_->Flush()) {
     media_decoder_.reset();
 
     if (!InitializeCodec()) {

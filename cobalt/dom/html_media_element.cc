@@ -40,6 +40,7 @@
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_settings.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/url_fetcher_data_source.h"
@@ -124,6 +125,27 @@ bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
     return true;
   }
   return false;
+}
+
+const MediaSettings& GetMediaSettings(
+    const web::EnvironmentSettings* settings) {
+  DCHECK(settings);
+  DCHECK(settings->context());
+  DCHECK(settings->context()->web_settings());
+
+  const auto& web_settings = settings->context()->web_settings();
+  return web_settings->media_settings();
+}
+
+// If this function returns true, HTMLMediaElement::buffered() will attempt to
+// call MediaSource::GetBufferedRange() if available, and fallback to
+// WebMediaPlayer::UpdateBufferedTimeRanges().
+// The default value is false.
+bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+    const web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceBufferedRangeEnabled()
+      .value_or(false);
 }
 
 }  // namespace
@@ -217,6 +239,17 @@ uint16_t HTMLMediaElement::network_state() const {
 
 scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
   scoped_refptr<TimeRanges> buffered = new TimeRanges;
+
+  DCHECK(node_document());
+  DCHECK(node_document()->html_element_context());
+  DCHECK(node_document()->html_element_context()->environment_settings());
+  const auto* settings =
+      node_document()->html_element_context()->environment_settings();
+  if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(settings)) {
+    if (media_source_) {
+      return media_source_->GetBufferedRange();
+    }
+  }
 
   if (!player_) {
     LOG(INFO) << "(empty)";
@@ -860,18 +893,29 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
       return;
     }
 
-    media_source_ =
+    scoped_refptr<MediaSourceAttachment> attachment =
         html_element_context()->media_source_registry()->Retrieve(url.spec());
+
+    if (!attachment) {
+      NoneSupported("Media source is NULL.");
+      return;
+    }
+
+    media_source_ = attachment->media_source();
+
     if (!media_source_) {
       NoneSupported("Media source is NULL.");
       return;
     }
-    if (!media_source_->AttachToElement(this)) {
+    if (!media_source_->StartAttachingToMediaElement(this)) {
       media_source_ = nullptr;
       NoneSupported("Unable to attach media source.");
       return;
     }
     media_source_url_ = url;
+
+    LOG(INFO) << "Attached MediaSource (0x" << media_source_.get()
+              << ") to HTMLMediaElement (0x" << this << ")";
   }
   // The resource fetch algorithm
   network_state_ = kNetworkLoading;
@@ -1643,7 +1687,7 @@ void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   BeginProcessingMediaPlayerCallback();
   DCHECK(media_source_);
-  media_source_->SetChunkDemuxerAndOpen(chunk_demuxer);
+  media_source_->CompleteAttachingToMediaElement(chunk_demuxer);
   EndProcessingMediaPlayerCallback();
 }
 

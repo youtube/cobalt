@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
+#include <pthread.h>
+
 #include <functional>
 #include <map>
 #include <utility>
@@ -171,7 +173,7 @@ class JobQueue {
   // be run.
   bool TryToRunOneJob(bool wait_for_next_job);
 
-  const SbThreadId thread_id_;
+  const pthread_t thread_id_;
   Mutex mutex_;
   ConditionVariable condition_;
   int64_t current_job_token_ = JobToken::kInvalidToken + 1;
