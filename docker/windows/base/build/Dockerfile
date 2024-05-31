@@ -19,6 +19,8 @@ FROM ${FROM_IMAGE}
 SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
        "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
+RUN echo "Helloworld"
+
 # Helper script for quick delete operations in windows
 COPY ./fast-win-rmdir.cmd /fast-win-rmdir.cmd
 
