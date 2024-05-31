@@ -31,7 +31,6 @@
 #include "cobalt/web/web_settings.h"
 #include "cobalt/worker/service_worker_state.h"
 #include "cobalt/worker/worker_global_scope.h"
-#include "starboard/common/atomic.h"
 #include "url/gurl.h"
 
 #if defined(ENABLE_DEBUGGER)

@@ -47,7 +47,6 @@
 #include "net/base/load_timing_info.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
-#include "starboard/common/atomic.h"
 #include "url/gurl.h"
 
 namespace cobalt {
