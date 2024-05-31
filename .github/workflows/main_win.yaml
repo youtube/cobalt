@@ -61,6 +61,7 @@ jobs:
         github.event.label.name == 'runtest' ||
         github.event.label.name == 'on_device'
       )
+    timeout-minutes: 10
     steps:
       - id: Checkout
         uses: kaidokert/checkout@v3.5.999 # Temporary version
@@ -133,6 +134,7 @@ jobs:
     permissions:
       packages: write
     runs-on: windows-2019
+    timeout-minutes: 60
     steps:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
@@ -167,6 +169,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel, debug, qa, gold]
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
@@ -204,6 +207,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     env:
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
