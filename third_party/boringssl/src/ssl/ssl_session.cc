@@ -287,11 +287,6 @@ UniquePtr<SSL_SESSION> SSL_SESSION_dup(SSL_SESSION *session, int dup_flags) {
   return new_session;
 }
 
-int SSL_SESSION_early_data_capable(const SSL_SESSION *session) {
-  return ssl_session_protocol_version(session) >= TLS1_3_VERSION &&
-         session->ticket_max_early_data != 0;
-}
-
 void ssl_session_rebase_time(SSL *ssl, SSL_SESSION *session) {
   struct OPENSSL_timeval now;
   ssl_get_current_time(ssl, &now);
@@ -1142,6 +1137,11 @@ void SSL_SESSION_get0_peer_sha256(const SSL_SESSION *session,
     *out_ptr = nullptr;
     *out_len = 0;
   }
+}
+
+int SSL_SESSION_early_data_capable(const SSL_SESSION *session) {
+  return ssl_session_protocol_version(session) >= TLS1_3_VERSION &&
+         session->ticket_max_early_data != 0;
 }
 
 SSL_SESSION *SSL_magic_pending_session_ptr(void) {

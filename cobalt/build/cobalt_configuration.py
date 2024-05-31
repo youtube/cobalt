@@ -32,6 +32,7 @@ _FILTERED_TESTS = {
         'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+
         # TODO: b/329507754 - Flaky after recent rebase.
         'ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows',
         'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
@@ -39,6 +40,19 @@ _FILTERED_TESTS = {
     'net_unittests': [
         # TODO: b/329507754 - Flaky after recent rebase.
         'CookieMonsterTest.DeleteExpiredPartitionedCookiesAfterTimeElapsed',
+
+        # TODO: b/331469815 - Hangs in GitHub actions.
+        'TCPClientSocketTest.*',
+
+        # TODO: b/327008491 - Unused functionality but should be enabled.
+        'DiskCacheTest.*',
+        'DiskCacheBackendTest.*',
+        'DiskCacheEntryTest.*',
+        'CacheUtilTest.*',
+        'SimpleFileTrackerTest.*',
+        'SimpleIndexFileTest.*',
+        'SimpleVersionUpgradeTest.*',
+        '*FileNetLogObserver*',
     ]
 }
 

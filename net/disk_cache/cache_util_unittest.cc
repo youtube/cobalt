@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fcntl.h>
 #include <stdio.h>
 
 #include <map>
@@ -34,16 +35,19 @@ class CacheUtilTest : public PlatformTest {
     dir1_ = base::FilePath(cache_dir_.Append(FILE_PATH_LITERAL("dir01")));
     file3_ = base::FilePath(dir1_.Append(FILE_PATH_LITERAL("file03")));
     ASSERT_TRUE(base::CreateDirectory(cache_dir_));
-    FILE *fp = base::OpenFile(file1_, "w");
-    ASSERT_TRUE(fp != nullptr);
-    base::CloseFile(fp);
-    fp = base::OpenFile(file2_, "w");
-    ASSERT_TRUE(fp != nullptr);
-    base::CloseFile(fp);
+    int fp = -1;
+    fp = open(file1_.value().c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    ASSERT_TRUE(fp != -1);
+    ASSERT_TRUE(close(fp) == 0);
+    fp = -1;
+    fp = open(file2_.value().c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    ASSERT_TRUE(fp != -1);
+    ASSERT_TRUE(close(fp) == 0);
     ASSERT_TRUE(base::CreateDirectory(dir1_));
-    fp = base::OpenFile(file3_, "w");
-    ASSERT_TRUE(fp != nullptr);
-    base::CloseFile(fp);
+    fp = -1;
+    fp = open(file3_.value().c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    ASSERT_TRUE(fp != -1);
+    ASSERT_TRUE(close(fp) == 0);
     dest_dir_ = tmp_dir_.GetPath().Append(FILE_PATH_LITERAL("old_Cache_001"));
     dest_file1_ = base::FilePath(dest_dir_.Append(FILE_PATH_LITERAL("file01")));
     dest_file2_ =

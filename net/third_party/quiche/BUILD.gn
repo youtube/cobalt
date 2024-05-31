@@ -1720,9 +1720,8 @@ source_set("quiche_tests") {
   }
 
   if (cobalt_pending_clean_up) {
-    # TODO: b/327218234 - Reenable unittests with used functionality.
-    # TODO: b/327008491 - Reenable unittests with unused functionality.
     sources -= [
+      # TODO: b/327008491 - Reenable these once we have quic_trace.
       "src/quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
       "src/quiche/quic/core/congestion_control/bbr_sender_test.cc",
       "src/quiche/quic/core/congestion_control/send_algorithm_test.cc",
