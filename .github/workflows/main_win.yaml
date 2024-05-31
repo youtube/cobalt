@@ -134,7 +134,7 @@ jobs:
     permissions:
       packages: write
     runs-on: windows-2019
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
