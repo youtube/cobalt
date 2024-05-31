@@ -32,7 +32,7 @@ const char kModelName[] = "ModelName";
 const char kPlatformName[] = "X11; Linux x86_64";
 const char kSystemIntegratorName[] = "SystemIntegratorName";
 
-const char kModelYear[] = "2023";
+const char kModelYear[] = "2024";
 }  // namespace
 
 // Omit namespace linux due to symbol name conflict.
