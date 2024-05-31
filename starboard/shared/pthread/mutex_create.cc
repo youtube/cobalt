@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/mutex.h"
 
 #include <pthread.h>
@@ -33,3 +35,5 @@ bool SbMutexCreate(SbMutex* mutex) {
   SetInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state));
   return IsSuccess(pthread_mutex_init(SB_PTHREAD_INTERNAL_MUTEX(mutex), NULL));
 }
+
+#endif  // SB_API_VERSION < 16

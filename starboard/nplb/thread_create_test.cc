@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
@@ -169,3 +171,5 @@ TEST(SbThreadCreateTest, RainyDayNoEntryPoint) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16
