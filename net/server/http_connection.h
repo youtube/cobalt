@@ -29,7 +29,7 @@ class HttpConnection {
     static const int kInitialBufSize = 1024;
     static const int kMinimumBufSize = 128;
     static const int kCapacityIncreaseFactor = 2;
-    static const int kDefaultMaxBufferSize = 1 * 1024 * 1024;  // 1 Mbytes.
+    static const int kDefaultMaxBufferSize = 4 * 1024 * 1024;  // 1 Mbytes.
 
     ReadIOBuffer();
 
@@ -72,7 +72,7 @@ class HttpConnection {
   // std::string stored.
   class QueuedWriteIOBuffer : public IOBuffer {
    public:
-    static const int kDefaultMaxBufferSize = 1 * 1024 * 1024;  // 1 Mbytes.
+    static const int kDefaultMaxBufferSize = 4 * 1024 * 1024;  // 1 Mbytes.
 
     QueuedWriteIOBuffer();
 
