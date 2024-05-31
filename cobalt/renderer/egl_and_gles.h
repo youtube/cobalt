@@ -16,7 +16,6 @@
 #define COBALT_RENDERER_EGL_AND_GLES_H_
 
 #include "base/logging.h"
-#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/egl.h"
 #include "starboard/gles.h"

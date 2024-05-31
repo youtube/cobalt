@@ -20,7 +20,6 @@
 #include "base/test/task_environment.h"
 #include "base/values.h"
 #include "starboard/common/file.h"
-#include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
