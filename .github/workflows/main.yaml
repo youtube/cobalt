@@ -234,7 +234,7 @@ jobs:
       # However, dind container ends up having / folder mounted on overlay
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
@@ -339,7 +339,6 @@ jobs:
       COBALT_EVERGREEN_LOADER: ${{ needs.initialize.outputs.evergreen_loader }}
       ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
-    # timeout-minutes: TODO: Not setting it here, depends on lab capacity
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
