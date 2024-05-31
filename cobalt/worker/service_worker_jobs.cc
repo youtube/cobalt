@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/command_line.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/current_thread.h"
 #include "base/time/time.h"
@@ -28,11 +29,19 @@
 #include "cobalt/worker/extendable_event.h"
 #include "net/base/mime_util.h"
 #include "net/base/url_util.h"
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+#include "base/strings/pattern.h"
+#endif
 
 namespace cobalt {
 namespace worker {
 
 namespace {
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+const char kUnsafelyTreatInsecureOriginAsSecure[] =
+    "unsafely-treat-insecure-origin-as-secure";
+#endif
 
 bool PathContainsEscapedSlash(const GURL& url) {
   const std::string path = url.path();
@@ -76,11 +85,27 @@ bool IsOriginPotentiallyTrustworthy(const GURL& url) {
   // authenticated, return "Potentially Trustworthy".
   if (url.SchemeIs("h5vcc-embedded")) return true;
 
-  // 8. If origin has been configured as a trustworthy origin, return
-  // "Potentially Trustworthy".
-  if (origin.host() == "web-platform.test") {
-    return true;
+    // 8. If origin has been configured as a trustworthy origin, return
+    // "Potentially Trustworthy".
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
+  if (command_line.HasSwitch(kUnsafelyTreatInsecureOriginAsSecure)) {
+    std::string origins_str =
+        command_line.GetSwitchValueASCII(kUnsafelyTreatInsecureOriginAsSecure);
+    std::vector<std::string> allowlist = base::SplitString(
+        origins_str, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+    if (base::Contains(allowlist, origin.Serialize())) {
+      return true;
+    }
+
+    for (const std::string& origin_or_pattern : allowlist) {
+      if (base::MatchPattern(origin.host(), origin_or_pattern)) {
+        return true;
+      }
+    }
   }
+#endif
 
   // 9. Return "Not Trustworthy".
   return false;
