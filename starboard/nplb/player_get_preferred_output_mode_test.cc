@@ -44,24 +44,39 @@ TEST(SbPlayerGetPreferredOutputModeTest, SunnyDay) {
 }
 
 TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
+  // clang-format off
   const SbMediaAudioCodec kAudioCodecs[] = {
-      kSbMediaAudioCodecNone, kSbMediaAudioCodecAac,  kSbMediaAudioCodecAc3,
-      kSbMediaAudioCodecEac3, kSbMediaAudioCodecOpus, kSbMediaAudioCodecVorbis,
-      kSbMediaAudioCodecMp3,  kSbMediaAudioCodecFlac, kSbMediaAudioCodecPcm,
+      kSbMediaAudioCodecNone,
+
+      kSbMediaAudioCodecAac,
+      kSbMediaAudioCodecAc3,
+      kSbMediaAudioCodecEac3,
+      kSbMediaAudioCodecOpus,
+      kSbMediaAudioCodecVorbis,
+      kSbMediaAudioCodecMp3,
+      kSbMediaAudioCodecFlac,
+      kSbMediaAudioCodecPcm,
 #if SB_API_VERSION >= 15
       kSbMediaAudioCodecIamf,
 #endif  // SB_API_VERSION >= 15
   };
   const SbMediaVideoCodec kVideoCodecs[] = {
-      kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
-      kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
-      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
+      kSbMediaVideoCodecNone,
+      kSbMediaVideoCodecH264,
+      kSbMediaVideoCodecH265,
+      kSbMediaVideoCodecMpeg2,
+      kSbMediaVideoCodecTheora,
+      kSbMediaVideoCodecVc1,
+      kSbMediaVideoCodecAv1,
+      kSbMediaVideoCodecVp8,
+      kSbMediaVideoCodecVp9,
   };
   const SbPlayerOutputMode kOutputModes[] = {
       kSbPlayerOutputModeDecodeToTexture,
       kSbPlayerOutputModePunchOut,
       kSbPlayerOutputModeInvalid,
   };
+  // clang-format on
 
   for (SbMediaAudioCodec audio_codec : kAudioCodecs) {
     for (SbMediaVideoCodec video_codec : kVideoCodecs) {
