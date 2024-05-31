@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -114,7 +115,7 @@ class Configurator : public update_client::Configurator {
   std::string user_agent_string_;
   uint64_t min_free_space_bytes_ = 48 * 1024 * 1024;
   base::Lock min_free_space_bytes_lock_;
-  starboard::atomic_bool use_compressed_updates_;
+  std::atomic_bool use_compressed_updates_;
 
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };

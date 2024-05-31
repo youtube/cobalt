@@ -17,6 +17,7 @@
 
 #include <pthread.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -199,7 +200,7 @@ class Watchdog : public Singleton<Watchdog> {
   // Monitor thread.
   pthread_t watchdog_thread_;
   // Flag to stop monitor thread.
-  starboard::atomic_bool is_monitoring_;
+  std::atomic_bool is_monitoring_;
   // Conditional Variable to wait and shutdown monitor thread.
   base::ConditionVariable monitor_wait_ = base::ConditionVariable(&mutex_);
   // The frequency in microseconds of monitor loops.
