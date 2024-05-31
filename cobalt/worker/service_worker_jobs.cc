@@ -14,12 +14,9 @@
 
 #include "cobalt/worker/service_worker_jobs.h"
 
-<<<<<<< HEAD
-=======
 #include <atomic>
 #include <vector>
 
->>>>>>> 9263496a5dc (Remove starboard/common/atomic usage above Starboard (#3252))
 #include "base/bind.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/current_thread.h"
