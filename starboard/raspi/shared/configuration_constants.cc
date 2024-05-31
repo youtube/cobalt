@@ -145,5 +145,5 @@ const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
 SB_EXPORT extern const bool kSbCanMapExecutableMemory = true;
 
 // Platform can support partial audio frames
-SB_EXPORT extern const bool kHasPartialAudioFramesSupport = false;
+SB_EXPORT extern const bool kHasPartialAudioFramesSupport = true;
 #endif
