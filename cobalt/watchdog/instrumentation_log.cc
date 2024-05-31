@@ -28,7 +28,7 @@ bool InstrumentationLog::LogEvent(const std::string& event) {
     return false;
   }
 
-  starboard::ScopedLock scoped_lock(buffer_mutex_);
+  base::AutoLock scoped_lock(buffer_mutex_);
   buffer_.SaveToBuffer(event);
 
   return true;
@@ -37,7 +37,7 @@ bool InstrumentationLog::LogEvent(const std::string& event) {
 std::vector<std::string> InstrumentationLog::GetLogTrace() {
   std::vector<std::string> traceEvents;
 
-  starboard::ScopedLock scoped_lock(buffer_mutex_);
+  base::AutoLock scoped_lock(buffer_mutex_);
   for (auto it = buffer_.Begin(); it; ++it) {
     traceEvents.push_back(**it);
   }
@@ -48,7 +48,7 @@ std::vector<std::string> InstrumentationLog::GetLogTrace() {
 base::Value InstrumentationLog::GetLogTraceAsValue() {
   base::Value log_trace_value = base::Value(base::Value::Type::LIST);
 
-  starboard::ScopedLock scoped_lock(buffer_mutex_);
+  base::AutoLock scoped_lock(buffer_mutex_);
   for (auto it = buffer_.Begin(); it; ++it) {
     log_trace_value.GetList().Append(**it);
   }
@@ -57,7 +57,7 @@ base::Value InstrumentationLog::GetLogTraceAsValue() {
 }
 
 void InstrumentationLog::ClearLog() {
-  starboard::ScopedLock scoped_lock(buffer_mutex_);
+  base::AutoLock scoped_lock(buffer_mutex_);
   buffer_.Clear();
 }
 

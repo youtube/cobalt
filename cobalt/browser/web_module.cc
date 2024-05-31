@@ -80,7 +80,6 @@
 #include "cobalt/web/event.h"
 #include "cobalt/web/url.h"
 #include "starboard/accessibility.h"
-#include "starboard/common/log.h"
 #include "starboard/gles.h"
 
 #if defined(ENABLE_DEBUGGER)
@@ -452,7 +451,7 @@ class WebModule::Impl {
 
   // Used to avoid a deadlock when running |Impl::Pause| while waiting for the
   // web debugger to connect.
-  starboard::atomic_bool* waiting_for_web_debugger_;
+  std::atomic_bool* waiting_for_web_debugger_;
 
   // Interface to report behaviour relevant to the web debugger.
   debug::backend::DebuggerHooksImpl debugger_hooks_;

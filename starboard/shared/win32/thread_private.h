@@ -28,6 +28,8 @@
 
 #define kSbThreadLocalKeyInvalid (SbThreadLocalKey) NULL
 
+typedef void (*SbThreadLocalDestructor)(void* value);
+
 struct SbThreadLocalKeyPrivate {
   DWORD tls_index;
   SbThreadLocalDestructor destructor;
@@ -60,10 +62,10 @@ SbThreadLocalKey SbThreadCreateLocalKeyInternal(
 class ThreadSubsystemSingleton {
  public:
   ThreadSubsystemSingleton()
-      : mutex_(SB_MUTEX_INITIALIZER),
+      : mutex_(PTHREAD_MUTEX_INITIALIZER),
         thread_private_key_(SbThreadCreateLocalKeyInternal(NULL, this)) {}
   // This mutex protects all class members
-  SbMutex mutex_;
+  pthread_mutex_t mutex_;
   // Allocated thread_local_keys. Note that std::map is used
   // so that elements can be deleted without triggering an allocation.
   std::map<DWORD, SbThreadLocalKeyPrivate*> thread_local_keys_;
@@ -82,8 +84,8 @@ void RegisterMainThread();
 class SbThreadPrivate {
  public:
   SbThreadPrivate()
-      : mutex_(SB_MUTEX_INITIALIZER),
-        condition_(SB_CONDITION_VARIABLE_INITIALIZER),
+      : mutex_(PTHREAD_MUTEX_INITIALIZER),
+        condition_(PTHREAD_COND_INITIALIZER),
         handle_(NULL),
         result_(NULL),
         wait_for_join_(false),
@@ -94,13 +96,13 @@ class SbThreadPrivate {
       CloseHandle(handle_);
     }
 
-    SbMutexDestroy(&mutex_);
-    SbConditionVariableDestroy(&condition_);
+    pthread_mutex_destroy(&mutex_);
+    pthread_cond_destroy(&condition_);
   }
 
   // This mutex protects all class members
-  SbMutex mutex_;
-  SbConditionVariable condition_;
+  pthread_mutex_t mutex_;
+  pthread_cond_t condition_;
   std::string name_;
   HANDLE handle_;
   // The result of the thread. The return value of SbThreadEntryPoint
@@ -116,6 +118,8 @@ class SbThreadPrivate {
 
 // Obtains the current thread's SbThreadPrivate* from thread-local storage.
 SbThreadPrivate* GetCurrentSbThreadPrivate();
+
+typedef void* (*SbThreadEntryPoint)(void* context);
 
 class ThreadCreateInfo {
  public:

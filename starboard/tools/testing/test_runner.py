@@ -204,7 +204,7 @@ class TestLauncher(object):
 
   def _Run(self) -> None:
     """Runs the launcher, and assigns a status and a return code."""
-    return_code = TargetStatus.NOT_STARTED, 0
+    return_code = TargetStatus.NOT_STARTED, 1
     try:
       logging.info("Running launcher")
       return_code = self.run_test()

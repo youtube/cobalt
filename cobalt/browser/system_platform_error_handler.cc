@@ -38,7 +38,7 @@ void SystemPlatformErrorHandler::RaiseSystemPlatformError(
   // for all active errors. When this object is destroyed, all dangling data
   // will be released.
   {
-    starboard::ScopedLock lock(mutex_);
+    base::AutoLock lock(mutex_);
 
     // Delete any consumed callback data.
     for (size_t i = 0; i < callback_data_.size();) {
@@ -62,7 +62,7 @@ void SystemPlatformErrorHandler::HandleSystemPlatformErrorResponse(
   callback_data->callback.Run(response);
 
   {
-    starboard::ScopedLock lock(*(callback_data->mutex));
+    base::AutoLock lock(*(callback_data->mutex));
     callback_data->callback.Reset();
   }
 }

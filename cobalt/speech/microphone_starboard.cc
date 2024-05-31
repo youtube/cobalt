@@ -14,8 +14,6 @@
 
 #include "cobalt/speech/microphone_starboard.h"
 
-#include "starboard/common/log.h"
-
 namespace cobalt {
 namespace speech {
 

@@ -85,7 +85,7 @@ TEST(PosixSocketSendTest, RainyDayUnconnectedSocket) {
 TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
   int result = PosixSocketCreateAndConnect(
-      AF_INET, AF_INET, GetPortNumberForTests(), kSocketTimeout,
+      AF_INET, AF_INET, htons(GetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   EXPECT_TRUE(result == 0);
 
@@ -132,7 +132,7 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketUntilBlocking) {
   ASSERT_TRUE(result == 0);
 
   // set socket non-blocking
-  EXPECT_TRUE(fcntl(client_socket_fd, F_SETFL, O_NONBLOCK) == 0);
+  fcntl(client_socket_fd, F_SETFL, O_NONBLOCK);
 
   // Push data into socket until it dies.
   uint64_t num_bytes = 0;
@@ -173,9 +173,13 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketConnectionReset) {
 
   // create listen socket, bind and listen on <port>
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
-  PosixSocketCreateAndConnect(AF_INET, AF_INET, GetPortNumberForTests(),
-                              kSocketTimeout, &listen_socket_fd,
-                              &client_socket_fd, &server_socket_fd);
+  result = PosixSocketCreateAndConnect(
+      AF_INET, AF_INET, htons(GetPortNumberForTests()), kSocketTimeout,
+      &listen_socket_fd, &client_socket_fd, &server_socket_fd);
+  EXPECT_TRUE(result == 0);
+  if (result != 0) {
+    return;
+  }
 
   // Kills the server, the client socket will have it's connection reset during
   // one of the subsequent writes.
