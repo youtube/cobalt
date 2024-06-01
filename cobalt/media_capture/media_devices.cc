@@ -31,7 +31,6 @@
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/environment_settings_helper.h"
-#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace media_capture {

@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "starboard/common/string.h"
 #include "v8/include/v8.h"
 
 // Utility functions that are primarily utility V8 wrappers, and aren't

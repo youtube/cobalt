@@ -29,7 +29,6 @@
 #include "base/time/time.h"
 #include "cobalt/network/custom/url_fetcher.h"
 #include "net/http/http_request_headers.h"
-#include "starboard/common/string.h"
 #include "url/gurl.h"
 
 namespace cobalt {
