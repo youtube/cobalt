@@ -16,6 +16,7 @@
 // Enumeration histograms.
 //
 // For usage details, see the equivalents in histogram_macros.h.
+
 #define CR_GET_ARG(arg) arg
 #define LOCAL_HISTOGRAM_ENUMERATION(name, ...)                          \
   CR_GET_ARG(INTERNAL_UMA_HISTOGRAM_ENUMERATION_GET_MACRO(                         \

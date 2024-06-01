@@ -350,6 +350,9 @@ class HierarchicalTimingWheel {
 
  private:
   bool IsHeap(size_t hierarchy_index) {
+/* Cobalt
+    return hierarchy_index == 0 or hierarchy_index == TotalWheels + 1;
+Cobalt */
     return hierarchy_index == 0 || hierarchy_index == TotalWheels + 1;
   }
 
