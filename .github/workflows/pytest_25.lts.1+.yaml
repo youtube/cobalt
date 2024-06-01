@@ -20,6 +20,7 @@ jobs:
         python-version: ['3.8', '3.11']
       fail-fast: false
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
