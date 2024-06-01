@@ -198,6 +198,10 @@ verified explicitly using nplb tests.
 An implementation that has specific padding requirement should make a copy of
 the incoming buffer when necessary.
 
+### Deprecated SbMediaGetBufferStorageType()
+The SbMediaGetBufferPadding() API was deprecated.  SbMediaBufferStorageType was
+also deprecated as a result.
+
 ### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
 The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in
 `starboard/storage.h` no longer have a parameter for `SbUser` as the APIs are
