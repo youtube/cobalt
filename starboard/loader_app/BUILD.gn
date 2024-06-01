@@ -29,6 +29,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":app_key",
       ":installation_manager",
       ":memory_tracker_thread",
+      ":record_loader_app_status",
       ":reset_evergreen_update",
       ":slot_management",
       "//starboard:starboard_group",
@@ -75,6 +76,14 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
     outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
     deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//starboard/android/arm/toolchain:native_target)" ]
   }
+}
+
+static_library("record_loader_app_status") {
+  sources = [
+    "record_loader_app_status.cc",
+    "record_loader_app_status.h",
+  ]
+  deps = [ "//starboard:starboard_group" ]
 }
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
@@ -246,6 +255,7 @@ static_library("installation_manager") {
   deps = [
     ":installation_store_proto",
     ":pending_restart",
+    ":record_loader_app_status",
     "//starboard:starboard_group",
   ]
 }
