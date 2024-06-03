@@ -16,6 +16,7 @@
 
 #include "starboard/shared/libevent/socket_waiter_internal.h"
 
+#if SB_API_VERSION <= 15
 bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket) {
   if (!SbSocketWaiterIsValid(waiter)) {
     return false;
@@ -23,3 +24,12 @@ bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket) {
 
   return waiter->Remove(socket);
 }
+#else
+bool SocketWaiterRemove(SbSocketWaiter waiter, int socket) {
+  if (!SbSocketWaiterIsValid(waiter)) {
+    return false;
+  }
+
+  return waiter->Remove(socket, waiter);
+}
+#endif  // SB_API_VERSION <= 15

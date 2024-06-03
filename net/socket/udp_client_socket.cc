@@ -178,9 +178,16 @@ void UDPClientSocket::SetIOSNetworkServiceType(int ios_network_service_type) {
 #endif
 }
 
+#if SB_API_VERSION <= 15
 void UDPClientSocket::AdoptOpenedSocket(AddressFamily address_family,
                                         SocketDescriptor socket) {
   socket_.AdoptOpenedSocket(address_family, socket);
 }
+#else
+void UDPClientSocket::AdoptOpenedSocket(AddressFamily address_family,
+                                        SocketDescriptor socket) {
+  socket_.AdoptOpenedSocket(address_family, socket);
+}
+#endif
 
 }  // namespace net

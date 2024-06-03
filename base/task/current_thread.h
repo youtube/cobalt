@@ -278,12 +278,20 @@ class BASE_EXPORT CurrentIOThread : public CurrentThread {
   enum Mode{WATCH_READ = base::MessagePumpIOStarboard::WATCH_READ,
             WATCH_WRITE = base::MessagePumpIOStarboard::WATCH_WRITE,
             WATCH_READ_WRITE = base::MessagePumpIOStarboard::WATCH_READ_WRITE};
-
+#if SB_API_VERSION <= 15
   bool Watch(SbSocket socket,
              bool persistent,
              int mode,
              SocketWatcher* controller,
              Watcher* delegate);
+#else
+  bool Watch(int socket,
+             bool persistent,
+             int mode,
+             SocketWatcher* controller,
+             Watcher* delegate);
+#endif  // SB_API_VERSION <= 15
+
 #elif BUILDFLAG(IS_WIN)
   // Please see MessagePumpWin for definitions of these methods.
   HRESULT RegisterIOHandler(HANDLE file, MessagePumpForIO::IOHandler* handler);

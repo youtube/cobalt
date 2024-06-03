@@ -79,22 +79,42 @@ class NET_EXPORT UDPSocketStarboardSender
  public:
   explicit UDPSocketStarboardSender();
 
+#if SB_API_VERSION <= 15
   SendResult SendBuffers(const SbSocket& socket,
                          DatagramBuffers buffers,
                          SbSocketAddress address);
+#else
+  SendResult SendBuffers(const int socket,
+                         DatagramBuffers buffers,
+                         struct sockaddr* paddress,
+                         socklen_t len);
+#endif
 
  protected:
   friend class base::RefCountedThreadSafe<UDPSocketStarboardSender>;
 
   virtual ~UDPSocketStarboardSender();
+
+
+#if SB_API_VERSION <= 15
   virtual int Send(const SbSocket& socket,
                    const char* buf,
                    size_t len,
                    SbSocketAddress address) const;
-
   SendResult InternalSendBuffers(const SbSocket& socket,
                                  DatagramBuffers buffers,
                                  SbSocketAddress address) const;
+#else
+  virtual int Send(const int socket,
+                   const char* buf,
+                   size_t len,
+                   struct sockaddr* paddress,
+                   socklen_t length) const;
+  SendResult InternalSendBuffers(const int socket,
+                                 DatagramBuffers buffers,
+                                 struct sockaddr* paddress,
+                                 socklen_t len) const;
+#endif
 
  private:
   UDPSocketStarboardSender(const UDPSocketStarboardSender&) = delete;
@@ -317,14 +337,22 @@ class NET_EXPORT UDPSocketStarboard
   // Enables experimental optimization. This method should be called
   // before the socket is used to read data for the first time.
   void enable_experimental_recv_optimization() {
+#if SB_API_VERSION <= 15
     DCHECK(SbSocketIsValid(socket_));
+#else
+    DCHECK(socket_ >= 0);
+#endif
     experimental_recv_optimization_enabled_ = true;
   };
 
   // Takes ownership of `socket`, which should be a socket descriptor opened
   // with the specified address family. The socket should only be created but
   // not bound or connected to an address.
+#if SB_API_VERSION <= 15
   int AdoptOpenedSocket(AddressFamily address_family, const SbSocket& socket);
+#else
+  int AdoptOpenedSocket(AddressFamily address_family, const int socket);
+#endif
 
  protected:
   // Watcher for WriteAsync paths.
@@ -335,8 +363,13 @@ class NET_EXPORT UDPSocketStarboard
 
     // MessagePumpIOStarboard::Watcher methods
 
+#if SB_API_VERSION <= 15
     void OnSocketReadyToRead(SbSocket socket){};
     void OnSocketReadyToWrite(SbSocket socket);
+#else
+    void OnSocketReadyToRead(int socket){};
+    void OnSocketReadyToWrite(int socket);
+#endif
 
     void set_watching(bool watching) { watching_ = watching; }
 
@@ -372,8 +405,13 @@ class NET_EXPORT UDPSocketStarboard
 
  private:
   // MessagePumpIOStarboard::Watcher implementation.
+#if SB_API_VERSION <= 15
   void OnSocketReadyToRead(SbSocket socket) override;
   void OnSocketReadyToWrite(SbSocket socket) override;
+#else
+  void OnSocketReadyToRead(int socket) override;
+  void OnSocketReadyToWrite(int socket) override;
+#endif
 
   int InternalWriteAsync(CompletionOnceCallback callback,
                          const NetworkTrafficAnnotationTag& traffic_annotation);
@@ -419,7 +457,11 @@ class NET_EXPORT UDPSocketStarboard
   int ResetLastAsyncResult();
   int ResetWrittenBytes();
 
+#if SB_API_VERSION <= 15
   SbSocket socket_;
+#else
+  int socket_;
+#endif  // SB_API_VERSION <= 15
   bool is_connected_ = false;
 
   SbSocketAddressType address_type_;

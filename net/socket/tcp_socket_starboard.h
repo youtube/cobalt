@@ -96,7 +96,13 @@ class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watch
   // NOOP since TCP FastOpen is not implemented in Windows.
   void EnableTCPFastOpenIfSupported() {}
 
-  bool IsValid() const { return SbSocketIsValid(socket_); }
+  bool IsValid() const {
+#if SB_API_VERSION <= 15
+   return SbSocketIsValid(socket_);
+#else
+   return socket_ >= 0;
+#endif  // SB_API_VERSION <= 15
+ }
 
   // Detachs from the current thread, to allow the socket to be transferred to
   // a new thread. Should only be called when the object is no longer used by
@@ -138,8 +144,13 @@ class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watch
   int BindToNetwork(handles::NetworkHandle network);
 
   // MessagePumpIOStarboard::Watcher implementation.
+#if SB_API_VERSION <= 15
   void OnSocketReadyToRead(SbSocket socket) override;
   void OnSocketReadyToWrite(SbSocket socket) override;
+#else
+  void OnSocketReadyToRead(int socket) override;
+  void OnSocketReadyToWrite(int socket) override;
+#endif
 
  private:
   void RetryRead(int rv);
@@ -169,7 +180,11 @@ class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watch
 
   std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher_;
 
+#if SB_API_VERSION <= 15
   SbSocket socket_;
+#else
+  int socket_;
+#endif  // SB_API_VERSION <= 15
 
   base::MessagePumpIOStarboard::SocketWatcher socket_watcher_;
 

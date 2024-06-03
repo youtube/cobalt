@@ -60,7 +60,7 @@ NET_EXPORT bool IsRequestBlockedError(int error);
 // Map system error code to Error.
 NET_EXPORT Error MapSystemError(logging::SystemErrorCode os_error);
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 // Map socket error code to Error.
 NET_EXPORT Error MapSocketError(SbSocketError error);
 

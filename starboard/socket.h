@@ -40,6 +40,12 @@
 extern "C" {
 #endif
 
+#if SB_API_VERSION >= 16
+// Well-defined value for an invalid socket handle.
+#define kSocketInvalid (-1)
+
+#endif
+
 // Private structure representing a socket, which may or may not be connected or
 // listening.
 typedef struct SbSocketPrivate SbSocketPrivate;
