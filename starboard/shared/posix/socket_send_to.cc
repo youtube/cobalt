@@ -57,11 +57,13 @@ int SbSocketSendTo(SbSocket socket,
     socket->error = sbposix::TranslateSocketErrno(errno);
     return -1;
   } else if (socket->protocol == kSbSocketProtocolUdp) {
+#if 0
     if (!destination) {
       SB_LOG(FATAL) << "No destination passed to UDP send.";
       socket->error = kSbSocketErrorFailed;
       return -1;
     }
+#endif
 
     sbposix::SockAddr sock_addr;
     const sockaddr* sockaddr = NULL;

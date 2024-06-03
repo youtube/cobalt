@@ -26,6 +26,11 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "base/synchronization/condition_variable.h"
+#include "base/synchronization/lock.h"
+#include "base/threading/platform_thread.h"
+#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_circular_deque.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
@@ -60,8 +65,6 @@
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/common/quiche_circular_deque.h"
 
 namespace quic {
 
@@ -469,7 +472,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       public QuicIdleNetworkDetector::Delegate,
       public QuicPathValidator::SendDelegate,
       public QuicConnectionIdManagerVisitorInterface,
-      public QuicPingManager::Delegate {
+      public QuicPingManager::Delegate /*,
+      public base::PlatformThread::Delegate*/ {
  public:
   // Constructs a new QuicConnection for |connection_id| and
   // |initial_peer_address| using |writer| to write packets. |owns_writer|
@@ -1470,6 +1474,17 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   };
 
   using QueuedPacketList = std::list<SerializedPacket>;
+#if 0
+  using QueuedPacketList = std::list<std::unique_ptr<SerializedPacket>>;
+  QueuedPacketList packet_list_;
+  base::Lock packet_list_mutex_;
+  base::ConditionVariable packet_list_condition_ =
+      base::ConditionVariable(&packet_list_mutex_);
+  bool thread_must_quit_ = false;
+  base::PlatformThreadHandle handle_;
+
+  void ThreadMain() override;
+#endif
 
   // BufferedPacket stores necessary information (encrypted buffer and self/peer
   // addresses) of those packets which are serialized but failed to send because

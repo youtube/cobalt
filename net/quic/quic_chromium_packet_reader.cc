@@ -59,8 +59,8 @@ void QuicChromiumPacketReader::StartReading() {
       return;
     }
 
-    if (++num_packets_read_ > yield_after_packets_ ||
-        clock_->Now() > yield_after_) {
+    if (0 && (++num_packets_read_ > yield_after_packets_ ||
+              clock_->Now() > yield_after_)) {
       num_packets_read_ = 0;
       // Data was read, process it.
       // Schedule the work through the message loop to 1) prevent infinite
