@@ -30,10 +30,16 @@ class NetworkChangeNotifierLinux::BlockingThreadObjects {
   // Plumbing for NetworkChangeNotifier::GetCurrentConnectionType.
   // Safe to call from any thread.
   NetworkChangeNotifier::ConnectionType GetCurrentConnectionType() {
+/* Cobalt
     return address_tracker_.GetCurrentConnectionType();
+Cobalt */
+    return NetworkChangeNotifier::ConnectionType::CONNECTION_UNKNOWN;
   }
 
+/* Cobalt
   internal::AddressTrackerLinux* address_tracker() { return &address_tracker_; }
+Cobalt */
+  internal::AddressTrackerLinux* address_tracker() { return nullptr; }
 
   // Begin watching for netlink changes.
   void Init();
@@ -44,7 +50,9 @@ class NetworkChangeNotifierLinux::BlockingThreadObjects {
   void OnIPAddressChanged();
   void OnLinkChanged();
   // Used to detect online/offline state and IP address changes.
+/* Cobalt
   internal::AddressTrackerLinux address_tracker_;
+Cobalt */
   NetworkChangeNotifier::ConnectionType last_type_ =
       NetworkChangeNotifier::CONNECTION_NONE;
 };
@@ -52,6 +60,7 @@ class NetworkChangeNotifierLinux::BlockingThreadObjects {
 NetworkChangeNotifierLinux::BlockingThreadObjects::BlockingThreadObjects(
     const std::unordered_set<std::string>& ignored_interfaces,
     scoped_refptr<base::SequencedTaskRunner> blocking_thread_runner)
+/* Cobalt
     : address_tracker_(
           base::BindRepeating(&NetworkChangeNotifierLinux::
                                   BlockingThreadObjects::OnIPAddressChanged,
@@ -62,15 +71,20 @@ NetworkChangeNotifierLinux::BlockingThreadObjects::BlockingThreadObjects(
           base::DoNothing(),
           ignored_interfaces,
           std::move(blocking_thread_runner)) {}
+Cobalt */  {}
 
 void NetworkChangeNotifierLinux::BlockingThreadObjects::Init() {
+/* Cobalt
   address_tracker_.Init();
+Cobalt */
   last_type_ = GetCurrentConnectionType();
 }
 
 void NetworkChangeNotifierLinux::BlockingThreadObjects::InitForTesting(
     base::ScopedFD netlink_fd) {
+/* Cobalt
   address_tracker_.InitWithFdForTesting(std::move(netlink_fd));  // IN-TEST
+Cobalt */
   last_type_ = GetCurrentConnectionType();
 }
 
