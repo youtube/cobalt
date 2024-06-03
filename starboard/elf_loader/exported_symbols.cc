@@ -206,7 +206,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
   REGISTER_SYMBOL(SbMediaGetBufferPadding);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetBufferStorageType);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetMaxBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
