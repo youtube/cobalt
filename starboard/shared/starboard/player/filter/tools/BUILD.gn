@@ -14,7 +14,7 @@
 
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "audio_dmp_player") {
-    # build_loader = false
+    build_loader = false
     sources = [ "audio_dmp_player.cc" ]
     configs += [ "//starboard/build/config:starboard_implementation" ]
     public_deps = [
@@ -24,7 +24,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/shared/starboard/player:video_dmp",
     ]
     data_deps = [
-      # "//cobalt/network:copy_ssl_certificates",
+      "//cobalt/network:copy_ssl_certificates",
       "//starboard/shared/starboard/player:player_download_test_data",
       "//third_party/icu:icudata",
     ]
