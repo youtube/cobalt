@@ -123,7 +123,7 @@ class MediaModule : public WebMediaPlayerFactory,
   Players players_;
   bool suspended_ = false;
 
-  bool allow_batched_sample_write_ = false;
+  bool allow_batched_sample_write_ = true;
   // When set to `false` (the default value), Cobalt calls
   // `SbPlayerGetPreferredOutputMode()` with `kSbPlayerOutputModeInvalid` when
   // there is no preference on output mode.
