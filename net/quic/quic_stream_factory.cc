@@ -1846,6 +1846,8 @@ std::unique_ptr<DatagramClientSocket> QuicStreamFactory::CreateSocket(
   auto socket = client_socket_factory_->CreateDatagramClientSocket(
       DatagramSocket::DEFAULT_BIND, net_log, source);
   if (params_.enable_socket_recv_optimization)
+    LOG(INFO) << __FUNCTION__ << " params_.enable_socket_recv_optimization ="
+              << params_.enable_socket_recv_optimization;
     socket->EnableRecvOptimization();
   return socket;
 }

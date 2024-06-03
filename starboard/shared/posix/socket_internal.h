@@ -15,8 +15,12 @@
 #ifndef STARBOARD_SHARED_POSIX_SOCKET_INTERNAL_H_
 #define STARBOARD_SHARED_POSIX_SOCKET_INTERNAL_H_
 
+#define _GNU_SOURCE /* See feature_test_macros(7) */
+#include <sys/socket.h>
+
 #include <errno.h>
 #include <netinet/in.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include "starboard/common/socket.h"
@@ -32,7 +36,18 @@ struct SbSocketPrivate {
         protocol(protocol),
         socket_fd(fd),
         error(kSbSocketOk),
-        waiter(kSbSocketWaiterInvalid) {}
+        waiter(kSbSocketWaiterInvalid) {
+    memset(msgs, 0, sizeof(msgs));
+    for (size_t packet = 0; packet < kNumPackets; packet++) {
+      iovecs[packet].iov_base = bufs[packet];
+      iovecs[packet].iov_len = kPacketSize;
+      msgs[packet].msg_hdr.msg_iov = &iovecs[packet];
+      msgs[packet].msg_hdr.msg_iovlen = 1;
+    }
+
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = 0;
+  }
   ~SbSocketPrivate() {}
 
   // The address domain of this socket, IPv4 or IPv6.
@@ -49,6 +64,15 @@ struct SbSocketPrivate {
 
   // The waiter this socket is registered with, or kSbSocketWaiterInvalid.
   SbSocketWaiter waiter;
+
+  static const int kNumPackets = 16;
+  static const int kPacketSize = 2048;
+  char bufs[kNumPackets][kPacketSize + 1];
+  struct iovec iovecs[kNumPackets];
+  struct mmsghdr msgs[kNumPackets];
+  struct timespec timeout = {0, 0};
+  int message_count = 0;
+  int message_idx = 0;
 };
 
 namespace starboard {

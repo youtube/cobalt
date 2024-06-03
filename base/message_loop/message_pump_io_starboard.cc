@@ -282,14 +282,15 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
   for (;;) {
     Delegate::NextWorkInfo next_work_info = delegate->DoWork();
     bool immediate_work_available = next_work_info.is_immediate();
-
+#if 1
     if (immediate_work_available && consequtive_immediate_work_count < 16) {
       ++consequtive_immediate_work_count;
       continue;
     }
     consequtive_immediate_work_count = 0;
-
-        if (should_quit()) break;
+#endif
+    if (should_quit())
+      break;
 
     // NOTE: We need to have a wake-up pending any time there is work queued,
     // and the MessageLoop only wakes up the pump when the work queue goes from

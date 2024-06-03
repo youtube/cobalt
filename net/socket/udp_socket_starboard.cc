@@ -209,8 +209,7 @@ int UDPSocketStarboard::Write(IOBuffer* buf,
                               CompletionOnceCallback callback,
                               const NetworkTrafficAnnotationTag&) {
   DCHECK(remote_address_);
-  return SendToOrWrite(buf, buf_len, remote_address_.get(),
-                       std::move(callback));
+  return SendToOrWrite(buf, buf_len, nullptr, std::move(callback));
 }
 
 int UDPSocketStarboard::SendTo(IOBuffer* buf,
@@ -267,22 +266,42 @@ int UDPSocketStarboard::Connect(const IPEndPoint& address) {
 }
 
 int UDPSocketStarboard::InternalConnect(const IPEndPoint& address) {
+  // LOG(INFO) << __FUNCTION__ << " CONNECT " << address;
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
   DCHECK(!is_connected());
   DCHECK(!remote_address_.get());
 
   int rv = 0;
-  // Cobalt does random bind despite bind_type_ because we do not connect
-  // UDP sockets but Chromium does. And if a socket does recvfrom() without
-  // any sendto() before, it needs to be bound to have a local port.
-  rv = RandomBind(address.GetFamily() == ADDRESS_FAMILY_IPV4 ?
-                      IPAddress::IPv4AllZeros() : IPAddress::IPv6AllZeros());
+  if (bind_type_ == DatagramSocket::RANDOM_BIND) {
+    // Construct IPAddress of appropriate size (IPv4 or IPv6) of 0s,
+    // representing INADDR_ANY or in6addr_any.
+    rv = RandomBind(address.GetFamily() == ADDRESS_FAMILY_IPV4
+                        ? IPAddress::IPv4AllZeros()
+                        : IPAddress::IPv6AllZeros());
+  }
 
-  if (rv != OK)
+  if (rv < 0) {
+    LOG(ERROR) << __FUNCTION__
+               << " UDP CONNECT FAILED ======================== " << address;
     return rv;
+  }
+
+  SbSocketAddress storage;
+  if (!address.ToSbSocketAddress(&storage)) {
+    LOG(ERROR) << __FUNCTION__
+               << " UDP CONNECT FAILED ======================== " << address;
+    return ERR_ADDRESS_INVALID;
+  }
 
   remote_address_.reset(new IPEndPoint(address));
+
+  SbSocketError result = SbSocketConnect(socket_, &storage);
+  if (result != kSbSocketOk) {
+    LOG(ERROR) << __FUNCTION__
+               << " UDP CONNECT FAILED ======================== " << address;
+    return MapLastSocketError(socket_);
+  }
 
   return OK;
 }
@@ -461,8 +480,8 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
                                          int buf_len,
                                          IPEndPoint* address) {
   SbSocketAddress sb_address;
-  int bytes_transferred =
-      SbSocketReceiveFrom(socket_, buf->data(), buf_len, &sb_address);
+  int bytes_transferred = SbSocketReceiveFrom(socket_, buf->data(), buf_len,
+                                              address ? &sb_address : nullptr);
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
@@ -479,7 +498,8 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
 
   if (result != ERR_IO_PENDING) {
     IPEndPoint log_address;
-    if (result < 0 || !log_address.FromSbSocketAddress(&sb_address)) {
+    if (result < 0 || !address ||
+        !log_address.FromSbSocketAddress(&sb_address)) {
       LogRead(result, buf->data(), NULL);
     } else {
       LogRead(result, buf->data(), &log_address);
@@ -493,13 +513,17 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
                                        int buf_len,
                                        const IPEndPoint* address) {
   SbSocketAddress sb_address;
-  if (!address || !address->ToSbSocketAddress(&sb_address)) {
+  int result = OK;
+  if (address) {
+    if (address->ToSbSocketAddress(&sb_address)) {
+      result = SbSocketSendTo(socket_, buf->data(), buf_len, &sb_address);
+    }
     int result = ERR_FAILED;
     LogWrite(result, NULL, NULL);
     return result;
+  } else {
+    result = SbSocketSendTo(socket_, buf->data(), buf_len, nullptr);
   }
-
-  int result = SbSocketSendTo(socket_, buf->data(), buf_len, &sb_address);
 
   if (result < 0)
     result = MapLastSocketError(socket_);
