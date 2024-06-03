@@ -402,7 +402,11 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
 
 bool IsPartialAudioSupported() {
 #if SB_API_VERSION >= 15
+#if SB_API_VERSION >= 16
+  return kHasPartialAudioFramesSupport;
+#else
   return true;
+#endif
 #else   // SB_API_VERSION >= 15
   return SbSystemGetExtension(kCobaltExtensionEnhancedAudioName) != nullptr;
 #endif  // SB_API_VERSION >= 15
