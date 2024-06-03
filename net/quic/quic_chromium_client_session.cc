@@ -3117,6 +3117,9 @@ QuicChromiumClientSession::CreateContextForMultiPortPath() {
 
 void QuicChromiumClientSession::MigrateToMultiPortPath(
     std::unique_ptr<quic::QuicPathValidationContext> context) {
+/* Cobalt
+  DCHECK_NE(nullptr, context);
+Cobalt */
   DCHECK_NE(nullptr, context.get());
   auto* chrome_context =
       static_cast<QuicChromiumPathValidationContext*>(context.get());

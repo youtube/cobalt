@@ -335,6 +335,7 @@ base::Value HttpNetworkSession::QuicInfoToValue() const {
            static_cast<int>(
                quic_params->initial_rtt_for_handshake.InMilliseconds()));
 #endif
+
   return base::Value(std::move(dict));
 }
 
