@@ -72,37 +72,37 @@ std::unique_ptr<base::Value::Dict> NetLogConstants::GetConstants() {
   // Add a dictionary with information about the relationship between load flag
   // enums and their symbolic names.
   {
-    std::unique_ptr<base::Value::Dict> dict(new base::Value::Dict());
+    base::Value::Dict dict;
 
-#define LOAD_FLAG(label, value) dict->Set(#label, static_cast<int>(value));
+#define LOAD_FLAG(label, value) dict.Set(#label, static_cast<int>(value));
 #include "net/base/load_flags_list.h"
 #undef LOAD_FLAG
 
-    constants_dict->Set("loadFlag", base::Value(std::move(*dict)));
+    constants_dict->Set("loadFlag", std::move(dict));
   }
 
   // Add a dictionary with information about the relationship between load state
   // enums and their symbolic names.
   {
-    std::unique_ptr<base::Value::Dict> dict(new base::Value::Dict());
+    base::Value::Dict dict;
 
-#define LOAD_STATE(label, value) dict->Set(#label, static_cast<int>(value));
+#define LOAD_STATE(label, value) dict.Set(#label, static_cast<int>(value));
 #include "net/base/load_states_list.h"
 #undef LOAD_STATE
 
-    constants_dict->Set("loadState", base::Value(std::move(*dict)));
+    constants_dict->Set("loadState", std::move(dict));
   }
 
   // Add information on the relationship between net error codes and their
   // symbolic names.
   {
-    std::unique_ptr<base::Value::Dict> dict(new base::Value::Dict());
+    base::Value::Dict dict;
 
-#define NET_ERROR(label, value) dict->Set(#label, static_cast<int>(value));
+#define NET_ERROR(label, value) dict.Set(#label, static_cast<int>(value));
 #include "net/base/net_error_list.h"
 #undef NET_ERROR
 
-    constants_dict->Set("netError", base::Value(std::move(*dict)));
+    constants_dict->Set("netError", std::move(dict));
   }
 
   // Information about the relationship between event phase enums and their
