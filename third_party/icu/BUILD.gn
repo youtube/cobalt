@@ -4,6 +4,7 @@
 
 import("//build/config/host_byteorder.gni")
 if (use_cobalt_customizations) {
+  import("//starboard/build/nasm_assemble.gni")
   import("//starboard/sabi/sabi.gni")
 }
 import("//third_party/icu/config.gni")
@@ -438,7 +439,12 @@ if (icu_use_data_file) {
     outputs = [ "$root_out_dir/icudtl_extra.dat" ]
   }
 } else {
+  if (use_cobalt_customizations && is_win) {
+    # We use NASM for the data assembly on Windows and it expects .asm files.
+    data_assembly = "$target_gen_dir/${data_bundle_prefix}_dat.asm"
+  } else {
   data_assembly = "$target_gen_dir/${data_bundle_prefix}_dat.S"
+  }
   inline_data_assembly = "$target_gen_dir/${data_bundle_prefix}_dat.cc"
   action("make_data_assembly") {
     script = "scripts/make_data_assembly.py"
@@ -451,11 +457,16 @@ if (icu_use_data_file) {
     if (is_mac || is_ios) {
       args += [ "--mac" ]
     } else if (is_win) {
+      if (use_cobalt_customizations) {
+        args += [ "--nasm" ]
+      } else {
       args += [ "--win" ]
+      }
     }
   }
 
-  if (is_win) {
+  # Cobalt uses MSVC, which doesn't support inline assembly for win32.
+  if (!use_cobalt_customizations && is_win) {
     action("make_inline_data_assembly") {
       deps = [ ":make_data_assembly" ]
       script = "scripts/asm_to_inline_asm.py"
@@ -471,6 +482,12 @@ if (icu_use_data_file) {
     not_needed([ "inline_data_assembly" ])
   }
 
+  if (use_cobalt_customizations && is_win) {
+    nasm_assemble("icudata") {
+      sources = [ data_assembly ]
+      deps = [ ":make_data_assembly" ]
+    }
+  } else {
   source_set("icudata") {
     defines = [ "U_HIDE_DATA_SYMBOL" ]
     if (is_win) {
@@ -480,5 +497,6 @@ if (icu_use_data_file) {
       sources = [ data_assembly ]
       deps = [ ":make_data_assembly" ]
     }
+  }
   }
 }

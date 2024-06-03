@@ -15,7 +15,10 @@ parser.add_option("--mac",
 parser.add_option("--win",
                   help="generate assembly file for Windows (default: False)",
                   action="store_true", default=False)
-parser.set_usage("""make_data_assembly  icu_data [assembly_file] [--mac] [--win]
+parser.add_option("--nasm",
+                  help="generate assembly file for NASM (default: False)",
+                  action="store_true", default=False)
+parser.set_usage("""make_data_assembly  icu_data [assembly_file] [--mac] [--win] [--nasm]
     icu_data: ICU data file to generate assembly from.
     assembly_file: Output file converted from icu_data file.""")
 (options, args) = parser.parse_args()
@@ -64,6 +67,11 @@ elif options.win:
                "\t.section .rdata\n"
                "\t.balign 16\n"
                "_icudt%s_dat:\n" % tuple([version_number] * 2))
+elif options.nasm:  # Added for Cobalt on win32
+  output.write("global icudt%s_dat\n"
+               "section .rdata\n"
+               "align 16\n"
+               "icudt%s_dat:\n" % tuple([version_number] * 2))
 else:
   output.write(".globl icudt%s_dat\n"
                "\t.section .note.GNU-stack,\"\",%%progbits\n"
@@ -92,7 +100,10 @@ for i in range(len(split)):
     value = '0x' + split[i]
 
   if (i % 32 == 0):
-    output.write("\n.long ")
+    if (options.nasm):
+      output.write("\ndd ")
+    else:
+      output.write("\n.long ")
   else:
     output.write(",")
   output.write(value)
