@@ -24,14 +24,6 @@
 namespace cobalt {
 namespace loader {
 
-namespace {
-
-// The ResourceLoader thread uses the default stack size, which is requested
-// by passing in 0 for its stack size.
-const size_t kLoadThreadStackSize = 0;
-
-}  // namespace
-
 ScriptLoaderFactory::ScriptLoaderFactory(
     const char* name, FetcherFactory* fetcher_factory,
     base::ThreadType loader_thread_priority)
@@ -44,8 +36,7 @@ ScriptLoaderFactory::ScriptLoaderFactory(
   options.priority = loader_thread_priority;
   load_thread_.StartWithOptions(options);
 #else
-  load_thread_.StartWithOptions(base::Thread::Options(
-      base::MessagePumpType::DEFAULT, kLoadThreadStackSize));
+  load_thread_.StartWithOptions(base::Thread::Options(loader_thread_priority));
 #endif
 }
 
