@@ -15,6 +15,7 @@
 #include "starboard/common/socket.h"
 
 #include <errno.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include "starboard/common/log.h"
@@ -50,7 +51,8 @@ int SbSocketReceiveFrom(SbSocket socket,
                                &sock_addr.length);
       if (result < 0) {
         SB_LOG(ERROR) << __FUNCTION__
-                      << ": getpeername failed, errno = " << errno;
+                      << ": getpeername failed, errno = " << errno << " "
+                      << strerror(errno);
         socket->error = sbposix::TranslateSocketErrno(errno);
         return -1;
       }
@@ -71,15 +73,49 @@ int SbSocketReceiveFrom(SbSocket socket,
 
     if (IsReportableErrno(errno) &&
         socket->error != sbposix::TranslateSocketErrno(errno)) {
-      SB_LOG(ERROR) << "recv failed, errno = " << errno;
+      SB_LOG(ERROR) << "recv failed, errno = " << errno << " "
+                    << strerror(errno);
     }
     socket->error = sbposix::TranslateSocketErrno(errno);
     return -1;
   } else if (socket->protocol == kSbSocketProtocolUdp) {
+    if (!out_source || (socket->message_idx < socket->message_count)) {
+      // Batch read from the socket.
+      // SB_LOG(INFO) << __FUNCTION__ << " // Batch read from the socket.";
+      if (socket->message_idx >= socket->message_count) {
+        int messages_retval = recvmmsg(socket->socket_fd, socket->msgs,
+                                       SbSocketPrivate::kNumPackets,
+                                       kRecvFlags | MSG_DONTWAIT, nullptr);
+        if (messages_retval == -1) {
+          if (errno != EAGAIN && errno != EWOULDBLOCK &&
+              socket->error != sbposix::TranslateSocketErrno(errno)) {
+            SB_LOG(ERROR) << "recvmmsg failed, errno = " << errno << " "
+                          << strerror(errno);
+          }
+          socket->error = sbposix::TranslateSocketErrno(errno);
+          return -1;
+        }
+        if (messages_retval == 0) {
+          socket->error = kSbSocketOk;
+          return 0;
+        }
+        socket->message_idx = 0;
+        socket->message_count = messages_retval;
+      }
+
+      errno = 0;
+      unsigned int bytes_read =
+          std::min(static_cast<unsigned int>(data_size),
+                   socket->msgs[socket->message_idx].msg_len);
+      memcpy(out_data, socket->bufs[socket->message_idx], bytes_read);
+      socket->message_idx++;
+      return static_cast<int>(bytes_read);
+    }
+
     sbposix::SockAddr sock_addr;
-    ssize_t bytes_read =
-        recvfrom(socket->socket_fd, out_data, data_size, kRecvFlags,
-                 sock_addr.sockaddr(), &sock_addr.length);
+    ssize_t bytes_read = recvfrom(socket->socket_fd, out_data, data_size,
+                                  kRecvFlags | MSG_DONTWAIT,
+                                  sock_addr.sockaddr(), &sock_addr.length);
 
     if (bytes_read >= 0) {
       if (out_source) {
@@ -96,7 +132,8 @@ int SbSocketReceiveFrom(SbSocket socket,
 
     if (errno != EAGAIN && errno != EWOULDBLOCK &&
         socket->error != sbposix::TranslateSocketErrno(errno)) {
-      SB_LOG(ERROR) << "recvfrom failed, errno = " << errno;
+      SB_LOG(ERROR) << "recvfrom failed, errno = " << errno << " "
+                    << strerror(errno);
     }
     socket->error = sbposix::TranslateSocketErrno(errno);
     return -1;

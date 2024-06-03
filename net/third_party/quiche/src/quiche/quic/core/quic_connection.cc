@@ -20,6 +20,11 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "base/synchronization/condition_variable.h"
+#include "base/synchronization/lock.h"
+#include "base/threading/platform_thread.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/quiche_text_utils.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -45,8 +50,6 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/common/platform/api/quiche_flag_utils.h"
-#include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
 
@@ -395,6 +398,9 @@ QuicConnection::QuicConnection(
     AddKnownServerAddress(initial_peer_address);
   }
   packet_creator_.SetDefaultPeerAddress(initial_peer_address);
+#if 0
+  base::PlatformThread::Create(0, this, &handle_);
+#endif
 }
 
 void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
@@ -410,6 +416,16 @@ void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
 }
 
 QuicConnection::~QuicConnection() {
+#if 0
+  // Stop the thread.
+  {
+    base::AutoLock lock(packet_list_mutex_);
+    thread_must_quit_ = true;
+    packet_list_condition_.Signal();
+  }
+  base::PlatformThread::Join(handle_);
+#endif
+
   QUICHE_DCHECK_GE(stats_.max_egress_mtu, long_term_mtu_);
   if (owns_writer_) {
     delete writer_;
@@ -4181,6 +4197,27 @@ WriteResult QuicConnection::SendPacketToWriter(
   return writer_->WritePacket(buffer, buf_len, self_address, peer_address,
                               options);
 }
+
+#if 0
+{
+  base::AutoLock lock(packet_list_mutex_);
+  packet_list_.emplace_back(std::move(absl::WrapUnique<SerializedPacket>(
+      CopySerializedPacket(packet, helper()->GetStreamSendBufferAllocator(),
+                           /*copy_buffer=*/true))));
+  packet_list_condition_.Signal();
+}
+
+void QuicConnection::ThreadMain() {
+  base::AutoLock lock(packet_list_mutex_);
+  while (!thread_must_quit_) {
+    while (!packet_list_.empty()) {
+      WritePacket(packet_list_.front().get());
+      packet_list_.pop_front();
+    }
+    packet_list_condition_.Wait();
+  }
+}
+#endif
 
 void QuicConnection::OnRetransmissionTimeout() {
   ScopedRetransmissionTimeoutIndicator indicator(this);

@@ -139,7 +139,7 @@ void QuicIdleNetworkDetector::SetAlarm() {
   if (!bandwidth_update_timeout_.IsInfinite()) {
     new_deadline = std::min(new_deadline, GetBandwidthUpdateDeadline());
   }
-  alarm_->Update(new_deadline, kAlarmGranularity);
+  alarm_->Update(new_deadline, kAlarmGranularity * 100);
 }
 
 void QuicIdleNetworkDetector::MaybeSetAlarmOnSentPacket(
