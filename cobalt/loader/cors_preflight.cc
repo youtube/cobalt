@@ -27,7 +27,6 @@
 #include "base/strings/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_util.h"
-#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace loader {

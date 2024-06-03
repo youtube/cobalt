@@ -36,23 +36,21 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests the exceptions thrown when parsing from a stream. The methods on the {@link Parser}
  * interface are specified to only throw {@link InvalidProtocolBufferException}. But we really want
- * to distinguish between invalid protos vs. actual I/O errors (like failures reading from a
- * socket, etc.). So, when we're not using the parser directly, an {@link IOException} should be
- * thrown where appropriate, instead of always an {@link InvalidProtocolBufferException}.
+ * to distinguish between invalid protos vs. actual I/O errors (like failures reading from a socket,
+ * etc.). So, when we're not using the parser directly, an {@link IOException} should be thrown
+ * where appropriate, instead of always an {@link InvalidProtocolBufferException}.
  *
  * @author jh@squareup.com (Joshua Humphries)
  */
@@ -63,7 +61,7 @@ public class ParseExceptionsTest {
     DescriptorProto parse(InputStream in) throws IOException;
   }
 
-  private byte serializedProto[];
+  private byte[] serializedProto;
 
   private void setup() {
     serializedProto = DescriptorProto.getDescriptor().toProto().toByteArray();
@@ -79,7 +77,8 @@ public class ParseExceptionsTest {
     serializedProto = bos.toByteArray();
   }
 
-  @Test public void message_parseFrom_InputStream() {
+  @Test
+  public void message_parseFrom_InputStream() {
     setup();
     verifyExceptions(
         new ParseTester() {
@@ -90,7 +89,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void message_parseFrom_InputStreamAndExtensionRegistry() {
+  @Test
+  public void message_parseFrom_InputStreamAndExtensionRegistry() {
     setup();
     verifyExceptions(
         new ParseTester() {
@@ -101,7 +101,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void message_parseFrom_CodedInputStream() {
+  @Test
+  public void message_parseFrom_CodedInputStream() {
     setup();
     verifyExceptions(
         new ParseTester() {
@@ -112,7 +113,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void message_parseFrom_CodedInputStreamAndExtensionRegistry() {
+  @Test
+  public void message_parseFrom_CodedInputStreamAndExtensionRegistry() {
     setup();
     verifyExceptions(
         new ParseTester() {
@@ -124,7 +126,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void message_parseDelimitedFrom_InputStream() {
+  @Test
+  public void message_parseDelimitedFrom_InputStream() {
     setupDelimited();
     verifyExceptions(
         new ParseTester() {
@@ -135,7 +138,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void message_parseDelimitedFrom_InputStreamAndExtensionRegistry() {
+  @Test
+  public void message_parseDelimitedFrom_InputStreamAndExtensionRegistry() {
     setupDelimited();
     verifyExceptions(
         new ParseTester() {
@@ -146,7 +150,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void messageBuilder_mergeFrom_InputStream() {
+  @Test
+  public void messageBuilder_mergeFrom_InputStream() {
     setup();
     verifyExceptions(
         new ParseTester() {
@@ -157,7 +162,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void messageBuilder_mergeFrom_InputStreamAndExtensionRegistry() {
+  @Test
+  public void messageBuilder_mergeFrom_InputStreamAndExtensionRegistry() {
     setup();
     verifyExceptions(
         new ParseTester() {
@@ -170,7 +176,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void messageBuilder_mergeFrom_CodedInputStream() {
+  @Test
+  public void messageBuilder_mergeFrom_CodedInputStream() {
     setup();
     verifyExceptions(
         new ParseTester() {
@@ -181,7 +188,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void messageBuilder_mergeFrom_CodedInputStreamAndExtensionRegistry() {
+  @Test
+  public void messageBuilder_mergeFrom_CodedInputStreamAndExtensionRegistry() {
     setup();
     verifyExceptions(
         new ParseTester() {
@@ -194,7 +202,8 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void messageBuilder_mergeDelimitedFrom_InputStream() {
+  @Test
+  public void messageBuilder_mergeDelimitedFrom_InputStream() {
     setupDelimited();
     verifyExceptions(
         new ParseTester() {
@@ -207,7 +216,25 @@ public class ParseExceptionsTest {
         });
   }
 
-  @Test public void messageBuilder_mergeDelimitedFrom_InputStreamAndExtensionRegistry() {
+  @Test
+  public void messageBuilder_mergeDelimitedFrom_InputStream_malformed() throws Exception {
+    byte[] body = new byte[80];
+    CodedOutputStream cos = CodedOutputStream.newInstance(body);
+    cos.writeRawVarint32(90); // Greater than bytes in stream
+    cos.writeTag(DescriptorProto.ENUM_TYPE_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+    cos.writeRawVarint32(98); // Nested message with size larger than parent
+    cos.writeTag(1000, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+    cos.writeRawVarint32(100); // Unknown field with size larger than parent
+    ByteArrayInputStream bais = new ByteArrayInputStream(body);
+    try {
+      DescriptorProto.parseDelimitedFrom(bais);
+      fail();
+    } catch (InvalidProtocolBufferException expected) {
+    }
+  }
+
+  @Test
+  public void messageBuilder_mergeDelimitedFrom_InputStreamAndExtensionRegistry() {
     setupDelimited();
     verifyExceptions(
         new ParseTester() {
@@ -223,7 +250,8 @@ public class ParseExceptionsTest {
   private void verifyExceptions(ParseTester parseTester) {
     // No exception
     try {
-      assertEquals(DescriptorProto.getDescriptor().toProto(),
+      assertEquals(
+          DescriptorProto.getDescriptor().toProto(),
           parseTester.parse(new ByteArrayInputStream(serializedProto)));
     } catch (IOException e) {
       fail("No exception expected: " + e);
@@ -255,14 +283,16 @@ public class ParseExceptionsTest {
     return new FilterInputStream(i) {
       int count = 0;
 
-      @Override public int read() throws IOException {
+      @Override
+      public int read() throws IOException {
         if (count++ >= 50) {
           throw new IOException("I'm broken!");
         }
         return super.read();
       }
 
-      @Override public int read(byte b[], int off, int len) throws IOException {
+      @Override
+      public int read(byte[] b, int off, int len) throws IOException {
         if ((count += len) >= 50) {
           throw new IOException("I'm broken!");
         }

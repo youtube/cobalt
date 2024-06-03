@@ -21,6 +21,7 @@
 
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -146,7 +147,8 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     SaveStorageState(installation_store);
 
     ASSERT_EQ(IM_SUCCESS, ImInitialize(max_num_installations, kAppKey));
-    int result = ImRevertToSuccessfulInstallation();
+    int result =
+        ImRevertToSuccessfulInstallation(SlotSelectionStatus::kUnknown);
     if (!expected_succeed) {
       ASSERT_EQ(IM_ERROR, result);
     }
@@ -395,7 +397,7 @@ TEST_P(InstallationManagerTest, RevertToSuccessfulInstallation) {
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
   ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(1));
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
-  ASSERT_EQ(0, ImRevertToSuccessfulInstallation());
+  ASSERT_EQ(0, ImRevertToSuccessfulInstallation(SlotSelectionStatus::kUnknown));
   ASSERT_EQ(0, ImGetCurrentInstallationIndex());
 }
 
@@ -407,7 +409,8 @@ TEST_F(InstallationManagerTest, InvalidInput) {
   ASSERT_EQ(IM_INSTALLATION_STATUS_ERROR, ImGetInstallationStatus(10));
   ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(0));
   ASSERT_EQ(IM_INSTALLATION_STATUS_ERROR, ImGetInstallationStatus(-2));
-  ASSERT_EQ(IM_ERROR, ImRevertToSuccessfulInstallation());
+  ASSERT_EQ(IM_ERROR,
+            ImRevertToSuccessfulInstallation(SlotSelectionStatus::kUnknown));
   ASSERT_EQ(IM_ERROR, ImMarkInstallationSuccessful(10));
   ASSERT_EQ(IM_ERROR, ImMarkInstallationSuccessful(-2));
   ASSERT_EQ(IM_ERROR, ImDecrementInstallationNumTries(10));

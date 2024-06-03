@@ -30,7 +30,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endregion
 
+using Google.Protobuf.Reflection;
+using System.Collections;
 using System.IO;
+using System.Linq;
 
 namespace Google.Protobuf
 {
@@ -44,42 +47,34 @@ namespace Google.Protobuf
         /// </summary>
         /// <param name="message">The message to merge the data into.</param>
         /// <param name="data">The data to merge, which must be protobuf-encoded binary data.</param>
-        public static void MergeFrom(this IMessage message, byte[] data)
-        {
-            ProtoPreconditions.CheckNotNull(message, "message");
-            ProtoPreconditions.CheckNotNull(data, "data");
-            CodedInputStream input = new CodedInputStream(data);
-            message.MergeFrom(input);
-            input.CheckReadEndOfStreamTag();
-        }
+        public static void MergeFrom(this IMessage message, byte[] data) =>
+            MergeFrom(message, data, false, null);
+
+        /// <summary>
+        /// Merges data from the given byte array slice into an existing message.
+        /// </summary>
+        /// <param name="message">The message to merge the data into.</param>
+        /// <param name="data">The data containing the slice to merge, which must be protobuf-encoded binary data.</param>
+        /// <param name="offset">The offset of the slice to merge.</param>
+        /// <param name="length">The length of the slice to merge.</param>
+        public static void MergeFrom(this IMessage message, byte[] data, int offset, int length) =>
+            MergeFrom(message, data, offset, length, false, null);
 
         /// <summary>
         /// Merges data from the given byte string into an existing message.
         /// </summary>
         /// <param name="message">The message to merge the data into.</param>
         /// <param name="data">The data to merge, which must be protobuf-encoded binary data.</param>
-        public static void MergeFrom(this IMessage message, ByteString data)
-        {
-            ProtoPreconditions.CheckNotNull(message, "message");
-            ProtoPreconditions.CheckNotNull(data, "data");
-            CodedInputStream input = data.CreateCodedInput();
-            message.MergeFrom(input);
-            input.CheckReadEndOfStreamTag();
-        }
+        public static void MergeFrom(this IMessage message, ByteString data) =>
+            MergeFrom(message, data, false, null);
 
         /// <summary>
         /// Merges data from the given stream into an existing message.
         /// </summary>
         /// <param name="message">The message to merge the data into.</param>
         /// <param name="input">Stream containing the data to merge, which must be protobuf-encoded binary data.</param>
-        public static void MergeFrom(this IMessage message, Stream input)
-        {
-            ProtoPreconditions.CheckNotNull(message, "message");
-            ProtoPreconditions.CheckNotNull(input, "input");
-            CodedInputStream codedInput = new CodedInputStream(input);
-            message.MergeFrom(codedInput);
-            codedInput.CheckReadEndOfStreamTag();
-        }
+        public static void MergeFrom(this IMessage message, Stream input) =>
+            MergeFrom(message, input, false, null);
 
         /// <summary>
         /// Merges length-delimited data from the given stream into an existing message.
@@ -90,14 +85,8 @@ namespace Google.Protobuf
         /// </remarks>
         /// <param name="message">The message to merge the data into.</param>
         /// <param name="input">Stream containing the data to merge, which must be protobuf-encoded binary data.</param>
-        public static void MergeDelimitedFrom(this IMessage message, Stream input)
-        {
-            ProtoPreconditions.CheckNotNull(message, "message");
-            ProtoPreconditions.CheckNotNull(input, "input");
-            int size = (int) CodedInputStream.ReadRawVarint32(input);
-            Stream limitedStream = new LimitedInputStream(input, size);
-            message.MergeFrom(limitedStream);
-        }
+        public static void MergeDelimitedFrom(this IMessage message, Stream input) =>
+            MergeDelimitedFrom(message, input, false, null);
 
         /// <summary>
         /// Converts the given message into a byte array in protobuf encoding.
@@ -152,6 +141,107 @@ namespace Google.Protobuf
         {
             ProtoPreconditions.CheckNotNull(message, "message");
             return ByteString.AttachBytes(message.ToByteArray());
-        }        
+        }
+
+        /// <summary>
+        /// Checks if all required fields in a message have values set. For proto3 messages, this returns true
+        /// </summary>
+        public static bool IsInitialized(this IMessage message)
+        {
+            if (message.Descriptor.File.Proto.Syntax != "proto2")
+            {
+                return true;
+            }
+
+            return message.Descriptor
+                .Fields
+                .InDeclarationOrder()
+                .All(f =>
+                {
+                    if (f.IsMap)
+                    {
+                        var map = (IDictionary)f.Accessor.GetValue(message);
+                        return map.Values.OfType<IMessage>().All(IsInitialized);
+                    }
+                    else if (f.IsRepeated && f.FieldType == FieldType.Message || f.FieldType == FieldType.Group)
+                    {
+                        var enumerable = (IEnumerable)f.Accessor.GetValue(message);
+                        return enumerable.Cast<IMessage>().All(IsInitialized);
+                    }
+                    else if (f.FieldType == FieldType.Message || f.FieldType == FieldType.Group)
+                    {
+                        if (f.Accessor.HasValue(message))
+                        {
+                            return ((IMessage)f.Accessor.GetValue(message)).IsInitialized();
+                        }
+                        else
+                        {
+                            return !f.IsRequired;
+                        }
+                    }
+                    else if (f.IsRequired)
+                    {
+                        return f.Accessor.HasValue(message);
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                });
+        }
+
+        // Implementations allowing unknown fields to be discarded.
+        internal static void MergeFrom(this IMessage message, byte[] data, bool discardUnknownFields, ExtensionRegistry registry)
+        {
+            ProtoPreconditions.CheckNotNull(message, "message");
+            ProtoPreconditions.CheckNotNull(data, "data");
+            CodedInputStream input = new CodedInputStream(data);
+            input.DiscardUnknownFields = discardUnknownFields;
+            input.ExtensionRegistry = registry;
+            message.MergeFrom(input);
+            input.CheckReadEndOfStreamTag();
+        }
+
+        internal static void MergeFrom(this IMessage message, byte[] data, int offset, int length, bool discardUnknownFields, ExtensionRegistry registry)
+        {
+            ProtoPreconditions.CheckNotNull(message, "message");
+            ProtoPreconditions.CheckNotNull(data, "data");
+            CodedInputStream input = new CodedInputStream(data, offset, length);
+            input.DiscardUnknownFields = discardUnknownFields;
+            input.ExtensionRegistry = registry;
+            message.MergeFrom(input);
+            input.CheckReadEndOfStreamTag();
+        }
+
+        internal static void MergeFrom(this IMessage message, ByteString data, bool discardUnknownFields, ExtensionRegistry registry)
+        {
+            ProtoPreconditions.CheckNotNull(message, "message");
+            ProtoPreconditions.CheckNotNull(data, "data");
+            CodedInputStream input = data.CreateCodedInput();
+            input.DiscardUnknownFields = discardUnknownFields;
+            input.ExtensionRegistry = registry;
+            message.MergeFrom(input);
+            input.CheckReadEndOfStreamTag();
+        }
+
+        internal static void MergeFrom(this IMessage message, Stream input, bool discardUnknownFields, ExtensionRegistry registry)
+        {
+            ProtoPreconditions.CheckNotNull(message, "message");
+            ProtoPreconditions.CheckNotNull(input, "input");
+            CodedInputStream codedInput = new CodedInputStream(input);
+            codedInput.DiscardUnknownFields = discardUnknownFields;
+            codedInput.ExtensionRegistry = registry;
+            message.MergeFrom(codedInput);
+            codedInput.CheckReadEndOfStreamTag();
+        }
+
+        internal static void MergeDelimitedFrom(this IMessage message, Stream input, bool discardUnknownFields, ExtensionRegistry registry)
+        {
+            ProtoPreconditions.CheckNotNull(message, "message");
+            ProtoPreconditions.CheckNotNull(input, "input");
+            int size = (int) CodedInputStream.ReadRawVarint32(input);
+            Stream limitedStream = new LimitedInputStream(input, size);
+            MergeFrom(message, limitedStream, discardUnknownFields, registry);
+        }
     }
 }

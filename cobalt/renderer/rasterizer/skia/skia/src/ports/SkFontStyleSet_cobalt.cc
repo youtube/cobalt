@@ -24,7 +24,6 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
-#include "starboard/common/string.h"
 #include "third_party/skia/src/utils/SkOSPath.h"
 
 namespace {

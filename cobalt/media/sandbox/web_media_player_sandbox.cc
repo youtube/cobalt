@@ -34,7 +34,6 @@
 #include "cobalt/render_tree/image.h"
 #include "media/base/timestamp_constants.h"
 #include "media/filters/chunk_demuxer.h"
-#include "starboard/common/file.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/system.h"

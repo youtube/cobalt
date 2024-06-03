@@ -22,12 +22,12 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/files/file.h"
+#include "base/files/file_path.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/time/time.h"
-#include "starboard/common/file.h"
-#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 
 #if defined(_DEBUG)
@@ -132,11 +132,13 @@ std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
   // previous Watchdog violations file containing violations before app start,
   // if it exists.
   if (violations_map_ == nullptr) {
-    starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(), O_RDWR);
+    base::FilePath file_path(GetWatchdogFilePath());
+    base::File read_file(
+        file_path, base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);
     if (read_file.IsValid()) {
-      int64_t kFileSize = read_file.GetSize();
+      int64_t kFileSize = read_file.GetLength();
       std::vector<char> buffer(kFileSize + 1, 0);
-      read_file.ReadAll(buffer.data(), kFileSize);
+      read_file.ReadAtCurrentPos(buffer.data(), kFileSize);
       violations_map_ = base::Value::ToUniquePtrValue(
           base::JSONReader::Read(std::string(buffer.data()))
               .value_or(base::Value(base::Value::Type::DICT)));
@@ -195,14 +197,16 @@ void Watchdog::WriteWatchdogViolations() {
   watchdog_file.WriteAll(watchdog_json.c_str(),
                          static_cast<int>(watchdog_json.size()));
   pending_write_ = false;
-  time_last_written_microseconds_ = starboard::CurrentMonotonicTime();
+  time_last_written_microseconds_ =
+      (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
 }
 
 void* Watchdog::Monitor(void* context) {
   pthread_setname_np(pthread_self(), "Watchdog");
   base::AutoLock scoped_lock(static_cast<Watchdog*>(context)->mutex_);
   while (1) {
-    int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
+    int64_t current_monotonic_time =
+        (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
     bool watchdog_violation = false;
 
     // Iterates through client map to monitor all name registered clients.
@@ -309,7 +313,8 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
     violation.SetKey("timestampLastPingedMilliseconds",
                      base::Value(std::to_string(
                          client->time_last_pinged_microseconds / 1000)));
-    int64_t current_timestamp_millis = starboard::CurrentPosixTime() / 1000;
+    int64_t current_timestamp_millis =
+        (base::Time::Now() - base::Time::UnixEpoch()).InMilliseconds();
     violation.SetKey("timestampViolationMilliseconds",
                      base::Value(std::to_string(current_timestamp_millis)));
     violation.SetKey(
@@ -443,7 +448,7 @@ void Watchdog::EvictWatchdogViolation(void* context) {
 }
 
 void Watchdog::MaybeWriteWatchdogViolations(void* context) {
-  if (starboard::CurrentMonotonicTime() >
+  if ((base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() >
       static_cast<Watchdog*>(context)->time_last_written_microseconds_ +
           static_cast<Watchdog*>(context)->write_wait_time_microseconds_) {
     static_cast<Watchdog*>(context)->WriteWatchdogViolations();
@@ -467,8 +472,10 @@ bool Watchdog::Register(std::string name, std::string description,
 
   base::AutoLock scoped_lock(mutex_);
 
-  int64_t current_time = starboard::CurrentPosixTime();
-  int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
+  int64_t current_time =
+      (base::Time::Now() - base::Time::UnixEpoch()).InMicroseconds();
+  int64_t current_monotonic_time =
+      (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
 
   // If replace is PING or ALL, handles already registered cases.
   if (replace != NONE) {
@@ -511,8 +518,10 @@ std::shared_ptr<Client> Watchdog::RegisterByClient(
 
   base::AutoLock scoped_lock(mutex_);
 
-  int64_t current_time = starboard::CurrentPosixTime();
-  int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
+  int64_t current_time =
+      (base::Time::Now() - base::Time::UnixEpoch()).InMicroseconds();
+  int64_t current_monotonic_time =
+      (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
 
   // Creates new client.
   std::shared_ptr<Client> client = CreateClient(
@@ -651,8 +660,10 @@ bool Watchdog::PingHelper(Client* client, const std::string& name,
     return false;
   }
 
-  int64_t current_time = starboard::CurrentPosixTime();
-  int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
+  int64_t current_time =
+      (base::Time::Now() - base::Time::UnixEpoch()).InMicroseconds();
+  int64_t current_monotonic_time =
+      (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
 
   // Updates last ping.
   client->time_last_pinged_microseconds = current_time;
@@ -718,7 +729,8 @@ std::string Watchdog::GetWatchdogViolations(
 }
 
 void Watchdog::EvictOldWatchdogViolations() {
-  int64_t current_timestamp_millis = starboard::CurrentPosixTime() / 1000;
+  int64_t current_timestamp_millis =
+      (base::Time::Now() - base::Time::UnixEpoch()).InMilliseconds();
   int64_t cutoff_timestamp_millis =
       current_timestamp_millis - kWatchdogMaxViolationsAge;
   std::vector<std::string> empty_violations;
@@ -764,8 +776,9 @@ bool Watchdog::GetPersistentSettingWatchdogEnable() {
   if (!persistent_settings_) return kDefaultSettingWatchdogEnable;
 
   // Gets the boolean that controls whether or not Watchdog is enabled.
-  return persistent_settings_->GetPersistentSettingAsBool(
-      kPersistentSettingWatchdogEnable, kDefaultSettingWatchdogEnable);
+  base::Value value;
+  persistent_settings_->Get(kPersistentSettingWatchdogEnable, &value);
+  return value.GetIfBool().value_or(kDefaultSettingWatchdogEnable);
 }
 
 void Watchdog::SetPersistentSettingWatchdogEnable(bool enable_watchdog) {
@@ -773,9 +786,8 @@ void Watchdog::SetPersistentSettingWatchdogEnable(bool enable_watchdog) {
   if (!persistent_settings_) return;
 
   // Sets the boolean that controls whether or not Watchdog is enabled.
-  persistent_settings_->SetPersistentSetting(
-      kPersistentSettingWatchdogEnable,
-      std::make_unique<base::Value>(enable_watchdog));
+  persistent_settings_->Set(kPersistentSettingWatchdogEnable,
+                            base::Value(enable_watchdog));
 }
 
 bool Watchdog::GetPersistentSettingWatchdogCrash() {
@@ -783,8 +795,9 @@ bool Watchdog::GetPersistentSettingWatchdogCrash() {
   if (!persistent_settings_) return kDefaultSettingWatchdogCrash;
 
   // Gets the boolean that controls whether or not crashes can be triggered.
-  return persistent_settings_->GetPersistentSettingAsBool(
-      kPersistentSettingWatchdogCrash, kDefaultSettingWatchdogCrash);
+  base::Value value;
+  persistent_settings_->Get(kPersistentSettingWatchdogCrash, &value);
+  return value.GetIfBool().value_or(kDefaultSettingWatchdogCrash);
 }
 
 void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
@@ -792,9 +805,8 @@ void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
   if (!persistent_settings_) return;
 
   // Sets the boolean that controls whether or not crashes can be triggered.
-  persistent_settings_->SetPersistentSetting(
-      kPersistentSettingWatchdogCrash,
-      std::make_unique<base::Value>(can_trigger_crash));
+  persistent_settings_->Set(kPersistentSettingWatchdogCrash,
+                            base::Value(can_trigger_crash));
 }
 
 bool Watchdog::LogEvent(const std::string& event) {
@@ -825,17 +837,17 @@ bool Watchdog::GetPersistentSettingLogtraceEnable() {
   if (!persistent_settings_) return kDefaultSettingLogtraceEnable;
 
   // Gets the boolean that controls whether or not LogTrace is enabled.
-  return persistent_settings_->GetPersistentSettingAsBool(
-      kPersistentSettingLogtraceEnable, kDefaultSettingLogtraceEnable);
+  base::Value value;
+  persistent_settings_->Get(kPersistentSettingLogtraceEnable, &value);
+  return value.GetIfBool().value_or(kDefaultSettingLogtraceEnable);
 }
 
 void Watchdog::SetPersistentSettingLogtraceEnable(bool enable_logtrace) {
   if (!persistent_settings_) return;
 
   // Sets the boolean that controls whether or not LogTrace is enabled.
-  persistent_settings_->SetPersistentSetting(
-      kPersistentSettingLogtraceEnable,
-      std::make_unique<base::Value>(enable_logtrace));
+  persistent_settings_->Set(kPersistentSettingLogtraceEnable,
+                            base::Value(enable_logtrace));
 }
 
 #if defined(_DEBUG)
@@ -847,10 +859,11 @@ void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
 
   if (name != delay_name_) return;
 
-  if (starboard::CurrentMonotonicTime() >
+  if ((base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() >
       time_last_delayed_microseconds_ + delay_wait_time_microseconds_) {
     usleep(delay_sleep_time_microseconds_);
-    time_last_delayed_microseconds_ = starboard::CurrentMonotonicTime();
+    time_last_delayed_microseconds_ =
+        (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   }
 }
 #endif  // defined(_DEBUG)

@@ -57,7 +57,15 @@
 #       Extra flags passed to the plugin. See cc_generator_options.
 #
 #   deps (optional)
+#       DEPRECATED: use proto_deps or link_deps instead (crbug.com/938011).
 #       Additional dependencies.
+#
+#   link_deps (optional)
+#       Additional dependencies linked to library.
+#
+#   proto_deps (optional)
+#       Additional dependencies required before running protoc.
+#       e.g. proto file generating action.
 #
 #   use_protobuf_full (optional)
 #       If adding protobuf library would be required, adds protobuf_full to deps
@@ -86,12 +94,28 @@
 #       A list of config labels that will be appended to the configs applying
 #       to the source set.
 #
+#   remove_configs (optional)
+#       A list of config labels that will be removed from the configs apllying
+#       to the source set.
+#
 # Example:
 #  proto_library("mylib") {
 #    sources = [
 #      "foo.proto",
 #    ]
 #  }
+
+import("//build/config/sanitizers/sanitizers.gni")
+
+if (host_os == "win") {
+  _host_executable_suffix = ".exe"
+} else {
+  _host_executable_suffix = ""
+}
+
+_protoc_label = "//third_party/protobuf:protoc($host_toolchain)"
+_protoc_path = get_label_info(_protoc_label, "root_out_dir") + "/protoc" +
+               _host_executable_suffix
 
 template("proto_library") {
   assert(defined(invoker.sources), "Need sources for proto_library")
@@ -103,12 +127,6 @@ template("proto_library") {
   # this template shouldn't re-apply the filter.
   if (!use_cobalt_customizations) {
   set_sources_assignment_filter([])
-  }
-
-  if (host_os == "win") {
-    host_executable_suffix = ".exe"
-  } else {
-    host_executable_suffix = ""
   }
 
   if (defined(invoker.generate_cc)) {
@@ -131,7 +149,7 @@ template("proto_library") {
     plugin_host_label = invoker.generator_plugin_label + "($host_toolchain)"
     plugin_path =
         get_label_info(plugin_host_label, "root_out_dir") + "/" +
-        get_label_info(plugin_host_label, "name") + host_executable_suffix
+        get_label_info(plugin_host_label, "name") + _host_executable_suffix
     generate_with_plugin = true
   } else if (defined(invoker.generator_plugin_script)) {
     plugin_path = invoker.generator_plugin_script
@@ -197,17 +215,16 @@ template("proto_library") {
 
   protos = rebase_path(invoker.sources, proto_in_dir)
   protogens = []
-  proto_paths = []
+  protogens_cc = []
 
   # List output files.
   foreach(proto, protos) {
     proto_dir = get_path_info(proto, "dir")
     proto_name = get_path_info(proto, "name")
     proto_path = proto_dir + "/" + proto_name
-    proto_paths += [ proto_path ]
 
     if (generate_cc) {
-      protogens += [
+      protogens_cc += [
         "$cc_out_dir/$proto_path.pb.h",
         "$cc_out_dir/$proto_path.pb.cc",
       ]
@@ -217,7 +234,7 @@ template("proto_library") {
     }
     if (generate_with_plugin) {
       foreach(suffix, generator_plugin_suffixes) {
-        protogens += [ "$cc_out_dir/${proto_path}${suffix}" ]
+        protogens_cc += [ "$cc_out_dir/${proto_path}${suffix}" ]
       }
     }
   }
@@ -234,34 +251,15 @@ template("proto_library") {
     script = "//tools/protoc_wrapper/protoc_wrapper.py"
     }
     sources = proto_sources
-    outputs = get_path_info(protogens, "abspath")
+    outputs = get_path_info(protogens + protogens_cc, "abspath")
     args = protos
 
-    if (is_starboard) {
-      # TODO(b/207292694): Build protoc from source.
-      if (is_mac) {
-        protoc_path = "//tools/protoc_mac"
-      } else {
-        protoc_path = "//tools/protoc"
-      }
-      args += [
-        "--protoc",
-        rebase_path(protoc_path, root_build_dir) + host_executable_suffix,
-      ]
-    } else {
-    protoc_label = "//third_party/protobuf:protoc($host_toolchain)"
-    protoc_path = get_label_info(protoc_label, "root_out_dir") + "/protoc" +
-                  host_executable_suffix
     args += [
       # Wrapper should never pick a system protoc.
       # Path should be rebased because |root_build_dir| for current toolchain
       # may be different from |root_out_dir| of protoc built on host toolchain.
       "--protoc",
-      "./" + rebase_path(protoc_path, root_build_dir),
-      ]
-    }
-
-    args += [
+      "./" + rebase_path(_protoc_path, root_build_dir),
       "--proto-in-dir",
       rebase_path(proto_in_dir, root_build_dir),
     ]
@@ -309,22 +307,17 @@ template("proto_library") {
 
     if (defined(invoker.import_dirs)) {
       foreach(path, invoker.import_dirs) {
-        args += ["--import-dir=" + rebase_path(path, root_build_dir)]
+        args += [ "--import-dir=" + rebase_path(path, root_build_dir) ]
       }
     }
 
-    if (is_starboard) {
-      inputs = []
-      deps = []
-    } else {
     # System protoc is not used so it's necessary to build a chromium one.
     inputs = [
-      protoc_path,
+      _protoc_path,
     ]
     deps = [
-      protoc_label,
+      _protoc_label,
     ]
-    }
 
     if (generate_with_plugin) {
       inputs += [ plugin_path ]
@@ -338,8 +331,11 @@ template("proto_library") {
       }
     }
 
+    # The deps may have steps that have to run before running protoc.
+    if (defined(invoker.proto_deps)) {
+      deps += invoker.proto_deps
+    }
     if (defined(invoker.deps)) {
-      # The deps may have steps that have to run before running protoc.
       deps += invoker.deps
     }
   }
@@ -356,10 +352,16 @@ template("proto_library") {
   # use relative paths starting at |cc_out_dir|.
   # However there is no necessity to add an additional directory, if all protos
   # are located in the same directory which is in the search path by default.
-  if (has_nested_dirs) {
-    config_name = "${target_name}_config"
-    config(config_name) {
-      include_dirs = [ cc_out_dir ]
+  config_name = "${target_name}_config"
+  config(config_name) {
+    include_dirs = []
+    if (has_nested_dirs) {
+      include_dirs += [ cc_out_dir ]
+    }
+    if (defined(invoker.import_dirs)) {
+      foreach(path, invoker.import_dirs) {
+        include_dirs += [ "$root_gen_dir/" + rebase_path(path, "//") ]
+      }
     }
   }
 
@@ -372,23 +374,28 @@ template("proto_library") {
                              "visibility",
                            ])
 
-    sources = get_target_outputs(":$action_name")
+    sources = get_path_info(protogens_cc, "abspath")
 
-    if (generate_python) {
-      foreach(path, proto_paths) {
-        sources -= [ get_path_info("$py_out_dir/${path}_pb2.py", "abspath") ]
-      }
+    if (defined(invoker.remove_configs)) {
+      configs -= invoker.remove_configs
     }
 
     if (defined(invoker.extra_configs)) {
       configs += invoker.extra_configs
     }
 
+    # Remove Sanitizer and coverage instrumentation for a performance boost when
+    # fuzzing, since the only fuzzers that use protobuf are libprotobuf-mutator
+    # based fuzzers, and they don't actually target protobuf code.
+    configs -= not_fuzzed_remove_configs
+    configs += [ "//build/config/sanitizers:not_fuzzed" ]
+
     public_configs = [ "//third_party/protobuf:using_proto" ]
+    public_deps = []
 
     if (generate_cc || generate_with_plugin) {
       # Not necessary if all protos are located in the same directory.
-      if (has_nested_dirs) {
+      if (has_nested_dirs || defined(invoker.import_dirs)) {
         # It's not enough to set |include_dirs| for target since public imports
         # expose corresponding includes to header files as well.
         public_configs += [ ":$config_name" ]
@@ -400,25 +407,103 @@ template("proto_library") {
       if (generate_cc) {
         if (defined(invoker.use_protobuf_full) &&
             invoker.use_protobuf_full == true) {
-          public_deps = [
-            "//third_party/protobuf:protobuf_full",
-          ]
+          public_deps += [ "//third_party/protobuf:protobuf_full" ]
         } else {
-          public_deps = [
-            "//third_party/protobuf:protobuf_lite",
+          public_deps += [ "//third_party/protobuf:protobuf_lite" ]
+        }
+
+        if (is_win) {
+          cflags = [
+            # disable: C4125 decimal digit terminates octal escape sequence
+            # Protoc generates such sequences frequently, there's no obvious
+            # superior replacement behavior. Since this code is autogenerated,
+            # the warning would never catch a legitimate bug.
+            "/wd4125",
           ]
         }
       }
     }
 
-    deps = [
-      ":$action_name",
-    ]
+    public_deps += [ ":$action_name" ]
+    deps = []
 
     # This will link any libraries in the deps (the use of invoker.deps in the
     # action won't link it).
     if (defined(invoker.deps)) {
       deps += invoker.deps
     }
+    if (defined(invoker.link_deps)) {
+      deps += invoker.link_deps
+    }
+  }
+}
+
+# Convert a protocol buffer between text and binary formats.
+# This can be used to run protoc with the --encode or --decode options.
+# Parameters:
+#
+#   sources: list of string
+#       The sources to loop over and run protoc on
+#
+#   inputs: list of string
+#       The file dependencies for the action. This should be the list of .proto
+#       files involved in the conversion operation.
+#
+#   output_pattern: string
+#       A path pattern with source expansion variables (like source_name_part)
+#       for where the result of conversion should be placed.
+#
+#   deps: (optional) list of label
+#       Additional dependencies for the target.
+#
+#   args: list of string
+#       Arguments to pass to the protoc tool. This could include -I for include
+#       paths, as well as the name of the proto file.
+#
+#
+# Example to convert a .textproto to a .binarybp:
+#   protoc_convert("convert_foo") {
+#     sources = [
+#       "test/data/example1.textproto",
+#       "test/data/example2.textproto",
+#     ]
+#     inputs = [
+#       "//component/core/foo.proto",
+#     ]
+#     output_pattern = "$target_gen_dir/foo_data/{{source_name_part}}.binarypb"
+#     args = [
+#       "--encode=foo.FooMessage",
+#       "-I",
+#       rebase_path("//component/core"),
+#       "foo.proto",
+#     ]
+#   }
+template("protoc_convert") {
+  action_foreach(target_name) {
+    script = "//tools/protoc_wrapper/protoc_convert.py"
+
+    sources = invoker.sources
+
+    inputs = invoker.inputs
+
+    deps = [
+      _protoc_label,
+    ]
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+
+    outputs = [
+      invoker.output_pattern,
+    ]
+
+    args = [
+             "--protoc",
+             "./" + rebase_path(_protoc_path, root_build_dir),
+             "--infile",
+             "{{source}}",
+             "--outfile",
+             rebase_path(invoker.output_pattern),
+           ] + invoker.args
   }
 }

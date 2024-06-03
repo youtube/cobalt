@@ -21,52 +21,49 @@ namespace starboard {
 // Write-preferring lock.
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
 RWLock::RWLock() : readers_(0), writing_(false) {
-  SB_CHECK(SbMutexCreate(&mutex_));
-  SB_CHECK(SbConditionVariableCreate(&condition_, &mutex_));
+  SB_CHECK(pthread_mutex_init(&mutex_, nullptr) == 0);
+  SB_CHECK(pthread_cond_init(&condition_, nullptr) == 0);
 }
 
 RWLock::~RWLock() {
-  SbConditionVariableDestroy(&condition_);
-  SbMutexDestroy(&mutex_);
+  pthread_cond_destroy(&condition_);
+  pthread_mutex_destroy(&mutex_);
 }
 
 void RWLock::AcquireReadLock() {
-  SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  SB_CHECK(pthread_mutex_lock(&mutex_) == 0);
   while (writing_) {
-    SB_CHECK(SbConditionVariableWait(&condition_, &mutex_) !=
-             kSbConditionVariableFailed);
+    SB_CHECK(pthread_cond_wait(&condition_, &mutex_) == 0);
   }
   ++readers_;
-  SB_CHECK(SbMutexRelease(&mutex_));
+  SB_CHECK(pthread_mutex_unlock(&mutex_) == 0);
 }
 
 void RWLock::ReleaseReadLock() {
-  SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  SB_CHECK(pthread_mutex_lock(&mutex_) == 0);
   if (--readers_ == 0) {
-    SB_CHECK(SbConditionVariableBroadcast(&condition_));
+    SB_CHECK(pthread_cond_broadcast(&condition_) == 0);
   }
-  SB_CHECK(SbMutexRelease(&mutex_));
+  SB_CHECK(pthread_mutex_unlock(&mutex_) == 0);
 }
 
 void RWLock::AcquireWriteLock() {
-  SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  SB_CHECK(pthread_mutex_lock(&mutex_) == 0);
   while (writing_) {
-    SB_CHECK(SbConditionVariableWait(&condition_, &mutex_) !=
-             kSbConditionVariableFailed);
+    SB_CHECK(pthread_cond_wait(&condition_, &mutex_) == 0);
   }
   writing_ = true;
   while (readers_ > 0) {
-    SB_CHECK(SbConditionVariableWait(&condition_, &mutex_) !=
-             kSbConditionVariableFailed);
+    SB_CHECK(pthread_cond_wait(&condition_, &mutex_) == 0);
   }
-  SB_CHECK(SbMutexRelease(&mutex_));
+  SB_CHECK(pthread_mutex_unlock(&mutex_) == 0);
 }
 
 void RWLock::ReleaseWriteLock() {
-  SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  SB_CHECK(pthread_mutex_lock(&mutex_) == 0);
   writing_ = false;
-  SB_CHECK(SbConditionVariableBroadcast(&condition_));
-  SB_CHECK(SbMutexRelease(&mutex_));
+  SB_CHECK(pthread_cond_broadcast(&condition_) == 0);
+  SB_CHECK(pthread_mutex_unlock(&mutex_) == 0);
 }
 
 }  // namespace starboard

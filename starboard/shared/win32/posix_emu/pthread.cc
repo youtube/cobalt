@@ -125,9 +125,11 @@ int pthread_cond_timedwait(pthread_cond_t* cond,
     return -1;
   }
 
-  int64_t now_ms = starboard::CurrentMonotonicTime() / 1000;
+  int64_t now_ms = starboard::CurrentPosixTime() / 1000;
+
   int64_t timeout_duration_ms = t->tv_sec * 1000 + t->tv_nsec / 1000000;
   timeout_duration_ms -= now_ms;
+
   bool result = SleepConditionVariableSRW(
       reinterpret_cast<PCONDITION_VARIABLE>(cond->buffer),
       reinterpret_cast<PSRWLOCK>(mutex->buffer), timeout_duration_ms, 0);
@@ -206,15 +208,15 @@ static unsigned ThreadTrampoline(void* thread_create_info_context) {
 
   CallThreadLocalDestructorsMultipleTimes();
 
-  SbMutexAcquire(&info->thread_private_.mutex_);
+  pthread_mutex_lock(&info->thread_private_.mutex_);
   info->thread_private_.result_ = result;
   info->thread_private_.result_is_valid_ = true;
-  SbConditionVariableSignal(&info->thread_private_.condition_);
+  pthread_cond_signal(&info->thread_private_.condition_);
   while (info->thread_private_.wait_for_join_) {
-    SbConditionVariableWait(&info->thread_private_.condition_,
-                            &info->thread_private_.mutex_);
+    pthread_cond_wait(&info->thread_private_.condition_,
+                      &info->thread_private_.mutex_);
   }
-  SbMutexRelease(&info->thread_private_.mutex_);
+  pthread_mutex_unlock(&info->thread_private_.mutex_);
 
   return 0;
 }
@@ -266,22 +268,21 @@ int pthread_join(pthread_t thread, void** value_ptr) {
 
   SbThreadPrivate* thread_private = reinterpret_cast<SbThreadPrivate*>(thread);
 
-  SbMutexAcquire(&thread_private->mutex_);
+  pthread_mutex_lock(&thread_private->mutex_);
   if (!thread_private->wait_for_join_) {
     // Thread has already been detached.
-    SbMutexRelease(&thread_private->mutex_);
+    pthread_mutex_unlock(&thread_private->mutex_);
     return -1;
   }
   while (!thread_private->result_is_valid_) {
-    SbConditionVariableWait(&thread_private->condition_,
-                            &thread_private->mutex_);
+    pthread_cond_wait(&thread_private->condition_, &thread_private->mutex_);
   }
   thread_private->wait_for_join_ = false;
-  SbConditionVariableSignal(&thread_private->condition_);
+  pthread_cond_signal(&thread_private->condition_);
   if (value_ptr != NULL) {
     *value_ptr = thread_private->result_;
   }
-  SbMutexRelease(&thread_private->mutex_);
+  pthread_mutex_unlock(&thread_private->mutex_);
   return 0;
 }
 
@@ -291,10 +292,10 @@ int pthread_detach(pthread_t thread) {
   }
   SbThreadPrivate* thread_private = reinterpret_cast<SbThreadPrivate*>(thread);
 
-  SbMutexAcquire(&thread_private->mutex_);
+  pthread_mutex_lock(&thread_private->mutex_);
   thread_private->wait_for_join_ = false;
-  SbConditionVariableSignal(&thread_private->condition_);
-  SbMutexRelease(&thread_private->mutex_);
+  pthread_cond_signal(&thread_private->condition_);
+  pthread_mutex_unlock(&thread_private->mutex_);
   return 0;
 }
 
@@ -323,9 +324,9 @@ int pthread_key_delete(pthread_key_t key) {
   DWORD tls_index = reinterpret_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
 
-  SbMutexAcquire(&singleton->mutex_);
+  pthread_mutex_lock(&singleton->mutex_);
   singleton->thread_local_keys_.erase(tls_index);
-  SbMutexRelease(&singleton->mutex_);
+  pthread_mutex_unlock(&singleton->mutex_);
 
   TlsInternalFree(tls_index);
   free(reinterpret_cast<void*>(key));

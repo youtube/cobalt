@@ -30,10 +30,7 @@
 #include <google/protobuf/stubs/status.h>
 
 #include <ostream>
-#ifndef STARBOARD
 #include <stdio.h>
-#endif  // STARBOARD
-
 #include <string>
 #include <utility>
 
@@ -130,7 +127,7 @@ string Status::ToString() const {
   }
 }
 
-ostream& operator<<(ostream& os, const Status& x) {
+std::ostream& operator<<(std::ostream& os, const Status& x) {
   os << x.ToString();
   return os;
 }

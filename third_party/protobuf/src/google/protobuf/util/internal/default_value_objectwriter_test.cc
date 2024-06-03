@@ -41,7 +41,7 @@ namespace util {
 namespace converter {
 namespace testing {
 
-using google::protobuf::testing::DefaultValueTest;
+using proto_util_converter::testing::DefaultValueTest;
 
 // Base class for setting up required state for running default values tests on
 // different descriptors.
@@ -52,7 +52,8 @@ class BaseDefaultValueObjectWriterTest
       : helper_(GetParam()), mock_(), expects_(&mock_) {
     helper_.ResetTypeInfo(descriptor);
     testing_.reset(helper_.NewDefaultValueWriter(
-        string(kTypeServiceBaseUrl) + "/" + descriptor->full_name(), &mock_));
+        std::string(kTypeServiceBaseUrl) + "/" + descriptor->full_name(),
+        &mock_));
   }
 
   virtual ~BaseDefaultValueObjectWriterTest() {}
@@ -60,7 +61,7 @@ class BaseDefaultValueObjectWriterTest
   TypeInfoTestHelper helper_;
   MockObjectWriter mock_;
   ExpectingObjectWriter expects_;
-  google::protobuf::scoped_ptr<DefaultValueObjectWriter> testing_;
+  std::unique_ptr<DefaultValueObjectWriter> testing_;
 };
 
 // Tests to cover some basic DefaultValueObjectWriter use cases. More tests are
@@ -72,10 +73,10 @@ class DefaultValueObjectWriterTest : public BaseDefaultValueObjectWriterTest {
   virtual ~DefaultValueObjectWriterTest() {}
 };
 
-INSTANTIATE_TEST_CASE_P(DifferentTypeInfoSourceTest,
-                        DefaultValueObjectWriterTest,
-                        ::testing::Values(
-                            testing::USE_TYPE_RESOLVER));
+INSTANTIATE_TEST_SUITE_P(DifferentTypeInfoSourceTest,
+                         DefaultValueObjectWriterTest,
+                         ::testing::Values(
+                             testing::USE_TYPE_RESOLVER));
 
 TEST_P(DefaultValueObjectWriterTest, Empty) {
   // Set expectation
@@ -149,6 +150,39 @@ TEST_P(DefaultValueObjectWriterTest, ShouldRetainUnknownField) {
 }
 
 
+class DefaultValueObjectWriterSuppressListTest
+    : public BaseDefaultValueObjectWriterTest {
+ protected:
+  DefaultValueObjectWriterSuppressListTest()
+      : BaseDefaultValueObjectWriterTest(DefaultValueTest::descriptor()) {
+    testing_->set_suppress_empty_list(true);
+  }
+  ~DefaultValueObjectWriterSuppressListTest() override {}
+};
+
+INSTANTIATE_TEST_SUITE_P(DifferentTypeInfoSourceTest,
+                         DefaultValueObjectWriterSuppressListTest,
+                         ::testing::Values(
+                             testing::USE_TYPE_RESOLVER));
+
+TEST_P(DefaultValueObjectWriterSuppressListTest, Empty) {
+  // Set expectation. Emtpy lists should be suppressed.
+  expects_.StartObject("")
+      ->RenderDouble("doubleValue", 0.0)
+      ->RenderFloat("floatValue", 0.0)
+      ->RenderInt64("int64Value", 0)
+      ->RenderUint64("uint64Value", 0)
+      ->RenderInt32("int32Value", 0)
+      ->RenderUint32("uint32Value", 0)
+      ->RenderBool("boolValue", false)
+      ->RenderString("stringValue", "")
+      ->RenderBytes("bytesValue", "")
+      ->RenderString("enumValue", "ENUM_FIRST")
+      ->EndObject();
+
+  // Actual testing
+  testing_->StartObject("")->EndObject();
+}
 }  // namespace testing
 }  // namespace converter
 }  // namespace util

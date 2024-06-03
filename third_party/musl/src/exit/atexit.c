@@ -5,8 +5,8 @@
 #include "fork_impl.h"
 
 #ifdef STARBOARD
+#include <pthread.h>
 #include "starboard/common/log.h"
-#include "starboard/mutex.h"
 #include "starboard/types.h"
 #endif  // STARBOARD
 
@@ -26,14 +26,14 @@ static struct fl
 
 static int slot;
 #ifdef STARBOARD
-static SbMutex lock = SB_MUTEX_INITIALIZER;
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK(x)                                          \
     do {                                                 \
-      SB_DCHECK(SbMutexAcquire(&x) == kSbMutexAcquired); \
+      SB_DCHECK(pthread_mutex_lock(&x) == 0); \
     } while (0)
 #define UNLOCK(x)                    \
     do {                             \
-      SB_DCHECK(SbMutexRelease(&x)); \
+      SB_DCHECK(pthread_mutex_unlock(&x) == 0); \
     } while (0)
 #else   // !STARBOARD
 static volatile int lock[1];

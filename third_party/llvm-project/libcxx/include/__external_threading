@@ -8,8 +8,6 @@
 #include <unistd.h>
 
 #include "starboard/common/recursive_mutex.h"
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 
 _LIBCPP_PUSH_MACROS
@@ -27,12 +25,14 @@ _LIBCPP_PUSH_MACROS
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-typedef SbMutex __libcpp_mutex_t;
-typedef starboard::RecursiveMutex __libcpp_recursive_mutex_t;
-#define _LIBCPP_MUTEX_INITIALIZER SB_MUTEX_INITIALIZER
+typedef pthread_mutex_t __libcpp_mutex_t;
 
-typedef SbConditionVariable __libcpp_condvar_t;
-#define _LIBCPP_CONDVAR_INITIALIZER SB_CONDITION_VARIABLE_INITIALIZER
+typedef starboard::RecursiveMutex __libcpp_recursive_mutex_t;
+#define _LIBCPP_MUTEX_INITIALIZER  PTHREAD_MUTEX_INITIALIZER
+
+typedef pthread_cond_t __libcpp_condvar_t;
+
+#define _LIBCPP_CONDVAR_INITIALIZER PTHREAD_COND_INITIALIZER
 
 typedef pthread_once_t __libcpp_exec_once_flag;
 #define _LIBCPP_EXEC_ONCE_INITIALIZER PTHREAD_ONCE_INIT
@@ -161,57 +161,41 @@ int __libcpp_recursive_mutex_unlock(__libcpp_recursive_mutex_t* __m) {
 // Similar situation to the constructor.
 int __libcpp_recursive_mutex_destroy(__libcpp_recursive_mutex_t* __m) {}
 
-int __libcpp_mutex_lock(__libcpp_mutex_t* __m) { return SbMutexAcquire(__m); }
+int __libcpp_mutex_lock(__libcpp_mutex_t* __m) {
+  return pthread_mutex_lock(__m);
+}
 
 bool __libcpp_mutex_trylock(__libcpp_mutex_t* __m) {
-  return (SbMutexAcquireTry(__m) == kSbMutexAcquired);
+  return pthread_mutex_trylock(__m) == 0;
 }
 
 int __libcpp_mutex_unlock(__libcpp_mutex_t* __m) {
-  if (SbMutexRelease(__m)) {
-    return 0;
-  }
-  return 1;
+  return pthread_mutex_unlock(__m);
 }
 
 int __libcpp_mutex_destroy(__libcpp_mutex_t* __m) {
-  if (SbMutexDestroy(__m)) {
-    return 0;
-  }
-  return 1;
+  return pthread_mutex_destroy(__m);
 }
 
 int __libcpp_condvar_signal(__libcpp_condvar_t* __cv) {
-  if (SbConditionVariableSignal(__cv)) {
-    return 0;
-  }
-  return 1;
+  return pthread_cond_signal(__cv);
 }
 
 int __libcpp_condvar_broadcast(__libcpp_condvar_t* __cv) {
-  if (SbConditionVariableBroadcast(__cv)) {
-    return 0;
-  }
-  return 1;
+  return pthread_cond_broadcast(__cv);
 }
 
 int __libcpp_condvar_wait(__libcpp_condvar_t* __cv, __libcpp_mutex_t* __m) {
-  return SbConditionVariableWait(__cv, __m);
+  return pthread_cond_wait(__cv, __m);
 }
 
 int __libcpp_condvar_timedwait(__libcpp_condvar_t* __cv, __libcpp_mutex_t* __m,
                                timespec* __ts) {
-  // Convert the duration provided by __ts to a Starboard time. The conversion
-  // is from seconds (10^1) and nanoseconds (10^-9) to microseconds (10^-6).
-  const int64_t duration = __ts->tv_sec * 1000000 + __ts->tv_nsec / 1000;
-  return SbConditionVariableWaitTimed(__cv, __m, duration);
+  return pthread_cond_timedwait(__cv, __m, __ts);
 }
 
 int __libcpp_condvar_destroy(__libcpp_condvar_t* __cv) {
-  if (SbConditionVariableDestroy(__cv)) {
-    return 0;
-  }
-  return 1;
+  return pthread_cond_destroy(__cv);
 }
 
 int __libcpp_execute_once(__libcpp_exec_once_flag* flag,

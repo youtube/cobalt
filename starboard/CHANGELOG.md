@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated `SbMutex`, `SbConditionVariable` and `SbThread`.
+The standard POSIX `pthread` APIs replace the Starboard concurrency
+primitives.
+
 ### Migrate the `SbThreadSampler` to use `pthread`.
 Switched the `SbThreadSampler` API to use `pthread` instead of `SbThread`.
 
@@ -193,6 +197,10 @@ used when allocating media buffers and has to be always set to 0.  This is
 verified explicitly using nplb tests.
 An implementation that has specific padding requirement should make a copy of
 the incoming buffer when necessary.
+
+### Deprecated SbMediaGetBufferStorageType()
+The SbMediaGetBufferPadding() API was deprecated.  SbMediaBufferStorageType was
+also deprecated as a result.
 
 ### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
 The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in

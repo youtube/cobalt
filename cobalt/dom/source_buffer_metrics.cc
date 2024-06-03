@@ -22,7 +22,6 @@
 #include "cobalt/base/statistics.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
-#include "starboard/common/time.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -79,7 +78,8 @@ void SourceBufferMetrics::StartTracking(SourceBufferMetricsAction action) {
   wall_start_time_ = clock_->NowTicks();
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  thread_start_time_ = starboard::CurrentMonotonicThreadTime();
+  thread_start_time_ =
+      (base::ThreadTicks::Now() - base::ThreadTicks()).InMicroseconds();
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
@@ -101,7 +101,8 @@ void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   int64_t thread_duration =
-      starboard::CurrentMonotonicThreadTime() - thread_start_time_;
+      (base::ThreadTicks::Now() - base::ThreadTicks()).InMicroseconds() -
+      thread_start_time_;
 
   total_wall_time_ += wall_duration.InMicroseconds();
   total_thread_time_ += thread_duration;

@@ -14,9 +14,9 @@
 
 #include <vector>
 
+#include "base/files/file.h"
 #include "base/logging.h"
 #include "cobalt/network/dial/dial_system_config.h"
-#include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
@@ -80,25 +80,26 @@ std::string DialSystemConfig::GeneratePlatformUuid() {
   path.append(kSbFileSepString);
   path.append(kInAppDialUuidFilename);
 
-  bool created;
-  starboard::ScopedFile file(path.c_str(), O_RDWR | O_CREAT | O_WRONLY);
+  base::File file(base::FilePath(path), base::File::FLAG_OPEN_ALWAYS |
+                                            base::File::FLAG_READ |
+                                            base::File::FLAG_WRITE);
   if (!file.IsValid()) {
     LOG(ERROR) << "Unable to open or create " << path;
     return GenerateRandomUuid();
   }
 
   char uuid_buffer[kUuidSizeBytes];
-  int bytes_read = file.ReadAll(uuid_buffer, kUuidSizeBytes);
+  int bytes_read = file.ReadAtCurrentPos(uuid_buffer, kUuidSizeBytes);
 
   if (bytes_read == kUuidSizeBytes) {
     return std::string(uuid_buffer, bytes_read);
   }
 
-  file.Truncate(0);
+  file.SetLength(0);
 
   std::string uuid = GenerateRandomUuid();
 
-  int bytes_written = file.WriteAll(uuid.data(), uuid.size());
+  int bytes_written = file.WriteAtCurrentPos(uuid.data(), uuid.size());
 
   if (bytes_written != uuid.size()) {
     LOG(ERROR) << "Unable to store device UUID to " << path;

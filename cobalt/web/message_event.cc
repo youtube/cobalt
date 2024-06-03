@@ -26,7 +26,6 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/environment_settings_helper.h"
-#include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "v8/include/v8.h"
 

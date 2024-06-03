@@ -227,7 +227,8 @@ class GeneratorTest(unittest.TestCase):
                      [unittest_import_pb2.DESCRIPTOR])
     self.assertEqual(unittest_import_pb2.DESCRIPTOR.dependencies,
                      [unittest_import_public_pb2.DESCRIPTOR])
-
+    self.assertEqual(unittest_import_pb2.DESCRIPTOR.public_dependencies,
+                     [unittest_import_public_pb2.DESCRIPTOR])
   def testNoGenericServices(self):
     self.assertTrue(hasattr(unittest_no_generic_services_pb2, "TestMessage"))
     self.assertTrue(hasattr(unittest_no_generic_services_pb2, "FOO"))
@@ -304,6 +305,16 @@ class GeneratorTest(unittest.TestCase):
         self.assertIs(desc.oneofs[0], field_desc.containing_oneof)
       else:
         self.assertIsNone(field_desc.containing_oneof)
+
+  def testEnumWithDupValue(self):
+    self.assertEqual('FOO1',
+                     unittest_pb2.TestEnumWithDupValue.Name(unittest_pb2.FOO1))
+    self.assertEqual('FOO1',
+                     unittest_pb2.TestEnumWithDupValue.Name(unittest_pb2.FOO2))
+    self.assertEqual('BAR1',
+                     unittest_pb2.TestEnumWithDupValue.Name(unittest_pb2.BAR1))
+    self.assertEqual('BAR1',
+                     unittest_pb2.TestEnumWithDupValue.Name(unittest_pb2.BAR2))
 
 
 class SymbolDatabaseRegistrationTest(unittest.TestCase):

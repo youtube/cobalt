@@ -38,6 +38,7 @@
 goog.provide('jspb.utils');
 
 goog.require('goog.asserts');
+goog.require('goog.crypt');
 goog.require('goog.crypt.base64');
 goog.require('goog.string');
 goog.require('jspb.BinaryConstants');
@@ -430,7 +431,7 @@ jspb.utils.joinHash64 = function(bitsLow, bitsHigh) {
 
 /**
  * Individual digits for number->string conversion.
- * @const {!Array.<number>}
+ * @const {!Array<string>}
  */
 jspb.utils.DIGITS = [
   '0', '1', '2', '3', '4', '5', '6', '7',
@@ -553,10 +554,10 @@ jspb.utils.hash64ToDecimalString = function(hash, signed) {
 /**
  * Converts an array of 8-character hash strings into their decimal
  * representations.
- * @param {!Array.<string>} hashes The array of hash strings to convert.
+ * @param {!Array<string>} hashes The array of hash strings to convert.
  * @param {boolean} signed True if we should treat the hash string as encoding
  *     a signed integer.
- * @return {!Array.<string>}
+ * @return {!Array<string>}
  */
 jspb.utils.hash64ArrayToDecimalStrings = function(hashes, signed) {
   var result = new Array(hashes.length);
@@ -613,7 +614,17 @@ jspb.utils.decimalStringToHash64 = function(dec) {
     muladd(1, 1);
   }
 
-  return String.fromCharCode.apply(null, resultBytes);
+  return goog.crypt.byteArrayToString(resultBytes);
+};
+
+
+/**
+ * Converts a signed or unsigned decimal string into two 32-bit halves, and
+ * stores them in the temp variables listed above.
+ * @param {string} value The decimal string to convert.
+ */
+jspb.utils.splitDecimalString = function(value) {
+  jspb.utils.splitHash64(jspb.utils.decimalStringToHash64(value));
 };
 
 
@@ -960,8 +971,13 @@ jspb.utils.byteSourceToUint8Array = function(data) {
     return /** @type {!Uint8Array} */(new Uint8Array(data));
   }
 
+  if (typeof Buffer != 'undefined' && data.constructor === Buffer) {
+    return /** @type {!Uint8Array} */ (
+        new Uint8Array(/** @type {?} */ (data)));
+  }
+
   if (data.constructor === Array) {
-    data = /** @type {!Array.<number>} */(data);
+    data = /** @type {!Array<number>} */(data);
     return /** @type {!Uint8Array} */(new Uint8Array(data));
   }
 
