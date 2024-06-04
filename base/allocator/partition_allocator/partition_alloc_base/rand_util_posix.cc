@@ -69,8 +69,7 @@ namespace partition_alloc::internal::base {
 // (https://chromium-review.googlesource.com/c/chromium/src/+/1545096) and land
 // it or some form of it.
 void RandBytes(void* output, size_t output_length) {
-// TODO(b/298237462): Clean this up for Cobalt or don't use PA.
-#if 0
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // We have to call `getrandom` via Linux Syscall Support, rather than through
   // the libc wrapper, because we might not have an up-to-date libc (e.g. on
   // some bots).
