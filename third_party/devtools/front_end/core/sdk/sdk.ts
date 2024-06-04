@@ -9,10 +9,6 @@ import './ProfileTreeModel.js';
 import './NetworkRequest.js';
 import './NetworkManager.js';
 import './RuntimeModel.js';
-<<<<<<< HEAD:third_party/devtools/front_end/sdk/sdk.js
-// import './wasm_source_map/pkg/wasm_source_map.js';
-=======
->>>>>>> d2ba8eabd82683f374a4906c7941ef213898b9a7:third_party/devtools/front_end/core/sdk/sdk.ts
 
 import * as AccessibilityModel from './AccessibilityModel.js';
 import * as CategorizedBreakpoint from './CategorizedBreakpoint.js';

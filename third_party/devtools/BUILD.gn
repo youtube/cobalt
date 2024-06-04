@@ -192,6 +192,9 @@ generated_file("indexer_ts_files") {
     "front_end",
     "front_end:unittests",
   ]
+  if (use_cobalt_customizations) {
+    deps -= [ "front_end:unittests" ]
+  }
 }
 
 ts_library("frontend_indexer_tsconfig") {

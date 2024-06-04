@@ -14,7 +14,7 @@ copy_to_gen("extensions") {
   ]
 }
 
-if (!build_with_chromium) {
+if (!build_with_chromium && !use_cobalt_customizations) {
   wasm_module("extension_wasm_modules") {
     sources = [
       "can_access_wasm_data.wat",

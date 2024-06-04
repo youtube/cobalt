@@ -9,7 +9,11 @@ template("node_action") {
          "You must define the 'script' for a Node action")
 
   action(target_name) {
+    if (use_cobalt_customizations) {
+      script = "//starboard/build/run_bash.py"
+    } else {
     script = "//third_party/node/node.py"
+    }
 
     forward_variables_from(invoker,
                            "*",
@@ -25,7 +29,11 @@ template("node_action") {
       devtools_location_prepend + "scripts/build/ninja/write-if-changed.js",
     ]
 
+    if (use_cobalt_customizations) {
+      args = [ "node", rebase_path(_full_script_location, root_build_dir) ] + invoker.args
+    } else {
     args = [ rebase_path(_full_script_location, root_build_dir) ] + invoker.args
+    }
   }
 }
 

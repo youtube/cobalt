@@ -5,17 +5,17 @@ description:
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "114.0.5735.331"  # from https://chromereleases.googleblog.com/2020/03/stable-channel-update-for-desktop_31.html
+    value: "114.0.5735.331"  # from https://chromereleases.googleblog.com/2024/03/long-term-support-channel-update-for_26.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/devtools/devtools-frontend.git"
     version: "3f60fe50e4790d1154659b9628e811bbcdf1aa4f"
-    # from https://chromium.googlesource.com/chromium/src/+/80.0.3987.162/DEPS#247
+    # from https://chromium.googlesource.com/chromium/src/+/114.0.5735.331/DEPS#383
   }
   last_upgrade_date {
-    year: 2019
-    month: 12
-    day: 12
+    year: 2024
+    month: 6
+    day: 4
   }
 }

@@ -80,11 +80,6 @@ target(final_executable_type, "cobalt") {
       "//cobalt/debug/remote/content:copy_remote_web_files",
       "//cobalt/speech:speech_testdata",
       "//cobalt/webdriver:copy_webdriver_data",
-      "//third_party/devtools:build_release_devtools",
-      "//third_party/devtools:copy_devtools_modules",
-      "//third_party/devtools:copy_inspector_images",
-      "//third_party/devtools:frontend_protocol_sources",
-      "//third_party/devtools:supported_css_properties",
     ]
   }
 }
