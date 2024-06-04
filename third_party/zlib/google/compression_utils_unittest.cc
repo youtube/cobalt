@@ -11,6 +11,7 @@
 
 #include "base/logging.h"
 #include "base/stl_util.h"
+#include "base/time/time.h"
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
