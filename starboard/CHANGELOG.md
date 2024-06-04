@@ -9,6 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
+## Added new configuration constant `kHasPartialAudioFramesSupport`
+Set this to true if your platform supports partial audio frames.
+
 ### Deprecated `SbMutex`, `SbConditionVariable` and `SbThread`.
 The standard POSIX `pthread` APIs replace the Starboard concurrency
 primitives.
