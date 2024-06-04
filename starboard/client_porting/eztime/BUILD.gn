@@ -43,7 +43,7 @@ target(gtest_target_type, "eztime_test") {
   ]
 
   data_deps = [
-    # "//cobalt/network:copy_ssl_certificates",
+    "//cobalt/network:copy_ssl_certificates",
     "//third_party/icu:icudata",
   ]
 }
