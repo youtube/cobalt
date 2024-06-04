@@ -5,8 +5,6 @@
 #include "quiche_platform_impl/quiche_file_utils_impl.h"
 
 #if defined(STARBOARD)
-#include "base/files/file_enumerator.h"
-#include "base/files/file_util.h"
 #include "starboard/common/log.h"
 #include <sys/stat.h>
 #include <unistd.h>
@@ -63,12 +61,33 @@ std::string JoinPathImpl(absl::string_view a, absl::string_view b) {
 
 absl::optional<std::string> ReadFileContentsImpl(absl::string_view file) {
 #if defined(STARBOARD)
-  std::string contents;
-  bool success = base::ReadFileToString(base::FilePath(file), &contents);
-  if (success) {
-    return std::move(contents);
+  base::File file_handle(base::FilePath(file), base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!file_handle.IsValid()) {
+    return absl::nullopt;
   }
-  return absl::nullopt;
+
+  auto max_size = std::numeric_limits<size_t>::max();
+  std::string contents;
+  const size_t kBufferSize = 1 << 12;
+  char buf[kBufferSize];
+  size_t len;
+  size_t size = 0;
+  bool read_status = true;
+
+  while ((len = file_handle.ReadAtCurrentPos(buf, sizeof(buf))) > 0) {
+    size_t bytes_to_add = std::min(len, max_size - size);
+    if (size + bytes_to_add > contents.max_size()) {
+      return absl::nullopt;
+    }
+    contents.append(buf, std::min(len, max_size - size));
+
+    if ((max_size - size) < len) {
+      return absl::nullopt;
+    }
+
+    size += len;
+  }
+  return contents;
 #else
   std::ifstream input_file(std::string{file}, std::ios::binary);
   if (!input_file || !input_file.is_open()) {
@@ -95,17 +114,53 @@ absl::optional<std::string> ReadFileContentsImpl(absl::string_view file) {
 
 #if defined(STARBOARD)
 
-bool EnumerateDirectoryRecursivelyImpl(absl::string_view path,
-                                       std::vector<std::string>& files) {
-  base::FileEnumerator enumerator(base::FilePath(std::string(path)),
-                                  /*recursive=*/true,
-                                  base::FileEnumerator::FILES);
-  while (true) {
-    base::FilePath file_path = enumerator.Next();
-    if (file_path.empty()) break;
-    files.push_back(file_path.value());
+class ScopedDir {
+ public:
+  ScopedDir(SbDirectory dir) : dir_(dir) {}
+  ~ScopedDir() {
+    if (SbDirectoryIsValid(dir_)) {
+      SbDirectoryClose(dir_);
+      dir_ = nullptr;
+    }
   }
-  return enumerator.GetError() == base::File::FILE_OK;
+
+  SbDirectory get() { return dir_; }
+
+ private:
+  SbDirectory dir_;
+};
+
+bool EnumerateDirectoryImpl(absl::string_view path,
+                            std::vector<std::string>& directories,
+                            std::vector<std::string>& files) {
+  std::string path_owned(path);
+  ScopedDir dir(SbDirectoryOpen(path_owned.c_str(), nullptr));
+  if (!SbDirectoryIsValid(dir.get())) {
+    return false;
+  }
+
+  while (true) {
+    std::vector<char> entry(kSbFileMaxName, 0);
+    if (!SbDirectoryGetNext(dir.get(), entry.data(), entry.size())) {
+      break;
+    }
+    std::string filename(entry.data());
+    if (filename == "." || filename == "..") {
+      continue;
+    }
+
+    const std::string entry_path = JoinPathImpl(path, filename);
+    struct stat stat_entry;
+    if (stat(entry_path.c_str(), &stat_entry) != 0) {
+      return false;
+    }
+    if (S_ISREG(stat_entry.st_mode)) {
+      files.push_back(std::move(filename));
+    } else if (S_ISDIR(stat_entry.st_mode)) {
+      directories.push_back(std::move(filename));
+    }
+  }
+  return true;
 }
 
 #elif defined(_WIN32)

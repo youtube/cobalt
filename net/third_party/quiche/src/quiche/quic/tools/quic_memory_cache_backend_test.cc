@@ -8,7 +8,6 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
-#include "net/test/test_data_directory.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/common/platform/api/quiche_file_utils.h"
@@ -33,12 +32,7 @@ class QuicMemoryCacheBackendTest : public QuicTest {
   }
 
   std::string CacheDirectory() {
-#if defined(STARBOARD)
-    return net::GetTestNetDirectory().Append("data")
-        .Append("quic_http_response_cache_data").MaybeAsASCII();
-#else
     return quiche::test::QuicheGetTestMemoryCachePath();
-#endif
   }
 
   QuicMemoryCacheBackend cache_;
