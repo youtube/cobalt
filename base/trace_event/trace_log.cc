@@ -745,10 +745,12 @@ TraceLog::TraceLog(int generation)
       use_worker_thread_(false) {
   CategoryRegistry::Initialize();
 
+#if !defined(STARBOARD)
 #if BUILDFLAG(IS_NACL)  // NaCl shouldn't expose the process id.
   SetProcessID(0);
 #else
   SetProcessID(GetCurrentProcId());
+#endif
 #endif
 
   logged_events_.reset(CreateTraceBuffer());
