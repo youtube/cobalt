@@ -1479,8 +1479,10 @@ TEST_F(TraceEventTestFixture, ThreadNames) {
         continue;
 
       EXPECT_EQ(*item->FindString("ph"), "M");
+#if !defined(STARBOARD)
       EXPECT_EQ(*item->FindInt("pid"),
                 static_cast<int>(base::GetCurrentProcId()));
+#endif
 
       // If the thread name changes or the tid gets reused, the name will be
       // a comma-separated list of thread names, so look for a substring.
