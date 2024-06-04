@@ -45,7 +45,7 @@ config("starboard_platform_config") {
 }
 
 static_library("starboard_platform") {
-  # has_pedantic_warnings = true
+  has_pedantic_warnings = true
 
   sources = [
     "//starboard/common/thread.cc",
