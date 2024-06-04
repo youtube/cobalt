@@ -41,7 +41,6 @@ _QUEUE_CODE_CRASHED = 'crashed'
 _CRASH_LOG_SECONDS = 1.0
 
 _RUNTIME_PERMISSIONS = [
-    'android.permission.GET_ACCOUNTS',
     'android.permission.RECORD_AUDIO',
 ]
 
