@@ -129,24 +129,14 @@ int DecoderBufferAllocator::GetAudioBufferBudget() const {
 
 int DecoderBufferAllocator::GetBufferAlignment() const {
 #if SB_API_VERSION < 16
-#if SB_API_VERSION >= 14
   return SbMediaGetBufferAlignment();
-#else   // SB_API_VERSION >= 14
-  return std::max(SbMediaGetBufferAlignment(kSbMediaTypeAudio),
-                  SbMediaGetBufferAlignment(kSbMediaTypeVideo));
-#endif  // SB_API_VERSION >= 14
 #else
   return sizeof(void*);
 #endif  // SB_API_VERSION < 16
 }
 
 int DecoderBufferAllocator::GetBufferPadding() const {
-#if SB_API_VERSION >= 14
   return SbMediaGetBufferPadding();
-#else   // SB_API_VERSION >= 14
-  return std::max(SbMediaGetBufferPadding(kSbMediaTypeAudio),
-                  SbMediaGetBufferPadding(kSbMediaTypeVideo));
-#endif  // SB_API_VERSION >= 14
 }
 
 base::TimeDelta

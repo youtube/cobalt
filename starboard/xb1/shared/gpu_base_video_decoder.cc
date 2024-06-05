@@ -142,14 +142,9 @@ class GpuVideoDecoderBase::GPUDecodeTargetPrivate
       info.format = kSbDecodeTargetFormat3PlaneYUVI420;
     } else {
       SB_DCHECK(image->bit_depth() == 10);
-#if SB_API_VERSION >= 14
       info.format = image->is_compacted()
                         ? kSbDecodeTargetFormat3Plane10BitYUVI420Compact
                         : kSbDecodeTargetFormat3Plane10BitYUVI420;
-#else   // SB_API_VERSION >= 14
-      SB_DCHECK(!image->is_compacted());
-      info.format = kSbDecodeTargetFormat3Plane10BitYUVI420;
-#endif  // SB_API_VERSION >= 14
     }
     info.is_opaque = true;
     info.width = image->width();
