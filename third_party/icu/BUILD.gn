@@ -462,6 +462,8 @@ if (icu_use_data_file) {
       } else {
       args += [ "--win" ]
       }
+    } else if (use_cobalt_customizations && current_os == "playstation") {
+      args += [ "--win" ]
     }
   }
 

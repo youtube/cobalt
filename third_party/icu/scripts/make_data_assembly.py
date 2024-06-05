@@ -100,7 +100,7 @@ for i in range(len(split)):
     value = '0x' + split[i]
 
   if (i % 32 == 0):
-    if (options.nasm):
+    if options.nasm:
       output.write("\ndd ")
     else:
       output.write("\n.long ")
