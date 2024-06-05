@@ -22,6 +22,7 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/base64.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/html_element_context.h"
@@ -298,9 +299,28 @@ void LottiePlayer::UpdateAnimationData() {
       return;
     }
 
+    auto isBase64Encoded = [](const std::string& url) -> bool {
+      size_t pos = url.find(',');
+      if (pos != std::string::npos) {
+        std::string beforeComma = url.substr(0, pos);
+        return beforeComma.find("base64") != std::string::npos;
+      }
+      return false;
+    };
+
+    // Force base64 encoding of plain/raw inputs, to ensure no URL escaping
+    // occurs.
+    GURL resource_url = selected_source;
+    if (selected_source.SchemeIs("data") && !isBase64Encoded(src)) {
+      auto encoded = ForgivingBase64Encode(src.substr(src.find(',') + 1));
+      if (encoded) {
+        resource_url = GURL(std::string("data:text/json;base64,") + *encoded);
+      }
+    }
+
     auto image_cache = node_document()->html_element_context()->image_cache();
-    cached_image_ = image_cache->GetOrCreateCachedResource(selected_source,
-                                                           loader::Origin());
+    cached_image_ =
+        image_cache->GetOrCreateCachedResource(resource_url, loader::Origin());
 
     if (cached_image_->TryGetResource()) {
       PreventGarbageCollectionUntilEventIsDispatched(base::Tokens::load());
