@@ -51,6 +51,11 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 
+#ifdef QUIC_DLOG
+#undef QUIC_DLOG
+#define QUIC_DLOG LOG
+#endif
+
 namespace quic {
 
 class QuicDecrypter;
@@ -842,6 +847,7 @@ bool QuicConnection::SelectMutualVersion(
 }
 
 void QuicConnection::OnError(QuicFramer* framer) {
+  LOG(INFO) << __FUNCTION__;
   // Packets that we can not or have not decrypted are dropped.
   // TODO(rch): add stats to measure this.
   if (!connected_ || !last_received_packet_info_.decrypted) {
@@ -877,6 +883,7 @@ void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
 
 bool QuicConnection::OnProtocolVersionMismatch(
     ParsedQuicVersion received_version) {
+  LOG(INFO) << __FUNCTION__;
   QUIC_DLOG(INFO) << ENDPOINT << "Received packet with mismatched version "
                   << ParsedQuicVersionToString(received_version);
   if (perspective_ == Perspective::IS_CLIENT) {
@@ -2173,6 +2180,7 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
 }
 
 bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
+  LOG(INFO) << __FUNCTION__;
   QUIC_BUG_IF(quic_bug_10511_15, !connected_)
       << "Processing HANDSHAKE_DONE frame when connection "
          "is closed. Received packet "
