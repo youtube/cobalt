@@ -16,23 +16,20 @@
 
 #include "base/process/process.h"
 #include "base/process/process_handle.h"
-
-namespace {
-base::ProcessId kStarboardFakeProcessId = 1;
-}
+#include "starboard/common/process.h"
 
 namespace base {
 
 ProcessId GetProcId(ProcessHandle) {
-  return kStarboardFakeProcessId;
+  return starboard::kStarboardFakeProcessId;
 }
 
 ProcessId GetParentProcessId(ProcessHandle) {
-  return kStarboardFakeProcessId;
+  return starboard::kStarboardFakeProcessId;
 }
 
 ProcessId GetCurrentProcId() {
-  return kStarboardFakeProcessId;
+  return starboard::kStarboardFakeProcessId;
 }
 
 ProcessHandle GetCurrentProcessHandle() {

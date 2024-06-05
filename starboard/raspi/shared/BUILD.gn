@@ -22,7 +22,7 @@ group("starboard_platform") {
 static_library("starboard_platform_sources") {
   check_includes = false
 
-  # has_pedantic_warnings = true
+  has_pedantic_warnings = true
 
   sources = [
     "//starboard/linux/shared/atomic_public.h",
