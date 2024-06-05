@@ -44,7 +44,7 @@ namespace renderer {
 
 RenderTreePixelTester::Options::Options()
     : gaussian_blur_sigma(6.2f),
-      acceptable_channel_range(0.08f),
+      acceptable_channel_range(0.0f),
       output_failed_test_details(false),
       output_all_test_details(false) {}
 
