@@ -42,7 +42,8 @@
     </uap:Extension>
     {% endif %}
     <uap:Extension Category="windows.protocol">
-      <uap:Protocol Name="{{ __APPLICATION_NAME__|replace('_','-') }}-starboard"/>
+      {# Truncating because MS set the max length of Protocol Name to 39 characters. #}
+      <uap:Protocol Name="{{ __APPLICATION_NAME__|replace('_','-')|truncate(29,False,'') }}-starboard"/>
     </uap:Extension>
     {% endif %}
   </Extensions>
