@@ -18,6 +18,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
+#include "starboard/common/process.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
@@ -260,8 +261,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 StarboardMemoryMappedFile::~StarboardMemoryMappedFile() { SB_NOTIMPLEMENTED(); }
 
 int OS::GetCurrentProcessId() {
-  SB_NOTIMPLEMENTED();
-  return 0;
+  return starboard::kStarboardFakeProcessId;
 }
 
 int OS::GetCurrentThreadId() { 
