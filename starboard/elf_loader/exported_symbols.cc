@@ -99,9 +99,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);
-#if SB_API_VERSION >= 14
   REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
-#endif  // SB_API_VERSION >= 14
   REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMaxThreads);
@@ -348,9 +346,6 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
-#if SB_API_VERSION < 14
-  REGISTER_SYMBOL(SbSystemGetConnectionType);
-#endif
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbSystemGetDeviceType);
 #endif

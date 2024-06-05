@@ -243,12 +243,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       mkdir(path.data(), 0700);
       break;
 
-#if SB_API_VERSION < 14
-    case kSbSystemPathTestOutputDirectory:
-      return SbSystemGetPath(kSbSystemPathDebugOutputDirectory, out_path,
-                             path_size);
-#endif  // #if SB_API_VERSION < 14
-
     case kSbSystemPathExecutableFile:
       return GetExecutablePath(out_path, path_size);
 

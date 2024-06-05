@@ -123,9 +123,7 @@ const DeviceTypeName kDeviceTypeStrings[] = {
     {kSbSystemDeviceTypeTV, "TV"},
     {kSbSystemDeviceTypeAndroidTV, "ATV"},
     {kSbSystemDeviceTypeDesktopPC, "DESKTOP"},
-#if SB_API_VERSION >= 14
     {kSbSystemDeviceTypeVideoProjector, "PROJECTOR"},
-#endif  // SB_API_VERSION >= 14
     {kSbSystemDeviceTypeUnknown, "UNKNOWN"}};
 
 std::string CreateDeviceTypeString(SbSystemDeviceType device_type) {
