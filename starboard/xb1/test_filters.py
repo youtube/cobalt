@@ -51,6 +51,7 @@ _FILTERED_TESTS = {
         'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/beneath_the_canopy_248_vp9_dmp_DecodeToTexture',
         'VideoDecoderTests/VideoDecoderTest.MultipleResets/beneath_the_canopy_248_vp9_dmp_DecodeToTexture',
     ],
+    'trace_processor_minimal_smoke_tests': ['StorageMinimalSmokeTest/*',],
 }
 
 
