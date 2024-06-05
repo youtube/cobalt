@@ -65,14 +65,19 @@ struct SbSocketPrivate {
   // The waiter this socket is registered with, or kSbSocketWaiterInvalid.
   SbSocketWaiter waiter;
 
-  static const int kNumPackets = 16;
-  static const int kPacketSize = 2048;
-  char bufs[kNumPackets][kPacketSize + 1];
+  static const int kNumPackets = 32;
+  static const int kPacketSize = 2047;
+  static const int kBufferSize = kNumPackets * (kPacketSize + 1);
+  union {
+    char bufs[kNumPackets][kPacketSize + 1];
+    char buffer[kBufferSize];
+  };
   struct iovec iovecs[kNumPackets];
   struct mmsghdr msgs[kNumPackets];
   struct timespec timeout = {0, 0};
   int message_count = 0;
   int message_idx = 0;
+  int gso_size = 0;
 };
 
 namespace starboard {

@@ -310,7 +310,13 @@ void HttpStreamFactory::JobController::OnStreamReady(
   }
   std::unique_ptr<HttpStream> stream = job->ReleaseStream();
   DCHECK(stream);
-
+  if (!job->using_existing_quic_session()) {
+    LOG(INFO) << __FUNCTION__ << " negotiated_protocol = "
+              << NextProtoToString(job->negotiated_protocol())
+              << " using_quic=" << job->using_quic()
+              << " job_type=" << (int)job->job_type() << " "
+              << job->origin_url().spec();
+  }
   MarkRequestComplete(job);
 
   if (!request_)

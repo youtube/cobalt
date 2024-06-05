@@ -17,8 +17,8 @@ namespace net {
 namespace {
 // Add 1 because some of our UDP socket implementations do not read successfully
 // when the packet length is equal to the read buffer size.
-const size_t kReadBufferSize =
-    static_cast<size_t>(quic::kMaxIncomingPacketSize + 1);
+const size_t kReadBufferSize = 0xFFFFU;
+// static_cast<size_t>(quic::kMaxIncomingPacketSize + 1);
 }  // namespace
 
 QuicChromiumPacketReader::QuicChromiumPacketReader(
