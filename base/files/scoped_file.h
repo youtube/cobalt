@@ -27,7 +27,7 @@ namespace internal {
 #if defined(STARBOARD)
 struct BASE_EXPORT ScopedFDCloseTraits {
   static int InvalidValue() { return -1; }
-  static void Free(int file) { close(file); }
+  static void Free(int file) { if (file >= 0) {close(file);} }
 };
 #elif BUILDFLAG(IS_ANDROID)
 // Use fdsan on android.
@@ -60,8 +60,11 @@ struct BASE_EXPORT ScopedFDCloseTraits {
 // Functor for |ScopedFILE| (below).
 struct ScopedFILECloser {
   inline void operator()(int* x) const {
-    if (x)
-      close(*x);
+    if (x) {
+      if (*x >= 0) {
+        close(*x);
+      }
+    }
   }
 };
 #else

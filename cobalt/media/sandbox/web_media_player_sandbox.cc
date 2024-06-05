@@ -160,7 +160,7 @@ class Application {
 
     std::unique_ptr<ScopedFile>& file =
         guesstimator.is_audio() ? audio_file_ : video_file_;
-    file.reset(new ScopedFile(guesstimator.adaptive_path().c_str(), O_RDWR));
+    file.reset(new ScopedFile(guesstimator.adaptive_path().c_str(), 0));
 
     if (!file->IsValid()) {
       LOG(ERROR) << "Failed to open file: " << guesstimator.adaptive_path();
@@ -206,9 +206,9 @@ class Application {
       const FormatGuesstimator& video_guesstimator) {
     is_adaptive_playback_ = true;
     audio_file_.reset(
-        new ScopedFile(audio_guesstimator.adaptive_path().c_str(), O_RDWR));
+        new ScopedFile(audio_guesstimator.adaptive_path().c_str(), 0));
     video_file_.reset(
-        new ScopedFile(video_guesstimator.adaptive_path().c_str(), O_RDWR));
+        new ScopedFile(video_guesstimator.adaptive_path().c_str(), 0));
 
     if (!audio_file_->IsValid()) {
       LOG(ERROR) << "Failed to open audio file: "

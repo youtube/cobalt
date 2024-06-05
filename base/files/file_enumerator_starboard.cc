@@ -44,8 +44,7 @@ int64_t FileEnumerator::FileInfo::GetSize() const {
 }
 
 base::Time FileEnumerator::FileInfo::GetLastModifiedTime() const {
-  return base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(stat_.st_mtime));
+  return base::Time::FromTimeT(stat_.st_mtime);
 }
 
 // FileEnumerator --------------------------------------------------------------

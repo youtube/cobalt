@@ -33,7 +33,8 @@ namespace {
 class LogWriterWin32 : public ILogWriter {
  public:
   explicit LogWriterWin32(const std::string& file_path) {
-    file_.reset(new ScopedFile(file_path.c_str(), O_CREAT | O_WRONLY));
+    file_.reset(
+        new ScopedFile(file_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY));
     if (!file_->IsValid()) {
       SB_LOG(ERROR) << "Could not create watchdog file " << file_path;
       file_.reset();

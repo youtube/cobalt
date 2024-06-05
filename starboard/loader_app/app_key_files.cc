@@ -62,7 +62,8 @@ bool CreateAppKeyFile(const std::string& file_name_path) {
     return false;
   }
 
-  starboard::ScopedFile file(file_name_path.c_str(), O_CREAT | O_WRONLY);
+  starboard::ScopedFile file(file_name_path.c_str(),
+                             O_CREAT | O_TRUNC | O_WRONLY);
   if (!file.IsValid()) {
     SB_LOG(ERROR) << "Failed to open file: " << file_name_path;
     // TODO: retrieve error in starboard::ScopedFile

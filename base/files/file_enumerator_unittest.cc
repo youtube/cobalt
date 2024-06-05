@@ -102,10 +102,8 @@ bool CreateDummyFile(const FilePath& path) {
 
 bool GetFileInfo(const FilePath& file_path, File::Info& info) {
   // FLAG_WIN_BACKUP_SEMANTICS: Needed to open directories on Windows.
-  // File f(file_path,
-  //       File::FLAG_OPEN | File::FLAG_READ | File::FLAG_WIN_BACKUP_SEMANTICS);
-  File f(file_path, File::FLAG_OPEN_ALWAYS | File::FLAG_READ |
-                        File::FLAG_WIN_BACKUP_SEMANTICS);
+  File f(file_path,
+        File::FLAG_OPEN | File::FLAG_READ | File::FLAG_WIN_BACKUP_SEMANTICS);
   if (!f.IsValid()) {
     LOG(ERROR) << "Could not open " << file_path.value() << ": "
                << File::ErrorToString(f.error_details());

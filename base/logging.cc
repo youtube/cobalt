@@ -460,7 +460,9 @@ bool InitializeLogFileHandle() {
 
 void CloseFile(FileHandle log) {
 #if defined(STARBOARD)
-  close(*log);
+  if (*log >= 0) {
+    close(*log);
+  }
 #elif BUILDFLAG(IS_WIN)
   CloseHandle(log);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)

@@ -378,7 +378,10 @@ class BASE_EXPORT File {
   // Wrapper for stat() or stat64().
   static int Stat(const char* path, stat_wrapper_t* sb);
   static int Fstat(int fd, stat_wrapper_t* sb);
+# if !defined(STARBOARD)
+  # Starboard does not support lstat yet.
   static int Lstat(const char* path, stat_wrapper_t* sb);
+#endif
 #endif
 
   // This function can be used to augment `flags` with the correct flags

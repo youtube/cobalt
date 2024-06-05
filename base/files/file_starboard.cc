@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Adapted from platform_file_posix.cc
-
+#include "base/logging.h"
 #include "base/files/file_starboard.h"
 
 #include <errno.h>
@@ -36,6 +36,7 @@ namespace {
 SbFileError g_sb_file_error = kSbFileOk;
 }  // namespace
 
+// TODO: remove SbFileError
 void SetLastFileError(File::Error error) {
   g_sb_file_error = static_cast<SbFileError>(error);
 }
@@ -239,26 +240,31 @@ int File::ReadAtCurrentPosNoBestEffort(char* data, int size) {
 
 int File::Write(int64_t offset, const char* data, int size) {
   internal::AssertBlockingAllowed();
-
+  //LOG(INFO) << "hao: write: offset: " << offset << "data: " << data << "size: " << size;
   if (append_) {
+    //LOG(INFO) << "hao: write: in append_";
     return WriteAtCurrentPos(data, size);
   }
 
   int original_position = lseek(file_.get(), 0,  static_cast<int>(kSbFileFromCurrent));
+  //LOG(INFO) << "hao: write: file_.get(): " << file_.get() << "original_position: " << original_position;
   if (original_position < 0) {
     return -1;
   }
 
   int64_t position =
       lseek(file_.get(), static_cast<off_t>(offset), static_cast<int>(kSbFileFromBegin));
+  //LOG(INFO) << "hao: write: position: " << position;
   int result = 0;
   if (position == offset) {
     result = WriteAtCurrentPos(data, size);
+    //LOG(INFO) << "hao: write: WriteAtCurrentPos result: " << result;
   }
 
   // Restore position regardless of result of write.
   position = lseek(file_.get(), static_cast<off_t>(original_position),
                    static_cast<int>(kSbFileFromBegin));
+  //LOG(INFO) << "hao: write: position: " << position;
   if (result < 0) {
     return result;
   }
@@ -270,6 +276,20 @@ int File::Write(int64_t offset, const char* data, int size) {
   return result;
 }
 
+// int File::WriteAtCurrentPos(const char* data, int size) {
+//   internal::AssertBlockingAllowed();
+//   LOG(INFO) << "HAO: File::Write: in WriteAtCurrentPos, size: " << size;
+//   DCHECK(IsValid());
+//   if (size < 0)
+//     return -1;
+
+//   SCOPED_FILE_TRACE_WITH_SIZE("WriteAtCurrentPos", size);
+//   int write_result = starboard::WriteAll(file_.get(), data, size);
+//   LOG(INFO) << "HAO: File::Write: in WriteAtCurrentPos, write_result: " << write_result;
+//   RecordFileWriteStat(write_result);
+//   return write_result;
+// }
+
 int File::WriteAtCurrentPos(const char* data, int size) {
   internal::AssertBlockingAllowed();
   DCHECK(IsValid());
@@ -277,9 +297,19 @@ int File::WriteAtCurrentPos(const char* data, int size) {
     return -1;
 
   SCOPED_FILE_TRACE_WITH_SIZE("WriteAtCurrentPos", size);
-  int write_result = starboard::WriteAll(file_.get(), data, size);
-  RecordFileWriteStat(write_result);
-  return write_result;
+
+  int bytes_written = 0;
+  long rv;
+  do {
+    rv = HANDLE_EINTR(write(file_.get(), data + bytes_written,
+                            static_cast<size_t>(size - bytes_written)));
+    if (rv <= 0)
+      break;
+
+    bytes_written += rv;
+  } while (bytes_written < size);
+
+  return bytes_written ? bytes_written : checked_cast<int>(rv);
 }
 
 int File::WriteAtCurrentPosNoBestEffort(const char* data, int size) {
@@ -338,7 +368,7 @@ bool File::GetInfo(Info* info) {
 }
 
 File::Error File::GetLastFileError() {
-  return base::File::OSErrorToFileError(g_sb_file_error);
+  return base::File::OSErrorToFileError(errno);
 }
 
 // Static.
@@ -350,52 +380,40 @@ int File::Fstat(int fd, stat_wrapper_t* sb) {
   internal::AssertBlockingAllowed();
   return fstat(fd, sb);
 }
-int File::Lstat(const char* path, stat_wrapper_t* sb) {
-  internal::AssertBlockingAllowed();
-  return lstat(path, sb);
-}
 
-File::Error File::OSErrorToFileError(SbSystemError sb_system_error) {
-  switch (static_cast<SbFileError>(sb_system_error)) {
-    case kSbFileOk:
-      return FILE_OK;
-    case kSbFileErrorFailed:
-      return FILE_ERROR_FAILED;
-    case kSbFileErrorInUse:
-      return FILE_ERROR_IN_USE;
-    case kSbFileErrorExists:
-      return FILE_ERROR_EXISTS;
-    case kSbFileErrorNotFound:
-      return FILE_ERROR_NOT_FOUND;
-    case kSbFileErrorAccessDenied:
+// Static.
+File::Error File::OSErrorToFileError(int saved_errno) {
+  switch (saved_errno) {
+    case EACCES:
+    case EISDIR:
+    case EROFS:
+    case EPERM:
       return FILE_ERROR_ACCESS_DENIED;
-    case kSbFileErrorTooManyOpened:
-      return FILE_ERROR_TOO_MANY_OPENED;
-    case kSbFileErrorNoMemory:
-      return FILE_ERROR_NO_MEMORY;
-    case kSbFileErrorNoSpace:
-      return FILE_ERROR_NO_SPACE;
-    case kSbFileErrorNotADirectory:
-      return FILE_ERROR_NOT_A_DIRECTORY;
-    case kSbFileErrorInvalidOperation:
-      return FILE_ERROR_INVALID_OPERATION;
-    case kSbFileErrorSecurity:
-      return FILE_ERROR_SECURITY;
-    case kSbFileErrorAbort:
-      return FILE_ERROR_ABORT;
-    case kSbFileErrorNotAFile:
-      return FILE_ERROR_NOT_A_FILE;
-    case kSbFileErrorNotEmpty:
-      return FILE_ERROR_NOT_EMPTY;
-    case kSbFileErrorInvalidUrl:
-      return FILE_ERROR_INVALID_URL;
-    case kSbFileErrorIO:
+    case EBUSY:
+#if !BUILDFLAG(IS_NACL)  // ETXTBSY not defined by NaCl.
+    case ETXTBSY:
+#endif
+      return FILE_ERROR_IN_USE;
+    case EEXIST:
+      return FILE_ERROR_EXISTS;
+    case EIO:
       return FILE_ERROR_IO;
+    case ENOENT:
+      return FILE_ERROR_NOT_FOUND;
+    case ENFILE:  // fallthrough
+    case EMFILE:
+      return FILE_ERROR_TOO_MANY_OPENED;
+    case ENOMEM:
+      return FILE_ERROR_NO_MEMORY;
+    case ENOSPC:
+      return FILE_ERROR_NO_SPACE;
+    case ENOTDIR:
+      return FILE_ERROR_NOT_A_DIRECTORY;
     default:
-      NOTREACHED() << "Unrecognized SbSystemError: " << sb_system_error;
-      break;
+      // This function should only be called for errors.
+      DCHECK_NE(0, saved_errno);
+      return FILE_ERROR_FAILED;
   }
-  return FILE_ERROR_FAILED;
 }
 
 void File::DoInitialize(const FilePath& path, uint32_t flags) {
@@ -427,19 +445,18 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     errno = EOPNOTSUPP;
   }
 
-  if (flags & FLAG_WRITE && flags & FLAG_READ) {
-    open_flags |= O_RDWR;
-  } else if (flags & FLAG_WRITE) {
-    open_flags |= O_WRONLY;
+  if (flags & FLAG_WRITE || flags & FLAG_APPEND) {
+    if (flags & FLAG_READ) {
+      open_flags |= O_RDWR;
+    } else {
+      open_flags |= O_WRONLY;
+    } 
   }
 
   SB_COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
 
   int mode = S_IRUSR | S_IWUSR;
   int descriptor = HANDLE_EINTR(open(path.value().c_str(), open_flags, mode));
-
-  if (descriptor >= 0)
-    created_ = true;
 
   if (flags & FLAG_OPEN_ALWAYS) {
     if (descriptor < 0) {
@@ -450,8 +467,17 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     }
   }
 
-  if (descriptor < 0) {
-    error_details_ = OSErrorToFileError(g_sb_file_error);
+  if (descriptor >= 0 &&
+      (flags & (FLAG_CREATE_ALWAYS | FLAG_CREATE))) {
+    created_ = true;
+  }
+  
+  file_.reset(descriptor);
+
+  if (!file_.is_valid()) {
+    error_details_ = File::GetLastFileError();
+    LOG(INFO) << "HAO: DoInitialize: failed: error_details_" << error_details_;
+
   } else {
     error_details_ = FILE_OK;
     if (append_) {
@@ -464,6 +490,7 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   }
 
   async_ = ((flags & FLAG_ASYNC) == FLAG_ASYNC);
+  LOG(INFO) << "HAO: DoInitialize: created_" << created_;
 }
 
 bool File::Flush() {

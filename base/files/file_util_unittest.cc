@@ -338,11 +338,11 @@ void CreateTextFile(const FilePath& filename,
                     const std::wstring& contents) {
 #if defined(STARBOARD)
   const std::string contents_ascii = UTF16ToASCII(WideToUTF16(contents));
-
   int file =
-      open(filename.value().c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+      open(filename.value().c_str(), O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
   SB_CHECK(file >= 0);
-  SB_CHECK(starboard::WriteAll(file, contents_ascii.data(),contents_ascii.size()) ==
+  int ret = starboard::WriteAll(file, contents_ascii.data(),contents_ascii.size());
+  SB_CHECK(ret ==
            contents_ascii.size());
   SB_CHECK(!::close(file));
 #else   // !defined(STARBOARD)
@@ -363,7 +363,7 @@ std::wstring ReadTextFile(const FilePath& filename) {
 #if defined(STARBOARD)
   const int size_in_bytes = 64 * sizeof(wchar_t);
   char contents[size_in_bytes]{0};
-  int file = open(filename.value().c_str(), O_RDWR, S_IRUSR | S_IWUSR);
+  int file = open(filename.value().c_str(), 0, S_IRUSR | S_IWUSR);
   SB_CHECK(file >= 0);
   SB_CHECK(starboard::ReadAll(file, contents, size_in_bytes) != -1);
   SB_CHECK(!::close(file));

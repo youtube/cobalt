@@ -52,7 +52,7 @@ void WriteBuffer(const char* file_path,
 }
 
 void ReadBuffer(const char* file_path, char* buffer, size_t buffer_size) {
-  ScopedFile file(file_path, O_RDWR);
+  ScopedFile file(file_path, 0);
   ASSERT_TRUE(file.IsValid()) << "Failed to open file for reading";
   int count = file.ReadAll(buffer, buffer_size);
   ASSERT_EQ(kBufSize, count);

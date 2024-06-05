@@ -134,7 +134,7 @@ void CreateTemporaryFile(const char* name, const char* contents, int size) {
 
   path += kSbFileSepString;
   path += name;
-  ScopedFile file(path.c_str(), O_CREAT | O_WRONLY);
+  ScopedFile file(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
   if (!file.IsValid()) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "
                   << "Unable to create: " << path;

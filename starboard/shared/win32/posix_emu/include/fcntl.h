@@ -62,6 +62,4 @@ static const mode_t S_IXOTH = 0x00010000;
 
 static const mode_t MS_MODE_MASK = 0x0000ffff;
 
-int open(const char* path, int oflag, ...);
-
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_

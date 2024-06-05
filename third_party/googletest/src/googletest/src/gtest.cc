@@ -4193,7 +4193,7 @@ class XmlUnitTestResultPrinter : public EmptyTestEventListener {
 
 #if GTEST_OS_STARBOARD
 void WriteOuputFile(const std::string &output_file, const std::string &data) {
-  starboard::ScopedFile cache_file(output_file.c_str(), O_CREAT | O_WRONLY);
+  starboard::ScopedFile cache_file(output_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
   if (!cache_file.IsValid()) {
     SB_LOG(ERROR) << "Unable to open file " << output_file << " for XML output";
   }

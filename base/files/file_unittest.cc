@@ -269,9 +269,7 @@ TEST(FileTest, ReadWrite) {
 }
 
 TEST(FileTest, GetLastFileError) {
-#if defined(STARBOARD)
-  SetLastFileError(File::Error::FILE_ERROR_ACCESS_DENIED);
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   ::SetLastError(ERROR_ACCESS_DENIED);
 #else
   errno = EACCES;
@@ -350,6 +348,7 @@ TEST(FileTest, Length) {
                 base::File::FLAG_WRITE);
   ASSERT_TRUE(file.IsValid());
   EXPECT_EQ(0, file.GetLength());
+  LOG(INFO) << "hao: getlength: 1"; 
 
   // Write "test" to the file.
   char data_to_write[] = "test";
@@ -362,6 +361,7 @@ TEST(FileTest, Length) {
   int64_t file_size = 0;
   EXPECT_TRUE(file.SetLength(kExtendedFileLength));
   EXPECT_EQ(kExtendedFileLength, file.GetLength());
+  LOG(INFO) << "hao: getlength: 2"; 
   EXPECT_TRUE(GetFileSize(file_path, &file_size));
   EXPECT_EQ(kExtendedFileLength, file_size);
 
@@ -378,6 +378,7 @@ TEST(FileTest, Length) {
   const int kTruncatedFileLength = 2;
   EXPECT_TRUE(file.SetLength(kTruncatedFileLength));
   EXPECT_EQ(kTruncatedFileLength, file.GetLength());
+  LOG(INFO) << "hao: getlength: 3"; 
   EXPECT_TRUE(GetFileSize(file_path, &file_size));
   EXPECT_EQ(kTruncatedFileLength, file_size);
 
@@ -392,6 +393,7 @@ TEST(FileTest, Length) {
   const int64_t kBigFileLength = 5'000'000'000;
   EXPECT_TRUE(file.SetLength(kBigFileLength));
   EXPECT_EQ(kBigFileLength, file.GetLength());
+  LOG(INFO) << "hao: getlength: 4"; 
   EXPECT_TRUE(GetFileSize(file_path, &file_size));
   EXPECT_EQ(kBigFileLength, file_size);
 #endif
@@ -401,7 +403,9 @@ TEST(FileTest, Length) {
   file.Close();
   file.Initialize(file_path,
                   base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
+  LOG(INFO) << "hao: length: " << file.GetLength(); 
   EXPECT_EQ(0, file.GetLength());
+  LOG(INFO) << "hao: getlength: 5"; 
 }
 
 // Flakily fails: http://crbug.com/86494

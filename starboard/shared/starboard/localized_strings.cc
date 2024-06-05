@@ -44,7 +44,7 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
   SB_DCHECK(filename.length() > 0);
   SB_DCHECK(out_result);
 
-  ScopedFile file(filename.c_str(), O_RDWR);
+  ScopedFile file(filename.c_str(), 0);
   if (!file.IsValid()) {
     SB_DLOG(WARNING) << "Cannot open i18n file: " << filename;
     return false;

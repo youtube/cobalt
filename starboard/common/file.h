@@ -60,7 +60,11 @@ class ScopedFile {
     file_ = open(path, flags, S_IRUSR | S_IWUSR);
   }
 
-  ~ScopedFile() { close(file_); }
+  ~ScopedFile() {
+    if (file_ >= 0) {
+      close(file_);
+    }
+  }
 
   int file() const { return file_; }
 
