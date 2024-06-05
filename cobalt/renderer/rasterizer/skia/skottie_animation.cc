@@ -27,6 +27,11 @@ SkottieAnimation::SkottieAnimation(const char* data, size_t length)
   ResetRenderCache();
   skottie::Animation::Builder builder;
   skottie_animation_ = builder.make(data, length);
+  DCHECK(skottie_animation_);
+  if (!skottie_animation_) {
+    LOG(ERROR) << "Lottie animation failed to load!";
+    return;
+  }
   animation_size_ = math::Size(skottie_animation_->size().width(),
                                skottie_animation_->size().height());
   json_size_in_bytes_ = builder.getStats().fJsonSize;
@@ -34,6 +39,8 @@ SkottieAnimation::SkottieAnimation(const char* data, size_t length)
 
 void SkottieAnimation::SetAnimationTimeInternal(
     base::TimeDelta animate_function_time) {
+  if (!skottie_animation_) return;
+
   // Seeking to a particular frame takes precedence over normal playback.
   // Check whether "seek()" has been called but has yet to occur.
   if (seek_counter_ != properties_.seek_counter) {
@@ -134,10 +141,12 @@ void SkottieAnimation::SetAnimationTimeInternal(
 void SkottieAnimation::UpdateRenderCache(SkCanvas* render_target,
                                          const math::SizeF& size) {
   DCHECK(render_target);
+  DCHECK(skottie_animation_);
   if (cached_animation_time_ == last_updated_animation_time_) {
     // The render cache is already up-to-date.
     return;
   }
+  if (!skottie_animation_) return;
 
   cached_animation_time_ = last_updated_animation_time_;
   SkRect bounding_rect = SkRect::MakeWH(size.width(), size.height());
@@ -149,11 +158,13 @@ void SkottieAnimation::UpdateRenderCache(SkCanvas* render_target,
 void SkottieAnimation::UpdateAnimationFrameAndAnimateFunctionTimes(
     base::TimeDelta current_animation_time,
     base::TimeDelta current_animate_function_time) {
+  DCHECK(skottie_animation_);
   last_updated_animate_function_time_ = current_animate_function_time;
 
   if (current_animation_time == last_updated_animation_time_) {
     return;
   }
+  if (!skottie_animation_) return;
 
   // Dispatch a frame event every time a new frame is entered, and if the
   // animation is not complete.
