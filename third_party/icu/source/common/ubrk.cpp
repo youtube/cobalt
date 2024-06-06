@@ -93,7 +93,6 @@ ubrk_open(UBreakIteratorType type,
 //                       Invokes the rule builder.
 //
 //------------------------------------------------------------------------------
-// static_assert(sizeof(UChar) == 0, "The type T must be an integral type!");
 U_CAPI UBreakIterator* U_EXPORT2
 ubrk_openRules(  const UChar        *rules,
                        int32_t       rulesLength,

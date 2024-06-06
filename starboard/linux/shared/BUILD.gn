@@ -445,7 +445,7 @@ static_library("starboard_platform_sources") {
 
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_gtest_target_type, "starboard_platform_tests") {
-    # build_loader = false
+    build_loader = false
     testonly = true
 
     sources = media_tests_sources + player_tests_sources + [

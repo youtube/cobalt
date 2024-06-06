@@ -254,7 +254,7 @@ angle_static_library("preprocessor") {
   sources = angle_preprocessor_sources
 
   if (is_starboard) {
-    # suppressed_configs += [ "//starboard/build/config:warnings_as_errors" ]
+    suppressed_configs += [ "//starboard/build/config:warnings_as_errors" ]
   }
 
   public_deps = [
@@ -518,7 +518,7 @@ angle_static_library("translator") {
   public_configs += [ ":external_config" ]
 
   if (is_starboard) {
-    # suppressed_configs += [ "//starboard/build/config:warnings_as_errors" ]
+    suppressed_configs += [ "//starboard/build/config:warnings_as_errors" ]
   }
 
   deps = [

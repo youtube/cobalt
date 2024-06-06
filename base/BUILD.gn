@@ -2773,10 +2773,6 @@ component("i18n") {
     "i18n/utf8_validator_tables.h",
   ]
   defines = [ "BASE_I18N_IMPLEMENTATION" ]
-  defines += [
-    "U_COMMON_IMPLEMENTATION",
-    "UCONFIG_NO_CONVERSION=0",
-  ]
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
   public_deps = [
     "//third_party/ced",
@@ -3643,8 +3639,6 @@ test("base_unittests") {
     "//third_party/icu",
     "//third_party/modp_b64",
   ]
-
-  defines = [ "U_COMMON_IMPLEMENTATION" ]
 
   data_deps = [
   ]
