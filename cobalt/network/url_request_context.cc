@@ -205,12 +205,6 @@ URLRequestContext::URLRequestContext(
           net::NetLog::Get(), /*quick_check_enabled=*/true));
 
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
-#ifndef COBALT_PENDING_CLEAN_UP
-  // TODO: Confirm this is not needed.
-  // ack decimation significantly increases download bandwidth on low-end
-  // android devices.
-  SetQuicFlag(&FLAGS_quic_reloadable_flag_quic_enable_ack_decimation, true);
-#endif
   bool quic_enabled =
       configuration::Configuration::GetInstance()->CobaltEnableQuic();
   if (quic_enabled) {
