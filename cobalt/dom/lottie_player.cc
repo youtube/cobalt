@@ -35,6 +35,17 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+bool isBase64Encoded(const std::string& url) {
+  size_t pos = url.find(',');
+  if (pos != std::string::npos) {
+    std::string beforeComma = url.substr(0, pos);
+    return beforeComma.find("base64") != std::string::npos;
+  }
+  return false;
+}
+}  // namespace
+
 using render_tree::LottieAnimation;
 
 const char LottiePlayer::kTagName[] = "lottie-player";
@@ -299,20 +310,12 @@ void LottiePlayer::UpdateAnimationData() {
       return;
     }
 
-    auto isBase64Encoded = [](const std::string& url) -> bool {
-      size_t pos = url.find(',');
-      if (pos != std::string::npos) {
-        std::string beforeComma = url.substr(0, pos);
-        return beforeComma.find("base64") != std::string::npos;
-      }
-      return false;
-    };
-
     // Force base64 encoding of plain/raw inputs, to ensure no URL escaping
     // occurs.
     GURL resource_url = selected_source;
     if (selected_source.SchemeIs("data") && !isBase64Encoded(src)) {
-      auto encoded = ForgivingBase64Encode(src.substr(src.find(',') + 1));
+      base::Optional<std::string> encoded =
+          ForgivingBase64Encode(src.substr(src.find(',') + 1));
       if (encoded) {
         resource_url = GURL(std::string("data:text/json;base64,") + *encoded);
       }
