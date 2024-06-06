@@ -103,6 +103,9 @@ class LoaderFactory : public ScriptLoaderFactory {
   // requested again.
   void NotifyResourceRequested(const std::string& url);
 
+  // Enable FetcherCache for file-fetching.
+  void EnableFetcherCache();
+
  private:
   void SuspendActiveLoaders();
   void ResumeActiveLoaders(render_tree::ResourceProvider* resource_provider);
@@ -117,6 +120,9 @@ class LoaderFactory : public ScriptLoaderFactory {
 
   // Used to create render_tree resources.
   render_tree::ResourceProvider* resource_provider_;
+
+  const char* name_;
+  size_t encoded_image_cache_capacity_;
 };
 
 }  // namespace loader

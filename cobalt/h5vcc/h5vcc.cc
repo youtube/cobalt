@@ -28,14 +28,14 @@ H5vcc::H5vcc(const Settings& settings) {
   metrics_ =
       new H5vccMetrics(settings.persistent_settings, settings.event_dispatcher);
   runtime_ = new H5vccRuntime(settings.event_dispatcher);
-  settings_ =
-      new H5vccSettings(settings.set_web_setting_func, settings.media_module,
-                        settings.can_play_type_handler, settings.network_module,
+  settings_ = new H5vccSettings(
+      settings.set_web_setting_func, settings.media_module,
+      settings.can_play_type_handler, settings.network_module,
 #if SB_IS(EVERGREEN)
-                        settings.updater_module,
+      settings.updater_module,
 #endif
-                        settings.user_agent_data, settings.global_environment,
-                        settings.persistent_settings);
+      settings.user_agent_data, settings.global_environment,
+      settings.persistent_settings, settings.set_fetcher_cache_func);
   storage_ =
       new H5vccStorage(settings.network_module, settings.persistent_settings);
   trace_event_ = new H5vccTraceEvent();

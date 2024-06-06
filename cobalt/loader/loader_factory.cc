@@ -31,11 +31,9 @@ LoaderFactory::LoaderFactory(const char* name, FetcherFactory* fetcher_factory,
                              base::ThreadType loader_thread_priority)
     : ScriptLoaderFactory(name, fetcher_factory, loader_thread_priority),
       debugger_hooks_(debugger_hooks),
-      resource_provider_(resource_provider) {
-  if (encoded_image_cache_capacity > 0) {
-    fetcher_cache_ = new FetcherCache(name, encoded_image_cache_capacity);
-  }
-}
+      resource_provider_(resource_provider),
+      name_(name),
+      encoded_image_cache_capacity_(encoded_image_cache_capacity) {}
 
 LoaderFactory::~LoaderFactory() {
   if (fetcher_cache_) {
@@ -206,6 +204,12 @@ void LoaderFactory::ResumeActiveLoaders(
 
   // Wait for all loader thread messages to be flushed before returning.
   base::task_runner_util::WaitForFence(load_thread_.task_runner(), FROM_HERE);
+}
+
+void LoaderFactory::EnableFetcherCache() {
+  if (!fetcher_cache_ && encoded_image_cache_capacity_ > 0) {
+    fetcher_cache_ = new FetcherCache(name_, encoded_image_cache_capacity_);
+  }
 }
 
 }  // namespace loader

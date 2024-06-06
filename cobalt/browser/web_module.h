@@ -406,6 +406,9 @@ class WebModule : public base::CurrentThread::DestructionObserver,
   std::string OnBoxDumpMessage(const std::string& message);
 #endif  // ENABLE_DEBUGGER
 
+  // Enable FetcherCache for file-fetching.
+  void SetFetcherCacheEnabled();
+
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |InitializeTaskInThread|.

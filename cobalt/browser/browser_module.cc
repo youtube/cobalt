@@ -2223,6 +2223,8 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vccCallback(
   h5vcc_settings.global_environment = settings->context()->global_environment();
   h5vcc_settings.persistent_settings = options_.persistent_settings;
   h5vcc_settings.can_play_type_handler = can_play_type_handler_.get();
+  h5vcc_settings.set_fetcher_cache_func = base::Bind(
+      &BrowserModule::SetFetcherCacheEnabled, base::Unretained(this));
 
   auto* h5vcc_object = new h5vcc::H5vcc(h5vcc_settings);
   if (!web_module_created_callback_.is_null()) {
@@ -2259,6 +2261,12 @@ std::string BrowserModule::OnBoxDumpMessage(const std::string& message) {
   return response;
 }
 #endif
+
+void BrowserModule::SetFetcherCacheEnabled() {
+  if (web_module_) {
+    web_module_->SetFetcherCacheEnabled();
+  }
+}
 
 }  // namespace browser
 }  // namespace cobalt

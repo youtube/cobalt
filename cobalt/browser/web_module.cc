@@ -287,6 +287,9 @@ class WebModule::Impl {
   std::string OnBoxDumpMessage(const std::string& message);
 #endif  // ENABLE_DEBUGGER
 
+  // Enable FetcherCache for file-fetching.
+  void SetFetcherCacheEnabled();
+
  private:
   class DocumentLoadedObserver;
 
@@ -1739,6 +1742,14 @@ std::string WebModule::Impl::OnBoxDumpMessage(const std::string& message) {
 }
 
 #endif  // ENABLE_DEBUGGER
+
+void WebModule::SetFetcherCacheEnabled() { impl_->SetFetcherCacheEnabled(); }
+
+void WebModule::Impl::SetFetcherCacheEnabled() {
+  if (loader_factory_) {
+    loader_factory_->EnableFetcherCache();
+  }
+}
 
 }  // namespace browser
 }  // namespace cobalt
