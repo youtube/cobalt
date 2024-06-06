@@ -25,6 +25,41 @@ runs:
           docker/linux/**
           .github/actions/docker/**
 
+
+    - name: TMP Debug
+      id: debug-1
+      uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ inputs.docker_image }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=tag
+          type=ref,event=pr
+    - name: TMP Debug
+      id: debug-2
+      uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ inputs.docker_image }}
+        tags: type=raw,value=${{ github.base_ref }}
+    - name: TMP Debug
+      id: debug-3
+      uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ inputs.docker_image }}
+        tags: |
+          type=raw,value=${{ github.base_ref }}
+          type=ref,event=branch
+          type=ref,event=tag
+          type=ref,event=pr
+    - shell: bash
+      run: |
+        echo "${{ steps.debug-1.outputs.tags }}"
+        echo
+        echo "${{ steps.debug-2.outputs.tags }}"
+        echo
+        echo "${{ steps.debug-3.outputs.tags }}"
+
+
     - name: Retrieve existing Docker image tags and metadata
       id: meta
       uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
