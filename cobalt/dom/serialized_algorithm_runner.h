@@ -89,7 +89,8 @@ class SerializedAlgorithmRunner {
           : synchronization_required_(synchronization_required), mutex_(mutex) {
         if (synchronization_required_) {
           // Crash if we are trying to re-acquire again on the same thread.
-          CHECK(!pthread_equal(acquired_thread_id_, pthread_self()));
+          CHECK_NE(acquired_thread_id_, SbThreadGetId());
+
 
           int64_t start_usec =
               (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
@@ -113,13 +114,13 @@ class SerializedAlgorithmRunner {
                     start_usec,
                 1 * base::Time::kMicrosecondsPerSecond);
           }
-          acquired_thread_id_ = pthread_self();
+          acquired_thread_id_ = SbThreadGetId();
         }
       }
       ~ScopedLockWhenRequired() {
         if (synchronization_required_) {
-          CHECK(pthread_equal(acquired_thread_id_, pthread_self()));
-          acquired_thread_id_ = 0;
+          CHECK_EQ(acquired_thread_id_, SbThreadGetId());
+          acquired_thread_id_ = kSbThreadInvalidId;
           mutex_.Release();
         }
       }
@@ -127,7 +128,7 @@ class SerializedAlgorithmRunner {
      private:
       const bool synchronization_required_;
       base::Lock& mutex_;
-      pthread_t acquired_thread_id_ = 0;
+      SbThreadId acquired_thread_id_ = kSbThreadInvalidId;
     };
 
     Handle(bool synchronization_required,
