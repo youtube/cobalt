@@ -265,7 +265,7 @@ int OS::GetCurrentProcessId() {
 }
 
 int OS::GetCurrentThreadId() { 
-  return reinterpret_cast<uintptr_t>(reinterpret_cast<void*>(pthread_self()));
+  return SbThreadGetId();
 }
 
 int OS::GetLastError() { return SbSystemGetLastError(); }
