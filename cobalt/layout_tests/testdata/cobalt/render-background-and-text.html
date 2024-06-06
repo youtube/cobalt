@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!-- Tracking complex rendering bugs -->
+<html>
+
+<head>
+    <style>
+        body {
+            color: white;
+            background-color: #000 !important;
+        }
+        #container {
+            height: 720px;
+            width: 1280px;
+            position: absolute;
+        }
+
+        #problem {
+            display: block;
+            height: 100%;
+            background-size: 50%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div style="width: 800px; height: 700px; position: absolute">
+            <ytlr-playback-preview>
+                <ytlr-tile-header-renderer style="width: 700px; height: 400px; display: block; width: 100%;">
+                    <div style="height: 100%">
+                        <div id="problem"
+                            style="background-image: url('baby_tux.png');">
+                        </div>
+                    </div>
+                    <span>This is just some text</span>
+                </ytlr-tile-header-renderer>
+            </ytlr-playback-preview>
+        </div>
+
+    </div>
+    <script>
+        if (window.testRunner) {
+          window.testRunner.waitUntilDone();
+        }
+        window.onload = function () {
+            window.testRunner.DoNonMeasuredLayout();
+            // Then, after waiting for the font to load for half of a second, go ahead
+            // and take a snapshot.
+            window.setTimeout(function () {
+                window.testRunner.notifyDone();
+            }, 500);
+    };
+    </script>
+</body>
+
+</html>
