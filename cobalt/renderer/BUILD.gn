@@ -263,6 +263,7 @@ copy("renderer_copy_test_data") {
     "rasterizer/testdata/CompositionOfSingleSolidColorRectWithTranslationRotationAndAnisoScale-expected.png",
     "rasterizer/testdata/ConcurrentTrimPathsLottieAnimationTest-expected.png",
     "rasterizer/testdata/DebugAnimatedWebPFrame-expected.png",
+    "rasterizer/testdata/DebugPngImageFrame-expected.png",
     "rasterizer/testdata/DownwardPointingTriangle-expected.png",
     "rasterizer/testdata/DrawNullImage-expected.png",
     "rasterizer/testdata/DrawNullImageInRoundedFilter-expected.png",
@@ -484,6 +485,7 @@ copy("renderer_copy_test_data") {
     "rasterizer/testdata/ZoomedInImagesDoNotWrapInterpolated-expected.png",
     "rasterizer/testdata/hunter_gone_too_deep.json",
     "rasterizer/testdata/loading-spinner-opaque.webp",
+    "rasterizer/testdata/ship.png",
     "rasterizer/testdata/white_material_wave_loading.json",
     "rasterizer/testdata/ytk_ink_logo_rotate.json",
   ]

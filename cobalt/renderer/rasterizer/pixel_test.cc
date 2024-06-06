@@ -142,6 +142,7 @@ bool SetBounds(bool result, int x, int y, int width, int height) {
 
 }  // namespace
 
+
 TEST_F(PixelTest, RedFillRectOnEntireSurface) {
   // Create a test render tree that will fill the entire output surface
   // with a solid color rectangle.
@@ -4633,6 +4634,40 @@ TEST_F(PixelTest, DebugAnimatedWebPFrame) {
   builder.AddChild(new ClearRectNode(math::RectF(output_surface_size()),
                                      ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)));
   builder.AddChild(frame_image_node);
+
+  scoped_refptr<Node> root = new CompositionNode(builder);
+  TestTree(root);
+}
+
+TEST_F(PixelTest, DebugPngImageFrame) {
+  MockImageDecoder image_decoder(GetResourceProvider());
+  image_decoder.ExpectCallWithError(base::nullopt);
+
+  std::vector<uint8> image_data = GetFileData(GetTestFilePath("ship.png"));
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                            image_data.size());
+  image_decoder.Finish();
+
+  loader::image::StaticImage* static_image =
+      base::polymorphic_downcast<loader::image::StaticImage*>(
+          image_decoder.image().get());
+  ASSERT_TRUE(static_image);
+  scoped_refptr<Image> frame_image =
+      base::polymorphic_downcast<render_tree::Image*>(
+          static_image->image().get());
+
+  SizeF half_output_size = ScaleSize(output_surface_size(), 0.5f, 0.5f);
+  RectF quad =
+      RectF(PointF(-half_output_size.width(), -half_output_size.height()),
+            ScaleSize(output_surface_size(), 2.0f, 2.0f));
+
+  scoped_refptr<ImageNode> frame_image_node = new ImageNode(frame_image, quad);
+
+  CompositionNode::Builder builder;
+  builder.AddChild(frame_image_node);
+  builder.AddChild(CreateTextNodeWithinSurface(GetResourceProvider(), "Cobalt",
+                                               FontStyle(), 80,
+                                               ColorRGBA(0, 0, 0, 1.0)));
 
   scoped_refptr<Node> root = new CompositionNode(builder);
   TestTree(root);
