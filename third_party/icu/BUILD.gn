@@ -439,8 +439,8 @@ if (icu_use_data_file) {
     outputs = [ "$root_out_dir/icudtl_extra.dat" ]
   }
 } else {
-  if (use_cobalt_customizations && is_win) {
-    # We use NASM for the data assembly on Windows and it expects .asm files.
+  if (use_cobalt_customizations && (is_win || current_os == "playstation")) {
+    # These platforms use NASM for the data assembly and it expects .asm files.
     data_assembly = "$target_gen_dir/${data_bundle_prefix}_dat.asm"
   } else {
   data_assembly = "$target_gen_dir/${data_bundle_prefix}_dat.S"
@@ -463,7 +463,7 @@ if (icu_use_data_file) {
       args += [ "--win" ]
       }
     } else if (use_cobalt_customizations && current_os == "playstation") {
-      args += [ "--win" ]
+      args += [ "--nasm" ]
     }
   }
 
@@ -484,7 +484,7 @@ if (icu_use_data_file) {
     not_needed([ "inline_data_assembly" ])
   }
 
-  if (use_cobalt_customizations && is_win) {
+  if (use_cobalt_customizations && (is_win || current_os == "playstation")) {
     nasm_assemble("icudata") {
       sources = [ data_assembly ]
       deps = [ ":make_data_assembly" ]
