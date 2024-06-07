@@ -335,9 +335,10 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   SkRect source_rect =
       SkRect::MakeWH(surface_bounds.width(), surface_bounds.height());
 
-  draw_state_.render_target->drawImageRect(image.get(), source_rect, dest_rect,
-                                           SkSamplingOptions(), &paint,
-                                           SkCanvas::kStrict_SrcRectConstraint);
+  draw_state_.render_target->drawImageRect(
+      image.get(), source_rect, dest_rect,
+      SkSamplingOptions(SkFilterMode::kLinear), &paint,
+      SkCanvas::kStrict_SrcRectConstraint);
 
   // Finally restore our parent render target's original transform for the
   // next draw call.
@@ -596,8 +597,8 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
       SkRect src = SkRect::MakeXYWH(x, y, width, height);
       draw_state->render_target->drawImageRect(
           image.get(), src, CobaltRectFToSkiaRect(destination_rect),
-          SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone), &paint,
-          SkCanvas::kStrict_SrcRectConstraint);
+          SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear),
+          &paint, SkCanvas::kStrict_SrcRectConstraint);
     }
   } else {
     // Use the more general approach which allows arbitrary local texture
@@ -610,7 +611,7 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
     if (image) {
       sk_sp<SkShader> image_shader = image->makeShader(
           SkTileMode::kRepeat, SkTileMode::kRepeat,
-          SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone),
+          SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear),
           &skia_local_transform);
 
       paint.setShader(image_shader);
@@ -1417,8 +1418,9 @@ void DrawSolidRoundedRectBorderSoftware(
   SkPaint render_target_paint;
   bitmap.setImmutable();
   sk_sp<SkImage> image = SkImage::MakeFromBitmap(bitmap);
-  draw_state->render_target->drawImage(
-      image, rect.x(), rect.y(), SkSamplingOptions(), &render_target_paint);
+  draw_state->render_target->drawImage(image, rect.x(), rect.y(),
+                                       SkSamplingOptions(SkFilterMode::kLinear),
+                                       &render_target_paint);
 }
 
 void DrawSolidRoundedRectBorder(
