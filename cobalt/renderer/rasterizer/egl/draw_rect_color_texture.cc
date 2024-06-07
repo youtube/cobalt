@@ -221,6 +221,7 @@ void DrawRectColorTexture::ExecuteRasterize(
     SetupVertexShader(graphics_state, program->GetVertexShader());
     SetupFragmentShaderAndDraw(graphics_state, program->GetFragmentShader());
   } else {
+    LOG(ERROR) << "Have textures!";
     ShaderProgram<ShaderVertexColorTexcoord, ShaderFragmentColorTexcoordYuv3>*
         program;
     program_manager->GetProgram(&program);

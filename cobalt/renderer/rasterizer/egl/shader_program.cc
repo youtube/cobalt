@@ -39,6 +39,7 @@ void CompileShader(GLuint handle, const GLchar* source) {
     DLOG(ERROR) << "shader compile error:\n" << log;
     DLOG(ERROR) << "shader source:\n" << source;
   }
+  LOG(ERROR) << "Compiled shader source:" << source;
   DCHECK(compiled == GL_TRUE);
 }
 
