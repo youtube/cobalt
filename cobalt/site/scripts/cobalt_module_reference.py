@@ -40,7 +40,7 @@ _HEADER_XML_RE = re.compile(_HEADER_XML_PATTERN)
 _SCRIPT_FILE = os.path.basename(__file__)
 _SCRIPT_NAME, _ = os.path.splitext(_SCRIPT_FILE)
 
-_OSS_STARBOARD_VERSIONS = [13, 14, 15]
+_OSS_STARBOARD_VERSIONS = [14, 15, 16]
 
 
 def _strip(string_or_none):
@@ -198,12 +198,12 @@ def _node_to_markdown(out, node):
     out.unordered_list()
   elif node.tag == 'listitem':
     out.item()
-  elif node.tag == 'heading':
+  elif node.tag in ['heading', 'title']:
     # Block tags should never be nested inside other blocks.
     assert not _strip(tail)
     try:
       levels = int(node.get('level'))
-    except ValueError:
+    except (ValueError, TypeError):
       levels = 1
     out.heading(levels=levels)
   elif node.tag == 'verbatim':
@@ -228,7 +228,7 @@ def _node_to_markdown(out, node):
     out.end_link()
   elif node.tag in ['orderedlist', 'itemizedlist']:
     out.end_list()
-  elif node.tag == 'heading':
+  elif node.tag in ['heading', 'title']:
     out.end_heading()
     out.pop_heading_level()
   elif node.tag == 'listitem':
