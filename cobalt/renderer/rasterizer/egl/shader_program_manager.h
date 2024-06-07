@@ -49,7 +49,7 @@ class ShaderProgramManager {
   void Preload();
 
   typedef std::unordered_map<base::TypeId, ShaderProgramBase*,
-                             std::hash<base::TypeId>>
+                             BASE_HASH_NAMESPACE::hash<base::TypeId>>
       ProgramMap;
   ProgramMap program_map_;
 };

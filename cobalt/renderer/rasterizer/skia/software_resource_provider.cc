@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/renderer/rasterizer/skia/software_resource_provider.h"
-
 #include <memory>
-#include <utility>
+
+#include "cobalt/renderer/rasterizer/skia/software_resource_provider.h"
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -28,8 +27,8 @@
 #include "cobalt/renderer/rasterizer/skia/software_image.h"
 #include "cobalt/renderer/rasterizer/skia/software_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
-#include "third_party/ots/src/include/opentype-sanitiser.h"
-#include "third_party/ots/src/include/ots-memory-stream.h"
+#include "third_party/ots/include/opentype-sanitiser.h"
+#include "third_party/ots/include/ots-memory-stream.h"
 #include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/core/SkStream.h"
 #include "third_party/skia/include/core/SkTypeface.h"
@@ -187,13 +186,6 @@ void SoftwareResourceProvider::LoadAdditionalFonts() {
   cobalt_font_manager->LoadLocaleDefault();
 }
 
-void SoftwareResourceProvider::ClearAdditionalFonts() {
-  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkFontMgr_Cobalt* cobalt_font_manager =
-      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
-  cobalt_font_manager->ClearLocaleDefault();
-}
-
 scoped_refptr<render_tree::Typeface>
 SoftwareResourceProvider::CreateTypefaceFromRawData(
     std::unique_ptr<render_tree::ResourceProvider::RawTypefaceDataVector>
@@ -238,7 +230,7 @@ SoftwareResourceProvider::CreateTypefaceFromRawData(
 
 scoped_refptr<render_tree::GlyphBuffer>
 SoftwareResourceProvider::CreateGlyphBuffer(
-    const char16_t* text_buffer, size_t text_length,
+    const base::char16* text_buffer, size_t text_length,
     const std::string& language, bool is_rtl,
     render_tree::FontProvider* font_provider) {
   return text_shaper_.CreateGlyphBuffer(text_buffer, text_length, language,
@@ -253,7 +245,7 @@ SoftwareResourceProvider::CreateGlyphBuffer(
 }
 
 float SoftwareResourceProvider::GetTextWidth(
-    const char16_t* text_buffer, size_t text_length,
+    const base::char16* text_buffer, size_t text_length,
     const std::string& language, bool is_rtl,
     render_tree::FontProvider* font_provider,
     render_tree::FontVector* maybe_used_fonts) {

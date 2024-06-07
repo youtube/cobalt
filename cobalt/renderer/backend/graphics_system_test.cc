@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/renderer/backend/graphics_system.h"
-
 #include <algorithm>
 #include <memory>
 
-#include "base/logging.h"
 #include "base/optional.h"
-#include "base/time/time.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
+#include "cobalt/renderer/backend/graphics_system.h"
 #include "starboard/log.h"
+#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -44,35 +42,30 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsSystemCanBeInitializedOften) {
   graphics_system = CreateDefaultGraphicsSystem();
   graphics_system.reset();
 
-  int64_t start = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
   for (int i = 0; i < kReferenceCount; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_system.reset();
   }
-  int64_t time_per_initialization_usec =
-      ((base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() - start) /
-      kReferenceCount;
-  LOG(INFO) << "Measured duration "
-            << time_per_initialization_usec /
-                   base::Time::kMicrosecondsPerMillisecond
-            << "ms per initialization.";
+  SbTimeMonotonic time_per_initialization =
+      (SbTimeGetMonotonicNow() - start) / kReferenceCount;
+  SB_LOG(INFO) << "Measured duration "
+               << time_per_initialization / kSbTimeMillisecond
+               << "ms per initialization.";
 
   // Graphics system initializations should not take more than the maximum of
-  // 250ms or three times as long as the time we just measured.
-  int64_t maximum_time_usec_per_initialization =
-      std::max<int64_t>(3 * time_per_initialization_usec,
-                        250 * base::Time::kMicrosecondsPerMillisecond);
+  // 200ms or three times as long as the time we just measured.
+  SbTimeMonotonic maximum_time_per_initialization =
+      std::max(3 * time_per_initialization, 200 * kSbTimeMillisecond);
 
-  int64_t last = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
+  SbTimeMonotonic last = SbTimeGetMonotonicNow();
   for (int i = 0; i < 20; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_system.reset();
-    int64_t now = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
-    int64_t elapsed_time_usec = now - last;
-    LOG(INFO) << "Test duration "
-              << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
-              << "ms.";
-    ASSERT_LT(elapsed_time_usec, maximum_time_usec_per_initialization);
+    SbTimeMonotonic now = SbTimeGetMonotonicNow();
+    SB_LOG(INFO) << "Test duration " << (now - last) / kSbTimeMillisecond
+                 << "ms.";
+    ASSERT_LT(now - last, maximum_time_per_initialization);
     last = now;
   }
 }
@@ -90,7 +83,7 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
   graphics_context.reset();
   graphics_system.reset();
 
-  int64_t start = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
   for (int i = 0; i < kReferenceCount; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_context = graphics_system->CreateGraphicsContext();
@@ -98,22 +91,18 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
     graphics_context.reset();
     graphics_system.reset();
   }
-  int64_t time_per_initialization_usec =
-      base::Time::kMicrosecondsPerMillisecond +
-      ((base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() - start) /
-          kReferenceCount;
-  LOG(INFO) << "Measured duration "
-            << time_per_initialization_usec /
-                   base::Time::kMicrosecondsPerMillisecond
-            << "ms per initialization.";
+  SbTimeMonotonic time_per_initialization = kSbTimeMillisecond +
+      (SbTimeGetMonotonicNow() - start) / kReferenceCount;
+  SB_LOG(INFO) << "Measured duration "
+               << time_per_initialization / kSbTimeMillisecond
+               << "ms per initialization.";
 
   // Graphics system and context initializations should not take more than the
-  // maximum of 250ms or three times as long as the time we just measured.
-  int64_t maximum_time_usec_per_initialization =
-      std::max<int64_t>(3 * time_per_initialization_usec,
-                        250 * base::Time::kMicrosecondsPerMillisecond);
+  // maximum of 200ms or three times as long as the time we just measured.
+  SbTimeMonotonic maximum_time_per_initialization =
+      std::max(3 * time_per_initialization, 200 * kSbTimeMillisecond);
 
-  int64_t last = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
+  SbTimeMonotonic last = SbTimeGetMonotonicNow();
   for (int i = 0; i < 20; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_context = graphics_system->CreateGraphicsContext();
@@ -121,12 +110,10 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
     graphics_context.reset();
     graphics_system.reset();
 
-    int64_t now = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
-    int64_t elapsed_time_usec = now - last;
-    LOG(INFO) << "Test duration "
-              << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
-              << "ms.";
-    ASSERT_LT(elapsed_time_usec, maximum_time_usec_per_initialization);
+    SbTimeMonotonic now = SbTimeGetMonotonicNow();
+    SB_LOG(INFO) << "Test duration " << (now - last) / kSbTimeMillisecond
+                 << "ms.";
+    ASSERT_LT(now - last, maximum_time_per_initialization);
     last = now;
   }
 }

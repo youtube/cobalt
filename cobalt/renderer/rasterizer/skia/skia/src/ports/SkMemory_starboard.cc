@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdlib.h>
-
 #include "SkMalloc.h"
 #include "starboard/memory.h"
 #include "starboard/system.h"
@@ -40,21 +38,21 @@ void sk_abort_no_print() { SbSystemBreakIntoDebugger(); }
 void sk_out_of_memory(void) { SbSystemBreakIntoDebugger(); }
 
 void* sk_realloc_throw(void* addr, size_t size) {
-  return throw_on_failure(size, realloc(addr, size));
+  return throw_on_failure(size, SbMemoryReallocate(addr, size));
 }
 
 void sk_free(void* p) {
   if (p) {
-    free(p);
+    SbMemoryDeallocate(p);
   }
 }
 
 void* sk_malloc_flags(size_t size, unsigned flags) {
   void* p;
   if (flags & SK_MALLOC_ZERO_INITIALIZE) {
-    p = calloc(size, 1);
+    p = SbMemoryCalloc(size, 1);
   } else {
-    p = malloc(size);
+    p = SbMemoryAllocate(size);
   }
   if (flags & SK_MALLOC_THROW) {
     return throw_on_failure(size, p);

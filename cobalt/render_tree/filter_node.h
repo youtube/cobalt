@@ -15,8 +15,6 @@
 #ifndef COBALT_RENDER_TREE_FILTER_NODE_H_
 #define COBALT_RENDER_TREE_FILTER_NODE_H_
 
-#include <utility>
-
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/optional.h"
@@ -87,8 +85,7 @@ class FilterNode : public Node {
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Args>
-  FilterNode(Args&&... args)  // NOLINT(runtime/explicit)
-      : data_(std::forward<Args>(args)...) {
+  FilterNode(Args&&... args) : data_(std::forward<Args>(args)...) {
     if (DCHECK_IS_ON()) {
       AssertValid();
     }

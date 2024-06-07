@@ -61,9 +61,7 @@ void SoftwareRasterizer::Submit(
       gl_format = GL_BGRA_EXT;
       break;
     }
-    default: {
-      NOTREACHED() << "Unsupported GL color format.";
-    }
+    default: { NOTREACHED() << "Unsupported GL color format."; }
   }
   std::unique_ptr<cobalt::renderer::backend::TextureDataEGL> bitmap_pixels =
       context_->system_egl()->AllocateTextureData(

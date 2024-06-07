@@ -16,7 +16,6 @@
 
 #include <cmath>
 #include <string>
-#include <utility>
 
 #include "base/bind.h"
 #include "cobalt/math/size_f.h"
@@ -31,8 +30,8 @@
 
 using cobalt::math::Matrix3F;
 using cobalt::math::RectF;
-using cobalt::math::ScaleMatrix;
 using cobalt::math::SizeF;
+using cobalt::math::ScaleMatrix;
 using cobalt::math::TranslateMatrix;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
@@ -42,9 +41,9 @@ using cobalt::render_tree::GlyphBuffer;
 using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::TextNode;
-using cobalt::render_tree::animations::AnimateNode;
 using cobalt::render_tree::animations::Animation;
 using cobalt::render_tree::animations::AnimationList;
+using cobalt::render_tree::animations::AnimateNode;
 
 namespace cobalt {
 namespace renderer {

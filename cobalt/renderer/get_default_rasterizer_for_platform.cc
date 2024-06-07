@@ -16,7 +16,6 @@
 
 #include <memory>
 
-#include "base/logging.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
@@ -88,7 +87,7 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
       return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};
     }
   } else {
-    LOG(ERROR) << "GLES2 must be available.";
+    SB_LOG(ERROR) << "GLES2 must be available.";
     SB_DCHECK(false);
     return {};
   }

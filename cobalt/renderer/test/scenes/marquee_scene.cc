@@ -16,7 +16,6 @@
 
 #include <memory>
 #include <string>
-#include <utility>
 
 #include "base/bind.h"
 #include "cobalt/math/size_f.h"
@@ -33,6 +32,9 @@ using cobalt::math::Matrix3F;
 using cobalt::math::RectF;
 using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
+using cobalt::render_tree::animations::AnimateNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
@@ -45,9 +47,6 @@ using cobalt::render_tree::RectNode;
 using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::SolidColorBrush;
 using cobalt::render_tree::TextNode;
-using cobalt::render_tree::animations::AnimateNode;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
 
 namespace cobalt {
 namespace renderer {
@@ -108,8 +107,9 @@ scoped_refptr<render_tree::Node> CreateMarqueeScene(
   // a switch from the right side to the left is not noticed.
 
   // Center the text's bounding box vertically on the screen.
-  float y_position = (output_dimensions.height() / 2.0f) - text_bounds.y() -
-                     (text_bounds.height() / 2.0f);
+  float y_position =
+      (output_dimensions.height() / 2.0f) - text_bounds.y() -
+          (text_bounds.height() / 2.0f);
 
   // Add a background rectangle to the text in order to demonstrate the
   // relationship between the text's origin and its bounding box.

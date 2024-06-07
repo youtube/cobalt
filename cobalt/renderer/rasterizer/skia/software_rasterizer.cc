@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
-
 #include <memory>
 
-#include "base/bind.h"
+#include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
+
 #include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"

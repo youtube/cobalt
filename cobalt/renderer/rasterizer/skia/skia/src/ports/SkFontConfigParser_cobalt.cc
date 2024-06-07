@@ -17,7 +17,6 @@
 #include <ft2build.h>
 #include FT_TYPES_H
 #include <libxml/parser.h>
-
 #include <limits>
 #include <memory>
 #include <stack>

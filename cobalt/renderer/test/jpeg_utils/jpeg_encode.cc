@@ -1,4 +1,3 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +15,11 @@
 #include "cobalt/renderer/test/jpeg_utils/jpeg_encode.h"
 
 #include <memory>
-#include <utility>
 #include <vector>
 
 #include "base/trace_event/trace_event.h"
 #include "starboard/memory.h"
-#include "third_party/libjpeg_turbo/turbojpeg.h"
+#include "third_party/libjpeg-turbo/turbojpeg.h"
 
 namespace cobalt {
 namespace renderer {
@@ -34,7 +32,7 @@ std::unique_ptr<uint8[]> EncodeRGBAToBuffer(const uint8_t* pixel_data,
                                             size_t* out_size) {
   TRACE_EVENT0("cobalt::renderer", "jpegEncode::EncodeRGBAToBuffer()");
   unsigned char* jpeg_buffer = NULL;
-  unsigned long jpegSize = 0;  // NOLINT(runtime/int)
+  unsigned long jpegSize = 0;
 
   int flags = 0;
   // This can be a value between 1 and 100.
@@ -58,7 +56,7 @@ std::unique_ptr<uint8[]> EncodeRGBAToBuffer(const uint8_t* pixel_data,
   // with delete, so the data has to be copied in.
   std::unique_ptr<uint8[]> out_buffer(new uint8[jpegSize]);
   memcpy(out_buffer.get(), &(jpeg_buffer[0]), jpegSize);
-  free(jpeg_buffer);
+  SbMemoryDeallocate(jpeg_buffer);
   return std::move(out_buffer);
 }
 

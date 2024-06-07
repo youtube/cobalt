@@ -16,8 +16,6 @@
 #define COBALT_RENDERER_BACKEND_EGL_TEXTURE_DATA_H_
 
 #include <memory>
-#include <utility>
-
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/egl_and_gles.h"

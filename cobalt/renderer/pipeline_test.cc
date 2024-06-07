@@ -40,10 +40,9 @@ const base::TimeDelta kRasterizeDelay =
 
 class MockResourceProvider : public cobalt::render_tree::ResourceProviderStub {
  public:
-  MockResourceProvider() : fonts_loaded_(false) {}
+  MockResourceProvider() : fonts_loaded_(false){};
   ~MockResourceProvider() override {}
   void LoadAdditionalFonts() override { fonts_loaded_ = true; }
-  void ClearAdditionalFonts() override {}
   bool fonts_loaded_;
 };
 

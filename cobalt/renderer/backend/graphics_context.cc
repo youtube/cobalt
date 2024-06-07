@@ -14,8 +14,6 @@
 
 #include "cobalt/renderer/backend/graphics_context.h"
 
-#include <string.h>
-
 #include "base/logging.h"
 #include "starboard/gles.h"
 #include "starboard/string.h"
@@ -31,8 +29,8 @@ GraphicsContext::GraphicsContext(GraphicsSystem* system) : system_(system) {
     // Verify it's the extension needed.
     if (strcmp(graphics_extension_->name, kCobaltExtensionGraphicsName) != 0 ||
         graphics_extension_->version < 1) {
-      LOG(WARNING) << "Not using supplied cobalt graphics extension: " << "'"
-                   << graphics_extension_->name << "' ("
+      LOG(WARNING) << "Not using supplied cobalt graphics extension: "
+                   << "'" << graphics_extension_->name << "' ("
                    << graphics_extension_->version << ")";
       graphics_extension_ = nullptr;
     }

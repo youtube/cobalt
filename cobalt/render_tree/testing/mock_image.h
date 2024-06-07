@@ -16,6 +16,7 @@
 #define COBALT_RENDER_TREE_TESTING_MOCK_IMAGE_H_
 
 #include "cobalt/render_tree/image.h"
+
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {

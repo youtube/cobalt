@@ -16,7 +16,7 @@
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/wrap_main.h"
@@ -83,12 +83,13 @@ RendererSandbox::RendererSandbox()
 RendererSandbox* g_renderer_sandbox = NULL;
 
 void StartApplication(int argc, char** argv, const char* link,
-                      const base::Closure& quit_closure, int64_t timestamp) {
+                      const base::Closure& quit_closure,
+                      SbTimeMonotonic timestamp) {
   DCHECK(!g_renderer_sandbox);
   g_renderer_sandbox = new RendererSandbox();
   DCHECK(g_renderer_sandbox);
 
-  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
       FROM_HERE, quit_closure, base::TimeDelta::FromSeconds(30));
 }
 

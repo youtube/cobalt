@@ -16,7 +16,6 @@
 #define COBALT_RENDER_TREE_TEXT_NODE_H_
 
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -68,8 +67,7 @@ class TextNode : public Node {
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Args>
-  TextNode(Args&&... args)  // NOLINT(runtime/explicit)
-      : data_(std::forward<Args>(args)...) {}
+  TextNode(Args&&... args) : data_(std::forward<Args>(args)...) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;

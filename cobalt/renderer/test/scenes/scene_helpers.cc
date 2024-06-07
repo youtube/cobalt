@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/renderer/test/scenes/scene_helpers.h"
-
 #include <memory>
-#include <utility>
+
+#include "cobalt/renderer/test/scenes/scene_helpers.h"
 
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/size_f.h"

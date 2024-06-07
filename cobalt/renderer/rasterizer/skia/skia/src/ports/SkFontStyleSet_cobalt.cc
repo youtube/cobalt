@@ -24,6 +24,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "starboard/common/string.h"
 #include "third_party/skia/src/utils/SkOSPath.h"
 
 namespace {
@@ -147,8 +148,8 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
   // to 4 axes, and although OpenType font variations may have more, they tend
   // not to -- it's usually just weight, width, and slant. But just in case,
   // use a relatively high reservation.
-  computed_variation_position.reserve_back(16);
-  axis_definitions.reserve_back(16);
+  computed_variation_position.reserve(16);
+  axis_definitions.reserve(16);
 
   for (int i = 0; i < family_info.fonts.count(); ++i) {
     const FontFileInfo& font_file = family_info.fonts[i];
@@ -232,12 +233,12 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
 
     // Only add font formats that match the format setting.
     if (font_format_setting == kTtf) {
-      if (strcasecmp("ttf", extension) != 0 &&
-          strcasecmp(extension, "ttc") != 0) {
+      if (SbStringCompareNoCase("ttf", extension) != 0 &&
+          SbStringCompareNoCase(extension, "ttc") != 0) {
         continue;
       }
     } else if (font_format_setting == kWoff2 &&
-               strcasecmp("woff2", extension) != 0) {
+               SbStringCompareNoCase("woff2", extension) != 0) {
       continue;
     }
 
@@ -272,10 +273,10 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     if (index != nullptr) {
       // If style with name already exists in family, replace it.
       if (font_format_setting == kTtfPreferred &&
-          strcasecmp("ttf", extension) == 0) {
+          SbStringCompareNoCase("ttf", extension) == 0) {
         styles_[*index].reset(font);
       } else if (font_format_setting == kWoff2Preferred &&
-                 strcasecmp("woff2", extension) == 0) {
+                 SbStringCompareNoCase("woff2", extension) == 0) {
         styles_[*index].reset(font);
       }
     } else {

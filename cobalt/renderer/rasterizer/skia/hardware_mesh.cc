@@ -20,8 +20,7 @@
 #include <utility>
 #include <vector>
 
-#include "base/bind.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "starboard/configuration.h"
 
@@ -44,8 +43,8 @@ uint32 HardwareMesh::GetEstimatedSizeInBytes() const {
 
 const VertexBufferObject* HardwareMesh::GetVBO() const {
   if (!vbo_) {
-    if (base::SequencedTaskRunner::HasCurrentDefault()) {
-      rasterizer_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+    if (base::MessageLoop::current()) {
+      rasterizer_task_runner_ = base::ThreadTaskRunnerHandle::Get();
     }
     vbo_.reset(new VertexBufferObject(std::move(vertices_), draw_mode_));
   }
@@ -70,7 +69,7 @@ HardwareMesh::~HardwareMesh() {
   }
 
   if (!rasterizer_task_runner_ ||
-      rasterizer_task_runner_->RunsTasksInCurrentSequence()) {
+      rasterizer_task_runner_->BelongsToCurrentThread()) {
     DestroyVBO(cobalt_context_, std::move(vbo_));
     return;
   }

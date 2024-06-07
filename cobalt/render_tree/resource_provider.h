@@ -131,9 +131,6 @@ class ResourceProvider {
 
   // Loads additional fonts that should be loaded asynchronously at startup.
   virtual void LoadAdditionalFonts() = 0;
-  // Clears additional fonts loaded asynchronously at startup.
-  virtual void ClearAdditionalFonts() = 0;
-
 
   // Given a set of typeface information, this method returns the locally
   // available typeface that best fits the specified parameters. In the case
@@ -178,7 +175,7 @@ class ResourceProvider {
   //   determining the best font-glyph combination are encapsulated within the
   //   FontProvider object.
   virtual scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const char16_t* text_buffer, size_t text_length,
+      const base::char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       render_tree::FontProvider* font_provider) = 0;
 
@@ -205,8 +202,9 @@ class ResourceProvider {
   // NOTE: While shaping is done on the text in order to produce an accurate
   // width, a glyph buffer is never generated, so this method should be
   // faster than CreateGlyphBuffer().
-  virtual float GetTextWidth(const char16_t* text_buffer, size_t text_length,
-                             const std::string& language, bool is_rtl,
+  virtual float GetTextWidth(const base::char16* text_buffer,
+                             size_t text_length, const std::string& language,
+                             bool is_rtl,
                              render_tree::FontProvider* font_provider,
                              render_tree::FontVector* maybe_used_fonts) = 0;
 

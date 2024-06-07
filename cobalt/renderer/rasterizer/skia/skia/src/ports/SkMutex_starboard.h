@@ -15,8 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKMUTEX_STARBOARD_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKMUTEX_STARBOARD_H_
 
-#include <pthread.h>
-
+#include "starboard/common/mutex.h"
 #include "starboard/thread.h"
 
 // A Starboard-based implementation of mutex, with support for static
@@ -28,18 +27,18 @@
 // generation of a static initializer/finalizer.
 struct SkBaseMutex {
   void acquire() {
-    pthread_mutex_lock(&mutex_);
+    SbMutexAcquire(&mutex_);
     SetAcquired();
   }
 
   void release() {
     SetReleased();
-    pthread_mutex_unlock(&mutex_);
+    SbMutexRelease(&mutex_);
   }
 
   void assertHeld() { AssertAcquired(); }
 
-  pthread_mutex_t mutex_;
+  SbMutex mutex_;
 
 #ifdef SK_DEBUG
   void Init() {
@@ -82,12 +81,13 @@ class SkMutex : public SkBaseMutex {
  public:
   SkMutex() {
     Init();
-    pthread_mutex_init(&mutex_, nullptr);
+    SbMutexCreate(&mutex_);
   }
-  ~SkMutex() { pthread_mutex_destroy(&mutex_); }
+  ~SkMutex() { SbMutexDestroy(&mutex_); }
 };
 
-#define SK_BASE_MUTEX_INIT {PTHREAD_MUTEX_INITIALIZER}
+#define SK_BASE_MUTEX_INIT \
+  { SB_MUTEX_INITIALIZER }
 
 // Using POD-style initialization prevents the generation of a static
 // initializer.

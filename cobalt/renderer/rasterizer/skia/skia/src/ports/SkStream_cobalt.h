@@ -17,9 +17,6 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <utility>
-#include <vector>
 
 #include "SkMutex.h"
 #include "SkStream.h"
@@ -181,7 +178,7 @@ class SkFileMemoryChunkStream : public SkStreamAsset {
   // Required by SkStreamSeekable
   size_t getPosition() const override;
   bool seek(size_t position) override;
-  bool move(long offset) override;  // NOLINT(runtime/int)
+  bool move(long offset) override;
   SkFileMemoryChunkStream* onFork() const override;
 
   // Required by SkStreamAsset
@@ -199,7 +196,7 @@ class SkFileMemoryChunkStream : public SkStreamAsset {
 
   SkFileMemoryChunkStreamProvider* const stream_provider_;
 
-  FILE* const file_;
+  SkFile* const file_;
   size_t file_length_;
   size_t file_position_;
 

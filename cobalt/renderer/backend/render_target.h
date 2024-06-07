@@ -17,7 +17,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/size.h"
-#include "starboard/atomic.h"
 
 namespace cobalt {
 namespace renderer {

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
-
 #include <memory>
 #include <utility>
+
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 
 #include "SkFontDescriptor.h"
 #include "SkFontStyle.h"
@@ -70,9 +70,9 @@ std::unique_ptr<SkFontData> SkTypeface_Cobalt::onMakeFontData() const {
   if (!stream) {
     return nullptr;
   }
-  return std::make_unique<SkFontData>(
-      std::move(stream), index, 0, computed_variation_position_.data(),
-      computed_variation_position_.count(), nullptr, 0);
+  return std::make_unique<SkFontData>(std::move(stream), index,
+                                      computed_variation_position_.data(),
+                                      computed_variation_position_.count());
 }
 
 SkTypeface_CobaltStream::SkTypeface_CobaltStream(

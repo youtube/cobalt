@@ -18,7 +18,6 @@
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/mesh.h"
 #include "cobalt/renderer/egl_and_gles.h"
