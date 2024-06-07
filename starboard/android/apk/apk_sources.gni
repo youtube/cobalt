@@ -47,6 +47,7 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecCapabilitiesLogger.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaImage.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
