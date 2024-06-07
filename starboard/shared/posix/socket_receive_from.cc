@@ -118,8 +118,15 @@ int SbSocketReceiveFrom(SbSocket socket,
     socket->error = sbposix::TranslateSocketErrno(errno);
     return -1;
   } else if (socket->protocol == kSbSocketProtocolUdp) {
-#if 0
-    if (!out_source || (socket->message_idx < socket->message_count)) {
+    static int udp_gro_value = 0;
+    static socklen_t udp_gro_value_len = sizeof(udp_gro_value);
+    static bool supports_gro =
+        getsockopt(socket->socket_fd, SOL_UDP, UDP_GRO, &udp_gro_value,
+                   &udp_gro_value_len) == 0;
+
+#if 1
+    if (!supports_gro &&
+        (!out_source || (socket->message_idx < socket->message_count))) {
       // Batch read from the socket.
       // SB_LOG(INFO) << __FUNCTION__ << " // Batch read from the socket.";
       if (socket->message_idx >= socket->message_count) {
