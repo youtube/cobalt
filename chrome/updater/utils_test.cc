@@ -136,23 +136,29 @@ class UtilsTest : public testing::Test {
     ASSERT_TRUE(SbFileDelete(manifest_path.c_str()));
   }
 
-  void CreateEmptyLibrary(const std::string& name,
-                          const std::string& installation_path) {
+  std::string GetLibraryPath(const std::string& name,
+                             const std::string& installation_path) {
     std::string lib_path = base::StrCat(
         {installation_path, kSbFileSepString, kEvergreenLibDirname});
-    ASSERT_TRUE(EnsureDirectoryExists(lib_path.c_str()));
+    EXPECT_TRUE(EnsureDirectoryExists(lib_path.c_str()));
+    return base::StrCat({lib_path, kSbFileSepString, name});
+  }
 
-    lib_path = base::StrCat({lib_path, kSbFileSepString, name});
+  void CreateEmptyLibrary(const std::string& name,
+                          const std::string& installation_path) {
+    std::string lib_path = GetLibraryPath(name, installation_path);
     SbFile sb_file = SbFileOpen(
         lib_path.c_str(), kSbFileOpenAlways | kSbFileRead, nullptr, nullptr);
     ASSERT_TRUE(SbFileIsValid(sb_file));
     ASSERT_TRUE(SbFileClose(sb_file));
   }
 
-  void DeleteLibraryDirRecursively(const std::string& installation_path) {
-    std::string lib_path = base::StrCat(
-        {installation_path, kSbFileSepString, kEvergreenLibDirname});
-    ASSERT_TRUE(starboard::SbFileDeleteRecursive(lib_path.c_str(), false));
+  void DeleteLibrary(const std::string& name,
+                     const std::string& installation_path) {
+    std::string lib_path = GetLibraryPath(name, installation_path);
+    struct stat file_info;
+    ASSERT_TRUE(stat(lib_path.c_str(), &file_info) == 0);
+    ASSERT_TRUE(SbFileDelete(lib_path.c_str()));
   }
 
   std::vector<char> temp_dir_path_;
@@ -437,7 +443,8 @@ TEST_F(UtilsTest,
     "version": "1.2.0"
   })json";
   CreateManifest(manifest_content, installation_path);
-  CreateEmptyLibrary("libcobalt.so", installation_path);
+  std::string library_name = "libcobalt.so";
+  CreateEmptyLibrary(library_name, installation_path);
 
   EvergreenLibraryMetadata metadata =
       GetCurrentEvergreenLibraryMetadata(stub_get_extension_fn);
@@ -446,7 +453,7 @@ TEST_F(UtilsTest,
   ASSERT_EQ(metadata.file_type, "Uncompressed");
 
   DeleteManifest(installation_path);
-  DeleteLibraryDirRecursively(installation_path);
+  DeleteLibrary(library_name, installation_path);
 }
 
 TEST_F(UtilsTest,
@@ -472,14 +479,15 @@ TEST_F(UtilsTest,
       [](const char* name) { return &kStubInstallationManagerApi; };
 
   ASSERT_TRUE(EnsureDirectoryExists(installation_path.c_str()));
-  CreateEmptyLibrary("libcobalt.unexpected", installation_path);
+  std::string library_name = "libcobalt.unexpected";
+  CreateEmptyLibrary(library_name, installation_path);
 
   EvergreenLibraryMetadata metadata =
       GetCurrentEvergreenLibraryMetadata(stub_get_extension_fn);
 
   ASSERT_EQ(metadata.file_type, "FileTypeUnknown");
 
-  DeleteLibraryDirRecursively(installation_path);
+  DeleteLibrary(library_name, installation_path);
 }
 
 TEST_F(UtilsTest,
@@ -506,7 +514,8 @@ TEST_F(UtilsTest,
     "version": "1.2.0"
   })json";
   CreateManifest(manifest_content, installation_path);
-  CreateEmptyLibrary("libcobalt.lz4", installation_path);
+  std::string library_name = "libcobalt.lz4";
+  CreateEmptyLibrary(library_name, installation_path);
 
   EvergreenLibraryMetadata metadata =
       GetCurrentEvergreenLibraryMetadata(stub_get_extension_fn);
@@ -515,7 +524,7 @@ TEST_F(UtilsTest,
   ASSERT_EQ(metadata.file_type, "Compressed");
 
   DeleteManifest(installation_path);
-  DeleteLibraryDirRecursively(installation_path);
+  DeleteLibrary(library_name, installation_path);
 }
 
 }  // namespace

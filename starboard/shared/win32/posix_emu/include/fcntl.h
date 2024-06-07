@@ -36,6 +36,9 @@ extern "C" {
 int sb_fcntl(int fd, int cmd, ... /*arg*/);
 #define fcntl sb_fcntl
 
+int sb_open(const char* path, int oflag, ...);
+#define open sb_open
+
 #ifdef __cplusplus
 }
 #endif

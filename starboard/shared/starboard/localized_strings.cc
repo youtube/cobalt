@@ -44,7 +44,7 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
   SB_DCHECK(filename.length() > 0);
   SB_DCHECK(out_result);
 
-  ScopedFile file(filename.c_str(), 0);
+  ScopedFile file(filename.c_str(), O_RDONLY);
   if (!file.IsValid()) {
     SB_DLOG(WARNING) << "Cannot open i18n file: " << filename;
     return false;
@@ -125,6 +125,7 @@ LocalizedStrings::MatchType LocalizedStrings::GetMatchType() const {
 
 bool LocalizedStrings::LoadStrings(const std::string& language) {
   const std::string filename = GetFilenameForLanguage(language);
+
   std::string file_contents;
   if (!ReadFile(filename, &file_contents)) {
     SB_DLOG(ERROR) << "Error reading i18n file.";

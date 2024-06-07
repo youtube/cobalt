@@ -18,15 +18,21 @@
 #include <io.h>
 #include <starboard/types.h>
 
+#undef open
+#undef close
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+int sb_close(int fd);
+#define close sb_close
 
 // The implementation of the following functions are located in socket.cc.
 
 int fsync(int fd);
 
-int ftruncate(int fd, off_t length);
+int ftruncate(int fd, int64_t length);
 
 long lseek(int fd, long offset, int origin);  // NOLINT
 

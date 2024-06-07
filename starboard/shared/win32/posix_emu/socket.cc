@@ -249,7 +249,9 @@ int sb_socket(int domain, int type, int protocol) {
   return handle_db_put(handle);
 }
 
-int open(const char* path, int oflag, ...) {
+int sb_open(const char* path, int oflag, ...) {
+  SB_LOG(INFO) << "HAO: path: " << path;
+  SB_LOG(INFO) << "HAO: oflag: " << oflag;
   va_list args;
   va_start(args, oflag);
   int fd;
@@ -263,6 +265,7 @@ int open(const char* path, int oflag, ...) {
     fd = _open(path, oflag);
   }
   va_end(args);
+  SB_LOG(INFO) << "HAO: fd: " << fd;
 
   if (fd < 0) {
     return fd;
@@ -272,7 +275,7 @@ int open(const char* path, int oflag, ...) {
   return handle_db_put(handle);
 }
 
-int close(int fd) {
+int sb_close(int fd) {
   FileOrSocket handle = handle_db_get(fd, true);
 
   if (!handle.is_file && handle.socket == INVALID_SOCKET) {
@@ -297,7 +300,7 @@ int fsync(int fd) {
   return _commit(handle.file);
 }
 
-int ftruncate(int fd, off_t length) {
+int ftruncate(int fd, int64_t length) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
     return -1;
@@ -314,11 +317,17 @@ long lseek(int fd, long offset, int origin) {  // NOLINT
 }
 
 int sb_fstat(int fd, struct stat* buffer) {
+  SB_LOG(INFO) << "HAO: in sb_fstat";
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
+    SB_LOG(INFO) << "HAO: is not file, return";
     return -1;
   }
-  return _fstat(handle.file, (struct _stat*)buffer);
+
+  int ret = _fstat(handle.file, (struct _stat*)buffer);
+  SB_LOG(INFO) << "HAO: _fstat: " << ret;
+  return ret;
+  //return _fstat(handle.file, (struct _stat*)buffer);
 }
 
 int read(int fd, void* buffer, unsigned int buffer_size) {

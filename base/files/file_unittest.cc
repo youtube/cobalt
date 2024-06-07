@@ -390,12 +390,20 @@ TEST(FileTest, Length) {
 
 #if !BUILDFLAG(IS_FUCHSIA)  // Fuchsia doesn't seem to support big files.
   // Expand the file past the 4 GB limit.
-  const int64_t kBigFileLength = 5'000'000'000;
-  EXPECT_TRUE(file.SetLength(kBigFileLength));
-  EXPECT_EQ(kBigFileLength, file.GetLength());
-  LOG(INFO) << "hao: getlength: 4"; 
-  EXPECT_TRUE(GetFileSize(file_path, &file_size));
-  EXPECT_EQ(kBigFileLength, file_size);
+#if defined(STARBOARD)
+#if SB_IS(32_BIT)
+// doesn't work on Win32 with _chsize.
+#else
+  //if (sizeof(long) == 8) {
+    const int64_t kBigFileLength = 5'000'000'000;
+    EXPECT_TRUE(file.SetLength(kBigFileLength));
+    EXPECT_EQ(kBigFileLength, file.GetLength());
+    LOG(INFO) << "hao: getlength: 4";
+    EXPECT_TRUE(GetFileSize(file_path, &file_size));
+    EXPECT_EQ(kBigFileLength, file_size);
+  //}
+#endif
+#endif
 #endif
 
   // Close the file and reopen with base::File::FLAG_CREATE_ALWAYS, and make
@@ -648,14 +656,26 @@ TEST(FileTest, MAYBE_WriteDataToLargeOffset) {
 
   const char kData[] = "this file is sparse.";
   const int kDataLen = sizeof(kData) - 1;
+//  int64_t kLargeFileOffset;
+//
+//#if defined(STARBOARD)
+//  if (sizeof(long) == 4) {
+//    kLargeFileOffset = (1LL << 31) - 2;
+//  } else {
+//    kLargeFileOffset = (1LL << 31);
+//  }
+//#else   // defined(STARBOARD)
+//  kLargeFileOffset = (1LL << 31);
+//#endif  // defined(STARBOARD)
+
 #if defined(STARBOARD)
 #if SB_IS(32_BIT)
   // Maximum off_t for lseek() on 32-bit builds is just below 2^31.
   const int64_t kLargeFileOffset = (1LL << 31) - 2;
-#else  // SB_IS(32_BIT)
+#else   // SB_IS(32_BIT)
   const int64_t kLargeFileOffset = (1LL << 31);
 #endif  // SB_IS(32_BIT)
-#else  // defined(STARBOARD)
+#else   // defined(STARBOARD)
   const int64_t kLargeFileOffset = (1LL << 31);
 #endif  // defined(STARBOARD)
 

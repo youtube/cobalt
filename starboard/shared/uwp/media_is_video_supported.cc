@@ -213,15 +213,6 @@ class XboxVideoCapabilities {
       return is_supported;
     }
 
-#if SB_API_VERSION < 14
-    // AV1 decoder only supports YUVI420 compact texture format. The new format
-    // is only supported after
-    // 14.
-    if (codec == kSbMediaVideoCodecAv1) {
-      return false;
-    }
-#endif  // SB_API_VERSION >= 14
-
     is_supported &= ApplicationUwp::Get()->IsHdrSupported();
     is_supported &= bit_depth == 10;
     is_supported &= primary_id == kSbMediaPrimaryIdBt2020;

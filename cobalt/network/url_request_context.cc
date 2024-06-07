@@ -238,10 +238,7 @@ URLRequestContext::URLRequestContext(
   } else {
     using_http_cache_ = true;
 
-    int max_cache_bytes = 24 * 1024 * 1024;
-#if SB_API_VERSION >= 14
-    max_cache_bytes = kSbMaxSystemPathCacheDirectorySize;
-#endif
+    int max_cache_bytes = kSbMaxSystemPathCacheDirectorySize;
     // Assume the non-http-cache memory in kSbSystemPathCacheDirectory
     // is less than 1 mb and subtract this from the max_cache_bytes.
     max_cache_bytes -= (1 << 20);

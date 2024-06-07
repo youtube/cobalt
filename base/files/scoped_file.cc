@@ -8,9 +8,11 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
+#include <errno.h>
 #include <unistd.h>
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>
+#include <unistd.h>
 
 #include "base/posix/eintr_wrapper.h"
 #endif

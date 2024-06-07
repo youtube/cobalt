@@ -82,11 +82,9 @@ class QueueApplication : public Application {
   virtual void WakeSystemEventWait() = 0;
 
  private:
-#if SB_API_VERSION >= 14
   // Use Inject() or InjectAndProcess(). DispatchAndDelete() ignores the event
   // queue and processes the event out of order which can lead to bugs.
   using Application::DispatchAndDelete;
-#endif
 
   // Specialization of Queue for starboard events.  It differs in that it has
   // the responsibility of deleting heap allocated starboard events in its

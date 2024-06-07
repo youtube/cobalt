@@ -15,9 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
-#include <pthread.h>
-
 #include "starboard/atomic.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
@@ -44,10 +43,9 @@ class ThreadChecker {
 
   explicit ThreadChecker(Type type = kSetThreadIdOnCreation) {
     if (type == kSetThreadIdOnCreation)
-      thread_id_ =
-          reinterpret_cast<uintptr_t>(reinterpret_cast<void*>(pthread_self()));
+      thread_id_ = SbThreadGetId();
     else
-      thread_id_ = 0;
+      thread_id_ = kSbThreadInvalidId;
   }
 
   // Detached the thread checker from its current thread.  The thread checker
@@ -57,25 +55,19 @@ class ThreadChecker {
   void Detach() {
     // This is safe as when this function is called, it is expected that it
     // won't be called on its current thread.
-    thread_id_ = 0;
+    thread_id_ = kSbThreadInvalidId;
   }
 
   bool CalledOnValidThread() const {
-    uintptr_t current_thread_id =
-        reinterpret_cast<uintptr_t>(reinterpret_cast<void*>(pthread_self()));
-#if SB_HAS(64_BIT_ATOMICS)
-    uintptr_t stored_thread_id = SbAtomicNoBarrier_CompareAndSwap64(
-        reinterpret_cast<SbAtomic64*>(&thread_id_), 0, current_thread_id);
-#else
-    uintptr_t stored_thread_id = SbAtomicNoBarrier_CompareAndSwap(
-        reinterpret_cast<SbAtomic32*>(&thread_id_), 0, current_thread_id);
-#endif
-
-    return stored_thread_id == 0 || stored_thread_id == current_thread_id;
+    SbThreadId current_thread_id = SbThreadGetId();
+    SbThreadId stored_thread_id = SbAtomicNoBarrier_CompareAndSwap(
+        &thread_id_, kSbThreadInvalidId, current_thread_id);
+    return stored_thread_id == kSbThreadInvalidId ||
+           stored_thread_id == current_thread_id;
   }
 
  private:
-  mutable uintptr_t thread_id_;
+  mutable SbThreadId thread_id_;
 };
 
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)

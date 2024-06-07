@@ -618,20 +618,22 @@ bool IsLink(const FilePath &file_path) {
 }
 
 bool GetFileInfo(const FilePath &file_path, File::Info *results) {
-  internal::AssertBlockingAllowed();
-  SbFileInfo info;
-  if (!SbFileGetPathInfo(file_path.value().c_str(), &info)) {
-    return false;
+  stat_wrapper_t file_info;
+#if BUILDFLAG(IS_ANDROID)
+  if (file_path.IsContentUri()) {
+    File file = OpenContentUriForRead(file_path);
+    if (!file.IsValid())
+      return false;
+    return file.GetInfo(results);
+  } else {
+#endif  // BUILDFLAG(IS_ANDROID)
+    if (File::Stat(file_path.value().c_str(), &file_info) != 0)
+      return false;
+#if BUILDFLAG(IS_ANDROID)
   }
+#endif  // BUILDFLAG(IS_ANDROID)
 
-  results->is_directory = info.is_directory;
-  results->size = info.size;
-  results->last_modified = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(info.last_modified));
-  results->last_accessed = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(info.last_accessed));
-  results->creation_time = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(info.creation_time));
+  results->FromStat(file_info);
   return true;
 }
 

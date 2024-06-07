@@ -110,6 +110,7 @@ void File::Info::FromStat(const stat_wrapper_t& stat_info) {
   last_modified =
       Time::FromTimeT(last_modified_sec) +
       Microseconds(last_modified_nsec / Time::kNanosecondsPerMicrosecond);
+  LOG(INFO) << " HAO : file_starboard, last_modified: " << last_modified;
 
   last_accessed =
       Time::FromTimeT(last_accessed_sec) +
@@ -188,6 +189,8 @@ int File::Read(int64_t offset, char* data, int size) {
 int File::ReadAtCurrentPos(char* data, int size) {
   internal::AssertBlockingAllowed();
   DCHECK(IsValid());
+  SB_LOG(INFO) << "HAO: ReadAtCurrentPos";
+  SB_LOG(INFO) << "size" << size;
   if (size < 0)
     return -1;
 
@@ -339,7 +342,8 @@ int64_t File::GetLength() {
 bool File::SetLength(int64_t length) {
   internal::AssertBlockingAllowed();
   DCHECK(IsValid());
-
+  LOG(INFO) << "HAO: SetLength: length: " << length;
+  LOG(INFO) << "HAO: SetLength: sizeof long is : " << sizeof(long);
   SCOPED_FILE_TRACE_WITH_SIZE("SetLength", length);
   return !ftruncate(file_.get(), length);
 }
@@ -364,6 +368,7 @@ bool File::GetInfo(Info* info) {
     return false;
 
   info->FromStat(file_info);
+  LOG(INFO) << "HAO: file_starboard: FILE::GetInfo: " << info->last_modified;
   return true;
 }
 
@@ -476,7 +481,7 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
 
   if (!file_.is_valid()) {
     error_details_ = File::GetLastFileError();
-    LOG(INFO) << "HAO: DoInitialize: failed: error_details_" << error_details_;
+    LOG(INFO) << "HAO: DoInitialize: failed: error_details_: " << error_details_;
 
   } else {
     error_details_ = FILE_OK;
@@ -490,7 +495,7 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   }
 
   async_ = ((flags & FLAG_ASYNC) == FLAG_ASYNC);
-  LOG(INFO) << "HAO: DoInitialize: created_" << created_;
+  LOG(INFO) << "HAO: DoInitialize: created_: " << created_;
 }
 
 bool File::Flush() {

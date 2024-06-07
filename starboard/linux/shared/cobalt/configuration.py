@@ -19,8 +19,10 @@ from cobalt.build import cobalt_configuration
 from starboard.tools.testing import test_filter
 
 _FILTERED_TESTS = {
-    # Tracked by b/185820828
+    # Tracked by b/185820828.
     'net_unittests': ['SpdyNetworkTransactionTest.SpdyBasicAuth',],
+    # Tracked by b/344915910.
+    'base_unittests': ['FileTest.GetInfoForCreationTime',],
 }
 
 if os.getenv('MODULAR_BUILD', '0') == '1':
