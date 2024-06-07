@@ -17,9 +17,11 @@
 #ifndef NET_SOCKET_UDP_SOCKET_STARBOARD_H_
 #define NET_SOCKET_UDP_SOCKET_STARBOARD_H_
 
+#include <pthread.h>
+
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_pump_io_starboard.h"
 #include "base/message_loop/message_pump_for_io.h"
+#include "base/message_loop/message_pump_io_starboard.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "net/base/completion_once_callback.h"
@@ -38,7 +40,11 @@
 #include "net/socket/socket_tag.h"
 #include "net/socket/udp_socket_global_limits.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/socket.h"
+#include "starboard/thread.h"
 
 namespace net {
 
@@ -328,6 +334,8 @@ class NET_EXPORT UDPSocketStarboard
   // not bound or connected to an address.
   int AdoptOpenedSocket(AddressFamily address_family, const SbSocket& socket);
 
+  void ThreadEntryPoint();
+
  protected:
   // Watcher for WriteAsync paths.
   class WriteAsyncWatcher : public base::MessagePumpIOStarboard::Watcher {
@@ -489,6 +497,17 @@ class NET_EXPORT UDPSocketStarboard
 
   // Used for alternate writes that are posted for concurrent execution.
   base::WeakPtrFactory<UDPSocketStarboard> weak_factory_;
+
+  // Note: This should be in a helper class.
+  pthread_t thread_;
+  starboard::Mutex mutex_;
+  starboard::ConditionVariable condition_;
+  // Yes, using std::vector<> would be easier here, but it's so performance
+  // critical that even the heap operations for vector matter...
+  static const int kSendBuffers = 2;
+  static const int kSendBufferSize = 65536;
+  int send_buffer_length_[kSendBuffers] = {0};
+  char send_buffer_[kSendBuffers][kSendBufferSize];
 
   // DISALLOW_COPY_AND_ASSIGN(UDPSocketStarboard);
 };

@@ -73,8 +73,9 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     bool inserted =
         stream_infos_.insert(std::make_pair(stream_id, std::move(stream_info)))
             .second;
-    QUICHE_BUG_IF(spdy_bug_19_2, !inserted)
-        << "Stream " << stream_id << " already registered";
+    if (!inserted)
+      QUICHE_BUG_IF(spdy_bug_19_2, !inserted)
+          << "Stream " << stream_id << " already registered";
   }
 
   // Unregisters the given stream from the scheduler, which will no longer keep

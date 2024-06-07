@@ -16,6 +16,8 @@
 
 #include "net/socket/udp_socket_starboard.h"
 
+#include <pthread.h>
+
 #include "base/logging.h"
 #include "base/rand_util.h"
 #include "base/task/current_thread.h"
@@ -30,8 +32,12 @@
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_source_type.h"
 #include "net/socket/udp_net_log_parameters.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/socket.h"
 #include "starboard/system.h"
+#include "starboard/thread.h"
 
 namespace net {
 
@@ -50,7 +56,25 @@ UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
       recv_from_address_(NULL),
       write_buf_len_(0),
       net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::UDP_SOCKET)),
-      weak_factory_(this) {
+      weak_factory_(this),
+      condition_(mutex_) {
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+  // pthread_attr_setstacksize(&attributes, xyzsmall);
+  pthread_create(
+      &thread_, &attributes,
+      [](void* context) -> void* {
+        static_cast<UDPSocketStarboard*>(context)->ThreadEntryPoint();
+        return nullptr;
+      },
+      this);
+  pthread_attr_destroy(&attributes);
+
+  if (thread_ == 0) {
+    SB_DLOG(WARNING) << "Failed to create UDP Socket sender thread.";
+    return;
+  }
+
   net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE,
                       source);
 }
@@ -59,6 +83,14 @@ UDPSocketStarboard::~UDPSocketStarboard() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   Close();
   net_log_.EndEvent(NetLogEventType::SOCKET_ALIVE);
+
+  pthread_t thread = thread_;
+  {
+    starboard::ScopedLock lock(mutex_);
+    thread_ = 0;
+    condition_.Broadcast();
+  }
+  pthread_join(thread, NULL);
 }
 
 int UDPSocketStarboard::Open(AddressFamily address_family) {
@@ -522,7 +554,27 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
     LogWrite(result, NULL, NULL);
     return result;
   } else {
-    result = SbSocketSendTo(socket_, buf->data(), buf_len, nullptr);
+    // Note: This should be in a helper class.
+    bool dispatched = false;
+    if (thread_) {
+      starboard::ScopedLock lock(mutex_);
+      // Find a free buffer (note this can be made more efficient if needed).
+      int send_buffer_idx = send_buffer_length_[0] == 0   ? 0
+                            : send_buffer_length_[1] == 0 ? 1
+                                                          : -1;
+      if (send_buffer_idx >= 0) {
+        memcpy(send_buffer_[send_buffer_idx], buf->data(), buf_len);
+        send_buffer_length_[send_buffer_idx] = buf_len;
+        condition_.Signal();
+        dispatched = true;
+        // TODO: get 'result' from the thread.
+      }
+    }
+    if (!dispatched) {
+      // If the thread can't keep up, we don't have more buffers, so send it
+      // now.
+      result = SbSocketSendTo(socket_, buf->data(), buf_len, nullptr);
+    }
   }
 
   if (result < 0)
@@ -532,6 +584,26 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
     LogWrite(result, buf->data(), address);
 
   return result;
+}
+
+void UDPSocketStarboard::ThreadEntryPoint() {
+  pthread_setname_np(pthread_self(), "udp_sender");
+  starboard::ScopedLock lock(mutex_);
+  while (thread_) {
+    int send_buffer_idx = 0;
+    for (int empty_count = 0; empty_count < kSendBuffers * 4; ++empty_count) {
+      if (send_buffer_length_[send_buffer_idx]) {
+        mutex_.Release();
+        SbSocketSendTo(socket_, send_buffer_[send_buffer_idx],
+                       send_buffer_length_[send_buffer_idx], nullptr);
+        mutex_.Acquire();
+        send_buffer_length_[send_buffer_idx] = 0;
+        empty_count = -1;
+      }
+      send_buffer_idx = (send_buffer_idx + 1) % kSendBuffers;
+    }
+    condition_.Wait();
+  }
 }
 
 int UDPSocketStarboard::DoBind(const IPEndPoint& address) {
