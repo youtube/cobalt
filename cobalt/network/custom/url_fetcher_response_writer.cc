@@ -64,7 +64,7 @@ int URLFetcherLargeStringWriter::Initialize(CompletionOnceCallback callback) {
 }
 
 void URLFetcherLargeStringWriter::OnResponseStarted(int64_t content_length) {
-  data_.reserve(content_length);
+  data_.reserve(data_.length() + content_length);
 }
 
 void URLFetcherLargeStringWriter::GetAndResetData(std::string* data) {
