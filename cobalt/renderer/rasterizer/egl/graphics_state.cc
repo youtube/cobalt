@@ -253,6 +253,8 @@ void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
 
   GL_CALL(glTexParameteri(target, GL_TEXTURE_WRAP_S, texture_wrap_mode));
   GL_CALL(glTexParameteri(target, GL_TEXTURE_WRAP_T, texture_wrap_mode));
+  GL_CALL(glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+  GL_CALL(glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 }
 
 void GraphicsState::SetClipAdjustment() {
