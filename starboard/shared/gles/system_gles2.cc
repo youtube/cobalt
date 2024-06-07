@@ -15,7 +15,55 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include "starboard/common/log.h"
 #include "starboard/gles.h"
+
+extern "C" {
+#define GR_GL_TEXTURE_MAX_LEVEL 0x813D
+#define STR_(a) \
+  case a:       \
+    return #a
+const char* _target2str(GLenum target) {
+  switch (target) { STR_(GL_TEXTURE_2D); }
+  return "UNLISTED";
+}
+const char* _param2str(GLenum pname) {
+  switch (pname) {
+    STR_(GL_TEXTURE_WRAP_S);
+    STR_(GL_TEXTURE_WRAP_T);
+    STR_(GL_TEXTURE_MIN_FILTER);
+    STR_(GL_TEXTURE_MAG_FILTER);
+    // STR_(GL_TEXTURE_USAGE);
+    // STR_(GL_TEXTURE_BASE_LEVEL);
+    STR_(GR_GL_TEXTURE_MAX_LEVEL);
+  }
+  return "UNLISTED";
+}
+#undef STR_
+
+void log_glTexParameterf(GLenum target, GLenum pname, GLfloat param) {
+  SB_LOG(ERROR) << "glTexParameterf [" << target << "] (" << _target2str(target)
+                << ") [" << pname << "] (" << _param2str(pname) << ")";
+  glTexParameterf(target, pname, param);
+}
+void log_glTexParameterfv(GLenum target, GLenum pname, const GLfloat* params) {
+  SB_LOG(ERROR) << "glTexParameterfv [" << target << "] ("
+                << _target2str(target) << ") [" << pname << "] ("
+                << _param2str(pname) << ")";
+  glTexParameterfv(target, pname, params);
+}
+void log_glTexParameteri(GLenum target, GLenum pname, GLint param) {
+  SB_LOG(ERROR) << "glTexParameteri [" << target << "] (" << _target2str(target)
+                << ") [" << pname << "] (" << _param2str(pname) << ")";
+  glTexParameteri(target, pname, param);
+}
+void log_glTexParameteriv(GLenum target, GLenum pname, const GLint* params) {
+  SB_LOG(ERROR) << "glTexParameteriv [" << target << "] ("
+                << _target2str(target) << ") [" << pname << "] ("
+                << _param2str(pname) << ")";
+  glTexParameteriv(target, pname, params);
+}
+}
 
 namespace {
 
@@ -126,10 +174,10 @@ const SbGlesInterface g_sb_gles_interface = {
     &glStencilOp,
     &glStencilOpSeparate,
     &glTexImage2D,
-    &glTexParameterf,
-    &glTexParameterfv,
-    &glTexParameteri,
-    &glTexParameteriv,
+    &log_glTexParameterf,
+    &log_glTexParameterfv,
+    &log_glTexParameteri,
+    &log_glTexParameteriv,
     &glTexSubImage2D,
     &glUniform1f,
     &glUniform1fv,
