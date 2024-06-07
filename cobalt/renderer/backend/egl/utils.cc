@@ -21,6 +21,18 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
+void ForceTextureFilteringParams() {
+  // force linear filtering
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+  // force LOD
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0));
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 4));
+
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0));
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 4));
+}
+
 EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
                               EGLContext share_context) {
   // Create an OpenGL ES 3.0 context.

@@ -30,6 +30,8 @@ EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
 
 int BytesPerPixelForGLFormat(GLenum format);
 
+void ForceTextureFilteringParams();
+
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt

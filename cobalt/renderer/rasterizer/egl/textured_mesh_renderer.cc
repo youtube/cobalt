@@ -226,6 +226,7 @@ void TexturedMeshRenderer::RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
   for (int i = 0; i < image.num_textures(); ++i) {
     GL_CALL(glActiveTexture(GL_TEXTURE0 + i));
     GL_CALL(glBindTexture(image.textures[i].texture->GetTarget(), 0));
+    backend::ForceTextureFilteringParams();
   }
 
   GL_CALL(glDisableVertexAttribArray(kBlitTexcoordAttribute));

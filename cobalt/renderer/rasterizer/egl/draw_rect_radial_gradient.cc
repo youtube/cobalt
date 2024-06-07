@@ -206,6 +206,7 @@ void DrawRectRadialGradient::InitializeLookupTexture(
       static_cast<GLsizei>(lookup_region_.width()), 1,
       lookup_texture_->GetFormat(), GL_UNSIGNED_BYTE, lookup_buffer));
   GL_CALL(glBindTexture(lookup_texture_->GetTarget(), 0));
+  backend::ForceTextureFilteringParams();
 
   delete[] lookup_buffer;
 }
