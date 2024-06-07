@@ -14,7 +14,7 @@
 
 #include "starboard/shared/libevent/socket_waiter_internal.h"
 
-#define USE_LINUX_EVENTFD 1
+#define USE_LINUX_EVENTFD 0
 
 #include <errno.h>
 #include <fcntl.h>
