@@ -337,7 +337,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   // Launch the IO thread.
   base::Thread::Options thread_options;
   thread_options.message_pump_type = base::MessagePumpType::IO;
-  thread_options.thread_type = base::ThreadType::kDisplayCritical;
+  // thread_options.thread_type = base::ThreadType::kDisplayCritical;
   // Without setting a stack size here, the system default will be used
   // which can be quite a bit larger (e.g. 4MB on Linux)
   // Setting it manually keeps it managed.
