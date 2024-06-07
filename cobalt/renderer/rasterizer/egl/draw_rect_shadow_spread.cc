@@ -93,6 +93,7 @@ void DrawRectShadowSpread::ExecuteUpdateVertexBuffer(
 
 void DrawRectShadowSpread::ExecuteRasterize(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+  LOG(ERROR) << " DrawRectShadowSpread::ExecuteRasterize";
   if (vertex_buffer_ == nullptr) {
     return;
   }

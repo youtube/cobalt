@@ -246,6 +246,7 @@ void DrawRRectColorTexture::SetupFragmentShaderAndDraw(
 
 void DrawRRectColorTexture::ExecuteRasterize(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+  LOG(ERROR) << "DrawRRectColorTexture::ExecuteRasterize";
   if (textures_[1] == NULL) {
     ShaderProgram<ShaderVertexRcornerTexcoord,
                   ShaderFragmentRcornerTexcoordColor>* program;

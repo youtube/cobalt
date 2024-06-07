@@ -158,6 +158,7 @@ void DrawRectTexture::SetupFragmentShaderAndDraw(
 
 void DrawRectTexture::ExecuteRasterize(GraphicsState* graphics_state,
                                        ShaderProgramManager* program_manager) {
+  LOG(ERROR) << "DrawRectTexture::ExecuteRasterize";
   if (textures_[1] == NULL) {
     ShaderProgram<ShaderVertexTexcoord, ShaderFragmentTexcoord>* program;
     program_manager->GetProgram(&program);

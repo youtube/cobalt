@@ -32,6 +32,7 @@ void DrawClear::ExecuteUpdateVertexBuffer(
 
 void DrawClear::ExecuteRasterize(GraphicsState* graphics_state,
                                  ShaderProgramManager* program_manager) {
+  LOG(ERROR) << "DrawClear::ExecuteRasterize";
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
                           base_state_.scissor.width(),
                           base_state_.scissor.height());

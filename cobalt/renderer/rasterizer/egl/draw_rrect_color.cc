@@ -85,6 +85,7 @@ void DrawRRectColor::ExecuteUpdateVertexBuffer(
 
 void DrawRRectColor::ExecuteRasterize(GraphicsState* graphics_state,
                                       ShaderProgramManager* program_manager) {
+  LOG(ERROR) << "DrawRRectColor::ExecuteRasterize";
   ShaderProgram<ShaderVertexRcorner, ShaderFragmentRcornerColor>* program;
   program_manager->GetProgram(&program);
   graphics_state->UseProgram(program->GetHandle());

@@ -100,6 +100,7 @@ void DrawPolyColor::ExecuteUpdateVertexBuffer(
 
 void DrawPolyColor::ExecuteRasterize(GraphicsState* graphics_state,
                                      ShaderProgramManager* program_manager) {
+  LOG(ERROR) << "DrawPolyColor::ExecuteRasterize";
   if (attributes_.size() > 0) {
     SetupShader(graphics_state, program_manager);
     GL_CALL(

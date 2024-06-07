@@ -101,6 +101,7 @@ void DrawRectRadialGradient::ExecuteUpdateVertexBuffer(
 
 void DrawRectRadialGradient::ExecuteRasterize(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+  LOG(ERROR) << "DrawRectRadialGradient::ExecuteRasterize";
   if (attributes_.size() > 0) {
     ShaderProgram<ShaderVertexOffset, ShaderFragmentOpacityTexcoord1d>* program;
     program_manager->GetProgram(&program);

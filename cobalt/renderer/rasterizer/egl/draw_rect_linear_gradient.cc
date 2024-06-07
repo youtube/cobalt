@@ -69,6 +69,7 @@ void DrawRectLinearGradient::ExecuteUpdateVertexBuffer(
 
 void DrawRectLinearGradient::ExecuteRasterize(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+  LOG(ERROR) << "DrawRectLinearGradient::ExecuteRasterize";
   ShaderProgram<ShaderVertexColorOffset, ShaderFragmentColorInclude>* program;
   program_manager->GetProgram(&program);
   graphics_state->UseProgram(program->GetHandle());

@@ -167,6 +167,7 @@ void DrawRectShadowBlur::ExecuteUpdateVertexBuffer(
 
 void DrawRectShadowBlur::ExecuteRasterize(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+  LOG(ERROR) << "DrawRectShadowBlur::DrawRectShadowBlur";
   if (vertex_buffer_ == nullptr) {
     return;
   }

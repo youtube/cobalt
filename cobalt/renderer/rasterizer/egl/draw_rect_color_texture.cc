@@ -212,6 +212,7 @@ void DrawRectColorTexture::SetupFragmentShaderAndDraw(
 
 void DrawRectColorTexture::ExecuteRasterize(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+  LOG(ERROR) << "DrawRectColorTexture::ExecuteRasterize";
   if (textures_[1] == NULL) {
     ShaderProgram<ShaderVertexColorTexcoord, ShaderFragmentColorTexcoord>*
         program;
