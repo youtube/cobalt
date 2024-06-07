@@ -26,7 +26,6 @@ if (current_toolchain == starboard_toolchain) {
     data_deps = [
       "//cobalt/network:copy_ssl_certificates",
       "//starboard/shared/starboard/player:player_download_test_data",
-      "//third_party/icu:icudata",
     ]
   }
 }
