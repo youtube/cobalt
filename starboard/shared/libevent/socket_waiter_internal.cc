@@ -14,11 +14,16 @@
 
 #include "starboard/shared/libevent/socket_waiter_internal.h"
 
+#define USE_LINUX_EVENTFD 1
+
 #include <errno.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <sys/time.h>
 #include <unistd.h>
+#ifdef USE_LINUX_EVENTFD
+#include <sys/eventfd.h>
+#endif
 
 #include <map>
 #include <utility>
@@ -126,7 +131,12 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
       base_(event_base_new()),
       waiting_(false),
       woken_up_(false) {
-#if USE_POSIX_PIPE
+  int flags = EV_READ | EV_PERSIST;
+#if USE_LINUX_EVENTFD
+  wakeup_read_fd_ = eventfd(0, EFD_NONBLOCK);
+  SB_LOG(INFO) << " wakeup_read_fd_=" << wakeup_read_fd_;
+  flags |= EV_READ | EV_PERSIST;
+#elif USE_POSIX_PIPE
   int fds[2];
   int result = pipe(fds);
   SB_DCHECK(result == 0);
@@ -149,7 +159,7 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
   wakeup_write_fd_ = server_socket_->socket_fd;
 #endif
 
-  event_set(&wakeup_event_, wakeup_read_fd_, EV_READ | EV_PERSIST,
+  event_set(&wakeup_event_, wakeup_read_fd_, flags,
             &SbSocketWaiterPrivate::LibeventWakeUpCallback, this);
   event_base_set(base_, &wakeup_event_);
   event_add(&wakeup_event_, NULL);
@@ -173,7 +183,9 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
   event_del(&wakeup_event_);
   event_base_free(base_);
 
-#if USE_POSIX_PIPE
+#if USE_LINUX_EVENTFD
+  close(wakeup_read_fd_);
+#elif USE_POSIX_PIPE
   close(wakeup_read_fd_);
   close(wakeup_write_fd_);
 #else
@@ -425,9 +437,16 @@ void SbSocketWaiterPrivate::WakeUp(bool timeout) {
   // version of libevent we are using (14.x) does not really do thread-safety,
   // despite the documentation that says otherwise. But, sending a byte through
   // a local pipe gets the job done safely.
-  char buf = timeout ? 0 : 1;
-  int bytes_written = HANDLE_EINTR(write(wakeup_write_fd_, &buf, 1));
-  SB_DCHECK(bytes_written == 1 || errno == EAGAIN)
+#if USE_LINUX_EVENTFD
+  const uint64_t buf = timeout ? 0x01 : 0x11;
+  ssize_t bytes_written =
+      HANDLE_EINTR(write(wakeup_read_fd_, &buf, sizeof(buf)));
+#else
+  const char buf = timeout ? 0 : 0x10;
+  ssize_t bytes_written =
+      HANDLE_EINTR(write(wakeup_write_fd_, &buf, sizeof(buf)));
+#endif
+  SB_DCHECK(bytes_written == sizeof(buf) || errno == EAGAIN)
       << "[bytes_written:" << bytes_written << "] [errno:" << errno << "]";
 }
 
@@ -488,13 +507,11 @@ void SbSocketWaiterPrivate::HandleSignal(Waitee* waitee,
 
 void SbSocketWaiterPrivate::HandleWakeUpRead() {
   SB_DCHECK(waiting_);
-  // Remove and discard the wakeup byte.
-  char buf;
-  int bytes_read = HANDLE_EINTR(read(wakeup_read_fd_, &buf, 1));
-  SB_DCHECK(bytes_read == 1);
-  if (buf != 0) {
-    woken_up_ = true;
-  }
+  // Remove and discard the wakeup message.
+  int64_t buf;
+  int bytes_read = HANDLE_EINTR(read(wakeup_read_fd_, &buf, sizeof(buf)));
+  SB_DCHECK(bytes_read == sizeof(buf));
+  woken_up_ = buf & 0xF0;
   event_base_loopbreak(base_);
 }
 
