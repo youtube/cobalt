@@ -39,11 +39,21 @@ const char* _param2str(GLenum pname) {
   }
   return "UNLISTED";
 }
+const char* _value2str(GLint param) {
+  switch (param) {
+    STR_(GL_LINEAR);
+    STR_(GL_CLAMP_TO_EDGE);
+    STR_(GL_NEAREST);
+    STR_(GL_REPEAT);
+  }
+  return "UNLISTED";
+}
 #undef STR_
 
 void log_glTexParameterf(GLenum target, GLenum pname, GLfloat param) {
   SB_LOG(ERROR) << "glTexParameterf [" << target << "] (" << _target2str(target)
-                << ") [" << pname << "] (" << _param2str(pname) << ")";
+                << ") [" << pname << "] (" << _param2str(pname)
+                << ") value:" << param << " [" << _value2str(param) << "]";
   glTexParameterf(target, pname, param);
 }
 void log_glTexParameterfv(GLenum target, GLenum pname, const GLfloat* params) {
@@ -54,7 +64,8 @@ void log_glTexParameterfv(GLenum target, GLenum pname, const GLfloat* params) {
 }
 void log_glTexParameteri(GLenum target, GLenum pname, GLint param) {
   SB_LOG(ERROR) << "glTexParameteri [" << target << "] (" << _target2str(target)
-                << ") [" << pname << "] (" << _param2str(pname) << ")";
+                << ") [" << pname << "] (" << _param2str(pname)
+                << ") value:" << param << " [" << _value2str(param) << "]";
   glTexParameteri(target, pname, param);
 }
 void log_glTexParameteriv(GLenum target, GLenum pname, const GLint* params) {
@@ -62,6 +73,11 @@ void log_glTexParameteriv(GLenum target, GLenum pname, const GLint* params) {
                 << _target2str(target) << ") [" << pname << "] ("
                 << _param2str(pname) << ")";
   glTexParameteriv(target, pname, params);
+}
+const GLubyte* log_glGetString(GLenum name) {
+  auto ret = glGetString(name);
+  SB_LOG(ERROR) << "log_glGetString [" << name << "]";
+  return ret;
 }
 }
 

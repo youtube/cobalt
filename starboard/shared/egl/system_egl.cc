@@ -15,6 +15,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include "starboard/common/log.h"
 #include "starboard/egl.h"
 
 #if !defined(EGL_VERSION_1_0) || !defined(EGL_VERSION_1_1) || \
@@ -55,6 +56,17 @@ SbEglSurface SbEglCreateWindowSurface(SbEglDisplay dpy,
 
 SbEglDisplay SbEglGetDisplay(SbEglNativeDisplayType display_id) {
   return eglGetDisplay((EGLNativeDisplayType)display_id);
+}
+
+__eglMustCastToProperFunctionPointerType log_eglGetProcAddress(
+    const char* procname) {
+  auto proc = eglGetProcAddress(procname);
+  if (proc) {
+    SB_LOG(ERROR) << "SUCCEEDED eglGetProcAddress: " << procname;
+  } else {
+    SB_LOG(ERROR) << "FAILED eglGetProcAddress: " << procname;
+  }
+  return proc;
 }
 
 const SbEglInterface g_sb_egl_interface = {
