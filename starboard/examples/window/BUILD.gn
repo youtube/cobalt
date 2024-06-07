@@ -17,5 +17,4 @@ target(final_executable_type, "starboard_window_example") {
 
   sources = [ "main.cc" ]
   public_deps = [ "//starboard:starboard_group" ]
-  data_deps = [ "//third_party/icu:icudata" ]
 }

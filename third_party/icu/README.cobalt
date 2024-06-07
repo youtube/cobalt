@@ -29,17 +29,15 @@ This is based off of section B in the README.chromium file.
 5. Run `$ICU_ROOT/scripts/clean_up_data_source.sh` to clean up the changes
    made to $ICU_ROOT from the call to `patch_locale.sh`.
 
-Cobalt uses a packaged ICU data file instead of individual files, but
-instructions for both options have been included.
-
-***Option 1: Rebuild packaged ICU data file
+Cobalt uses a packaged ICU data file instead of individual files. This packaged
+ICU data file is used during the build to link ICU data into the Cobalt binary.
 
 6. Replace the files in this directory with the new files that you have built.
 
 Run:
 
     ```
-    cd $COBALT_SRC_ROOT/src/cobalt/content/icu
+    cd $COBALT_SRC_ROOT/third_party/icu/cobalt
     rm -rf *
     cp $ICU_DATA_ROOT/data/out/tmp/icudt68l.dat .
     cp $ICU_DATA_ROOT/data/out/tmp/icudt68b.dat .
@@ -47,53 +45,11 @@ Run:
 
 Note that at the time of this writing, the final resulting contents had a size
 of 4.6MB, from running the command
-`du -sh $COBALT_SRC_ROOT/src/cobalt/content/icu/icudt68l.dat`.
-
-***Option 2: Rebuild individual ICU data files
-
-6. Create a new directory where we will rebuild ICU with different options
-    because the options used above will produce a version of the tool `icupkg` (
-    which we need to use to translate from little to big endian) that does not
-    work.  Call this new directory $ICU_PKG_ROOT.
-
-7. Change directory to $ICU_PKG_ROOT.
-
-8. Run
-   ```
-   $ICU_ROOT/source/runConfigureICU --enable-debug --disable-release \
-     Linux/gcc  --disable-tests --disable-layoutex
-   ```
-
-9. Run `make -j 120`
-
-10. Run `export LD_LIBRARY_PATH=$ICU_PKG_ROOT/lib`
-
-11. Run `sudo apt install icu-devtools` to obtain the `icupkg` command and its
-    dependencies.  Even though you will be running a locally-built version of
-    `icupkg`, you will need the shared libraries installed by this command.
-
-12. Replace the files in this directory with the new files that you have built.
-    They will exist as a little-endian package file, but you can use the
-    `icupkg` tool to both unpack the files out of the package (which Cobalt
-    prefers), and switch from little-endian to big-endian.
-
-    Run:
-
-    ```
-    cd $COBALT_SRC_ROOT/src/cobalt/content/icu
-    rm -rf *
-    mkdir icudt68l icudt68b
-    $ICU_PKG_ROOT/bin/icupkg --ignore-deps -tl -x '*' -d icudt68l $ICU_DATA_ROOT/data/out/tmp/icudt68l.dat
-    $ICU_PKG_ROOT/bin/icupkg --ignore-deps -tb -x '*' -d icudt68b $ICU_DATA_ROOT/data/out/tmp/icudt68l.dat
-    ```
-
-Note that at the time of this writing, the final resulting contents had a size
-of 6.7MB, from running the command
-`du -sh $COBALT_SRC_ROOT/src/cobalt/content/icu/icudt68l`.
+`du -sh $COBALT_SRC_ROOT/third_party/icu/cobalt/icudt68l.dat`.
 
 ********************************************************************************
 
 You should now have the ICU data files generated and ready to go in the Cobalt
 source tree, and you can clean up any outstanding files.  If there are any
 leftover changes in your $ICU_ROOT directory, you can revert them.  At this
-point you can re-gyp, re-ninja, and run Cobalt and it should work.
+point you can run `gn gen`, run `ninja`, and run Cobalt and it should work.
