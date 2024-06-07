@@ -219,6 +219,8 @@ void DrawRectColorTexture::ExecuteRasterize(
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     SetupVertexShader(graphics_state, program->GetVertexShader());
+    auto shader = program->GetFragmentShader();
+    LOG(ERROR) << shader.GetSource();
     SetupFragmentShaderAndDraw(graphics_state, program->GetFragmentShader());
   } else {
     LOG(ERROR) << "Have textures!";
