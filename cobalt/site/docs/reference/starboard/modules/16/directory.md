@@ -25,18 +25,6 @@ typedef struct SbDirectoryPrivate* SbDirectory
 
 ## Functions
 
-### SbDirectoryCanOpen
-
-Indicates whether SbDirectoryOpen is allowed for the given `path`.
-
-`path`: The path to be checked.
-
-#### Declaration
-
-```
-bool SbDirectoryCanOpen(const char *path)
-```
-
 ### SbDirectoryClose
 
 Closes an open directory stream handle. The return value indicates whether the
@@ -48,20 +36,6 @@ directory was closed successfully.
 
 ```
 bool SbDirectoryClose(SbDirectory directory)
-```
-
-### SbDirectoryCreate
-
-Creates the directory `path`, assuming the parent directory already exists. This
-function returns `true` if the directory now exists (even if it existed before)
-and returns `false` if the directory does not exist.
-
-`path`: The path to be created.
-
-#### Declaration
-
-```
-bool SbDirectoryCreate(const char *path)
 ```
 
 ### SbDirectoryGetNext

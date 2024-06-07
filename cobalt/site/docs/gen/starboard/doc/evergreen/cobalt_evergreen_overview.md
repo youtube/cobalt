@@ -147,9 +147,9 @@ Evergreen:
         for more details.
 *   `kSbMemoryMapProtectExec`
     *   Ensures mapped memory can be executed
-*   `#define SB_CAN_MAP_EXECUTABLE_MEMORY 1`
+*   Set `kSbCanMapExecutableMemory` to `true`
     *   Specifies that the platform can map executable memory
-    *   Defined in `configuration_public.h`
+    *   Defined in `configuration_constants.h`
 
 Only if necessary, create a customized SABI configuration for your architecture.
 Note, we do not anticipate that you will need to make a new configuration for
@@ -306,8 +306,8 @@ instructions available [here](cobalt_evergreen_reference_port_raspi2.md).
 
 1. Build the `crashpad_database_util` target and deploy it onto the device.
 ```
-$ cobalt/build/gn.py -p <partner_port_name> -c qa
-$ ninja -C out/<partner_port_name>_qa crashpad_database_util
+$ gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa"'
+$ ninja -C out/<partner_port_name>_qa native_target/crashpad_database_util
 ```
 2. Remove the existing state for crashpad as it throttles uploads to 1 per hour:
 ```
@@ -609,9 +609,6 @@ behavior can be easily configured on a per-app basis with simple command-line fl
 The configurable options for Cobalt Updater configuration are:
 * `--evergreen_lite` *Use the System Image version of Cobalt under Slot_0 and turn
   off the updater for the specified application.*
-* `--disable_updater_module` *Stay on the current version of Cobalt that might be the
-  system image or an installed update, and turn off the updater for the
-  specified application.*
 
 Each app’s Cobalt Updater will perform an independent, regular check for new
 Cobalt Evergreen updates. Note that all apps will share the same set of slots,
@@ -640,7 +637,7 @@ existing slot. In this case, `APP_1` and `APP_2` are now using the same Cobalt
 binaries in SLOT_2.
 
 If `APP_3` has not been launched, not run through a regular Cobalt Updater
-check, or launched with the `--evergreen_lite`/`--disable_updater_module` flag,
+check, or launched with the `--evergreen_lite` flag,
 it stays with its current configuration.
 
 #### AFTER COBALT UPDATE
@@ -667,15 +664,14 @@ loader_app --url="<YOUR_APP_2_URL>"
 loader_app --url="<YOUR_APP_3_URL>"
 
 
-# Only APP_1 gets Evergreen Updates, APP_2 disables the updater and uses an alternate splash screen, APP_3 uses
+# APP_1 gets Evergreen Updates, APP_2 uses an alternate splash screen, APP_3 uses
 # the system image and disables the updater
 [APP_1] (Cobalt Updater ENABLED)
-[APP_2] (Cobalt Updater DISABLED)
+[APP_2] (Cobalt Updater ENABLED)
 [APP_3] (System Image loaded, Cobalt Updater DISABLED)
 
 loader_app --url="<YOUR_APP_1_URL>"
-loader_app --url="<YOUR_APP_2_URL>" --disable_updater_module \
---fallback_splash_screen_url="/<PATH_TO_APP_2>/app_2_splash_screen.html"
+loader_app --url="<YOUR_APP_2_URL>" --fallback_splash_screen_url="/<PATH_TO_APP_2>/app_2_splash_screen.html"
 loader_app --url="<YOUR_APP_3_URL>" --evergreen_lite
 
 

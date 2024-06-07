@@ -9,6 +9,15 @@ runtime decisions based on per platform configurations.
 
 ## Variables
 
+### kHasPartialAudioFramesSupport
+
+Platform can support partial audio frames
+
+### kSbCanMapExecutableMemory
+
+Whether this platform can map executable memory. This is required for platforms
+that want to JIT.
+
 ### kSbDefaultMmapThreshold
 
 Determines the threshold of allocation size that should be done with mmap (if
@@ -50,10 +59,6 @@ component separator character.
 
 The string form of SB_FILE_SEP_CHAR.
 
-### kSbHasAc3Audio
-
-Allow ac3 and ec3 support
-
 ### kSbHasMediaWebmVp9Support
 
 Specifies whether this platform has webm/vp9 support. This should be set to non-
@@ -66,6 +71,10 @@ Whether the current platform supports thread priorities.
 ### kSbMallocAlignment
 
 Determines the alignment that allocations should have on this platform.
+
+### kSbMaxSystemPathCacheDirectorySize
+
+The maximum size the cache directory is allowed to use in bytes.
 
 ### kSbMaxThreadLocalKeys
 
@@ -139,7 +148,3 @@ The string form of SB_PATH_SEP_CHAR.
 Specifies the preferred byte order of color channels in a pixel. Refer to
 starboard/configuration.h for the possible values. EGL/GLES platforms should
 generally prefer a byte order of RGBA, regardless of endianness.
-
-### kSbUserMaxSignedIn
-
-The maximum number of users that can be signed in at the same time.

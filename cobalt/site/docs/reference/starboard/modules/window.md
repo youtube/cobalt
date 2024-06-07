@@ -7,11 +7,6 @@ Provides functionality to handle Window creation and management.
 
 ## Macros
 
-### kSbEventOnScreenKeyboardInvalidTicket
-
-System-triggered OnScreenKeyboard events have ticket value
-kSbEventOnScreenKeyboardInvalidTicket.
-
 ### kSbWindowInvalid
 
 Well-defined value for an invalid window handle.
@@ -47,18 +42,6 @@ Options that can be requested at window creation time.
 *   `const char * name`
 
     The name of the window to create.
-
-### SbWindowRect
-
-Defines a rectangle via a point `(x, y)` and a size `(width, height)`. This
-structure is used as output for SbWindowGetOnScreenKeyboardBoundingRect.
-
-#### Members
-
-*   `float x`
-*   `float y`
-*   `float width`
-*   `float height`
 
 ### SbWindowSize
 

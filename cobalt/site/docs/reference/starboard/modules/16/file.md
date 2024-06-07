@@ -124,15 +124,15 @@ Used to hold information about a file.
 *   `bool is_symbolic_link`
 
     Whether the file corresponds to a symbolic link.
-*   `SbTime last_modified`
+*   `int64_t last_modified`
 
-    The last modified time of a file.
-*   `SbTime last_accessed`
+    The last modified time of a file - microseconds since Windows epoch UTC.
+*   `int64_t last_accessed`
 
-    The last accessed time of a file.
-*   `SbTime creation_time`
+    The last accessed time of a file - microseconds since Windows epoch UTC.
+*   `int64_t creation_time`
 
-    The creation time of a file.
+    The creation time of a file - microseconds since Windows epoch UTC.
 
 ## Functions
 
@@ -190,18 +190,6 @@ fails if the file in question is being held open.
 
 ```
 bool SbFileDelete(const char *path)
-```
-
-### SbFileExists
-
-Indicates whether a file or directory exists at `path`.
-
-`path`: The absolute path of the file or directory being checked.
-
-#### Declaration
-
-```
-bool SbFileExists(const char *path)
 ```
 
 ### SbFileFlush
