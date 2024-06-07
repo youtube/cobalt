@@ -67,7 +67,7 @@ class XhrSettingsImpl : public XhrSettings {
         LOG(INFO) << name << ": set to " << value;
 
         base::AutoLock auto_lock(lock_);
-        is_fetch_buffer_pool_enabled_ = value != 0;
+        is_fetch_buffer_pool_enabled_ = true;  // value != 0;
         return true;
       }
     } else if (name == "XHR.DefaultFetchBufferSize") {
