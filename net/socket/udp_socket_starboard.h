@@ -509,6 +509,9 @@ class NET_EXPORT UDPSocketStarboard
   int send_buffer_length_[kSendBuffers] = {0};
   char send_buffer_[kSendBuffers][kSendBufferSize];
 
+  int pipe_write_fd_;
+  int pipe_read_fd_;
+
   // DISALLOW_COPY_AND_ASSIGN(UDPSocketStarboard);
 };
 

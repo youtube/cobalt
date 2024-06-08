@@ -16,7 +16,10 @@
 
 #include "net/socket/udp_socket_starboard.h"
 
+#define USE_SEND_PIPE 1
+
 #include <pthread.h>
+#include <unistd.h>
 
 #include "base/logging.h"
 #include "base/rand_util.h"
@@ -36,8 +39,14 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/socket.h"
+#define STARBOARD_IMPLEMENTATION
+#include "starboard/shared/posix/set_non_blocking_internal.h"
+#include "starboard/shared/posix/socket_internal.h"
+#undef STARBOARD_IMPLEMENTATION
 #include "starboard/system.h"
 #include "starboard/thread.h"
+
+namespace sbposix = starboard::shared::posix;
 
 namespace net {
 
@@ -72,8 +81,19 @@ UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
 
   if (thread_ == 0) {
     SB_DLOG(WARNING) << "Failed to create UDP Socket sender thread.";
-    return;
   }
+
+  int fds[2];
+  int result = pipe(fds);
+  SB_DCHECK(result == 0);
+
+  pipe_read_fd_ = fds[0];
+  // result = sbposix::SetNonBlocking(pipe_read_fd_);
+  // SB_DCHECK(result);
+
+  pipe_write_fd_ = fds[1];
+  result = sbposix::SetNonBlocking(pipe_write_fd_);
+  SB_DCHECK(result);
 
   net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE,
                       source);
@@ -90,6 +110,9 @@ UDPSocketStarboard::~UDPSocketStarboard() {
     thread_ = 0;
     condition_.Broadcast();
   }
+  close(pipe_read_fd_);
+  close(pipe_write_fd_);
+
   pthread_join(thread, NULL);
 }
 
@@ -557,6 +580,19 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
     // Note: This should be in a helper class.
     bool dispatched = false;
     if (thread_) {
+#if USE_SEND_PIPE
+      ssize_t bytes_written = write(pipe_write_fd_, &buf_len, sizeof(buf_len));
+      if (bytes_written == sizeof(buf_len)) {
+        bytes_written = write(pipe_write_fd_, buf->data(), buf_len);
+        if (bytes_written == buf_len) {
+          dispatched = true;
+        } else
+          SB_LOG(INFO) << __FUNCTION__ << " bytes_written=" << bytes_written
+                       << " != buf_len=" << buf_len;
+      } else
+        SB_LOG(INFO) << __FUNCTION__ << " bytes_written=" << bytes_written
+                     << " != sizeof(buf_len)=" << sizeof(buf_len);
+#else
       starboard::ScopedLock lock(mutex_);
       // Find a free buffer (note this can be made more efficient if needed).
       int send_buffer_idx = send_buffer_length_[0] == 0   ? 0
@@ -569,6 +605,7 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
         dispatched = true;
         // TODO: get 'result' from the thread.
       }
+#endif
     }
     if (!dispatched) {
       // If the thread can't keep up, we don't have more buffers, so send it
@@ -588,10 +625,27 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
 
 void UDPSocketStarboard::ThreadEntryPoint() {
   pthread_setname_np(pthread_self(), "udp_sender");
+  char buffer[65536];
+#if USE_SEND_PIPE
+  while (thread_) {
+    int buf_len;
+    int bytes_read = read(pipe_read_fd_, &buf_len, sizeof(buf_len));
+    if (bytes_read == sizeof(buf_len)) {
+      int bytes_read = read(pipe_read_fd_, buffer, buf_len);
+      if (bytes_read == buf_len) {
+        SbSocketSendTo(socket_, buffer, buf_len, nullptr);
+      } else if (bytes_read)
+        SB_LOG(INFO) << __FUNCTION__ << " bytes_read=" << bytes_read
+                     << " != buf_len=" << buf_len;
+    } else if (bytes_read)
+      SB_LOG(INFO) << __FUNCTION__ << " bytes_read=" << bytes_read
+                   << " != sizeof(buf_len)=" << sizeof(buf_len);
+  }
+#else
   starboard::ScopedLock lock(mutex_);
   while (thread_) {
     int send_buffer_idx = 0;
-    for (int empty_count = 0; empty_count < kSendBuffers * 4; ++empty_count) {
+    for (int empty_count = 0; empty_count < (kSendBuffers * 4); ++empty_count) {
       if (send_buffer_length_[send_buffer_idx]) {
         mutex_.Release();
         SbSocketSendTo(socket_, send_buffer_[send_buffer_idx],
@@ -604,6 +658,7 @@ void UDPSocketStarboard::ThreadEntryPoint() {
     }
     condition_.Wait();
   }
+#endif
 }
 
 int UDPSocketStarboard::DoBind(const IPEndPoint& address) {
