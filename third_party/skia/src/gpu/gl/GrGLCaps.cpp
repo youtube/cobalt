@@ -809,8 +809,13 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
     } else if (GR_IS_GR_WEBGL(standard)) {
         fSamplerObjectSupport = version >= GR_GL_VER(2,0);
     }
+#if defined(STARBOARD)
+    // Cobalt rendering code cannot interop with sampler objects.
+    fUseSamplerObjects = false;
+#else
     // We currently use sampler objects whenever they are available.
     fUseSamplerObjects = fSamplerObjectSupport;
+#endif
 
     if (GR_IS_GR_GL_ES(standard)) {
         fTiledRenderingSupport = ctxInfo.hasExtension("GL_QCOM_tiled_rendering");
