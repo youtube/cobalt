@@ -253,13 +253,8 @@ public:
                 return;
             }
             fSamplers[index] = s;
-#if 0
             GrGLenum minFilter = filter_to_gl_min_filter(state.filter(), state.mipmapMode());
             GrGLenum magFilter = filter_to_gl_mag_filter(state.filter());
-#else
-            GrGLenum minFilter = filter_to_gl_min_filter(SkFilterMode::kLinear, state.mipmapMode());
-            GrGLenum magFilter = filter_to_gl_mag_filter(SkFilterMode::kLinear);
-#endif
             GrGLenum wrapX = wrap_mode_to_gl_wrap(state.wrapModeX(), fGpu->glCaps());
             GrGLenum wrapY = wrap_mode_to_gl_wrap(state.wrapModeY(), fGpu->glCaps());
             GR_GL_CALL(fGpu->glInterface(),

@@ -810,7 +810,11 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
         fSamplerObjectSupport = version >= GR_GL_VER(2,0);
     }
     // We currently use sampler objects whenever they are available.
+#if 0
     fUseSamplerObjects = fSamplerObjectSupport;
+#else
+    fUseSamplerObjects = false;
+#endif
 
     if (GR_IS_GR_GL_ES(standard)) {
         fTiledRenderingSupport = ctxInfo.hasExtension("GL_QCOM_tiled_rendering");
