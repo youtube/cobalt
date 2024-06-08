@@ -3,6 +3,7 @@
 
 
 #include "../../hb-open-type.hh"
+#include "composite-iter.hh"
 
 
 namespace OT {
@@ -86,27 +87,34 @@ struct CompositeGlyphRecord
     }
   }
 
-  void transform_points (contour_point_vector_t &points) const
+  void transform_points (contour_point_vector_t &points,
+			 const float (&matrix)[4],
+			 const contour_point_t &trans) const
   {
-    float matrix[4];
-    contour_point_t trans;
-    if (get_transformation (matrix, trans))
+    if (scaled_offsets ())
     {
-      if (scaled_offsets ())
-      {
-	points.translate (trans);
-	points.transform (matrix);
-      }
-      else
-      {
-	points.transform (matrix);
-	points.translate (trans);
-      }
+      points.translate (trans);
+      points.transform (matrix);
+    }
+    else
+    {
+      points.transform (matrix);
+      points.translate (trans);
     }
   }
 
-  unsigned compile_with_deltas (const contour_point_t &p_delta,
-                                char *out) const
+  bool get_points (contour_point_vector_t &points) const
+  {
+    float matrix[4];
+    contour_point_t trans;
+    get_transformation (matrix, trans);
+    if (unlikely (!points.resize (points.length + 1))) return false;
+    points[points.length - 1] = trans;
+    return true;
+  }
+
+  unsigned compile_with_point (const contour_point_t &point,
+                               char *out) const
   {
     const HBINT8 *p = &StructAfter<const HBINT8> (flags);
 #ifndef HB_NO_BEYOND_64K
@@ -120,30 +128,29 @@ struct CompositeGlyphRecord
     unsigned len_before_val = (const char *)p - (const char *)this;
     if (flags & ARG_1_AND_2_ARE_WORDS)
     {
-      // no overflow, copy and update value with deltas
-      memcpy (out, this, len);
+      // no overflow, copy value
+      hb_memcpy (out, this, len);
 
-      const HBINT16 *px = reinterpret_cast<const HBINT16 *> (p);
       HBINT16 *o = reinterpret_cast<HBINT16 *> (out + len_before_val);
-      o[0] = px[0] + roundf (p_delta.x);
-      o[1] = px[1] + roundf (p_delta.y);
+      o[0] = roundf (point.x);
+      o[1] = roundf (point.y);
     }
     else
     {
-      int new_x = p[0] + roundf (p_delta.x);
-      int new_y = p[1] + roundf (p_delta.y);
+      int new_x = roundf (point.x);
+      int new_y = roundf (point.y);
       if (new_x <= 127 && new_x >= -128 &&
           new_y <= 127 && new_y >= -128)
       {
-        memcpy (out, this, len);
+        hb_memcpy (out, this, len);
         HBINT8 *o = reinterpret_cast<HBINT8 *> (out + len_before_val);
         o[0] = new_x;
         o[1] = new_y;
       }
       else
       {
-        // int8 overflows after deltas applied
-        memcpy (out, this, len_before_val);
+        // new point value has an int8 overflow
+        hb_memcpy (out, this, len_before_val);
         
         //update flags
         CompositeGlyphRecord *o = reinterpret_cast<CompositeGlyphRecord *> (out);
@@ -152,14 +159,14 @@ struct CompositeGlyphRecord
 
         HBINT16 new_value;
         new_value = new_x;
-        memcpy (out, &new_value, HBINT16::static_size);
+        hb_memcpy (out, &new_value, HBINT16::static_size);
         out += HBINT16::static_size;
 
         new_value = new_y;
-        memcpy (out, &new_value, HBINT16::static_size);
+        hb_memcpy (out, &new_value, HBINT16::static_size);
         out += HBINT16::static_size;
 
-        memcpy (out, p+2, len - len_before_val - 2);
+        hb_memcpy (out, p+2, len - len_before_val - 2);
         len += 2;
       }
     }
@@ -170,6 +177,7 @@ struct CompositeGlyphRecord
   bool scaled_offsets () const
   { return (flags & (SCALED_COMPONENT_OFFSET | UNSCALED_COMPONENT_OFFSET)) == SCALED_COMPONENT_OFFSET; }
 
+  public:
   bool get_transformation (float (&matrix)[4], contour_point_t &trans) const
   {
     matrix[0] = matrix[3] = 1.f;
@@ -224,7 +232,6 @@ struct CompositeGlyphRecord
     return tx || ty;
   }
 
-  public:
   hb_codepoint_t get_gid () const
   {
 #ifndef HB_NO_BEYOND_64K
@@ -245,6 +252,27 @@ struct CompositeGlyphRecord
       StructAfter<HBGlyphID16> (flags) = gid;
   }
 
+#ifndef HB_NO_BEYOND_64K
+  void lower_gid_24_to_16 ()
+  {
+    hb_codepoint_t gid = get_gid ();
+    if (!(flags & GID_IS_24BIT) || gid > 0xFFFFu)
+      return;
+
+    /* Lower the flag and move the rest of the struct down. */
+
+    unsigned size = get_size ();
+    char *end = (char *) this + size;
+    char *p = &StructAfter<char> (flags);
+    p += HBGlyphID24::static_size;
+
+    flags = flags & ~GID_IS_24BIT;
+    set_gid (gid);
+
+    memmove (p - HBGlyphID24::static_size + HBGlyphID16::static_size, p, end - p);
+  }
+#endif
+
   protected:
   HBUINT16	flags;
   HBUINT24	pad;
@@ -252,55 +280,7 @@ struct CompositeGlyphRecord
   DEFINE_SIZE_MIN (4);
 };
 
-struct composite_iter_t : hb_iter_with_fallback_t<composite_iter_t, const CompositeGlyphRecord &>
-{
-  typedef const CompositeGlyphRecord *__item_t__;
-  composite_iter_t (hb_bytes_t glyph_, __item_t__ current_) :
-      glyph (glyph_), current (nullptr), current_size (0)
-  {
-    set_current (current_);
-  }
-
-  composite_iter_t () : glyph (hb_bytes_t ()), current (nullptr), current_size (0) {}
-
-  item_t __item__ () const { return *current; }
-  bool __more__ () const { return current; }
-  void __next__ ()
-  {
-    if (!current->has_more ()) { current = nullptr; return; }
-
-    set_current (&StructAtOffset<CompositeGlyphRecord> (current, current_size));
-  }
-  composite_iter_t __end__ () const { return composite_iter_t (); }
-  bool operator != (const composite_iter_t& o) const
-  { return current != o.current; }
-
-
-  void set_current (__item_t__ current_)
-  {
-    if (!glyph.check_range (current_, CompositeGlyphRecord::min_size))
-    {
-      current = nullptr;
-      current_size = 0;
-      return;
-    }
-    unsigned size = current_->get_size ();
-    if (!glyph.check_range (current_, size))
-    {
-      current = nullptr;
-      current_size = 0;
-      return;
-    }
-
-    current = current_;
-    current_size = size;
-  }
-
-  private:
-  hb_bytes_t glyph;
-  __item_t__ current;
-  unsigned current_size;
-};
+using composite_iter_t = composite_iter_tmpl<CompositeGlyphRecord>;
 
 struct CompositeGlyph
 {
@@ -351,7 +331,7 @@ struct CompositeGlyph
   }
 
   bool compile_bytes_with_deltas (const hb_bytes_t &source_bytes,
-                                  const contour_point_vector_t &deltas,
+                                  const contour_point_vector_t &points_with_deltas,
                                   hb_bytes_t &dest_bytes /* OUT */)
   {
     if (source_bytes.length <= GlyphHeader::static_size ||
@@ -366,7 +346,7 @@ struct CompositeGlyph
     /* try to allocate more memories than source glyph bytes
      * in case that there might be an overflow for int8 value
      * and we would need to use int16 instead */
-    char *o = (char *) hb_calloc (source_len + source_len/2, sizeof (char));
+    char *o = (char *) hb_calloc (source_len * 2, sizeof (char));
     if (unlikely (!o)) return false;
 
     const CompositeGlyphRecord *c = reinterpret_cast<const CompositeGlyphRecord *> (source_bytes.arrayZ + GlyphHeader::static_size);
@@ -376,18 +356,21 @@ struct CompositeGlyph
     unsigned i = 0, source_comp_len = 0;
     for (const auto &component : it)
     {
-      /* last 4 points in deltas are phantom points and should not be included */
-      if (i >= deltas.length - 4) return false;
+      /* last 4 points in points_with_deltas are phantom points and should not be included */
+      if (i >= points_with_deltas.length - 4) {
+        free (o);
+        return false;
+      }
 
       unsigned comp_len = component.get_size ();
       if (component.is_anchored ())
       {
-        memcpy (p, &component, comp_len);
+        hb_memcpy (p, &component, comp_len);
         p += comp_len;
       }
       else
       {
-        unsigned new_len = component.compile_with_deltas (deltas[i], p);
+        unsigned new_len = component.compile_with_point (points_with_deltas[i], p);
         p += new_len;
       }
       i++;
@@ -398,7 +381,7 @@ struct CompositeGlyph
     if (source_len > source_comp_len)
     {
       unsigned instr_len = source_len - source_comp_len;
-      memcpy (p, (const char *)c + source_comp_len, instr_len);
+      hb_memcpy (p, (const char *)c + source_comp_len, instr_len);
       p += instr_len;
     }
 

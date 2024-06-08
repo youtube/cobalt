@@ -27,13 +27,12 @@ def strip_check_sum (ttx_string):
 		       ttx_string, count=1)
 
 
-def generate_expected_output(input_file, unicodes, profile_flags, instance_flags, output_directory, font_name):
+def generate_expected_output(input_file, unicodes, profile_flags, instance_flags, output_directory, font_name, no_fonttools):
 	input_path = input_file
-	if instance_flags:
+	if not no_fonttools and instance_flags:
 		instance_path = os.path.join(tempfile.mkdtemp (), font_name)
 		args = ["fonttools", "varLib.instancer",
 			"--no-overlap-flag",
-			"--no-recalc-bounds",
 			"--no-recalc-timestamp",
 			"--output=%s" % instance_path,
 			input_file]
@@ -43,26 +42,33 @@ def generate_expected_output(input_file, unicodes, profile_flags, instance_flags
 
 	fonttools_path = os.path.join(tempfile.mkdtemp (), font_name)
 	args = ["fonttools", "subset", input_path]
+	if instance_flags:
+		args.extend(["--recalc-bounds"])
 	args.extend(["--drop-tables+=DSIG",
 		     "--drop-tables-=sbix",
-		     "--unicodes=%s" % unicodes,
+		     "--no-harfbuzz-repacker", # disable harfbuzz repacker so we aren't comparing to ourself.
 		     "--output-file=%s" % fonttools_path])
-	args.extend(profile_flags)
-	check_call(args)
+	if unicodes != "":
+		args.extend(["--unicodes=%s" % unicodes,])
 
-	with io.StringIO () as fp:
-		with TTFont (fonttools_path) as font:
-			font.saveXML (fp)
-		fonttools_ttx = strip_check_sum (fp.getvalue ())
+	args.extend(profile_flags)
+	if not no_fonttools:
+		check_call(args)
+
+		with io.StringIO () as fp:
+			with TTFont (fonttools_path) as font:
+				font.saveXML (fp)
+				fonttools_ttx = strip_check_sum (fp.getvalue ())
 
 	harfbuzz_path = os.path.join(tempfile.mkdtemp (), font_name)
 	args = [
 		hb_subset,
 		"--font-file=" + input_file,
 		"--output-file=" + harfbuzz_path,
-		"--unicodes=%s" % unicodes,
 		"--drop-tables+=DSIG",
 		"--drop-tables-=sbix"]
+	if unicodes != "":
+		args.extend(["--unicodes=%s" % unicodes,])
 	args.extend(profile_flags)
 	if instance_flags:
 		args.extend(["--instance=%s" % ','.join(instance_flags)])
@@ -73,7 +79,7 @@ def generate_expected_output(input_file, unicodes, profile_flags, instance_flags
 			font.saveXML (fp)
 		harfbuzz_ttx = strip_check_sum (fp.getvalue ())
 
-	if harfbuzz_ttx != fonttools_ttx:
+	if not no_fonttools and harfbuzz_ttx != fonttools_ttx:
 		for line in unified_diff (fonttools_ttx.splitlines (1), harfbuzz_ttx.splitlines (1), fonttools_path, harfbuzz_path):
 			sys.stdout.write (line)
 		sys.stdout.flush ()
@@ -99,6 +105,7 @@ for path in args:
 		for test in test_suite.tests():
 			unicodes = test.unicodes()
 			font_name = test.get_font_name()
+			no_fonttools = ("no_fonttools" in test.options)
 			print("Creating subset %s/%s" % (output_directory, font_name))
 			generate_expected_output(test.font_path, unicodes, test.get_profile_flags(),
-						 test.get_instance_flags(), output_directory, font_name)
+						 test.get_instance_flags(), output_directory, font_name, no_fonttools=no_fonttools)
