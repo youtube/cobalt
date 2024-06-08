@@ -20,7 +20,7 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/console_log.h"
-#include "third_party/libjpeg-turbo/jpegint.h"
+#include "third_party/libjpeg_turbo/jpegint.h"
 
 namespace cobalt {
 namespace loader {

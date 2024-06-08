@@ -67,7 +67,8 @@ scoped_refptr<CalcValue> TranslateFunction::offset_as_calc() const {
 float TranslateFunction::length_component_in_pixels() const {
   switch (offset_type()) {
     case kLength:
-      DCHECK_EQ(kPixelsUnit, offset_as_length()->unit());
+      // TODO(b/345814494): Consider re-enabling the DCHECK_EQ() below.
+      // DCHECK_EQ(kPixelsUnit, offset_as_length()->unit());
       return offset_as_length()->value();
     case kPercentage:
       return 0.0f;

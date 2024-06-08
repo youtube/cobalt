@@ -1,8 +1,4 @@
-// Copyright 2013 The Cobalt Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-//
-// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Copyright 2013 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 package dev.cobalt.media;
 
@@ -1217,32 +1217,6 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
-  private static void setCodecSpecificData(MediaFormat format, int index, byte[] bytes) {
-    // Codec Specific Data is set in the MediaFormat as ByteBuffer entries with keys csd-0,
-    // csd-1, and so on. See: http://developer.android.com/reference/android/media/MediaCodec.html
-    // for details.
-    String name;
-    switch (index) {
-      case 0:
-        name = "csd-0";
-        break;
-      case 1:
-        name = "csd-1";
-        break;
-      case 2:
-        name = "csd-2";
-        break;
-      default:
-        name = null;
-        break;
-    }
-    if (name != null) {
-      format.setByteBuffer(name, ByteBuffer.wrap(bytes));
-    }
-  }
-
-  @SuppressWarnings("unused")
   private static boolean setOpusConfigurationData(
       MediaFormat format, int sampleRate, @Nullable byte[] configurationData) {
     final int MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE = 19;
@@ -1272,15 +1246,13 @@ class MediaCodecBridge {
     long preSkipNanos = (preSkipSamples * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
     long seekPreRollNanos =
         (DEFAULT_SEEK_PRE_ROLL_SAMPLES * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
-    setCodecSpecificData(format, 0, configurationData);
-    setCodecSpecificData(
+    MediaFormatBuilder.setCodecSpecificData(
         format,
-        1,
-        ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(preSkipNanos).array());
-    setCodecSpecificData(
-        format,
-        2,
-        ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(seekPreRollNanos).array());
+        new byte[][] {
+          configurationData,
+          ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(preSkipNanos).array(),
+          ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(seekPreRollNanos).array(),
+        });
     return true;
   }
 

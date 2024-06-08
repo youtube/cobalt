@@ -3076,7 +3076,6 @@ test("net_unittests") {
       ":net_unittest_files",
       ":third_party_unittest_files",
       "//cobalt/network:copy_ssl_certificates",
-      "//third_party/icu:icudata",
     ]
   }
 
