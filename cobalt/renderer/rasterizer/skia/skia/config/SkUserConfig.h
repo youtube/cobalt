@@ -83,7 +83,7 @@
     based on the presence or absence of NDEBUG, but that decision can be changed
     here.
  */
-// #define SK_DEBUG
+#define SK_DEBUG
 // #define SK_RELEASE
 
 
@@ -279,5 +279,9 @@ SK_API void SkDebugf_FileLine(const char* file, int line, bool fatal,
 #define SK_GL
 #endif
 #endif
+
+#define GR_GL_LOG_CALLS 1
+
+#define GR_GL_LOG_CALLS_START 1
 
 #endif  // SkUserConfig_DEFINED  NOLINT
