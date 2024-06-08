@@ -20,6 +20,6 @@ static_library("jpeg_utils") {
 
   deps = [
     "//base",
-    "//third_party/libjpeg-turbo:libjpeg",
+    "//third_party/libjpeg_turbo:libjpeg",
   ]
 }
