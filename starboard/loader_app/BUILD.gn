@@ -90,11 +90,10 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "loader_app") {
     build_loader = false
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
-      data_deps = [ "//third_party/icu:icudata" ]
       if (cobalt_font_package == "empty") {
-        data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+        data_deps = [ "//cobalt/content/fonts:copy_font_data" ]
       } else {
-        data_deps += [
+        data_deps = [
           "//cobalt/content/fonts:copy_fonts",
           "//cobalt/content/fonts:fonts_xml",
         ]

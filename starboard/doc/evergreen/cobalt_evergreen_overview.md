@@ -486,7 +486,6 @@ Image required for all slot configurations:
 │       └── cobalt <--(SLOT_0)
 │           ├── content <--(relative path defined in kSystemImageContentPath)
 │           │   ├── fonts <--(`empty` configuration)
-│           │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
 │           │   ├── licenses
 │           │   ├── ssl
 │           ├── lib
@@ -507,7 +506,6 @@ updates in an example 3-slot configuration:
     ├── installation_2 <--(SLOT_2 - contains new Cobalt version)
     │   ├── content
     │   │   ├── fonts <--(`empty` configuration)
-    │   │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
     │   │   ├── licenses
     │   │   ├── ssl
     │   ├── lib
@@ -515,7 +513,6 @@ updates in an example 3-slot configuration:
     │   ├── manifest.fingerprint
     │   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
     ├── installation_store_<APP_KEY>.pb
-    └── icu (default location shared by installation slots, to be explained below)
 ```
 Note that after the Cobalt binary is loaded by the loader_app, `kSbSystemPathContentDirectory` points to the
 content directory of the running binary, as stated in Starboard Module Reference of system.h.
@@ -557,24 +554,6 @@ On Raspberry Pi the Cobalt fonts are configured the following way:
 `standard` or `limited` set of fonts under:
 ```
 <kSbSystemPathContentDirectory>/fonts
-```
-
-### ICU Tables
-The ICU table should be deployed under the `kSbSystemPathStorageDirectory`. This
-way all Cobalt Evergreen installations would be able to share the same tables.
-The current storage size for the ICU tables is 7MB.
-
-On Raspberry Pi this is:
-
-```
-/home/pi/.cobalt_storage/icu
-```
-The Cobalt Evergreen package will not carry ICU tables by default but may add
-them in the future if needed. When the package has ICU tables they would be
-stored under the content location for the installation:
-
-```
-<SLOT_#>/content/icu
 ```
 
 ### Handling Pending Updates

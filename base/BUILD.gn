@@ -3661,7 +3661,6 @@ test("base_unittests") {
     data_deps += [
       ":base_unittests_bundle_data",
       "//cobalt/network:copy_ssl_certificates",
-      "//third_party/icu:icudata",
     ]
   }
 
