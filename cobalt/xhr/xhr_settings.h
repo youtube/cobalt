@@ -93,7 +93,7 @@ class XhrSettingsImpl : public XhrSettings {
 
  private:
   mutable base::Lock lock_;
-  base::Optional<bool> is_fetch_buffer_pool_enabled_;
+  base::Optional<bool> is_fetch_buffer_pool_enabled_{true};
   base::Optional<int> default_fetch_buffer_size_;
   base::Optional<bool> is_try_lock_for_progress_check_enabled_;
 };
