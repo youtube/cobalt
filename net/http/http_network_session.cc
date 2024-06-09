@@ -371,11 +371,11 @@ void HttpNetworkSession::SetServerPushDelegate(
 }
 
 bool HttpNetworkSession::IsQuicEnabled() const {
-#if !defined(QUIC_DISABLED_FOR_STARBOARD)
+//#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   return params_.enable_quic;
-#else
-  return false;
-#endif
+//#else
+//  return false;
+//#endif
 }
 
 void HttpNetworkSession::DisableQuic() {

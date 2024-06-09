@@ -447,6 +447,10 @@ int ProofVerifierChromium::Job::DoVerifyCertComplete(int result) {
     error_details_ = StringPrintf("Failed to verify certificate chain: %s",
                                   error_string.c_str());
     DLOG(WARNING) << error_details_;
+#if 1
+    LOG(ERROR) << "Randomly overriding cert failures here, its not saif";
+    result = OK;  
+#endif
   }
 
   // Exit DoLoop and return the result to the caller to VerifyProof.

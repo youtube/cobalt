@@ -108,14 +108,15 @@ void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
 
 void NetworkModule::SetEnableQuicFromPersistentSettings() {
   // Called on initialization and when the persistent setting is changed.
-  if (options_.persistent_settings != nullptr) {
-    bool enable_quic = options_.persistent_settings->GetPersistentSettingAsBool(
-        kQuicEnabledPersistentSettingsKey, false);
-    task_runner()->PostTask(
-        FROM_HERE,
-        base::Bind(&URLRequestContext::SetEnableQuic,
-                   base::Unretained(url_request_context_.get()), enable_quic));
-  }
+  // if (options_.persistent_settings != nullptr) {
+  bool enable_quic = options_.persistent_settings->GetPersistentSettingAsBool(
+      kQuicEnabledPersistentSettingsKey, false);
+  enable_quic = true;
+  task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(&URLRequestContext::SetEnableQuic,
+                 base::Unretained(url_request_context_.get()), enable_quic));
+  //}
 }
 
 void NetworkModule::EnsureStorageManagerStarted() {

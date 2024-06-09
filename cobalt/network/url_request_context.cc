@@ -204,22 +204,22 @@ URLRequestContext::URLRequestContext(
               new ProxyConfigService(proxy_config)),
           net::NetLog::Get(), /*quick_check_enabled=*/true));
 
-#if !defined(QUIC_DISABLED_FOR_STARBOARD)
-  bool quic_enabled =
-      configuration::Configuration::GetInstance()->CobaltEnableQuic();
-  if (quic_enabled) {
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    quic_enabled = !command_line->HasSwitch(switches::kDisableQuic);
-  }
-#else
-  bool quic_enabled = false;
-#endif
+  // #if !defined(QUIC_DISABLED_FOR_STARBOARD)
+  bool quic_enabled = true;
+  // configuration::Configuration::GetInstance()->CobaltEnableQuic();
+  // if (quic_enabled) {
+  //   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  //   quic_enabled = !command_line->HasSwitch(switches::kDisableQuic);
+  // }
+  // #else
+  //   bool quic_enabled = false;
+  // #endif
   url_request_context_builder->SetSpdyAndQuicEnabled(/*spdy_enabled=*/true,
                                                      quic_enabled);
 
   net::HttpNetworkSessionParams params;
   params.enable_quic = quic_enabled;
-  params.use_quic_for_unknown_origins = quic_enabled;
+  params.use_quic_for_unknown_origins = true;  // quic_enabled;
 
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   params.ignore_certificate_errors = ignore_certificate_errors;
