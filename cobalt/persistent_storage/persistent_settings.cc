@@ -78,10 +78,17 @@ void PersistentSettings::InitializePrefStore() {
     persistent_settings_ = pref_store_->GetValues();
     pref_store_initialized_.Signal();
   }
+<<<<<<< HEAD
   // Remove settings file and do not allow writes to the file until the
   // |ValidatePersistentSettings()| is called.
   starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
   destruction_observer_added_.Signal();
+=======
+  validated_initial_settings_ = true;
+  // Report a dummy value as "dirty", so that commit actually writes
+  pref_store_->ReportValueChanged("", 0);
+  pref_store_->CommitPendingWrite();
+>>>>>>> 5ecc2c88f80 (Persistent settings reliability fix (#3512))
 }
 
 void PersistentSettings::ValidatePersistentSettings(bool blocking) {
