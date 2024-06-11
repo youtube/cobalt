@@ -26,7 +26,6 @@ namespace media {
 namespace {
 
 // The codecs tested by these tests were introduced in SB_API_VERSION 14.
-#if SB_API_VERSION >= 14
 constexpr char kEmptyKeySystem[] = "";
 constexpr int64_t kBitrate = 44100;
 
@@ -113,7 +112,6 @@ TEST(MimeUtilTest, ChecksUnsupportedWavCodecs) {
       CanPlayMimeAndKeySystem(invalid_wav_mime_str.c_str(), kEmptyKeySystem),
       kSbMediaSupportTypeNotSupported);
 }
-#endif  // SB_API_VERSION >= 14
 
 }  // namespace
 }  // namespace media

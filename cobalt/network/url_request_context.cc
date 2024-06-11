@@ -204,12 +204,6 @@ URLRequestContext::URLRequestContext(
           net::NetLog::Get(), /*quick_check_enabled=*/true));
 
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
-#ifndef COBALT_PENDING_CLEAN_UP
-  // TODO: Confirm this is not needed.
-  // ack decimation significantly increases download bandwidth on low-end
-  // android devices.
-  SetQuicFlag(&FLAGS_quic_reloadable_flag_quic_enable_ack_decimation, true);
-#endif
   bool quic_enabled =
       configuration::Configuration::GetInstance()->CobaltEnableQuic();
   if (quic_enabled) {
@@ -244,10 +238,7 @@ URLRequestContext::URLRequestContext(
   } else {
     using_http_cache_ = true;
 
-    int max_cache_bytes = 24 * 1024 * 1024;
-#if SB_API_VERSION >= 14
-    max_cache_bytes = kSbMaxSystemPathCacheDirectorySize;
-#endif
+    int max_cache_bytes = kSbMaxSystemPathCacheDirectorySize;
     // Assume the non-http-cache memory in kSbSystemPathCacheDirectory
     // is less than 1 mb and subtract this from the max_cache_bytes.
     max_cache_bytes -= (1 << 20);

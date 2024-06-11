@@ -20,6 +20,10 @@ from starboard.tools.testing import test_filter
 # pylint: disable=line-too-long
 _FILTERED_TESTS = {
     'nplb': [
+        # Currently frequently flaky on Windows
+        'SbConditionVariableWaitTimedTest.FLAKY_SunnyDayAutoInit',
+        'PosixConditionVariableWaitTimedTest.FLAKY_SunnyDayAutoInit',
+
         # This single test takes >15 minutes.
         'SbPlayerTest.MultiPlayer',
         # This test fails on win-win32 devel builds, because the compiler

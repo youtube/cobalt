@@ -18,6 +18,7 @@ config("sabi_flags") {
     "-target",
     "armv7a-none-eabihf",
   ]
+  asmflags = cflags
 }
 
 config("hardfp") {

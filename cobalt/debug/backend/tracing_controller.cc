@@ -23,7 +23,6 @@
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
 #include "cobalt/script/script_debugger.h"
-#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace debug {

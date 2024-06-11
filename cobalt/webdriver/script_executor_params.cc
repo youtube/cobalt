@@ -45,7 +45,7 @@ ScriptExecutorParams::GCPreventedParams ScriptExecutorParams::Create(
   if (!global_environment->EvaluateScript(function_source, params.get(),
 
                                           &params->function_object_)) {
-    DLOG(ERROR) << "Failed to create Function object";
+    LOG(ERROR) << "Failed to create Function object";
   }
   return {params, global_environment.get()};
 }

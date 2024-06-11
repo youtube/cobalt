@@ -60,8 +60,6 @@
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
 #include "starboard/atomic.h"
-#include "starboard/common/string.h"
-#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
@@ -89,7 +87,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SbAtomicNoBarrier_Exchange64(
       last_render_timestamp,
       static_cast<SbAtomic64>(
-          starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime())));
+        base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds();
 }
 
 base::LazyInstance<NonTrivialGlobalVariables>::DestructorAtExit

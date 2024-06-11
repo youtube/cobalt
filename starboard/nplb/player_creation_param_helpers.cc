@@ -74,7 +74,6 @@ AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
       audio_stream_info.bits_per_sample = 16;
       break;
     }
-#if SB_API_VERSION >= 14
     case kSbMediaAudioCodecMp3: {
       audio_stream_info.number_of_channels = 2;
       audio_stream_info.samples_per_second = 44100;
@@ -93,7 +92,6 @@ AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
       audio_stream_info.bits_per_sample = 32;
       break;
     }
-#endif  // SB_API_VERSION >= 14
 #if SB_API_VERSION >= 15
     case kSbMediaAudioCodecIamf: {
       audio_stream_info.number_of_channels = 2;

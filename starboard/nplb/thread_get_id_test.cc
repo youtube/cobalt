@@ -14,7 +14,7 @@
 
 // Thread joining is mostly tested in the other tests.
 
-#include "starboard/nplb/thread_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,7 +24,7 @@ namespace {
 
 // Returns the thread's ID.
 void* GetThreadIdEntryPoint(void* context) {
-  return nplb::ToVoid(SbThreadGetId());
+  return posix::ToVoid(SbThreadGetId());
 }
 
 TEST(SbThreadGetIdTest, SunnyDay) {
@@ -34,19 +34,18 @@ TEST(SbThreadGetIdTest, SunnyDay) {
 TEST(SbThreadGetIdTest, SunnyDayDifferentIds) {
   const int kThreads = 16;
 
-  SbThread threads[kThreads];
+  pthread_t threads[kThreads];
   for (int i = 0; i < kThreads; ++i) {
-    threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                true, NULL, GetThreadIdEntryPoint, NULL);
-    EXPECT_TRUE(SbThreadIsValid(threads[i]));
+    pthread_create(&threads[i], nullptr, GetThreadIdEntryPoint, nullptr);
+    EXPECT_TRUE(threads[i] != 0);
   }
 
   // We join on all these threads to get their IDs back.
   SbThreadId thread_ids[kThreads];
   for (int i = 0; i < kThreads; ++i) {
     void* result = NULL;
-    EXPECT_TRUE(SbThreadJoin(threads[i], &result));
-    SbThreadId id = static_cast<SbThreadId>(nplb::FromVoid(result));
+    EXPECT_EQ(pthread_join(threads[i], &result), 0);
+    SbThreadId id = static_cast<SbThreadId>(posix::FromVoid(result));
     EXPECT_NE(id, SbThreadGetId());
     thread_ids[i] = id;
   }

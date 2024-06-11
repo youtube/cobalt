@@ -44,7 +44,7 @@ TEST_F(LoaderAppMetricsTest, VerifyLoaderAppMetricsExtension) {
   // shared implementation of the extension, it's reasonable to expect them to
   // be on the latest version of the extension API available at the commit from
   // which this test is built.
-  ASSERT_EQ(extension->version, 2u);
+  ASSERT_EQ(extension->version, 3u);
 }
 
 }  // namespace

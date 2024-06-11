@@ -244,7 +244,6 @@ TEST(CodecUtilTest, ParsesVorbisCodec) {
   EXPECT_EQ(GetAudioCodecFromString("vorbis", ""), kSbMediaAudioCodecVorbis);
 }
 
-#if SB_API_VERSION >= 14
 TEST(CodecUtilTest, ParsesMp3Codecs) {
   EXPECT_EQ(GetAudioCodecFromString("mp3", ""), kSbMediaAudioCodecMp3);
   EXPECT_EQ(GetAudioCodecFromString("mp4a.69", ""), kSbMediaAudioCodecMp3);
@@ -267,7 +266,6 @@ TEST(CodecUtilTest, DoesNotParse1AsPcmForNonWavSubtypes) {
   EXPECT_EQ(GetAudioCodecFromString("1", "mpeg"), kSbMediaAudioCodecNone);
   EXPECT_EQ(GetAudioCodecFromString("1", "webm"), kSbMediaAudioCodecNone);
 }
-#endif  // SB_API_VERSION >= 14
 
 }  // namespace
 }  // namespace media

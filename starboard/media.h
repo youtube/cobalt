@@ -62,11 +62,9 @@ typedef enum SbMediaAudioCodec {
   kSbMediaAudioCodecEac3,
   kSbMediaAudioCodecOpus,
   kSbMediaAudioCodecVorbis,
-#if SB_API_VERSION >= 14
   kSbMediaAudioCodecMp3,
   kSbMediaAudioCodecFlac,
   kSbMediaAudioCodecPcm,
-#endif  // SB_API_VERSION >= 14
 #if SB_API_VERSION >= 15
   kSbMediaAudioCodecIamf,
 #endif  // SB_API_VERSION >= 15
@@ -279,14 +277,8 @@ typedef enum SbMediaMatrixId {
   kSbMediaMatrixIdYDzDx = 11,
 
   kSbMediaMatrixIdLastStandardValue = kSbMediaMatrixIdYDzDx,
-#if SB_API_VERSION >= 14
   kSbMediaMatrixIdInvalid = 255,
   kSbMediaMatrixIdLast = kSbMediaMatrixIdInvalid,
-#else   // SB_API_VERSION >= 14
-  kSbMediaMatrixIdUnknown = 1000,
-  kSbMediaMatrixIdLast = kSbMediaMatrixIdUnknown,
-#endif  // SB_API_VERSION >= 14
-
 } SbMediaMatrixId;
 
 // This corresponds to the WebM Range enum which is part of WebM color data (see
@@ -693,21 +685,18 @@ SB_EXPORT bool SbMediaGetAudioConfiguration(
 // Value used when a video's bits per pixel is not known.
 #define kSbMediaBitsPerPixelInvalid 0
 
+#if SB_API_VERSION < 16
 typedef enum SbMediaBufferStorageType {
   kSbMediaBufferStorageTypeMemory,
   kSbMediaBufferStorageTypeFile,
 } SbMediaBufferStorageType;
+#endif  // SB_API_VERSION < 16
 
 // The media buffer will be allocated using the returned alignment. Set this to
 // a larger value may increase the memory consumption of media buffers.
 //
 #if SB_API_VERSION < 16
-#if SB_API_VERSION >= 14
 SB_EXPORT int SbMediaGetBufferAlignment();
-#else   // SB_API_VERSION >= 14
-// |type|: the media type of the stream (audio or video).
-SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
-#endif  // SB_API_VERSION >= 14
 #endif  // SB_API_VERSION < 16
 
 // When the media stack needs more memory to store media buffers, it will
@@ -767,12 +756,7 @@ SB_EXPORT int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
 // can be use optimally by specific instructions like SIMD. Set to 0 to remove
 // any padding.
 //
-#if SB_API_VERSION >= 14
 SB_EXPORT int SbMediaGetBufferPadding();
-#else   // SB_API_VERSION >= 14
-// |type|: the media type of the stream (audio or video).
-SB_EXPORT int SbMediaGetBufferPadding(SbMediaType type);
-#endif  // SB_API_VERSION >= 14
 
 // When either SbMediaGetInitialBufferCapacity or SbMediaGetBufferAllocationUnit
 // isn't zero, media buffers will be allocated using a memory pool. Set the
@@ -802,6 +786,7 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
                                                 int resolution_height,
                                                 int bits_per_pixel);
 
+#if SB_API_VERSION < 16
 // Returns SbMediaBufferStorageType of type |SbMediaStorageTypeMemory| or
 // |SbMediaStorageTypeFile|. For memory storage, the media buffers will be
 // stored in main memory allocated by malloc functions. For file storage, the
@@ -810,6 +795,7 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
 // Note that when its value is "file" the media stack will still allocate memory
 // to cache the buffers in use.
 SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
+#endif  // SB_API_VERSION < 16
 
 // If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media
 // buffer pools should be allocated on demand, as opposed to using malloc

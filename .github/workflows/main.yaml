@@ -74,6 +74,7 @@ jobs:
         github.event.label.name == 'runtest' ||
         github.event.label.name == 'on_device'
       )
+    timeout-minutes: 10
     steps:
       - id: checkout
         uses: kaidokert/checkout@v3.5.999
@@ -148,6 +149,7 @@ jobs:
     runs-on: [self-hosted, linux-runner]
     permissions:
       packages: write
+    timeout-minutes: 30
     steps:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
@@ -184,6 +186,7 @@ jobs:
     permissions:
       packages: write
     runs-on: [self-hosted, linux-runner]
+    timeout-minutes: 30
     steps:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
@@ -231,6 +234,7 @@ jobs:
       # However, dind container ends up having / folder mounted on overlay
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
@@ -367,6 +371,7 @@ jobs:
       HOME: /root
       COBALT_EVERGREEN_LOADER: ${{needs.initialize.outputs.evergreen_loader}}
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
