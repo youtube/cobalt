@@ -23,6 +23,13 @@ _FILTERED_TESTS = {
         # implementation.
         'SbTimeZoneGetNameTest.IsIANAFormat',
     ],
+    'base_test': [
+        # The `ProcessMetricsHelper` depends on the virtual files in /proc.
+        # This is limited to Linux platforms.
+        # See https://man7.org/linux/man-pages/man5/proc.5.html.
+        'ProcessMetricsHelperTest.GetClockTicksPerS',
+        'ProcessMetricsHelperTest.GetCumulativeCPUUsagePerThread',
+    ],
 }
 
 

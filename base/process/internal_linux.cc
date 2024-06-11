@@ -33,6 +33,7 @@ const char kProcDir[] = "/proc";
 
 const char kStatFile[] = "stat";
 
+#if !defined(STARBOARD)
 FilePath GetProcPidDir(pid_t pid) {
   return FilePath(kProcDir).Append(NumberToString(pid));
 }
@@ -56,6 +57,7 @@ pid_t ProcDirSlotToPid(const char* d_name) {
   }
   return pid;
 }
+#endif  // !defined(STARBOARD)
 
 bool ReadProcFile(const FilePath& file, std::string* buffer) {
   DCHECK(FilePath(kProcDir).IsParent(file));
@@ -70,10 +72,12 @@ bool ReadProcFile(const FilePath& file, std::string* buffer) {
   return !buffer->empty();
 }
 
+#if !defined(STARBOARD)
 bool ReadProcStats(pid_t pid, std::string* buffer) {
   FilePath stat_file = internal::GetProcPidDir(pid).Append(kStatFile);
   return ReadProcFile(stat_file, buffer);
 }
+#endif  // !defined(STARBOARD)
 
 bool ParseProcStats(const std::string& stats_data,
                     std::vector<std::string>* proc_stats) {
@@ -86,28 +90,29 @@ bool ParseProcStats(const std::string& stats_data,
   // pid (process name) data1 data2 .... dataN
   // Look for the closing paren by scanning backwards, to avoid being fooled by
   // processes with ')' in the name.
-  size_t open_parens_idx = stats_data.find(" (");
-  size_t close_parens_idx = stats_data.rfind(") ");
-  if (open_parens_idx == std::string::npos ||
-      close_parens_idx == std::string::npos ||
-      open_parens_idx > close_parens_idx) {
+  size_t pid_end = stats_data.find(" (");
+  size_t comm_start = pid_end + 2;
+  size_t comm_end = stats_data.rfind(") ");
+  size_t state_start = comm_end + 2;
+  if (pid_end == std::string::npos ||
+      comm_end == std::string::npos ||
+      pid_end > comm_end) {
     DLOG(WARNING) << "Failed to find matched parens in '" << stats_data << "'";
     NOTREACHED();
     return false;
   }
-  open_parens_idx++;
 
   proc_stats->clear();
   // PID.
-  proc_stats->push_back(stats_data.substr(0, open_parens_idx));
+  proc_stats->push_back(stats_data.substr(0, pid_end));
   // Process name without parentheses.
   proc_stats->push_back(
-      stats_data.substr(open_parens_idx + 1,
-                        close_parens_idx - (open_parens_idx + 1)));
+      stats_data.substr(comm_start,
+                        comm_end - comm_start));
 
   // Split the rest.
   std::vector<std::string> other_stats = SplitString(
-      stats_data.substr(close_parens_idx + 2), " ",
+      stats_data.substr(state_start), " ",
       base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (const auto& i : other_stats)
     proc_stats->push_back(i);
@@ -152,16 +157,19 @@ int64_t ReadStatFileAndGetFieldAsInt64(const FilePath& stat_file,
   return GetProcStatsFieldAsInt64(proc_stats, field_num);
 }
 
+#if !defined(STARBOARD)
 int64_t ReadProcStatsAndGetFieldAsInt64(pid_t pid, ProcStatsFields field_num) {
   FilePath stat_file = internal::GetProcPidDir(pid).Append(kStatFile);
   return ReadStatFileAndGetFieldAsInt64(stat_file, field_num);
 }
+#endif  // !defined(STARBOARD)
 
 int64_t ReadProcSelfStatsAndGetFieldAsInt64(ProcStatsFields field_num) {
   FilePath stat_file = FilePath(kProcDir).Append("self").Append(kStatFile);
   return ReadStatFileAndGetFieldAsInt64(stat_file, field_num);
 }
 
+#if !defined(STARBOARD)
 size_t ReadProcStatsAndGetFieldAsSizeT(pid_t pid,
                                        ProcStatsFields field_num) {
   std::string stats_data;
@@ -172,6 +180,7 @@ size_t ReadProcStatsAndGetFieldAsSizeT(pid_t pid,
     return 0;
   return GetProcStatsFieldAsSizeT(proc_stats, field_num);
 }
+#endif  // !defined(STARBOARD)
 
 Time GetBootTime() {
   FilePath path("/proc/stat");
@@ -189,6 +198,7 @@ Time GetBootTime() {
   return Time::FromTimeT(btime);
 }
 
+#if !defined(STARBOARD)
 TimeDelta GetUserCpuTimeSinceBoot() {
   FilePath path("/proc/stat");
   std::string contents;
@@ -228,6 +238,7 @@ TimeDelta ClockTicksToTimeDelta(int64_t clock_ticks) {
 
   return Microseconds(Time::kMicrosecondsPerSecond * clock_ticks / kHertz);
 }
+#endif  // !defined(STARBOARD)
 
 }  // namespace internal
 }  // namespace base
