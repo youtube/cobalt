@@ -18,8 +18,14 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.media.Log.TAG;
+
 import android.media.MediaFormat;
+import androidx.annotation.Nullable;
+import dev.cobalt.util.Log;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Locale;
 
 class MediaFormatBuilder {
   public static void setCodecSpecificData(MediaFormat format, byte[][] csds) {
@@ -33,10 +39,18 @@ class MediaFormatBuilder {
     }
   }
 
-  /*
-  @SuppressWarnings("unused")
-  private static boolean setOpusConfigurationData(
-      MediaFormat format, int sampleRate, @Nullable byte[] configurationData) {
+  public static MediaFormat createAudioFormat(
+      String mime, int sampleRate, int channelCount, byte[][] csds, boolean frameHasAdtsHeader) {
+    MediaFormat format = MediaFormat.createAudioFormat(mime, sampleRate, channelCount);
+    setCodecSpecificData(format, csds);
+    if (frameHasAdtsHeader) {
+      format.setInteger(MediaFormat.KEY_IS_ADTS, 1);
+    }
+    return format;
+  }
+
+  public static byte[][] starboardParseOpusConfigurationData(
+      int sampleRate, @Nullable byte[] configurationData) {
     final int MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE = 19;
     final long NANOSECONDS_IN_ONE_SECOND = 1000000000L;
     // 3840 is the default seek pre-roll samples used by ExoPlayer:
@@ -54,7 +68,7 @@ class MediaFormatBuilder {
                       "Configuration data size (%d) is less than the required size (%d).",
                       configurationData.length,
                       MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE)));
-      return false;
+      return null;
     }
     // Both the number of samples to skip from the beginning of the stream and the amount of time
     // to pre-roll when seeking must be specified when configuring the Opus decoder. Logic adapted
@@ -64,14 +78,10 @@ class MediaFormatBuilder {
     long preSkipNanos = (preSkipSamples * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
     long seekPreRollNanos =
         (DEFAULT_SEEK_PRE_ROLL_SAMPLES * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
-    MediaFormatBuilder.setCodecSpecificData(
-        format,
-        new byte[][] {
-          configurationData,
-          ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(preSkipNanos).array(),
-          ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(seekPreRollNanos).array(),
-        });
-    return true;
+    return new byte[][] {
+      configurationData,
+      ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(preSkipNanos).array(),
+      ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(seekPreRollNanos).array(),
+    };
   }
-  */
 }

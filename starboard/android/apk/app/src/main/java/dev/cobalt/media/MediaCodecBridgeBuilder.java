@@ -18,11 +18,19 @@
 
 package dev.cobalt.media;
 
-/*
+import static dev.cobalt.media.Log.TAG;
+
+import android.media.MediaCodec;
+import android.media.MediaCrypto;
+import android.media.MediaFormat;
+import androidx.annotation.Nullable;
+import dev.cobalt.util.Log;
+import dev.cobalt.util.UsedByNative;
+
 class MediaCodecBridgeBuilder {
   @SuppressWarnings("unused")
   @UsedByNative
-  public static MediaCodecBridge createAudioMediaCodecBridge(
+  public static MediaCodecBridge createAudioDecoder(
       long nativeMediaCodecBridge,
       String mime,
       String decoderName,
@@ -47,20 +55,29 @@ class MediaCodecBridgeBuilder {
     }
     MediaCodecBridge bridge =
         new MediaCodecBridge(
-            nativeMediaCodecBridge, mediaCodec, mime, BitrateAdjustmentTypes.NO_ADJUSTMENT, -1);
+            nativeMediaCodecBridge,
+            mediaCodec,
+            mime,
+            MediaCodecBridge.BitrateAdjustmentTypes.NO_ADJUSTMENT,
+            -1);
 
-    MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
-
+    byte[][] csds = {};
+    boolean frameHasAdtsHeader = false;
     if (mime.contains("opus")) {
-      if (!setOpusConfigurationData(mediaFormat, sampleRate, configurationData)) {
+      csds = MediaFormatBuilder.starboardParseOpusConfigurationData(sampleRate, configurationData);
+      if (csds == null) {
         bridge.release();
         return null;
       }
     } else {
-      // TODO: Determine if we should explicitly check the mime for AAC audio before calling
-      // setFrameHasADTSHeader(), as more codecs may be supported here in the future.
-      setFrameHasADTSHeader(mediaFormat);
+      // TODO: Determine if we should explicitly check the mime for AAC audio before setting
+      // frameHasAdtsHeader to true, as more codecs may be supported here in the future.
+      frameHasAdtsHeader = true;
     }
+    MediaFormat mediaFormat =
+        MediaFormatBuilder.createAudioFormat(
+            mime, sampleRate, channelCount, csds, frameHasAdtsHeader);
+
     if (!bridge.configureAudio(mediaFormat, crypto, 0)) {
       Log.e(TAG, "Failed to configure audio codec.");
       bridge.release();
@@ -75,4 +92,3 @@ class MediaCodecBridgeBuilder {
     return bridge;
   }
 }
-*/
