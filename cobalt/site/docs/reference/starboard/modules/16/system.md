@@ -26,56 +26,6 @@ behavior of other APIs within the bounds of their operating range.
     only if) a system has this capability will SbSystemGetTotalGPUMemory() and
     SbSystemGetUsedGPUMemory() be valid to call.
 
-### SbSystemConnectionType
-
-Enumeration of network connection types.
-
-#### Values
-
-*   `kSbSystemConnectionTypeWired`
-
-    The system is on a wired connection.
-*   `kSbSystemConnectionTypeWireless`
-
-    The system is on a wireless connection.
-*   `kSbSystemConnectionTypeUnknown`
-
-    The system connection type is unknown.
-
-### SbSystemDeviceType
-
-Enumeration of device types.
-
-#### Values
-
-*   `kSbSystemDeviceTypeBlueRayDiskPlayer`
-
-    Blue-ray Disc Player (BDP).
-*   `kSbSystemDeviceTypeGameConsole`
-
-    A relatively high-powered TV device used primarily for playing games.
-*   `kSbSystemDeviceTypeOverTheTopBox`
-
-    Over the top (OTT) devices stream content via the Internet over another type
-    of network, e.g. cable or satellite.
-*   `kSbSystemDeviceTypeSetTopBox`
-
-    Set top boxes (STBs) stream content primarily over cable or satellite. Some
-    STBs can also stream OTT content via the Internet.
-*   `kSbSystemDeviceTypeTV`
-
-    A Smart TV is a TV that can directly run applications that stream OTT
-    content via the Internet.
-*   `kSbSystemDeviceTypeDesktopPC`
-
-    Desktop PC.
-*   `kSbSystemDeviceTypeAndroidTV`
-
-    An Android TV Device.
-*   `kSbSystemDeviceTypeUnknown`
-
-    Unknown device.
-
 ### SbSystemPathId
 
 Enumeration of special paths that the platform can define.
@@ -106,9 +56,6 @@ Enumeration of special paths that the platform can define.
 *   `kSbSystemPathTempDirectory`
 
     Path to a directory where temporary files can be written.
-*   `kSbSystemPathTestOutputDirectory`
-
-    Path to a directory where test results can be written.
 *   `kSbSystemPathExecutableFile`
 
     Full path to the executable file.
@@ -195,6 +142,19 @@ string generation.
 *   `kSbSystemPropertyUserAgentAuxField`
 
     A field that, if available, is appended to the user agent
+*   `kSbSystemPropertyAdvertisingId`
+
+    Advertising ID or IFA, typically a 128-bit UUID Please see [https://iabtechlab.com/OTT-IFA](https://iabtechlab.com/OTT-IFA) for
+    details. Corresponds to 'ifa' field. Note: `ifa_type` ifa_type field is not
+    provided.
+*   `kSbSystemPropertyLimitAdTracking`
+
+    Limit advertising tracking, treated as boolean. Set to nonzero to indicate a
+    true value. Corresponds to 'lmt' field.
+*   `kSbSystemPropertyDeviceType`
+
+    Type of the device, e.g. such as "TV", "STB", "OTT" Please see Youtube
+    Technical requirements for a full list of allowed values
 
 ## Typedefs
 
@@ -262,26 +222,6 @@ Clears the last error set by a Starboard call in the current thread.
 
 ```
 void SbSystemClearLastError()
-```
-
-### SbSystemGetConnectionType
-
-Returns the device's current network connection type.
-
-#### Declaration
-
-```
-SbSystemConnectionType SbSystemGetConnectionType()
-```
-
-### SbSystemGetDeviceType
-
-Returns the type of the device.
-
-#### Declaration
-
-```
-SbSystemDeviceType SbSystemGetDeviceType()
 ```
 
 ### SbSystemGetErrorString

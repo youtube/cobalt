@@ -55,23 +55,22 @@ bool SbStorageCloseRecord(SbStorageRecord record)
 
 ### SbStorageDeleteRecord
 
-Deletes the `SbStorageRecord` for `user` named `name`. The return value
-indicates whether the record existed and was successfully deleted. If the record
-did not exist or could not be deleted, the function returns `false`.
+Deletes the `SbStorageRecord` named `name`. The return value indicates whether
+the record existed and was successfully deleted. If the record did not exist or
+could not be deleted, the function returns `false`.
 
-If `name` is NULL, deletes the default storage record for the user, like what
-would have been deleted with the previous version of SbStorageDeleteRecord.
+If `name` is NULL, deletes the default storage record, like what would have been
+deleted with the previous version of SbStorageDeleteRecord.
 
-This function must not be called while the user's storage record is open. This
-function performs blocking I/O on the calling thread.
+This function must not be called while the storage record is open. This function
+performs blocking I/O on the calling thread.
 
-`user`: The user for whom the record will be deleted. `name`: The filesystem-
-safe name of the record to open.
+`name`: The filesystem-safe name of the record to open.
 
 #### Declaration
 
 ```
-bool SbStorageDeleteRecord(SbUser user, const char *name)
+bool SbStorageDeleteRecord(const char *name)
 ```
 
 ### SbStorageGetRecordSize
@@ -99,22 +98,20 @@ static bool SbStorageIsValidRecord(SbStorageRecord record)
 
 ### SbStorageOpenRecord
 
-Opens and returns the SbStorageRecord for `user` named `name`, blocking I/O on
-the calling thread until the open is completed. If `user` is not a valid
-`SbUser`, the function returns `kSbStorageInvalidRecord`. Will return an
-`SbStorageRecord` of size zero if the record does not yet exist. Opening an
-already-open `SbStorageRecord` has undefined behavior.
+Opens and returns the SbStorageRecord named `name`, blocking I/O on the calling
+thread until the open is completed. Will return an `SbStorageRecord` of size
+zero if the record does not yet exist. Opening an already-open `SbStorageRecord`
+has undefined behavior.
 
-If `name` is NULL, opens the default storage record for the user, like what
-would have been saved with the previous version of SbStorageOpenRecord.
+If `name` is NULL, opens the default storage record, like what would have been
+saved with the previous version of SbStorageOpenRecord.
 
-`user`: The user for which the storage record will be opened. `name`: The
-filesystem-safe name of the record to open.
+`name`: The filesystem-safe name of the record to open.
 
 #### Declaration
 
 ```
-SbStorageRecord SbStorageOpenRecord(SbUser user, const char *name)
+SbStorageRecord SbStorageOpenRecord(const char *name)
 ```
 
 ### SbStorageReadRecord

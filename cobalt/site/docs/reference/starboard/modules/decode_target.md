@@ -12,7 +12,7 @@ data. This allows the application to allocate fast graphics memory, and have
 decoding done directly into this memory, avoiding unnecessary memory copies, and
 also avoiding pushing data between CPU and GPU memory unnecessarily.
 
-## SbDecodeTargetFormat
+*   SbDecodeTargetFormat
 
 SbDecodeTargets support several different formats that can be used to decode
 into and render from. Some formats may be easier to decode into, and others may
@@ -21,7 +21,7 @@ the SbDecodeTargetFormat passed into it, or the decode will produce an error.
 Each decoder provides a way to check if a given SbDecodeTargetFormat is
 supported by that decoder.
 
-## SbDecodeTargetGraphicsContextProvider
+*   SbDecodeTargetGraphicsContextProvider
 
 Some components may need to acquire SbDecodeTargets compatible with a certain
 rendering context, which may need to be created on a particular thread. The
@@ -33,51 +33,7 @@ to run arbitrary code on the application's renderer thread with the renderer's
 EGLContext held current. This may be useful if your SbDecodeTarget creation code
 needs to execute GLES commands like, for example, glGenTextures().
 
-The primary usage is likely to be the the SbPlayer implementation on some
-platforms.
-
-## SbDecodeTarget Example
-
-Let's say that we are an application and we would like to use the interface
-defined in starboard/image.h to decode an imaginary "image/foo" image type.
-
-First, the application should enumerate which SbDecodeTargetFormats are
-supported by that decoder.
-
-```
-SbDecodeTargetFormat kPreferredFormats[] = {
-    kSbDecodeTargetFormat3PlaneYUVI420,
-    kSbDecodeTargetFormat1PlaneRGBA,
-    kSbDecodeTargetFormat1PlaneBGRA,
-};
-
-SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
-for (int i = 0; i < SB_ARRAY_SIZE_INT(kPreferredFormats); ++i) {
-  if (SbImageIsDecodeSupported("image/foo", kPreferredFormats[i])) {
-    format = kPreferredFormats[i];
-    break;
-  }
-}
-
-```
-
-Now that the application has a format, it can create a decode target that it
-will use to decode the .foo file into. Let's assume format is
-kSbDecodeTargetFormat1PlaneRGBA, that we are on an EGL/GLES2 platform. Also, we
-won't do any error checking, to keep things even simpler.
-
-```
-SbDecodeTarget target = SbImageDecode(
-    context_provider, encoded_foo_data, encoded_foo_data_size,
-    "image/foo", format);
-
-// If the decode works, you can get the texture out and render it.
-SbDecodeTargetInfo info;
-memset(&info, 0, sizeof(info));
-SbDecodeTargetGetInfo(target, &info);
-GLuint texture =
-    info.planes[kSbDecodeTargetPlaneRGBA].texture;
-```
+The primary usage is likely to be the SbPlayer implementation on some platforms.
 
 ## Macros
 
@@ -127,9 +83,9 @@ premultiplied unless otherwise explicitly specified.
     A decoder target format consisting of a single plane with pixels laid out in
     the format UYVY. Since there are two Y values per sample, but only one U
     value and only one V value, horizontally the Y resolution is twice the size
-    of both the U and V resolutions. Vertically, they Y, U and V all have the
-    same resolution. This is a YUV 422 format. When using this format with GL
-    platforms, it is expected that the underlying texture will be set to the
+    of both the U and V resolutions. Vertically, the Y, U, and V planes all have
+    the same resolution. This is a YUV 422 format. When using this format with
+    GL platforms, it is expected that the underlying texture will be set to the
     GL_RGBA format, and the width of the texture will be equal to the number of
     UYVY tuples per row (e.g. the u/v width resolution). Content region
     left/right should be specified in u/v width resolution.
@@ -207,8 +163,7 @@ information about the graphics context that will be used to render
 SbDecodeTargets. Some Starboard implementations may need to have references to
 some graphics objects when creating/destroying resources used by SbDecodeTarget.
 References to SbDecodeTargetGraphicsContextProvider objects should be provided
-to all Starboard functions that might create SbDecodeTargets (e.g.
-SbImageDecode()).
+to all Starboard functions that might create SbDecodeTargets.
 
 #### Members
 
@@ -216,12 +171,12 @@ SbImageDecode()).
 
     A reference to the EGLDisplay object that hosts the EGLContext that will be
     used to render any produced SbDecodeTargets. Note that it has the type
-    `void*` in order to avoid #including the EGL header files here.
+    `void*` in order to avoid including the EGL header files here.
 *   `void * egl_context`
 
     The EGLContext object that will be used to render any produced
     SbDecodeTargets. Note that it has the type `void*` in order to avoid
-    #including the EGL header files here.
+    including the EGL header files here.
 *   `SbDecodeTargetGlesContextRunner gles_context_runner`
 
     The `gles_context_runner` function pointer is passed in from the application
@@ -264,7 +219,7 @@ This can be queried via calls to SbDecodeTargetGetInfo().
 *   `SbDecodeTargetInfoPlane planes`
 
     The image planes (e.g. kSbDecodeTargetPlaneRGBA, or {kSbDecodeTargetPlaneY,
-    kSbDecodeTargetPlaneU, kSbDecodeTargetPlaneV} associated with this decode
+    kSbDecodeTargetPlaneU, kSbDecodeTargetPlaneV}) associated with this decode
     target.
 
 ### SbDecodeTargetInfoContentRegion
@@ -368,7 +323,7 @@ static bool SbDecodeTargetIsValid(SbDecodeTarget handle)
 Returns ownership of `decode_target` to the Starboard implementation. This
 function will likely result in the destruction of the SbDecodeTarget and all its
 associated surfaces, though in some cases, platforms may simply adjust a
-reference count. This function must be called on a thread with the context
+reference count. This function must be called on a thread with the context.
 
 #### Declaration
 

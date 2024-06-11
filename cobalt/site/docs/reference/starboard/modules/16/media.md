@@ -30,6 +30,10 @@ Types of audio elementary streams that can be supported.
 *   `kSbMediaAudioCodecEac3`
 *   `kSbMediaAudioCodecOpus`
 *   `kSbMediaAudioCodecVorbis`
+*   `kSbMediaAudioCodecMp3`
+*   `kSbMediaAudioCodecFlac`
+*   `kSbMediaAudioCodecPcm`
+*   `kSbMediaAudioCodecIamf`
 
 ### SbMediaAudioCodingType
 
@@ -55,11 +59,20 @@ Possible audio connector types.
 
 #### Values
 
-*   `kSbMediaAudioConnectorNone`
+*   `kSbMediaAudioConnectorUnknown`
 *   `kSbMediaAudioConnectorAnalog`
 *   `kSbMediaAudioConnectorBluetooth`
+*   `kSbMediaAudioConnectorBuiltIn`
 *   `kSbMediaAudioConnectorHdmi`
-*   `kSbMediaAudioConnectorNetwork`
+*   `kSbMediaAudioConnectorRemoteWired`
+
+    A wired remote audio output, like a remote speaker via Ethernet.
+*   `kSbMediaAudioConnectorRemoteWireless`
+
+    A wireless remote audio output, like a remote speaker via Wi-Fi.
+*   `kSbMediaAudioConnectorRemoteOther`
+
+    A remote audio output cannot be classified into other existing types.
 *   `kSbMediaAudioConnectorSpdif`
 *   `kSbMediaAudioConnectorUsb`
 
@@ -170,14 +183,11 @@ output.
 
 #### Members
 
-*   `int index`
-
-    The platform-defined index of the associated audio output.
 *   `SbMediaAudioConnector connector`
 
-    The type of audio connector. Will be the empty `kSbMediaAudioConnectorNone`
-    if this device cannot provide this information.
-*   `SbTime latency`
+    The type of audio connector. Will be `kSbMediaAudioConnectorUnknown` if this
+    device cannot provide this information.
+*   `int64_t latency`
 
     The expected latency of audio over this output, in microseconds, or `0` if
     this device cannot provide this information.
@@ -192,13 +202,19 @@ output.
 
 ### SbMediaAudioSampleInfo
 
-An audio sample info, which is a description of a given audio sample. This acts
-as a set of instructions to the audio decoder.
+The set of information required by the decoder or player for each audio sample.
 
-The audio sample info consists of information found in the `WAVEFORMATEX`
-structure, as well as other information for the audio decoder, including the
-Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
-[http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx](http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx)x) .
+#### Members
+
+*   `SbMediaAudioStreamInfo stream_info`
+
+    The set of information of the video stream associated with this sample.
+*   `int64_t discarded_duration_from_front`
+*   `int64_t discarded_duration_from_back`
+
+### SbMediaAudioStreamInfo
+
+The set of information required by the decoder or player for each audio stream.
 
 #### Members
 
@@ -210,21 +226,12 @@ Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
     The mime of the audio stream when `codec` isn't kSbMediaAudioCodecNone. It
     may point to an empty string if the mime is not available, and it can only
     be set to NULL when `codec` is kSbMediaAudioCodecNone.
-*   `uint16_t format_tag`
-
-    The waveform-audio format type code.
 *   `uint16_t number_of_channels`
 
     The number of audio channels in this format. `1` for mono, `2` for stereo.
 *   `uint32_t samples_per_second`
 
     The sampling rate.
-*   `uint32_t average_bytes_per_second`
-
-    The number of bytes per second expected with this format.
-*   `uint16_t block_alignment`
-
-    Byte block alignment, e.g., 4.
 *   `uint16_t bits_per_sample`
 
     The bit depth for the stream this represents, e.g. `8` or `16`.
@@ -233,14 +240,13 @@ Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
     The size, in bytes, of the audio_specific_config.
 *   `const void * audio_specific_config`
 
-    The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1: [http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF](http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF)
+    The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1.
 
 ### SbMediaColorMetadata
 
 HDR (High Dynamic Range) Metadata common for HDR10 and WebM/VP9-based HDR
 formats, together with the ColorSpace. HDR reproduces a greater dynamic range of
-luminosity than is possible with standard digital imaging. See the Consumer
-Electronics Association press release: [https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx](https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx)
+luminosity than is possible with standard digital imaging.
 
 #### Members
 
@@ -373,6 +379,20 @@ The set of information required by the decoder or player for each video sample.
 
 #### Members
 
+*   `SbMediaVideoStreamInfo stream_info`
+
+    The set of information of the video stream associated with this sample.
+*   `bool is_key_frame`
+
+    Indicates whether the associated sample is a key frame (I-frame). Avc video
+    key frames must always start with SPS and PPS NAL units.
+
+### SbMediaVideoStreamInfo
+
+The set of information required by the decoder or player for each video stream.
+
+#### Members
+
 *   `SbMediaVideoCodec codec`
 
     The video codec of this sample.
@@ -393,10 +413,6 @@ The set of information required by the decoder or player for each video sample.
     second higher than 15 fps. When the maximums are unknown, this will be set
     to an empty string. It can only be set to NULL when `codec` is
     kSbMediaVideoCodecNone.
-*   `bool is_key_frame`
-
-    Indicates whether the associated sample is a key frame (I-frame). Video key
-    frames must always start with SPS and PPS NAL units.
 *   `int frame_width`
 
     The frame width of this sample, in pixels. Also could be parsed from the
@@ -430,10 +446,12 @@ Note that neither `mime` nor `key_system` can be NULL. This function returns
 `mime`: The mime information of the media in the form of `video/webm` or
 `video/mp4; codecs="avc1.42001E"`. It may include arbitrary parameters like
 "codecs", "channels", etc. Note that the "codecs" parameter may contain more
-than one codec, delimited by comma. `key_system`: A lowercase value in the form
-of "com.example.somesystem" as suggested by [https://w3c.github.io/encrypted-media/#key-system](https://w3c.github.io/encrypted-media/#key-system)) that can
+than one codec, delimited by comma.
+
+`key_system`: A lowercase value in the form of "com.example.somesystem", and can
 be matched exactly with known DRM key systems of the platform. When `key_system`
 is an empty string, the return value is an indication for non-encrypted media.
+For more detail, refer to [https://w3c.github.io/encrypted-media/#key-system](https://w3c.github.io/encrypted-media/#key-system)
 
 An implementation may choose to support `key_system` with extra attributes,
 separated by ';', like `com.example.somesystem; attribute_name1="value1";
@@ -445,23 +463,21 @@ attributes, it has to support all attributes defined by the Starboard version
 the implementation uses. An implementation should ignore any unknown attributes,
 and make a decision solely based on the key system and the known attributes. For
 example, if an implementation supports "com.widevine.alpha", it should also
-return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
-`key_system` is `com.widevine.alpha; invalid_attribute="invalid_value"`.
-Currently the only attribute has to be supported is `encryptionscheme`. It
-reflects the value passed to `encryptionScheme` encryptionScheme of
-MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/,](https://wicg.github.io/encrypted-media-encryption-scheme/,),) which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
-not a valid value for `encryptionscheme` and the implementation should return
-`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
+return `kSbMediaSupportTypeProbably` when `key_system` is `com.widevine.alpha;
+invalid_attribute="invalid_value"`. Currently the only attribute has to be
+supported is `encryptionscheme`. It reflects the value passed to
+`encryptionScheme` of MediaKeySystemMediaCapability. It can take value "cenc",
+"cbcs", or "cbcs-1-9". Empty string is not a valid value for `encryptionscheme`
+and the implementation should return `kSbMediaSupportTypeNotSupported` when
 `encryptionscheme` is set to "". The implementation should return
-`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported for unknown
-values of known attributes. For example, if an implementation supports
-"encryptionscheme" with value "cenc", "cbcs", or "cbcs-1-9", then it should
-return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
+`kSbMediaSupportTypeNotSupported` for unknown values of known attributes. For
+example, if an implementation supports "encryptionscheme" with value "cenc",
+"cbcs", or "cbcs-1-9", then it should return `kSbMediaSupportTypeProbably` when
 `key_system` is `com.widevine.alpha; encryptionscheme="cenc"`, and return
-`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
-`key_system` is `com.widevine.alpha; encryptionscheme="invalid"`. If an
-implementation supports key system with attributes on one key system, it has to
-support key system with attributes on all key systems supported.
+`kSbMediaSupportTypeNotSupported` when `key_system` is `com.widevine.alpha;
+encryptionscheme="invalid"`. If an implementation supports key system with
+attributes on one key system, it has to support key system with attributes on
+all key systems supported. For more detail, refer to [https://wicg.github.io/encrypted-media-encryption-scheme](https://wicg.github.io/encrypted-media-encryption-scheme)
 
 #### Declaration
 
@@ -514,25 +530,15 @@ least stereo.
 int SbMediaGetAudioOutputCount()
 ```
 
-### SbMediaGetBufferAlignment
-
-The media buffer will be allocated using the returned alignment. Set this to a
-larger value may increase the memory consumption of media buffers.`type`: the
-media type of the stream (audio or video).
-
-#### Declaration
-
-```
-int SbMediaGetBufferAlignment(SbMediaType type)
-```
-
 ### SbMediaGetBufferAllocationUnit
 
-When the media stack needs more memory to store media buffers, it will allocate
-extra memory in units returned by SbMediaGetBufferAllocationUnit. This can
-return 0, in which case the media stack will allocate extra memory on demand.
-When SbMediaGetInitialBufferCapacity and this function both return 0, the media
-stack will allocate individual buffers directly using SbMemory functions.
+The media buffer will be allocated using the returned alignment. Set this to a
+larger value may increase the memory consumption of media buffers. When the
+media stack needs more memory to store media buffers, it will allocate extra
+memory in units returned by SbMediaGetBufferAllocationUnit. This can return 0,
+in which case the media stack will allocate extra memory on demand. When
+SbMediaGetInitialBufferCapacity and this function both return 0, the media stack
+will allocate individual buffers directly using malloc functions.
 
 #### Declaration
 
@@ -542,47 +548,31 @@ int SbMediaGetBufferAllocationUnit()
 
 ### SbMediaGetBufferGarbageCollectionDurationThreshold
 
-Specifies the duration threshold of media source garbage collection. When the
-accumulated duration in a source buffer exceeds this value, the media source
-implementation will try to eject existing buffers from the cache. This is
-usually triggered when the video being played has a simple content and the
-encoded data is small. In such case this can limit how much is allocated for the
-book keeping data of the media buffers and avoid OOM of system heap. This should
-return 170 seconds for most of the platforms. But it can be further reduced on
-systems with extremely low memory.
+Specifies the duration threshold of media source garbage collection in
+microseconds. When the accumulated duration in a source buffer exceeds this
+value, the media source implementation will try to eject existing buffers from
+the cache. This is usually triggered when the video being played has a simple
+content and the encoded data is small. In such case this can limit how much is
+allocated for the book keeping data of the media buffers and avoid OOM of system
+heap. This should return 170 seconds for most of the platforms. But it can be
+further reduced on systems with extremely low memory.
 
 #### Declaration
 
 ```
-SbTime SbMediaGetBufferGarbageCollectionDurationThreshold()
+int64_t SbMediaGetBufferGarbageCollectionDurationThreshold()
 ```
 
 ### SbMediaGetBufferPadding
 
 Extra bytes allocated at the end of a media buffer to ensure that the buffer can
 be use optimally by specific instructions like SIMD. Set to 0 to remove any
-padding.`type`: the media type of the stream (audio or video).
+padding.
 
 #### Declaration
 
 ```
-int SbMediaGetBufferPadding(SbMediaType type)
-```
-
-### SbMediaGetBufferStorageType
-
-Returns SbMediaBufferStorageType of type `SbMediaStorageTypeMemory` or
-`SbMediaStorageTypeFile`. For memory storage, the media buffers will be stored
-in main memory allocated by SbMemory functions. For file storage, the media
-buffers will be stored in a temporary file in the system cache folder acquired
-by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory". Note that when
-its value is "file" the media stack will still allocate memory to cache the the
-buffers in use.
-
-#### Declaration
-
-```
-SbMediaBufferStorageType SbMediaGetBufferStorageType()
+int SbMediaGetBufferPadding()
 ```
 
 ### SbMediaGetInitialBufferCapacity
@@ -608,10 +598,14 @@ allocation of media buffers may only fail when there is not enough memory in the
 system to fulfill the request, under which case the app will be terminated as
 under other OOM situations.
 
-`codec`: the video codec associated with the buffer. `resolution_width`: the
-width of the video resolution. `resolution_height`: the height of the video
-resolution. `bits_per_pixel`: the bits per pixel. This value is larger for HDR
-than non- HDR video.
+`codec`: the video codec associated with the buffer.
+
+`resolution_width`: the width of the video resolution.
+
+`resolution_height`: the height of the video resolution.
+
+`bits_per_pixel`: the bits per pixel. This value is larger for HDR than non-HDR
+video.
 
 #### Declaration
 
@@ -626,10 +620,14 @@ resolution of such videos shouldn't go beyond 1080p. Its value should be less
 than the sum of SbMediaGetAudioBufferBudget and
 'SbMediaGetVideoBufferBudget(..., 1920, 1080, ...) but not less than 8 MB.
 
-`codec`: the video codec associated with the buffer. `resolution_width`: the
-width of the video resolution. `resolution_height`: the height of the video
-resolution. `bits_per_pixel`: the bits per pixel. This value is larger for HDR
-than non- HDR video.
+`codec`: the video codec associated with the buffer.
+
+`resolution_width`: the width of the video resolution.
+
+`resolution_height`: the height of the video resolution.
+
+`bits_per_pixel`: the bits per pixel. This value is larger for HDR than non-HDR
+video.
 
 #### Declaration
 
@@ -645,10 +643,14 @@ being used by video buffers but will also make app less likely to re-download
 video data. Note that the app may experience significant difficulty if this
 value is too low.
 
-`codec`: the video codec associated with the buffer. `resolution_width`: the
-width of the video resolution. `resolution_height`: the height of the video
-resolution. `bits_per_pixel`: the bits per pixel. This value is larger for HDR
-than non- HDR video.
+`codec`: the video codec associated with the buffer.
+
+`resolution_width`: the width of the video resolution.
+
+`resolution_height`: the height of the video resolution.
+
+`bits_per_pixel`: the bits per pixel. This value is larger for HDR than non-HDR
+video.
 
 #### Declaration
 
@@ -676,28 +678,10 @@ bool SbMediaIsBufferPoolAllocateOnDemand()
 ### SbMediaIsBufferUsingMemoryPool
 
 If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media buffer
-pools should be allocated on demand, as opposed to using SbMemory* functions.
+pools should be allocated on demand, as opposed to using malloc functions.
 
 #### Declaration
 
 ```
 bool SbMediaIsBufferUsingMemoryPool()
-```
-
-### SbMediaSetAudioWriteDuration
-
-Communicate to the platform how far past `current_playback_position` the app
-will write audio samples. The app will write all samples between
-`current_playback_position` and `current_playback_position` + `duration`, as
-soon as they are available. The app may sometimes write more samples than that,
-but the app only guarantees to write `duration` past `current_playback_position`
-in general. The platform is responsible for guaranteeing that when only
-`duration` audio samples are written at a time, no playback issues occur (such
-as transient or indefinite hanging). The platform may assume `duration` >= 0.5
-seconds.
-
-#### Declaration
-
-```
-void SbMediaSetAudioWriteDuration(SbTime duration)
 ```

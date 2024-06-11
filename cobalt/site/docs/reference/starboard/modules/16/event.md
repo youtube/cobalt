@@ -236,16 +236,9 @@ the type of the value pointed to by that data argument, if any.
     triggered by the application have tickets passed in via
     SbWindowBlurOnScreenKeyboard. System-triggered events have ticket value
     kSbEventOnScreenKeyboardInvalidTicket.
-*   `kSbEventTypeOnScreenKeyboardSuggestionsUpdated`
+*   `kSbEventTypeReserved1`
 
-    The platform has updated the on screen keyboard suggestions. This event is
-    triggered by the system or by the application's OnScreenKeyboard update
-    suggestions method. The event has int data representing a ticket. The ticket
-    is used by the application to mark individual calls to the update
-    suggestions method as successfully completed. Events triggered by the
-    application have tickets passed in via
-    SbWindowUpdateOnScreenKeyboardSuggestions. System-triggered events have
-    ticket value kSbEventOnScreenKeyboardInvalidTicket.
+    Reserved for deprecated events.
 *   `kSbEventTypeAccessibilityCaptionSettingsChanged`
 
     One or more of the fields returned by SbAccessibilityGetCaptionSettings has
@@ -313,7 +306,7 @@ Structure representing a Starboard event and its data.
 #### Members
 
 *   `SbEventType type`
-*   `SbTimeMonotonic timestamp`
+*   `int64_t timestamp`
 *   `void * data`
 
 ### SbEventStartData
@@ -372,7 +365,7 @@ just dispatch it over to another thread.
 #### Declaration
 
 ```
-SB_IMPORT void SbEventHandle(const SbEvent *event)
+SB_EXPORT_PLATFORM void SbEventHandle(const SbEvent *event)
 ```
 
 ### SbEventIsIdValid
@@ -399,5 +392,16 @@ of microseconds to wait before calling the `callback` function. Set `delay` to
 #### Declaration
 
 ```
-SbEventId SbEventSchedule(SbEventCallback callback, void *context, SbTime delay)
+SbEventId SbEventSchedule(SbEventCallback callback, void *context, int64_t delay)
+```
+
+### SbRunStarboardMain
+
+Serves as the entry point in the Starboard library for running the Starboard
+event loop with the application event handler.
+
+#### Declaration
+
+```
+int SbRunStarboardMain(int argc, char **argv, SbEventHandleCallback callback)
 ```
