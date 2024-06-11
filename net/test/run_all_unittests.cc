@@ -6,7 +6,6 @@
 
 #include "base/build_time.h"
 #include "base/functional/bind.h"
-#include "base/test/allow_check_is_test_for_testing.h"
 #include "base/test/launcher/unit_test_launcher.h"
 #include "build/build_config.h"
 #include "net/socket/transport_client_socket_pool.h"
