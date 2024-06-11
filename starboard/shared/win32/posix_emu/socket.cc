@@ -27,6 +27,9 @@
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
+#undef open
+#undef close
+
 static int gen_fd() {
   static int fd = 100;
   fd++;
@@ -250,8 +253,6 @@ int sb_socket(int domain, int type, int protocol) {
 }
 
 int sb_open(const char* path, int oflag, ...) {
-  SB_LOG(INFO) << "HAO: path: " << path;
-  SB_LOG(INFO) << "HAO: oflag: " << oflag;
   va_list args;
   va_start(args, oflag);
   int fd;
@@ -265,7 +266,6 @@ int sb_open(const char* path, int oflag, ...) {
     fd = _open(path, oflag);
   }
   va_end(args);
-  SB_LOG(INFO) << "HAO: fd: " << fd;
 
   if (fd < 0) {
     return fd;
@@ -317,17 +317,12 @@ long lseek(int fd, long offset, int origin) {  // NOLINT
 }
 
 int sb_fstat(int fd, struct stat* buffer) {
-  SB_LOG(INFO) << "HAO: in sb_fstat";
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
-    SB_LOG(INFO) << "HAO: is not file, return";
     return -1;
   }
 
-  int ret = _fstat(handle.file, (struct _stat*)buffer);
-  SB_LOG(INFO) << "HAO: _fstat: " << ret;
-  return ret;
-  //return _fstat(handle.file, (struct _stat*)buffer);
+  return _fstat(handle.file, (struct _stat*)buffer);
 }
 
 int read(int fd, void* buffer, unsigned int buffer_size) {

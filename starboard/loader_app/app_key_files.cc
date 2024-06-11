@@ -67,7 +67,8 @@ bool CreateAppKeyFile(const std::string& file_name_path) {
   if (!file.IsValid()) {
     SB_LOG(ERROR) << "Failed to open file: " << file_name_path;
     // TODO: retrieve error in starboard::ScopedFile
-    //              << "with error: " << file.error_details();
+    // SB_LOG(ERROR) << "Failed to open file: " << file_name_path
+    // << "with error: " << file.error_details();
     return false;
   }
   return true;

@@ -522,7 +522,9 @@ TEST(FileEnumerator, GetInfoRecursive) {
     const FilePath dir_path = temp_dir.GetPath().Append(dir.name);
 #if defined(STARBOARD)
 #ifdef _WIN32
-// Reable this test when support directory open in base::File for Windows.
+// TODO: Reable this test when support directory open in base::File for Windows.
+// Below tests would fail because we are now using _open from <io.h> instead of 
+// CreateFile from <fileapi.h>.
 #else
     ASSERT_TRUE(GetFileInfo(dir_path, dir.info));
 #endif

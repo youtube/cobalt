@@ -58,8 +58,7 @@ const std::string& ScopedDrainFile::path() const {
 }
 
 void ScopedDrainFile::CreateFile() {
-  starboard::ScopedFile file(path_.c_str(),
-                             (O_CREAT & O_EXCL) | (O_WRONLY | O_RDWR));
+  starboard::ScopedFile file(path_.c_str(), O_CREAT | O_EXCL | O_WRONLY);
 
   EXPECT_TRUE(file.IsValid());
 }

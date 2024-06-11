@@ -17,14 +17,11 @@ import("//starboard/build/convert_i18n_data.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
 config("starboard_platform_config") {
-  configs = [ "//starboard/win/shared/platform_configuration:platform_configuration" ]
-
   if (current_os == "winuwp") {
     # We want this to apply to all shared win sources for xb1.
     configs = [ "//starboard/xb1:starboard_platform_config" ]
   }
   include_dirs = [
-    "//starboard/shared/win32/posix_emu/include",
     "//third_party/angle/include",
     "//third_party/angle/include/EGL",
     "//third_party/angle/include/GLES2",

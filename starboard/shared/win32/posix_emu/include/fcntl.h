@@ -20,7 +20,6 @@
 #include <io.h>  // Needed for `open`, which is in fcntl.h on POSIX
 
 #undef open
-#undef close  // in unistd.h on POSIX, and handles both files and sockets
 
 #define F_GETFL 3 /* get file->f_flags */
 #define F_SETFL 4 /* set file->f_flags */

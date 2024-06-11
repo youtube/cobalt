@@ -22,12 +22,12 @@
 
 #include "starboard/file.h"
 
-#include "starboard/common/log.h"
-
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "starboard/common/log.h"
 
 #ifdef _WIN32
 #undef open
@@ -67,9 +67,6 @@ class ScopedFile {
 
   ScopedFile(const char* path, int flags) : file_(-1) {
     file_ = open(path, flags, S_IRUSR | S_IWUSR);
-    SB_LOG(INFO) << "HAO: scopedfile: flags: " << flags;
-    SB_LOG(INFO) << "file_: " << file_;
-    SB_LOG(INFO) << "errno: " << errno;
   }
 
   ~ScopedFile() {
@@ -108,13 +105,7 @@ class ScopedFile {
 
   bool Flush() const { return !fsync(file_); }
 
-  bool GetInfo(struct stat* out_info) const { 
-      int ret = !fstat(file_, out_info);
-    SB_LOG(INFO) << "HAO: ScopedFile: GetInfo: " << ret;
-      SB_LOG(INFO) << "HAO: ScopedFile: errno: " << errno;
-      //return !fstat(file_, out_info); 
-      return ret;
-  }
+  bool GetInfo(struct stat* out_info) const { return !fstat(file_, out_info); }
 
   int64_t GetSize() const {
     struct stat file_info;

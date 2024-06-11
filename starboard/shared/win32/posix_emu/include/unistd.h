@@ -18,7 +18,6 @@
 #include <io.h>
 #include <starboard/types.h>
 
-#undef open
 #undef close
 
 #ifdef __cplusplus

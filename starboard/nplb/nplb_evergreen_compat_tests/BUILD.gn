@@ -33,8 +33,5 @@ target(gtest_target_type, "nplb_evergreen_compat_tests") {
     "//testing/gtest",
   ]
 
-  data_deps = [
-    "//cobalt/network:copy_ssl_certificates",
-    "//third_party/icu:icudata",
-  ]
+  data_deps = [ "//cobalt/network:copy_ssl_certificates" ]
 }

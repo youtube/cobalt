@@ -411,7 +411,7 @@ bool InitializeLogFileHandle() {
   if (g_log_file_descriptor < 0)
     return false;
 
-  lseek(g_log_file_descriptor, 0, kSbFileFromEnd);
+  lseek(g_log_file_descriptor, 0, SEEK_END);
 #elif BUILDFLAG(IS_WIN)
   // The FILE_APPEND_DATA access mask ensures that the file is atomically
   // appended to across accesses from multiple threads.
@@ -1012,7 +1012,7 @@ LogMessage::~LogMessage() {
 #endif
     if (InitializeLogFileHandle()) {
 #if defined(STARBOARD)
-      lseek(*g_log_file, 0, kSbFileFromEnd);
+      lseek(*g_log_file, 0, SEEK_END);
       int written = 0;
       while (written < str_newline.length()) {
         int result =

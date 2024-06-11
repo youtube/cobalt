@@ -110,7 +110,6 @@ void File::Info::FromStat(const stat_wrapper_t& stat_info) {
   last_modified =
       Time::FromTimeT(last_modified_sec) +
       Microseconds(last_modified_nsec / Time::kNanosecondsPerMicrosecond);
-  LOG(INFO) << " HAO : file_starboard, last_modified: " << last_modified;
 
   last_accessed =
       Time::FromTimeT(last_accessed_sec) +
@@ -160,13 +159,13 @@ int File::Read(int64_t offset, char* data, int size) {
 
   SCOPED_FILE_TRACE_WITH_SIZE("Read", size);
 
-  int original_position = lseek(file_.get(), 0, static_cast<int>(kSbFileFromCurrent));
+  int original_position = lseek(file_.get(), 0, static_cast<int>(SEEK_CUR));
   if (original_position < 0) {
     return -1;
   }
 
   int position =
-      lseek(file_.get(), static_cast<off_t>(offset),  static_cast<int>(kSbFileFromBegin));
+      lseek(file_.get(), static_cast<off_t>(offset),  static_cast<int>(SEEK_SET));
   int result = 0;
   if (position == offset) {
     result = ReadAtCurrentPos(data, size);
@@ -174,7 +173,7 @@ int File::Read(int64_t offset, char* data, int size) {
 
   // Restore position regardless of result of write.
   position =
-      lseek(file_.get(), static_cast<off_t>(original_position), static_cast<int>(kSbFileFromBegin));
+      lseek(file_.get(), static_cast<off_t>(original_position), static_cast<int>(SEEK_SET));
   if (result < 0) {
     return result;
   }
@@ -189,8 +188,6 @@ int File::Read(int64_t offset, char* data, int size) {
 int File::ReadAtCurrentPos(char* data, int size) {
   internal::AssertBlockingAllowed();
   DCHECK(IsValid());
-  SB_LOG(INFO) << "HAO: ReadAtCurrentPos";
-  SB_LOG(INFO) << "size" << size;
   if (size < 0)
     return -1;
 
@@ -205,13 +202,13 @@ int File::ReadNoBestEffort(int64_t offset, char* data, int size) {
   SCOPED_FILE_TRACE_WITH_SIZE("ReadNoBestEffort", size);
 
   int original_position = lseek(
-      file_.get(), 0, static_cast<int>(kSbFileFromCurrent));
+      file_.get(), 0, static_cast<int>(SEEK_CUR));
   if (original_position < 0) {
     return -1;
   }
 
   int position =
-      lseek(file_.get(), static_cast<off_t>(offset),  static_cast<int>(kSbFileFromBegin));
+      lseek(file_.get(), static_cast<off_t>(offset),  static_cast<int>(SEEK_SET));
   int result = 0;
   if (position == offset) {
     result = read(file_.get(), data, size);
@@ -219,7 +216,7 @@ int File::ReadNoBestEffort(int64_t offset, char* data, int size) {
 
   // Restore position regardless of result of read.
   position = lseek(file_.get(), static_cast<off_t>(original_position),
-                   static_cast<int>(kSbFileFromBegin));
+                   static_cast<int>(SEEK_SET));
   if (result < 0) {
     return result;
   }
@@ -243,31 +240,26 @@ int File::ReadAtCurrentPosNoBestEffort(char* data, int size) {
 
 int File::Write(int64_t offset, const char* data, int size) {
   internal::AssertBlockingAllowed();
-  //LOG(INFO) << "hao: write: offset: " << offset << "data: " << data << "size: " << size;
   if (append_) {
-    //LOG(INFO) << "hao: write: in append_";
     return WriteAtCurrentPos(data, size);
   }
 
-  int original_position = lseek(file_.get(), 0,  static_cast<int>(kSbFileFromCurrent));
-  //LOG(INFO) << "hao: write: file_.get(): " << file_.get() << "original_position: " << original_position;
+  int original_position = lseek(file_.get(), 0,  static_cast<int>(SEEK_CUR));
   if (original_position < 0) {
     return -1;
   }
 
   int64_t position =
-      lseek(file_.get(), static_cast<off_t>(offset), static_cast<int>(kSbFileFromBegin));
-  //LOG(INFO) << "hao: write: position: " << position;
+      lseek(file_.get(), static_cast<off_t>(offset), static_cast<int>(SEEK_SET));
+
   int result = 0;
   if (position == offset) {
     result = WriteAtCurrentPos(data, size);
-    //LOG(INFO) << "hao: write: WriteAtCurrentPos result: " << result;
   }
 
   // Restore position regardless of result of write.
   position = lseek(file_.get(), static_cast<off_t>(original_position),
-                   static_cast<int>(kSbFileFromBegin));
-  //LOG(INFO) << "hao: write: position: " << position;
+                   static_cast<int>(SEEK_SET));
   if (result < 0) {
     return result;
   }
@@ -278,20 +270,6 @@ int File::Write(int64_t offset, const char* data, int size) {
 
   return result;
 }
-
-// int File::WriteAtCurrentPos(const char* data, int size) {
-//   internal::AssertBlockingAllowed();
-//   LOG(INFO) << "HAO: File::Write: in WriteAtCurrentPos, size: " << size;
-//   DCHECK(IsValid());
-//   if (size < 0)
-//     return -1;
-
-//   SCOPED_FILE_TRACE_WITH_SIZE("WriteAtCurrentPos", size);
-//   int write_result = starboard::WriteAll(file_.get(), data, size);
-//   LOG(INFO) << "HAO: File::Write: in WriteAtCurrentPos, write_result: " << write_result;
-//   RecordFileWriteStat(write_result);
-//   return write_result;
-// }
 
 int File::WriteAtCurrentPos(const char* data, int size) {
   internal::AssertBlockingAllowed();
@@ -342,8 +320,6 @@ int64_t File::GetLength() {
 bool File::SetLength(int64_t length) {
   internal::AssertBlockingAllowed();
   DCHECK(IsValid());
-  LOG(INFO) << "HAO: SetLength: length: " << length;
-  LOG(INFO) << "HAO: SetLength: sizeof long is : " << sizeof(long);
   SCOPED_FILE_TRACE_WITH_SIZE("SetLength", length);
   return !ftruncate(file_.get(), length);
 }
@@ -368,7 +344,6 @@ bool File::GetInfo(Info* info) {
     return false;
 
   info->FromStat(file_info);
-  LOG(INFO) << "HAO: file_starboard: FILE::GetInfo: " << info->last_modified;
   return true;
 }
 
@@ -481,12 +456,10 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
 
   if (!file_.is_valid()) {
     error_details_ = File::GetLastFileError();
-    LOG(INFO) << "HAO: DoInitialize: failed: error_details_: " << error_details_;
-
   } else {
     error_details_ = FILE_OK;
     if (append_) {
-      lseek(file_.get(), 0, kSbFileFromEnd);
+      lseek(file_.get(), 0, SEEK_END);
     }
   }
 
@@ -495,7 +468,6 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   }
 
   async_ = ((flags & FLAG_ASYNC) == FLAG_ASYNC);
-  LOG(INFO) << "HAO: DoInitialize: created_: " << created_;
 }
 
 bool File::Flush() {

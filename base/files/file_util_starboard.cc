@@ -148,112 +148,22 @@ bool AbsolutePath(FilePath* path) {
   return path->IsAbsolute();
 }
 
-// // Have problem with errno on raspi when using the function in file_util_posix.cc
-// bool DoDeleteFile(const FilePath &path, bool recursive) {
-//   internal::AssertBlockingAllowed();
-//   const char *path_str = path.value().c_str();
-//   struct ::stat info;
-//   bool directory = ::stat(path_str, &info) == 0 && S_ISDIR(info.st_mode);
-//   if (!recursive || !directory) {
-//     LOG(INFO) << "HAO: DELETE, recursive: " << recursive << "directory: " << directory;
-//     if (!path_str || *path_str == '\0') {
-//       return false;
-//     }
-
-//     struct ::stat file_info;
-//     int result = ::stat(path_str, &file_info);
-
-//     if (result) {
-//       LOG(INFO) << "HAO: DELETE: in result, errno: " << errno;
-//       return (errno == ENOENT || errno == ENOTDIR);
-//     }
-
-//     if (S_ISDIR(file_info.st_mode)) {
-//       LOG(INFO) << "HAO: DELETE: in S_ISDIR";
-//       return !rmdir(path_str);
-//     }
-//     return !unlink(path_str);
-//   }
-
-//   bool success = true;
-//   std::stack<std::string> directories;
-//   directories.push(path.value());
-
-//   // NOTE: Right now, for Linux, SbFileGetInfo does not follow
-//   // symlinks. This is good for avoiding deleting through symlinks, but makes it
-//   // hard to use symlinks on platforms where they are supported. This seems
-//   // safest for the lowest-common-denominator approach of pretending symlinks
-//   // don't exist.
-//   FileEnumerator traversal(
-//       path, true, FileEnumerator::FILES | FileEnumerator::DIRECTORIES);
-
-//   // Delete all files and push all directories in depth order onto the stack.
-//   for (FilePath current = traversal.Next();
-//        success && !current.empty();
-//        current = traversal.Next()) {
-//     FileEnumerator::FileInfo info(traversal.GetInfo());
-
-//     if (info.IsDirectory()) {
-//       directories.push(current.value());
-//     } else {
-//       success = !unlink(current.value().c_str());
-//     }
-//   }
-
-//   // Delete all directories in reverse-depth order, now that they have no more
-//   // regular files.
-//   while (success && !directories.empty()) {
-//     success = !unlink(directories.top().c_str());
-//     directories.pop();
-//   }
-
-//   return success;
-// }
-
+// Borrowed from file_util_posix.cc
 bool DoDeleteFile(const FilePath& path, bool recursive) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-  // try to reset errno in the beginning of the funciton
+  // Reset errno in the beginning of the funciton
   errno = 0;
-
-#if BUILDFLAG(IS_ANDROID)
-  if (path.IsContentUri())
-    return DeleteContentUri(path);
-#endif  // BUILDFLAG(IS_ANDROID)
 
   const char* path_str = path.value().c_str();
   stat_wrapper_t file_info;
-  LOG(INFO) << "hao: DoDeleteFile";
-  if (File::Stat(path_str, &file_info) != 0) {
-    // The Windows version defines this condition as success.
-    LOG(INFO) << "hao: File::Stat(path_str, &file_info) != 0";
-    LOG(INFO) << "hao: errno1: " << errno;
-    int ret = errno == ENOENT;
-    LOG(INFO) << "hao: errno2: " << errno;
-    LOG(INFO) << "hao: ret: " << ret;
-    //return (errno == ENOENT);
-    return ret;
+  if (::stat(path_str, &file_info) != 0) {
+    return (errno == ENOENT || errno == ENOTDIR);
   }
   if (!S_ISDIR(file_info.st_mode)) {
-    int a = unlink(path_str) == 0;
-    int b = errno == ENOENT;
-    LOG(INFO) << "hao: in !S_ISDIR(file_info.st_mode)";
-    LOG(INFO) << "hao: unlink(path_str) == 0: " << a;
-    LOG(INFO) << "hao: errno: " << errno;
-    LOG(INFO) << "hao: errno == ENOENT: " << b;
-
-    //return (unlink(path_str) == 0) || (errno == ENOENT);
-    return a || b;
+    return (unlink(path_str) == 0) || (errno == ENOENT);
   }
   if (!recursive){
-    int a1 = rmdir(path_str) == 0;
-    int b1 = errno == ENOENT;
-    LOG(INFO) << "hao: in !recursive";
-    LOG(INFO) << "hao: rmdir(path_str) == 0: " << a1;
-    LOG(INFO) << "hao: errno: " << errno;
-    LOG(INFO) << "hao: errno == ENOENT: " << b1;
-    
-    //return (rmdir(path_str) == 0) || (errno == ENOENT);
-    return a1 || b1;
+    return (rmdir(path_str) == 0) || (errno == ENOENT);
   }
 
   bool success = true;
@@ -265,35 +175,16 @@ bool DoDeleteFile(const FilePath& path, bool recursive) {
        current = traversal.Next()) {
     if (traversal.GetInfo().IsDirectory()) {
       directories.push(current.value());
-      LOG(INFO) << "hao: in traversal.GetInfo().IsDirectory(): ";
     }
     else {
-      int a2 = unlink(current.value().c_str()) == 0;
-      int b2 = errno == ENOENT;
-      LOG(INFO) << "hao: not in traversal.GetInfo().IsDirectory(): ";
-      LOG(INFO) << "hao: unlink(current.value().c_str()) == 0: " << a2;
-      LOG(INFO) << "hao: errno: " << errno;
-      LOG(INFO) << "hao: errno == ENOENT: " << b2;
-      //success &= (unlink(current.value().c_str()) == 0) || (errno == ENOENT);
-      success &= a2 || b2;
-      LOG(INFO) << "hao: success: " << success;
+      success &= (unlink(current.value().c_str()) == 0) || (errno == ENOENT);
     }
   }
 
   while (!directories.empty()) {
-    LOG(INFO) << "hao: in !directories.empty(): ";
     FilePath dir = FilePath(directories.top());
     directories.pop();
-    int a3 = rmdir(dir.value().c_str()) == 0;
-    int b3 = errno == ENOENT;
-    // success &= (rmdir(dir.value().c_str()) == 0) || (errno == ENOENT);
-    LOG(INFO) << "hao: rmdir(dir.value().c_str()) == 0: " << a3;
-    LOG(INFO) << "hao: errno: " << errno;
-    LOG(INFO) << "hao: errno == ENOENT: " << b3;
-    
-    success &= a3 || b3;
-    LOG(INFO) << "hao: success: " << success;
-
+    success &= (rmdir(dir.value().c_str()) == 0) || (errno == ENOENT);
   }
   return success;
 }
@@ -305,65 +196,6 @@ bool DeleteFile(const FilePath& path) {
 bool DeletePathRecursively(const FilePath& path) {
   return DoDeleteFile(path, /*recursive=*/true);
 }
-
-// bool DeleteFile(const FilePath &path, bool recursive) {
-//   internal::AssertBlockingAllowed();
-//   const char *path_str = path.value().c_str();
-//   struct ::stat info;
-//   bool directory = ::stat(path_str, &info) == 0 && S_ISDIR(info.st_mode);
-//   if (!recursive || !directory) {
-//     bool ret1 = !::unlink(path_str);
-//     LOG(INFO) << "HAO: RET1" << ::unlink(path_str);;
-//     return ret1;
-//     //return !::unlink(path_str);
-//   }
-
-//   bool success = true;
-//   std::stack<std::string> directories;
-//   directories.push(path.value());
-
-//   // NOTE: Right now, for Linux, SbFileGetInfo does not follow
-//   // symlinks. This is good for avoiding deleting through symlinks, but makes it
-//   // hard to use symlinks on platforms where they are supported. This seems
-//   // safest for the lowest-common-denominator approach of pretending symlinks
-//   // don't exist.
-//   FileEnumerator traversal(
-//       path, true, FileEnumerator::FILES | FileEnumerator::DIRECTORIES);
-
-//   // Delete all files and push all directories in depth order onto the stack.
-//   for (FilePath current = traversal.Next();
-//        success && !current.empty();
-//        current = traversal.Next()) {
-//     FileEnumerator::FileInfo info(traversal.GetInfo());
-
-//     if (info.IsDirectory()) {
-//       directories.push(current.value());
-//     } else {
-//       success = !::unlink(current.value().c_str());
-//       LOG(INFO) << "HAO: success1" << success;
-//     }
-//   }
-
-//   // Delete all directories in reverse-depth order, now that they have no more
-//   // regular files.
-//   while (success && !directories.empty()) {
-//     success = !::unlink(directories.top().c_str());
-//     LOG(INFO) << "HAO: success2" << success;
-//     directories.pop();
-//   }
-
-//   return success;
-// }
-
-// bool DeletePathRecursively(const FilePath &path) {
-//   bool recursive = true;
-//   return DeleteFile(path, recursive);
-// }
-
-// bool DeleteFile(const FilePath &path) {
-//   bool recursive = false;
-//   return DeleteFile(path, recursive);
-// }
 
 bool DieFileDie(const FilePath& file, bool recurse) {
   // There is no need to workaround Windows problems on POSIX.
@@ -385,20 +217,11 @@ bool ReplaceFile(const FilePath& from_path,
   return true;
 }
 
-#if !BUILDFLAG(IS_APPLE)
 // Mac has its own implementation, this is for all other Posix systems.
 bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   File infile;
-#if BUILDFLAG(IS_ANDROID)
-  if (from_path.IsContentUri()) {
-    infile = OpenContentUriForRead(from_path);
-  } else {
-    infile = File(from_path, File::FLAG_OPEN | File::FLAG_READ);
-  }
-#else
   infile = File(from_path, File::FLAG_OPEN | File::FLAG_READ);
-#endif
   if (!infile.IsValid())
     return false;
 
@@ -408,55 +231,6 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 
   return CopyFileContents(infile, outfile);
 }
-#endif  // !BUILDFLAG(IS_APPLE)
-
-// bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
-//   internal::AssertBlockingAllowed();
-
-//   base::File source_file(from_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
-//   if (!source_file.IsValid()) {
-//     DPLOG(ERROR) << "CopyFile(): Unable to open source file: "
-//                  << from_path.value();
-//     return false;
-//   }
-
-//   base::File destination_file(
-//       to_path, base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
-//   if (!destination_file.IsValid()) {
-//     DPLOG(ERROR) << "CopyFile(): Unable to open destination file: "
-//                  << to_path.value();
-//     return false;
-//   }
-
-//   const size_t kBufferSize = 32768;
-//   std::vector<char> buffer(kBufferSize);
-//   bool result = true;
-
-//   while (result) {
-//     int bytes_read = source_file.ReadAtCurrentPos(&buffer[0], buffer.size());
-//     if (bytes_read < 0) {
-//       result = false;
-//       break;
-//     }
-
-//     if (bytes_read == 0) {
-//       break;
-//     }
-
-//     int bytes_written =
-//         destination_file.WriteAtCurrentPos(&buffer[0], bytes_read);
-//     if (bytes_written < bytes_read) {
-//       DLOG(ERROR) << "CopyFile(): bytes_read (" << bytes_read
-//                   << ") > bytes_written (" << bytes_written << ")";
-//       // Because we use a best-effort write, if we wrote less than what was
-//       // available, something went wrong.
-//       result = false;
-//       break;
-//     }
-//   }
-
-//   return result;
-// }
 
 FILE* OpenFile(const FilePath& filename, const char* mode) {
   return nullptr;
@@ -619,19 +393,8 @@ bool IsLink(const FilePath &file_path) {
 
 bool GetFileInfo(const FilePath &file_path, File::Info *results) {
   stat_wrapper_t file_info;
-#if BUILDFLAG(IS_ANDROID)
-  if (file_path.IsContentUri()) {
-    File file = OpenContentUriForRead(file_path);
-    if (!file.IsValid())
+    if (::stat(file_path.value().c_str(), &file_info) != 0)
       return false;
-    return file.GetInfo(results);
-  } else {
-#endif  // BUILDFLAG(IS_ANDROID)
-    if (File::Stat(file_path.value().c_str(), &file_info) != 0)
-      return false;
-#if BUILDFLAG(IS_ANDROID)
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
 
   results->FromStat(file_info);
   return true;

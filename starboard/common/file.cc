@@ -115,7 +115,6 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   return false;
 }
 
-// TODO: problematic
 ssize_t WriteAll(int file, const void* data, int size) {
   if (file < 0 || size < 0) {
     return -1;

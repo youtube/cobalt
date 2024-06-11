@@ -44,7 +44,6 @@ int64_t FileEnumerator::FileInfo::GetSize() const {
 }
 
 base::Time FileEnumerator::FileInfo::GetLastModifiedTime() const {
-  LOG(INFO) << "HAO : file_enumerator_starboard, last_modified : " << base::Time::FromTimeT(stat_.st_mtime);
   return base::Time::FromTimeT(stat_.st_mtime);
 }
 

@@ -348,7 +348,6 @@ TEST(FileTest, Length) {
                 base::File::FLAG_WRITE);
   ASSERT_TRUE(file.IsValid());
   EXPECT_EQ(0, file.GetLength());
-  LOG(INFO) << "hao: getlength: 1"; 
 
   // Write "test" to the file.
   char data_to_write[] = "test";
@@ -361,7 +360,6 @@ TEST(FileTest, Length) {
   int64_t file_size = 0;
   EXPECT_TRUE(file.SetLength(kExtendedFileLength));
   EXPECT_EQ(kExtendedFileLength, file.GetLength());
-  LOG(INFO) << "hao: getlength: 2"; 
   EXPECT_TRUE(GetFileSize(file_path, &file_size));
   EXPECT_EQ(kExtendedFileLength, file_size);
 
@@ -378,7 +376,6 @@ TEST(FileTest, Length) {
   const int kTruncatedFileLength = 2;
   EXPECT_TRUE(file.SetLength(kTruncatedFileLength));
   EXPECT_EQ(kTruncatedFileLength, file.GetLength());
-  LOG(INFO) << "hao: getlength: 3"; 
   EXPECT_TRUE(GetFileSize(file_path, &file_size));
   EXPECT_EQ(kTruncatedFileLength, file_size);
 
@@ -392,16 +389,21 @@ TEST(FileTest, Length) {
   // Expand the file past the 4 GB limit.
 #if defined(STARBOARD)
 #if SB_IS(32_BIT)
-// doesn't work on Win32 with _chsize.
+// TODO: After POSIX migration WIN32 uses _chsize in ftruncate, and it 
+// does not support big file: 
+// https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/chsize?view=msvc-170
+// Before POSXI migration WIN32 was implemented with SetFilePointerEx : 
+// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex
 #else
-  //if (sizeof(long) == 8) {
+  // TODO: Checking why SB_IS(32_BIT) is not set for WIN32, and we have to dynamically check
+  // sizeof(long) to filter out WIN32.
+  if (sizeof(long) == 8) {
     const int64_t kBigFileLength = 5'000'000'000;
     EXPECT_TRUE(file.SetLength(kBigFileLength));
     EXPECT_EQ(kBigFileLength, file.GetLength());
-    LOG(INFO) << "hao: getlength: 4";
     EXPECT_TRUE(GetFileSize(file_path, &file_size));
     EXPECT_EQ(kBigFileLength, file_size);
-  //}
+  }
 #endif
 #endif
 #endif
@@ -411,9 +413,7 @@ TEST(FileTest, Length) {
   file.Close();
   file.Initialize(file_path,
                   base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
-  LOG(INFO) << "hao: length: " << file.GetLength(); 
   EXPECT_EQ(0, file.GetLength());
-  LOG(INFO) << "hao: getlength: 5"; 
 }
 
 // Flakily fails: http://crbug.com/86494
@@ -656,27 +656,18 @@ TEST(FileTest, MAYBE_WriteDataToLargeOffset) {
 
   const char kData[] = "this file is sparse.";
   const int kDataLen = sizeof(kData) - 1;
-//  int64_t kLargeFileOffset;
-//
-//#if defined(STARBOARD)
-//  if (sizeof(long) == 4) {
-//    kLargeFileOffset = (1LL << 31) - 2;
-//  } else {
-//    kLargeFileOffset = (1LL << 31);
-//  }
-//#else   // defined(STARBOARD)
-//  kLargeFileOffset = (1LL << 31);
-//#endif  // defined(STARBOARD)
+  int64_t kLargeFileOffset;
 
+// TODO: Checking why SB_IS(32_BIT) is not set for WIN32, and we have to dynamically check
+// sizeof(long) to filter out WIN32.
 #if defined(STARBOARD)
-#if SB_IS(32_BIT)
-  // Maximum off_t for lseek() on 32-bit builds is just below 2^31.
-  const int64_t kLargeFileOffset = (1LL << 31) - 2;
-#else   // SB_IS(32_BIT)
-  const int64_t kLargeFileOffset = (1LL << 31);
-#endif  // SB_IS(32_BIT)
+  if (sizeof(long) == 4) {
+    kLargeFileOffset = (1LL << 31) - 2;
+ } else {
+ kLargeFileOffset = (1LL << 31);
+}
 #else   // defined(STARBOARD)
-  const int64_t kLargeFileOffset = (1LL << 31);
+kLargeFileOffset = (1LL << 31);
 #endif  // defined(STARBOARD)
 
   // If the file fails to write, it is probably we are running out of disk space
