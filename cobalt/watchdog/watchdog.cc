@@ -774,8 +774,9 @@ bool Watchdog::GetPersistentSettingWatchdogEnable() {
   if (!persistent_settings_) return kDefaultSettingWatchdogEnable;
 
   // Gets the boolean that controls whether or not Watchdog is enabled.
-  return persistent_settings_->GetPersistentSettingAsBool(
-      kPersistentSettingWatchdogEnable, kDefaultSettingWatchdogEnable);
+  base::Value value;
+  persistent_settings_->Get(kPersistentSettingWatchdogEnable, &value);
+  return value.GetIfBool().value_or(kDefaultSettingWatchdogEnable);
 }
 
 void Watchdog::SetPersistentSettingWatchdogEnable(bool enable_watchdog) {
@@ -783,9 +784,8 @@ void Watchdog::SetPersistentSettingWatchdogEnable(bool enable_watchdog) {
   if (!persistent_settings_) return;
 
   // Sets the boolean that controls whether or not Watchdog is enabled.
-  persistent_settings_->SetPersistentSetting(
-      kPersistentSettingWatchdogEnable,
-      std::make_unique<base::Value>(enable_watchdog));
+  persistent_settings_->Set(kPersistentSettingWatchdogEnable,
+                            base::Value(enable_watchdog));
 }
 
 bool Watchdog::GetPersistentSettingWatchdogCrash() {
@@ -793,8 +793,9 @@ bool Watchdog::GetPersistentSettingWatchdogCrash() {
   if (!persistent_settings_) return kDefaultSettingWatchdogCrash;
 
   // Gets the boolean that controls whether or not crashes can be triggered.
-  return persistent_settings_->GetPersistentSettingAsBool(
-      kPersistentSettingWatchdogCrash, kDefaultSettingWatchdogCrash);
+  base::Value value;
+  persistent_settings_->Get(kPersistentSettingWatchdogCrash, &value);
+  return value.GetIfBool().value_or(kDefaultSettingWatchdogCrash);
 }
 
 void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
@@ -802,9 +803,8 @@ void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
   if (!persistent_settings_) return;
 
   // Sets the boolean that controls whether or not crashes can be triggered.
-  persistent_settings_->SetPersistentSetting(
-      kPersistentSettingWatchdogCrash,
-      std::make_unique<base::Value>(can_trigger_crash));
+  persistent_settings_->Set(kPersistentSettingWatchdogCrash,
+                            base::Value(can_trigger_crash));
 }
 
 bool Watchdog::LogEvent(const std::string& event) {
@@ -835,17 +835,17 @@ bool Watchdog::GetPersistentSettingLogtraceEnable() {
   if (!persistent_settings_) return kDefaultSettingLogtraceEnable;
 
   // Gets the boolean that controls whether or not LogTrace is enabled.
-  return persistent_settings_->GetPersistentSettingAsBool(
-      kPersistentSettingLogtraceEnable, kDefaultSettingLogtraceEnable);
+  base::Value value;
+  persistent_settings_->Get(kPersistentSettingLogtraceEnable, &value);
+  return value.GetIfBool().value_or(kDefaultSettingLogtraceEnable);
 }
 
 void Watchdog::SetPersistentSettingLogtraceEnable(bool enable_logtrace) {
   if (!persistent_settings_) return;
 
   // Sets the boolean that controls whether or not LogTrace is enabled.
-  persistent_settings_->SetPersistentSetting(
-      kPersistentSettingLogtraceEnable,
-      std::make_unique<base::Value>(enable_logtrace));
+  persistent_settings_->Set(kPersistentSettingLogtraceEnable,
+                            base::Value(enable_logtrace));
 }
 
 #if defined(_DEBUG)
