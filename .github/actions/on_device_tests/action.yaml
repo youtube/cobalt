@@ -76,6 +76,7 @@ runs:
           ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
           ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
           ${DIMENSION:+"--dimension" "$DIMENSION"} \
+          --dimension "host_name=maneki-mhserver-01.mtv.corp.google.com" \
           ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
           --archive_path "${GCS_PATH}/artifacts.tar" \
