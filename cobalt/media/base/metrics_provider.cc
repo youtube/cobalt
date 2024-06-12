@@ -159,5 +159,10 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
   }
 }
 
+void MediaMetricsProvider::Reset() {
+  LOG(INFO) << "YO THOR - CALLING RESET AFTER RESUME";
+  tracked_actions_start_times_.clear();
+}
+
 }  // namespace media
 }  // namespace cobalt
