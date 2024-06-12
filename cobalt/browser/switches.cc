@@ -94,10 +94,6 @@ const char kDisableRasterizerCachingHelp[] =
     "is deprecated, the '--force_deterministic_rendering' flag should be "
     "used instead which does the same thing.";
 
-const char kDisableSignIn[] = "disable_sign_in";
-const char kDisableSignInHelp[] =
-    "Disables sign-in on platforms that use H5VCC Account Manager.";
-
 const char kDisableSplashScreenOnReloads[] = "disable_splash_screen_on_reloads";
 const char kDisableSplashScreenOnReloadsHelp[] =
     "Disables the splash screen on reloads; instead it will only appear on the "
@@ -454,7 +450,6 @@ std::string HelpMessage() {
       {kDisableMediaEncryptionSchemes, kDisableMediaEncryptionSchemesHelp},
       {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
       {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
-      {kDisableSignIn, kDisableSignInHelp},
       {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},
       {kDisableWebDriver, kDisableWebDriverHelp},
       {kExtraWebFileDir, kExtraWebFileDirHelp},
