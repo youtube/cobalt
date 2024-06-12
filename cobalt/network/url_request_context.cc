@@ -51,6 +51,7 @@
 #include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
+#include "net/quic/quic_context.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
 #include "starboard/common/murmurhash2.h"
@@ -202,6 +203,11 @@ URLRequestContext::URLRequestContext(
           std::unique_ptr<net::ProxyConfigService>(
               new ProxyConfigService(proxy_config)),
           net::NetLog::Get(), /*quick_check_enabled=*/true));
+
+  auto quic_context = std::make_unique<net::QuicContext>();
+  quic_context->params()->supported_versions =
+      quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
+  url_request_context_builder->set_quic_context(std::move(quic_context));
 
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   bool quic_enabled =
