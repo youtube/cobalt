@@ -22,7 +22,7 @@ group("starboard_platform") {
 static_library("starboard_platform_sources") {
   check_includes = false
 
-  # has_pedantic_warnings = true
+  has_pedantic_warnings = true
 
   sources = [
     "//starboard/linux/shared/atomic_public.h",
@@ -32,7 +32,6 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/shared/netlink.h",
     "//starboard/linux/shared/routes.cc",
     "//starboard/linux/shared/routes.h",
-    "//starboard/linux/shared/system_get_connection_type.cc",
     "//starboard/linux/shared/system_get_path.cc",
     "//starboard/linux/shared/system_has_capability.cc",
     "//starboard/linux/shared/time_zone.cc",

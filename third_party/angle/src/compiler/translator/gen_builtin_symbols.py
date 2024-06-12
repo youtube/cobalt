@@ -264,7 +264,7 @@ const int TSymbolTable::kLastBuiltInId = {last_builtin_id};
 namespace BuiltInName
 {{
 
-const ImmutableString _empty("");
+constexpr const ImmutableString _empty("");
 {name_declarations}
 
 }}  // namespace BuiltInName
@@ -1196,7 +1196,7 @@ def get_variable_name_to_store_parameters(parameters):
 
 
 def define_constexpr_variable(template_args, variable_declarations):
-    template_variable_declaration = 'const TVariable k{name_with_suffix}(BuiltInId::{name_with_suffix}, BuiltInName::{name}, SymbolType::BuiltIn, TExtension::{extension}, {type});'
+    template_variable_declaration = 'constexpr const TVariable k{name_with_suffix}(BuiltInId::{name_with_suffix}, BuiltInName::{name}, SymbolType::BuiltIn, TExtension::{extension}, {type});'
     variable_declarations.append(template_variable_declaration.format(**template_args))
 
 
@@ -1315,7 +1315,7 @@ def process_single_function_group(
 
         function_variants = gen_function_variants(function_props)
 
-        template_name_declaration = 'const ImmutableString {name_with_suffix}("{name}");'
+        template_name_declaration = 'constexpr const ImmutableString {name_with_suffix}("{name}");'
         name_declaration = template_name_declaration.format(**template_args)
         if not name_declaration in name_declarations:
             name_declarations.add(name_declaration)
@@ -1365,9 +1365,9 @@ def process_single_function_group(
                 continue
             defined_function_variants.add(template_args['unique_name'])
 
-            template_builtin_id_declaration = '    static const TSymbolUniqueId {human_readable_name};'
+            template_builtin_id_declaration = '    static constexpr const TSymbolUniqueId {human_readable_name} = TSymbolUniqueId({id});'
             builtin_id_declarations.append(template_builtin_id_declaration.format(**template_args))
-            template_builtin_id_definition = 'const TSymbolUniqueId BuiltInId::{human_readable_name} = TSymbolUniqueId({id});'
+            template_builtin_id_definition = 'constexpr const TSymbolUniqueId BuiltInId::{human_readable_name};'
             builtin_id_definitions.append(template_builtin_id_definition.format(**template_args))
 
             parameters_list = []
@@ -1382,11 +1382,9 @@ def process_single_function_group(
                 if unique_param_name not in defined_parameter_names:
                     id_counter += 1
                     param_template_args['id'] = id_counter
-                    template_builtin_id_declaration = '    static const TSymbolUniqueId {name_with_suffix};'
+                    template_builtin_id_declaration = '    static constexpr const TSymbolUniqueId {name_with_suffix} = TSymbolUniqueId({id});'
                     builtin_id_declarations.append(
                         template_builtin_id_declaration.format(**param_template_args))
-                    template_builtin_id_definition = 'const TSymbolUniqueId BuiltInId::{name_with_suffix} = TSymbolUniqueId({id});'
-                    builtin_id_definitions.append(template_builtin_id_definition.format(**param_template_args))
                     define_constexpr_variable(param_template_args, variable_declarations)
                     defined_parameter_names.add(unique_param_name)
                 parameters_list.append(
@@ -1406,7 +1404,7 @@ def process_single_function_group(
                     'parameters_var_name']] = template_parameter_list_declaration.format(
                         **template_args)
 
-            template_function_declaration = 'const TFunction {unique_name}(BuiltInId::{human_readable_name}, BuiltInName::{name_with_suffix}, TExtension::{extension}, BuiltInParameters::{parameters_var_name}, {param_count}, {return_type}, EOp{op}, {known_to_not_have_side_effects});'
+            template_function_declaration = 'constexpr const TFunction {unique_name}(BuiltInId::{human_readable_name}, BuiltInName::{name_with_suffix}, TExtension::{extension}, BuiltInParameters::{parameters_var_name}, {param_count}, {return_type}, EOp{op}, {known_to_not_have_side_effects});'
             function_declarations.append(template_function_declaration.format(**template_args))
 
             id_counter += 1
@@ -1512,12 +1510,12 @@ def process_single_variable_group(shader_type, group_name, group, builtin_id_dec
                 'TVariable'
         }
 
-        template_builtin_id_declaration = '    static const TSymbolUniqueId {name_with_suffix};'
+        template_builtin_id_declaration = '    static constexpr const TSymbolUniqueId {name_with_suffix} = TSymbolUniqueId({id});'
         builtin_id_declarations.append(template_builtin_id_declaration.format(**template_args))
-        template_builtin_id_definition = 'const TSymbolUniqueId BuiltInId::{name_with_suffix} = TSymbolUniqueId({id});'
+        template_builtin_id_definition = 'constexpr const TSymbolUniqueId BuiltInId::{name_with_suffix};'
         builtin_id_definitions.append(template_builtin_id_definition.format(**template_args))
 
-        template_name_declaration = 'const ImmutableString {name}("{name}");'
+        template_name_declaration = 'constexpr const ImmutableString {name}("{name}");'
         name_declarations.add(template_name_declaration.format(**template_args))
 
         is_member = True
@@ -1537,7 +1535,7 @@ def process_single_variable_group(shader_type, group_name, group, builtin_id_dec
             for field_name, field_type in props['fields'].iteritems():
                 template_args['field_name'] = field_name
                 template_args['field_type'] = TType(field_type).get_dynamic_type_string()
-                template_name_declaration = 'const ImmutableString {field_name}("{field_name}");'
+                template_name_declaration = 'constexpr const ImmutableString {field_name}("{field_name}");'
                 name_declarations.add(template_name_declaration.format(**template_args))
                 template_add_field = '    {fields}->push_back(new TField({field_type}, BuiltInName::{field_name}, zeroSourceLoc, SymbolType::BuiltIn));'
                 init_member_variables.append(template_add_field.format(**template_args))

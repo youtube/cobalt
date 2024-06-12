@@ -22,7 +22,6 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
-#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 
 namespace cobalt {

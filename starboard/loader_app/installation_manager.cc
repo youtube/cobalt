@@ -27,12 +27,14 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/common/once.h"
+#include "starboard/loader_app/record_loader_app_status.h"
 #include "starboard/string.h"
 
 namespace starboard {
@@ -54,7 +56,7 @@ class InstallationManager {
   int RollForward(int installation_index);
   int DecrementInstallationNumTries(int installation_index);
 
-  int RevertToSuccessfulInstallation();
+  int RevertToSuccessfulInstallation(SlotSelectionStatus status);
   int GetInstallationPath(int installation_index, char* path, int path_length);
   int GetCurrentInstallationIndex();
   int MarkInstallationSuccessful(int installation_index);
@@ -299,7 +301,8 @@ int InstallationManager::DecrementInstallationNumTries(int installation_index) {
 //          [x] => [ ]
 //     low  [ ]    [-]
 //
-int InstallationManager::RevertToSuccessfulInstallation() {
+int InstallationManager::RevertToSuccessfulInstallation(
+    SlotSelectionStatus status) {
   if (!initialized_) {
     SB_LOG(ERROR) << "RevertToSuccessfulInstallation: not initialized";
     return IM_ERROR;
@@ -347,6 +350,7 @@ int InstallationManager::RevertToSuccessfulInstallation() {
                 << DumpInstallationSlots();
 
   if (SaveInstallationStore()) {
+    RecordSlotSelectionStatus(status);
     return fallback_installation;
   }
   return IM_ERROR;
@@ -418,7 +422,12 @@ int InstallationManager::RollForwardInternal(int installation_index) {
   current_installation_ = installation_index;
 
   SB_DLOG(INFO) << "RollForwardInternal: " << DumpInstallationSlots();
-  return SaveInstallationStore() ? IM_SUCCESS : IM_ERROR;
+
+  if (SaveInstallationStore()) {
+    RecordSlotSelectionStatus(SlotSelectionStatus::kRollForward);
+    return IM_SUCCESS;
+  }
+  return IM_ERROR;
 }
 
 // Shift the priority in the inclusive range either up or down based
@@ -831,9 +840,9 @@ int ImRollForward(int installation_index) {
   return g_installation_manager_->RollForward(installation_index);
 }
 
-int ImRevertToSuccessfulInstallation() {
+int ImRevertToSuccessfulInstallation(SlotSelectionStatus status) {
   starboard::ScopedLock lock(*GetImMutex());
-  return g_installation_manager_->RevertToSuccessfulInstallation();
+  return g_installation_manager_->RevertToSuccessfulInstallation(status);
 }
 
 int ImRequestRollForwardToInstallation(int installation_index) {

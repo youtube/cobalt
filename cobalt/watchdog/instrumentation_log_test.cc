@@ -19,7 +19,6 @@
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
-#include "starboard/common/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

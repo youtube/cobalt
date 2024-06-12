@@ -56,7 +56,7 @@ void LoggingAnnotator::logMessage(const gl::LogMessage &msg) const
     }
     else
     {
-    gl::Trace(msg.getSeverity(), msg.getMessage().c_str());
+        gl::Trace(msg.getSeverity(), msg.getMessage().c_str());
     }
 }
 

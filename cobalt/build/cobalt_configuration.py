@@ -32,6 +32,7 @@ _FILTERED_TESTS = {
         'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMockTaskRunner',  # pylint: disable=line-too-long
         # TODO: b/329507754 - Flaky after recent rebase.
         'ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows',
         'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'

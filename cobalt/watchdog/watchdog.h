@@ -30,8 +30,6 @@
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/watchdog/instrumentation_log.h"
 #include "cobalt/watchdog/singleton.h"
-#include "starboard/common/atomic.h"
-#include "starboard/common/condition_variable.h"
 
 namespace cobalt {
 namespace watchdog {

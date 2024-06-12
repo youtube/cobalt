@@ -156,6 +156,24 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="4" label="FAILED_SIGNAL_HANDLER_INSTALLATION_FAILED"/>
 </enum>
 
+<enum name="SlotSelectionStatus">
+  <summary>
+   Possible status of slot selection by the Loader App
+  </summary>
+  <int value="0" label="UNKNOWN"/>
+  <int value="1" label="CURRENT_SLOT"/>
+  <int value="2" label="ROLL_FORWARD"/>
+  <int value="3" label="ROLL_BACK_OUT_OF_RETRIES"/>
+  <int value="4" label="ROLL_BACK_NO_LIB_FILE"/>
+  <int value="5" label="ROLL_BACK_BAD_APP_KEY_FILE"/>
+  <int value="6" label="ROLL_BACK_SLOT_DRAINING"/>
+  <int value="7" label="ROLL_BACK_FAILED_TO_ADOPT"/>
+  <int value="8" label="ROLL_BACK_FAILED_TO_LOAD_COBALT"/>
+  <int value="9" label="ROLL_BACK_FAILED_TO_CHECK_SABI"/>
+  <int value="10" label="ROLL_BACK_FAILED_TO_LOOK_UP_SYMBOLS"/>
+  <int value="11" label="EVERGREEN_LITE"/>
+</enum>
+
 </enums>
 
 </histogram-configuration>

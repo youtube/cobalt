@@ -32,11 +32,9 @@
 #include <string>
 
 #include <google/protobuf/compiler/objectivec/objectivec_enum_field.h>
-#include <google/protobuf/stubs/common.h>
 #include <google/protobuf/compiler/objectivec/objectivec_helpers.h>
 #include <google/protobuf/io/printer.h>
 #include <google/protobuf/wire_format.h>
-#include <google/protobuf/stubs/strutil.h>
 
 namespace google {
 namespace protobuf {
@@ -46,7 +44,7 @@ namespace objectivec {
 namespace {
 
 void SetEnumVariables(const FieldDescriptor* descriptor,
-                      map<string, string>* variables) {
+                      std::map<string, string>* variables) {
   string type = EnumName(descriptor->enum_type());
   (*variables)["storage_type"] = type;
   // For non repeated fields, if it was defined in a different file, the
@@ -83,12 +81,16 @@ void EnumFieldGenerator::GenerateCFunctionDeclarations(
 
   printer->Print(
       variables_,
-      "/// Fetches the raw value of a @c $owning_message_class$'s @c $name$ property, even\n"
-      "/// if the value was not defined by the enum at the time the code was generated.\n"
+      "/**\n"
+      " * Fetches the raw value of a @c $owning_message_class$'s @c $name$ property, even\n"
+      " * if the value was not defined by the enum at the time the code was generated.\n"
+      " **/\n"
       "int32_t $owning_message_class$_$capitalized_name$_RawValue($owning_message_class$ *message);\n"
-      "/// Sets the raw value of an @c $owning_message_class$'s @c $name$ property, allowing\n"
-      "/// it to be set to a value that was not defined by the enum at the time the code\n"
-      "/// was generated.\n"
+      "/**\n"
+      " * Sets the raw value of an @c $owning_message_class$'s @c $name$ property, allowing\n"
+      " * it to be set to a value that was not defined by the enum at the time the code\n"
+      " * was generated.\n"
+      " **/\n"
       "void Set$owning_message_class$_$capitalized_name$_RawValue($owning_message_class$ *message, int32_t value);\n"
       "\n");
 }
@@ -114,7 +116,7 @@ void EnumFieldGenerator::GenerateCFunctionImplementations(
 }
 
 void EnumFieldGenerator::DetermineForwardDeclarations(
-    set<string>* fwd_decls) const {
+    std::set<string>* fwd_decls) const {
   SingleFieldGenerator::DetermineForwardDeclarations(fwd_decls);
   // If it is an enum defined in a different file, then we'll need a forward
   // declaration for it.  When it is in our file, all the enums are output

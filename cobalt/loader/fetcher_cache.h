@@ -15,8 +15,6 @@
 #ifndef COBALT_LOADER_FETCHER_CACHE_H_
 #define COBALT_LOADER_FETCHER_CACHE_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <memory>
 #include <string>
@@ -46,12 +44,12 @@ class FetcherCache : public base::RefCountedThreadSafe<FetcherCache> {
   void NotifyResourceRequested(const std::string& url);
   size_t size() const {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    CHECK(pthread_equal(thread_id_, pthread_self()));
+    CHECK_EQ(thread_id_, SbThreadGetId());
     return total_size_;
   }
   size_t capacity() const {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    CHECK(pthread_equal(thread_id_, pthread_self()));
+    CHECK_EQ(thread_id_, SbThreadGetId());
     return capacity_;
   }
 
@@ -77,7 +75,7 @@ class FetcherCache : public base::RefCountedThreadSafe<FetcherCache> {
 
   // TODO(b/270993319): For debugging cache integrity issues in production only,
   //                    remove after identifying the root cause.
-  const pthread_t thread_id_ = pthread_self();
+  const SbThreadId thread_id_ = SbThreadGetId();
   std::atomic_bool destroy_soon_called_{false};
 
   const size_t capacity_;

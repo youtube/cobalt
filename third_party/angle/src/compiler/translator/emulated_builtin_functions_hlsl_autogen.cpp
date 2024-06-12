@@ -28,7 +28,7 @@ struct FunctionPair
     const char *body;
 };
 
-const FunctionPair g_hlslFunctions[] = {
+constexpr FunctionPair g_hlslFunctions[] = {
     {BuiltInId::mod_Float1_Float1,
      "float mod_emu(float x, float y)\n"
      "{\n"

@@ -15,7 +15,10 @@ parser.add_option("--mac",
 parser.add_option("--win",
                   help="generate assembly file for Windows (default: False)",
                   action="store_true", default=False)
-parser.set_usage("""make_data_assembly  icu_data [assembly_file] [--mac] [--win]
+parser.add_option("--nasm",
+                  help="generate assembly file for NASM (default: False)",
+                  action="store_true", default=False)
+parser.set_usage("""make_data_assembly  icu_data [assembly_file] [--mac] [--win] [--nasm]
     icu_data: ICU data file to generate assembly from.
     assembly_file: Output file converted from icu_data file.""")
 (options, args) = parser.parse_args()
@@ -42,11 +45,11 @@ else:
   step = -1
 
 input_data = open(input_file, 'rb').read()
-n = input_data.find("icudt")
+n = input_data.find(b'icudt')
 if n == -1:
   sys.exit("Cannot find a version number in %s." % input_file)
 
-version_number = input_data[n + 5:n + 7]
+version_number = input_data[n + 5:n + 7].decode("ascii")
 
 output = open(output_file, 'w')
 
@@ -64,6 +67,11 @@ elif options.win:
                "\t.section .rdata\n"
                "\t.balign 16\n"
                "_icudt%s_dat:\n" % tuple([version_number] * 2))
+elif options.nasm:  # Added for Cobalt on win32
+  output.write("global icudt%s_dat\n"
+               "section .rdata\n"
+               "align 16\n"
+               "icudt%s_dat:\n" % tuple([version_number] * 2))
 else:
   output.write(".globl icudt%s_dat\n"
                "\t.section .note.GNU-stack,\"\",%%progbits\n"
@@ -75,7 +83,7 @@ else:
                "\t.type icudt%s_dat,%%object\n"
                "icudt%s_dat:\n" % tuple([version_number] * 4))
 
-split = [binascii.hexlify(input_data[i:i + 4][::step]).upper().lstrip('0')
+split = [binascii.hexlify(input_data[i:i + 4][::step]).decode('ascii').upper().lstrip('0')
         for i in range(0, len(input_data), 4)]
 
 for i in range(len(split)):
@@ -92,11 +100,14 @@ for i in range(len(split)):
     value = '0x' + split[i]
 
   if (i % 32 == 0):
-    output.write("\n.long ")
+    if options.nasm:
+      output.write("\ndd ")
+    else:
+      output.write("\n.long ")
   else:
     output.write(",")
   output.write(value)
 
 output.write("\n")
 output.close()
-print "Generated " + output_file
+print("Generated " + output_file)
