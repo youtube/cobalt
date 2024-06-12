@@ -15,6 +15,8 @@
 namespace rx
 {
 
+class FunctionsGLX;
+
 class SurfaceGLX : public SurfaceGL
 {
   public:
