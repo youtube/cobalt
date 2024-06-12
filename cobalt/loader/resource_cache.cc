@@ -191,8 +191,10 @@ void ResourceCacheBase::SetCapacity(uint32 capacity) {
 
 void ResourceCacheBase::Purge() {
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
+  DLOG(ERROR) << ">> ResourceCacheBase::Purge call for " << name_;
   ProcessPendingCallbacks();
   reclaim_memory_func_.Run(0, true);
+  DLOG(ERROR) << "<< ResourceCacheBase::Purge called" << name_;
 }
 
 void ResourceCacheBase::ProcessPendingCallbacks() {

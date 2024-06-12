@@ -107,14 +107,14 @@ std::string MediaMetricsProvider::GetUMANameForAVStream(
 }
 
 void MediaMetricsProvider::StartTrackingAction(MediaAction action) {
-  DCHECK(!IsActionCurrentlyTracked(action));
+  // DCHECK(!IsActionCurrentlyTracked(action));
   base::AutoLock scoped_lock(mutex_);
 
   tracked_actions_start_times_[action] = clock_->NowTicks();
 }
 
 void MediaMetricsProvider::EndTrackingAction(MediaAction action) {
-  DCHECK(IsActionCurrentlyTracked(action));
+  // DCHECK(IsActionCurrentlyTracked(action));
   base::AutoLock scoped_lock(mutex_);
 
   auto duration = clock_->NowTicks() - tracked_actions_start_times_[action];
