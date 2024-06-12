@@ -15,6 +15,7 @@
 #include "starboard/android/shared/media_codec_bridge.h"
 
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/common/string.h"
 
 namespace starboard {
@@ -177,6 +178,11 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
 
+  if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
+    // block if the old MediaCodecBridge instances haven't been destroyed yet
+    MediaCodecBridgeEradicator::GetInstance()->WaitForPendingDestructions();
+  }
+
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jbyteArray> configuration_data;
   if (audio_stream_info.codec == kSbMediaAudioCodecOpus &&
@@ -271,6 +277,11 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
 
+  if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
+    // block if the old MediaCodecBridge instances haven't been destroyed yet
+    MediaCodecBridgeEradicator::GetInstance()->WaitForPendingDestructions();
+  }
+
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
   ScopedLocalJavaRef<jstring> j_decoder_name(
@@ -346,6 +357,15 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
 MediaCodecBridge::~MediaCodecBridge() {
   if (!j_media_codec_bridge_) {
     return;
+  }
+
+  if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
+    if (MediaCodecBridgeEradicator::GetInstance()->Destroy(
+            j_media_codec_bridge_, j_reused_get_output_format_result_)) {
+      return;
+    }
+    SB_LOG(WARNING)
+        << "MediaCodecBridge destructor fallback into none eradicator mode.";
   }
 
   JniEnvExt* env = JniEnvExt::Get();
