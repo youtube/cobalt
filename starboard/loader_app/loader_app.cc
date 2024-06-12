@@ -233,7 +233,7 @@ void SbEventHandle(const SbEvent* event) {
     SB_LOG(INFO) << "alternative_content=" << alternative_content;
 
     bool use_compressed_updates =
-        command_line.HasSwitch(starboard::loader_app::kUseCompressedUpdates);
+        !command_line.HasSwitch(starboard::loader_app::kUseUncompressedUpdates);
 
     bool use_memory_mapped_file = command_line.HasSwitch(
         starboard::loader_app::kLoaderUseMemoryMappedFile);

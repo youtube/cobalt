@@ -21,8 +21,8 @@
 DIR="$(dirname "${0}")"
 
 AUTH_METHOD="public-key"
-USE_COMPRESSED_SYSTEM_IMAGE="false"
-SYSTEM_IMAGE_EXTENSION=".so"
+USE_UNCOMPRESSED_SYSTEM_IMAGE="false"
+SYSTEM_IMAGE_EXTENSION=".lz4"
 
 DISABLE_TESTS="false"
 
@@ -34,9 +34,9 @@ while getopts "d:a:c" o; do
         a)
             AUTH_METHOD=${OPTARG}
             ;;
-        c)
-            USE_COMPRESSED_SYSTEM_IMAGE="true"
-            SYSTEM_IMAGE_EXTENSION=".lz4"
+        u)
+            USE_UNCOMPRESSED_SYSTEM_IMAGE="true"
+            SYSTEM_IMAGE_EXTENSION=".so"
             ;;
     esac
 done
@@ -49,12 +49,12 @@ fi
 
 source $DIR/setup.sh
 
-if [[ "${USE_COMPRESSED_SYSTEM_IMAGE}" == "true" ]]; then
-  # It would be valid to run all test cases using a compressed system image but
-  # is probably excessive. Instead, just two cases are run: one to test that a
-  # compressed system image can be loaded and one to test that a compressed
-  # update can be upgraded to.
-  TESTS=($(eval "find ${DIR}/tests -maxdepth 1 \( -name 'evergreen_lite_test.sh' -o -name 'verify_qa_channel_compressed_update_test.sh' \)"))
+if [[ "${USE_UNCOMPRESSED_SYSTEM_IMAGE}" == "true" ]]; then
+  # It would be valid to run all test cases using an uncompressed system image
+  # but is probably excessive. Instead, just two cases are run: one to test that
+  # an uncompressed system image can be loaded and one to test that an
+  # uncompressed update can be upgraded to.
+  TESTS=($(eval "find ${DIR}/tests -maxdepth 1 \( -name 'evergreen_lite_test.sh' -o -name 'verify_qa_channel_uncompressed_update_test.sh' \)"))
 else
   TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name '*_test.sh'"))
 fi
@@ -166,7 +166,7 @@ log "info" " [==========] Cleaning up."
 
 clean_up
 
-log "info" " [==========] Finished testing with USE_COMPRESSED_SYSTEM_IMAGE=${USE_COMPRESSED_SYSTEM_IMAGE}."
+log "info" " [==========] Finished testing with USE_UNCOMPRESSED_SYSTEM_IMAGE=${USE_UNCOMPRESSED_SYSTEM_IMAGE}."
 
 if [[ "${#FAILED[@]}" -eq 0 ]]; then
   exit 0
