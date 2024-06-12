@@ -51,7 +51,7 @@ goog.require('jspb.utils');
  * @struct
  */
 jspb.BinaryEncoder = function() {
-  /** @private {!Array.<number>} */
+  /** @private {!Array<number>} */
   this.buffer_ = [];
 };
 
@@ -65,7 +65,7 @@ jspb.BinaryEncoder.prototype.length = function() {
 
 
 /**
- * @return {!Array.<number>}
+ * @return {!Array<number>}
  */
 jspb.BinaryEncoder.prototype.end = function() {
   var buffer = this.buffer_;
@@ -96,6 +96,24 @@ jspb.BinaryEncoder.prototype.writeSplitVarint64 = function(lowBits, highBits) {
     highBits = highBits >>> 7;
   }
   this.buffer_.push(lowBits);
+};
+
+
+/**
+ * Encodes a 64-bit integer in 32:32 split representation into its wire-format
+ * fixed representation and stores it in the buffer.
+ * @param {number} lowBits The low 32 bits of the int.
+ * @param {number} highBits The high 32 bits of the int.
+ */
+jspb.BinaryEncoder.prototype.writeSplitFixed64 = function(lowBits, highBits) {
+  goog.asserts.assert(lowBits == Math.floor(lowBits));
+  goog.asserts.assert(highBits == Math.floor(highBits));
+  goog.asserts.assert((lowBits >= 0) &&
+                      (lowBits < jspb.BinaryConstants.TWO_TO_32));
+  goog.asserts.assert((highBits >= 0) &&
+                      (highBits < jspb.BinaryConstants.TWO_TO_32));
+  this.writeUint32(lowBits);
+  this.writeUint32(highBits);
 };
 
 
@@ -208,6 +226,18 @@ jspb.BinaryEncoder.prototype.writeZigzagVarint64 = function(value) {
 
 
 /**
+ * Encodes a JavaScript decimal string into its wire-format, zigzag-encoded
+ * varint representation and stores it in the buffer. Integers not representable
+ * in 64 bits will be truncated.
+ * @param {string} value The integer to convert.
+ */
+jspb.BinaryEncoder.prototype.writeZigzagVarint64String = function(value) {
+  // TODO(haberman): write lossless 64-bit zig-zag math.
+  this.writeZigzagVarint64(parseInt(value, 10));
+};
+
+
+/**
  * Writes a 8-bit unsigned integer to the buffer. Numbers outside the range
  * [0,2^8) will be truncated.
  * @param {number} value The value to write.
@@ -314,8 +344,21 @@ jspb.BinaryEncoder.prototype.writeInt64 = function(value) {
   goog.asserts.assert((value >= -jspb.BinaryConstants.TWO_TO_63) &&
                       (value < jspb.BinaryConstants.TWO_TO_63));
   jspb.utils.splitInt64(value);
-  this.writeUint32(jspb.utils.split64Low);
-  this.writeUint32(jspb.utils.split64High);
+  this.writeSplitFixed64(jspb.utils.split64Low, jspb.utils.split64High);
+};
+
+
+/**
+ * Writes a 64-bit integer decimal strings to the buffer. Numbers outside the
+ * range [-2^63,2^63) will be truncated.
+ * @param {string} value The value to write.
+ */
+jspb.BinaryEncoder.prototype.writeInt64String = function(value) {
+  goog.asserts.assert(value == Math.floor(value));
+  goog.asserts.assert((+value >= -jspb.BinaryConstants.TWO_TO_63) &&
+                      (+value < jspb.BinaryConstants.TWO_TO_63));
+  jspb.utils.splitHash64(jspb.utils.decimalStringToHash64(value));
+  this.writeSplitFixed64(jspb.utils.split64Low, jspb.utils.split64High);
 };
 
 
@@ -347,11 +390,13 @@ jspb.BinaryEncoder.prototype.writeDouble = function(value) {
 
 
 /**
- * Writes a boolean value to the buffer as a varint.
- * @param {boolean} value The value to write.
+ * Writes a boolean value to the buffer as a varint. We allow numbers as input
+ * because the JSPB code generator uses 0/1 instead of true/false to save space
+ * in the string representation of the proto.
+ * @param {boolean|number} value The value to write.
  */
 jspb.BinaryEncoder.prototype.writeBool = function(value) {
-  goog.asserts.assert(goog.isBoolean(value));
+  goog.asserts.assert(goog.isBoolean(value) || goog.isNumber(value));
   this.buffer_.push(value ? 1 : 0);
 };
 
@@ -410,18 +455,35 @@ jspb.BinaryEncoder.prototype.writeFixedHash64 = function(hash) {
 jspb.BinaryEncoder.prototype.writeString = function(value) {
   var oldLength = this.buffer_.length;
 
-  // UTF16 to UTF8 conversion loop swiped from goog.crypt.stringToUtf8ByteArray.
   for (var i = 0; i < value.length; i++) {
+
     var c = value.charCodeAt(i);
+
     if (c < 128) {
       this.buffer_.push(c);
     } else if (c < 2048) {
       this.buffer_.push((c >> 6) | 192);
       this.buffer_.push((c & 63) | 128);
-    } else {
-      this.buffer_.push((c >> 12) | 224);
-      this.buffer_.push(((c >> 6) & 63) | 128);
-      this.buffer_.push((c & 63) | 128);
+    } else if (c < 65536) {
+      // Look for surrogates
+      if (c >= 0xD800 && c <= 0xDBFF && i + 1 < value.length) {
+        var second = value.charCodeAt(i + 1);
+        if (second >= 0xDC00 && second <= 0xDFFF) { // low surrogate
+          // http://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+          c = (c - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
+
+          this.buffer_.push((c >> 18) | 240);
+          this.buffer_.push(((c >> 12) & 63 ) | 128);
+          this.buffer_.push(((c >> 6) & 63) | 128);
+          this.buffer_.push((c & 63) | 128);
+          i++;
+        }
+      }
+      else {
+        this.buffer_.push((c >> 12) | 224);
+        this.buffer_.push(((c >> 6) & 63) | 128);
+        this.buffer_.push((c & 63) | 128);
+      }
     }
   }
 

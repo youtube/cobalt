@@ -27,7 +27,6 @@
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
 #include "media/base/mime_util.h"
-#include "starboard/common/string.h"
 #include "starboard/extension/media_settings.h"
 #include "starboard/media.h"
 #include "starboard/window.h"

@@ -198,7 +198,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   scoped_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
-      "dev/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
+      "dev/cobalt/media/MediaCodecBridgeBuilder", "createAudioDecoder",
       "(JLjava/lang/String;Ljava/lang/String;IILandroid/media/MediaCrypto;"
       "[B)Ldev/cobalt/media/MediaCodecBridge;",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),

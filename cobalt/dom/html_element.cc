@@ -65,7 +65,6 @@
 #include "cobalt/loader/resource_cache.h"
 #include "cobalt/math/clamp.h"
 #include "cobalt/web/csp_delegate.h"
-#include "starboard/common/time.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 
@@ -94,7 +93,10 @@ const char* kPerformanceResourceTimingInitiatorType = "img";
 void UiNavCallbackHelper(scoped_refptr<base::SequencedTaskRunner> task_runner,
                          base::Callback<void(int64_t)> callback) {
   task_runner->PostTask(
-      FROM_HERE, base::Bind(callback, starboard::CurrentMonotonicTime()));
+      FROM_HERE,
+      base::Bind(
+          callback,
+          (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds()));
 }
 
 struct NonTrivialStaticFields {
@@ -1498,7 +1500,8 @@ void HTMLElement::UpdateUiNavigationFocus() {
     // Focus call for this HTMLElement as a result of OnUiNavBlur / OnUiNavFocus
     // callbacks that result from initiating the UI navigation focus change.
     if (node_document()->TrySetUiNavFocusElement(
-            html_element, starboard::CurrentMonotonicTime())) {
+            html_element,
+            (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds())) {
       html_element->ui_nav_item_->Focus();
     }
     break;
@@ -2300,7 +2303,8 @@ void HTMLElement::ReleaseUiNavigationItem() {
       node_document()->set_ui_nav_needs_layout(true);
       if (node_document()->ui_nav_focus_element() == this) {
         if (node_document()->TrySetUiNavFocusElement(
-                nullptr, starboard::CurrentMonotonicTime())) {
+                nullptr, (base::TimeTicks::Now() - base::TimeTicks())
+                             .InMicroseconds())) {
           ui_nav_item_->UnfocusAll();
         }
       }

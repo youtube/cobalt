@@ -1065,6 +1065,13 @@ component("base") {
     ]
   }
 
+  if (use_cobalt_customizations) {
+    sources += [
+      "process/internal_linux.cc",
+      "process/internal_linux.h",
+    ]
+  }
+
   if (!use_cobalt_customizations && (is_linux || is_chromeos || is_android)) {
     sources += [
       "files/file_path_watcher_inotify.cc",
@@ -2773,10 +2780,6 @@ component("i18n") {
     "i18n/utf8_validator_tables.h",
   ]
   defines = [ "BASE_I18N_IMPLEMENTATION" ]
-  defines += [
-    "U_COMMON_IMPLEMENTATION",
-    "UCONFIG_NO_CONVERSION=0",
-  ]
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
   public_deps = [
     "//third_party/ced",
@@ -3644,8 +3647,6 @@ test("base_unittests") {
     "//third_party/modp_b64",
   ]
 
-  defines = [ "U_COMMON_IMPLEMENTATION" ]
-
   data_deps = [
   ]
 
@@ -3667,7 +3668,6 @@ test("base_unittests") {
     data_deps += [
       ":base_unittests_bundle_data",
       "//cobalt/network:copy_ssl_certificates",
-      "//third_party/icu:icudata",
     ]
   }
 

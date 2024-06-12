@@ -76,7 +76,10 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   ResponseHandlerImpl(net::HttpServer* server, int connection_id)
       : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
         server_(server),
-        connection_id_(connection_id) {}
+        connection_id_(connection_id) {
+    server_->SetReceiveBufferSize(connection_id_, kMaxRecieveBufferSize);
+    server_->SetSendBufferSize(connection_id_, kMaxSendBufferSize);
+  }
 
   // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#responses
   void Success(std::unique_ptr<base::Value> value) override {
@@ -111,14 +114,14 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 
   // The command request is not mapped to anything.
   void UnknownCommand(const std::string& path) override {
-    LOG(INFO) << "Unknown command: " << path;
+    LOG(WARNING) << "Unknown command: " << path;
     SendInternal(net::HTTP_NOT_FOUND, "Unknown command", kTextPlainContentType);
   }
 
   // The command request is mapped to a valid command, but this WebDriver
   // implementation has not implemented it.
   void UnimplementedCommand(const std::string& path) override {
-    LOG(INFO) << "Unimplemented command: " << path;
+    LOG(ERROR) << "Unimplemented command: " << path;
     SendInternal(net::HTTP_NOT_IMPLEMENTED, "Unimplemented command",
                  kTextPlainContentType);
   }
@@ -126,6 +129,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   // The request maps to a valid command, but the variable part of the path
   // does not map to a valid instance.
   void VariableResourceNotFound(const std::string& variable_name) override {
+    LOG(ERROR) << "VariableResourceNotFound : " << variable_name;
     SendInternal(net::HTTP_NOT_FOUND,
                  "Unknown variable resource: " + variable_name,
                  kTextPlainContentType);
@@ -143,6 +147,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
     net::HttpServerResponseInfo response_info;
     response_info.AddHeader("Allow",
                             base::JoinString(allowed_method_strings, ", "));
+    LOG(ERROR) << "InvalidCommandMethod (" << requested_method << ")";
     SendInternal(net::HTTP_METHOD_NOT_ALLOWED,
                  "Invalid method: " + HttpMethodToString(requested_method),
                  kTextPlainContentType, response_info);
@@ -151,6 +156,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   // The POST command's JSON request body does not contain the required
   // parameters.
   void MissingCommandParameters(const std::string& message) override {
+    LOG(ERROR) << "MissingCommandParameters (" << message << ")";
     SendInternal(net::HTTP_BAD_REQUEST, message, kTextPlainContentType);
   }
 
@@ -225,7 +231,7 @@ void WebDriverServer::OnHttpRequest(int connection_id,
     path.resize(query_position);
   }
 
-  DLOG(INFO) << "Got request: " << path;
+  LOG(INFO) << "Got request: " << path;
   // Create a new ResponseHandler that will send a response to this connection.
   std::unique_ptr<ResponseHandler> response_handler(
       new ResponseHandlerImpl(server_.get(), connection_id));

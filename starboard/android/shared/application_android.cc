@@ -257,16 +257,6 @@ void ApplicationAndroid::OnSuspend() {
   env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
 }
 
-void ApplicationAndroid::StartMediaPlaybackService() {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallStarboardVoidMethodOrAbort("startMediaPlaybackService", "()V");
-}
-
-void ApplicationAndroid::StopMediaPlaybackService() {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallStarboardVoidMethodOrAbort("stopMediaPlaybackService", "()V");
-}
-
 void ApplicationAndroid::ProcessAndroidCommand() {
   JniEnvExt* env = JniEnvExt::Get();
   AndroidCommand cmd;

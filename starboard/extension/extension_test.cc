@@ -518,7 +518,7 @@ TEST(ExtensionTest, LoaderAppMetrics) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_GE(extension_api->version, 1u);
-  EXPECT_LE(extension_api->version, 2u);
+  EXPECT_LE(extension_api->version, 3u);
   EXPECT_NE(extension_api->SetCrashpadInstallationStatus, nullptr);
   EXPECT_NE(extension_api->GetCrashpadInstallationStatus, nullptr);
 
@@ -534,6 +534,11 @@ TEST(ExtensionTest, LoaderAppMetrics) {
 
     EXPECT_NE(extension_api->RecordUsedCpuBytesDuringElfLoad, nullptr);
     EXPECT_NE(extension_api->GetMaxSampledUsedCpuBytesDuringElfLoad, nullptr);
+  }
+
+  if (extension_api->version >= 3) {
+    EXPECT_NE(extension_api->SetSlotSelectionStatus, nullptr);
+    EXPECT_NE(extension_api->GetSlotSelectionStatus, nullptr);
   }
 
   const ExtensionApi* second_extension_api =

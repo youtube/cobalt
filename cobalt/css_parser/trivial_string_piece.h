@@ -16,11 +16,11 @@
 #define COBALT_CSS_PARSER_TRIVIAL_STRING_PIECE_H_
 
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 #include <string>
 
 #include "base/logging.h"
-#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace css_parser {

@@ -30,7 +30,6 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_throttler_manager.h"
-#include "starboard/common/time.h"
 #include "starboard/types.h"
 #include "url/origin.h"
 
@@ -546,13 +545,14 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request, int bytes_read) {
 #if defined(STARBOARD)
   // Prime it to the current time so it is only called after the loop, or every
   // time when the loop takes |kInformDownloadProgressIntervalUsec|.
-  int64_t download_progress_informed_at = starboard::CurrentMonotonicTime();
+  int64_t download_progress_informed_at =
+      (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   bool did_read_after_inform_download_progress = false;
 
   while (bytes_read > 0) {
     current_response_bytes_ += bytes_read;
     did_read_after_inform_download_progress = true;
-    auto now = starboard::CurrentMonotonicTime();
+    auto now = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
     if (now - download_progress_informed_at >
         kInformDownloadProgressIntervalUsec) {
       InformDelegateDownloadProgress();

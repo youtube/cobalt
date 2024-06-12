@@ -17,9 +17,9 @@
 #include <utility>
 #include <vector>
 
+#include "base/files/file_util.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
-#include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -46,13 +46,15 @@ class PersistentSettingTest : public testing::Test {
   }
 
   void SetUp() final {
-    starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
+    base::DeletePathRecursively(
+        base::FilePath(persistent_settings_file_.c_str()));
     persistent_settings_ =
         std::make_unique<PersistentSettings>(kPersistentSettingsJson);
   }
 
   void TearDown() final {
-    starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
+    base::DeletePathRecursively(
+        base::FilePath(persistent_settings_file_.c_str()));
   }
 
   void Fence(const base::Location& location) {

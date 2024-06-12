@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "starboard/common/atomic.h"
 #include "starboard/types.h"
 
 namespace cobalt {

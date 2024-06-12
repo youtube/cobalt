@@ -54,6 +54,9 @@ class WebDriverServer : public net::HttpServer::Delegate {
   // client.
   class ResponseHandler {
    public:
+    static const int kMaxRecieveBufferSize = 2 * 1024 * 1024;  // 2 Mbytes.
+    static const int kMaxSendBufferSize = 8 * 1024 * 1024;     // 8 Mbytes.
+
     // Called after a successful WebDriver command.
     // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#responses
     virtual void Success(std::unique_ptr<base::Value>) = 0;

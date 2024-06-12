@@ -87,11 +87,6 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
     return starboard::shared::GetTimeZoneApi();
   }
-#if SB_API_VERSION < 14
-  if (strcmp(name, kStarboardExtensionIfaName) == 0) {
-    return starboard::shared::GetIfaApi();
-  }
-#endif  // SB_API_VERSION < 14
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
     return starboard::shared::starboard::GetLoaderAppMetricsApi();

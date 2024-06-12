@@ -12,7 +12,7 @@
 #endif
 #include "src/base/logging.h"
 
-#if V8_OS_POSIX
+#if V8_OS_POSIX || V8_OS_STARBOARD
 #include <pthread.h>  // NOLINT
 #endif
 
@@ -67,7 +67,11 @@ class V8_BASE_EXPORT Mutex final {
 #elif V8_OS_WIN
   using NativeHandle = SRWLOCK;
 #elif V8_OS_STARBOARD
+#if SB_API_VERSION < 16
   using NativeHandle = SbMutex;
+#else
+  using NativeHandle = pthread_mutex_t;
+#endif  // SB_API_VERSION < 16
 #endif
 
   NativeHandle& native_handle() {

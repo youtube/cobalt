@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <pthread.h>
 #include <sys/stat.h>
 
 #include <vector>
@@ -26,15 +27,16 @@
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/app_key.h"
 #include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/memory_tracker_thread.h"
+#include "starboard/loader_app/record_loader_app_status.h"
 #include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
 #include "third_party/crashpad/crashpad/wrapper/annotations.h"
@@ -191,9 +193,9 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
 }  // namespace
 
 void SbEventHandle(const SbEvent* event) {
-  static SbMutex mutex = SB_MUTEX_INITIALIZER;
+  static pthread_mutex_t mutex PTHREAD_MUTEX_INITIALIZER;
 
-  SB_CHECK(SbMutexAcquire(&mutex) == kSbMutexAcquired);
+  SB_CHECK(pthread_mutex_lock(&mutex) == 0);
 
   if (!g_sb_event_func && (event->type == kSbEventTypeStart ||
                            event->type == kSbEventTypePreload)) {
@@ -205,7 +207,7 @@ void SbEventHandle(const SbEvent* event) {
       SB_LOG(INFO) << "Resetting the Evergreen Update";
       starboard::loader_app::ResetEvergreenUpdate();
       SbSystemRequestStop(0);
-      SB_CHECK(SbMutexRelease(&mutex) == true);
+      SB_CHECK(pthread_mutex_unlock(&mutex) == 0);
       return;
     }
 
@@ -259,6 +261,8 @@ void SbEventHandle(const SbEvent* event) {
     }
 
     if (is_evergreen_lite) {
+      starboard::loader_app::RecordSlotSelectionStatus(
+          SlotSelectionStatus::kEGLite);
       LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
     } else {
       std::string url =
@@ -281,5 +285,5 @@ void SbEventHandle(const SbEvent* event) {
     g_sb_event_func(event);
   }
 
-  SB_CHECK(SbMutexRelease(&mutex) == true);
+  SB_CHECK(pthread_mutex_unlock(&mutex) == 0);
 }

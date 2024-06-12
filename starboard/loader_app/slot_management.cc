@@ -24,6 +24,7 @@
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
@@ -57,7 +58,8 @@ const char kCobaltContentPath[] = "content";
 
 int RevertBack(int current_installation,
                const std::string& app_key,
-               bool mark_bad) {
+               bool mark_bad,
+               SlotSelectionStatus status) {
   SB_LOG(INFO) << "RevertBack current_installation=" << current_installation;
   SB_DCHECK(current_installation != 0);
   if (mark_bad) {
@@ -82,7 +84,7 @@ int RevertBack(int current_installation,
                       << current_installation;
     }
   }
-  current_installation = ImRevertToSuccessfulInstallation();
+  current_installation = ImRevertToSuccessfulInstallation(status);
   return current_installation;
 }
 
@@ -163,7 +165,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
         // the current image is not the system image.
         if (current_installation != 0) {
           current_installation =
-              RevertBack(current_installation, app_key, true /* mark_bad */);
+              RevertBack(current_installation, app_key, true /* mark_bad */,
+                         SlotSelectionStatus::kRollBackOutOfRetries);
         }
       }
     }
@@ -181,7 +184,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // the current image is not the system image.
       if (current_installation != 0) {
         current_installation =
-            RevertBack(current_installation, app_key, true /* mark_bad */);
+            RevertBack(current_installation, app_key, true /* mark_bad */,
+                       SlotSelectionStatus::kRollBackNoLibFile);
         continue;
       } else {
         // The system image at index 0 failed.
@@ -202,7 +206,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       if (CheckBadFileExists(installation_path.data(), app_key.c_str())) {
         SB_LOG(INFO) << "Bad app key file";
         current_installation =
-            RevertBack(current_installation, app_key, true /* mark_bad */);
+            RevertBack(current_installation, app_key, true /* mark_bad */,
+                       SlotSelectionStatus::kRollBackBadAppKeyFile);
         continue;
       }
       // If the current installation is in use by an updater roll back.
@@ -210,7 +215,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
                                         app_key.c_str())) {
         SB_LOG(INFO) << "Active slot draining";
         current_installation =
-            RevertBack(current_installation, app_key, false /* mark_bad */);
+            RevertBack(current_installation, app_key, false /* mark_bad */,
+                       SlotSelectionStatus::kRollBackSlotDraining);
         continue;
       }
       // Adopt installation performed from different app.
@@ -218,7 +224,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
                              app_key.c_str())) {
         SB_LOG(INFO) << "Unable to adopt installation";
         current_installation =
-            RevertBack(current_installation, app_key, true /* mark_bad */);
+            RevertBack(current_installation, app_key, true /* mark_bad */,
+                       SlotSelectionStatus::kRollBackFailedToAdopt);
         continue;
       }
     }
@@ -277,7 +284,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // the current image is not the system image.
       if (current_installation != 0) {
         current_installation =
-            RevertBack(current_installation, app_key, true /* mark_bad */);
+            RevertBack(current_installation, app_key, true /* mark_bad */,
+                       SlotSelectionStatus::kRollBackFailedToLoadCobalt);
         continue;
       } else {
         // The system image at index 0 failed.
@@ -304,7 +312,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // the current image is not the system image.
       if (current_installation != 0) {
         current_installation =
-            RevertBack(current_installation, app_key, true /* mark_bad */);
+            RevertBack(current_installation, app_key, true /* mark_bad */,
+                       SlotSelectionStatus::kRollBackFailedToCheckSabi);
         continue;
       } else {
         // The system image at index 0 failed.
@@ -341,7 +350,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // the current image is not the system image.
       if (current_installation != 0) {
         current_installation =
-            RevertBack(current_installation, app_key, true /* mark_bad */);
+            RevertBack(current_installation, app_key, true /* mark_bad */,
+                       SlotSelectionStatus::kRollBackFailedToLookUpSymbols);
         continue;
       } else {
         // The system image at index 0 failed.

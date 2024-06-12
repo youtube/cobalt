@@ -23,8 +23,8 @@ static_library("variations") {
     "client_filterable_state.h",
     "entropy_provider.cc",
     "entropy_provider.h",
-    # "experiment_labels.cc",
-    # "experiment_labels.h",
+    "experiment_labels.cc",
+    "experiment_labels.h",
     "hashing.cc",
     "hashing.h",
     "metrics.cc",
@@ -84,6 +84,10 @@ static_library("variations") {
       "proto/permuted_entropy_cache.proto",
       "proto/study.proto",
       "proto/variations_seed.proto",
+
+      # These can't be by compiled and aren't used in Cobalt.
+      "experiment_labels.cc",
+      "experiment_labels.h",
     ]
   }
 

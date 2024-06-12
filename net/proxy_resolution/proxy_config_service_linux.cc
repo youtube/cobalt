@@ -40,11 +40,6 @@
 #include <gio/gio.h>
 #endif  // defined(USE_GIO)
 
-#if defined(STARBOARD)
-#include "starboard/common/file.h"
-#include "starboard/types.h"
-#endif
-
 namespace net {
 
 class ScopedAllowBlockingForSettingGetter : public base::ScopedAllowBlocking {};

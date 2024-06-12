@@ -1466,7 +1466,9 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
 
 void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
     QuicStreamOffset new_window) {
+#if !defined(STARBOARD)
   QUICHE_DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_TLS1_3);
+#endif
   QUIC_DVLOG(1) << ENDPOINT << "OnNewStreamUnidirectionalFlowControlWindow "
                 << new_window;
   // Inform all existing outgoing unidirectional streams about the new window.
@@ -1496,7 +1498,9 @@ void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
 
 void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
     QuicStreamOffset new_window) {
+#if !defined(STARBOARD)
   QUICHE_DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_TLS1_3);
+#endif
   QUIC_DVLOG(1) << ENDPOINT
                 << "OnNewStreamOutgoingBidirectionalFlowControlWindow "
                 << new_window;
@@ -1527,7 +1531,9 @@ void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
 
 void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
     QuicStreamOffset new_window) {
+#if !defined(STARBOARD)
   QUICHE_DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_TLS1_3);
+#endif
   QUIC_DVLOG(1) << ENDPOINT
                 << "OnNewStreamIncomingBidirectionalFlowControlWindow "
                 << new_window;
@@ -1692,7 +1698,9 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
 }
 
 void QuicSession::OnTlsHandshakeComplete() {
+#if !defined(STARBOARD)
   QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3, connection_->version().handshake_protocol);
+#endif
   QUIC_BUG_IF(quic_bug_12435_9,
               !GetCryptoStream()->crypto_negotiated_params().cipher_suite)
       << ENDPOINT << "Handshake completes without cipher suite negotiation.";

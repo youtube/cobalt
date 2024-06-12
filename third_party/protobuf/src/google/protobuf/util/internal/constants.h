@@ -50,16 +50,16 @@ const char kRfc3339TimeFormat[] = "%E4Y-%m-%dT%H:%M:%S";
 const char kRfc3339TimeFormatNoPadding[] = "%Y-%m-%dT%H:%M:%S";
 
 // Minimun seconds allowed in a google.protobuf.Timestamp value.
-const int64 kTimestampMinSeconds = -62135596800;
+const int64 kTimestampMinSeconds = -62135596800LL;
 
 // Maximum seconds allowed in a google.protobuf.Timestamp value.
-const int64 kTimestampMaxSeconds = 253402300799;
+const int64 kTimestampMaxSeconds = 253402300799LL;
 
 // Minimum seconds allowed in a google.protobuf.Duration value.
-const int64 kDurationMinSeconds = -315576000000;
+const int64 kDurationMinSeconds = -315576000000LL;
 
 // Maximum seconds allowed in a google.protobuf.Duration value.
-const int64 kDurationMaxSeconds = 315576000000;
+const int64 kDurationMaxSeconds = 315576000000LL;
 
 // Nano seconds in a second.
 const int32 kNanosPerSecond = 1000000000;
@@ -86,15 +86,11 @@ const char kDurationType[] = "google.protobuf.Duration";
 // Type URL for struct value type google.protobuf.Value
 const char kStructValueTypeUrl[] = "type.googleapis.com/google.protobuf.Value";
 
-// Type URL for struct value type google.protobuf.Value
-const char kStructTypeUrl[] = "type.googleapis.com/google.protobuf.Struct";
-
 // Type string for google.protobuf.Any
 const char kAnyType[] = "google.protobuf.Any";
 
-// The type URL of google.protobuf.FieldMask;
-const char kFieldMaskTypeUrl[] =
-    "type.googleapis.com/google.protobuf.FieldMask";
+// The protobuf option name of jspb.message_id;
+const char kOptionJspbMessageId[] = "jspb.message_id";
 
 }  // namespace converter
 }  // namespace util

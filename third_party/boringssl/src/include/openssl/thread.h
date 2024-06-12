@@ -80,8 +80,8 @@ typedef struct crypto_mutex_st {
   // a byte array that is sizeof(starboard::RWLock) without including the
   // declaration. Avoid the complication and just implement the RWMutex using
   // starboard C structs.
-  SbMutex mutex;
-  SbConditionVariable condition;
+  pthread_mutex_t mutex;
+  pthread_cond_t condition;
   size_t readers;
   bool writing;
 } CRYPTO_MUTEX;

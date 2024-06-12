@@ -54,31 +54,6 @@ services:
     depends_on:
       - cobalt-build-win-base
 
-  ps4:
-    <<: *common-definitions
-    build:
-      context: ./internal/docker/windows/
-      dockerfile: ps4/Dockerfile
-      args:
-        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
-        - FROM_IMAGE=cobalt-build-win-internal
-    environment:
-      <<: *shared-build-env
-      PLATFORM: ps4
-    image: cobalt-build-ps4
-    depends_on:
-      - cobalt-build-win-internal
-
-  ps4-kokoro:
-    build:
-      context: ./internal/docker/windows/kokoro/
-      dockerfile: Dockerfile
-      args:
-        - FROM_IMAGE=${FROM_IMAGE:-cobalt-build-ps4}
-    image: cobalt-kokoro-ps4
-    depends_on:
-      - ps4
-
   ps5:
     <<: *common-definitions
     build:
