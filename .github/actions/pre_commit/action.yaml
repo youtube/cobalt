@@ -7,6 +7,13 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    - name: Install Pip Packages
+      shell: bash
+      run: pip install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/precommit_hooks/requirements.txt
     - run: pre-commit run --show-diff-on-failure --color=always --from-ref ${{ inputs.base_ref }} --to-ref HEAD
       shell: bash
       env:

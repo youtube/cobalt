@@ -1,0 +1,51 @@
+name: Cobalt Documentation
+
+on:
+  pull_request_target:
+    types:
+      - closed
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}'
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  developer-docs:
+    name: Generate Docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: kaidokert/checkout@v3.5.999
+        with:
+          ref: ${{ github.base_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Docker Build
+        run: docker build -t docsite --build-arg UID=$(id -u) --build-arg GID=$(id -g) cobalt/site/docker
+        shell: bash
+      - name: Docker Run
+        run: docker run --mount type=bind,source=$(pwd),target=/code docsite
+        shell: bash
+      - name: Stage files for pre-commit
+        run: git add -A cobalt/site/docs
+        shell: bash
+      - name: Run pre-commit
+        uses: ./.github/actions/pre_commit
+        with:
+          base_ref: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@2b011faafdcbc9ceb11414d64d0573f37c774b04 # v4.2.3
+        with:
+          token: ${{ secrets.CHERRY_PICK_TOKEN }}
+          base: ${{ github.base_ref }}
+          branch: doc-${{ github.event.pull_request.number }}
+          reviewers: ${{ github.event.pull_request.user.login }}
+          committer: GitHub Release Automation <github@google.com>
+          title: "Documentation changes for #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+          body: |
+            Refer to the original PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+
+            ${{ github.event.pull_request.body }}
