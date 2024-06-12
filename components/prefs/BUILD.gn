@@ -56,10 +56,7 @@ static_library("prefs") {
 
   configs += [ ":prefs_config" ]
 
-  deps = [
-    "//base",
-    # "//base/util/values:values_util",
-  ]
+  deps = [ "//base" ]
 }
 
 source_set("test_support") {

@@ -313,7 +313,7 @@ Structure representing a Starboard event and its data.
 #### Members
 
 *   `SbEventType type`
-*   `SbTimeMonotonic timestamp`
+*   `int64_t timestamp`
 *   `void * data`
 
 ### SbEventStartData
@@ -399,7 +399,7 @@ of microseconds to wait before calling the `callback` function. Set `delay` to
 #### Declaration
 
 ```
-SbEventId SbEventSchedule(SbEventCallback callback, void *context, SbTime delay)
+SbEventId SbEventSchedule(SbEventCallback callback, void *context, int64_t delay)
 ```
 
 ### SbRunStarboardMain

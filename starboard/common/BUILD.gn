@@ -69,6 +69,8 @@ static_library("common") {
     "player.cc",
     "player.h",
     "pointer_arithmetic.h",
+    "process.cc",
+    "process.h",
     "queue.h",
     "recursive_mutex.cc",
     "recursive_mutex.h",

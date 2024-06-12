@@ -16,7 +16,6 @@
 #include "cobalt/dom/performance_lifecycle_timing.h"
 
 #include "cobalt/dom/performance.h"
-#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -45,8 +44,8 @@ DOMHighResTimeStamp ConvertMonotonicTimestampToDOMHiResTimeStamp(
     const DOMHighResTimeStamp time_origin, int64_t monotonic_time) {
   // Current delta from Windows epoch.
   int64_t time_delta =
-      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()) -
-      starboard::CurrentMonotonicTime();
+      base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds() -
+      (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   base::Time base_time = base::Time::FromDeltaSinceWindowsEpoch(
       base::TimeDelta::FromMicroseconds(time_delta + monotonic_time));
   return ClampTimeStampMinimumResolution(

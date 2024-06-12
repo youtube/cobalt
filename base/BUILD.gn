@@ -102,8 +102,8 @@ if (is_apple) {
 }
 
 # Determines whether libevent should be dep.
-dep_libevent =
-    !is_fuchsia && !is_win && !is_mac && !is_nacl && !use_cobalt_customizations
+dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
+    && !use_cobalt_customizations
 
 # Determines whether message_pump_libevent should be used.
 use_libevent = dep_libevent && !is_ios
@@ -1459,7 +1459,7 @@ component("base") {
   }
 
   # Fuchsia.
-  if (is_fuchsia && !is_starboard) {
+  if (is_fuchsia) {
     sources += [
       "base_paths_fuchsia.cc",
       "debug/debugger_fuchsia.cc",
@@ -2368,9 +2368,9 @@ component("base") {
   }
 
   if (!is_starboard) {
-    if ((is_posix && !is_apple && !is_android) || is_fuchsia) {
-      sources += [ "profiler/stack_sampler_posix.cc" ]
-    }
+  if ((is_posix && !is_apple && !is_android) || is_fuchsia) {
+    sources += [ "profiler/stack_sampler_posix.cc" ]
+  }
   }
 
   if ((is_posix && !is_apple && !is_android && !is_chromeos) || is_fuchsia || is_starboard) {
@@ -2764,9 +2764,6 @@ component("i18n") {
     "i18n/streaming_utf8_validator.h",
     "i18n/string_compare.cc",
     "i18n/string_compare.h",
-
-    # "i18n/string_search.cc",
-    # "i18n/string_search.h",
     "i18n/time_formatting.cc",
     "i18n/time_formatting.h",
     "i18n/timezone.cc",
@@ -2776,10 +2773,6 @@ component("i18n") {
     "i18n/utf8_validator_tables.h",
   ]
   defines = [ "BASE_I18N_IMPLEMENTATION" ]
-  defines += [
-    "U_COMMON_IMPLEMENTATION",
-    "UCONFIG_NO_CONVERSION=0",
-  ]
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
   public_deps = [
     "//third_party/ced",
@@ -2802,8 +2795,8 @@ component("i18n") {
       configs -= [ "//starboard/build/config:size" ]
       configs += [ "//starboard/build/config:speed" ]
     } else {
-      configs -= [ "//build/config/compiler:default_optimization" ]
-      configs += [ "//build/config/compiler:optimize_max" ]
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_max" ]
     }
   }
 
@@ -2820,80 +2813,80 @@ component("i18n") {
 }
 
 if (!is_starboard) {
-  test("base_perftests") {
-    sources = [
-      "hash/hash_perftest.cc",
-      "message_loop/message_pump_perftest.cc",
-      "observer_list_perftest.cc",
-      "rand_util_perftest.cc",
-      "strings/string_util_perftest.cc",
-      "substring_set_matcher/substring_set_matcher_perftest.cc",
-      "task/job_perftest.cc",
-      "task/sequence_manager/sequence_manager_perftest.cc",
-      "task/thread_pool/thread_pool_perftest.cc",
-      "threading/counter_perftest.cc",
-      "threading/thread_local_storage_perftest.cc",
+test("base_perftests") {
+  sources = [
+    "hash/hash_perftest.cc",
+    "message_loop/message_pump_perftest.cc",
+    "observer_list_perftest.cc",
+    "rand_util_perftest.cc",
+    "strings/string_util_perftest.cc",
+    "substring_set_matcher/substring_set_matcher_perftest.cc",
+    "task/job_perftest.cc",
+    "task/sequence_manager/sequence_manager_perftest.cc",
+    "task/thread_pool/thread_pool_perftest.cc",
+    "threading/counter_perftest.cc",
+    "threading/thread_local_storage_perftest.cc",
 
-      # "test/run_all_unittests.cc",
-      "json/json_perftest.cc",
-      "synchronization/lock_perftest.cc",
-      "synchronization/waitable_event_perftest.cc",
-      "threading/thread_perftest.cc",
+    # "test/run_all_unittests.cc",
+    "json/json_perftest.cc",
+    "synchronization/lock_perftest.cc",
+    "synchronization/waitable_event_perftest.cc",
+    "threading/thread_perftest.cc",
+  ]
+
+  deps = [
+    ":base",
+    ":debugging_buildflags",
+    "//base/test:test_support",
+    "//base/test:test_support_perf",
+    "//testing/gtest",
+    "//testing/perf",
+  ]
+
+  if (use_partition_alloc) {
+    sources += [
+      "allocator/partition_allocator/partition_alloc_perftest.cc",
+      "allocator/partition_allocator/partition_lock_perftest.cc",
     ]
-
-    deps = [
-      ":base",
-      ":debugging_buildflags",
-      "//base/test:test_support",
-      "//base/test:test_support_perf",
-      "//testing/gtest",
-      "//testing/perf",
-    ]
-
-    if (use_partition_alloc) {
-      sources += [
-        "allocator/partition_allocator/partition_alloc_perftest.cc",
-        "allocator/partition_allocator/partition_lock_perftest.cc",
-      ]
-      deps += [ ":partition_alloc_test_support" ]
-    }
-
-    data_deps = [
-      # Needed for isolate script to execute.
-      "//testing:run_perf_test",
-    ]
-
-    if (is_android) {
-      deps += [ "//testing/android/native_test:native_test_native_code" ]
-      shard_timeout = 600
-    }
-
-    if (is_fuchsia) {
-      # Run these performance tests against the actual system.
-      run_as_chromium_system_test = true
-    }
-
-    if (!is_official_build) {
-      # The extra data tables required by stack traces are turned off for official
-      # build, only do stack trace perftest for unofficial build
-      sources += [ "debug/stack_trace_perftest.cc" ]
-    }
-
-    if (build_allocation_stack_trace_recorder) {
-      sources += [ "debug/allocation_trace_perftest.cc" ]
-    }
+    deps += [ ":partition_alloc_test_support" ]
   }
 
-  test("base_i18n_perftests") {
-    sources = [ "i18n/streaming_utf8_validator_perftest.cc" ]
-    deps = [
-      ":base",
-      ":i18n",
-      "//base/test:test_support",
-      "//base/test:test_support_perf",
-      "//testing/gtest",
-    ]
+  data_deps = [
+    # Needed for isolate script to execute.
+    "//testing:run_perf_test",
+  ]
+
+  if (is_android) {
+    deps += [ "//testing/android/native_test:native_test_native_code" ]
+    shard_timeout = 600
   }
+
+  if (is_fuchsia) {
+    # Run these performance tests against the actual system.
+    run_as_chromium_system_test = true
+  }
+
+  if (!is_official_build) {
+    # The extra data tables required by stack traces are turned off for official
+    # build, only do stack trace perftest for unofficial build
+    sources += [ "debug/stack_trace_perftest.cc" ]
+  }
+
+  if (build_allocation_stack_trace_recorder) {
+    sources += [ "debug/allocation_trace_perftest.cc" ]
+  }
+}
+
+test("base_i18n_perftests") {
+  sources = [ "i18n/streaming_utf8_validator_perftest.cc" ]
+  deps = [
+    ":base",
+    ":i18n",
+    "//base/test:test_support",
+    "//base/test:test_support_perf",
+    "//testing/gtest",
+  ]
+}
 }
 
 if (!is_ios && !use_cobalt_customizations) {
@@ -3019,35 +3012,35 @@ source_set("base_stack_sampling_profiler_test_util") {
 }
 
 copy("base_unittests_bundle_data") {
-  testonly = true
+    testonly = true
   if (is_starboard) {
     install_content = true
   }
-  sources = [
-    "//tools/metrics/histograms/enums.xml",
-    "test/data/file_util/binary_file.bin",
-    "test/data/file_util/binary_file_diff.bin",
-    "test/data/file_util/binary_file_same.bin",
-    "test/data/file_util/blank_line.txt",
-    "test/data/file_util/blank_line_crlf.txt",
-    "test/data/file_util/crlf.txt",
-    "test/data/file_util/different.txt",
-    "test/data/file_util/different_first.txt",
-    "test/data/file_util/different_last.txt",
-    "test/data/file_util/empty1.txt",
-    "test/data/file_util/empty2.txt",
-    "test/data/file_util/first1.txt",
-    "test/data/file_util/first2.txt",
-    "test/data/file_util/original.txt",
-    "test/data/file_util/same.txt",
-    "test/data/file_util/same_length.txt",
-    "test/data/file_util/shortened.txt",
-    "test/data/json/bom_feff.json",
-    "test/data/pe_image_reader/signed.exe",
-    "test/data/serializer_nested_test.json",
-    "test/data/serializer_test.json",
-    "test/data/serializer_test_nowhitespace.json",
-  ]
+    sources = [
+      "//tools/metrics/histograms/enums.xml",
+      "test/data/file_util/binary_file.bin",
+      "test/data/file_util/binary_file_diff.bin",
+      "test/data/file_util/binary_file_same.bin",
+      "test/data/file_util/blank_line.txt",
+      "test/data/file_util/blank_line_crlf.txt",
+      "test/data/file_util/crlf.txt",
+      "test/data/file_util/different.txt",
+      "test/data/file_util/different_first.txt",
+      "test/data/file_util/different_last.txt",
+      "test/data/file_util/empty1.txt",
+      "test/data/file_util/empty2.txt",
+      "test/data/file_util/first1.txt",
+      "test/data/file_util/first2.txt",
+      "test/data/file_util/original.txt",
+      "test/data/file_util/same.txt",
+      "test/data/file_util/same_length.txt",
+      "test/data/file_util/shortened.txt",
+      "test/data/json/bom_feff.json",
+      "test/data/pe_image_reader/signed.exe",
+      "test/data/serializer_nested_test.json",
+      "test/data/serializer_test.json",
+      "test/data/serializer_test_nowhitespace.json",
+    ]
   if (is_starboard) {
     outputs = [ "$sb_static_contents_output_data_dir/test/base/{{source_target_relative}}" ]
   } else {
@@ -3647,13 +3640,7 @@ test("base_unittests") {
     "//third_party/modp_b64",
   ]
 
-  defines = [ "U_COMMON_IMPLEMENTATION" ]
-
   data_deps = [
-    # "//base/test:immediate_crash_test_helper",
-    # "//base/test:test_child_process",
-    # "//base/test:test_shared_library",
-    # "//testing/buildbot/filters:base_unittests_filters",
   ]
 
   if (is_android && enable_chrome_android_internal) {
@@ -3665,16 +3652,15 @@ test("base_unittests") {
   }
 
   if (is_apple && !is_starboard) {
+    public_deps = [ ":base_unittests_bundle_data" ]
+
     deps += [ ":base_unittests_arc" ]
   }
-
-  public_deps = [ ":base_unittests_bundle_data" ]
 
   if (is_starboard){
     data_deps += [
       ":base_unittests_bundle_data",
       "//cobalt/network:copy_ssl_certificates",
-      "//third_party/icu:icudata",
     ]
   }
 
@@ -3763,6 +3749,7 @@ test("base_unittests") {
       "debug/proc_maps_linux_unittest.cc",
       "files/scoped_file_linux_unittest.cc",
     ]
+
     if (!!use_cobalt_customizations && !is_nacl) {
       deps += [ ":stack_canary_linux_unittests" ]
     }

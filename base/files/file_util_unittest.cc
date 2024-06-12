@@ -4018,7 +4018,7 @@ TEST_F(FileUtilTest, ReadStreamToString_ZeroLengthFile) {
     EXPECT_EQ(contents, random_data);
   }
 }
-#endif  // BUILDFLAG(IS_POSIX)
+#endif
 
 TEST_F(FileUtilTest, ReadStreamToStringWithMaxSize) {
   ScopedFILE stream(

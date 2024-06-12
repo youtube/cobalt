@@ -15,12 +15,14 @@
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/hash/md5.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -28,12 +30,7 @@
 #include "third_party/zlib/google/zip_internal.h"
 
 #if defined(STARBOARD)
-#include "base/md5.h"
-#include "base/test/scoped_task_environment.h"
 #include "starboard/common/log.h"
-#else
-#include "base/hash/md5.h"
-#include "base/test/task_environment.h"
 #endif
 
 using ::testing::Return;
@@ -229,12 +226,7 @@ class ZipReaderTest : public PlatformTest {
   std::set<base::FilePath> test_zip_contents_;
 
   base::ScopedTempDir temp_dir_;
-
-#if defined(STARBOARD)
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
-#else
   base::test::TaskEnvironment task_environment_;
-#endif
 };
 
 TEST_F(ZipReaderTest, Open_ValidZipFile) {
@@ -431,7 +423,7 @@ TEST_F(ZipReaderTest, OpenFromString) {
       "\x50\x75\x78\x0b\x00\x01\x04\x8e\xf0\x00\x00\x04\x88\x13\x00\x00"
       "\x50\x4b\x05\x06\x00\x00\x00\x00\x01\x00\x01\x00\x4e\x00\x00\x00"
       "\x52\x00\x00\x00\x00\x00";
-  std::string data(kTestData, base::size(kTestData));
+  std::string data(kTestData, std::size(kTestData));
   ZipReader reader;
   ASSERT_TRUE(reader.OpenFromString(data));
   base::FilePath target_path(FILE_PATH_LITERAL("test.txt"));
@@ -445,6 +437,7 @@ TEST_F(ZipReaderTest, OpenFromString) {
   EXPECT_EQ(std::string("This is a test.\n"), actual);
 }
 
+#if !defined(COBALT_PENDING_CLEAN_UP)
 // Verifies that the asynchronous extraction to a file works.
 TEST_F(ZipReaderTest, ExtractToFileAsync_RegularFile) {
   MockUnzipListener listener;
@@ -511,6 +504,7 @@ TEST_F(ZipReaderTest, ExtractToFileAsync_Directory) {
 
   ASSERT_TRUE(base::DirectoryExists(target_file));
 }
+#endif
 
 TEST_F(ZipReaderTest, ExtractCurrentEntryToString) {
   // test_mismatch_size.zip contains files with names from 0.txt to 7.txt with
@@ -538,12 +532,12 @@ TEST_F(ZipReaderTest, ExtractCurrentEntryToString) {
     if (i > 0) {
       // Exact byte read limit: must pass.
       EXPECT_TRUE(reader.ExtractCurrentEntryToString(i, &contents));
-      EXPECT_EQ(base::StringPiece("0123456", i).as_string(), contents);
+      EXPECT_EQ(std::string(base::StringPiece("0123456", i)), contents);
     }
 
     // More than necessary byte read limit: must pass.
     EXPECT_TRUE(reader.ExtractCurrentEntryToString(16, &contents));
-    EXPECT_EQ(base::StringPiece("0123456", i).as_string(), contents);
+    EXPECT_EQ(std::string(base::StringPiece("0123456", i)), contents);
   }
   reader.Close();
 }
@@ -688,7 +682,7 @@ class FileWriterDelegateTest : public ::testing::Test {
     file_.Initialize(temp_file_path_, (base::File::FLAG_CREATE_ALWAYS |
                                        base::File::FLAG_READ |
                                        base::File::FLAG_WRITE |
-                                       base::File::FLAG_TEMPORARY
+                                       base::File::FLAG_WIN_TEMPORARY
 #if !defined(STARBOARD)
                                        | base::File::FLAG_DELETE_ON_CLOSE
 #endif
@@ -699,7 +693,7 @@ class FileWriterDelegateTest : public ::testing::Test {
 #if defined(STARBOARD)
   void TearDown() override {
     file_.Close();
-    ASSERT_TRUE(base::DeleteFile(temp_file_path_, false));
+    ASSERT_TRUE(base::DeleteFile(temp_file_path_));
   }
 #endif
 

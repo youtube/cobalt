@@ -119,6 +119,7 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
 #if SB_API_VERSION >= 16
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
+  REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
 #endif
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
@@ -207,7 +208,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
   REGISTER_SYMBOL(SbMediaGetBufferPadding);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetBufferStorageType);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetMaxBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);

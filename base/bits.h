@@ -182,11 +182,6 @@ ALWAYS_INLINE constexpr
 // use `Log2Floor` and add 1 to the result.
 //
 // TODO(pkasting): When C++20 is available, replace with std::bit_xxx().
-#if defined(COBALT_PENDING_CLEAN_UP) && defined(COMPILER_MSVC)
-#define FUNCTION_SPECIFIER ALWAYS_INLINE
-#else
-#define FUNCTION_SPECIFIER constexpr
-#endif
 ALWAYS_INLINE int Log2Floor(uint32_t n) {
   return 31 - CountLeadingZeroBits(n);
 }
@@ -198,7 +193,6 @@ ALWAYS_INLINE int Log2Ceiling(uint32_t n) {
   // why the statement below starts with (n ? 32 : -1).
   return (n ? 32 : -1) - CountLeadingZeroBits(n - 1);
 }
-#undef FUNCTION_SPECIFIER
 
 // Returns a value of type T with a single bit set in the left-most position.
 // Can be used instead of manually shifting a 1 to the left.

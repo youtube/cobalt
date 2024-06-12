@@ -48,8 +48,8 @@ AnimatedImageTracker::AnimatedImageTracker(
   options.priority = animated_image_decode_thread_priority;
   animated_image_decode_thread_.StartWithOptions(options);
 #else
-  animated_image_decode_thread_.StartWithOptions(base::Thread::Options(
-      base::MessagePumpType::DEFAULT, 0 /* default stack size */));
+  animated_image_decode_thread_.StartWithOptions(
+      base::Thread::Options(animated_image_decode_thread_priority));
 #endif
 }
 

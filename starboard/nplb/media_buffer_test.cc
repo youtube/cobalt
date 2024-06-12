@@ -323,6 +323,7 @@ TEST(SbMediaBufferTest, ProgressiveBudget) {
   }
 }
 
+#if SB_API_VERSION < 16
 TEST(SbMediaBufferTest, StorageType) {
   // Just don't crash.
   SbMediaBufferStorageType type = SbMediaGetBufferStorageType();
@@ -333,6 +334,7 @@ TEST(SbMediaBufferTest, StorageType) {
   }
   SB_NOTREACHED();
 }
+#endif  // SB_API_VERSION < 16
 
 TEST(SbMediaBufferTest, UsingMemoryPool) {
   // Just don't crash.
@@ -360,7 +362,9 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
       SbMediaGetBufferGarbageCollectionDurationThreshold);
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetInitialBufferCapacity);
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferPoolAllocateOnDemand);
+#if SB_API_VERSION < 16
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferStorageType);
+#endif  // SB_API_VERSION < 16
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferUsingMemoryPool);
 
 #if SB_API_VERSION < 16

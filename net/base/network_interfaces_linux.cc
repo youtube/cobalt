@@ -85,10 +85,46 @@ namespace internal {
 // or ethtool extensions.
 NetworkChangeNotifier::ConnectionType GetInterfaceConnectionType(
     const std::string& ifname) {
+/* Cobalt
+  base::ScopedFD s = GetSocketForIoctl();
+  if (!s.is_valid())
+    return NetworkChangeNotifier::CONNECTION_UNKNOWN;
+
+  // Test wireless extensions for CONNECTION_WIFI
+  struct iwreq pwrq = {};
+  strncpy(pwrq.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
+  if (ioctl(s.get(), SIOCGIWNAME, &pwrq) != -1)
+    return NetworkChangeNotifier::CONNECTION_WIFI;
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Test ethtool for CONNECTION_ETHERNET
+  struct ethtool_cmd ecmd = {};
+  ecmd.cmd = ETHTOOL_GSET;
+  struct ifreq ifr = {};
+  ifr.ifr_data = &ecmd;
+  strncpy(ifr.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
+  if (ioctl(s.get(), SIOCETHTOOL, &ifr) != -1)
+    return NetworkChangeNotifier::CONNECTION_ETHERNET;
+#endif  // !BUILDFLAG(IS_ANDROID)
+Cobalt */
+
   return NetworkChangeNotifier::CONNECTION_UNKNOWN;
 }
 
 std::string GetInterfaceSSID(const std::string& ifname) {
+/* Cobalt
+  base::ScopedFD ioctl_socket = GetSocketForIoctl();
+  if (!ioctl_socket.is_valid())
+    return std::string();
+  struct iwreq wreq = {};
+  strncpy(wreq.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
+
+  char ssid[IW_ESSID_MAX_SIZE + 1] = {0};
+  wreq.u.essid.pointer = ssid;
+  wreq.u.essid.length = IW_ESSID_MAX_SIZE;
+  if (ioctl(ioctl_socket.get(), SIOCGIWESSID, &wreq) != -1)
+    return ssid;
+Cobalt */
   return std::string();
 }
 
@@ -98,6 +134,66 @@ bool GetNetworkListImpl(
     const std::unordered_set<int>& online_links,
     const internal::AddressTrackerLinux::AddressMap& address_map,
     GetInterfaceNameFunction get_interface_name) {
+/* Cobalt
+  std::map<int, std::string> ifnames;
+
+  for (const auto& it : address_map) {
+    // Ignore addresses whose links are not online.
+    if (online_links.find(it.second.ifa_index) == online_links.end())
+      continue;
+
+    sockaddr_storage sock_addr;
+    socklen_t sock_len = sizeof(sockaddr_storage);
+
+    // Convert to sockaddr for next check.
+    if (!IPEndPoint(it.first, 0)
+             .ToSockAddr(reinterpret_cast<sockaddr*>(&sock_addr), &sock_len)) {
+      continue;
+    }
+
+    // Skip unspecified addresses (i.e. made of zeroes) and loopback addresses
+    if (IsLoopbackOrUnspecifiedAddress(reinterpret_cast<sockaddr*>(&sock_addr)))
+      continue;
+
+    int ip_attributes = IP_ADDRESS_ATTRIBUTE_NONE;
+
+    if (it.second.ifa_family == AF_INET6) {
+      // Ignore addresses whose attributes are not actionable by
+      // the application layer.
+      if (!TryConvertNativeToNetIPAttributes(it.second.ifa_flags,
+                                             &ip_attributes))
+        continue;
+    }
+
+    // Find the name of this link.
+    std::map<int, std::string>::const_iterator itname =
+        ifnames.find(it.second.ifa_index);
+    std::string ifname;
+    if (itname == ifnames.end()) {
+      char buffer[IFNAMSIZ] = {0};
+      ifname.assign(get_interface_name(it.second.ifa_index, buffer));
+      // Ignore addresses whose interface name can't be retrieved.
+      if (ifname.empty())
+        continue;
+      ifnames[it.second.ifa_index] = ifname;
+    } else {
+      ifname = itname->second;
+    }
+
+    // Based on the interface name and policy, determine whether we
+    // should ignore it.
+    if (ShouldIgnoreInterface(ifname, policy))
+      continue;
+
+    NetworkChangeNotifier::ConnectionType type =
+        GetInterfaceConnectionType(ifname);
+
+    networks->push_back(
+        NetworkInterface(ifname, ifname, it.second.ifa_index, type, it.first,
+                         it.second.ifa_prefixlen, ip_attributes));
+  }
+Cobalt */
+
   return true;
 }
 
@@ -119,6 +215,12 @@ std::string GetWifiSSIDFromInterfaceListInternal(
 }
 
 base::ScopedFD GetSocketForIoctl() {
+/* Cobalt
+  base::ScopedFD ioctl_socket(socket(AF_INET6, SOCK_DGRAM, 0));
+  if (ioctl_socket.is_valid())
+    return ioctl_socket;
+  return base::ScopedFD(socket(AF_INET, SOCK_DGRAM, 0));
+Cobalt */
   return base::ScopedFD();
 }
 
@@ -152,7 +254,9 @@ bool GetNetworkList(NetworkInterfaceList* networks, int policy) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
   const AddressMapOwnerLinux* map_owner = nullptr;
-  // absl::optional<internal::AddressTrackerLinux> temp_tracker;
+/* Cobalt
+  absl::optional<internal::AddressTrackerLinux> temp_tracker;
+Cobalt */
 #if BUILDFLAG(IS_LINUX)
   // If NetworkChangeNotifier already maintains a map owner in this process, use
   // it.
@@ -161,11 +265,13 @@ bool GetNetworkList(NetworkInterfaceList* networks, int policy) {
   }
 #endif  // BUILDFLAG(IS_LINUX)
   if (!map_owner) {
+/* Cobalt
     // If there is no existing map_owner, create an AdressTrackerLinux and
     // initialize it.
-    // temp_tracker.emplace();
-    // temp_tracker->Init();
-    // map_owner = &temp_tracker.value();
+    temp_tracker.emplace();
+    temp_tracker->Init();
+    map_owner = &temp_tracker.value();
+Cobalt */
   }
 
   return internal::GetNetworkListImpl(

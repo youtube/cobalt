@@ -1674,6 +1674,8 @@ copy("layout_copy_test_data") {
     "lottie-player/layout_tests.txt",
     "lottie-player/lottie-background-attribute-expected.png",
     "lottie-player/lottie-background-attribute.html",
+    "lottie-player/lottie-data-urls-expected.png",
+    "lottie-player/lottie-data-urls.html",
     "lottie-player/lottie-playback-events-expected.png",
     "lottie-player/lottie-playback-events.html",
     "text-shaping/combining-character-sequences-should-be-handled-properly-expected.png",

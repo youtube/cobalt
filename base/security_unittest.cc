@@ -64,8 +64,8 @@ void OverflowTestsSoftExpectTrue(bool overflow_detected) {
   }
 }
 
-#if BUILDFLAG(IS_APPLE) || defined(ADDRESS_SANITIZER) ||                \
-    defined(THREAD_SANITIZER) || defined(MEMORY_SANITIZER) ||           \
+#if BUILDFLAG(IS_APPLE) || defined(ADDRESS_SANITIZER) ||      \
+    defined(THREAD_SANITIZER) || defined(MEMORY_SANITIZER) || \
     BUILDFLAG(IS_HWASAN) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) || \
     SB_IS(EVERGREEN)
 #define MAYBE_NewOverflow DISABLED_NewOverflow
