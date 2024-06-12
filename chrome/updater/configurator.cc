@@ -76,20 +76,18 @@ Configurator::Configurator(network::NetworkModule* network_module)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           browser::switches::kUseUncompressedUpdates)) {
     use_compressed_updates_.store(false);
-  } else {
+  } else if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+                 browser::switches::kLoaderUseMemoryMappedFile)) {
     // Devices with a loader app built prior to 25 LTS do not have
     // kUseUncompressedUpdates available to them to disable compressed updates.
     // Since binary compression and the Memory Mapped file feature are
     // incompatible, we need to make sure that these devices do not request
     // compressed updates if they are using the Memory Mapped file feature.
-    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-            browser::switches::kLoaderUseMemoryMappedFile)) {
-      use_compressed_updates_.store(false);
-      LOG(INFO) << "Uncompressed updates will be requested since the Memory "
+    use_compressed_updates_.store(false);
+    LOG(INFO) << "Uncompressed updates will be requested since the Memory "
                 << "Mapped file feature is used";
-    } else {
-      use_compressed_updates_.store(true);
-    }
+  } else {
+    use_compressed_updates_.store(true);
   }
 }
 Configurator::~Configurator() { LOG(INFO) << "Configurator::~Configurator"; }
