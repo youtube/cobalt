@@ -54,9 +54,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
     env_variables['ASAN_OPTIONS'] = ':'.join(asan_options)
     kwargs['env_variables'] = env_variables
 
-    # pylint: disable=super-with-arguments
-    super().__init__(platform, target_name, config, device_id, **kwargs)
-
     self.loader_platform = kwargs.get('loader_platform')
     if not self.loader_platform:
       raise ValueError('|loader_platform| cannot be |None|.')
@@ -64,6 +61,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.loader_config = kwargs.get('loader_config')
     if not self.loader_config:
       raise ValueError('|loader_config| cannot be |None|.')
+
+    # Add the suffix if running android-arm. APKs built for evergreen have
+    # the suffix appended to differentiate them from monolithic builds.
+    if 'android-arm' in self.loader_platform:
+      target_name = target_name + '_evergreen_loader'
+
+    # pylint: disable=super-with-arguments
+    super().__init__(platform, target_name, config, device_id, **kwargs)
 
     # RDK doesn't use our loader, therefore the test files are stored
     # in the folder named after the target
@@ -184,6 +189,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self._StageTargetsAndContentsRaspi()
     elif 'rdk' in self.loader_platform:
       self._StageTargetsAndContentsRdk()
+    elif 'android-arm' in self.loader_platform:
+      # No staging necessary for android-arm.
+      return
     else:
       raise ValueError(f"'{self.loader_platform}' is not recognized")
 
