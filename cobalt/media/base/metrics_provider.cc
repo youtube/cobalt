@@ -159,9 +159,7 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
   }
 }
 
-void MediaMetricsProvider::Reset() {
-  tracked_actions_start_times_.clear();
-}
+void MediaMetricsProvider::Reset() { tracked_actions_start_times_.clear(); }
 
 }  // namespace media
 }  // namespace cobalt
