@@ -250,9 +250,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // for DCHECKs so methods calls won't execute in the wrong thread.
   base::SequencedTaskRunner* task_runner_;
 
-  // Used to report telementry to UMA.
+  // Used to report telementry to UMA. Also used by the pipeline to record
+  // telemetry data.
   MediaMetricsProvider media_metrics_provider_;
-  bool suppress_telemetry_ = false;
 
   scoped_refptr<Pipeline> pipeline_;
 

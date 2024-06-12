@@ -1393,16 +1393,12 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    if (media_metrics_provider_) {
-      media_metrics_provider_->SetHasAudio(decoder_config.codec());
-    }
+    media_metrics_provider_->SetHasAudio(decoder_config.codec());
     player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
-    if (media_metrics_provider_) {
-      media_metrics_provider_->SetHasVideo(decoder_config.codec());
-    }
+    media_metrics_provider_->SetHasVideo(decoder_config.codec());
     base::AutoLock auto_lock(lock_);
     bool natural_size_changed =
         (decoder_config.natural_size().width() != natural_size_.width() ||
