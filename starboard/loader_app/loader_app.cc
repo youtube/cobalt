@@ -233,6 +233,7 @@ void SbEventHandle(const SbEvent* event) {
     SB_LOG(INFO) << "alternative_content=" << alternative_content;
 
     bool use_compressed_updates =
+        !is_evergreen_lite &&
         !command_line.HasSwitch(starboard::loader_app::kUseUncompressedUpdates);
 
     bool use_memory_mapped_file = command_line.HasSwitch(

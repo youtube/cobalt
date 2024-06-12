@@ -26,7 +26,7 @@ SYSTEM_IMAGE_EXTENSION=".lz4"
 
 DISABLE_TESTS="false"
 
-while getopts "d:a:c" o; do
+while getopts "d:a:u" o; do
     case "${o}" in
         d)
             DEVICE_ID=${OPTARG}
@@ -51,10 +51,11 @@ source $DIR/setup.sh
 
 if [[ "${USE_UNCOMPRESSED_SYSTEM_IMAGE}" == "true" ]]; then
   # It would be valid to run all test cases using an uncompressed system image
-  # but is probably excessive. Instead, just two cases are run: one to test that
-  # an uncompressed system image can be loaded and one to test that an
-  # uncompressed update can be upgraded to.
-  TESTS=($(eval "find ${DIR}/tests -maxdepth 1 \( -name 'evergreen_lite_test.sh' -o -name 'verify_qa_channel_uncompressed_update_test.sh' \)"))
+  # but is probably excessive. Instead, just three cases are run: one to test
+  # that an uncompressed system image can be loaded, one to test that an
+  # uncompressed system image can be loaded using the Memory Mapped file
+  # feature, and one to test that an uncompressed update can be upgraded to.
+  TESTS=($(eval "find ${DIR}/tests -maxdepth 1 \( -name 'evergreen_lite_test.sh' -o -name 'verify_qa_channel_uncompressed_update_test.sh' -o -name 'use_mmap_file_test.sh' \)"))
 else
   TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name '*_test.sh'"))
 fi
