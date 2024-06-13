@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/stat.h>
 
 #include <vector>
 
@@ -78,10 +79,11 @@ class BASE_EXPORT FileEnumerator {
 #if defined(STARBOARD)
     FilePath filename_;
     SbFileInfo sb_info_;
+    struct stat file_info_;
 #elif BUILDFLAG(IS_WIN)
     CHROME_WIN32_FIND_DATA find_data_;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-    stat_wrapper_t stat_;
+    stat_wrapsper_t stat_;
     FilePath filename_;
 #endif
   };
