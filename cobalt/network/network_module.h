@@ -60,6 +60,7 @@ enum ClientHintHeadersCallType : int32_t {
 constexpr int32_t kEnabledClientHintHeaders = (kCallTypeLoader | kCallTypeXHR);
 
 const char kQuicEnabledPersistentSettingsKey[] = "QUICEnabled";
+const char kHttp3EnabledPersistentSettingsKey[] = "HTTP3Enabled";
 
 class NetworkSystem;
 // NetworkModule wraps various networking-related components such as
@@ -130,6 +131,7 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
   void SetProxy(const std::string& custom_proxy_rules);
 
   void SetEnableQuicFromPersistentSettings();
+  void SetEnableHttp3FromPersistentSettings();
 
   // Adds the Client Hint Headers to the provided URLFetcher if enabled.
   void AddClientHintHeaders(net::URLFetcher& url_fetcher,
