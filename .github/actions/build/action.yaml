@@ -33,7 +33,7 @@ runs:
         fi
         # Set Ninja output format
         NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
-        ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+        ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET} -v
       shell: bash
     - name: Show Sccache Stats
       run: sccache -s
