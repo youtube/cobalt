@@ -17,7 +17,7 @@ import("//build/toolchain/win/msvc_toolchain.gni")
 import("//starboard/build/toolchain/win/variables.gni")
 
 msvc_toolchain("target") {
-  cl = "$tool_base_path/cl.exe"
+  cl = "$llvm_clang_path/clang-cl.exe"
   lib = "$tool_base_path/lib.exe"
   link = "$tool_base_path/link.exe"
   asm = "$tool_base_path/ml64.exe"
