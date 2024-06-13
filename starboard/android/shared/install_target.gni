@@ -30,6 +30,9 @@ template("install_target") {
   not_needed(invoker, [ "type" ])
 
   installable_target_name = invoker.installable_target_name
+  target_output = "$root_out_dir/lib${installable_target_name}.so"
+  gradle_content_dir = "$sb_install_output_dir/$installable_target_name/$sb_install_content_subdir"
+  gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
 
   action("build_${target_name}_apk") {
     forward_variables_from(invoker, [ "testonly" ])
@@ -37,9 +40,6 @@ template("install_target") {
     deps = invoker.deps
     deps += [ ":$installable_target_name" ]
 
-    target_output = "$root_out_dir/lib${installable_target_name}.so"
-    gradle_content_dir = "$sb_install_output_dir/$installable_target_name/$sb_install_content_subdir"
-    gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
     if (is_gold) {
       gradle_build_type = "release"
     } else {
@@ -91,9 +91,26 @@ template("install_target") {
       "-P",
       "evergreenCompatible=$sb_is_evergreen_compatible",
       "assembleCobalt_$gradle_build_type",
+      "-Dorg.gradle.daemon=$use_parallel_build",
+      "-Dorg.gradle.parallel=$use_parallel_build",
       "-Dorg.gradle.workers.max=$num_gradle_workers",
-      "-Dorg.gradle.workers.parallel=$use_parallel_build",
-      "-Dorg.gradle.workers.daemon=$use_parallel_build",
+    ]
+  }
+
+  action("clean_${target_name}_gradle_files") {
+    forward_variables_from(invoker, [ "testonly" ])
+
+    deps = [ ":build_${invoker.target_name}_apk" ]
+
+    # TODO: Fake output.
+    outputs =
+        [ "${target_out_dir}/${target_name}-${invoker.target_name}.stamp" ]
+
+    script = "//starboard/build/run_bash.py"
+    args = [
+      "rm",
+      "-rf",
+      rebase_path(gradle_files_dir),
     ]
   }
 
@@ -102,6 +119,7 @@ template("install_target") {
     deps = [
       ":$installable_target_name",
       ":build_${target_name}_apk",
+      ":clean_${target_name}_gradle_files",
     ]
   }
 }
