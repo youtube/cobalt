@@ -50,8 +50,6 @@ extern const char kDisableMediaEncryptionSchemesHelp[];
 extern const char kDisableOnScreenKeyboard[];
 extern const char kDisableOnScreenKeyboardHelp[];
 extern const char kDisableRasterizerCaching[];
-extern const char kDisableSignIn[];
-extern const char kDisableSignInHelp[];
 extern const char kDisableSplashScreenOnReloads[];
 extern const char kDisableSplashScreenOnReloadsHelp[];
 extern const char kDisableWebDriver[];
