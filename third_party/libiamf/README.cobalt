@@ -1,0 +1,15 @@
+Name: libiamf
+URL: https://github.com/AOMediaCodec/libiamf.git
+Version: v1.0.0-errata
+License: 3-Clause BSD
+License File: source/LICENSE
+Security Critical: yes
+Source: https://github.com/AOMediaCodec/libiamf.git
+
+--[ DESCRIPTION ] ------------------
+This contains the source to the libiamf audio decoder; used for IAMF decoding in
+Cobalt.
+
+--[ CHANGES ] ------------------
+The audio files located in source/tests have been removed. They can be retrieved
+at https://github.com/AOMediaCodec/libiamf/tree/780ec7a112d4cea6350504e65d164526e01938a2/tests.
