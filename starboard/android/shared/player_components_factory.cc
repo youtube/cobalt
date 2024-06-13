@@ -23,8 +23,8 @@ namespace player {
 namespace filter {
 
 // static
-scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return make_scoped_ptr<PlayerComponents::Factory>(
+std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  return std::unique_ptr<PlayerComponents::Factory>(
       new android::shared::PlayerComponentsFactory);
 }
 

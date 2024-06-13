@@ -156,7 +156,7 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecOutputFormatChanged(
 }
 
 // static
-scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
+std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const AudioStreamInfo& audio_stream_info,
     Handler* handler,
     jobject j_media_crypto) {
@@ -165,7 +165,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
       SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
   if (!mime) {
     SB_LOG(ERROR) << "Unsupported codec " << audio_stream_info.codec << ".";
-    return scoped_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>();
   }
 
   std::string decoder_name =
@@ -175,7 +175,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   if (decoder_name.empty()) {
     SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
                   << ".";
-    return scoped_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>();
   }
 
   if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
@@ -195,7 +195,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
   ScopedLocalJavaRef<jstring> j_decoder_name(
       env->NewStringStandardUTFOrAbort(decoder_name.c_str()));
-  scoped_ptr<MediaCodecBridge> native_media_codec_bridge(
+  std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "dev/cobalt/media/MediaCodecBridgeBuilder", "createAudioDecoder",
@@ -209,16 +209,16 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   if (!j_media_codec_bridge) {
     SB_LOG(ERROR) << "Failed to create codec bridge for "
                   << audio_stream_info.codec << ".";
-    return scoped_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>();
   }
 
   j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
   native_media_codec_bridge->Initialize(j_media_codec_bridge);
-  return native_media_codec_bridge.Pass();
+  return native_media_codec_bridge;
 }
 
 // static
-scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
+std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     SbMediaVideoCodec video_codec,
     int width_hint,
     int height_hint,
@@ -243,7 +243,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     *error_message = FormatString("Unsupported mime for codec %d", video_codec);
-    return scoped_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>();
   }
 
   const bool must_support_secure = require_secured_decoder;
@@ -274,7 +274,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     *error_message =
         FormatString("Failed to find decoder: %s, mustSupportSecure: %d.", mime,
                      !!j_media_crypto);
-    return scoped_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>();
   }
 
   if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
@@ -321,7 +321,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
           "dev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult",
           "()V"));
 
-  scoped_ptr<MediaCodecBridge> native_media_codec_bridge(
+  std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
   env->CallStaticVoidMethodOrAbort(
       "dev/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
@@ -346,12 +346,12 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
         env->CallObjectMethodOrAbort(j_create_media_codec_bridge_result.Get(),
                                      "errorMessage", "()Ljava/lang/String;"));
     *error_message = env->GetStringStandardUTFOrAbort(j_error_message.Get());
-    return scoped_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>();
   }
 
   j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
   native_media_codec_bridge->Initialize(j_media_codec_bridge);
-  return native_media_codec_bridge.Pass();
+  return native_media_codec_bridge;
 }
 
 MediaCodecBridge::~MediaCodecBridge() {
@@ -413,8 +413,8 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
   // Reshape the sub sample mapping like this:
   // [(c0, e0), (c1, e1), ...] -> [c0, c1, ...] and [e0, e1, ...]
   int32_t subsample_count = drm_sample_info.subsample_count;
-  scoped_array<jint> clear_bytes(new jint[subsample_count]);
-  scoped_array<jint> encrypted_bytes(new jint[subsample_count]);
+  std::unique_ptr<jint[]> clear_bytes(new jint[subsample_count]);
+  std::unique_ptr<jint[]> encrypted_bytes(new jint[subsample_count]);
   for (int i = 0; i < subsample_count; ++i) {
     clear_bytes[i] = drm_sample_info.subsample_mapping[i].clear_byte_count;
     encrypted_bytes[i] =
