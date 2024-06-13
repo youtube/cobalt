@@ -1,0 +1,244 @@
+# Copyright (c) 2023, Alliance for Open Media. All rights reserved
+#
+# This source code is subject to the terms of the BSD 3-Clause Clear License
+# and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+# License was not distributed with this source code in the LICENSE file, you
+# can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+# Alliance for Open Media Patent License 1.0 was not distributed with this
+# source code in the PATENTS file, you can obtain it at
+# www.aomedia.org/license/patent.
+
+# proto-file: third_party/libiamf/cli/proto/user_metadata.proto
+# proto-message: UserMetadata
+
+test_vector_metadata {
+  human_readable_description:
+    "A 3-layer IAMF stream scalable encoded with the "
+    "channel layouts: 3.1.2ch/5.1.2ch/7.1.4ch"
+  file_name_prefix: "test_000225"
+  is_valid: true
+  mp4_fixed_timestamp: "2023-06-23 00:00:00"
+  primary_tested_spec_sections: [
+    "3.6.2/channel_audio_layer_config",
+    "3.6.2/loudspeaker_layout == 3.1.2",
+    "3.6.2/loudspeaker_layout == 5.1.2",
+    "3.6.2/loudspeaker_layout == 7.1.4",
+    "3.6.2/output_gain_is_present_flag",
+    "3.6.2/output_gain_flags",
+    "3.6.2/output_gain",
+    "3.6.2.1/Channel Layout Generation Rule",
+    "7/IAMF Processing",
+    "7.2.1/Gain",
+    "7.2.2/De-mixer",
+    "7.3.2/Rendering an Audio Element",
+    "7.3.2.1/Rendering a Channel-Based Audio Element to Loudspeakers",
+    "7.6.1/Dynamic Down-mix Matrix",
+    "9.1.2.1/Annex A2.1: Down-mix parameter and Loudness",
+    "9.1.2.2/Annex A2.2: Down-mix Mechanism",
+    "9.1.2.4/Annex A2.4: Channel Group Generation Rule"
+  ]
+  base_test: "test_0000211"
+}
+
+ia_sequence_header_metadata {
+  ia_code: 0x69616d66  # "iamf"
+  primary_profile: PROFILE_VERSION_SIMPLE
+  additional_profile: PROFILE_VERSION_SIMPLE
+}
+
+codec_config_metadata {
+  codec_config_id: 200
+  codec_config {
+    codec_id: 0x6970636d  # "ipcm"
+    num_samples_per_frame: 1024
+    audio_roll_distance: 0
+    decoder_config_lpcm {
+      sample_format_flags: LPCM_LITTLE_ENDIAN
+      sample_size: 16
+      sample_rate: 48000
+    }
+  }
+}
+
+audio_element_metadata {
+  audio_element_id: 300
+  audio_element_type: AUDIO_ELEMENT_CHANNEL_BASED
+  reserved: 0
+  codec_config_id: 200
+  num_substreams: 7
+  audio_substream_ids: [0, 1, 2, 3, 4, 5, 6]
+  num_parameters: 1
+  audio_element_params {
+    param_definition_type: 1  #PARAMETER_DEFINITION_DEMIXING
+    demixing_param: {
+      param_definition {
+        parameter_id: 999  # Non-existent; default will be used
+        parameter_rate: 48000
+        param_definition_mode: 0
+        reserved: 0
+        duration: 1024
+        num_subblocks: 1
+        constant_subblock_duration: 1024
+      }
+      default_demixing_info_parameter_data: {
+        dmixp_mode: DMIXP_MODE_1
+      }
+      default_w: 0
+    }
+  }
+  scalable_channel_layout_config {
+    num_layers: 3
+    reserved: 0
+    channel_audio_layer_configs: [
+      {
+        loudspeaker_layout: 8  # 3.1.2 [L3/R3, Ltf3/Rtf3, C, LFE]
+        output_gain_is_present_flag: 1
+        recon_gain_is_present_flag: 0
+        reserved_a: 0
+        substream_count: 4
+        coupled_substream_count: 2
+        output_gain_flag: 51
+        output_gain: 359
+      },
+      {
+        loudspeaker_layout: 3  # 5.1.2 [L5/R5]
+        output_gain_is_present_flag: 1
+        recon_gain_is_present_flag: 0
+        reserved_a: 0
+        substream_count: 1
+        coupled_substream_count: 1
+        output_gain_flag: 0
+        output_gain: 0
+      },
+      {
+        loudspeaker_layout: 7  # 7.1.4 [Lss7/Rss7, Ltf4/Rtf4]
+        output_gain_is_present_flag: 1
+        recon_gain_is_present_flag: 0
+        reserved_a: 0
+        substream_count: 2
+        coupled_substream_count: 2
+        output_gain_flag: 0
+        output_gain: 0
+      }
+    ]
+  }
+}
+
+mix_presentation_metadata {
+  mix_presentation_id: 42
+  count_label: 1
+  language_labels: ["en-us"]
+  mix_presentation_annotations_array: [
+    {
+      mix_presentation_friendly_label: "test_mix_pres"
+    }
+  ]
+  num_sub_mixes: 1
+  sub_mixes {
+    num_audio_elements: 1
+    audio_elements {
+      audio_element_id: 300
+      mix_presentation_element_annotations_array: [
+        {
+          audio_element_friendly_label: "test_sub_mix_0_audio_element_0"
+        }
+      ]
+      rendering_config {
+        headphones_rendering_mode: HEADPHONES_RENDERING_MODE_STEREO
+      }
+      element_mix_config {
+        mix_gain {
+          param_definition {
+            parameter_id: 998
+            parameter_rate: 48000
+            param_definition_mode: 1
+            reserved: 0
+          }
+          default_mix_gain: 0
+        }
+      }
+    }
+    output_mix_config {
+      output_mix_gain {
+        param_definition {
+          parameter_id: 997
+          parameter_rate: 48000
+          param_definition_mode: 1
+          reserved: 0
+        }
+        default_mix_gain: 0
+      }
+    }
+    num_layouts: 4
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_A_0_2_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -4013
+        digital_peak: 0
+      }
+    }
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_11_2_3_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -4021
+        digital_peak: 0
+      }
+    }
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_C_2_5_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -4018
+        digital_peak: -694
+      }
+    }
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_J_4_7_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -4636
+        digital_peak: -1009
+      }
+    }
+  }
+}
+
+audio_frame_metadata {
+  # Not using every channel in the input wav file.
+  wav_filename: "Mechanism_5s.wav"
+  samples_to_trim_at_end: 640
+  samples_to_trim_at_start: 0
+  audio_element_id: 300
+  channel_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  channel_labels: ["L7", "R7", "C", "LFE", "Lss7", "Rss7", "Lrs7", "Rrs7", "Ltf4", "Rtf4", "Ltb4", "Rtb4"]
+}
+
+temporal_delimiter_metadata {
+  enable_temporal_delimiters: false
+}
