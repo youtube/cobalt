@@ -18,14 +18,14 @@
 
 #include <vector>
 
+#include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/strings/strcat.h"
 #include "base/values.h"
 #include "gmock/gmock.h"
-#include "starboard/common/file.h"
 #include "starboard/directory.h"
 #include "starboard/extension/installation_manager.h"
-#include "starboard/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -114,26 +114,22 @@ class UtilsTest : public testing::Test {
   }
 
   void TearDown() override {
-    ASSERT_TRUE(starboard::SbFileDeleteRecursive(temp_dir_path_.data(), true));
+    ASSERT_TRUE(base::DeletePathRecursively(base::FilePath(temp_dir_path_.data())));
   }
 
   void CreateManifest(const char* content, const std::string& directory) {
     std::string manifest_path =
         base::StrCat({directory, kSbFileSepString, kEvergreenManifestFilename});
-    SbFile sb_file =
-        SbFileOpen(manifest_path.c_str(), kSbFileOpenAlways | kSbFileRead,
-                   nullptr, nullptr);
-    ASSERT_TRUE(SbFileIsValid(sb_file));
-    ASSERT_TRUE(SbFileClose(sb_file));
-
-    ASSERT_TRUE(
-        SbFileAtomicReplace(manifest_path.c_str(), content, strlen(content)));
+    base::File file(base::FilePath(manifest_path),
+      base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
+    ASSERT_TRUE(file.IsValid());
+    ASSERT_TRUE(file.WriteAtCurrentPos(content, strlen(content)) == strlen(content));
   }
 
   void DeleteManifest(const std::string& directory) {
     std::string manifest_path =
         base::StrCat({directory, kSbFileSepString, kEvergreenManifestFilename});
-    ASSERT_TRUE(SbFileDelete(manifest_path.c_str()));
+    ASSERT_TRUE(base::DeleteFile(base::FilePath(manifest_path.c_str())));
   }
 
   std::string GetLibraryPath(const std::string& name,
@@ -147,10 +143,8 @@ class UtilsTest : public testing::Test {
   void CreateEmptyLibrary(const std::string& name,
                           const std::string& installation_path) {
     std::string lib_path = GetLibraryPath(name, installation_path);
-    SbFile sb_file = SbFileOpen(
-        lib_path.c_str(), kSbFileOpenAlways | kSbFileRead, nullptr, nullptr);
-    ASSERT_TRUE(SbFileIsValid(sb_file));
-    ASSERT_TRUE(SbFileClose(sb_file));
+    base::File file(base::FilePath(lib_path), base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ);
+    ASSERT_TRUE(file.IsValid());
   }
 
   void DeleteLibrary(const std::string& name,
@@ -158,7 +152,7 @@ class UtilsTest : public testing::Test {
     std::string lib_path = GetLibraryPath(name, installation_path);
     struct stat file_info;
     ASSERT_TRUE(stat(lib_path.c_str(), &file_info) == 0);
-    ASSERT_TRUE(SbFileDelete(lib_path.c_str()));
+    ASSERT_TRUE(base::DeletePathRecursively(base::FilePath(lib_path.c_str())));
   }
 
   std::vector<char> temp_dir_path_;
