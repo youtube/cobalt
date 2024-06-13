@@ -134,7 +134,7 @@ LoadResponseType ImageDecoder::OnResponseStarted(
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::OnResponseStarted()");
 
   if (state_ == kSuspended) {
-    DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
+    LOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
     return kLoadResponseContinue;
   }
 
@@ -215,7 +215,7 @@ void ImageDecoder::Finish() {
       load_complete_callback_.Run(std::string("Unsupported image format."));
       break;
     case kSuspended:
-      DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
+      LOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
       break;
     case kNotApplicable:
       // no image is available.
@@ -228,6 +228,8 @@ bool ImageDecoder::Suspend() {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::Suspend()");
   DCHECK_NE(state_, kSuspended);
   DCHECK(resource_provider_);
+
+  DLOG(ERROR) << "ImageDecoder::Suspend";
 
   if (state_ == kDecoding) {
     DCHECK(decoder_ || base::subtle::Acquire_Load(&is_deletion_pending_));
@@ -244,6 +246,9 @@ void ImageDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
   DCHECK_EQ(state_, kSuspended);
   DCHECK(!resource_provider_);
   DCHECK(resource_provider);
+
+  DLOG(ERROR) << "ImageDecoder::Resume";
+
   use_failure_image_decoder_ = IsResourceProviderStub(resource_provider);
   state_ = kWaitingForHeader;
   resource_provider_ = resource_provider;

@@ -97,14 +97,15 @@ class LoaderFactory : public ScriptLoaderFactory {
   // Resets a new resource provider for this loader factory to use.  The
   // previous resource provider must have been cleared before this method is
   // called.
-  void UpdateResourceProvider(render_tree::ResourceProvider* resource_provider);
+  void UpdateResourceProvider(render_tree::ResourceProvider* resource_provider,
+                              bool concealed);
 
   // Notify the LoaderFactory that the resource identified by "url" is being
   // requested again.
   void NotifyResourceRequested(const std::string& url);
 
  private:
-  void SuspendActiveLoaders();
+  void SuspendActiveLoaders(bool conceal);
   void ResumeActiveLoaders(render_tree::ResourceProvider* resource_provider);
 
   // Used to cache the fetched raw data.  Note that currently the cache is only

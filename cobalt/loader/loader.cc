@@ -133,6 +133,8 @@ void Loader::Suspend() {
   }
 }
 
+void Loader::Conceal() { decoder_->Conceal(); }
+
 void Loader::Resume(render_tree::ResourceProvider* resource_provider) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_suspended_);

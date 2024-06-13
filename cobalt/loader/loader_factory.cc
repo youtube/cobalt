@@ -166,7 +166,7 @@ void LoaderFactory::Suspend() {
 
   is_suspended_ = true;
   resource_provider_ = NULL;
-  SuspendActiveLoaders();
+  SuspendActiveLoaders(false);
 }
 
 void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
@@ -179,15 +179,18 @@ void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
 }
 
 void LoaderFactory::UpdateResourceProvider(
-    render_tree::ResourceProvider* resource_provider) {
+    render_tree::ResourceProvider* resource_provider, bool conceal) {
   DCHECK(resource_provider);
-  SuspendActiveLoaders();
+  SuspendActiveLoaders(conceal);
   ResumeActiveLoaders(resource_provider);
 }
 
-void LoaderFactory::SuspendActiveLoaders() {
+void LoaderFactory::SuspendActiveLoaders(bool conceal) {
   for (LoaderSet::const_iterator iter = active_loaders_.begin();
        iter != active_loaders_.end(); ++iter) {
+    if (conceal) {
+      (*iter)->Conceal();
+    }
     (*iter)->Suspend();
   }
 

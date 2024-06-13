@@ -63,6 +63,7 @@ class ThreadedImageDecoderProxy : public Decoder {
   void DecodeChunkPassed(std::unique_ptr<std::string> data) override;
   void Finish() override;
   bool Suspend() override;
+  void Conceal() override;
   void Resume(render_tree::ResourceProvider* resource_provider) override;
 
  private:
@@ -84,6 +85,8 @@ class ThreadedImageDecoderProxy : public Decoder {
 
   // The actual image decoder.
   std::unique_ptr<ImageDecoder> image_decoder_;
+
+  bool concealed_ = false;
 };
 
 }  // namespace image

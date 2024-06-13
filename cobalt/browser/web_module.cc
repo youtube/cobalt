@@ -1145,7 +1145,7 @@ void WebModule::Impl::Conceal(render_tree::ResourceProvider* resource_provider,
     web_context_->javascript_engine()->CollectGarbage();
   }
 
-  loader_factory_->UpdateResourceProvider(resource_provider_);
+  loader_factory_->UpdateResourceProvider(resource_provider_, true);
 
   if (window_->media_session()->media_session_client() != NULL) {
     window_->media_session()
@@ -1183,7 +1183,7 @@ void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider,
   window_->document()->PurgeCachedResources();
   PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
 
-  loader_factory_->UpdateResourceProvider(resource_provider_);
+  loader_factory_->UpdateResourceProvider(resource_provider_, false);
   layout_manager_->Resume();
 
   SetApplicationState(base::kApplicationStateBlurred, timestamp);

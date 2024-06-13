@@ -115,6 +115,15 @@ void ThreadedImageDecoderProxy::DecodeChunkPassed(
 }
 
 void ThreadedImageDecoderProxy::Finish() {
+  /// Concealed
+  if (concealed_) {
+    LOG(ERROR)
+        << "We got finish while concealed, just mark ourselves for deletion";
+    image_decoder_->SetDeletionPending();
+  } else {
+    LOG(ERROR) << "We normal finished, not concealed";
+  }
+
   load_task_runner_->PostTask(
       FROM_HERE, base::Bind(&ImageDecoder::Finish,
                             base::Unretained(image_decoder_.get())));
@@ -125,6 +134,11 @@ bool ThreadedImageDecoderProxy::Suspend() {
       FROM_HERE, base::Bind(base::IgnoreResult(&ImageDecoder::Suspend),
                             base::Unretained(image_decoder_.get())));
   return true;
+}
+
+void ThreadedImageDecoderProxy::Conceal() {
+  DLOG(ERROR) << "=====> ThreadedImageDecoderProxy::Conceal !!";
+  concealed_ = true;
 }
 
 void ThreadedImageDecoderProxy::Resume(
