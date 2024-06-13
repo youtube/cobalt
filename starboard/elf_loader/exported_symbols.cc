@@ -14,6 +14,7 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <netdb.h>
@@ -456,6 +457,7 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= 16
   // POSIX APIs
+  REGISTER_SYMBOL(__errno_location);
   REGISTER_SYMBOL(accept);
   REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
