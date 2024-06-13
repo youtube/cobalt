@@ -1,0 +1,149 @@
+# Copyright (c) 2023, Alliance for Open Media. All rights reserved
+#
+# This source code is subject to the terms of the BSD 3-Clause Clear License
+# and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+# License was not distributed with this source code in the LICENSE file, you
+# can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+# Alliance for Open Media Patent License 1.0 was not distributed with this
+# source code in the PATENTS file, you can obtain it at
+# www.aomedia.org/license/patent.
+
+# proto-file: third_party/libiamf/cli/proto/user_metadata.proto
+# proto-message: UserMetadata
+
+test_vector_metadata {
+  human_readable_description:
+    "A second-order ambisonics IAMF stream encoded using Opus and "
+    "`ambisonics_mode` = `MONO`."
+  file_name_prefix: "test_000110"
+  is_valid: true
+  mp4_fixed_timestamp: "2023-05-12 00:00:00"
+  primary_tested_spec_sections: [
+    "3.6.3/ambisonics_mono_config",
+    "3.11.1/OPUS Specific",
+    "7.5.1/Loudness Normalization",
+    "7.5.2/Limiter"
+  ]
+  base_test: "test_000102"
+}
+
+ia_sequence_header_metadata {
+  ia_code: 0x69616d66  # "iamf"
+  primary_profile: PROFILE_VERSION_SIMPLE
+  additional_profile: PROFILE_VERSION_SIMPLE
+}
+
+codec_config_metadata {
+  codec_config_id: 200
+  codec_config {
+    codec_id: 0x4f707573  # "Opus"
+    num_samples_per_frame: 960
+    audio_roll_distance: -4
+    decoder_config_opus {
+      version: 1
+      output_channel_count: 2
+      pre_skip: 312
+      input_sample_rate: 48000
+      output_gain: 0
+      mapping_family: 0
+      opus_encoder_metadata {
+        target_bitrate_per_channel: 48000
+        application: APPLICATION_AUDIO
+      }
+    }
+  }
+}
+
+audio_element_metadata {
+  audio_element_id: 300
+  audio_element_type: AUDIO_ELEMENT_SCENE_BASED
+  reserved: 0
+  codec_config_id: 200
+  num_substreams: 9
+  audio_substream_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  num_parameters: 0
+  ambisonics_config {
+    ambisonics_mode: AMBISONICS_MODE_MONO
+    ambisonics_mono_config {
+      output_channel_count: 9
+      substream_count: 9
+      channel_mapping: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    }
+  }
+}
+
+mix_presentation_metadata {
+  mix_presentation_id: 42
+  count_label: 1
+  language_labels: ["en-us"]
+  mix_presentation_annotations_array: [
+    {
+      mix_presentation_friendly_label: "test_mix_pres"
+    }
+  ]
+  num_sub_mixes: 1
+  sub_mixes {
+    num_audio_elements: 1
+    audio_elements {
+      audio_element_id: 300
+      mix_presentation_element_annotations_array: [
+        {
+          audio_element_friendly_label: "test_sub_mix_0_audio_element_0"
+        }
+      ]
+      rendering_config {
+        headphones_rendering_mode: HEADPHONES_RENDERING_MODE_STEREO
+      }
+      element_mix_config {
+        mix_gain {
+          param_definition {
+            parameter_id: 999  # Non-existent; default will be used
+            parameter_rate: 48000
+            param_definition_mode: 1
+            reserved: 0
+          }
+          default_mix_gain: 0
+        }
+      }
+    }
+    output_mix_config {
+      output_mix_gain {
+        param_definition {
+          parameter_id: 998  # Non-existent; default will be used
+          parameter_rate: 48000
+          param_definition_mode: 1
+          reserved: 0
+        }
+        default_mix_gain: 0
+      }
+    }
+    num_layouts: 1
+    layouts {
+      loudness_layout {
+        layout_type: LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION
+        ss_layout {
+          sound_system: SOUND_SYSTEM_A_0_2_0
+          reserved: 0
+        }
+      }
+      loudness {
+        info_type: 0
+        integrated_loudness: -2853
+        digital_peak: 0
+      }
+    }
+  }
+}
+
+audio_frame_metadata {
+  wav_filename: "Transport_TOA_5s.wav"
+  samples_to_trim_at_end: 648
+  samples_to_trim_at_start: 312
+  audio_element_id: 300
+  channel_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  channel_labels: ["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]
+}
+
+temporal_delimiter_metadata {
+  enable_temporal_delimiters: false
+}

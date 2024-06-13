@@ -1,0 +1,12 @@
+third_party {
+  identifier {
+    type: "Git"
+    value: "https://github.com/AOMediaCodec/libiamf.git"
+    version: "780ec7a112d4cea6350504e65d164526e01938a2"
+  }
+  last_upgrade_date {
+    year: 2024
+    month: 6
+    day: 13
+  }
+}

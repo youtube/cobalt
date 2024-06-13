@@ -1,0 +1,716 @@
+#0
+MagicCodeOBU_0:
+- ia_code: 1767992678
+- version: 0
+- profile_version: 0
+##
+#0
+CodecConfigOBU_1:
+- codec_config_id: 0
+- codec_config:
+  - codec_id: 1768973165
+  - num_samples_per_frame: 128
+  - roll_distance: 0
+  - decoder_config:
+    - sample_format_flags: 1
+    - sample_size: 16
+    - sample_rate: 16000
+##
+#0
+AudioElementOBU_2:
+- audio_element_id: 0
+- audio_element_type: 0
+- codec_config_id: 0
+- num_substreams: 2
+- audio_substream_id_0: 0
+- audio_substream_id_1: 1
+- num_parameters: 0
+- scalable_channel_layout_config:
+  - num_layers: 1
+  - channel_audio_layer_configs_0:
+    - loudspeaker_layout: 1
+    - output_gain_is_present_flag: 0
+    - recon_gain_is_present_flag: 0
+    - substream_count: 2
+    - coupled_substream_count: 0
+##
+#0
+MixPresentationOBU_3:
+- mix_presentation_id: 42
+- mix_presentation_annotations:
+    mix_presentation_friendly_label: "test_mix_pres"
+- num_sub_mixes: 1
+- sub_mixes_0:
+  - num_audio_elements: 1
+  - audio_elements_0:
+    - audio_element_id: 0
+    - mix_presentation_element_annotations:
+        audio_element_friendly_label: "test_sub_mix_0_audio_element_0"
+    - rendering_config:
+    - element_mix_config:
+      - mix_gain:
+        - parameter_id: 0
+        - parameter_rate: 0
+        - param_definition_mode: 1
+        - default_mix_gain: 0
+  - output_mix_config:
+    - output_mix_gain:
+      - parameter_id: 0
+      - parameter_rate: 0
+      - param_definition_mode: 1
+      - default_mix_gain: 0
+  - num_layouts: 1
+  - layouts_0:
+    - loudness_layout:
+      - layout_type: 2
+      - sound_system: 0
+    - loudness:
+      - info_type: 0
+      - integrated_loudness: -13513
+      - digital_peak: -12879
+##
+#0
+SyncOBU_4:
+- global_offset: 0
+- num_obu_ids: 2
+- sync_array_0:
+  - obu_id: 0
+  - obu_data_type: 0
+  - reinitialize_decoder: 0
+  - relative_offset: 0
+- sync_array_1:
+  - obu_id: 1
+  - obu_data_type: 0
+  - reinitialize_decoder: 0
+  - relative_offset: 0
+##
+#0
+AudioFrameOBU_5:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_6:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_7:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_8:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_9:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_10:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_11:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_12:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_13:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_14:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_15:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_16:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_17:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_18:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_19:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_20:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_21:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_22:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_23:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_24:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_25:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_26:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_27:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_28:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_29:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_30:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_31:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_32:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_33:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_34:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_35:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_36:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_37:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_38:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_39:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_40:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_41:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_42:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_43:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_44:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_45:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_46:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_47:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_48:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_49:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_50:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_51:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_52:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_53:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_54:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_55:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_56:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_57:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_58:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_59:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_60:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_61:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_62:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_63:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_64:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_65:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_66:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_67:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_68:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_69:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_70:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_71:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_72:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_73:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_74:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_75:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_76:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_77:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_78:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_79:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_80:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_81:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_82:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_83:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_84:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_85:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_86:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_87:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_88:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_89:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_90:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_91:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_92:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_93:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_94:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_95:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_96:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_97:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_98:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_99:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_100:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_101:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_102:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_103:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_104:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_105:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_106:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_107:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_108:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_109:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_110:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_111:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_112:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_113:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_114:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_115:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_116:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_117:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_118:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_119:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_120:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_121:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_122:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_123:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_124:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_125:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_126:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_127:
+- audio_substream_id: 0
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_128:
+- audio_substream_id: 1
+- size_of(audio_frame): 256
+##
+#0
+AudioFrameOBU_129:
+- audio_substream_id: 0
+- size_of(audio_frame): 128
+##
+#0
+AudioFrameOBU_130:
+- audio_substream_id: 1
+- size_of(audio_frame): 128
+##
