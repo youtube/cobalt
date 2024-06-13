@@ -27,7 +27,6 @@
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
 #include "media/base/mime_util.h"
-#include "starboard/extension/media_settings.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
 
@@ -216,19 +215,6 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
   } else if (name == "PlayerConfiguration.DecodeToTexturePreferred") {
     if (sbplayer_interface_->SetDecodeToTexturePreferred(value)) {
       LOG(INFO) << "Set DecodeToTexturePreferred to "
-                << (value ? "true" : "false");
-      return true;
-    }
-  } else if (name == "AsyncReleaseMediaCodecBridge") {
-    const StarboardExtensionMediaSettingsApi* media_settings_api =
-        static_cast<const StarboardExtensionMediaSettingsApi*>(
-            SbSystemGetExtension(kStarboardExtensionMediaSettingsName));
-    if (media_settings_api &&
-        strcmp(media_settings_api->name,
-               kStarboardExtensionMediaSettingsName) == 0 &&
-        media_settings_api->version >= 1) {
-      media_settings_api->EnableAsyncReleaseMediaCodecBridge(value);
-      LOG(INFO) << "Set AsyncReleaseMediaCodecBridge to "
                 << (value ? "true" : "false");
       return true;
     }
