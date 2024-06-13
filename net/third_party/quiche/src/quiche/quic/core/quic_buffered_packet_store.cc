@@ -298,7 +298,9 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
   QUICHE_DCHECK_NE(out_alpns, nullptr);
   QUICHE_DCHECK_NE(out_sni, nullptr);
   QUICHE_DCHECK_NE(tls_alert, nullptr);
+#if !defined(STARBOARD)
   QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
+#endif
   auto it = undecryptable_packets_.find(connection_id);
   if (it == undecryptable_packets_.end()) {
     QUIC_BUG(quic_bug_10838_1)
