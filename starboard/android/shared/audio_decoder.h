@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include <memory>
 #include <queue>
 #include <string>
 
@@ -93,7 +94,7 @@ class AudioDecoder
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
 
   AudioFrameDiscarder audio_frame_discarder_;
-  scoped_ptr<MediaDecoder> media_decoder_;
+  std::unique_ptr<MediaDecoder> media_decoder_;
 };
 
 }  // namespace shared
