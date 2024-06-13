@@ -109,7 +109,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
-    bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    bool allow_resume_after_suspend, int audio_batched_sample_write,
     bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
     base::TimeDelta audio_write_duration_local,
@@ -123,7 +123,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       client_(client),
       delegate_(delegate),
       allow_resume_after_suspend_(allow_resume_after_suspend),
-      allow_batched_sample_write_(allow_batched_sample_write),
+      audio_batched_sample_write_(audio_batched_sample_write),
       force_punch_out_by_default_(force_punch_out_by_default),
       proxy_(new WebMediaPlayerProxy(task_runner_, this)),
       media_log_(media_log),
@@ -143,7 +143,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   pipeline_ = new SbPlayerPipeline(
       interface, window, pipeline_thread_.task_runner(),
       get_decode_target_graphics_context_provider_func,
-      allow_resume_after_suspend_, allow_batched_sample_write_,
+      allow_resume_after_suspend_, audio_batched_sample_write_,
       force_punch_out_by_default_,
 #if SB_API_VERSION >= 15
       audio_write_duration_local, audio_write_duration_remote,
@@ -343,6 +343,7 @@ void WebMediaPlayerImpl::Seek(double seconds) {
 #endif  // defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
 
   if (state_.starting || state_.seeking) {
+    media_metrics_provider_.Reset();
     state_.pending_seek = true;
     state_.pending_seek_seconds = seconds;
     if (chunk_demuxer_) {
@@ -534,6 +535,7 @@ double WebMediaPlayerImpl::GetMaxTimeSeekable() const {
 void WebMediaPlayerImpl::Suspend() { pipeline_->Suspend(); }
 
 void WebMediaPlayerImpl::Resume(PipelineWindow window) {
+  media_metrics_provider_.Reset();
   if (!window_ && window) {
     is_resuming_from_background_mode_ = true;
   }

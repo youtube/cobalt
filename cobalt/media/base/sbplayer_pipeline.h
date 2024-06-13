@@ -63,7 +63,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                    const GetDecodeTargetGraphicsContextProviderFunc&
                        get_decode_target_graphics_context_provider_func,
                    bool allow_resume_after_suspend,
-                   bool allow_batched_sample_write,
+                   int audio_batched_sample_write,
                    bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
                    TimeDelta audio_write_duration_local,
@@ -222,8 +222,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Whether we should save DecoderBuffers for resume after suspend.
   const bool allow_resume_after_suspend_;
 
-  // Whether we enable batched sample write functionality.
-  const bool allow_batched_sample_write_;
+  // The number of samples per write that is allowed at once.
+  // The minimum number of |audio_batched_sample_write_| and
+  // SbPlayerGetMaximumNumberOfSamplesPerWrite() specifies
+  // the maximum number of samples SbPlayerWriteSamples() can accept.
+  const int audio_batched_sample_write_;
 
   // The default output mode passed to `SbPlayerGetPreferredOutputMode()`.
   SbPlayerOutputMode default_output_mode_ = kSbPlayerOutputModeInvalid;
