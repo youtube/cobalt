@@ -67,6 +67,7 @@ class H5vcc : public script::Wrappable {
     web::NavigatorUAData* user_agent_data;
     script::GlobalEnvironment* global_environment;
     persistent_storage::PersistentSettings* persistent_settings;
+    H5vccSettings::SetFetcherCacheFunc set_fetcher_cache_func;
   };
 
   explicit H5vcc(const Settings& config);

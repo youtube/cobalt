@@ -39,6 +39,7 @@ class H5vccSettings : public script::Wrappable {
  public:
   typedef base::Callback<bool(const std::string& name, int value)>
       SetSettingFunc;
+  typedef base::Callback<void()> SetFetcherCacheFunc;
 
   typedef script::UnionType2<int32, std::string> SetValueType;
 
@@ -51,7 +52,8 @@ class H5vccSettings : public script::Wrappable {
 #endif
                 web::NavigatorUAData* user_agent_data,
                 script::GlobalEnvironment* global_environment,
-                persistent_storage::PersistentSettings* persistent_settings);
+                persistent_storage::PersistentSettings* persistent_settings,
+                const SetFetcherCacheFunc& set_fetcher_cache_func);
 
   // Returns true when the setting is set successfully or if the setting has
   // already been set to the expected value.  Returns false when the setting is
@@ -76,6 +78,7 @@ class H5vccSettings : public script::Wrappable {
   web::NavigatorUAData* user_agent_data_;
   script::GlobalEnvironment* global_environment_;
   persistent_storage::PersistentSettings* persistent_settings_;
+  const SetFetcherCacheFunc set_fetcher_cache_func_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccSettings);
 };

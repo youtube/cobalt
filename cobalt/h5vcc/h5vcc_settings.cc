@@ -33,7 +33,8 @@ H5vccSettings::H5vccSettings(
 #endif
     web::NavigatorUAData* user_agent_data,
     script::GlobalEnvironment* global_environment,
-    persistent_storage::PersistentSettings* persistent_settings)
+    persistent_storage::PersistentSettings* persistent_settings,
+    const SetFetcherCacheFunc& set_fetcher_cache_func)
     : set_web_setting_func_(set_web_setting_func),
       media_module_(media_module),
       can_play_type_handler_(can_play_type_handler),
@@ -43,7 +44,8 @@ H5vccSettings::H5vccSettings(
 #endif
       user_agent_data_(user_agent_data),
       global_environment_(global_environment),
-      persistent_settings_(persistent_settings) {
+      persistent_settings_(persistent_settings),
+      set_fetcher_cache_func_(set_fetcher_cache_func) {
 }
 
 bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
@@ -51,6 +53,7 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
+  const char kEnableFetcherCache[] = "EnableFetcherCache";
 
 #if SB_IS(EVERGREEN)
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
@@ -100,6 +103,15 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     return true;
   }
 #endif
+
+  if (name.compare(kEnableFetcherCache) == 0 && value.IsType<int32>() &&
+      value.AsType<int32>() == 1) {
+    if (set_fetcher_cache_func_) {
+      set_fetcher_cache_func_.Run();
+    }
+    return true;
+  }
+
   return false;
 }
 
