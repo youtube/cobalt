@@ -355,6 +355,7 @@ void WebMediaPlayerImpl::Seek(float seconds) {
 #endif  // defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
 
   if (state_.starting || state_.seeking) {
+    media_metrics_provider_.Reset();
     state_.pending_seek = true;
     state_.pending_seek_seconds = seconds;
     if (chunk_demuxer_) {
@@ -544,6 +545,7 @@ float WebMediaPlayerImpl::GetMaxTimeSeekable() const {
 void WebMediaPlayerImpl::Suspend() { pipeline_->Suspend(); }
 
 void WebMediaPlayerImpl::Resume(PipelineWindow window) {
+  media_metrics_provider_.Reset();
   if (!window_ && window) {
     is_resuming_from_background_mode_ = true;
   }
