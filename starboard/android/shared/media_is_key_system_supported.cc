@@ -19,23 +19,29 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/string.h"
 
-bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                        SbMediaAudioCodec audio_codec,
-                        const char* key_system) {
+using starboard::shared::starboard::media::MimeType;
+
+// Platform can check if the specific combination of audio codec, video codec
+// and key system is supported with mime attributes in this function. Some
+// platforms might support the feature only in the secured pipeline, like tunnel
+// mode, and the feature can be turned on/off via mime attributes.
+bool SbMediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
+                                 SbMediaAudioCodec audio_codec,
+                                 const MimeType* mime_type,
+                                 const char* key_system) {
   using starboard::android::shared::IsWidevineL1;
   using starboard::android::shared::IsWidevineL3;
   using starboard::android::shared::MediaCapabilitiesCache;
-  using starboard::shared::starboard::media::MimeType;
 
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
-  MimeType mime_type(std::string("key_system/") + key_system);
-  if (!mime_type.is_valid() || !mime_type.ValidateStringParameter(
-                                   "encryptionscheme", "cenc|cbcs|cbcs-1-9")) {
+  MimeType key_system_mime_type(std::string("key_system/") + key_system);
+  if (!key_system_mime_type.is_valid() ||
+      !key_system_mime_type.ValidateStringParameter("encryptionscheme",
+                                                    "cenc|cbcs|cbcs-1-9")) {
     return false;
   }
 
@@ -48,7 +54,7 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
       audio_codec != kSbMediaAudioCodecEac3) {
     return false;
   }
-  const char* key_system_type = mime_type.subtype().c_str();
+  const char* key_system_type = key_system_mime_type.subtype().c_str();
   if (!IsWidevineL1(key_system_type) && !IsWidevineL3(key_system_type)) {
     return false;
   }
@@ -58,7 +64,7 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
   }
 
   std::string encryption_scheme =
-      mime_type.GetParamStringValue("encryptionscheme", "");
+      key_system_mime_type.GetParamStringValue("encryptionscheme", "");
   if (encryption_scheme == "cbcs" || encryption_scheme == "cbcs-1-9") {
     return MediaCapabilitiesCache::GetInstance()->IsCbcsSchemeSupported();
   }

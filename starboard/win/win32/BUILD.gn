@@ -45,7 +45,7 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/log_raw.cc",
     "//starboard/shared/win32/log_raw_format.cc",
     "//starboard/shared/win32/media_is_audio_supported.cc",
-    "//starboard/shared/win32/media_is_supported.cc",
+    "//starboard/shared/win32/media_is_key_system_supported.cc",
     "//starboard/shared/win32/media_is_video_supported.cc",
     "//starboard/shared/win32/minidump.cc",
     "//starboard/shared/win32/minidump.h",

@@ -17,9 +17,11 @@
 #include "starboard/media.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
-bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                        SbMediaAudioCodec audio_codec,
-                        const char* key_system) {
+bool SbMediaIsKeySystemSupported(
+    SbMediaVideoCodec video_codec,
+    SbMediaAudioCodec audio_codec,
+    const starboard::shared::starboard::media::MimeType* mime_type,
+    const char* key_system) {
   using starboard::shared::widevine::DrmSystemWidevine;
 
   return DrmSystemWidevine::IsKeySystemSupported(key_system);
