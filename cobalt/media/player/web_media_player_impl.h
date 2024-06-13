@@ -250,6 +250,10 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // for DCHECKs so methods calls won't execute in the wrong thread.
   base::SequencedTaskRunner* task_runner_;
 
+  // Used to report telementry to UMA. Also used by the pipeline to record
+  // telemetry data.
+  MediaMetricsProvider media_metrics_provider_;
+
   scoped_refptr<Pipeline> pipeline_;
 
   // The currently selected key system. Empty string means that no key system
@@ -307,8 +311,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 
   ::media::MediaLog* const media_log_;
-
-  MediaMetricsProvider media_metrics_provider_;
 
   bool is_local_source_;
 
