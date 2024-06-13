@@ -85,6 +85,8 @@ class MediaMetricsProvider {
   void EndTrackingAction(MediaAction action);
   bool IsActionCurrentlyTracked(MediaAction action);
 
+  void Reset();
+
  private:
   std::string GetUMANameForAVStream(const PipelineInfo& player_info) const;
 
