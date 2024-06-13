@@ -134,7 +134,7 @@ SbPlayerPipeline::SbPlayerPipeline(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
-    bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    bool allow_resume_after_suspend, int audio_batched_sample_write,
     bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
     TimeDelta audio_write_duration_local, TimeDelta audio_write_duration_remote,
@@ -146,7 +146,7 @@ SbPlayerPipeline::SbPlayerPipeline(
       sbplayer_interface_(interface),
       task_runner_(task_runner),
       allow_resume_after_suspend_(allow_resume_after_suspend),
-      allow_batched_sample_write_(allow_batched_sample_write),
+      audio_batched_sample_write_(audio_batched_sample_write),
       window_(window),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
@@ -1111,8 +1111,10 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
     return;
   }
 
-  int max_buffers =
-      allow_batched_sample_write_ ? max_number_of_buffers_to_write : 1;
+  int max_buffers = audio_batched_sample_write_ > 1
+                        ? std::min(max_number_of_buffers_to_write,
+                                   audio_batched_sample_write_)
+                        : 1;
 
   if (GetReadInProgress(type)) return;
 
@@ -1164,13 +1166,13 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
         audio_read_delayed_ = true;
         return;
       }
-      if (allow_batched_sample_write_ &&
+      if (audio_batched_sample_write_ > 1 &&
           !time_ahead_of_playback.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(adjusted_write_duration,
                                                        time_ahead_of_playback,
                                                        false /* is_preroll */);
       }
-    } else if (allow_batched_sample_write_) {
+    } else if (audio_batched_sample_write_ > 1) {
       if (!time_ahead_of_playback_for_preroll.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(
             adjusted_write_duration_for_preroll,
@@ -1226,7 +1228,7 @@ int SbPlayerPipeline::GetEstimatedMaxBuffers(TimeDelta write_duration,
   DCHECK_GE(time_ahead_of_playback.InMicroseconds(), 0);
 
   int estimated_max_buffers = 1;
-  if (!allow_batched_sample_write_ ||
+  if (!(audio_batched_sample_write_ > 1) ||
       write_duration <= time_ahead_of_playback) {
     return estimated_max_buffers;
   }
