@@ -20,8 +20,7 @@ if (is_nacl) {
 } else if (current_cpu == "x86" || current_cpu == "arm") {
   has_64_bit_pointers = false
 } else {
-  has_64_bit_pointers = true
-  # assert(false, "Unknown CPU: $current_cpu")
+  assert(false, "Unknown CPU: $current_cpu")
 }
 
 if (use_partition_alloc_as_malloc_default) {

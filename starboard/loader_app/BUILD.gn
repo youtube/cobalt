@@ -29,6 +29,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":app_key",
       ":installation_manager",
       ":memory_tracker_thread",
+      ":record_loader_app_status",
       ":reset_evergreen_update",
       ":slot_management",
       "//starboard:starboard_group",
@@ -77,15 +78,22 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
   }
 }
 
+static_library("record_loader_app_status") {
+  sources = [
+    "record_loader_app_status.cc",
+    "record_loader_app_status.h",
+  ]
+  deps = [ "//starboard:starboard_group" ]
+}
+
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "loader_app") {
     build_loader = false
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
-      data_deps = [ "//third_party/icu:icudata" ]
       if (cobalt_font_package == "empty") {
-        data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+        data_deps = [ "//cobalt/content/fonts:copy_font_data" ]
       } else {
-        data_deps += [
+        data_deps = [
           "//cobalt/content/fonts:copy_fonts",
           "//cobalt/content/fonts:fonts_xml",
         ]
@@ -246,6 +254,7 @@ static_library("installation_manager") {
   deps = [
     ":installation_store_proto",
     ":pending_restart",
+    ":record_loader_app_status",
     "//starboard:starboard_group",
   ]
 }

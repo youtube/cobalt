@@ -98,11 +98,11 @@ const size_t kTraceEventVectorBigBufferChunks =
     512000000 / kTraceBufferChunkSize;
 static_assert(
     kTraceEventVectorBigBufferChunks <= TraceBufferChunk::kMaxChunkIndex,
-              "Too many big buffer chunks");
+    "Too many big buffer chunks");
 const size_t kTraceEventVectorBufferChunks = 256000 / kTraceBufferChunkSize;
 static_assert(
     kTraceEventVectorBufferChunks <= TraceBufferChunk::kMaxChunkIndex,
-              "Too many vector buffer chunks");
+    "Too many vector buffer chunks");
 const size_t kTraceEventRingBufferChunks = kTraceEventVectorBufferChunks / 4;
 
 // ECHO_TO_CONSOLE needs a small buffer to hold the unfinished COMPLETE events.
@@ -1671,9 +1671,9 @@ bool TraceLog::ShouldAddAfterUpdatingState(
   if (!*category_group_enabled)
     return false;
 
-    // Avoid re-entrance of AddTraceEvent. This may happen in GPU process when
-    // ECHO_TO_CONSOLE is enabled: AddTraceEvent -> LOG(ERROR) ->
-    // GpuProcessLogMessageHandler -> PostPendingTask -> TRACE_EVENT ...
+  // Avoid re-entrance of AddTraceEvent. This may happen in GPU process when
+  // ECHO_TO_CONSOLE is enabled: AddTraceEvent -> LOG(ERROR) ->
+  // GpuProcessLogMessageHandler -> PostPendingTask -> TRACE_EVENT ...
 #if defined(STARBOARD)
   bool thread_is_in_trace_event = GetThreadIsInTraceEvent();
 #endif
@@ -2034,9 +2034,9 @@ void TraceLog::UpdateTraceEventDurationExplicit(
   if (!*category_group_enabled)
     return;
 
-    // Avoid re-entrance of AddTraceEvent. This may happen in GPU process when
-    // ECHO_TO_CONSOLE is enabled: AddTraceEvent -> LOG(ERROR) ->
-    // GpuProcessLogMessageHandler -> PostPendingTask -> TRACE_EVENT ...
+  // Avoid re-entrance of AddTraceEvent. This may happen in GPU process when
+  // ECHO_TO_CONSOLE is enabled: AddTraceEvent -> LOG(ERROR) ->
+  // GpuProcessLogMessageHandler -> PostPendingTask -> TRACE_EVENT ...
 #if defined(STARBOARD)
   bool thread_is_in_trace_event = GetThreadIsInTraceEvent();
 #endif

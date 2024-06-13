@@ -527,7 +527,7 @@ if (!use_cobalt_customizations) {
 proto_library("host_cache_fuzzer_proto") {
   proto_in_dir = "//"
   sources = [ "host_cache_fuzzer.proto" ]
-  # deps = [ "//testing/libfuzzer/proto:json_proto" ]
+  deps = [ "//testing/libfuzzer/proto:json_proto" ]
 }
 
 fuzzer_test("net_dns_host_cache_fuzzer") {

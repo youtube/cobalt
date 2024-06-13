@@ -21,7 +21,7 @@ config("platform_configuration") {
   defines = []
 
   include_dirs = [
-    # POSIX emulation headers
+    # POSIX emulation headers - these need to come *before* system include_dirs.
     "//starboard/android/shared/posix_emu/include",
   ]
 
@@ -169,7 +169,11 @@ config("platform_configuration") {
     "-Wl,--wrap=eglSwapBuffers",
   ]
   if (!is_native_target_build) {
-    ldflags += [ "-Wl,--wrap=stat" ]
+    ldflags += [
+      "-Wl,--wrap=close",
+      "-Wl,--wrap=open",
+      "-Wl,--wrap=stat",
+    ]
   }
 }
 

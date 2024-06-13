@@ -36,6 +36,8 @@ static int64_t g_elf_decompression_duration_us = -1;
 
 static int64_t g_max_sampled_cpu_bytes_during_elf_load = -1;
 
+static SlotSelectionStatus g_slot_selection_status;
+
 void SetCrashpadInstallationStatus(CrashpadInstallationStatus status) {
   g_crashpad_installation_status = status;
 }
@@ -78,9 +80,17 @@ int64_t GetMaxSampledUsedCpuBytesDuringElfLoad() {
   return g_max_sampled_cpu_bytes_during_elf_load;
 }
 
+void SetSlotSelectionStatus(SlotSelectionStatus status) {
+  g_slot_selection_status = status;
+}
+
+SlotSelectionStatus GetSlotSelectionStatus() {
+  return g_slot_selection_status;
+}
+
 const StarboardExtensionLoaderAppMetricsApi kLoaderAppMetricsApi = {
     kStarboardExtensionLoaderAppMetricsName,
-    2,
+    3,
     &SetCrashpadInstallationStatus,
     &GetCrashpadInstallationStatus,
     &SetElfLibraryStoredCompressed,
@@ -90,7 +100,9 @@ const StarboardExtensionLoaderAppMetricsApi kLoaderAppMetricsApi = {
     &SetElfDecompressionDurationMicroseconds,
     &GetElfDecompressionDurationMicroseconds,
     &RecordUsedCpuBytesDuringElfLoad,
-    &GetMaxSampledUsedCpuBytesDuringElfLoad};
+    &GetMaxSampledUsedCpuBytesDuringElfLoad,
+    &SetSlotSelectionStatus,
+    &GetSlotSelectionStatus};
 
 }  // namespace
 

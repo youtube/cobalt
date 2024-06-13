@@ -14,6 +14,8 @@
 
 // Broadcast is Sunny Day tested in most of the other SbConditionVariable tests.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/condition_variable.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -34,3 +36,5 @@ TEST(SbConditionVariableBroadcastTest, RainyDayNull) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16

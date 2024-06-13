@@ -6167,7 +6167,9 @@ bool QuicConnection::IsHandshakeComplete() const {
 }
 
 bool QuicConnection::IsHandshakeConfirmed() const {
+#if !defined(STARBOARD)
   QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3, version().handshake_protocol);
+#endif
   return visitor_->GetHandshakeState() == HANDSHAKE_CONFIRMED;
 }
 

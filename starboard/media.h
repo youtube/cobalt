@@ -693,10 +693,12 @@ SB_EXPORT bool SbMediaGetAudioConfiguration(
 // Value used when a video's bits per pixel is not known.
 #define kSbMediaBitsPerPixelInvalid 0
 
+#if SB_API_VERSION < 16
 typedef enum SbMediaBufferStorageType {
   kSbMediaBufferStorageTypeMemory,
   kSbMediaBufferStorageTypeFile,
 } SbMediaBufferStorageType;
+#endif  // SB_API_VERSION < 16
 
 // The media buffer will be allocated using the returned alignment. Set this to
 // a larger value may increase the memory consumption of media buffers.
@@ -802,6 +804,7 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
                                                 int resolution_height,
                                                 int bits_per_pixel);
 
+#if SB_API_VERSION < 16
 // Returns SbMediaBufferStorageType of type |SbMediaStorageTypeMemory| or
 // |SbMediaStorageTypeFile|. For memory storage, the media buffers will be
 // stored in main memory allocated by malloc functions. For file storage, the
@@ -810,6 +813,7 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
 // Note that when its value is "file" the media stack will still allocate memory
 // to cache the buffers in use.
 SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
+#endif  // SB_API_VERSION < 16
 
 // If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media
 // buffer pools should be allocated on demand, as opposed to using malloc

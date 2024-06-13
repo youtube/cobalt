@@ -23,10 +23,11 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/strings/string_split.h"
+#include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
 #include "media/base/mime_util.h"
-#include "starboard/common/string.h"
+#include "starboard/extension/media_settings.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
 
@@ -218,6 +219,19 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
                 << (value ? "true" : "false");
       return true;
     }
+  } else if (name == "AsyncReleaseMediaCodecBridge") {
+    const StarboardExtensionMediaSettingsApi* media_settings_api =
+        static_cast<const StarboardExtensionMediaSettingsApi*>(
+            SbSystemGetExtension(kStarboardExtensionMediaSettingsName));
+    if (media_settings_api &&
+        strcmp(media_settings_api->name,
+               kStarboardExtensionMediaSettingsName) == 0 &&
+        media_settings_api->version >= 1) {
+      media_settings_api->EnableAsyncReleaseMediaCodecBridge(value);
+      LOG(INFO) << "Set AsyncReleaseMediaCodecBridge to "
+                << (value ? "true" : "false");
+      return true;
+    }
   }
 
   return false;
@@ -243,7 +257,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 }
 
 void MediaModule::Suspend() {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   suspended_ = true;
 
@@ -261,7 +275,7 @@ void MediaModule::Suspend() {
 }
 
 void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   resource_provider_ = resource_provider;
 
@@ -284,7 +298,7 @@ void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
 }
 
 void MediaModule::RegisterPlayer(WebMediaPlayer* player) {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   DCHECK(players_.find(player) == players_.end());
   players_.insert(std::make_pair(player, false));
@@ -295,7 +309,7 @@ void MediaModule::RegisterPlayer(WebMediaPlayer* player) {
 }
 
 void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   DCHECK(players_.find(player) != players_.end());
   players_.erase(players_.find(player));
@@ -303,7 +317,7 @@ void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
 
 void MediaModule::EnumerateWebMediaPlayers(
     const EnumeratePlayersCB& enumerate_callback) const {
-  starboard::ScopedLock scoped_lock(players_lock_);
+  base::AutoLock scoped_lock(players_lock_);
 
   for (Players::const_iterator iter = players_.begin(); iter != players_.end();
        ++iter) {

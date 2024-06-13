@@ -203,6 +203,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetReadInProgress(::media::DemuxerStream::Type type, bool in_progress);
   bool GetReadInProgress(::media::DemuxerStream::Type type) const;
 
+  int GetDefaultMaxBuffers(AudioCodec codec, TimeDelta duration_to_write,
+                           bool is_preroll);
+  int GetEstimatedMaxBuffers(TimeDelta write_duration,
+                             TimeDelta time_ahead_of_playback, bool is_preroll);
+
   // An identifier string for the pipeline, used in CVal to identify multiple
   // pipelines.
   const std::string pipeline_identifier_;
@@ -345,6 +350,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Indicates if video end of stream has been written into the underlying
   // player.
   bool is_video_eos_written_ = false;
+  TimeDelta last_audio_sample_interval_ = TimeDelta::FromMicroseconds(0);
+  int last_estimated_max_buffers_for_preroll_ = 1;
 
   // Last media time reported by GetMediaTime().
   base::CVal<TimeDelta> last_media_time_;

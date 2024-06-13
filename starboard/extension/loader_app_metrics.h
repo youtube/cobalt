@@ -28,7 +28,7 @@ extern "C" {
 // numeric values should never be reused. Must be kept in sync with the
 // corresponding definition in
 // tools/metrics/histograms/metadata/cobalt/enums.xml.
-typedef enum CrashpadInstallationStatus {
+typedef enum class CrashpadInstallationStatus {
   // The enumerators below this point were added in version 1 or later.
   kUnknown = 0,
   kSucceeded = 1,
@@ -37,6 +37,23 @@ typedef enum CrashpadInstallationStatus {
   kFailedSignalHandlerInstallationFailed = 4,
   kMaxValue = kFailedSignalHandlerInstallationFailed
 } CrashpadInstallationStatus;
+
+typedef enum class SlotSelectionStatus {
+  // The enumerators below this point were added in version 3 or later.
+  kUnknown = 0,
+  kCurrentSlot = 1,
+  kRollForward = 2,
+  kRollBackOutOfRetries = 3,
+  kRollBackNoLibFile = 4,
+  kRollBackBadAppKeyFile = 5,
+  kRollBackSlotDraining = 6,
+  kRollBackFailedToAdopt = 7,
+  kRollBackFailedToLoadCobalt = 8,
+  kRollBackFailedToCheckSabi = 9,
+  kRollBackFailedToLookUpSymbols = 10,
+  kEGLite = 11,
+  kMaxValue = kEGLite,
+} SlotSelectionStatus;
 
 typedef struct StarboardExtensionLoaderAppMetricsApi {
   // Name should be the string |kStarboardExtensionLoaderAppMetricsName|.
@@ -86,6 +103,11 @@ typedef struct StarboardExtensionLoaderAppMetricsApi {
   // Returns the greatest value of used CPU bytes that was recorded by a caller
   // using RecordUsedCpuBytesDuringElfLoad(), or -1 if no value was recorded.
   int64_t (*GetMaxSampledUsedCpuBytesDuringElfLoad)();
+
+  // The fields below this point were added in version 3 or later.
+
+  void (*SetSlotSelectionStatus)(SlotSelectionStatus status);
+  SlotSelectionStatus (*GetSlotSelectionStatus)();
 
 } StarboardExtensionLoaderAppMetricsApi;
 

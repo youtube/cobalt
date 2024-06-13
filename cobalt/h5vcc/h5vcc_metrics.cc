@@ -119,9 +119,8 @@ script::HandlePromiseVoid H5vccMetrics::Disable(
 
 void H5vccMetrics::ToggleMetricsEnabled(bool is_enabled,
                                         base::OnceClosure done_callback) {
-  persistent_settings_->SetPersistentSetting(
-      browser::metrics::kMetricEnabledSettingName,
-      std::make_unique<base::Value>(is_enabled));
+  persistent_settings_->Set(browser::metrics::kMetricEnabledSettingName,
+                            base::Value(is_enabled));
   browser::metrics::CobaltMetricsServicesManager::GetInstance()
       ->ToggleMetricsEnabled(is_enabled, std::move(done_callback));
 }
@@ -132,9 +131,8 @@ bool H5vccMetrics::IsEnabled() {
 }
 
 void H5vccMetrics::SetMetricEventInterval(uint32_t interval_seconds) {
-  persistent_settings_->SetPersistentSetting(
-      browser::metrics::kMetricEventIntervalSettingName,
-      std::make_unique<base::Value>(static_cast<int>(interval_seconds)));
+  persistent_settings_->Set(browser::metrics::kMetricEventIntervalSettingName,
+                            base::Value(static_cast<int>(interval_seconds)));
   browser::metrics::CobaltMetricsServicesManager::GetInstance()
       ->SetUploadInterval(interval_seconds);
 }

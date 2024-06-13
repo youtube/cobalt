@@ -97,7 +97,7 @@ bool IsLargeMemoryDevice() {
 }
 
 bool SetAddressSpaceLimit() {
-#if !defined(ARCH_CPU_64_BITS) || !BUILDFLAG(IS_POSIX) || 1
+#if !defined(ARCH_CPU_64_BITS) || !BUILDFLAG(IS_POSIX)
   // 32 bits => address space is limited already.
   return true;
 #elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
@@ -125,7 +125,7 @@ bool SetAddressSpaceLimit() {
 }
 
 bool ClearAddressSpaceLimit() {
-#if !defined(ARCH_CPU_64_BITS) || !BUILDFLAG(IS_POSIX) || 1
+#if !defined(ARCH_CPU_64_BITS) || !BUILDFLAG(IS_POSIX)
   return true;
 #elif BUILDFLAG(IS_POSIX)
   struct rlimit limit;
@@ -622,7 +622,7 @@ void FreeFullSlotSpan(PartitionRoot<internal::ThreadSafe>* root,
   EXPECT_TRUE(slot_span->is_empty());
 }
 
-#if 0// BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 bool CheckPageInCore(void* ptr, bool in_core) {
   unsigned char ret = 0;
   EXPECT_EQ(0, mincore(ptr, SystemPageSize(), &ret));

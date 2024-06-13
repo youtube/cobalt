@@ -76,7 +76,10 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   ResponseHandlerImpl(net::HttpServer* server, int connection_id)
       : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
         server_(server),
-        connection_id_(connection_id) {}
+        connection_id_(connection_id) {
+    server_->SetReceiveBufferSize(connection_id_, kMaxRecieveBufferSize);
+    server_->SetSendBufferSize(connection_id_, kMaxSendBufferSize);
+  }
 
   // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#responses
   void Success(std::unique_ptr<base::Value> value) override {

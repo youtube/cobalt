@@ -103,6 +103,13 @@ void RecordLoaderAppMetrics(
       RecordLoaderAppTimeMetrics(metrics_extension);
       RecordLoaderAppSpaceMetrics(metrics_extension);
     }
+    if (metrics_extension->version >= 3) {
+      base::UmaHistogramEnumeration(
+          "Cobalt.LoaderApp.SlotSelectionStatus",
+          metrics_extension->GetSlotSelectionStatus());
+      LOG(INFO) << "Recorded sample for "
+                << "Cobalt.LoaderApp.SlotSelectionStatus";
+    }
   }
 }
 

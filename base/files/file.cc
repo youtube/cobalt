@@ -17,7 +17,6 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#include "starboard/common/log.h"
 #include "starboard/types.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>

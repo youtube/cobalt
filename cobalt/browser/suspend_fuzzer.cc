@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/suspend_fuzzer.h"
 
+#include "base/logging.h"
 #include "base/threading/thread_task_runner_handle.h"
 
 namespace cobalt {
@@ -47,11 +48,11 @@ void SuspendFuzzer::DoStep() {
   DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
          thread_.task_runner());
   if (step_type_ == kShouldRequestFreeze) {
-    SB_DLOG(INFO) << "suspend_fuzzer: Requesting freeze.";
+    DLOG(INFO) << "suspend_fuzzer: Requesting freeze.";
     SbSystemRequestFreeze();
     step_type_ = kShouldRequestFocus;
   } else if (step_type_ == kShouldRequestFocus) {
-    SB_DLOG(INFO) << "suspend_fuzzer: Requesting focus.";
+    DLOG(INFO) << "suspend_fuzzer: Requesting focus.";
     SbSystemRequestFocus();
     step_type_ = kShouldRequestFocus;
   } else {

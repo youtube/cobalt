@@ -5,7 +5,6 @@
 #include "base/time/time.h"
 
 #include <stdint.h>
-
 #include <time.h>
 
 #include <limits>
@@ -15,6 +14,7 @@
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/environment.h"
+#include "base/logging.h"
 #include "base/test/gtest_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time_override.h"
@@ -1047,6 +1047,7 @@ TEST_F(TimeTest, Explode_Y10KCompliance) {
       // A very long time ago.
       {Time::Min(), Time::Exploded{-290677, 12, 4, 23, 19, 59, 5, 224}},
 #endif
+
       // Before/On/After 1 Jan 1601.
       {make_time(-kHalfYearInMicros),
        Time::Exploded{1600, 7, 1, 3, 0, 0, 0, 0}},
@@ -1092,6 +1093,7 @@ TEST_F(TimeTest, Explode_Y10KCompliance) {
        Time::Exploded{287396, 10, 3, 12, 8, 59, 0, 992}},
       {make_time(kIcuMaxMicrosOffset + kHalfYearInMicros),
        Time::Exploded{287397, 4, 3, 12, 8, 59, 0, 992}},
+
 #if !defined(STARBOARD)
       // A very long time from now.
       {Time::Max(), Time::Exploded{293878, 1, 4, 10, 4, 0, 54, 775}},
@@ -1486,7 +1488,7 @@ ThreadTicks ThreadTicksOverride::now_ticks_;
 #endif
 TEST(ThreadTicks, MAYBE_NowOverride) {
   if (starboard::CurrentMonotonicThreadTime() == 0) {
-    SB_LOG(INFO) << "Time thread now not supported. Test skipped.";
+    LOG(INFO) << "Time thread now not supported. Test skipped.";
     return;
   }
 

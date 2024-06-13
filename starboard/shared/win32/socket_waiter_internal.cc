@@ -123,7 +123,7 @@ SbSocketWaiterInterest CombineInterests(SbSocketWaiterInterest a,
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()
-    : thread_(SbThreadGetCurrent()),
+    : thread_(pthread_self()),
       wakeup_event_token_(-1),
       wakeup_event_(CreateEvent(nullptr, false, false, nullptr)) {
   {
@@ -152,7 +152,7 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
                                 SbSocketWaiterCallback callback,
                                 int interests,
                                 bool persistent) {
-  SB_DCHECK(SbThreadIsCurrent(thread_));
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
 
   if (!SbSocketIsValid(socket)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
@@ -235,7 +235,7 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
 }
 
 bool SbSocketWaiterPrivate::Remove(SbSocket socket) {
-  SB_DCHECK(SbThreadIsCurrent(thread_));
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
 
   if (!CheckSocketWaiterIsThis(socket)) {
     return false;
@@ -277,7 +277,7 @@ bool SbSocketWaiterPrivate::CheckSocketWaiterIsThis(SbSocket socket) {
 }
 
 void SbSocketWaiterPrivate::Wait() {
-  SB_DCHECK(SbThreadIsCurrent(thread_));
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
 
   // We basically wait for the largest amount of time to achieve an indefinite
   // block.
@@ -285,7 +285,7 @@ void SbSocketWaiterPrivate::Wait() {
 }
 
 SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
-  SB_DCHECK(SbThreadIsCurrent(thread_));
+  SB_DCHECK(pthread_equal(pthread_self(), thread_));
 
   const int64_t start_time = starboard::CurrentMonotonicTime();
   int64_t duration_left = duration_usec;

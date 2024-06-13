@@ -249,7 +249,7 @@ FetcherCache::FetcherCache(const char* name, size_t capacity)
 
 FetcherCache::~FetcherCache() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  CHECK(pthread_equal(thread_id_, pthread_self()));
+  CHECK_EQ(thread_id_, SbThreadGetId());
   CHECK(destroy_soon_called_);
 
   while (!cache_entries_.empty()) {
@@ -273,7 +273,7 @@ Loader::FetcherCreator FetcherCache::GetFetcherCreator(
 
 void FetcherCache::NotifyResourceRequested(const std::string& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  CHECK(pthread_equal(thread_id_, pthread_self()));
+  CHECK_EQ(thread_id_, SbThreadGetId());
 
   auto iter = cache_entries_.find(url);
   if (iter != cache_entries_.end()) {
@@ -301,7 +301,7 @@ std::unique_ptr<Fetcher> FetcherCache::CreateCachedFetcher(
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   CHECK(!destroy_soon_called_);
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-  CHECK(pthread_equal(thread_id_, pthread_self()));
+  CHECK_EQ(thread_id_, SbThreadGetId());
 
   auto iterator = cache_entries_.find(url.spec());
   if (iterator != cache_entries_.end()) {
@@ -330,8 +330,7 @@ void FetcherCache::OnFetchSuccess(
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   CHECK(!destroy_soon_called_);
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-
-  CHECK(pthread_equal(thread_id_, pthread_self()));
+  CHECK_EQ(thread_id_, SbThreadGetId());
 
   if (data.capacity() > capacity_) {
     return;

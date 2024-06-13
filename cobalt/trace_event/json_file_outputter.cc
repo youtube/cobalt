@@ -30,7 +30,6 @@
 #endif
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
-#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace trace_event {

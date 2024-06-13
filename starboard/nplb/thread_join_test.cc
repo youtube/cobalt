@@ -14,6 +14,8 @@
 
 // Thread joining is mostly tested in the other tests.
 
+#if SB_API_VERSION < 16
+
 #include <unistd.h>
 
 #include "starboard/thread.h"
@@ -71,3 +73,5 @@ TEST(SbThreadLocalValueTest, ThreadJoinWaitsForFunctionRun) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16

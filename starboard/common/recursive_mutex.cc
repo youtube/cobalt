@@ -17,13 +17,14 @@
 
 namespace starboard {
 
-RecursiveMutex::RecursiveMutex() : owner_id_(0), recurse_count_(0) {}
+RecursiveMutex::RecursiveMutex()
+    : owner_id_(kSbThreadInvalidId), recurse_count_(0) {}
 
 RecursiveMutex::~RecursiveMutex() {}
 
 void RecursiveMutex::Acquire() {
-  pthread_t current_thread = pthread_self();
-  if (pthread_equal(owner_id_, current_thread)) {
+  SbThreadId current_thread = SbThreadGetId();
+  if (owner_id_ == current_thread) {
     recurse_count_++;
     SB_DCHECK(recurse_count_ > 0);
     return;
@@ -34,20 +35,20 @@ void RecursiveMutex::Acquire() {
 }
 
 void RecursiveMutex::Release() {
-  SB_DCHECK(pthread_equal(owner_id_, pthread_self()));
-  if (pthread_equal(owner_id_, pthread_self())) {
+  SB_DCHECK(owner_id_ == SbThreadGetId());
+  if (owner_id_ == SbThreadGetId()) {
     SB_DCHECK(0 < recurse_count_);
     recurse_count_--;
     if (recurse_count_ == 0) {
-      owner_id_ = 0;
+      owner_id_ = kSbThreadInvalidId;
       mutex_.Release();
     }
   }
 }
 
 bool RecursiveMutex::AcquireTry() {
-  pthread_t current_thread = pthread_self();
-  if (pthread_equal(owner_id_, current_thread)) {
+  SbThreadId current_thread = SbThreadGetId();
+  if (owner_id_ == current_thread) {
     recurse_count_++;
     SB_DCHECK(recurse_count_ > 0);
     return true;

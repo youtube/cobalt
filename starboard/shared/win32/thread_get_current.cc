@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/thread.h"
 
 #include "starboard/shared/win32/thread_private.h"
@@ -22,3 +24,5 @@ using starboard::shared::win32::SbThreadPrivate;
 SbThread SbThreadGetCurrent() {
   return GetCurrentSbThreadPrivate();
 }
+
+#endif  // SB_API_VERSION < 16

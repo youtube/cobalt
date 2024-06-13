@@ -52,6 +52,7 @@ extern "C" {
 
 // TODO: Remove the definition once the memory_mapped_file.h extension
 // is deprecated.
+
 // The bitwise OR of these flags should be passed to SbMemoryMap to indicate
 // how the mapped memory can be used.
 typedef enum SbMemoryMapFlags {

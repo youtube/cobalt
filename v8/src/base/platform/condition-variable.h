@@ -11,7 +11,7 @@
 
 #if V8_OS_STARBOARD
 #if SB_API_VERSION < 16
-#include "starboard/common/condition_variable.h"
+#include "starboard/condition_variable.h"
 #else
 #include <pthread.h>
 #endif // SB_API_VERSION < 16

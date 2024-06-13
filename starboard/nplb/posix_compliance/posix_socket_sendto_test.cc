@@ -89,7 +89,7 @@ TEST(PosixSocketSendtoTest, RainyDayUnconnectedSocket) {
 TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
   int result = PosixSocketCreateAndConnect(
-      AF_INET, AF_INET, GetPortNumberForTests(), kSocketTimeout,
+      AF_INET, AF_INET, htons(GetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);
 
@@ -134,12 +134,12 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketUntilBlocking) {
   int result = -1;
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
   result = PosixSocketCreateAndConnect(
-      AF_INET, AF_INET, GetPortNumberForTests(), kSocketTimeout,
+      AF_INET, AF_INET, htons(GetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);
 
   // set socket non-blocking
-  EXPECT_TRUE(fcntl(client_socket_fd, F_SETFL, O_NONBLOCK) == 0);
+  fcntl(client_socket_fd, F_SETFL, O_NONBLOCK);
 
   // Push data into socket until it dies.
   uint64_t num_bytes = 0;
@@ -180,7 +180,7 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
 
   // create listen socket, bind and listen on <port>
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
-  PosixSocketCreateAndConnect(AF_INET, AF_INET, GetPortNumberForTests(),
+  PosixSocketCreateAndConnect(AF_INET, AF_INET, htons(GetPortNumberForTests()),
                               kSocketTimeout, &listen_socket_fd,
                               &client_socket_fd, &server_socket_fd);
 

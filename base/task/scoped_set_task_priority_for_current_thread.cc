@@ -74,8 +74,7 @@ ScopedSetTaskPriorityForCurrentThread::ScopedSetTaskPriorityForCurrentThread(
 #else
     : resetter_(&task_priority_for_current_thread,
                 priority,
-                TaskPriority::USER_BLOCKING) {
-}
+                TaskPriority::USER_BLOCKING) {}
 #endif
 
 #if defined(STARBOARD)
