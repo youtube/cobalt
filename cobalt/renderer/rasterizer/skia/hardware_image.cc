@@ -384,10 +384,7 @@ HardwareFrontendImage::~HardwareFrontendImage() {
   if (rasterizer_task_runner_) {
     if (!rasterizer_task_runner_->RunsTasksInCurrentSequence() ||
         !backend_image_->TryDestroy()) {
-      rasterizer_task_runner_->PostTask(
-          FROM_HERE,
-          base::Bind(base::IgnoreResult(&HardwareBackendImage::TryDestroy),
-                     base::Owned(std::move(backend_image_))));
+      rasterizer_task_runner_->DeleteSoon(FROM_HERE, std::move(backend_image_));
     }
   }  // else let the scoped pointer clean it up immediately.
 }
