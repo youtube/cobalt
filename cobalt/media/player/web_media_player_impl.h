@@ -111,7 +111,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      WebMediaPlayerClient* client,
                      WebMediaPlayerDelegate* delegate,
                      bool allow_resume_after_suspend,
-                     bool allow_batched_sample_write,
+                     int audio_batched_sample_write,
                      bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
                      base::TimeDelta audio_write_duration_local,
@@ -304,7 +304,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerClient* const client_;
   WebMediaPlayerDelegate* const delegate_;
   const bool allow_resume_after_suspend_;
-  const bool allow_batched_sample_write_;
+  const int audio_batched_sample_write_;
   const bool force_punch_out_by_default_;
   scoped_refptr<DecodeTargetProvider> decode_target_provider_;
 
