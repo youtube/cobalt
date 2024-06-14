@@ -317,11 +317,17 @@ std::unique_ptr<net::URLRequest> URLRequestContext::CreateRequest(
 void URLRequestContext::SetProxy(const std::string& proxy_rules) {
   net::ProxyConfig proxy_config = CreateCustomProxyConfig(proxy_rules);
   // ProxyService takes ownership of the ProxyConfigService.
-  url_request_context_->set_proxy_resolution_service(
-      net::ConfiguredProxyResolutionService::CreateUsingSystemProxyResolver(
-          std::make_unique<ProxyConfigService>(proxy_config),
-          net::NetLog::Get(),
-          /*quick_check_enabled=*/true));
+  auto proxy_config_service =
+      std::make_unique<ProxyConfigService>(proxy_config);
+  net::ConfiguredProxyResolutionService* proxy_configured_resolution_service =
+      nullptr;
+  bool success = url_request_context_->proxy_resolution_service()
+                     ->CastToConfiguredProxyResolutionService(
+                         &proxy_configured_resolution_service);
+  if (success) {
+    proxy_configured_resolution_service->ResetConfigService(
+        std::move(proxy_config_service));
+  }
 }
 
 void URLRequestContext::SetEnableQuic(bool enable_quic) {
