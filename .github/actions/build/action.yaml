@@ -17,8 +17,7 @@ runs:
       run: |
         set -x
         env
-
-        if [[ -z ${COBALT_EVERGREEN_LOADER+x} ]]; then
+        if [ -z ${COBALT_EVERGREEN_LOADER+x} ]; then
           BUILD_PLATFORM="${{ matrix.target_platform }}"
           BUILD_TARGET="default"
           if [[ "${{ matrix.config }}" =~ ^(debug|devel)$ ]]; then
@@ -36,52 +35,98 @@ runs:
           # Specify build targets for EG AOSP loader build.
           if [[ "${BUILD_PLATFORM}" == "android-arm" && "${{ matrix.config }}" =~ ^(debug|devel)$ ]]; then
             BUILD_TARGET="${BUILD_TARGET} \
-                          audio_test_evergreen_loader_install \
-                          base_unittests_evergreen_loader_install \
-                          base_test_evergreen_loader_install \
-                          bindings_test_evergreen_loader_install \
-                          browser_test_evergreen_loader_install \
-                          components_metrics_tests_evergreen_loader_install \
-                          crypto_impl_test_evergreen_loader_install \
-                          crypto_unittests_evergreen_loader_install \
-                          csp_test_evergreen_loader_install \
-                          cssom_test_evergreen_loader_install \
-                          css_parser_test_evergreen_loader_install \
-                          cwrappers_test_evergreen_loader_install \
-                          dom_parser_test_evergreen_loader_install \
-                          dom_test_evergreen_loader_install \
-                          extension_test_evergreen_loader_install \
-                          graphics_system_test_evergreen_loader_install \
-                          js_profiler_test_evergreen_loader_install \
-                          layout_test_evergreen_loader_install \
-                          layout_tests_evergreen_loader_install \
-                          loader_test_evergreen_loader_install \
-                          math_test_evergreen_loader_install \
-                          media_capture_test_evergreen_loader_install \
-                          media_session_test_evergreen_loader_install \
-                          media_stream_test_evergreen_loader_install \
-                          media_test_evergreen_loader_install \
-                          memory_store_test_evergreen_loader_install \
-                          metrics_test_evergreen_loader_install \
-                          network_test_evergreen_loader_install \
-                          net_unittests_evergreen_loader_install \
-                          overlay_info_test_evergreen_loader_install \
-                          persistent_settings_test_evergreen_loader_install \
-                          png_utils_test_evergreen_loader_install \
-                          render_tree_test_evergreen_loader_install \
-                          renderer_test_evergreen_loader_install \
-                          scroll_engine_tests_evergreen_loader_install \
-                          speech_test_evergreen_loader_install \
-                          storage_test_evergreen_loader_install \
-                          text_encoding_test_evergreen_loader_install \
-                          watchdog_test_evergreen_loader_install \
-                          web_animations_test_evergreen_loader_install \
-                          webdriver_test_evergreen_loader_install \
-                          web_test_evergreen_loader_install \
-                          websocket_test_evergreen_loader_install \
-                          worker_test_evergreen_loader_install \
-                          xhr_test_evergreen_loader_install \
-                          zip_unittests_evergreen_loader_install"
+                          audio_test \
+                          base_unittests \
+                          base_test \
+                          bindings_test \
+                          browser_test \
+                          components_metrics_tests \
+                          crypto_impl_test \
+                          crypto_unittests \
+                          csp_test \
+                          cssom_test \
+                          css_parser_test \
+                          cwrappers_test \
+                          dom_parser_test \
+                          dom_test \
+                          extension_test \
+                          graphics_system_test \
+                          js_profiler_test \
+                          layout_test \
+                          layout_tests \
+                          loader_test \
+                          math_test \
+                          media_capture_test \
+                          media_session_test \
+                          media_stream_test \
+                          media_test \
+                          memory_store_test \
+                          metrics_test \
+                          network_test \
+                          net_unittests \
+                          overlay_info_test \
+                          persistent_settings_test \
+                          png_utils_test \
+                          render_tree_test \
+                          renderer_test \
+                          scroll_engine_tests \
+                          speech_test \
+                          storage_test \
+                          text_encoding_test \
+                          watchdog_test \
+                          web_animations_test \
+                          webdriver_test \
+                          web_test \
+                          websocket_test \
+                          worker_test \
+                          xhr_test \
+                          zip_unittests"
+            BUILD_TARGET_INSTALL="audio_test_evergreen_loader_install \
+                                  base_unittests_evergreen_loader_install \
+                                  base_test_evergreen_loader_install \
+                                  bindings_test_evergreen_loader_install \
+                                  browser_test_evergreen_loader_install \
+                                  components_metrics_tests_evergreen_loader_install \
+                                  crypto_impl_test_evergreen_loader_install \
+                                  crypto_unittests_evergreen_loader_install \
+                                  csp_test_evergreen_loader_install \
+                                  cssom_test_evergreen_loader_install \
+                                  css_parser_test_evergreen_loader_install \
+                                  cwrappers_test_evergreen_loader_install \
+                                  dom_parser_test_evergreen_loader_install \
+                                  dom_test_evergreen_loader_install \
+                                  extension_test_evergreen_loader_install \
+                                  graphics_system_test_evergreen_loader_install \
+                                  js_profiler_test_evergreen_loader_install \
+                                  layout_test_evergreen_loader_install \
+                                  layout_tests_evergreen_loader_install \
+                                  loader_test_evergreen_loader_install \
+                                  math_test_evergreen_loader_install \
+                                  media_capture_test_evergreen_loader_install \
+                                  media_session_test_evergreen_loader_install \
+                                  media_stream_test_evergreen_loader_install \
+                                  media_test_evergreen_loader_install \
+                                  memory_store_test_evergreen_loader_install \
+                                  metrics_test_evergreen_loader_install \
+                                  network_test_evergreen_loader_install \
+                                  net_unittests_evergreen_loader_install \
+                                  overlay_info_test_evergreen_loader_install \
+                                  persistent_settings_test_evergreen_loader_install \
+                                  png_utils_test_evergreen_loader_install \
+                                  render_tree_test_evergreen_loader_install \
+                                  renderer_test_evergreen_loader_install \
+                                  scroll_engine_tests_evergreen_loader_install \
+                                  speech_test_evergreen_loader_install \
+                                  storage_test_evergreen_loader_install \
+                                  text_encoding_test_evergreen_loader_install \
+                                  watchdog_test_evergreen_loader_install \
+                                  web_animations_test_evergreen_loader_install \
+                                  webdriver_test_evergreen_loader_install \
+                                  web_test_evergreen_loader_install \
+                                  websocket_test_evergreen_loader_install \
+                                  worker_test_evergreen_loader_install \
+                                  xhr_test_evergreen_loader_install \
+                                  zip_unittests_evergreen_loader_install"
           fi
         fi
 
@@ -96,7 +141,8 @@ runs:
 
         # TODO(todo): Half workers for EG AOSP build as it runs out of memory while building.
         if [[ -n ${COBALT_EVERGREEN_LOADER} && "${BUILD_PLATFORM}" == "android-arm" ]]; then
-          ninja -j 16 -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+          ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+          ninja -j 1 -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET_INSTALL}
         else
           ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
         fi

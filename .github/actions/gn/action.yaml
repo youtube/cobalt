@@ -15,7 +15,7 @@ runs:
       if: startsWith(${{matrix.target_platform}}, 'android')
       run: |
         echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
-        echo "COBALT_GRADLE_BUILD_COUNT=4" >> $GITHUB_ENV
+        echo "COBALT_GRADLE_BUILD_COUNT=2" >> $GITHUB_ENV
         PROJECT_NAME=$(gcloud config get-value project)
         echo "GCS_NIGHTLY_PATH=gs://${PROJECT_NAME}-build-artifacts" >> $GITHUB_ENV
     - name: GN
