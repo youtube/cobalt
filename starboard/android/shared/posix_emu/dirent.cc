@@ -57,7 +57,7 @@ static int gen_fd() {
 Mutex mutex_;
 static std::map<int, AAssetDir*>* asset_map = nullptr;
 
-int handle_db_put(AAssetDir* assetDir) {
+static int handle_db_put(AAssetDir* assetDir) {
   ScopedLock scoped_lock(mutex_);
   if (asset_map == nullptr) {
     asset_map = new std::map<int, AAssetDir*>();
@@ -90,7 +90,7 @@ static AAssetDir* handle_db_get(int fd, bool erase) {
 
   AAssetDir* asset_dir = itr->second;
   if (erase) {
-    asset_map->erase(fd);
+    asset_map->erase(itr);
   }
   return asset_dir;
 }

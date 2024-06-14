@@ -42,7 +42,7 @@ static int gen_fd() {
 static std::map<int, std::deque<std::string>>* directory_map = nullptr;
 static CriticalSection g_critical_section;
 
-int handle_db_put(std::deque<std::string> next_directory_entry) {
+static int handle_db_put(std::deque<std::string> next_directory_entry) {
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (directory_map == nullptr) {
     directory_map = new std::map<int, std::deque<std::string>>();
@@ -68,24 +68,26 @@ static std::deque<std::string> handle_db_get(int handle, bool erase) {
   }
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (directory_map == nullptr) {
-    directory_map = new std::map<int, std::deque<std::string>>();
+    LeaveCriticalSection(&g_critical_section.critical_section_);
     return empty_deque;
   }
 
   auto itr = directory_map->find(handle);
   if (itr == directory_map->end()) {
+    LeaveCriticalSection(&g_critical_section.critical_section_);
     return empty_deque;
   }
 
   std::deque<std::string> next_directory_entry = itr->second;
   if (erase) {
-    directory_map->erase(handle);
+    directory_map->erase(itr);
   }
   LeaveCriticalSection(&g_critical_section.critical_section_);
   return next_directory_entry;
 }
 
-void handle_db_replace(int fd, std::deque<std::string> next_directory_entry) {
+static void handle_db_replace(int fd,
+                              std::deque<std::string> next_directory_entry) {
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (directory_map == nullptr) {
     directory_map = new std::map<int, std::deque<std::string>>();
