@@ -17,6 +17,7 @@
 
 #include <android/looper.h>
 #include <android/native_window.h>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -28,7 +29,6 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
@@ -155,7 +155,7 @@ class ApplicationAndroid
   // |input_events_generator_| is accessed from multiple threads, so use a mutex
   // to safely access it.
   Mutex input_mutex_;
-  scoped_ptr<InputEventsGenerator> input_events_generator_;
+  std::unique_ptr<InputEventsGenerator> input_events_generator_;
 
   bool last_is_accessibility_high_contrast_text_enabled_;
 
