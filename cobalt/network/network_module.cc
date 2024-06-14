@@ -120,6 +120,32 @@ void NetworkModule::SetEnableQuicFromPersistentSettings() {
   }
 }
 
+void NetworkModule::SetEnableHttp3FromPersistentSettings() {
+  // Called on initialization and when the persistent setting is changed.
+  if (options_.persistent_settings != nullptr) {
+    base::Value value;
+    options_.persistent_settings->Get(kHttp3EnabledPersistentSettingsKey,
+                                      &value);
+    bool enable_http3 = value.GetIfBool().value_or(false);
+    auto supported_version =
+        enable_http3
+            ? net::DefaultSupportedQuicVersions()
+            : quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
+    task_runner()->PostTask(
+        FROM_HERE, base::Bind(
+                       [](URLRequestContext* url_request_context,
+                          quic::ParsedQuicVersionVector supported_version) {
+                         url_request_context->url_request_context()
+                             ->quic_context()
+                             ->params()
+                             // Only allow the RFC version.
+                             ->supported_versions = supported_version;
+                       },
+                       base::Unretained(url_request_context_.get()),
+                       std::move(supported_version)));
+  }
+}
+
 void NetworkModule::EnsureStorageManagerStarted() {
   DCHECK(storage_manager_);
   storage_manager_->EnsureStarted();
@@ -207,6 +233,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
       url_request_context_.get(), thread_.get());
 
   SetEnableQuicFromPersistentSettings();
+  SetEnableHttp3FromPersistentSettings();
 }
 
 void NetworkModule::OnCreate(
