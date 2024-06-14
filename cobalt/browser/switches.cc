@@ -293,6 +293,12 @@ const char kInitialURLHelp[] =
     "Setting this switch defines the startup URL that Cobalt will use.  If no "
     "value is set, a default URL will be used.";
 
+const char kLoaderUseMemoryMappedFile[] = "loader_use_mmap_file";
+const char kLoaderUseMemoryMappedFileHelp[] =
+    "Does not control whether Evergreen's ELF loader uses a Memory Mapped file "
+    "but does allow the corresponding loader app switch with the same name, "
+    "which does control this behavior, to be observed in the Cobalt layer.";
+
 const char kLocalStoragePartitionUrl[] = "local_storage_partition_url";
 const char kLocalStoragePartitionUrlHelp[] =
     "Overrides the default storage partition with a custom partition URL to "
@@ -409,15 +415,15 @@ const char kUpdateCheckDelaySecondsHelp[] =
     "Number of seconds to delay the first Cobalt Evergreen check for updates."
     "The default value is 60 seconds.";
 
-const char kUseCompressedUpdates[] = "use_compressed_updates";
-const char kUseCompressedUpdatesHelp[] =
-    "Whether to request, download, and install compressed (rather than "
-    "uncompressed) Evergreen binaries.";
-
 const char kUseQAUpdateServer[] = "use_qa_update_server";
 const char kUseQAUpdateServerHelp[] =
     "Uses the QA update server to test the changes to the configuration of the "
     "PROD update server.";
+
+const char kUseUncompressedUpdates[] = "use_uncompressed_updates";
+const char kUseUncompressedUpdatesHelp[] =
+    "Whether to request, download, and install uncompressed (rather than "
+    "compressed) Evergreen binaries.";
 
 const char kVersion[] = "version";
 const char kVersionHelp[] = "Prints the current version of Cobalt";
@@ -487,6 +493,7 @@ std::string HelpMessage() {
       {kHelp, kHelpHelp},
       {kImageCacheSizeInBytes, kImageCacheSizeInBytesHelp},
       {kInitialURL, kInitialURLHelp},
+      {kLoaderUseMemoryMappedFile, kLoaderUseMemoryMappedFileHelp},
       {kLocalStoragePartitionUrl, kLocalStoragePartitionUrlHelp},
       {kMaxCobaltCpuUsage, kMaxCobaltCpuUsageHelp},
       {kMaxCobaltGpuUsage, kMaxCobaltGpuUsageHelp},
@@ -505,8 +512,8 @@ std::string HelpMessage() {
       {kSkiaTextureAtlasDimensions, kSkiaTextureAtlasDimensionsHelp},
       {kFallbackSplashScreenURL, kFallbackSplashScreenURLHelp},
       {kUpdateCheckDelaySeconds, kUpdateCheckDelaySecondsHelp},
-      {kUseCompressedUpdates, kUseCompressedUpdatesHelp},
       {kUseQAUpdateServer, kUseQAUpdateServerHelp},
+      {kUseUncompressedUpdates, kUseUncompressedUpdatesHelp},
       {kVersion, kVersionHelp},
       {kViewport, kViewportHelp},
       {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},
