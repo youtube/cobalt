@@ -48,8 +48,9 @@ installation slots.
 
 ## Disabling Binary Compression
 
-Before proceeding, please note that binary compression should not be disabled in
-production.
+Before proceeding, please note that binary compression is required starting with
+Cobalt 25. The feature should only be disabled for debugging or in case of
+emergency, after discussion with YouTube.
 
 Separate steps are required in order for a partner to disable compression for a)
 the system image slot and b) (Evergreen-Full only) the 2+ writable slots on a
@@ -80,7 +81,7 @@ with Cobalt 25 partners are required to have the feature enabled for all slots.
 
 ## Enabling Binary Compression
 
-The compression feature is turned on by default. Once disabaled, though, it can
+The compression feature is turned on by default. Once disabled, though, it can
 be enabled by undoing the steps required for disablement.
 
 Compression for the system image slot is enabled by installing the compressed
