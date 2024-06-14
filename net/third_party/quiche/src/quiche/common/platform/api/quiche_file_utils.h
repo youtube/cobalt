@@ -24,13 +24,11 @@ std::string JoinPath(absl::string_view a, absl::string_view b);
 // Reads the entire file into the memory.
 absl::optional<std::string> ReadFileContents(absl::string_view file);
 
-#if !defined(STARBOARD)
 // Lists all files and directories in the directory specified by |path|. Returns
 // true on success, false on failure.
 bool EnumerateDirectory(absl::string_view path,
                         std::vector<std::string>& directories,
                         std::vector<std::string>& files);
-#endif
 
 // Recursively enumerates all of the files in the directory and all of the
 // internal subdirectories.  Has a fairly small recursion limit.
