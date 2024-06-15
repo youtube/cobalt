@@ -331,16 +331,6 @@ services:
       TARGET_CPU: ${TARGET_CPU:-x64}
       SB_API_VERSION: ${SB_API_VERSION}
 
-  evergreen-x86:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-x86
-      TARGET_CPU: ${TARGET_CPU:-x86}
-      SB_API_VERSION: ${SB_API_VERSION}
-
   evergreen-arm64:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
