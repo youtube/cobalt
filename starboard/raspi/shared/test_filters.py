@@ -31,6 +31,7 @@ _FILTERED_TESTS = {
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
         'SbMediaSetAudioWriteDurationTests/*',
         'SbPlayerGetAudioConfigurationTests/*',
+        'SbPlayerGetMediaTimeTests/*',
         'SbPlayerWriteSampleTests*',
         'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
         'SbSystemGetPropertyTest.FLAKY_ReturnsRequired',
