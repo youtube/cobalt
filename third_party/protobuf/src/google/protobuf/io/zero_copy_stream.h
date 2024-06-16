@@ -110,8 +110,10 @@
 #include <string>
 #include <google/protobuf/stubs/common.h>
 
-namespace google {
+#include <google/protobuf/port_def.inc>
 
+
+namespace google {
 namespace protobuf {
 namespace io {
 
@@ -121,10 +123,10 @@ class ZeroCopyOutputStream;
 
 // Abstract interface similar to an input stream but designed to minimize
 // copying.
-class LIBPROTOBUF_EXPORT ZeroCopyInputStream {
+class PROTOBUF_EXPORT ZeroCopyInputStream {
  public:
-  inline ZeroCopyInputStream() {}
-  virtual ~ZeroCopyInputStream();
+  ZeroCopyInputStream() {}
+  virtual ~ZeroCopyInputStream() {}
 
   // Obtains a chunk of data from the stream.
   //
@@ -178,10 +180,10 @@ class LIBPROTOBUF_EXPORT ZeroCopyInputStream {
 
 // Abstract interface similar to an output stream but designed to minimize
 // copying.
-class LIBPROTOBUF_EXPORT ZeroCopyOutputStream {
+class PROTOBUF_EXPORT ZeroCopyOutputStream {
  public:
-  inline ZeroCopyOutputStream() {}
-  virtual ~ZeroCopyOutputStream();
+  ZeroCopyOutputStream() {}
+  virtual ~ZeroCopyOutputStream() {}
 
   // Obtains a buffer into which data can be written.  Any data written
   // into this buffer will eventually (maybe instantly, maybe later on)
@@ -243,6 +245,8 @@ class LIBPROTOBUF_EXPORT ZeroCopyOutputStream {
 
 }  // namespace io
 }  // namespace protobuf
-
 }  // namespace google
+
+#include <google/protobuf/port_undef.inc>
+
 #endif  // GOOGLE_PROTOBUF_IO_ZERO_COPY_STREAM_H__

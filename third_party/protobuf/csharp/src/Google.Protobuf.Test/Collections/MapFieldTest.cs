@@ -86,7 +86,7 @@ namespace Google.Protobuf.Collections
             var map = new MapField<string, ForeignMessage>();
             Assert.Throws<ArgumentNullException>(() => map[null] = new ForeignMessage());
         }
-        
+
         [Test]
         public void AddPreservesInsertionOrder()
         {
@@ -471,7 +471,7 @@ namespace Google.Protobuf.Collections
             keys.CopyTo(array, 1);
             CollectionAssert.AreEqual(new[] { null, "foo", "x", null }, array);
         }
-        
+
         // Just test keys - we know the implementation is the same for values
         [Test]
         public void NonGenericViewCopyTo()
@@ -499,6 +499,14 @@ namespace Google.Protobuf.Collections
         }
 
         [Test]
+        public void KeysCopyTo()
+        {
+            var map = new MapField<string, string> { { "foo", "bar" }, { "x", "y" } };
+            var keys = map.Keys.ToArray(); // Uses CopyTo internally
+            CollectionAssert.AreEquivalent(new[] { "foo", "x" }, keys);
+        }
+
+        [Test]
         public void ValuesContains()
         {
             var map = new MapField<string, string> { { "foo", "bar" }, { "x", "y" } };
@@ -508,6 +516,14 @@ namespace Google.Protobuf.Collections
             Assert.IsFalse(values.Contains("1"));
             // Values can be null, so this makes sense
             Assert.IsFalse(values.Contains(null));
+        }
+
+        [Test]
+        public void ValuesCopyTo()
+        {
+            var map = new MapField<string, string> { { "foo", "bar" }, { "x", "y" } };
+            var values = map.Values.ToArray(); // Uses CopyTo internally
+            CollectionAssert.AreEquivalent(new[] { "bar", "y" }, values);
         }
 
         [Test]
@@ -523,6 +539,65 @@ namespace Google.Protobuf.Collections
             var map = new MapField<byte, string> { { 10, "foo" } };
             Assert.Throws<ArgumentException>(() => map.ToString());
         }
+
+        [Test]
+        public void NaNValuesComparedBitwise()
+        {
+            var map1 = new MapField<string, double>
+            {
+                { "x", SampleNaNs.Regular },
+                { "y", SampleNaNs.SignallingFlipped }
+            };
+
+            var map2 = new MapField<string, double>
+            {
+                { "x", SampleNaNs.Regular },
+                { "y", SampleNaNs.PayloadFlipped }
+            };
+
+            var map3 = new MapField<string, double>
+            {
+                { "x", SampleNaNs.Regular },
+                { "y", SampleNaNs.SignallingFlipped }
+            };
+
+            EqualityTester.AssertInequality(map1, map2);
+            EqualityTester.AssertEquality(map1, map3);
+            Assert.True(map1.Values.Contains(SampleNaNs.SignallingFlipped));
+            Assert.False(map2.Values.Contains(SampleNaNs.SignallingFlipped));
+        }
+
+        // This wouldn't usually happen, as protos can't use doubles as map keys,
+        // but let's be consistent.
+        [Test]
+        public void NaNKeysComparedBitwise()
+        {
+            var map = new MapField<double, string>
+            {
+                { SampleNaNs.Regular, "x" },
+                { SampleNaNs.SignallingFlipped, "y" }
+            };
+            Assert.AreEqual("x", map[SampleNaNs.Regular]);
+            Assert.AreEqual("y", map[SampleNaNs.SignallingFlipped]);
+            string ignored;
+            Assert.False(map.TryGetValue(SampleNaNs.PayloadFlipped, out ignored));
+        }
+
+#if !NET35
+        [Test]
+        public void IDictionaryKeys_Equals_IReadOnlyDictionaryKeys()
+        {
+            var map = new MapField<string, string> { { "foo", "bar" }, { "x", "y" } };
+            CollectionAssert.AreEquivalent(((IDictionary<string, string>)map).Keys, ((IReadOnlyDictionary<string, string>)map).Keys);
+        }
+
+        [Test]
+        public void IDictionaryValues_Equals_IReadOnlyDictionaryValues()
+        {
+            var map = new MapField<string, string> { { "foo", "bar" }, { "x", "y" } };
+            CollectionAssert.AreEquivalent(((IDictionary<string, string>)map).Values, ((IReadOnlyDictionary<string, string>)map).Values);
+        }
+#endif
 
         private static KeyValuePair<TKey, TValue> NewKeyValuePair<TKey, TValue>(TKey key, TValue value)
         {

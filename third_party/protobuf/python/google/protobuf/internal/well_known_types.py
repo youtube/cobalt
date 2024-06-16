@@ -40,9 +40,17 @@ This files defines well known classes which need extra maintenance including:
 
 __author__ = 'jieluo@google.com (Jie Luo)'
 
+import calendar
 from datetime import datetime
 from datetime import timedelta
 import six
+
+try:
+  # Since python 3
+  import collections.abc as collections_abc
+except ImportError:
+  # Won't work after python 3.8
+  import collections as collections_abc
 
 from google.protobuf.descriptor import FieldDescriptor
 
@@ -53,26 +61,22 @@ _NANOS_PER_MICROSECOND = 1000
 _MILLIS_PER_SECOND = 1000
 _MICROS_PER_SECOND = 1000000
 _SECONDS_PER_DAY = 24 * 3600
-
-
-class Error(Exception):
-  """Top-level module error."""
-
-
-class ParseError(Error):
-  """Thrown in case of parsing error."""
+_DURATION_SECONDS_MAX = 315576000000
 
 
 class Any(object):
   """Class for Any Message type."""
 
-  def Pack(self, msg, type_url_prefix='type.googleapis.com/'):
+  __slots__ = ()
+
+  def Pack(self, msg, type_url_prefix='type.googleapis.com/',
+           deterministic=None):
     """Packs the specified message into current Any message."""
     if len(type_url_prefix) < 1 or type_url_prefix[-1] != '/':
       self.type_url = '%s/%s' % (type_url_prefix, msg.DESCRIPTOR.full_name)
     else:
       self.type_url = '%s%s' % (type_url_prefix, msg.DESCRIPTOR.full_name)
-    self.value = msg.SerializeToString()
+    self.value = msg.SerializeToString(deterministic=deterministic)
 
   def Unpack(self, msg):
     """Unpacks the current Any message into specified message."""
@@ -89,11 +93,16 @@ class Any(object):
 
   def Is(self, descriptor):
     """Checks if this Any represents the given protobuf type."""
-    return self.TypeName() == descriptor.full_name
+    return '/' in self.type_url and self.TypeName() == descriptor.full_name
+
+
+_EPOCH_DATETIME = datetime.utcfromtimestamp(0)
 
 
 class Timestamp(object):
   """Class for Timestamp message type."""
+
+  __slots__ = ()
 
   def ToJsonString(self):
     """Converts Timestamp to RFC 3339 date string format.
@@ -132,7 +141,7 @@ class Timestamp(object):
           Example of accepted format: '1972-01-01T10:00:20.021-05:00'
 
     Raises:
-      ParseError: On parsing problems.
+      ValueError: On parsing problems.
     """
     timezone_offset = value.find('Z')
     if timezone_offset == -1:
@@ -140,7 +149,7 @@ class Timestamp(object):
     if timezone_offset == -1:
       timezone_offset = value.rfind('-')
     if timezone_offset == -1:
-      raise ParseError(
+      raise ValueError(
           'Failed to parse timestamp: missing valid timezone offset.')
     time_value = value[0:timezone_offset]
     # Parse datetime and nanos.
@@ -155,7 +164,7 @@ class Timestamp(object):
     td = date_object - datetime(1970, 1, 1)
     seconds = td.seconds + td.days * _SECONDS_PER_DAY
     if len(nano_value) > 9:
-      raise ParseError(
+      raise ValueError(
           'Failed to parse Timestamp: nanos {0} more than '
           '9 fractional digits.'.format(nano_value))
     if nano_value:
@@ -165,13 +174,13 @@ class Timestamp(object):
     # Parse timezone offsets.
     if value[timezone_offset] == 'Z':
       if len(value) != timezone_offset + 1:
-        raise ParseError('Failed to parse timestamp: invalid trailing'
+        raise ValueError('Failed to parse timestamp: invalid trailing'
                          ' data {0}.'.format(value))
     else:
       timezone = value[timezone_offset:]
       pos = timezone.find(':')
       if pos == -1:
-        raise ParseError(
+        raise ValueError(
             'Invalid timezone offset value: {0}.'.format(timezone))
       if timezone[0] == '+':
         seconds -= (int(timezone[1:pos])*60+int(timezone[pos+1:]))*60
@@ -225,18 +234,27 @@ class Timestamp(object):
 
   def ToDatetime(self):
     """Converts Timestamp to datetime."""
-    return datetime.utcfromtimestamp(
-        self.seconds + self.nanos / float(_NANOS_PER_SECOND))
+    return _EPOCH_DATETIME + timedelta(
+        seconds=self.seconds, microseconds=_RoundTowardZero(
+            self.nanos, _NANOS_PER_MICROSECOND))
 
   def FromDatetime(self, dt):
     """Converts datetime to Timestamp."""
-    td = dt - datetime(1970, 1, 1)
-    self.seconds = td.seconds + td.days * _SECONDS_PER_DAY
-    self.nanos = td.microseconds * _NANOS_PER_MICROSECOND
+    # Using this guide: http://wiki.python.org/moin/WorkingWithTime
+    # And this conversion guide: http://docs.python.org/library/time.html
+
+    # Turn the date parameter into a tuple (struct_time) that can then be
+    # manipulated into a long value of seconds.  During the conversion from
+    # struct_time to long, the source date in UTC, and so it follows that the
+    # correct transformation is calendar.timegm()
+    self.seconds = calendar.timegm(dt.utctimetuple())
+    self.nanos = dt.microsecond * _NANOS_PER_MICROSECOND
 
 
 class Duration(object):
   """Class for Duration message type."""
+
+  __slots__ = ()
 
   def ToJsonString(self):
     """Converts Duration to string format.
@@ -247,6 +265,7 @@ class Duration(object):
       represent the exact Duration value. For example: "1s", "1.010s",
       "1.000000100s", "-3.100s"
     """
+    _CheckDurationValid(self.seconds, self.nanos)
     if self.seconds < 0 or self.nanos < 0:
       result = '-'
       seconds = - self.seconds + int((0 - self.nanos) // 1e9)
@@ -278,25 +297,28 @@ class Duration(object):
           precision. For example: "1s", "1.01s", "1.0000001s", "-3.100s
 
     Raises:
-      ParseError: On parsing problems.
+      ValueError: On parsing problems.
     """
     if len(value) < 1 or value[-1] != 's':
-      raise ParseError(
+      raise ValueError(
           'Duration must end with letter "s": {0}.'.format(value))
     try:
       pos = value.find('.')
       if pos == -1:
-        self.seconds = int(value[:-1])
-        self.nanos = 0
+        seconds = int(value[:-1])
+        nanos = 0
       else:
-        self.seconds = int(value[:pos])
+        seconds = int(value[:pos])
         if value[0] == '-':
-          self.nanos = int(round(float('-0{0}'.format(value[pos: -1])) *1e9))
+          nanos = int(round(float('-0{0}'.format(value[pos: -1])) *1e9))
         else:
-          self.nanos = int(round(float('0{0}'.format(value[pos: -1])) *1e9))
-    except ValueError:
-      raise ParseError(
-          'Couldn\'t parse duration: {0}.'.format(value))
+          nanos = int(round(float('0{0}'.format(value[pos: -1])) *1e9))
+      _CheckDurationValid(seconds, nanos)
+      self.seconds = seconds
+      self.nanos = nanos
+    except ValueError as e:
+      raise ValueError(
+          'Couldn\'t parse duration: {0} : {1}.'.format(value, e))
 
   def ToNanoseconds(self):
     """Converts a Duration to nanoseconds."""
@@ -345,18 +367,32 @@ class Duration(object):
             self.nanos, _NANOS_PER_MICROSECOND))
 
   def FromTimedelta(self, td):
-    """Convertd timedelta to Duration."""
+    """Converts timedelta to Duration."""
     self._NormalizeDuration(td.seconds + td.days * _SECONDS_PER_DAY,
                             td.microseconds * _NANOS_PER_MICROSECOND)
 
   def _NormalizeDuration(self, seconds, nanos):
-    """Set Duration by seconds and nonas."""
+    """Set Duration by seconds and nanos."""
     # Force nanos to be negative if the duration is negative.
     if seconds < 0 and nanos > 0:
       seconds += 1
       nanos -= _NANOS_PER_SECOND
     self.seconds = seconds
     self.nanos = nanos
+
+
+def _CheckDurationValid(seconds, nanos):
+  if seconds < -_DURATION_SECONDS_MAX or seconds > _DURATION_SECONDS_MAX:
+    raise ValueError(
+        'Duration is not valid: Seconds {0} must be in range '
+        '[-315576000000, 315576000000].'.format(seconds))
+  if nanos <= -_NANOS_PER_SECOND or nanos >= _NANOS_PER_SECOND:
+    raise ValueError(
+        'Duration is not valid: Nanos {0} must be in range '
+        '[-999999999, 999999999].'.format(nanos))
+  if (nanos < 0 and seconds > 0) or (nanos > 0 and seconds < 0):
+    raise ValueError(
+        'Duration is not valid: Sign mismatch.')
 
 
 def _RoundTowardZero(value, divider):
@@ -377,15 +413,21 @@ def _RoundTowardZero(value, divider):
 class FieldMask(object):
   """Class for FieldMask message type."""
 
+  __slots__ = ()
+
   def ToJsonString(self):
     """Converts FieldMask to string according to proto3 JSON spec."""
-    return ','.join(self.paths)
+    camelcase_paths = []
+    for path in self.paths:
+      camelcase_paths.append(_SnakeCaseToCamelCase(path))
+    return ','.join(camelcase_paths)
 
   def FromJsonString(self, value):
     """Converts string to FieldMask according to proto3 JSON spec."""
     self.Clear()
-    for path in value.split(','):
-      self.paths.append(path)
+    if value:
+      for path in value.split(','):
+        self.paths.append(_CamelCaseToSnakeCase(path))
 
   def IsValidForDescriptor(self, message_descriptor):
     """Checks whether the FieldMask is valid for Message Descriptor."""
@@ -454,7 +496,7 @@ def _IsValidPath(message_descriptor, path):
   parts = path.split('.')
   last = parts.pop()
   for name in parts:
-    field = message_descriptor.fields_by_name[name]
+    field = message_descriptor.fields_by_name.get(name)
     if (field is None or
         field.label == FieldDescriptor.LABEL_REPEATED or
         field.type != FieldDescriptor.TYPE_MESSAGE):
@@ -472,6 +514,50 @@ def _CheckFieldMaskMessage(message):
         message_descriptor.full_name))
 
 
+def _SnakeCaseToCamelCase(path_name):
+  """Converts a path name from snake_case to camelCase."""
+  result = []
+  after_underscore = False
+  for c in path_name:
+    if c.isupper():
+      raise ValueError(
+          'Fail to print FieldMask to Json string: Path name '
+          '{0} must not contain uppercase letters.'.format(path_name))
+    if after_underscore:
+      if c.islower():
+        result.append(c.upper())
+        after_underscore = False
+      else:
+        raise ValueError(
+            'Fail to print FieldMask to Json string: The '
+            'character after a "_" must be a lowercase letter '
+            'in path name {0}.'.format(path_name))
+    elif c == '_':
+      after_underscore = True
+    else:
+      result += c
+
+  if after_underscore:
+    raise ValueError('Fail to print FieldMask to Json string: Trailing "_" '
+                     'in path name {0}.'.format(path_name))
+  return ''.join(result)
+
+
+def _CamelCaseToSnakeCase(path_name):
+  """Converts a field name from camelCase to snake_case."""
+  result = []
+  for c in path_name:
+    if c == '_':
+      raise ValueError('Fail to parse FieldMask: Path name '
+                       '{0} must not contain "_"s.'.format(path_name))
+    if c.isupper():
+      result += '_'
+      result += c.lower()
+    else:
+      result += c
+  return ''.join(result)
+
+
 class _FieldMaskTree(object):
   """Represents a FieldMask in a tree structure.
 
@@ -484,6 +570,8 @@ class _FieldMaskTree(object):
             +- bar --- baz
   In the tree, each leaf node represents a field path.
   """
+
+  __slots__ = ('_root',)
 
   def __init__(self, field_mask=None):
     """Initializes the tree by FieldMask."""
@@ -586,20 +674,17 @@ def _MergeMessage(
         raise ValueError('Error: Field {0} in message {1} is not a singular '
                          'message field and cannot have sub-fields.'.format(
                              name, source_descriptor.full_name))
-      _MergeMessage(
-          child, getattr(source, name), getattr(destination, name),
-          replace_message, replace_repeated)
+      if source.HasField(name):
+        _MergeMessage(
+            child, getattr(source, name), getattr(destination, name),
+            replace_message, replace_repeated)
       continue
     if field.label == FieldDescriptor.LABEL_REPEATED:
       if replace_repeated:
         destination.ClearField(_StrConvert(name))
       repeated_source = getattr(source, name)
       repeated_destination = getattr(destination, name)
-      if field.cpp_type == FieldDescriptor.CPPTYPE_MESSAGE:
-        for item in repeated_source:
-          repeated_destination.add().MergeFrom(item)
-      else:
-        repeated_destination.extend(repeated_source)
+      repeated_destination.MergeFrom(repeated_source)
     else:
       if field.cpp_type == FieldDescriptor.CPPTYPE_MESSAGE:
         if replace_message:
@@ -612,7 +697,7 @@ def _MergeMessage(
 
 def _AddFieldPaths(node, prefix, field_mask):
   """Adds the field paths descended from node to field_mask."""
-  if not node:
+  if not node and prefix:
     field_mask.paths.append(prefix)
     return
   for name in sorted(node):
@@ -637,6 +722,12 @@ def _SetStructValue(struct_value, value):
     struct_value.string_value = value
   elif isinstance(value, _INT_OR_FLOAT):
     struct_value.number_value = value
+  elif isinstance(value, dict):
+    struct_value.struct_value.Clear()
+    struct_value.struct_value.update(value)
+  elif isinstance(value, list):
+    struct_value.list_value.Clear()
+    struct_value.list_value.extend(value)
   else:
     raise ValueError('Unexpected type')
 
@@ -662,27 +753,60 @@ def _GetStructValue(struct_value):
 class Struct(object):
   """Class for Struct message type."""
 
-  __slots__ = []
+  __slots__ = ()
 
   def __getitem__(self, key):
     return _GetStructValue(self.fields[key])
 
+  def __contains__(self, item):
+    return item in self.fields
+
   def __setitem__(self, key, value):
     _SetStructValue(self.fields[key], value)
 
+  def __delitem__(self, key):
+    del self.fields[key]
+
+  def __len__(self):
+    return len(self.fields)
+
+  def __iter__(self):
+    return iter(self.fields)
+
+  def keys(self):  # pylint: disable=invalid-name
+    return self.fields.keys()
+
+  def values(self):  # pylint: disable=invalid-name
+    return [self[key] for key in self]
+
+  def items(self):  # pylint: disable=invalid-name
+    return [(key, self[key]) for key in self]
+
   def get_or_create_list(self, key):
     """Returns a list for this key, creating if it didn't exist already."""
+    if not self.fields[key].HasField('list_value'):
+      # Clear will mark list_value modified which will indeed create a list.
+      self.fields[key].list_value.Clear()
     return self.fields[key].list_value
 
   def get_or_create_struct(self, key):
     """Returns a struct for this key, creating if it didn't exist already."""
+    if not self.fields[key].HasField('struct_value'):
+      # Clear will mark struct_value modified which will indeed create a struct.
+      self.fields[key].struct_value.Clear()
     return self.fields[key].struct_value
 
-  # TODO(haberman): allow constructing/merging from dict.
+  def update(self, dictionary):  # pylint: disable=invalid-name
+    for key, value in dictionary.items():
+      _SetStructValue(self.fields[key], value)
+
+collections_abc.MutableMapping.register(Struct)
 
 
 class ListValue(object):
   """Class for ListValue message type."""
+
+  __slots__ = ()
 
   def __len__(self):
     return len(self.values)
@@ -701,17 +825,28 @@ class ListValue(object):
   def __setitem__(self, index, value):
     _SetStructValue(self.values.__getitem__(index), value)
 
+  def __delitem__(self, key):
+    del self.values[key]
+
   def items(self):
     for i in range(len(self)):
       yield self[i]
 
   def add_struct(self):
     """Appends and returns a struct value as the next value in the list."""
-    return self.values.add().struct_value
+    struct_value = self.values.add().struct_value
+    # Clear will mark struct_value modified which will indeed create a struct.
+    struct_value.Clear()
+    return struct_value
 
   def add_list(self):
     """Appends and returns a list value as the next value in the list."""
-    return self.values.add().list_value
+    list_value = self.values.add().list_value
+    # Clear will mark list_value modified which will indeed create a list.
+    list_value.Clear()
+    return list_value
+
+collections_abc.MutableSequence.register(ListValue)
 
 
 WKTBASES = {
