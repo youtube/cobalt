@@ -1,4 +1,4 @@
-name: "ply"
+name: "PLY"
 description:
   "PLY is an implementation of lex and yacc parsing tools for Python. It is "
   "a dependency for Cobalt's IDL parser."
@@ -11,7 +11,12 @@ third_party {
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/src.git"
+<<<<<<< HEAD
     version: "84108231f6e6e0772fb9a4643679ce76aa771e67"
+=======
+    version: "1759c6ae9316996b9f150c0ce9d0ca78a3d15c02"
+    closest_version: "3.11"
+>>>>>>> b3a98570eee (Metadata update and cleanup (#3362))
   }
   identifier {
     type: "UpstreamSubdir"

@@ -13,14 +13,15 @@ description:
 
 third_party {
   # url for ffmpeg
-  url {
-    type: GIT
+  identifier {
+    type: "Other"
     value: "https://git.ffmpeg.org/ffmpeg.git"
   }
   # url for libav
-  url {
-    type: GIT
+  identifier {
+    type: "Git"
     value: "git://git.libav.org/libav"
+    version: "unknown"
   }
   # Note: "version" and "last_upgrade_date" for the version contained in each
   # sub-directory is unknown. The version specified in the sub-directory name
