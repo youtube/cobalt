@@ -1,3 +1,5 @@
+name: "absl"
+
 third_party {
   identifier {
     type: "ChromiumVersion"

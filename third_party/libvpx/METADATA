@@ -1,3 +1,5 @@
+name: "libvpx"
+
 third_party {
   identifier {
     type: "ChromiumVersion"
@@ -7,6 +9,7 @@ third_party {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/src.git"
     version: "6a496db5ef7219101beacceca9566367c9cb1a09"
+    closest_version: "1.10.0"
   }
   identifier {
     type: "UpstreamSubdir"
