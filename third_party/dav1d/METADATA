@@ -1,4 +1,4 @@
-name: "ui-gfx"
+name: "dav1d"
 
 third_party {
   identifier {
@@ -12,6 +12,6 @@ third_party {
   }
   identifier {
     type: "UpstreamSubdir"
-    value: "ui/gfx"
+    value: "third_party/dav1d"
   }
 }
