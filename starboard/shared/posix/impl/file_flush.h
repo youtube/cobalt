@@ -36,7 +36,7 @@ bool FileFlush(SbFile file) {
     return false;
   }
 
-  return !HANDLE_EINTR(fsync(file->descriptor));
+  return !HANDLE_EINTR(fdatasync(file->descriptor));
 }
 
 }  // namespace impl
