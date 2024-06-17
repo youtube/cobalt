@@ -4,11 +4,12 @@ description:
   "necessary for the library to be dynamically linked into crosstool builds."
 
 third_party {
-  url {
-    type: GIT
+  identifier {
+    type: "Git"
+    version: "d14c5bb4f336ef1842046089849dee4a301fbbf0"
     value: "https://aomedia.googlesource.com/aom"
+    closest_version: "1.0.0"
   }
-  version: "d14c5bb4f336ef1842046089849dee4a301fbbf0"
   last_upgrade_date {
     year: 2018
     month: 6

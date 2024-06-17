@@ -1,3 +1,5 @@
+name: "chrome_prefs"
+
 third_party {
   identifier {
     type: "ChromiumVersion"

@@ -22,18 +22,18 @@ for release.
   1. Feature work is done in the `master` branch.
 
   2. Once all feature work is completed, a release branch is created. The branch
-     will be named "[[Feature Year](versioning.md#Feature-Year)].[[Purpose](versioning.md#Purpose)].[[Update Number](versioning.md#Update-Number)]+".
+     will be named "[[Major Version](versioning.md#major-version)].[[Purpose](versioning.md#purpose)].[[Minor Version](versioning.md#minor-version)]+".
      Note that while very similar to the structure of the Cobalt
      [version](versioning.md), it features a `+` symbol at the end, indicating
      that the branch may eventually contain multiple release updates,
-     all greater than or equal to the specified update number.  In particular, a
+     all greater than or equal to the specified minor version.  In particular, a
      single branch may host multiple releases/updates. Should another release
-     branch be cut from master with a pre-existing (feature year, purpose)
-     pair, the new branch will have an update number equivalent to the most
-     recently released update number, plus one.  Note that we expect it to be
+     branch be cut from master with a pre-existing (major version, purpose)
+     pair, the new branch will have an minor version equivalent to the most
+     recently released minor version, plus one.  Note that we expect it to be
      rare that we will need a branch other than the `1+` branch.
 
-     An example release branch name is `19.lts.1+`.
+     An example release branch name is `24.lts.1+`.
 
      An RC announcement will be made to
      [cobalt-dev@googlegroups.com][cobalt-dev].
@@ -53,17 +53,17 @@ for release.
   5. Once a commit on the branch is deemed to be feature-complete and stable, it
      will be tagged with the current [version](versioning.md) for that branch,
      and the version will be incremented for all subsequent commits.  A special
-     branch that acts more like a "moving tag" named "[[Feature Year](versioning.md#Feature-Year)].[[Purpose](versioning.md#Purpose)].stable"
+     branch that acts more like a "moving tag" named "[[Major Version](versioning.md#major-version)].[[Purpose](versioning.md#purpose)].stable"
      will be created to point to the newly released version.  Should a
-     subsequent update be made for the given feature year and purpose, the
+     subsequent update be made for the given major version and purpose, the
      `*.stable` branch will be updated to point to the newest update.
 
-     An example stable branch name is `19.lts.stable`.
+     An example stable branch name is `24.lts.stable`.
 
      Some example release tags are:
-      - `19.lts.1`
-      - `19.lts.2`
-      - `20.lts.1`
+      - `24.lts.1`
+      - `24.lts.2`
+      - `25.lts.1`
 
      A release announcement will be made
      to [cobalt-dev@googlegroups.com][cobalt-dev].

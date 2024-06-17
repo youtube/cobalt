@@ -118,7 +118,6 @@ class SurfaceD3D : public SurfaceImpl
 
     HANDLE mShareHandle;
     IUnknown *mD3DTexture;
-
     EGLenum mBuftype;
     bool mBindChroma;
 };

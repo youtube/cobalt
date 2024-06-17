@@ -51,6 +51,7 @@
 #include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
+#include "net/quic/quic_context.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
 #include "starboard/common/murmurhash2.h"
@@ -203,6 +204,11 @@ URLRequestContext::URLRequestContext(
               new ProxyConfigService(proxy_config)),
           net::NetLog::Get(), /*quick_check_enabled=*/true));
 
+  auto quic_context = std::make_unique<net::QuicContext>();
+  quic_context->params()->supported_versions =
+      quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
+  url_request_context_builder->set_quic_context(std::move(quic_context));
+
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   bool quic_enabled =
       configuration::Configuration::GetInstance()->CobaltEnableQuic();
@@ -311,11 +317,17 @@ std::unique_ptr<net::URLRequest> URLRequestContext::CreateRequest(
 void URLRequestContext::SetProxy(const std::string& proxy_rules) {
   net::ProxyConfig proxy_config = CreateCustomProxyConfig(proxy_rules);
   // ProxyService takes ownership of the ProxyConfigService.
-  url_request_context_->set_proxy_resolution_service(
-      net::ConfiguredProxyResolutionService::CreateUsingSystemProxyResolver(
-          std::make_unique<ProxyConfigService>(proxy_config),
-          net::NetLog::Get(),
-          /*quick_check_enabled=*/true));
+  auto proxy_config_service =
+      std::make_unique<ProxyConfigService>(proxy_config);
+  net::ConfiguredProxyResolutionService* proxy_configured_resolution_service =
+      nullptr;
+  bool success = url_request_context_->proxy_resolution_service()
+                     ->CastToConfiguredProxyResolutionService(
+                         &proxy_configured_resolution_service);
+  if (success) {
+    proxy_configured_resolution_service->ResetConfigService(
+        std::move(proxy_config_service));
+  }
 }
 
 void URLRequestContext::SetEnableQuic(bool enable_quic) {

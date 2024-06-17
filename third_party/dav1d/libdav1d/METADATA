@@ -1,3 +1,5 @@
+name: "dav1d-source"
+
 third_party {
   identifier {
     type: "ChromiumVersion"
