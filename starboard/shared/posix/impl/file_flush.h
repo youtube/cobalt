@@ -20,6 +20,7 @@
 #include "starboard/file.h"
 
 #include <unistd.h>
+#include <cstdio>
 
 #include "starboard/shared/posix/handle_eintr.h"
 
@@ -36,6 +37,17 @@ bool FileFlush(SbFile file) {
     return false;
   }
 
+  // Open a file stream by descriptor
+  FILE* stream = fdopen(file->descriptor, "r+");
+  if (stream != NULL) {
+    // Flush only down to kernel buffers level
+    fflush(stream);
+    // Reassign stream to "/dev/null" without closing descriptor
+    freopen(NULL, "r+", stream);
+    return true;
+  }
+
+  // Fall back to old behavior, flushing through storage drivers
   return !HANDLE_EINTR(fdatasync(file->descriptor));
 }
 
