@@ -38,12 +38,12 @@ bool FileFlush(SbFile file) {
   }
 
   // Open a file stream by descriptor
-  FILE* stream = fdopen(file->descriptor, "r+");
+  FILE* stream = fdopen(file->descriptor, "a");
   if (stream != NULL) {
     // Flush only down to kernel buffers level
     fflush(stream);
     // Reassign stream to "/dev/null" without closing descriptor
-    freopen(NULL, "r+", stream);
+    freopen(NULL, "a", stream);
     return true;
   }
 
