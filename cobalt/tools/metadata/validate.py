@@ -20,6 +20,7 @@ import subprocess
 import logging
 from google.protobuf import text_format
 
+import re
 import os
 import sys
 import argparse
@@ -35,24 +36,32 @@ def validate_content(textproto_content,
   metadata = metadata_file_pb2.Metadata()
   text_format.Parse(textproto_content, metadata)
   if not metadata.name:
-    log.warning('%s: `name` field should be present', metadata_file_path)
-  if not metadata.description:
-    log.warning('%s: `description` field should be present', metadata_file_path)
+    raise RuntimeError(f'{metadata_file_path}: `name` field must be present')
   if not metadata.HasField('third_party'):
-    raise RuntimeError('`third_party` field must be present')
+    raise RuntimeError(
+        f'{metadata_file_path}: `third_party` field must be present')
 
   third_party = metadata.third_party
   if not third_party.license_type:
     log.warning('%s: third_party.licence_type is missing', metadata_file_path)
-  if not third_party.version:
-    log.warning('%s: third_party.version field should be present',
-                metadata_file_path)
   if warn_deprecations and len(third_party.url) > 0:
     log.warning('"url" field is deprecated, please use "identifier" instead')
 
   git_id = next((id for id in third_party.identifier if id.type == 'Git'), None)
+  if not git_id:
+    raise RuntimeError(
+        f'{metadata_file_path}: identifier \'Git\' must be present')
+
+  if not git_id.version:
+    raise RuntimeError(
+        f'{metadata_file_path}: third_party.version field for identifier '
+        f'\'Git\' must be present')
+  if not git_id.value:
+    raise RuntimeError(
+        f'{metadata_file_path}: third_party.value field for identifier '
+        f'\'Git\' must be present')
   is_internal = os.path.exists('internal')
-  if git_id and not is_internal:  # Copybara doesn't preserve squash commits
+  if not is_internal:  # Copybara doesn't preserve squash commits
     subtree_dir = os.path.dirname(metadata_file_path).replace(os.sep, '/')
     pattern = f'^git-subtree-dir: {subtree_dir}/*$'
     log_format = '%(trailers:key=git-subtree-split,valueonly)'
@@ -88,6 +97,10 @@ def filter_files(path):
     return False  # Python packaging files
   if os.path.join('skia', 'site') in path:
     return False  # Different upstream files
+  if os.path.join('tools', 'metadata', 'tests') in path:
+    return False  # Our own tests
+  if re.search(r'third_party.*third_party', path):
+    return False  # Transitive dependencies
   return True
 
 

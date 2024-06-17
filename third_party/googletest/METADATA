@@ -1,3 +1,5 @@
+name: "googletest"
+
 third_party {
   identifier {
     type: "ChromiumVersion"
