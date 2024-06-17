@@ -12,6 +12,7 @@
 #include "libANGLE/renderer/gl/glx/DisplayGLX.h"
 #include "libANGLE/renderer/gl/glx/SurfaceGLX.h"
 #include "libANGLE/renderer/gl/glx/platform_glx.h"
+#include "libANGLE/renderer/gl/renderergl_utils.h"
 
 namespace rx
 {
@@ -56,14 +57,18 @@ class WindowSurfaceGLX : public SurfaceGLX
     glx::Drawable getDrawable() const override;
 
     egl::Error getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc) override;
+    egl::Error getMscRate(EGLint *numerator, EGLint *denominator) override;
 
   private:
     bool getWindowDimensions(Window window, unsigned int *width, unsigned int *height) const;
 
     Window mParent;
-    unsigned int mParentWidth, mParentHeight;
     Window mWindow;
     Display *mDisplay;
+
+    bool mUseChildWindow;
+    // Only updated when mUseChildWindow is true
+    unsigned int mParentWidth, mParentHeight;
 
     const FunctionsGLX &mGLX;
     DisplayGLX *mGLXDisplay;

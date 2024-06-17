@@ -8,7 +8,10 @@ config("libXNVCtrl_config") {
   # This will build under most configurations with this warning enabled, but
   # some older system headers are missing a "const" on the third parameter of
   # XextAddDisplay which will cause a failure.
-  cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
+  cflags = [
+    "-Wno-incompatible-pointer-types-discards-qualifiers",
+    "-Wno-deprecated-non-prototype",
+  ]
 }
 
 source_set("libXNVCtrl") {
@@ -19,18 +22,7 @@ source_set("libXNVCtrl") {
     "nv_control.h",
   ]
 
-  configs += [
-    ":libXNVCtrl_config",
-    "//build/config/linux:x11",
-  ]
+  configs += [ ":libXNVCtrl_config" ]
 
-  if (is_starboard) {
-    configs -= [ "//build/config/linux:x11" ]
-    if (is_clang_16) {
-      cflags = [
-        # NVCtrl.c  a function declaration without a prototype
-        "-Wno-deprecated-non-prototype",
-      ]
-    }
-  }
+  libs = [ "xcb" ]
 }

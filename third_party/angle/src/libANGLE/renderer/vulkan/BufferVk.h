@@ -25,7 +25,8 @@ struct ConversionBuffer
     ConversionBuffer(RendererVk *renderer,
                      VkBufferUsageFlags usageFlags,
                      size_t initialSize,
-                     size_t alignment);
+                     size_t alignment,
+                     bool hostVisible);
     ~ConversionBuffer();
 
     ConversionBuffer(ConversionBuffer &&other);
@@ -33,12 +34,27 @@ struct ConversionBuffer
     // One state value determines if we need to re-stream vertex data.
     bool dirty;
 
-    // One additional state value keeps the last allocation offset.
-    VkDeviceSize lastAllocationOffset;
-
-    // The conversion is stored in a dynamic buffer.
-    vk::DynamicBuffer data;
+    // Where the conversion data is stored.
+    std::unique_ptr<vk::BufferHelper> data;
 };
+
+enum class BufferUpdateType
+{
+    StorageRedefined,
+    ContentsUpdate,
+};
+
+struct BufferDataSource
+{
+    // Buffer data can come from two sources:
+    // glBufferData and glBufferSubData upload through a CPU pointer
+    const void *data = nullptr;
+    // glCopyBufferSubData copies data from another buffer
+    vk::BufferHelper *buffer  = nullptr;
+    VkDeviceSize bufferOffset = 0;
+};
+
+VkBufferUsageFlags GetDefaultBufferUsageFlags(RendererVk *renderer);
 
 class BufferVk : public BufferImpl
 {
@@ -47,6 +63,18 @@ class BufferVk : public BufferImpl
     ~BufferVk() override;
     void destroy(const gl::Context *context) override;
 
+    angle::Result setExternalBufferData(const gl::Context *context,
+                                        gl::BufferBinding target,
+                                        GLeglClientBufferEXT clientBuffer,
+                                        size_t size,
+                                        VkMemoryPropertyFlags memoryPropertyFlags);
+    angle::Result setDataWithUsageFlags(const gl::Context *context,
+                                        gl::BufferBinding target,
+                                        GLeglClientBufferEXT clientBuffer,
+                                        const void *data,
+                                        size_t size,
+                                        gl::BufferUsage usage,
+                                        GLbitfield flags) override;
     angle::Result setData(const gl::Context *context,
                           gl::BufferBinding target,
                           const void *data,
@@ -69,6 +97,10 @@ class BufferVk : public BufferImpl
                            GLbitfield access,
                            void **mapPtr) override;
     angle::Result unmap(const gl::Context *context, GLboolean *result) override;
+    angle::Result getSubData(const gl::Context *context,
+                             GLintptr offset,
+                             GLsizeiptr size,
+                             void *outData) override;
 
     angle::Result getIndexRange(const gl::Context *context,
                                 gl::DrawElementsType type,
@@ -81,51 +113,101 @@ class BufferVk : public BufferImpl
 
     void onDataChanged() override;
 
-    const vk::BufferHelper &getBuffer() const
-    {
-        ASSERT(mBuffer.valid());
-        return mBuffer;
-    }
-
     vk::BufferHelper &getBuffer()
     {
-        ASSERT(mBuffer.valid());
+        ASSERT(isBufferValid());
         return mBuffer;
     }
 
-    angle::Result mapImpl(ContextVk *contextVk, void **mapPtr);
+    bool isBufferValid() const { return mBuffer.valid(); }
+    bool isCurrentlyInUse(RendererVk *renderer) const;
+
+    angle::Result mapImpl(ContextVk *contextVk, GLbitfield access, void **mapPtr);
     angle::Result mapRangeImpl(ContextVk *contextVk,
                                VkDeviceSize offset,
                                VkDeviceSize length,
                                GLbitfield access,
                                void **mapPtr);
-    void unmapImpl(ContextVk *contextVk);
-
-    // Calls copyBuffer internally.
-    angle::Result copyToBuffer(ContextVk *contextVk,
-                               vk::BufferHelper *destBuffer,
-                               uint32_t copyCount,
-                               const VkBufferCopy *copies);
+    angle::Result unmapImpl(ContextVk *contextVk);
+    angle::Result ghostMappedBuffer(ContextVk *contextVk,
+                                    VkDeviceSize offset,
+                                    VkDeviceSize length,
+                                    GLbitfield access,
+                                    void **mapPtr);
 
     ConversionBuffer *getVertexConversionBuffer(RendererVk *renderer,
                                                 angle::FormatID formatID,
                                                 GLuint stride,
-                                                size_t offset);
+                                                size_t offset,
+                                                bool hostVisible);
 
   private:
+    angle::Result updateBuffer(ContextVk *contextVk,
+                               size_t bufferSize,
+                               const BufferDataSource &dataSource,
+                               size_t size,
+                               size_t offset);
+    angle::Result directUpdate(ContextVk *contextVk,
+                               const BufferDataSource &dataSource,
+                               size_t size,
+                               size_t offset);
+    angle::Result stagedUpdate(ContextVk *contextVk,
+                               const BufferDataSource &dataSource,
+                               size_t size,
+                               size_t offset);
+    angle::Result allocStagingBuffer(ContextVk *contextVk,
+                                     vk::MemoryCoherency coherency,
+                                     VkDeviceSize size,
+                                     uint8_t **mapPtr);
+    angle::Result flushStagingBuffer(ContextVk *contextVk, VkDeviceSize offset, VkDeviceSize size);
+    angle::Result acquireAndUpdate(ContextVk *contextVk,
+                                   size_t bufferSize,
+                                   const BufferDataSource &dataSource,
+                                   size_t updateSize,
+                                   size_t updateOffset,
+                                   BufferUpdateType updateType);
+    angle::Result setDataWithMemoryType(const gl::Context *context,
+                                        gl::BufferBinding target,
+                                        const void *data,
+                                        size_t size,
+                                        VkMemoryPropertyFlags memoryPropertyFlags,
+                                        gl::BufferUsage usage);
+    angle::Result handleDeviceLocalBufferMap(ContextVk *contextVk,
+                                             VkDeviceSize offset,
+                                             VkDeviceSize size,
+                                             uint8_t **mapPtr);
     angle::Result setDataImpl(ContextVk *contextVk,
-                              const uint8_t *data,
-                              size_t size,
-                              size_t offset);
+                              size_t bufferSize,
+                              const BufferDataSource &dataSource,
+                              size_t updateSize,
+                              size_t updateOffset,
+                              BufferUpdateType updateType);
     void release(ContextVk *context);
-    void markConversionBuffersDirty();
+    void dataUpdated();
+
+    angle::Result acquireBufferHelper(ContextVk *contextVk,
+                                      size_t sizeInBytes,
+                                      BufferUsageType usageType);
+
+    bool isExternalBuffer() const { return mClientBuffer != nullptr; }
+    BufferUpdateType calculateBufferUpdateTypeOnFullUpdate(
+        RendererVk *renderer,
+        size_t size,
+        VkMemoryPropertyFlags memoryPropertyFlags,
+        BufferUsageType usageType,
+        const void *data) const;
+    bool shouldRedefineStorage(RendererVk *renderer,
+                               BufferUsageType usageType,
+                               VkMemoryPropertyFlags memoryPropertyFlags,
+                               size_t size) const;
 
     struct VertexConversionBuffer : public ConversionBuffer
     {
         VertexConversionBuffer(RendererVk *renderer,
                                angle::FormatID formatIDIn,
                                GLuint strideIn,
-                               size_t offsetIn);
+                               size_t offsetIn,
+                               bool hostVisible);
         ~VertexConversionBuffer();
 
         VertexConversionBuffer(VertexConversionBuffer &&other);
@@ -138,8 +220,37 @@ class BufferVk : public BufferImpl
 
     vk::BufferHelper mBuffer;
 
+    // If not null, this is the external memory pointer passed from client API.
+    void *mClientBuffer;
+
+    uint32_t mMemoryTypeIndex;
+    // Memory/Usage property that will be used for memory allocation.
+    VkMemoryPropertyFlags mMemoryPropertyFlags;
+
+    // The staging buffer to aid map operations. This is used when buffers are not host visible or
+    // for performance optimization when only a smaller range of buffer is mapped.
+    vk::BufferHelper mStagingBuffer;
+
     // A cache of converted vertex data.
     std::vector<VertexConversionBuffer> mVertexConversionBuffers;
+
+    // Tracks whether mStagingBuffer has been mapped to user or not
+    bool mIsStagingBufferMapped;
+
+    // Tracks if BufferVk object has valid data or not.
+    bool mHasValidData;
+
+    // True if the buffer is currently mapped for CPU write access. If the map call is originated
+    // from OpenGLES API call, then this should be consistent with mState.getAccessFlags() bits.
+    // Otherwise it is mapped from ANGLE internal and will not be consistent with mState access
+    // bits, so we have to keep record of it.
+    bool mIsMappedForWrite;
+    // True if usage is dynamic. May affect how we allocate memory.
+    BufferUsageType mUsageType;
+    // Similar as mIsMappedForWrite, this maybe different from mState's getMapOffset/getMapLength if
+    // mapped from angle internal.
+    VkDeviceSize mMappedOffset;
+    VkDeviceSize mMappedLength;
 };
 
 }  // namespace rx

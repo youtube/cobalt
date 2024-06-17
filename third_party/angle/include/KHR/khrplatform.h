@@ -90,14 +90,26 @@
  *                                  int arg2) KHRONOS_APIATTRIBUTES;
  */
 
+#if defined(__SCITECH_SNAP__) && !defined(KHRONOS_STATIC)
+#   define KHRONOS_STATIC 1
+#endif
+
 /*-------------------------------------------------------------------------
  * Definition of KHRONOS_APICALL
  *-------------------------------------------------------------------------
  * This precedes the return type of the function in the function prototype.
  */
+<<<<<<< HEAD
 #if defined(STARBOARD)
 #   define KHRONOS_APICALL /* nothing */
 #elif defined(_WIN32) && !defined(__SCITECH_SNAP__)
+=======
+#if defined(KHRONOS_STATIC)
+    /* If the preprocessor constant KHRONOS_STATIC is defined, make the
+     * header compatible with static linking. */
+#   define KHRONOS_APICALL
+#elif defined(_WIN32)
+>>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
 #   define KHRONOS_APICALL __declspec(dllimport)
 #elif defined (__SYMBIAN32__)
 #   define KHRONOS_APICALL IMPORT_C

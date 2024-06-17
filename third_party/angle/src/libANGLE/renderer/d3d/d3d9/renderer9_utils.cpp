@@ -16,8 +16,8 @@
 #include "libANGLE/renderer/d3d/d3d9/RenderTarget9.h"
 #include "libANGLE/renderer/d3d/d3d9/formatutils9.h"
 #include "libANGLE/renderer/driver_utils.h"
-#include "platform/FeaturesD3D.h"
-#include "platform/Platform.h"
+#include "platform/FeaturesD3D_autogen.h"
+#include "platform/PlatformMethods.h"
 
 #include "third_party/systeminfo/SystemInfo.h"
 
@@ -201,14 +201,17 @@ D3DTEXTUREADDRESS ConvertTextureWrap(GLenum wrap)
         case GL_REPEAT:
             d3dWrap = D3DTADDRESS_WRAP;
             break;
+        case GL_MIRRORED_REPEAT:
+            d3dWrap = D3DTADDRESS_MIRROR;
+            break;
         case GL_CLAMP_TO_EDGE:
             d3dWrap = D3DTADDRESS_CLAMP;
             break;
         case GL_CLAMP_TO_BORDER:
             d3dWrap = D3DTADDRESS_BORDER;
             break;
-        case GL_MIRRORED_REPEAT:
-            d3dWrap = D3DTADDRESS_MIRROR;
+        case GL_MIRROR_CLAMP_TO_EDGE_EXT:
+            d3dWrap = D3DTADDRESS_MIRRORONCE;
             break;
         default:
             UNREACHABLE();
@@ -398,7 +401,7 @@ unsigned int GetReservedVertexUniformVectors()
 
 unsigned int GetReservedFragmentUniformVectors()
 {
-    return 3;  // dx_ViewCoords, dx_DepthFront and dx_DepthRange.
+    return 4;  // dx_ViewCoords, dx_DepthFront, dx_DepthRange, dx_FragCoordoffset.
 }
 
 GLsizei GetSamplesCount(D3DMULTISAMPLE_TYPE type)
@@ -438,6 +441,16 @@ static gl::TextureCaps GenerateTextureFormatCaps(GLenum internalFormat,
                                                   D3DRTYPE_TEXTURE, d3dFormatInfo.texFormat)) &&
                 SUCCEEDED(d3d9->CheckDeviceFormat(adapter, deviceType, adapterFormat, 0,
                                                   D3DRTYPE_CUBETEXTURE, d3dFormatInfo.texFormat));
+            if (textureCaps.texturable && (formatInfo.colorEncoding == GL_SRGB))
+            {
+                textureCaps.texturable =
+                    SUCCEEDED(d3d9->CheckDeviceFormat(adapter, deviceType, adapterFormat,
+                                                      D3DUSAGE_QUERY_SRGBREAD, D3DRTYPE_TEXTURE,
+                                                      d3dFormatInfo.texFormat)) &&
+                    SUCCEEDED(d3d9->CheckDeviceFormat(adapter, deviceType, adapterFormat,
+                                                      D3DUSAGE_QUERY_SRGBREAD, D3DRTYPE_CUBETEXTURE,
+                                                      d3dFormatInfo.texFormat));
+            }
         }
 
         textureCaps.filterable = SUCCEEDED(
@@ -450,6 +463,12 @@ static gl::TextureCaps GenerateTextureFormatCaps(GLenum internalFormat,
         textureCaps.textureAttachment = SUCCEEDED(
             d3d9->CheckDeviceFormat(adapter, deviceType, adapterFormat, D3DUSAGE_RENDERTARGET,
                                     D3DRTYPE_TEXTURE, d3dFormatInfo.renderFormat));
+        if (textureCaps.textureAttachment && (formatInfo.colorEncoding == GL_SRGB))
+        {
+            textureCaps.textureAttachment = SUCCEEDED(d3d9->CheckDeviceFormat(
+                adapter, deviceType, adapterFormat, D3DUSAGE_QUERY_SRGBWRITE, D3DRTYPE_TEXTURE,
+                d3dFormatInfo.renderFormat));
+        }
 
         if ((formatInfo.depthBits > 0 || formatInfo.stencilBits > 0) &&
             !textureCaps.textureAttachment)
@@ -459,6 +478,7 @@ static gl::TextureCaps GenerateTextureFormatCaps(GLenum internalFormat,
                                         D3DRTYPE_TEXTURE, d3dFormatInfo.renderFormat));
         }
         textureCaps.renderbuffer = textureCaps.textureAttachment;
+        textureCaps.blendable    = textureCaps.renderbuffer;
 
         textureCaps.sampleCounts.insert(1);
         for (unsigned int i = D3DMULTISAMPLE_2_SAMPLES; i <= D3DMULTISAMPLE_16_SAMPLES; i++)
@@ -504,11 +524,6 @@ void GenerateCaps(IDirect3D9 *d3d9,
         textureCapsMap->insert(internalFormat, textureCaps);
 
         maxSamples = std::max(maxSamples, textureCaps.getMaxSamples());
-
-        if (gl::GetSizedInternalFormatInfo(internalFormat).compressed)
-        {
-            caps->compressedTextureFormats.push_back(internalFormat);
-        }
     }
 
     // GL core feature limits
@@ -650,29 +665,33 @@ void GenerateCaps(IDirect3D9 *d3d9,
 
     // GL extension support
     extensions->setTextureExtensionSupport(*textureCapsMap);
-    extensions->elementIndexUint  = deviceCaps.MaxVertexIndex >= (1 << 16);
-    extensions->getProgramBinary  = true;
-    extensions->rgb8rgba8         = true;
-    extensions->readFormatBGRA    = true;
-    extensions->pixelBufferObject = false;
-    extensions->mapBuffer         = false;
-    extensions->mapBufferRange    = false;
+    extensions->elementIndexUintOES = deviceCaps.MaxVertexIndex >= (1 << 16);
+    extensions->getProgramBinaryOES = true;
+    extensions->rgb8Rgba8OES        = true;
+    extensions->readFormatBgraEXT   = true;
+    extensions->pixelBufferObjectNV = false;
+    extensions->mapbufferOES        = false;
+    extensions->mapBufferRangeEXT   = false;
 
     // D3D does not allow depth textures to have more than one mipmap level OES_depth_texture
     // allows for that so we can't implement full support with the D3D9 back end.
     extensions->depthTextureOES = false;
 
-    // textureRG is emulated and not performant.
-    extensions->textureRG = false;
+    // textureRgEXT is emulated and not performant.
+    extensions->textureRgEXT = false;
+
+    // GL_KHR_parallel_shader_compile
+    extensions->parallelShaderCompileKHR = true;
 
     D3DADAPTER_IDENTIFIER9 adapterId = {};
     if (SUCCEEDED(d3d9->GetAdapterIdentifier(adapter, 0, &adapterId)))
     {
         // ATI cards on XP have problems with non-power-of-two textures.
-        extensions->textureNPOT = !(deviceCaps.TextureCaps & D3DPTEXTURECAPS_POW2) &&
-                                  !(deviceCaps.TextureCaps & D3DPTEXTURECAPS_CUBEMAP_POW2) &&
-                                  !(deviceCaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL) &&
-                                  !(!isWindowsVistaOrGreater() && IsAMD(adapterId.VendorId));
+        extensions->textureNpotOES =
+            !(deviceCaps.TextureCaps & D3DPTEXTURECAPS_POW2) &&
+            !(deviceCaps.TextureCaps & D3DPTEXTURECAPS_CUBEMAP_POW2) &&
+            !(deviceCaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL) &&
+            !(!isWindowsVistaOrGreater() && IsAMD(adapterId.VendorId));
 
         // Disable depth texture support on AMD cards (See ANGLE issue 839)
         if (IsAMD(adapterId.VendorId))
@@ -683,68 +702,71 @@ void GenerateCaps(IDirect3D9 *d3d9,
     }
     else
     {
-        extensions->textureNPOT = false;
+        extensions->textureNpotOES = false;
     }
 
-    extensions->drawBuffers    = false;
-    extensions->textureStorage = true;
+    extensions->drawBuffersEXT    = false;
+    extensions->textureStorageEXT = true;
 
     // Must support a minimum of 2:1 anisotropy for max anisotropy to be considered supported, per
     // the spec
-    extensions->textureFilterAnisotropic =
+    extensions->textureFilterAnisotropicEXT =
         (deviceCaps.RasterCaps & D3DPRASTERCAPS_ANISOTROPY) != 0 && deviceCaps.MaxAnisotropy >= 2;
-    extensions->maxTextureAnisotropy = static_cast<GLfloat>(deviceCaps.MaxAnisotropy);
+    caps->maxTextureAnisotropy = static_cast<GLfloat>(deviceCaps.MaxAnisotropy);
 
     // Check occlusion query support by trying to create one
     IDirect3DQuery9 *occlusionQuery = nullptr;
-    extensions->occlusionQueryBoolean =
+    extensions->occlusionQueryBooleanEXT =
         SUCCEEDED(device->CreateQuery(D3DQUERYTYPE_OCCLUSION, &occlusionQuery)) && occlusionQuery;
     SafeRelease(occlusionQuery);
 
     // Check event query support by trying to create one
     IDirect3DQuery9 *eventQuery = nullptr;
-    extensions->fence =
+    extensions->fenceNV =
         SUCCEEDED(device->CreateQuery(D3DQUERYTYPE_EVENT, &eventQuery)) && eventQuery;
     SafeRelease(eventQuery);
 
-    extensions->disjointTimerQuery = false;
-    extensions->robustness         = true;
+    extensions->disjointTimerQueryEXT = false;
+    extensions->robustnessEXT         = true;
     // It seems that only DirectX 10 and higher enforce the well-defined behavior of always
     // returning zero values when out-of-bounds reads. See
     // https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_robustness.txt
-    extensions->robustBufferAccessBehavior = false;
-    extensions->blendMinMax                = true;
+    extensions->robustBufferAccessBehaviorKHR = false;
+    extensions->blendMinmaxEXT                = true;
     // Although according to
     // https://docs.microsoft.com/en-us/windows/desktop/direct3ddxgi/format-support-for-direct3d-feature-level-9-1-hardware
     // D3D9 doesn't have full blending capability for RGBA32F. But turns out it could provide
     // correct blending result in reality. As a result of some regression reports by client app, we
-    // decided to turn floatBlend on for D3D9
-    extensions->floatBlend             = true;
-    extensions->framebufferBlit        = true;
-    extensions->framebufferMultisample = true;
-    extensions->instancedArraysANGLE   = deviceCaps.PixelShaderVersion >= D3DPS_VERSION(3, 0);
+    // decided to turn floatBlendEXT on for D3D9
+    extensions->floatBlendEXT               = true;
+    extensions->framebufferBlitANGLE        = true;
+    extensions->framebufferMultisampleANGLE = true;
+    extensions->instancedArraysANGLE        = deviceCaps.PixelShaderVersion >= D3DPS_VERSION(3, 0);
     // D3D9 requires at least one attribute that has a divisor of 0, which isn't required by the EXT
     // extension
-    extensions->instancedArraysEXT  = false;
-    extensions->packReverseRowOrder = true;
-    extensions->standardDerivatives =
+    extensions->instancedArraysEXT       = false;
+    extensions->packReverseRowOrderANGLE = true;
+    extensions->standardDerivativesOES =
         (deviceCaps.PS20Caps.Caps & D3DPS20CAPS_GRADIENTINSTRUCTIONS) != 0;
-    extensions->shaderTextureLOD       = true;
-    extensions->fragDepth              = true;
-    extensions->textureUsage           = true;
-    extensions->translatedShaderSource = true;
-    extensions->fboRenderMipmap        = false;
-    extensions->discardFramebuffer     = false;  // It would be valid to set this to true, since
-                                                 // glDiscardFramebufferEXT is just a hint
-    extensions->colorBufferFloat   = false;
-    extensions->debugMarker        = true;
-    extensions->eglImage           = true;
-    extensions->eglImageExternal   = true;
-    extensions->unpackSubimage     = true;
-    extensions->packSubimage       = true;
-    extensions->syncQuery          = extensions->fence;
-    extensions->copyTexture        = true;
-    extensions->textureBorderClamp = true;
+    extensions->shaderTextureLodEXT         = true;
+    extensions->fragDepthEXT                = true;
+    extensions->textureUsageANGLE           = true;
+    extensions->translatedShaderSourceANGLE = true;
+    extensions->fboRenderMipmapOES          = true;
+    extensions->textureMirrorClampToEdgeEXT = true;
+    extensions->discardFramebufferEXT = false;  // It would be valid to set this to true, since
+                                                // glDiscardFramebufferEXT is just a hint
+    extensions->colorBufferFloatEXT   = false;
+    extensions->debugMarkerEXT        = true;
+    extensions->EGLImageOES           = true;
+    extensions->EGLImageExternalOES   = true;
+    extensions->unpackSubimageEXT     = true;
+    extensions->packSubimageNV        = true;
+    extensions->syncQueryCHROMIUM     = extensions->fenceNV;
+    extensions->copyTextureCHROMIUM   = true;
+    extensions->textureBorderClampEXT = true;
+    extensions->textureBorderClampOES = true;
+    extensions->videoTextureWEBGL     = true;
 
     // D3D9 has no concept of separate masks and refs for front and back faces in the depth stencil
     // state.
@@ -758,12 +780,18 @@ void GenerateCaps(IDirect3D9 *d3d9,
     // D3D9 cannot support constant color and alpha blend funcs together
     limitations->noSimultaneousConstantColorAndAlphaBlendFunc = true;
 
+    // D3D9 cannot support unclamped constant blend color
+    limitations->noUnclampedBlendColor = true;
+
     // D3D9 cannot support packing more than one variable to a single varying.
     // TODO(jmadill): Implement more sophisticated component packing in D3D9.
     limitations->noFlexibleVaryingPacking = true;
 
     // D3D9 does not support vertex attribute aliasing
     limitations->noVertexAttributeAliasing = true;
+
+    // D3D9 does not support compressed textures where the base mip level is not a multiple of 4
+    limitations->compressedBaseMipLevelMultipleOfFour = true;
 }
 
 }  // namespace d3d9_gl
@@ -803,7 +831,7 @@ void MakeValidSize(bool isImage,
     *levelOffset = upsampleCount;
 }
 
-void InitializeFeatures(angle::FeaturesD3D *features)
+void InitializeFeatures(angle::FeaturesD3D *features, DWORD vendorID)
 {
     ANGLE_FEATURE_CONDITION(features, mrtPerfWorkaround, true);
     ANGLE_FEATURE_CONDITION(features, setDataFasterThanImageUpload, false);
@@ -815,9 +843,7 @@ void InitializeFeatures(angle::FeaturesD3D *features)
     // crbug.com/1011627 Turn this on for D3D9.
     ANGLE_FEATURE_CONDITION(features, allowClearForRobustResourceInit, true);
 
-    // Call platform hooks for testing overrides.
-    auto *platform = ANGLEPlatformCurrent();
-    platform->overrideWorkaroundsD3D(platform, features);
+    ANGLE_FEATURE_CONDITION(features, borderColorSrgb, IsNvidia(vendorID));
 }
 
 }  // namespace d3d9

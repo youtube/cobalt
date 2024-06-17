@@ -9,6 +9,7 @@
 #include "libANGLE/renderer/ShaderImpl.h"
 
 #include "libANGLE/Context.h"
+#include "libANGLE/trace.h"
 
 namespace rx
 {
@@ -40,12 +41,13 @@ const std::string &WaitableCompileEvent::getInfoLog()
 class TranslateTask : public angle::Closure
 {
   public:
-    TranslateTask(ShHandle handle, ShCompileOptions options, const std::string &source)
+    TranslateTask(ShHandle handle, const ShCompileOptions &options, const std::string &source)
         : mHandle(handle), mOptions(options), mSource(source), mResult(false)
     {}
 
     void operator()() override
     {
+        ANGLE_TRACE_EVENT1("gpu.angle", "TranslateTask::run", "source", mSource);
         const char *source = mSource.c_str();
         mResult            = sh::Compile(mHandle, &source, 1, mOptions);
     }
@@ -81,18 +83,23 @@ std::shared_ptr<WaitableCompileEvent> ShaderImpl::compileImpl(
     const gl::Context *context,
     gl::ShCompilerInstance *compilerInstance,
     const std::string &source,
-    ShCompileOptions compileOptions)
+    ShCompileOptions *compileOptions)
 {
 #if defined(ANGLE_ENABLE_ASSERTS)
-    compileOptions |= SH_VALIDATE_AST;
+    compileOptions->validateAST = true;
 #endif
 
-    auto workerThreadPool = context->getWorkerThreadPool();
+    auto workerThreadPool = context->getShaderCompileThreadPool();
     auto translateTask =
-        std::make_shared<TranslateTask>(compilerInstance->getHandle(), compileOptions, source);
+        std::make_shared<TranslateTask>(compilerInstance->getHandle(), *compileOptions, source);
 
     return std::make_shared<WaitableCompileEventImpl>(
-        angle::WorkerThreadPool::PostWorkerTask(workerThreadPool, translateTask), translateTask);
+        workerThreadPool->postWorkerTask(translateTask), translateTask);
+}
+
+angle::Result ShaderImpl::onLabelUpdate(const gl::Context *context)
+{
+    return angle::Result::Continue;
 }
 
 }  // namespace rx

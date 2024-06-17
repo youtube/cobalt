@@ -43,6 +43,7 @@ class SwapChainPanelNativeWindow : public InspectableNativeWindow,
     ComPtr<IDXGISwapChain1> mSwapChain;
 };
 
+<<<<<<< HEAD
 // clang format would break the uuid below
 // clang-format off
 #if defined(STARBOARD)
@@ -50,12 +51,13 @@ class SwapChainPanelSizeChangedHandler
 #else
 [uuid(8ACBD974-8187-4508-AD80-AEC77F93CF36)] class SwapChainPanelSizeChangedHandler
 #endif
+=======
+__declspec(uuid("8ACBD974-8187-4508-AD80-AEC77F93CF36")) class SwapChainPanelSizeChangedHandler
+>>>>>>> 14fc56d09e6b0be117cc05de0d4dbb5a503e54c6
     : public Microsoft::WRL::RuntimeClass<
           Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
           ABI::Windows::UI::Xaml::ISizeChangedEventHandler>
 {
-    // clang-format on
-
   public:
     SwapChainPanelSizeChangedHandler() {}
     HRESULT RuntimeClassInitialize(std::shared_ptr<InspectableNativeWindow> host)
@@ -100,5 +102,5 @@ HRESULT GetSwapChainPanelSize(
     const ComPtr<ABI::Windows::UI::Xaml::Controls::ISwapChainPanel> &swapChainPanel,
     const ComPtr<ABI::Windows::UI::Core::ICoreDispatcher> &dispatcher,
     Size *windowSize);
-}
+}  // namespace rx
 #endif  // LIBANGLE_RENDERER_D3D_D3D11_WINRT_SWAPCHAINPANELNATIVEWINDOW_H_
