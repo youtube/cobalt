@@ -119,7 +119,7 @@ bool SameThreadMediaSourceAttachment::GetElementError() {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(attached_element_);
 
-  return !!attached_element_->error();
+  return static_cast<bool>(attached_element_->error());
 }
 
 scoped_refptr<AudioTrackList>
