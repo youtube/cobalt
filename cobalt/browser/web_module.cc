@@ -1131,6 +1131,7 @@ void WebModule::Impl::Conceal(render_tree::ResourceProvider* resource_provider,
   // Purge the cached resources prior to the freeze. That may cancel pending
   // loads, allowing the freeze to occur faster and preventing unnecessary
   // callbacks.
+  loader_factory_->Conceal();
   window_->document()->PurgeCachedResources();
 
   // Clear out any currently tracked animating images.
