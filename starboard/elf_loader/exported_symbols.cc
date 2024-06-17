@@ -99,9 +99,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);
-#if SB_API_VERSION >= 14
   REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
-#endif  // SB_API_VERSION >= 14
   REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMaxThreads);
@@ -119,6 +117,7 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
 #if SB_API_VERSION >= 16
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
+  REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
 #endif
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
@@ -207,7 +206,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
   REGISTER_SYMBOL(SbMediaGetBufferPadding);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetBufferStorageType);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetMaxBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
@@ -345,9 +346,6 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
-#if SB_API_VERSION < 14
-  REGISTER_SYMBOL(SbSystemGetConnectionType);
-#endif
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbSystemGetDeviceType);
 #endif

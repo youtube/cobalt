@@ -121,14 +121,19 @@ int pthread_cond_signal(pthread_cond_t* cond) {
 int pthread_cond_timedwait(pthread_cond_t* cond,
                            pthread_mutex_t* mutex,
                            const struct timespec* t) {
+  // take the current time as soon as possible to
+  // try to improve the accuracy of the timeout duration.
+  int64_t now_ms = starboard::CurrentPosixTime() / 1000;
+
   if (!cond || !mutex) {
     return -1;
   }
 
-  int64_t now_ms = starboard::CurrentPosixTime() / 1000;
-
   int64_t timeout_duration_ms = t->tv_sec * 1000 + t->tv_nsec / 1000000;
   timeout_duration_ms -= now_ms;
+  if (timeout_duration_ms < 0) {
+    timeout_duration_ms = 0;
+  }
 
   bool result = SleepConditionVariableSRW(
       reinterpret_cast<PCONDITION_VARIABLE>(cond->buffer),

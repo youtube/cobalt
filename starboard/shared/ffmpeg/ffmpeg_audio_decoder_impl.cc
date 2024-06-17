@@ -60,7 +60,6 @@ AVCodecID GetFfmpegCodecIdByMediaCodec(
       return AV_CODEC_ID_OPUS;
     case kSbMediaAudioCodecVorbis:
       return AV_CODEC_ID_VORBIS;
-#if SB_API_VERSION >= 14
     case kSbMediaAudioCodecMp3:
       return AV_CODEC_ID_MP3;
     case kSbMediaAudioCodecPcm:
@@ -81,7 +80,6 @@ AVCodecID GetFfmpegCodecIdByMediaCodec(
                       << " bits per sample was requested)";
         return AV_CODEC_ID_NONE;
       }
-#endif  // SB_API_VERSION >= 14
     default:
       return AV_CODEC_ID_NONE;
   }
@@ -358,13 +356,10 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
   codec_context_->codec_id = GetFfmpegCodecIdByMediaCodec(audio_stream_info_);
   // Request_sample_fmt is set by us, but sample_fmt is set by the decoder.
   if (GetSupportedSampleType() == kSbMediaAudioSampleTypeInt16Deprecated
-#if SB_API_VERSION >= 14
       // If we request FLT for 16-bit FLAC, FFmpeg will pick S32 as the closest
       // option. Since the rest of this pipeline doesn't support S32, we should
       // use S16 as the desired format.
-      || audio_stream_info_.codec == kSbMediaAudioCodecFlac
-#endif  // SB_API_VERSION >= 14
-  ) {
+      || audio_stream_info_.codec == kSbMediaAudioCodecFlac) {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
   } else {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;

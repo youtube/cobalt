@@ -389,7 +389,7 @@ component("zlib_hidden") {
   } else {
     sources += [
       "arm_stub.c",
-      # "inflate.c",
+      "inflate.c",
     ]
   }
 
@@ -541,8 +541,8 @@ target(gtest_target_type, "zip_unittests") {
   testonly = true
 
   sources = [
-    # "google/compression_utils_unittest.cc",
-    # "google/zip_reader_unittest.cc",
+    "google/compression_utils_unittest.cc",
+    "google/zip_reader_unittest.cc",
     "google/zip_unittest.cc",
     "google/compression_utils.cc",
     "google/compression_utils.h",

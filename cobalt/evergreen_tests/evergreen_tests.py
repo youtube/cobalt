@@ -95,8 +95,8 @@ def _RunTests(arg_parser, args, use_compressed_system_image):
     command.append('-a')
     command.append('password')
 
-  if use_compressed_system_image:
-    command.append('-c')
+  if not use_compressed_system_image:
+    command.append('-u')
 
   command.append(args.loader_platform)
 
@@ -120,22 +120,22 @@ def main():
       help='Password authentication should be used with the remote device.',
       action='store_true')
   arg_parser.add_argument(
-      '--no-rerun_using_compressed_system_image',
-      dest='rerun_using_compressed_system_image',
+      '--no-rerun_using_uncompressed_system_image',
+      dest='rerun_using_uncompressed_system_image',
       action='store_false',
-      help='Do not run a second instance of the tests with a compressed system '
-      'image.')
+      help='Do not run a second instance of the tests with an uncompressed '
+      'system image.')
   command_line.AddLauncherArguments(arg_parser)
   args = arg_parser.parse_args()
 
   log_level.InitializeLogging(args)
 
-  uncompressed_system_image_result = _RunTests(arg_parser, args, False)
-  if args.rerun_using_compressed_system_image:
-    compressed_system_image_result = _RunTests(arg_parser, args, True)
+  compressed_system_image_result = _RunTests(arg_parser, args, True)
+  if args.rerun_using_uncompressed_system_image:
+    uncompressed_system_image_result = _RunTests(arg_parser, args, False)
     return uncompressed_system_image_result or compressed_system_image_result
 
-  return uncompressed_system_image_result
+  return compressed_system_image_result
 
 
 if __name__ == '__main__':

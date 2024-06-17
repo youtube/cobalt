@@ -16,19 +16,20 @@
 
 // The Cobalt version string.  Its components are:
 //
-// <feature year>.<purpose>.<update number>
+// <major version>.<purpose>.<minor version>
 //
 // where,
 //
-//   feature year:  Cobalt features are tied to a yearly release cycle and this
-//                  number indicates the yearly feature set that this version
-//                  of Cobalt supports.
+//   major version: Cobalt major version is tied to a yearly release cycle and
+//                  this number indicates the yearly set that this version of
+//                  Cobalt supports. It is the last two digits of the year of
+//                  the target yearly set.
 //
 //   purpose:       The purpose of this build, usually named after the reason
 //                  that a branch is cut.  On trunk it will be "master", and on
 //                  LTS branches for example it will be "lts".
 //
-//   update number: The current update revision number (e.g. release number)
+//   minor version: The current update revision number (e.g. release number)
 //                  for a given pair of values above.  This will always be 0 on
 //                  trunk.  When a release branch is cut, this should be
 //                  modified to start at 1, and be incremented each time a

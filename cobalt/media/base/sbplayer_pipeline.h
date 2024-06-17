@@ -63,7 +63,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                    const GetDecodeTargetGraphicsContextProviderFunc&
                        get_decode_target_graphics_context_provider_func,
                    bool allow_resume_after_suspend,
-                   bool allow_batched_sample_write,
+                   int max_audio_samples_per_write,
                    bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
                    TimeDelta audio_write_duration_local,
@@ -203,6 +203,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetReadInProgress(::media::DemuxerStream::Type type, bool in_progress);
   bool GetReadInProgress(::media::DemuxerStream::Type type) const;
 
+  int GetDefaultMaxBuffers(AudioCodec codec, TimeDelta duration_to_write,
+                           bool is_preroll);
+  int GetEstimatedMaxBuffers(TimeDelta write_duration,
+                             TimeDelta time_ahead_of_playback, bool is_preroll);
+
   // An identifier string for the pipeline, used in CVal to identify multiple
   // pipelines.
   const std::string pipeline_identifier_;
@@ -217,8 +222,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Whether we should save DecoderBuffers for resume after suspend.
   const bool allow_resume_after_suspend_;
 
-  // Whether we enable batched sample write functionality.
-  const bool allow_batched_sample_write_;
+  // The number of audio samples per write that is allowed at once.
+  // The minimum number of |max_audio_samples_per_write_| and
+  // SbPlayerGetMaximumNumberOfSamplesPerWrite() specifies
+  // the maximum number of samples SbPlayerWriteSamples() can accept.
+  const int max_audio_samples_per_write_;
 
   // The default output mode passed to `SbPlayerGetPreferredOutputMode()`.
   SbPlayerOutputMode default_output_mode_ = kSbPlayerOutputModeInvalid;
@@ -345,6 +353,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Indicates if video end of stream has been written into the underlying
   // player.
   bool is_video_eos_written_ = false;
+  TimeDelta last_audio_sample_interval_ = TimeDelta::FromMicroseconds(0);
+  int last_estimated_max_buffers_for_preroll_ = 1;
 
   // Last media time reported by GetMediaTime().
   base::CVal<TimeDelta> last_media_time_;

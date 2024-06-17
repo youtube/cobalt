@@ -25,7 +25,6 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
-#include "starboard/common/string.h"
 #include "starboard/common/system_property.h"
 #include "starboard/extension/platform_info.h"
 #if SB_IS(EVERGREEN)
@@ -124,9 +123,7 @@ const DeviceTypeName kDeviceTypeStrings[] = {
     {kSbSystemDeviceTypeTV, "TV"},
     {kSbSystemDeviceTypeAndroidTV, "ATV"},
     {kSbSystemDeviceTypeDesktopPC, "DESKTOP"},
-#if SB_API_VERSION >= 14
     {kSbSystemDeviceTypeVideoProjector, "PROJECTOR"},
-#endif  // SB_API_VERSION >= 14
     {kSbSystemDeviceTypeUnknown, "UNKNOWN"}};
 
 std::string CreateDeviceTypeString(SbSystemDeviceType device_type) {

@@ -31,8 +31,8 @@ interface H5vccUpdater {
 
   // Sets whether compressed (rather than uncompressed) Evergreen binaries
   // should be requested, overwriting any value set by the
-  // --use_compressed_updates command-line switch. This API should only be used
-  // for testing.
+  // --use_uncompressed_updates command-line switch. This API should only be
+  // used for testing.
   void setUseCompressedUpdates(boolean use_compressed_updates);
 
 };

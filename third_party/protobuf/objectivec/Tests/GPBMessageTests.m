@@ -40,6 +40,7 @@
 #import "GPBUnknownFieldSet_PackagePrivate.h"
 #import "google/protobuf/Unittest.pbobjc.h"
 #import "google/protobuf/UnittestObjc.pbobjc.h"
+#import "google/protobuf/UnittestObjcOptions.pbobjc.h"
 
 @interface MessageTests : GPBTestCase
 @end
@@ -1082,6 +1083,20 @@
   [repeatedStringArray release];
 }
 
+- (void)testSetOverAutocreatedArrayAndSetAgain {
+  // Ensure when dealing with replacing an array it is handled being either
+  // an autocreated one or a straight NSArray.
+
+  // The real test here is that nothing crashes while doing the work.
+  TestAllTypes *message = [TestAllTypes message];
+  [message.repeatedStringArray addObject:@"foo"];
+  XCTAssertEqual(message.repeatedStringArray_Count, (NSUInteger)1);
+  message.repeatedStringArray = [NSMutableArray arrayWithObjects:@"bar", @"bar2", nil];
+  XCTAssertEqual(message.repeatedStringArray_Count, (NSUInteger)2);
+  message.repeatedStringArray = [NSMutableArray arrayWithObject:@"baz"];
+  XCTAssertEqual(message.repeatedStringArray_Count, (NSUInteger)1);
+}
+
 - (void)testReplaceAutocreatedArray {
   // Replacing array should orphan the old one and cause its creator to become
   // visible.
@@ -1171,7 +1186,7 @@
   XCTAssertFalse([message2.a hasA]);
 
   // But adding an element to the map should.
-  [message.a.a.iToI setValue:100 forKey:200];
+  [message.a.a.iToI setInt32:100 forKey:200];
   XCTAssertTrue([message hasA]);
   XCTAssertTrue([message.a hasA]);
   XCTAssertEqual([message.a.a.iToI count], (NSUInteger)1);
@@ -1190,7 +1205,7 @@
   message1a.a.iToI = message1b.a.iToI;
   XCTAssertTrue([message1a hasA]);
   XCTAssertFalse([message1b hasA]);
-  [message1a.a.iToI setValue:1 forKey:2];
+  [message1a.a.iToI setInt32:1 forKey:2];
   XCTAssertTrue([message1a hasA]);
   XCTAssertTrue([message1b hasA]);
   XCTAssertEqual(message1a.a.iToI, message1b.a.iToI);
@@ -1224,7 +1239,8 @@
   // with different objects that are equal).
   TestRecursiveMessageWithRepeatedField *message3 =
       [TestRecursiveMessageWithRepeatedField message];
-  message3.iToI = [GPBInt32Int32Dictionary dictionaryWithValue:10 forKey:20];
+  message3.iToI = [[[GPBInt32Int32Dictionary alloc] init] autorelease];
+  [message3.iToI setInt32:10 forKey:20];
   message3.strToStr =
       [NSMutableDictionary dictionaryWithObject:@"abc" forKey:@"123"];
   XCTAssertNotNil(message.iToI);
@@ -1281,6 +1297,23 @@
   [strToStr release];
 }
 
+- (void)testSetOverAutocreatedMapAndSetAgain {
+  // Ensure when dealing with replacing a map it is handled being either
+  // an autocreated one or a straight NSDictionary.
+
+  // The real test here is that nothing crashes while doing the work.
+  TestRecursiveMessageWithRepeatedField *message =
+      [TestRecursiveMessageWithRepeatedField message];
+  message.strToStr[@"foo"] = @"bar";
+  XCTAssertEqual(message.strToStr_Count, (NSUInteger)1);
+  message.strToStr =
+      [NSMutableDictionary dictionaryWithObjectsAndKeys:@"bar", @"key1", @"baz", @"key2", nil];
+  XCTAssertEqual(message.strToStr_Count, (NSUInteger)2);
+  message.strToStr =
+      [NSMutableDictionary dictionaryWithObject:@"baz" forKey:@"mumble"];
+  XCTAssertEqual(message.strToStr_Count, (NSUInteger)1);
+}
+
 - (void)testReplaceAutocreatedMap {
   // Replacing map should orphan the old one and cause its creator to become
   // visible.
@@ -1292,7 +1325,8 @@
     XCTAssertFalse([message hasA]);
     GPBInt32Int32Dictionary *iToI = [message.a.iToI retain];
     XCTAssertEqual(iToI->_autocreator, message.a);  // Pointer comparision
-    message.a.iToI = [GPBInt32Int32Dictionary dictionaryWithValue:6 forKey:7];
+    message.a.iToI = [[[GPBInt32Int32Dictionary alloc] init] autorelease];
+    [message.a.iToI setInt32:6 forKey:7];
     XCTAssertTrue([message hasA]);
     XCTAssertNotEqual(message.a.iToI, iToI);  // Pointer comparision
     XCTAssertNil(iToI->_autocreator);
@@ -1947,8 +1981,53 @@
                  EnumTestMsg_MyEnum_NegTwo);
 }
 
+- (void)testReservedWordNaming {
+  // objectivec_helpers.cc has some special handing to make sure that
+  // some "reserved" objc names get renamed in a way so they
+  // don't conflict.
+  //
+  // This "test" confirms that the expected names are generated,
+  // otherwise the test itself will fail to compile.
+  self_Class *msg = [self_Class message];
+
+  // Some ObjC/C/C++ keywords.
+  msg.className_p = msg.hasClassName_p;
+  msg.cmd = msg.hasCmd;
+  msg.nullable_p = msg.hasNullable_p;
+  msg.typeof_p = msg.hasTypeof_p;
+  msg.instancetype_p = msg.hasInstancetype_p;
+  msg.nil_p = msg.hasNil_p;
+  msg.instancetype_p = msg.hasInstancetype_p;
+  msg.public_p = msg.hasPublic_p;
+
+  // Some that would override NSObject methods
+  msg.camltype = msg.hasCamltype;
+  msg.isNsdictionary = msg.hasIsNsdictionary;
+  msg.dealloc_p = msg.hasDealloc_p;
+  msg.zone_p = msg.hasZone_p;
+  msg.accessibilityLabel_p = msg.hasAccessibilityLabel_p;
+
+  // Some that we shouldn't need to handle.
+  msg.atomic = msg.hasAtomic;
+  msg.nonatomic = msg.hasNonatomic;
+  msg.strong = msg.hasStrong;
+  msg.nullResettable = msg.hasNullResettable;
+
+  // Some that would override GPBMessage methods
+  msg.clear_p = msg.hasClear_p;
+  msg.data_p = msg.hasData_p;
+
+  // Some MacTypes
+  msg.fixed = msg.hasFixed;
+  msg.style = msg.hasStyle;
+
+  // Some C Identifiers
+  msg.generic = msg.hasGeneric;
+  msg.block = msg.hasBlock;
+}
+
 - (void)testOneBasedEnumHolder {
-  // Test case for https://github.com/google/protobuf/issues/1453
+  // Test case for https://github.com/protocolbuffers/protobuf/issues/1453
   // Message with no explicit defaults, but a non zero default for an enum.
   MessageWithOneBasedEnum *enumMsg = [MessageWithOneBasedEnum message];
   XCTAssertEqual(enumMsg.enumField, MessageWithOneBasedEnum_OneBasedEnum_One);
@@ -2017,6 +2096,91 @@
   msg1.boolField2 = NO;
   XCTAssertEqualObjects(msg1Prime, msg1);
   XCTAssertEqual([msg1 hash], [msg1Prime hash]);
+}
+
+- (void)testCopyingMapFields {
+  TestMessageOfMaps *msg = [TestMessageOfMaps message];
+
+  msg.strToStr[@"foo"] = @"bar";
+
+  [msg.strToInt setInt32:1 forKey:@"mumble"];
+  [msg.intToStr setObject:@"wee" forKey:42];
+  [msg.intToInt setInt32:123 forKey:321];
+
+  [msg.strToBool setBool:YES forKey:@"one"];
+  [msg.boolToStr setObject:@"something" forKey:YES];
+  [msg.boolToBool setBool:YES forKey:NO];
+
+  [msg.intToBool setBool:YES forKey:13];
+  [msg.boolToInt setInt32:111 forKey:NO];
+
+  TestAllTypes *subMsg1 = [TestAllTypes message];
+  subMsg1.optionalInt32 = 1;
+  TestAllTypes *subMsg2 = [TestAllTypes message];
+  subMsg1.optionalInt32 = 2;
+  TestAllTypes *subMsg3 = [TestAllTypes message];
+  subMsg1.optionalInt32 = 3;
+
+  msg.strToMsg[@"baz"] = subMsg1;
+  [msg.intToMsg setObject:subMsg2 forKey:222];
+  [msg.boolToMsg setObject:subMsg3 forKey:YES];
+
+  TestMessageOfMaps *msg2 = [[msg copy] autorelease];
+  XCTAssertNotNil(msg2);
+  XCTAssertEqualObjects(msg2, msg);
+  XCTAssertTrue(msg2 != msg);  // ptr compare
+  XCTAssertTrue(msg.strToStr != msg2.strToStr);  // ptr compare
+  XCTAssertTrue(msg.intToStr != msg2.intToStr);  // ptr compare
+  XCTAssertTrue(msg.intToInt != msg2.intToInt);  // ptr compare
+  XCTAssertTrue(msg.strToBool != msg2.strToBool);  // ptr compare
+  XCTAssertTrue(msg.boolToStr != msg2.boolToStr);  // ptr compare
+  XCTAssertTrue(msg.boolToBool != msg2.boolToBool);  // ptr compare
+  XCTAssertTrue(msg.intToBool != msg2.intToBool);  // ptr compare
+  XCTAssertTrue(msg.boolToInt != msg2.boolToInt);  // ptr compare
+  XCTAssertTrue(msg.strToMsg != msg2.strToMsg);  // ptr compare
+  XCTAssertTrue(msg.intToMsg != msg2.intToMsg);  // ptr compare
+  XCTAssertTrue(msg.boolToMsg != msg2.boolToMsg);  // ptr compare
+
+  XCTAssertTrue(msg.strToMsg[@"baz"] != msg2.strToMsg[@"baz"]);  // ptr compare
+  XCTAssertEqualObjects(msg.strToMsg[@"baz"], msg2.strToMsg[@"baz"]);
+  XCTAssertTrue([msg.intToMsg objectForKey:222] != [msg2.intToMsg objectForKey:222]);  // ptr compare
+  XCTAssertEqualObjects([msg.intToMsg objectForKey:222], [msg2.intToMsg objectForKey:222]);
+  XCTAssertTrue([msg.boolToMsg objectForKey:YES] != [msg2.boolToMsg objectForKey:YES]);  // ptr compare
+  XCTAssertEqualObjects([msg.boolToMsg objectForKey:YES], [msg2.boolToMsg objectForKey:YES]);
+}
+
+- (void)testPrefixedNames {
+  // The fact that this compiles is sufficient as a test.
+  // The assertions are just there to avoid "not-used" warnings.
+
+  // Verify that enum types and values get the prefix.
+  GPBTESTTestObjcProtoPrefixEnum value = GPBTESTTestObjcProtoPrefixEnum_Value;
+  XCTAssertNotEqual(value, 0);
+
+  // Verify that roots get the prefix.
+  GPBTESTUnittestObjcOptionsRoot *root = nil;
+  XCTAssertNil(root);
+
+  // Verify that messages that don't already have the prefix get a prefix.
+  GPBTESTTestObjcProtoPrefixMessage *prefixedMessage = nil;
+  XCTAssertNil(prefixedMessage);
+
+  // Verify that messages that already have a prefix aren't prefixed twice.
+  GPBTESTTestHasAPrefixMessage *alreadyPrefixedMessage = nil;
+  XCTAssertNil(alreadyPrefixedMessage);
+
+  // Verify that enums that already have a prefix aren't prefixed twice.
+  GPBTESTTestHasAPrefixEnum prefixedValue = GPBTESTTestHasAPrefixEnum_ValueB;
+  XCTAssertNotEqual(prefixedValue, 0);
+
+  // Verify that classes named the same as prefixes are prefixed.
+  GPBTESTGPBTEST *prefixMessage = nil;
+  XCTAssertNil(prefixMessage);
+
+  // Verify that classes that have the prefix followed by a lowercase
+  // letter DO get the prefix.
+  GPBTESTGPBTESTshouldGetAPrefixMessage *shouldGetAPrefixMessage = nil;
+  XCTAssertNil(shouldGetAPrefixMessage);
 }
 
 @end

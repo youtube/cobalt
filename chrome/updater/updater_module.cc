@@ -39,7 +39,6 @@
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/cobalt_slot_management.h"
 #include "components/update_client/utils.h"
-#include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/installation_manager.h"
 
@@ -70,21 +69,12 @@ ComponentStateToCobaltExtensionUpdaterNotificationState(
       return kCobaltExtensionUpdaterNotificationStateDownloaded;
     case ComponentState::kUpdating:
       return kCobaltExtensionUpdaterNotificationStateInstalling;
-#if SB_API_VERSION > 13
     case ComponentState::kUpdated:
       return kCobaltExtensionUpdaterNotificationStateUpdated;
     case ComponentState::kUpToDate:
       return kCobaltExtensionUpdaterNotificationStateUpToDate;
     case ComponentState::kUpdateError:
       return kCobaltExtensionUpdaterNotificationStateUpdateFailed;
-#else
-    case ComponentState::kUpdated:
-      return kCobaltExtensionUpdaterNotificationStatekUpdated;
-    case ComponentState::kUpToDate:
-      return kCobaltExtensionUpdaterNotificationStatekUpToDate;
-    case ComponentState::kUpdateError:
-      return kCobaltExtensionUpdaterNotificationStatekUpdateFailed;
-#endif
     default:
       return kCobaltExtensionUpdaterNotificationStateNone;
   }
