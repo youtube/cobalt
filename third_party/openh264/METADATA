@@ -6,11 +6,12 @@ description:
   "Cisco."
 
 third_party {
-  url {
-    type: GIT
+  identifier {
+    type: "Git"
     value: "https://github.com/cisco/openh264.git"
+    closest_version: "v2.3.0"
+    version: "unknown"
   }
-  version: "v2.3.0"
   last_upgrade_date { year: 2022 month: 7 day: 31 }
   security {
     tag: "NVD-CPE2.3:cpe:/a:cisco:openh264:2.3.0"

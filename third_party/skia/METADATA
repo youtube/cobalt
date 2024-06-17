@@ -1,4 +1,5 @@
-name: "skia"
+name: "Skia"
+
 description:
   "Skia is an open-source graphics library for drawing, geometries, and "
   "images, with both hardware and software support. Cobalt most recently "

@@ -1,3 +1,4 @@
+name: "chrome_updater"
 description: "tree at chrome/updater"
 third_party {
   identifier {

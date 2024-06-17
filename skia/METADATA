@@ -1,3 +1,5 @@
+name: "skia"
+
 third_party {
   identifier {
     type: "ChromiumVersion"

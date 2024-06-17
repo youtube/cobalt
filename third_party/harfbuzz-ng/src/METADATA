@@ -1,3 +1,5 @@
+name: "harfbuzz-ng-source"
+
 third_party {
   identifier {
     type: "ChromiumVersion"

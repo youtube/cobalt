@@ -1,3 +1,5 @@
+name: "ui-gfx"
+
 third_party {
   identifier {
     type: "ChromiumVersion"

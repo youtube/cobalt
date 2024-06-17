@@ -1,4 +1,4 @@
-name: "khronos"
+name: "khronos_headers"
 description:
   "Subtree at third_party/khronos."
 

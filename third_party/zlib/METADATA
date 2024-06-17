@@ -11,6 +11,7 @@ third_party {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/src.git"
     version: "f12b46f00f17488ad16cb242bf4f248bdde9618b"
+    closest_version: "1.2.11"
   }
   identifier {
     type: "UpstreamSubdir"

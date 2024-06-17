@@ -1,3 +1,5 @@
+name: "chrome_update_client"
+
 third_party {
   identifier {
     type: "ChromiumVersion"

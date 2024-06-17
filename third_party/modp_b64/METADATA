@@ -1,4 +1,4 @@
-name: "modp_b64"
+name: "modp"
 description:
   "modp base64 decoder is part of the stringencoders library and is a high "
   "performance base64 encoder/decoder. Cobalt uses base64 decoding to enable "
