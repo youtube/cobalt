@@ -43,6 +43,8 @@ namespace {
 
 bool s_use_stub_image_decoder = false;
 
+bool enable_skia_rasterizer = false;
+
 void CacheMessage(std::string* result, const std::string& message) {
   DCHECK(result);
 
@@ -391,23 +393,16 @@ bool ImageDecoder::AllowDecodingToMultiPlane() {
   // improved in future.
   std::string rasterizer_type =
       configuration::Configuration::GetInstance()->CobaltRasterizerType();
-  auto command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kEnableSkiaRasterizer)) {
-    int enable_skia = 0;
-    base::StringToInt(
-        command_line->GetSwitchValueASCII(switches::kEnableSkiaRasterizer),
-        &enable_skia);
-    if (enable_skia) {
-      rasterizer_type = configuration::Configuration::kSkiaRasterizer;
-    } else {
-      rasterizer_type = configuration::Configuration::kGlesRasterizer;
-    }
+
+  if (enable_skia_rasterizer) {
+    rasterizer_type = configuration::Configuration::kSkiaRasterizer;
   }
 
   bool allow_image_decoding_to_multi_plane =
       rasterizer_type == configuration::Configuration::kGlesRasterizer;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
+  auto command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kAllowImageDecodingToMultiPlane)) {
     std::string value = command_line->GetSwitchValueASCII(
         switches::kAllowImageDecodingToMultiPlane);
@@ -422,6 +417,8 @@ bool ImageDecoder::AllowDecodingToMultiPlane() {
 
   return allow_image_decoding_to_multi_plane;
 }
+// static
+void ImageDecoder::EnableSkiaRasterizer() { enable_skia_rasterizer = true; }
 
 }  // namespace image
 }  // namespace loader
