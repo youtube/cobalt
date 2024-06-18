@@ -79,6 +79,14 @@ typedef void (*SbSocketWaiterCallback)(SbSocketWaiter waiter,
                                        void* context,
                                        int ready_interests);
 
+#if SB_API_VERSION >= 16
+// Function pointer for socket waiter callbacks.
+typedef void (*SbPosixSocketWaiterCallback)(SbSocketWaiter waiter,
+                                            int socket,
+                                            void* context,
+                                            int ready_interests);
+#endif
+
 // Well-defined value for an invalid socket watcher handle.
 #define kSbSocketWaiterInvalid ((SbSocketWaiter)NULL)
 
@@ -139,6 +147,15 @@ SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                                  int interests,
                                  bool persistent);
 
+#if SB_API_VERSION >= 16
+SB_EXPORT bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
+                                      int socket,
+                                      void* context,
+                                      SbPosixSocketWaiterCallback callback,
+                                      int interests,
+                                      bool persistent);
+#endif
+
 // Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter.
 // This function should only be called on the thread that waits on this waiter.
 //
@@ -149,6 +166,10 @@ SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
 // |waiter|: The waiter from which the socket is removed.
 // |socket|: The socket to remove from the waiter.
 SB_EXPORT bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket);
+
+#if SB_API_VERSION >= 16
+SB_EXPORT bool SbPosixSocketWaiterRemove(SbSocketWaiter waiter, int socket);
+#endif
 
 // Waits on all registered sockets, calling the registered callbacks if and when
 // the corresponding sockets become ready for an interested operation. This
