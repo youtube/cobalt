@@ -138,9 +138,9 @@ TEST(SbDirectoryGetNextTest, SunnyDayStaticContent) {
       }
 
       // Traverse into the subdirectory.
-      SbFileInfo file_info;
-      EXPECT_TRUE(SbFileGetPathInfo(entry_path.c_str(), &file_info));
-      if (file_info.is_directory) {
+      struct stat file_info;
+      EXPECT_TRUE(stat(entry_path.c_str(), &file_info) == 0);
+      if (S_ISDIR(file_info.st_mode)) {
         directory_queue.push(entry_path);
       }
     }
