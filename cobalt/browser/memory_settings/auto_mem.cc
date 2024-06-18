@@ -339,7 +339,8 @@ int64_t AutoMem::SumAllMemoryOfType(
 
 void AutoMem::ConstructSettings(const math::Size& ui_resolution,
                                 const AutoMemSettings& command_line_settings,
-                                const AutoMemSettings& config_api_settings) {
+                                const AutoMemSettings& config_api_settings,
+                                bool enable_skia_rasterizer) {
   TRACE_EVENT0("cobalt::browser", "AutoMem::ConstructSettings()");
   max_cpu_bytes_ = CreateCpuSetting(command_line_settings);
   max_gpu_bytes_ = CreateGpuSetting(command_line_settings);
@@ -411,19 +412,10 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   offscreen_target_cache_size_in_bytes_->set_memory_scaling_function(
       MakeLinearMemoryScaler(0.25, 1.0));
 
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   std::string rasterizer_type =
       configuration::Configuration::GetInstance()->CobaltRasterizerType();
-  if (command_line->HasSwitch(browser::switches::kEnableSkiaRasterizer)) {
-    int enable_skia = 0;
-    base::StringToInt(command_line->GetSwitchValueASCII(
-                          browser::switches::kEnableSkiaRasterizer),
-                      &enable_skia);
-    if (enable_skia) {
-      rasterizer_type = configuration::Configuration::kSkiaRasterizer;
-    } else {
-      rasterizer_type = configuration::Configuration::kGlesRasterizer;
-    }
+  if (enable_skia_rasterizer) {
+    rasterizer_type = configuration::Configuration::kSkiaRasterizer;
   }
   if (rasterizer_type == configuration::Configuration::kGlesRasterizer) {
     offscreen_target_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);

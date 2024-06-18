@@ -41,7 +41,8 @@ class AutoMem {
 
   void ConstructSettings(const math::Size& ui_resolution,
                          const AutoMemSettings& command_line_settings,
-                         const AutoMemSettings& config_api_settings);
+                         const AutoMemSettings& config_api_settings,
+                         bool enable_skia_rasterizer = false);
 
   const IntSetting* encoded_image_cache_size_in_bytes() const;
   const IntSetting* image_cache_size_in_bytes() const;
