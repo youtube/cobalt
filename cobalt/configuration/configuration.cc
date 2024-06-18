@@ -48,6 +48,9 @@ Configuration::Configuration() {
   }
 }
 
+const char Configuration::kSkiaRasterizer[] = "skia";
+const char Configuration::kGlesRasterizer[] = "direct-gles";
+
 const char* Configuration::CobaltUserOnExitStrategy() {
   if (configuration_api_) {
     return configuration_api_->CobaltUserOnExitStrategy();
