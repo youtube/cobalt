@@ -7,6 +7,8 @@
 
 #include <stddef.h>
 
+#include "base/base_wrapper.h"
+
 namespace base {
 
 size_t GetPageSize();
