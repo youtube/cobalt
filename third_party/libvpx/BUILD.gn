@@ -13,8 +13,6 @@ if (use_cobalt_customizations) {
 import("//third_party/nasm/nasm_assemble.gni")
 }
 
-assert(use_cobalt_customizations)
-
 # Sets the architecture name for building libvpx.
 if (current_cpu == "x86") {
   cpu_arch_full = "ia32"
@@ -111,9 +109,7 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
       sources = libvpx_srcs_x86_64_assembly
     }
 
-    if (!use_cobalt_customizations) {
     defines = [ "CHROMIUM" ]
-    }
     if (is_android) {
       # On Android, define __ANDROID__ to use alternative standard library
       # functions.
