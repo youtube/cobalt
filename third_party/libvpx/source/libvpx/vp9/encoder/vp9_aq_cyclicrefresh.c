@@ -471,7 +471,7 @@ static void cyclic_refresh_update_map(VP9_COMP *const cpi) {
   cr->sb_index = i;
   cr->reduce_refresh = 0;
   if (cpi->oxcf.content != VP9E_CONTENT_SCREEN)
-    if (count_sel<(3 * count_tot)>> 2) cr->reduce_refresh = 1;
+    if (count_sel < (3 * count_tot) >> 2) cr->reduce_refresh = 1;
 }
 
 // Set cyclic refresh parameters.
@@ -497,7 +497,9 @@ void vp9_cyclic_refresh_update_parameters(VP9_COMP *const cpi) {
        rc->avg_frame_low_motion < thresh_low_motion &&
        rc->frames_since_key > 40) ||
       (!cpi->use_svc && rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh &&
-       rc->frames_since_key > 20)) {
+       rc->frames_since_key > 20) ||
+      (cpi->roi.enabled && cpi->roi.skip[BACKGROUND_SEG_SKIP_ID] &&
+       rc->frames_since_key > FRAMES_NO_SKIPPING_AFTER_KEY)) {
     cr->apply_cyclic_refresh = 0;
     return;
   }
@@ -556,7 +558,7 @@ void vp9_cyclic_refresh_update_parameters(VP9_COMP *const cpi) {
     cr->percent_refresh = 10;
     cr->rate_ratio_qdelta = 1.5;
     cr->rate_boost_fac = 10;
-    if (cpi->refresh_golden_frame == 1) {
+    if (cpi->refresh_golden_frame == 1 && !cpi->use_svc) {
       cr->percent_refresh = 0;
       cr->rate_ratio_qdelta = 1.0;
     }
