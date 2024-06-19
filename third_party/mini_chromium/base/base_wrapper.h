@@ -24,6 +24,7 @@
 #define CheckUnheldAndMark MCheckUnheldAndMark
 #define ConditionVariable MConditionVariable
 #define GetLogMessageHandler MGetLogMessageHandler
+#define GetPageSize MGetPageSize
 #define Lock MLock
 #define LockImpl MLockImpl
 #define LogMessage MLogMessage
