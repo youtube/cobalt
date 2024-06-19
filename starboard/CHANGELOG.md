@@ -9,6 +9,7 @@ since the version previous to it.
 
 ## Version 16
 
+<<<<<<< HEAD
 ## Added new configuration constant `kHasPartialAudioFramesSupport`
 Set this to true if your platform supports partial audio frames.
 
@@ -50,6 +51,8 @@ Replaced the `SbThreadYield` with the POSIX sched_yield() defined in the
 The x86 platform configurations, builds and ABI are no longer supported for
 Evergreen.
 
+=======
+>>>>>>> d2ab62495b9 (Deprecate SbDirectoryCanOpen (#2868))
 ### Added standard POSIX stat API and deprecated SbDirectoryCanOpen.
 The directory API SbDirectoryCanOpen has been deprecated and the standard API `stat` can
 be used from `sys/stat.h` instead.
