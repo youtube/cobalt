@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,35 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/common/memory.h"
-
 #include "starboard/android/shared/accessibility_extension.h"
+#include "starboard/extension/accessibility.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
-namespace accessibility {
 
-using starboard::android::shared::JniEnvExt;
+const StarboardExtensionAccessibilityApi kAccessibilityAPI = {
+    kStarboardExtensionAccessibilityName,
+    1,
+    &accessibility::GetTextToSpeechSettings,
+    &accessibility::GetDisplaySettings,
+    &accessibility::GetCaptionSettings,
+    &accessibility::SetCaptionsEnabled};
 
-bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
-  if (!out_setting ||
-      !starboard::common::MemoryIsZero(
-          out_setting, sizeof(SbAccessibilityDisplaySettings))) {
-    return false;
-  }
-
-  JniEnvExt* env = JniEnvExt::Get();
-  out_setting->has_high_contrast_text_setting = true;
-  out_setting->is_high_contrast_text_enabled =
-      env->CallStarboardBooleanMethodOrAbort(
-          "isAccessibilityHighContrastTextEnabled", "()Z");
-
-  return true;
+const void* GetAccessibilityApi() {
+  return &kAccessibilityAPI;
 }
 
-}  // namespace accessibility
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
