@@ -1,4 +1,4 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -10,7 +10,7 @@ import("//third_party/libvpx/libvpx_srcs.gni")
 if (use_cobalt_customizations) {
   import("//starboard/build/nasm_assemble.gni")
 } else {
-  import("//third_party/nasm/nasm_assemble.gni")
+import("//third_party/nasm/nasm_assemble.gni")
 }
 
 assert(use_cobalt_customizations)
@@ -25,7 +25,7 @@ if (current_cpu == "x86") {
     cpu_arch_full = "x64"
   }
 } else if (current_cpu == "arm") {
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
     # ChromeOS gets highbd vp9 but other arm targets do not.
     cpu_arch_full = "arm-neon-highbd"
   } else if (arm_use_neon) {
@@ -36,11 +36,15 @@ if (current_cpu == "x86") {
     cpu_arch_full = "arm"
   }
 } else if (current_cpu == "arm64") {
-  if (is_chromeos_ash || is_mac) {
+  if (is_chromeos || is_mac) {
     cpu_arch_full = "arm64-highbd"
   } else {
     cpu_arch_full = current_cpu
   }
+} else if (current_cpu == "riscv64") {
+  cpu_arch_full = "generic"
+} else if (current_cpu == "loong64") {
+  cpu_arch_full = "loongarch"
 } else {
   cpu_arch_full = current_cpu
 }
@@ -108,7 +112,7 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
     }
 
     if (!use_cobalt_customizations) {
-      defines = [ "CHROMIUM" ]
+    defines = [ "CHROMIUM" ]
     }
     if (is_android) {
       # On Android, define __ANDROID__ to use alternative standard library
@@ -127,10 +131,8 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
   # symbols.
 
   source_set("libvpx_intrinsics_mmx") {
-    if (!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:chromium_code" ]
-      configs += [ "//build/config/compiler:no_chromium_code" ]
-    }
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [ ":libvpx_config" ]
     if (!is_win) {
       cflags = [ "-mmmx" ]
@@ -145,10 +147,8 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
   }
 
   source_set("libvpx_intrinsics_sse2") {
-    if (!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:chromium_code" ]
-      configs += [ "//build/config/compiler:no_chromium_code" ]
-    }
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [ ":libvpx_config" ]
     if (!is_win || is_clang) {
       cflags = [ "-msse2" ]
@@ -163,10 +163,8 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
   }
 
   source_set("libvpx_intrinsics_ssse3") {
-    if (!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:chromium_code" ]
-      configs += [ "//build/config/compiler:no_chromium_code" ]
-    }
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [ ":libvpx_config" ]
     if (!is_win || is_clang) {
       cflags = [ "-mssse3" ]
@@ -181,10 +179,8 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
   }
 
   source_set("libvpx_intrinsics_sse4_1") {
-    if (!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:chromium_code" ]
-      configs += [ "//build/config/compiler:no_chromium_code" ]
-    }
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [ ":libvpx_config" ]
     if (!is_win || is_clang) {
       cflags = [ "-msse4.1" ]
@@ -199,10 +195,8 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
   }
 
   source_set("libvpx_intrinsics_avx") {
-    if (!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:chromium_code" ]
-      configs += [ "//build/config/compiler:no_chromium_code" ]
-    }
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [ ":libvpx_config" ]
     if (is_win) {
       cflags = [ "/arch:AVX" ]
@@ -219,10 +213,8 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
   }
 
   source_set("libvpx_intrinsics_avx2") {
-    if (!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:chromium_code" ]
-      configs += [ "//build/config/compiler:no_chromium_code" ]
-    }
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [ ":libvpx_config" ]
     if (is_win) {
       cflags = [ "/arch:AVX2" ]
@@ -239,10 +231,8 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
   }
 
   source_set("libvpx_intrinsics_avx512") {
-    if (!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:chromium_code" ]
-      configs += [ "//build/config/compiler:no_chromium_code" ]
-    }
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [ ":libvpx_config" ]
     if (is_win) {
       # clang-cl does not accept this flag.
@@ -264,6 +254,16 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
       deps = [ ":libvpx_x86_64_headers" ]
       sources = libvpx_srcs_x86_64_avx512
     }
+  }
+}
+
+if (current_cpu == "loong64") {
+  source_set("libvpx_loongarch_lsx") {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [ ":libvpx_config" ]
+    cflags = [ "-mlsx" ]
+    sources = libvpx_srcs_loongarch_lsx
   }
 }
 
@@ -340,6 +340,10 @@ source_set("libvpx_x86_64_headers") {
   sources = libvpx_srcs_x86_64_headers
 }
 
+source_set("libvpx_loongarch_headers") {
+  sources = libvpx_srcs_loongarch_headers
+}
+
 source_set("libvpx_arm_headers") {
   sources = libvpx_srcs_arm_headers
 }
@@ -400,7 +404,7 @@ static_library("libvpx") {
     sources = libvpx_srcs_mips
     public_deps = [ ":libvpx_mips_headers" ]
   } else if (current_cpu == "arm") {
-    if (is_chromeos_ash) {
+    if (is_chromeos) {
       sources = libvpx_srcs_arm_neon_highbd
       public_deps = [ ":libvpx_arm_neon_highbd_headers" ]
     } else if (arm_use_neon) {
@@ -414,19 +418,25 @@ static_library("libvpx") {
       public_deps = [ ":libvpx_arm_headers" ]
     }
   } else if (current_cpu == "arm64") {
-    if (is_chromeos_ash || is_win || is_mac) {
+    if (is_chromeos || is_win || is_mac) {
       sources = libvpx_srcs_arm64_highbd
       public_deps = [ ":libvpx_arm64_highbd_headers" ]
     } else {
       sources = libvpx_srcs_arm64
       public_deps = [ ":libvpx_arm64_headers" ]
     }
+  } else if (current_cpu == "ppc64") {
+    sources = libvpx_srcs_ppc64
+  } else if (current_cpu == "riscv64") {
+    sources = libvpx_srcs_generic
+    public_deps = [ ":libvpx_generic_headers" ]
+  } else if (current_cpu == "loong64") {
+    sources = libvpx_srcs_loongarch
+    public_deps = [ ":libvpx_loongarch_headers" ]
   }
 
-  if (!use_cobalt_customizations) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-  }
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":libvpx_config" ]
   deps = []
   if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
@@ -450,6 +460,9 @@ static_library("libvpx") {
   if (current_cpu == "arm" && arm_assembly_sources != []) {
     deps += [ ":libvpx_assembly_arm" ]
   }
+  if (current_cpu == "loong64") {
+    deps += [ ":libvpx_loongarch_lsx" ]
+  }
 
   public_configs = [ ":libvpx_external_config" ]
 }
@@ -462,20 +475,15 @@ static_library("libvpxrc") {
   }
 
   sources = [
+    "//third_party/libvpx/source/libvpx/vp8/vp8_ratectrl_rtc.cc",
+    "//third_party/libvpx/source/libvpx/vp8/vp8_ratectrl_rtc.h",
     "//third_party/libvpx/source/libvpx/vp9/ratectrl_rtc.cc",
     "//third_party/libvpx/source/libvpx/vp9/ratectrl_rtc.h",
     "//third_party/libvpx/source/libvpx/vpx/internal/vpx_ratectrl_rtc.h",
   ]
 
-  if (!use_cobalt_customizations) {
-    sources += [
-      "//third_party/libvpx/source/libvpx/vp8/vp8_ratectrl_rtc.cc",
-      "//third_party/libvpx/source/libvpx/vp8/vp8_ratectrl_rtc.h",
-    ]
-
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-  }
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":libvpx_config" ]
   public_deps = [ ":libvpx" ]
 
