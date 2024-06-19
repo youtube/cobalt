@@ -21,6 +21,10 @@ config("compiler_flags") {
     # Cleanup unused sections
     "-Wl,-gc-sections",
   ]
+  libs = [
+    "EGL",
+    "GLESv2",
+  ]
 
   # from common_compiler_flags
   cflags += [
