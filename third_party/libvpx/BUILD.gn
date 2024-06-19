@@ -454,6 +454,7 @@ static_library("libvpx") {
   public_configs = [ ":libvpx_external_config" ]
 }
 
+if (!use_cobalt_customizations) {
 static_library("libvpxrc") {
   if (!is_debug && is_win) {
     configs -= [ "//build/config/compiler:default_optimization" ]
@@ -479,4 +480,5 @@ static_library("libvpxrc") {
   public_deps = [ ":libvpx" ]
 
   public_configs = [ ":libvpx_external_config" ]
+}
 }
