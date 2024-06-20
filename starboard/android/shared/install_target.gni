@@ -67,8 +67,7 @@ template("install_target") {
     cobalt_gradle_dir = rebase_path(gradle_files_dir)
     cobalt_product_dir = rebase_path(root_out_dir)
     cobalt_library_dir = rebase_path(root_out_dir)
-    project_cache_dir =
-        rebase_path("$root_build_dir/gradle/$installable_target_name/cache")
+    project_cache_dir = rebase_path("$gradle_files_dir/cache")
     use_parallel_build = num_gradle_workers != "1"
 
     script = "//starboard/build/run_bash.py"
