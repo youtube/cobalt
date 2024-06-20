@@ -33,6 +33,12 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
 
+#if SB_API_VERSION >= 15
+  if (audio_codec == kSbMediaAudioCodecIamf) {
+    return true;
+  }
+#endif  // SB_API_VERSION >= 15
+
   bool is_passthrough = false;
   const char* mime =
       SupportedAudioCodecToMimeType(audio_codec, &is_passthrough);
