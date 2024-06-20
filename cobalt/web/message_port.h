@@ -35,10 +35,12 @@
 namespace cobalt {
 namespace web {
 
-class MessagePort : public script::Wrappable,
+class MessagePort : public EventTarget,
                     public Context::EnvironmentSettingsChangeObserver {
  public:
-  MessagePort() = default;
+  explicit MessagePort(script::EnvironmentSettings* settings)
+      : EventTarget(settings) {}
+  explicit MessagePort(EventTarget* event_target) : EventTarget(event_target) {}
   ~MessagePort() { Close(); }
 
   MessagePort(const MessagePort&) = delete;
