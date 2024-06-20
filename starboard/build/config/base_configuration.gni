@@ -23,6 +23,10 @@ declare_args() {
   # value is meant to be overridden by a Starboard ABI file.
   sb_api_version = 13
 
+  # Enables embedding Cast as a within another app by exporting Starboard
+  # symbols and enabling the Cast Starboard API.
+  sb_enable_cast_api = false
+
   # Enables embedding Cobalt as a shared library within another app. This
   # requires a 'lib' starboard implementation for the corresponding platform.
   sb_enable_lib = false
