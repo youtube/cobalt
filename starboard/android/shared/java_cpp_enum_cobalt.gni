@@ -20,15 +20,19 @@ template("java_cpp_enum") {
   action_foreach(target_name) {
     assert(defined(invoker.output_directory),
            "Need output directory defined for $target_name")
-    script = "//starboard/build/java_cpp_enum_cobalt.py"
+    script = "//starboard/android/shared/java_cpp_enum_cobalt.py"
 
-    sources = rebase_path(invoker.sources, root_build_dir)
+    sources = invoker.sources
+    outdir = invoker.output_directory
+
+    # |outputs| is defined here to satisfy GN. The real output directory and
+    # file name are determined when the scripot is run.
     outputs = [ "$target_out_dir/{{source_name_part}}.java" ]
 
     args = [
       "{{source}}",
       "--outdir",
-      rebase_path(invoker.output_directory),
+      rebase_path(outdir),
     ]
   }
 }
