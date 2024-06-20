@@ -132,7 +132,15 @@ class VideoDmpReader {
     return dmp_info_.video_access_units_size;
   }
 
-  SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type, size_t index);
+  virtual SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type,
+                                                 size_t index);
+  virtual SbPlayerSampleInfo GetPlayerSampleInfo(
+      SbMediaType type,
+      size_t index,
+      int64_t discarded_duration_from_front,
+      int64_t discarded_duration_from_back) {
+    return GetPlayerSampleInfo(type, index);
+  }
   const media::AudioSampleInfo& GetAudioSampleInfo(size_t index);
 
  private:
@@ -182,6 +190,42 @@ class VideoDmpReader {
 
   std::vector<AudioAccessUnit> audio_access_units_;
   std::vector<VideoAccessUnit> video_access_units_;
+};
+
+// A VideoDmpReader that supports partial audio access units.
+// SequentialVideoDmpReader adjusts the timestamps of each retrieved audio
+// access unit to account for audio frames removed from previous buffers.
+class SequentialVideoDmpReader final : public VideoDmpReader {
+ public:
+  explicit SequentialVideoDmpReader(
+      const char* filename,
+      ReadOnDemandOptions read_on_demand_options = kDisableReadOnDemand);
+  ~SequentialVideoDmpReader() = default;
+
+  // Returns an SbPlayerSampleInfo. Adjusts the timestamp if |type| ==
+  // kSbMediaTypeAudio. |index| must monotonically increase for successive calls
+  // to this function for the returned audio timestamp to be accurate, as the
+  // timestamp depends on audio frames omitted from earlier access units.
+  SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type,
+                                         size_t index) override;
+  // Returns an SbPlayerSampleInfo with an adjusted timestamp. Caches the
+  // discard durations to add to the total discard duration used for timestamp
+  // calculation.
+  // |type| must be kSbMediaTypeAudio.
+  // |index| must monotonically increase for successive calls to this function.
+  SbPlayerSampleInfo GetPlayerSampleInfo(
+      SbMediaType type,
+      size_t index,
+      int64_t discarded_duration_from_front,
+      int64_t discarded_duration_from_back) override;
+
+  void Reset();
+
+ private:
+  int64_t audio_sample_duration_ = 0;
+  size_t last_received_index_ = 0;
+  int64_t last_received_discard_duration_ = 0;
+  int64_t total_discarded_duration_ = 0;
 };
 
 }  // namespace video_dmp

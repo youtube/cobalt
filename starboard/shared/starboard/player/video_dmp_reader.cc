@@ -424,6 +424,74 @@ VideoDmpReader::Registry* VideoDmpReader::GetRegistry() {
   return &s_registry;
 }
 
+SequentialVideoDmpReader::SequentialVideoDmpReader(
+    const char* filename,
+    ReadOnDemandOptions read_on_demand_options)
+    : VideoDmpReader(filename, read_on_demand_options),
+      audio_sample_duration_(audio_duration() / number_of_audio_buffers()) {}
+
+SbPlayerSampleInfo SequentialVideoDmpReader::GetPlayerSampleInfo(
+    SbMediaType type,
+    size_t index) {
+  SbPlayerSampleInfo sample_info =
+      VideoDmpReader::GetPlayerSampleInfo(type, index);
+
+  if (type == kSbMediaTypeAudio) {
+    SB_DCHECK(index >= last_received_index_);
+    SB_DCHECK(sample_info.timestamp >= total_discarded_duration_);
+    sample_info.timestamp -= total_discarded_duration_;
+    last_received_index_ = index;
+  }
+
+  return sample_info;
+}
+
+SbPlayerSampleInfo SequentialVideoDmpReader::GetPlayerSampleInfo(
+    SbMediaType type,
+    size_t index,
+    int64_t discarded_duration_from_front,
+    int64_t discarded_duration_from_back) {
+  SB_DCHECK(type == kSbMediaTypeAudio);
+  SB_DCHECK(index >= last_received_index_);
+
+  if (index > last_received_index_) {
+    total_discarded_duration_ += last_received_discard_duration_;
+  }
+  last_received_index_ = index;
+
+  int64_t discard_duration;
+  // Check durations before summing to prevent integer overflow.
+  if (discarded_duration_from_front >= audio_sample_duration_ ||
+      discarded_duration_from_back >= audio_sample_duration_ ||
+      discarded_duration_from_front + discarded_duration_from_back >
+          audio_sample_duration_) {
+    discard_duration = audio_sample_duration_;
+  } else {
+    discard_duration =
+        discarded_duration_from_front + discarded_duration_from_back;
+  }
+  last_received_discard_duration_ = discard_duration;
+
+  SbPlayerSampleInfo sample_info =
+      VideoDmpReader::GetPlayerSampleInfo(type, index);
+#if SB_API_VERSION >= 15
+  sample_info.audio_sample_info.discarded_duration_from_front =
+      discarded_duration_from_front;
+  sample_info.audio_sample_info.discarded_duration_from_back =
+      discarded_duration_from_back;
+#endif  // SB_API_VERSION >= 15
+  SB_DCHECK(sample_info.timestamp >= total_discarded_duration_);
+  sample_info.timestamp -= total_discarded_duration_;
+
+  return sample_info;
+}
+
+void SequentialVideoDmpReader::Reset() {
+  last_received_index_ = 0;
+  last_received_discard_duration_ = 0;
+  total_discarded_duration_ = 0;
+}
+
 }  // namespace video_dmp
 }  // namespace player
 }  // namespace starboard
