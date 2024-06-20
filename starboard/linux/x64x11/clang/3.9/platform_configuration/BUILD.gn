@@ -193,9 +193,29 @@ config("platform_configuration") {
   } else {
     configs = [
       "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/shared/platform_configuration:libraries",
       "//starboard/linux/x64x11/shared/platform_configuration:libraries",
       "//starboard/build/config/sabi",
       ":compiler_flags",
+      ":no_pedantic_warnings",
+      ":linker_flags",
     ]
+
+    # Workaround forcing a link to static library
+    # Resolves __wrap_eglSwapBuffers linking issues
+    libs = [ "starboard_platform_sources" ]
   }
+}
+
+config("linker_flags") {
+  ldflags = [
+    "-Wl,-rpath=\$ORIGIN/lib",
+
+    # Cleanup unused sections
+    "-Wl,-gc-sections",
+
+    # Workaround forcing a link to static library
+    # Resolves __wrap_eglSwapBuffers linking issues
+    "-Lstarboard/obj/starboard/linux/x64x11/shared",
+  ]
 }
