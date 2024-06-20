@@ -1118,7 +1118,7 @@ class MediaCodecBridge {
     }
     int maxWidth = format.getInteger(MediaFormat.KEY_WIDTH);
     if (format.containsKey(MediaFormat.KEY_MAX_WIDTH)) {
-      maxWidth = Math.max(maxHeight, format.getInteger(MediaFormat.KEY_MAX_WIDTH));
+      maxWidth = Math.max(maxWidth, format.getInteger(MediaFormat.KEY_MAX_WIDTH));
     }
     int maxPixels;
     int minCompressionRatio;
