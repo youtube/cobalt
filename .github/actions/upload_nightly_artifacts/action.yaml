@@ -4,7 +4,7 @@ runs:
   using: "composite"
   steps:
     - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      uses: google-github-actions/setup-gcloud@v2
     - name: Set env vars
       env:
         WORKFLOW: ${{github.workflow}}
