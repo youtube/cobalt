@@ -14,7 +14,6 @@
 
 #include "starboard/shared/linux/dev_input/dev_input.h"
 
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/input.h>
@@ -762,9 +761,9 @@ FileDescriptor OpenDeviceIfKeyboardOrGamepad(const char* path) {
 // and returns the device info with a file descriptor and absolute axis details.
 std::vector<InputDeviceInfo> GetInputDevices() {
   const char kDevicePath[] = "/dev/input";
-  DIR* directory = opendir(kDevicePath);
+  SbDirectory directory = SbDirectoryOpen(kDevicePath, NULL);
   std::vector<InputDeviceInfo> input_devices;
-  if (!directory) {
+  if (!SbDirectoryIsValid(directory)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support, "
                    << "unable to open: " << kDevicePath;
     return input_devices;
@@ -773,19 +772,13 @@ std::vector<InputDeviceInfo> GetInputDevices() {
   while (true) {
     std::vector<char> entry(kSbFileMaxName);
 
-    if (entry.size() < kSbFileMaxName || !directory || !entry.data()) {
-      break;
-    }
-    struct dirent dirent_buffer;
-    struct dirent* dirent;
-    int result = readdir_r(directory, &dirent_buffer, &dirent);
-    if (result || !dirent) {
+    if (!SbDirectoryGetNext(directory, entry.data(), kSbFileMaxName)) {
       break;
     }
 
     std::string path = kDevicePath;
     path += "/";
-    path += dirent->d_name;
+    path += entry.data();
 
     struct stat file_info;
     if (stat(path.c_str(), &file_info) == 0 && S_ISDIR(file_info.st_mode)) {
@@ -805,7 +798,7 @@ std::vector<InputDeviceInfo> GetInputDevices() {
     input_devices.push_back(info);
   }
 
-  closedir(directory);
+  SbDirectoryClose(directory);
   return input_devices;
 }
 

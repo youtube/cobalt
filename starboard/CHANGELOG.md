@@ -14,7 +14,16 @@ Introduce APIs that takes integer as socket descriptor to comply with POSIX.
 SbPosixSocketWaiterAdd replaces SbSocketWaiterAdd, and SbPosixSocketWaiterRemove
 replaces SbSocketWaiterRemove.
 
-## Added new configuration constant `kHasPartialAudioFramesSupport`
+### Deprecated `Accessibility` header
+Accessibility Starboard API has been deprecated, an extension in
+`starboard/extension/accessibility.h` is available instead. The removal
+includes the following functions:
+* `SbAccessibilityGetCaptionSettings`
+* `SbAccessibilityGetDisplaySettings`
+* `SbAccessibilityGetTextToSpeechSettings`
+* `SbAccessibilitySetCaptionsEnabled`
+
+### Added new configuration constant `kHasPartialAudioFramesSupport`
 Set this to true if your platform supports partial audio frames.
 
 ### Deprecated `SbMutex`, `SbConditionVariable` and `SbThread`.
