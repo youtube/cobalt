@@ -45,10 +45,8 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDayFile) {
   SB_LOG(INFO) << "file: " << file_path;
 
   {
-    SbFileError error;
-    ScopedFile file(file_path.c_str(), kSbFileOpenAlways | kSbFileWrite,
-                    nullptr, &error);
-    ASSERT_EQ(kSbFileOk, error) << "Failed to open file for writing";
+    ScopedFile file(file_path.c_str(), O_CREAT | O_WRONLY);
+    ASSERT_TRUE(file.IsValid()) << "Failed to open file for writing";
     std::string data = "abc";
     int bytes_written = file.WriteAll(data.c_str(), data.size());
   }
@@ -79,10 +77,8 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
   SB_LOG(INFO) << "file: " << file_path;
 
   {
-    SbFileError error;
-    ScopedFile file(file_path.c_str(), kSbFileOpenAlways | kSbFileWrite,
-                    nullptr, &error);
-    ASSERT_EQ(kSbFileOk, error) << "Failed to open file for writing";
+    ScopedFile file(file_path.c_str(), O_CREAT | O_WRONLY);
+    ASSERT_TRUE(file.IsValid()) << "Failed to open file for writing";
     std::string data = "abc";
     int bytes_written = file.WriteAll(data.c_str(), data.size());
   }

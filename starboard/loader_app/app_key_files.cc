@@ -61,13 +61,14 @@ bool CreateAppKeyFile(const std::string& file_name_path) {
   if (file_name_path.empty()) {
     return false;
   }
-  SbFileError file_error = kSbFileOk;
+
   starboard::ScopedFile file(file_name_path.c_str(),
-                             kSbFileCreateAlways | kSbFileWrite, NULL,
-                             &file_error);
+                             O_CREAT | O_TRUNC | O_WRONLY);
   if (!file.IsValid()) {
-    SB_LOG(ERROR) << "Failed to open file: " << file_name_path
-                  << "with error: " << file_error;
+    SB_LOG(ERROR) << "Failed to open file: " << file_name_path;
+    // TODO: retrieve error in starboard::ScopedFile
+    // SB_LOG(ERROR) << "Failed to open file: " << file_name_path
+    // << "with error: " << file.error_details();
     return false;
   }
   return true;

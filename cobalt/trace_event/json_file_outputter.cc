@@ -14,6 +14,9 @@
 
 #include "cobalt/trace_event/json_file_outputter.h"
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <string>
 #include <utility>
 
