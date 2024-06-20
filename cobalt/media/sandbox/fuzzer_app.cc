@@ -108,31 +108,21 @@ void FuzzerApp::CollectFiles(const std::string& path_name, double min_ratio,
                              double max_ratio, int initial_seed) {
   file_entries_.clear();
 
-  DIR* directory = opendir(path_name.c_str());
-  if (!directory) {
+  SbDirectory directory = SbDirectoryOpen(path_name.c_str(), NULL);
+  if (!SbDirectoryIsValid(directory)) {
     // Assuming it is a file.
     AddFile(path_name, min_ratio, max_ratio, initial_seed);
     return;
   }
 
   std::vector<char> entry(kSbFileMaxName);
-  struct dirent dirent_buffer;
-  struct dirent* dirent;
-  while (true) {
-    if (entry.size() < kSbFileMaxName || !directory || !entry.data()) {
-      break;
-    }
-    int result = readdir_r(directory, &dirent_buffer, &dirent);
-    if (result || !dirent) {
-      break;
-    }
-    starboard::strlcpy(entry.data(), dirent->d_name, entry.size());
 
+  while (SbDirectoryGetNext(directory, entry.data(), entry.size())) {
     std::string file_name = path_name + kSbFileSepString + entry.data();
     AddFile(file_name, min_ratio, max_ratio, initial_seed);
   }
 
-  closedir(directory);
+  SbDirectoryClose(directory);
 }
 
 void FuzzerApp::AddFile(const std::string& file_name, double min_ratio,

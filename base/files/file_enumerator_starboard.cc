@@ -14,8 +14,6 @@
 
 #include "base/files/file_enumerator.h"
 
-#include <dirent.h>
-
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
