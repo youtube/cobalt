@@ -14,8 +14,6 @@
 
 #include "starboard/loader_app/drain_file.h"
 
-#include <dirent.h>
-
 #include <algorithm>
 #include <cstring>
 #include <string>
@@ -75,9 +73,9 @@ bool IsExpired(const std::string& filename) {
 
 std::vector<std::string> FindAllWithPrefix(const std::string& dir,
                                            const std::string& prefix) {
-  DIR* directory = opendir(dir.c_str());
+  SbDirectory slot = SbDirectoryOpen(dir.c_str(), NULL);
 
-  if (!directory) {
+  if (!SbDirectoryIsValid(slot)) {
     SB_LOG(ERROR) << "Failed to open provided directory '" << dir << "'";
     return std::vector<std::string>();
   }
@@ -86,23 +84,13 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
 
   std::vector<char> filename(kSbFileMaxName);
 
-  while (true) {
-    if (filename.size() < kSbFileMaxName || !directory || !filename.data()) {
-      break;
-    }
-    struct dirent dirent_buffer;
-    struct dirent* dirent;
-    int result = readdir_r(directory, &dirent_buffer, &dirent);
-    if (result || !dirent) {
-      break;
-    }
-    starboard::strlcpy(filename.data(), dirent->d_name, filename.size());
+  while (SbDirectoryGetNext(slot, filename.data(), filename.size())) {
     if (!strcmp(filename.data(), ".") || !strcmp(filename.data(), ".."))
       continue;
     if (!strncmp(prefix.data(), filename.data(), prefix.size()))
       filenames.push_back(std::string(filename.data()));
   }
-  closedir(directory);
+  SbDirectoryClose(slot);
   return filenames;
 }
 

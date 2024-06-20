@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -141,11 +140,11 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
                 (DirectoryExists(path.data())));
     EXPECT_TRUE(FileExists(path.data()));
     EXPECT_TRUE(DirectoryExists(path.data()));
-    DIR* directory = opendir(path.data());
-    EXPECT_TRUE(directory);
+    SbDirectory directory = SbDirectoryOpen(path.data(), NULL);
+    EXPECT_TRUE(SbDirectoryIsValid(directory));
 
     // Lastly, close and delete the directory.
-    EXPECT_TRUE(closedir(directory) == 0);
+    EXPECT_TRUE(SbDirectoryClose(directory));
     EXPECT_TRUE(SbFileDelete(path.data()));
     EXPECT_FALSE(FileExists(path.data()));
   }

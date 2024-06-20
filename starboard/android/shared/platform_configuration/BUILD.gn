@@ -173,9 +173,6 @@ config("platform_configuration") {
       "-Wl,--wrap=close",
       "-Wl,--wrap=open",
       "-Wl,--wrap=stat",
-      "-Wl,--wrap=opendir",
-      "-Wl,--wrap=closedir",
-      "-Wl,--wrap=readdir_r",
     ]
   }
 }
