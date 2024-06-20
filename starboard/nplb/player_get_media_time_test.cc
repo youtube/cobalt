@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -112,16 +114,14 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   samples = GroupedSamples();
   if (player_fixture.HasAudio()) {
     samples.AddAudioSamples(
-        0,
-        player_fixture.ConvertDurationToAudioBufferCount(seek_to_time) +
-            player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
+        player_fixture.ConvertDurationToAudioBufferCount(seek_to_time),
+        player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
     samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
     samples.AddVideoSamples(
-        0,
-        player_fixture.ConvertDurationToVideoBufferCount(seek_to_time) +
-            player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
+        player_fixture.ConvertDurationToVideoBufferCount(seek_to_time),
+        player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
     samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
@@ -132,10 +132,18 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
+  const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
+  if (CurrentMonotonicTime() - start_system_time <
+      kDurationDifferenceAllowance) {
+    // If the test file doesn't have the audio stream, let the test wait
+    // for playing the video, as WaitForPlayerEndOfStream() doesn't write
+    // audio data to audio track.
+    usleep(500'000);
+  }
+
   int64_t end_system_time = CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
   EXPECT_NEAR(end_media_time, kDurationToPlay + seek_to_time,
               kDurationDifferenceAllowance);
   EXPECT_NEAR(
