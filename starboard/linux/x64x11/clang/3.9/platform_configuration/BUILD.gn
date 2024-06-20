@@ -203,7 +203,7 @@ config("platform_configuration") {
 
     # Workaround forcing a link to static library
     # Resolves __wrap_eglSwapBuffers linking issues
-    libs = [ "starboard_platform_sources" ]
+    libs = [ "starboard_egl_wrapped_functions" ]
   }
 }
 
