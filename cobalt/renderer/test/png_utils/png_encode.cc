@@ -55,9 +55,15 @@ void EncodeRGBAToPNG(const base::FilePath& png_file_path,
     return;
   }
 
+<<<<<<< HEAD
   SbFile file = SbFileOpen(png_file_path.value().c_str(),
                            kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
   DCHECK_NE(file, kSbFileInvalid);
+=======
+  base::File file(png_file_path, base::File::Flags::FLAG_OPEN_ALWAYS |
+                                     base::File::Flags::FLAG_WRITE);
+  DCHECK_NE(file.GetPlatformFile(), -1);
+>>>>>>> fd0c5ff9a9d (Clean up SbFile usages (#3243))
   int bytes_written =
       SbFileWrite(file, reinterpret_cast<char*>(buffer.get()), size);
   base::RecordFileWriteStat(bytes_written);
