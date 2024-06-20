@@ -85,6 +85,13 @@ TEST(SbPosixSocketWaiterWaitTest, SunnyDay) {
       waiter, *trio.client_socket_fd_ptr, &values, &TestSocketWaiterCallback,
       kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
 
+  // This add should do nothing, since it is already registered. Testing here
+  // because we can see if it fires a write to the proper callback, then it
+  // properly ignored this second set of parameters.
+  EXPECT_FALSE(SbPosixSocketWaiterAdd(waiter, *trio.client_socket_fd_ptr,
+                                      &values, &FailSocketWaiterCallback,
+                                      kSbSocketWaiterInterestRead, false));
+
   WaitShouldNotBlock(waiter);
 
   EXPECT_EQ(1, values.count);  // Check that the callback was called once.
@@ -92,6 +99,16 @@ TEST(SbPosixSocketWaiterWaitTest, SunnyDay) {
   EXPECT_EQ(*trio.client_socket_fd_ptr, values.socket);
   EXPECT_EQ(&values, values.context);
   EXPECT_EQ(kSbSocketWaiterInterestWrite, values.ready_interests);
+
+  // Close and reopen sockets, this bug is tracked at b/348992515
+  EXPECT_TRUE(close(*trio.server_socket_fd_ptr) == 0);
+  EXPECT_TRUE(close(*trio.client_socket_fd_ptr) == 0);
+  EXPECT_TRUE(close(*trio.listen_socket_fd_ptr) == 0);
+  result = PosixSocketCreateAndConnect(
+      AF_INET, AF_INET, htons(GetPortNumberForTests()), kSocketTimeout,
+      &listen_socket_fd, &client_socket_fd, &server_socket_fd);
+  ASSERT_TRUE(result == 0);
+  ASSERT_TRUE(server_socket_fd >= 0);
 
   // Try again to make sure writable sockets are still writable
   values.count = 0;

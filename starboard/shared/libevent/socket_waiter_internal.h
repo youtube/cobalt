@@ -41,6 +41,7 @@ struct SbSocketWaiterPrivate {
            int interests,
            bool persistent);
   bool Remove(int socket, SbSocketWaiter waiter);
+  bool CheckSocketRegistered(int socket);
 #endif  // SB_API_VERSION >= 16
 
   // The Add/Remove pair for SbSocket based socket
@@ -50,6 +51,7 @@ struct SbSocketWaiterPrivate {
            int interests,
            bool persistent);
   bool Remove(SbSocket socket, SbSocketWaiter waiter);
+  bool CheckSocketRegistered(SbSocket socket);
 
   void Wait();
   SbSocketWaiterResult WaitTimed(int64_t duration_usec);
@@ -72,7 +74,9 @@ struct SbSocketWaiterPrivate {
           context(context),
           i_callback(callback),
           interests(interests),
-          persistent(persistent) { use_int_socket = 1; }
+          persistent(persistent) {
+      use_int_socket = 1;
+    }
 #endif  // SB_API_VERSION >= 16
     Waitee(SbSocketWaiter waiter,
            SbSocket socket,
@@ -85,7 +89,9 @@ struct SbSocketWaiterPrivate {
           context(context),
           sb_callback(callback),
           interests(interests),
-          persistent(persistent) { use_int_socket = 0; }
+          persistent(persistent) {
+      use_int_socket = 0;
+    }
 
     // The socket registered with the waiter.
     int i_socket;

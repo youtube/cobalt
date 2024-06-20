@@ -20,12 +20,8 @@ bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket) {
   if (!SbSocketWaiterIsValid(waiter)) {
     return false;
   }
-#if SB_API_VERSION >= 16
-  // SbSocket* APIs are deprecated in SB16
-  return false;
-#else
+
   return waiter->Remove(socket);
-#endif
 }
 
 #if SB_API_VERSION >= 16

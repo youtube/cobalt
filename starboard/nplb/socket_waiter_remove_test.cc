@@ -44,7 +44,8 @@ TEST_F(SbSocketWaiterRemoveTest, RainyDayInvalidSocket) {
 TEST_F(SbSocketWaiterRemoveTest, SunnyDayAddAndRemove) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
-  SbSocket socket = SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+  SbSocket socket =
+      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
   ASSERT_TRUE(SbSocketIsValid(socket));
 
   EXPECT_TRUE(SbSocketWaiterAdd(

@@ -91,6 +91,40 @@ TEST(SbPosixSocketWaiterAddTest, SunnyDayMany) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
+TEST(SbPosixSocketWaiterAddTest, RainyDayAddToSameWaiter) {
+  SbSocketWaiter waiter = SbSocketWaiterCreate();
+  EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
+
+  int socket = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  ASSERT_TRUE(socket >= 0);
+
+  // First add should succeed.
+  EXPECT_TRUE(SbPosixSocketWaiterAdd(
+      waiter, socket, NULL, &NoOpSocketWaiterCallback,
+      kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
+
+  // Second add should fail.
+  EXPECT_FALSE(SbPosixSocketWaiterAdd(
+      waiter, socket, NULL, &NoOpSocketWaiterCallback,
+      kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
+
+  // Remove should succeed.
+  EXPECT_TRUE(SbPosixSocketWaiterRemove(waiter, socket));
+
+  // Add after remove should succeed.
+  EXPECT_TRUE(SbPosixSocketWaiterAdd(
+      waiter, socket, NULL, &NoOpSocketWaiterCallback,
+      kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
+
+  // Second add after remove should fail.
+  EXPECT_FALSE(SbPosixSocketWaiterAdd(
+      waiter, socket, NULL, &NoOpSocketWaiterCallback,
+      kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
+
+  EXPECT_TRUE(close(socket) == 0);
+  EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
+}
+
 TEST(SbPosixSocketWaiterAddTest, RainyDayInvalidSocket) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
@@ -141,7 +175,6 @@ TEST(SbPosixSocketWaiterAddTest, RainyDayNoInterest) {
   EXPECT_TRUE(close(socket) == 0);
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
-
 #endif  // SB_API_VERSION >= 16
 
 }  // namespace

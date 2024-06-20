@@ -77,4 +77,4 @@ bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
 
   return waiter->Add(socket, waiter, context, callback, interests, persistent);
 }
-#endif  // SB_API_VERSION <= 15
+#endif  // SB_API_VERSION >= 16

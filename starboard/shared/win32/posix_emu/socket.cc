@@ -518,11 +518,11 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
   return 0;
 }
 
-int posixSocketGetFdFromHandle(SOCKET socket) {
+int posix_socket_get_fd_from_handle(SOCKET socket) {
   return handle_db_get_fd(socket);
 }
 
-SOCKET posixSocketGetHandleFromFd(int socket) {
+SOCKET posix_socket_get_handle_from_fd(int socket) {
   FileOrSocket handle = handle_db_get(socket, false);
   if (handle.is_file || handle.socket == INVALID_SOCKET) {
     return INVALID_SOCKET;

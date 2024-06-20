@@ -206,9 +206,16 @@ bool SbSocketWaiterPrivate::Add(int socket,
   // The policy is not to add a socket to a waiter if it is registered with
   // another waiter.
 
-  // TODO: Since interger based socket fd doesn't have waiter information,
+  // TODO: Since integer based socket fd doesn't have waiter information,
   //       need to find a way to keep track whether this socket has been
   //       registered with a waiter already.
+  //       At this moment, at least we can test if this specific socket
+  //       is already registered to this incoming waiter.
+  if (waiter->CheckSocketRegistered(socket)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has this waiter ("
+                   << this << ").";
+    return false;
+  }
 
   Waitee* waitee =
       new Waitee(this, socket, context, callback, interests, persistent);
@@ -262,6 +269,18 @@ bool SbSocketWaiterPrivate::Remove(int socket, SbSocketWaiter waiter) {
   return true;
 }
 
+bool SbSocketWaiterPrivate::CheckSocketRegistered(int socket) {
+  if (socket < 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+
+  if (GetWaitee(socket) == NULL) {
+    return false;
+  }
+
+  return true;
+}
 #endif  // SB_API_VERSION >= 16
 
 bool SbSocketWaiterPrivate::Add(SbSocket socket,
@@ -349,6 +368,18 @@ bool SbSocketWaiterPrivate::Remove(SbSocket socket, SbSocketWaiter waiter) {
   socket->waiter = kSbSocketWaiterInvalid;
 
   delete waitee;
+  return true;
+}
+
+bool SbSocketWaiterPrivate::CheckSocketRegistered(SbSocket socket) {
+  if (!SbSocketIsValid(socket)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+  if (GetWaitee(socket) == NULL) {
+    return false;
+  }
+
   return true;
 }
 
@@ -481,8 +512,7 @@ void SbSocketWaiterPrivate::AddWaitee(Waitee* waitee) {
   }
 }
 
-SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::GetWaitee(
-    int socket) {
+SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::GetWaitee(int socket) {
   i_WaiteesMap::iterator it = i_waitees_.find(socket);
   if (it == i_waitees_.end()) {
     return NULL;
@@ -501,8 +531,7 @@ SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::GetWaitee(
   return it->second;
 }
 
-SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::RemoveWaitee(
-    int socket) {
+SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::RemoveWaitee(int socket) {
   i_WaiteesMap::iterator it = i_waitees_.find(socket);
   if (it == i_waitees_.end()) {
     return NULL;

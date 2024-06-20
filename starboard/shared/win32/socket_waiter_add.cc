@@ -44,9 +44,7 @@ bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
     return false;
   }
 
-  bool test =
-      waiter->Add(socket, waiter, context, callback, interests, persistent);
-  return test;
+  return waiter->Add(socket, waiter, context, callback, interests, persistent);
 }
 #endif  // SB_API_VERSION >= 16
 
@@ -76,10 +74,5 @@ bool SbSocketWaiterAdd(SbSocketWaiter waiter,
     return false;
   }
 
-#if SB_API_VERSION >= 16
-  // SbSocket* APIs are deprecated in SB16
-  return false;
-#else
   return waiter->Add(socket, context, callback, interests, persistent);
-#endif
 }

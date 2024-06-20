@@ -56,18 +56,20 @@ class SbSocketWaiterPrivate {
            int interests,
            bool persistent);
   bool Remove(int socket, SbSocketWaiter waiter);
-#else
+  bool CheckSocketRegistered(int socket);
+#endif  // SB_API_VERSION >= 16
   bool Add(SbSocket socket,
            void* context,
            SbSocketWaiterCallback callback,
            int interests,
            bool persistent);
   bool Remove(SbSocket socket);
-#endif
+
   void Wait();
   SbSocketWaiterResult WaitTimed(int64_t duration_usec);
   void WakeUp();
   void HandleWakeUpRead();
+  bool CheckSocketRegistered(SbSocket socket);
 
  private:
   // A registration of a socket with a socket waiter.
@@ -81,21 +83,23 @@ class SbSocketWaiterPrivate {
            int interests,
            bool persistent)
         : waiter(waiter),
-          socket(socket),
+          posix_socket(socket),
           socket_event_ptr(socket_event_ptr),
           context(context),
-          callback(callback),
+          posix_callback(callback),
           interests(interests),
-          persistent(persistent) {}
+          persistent(persistent) {
+      use_posix_socket = 1;
+    }
     // The socket registered with the waiter.
-    int socket;
+    int posix_socket;
 
     // The callback to call when one or more registered interests become ready.
-    SbPosixSocketWaiterCallback callback;
+    SbPosixSocketWaiterCallback posix_callback;
 
     // The event related to the socket_handle.  Used for SbSocketWaiter.
     sbwin32::AutoEventHandle* socket_event_ptr;
-#else
+#endif  // SB_API_VERSION >= 16
     Waitee(SbSocketWaiter waiter,
            SbSocket socket,
            void* context,
@@ -107,13 +111,18 @@ class SbSocketWaiterPrivate {
           context(context),
           callback(callback),
           interests(interests),
-          persistent(persistent) {}
+          persistent(persistent) {
+      use_posix_socket = 0;
+    }
+
+    int use_posix_socket;
+
     // The socket registered with the waiter.
     SbSocket socket;
 
     // The callback to call when one or more registered interests become ready.
     SbSocketWaiterCallback callback;
-#endif
+
     // The waiter this event is registered with.
     SbSocketWaiter waiter;
 
@@ -132,10 +141,9 @@ class SbSocketWaiterPrivate {
     typedef int64_t LookupToken;
     typedef std::deque<std::unique_ptr<Waitee>> Waitees;
 #if SB_API_VERSION >= 16
-    typedef std::unordered_map<int, std::size_t> SocketToIndex;
-#else
+    typedef std::unordered_map<int, std::size_t> posix_SocketToIndex;
+#endif  // SB_API_VERSION >= 16
     typedef std::unordered_map<SbSocket, std::size_t> SocketToIndex;
-#endif
 
     WSAEVENT* GetHandleArray() { return socket_events_.data(); }
     std::size_t GetHandleArraySize() { return socket_events_.size(); }
@@ -150,7 +158,7 @@ class SbSocketWaiterPrivate {
 
     // Returns true if socket was found, and removed.
     bool RemoveSocket(int socket);
-#else
+#endif  // SB_API_VERSION >= 16
     // Gets the Waitee associated with the given socket, or nullptr.
     Waitee* GetWaitee(SbSocket socket);
 
@@ -159,7 +167,6 @@ class SbSocketWaiterPrivate {
 
     // Returns true if socket was found, and removed.
     bool RemoveSocket(SbSocket socket);
-#endif
 
     // Gets the Waitee by index.
     Waitee* GetWaiteeByIndex(LookupToken socket_index);
@@ -169,7 +176,11 @@ class SbSocketWaiterPrivate {
                                         std::unique_ptr<Waitee> waitee);
 
    private:
+#if SB_API_VERSION >= 16
+    posix_SocketToIndex posix_socket_to_index_map_;
+#endif  // SB_API_VERSION >= 16
     SocketToIndex socket_to_index_map_;
+
     std::vector<WSAEVENT> socket_events_;
     std::deque<std::unique_ptr<Waitee>> waitees_;
   };
@@ -179,9 +190,8 @@ class SbSocketWaiterPrivate {
 
 #if SB_API_VERSION >= 16
   bool CheckSocketWaiterIsThis(int socket, SbSocketWaiter waiter);
-#else
+#endif  // SB_API_VERSION >= 16
   bool CheckSocketWaiterIsThis(SbSocket socket);
-#endif
 
   // The thread this waiter was created on. Immutable, so accessible from any
   // thread.
