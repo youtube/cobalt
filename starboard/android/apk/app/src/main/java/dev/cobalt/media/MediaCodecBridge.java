@@ -43,20 +43,6 @@ import java.util.Optional;
 @SuppressWarnings("unused")
 @UsedByNative
 class MediaCodecBridge {
-  // Error code for MediaCodecBridge. Keep this value in sync with
-  // MEDIA_CODEC_* values in media_codec_bridge.h.
-  private static final int MEDIA_CODEC_OK = 0;
-  private static final int MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER = 1;
-  private static final int MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER = 2;
-  private static final int MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED = 3;
-  private static final int MEDIA_CODEC_OUTPUT_FORMAT_CHANGED = 4;
-  private static final int MEDIA_CODEC_INPUT_END_OF_STREAM = 5;
-  private static final int MEDIA_CODEC_OUTPUT_END_OF_STREAM = 6;
-  private static final int MEDIA_CODEC_NO_KEY = 7;
-  private static final int MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION = 8;
-  private static final int MEDIA_CODEC_ABORT = 9;
-  private static final int MEDIA_CODEC_ERROR = 10;
-
   // After a flush(), dequeueOutputBuffer() can often produce empty presentation timestamps
   // for several frames. As a result, the player may find that the time does not increase
   // after decoding a frame. To detect this, we check whether the presentation timestamp from
@@ -162,7 +148,7 @@ class MediaCodecBridge {
     @SuppressWarnings("unused")
     @UsedByNative
     private DequeueInputResult() {
-      mStatus = MEDIA_CODEC_ERROR;
+      mStatus = MediaCodecStatus.ERROR;
       mIndex = -1;
     }
 
@@ -199,7 +185,7 @@ class MediaCodecBridge {
     @SuppressWarnings("unused")
     @UsedByNative
     private DequeueOutputResult() {
-      mStatus = MEDIA_CODEC_ERROR;
+      mStatus = MediaCodecStatus.ERROR;
       mIndex = -1;
       mFlags = 0;
       mOffset = 0;
@@ -266,14 +252,14 @@ class MediaCodecBridge {
   @UsedByNative
   private static class GetOutputFormatResult {
     private int mStatus;
-    // May be null if mStatus is not MEDIA_CODEC_OK.
+    // May be null if mStatus is not MediaCodecStatus.OK.
     private MediaFormat mFormat;
     private Optional<Boolean> mFormatHasCropValues = Optional.empty();
 
     @SuppressWarnings("unused")
     @UsedByNative
     private GetOutputFormatResult() {
-      mStatus = MEDIA_CODEC_ERROR;
+      mStatus = MediaCodecStatus.ERROR;
       mFormat = null;
     }
 
@@ -831,9 +817,9 @@ class MediaCodecBridge {
       mMediaCodec.flush();
     } catch (Exception e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
-      return MEDIA_CODEC_ERROR;
+      return MediaCodecStatus.ERROR;
     }
-    return MEDIA_CODEC_OK;
+    return MediaCodecStatus.OK;
   }
 
   // It is required to reset mNativeMediaCodecBridge when the native media_codec_bridge object is
@@ -873,12 +859,12 @@ class MediaCodecBridge {
   @UsedByNative
   private void getOutputFormat(GetOutputFormatResult outGetOutputFormatResult) {
     MediaFormat format = null;
-    int status = MEDIA_CODEC_OK;
+    int status = MediaCodecStatus.OK;
     try {
       format = mMediaCodec.getOutputFormat();
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to get output format", e);
-      status = MEDIA_CODEC_ERROR;
+      status = MediaCodecStatus.ERROR;
     }
     outGetOutputFormatResult.mStatus = status;
     outGetOutputFormatResult.mFormat = format;
@@ -917,9 +903,9 @@ class MediaCodecBridge {
       mMediaCodec.queueInputBuffer(index, offset, size, presentationTimeUs, flags);
     } catch (Exception e) {
       Log.e(TAG, "Failed to queue input buffer", e);
-      return MEDIA_CODEC_ERROR;
+      return MediaCodecStatus.ERROR;
     }
-    return MEDIA_CODEC_OK;
+    return MediaCodecStatus.OK;
   }
 
   @SuppressWarnings("unused")
@@ -976,7 +962,7 @@ class MediaCodecBridge {
         cryptoInfo.setPattern(new Pattern(blocksToEncrypt, blocksToSkip));
       } else if (blocksToEncrypt != 0 || blocksToSkip != 0) {
         Log.e(TAG, "Pattern encryption only supported for 'cbcs' scheme (CBC mode).");
-        return MEDIA_CODEC_ERROR;
+        return MediaCodecStatus.ERROR;
       }
 
       mMediaCodec.queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
@@ -984,27 +970,27 @@ class MediaCodecBridge {
       int errorCode = e.getErrorCode();
       if (errorCode == MediaCodec.CryptoException.ERROR_NO_KEY) {
         Log.d(TAG, "Failed to queue secure input buffer: CryptoException.ERROR_NO_KEY");
-        return MEDIA_CODEC_NO_KEY;
+        return MediaCodecStatus.NO_KEY;
       } else if (errorCode == MediaCodec.CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION) {
         Log.d(
             TAG,
             "Failed to queue secure input buffer: "
                 + "CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION");
-        return MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION;
+        return MediaCodecStatus.INSUFFICIENT_OUTPUT_PROTECTION;
       }
       Log.e(
           TAG,
           "Failed to queue secure input buffer, CryptoException with error code "
               + e.getErrorCode());
-      return MEDIA_CODEC_ERROR;
+      return MediaCodecStatus.ERROR;
     } catch (IllegalArgumentException e) {
       Log.e(TAG, "Failed to queue secure input buffer, IllegalArgumentException " + e);
-      return MEDIA_CODEC_ERROR;
+      return MediaCodecStatus.ERROR;
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to queue secure input buffer, IllegalStateException " + e);
-      return MEDIA_CODEC_ERROR;
+      return MediaCodecStatus.ERROR;
     }
-    return MEDIA_CODEC_OK;
+    return MediaCodecStatus.OK;
   }
 
   @SuppressWarnings("unused")
