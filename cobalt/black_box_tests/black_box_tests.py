@@ -69,8 +69,7 @@ _TESTS_NO_SIGNAL = [
     'default_site_can_load',
     'disable_eval_with_csp',
     'h5vcc_storage_write_verify_test',
-    # TODO(b/346882263): Disabled, it's suddenly flaky
-    # 'h5vcc_watchdog_api_test',
+    'h5vcc_watchdog_api_test',
     'http_cache',
     'javascript_profiler',
     'persistent_cookie',
