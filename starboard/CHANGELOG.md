@@ -9,6 +9,16 @@ since the version previous to it.
 
 ## Version 16
 
+## Deprecated `Accessibility` header
+
+Accessibility Starboard API has been deprecated, an extension in
+`starboard/extension/accessibility.h` is available instead. The removal
+includes the following functions:
+* `SbAccessibilityGetCaptionSettings`
+* `SbAccessibilityGetDisplaySettings`
+* `SbAccessibilityGetTextToSpeechSettings`
+* `SbAccessibilitySetCaptionsEnabled`
+
 ## Added new configuration constant `kHasPartialAudioFramesSupport`
 Set this to true if your platform supports partial audio frames.
 
