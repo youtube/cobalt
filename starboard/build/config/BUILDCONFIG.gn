@@ -417,11 +417,11 @@ template("evergreen_loader") {
       library_extension = "so"
     }
 
+    abi_suffix = ""
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/install/lib/lib${original_target_name}.${library_extension}" ]
-    } else if (target_cpu == "arm64") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu_$build_type/install/lib/lib${original_target_name}.${library_extension}" ]
+      abi_suffix = "-${arm_float_abi}"
     }
+    sources = [ "$root_out_dir/../evergreen-$target_cpu${abi_suffix}_$build_type/install/lib/lib${original_target_name}.${library_extension}" ]
     outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/lib/lib${original_target_name}.${library_extension}" ]
   }
   install_target(original_target_name + "_evergreen_loader_install") {
