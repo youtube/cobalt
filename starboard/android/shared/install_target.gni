@@ -40,6 +40,11 @@ template("install_target") {
     deps = invoker.deps
     deps += [ ":$installable_target_name" ]
 
+    # The gradle build expects libcrashpad_handler.so to be present in the out directory.
+    if (sb_is_evergreen_compatible) {
+      deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
+    }
+
     if (is_gold) {
       gradle_build_type = "release"
     } else {
