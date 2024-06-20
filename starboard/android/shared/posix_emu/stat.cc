@@ -71,14 +71,12 @@ int __wrap_stat(const char* path, struct stat* info) {
   }
 
   // Values from SbFileGetPathInfo
-  SbDirectory directory = SbDirectoryOpen(path, NULL);
-  if (directory && directory->asset_dir) {
+  if (IsAndroidAssetPath(path)) {
     info->st_mode = S_IFDIR;
     info->st_ctime = 0;
     info->st_atime = 0;
     info->st_mtime = 0;
     info->st_size = 0;
-    SbDirectoryClose(directory);
     return 0;
   }
 
