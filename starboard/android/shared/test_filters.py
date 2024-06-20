@@ -97,9 +97,6 @@ _FILTERED_TESTS = {
 
         # TODO: b/280432564 Make this test work on lab devices consistently.
         'SbAudioSinkTest.ContinuousAppend',
-
-        ## TODO: b/347097484 This test failed/crashed with SbPlayerGetMaximumNumberOfSamplesPerWrite() of 256.
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/*',
     ],
 }
 # pylint: enable=line-too-long

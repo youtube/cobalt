@@ -200,5 +200,6 @@ repos:
         language: python
         additional_dependencies:
           - "protobuf"
+        stages: [push]
         always_run: true
         pass_filenames: false

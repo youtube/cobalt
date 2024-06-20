@@ -537,8 +537,6 @@ TEST(FileEnumerator, GetInfoRecursive) {
   while (!file_enumerator.Next().empty()) {
     auto info = file_enumerator.GetInfo();
     bool found = false;
-    // to be removed
-    bool is_dir = false;
     if (info.IsDirectory()) {
 #if defined(STARBOARD)
 #ifdef _WIN32
