@@ -9,6 +9,11 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated SbSocketWaiter APIs and migrated to POSIX based APIs
+Introduce APIs that takes integer as socket descriptor to comply with POSIX.
+SbPosixSocketWaiterAdd replaces SbSocketWaiterAdd, and SbPosixSocketWaiterRemove
+replaces SbSocketWaiterRemove.
+
 ## Added new configuration constant `kHasPartialAudioFramesSupport`
 Set this to true if your platform supports partial audio frames.
 

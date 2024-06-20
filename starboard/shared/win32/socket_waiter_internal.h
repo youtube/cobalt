@@ -48,12 +48,22 @@ class SbSocketWaiterPrivate {
   ~SbSocketWaiterPrivate();
 
   // These methods implement the SbSocketWaiter API defined in socket_waiter.h.
+#if SB_API_VERSION >= 16
+  bool Add(int socket,
+           SbSocketWaiter waiter,
+           void* context,
+           SbPosixSocketWaiterCallback callback,
+           int interests,
+           bool persistent);
+  bool Remove(int socket, SbSocketWaiter waiter);
+#else
   bool Add(SbSocket socket,
            void* context,
            SbSocketWaiterCallback callback,
            int interests,
            bool persistent);
   bool Remove(SbSocket socket);
+#endif
   void Wait();
   SbSocketWaiterResult WaitTimed(int64_t duration_usec);
   void WakeUp();
@@ -62,6 +72,30 @@ class SbSocketWaiterPrivate {
  private:
   // A registration of a socket with a socket waiter.
   struct Waitee {
+#if SB_API_VERSION >= 16
+    Waitee(SbSocketWaiter waiter,
+           int socket,
+           sbwin32::AutoEventHandle* socket_event_ptr,
+           void* context,
+           SbPosixSocketWaiterCallback callback,
+           int interests,
+           bool persistent)
+        : waiter(waiter),
+          socket(socket),
+          socket_event_ptr(socket_event_ptr),
+          context(context),
+          callback(callback),
+          interests(interests),
+          persistent(persistent) {}
+    // The socket registered with the waiter.
+    int socket;
+
+    // The callback to call when one or more registered interests become ready.
+    SbPosixSocketWaiterCallback callback;
+
+    // The event related to the socket_handle.  Used for SbSocketWaiter.
+    sbwin32::AutoEventHandle* socket_event_ptr;
+#else
     Waitee(SbSocketWaiter waiter,
            SbSocket socket,
            void* context,
@@ -74,17 +108,17 @@ class SbSocketWaiterPrivate {
           callback(callback),
           interests(interests),
           persistent(persistent) {}
-    // The waiter this event is registered with.
-    SbSocketWaiter waiter;
-
     // The socket registered with the waiter.
     SbSocket socket;
 
-    // A context value that will be passed to the callback.
-    void* context;
-
     // The callback to call when one or more registered interests become ready.
     SbSocketWaiterCallback callback;
+#endif
+    // The waiter this event is registered with.
+    SbSocketWaiter waiter;
+
+    // A context value that will be passed to the callback.
+    void* context;
 
     // The set of interests registered with the waiter.
     int interests;
@@ -97,17 +131,35 @@ class SbSocketWaiterPrivate {
    public:
     typedef int64_t LookupToken;
     typedef std::deque<std::unique_ptr<Waitee>> Waitees;
+#if SB_API_VERSION >= 16
+    typedef std::unordered_map<int, std::size_t> SocketToIndex;
+#else
     typedef std::unordered_map<SbSocket, std::size_t> SocketToIndex;
+#endif
 
     WSAEVENT* GetHandleArray() { return socket_events_.data(); }
     std::size_t GetHandleArraySize() { return socket_events_.size(); }
     const Waitees& GetWaitees() const { return waitees_; }
 
+#if SB_API_VERSION >= 16
+    // Gets the Waitee associated with the given socket, or nullptr.
+    Waitee* GetWaitee(int socket);
+
+    // Gets the index by socket
+    starboard::optional<int64_t> GetIndex(int socket);
+
+    // Returns true if socket was found, and removed.
+    bool RemoveSocket(int socket);
+#else
     // Gets the Waitee associated with the given socket, or nullptr.
     Waitee* GetWaitee(SbSocket socket);
 
     // Gets the index by socket
     starboard::optional<int64_t> GetIndex(SbSocket socket);
+
+    // Returns true if socket was found, and removed.
+    bool RemoveSocket(SbSocket socket);
+#endif
 
     // Gets the Waitee by index.
     Waitee* GetWaiteeByIndex(LookupToken socket_index);
@@ -115,8 +167,6 @@ class SbSocketWaiterPrivate {
     // Returns the index of the event.
     LookupToken AddSocketEventAndWaitee(WSAEVENT socket_event,
                                         std::unique_ptr<Waitee> waitee);
-    // Returns true if socket was found, and removed.
-    bool RemoveSocket(SbSocket socket);
 
    private:
     SocketToIndex socket_to_index_map_;
@@ -127,7 +177,11 @@ class SbSocketWaiterPrivate {
   void SignalWakeupEvent();
   void ResetWakeupEvent();
 
+#if SB_API_VERSION >= 16
+  bool CheckSocketWaiterIsThis(int socket, SbSocketWaiter waiter);
+#else
   bool CheckSocketWaiterIsThis(SbSocket socket);
+#endif
 
   // The thread this waiter was created on. Immutable, so accessible from any
   // thread.

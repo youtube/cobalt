@@ -41,6 +41,21 @@ TEST_F(SbSocketWaiterRemoveTest, RainyDayInvalidSocket) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
+TEST_F(SbSocketWaiterRemoveTest, SunnyDayAddAndRemove) {
+  SbSocketWaiter waiter = SbSocketWaiterCreate();
+  EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
+  SbSocket socket = SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
+
+  EXPECT_TRUE(SbSocketWaiterAdd(
+      waiter, socket, NULL, &NoOpSocketWaiterCallback,
+      kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
+  EXPECT_TRUE(SbSocketWaiterRemove(waiter, socket));
+
+  EXPECT_TRUE(SbSocketDestroy(socket));
+  EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
+}
+
 TEST_P(SbSocketWaiterRemoveTest, RainyDayInvalidWaiter) {
   SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
   ASSERT_TRUE(SbSocketIsValid(socket));

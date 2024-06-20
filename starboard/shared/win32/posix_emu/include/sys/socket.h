@@ -37,7 +37,7 @@ int sb_listen(int socket, int backlog);
 int sb_accept(int socket, sockaddr* addr, int* addrlen);
 #define accept sb_accept
 
-int sb_connect(int socket, sockaddr* name, int namelen);
+int sb_connect(int socket, const sockaddr* name, int namelen);
 #define connect sb_connect
 
 int sb_send(int sockfd, const void* buf, size_t len, int flags);
@@ -68,6 +68,9 @@ int sb_setsockopt(int socket,
                   const void* option_value,
                   int option_len);
 #define setsockopt sb_setsockopt
+
+int posixSocketGetFdFromHandle(SOCKET socket);
+SOCKET posixSocketGetHandleFromFd(int socket);
 
 #ifdef __cplusplus
 }

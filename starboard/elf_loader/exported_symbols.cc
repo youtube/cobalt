@@ -328,6 +328,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketWaiterWait);
   REGISTER_SYMBOL(SbSocketWaiterWaitTimed);
   REGISTER_SYMBOL(SbSocketWaiterWakeUp);
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(SbPosixSocketWaiterAdd);
+  REGISTER_SYMBOL(SbPosixSocketWaiterRemove);
+#endif  // SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
