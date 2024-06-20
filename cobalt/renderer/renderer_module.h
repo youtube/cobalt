@@ -16,7 +16,6 @@
 #define COBALT_RENDERER_RENDERER_MODULE_H_
 
 #include <memory>
-#include <string>
 
 #include "cobalt/base/camera_transform.h"
 #include "cobalt/render_tree/node.h"
@@ -92,13 +91,10 @@ class RendererModule {
     bool enable_fps_stdout;
     bool enable_fps_overlay;
 
-    // If commandline has specified rasterizer type, use that one to replace
-    // the default platform config.
-    std::string rasterizer_type_setting = "";
-
+   private:
     // Implemented per-platform, and allows each platform to customize
     // the renderer options.
-    void SetPerPlatformDefaultOptions(std::string rasterizer_type = "");
+    void SetPerPlatformDefaultOptions();
   };
 
   RendererModule(system_window::SystemWindow* system_window,

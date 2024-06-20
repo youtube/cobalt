@@ -75,18 +75,14 @@ std::unique_ptr<rasterizer::Rasterizer> CreateSkiaHardwareRasterizer(
 
 }  // namespace
 
-RasterizerInfo GetDefaultRasterizerForPlatform(
-    std::string rasterizer_type_setting) {
+RasterizerInfo GetDefaultRasterizerForPlatform() {
   std::string rasterizer_type =
       configuration::Configuration::GetInstance()->CobaltRasterizerType();
-  if (rasterizer_type_setting != "") {
-    rasterizer_type = rasterizer_type_setting;
-  }
   if (rasterizer_type == "stub") {
     return {"stub", base::Bind(&CreateStubRasterizer)};
   }
   if (SbGetGlesInterface()) {
-    if (rasterizer_type == configuration::Configuration::kGlesRasterizer) {
+    if (rasterizer_type == "direct-gles") {
       return {"gles", base::Bind(&CreateGLESHardwareRasterizer)};
     } else {
       return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};

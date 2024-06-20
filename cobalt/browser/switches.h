@@ -102,8 +102,6 @@ extern const char kDisableTimerResolutionLimitHelp[];
 extern const char kDisableUpdaterModule[];
 extern const char kDisableUpdaterModuleHelp[];
 #endif
-extern const char kEnableSkiaRasterizer[];
-extern const char kEnableSkiaRasterizerHelp[];
 extern const char kEncodedImageCacheSizeInBytes[];
 extern const char kEncodedImageCacheSizeInBytesHelp[];
 extern const char kForceMigrationForStoragePartitioning[];

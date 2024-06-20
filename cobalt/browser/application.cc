@@ -732,20 +732,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
     options.renderer_module_options.enable_fps_overlay = true;
   }
 
-  if (command_line->HasSwitch(browser::switches::kEnableSkiaRasterizer)) {
-    int enable_skia = 0;
-    base::StringToInt(command_line->GetSwitchValueASCII(
-                          browser::switches::kEnableSkiaRasterizer),
-                      &enable_skia);
-    if (enable_skia) {
-      options.renderer_module_options.rasterizer_type_setting =
-          configuration::Configuration::kSkiaRasterizer;
-    } else {
-      options.renderer_module_options.rasterizer_type_setting =
-          configuration::Configuration::kGlesRasterizer;
-    }
-  }
-
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {

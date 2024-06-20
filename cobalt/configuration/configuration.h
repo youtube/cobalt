@@ -61,9 +61,6 @@ class Configuration {
   const char* CobaltFallbackSplashScreenTopics();
   bool CobaltCanStoreCompiledJavascript();
 
-  static const char kSkiaRasterizer[];
-  static const char kGlesRasterizer[];
-
  private:
   Configuration();
 

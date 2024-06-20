@@ -19,10 +19,9 @@
 namespace cobalt {
 namespace renderer {
 
-void RendererModule::Options::SetPerPlatformDefaultOptions(
-    std::string rasterizer_type) {
-  create_rasterizer_function = GetDefaultRasterizerForPlatform(rasterizer_type)
-                                   .create_rasterizer_callback;
+void RendererModule::Options::SetPerPlatformDefaultOptions() {
+  create_rasterizer_function =
+      GetDefaultRasterizerForPlatform().create_rasterizer_callback;
 }
 
 }  // namespace renderer

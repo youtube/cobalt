@@ -27,8 +27,7 @@ struct RasterizerInfo {
   RendererModule::Options::CreateRasterizerCallback create_rasterizer_callback;
 };
 
-RasterizerInfo GetDefaultRasterizerForPlatform(
-    std::string rasterizer_type_setting = "");
+RasterizerInfo GetDefaultRasterizerForPlatform();
 
 }  // namespace renderer
 }  // namespace cobalt

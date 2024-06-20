@@ -411,22 +411,8 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
           CalculateOffscreenTargetCacheSizeInBytes(ui_resolution));
   offscreen_target_cache_size_in_bytes_->set_memory_scaling_function(
       MakeLinearMemoryScaler(0.25, 1.0));
-
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  std::string rasterizer_type =
-      configuration::Configuration::GetInstance()->CobaltRasterizerType();
-  if (command_line->HasSwitch(browser::switches::kEnableSkiaRasterizer)) {
-    int enable_skia = 0;
-    base::StringToInt(command_line->GetSwitchValueASCII(
-                          browser::switches::kEnableSkiaRasterizer),
-                      &enable_skia);
-    if (enable_skia) {
-      rasterizer_type = configuration::Configuration::kSkiaRasterizer;
-    } else {
-      rasterizer_type = configuration::Configuration::kGlesRasterizer;
-    }
-  }
-  if (rasterizer_type == configuration::Configuration::kGlesRasterizer) {
+  if (std::string(configuration::Configuration::GetInstance()
+                      ->CobaltRasterizerType()) == "direct-gles") {
     offscreen_target_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
   } else {
     offscreen_target_cache_size_in_bytes_->set_memory_type(
