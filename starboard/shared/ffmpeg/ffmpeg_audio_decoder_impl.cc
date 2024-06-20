@@ -295,10 +295,10 @@ AudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
 void AudioDecoderImpl<FFMPEG>::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  TeardownCodec();
+  /*TeardownCodec();
   if ((ffmpeg_->specialization_version()) == FFMPEG) {
     InitializeCodec();
-  }
+  }*/
 
   stream_ended_ = false;
   while (!decoded_audios_.empty()) {
