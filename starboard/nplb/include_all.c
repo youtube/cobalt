@@ -14,7 +14,9 @@
 
 // Includes all headers in a C context to make sure they compile as C files.
 
+#if SB_API_VERSION < 16
 #include "starboard/accessibility.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/atomic.h"
 #include "starboard/audio_sink.h"
 #if SB_API_VERSION < 16

@@ -14,6 +14,7 @@
 
 #include <cmath>
 
+#include "starboard/extension/accessibility.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/cwrappers.h"
@@ -590,5 +591,27 @@ TEST(ExtensionTest, MediaSettings) {
       << "Extension struct should be a singleton";
 }
 
+TEST(ExtensionTest, CobaltAccessibilityExtension) {
+  typedef StarboardExtensionAccessibilityApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionAccessibilityName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->GetTextToSpeechSettings, nullptr);
+  EXPECT_NE(extension_api->GetDisplaySettings, nullptr);
+  EXPECT_NE(extension_api->GetCaptionSettings, nullptr);
+  EXPECT_NE(extension_api->SetCaptionsEnabled, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
 }  // namespace extension
 }  // namespace starboard
