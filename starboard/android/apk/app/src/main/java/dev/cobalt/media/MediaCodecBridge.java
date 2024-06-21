@@ -591,7 +591,8 @@ class MediaCodecBridge {
               mime,
               crypto != null,
               decoderName);
-      Log.e(TAG, message, e);
+      message += ", exception: " + e.toString();
+      Log.e(TAG, message);
       outCreateMediaCodecBridgeResult.mErrorMessage = message;
       return;
     }
