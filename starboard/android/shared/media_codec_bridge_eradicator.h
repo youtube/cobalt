@@ -47,7 +47,7 @@ class MediaCodecBridgeEradicator {
  private:
   static void* DestroyMediaCodecBridge(void* context);
 
-  atomic_bool is_enabled_;  // false by default
+  atomic_bool is_enabled_{false};  // false by default
   Mutex mutex_;
   ConditionVariable condition_variable_{mutex_};
   std::set<jobject> j_media_codec_bridge_set_;
