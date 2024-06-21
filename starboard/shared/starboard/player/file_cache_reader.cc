@@ -84,7 +84,8 @@ void FileCacheReader::EnsureFileOpened() {
   if (file_) {
     return;
   }
-  file_.reset(new ScopedFile(absolute_path_.c_str(), 0));
+  file_.reset(
+      new ScopedFile(absolute_path_.c_str(), kSbFileOpenOnly | kSbFileRead));
   SB_CHECK(file_->IsValid());
 
   max_file_cache_size_ =

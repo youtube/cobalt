@@ -22,19 +22,7 @@
 
 #include "starboard/file.h"
 
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
-
-#include "starboard/common/log.h"
-
-#ifdef _WIN32
-#undef open
-#undef close
-#define open sb_open
-#define close sb_close
-#endif
 
 namespace starboard {
 
@@ -61,56 +49,63 @@ ssize_t WriteAll(int fd, const void* data, int size);
 // functions call the corresponding SbFile function.
 class ScopedFile {
  public:
-  ScopedFile(const char* path, int flags, int mode) : file_(-1) {
-    file_ = open(path, flags, mode);
+  ScopedFile(const char* path,
+             int flags,
+             bool* out_created,
+             SbFileError* out_error)
+      : file_(kSbFileInvalid) {
+    file_ = SbFileOpen(path, flags, out_created, out_error);
   }
 
-  ScopedFile(const char* path, int flags) : file_(-1) {
-    file_ = open(path, flags, S_IRUSR | S_IWUSR);
+  ScopedFile(const char* path, int flags, bool* out_created)
+      : file_(kSbFileInvalid) {
+    file_ = SbFileOpen(path, flags, out_created, NULL);
   }
 
-  ~ScopedFile() {
-    if (file_ >= 0) {
-      close(file_);
-    }
+  ScopedFile(const char* path, int flags) : file_(kSbFileInvalid) {
+    file_ = SbFileOpen(path, flags, NULL, NULL);
   }
 
-  int file() const { return file_; }
+  ~ScopedFile() { SbFileClose(file_); }
 
-  bool IsValid() const { return file_ >= 0; }
+  SbFile file() const { return file_; }
+
+  bool IsValid() const { return SbFileIsValid(file_); }
 
   int64_t Seek(SbFileWhence whence, int64_t offset) const {
-    return lseek(file_, static_cast<off_t>(offset), static_cast<int>(whence));
+    return SbFileSeek(file_, whence, offset);
   }
 
-  int Read(char* data, int size) const { return read(file_, data, size); }
+  int Read(char* data, int size) const { return SbFileRead(file_, data, size); }
 
   int ReadAll(char* data, int size) const {
-    return starboard::ReadAll(file_, data, size);
+    return SbFileReadAll(file_, data, size);
   }
 
   int Write(const char* data, int size) const {
-    int result = write(file_, data, size);
+    int result = SbFileWrite(file_, data, size);
     RecordFileWriteStat(result);
     return result;
   }
 
   int WriteAll(const char* data, int size) const {
-    int result = starboard::WriteAll(file_, data, size);
+    int result = SbFileWriteAll(file_, data, size);
     RecordFileWriteStat(result);
     return result;
   }
 
-  bool Truncate(int64_t length) const { return !ftruncate(file_, length); }
+  bool Truncate(int64_t length) const { return SbFileTruncate(file_, length); }
 
-  bool Flush() const { return !fsync(file_); }
+  bool Flush() const { return SbFileFlush(file_); }
 
-  bool GetInfo(struct stat* out_info) const { return !fstat(file_, out_info); }
+  bool GetInfo(SbFileInfo* out_info) const {
+    return SbFileGetInfo(file_, out_info);
+  }
 
   int64_t GetSize() const {
-    struct stat file_info;
+    SbFileInfo file_info;
     bool success = GetInfo(&file_info);
-    return (success ? file_info.st_size : -1);
+    return (success ? file_info.size : -1);
   }
 
   // disallow copy and move operations
@@ -118,7 +113,7 @@ class ScopedFile {
   ScopedFile& operator=(const ScopedFile&) = delete;
 
  private:
-  int file_;
+  SbFile file_;
 };
 
 }  // namespace starboard

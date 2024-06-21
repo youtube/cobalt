@@ -28,11 +28,11 @@ namespace base {
 // FileEnumerator::FileInfo ----------------------------------------------------
 
 FileEnumerator::FileInfo::FileInfo() {
-  memset(&stat_, 0, sizeof(stat_));
+  memset(&sb_info_, 0, sizeof(sb_info_));
 }
 
 bool FileEnumerator::FileInfo::IsDirectory() const {
-  return S_ISDIR(stat_.st_mode);
+  return sb_info_.is_directory;
 }
 
 FilePath FileEnumerator::FileInfo::GetName() const {
@@ -40,11 +40,12 @@ FilePath FileEnumerator::FileInfo::GetName() const {
 }
 
 int64_t FileEnumerator::FileInfo::GetSize() const {
-  return stat_.st_size;
+  return sb_info_.size;
 }
 
 base::Time FileEnumerator::FileInfo::GetLastModifiedTime() const {
-  return base::Time::FromTimeT(stat_.st_mtime);
+  return base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(sb_info_.last_modified));
 }
 
 // FileEnumerator --------------------------------------------------------------
@@ -123,9 +124,9 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
 
     FilePath full_name = source.Append(filename);
     // TODO: Make sure this follows symlinks on relevant platforms.
-    if (stat(full_name.value().c_str(), &info.stat_) != 0) {
+    if (!SbFileGetPathInfo(full_name.value().c_str(), &info.sb_info_)) {
       DPLOG(ERROR) << "Couldn't SbFileGetInfo on " << full_name.value();
-      memset(&info.stat_, 0, sizeof(info.stat_));
+      memset(&info.sb_info_, 0, sizeof(info.sb_info_));
     }
     return info;
   };
@@ -185,12 +186,12 @@ FilePath FileEnumerator::Next() {
         continue;
       }
 
-      if (recursive_ && file_info.IsDirectory()) {
+      if (recursive_ && file_info.sb_info_.is_directory) {
         pending_paths_.push(full_path);
       }
 
-      if ((file_info.IsDirectory() && (file_type_ & DIRECTORIES)) ||
-          (!file_info.IsDirectory() && (file_type_ & FILES)) ||
+      if ((file_info.sb_info_.is_directory && (file_type_ & DIRECTORIES)) ||
+          (!file_info.sb_info_.is_directory && (file_type_ & FILES)) ||
           (file_type_ & NAMES_ONLY)) {
         directory_entries_.push_back(file_info);
       }

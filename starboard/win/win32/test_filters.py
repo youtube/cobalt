@@ -20,10 +20,6 @@ from starboard.tools.testing import test_filter
 # pylint: disable=line-too-long
 _FILTERED_TESTS = {
     'nplb': [
-        # These tests hang too long on Windows.
-        'PosixSocketSendTest.RainyDaySendToClosedSocket',
-        'PosixSocketSendtoTest.RainyDaySendToClosedSocket',
-
         # Currently frequently flaky on Windows
         'SbConditionVariableWaitTimedTest.FLAKY_SunnyDayAutoInit',
         'PosixConditionVariableWaitTimedTest.FLAKY_SunnyDayAutoInit',

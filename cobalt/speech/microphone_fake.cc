@@ -109,7 +109,8 @@ bool MicrophoneFake::Open() {
     DCHECK_NE(file_paths_.size(), 0u);
     size_t random_index =
         static_cast<size_t>(base::RandGenerator(file_paths_.size()));
-    starboard::ScopedFile file(file_paths_[random_index].value().c_str(), 0);
+    starboard::ScopedFile file(file_paths_[random_index].value().c_str(),
+                               kSbFileOpenOnly | kSbFileRead, NULL, NULL);
     DCHECK(file.IsValid());
     int file_buffer_size =
         std::min(static_cast<int>(file.GetSize()), kMaxBufferSize);

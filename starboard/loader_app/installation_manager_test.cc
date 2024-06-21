@@ -233,7 +233,10 @@ TEST_P(InstallationManagerTest, Reset) {
     slot_path += kSbFileSepString;
     slot_path += "test_file";
     created_files.push_back(slot_path);
-    starboard::ScopedFile file(slot_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
+    SbFileError file_error = kSbFileOk;
+    starboard::ScopedFile file(slot_path.c_str(),
+                               kSbFileCreateAlways | kSbFileWrite, NULL,
+                               &file_error);
     ASSERT_TRUE(file.IsValid());
   }
   ASSERT_EQ(IM_SUCCESS, ImReset());

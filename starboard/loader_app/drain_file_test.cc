@@ -244,7 +244,9 @@ TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
   path.append(kSbFileSepString);
   path.append(kAppKeyOne);
 
-  { ScopedFile file(path.c_str(), O_CREAT | O_WRONLY); }
+  {
+    ScopedFile file(path.c_str(), kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
+  }
 
   EXPECT_TRUE(FileExists(path.c_str()));
 

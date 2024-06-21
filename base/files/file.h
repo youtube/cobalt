@@ -22,11 +22,7 @@ struct stat;
 
 namespace base {
 
-#if defined(STARBOARD)
-using stat_wrapper_t = struct ::stat;
-#else
 using stat_wrapper_t = struct stat;
-#endif
 
 // Thin wrapper around an OS-level file.
 // Note that this class does not provide any support for asynchronous IO, other
@@ -122,7 +118,7 @@ class BASE_EXPORT File {
   struct BASE_EXPORT Info {
     Info();
     ~Info();
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     // Fills this struct with values from |stat_info|.
     void FromStat(const stat_wrapper_t& stat_info);
 #endif
@@ -374,14 +370,11 @@ class BASE_EXPORT File {
   // Converts an error value to a human-readable form. Used for logging.
   static std::string ErrorToString(Error error);
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // Wrapper for stat() or stat64().
   static int Stat(const char* path, stat_wrapper_t* sb);
   static int Fstat(int fd, stat_wrapper_t* sb);
-# if !defined(STARBOARD)
-  // Starboard does not support lstat yet.
   static int Lstat(const char* path, stat_wrapper_t* sb);
-#endif
 #endif
 
   // This function can be used to augment `flags` with the correct flags

@@ -20,6 +20,7 @@
 #include <io.h>  // Needed for `open`, which is in fcntl.h on POSIX
 
 #undef open
+#undef close  // in unistd.h on POSIX, and handles both files and sockets
 
 #define F_GETFL 3 /* get file->f_flags */
 #define F_SETFL 4 /* set file->f_flags */
@@ -34,9 +35,6 @@ extern "C" {
 
 int sb_fcntl(int fd, int cmd, ... /*arg*/);
 #define fcntl sb_fcntl
-
-int sb_open(const char* path, int oflag, ...);
-#define open sb_open
 
 #ifdef __cplusplus
 }
@@ -63,5 +61,7 @@ static const mode_t S_IWOTH = 0x00020000;
 static const mode_t S_IXOTH = 0x00010000;
 
 static const mode_t MS_MODE_MASK = 0x0000ffff;
+
+int open(const char* path, int oflag, ...);
 
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_

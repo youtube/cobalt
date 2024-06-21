@@ -129,7 +129,6 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'read',
     'sched_yield',
     'stat',
-    'open',
     'pthread_attr_init',
     'pthread_attr_destroy',
     'pthread_attr_getdetachstate',

@@ -73,7 +73,8 @@ int64_t SearchForMemoryValue(const char* search_key, const char* buffer) {
 
 int64_t SbSystemGetUsedCPUMemory() {
   // Read our process' current physical memory usage from /proc/self/status.
-  starboard::ScopedFile status_file("/proc/self/status", 0);
+  starboard::ScopedFile status_file("/proc/self/status",
+                                    kSbFileOpenOnly | kSbFileRead);
   if (!status_file.IsValid()) {
     SB_LOG(ERROR)
         << "Error opening /proc/self/status in order to query self memory "

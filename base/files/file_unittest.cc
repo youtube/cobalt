@@ -269,7 +269,9 @@ TEST(FileTest, ReadWrite) {
 }
 
 TEST(FileTest, GetLastFileError) {
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  SetLastFileError(File::Error::FILE_ERROR_ACCESS_DENIED);
+#elif BUILDFLAG(IS_WIN)
   ::SetLastError(ERROR_ACCESS_DENIED);
 #else
   errno = EACCES;
@@ -387,25 +389,11 @@ TEST(FileTest, Length) {
 
 #if !BUILDFLAG(IS_FUCHSIA)  // Fuchsia doesn't seem to support big files.
   // Expand the file past the 4 GB limit.
-#if defined(STARBOARD)
-#if SB_IS(32_BIT)
-// TODO: After POSIX migration WIN32 uses _chsize in ftruncate, and it 
-// does not support big file: 
-// https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/chsize?view=msvc-170
-// Before POSXI migration WIN32 was implemented with SetFilePointerEx : 
-// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex
-#else
-  // TODO: Checking why SB_IS(32_BIT) is not set for WIN32, and we have to dynamically check
-  // sizeof(long) to filter out WIN32.
-  if (sizeof(long) == 8) {
-    const int64_t kBigFileLength = 5'000'000'000;
-    EXPECT_TRUE(file.SetLength(kBigFileLength));
-    EXPECT_EQ(kBigFileLength, file.GetLength());
-    EXPECT_TRUE(GetFileSize(file_path, &file_size));
-    EXPECT_EQ(kBigFileLength, file_size);
-  }
-#endif
-#endif
+  const int64_t kBigFileLength = 5'000'000'000;
+  EXPECT_TRUE(file.SetLength(kBigFileLength));
+  EXPECT_EQ(kBigFileLength, file.GetLength());
+  EXPECT_TRUE(GetFileSize(file_path, &file_size));
+  EXPECT_EQ(kBigFileLength, file_size);
 #endif
 
   // Close the file and reopen with base::File::FLAG_CREATE_ALWAYS, and make
@@ -656,18 +644,15 @@ TEST(FileTest, MAYBE_WriteDataToLargeOffset) {
 
   const char kData[] = "this file is sparse.";
   const int kDataLen = sizeof(kData) - 1;
-  int64_t kLargeFileOffset;
-
-// TODO: Checking why SB_IS(32_BIT) is not set for WIN32, and we have to dynamically check
-// sizeof(long) to filter out WIN32.
 #if defined(STARBOARD)
-  if (sizeof(long) == 4) {
-    kLargeFileOffset = (1LL << 31) - 2;
- } else {
- kLargeFileOffset = (1LL << 31);
-}
-#else   // defined(STARBOARD)
-kLargeFileOffset = (1LL << 31);
+#if SB_IS(32_BIT)
+  // Maximum off_t for lseek() on 32-bit builds is just below 2^31.
+  const int64_t kLargeFileOffset = (1LL << 31) - 2;
+#else  // SB_IS(32_BIT)
+  const int64_t kLargeFileOffset = (1LL << 31);
+#endif  // SB_IS(32_BIT)
+#else  // defined(STARBOARD)
+  const int64_t kLargeFileOffset = (1LL << 31);
 #endif  // defined(STARBOARD)
 
   // If the file fails to write, it is probably we are running out of disk space

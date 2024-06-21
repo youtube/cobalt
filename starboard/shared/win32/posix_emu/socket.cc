@@ -27,9 +27,6 @@
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
-#undef open
-#undef close
-
 static int gen_fd() {
   static int fd = 100;
   fd++;
@@ -252,7 +249,7 @@ int sb_socket(int domain, int type, int protocol) {
   return handle_db_put(handle);
 }
 
-int sb_open(const char* path, int oflag, ...) {
+int open(const char* path, int oflag, ...) {
   va_list args;
   va_start(args, oflag);
   int fd;
@@ -275,7 +272,7 @@ int sb_open(const char* path, int oflag, ...) {
   return handle_db_put(handle);
 }
 
-int sb_close(int fd) {
+int close(int fd) {
   FileOrSocket handle = handle_db_get(fd, true);
 
   if (!handle.is_file && handle.socket == INVALID_SOCKET) {
@@ -300,7 +297,7 @@ int fsync(int fd) {
   return _commit(handle.file);
 }
 
-int ftruncate(int fd, int64_t length) {
+int ftruncate(int fd, off_t length) {
   FileOrSocket handle = handle_db_get(fd, false);
   if (!handle.is_file) {
     return -1;
@@ -321,7 +318,6 @@ int sb_fstat(int fd, struct stat* buffer) {
   if (!handle.is_file) {
     return -1;
   }
-
   return _fstat(handle.file, (struct _stat*)buffer);
 }
 

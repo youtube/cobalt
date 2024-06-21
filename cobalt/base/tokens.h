@@ -19,9 +19,6 @@
 #include "base/memory/singleton.h"
 #include "cobalt/base/token.h"
 
-#undef close
-#undef open
-
 namespace base {
 
 // clang-format off

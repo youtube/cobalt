@@ -193,7 +193,7 @@ void Watchdog::WriteWatchdogViolations() {
   base::JSONWriter::Write(*GetViolationsMap(), &watchdog_json);
   LOG(INFO) << "[Watchdog] Writing violations to JSON:\n" << watchdog_json;
   starboard::ScopedFile watchdog_file(GetWatchdogFilePath().c_str(),
-                                      O_CREAT | O_TRUNC | O_WRONLY);
+                                      kSbFileCreateAlways | kSbFileWrite);
   watchdog_file.WriteAll(watchdog_json.c_str(),
                          static_cast<int>(watchdog_json.size()));
   pending_write_ = false;

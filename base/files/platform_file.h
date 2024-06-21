@@ -24,11 +24,11 @@
 namespace base {
 
 #if defined(STARBOARD)
-using PlatformFile = int;
+using PlatformFile = SbFile;
 using ScopedPlatformFile = ::base::ScopedFD;
-constexpr PlatformFile kInvalidPlatformFile = -1;
-
+constexpr PlatformFile kInvalidPlatformFile = kSbFileInvalid;
 #elif BUILDFLAG(IS_WIN)
+
 using PlatformFile = HANDLE;
 using ScopedPlatformFile = ::base::win::ScopedHandle;
 

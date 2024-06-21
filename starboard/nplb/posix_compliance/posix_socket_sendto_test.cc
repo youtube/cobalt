@@ -107,7 +107,7 @@ TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
   pthread_create(&send_thread, NULL, PosixSocketSendToServerSocketEntryPoint,
                  static_cast<void*>(&trio_as_void_ptr));
 
-  // Close the client, which should cause writes to the server socket to
+  // Close the client, which should cause writes to the server socket to fail.
   EXPECT_TRUE(close(client_socket_fd) == 0);
 
   // Wait for the thread to exit and check the last socket error.

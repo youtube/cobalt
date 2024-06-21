@@ -58,7 +58,7 @@ void EncodeRGBAToPNG(const base::FilePath& png_file_path,
 
   base::File file(png_file_path, base::File::Flags::FLAG_OPEN_ALWAYS |
                                      base::File::Flags::FLAG_WRITE);
-  DCHECK_NE(file.GetPlatformFile(), -1);
+  DCHECK_NE(file.GetPlatformFile(), kSbFileInvalid);
   int bytes_written =
       file.WriteAtCurrentPos(reinterpret_cast<char*>(buffer.get()), size);
   base::RecordFileWriteStat(bytes_written);

@@ -95,7 +95,8 @@ std::vector<uint8_t> ReadHeader(const base::FilePath& path) {
   // Size of the input file to be read into memory for checking the validity
   // of ChunkDemuxer::AppendToParseBuffer() calls.
   const int64_t kHeaderSize = 256 * 1024;  // 256kb
-  starboard::ScopedFile file(path.value().c_str(), 0);
+  starboard::ScopedFile file(path.value().c_str(),
+                             kSbFileOpenOnly | kSbFileRead);
   int64_t bytes_to_read = std::min(kHeaderSize, file.GetSize());
   DCHECK_GE(bytes_to_read, 0);
   std::vector<uint8_t> buffer(bytes_to_read);
