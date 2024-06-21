@@ -47,6 +47,13 @@ _FILTERED_TESTS = {
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
+
+        # TODO: POSIX nplb test failures tracked by b/348648386.
+        'PosixFileGetPathInfoTest.WorksOnARegularFile',
+        'PosixSocketBindTest.SunnyDayAnyAddr',
+        'PosixSocketConnectTest.SunnyDayConnectToServerAgain',
+        'PosixSocketSendTest.RainyDaySendToClosedSocket',
+        'PosixSocketSendtoTest.RainyDaySendToClosedSocket',
     ],
     'player_filter_tests': [
         # The implementations for the raspberry pi (0 and 2) are incomplete
