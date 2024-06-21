@@ -37,6 +37,9 @@
 #include "cobalt/web/message_event.h"
 #include "cobalt/websocket/web_socket_impl.h"
 
+#undef close
+#undef open
+
 namespace cobalt {
 namespace websocket {
 

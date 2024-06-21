@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,8 @@
 //
 // Provides access to the system options and settings related to accessibility.
 
-#ifndef STARBOARD_ACCESSIBILITY_H_
-#define STARBOARD_ACCESSIBILITY_H_
-
-#if SB_API_VERSION < 16
+#ifndef STARBOARD_EXTENSION_ACCESSIBILITY_H_
+#define STARBOARD_EXTENSION_ACCESSIBILITY_H_
 
 #include "starboard/export.h"
 #include "starboard/types.h"
@@ -27,6 +25,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define kStarboardExtensionAccessibilityName \
+  "dev.starboard.extension.Accessibility"
 
 // A group of settings related to text-to-speech functionality, for platforms
 // that expose system settings for text-to-speech.
@@ -39,15 +40,6 @@ typedef struct SbAccessibilityTextToSpeechSettings {
   bool is_text_to_speech_enabled;
 } SbAccessibilityTextToSpeechSettings;
 
-// Get the platform settings related to the text-to-speech accessibility
-// feature. This function returns false if |out_settings| is NULL or if it is
-// not zero-initialized.
-//
-// |out_settings|: A pointer to a zero-initialized
-//    SbAccessibilityTextToSpeechSettings struct.
-SB_EXPORT bool SbAccessibilityGetTextToSpeechSettings(
-    SbAccessibilityTextToSpeechSettings* out_settings);
-
 typedef struct SbAccessibilityDisplaySettings {
   // Whether this platform has a system setting for high contrast text or not.
   bool has_high_contrast_text_setting;
@@ -55,15 +47,6 @@ typedef struct SbAccessibilityDisplaySettings {
   // Whether the high contrast text setting is enabled or not.
   bool is_high_contrast_text_enabled;
 } SbAccessibilityDisplaySettings;
-
-// Get the platform settings related to high contrast text.
-// This function returns false if |out_settings| is NULL or if it is
-// not zero-initialized.
-//
-// |out_settings|: A pointer to a zero-initialized
-//    SbAccessibilityDisplaySettings* struct.
-SB_EXPORT bool SbAccessibilityGetDisplaySettings(
-    SbAccessibilityDisplaySettings* out_settings);
 
 // Enum for possible closed captioning character edge styles.
 typedef enum SbAccessibilityCaptionCharacterEdgeStyle {
@@ -208,31 +191,52 @@ typedef struct SbAccessibilityCaptionSettings {
   bool supports_override;
 } SbAccessibilityCaptionSettings;
 
-// Get the platform's settings for system-level closed captions. This function
-// returns false if |caption_settings| is NULL or if it is not zero-initialized.
-//
-// |caption_settings|: A pointer to a zero-initialized
-//    SbAccessibilityTextToSpeechSettings struct.
-SB_EXPORT bool SbAccessibilityGetCaptionSettings(
-    SbAccessibilityCaptionSettings* caption_settings);
+typedef struct StarboardExtensionAccessibilityApi {
+  // Name should be the string
+  // |kStarboardExtensionAccessibilityName|. This helps to validate that
+  // the extension API is correct.
+  const char* name;
 
-// Modifies whether closed captions are enabled at a system level. This
-// function returns false if this feature is not supported by the platform, or
-// if changing the setting is unsuccessful. This function will modify the
-// setting system-wide.
-//
-// |enabled|: A boolean indicating whether captions should be turned on (true)
-//    or off (false).
-SB_EXPORT bool SbAccessibilitySetCaptionsEnabled(bool enabled);
+  // This specifies the version of the API that is implemented.
+  uint32_t version;
+
+  // Gets the platform settings related to the text-to-speech accessibility
+  // feature. This function returns false if |out_settings| is NULL or if it is
+  // not zero-initialized.
+  //
+  // |out_settings|: A pointer to a zero-initialized
+  //    SbAccessibilityTextToSpeechSettings struct.
+  bool (*GetTextToSpeechSettings)(
+      SbAccessibilityTextToSpeechSettings* out_settings);
+
+  // Gets the platform settings related to high contrast text.
+  // This function returns false if |out_settings| is NULL or if it is
+  // not zero-initialized.
+  //
+  // |out_settings|: A pointer to a zero-initialized
+  //    SbAccessibilityDisplaySettings* struct.
+  bool (*GetDisplaySettings)(SbAccessibilityDisplaySettings* out_settings);
+
+  // Gets the platform's settings for system-level closed captions. This
+  // function returns false if |caption_settings| is NULL or if it is not
+  // zero-initialized.
+  //
+  // |caption_settings|: A pointer to a zero-initialized
+  //    SbAccessibilityTextToSpeechSettings struct.
+  bool (*GetCaptionSettings)(SbAccessibilityCaptionSettings* caption_settings);
+
+  // Modifies whether closed captions are enabled at a system level. This
+  // function returns false if this feature is not supported by the platform, or
+  // if changing the setting is unsuccessful. This function will modify the
+  // setting system-wide.
+  //
+  // |enabled|: A boolean indicating whether captions should be turned on (true)
+  //    or off (false).
+  bool (*SetCaptionsEnabled)(bool enabled);
+} StarboardExtensionAccessibilityApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#else  // SB_API_VERSION < 16
-
-#error This file is deprecated with SB_API_VERSION 16.
-
-#endif  // SB_API_VERSION < 16
-
-#endif  // STARBOARD_ACCESSIBILITY_H_
+#endif  // STARBOARD_EXTENSION_ACCESSIBILITY_H_
