@@ -1,5 +1,6 @@
 {
   "docker_service": "build-android",
+  "on_host_test": true,
   "on_device_test": {
     "enabled": true,
     "tests": [
