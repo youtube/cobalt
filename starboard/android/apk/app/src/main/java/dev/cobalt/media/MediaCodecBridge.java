@@ -32,7 +32,6 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
-import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
@@ -446,7 +445,7 @@ class MediaCodecBridge {
     }
   }
 
-  private MediaCodecBridge(
+  public MediaCodecBridge(
       long nativeMediaCodecBridge,
       MediaCodec mediaCodec,
       String mime,
@@ -550,61 +549,6 @@ class MediaCodecBridge {
     // Starting with Android 14, onFrameRendered should be called accurately for each rendered
     // frame.
     return Build.VERSION.SDK_INT >= 34;
-  }
-
-  @SuppressWarnings("unused")
-  @UsedByNative
-  public static MediaCodecBridge createAudioMediaCodecBridge(
-      long nativeMediaCodecBridge,
-      String mime,
-      String decoderName,
-      int sampleRate,
-      int channelCount,
-      MediaCrypto crypto,
-      @Nullable byte[] configurationData) {
-    if (decoderName.equals("")) {
-      Log.e(TAG, "Invalid decoder name.");
-      return null;
-    }
-    MediaCodec mediaCodec = null;
-    try {
-      Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
-      mediaCodec = MediaCodec.createByCodecName(decoderName);
-    } catch (Exception e) {
-      Log.e(TAG, "Failed to create MediaCodec: %s, DecoderName: %s", mime, decoderName, e);
-      return null;
-    }
-    if (mediaCodec == null) {
-      return null;
-    }
-    MediaCodecBridge bridge =
-        new MediaCodecBridge(
-            nativeMediaCodecBridge, mediaCodec, mime, BitrateAdjustmentTypes.NO_ADJUSTMENT, -1);
-
-    MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
-
-    if (mime.contains("opus")) {
-      if (!setOpusConfigurationData(mediaFormat, sampleRate, configurationData)) {
-        bridge.release();
-        return null;
-      }
-    } else {
-      // TODO: Determine if we should explicitly check the mime for AAC audio before calling
-      // setFrameHasADTSHeader(), as more codecs may be supported here in the future.
-      setFrameHasADTSHeader(mediaFormat);
-    }
-    if (!bridge.configureAudio(mediaFormat, crypto, 0)) {
-      Log.e(TAG, "Failed to configure audio codec.");
-      bridge.release();
-      return null;
-    }
-    if (!bridge.start()) {
-      Log.e(TAG, "Failed to start audio codec.");
-      bridge.release();
-      return null;
-    }
-
-    return bridge;
   }
 
   @SuppressWarnings("unused")
@@ -831,7 +775,7 @@ class MediaCodecBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  private boolean start() {
+  public boolean start() {
     try {
       mMediaCodec.start();
     } catch (IllegalStateException | IllegalArgumentException e) {
@@ -892,12 +836,20 @@ class MediaCodecBridge {
     return MEDIA_CODEC_OK;
   }
 
+  // It is required to reset mNativeMediaCodecBridge when the native media_codec_bridge object is
+  // destroyed.
   @SuppressWarnings("unused")
   @UsedByNative
-  private void stop() {
+  private void resetNativeMediaCodecBridge() {
     synchronized (this) {
       mNativeMediaCodecBridge = 0;
     }
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  private void stop() {
+    resetNativeMediaCodecBridge();
     try {
       mMediaCodec.stop();
     } catch (Exception e) {
@@ -1127,10 +1079,6 @@ class MediaCodecBridge {
     return false;
   }
 
-  public static MediaFormat createAudioFormat(String mime, int sampleRate, int channelCount) {
-    return MediaFormat.createAudioFormat(mime, sampleRate, channelCount);
-  }
-
   private static MediaFormat createVideoDecoderFormat(
       String mime, int widthHint, int heightHint, VideoCapabilities videoCapabilities) {
     return MediaFormat.createVideoFormat(
@@ -1167,7 +1115,7 @@ class MediaCodecBridge {
     }
     int maxWidth = format.getInteger(MediaFormat.KEY_WIDTH);
     if (format.containsKey(MediaFormat.KEY_MAX_WIDTH)) {
-      maxWidth = Math.max(maxHeight, format.getInteger(MediaFormat.KEY_MAX_WIDTH));
+      maxWidth = Math.max(maxWidth, format.getInteger(MediaFormat.KEY_MAX_WIDTH));
     }
     int maxPixels;
     int minCompressionRatio;
@@ -1214,54 +1162,8 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  private static boolean setOpusConfigurationData(
-      MediaFormat format, int sampleRate, @Nullable byte[] configurationData) {
-    final int MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE = 19;
-    final long NANOSECONDS_IN_ONE_SECOND = 1000000000L;
-    // 3840 is the default seek pre-roll samples used by ExoPlayer:
-    // https://github.com/google/ExoPlayer/blob/0ba317b1337eaa789f05dd6c5241246478a3d1e5/library/common/src/main/java/com/google/android/exoplayer2/audio/OpusUtil.java#L30.
-    final int DEFAULT_SEEK_PRE_ROLL_SAMPLES = 3840;
-    if (configurationData == null
-        || configurationData.length < MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE) {
-      Log.e(
-          TAG,
-          "Failed to configure Opus audio codec. "
-              + (configurationData == null
-                  ? "|configurationData| is null."
-                  : String.format(
-                      Locale.US,
-                      "Configuration data size (%d) is less than the required size (%d).",
-                      configurationData.length,
-                      MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE)));
-      return false;
-    }
-    // Both the number of samples to skip from the beginning of the stream and the amount of time
-    // to pre-roll when seeking must be specified when configuring the Opus decoder. Logic adapted
-    // from ExoPlayer:
-    // https://github.com/google/ExoPlayer/blob/0ba317b1337eaa789f05dd6c5241246478a3d1e5/library/common/src/main/java/com/google/android/exoplayer2/audio/OpusUtil.java#L52.
-    int preSkipSamples = ((configurationData[11] & 0xFF) << 8) | (configurationData[10] & 0xFF);
-    long preSkipNanos = (preSkipSamples * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
-    long seekPreRollNanos =
-        (DEFAULT_SEEK_PRE_ROLL_SAMPLES * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
-    MediaFormatBuilder.setCodecSpecificData(
-        format,
-        new byte[][] {
-          configurationData,
-          ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(preSkipNanos).array(),
-          ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(seekPreRollNanos).array(),
-        });
-    return true;
-  }
-
-  @SuppressWarnings("unused")
   @UsedByNative
-  private static void setFrameHasADTSHeader(MediaFormat format) {
-    format.setInteger(MediaFormat.KEY_IS_ADTS, 1);
-  }
-
-  @SuppressWarnings("unused")
-  @UsedByNative
-  private boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {
+  public boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {
     try {
       mMediaCodec.configure(format, null, crypto, flags);
       return true;

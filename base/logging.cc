@@ -39,6 +39,8 @@
 #endif  // defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
 
 #if defined(STARBOARD)
+#include <fcntl.h>
+
 #include "base/files/file_starboard.h"
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
@@ -48,7 +50,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
-typedef SbFile FileHandle;
+typedef int* FileHandle;
 typedef pthread_mutex_t MutexHandle;
 #else
 #if BUILDFLAG(IS_WIN)
@@ -318,7 +320,7 @@ uint64_t TickCount() {
 
 void DeleteFilePath(const PathString& log_name) {
 #if defined(STARBOARD)
-  SbFileDelete(log_name.c_str());
+  unlink(log_name.c_str());
 #elif BUILDFLAG(IS_WIN)
   DeleteFile(log_name.c_str());
 #elif BUILDFLAG(IS_NACL)
@@ -403,12 +405,13 @@ bool InitializeLogFileHandle() {
     return true;
 
 #if defined(STARBOARD)
-    g_log_file = SbFileOpen(g_log_file_name->c_str(),
-                            kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
-    if (!SbFileIsValid(g_log_file))
-      return false;
+  int g_log_file_descriptor =
+    open(g_log_file_name->c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+  g_log_file = &g_log_file_descriptor;
+  if (g_log_file_descriptor < 0)
+    return false;
 
-    SbFileSeek(g_log_file, kSbFileFromEnd, 0);
+  lseek(g_log_file_descriptor, 0, SEEK_END);
 #elif BUILDFLAG(IS_WIN)
   // The FILE_APPEND_DATA access mask ensures that the file is atomically
   // appended to across accesses from multiple threads.
@@ -457,7 +460,9 @@ bool InitializeLogFileHandle() {
 
 void CloseFile(FileHandle log) {
 #if defined(STARBOARD)
-  SbFileClose(log);
+  if (*log >= 0) {
+    close(*log);
+  }
 #elif BUILDFLAG(IS_WIN)
   CloseHandle(log);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -1007,11 +1012,12 @@ LogMessage::~LogMessage() {
 #endif
     if (InitializeLogFileHandle()) {
 #if defined(STARBOARD)
-      SbFileSeek(g_log_file, kSbFileFromEnd, 0);
+      lseek(*g_log_file, 0, SEEK_END);
       int written = 0;
       while (written < str_newline.length()) {
-        int result = SbFileWrite(g_log_file, &(str_newline.c_str()[written]),
-                                 str_newline.length() - written);
+        int result =
+            HANDLE_EINTR(write(*g_log_file, &(str_newline.c_str()[written]),
+                                 str_newline.length() - written));
         base::RecordFileWriteStat(result);
         if (result < 0) {
           break;

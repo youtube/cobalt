@@ -1,3 +1,5 @@
+name: "Google Benchmark"
+
 third_party {
   identifier {
     type: "ChromiumVersion"

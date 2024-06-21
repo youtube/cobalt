@@ -1065,6 +1065,13 @@ component("base") {
     ]
   }
 
+  if (use_cobalt_customizations) {
+    sources += [
+      "process/internal_linux.cc",
+      "process/internal_linux.h",
+    ]
+  }
+
   if (!use_cobalt_customizations && (is_linux || is_chromeos || is_android)) {
     sources += [
       "files/file_path_watcher_inotify.cc",

@@ -21,6 +21,10 @@ config("compiler_flags") {
     # Cleanup unused sections
     "-Wl,-gc-sections",
   ]
+  libs = [
+    "EGL",
+    "GLESv2",
+  ]
 
   # from common_compiler_flags
   cflags += [
@@ -108,6 +112,19 @@ config("platform_configuration") {
       "//starboard/linux/x64x11/shared/platform_configuration:libraries",
       "//starboard/build/config/sabi",
       ":compiler_flags",
+      ":egl_wrapper",
     ]
+
+    # Workaround forcing a link to static library
+    # Resolves __wrap_eglSwapBuffers linking issues
+    libs = [ "starboard_egl_wrapped_functions" ]
   }
+}
+
+config("egl_wrapper") {
+  ldflags = [
+    # Workaround forcing a link to static library
+    # Resolves __wrap_eglSwapBuffers linking issues
+    "-Lstarboard/obj/starboard/linux/x64x11/shared",
+  ]
 }

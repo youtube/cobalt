@@ -26,6 +26,8 @@ _FILTERED_TESTS = {
         'MultiplePlayerTests/*/*sintel_381_ac3_dmp*',
         'SbPlayerGetAudioConfigurationTests/*audio_sintel_329_ec3_dmp_*',
         'SbPlayerGetAudioConfigurationTests/*audio_sintel_381_ac3_dmp_*',
+        'SbPlayerGetMediaTimeTests/*audio_sintel_329_ec3_dmp_*',
+        'SbPlayerGetMediaTimeTests/*audio_sintel_381_ac3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_329_ec3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_381_ac3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_329_ec3_dmp_*',

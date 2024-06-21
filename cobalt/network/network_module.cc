@@ -120,6 +120,32 @@ void NetworkModule::SetEnableQuicFromPersistentSettings() {
   }
 }
 
+void NetworkModule::SetEnableHttp3FromPersistentSettings() {
+  // Called on initialization and when the persistent setting is changed.
+  if (options_.persistent_settings != nullptr) {
+    base::Value value;
+    options_.persistent_settings->Get(kHttp3EnabledPersistentSettingsKey,
+                                      &value);
+    bool enable_http3 = value.GetIfBool().value_or(false);
+    auto supported_version =
+        enable_http3
+            ? net::DefaultSupportedQuicVersions()
+            : quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
+    task_runner()->PostTask(
+        FROM_HERE, base::Bind(
+                       [](URLRequestContext* url_request_context,
+                          quic::ParsedQuicVersionVector supported_version) {
+                         url_request_context->url_request_context()
+                             ->quic_context()
+                             ->params()
+                             // Only allow the RFC version.
+                             ->supported_versions = supported_version;
+                       },
+                       base::Unretained(url_request_context_.get()),
+                       std::move(supported_version)));
+  }
+}
+
 void NetworkModule::EnsureStorageManagerStarted() {
   DCHECK(storage_manager_);
   storage_manager_->EnsureStarted();
@@ -207,6 +233,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
       url_request_context_.get(), thread_.get());
 
   SetEnableQuicFromPersistentSettings();
+  SetEnableHttp3FromPersistentSettings();
 }
 
 void NetworkModule::OnCreate(
@@ -227,8 +254,17 @@ void NetworkModule::OnCreate(
   cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store(),
                                       task_runner().get()));
 #if defined(DIAL_SERVER)
-  dial_service_.reset(new DialService());
-  dial_service_proxy_ = new DialServiceProxy(dial_service_->AsWeakPtr());
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  bool enable_dial_service =
+      !command_line->HasSwitch(switches::kDisableInAppDial);
+#else
+  bool enable_dial_service = true;
+#endif
+  if (enable_dial_service) {
+    dial_service_.reset(new DialService());
+    dial_service_proxy_ = new DialServiceProxy(dial_service_->AsWeakPtr());
+  }
 #endif
 
   net_poster_.reset(new NetPoster(this));
@@ -238,6 +274,10 @@ void NetworkModule::OnCreate(
 
 #if defined(DIAL_SERVER)
 void NetworkModule::RestartDialService() {
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kDisableInAppDial)) return;
+#endif
   base::WaitableEvent creation_event(
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED);

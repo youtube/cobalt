@@ -181,6 +181,7 @@ constexpr bool Format::hasDepthOrStencilBits() const
 constexpr bool Format::isLUMA() const
 {
     // There's no format with G or B without R
+    ASSERT(redBits > 0 || (greenBits == 0 && blueBits == 0));
     return redBits == 0 && (luminanceBits > 0 || alphaBits > 0);
 }
 

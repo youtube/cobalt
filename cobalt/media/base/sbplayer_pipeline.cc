@@ -34,6 +34,7 @@ namespace cobalt {
 namespace media {
 namespace {
 
+using ::media::AudioCodec;
 using ::media::AudioDecoderConfig;
 using ::media::DecoderBuffer;
 using ::media::Demuxer;
@@ -45,6 +46,16 @@ using ::media::VideoDecoderConfig;
 using ::starboard::GetMediaAudioConnectorName;
 
 static const int kRetryDelayAtSuspendInMilliseconds = 100;
+
+// In the OnNeedData(), it attempts to write one more audio access
+// unit than the audio write duration. Specifically, the check
+// |time_ahead_of_playback_for_preroll| > |adjusted_write_duration_for_preroll|
+// is used to skip audio writing, using '>' instead of '>='.
+// Since the calculated write duration during preroll may align exactly
+// with the audio write duration, the current check can fail, leading to an
+// additional call to SbPlayerWriteSamples(). By writing an extra guard audio
+// buffer, this extra write during preroll can be eliminated.
+const int kPrerollGuardAudioBuffer = 1;
 
 unsigned int g_pipeline_identifier_counter = 0;
 
@@ -97,6 +108,25 @@ TimeDelta AdjustWriteDurationForPlaybackRate(TimeDelta write_duration,
   return write_duration * playback_rate;
 }
 
+// The function returns the default frames per DecoderBuffer.
+//
+// The number of frames is used to estimate the number of samples per write for
+// audio preroll according to |audio_write_duration_|.
+int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
+  switch (codec) {
+    case AudioCodec::kOpus:
+      return 960;
+    case AudioCodec::kAAC:
+      return 1024;
+    case AudioCodec::kAC3:
+    case AudioCodec::kEAC3:
+      return 1536;
+    default:
+      NOTREACHED();
+      return 1;
+  }
+}
+
 }  // namespace
 
 SbPlayerPipeline::SbPlayerPipeline(
@@ -104,7 +134,7 @@ SbPlayerPipeline::SbPlayerPipeline(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
-    bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    bool allow_resume_after_suspend, int max_audio_samples_per_write,
     bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
     TimeDelta audio_write_duration_local, TimeDelta audio_write_duration_remote,
@@ -116,7 +146,7 @@ SbPlayerPipeline::SbPlayerPipeline(
       sbplayer_interface_(interface),
       task_runner_(task_runner),
       allow_resume_after_suspend_(allow_resume_after_suspend),
-      allow_batched_sample_write_(allow_batched_sample_write),
+      max_audio_samples_per_write_(max_audio_samples_per_write),
       window_(window),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
@@ -1051,6 +1081,8 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     for (const auto& buffer : buffers) {
       playback_statistics_.OnAudioAU(buffer);
       if (!buffer->end_of_stream()) {
+        last_audio_sample_interval_ =
+            buffer->timestamp() - timestamp_of_last_written_audio_;
         timestamp_of_last_written_audio_ = buffer->timestamp();
       }
     }
@@ -1079,8 +1111,10 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
     return;
   }
 
-  int max_buffers =
-      allow_batched_sample_write_ ? max_number_of_buffers_to_write : 1;
+  int max_buffers = max_audio_samples_per_write_ > 1
+                        ? std::min(max_number_of_buffers_to_write,
+                                   max_audio_samples_per_write_)
+                        : 1;
 
   if (GetReadInProgress(type)) return;
 
@@ -1106,6 +1140,15 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
     auto adjusted_write_duration_for_preroll =
         AdjustWriteDurationForPlaybackRate(audio_write_duration_for_preroll_,
                                            playback_rate_);
+    // Note when Cobalt uses multiple samples per write, GetDefaultMaxBuffers()
+    // returns the exact number of samples computed by
+    // |time_ahead_of_playback_for_preroll| and
+    // |adjusted_write_duration_for_preroll|. The guard number
+    // kPrerollGuardAudioBuffer is used to ensure Cobalt can do one initial
+    // write for audio preroll, as preroll condition requires that
+    // |time_ahead_of_playback_for_preroll| >
+    // |adjusted_write_duration_for_preroll|.
+    int estimated_max_buffers = max_buffers;
     if (!is_video_eos_written_ && time_ahead_of_playback_for_preroll >
                                       adjusted_write_duration_for_preroll) {
       // The estimated time ahead of playback may be negative if no audio has
@@ -1123,7 +1166,28 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
         audio_read_delayed_ = true;
         return;
       }
+      if (max_audio_samples_per_write_ > 1 &&
+          !time_ahead_of_playback.is_negative()) {
+        estimated_max_buffers = GetEstimatedMaxBuffers(adjusted_write_duration,
+                                                       time_ahead_of_playback,
+                                                       false /* is_preroll */);
+      }
+    } else if (max_audio_samples_per_write_ > 1) {
+      if (!time_ahead_of_playback_for_preroll.is_negative()) {
+        estimated_max_buffers = GetEstimatedMaxBuffers(
+            adjusted_write_duration_for_preroll,
+            time_ahead_of_playback_for_preroll, true /* is_preroll */);
+        last_estimated_max_buffers_for_preroll_ = std::max(
+            estimated_max_buffers, last_estimated_max_buffers_for_preroll_);
+      } else {
+        estimated_max_buffers = last_estimated_max_buffers_for_preroll_;
+      }
     }
+    // When Cobalt uses multiple samples per write, this ensures that
+    // |max_buffers| is at most |max_number_of_buffers_to_write|.
+    // |max_buffers| is in the range of [1, |max_number_of_buffers_to_write|],
+    // where the lower bound 1 is guarded by GetEstimatedMaxBuffers().
+    max_buffers = std::min(max_buffers, estimated_max_buffers);
 
     audio_read_delayed_ = false;
     audio_read_in_progress_ = true;
@@ -1138,6 +1202,67 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
   stream->Read(max_buffers,
                base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this,
                               type, max_buffers));
+}
+
+int SbPlayerPipeline::GetDefaultMaxBuffers(AudioCodec codec,
+                                           TimeDelta duration_to_write,
+                                           bool is_preroll) {
+  // Return default maximum samples per write to speed up the initial sample
+  // write, including guard number of samples per write for audio preroll.
+  // The guard number kPrerollGuardAudioBuffer is used to ensure Cobalt
+  // can do one initial write for audio preroll.
+  int default_max_buffers = static_cast<int>(
+      std::ceil(duration_to_write.InSecondsF() *
+                audio_stream_->audio_decoder_config().samples_per_second() /
+                GetDefaultAudioFramesPerBuffer(codec)));
+  if (is_preroll) {
+    default_max_buffers += kPrerollGuardAudioBuffer;
+  }
+  DCHECK_GT(default_max_buffers, 0);
+  return default_max_buffers;
+}
+
+int SbPlayerPipeline::GetEstimatedMaxBuffers(TimeDelta write_duration,
+                                             TimeDelta time_ahead_of_playback,
+                                             bool is_preroll) {
+  DCHECK_GE(time_ahead_of_playback.InMicroseconds(), 0);
+
+  int estimated_max_buffers = 1;
+  if (!(max_audio_samples_per_write_ > 1) ||
+      write_duration <= time_ahead_of_playback) {
+    return estimated_max_buffers;
+  }
+
+  TimeDelta duration_to_write = write_duration - time_ahead_of_playback;
+  DCHECK_GT(duration_to_write.InMicroseconds(), 0);
+  switch (audio_stream_->audio_decoder_config().codec()) {
+    case AudioCodec::kOpus:
+    case AudioCodec::kAAC:
+    case AudioCodec::kAC3:
+    case AudioCodec::kEAC3:
+      if (last_audio_sample_interval_.is_zero()) {
+        estimated_max_buffers =
+            GetDefaultMaxBuffers(audio_stream_->audio_decoder_config().codec(),
+                                 duration_to_write, is_preroll);
+        break;
+      }
+    // TODO(b/41486346): Support multiple samples per write on the format IAMF.
+    case AudioCodec::kIAMF:
+    default:
+      if (!last_audio_sample_interval_.is_zero()) {
+        DCHECK_GT(last_audio_sample_interval_.InMicroseconds(), 0);
+        estimated_max_buffers =
+            duration_to_write.InMillisecondsRoundedUp() /
+                last_audio_sample_interval_.InMilliseconds() +
+            1;
+      }
+  }
+  DCHECK_GT(estimated_max_buffers, 0);
+  // Return 1 if |estimated_max_buffers| is non-positive. This ensures
+  // in corner cases, |estimated_max_buffers| falls back to 1.
+  // The maximum number samples of write should be guarded by
+  // SbPlayerGetMaximumNumberOfSamplesPerWrite() in OnNeedData().
+  return estimated_max_buffers > 0 ? estimated_max_buffers : 1;
 }
 
 void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {

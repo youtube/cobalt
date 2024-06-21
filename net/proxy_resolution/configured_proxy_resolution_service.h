@@ -177,6 +177,11 @@ class NET_EXPORT ConfiguredProxyResolutionService
   // ProxyResolutionService
   base::Value::Dict GetProxyNetLogValues() override;
 
+#if defined(STARBOARD)
+  void ResetConfigService(
+      std::unique_ptr<ProxyConfigService> new_proxy_config_service);
+#endif
+
   // ProxyResolutionService
   [[nodiscard]] bool CastToConfiguredProxyResolutionService(
       ConfiguredProxyResolutionService** configured_proxy_resolution_service)

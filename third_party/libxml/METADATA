@@ -11,6 +11,7 @@ third_party {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/src.git"
     version: "6a496db5ef7219101beacceca9566367c9cb1a09"
+    closest_version: "2.9.12"
   }
   identifier {
     type: "UpstreamSubdir"
@@ -20,6 +21,9 @@ third_party {
     year: 2023
     month: 6
     day: 27
+  }
+  security {
+    mitigated_security_patch: "CVE-2024-25062"
   }
   license_type: NOTICE
 }

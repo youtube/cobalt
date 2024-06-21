@@ -51,6 +51,7 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
+  const char kHTTP3[] = "HTTP3";
 
 #if SB_IS(EVERGREEN)
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
@@ -81,15 +82,24 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   }
 
   if (name.compare(kQUIC) == 0 && value.IsType<int32>()) {
-    if (!persistent_settings_) {
+    if (!persistent_settings_ || !network_module_) {
       return false;
     } else {
       persistent_settings_->Set(network::kQuicEnabledPersistentSettingsKey,
                                 base::Value(value.AsType<int32>() != 0));
       // Tell NetworkModule (if exists) to re-query persistent settings.
-      if (network_module_) {
-        network_module_->SetEnableQuicFromPersistentSettings();
-      }
+      network_module_->SetEnableQuicFromPersistentSettings();
+      return true;
+    }
+  }
+
+  if (name.compare(kHTTP3) == 0 && value.IsType<int32>()) {
+    if (!persistent_settings_ || !network_module_) {
+      return false;
+    } else {
+      persistent_settings_->Set(network::kHttp3EnabledPersistentSettingsKey,
+                                base::Value(value.AsType<int32>() != 0));
+      network_module_->SetEnableHttp3FromPersistentSettings();
       return true;
     }
   }
