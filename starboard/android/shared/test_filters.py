@@ -98,6 +98,8 @@ _FILTERED_TESTS = {
         # TODO: b/280432564 Make this test work on lab devices consistently.
         'SbAudioSinkTest.ContinuousAppend',
     ],
+    'net_unittests': [test_filter.FILTER_ALL],
+    'layout_tests': [test_filter.FILTER_ALL],
 }
 # pylint: enable=line-too-long
 
