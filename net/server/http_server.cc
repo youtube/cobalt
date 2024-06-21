@@ -24,6 +24,8 @@
 #include "net/socket/stream_socket.h"
 #include "net/socket/tcp_server_socket.h"
 
+#undef socket
+
 namespace net {
 
 namespace {

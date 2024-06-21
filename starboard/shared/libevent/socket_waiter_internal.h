@@ -31,13 +31,22 @@ struct SbSocketWaiterPrivate {
   ~SbSocketWaiterPrivate();
 
   // These methods implement the SbSocketWaiter API defined in socket_waiter.h.
-
+#if SB_API_VERSION >= 16
+  bool Add(int socket,
+           SbSocketWaiter waiter,
+           void* context,
+           PosixSocketWaiterCallback callback,
+           int interests,
+           bool persistent);
+  bool Remove(int socket, SbSocketWaiter waiter);
+#else
   bool Add(SbSocket socket,
            void* context,
            SbSocketWaiterCallback callback,
            int interests,
            bool persistent);
   bool Remove(SbSocket socket);
+#endif
   void Wait();
   SbSocketWaiterResult WaitTimed(int64_t duration_usec);
   void WakeUp(bool timeout);
@@ -45,6 +54,25 @@ struct SbSocketWaiterPrivate {
  private:
   // A registration of a socket with a socket waiter.
   struct Waitee {
+#if SB_API_VERSION >= 16
+    Waitee(SbSocketWaiter waiter,
+           int socket,
+           void* context,
+           PosixSocketWaiterCallback callback,
+           int interests,
+           bool persistent)
+        : waiter(waiter),
+          socket(socket),
+          context(context),
+          callback(callback),
+          interests(interests),
+          persistent(persistent) {}
+    // The socket registered with the waiter.
+    int socket;
+
+    // The callback to call when one or more registered interests become ready.
+    PosixSocketWaiterCallback callback;
+#else
     Waitee(SbSocketWaiter waiter,
            SbSocket socket,
            void* context,
@@ -57,18 +85,18 @@ struct SbSocketWaiterPrivate {
           callback(callback),
           interests(interests),
           persistent(persistent) {}
+    // The socket registered with the waiter.
+    SbSocket socket;
+
+    // The callback to call when one or more registered interests become ready.
+    SbSocketWaiterCallback callback;
+#endif
 
     // The waiter this event is registered with.
     SbSocketWaiter waiter;
 
-    // The socket registered with the waiter.
-    SbSocket socket;
-
     // A context value that will be passed to the callback.
     void* context;
-
-    // The callback to call when one or more registered interests become ready.
-    SbSocketWaiterCallback callback;
 
     // The set of interests registered with the waiter.
     int interests;
@@ -84,7 +112,11 @@ struct SbSocketWaiterPrivate {
   //
   // NOTE: This is a (tree) map because we don't have base::hash_map here. We
   // should keep an eye out for whether this is a performance issue.
+#if SB_API_VERSION >= 16
+  typedef std::map<int, Waitee*> WaiteesMap;
+#else
   typedef std::map<SbSocket, Waitee*> WaiteesMap;
+#endif
 
   // The libevent callback function, which in turn calls the registered callback
   // function for the Waitee.
@@ -107,12 +139,21 @@ struct SbSocketWaiterPrivate {
   // Adds |waitee| to the waitee registry.
   void AddWaitee(Waitee* waitee);
 
+#if SB_API_VERSION >= 16
+  // Gets the Waitee associated with the given socket, or NULL.
+  Waitee* GetWaitee(int socket);
+
+  // Gets the Waitee associated with the given socket, removing it from the
+  // registry, or NULL.
+  Waitee* RemoveWaitee(int socket) SB_WARN_UNUSED_RESULT;
+#else
   // Gets the Waitee associated with the given socket, or NULL.
   Waitee* GetWaitee(SbSocket socket);
 
   // Gets the Waitee associated with the given socket, removing it from the
   // registry, or NULL.
   Waitee* RemoveWaitee(SbSocket socket) SB_WARN_UNUSED_RESULT;
+#endif
 
   // The thread this waiter was created on. Immutable, so accessible from any
   // thread.
