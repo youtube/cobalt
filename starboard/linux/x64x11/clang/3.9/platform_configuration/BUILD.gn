@@ -22,6 +22,11 @@ config("compiler_flags") {
     # Cleanup unused sections
     "-Wl,-gc-sections",
   ]
+  libs = [
+    "EGL",
+    "GLESv2",
+  ]
+
   cflags += [
     "-Werror",
     "-fcolor-diagnostics",
@@ -188,9 +193,30 @@ config("platform_configuration") {
   } else {
     configs = [
       "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/shared/platform_configuration:libraries",
       "//starboard/linux/x64x11/shared/platform_configuration:libraries",
       "//starboard/build/config/sabi",
       ":compiler_flags",
+      ":no_pedantic_warnings",
+      ":linker_flags",
+      ":egl_wrapper",
     ]
   }
+}
+
+config("linker_flags") {
+  ldflags = [
+    "-Wl,-rpath=\$ORIGIN/lib",
+
+    # Cleanup unused sections
+    "-Wl,-gc-sections",
+  ]
+}
+
+# Workaround forcing a link to static library
+# Resolves __wrap_eglSwapBuffers linking issues
+config("egl_wrapper") {
+  ldflags = [ "-Lstarboard/obj/starboard/linux/x64x11/shared" ]
+
+  libs = [ "starboard_egl_wrapped_functions" ]
 }
