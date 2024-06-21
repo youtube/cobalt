@@ -32,55 +32,13 @@ runs:
           BUILD_TARGET="loader_app_install elf_loader_sandbox_install native_target/crashpad_handler"
 
           # TODO(todo): Use gn to query for targets.
-          # Specify build targets for EG AOSP loader build.
+          # Specify build targets for EG AOSP loader build. We have to list all
+          # targets here since the `all` target is not support on EG platform builds.
           if [[ "${BUILD_PLATFORM}" == "android-arm" && "${{ matrix.config }}" =~ ^(debug|devel)$ ]]; then
-            BUILD_TARGET="${BUILD_TARGET} \
-                          audio_test \
-                          base_unittests \
-                          base_test \
-                          bindings_test \
-                          browser_test \
-                          components_metrics_tests \
-                          crypto_impl_test \
-                          crypto_unittests \
-                          csp_test \
-                          cssom_test \
-                          css_parser_test \
-                          cwrappers_test \
-                          dom_parser_test \
-                          dom_test \
-                          extension_test \
-                          graphics_system_test \
-                          js_profiler_test \
-                          layout_test \
-                          layout_tests \
-                          loader_test \
-                          math_test \
-                          media_capture_test \
-                          media_session_test \
-                          media_stream_test \
-                          media_test \
-                          memory_store_test \
-                          metrics_test \
-                          network_test \
-                          net_unittests \
-                          overlay_info_test \
-                          persistent_settings_test \
-                          png_utils_test \
-                          render_tree_test \
-                          renderer_test \
-                          scroll_engine_tests \
-                          speech_test \
-                          storage_test \
-                          text_encoding_test \
-                          watchdog_test \
-                          web_animations_test \
-                          webdriver_test \
-                          web_test \
-                          websocket_test \
-                          worker_test \
-                          xhr_test \
-                          zip_unittests"
+            BUILD_TARGET=(audio_test base_unittests base_test bindings_test browser_test components_metrics_tests crypto_impl_test crypto_unittests csp_test cssom_test css_parser_test cwrappers_test dom_parser_test dom_test extension_test graphics_system_test js_profiler_test layout_test layout_tests loader_test math_test media_capture_test media_session_test media_stream_test media_test memory_store_test metrics_test network_test net_unittests overlay_info_test persistent_settings_test png_utils_test render_tree_test renderer_test scroll_engine_tests speech_test storage_test text_encoding_test watchdog_test web_animations_test webdriver_test web_test websocket_test worker_test xhr_test zip_unittests)
+
+            # TODO(todo): The EG AOSP build uses too much memory/storage when
+            # building all install targets. For now we only build a couple.
             BUILD_TARGET_INSTALL="audio_test_evergreen_loader_install \
                                   base_unittests_evergreen_loader_install \
                                   base_test_evergreen_loader_install \
