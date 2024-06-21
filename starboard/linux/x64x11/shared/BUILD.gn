@@ -26,6 +26,13 @@ group("starboard_platform") {
   ]
 }
 
+# TODO(b/348280514): Used on platforms where linker cannot resolve wrapped
+# functions
+static_library("starboard_egl_wrapped_functions") {
+  sources = [ "//starboard/shared/x11/egl_swap_buffers.cc" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+}
+
 static_library("starboard_platform_sources") {
   check_includes = false
   sources = [
