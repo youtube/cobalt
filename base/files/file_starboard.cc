@@ -458,8 +458,7 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
 #if defined(__ANDROID_API__)
   bool can_read = flags & O_RDONLY;
   bool can_write = flags & O_WRONLY;
-  if (!can_read || can_write) {
-    SB_LOG(INFO) << "zzNOT CAN READ OR CAN WRITE";
+  if ((errno == 0) && (!can_read || can_write)) {
     error_details_ = FILE_ERROR_ACCESS_DENIED;
   } else {
     error_details_ = File::GetLastFileError();
