@@ -9,6 +9,11 @@ since the version previous to it.
 
 ## Version 16
 
+### Added Socket Waiter API for POSIX.
+Introduced Starboard functions SbPosixSocketWaiterAdd, SbPosixSocketWaiterRemove
+and callback function SbPosixSocketWaiterCallback to support POSIX based socket
+APIs.
+
 ## Deprecated `Accessibility` header
 
 Accessibility Starboard API has been deprecated, an extension in
