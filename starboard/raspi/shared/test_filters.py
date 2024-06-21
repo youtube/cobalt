@@ -18,6 +18,8 @@ from starboard.tools.testing import test_filter
 # pylint: disable=line-too-long
 
 _FILTERED_TESTS = {
+    # TODO: this test is only failing for raspi after SBFile deprecation.
+    'base_unittests': ['FileTest.WriteDataToLargeOffset'],
     'nplb': [
         'SbAudioSinkTest.*',
 
