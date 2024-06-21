@@ -18,6 +18,7 @@
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
 #include "starboard/android/shared/graphics.h"
+#include "starboard/android/shared/media_settings_api.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_set_max_video_input_size.h"
@@ -35,6 +36,7 @@
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
+#include "starboard/extension/media_settings.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
@@ -84,5 +86,8 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::shared::starboard::GetLoaderAppMetricsApi();
   }
 #endif
+  if (strcmp(name, kStarboardExtensionMediaSettingsName) == 0) {
+    return starboard::android::shared::GetMediaSettingsApi();
+  }
   return NULL;
 }
