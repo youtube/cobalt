@@ -104,6 +104,8 @@ SB_EXPORT SbSocketWaiter SbSocketWaiterCreate();
 // |waiter|: The SbSocketWaiter to be destroyed.
 SB_EXPORT bool SbSocketWaiterDestroy(SbSocketWaiter waiter);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Adds a new socket to be waited on by the |waiter| with a bitfield of
 // |interests|. This function should only be called on the thread that
 // waits on this waiter.
@@ -139,6 +141,20 @@ SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                                  int interests,
                                  bool persistent);
 
+<<<<<<< HEAD
+=======
+#if SB_API_VERSION >= 16
+SB_EXPORT bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
+                                      int socket,
+                                      void* context,
+                                      SbPosixSocketWaiterCallback callback,
+                                      int interests,
+                                      bool persistent);
+#endif
+
+// DEPRECATED with SB_API_VERSION 16
+//
+>>>>>>> e56a4f1f404 (Mark deprecated Starboard APIs (#3629))
 // Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter.
 // This function should only be called on the thread that waits on this waiter.
 //

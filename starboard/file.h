@@ -127,6 +127,8 @@ static inline bool SbFileIsValid(SbFile file) {
   return file != kSbFileInvalid;
 }
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Opens the file at |path|, which must be absolute, creating it if specified by
 // |flags|. The read/write position is at the beginning of the file.
 //
@@ -148,6 +150,8 @@ SB_EXPORT SbFile SbFileOpen(const char* path,
                             bool* out_created,
                             SbFileError* out_error);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Closes |file|. The return value indicates whether the file was closed
 // successfully.
 //
@@ -165,6 +169,8 @@ SB_EXPORT bool SbFileAtomicReplace(const char* path,
                                    const char* data,
                                    int64_t data_size);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Changes the current read/write position in |file|. The return value
 // identifies the resultant current read/write position in the file (relative
 // to the start) or |-1| in case of an error. This function might not support
@@ -177,6 +183,8 @@ SB_EXPORT bool SbFileAtomicReplace(const char* path,
 //   |whence|.
 SB_EXPORT int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Reads |size| bytes (or until EOF is reached) from |file| into |data|,
 // starting at the file's current position.
 //
@@ -191,6 +199,8 @@ SB_EXPORT int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset);
 // |size|: The amount of data (in bytes) to read.
 SB_EXPORT int SbFileRead(SbFile file, char* data, int size);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Writes the given buffer into |file| at the file's current position,
 // overwriting any data that was previously there.
 //
@@ -205,6 +215,8 @@ SB_EXPORT int SbFileRead(SbFile file, char* data, int size);
 // |size|: The amount of data (in bytes) to write.
 SB_EXPORT int SbFileWrite(SbFile file, const char* data, int size);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Truncates the given |file| to the given |length|. The return value indicates
 // whether the file was truncated successfully.
 //
@@ -215,12 +227,16 @@ SB_EXPORT int SbFileWrite(SbFile file, const char* data, int size);
 //   returns |false|.
 SB_EXPORT bool SbFileTruncate(SbFile file, int64_t length);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Flushes the write buffer to |file|. Data written via SbFileWrite is not
 // necessarily committed until the SbFile is flushed or closed.
 //
 // |file|: The SbFile to which the write buffer is flushed.
 SB_EXPORT bool SbFileFlush(SbFile file);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Retrieves information about |file|. The return value indicates whether the
 // file information was retrieved successfully.
 //
@@ -229,6 +245,8 @@ SB_EXPORT bool SbFileFlush(SbFile file);
 //   variable is not touched if the operation is not successful.
 SB_EXPORT bool SbFileGetInfo(SbFile file, SbFileInfo* out_info);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Retrieves information about the file at |path|. The return value indicates
 // whether the file information was retrieved successfully.
 //
@@ -237,6 +255,8 @@ SB_EXPORT bool SbFileGetInfo(SbFile file, SbFileInfo* out_info);
 //   variable is not touched if the operation is not successful.
 SB_EXPORT bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Deletes the regular file, symlink, or empty directory at |path|. This
 // function is used primarily to clean up after unit tests. On some platforms,
 // this function fails if the file in question is being held open.
@@ -251,18 +271,24 @@ SB_EXPORT bool SbFileDelete(const char* path);
 SB_EXPORT bool SbFileExists(const char* path);
 #endif  // SB_API_VERSION < 16
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Indicates whether SbFileOpen() with the given |flags| is allowed for |path|.
 //
 // |path|: The absolute path to be checked.
 // |flags|: The flags that are being evaluated for the given |path|.
 SB_EXPORT bool SbFileCanOpen(const char* path, int flags);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Converts an ISO |fopen()| mode string into flags that can be equivalently
 // passed into SbFileOpen().
 //
 // |mode|: The mode string to be converted into flags.
 SB_EXPORT int SbFileModeStringToFlags(const char* mode);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Reads |size| bytes (or until EOF is reached) from |file| into |data|,
 // starting at the file's current position.
 //
@@ -292,6 +318,8 @@ static inline int SbFileReadAll(SbFile file, char* data, int size) {
   return bytes_read ? bytes_read : rv;
 }
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Writes the given buffer into |file|, starting at the beginning of the file,
 // and overwriting any data that was previously there. Unlike SbFileWrite, this
 // function does make a best effort to write all data on all platforms.
