@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
-
-#include <sys/stat.h>
+#include <dirent.h>
 
 #include <queue>
 #include <set>
 #include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
@@ -38,7 +37,7 @@ bool FileExists(const char* path) {
   return stat(path, &info) == 0;
 }
 
-TEST(SbDirectoryGetNextTest, SunnyDay) {
+TEST(PosixDirectoryGetNextTest, SunnyDay) {
   const int kNumFiles = 65;
   ScopedRandomFile files[kNumFiles];
 
@@ -47,23 +46,31 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
   EXPECT_TRUE(FileExists(directory_name.c_str()))
       << "Missing directory: " << directory_name;
 
-  SbFileError error = kSbFileErrorMax;
-  SbDirectory directory = SbDirectoryOpen(directory_name.c_str(), &error);
-  EXPECT_TRUE(SbDirectoryIsValid(directory));
-  EXPECT_EQ(kSbFileOk, error);
+  DIR* directory = opendir(directory_name.c_str());
+  EXPECT_TRUE(directory);
 
   // Make sure all the files we created are found exactly once.
   StringSet names;
   for (int i = 0; i < SB_ARRAY_SIZE_INT(files); ++i) {
     names.insert(files[i].filename());
   }
-
   StringSet names_to_find(names);
   while (true) {
     std::vector<char> entry(kSbFileMaxName, 0);
-    if (!SbDirectoryGetNext(directory, entry.data(), entry.size())) {
+
+    if (entry.size() < kSbFileMaxName || !directory || !entry.data()) {
       break;
     }
+
+    struct dirent dirent_buffer;
+    struct dirent* dirent;
+    int result = readdir_r(directory, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+
+    starboard::strlcpy(entry.data(), dirent->d_name, entry.size());
+
     const char* entry_name = entry.data();
 
     // SbDirectoryEntry just contains the last component of the absolute path to
@@ -86,10 +93,10 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
   // Make sure we found all of our names.
   EXPECT_EQ(0, names_to_find.size());
 
-  EXPECT_TRUE(SbDirectoryClose(directory));
+  EXPECT_TRUE(closedir(directory) == 0);
 }
 
-TEST(SbDirectoryGetNextTest, SunnyDayStaticContent) {
+TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
   std::string testdata_dir = GetFileTestsDataDir();
   EXPECT_FALSE(testdata_dir.empty());
   EXPECT_TRUE(FileExists(testdata_dir.c_str()))
@@ -111,17 +118,24 @@ TEST(SbDirectoryGetNextTest, SunnyDayStaticContent) {
     std::string path = directory_queue.front();
     directory_queue.pop();
 
-    SbFileError error = kSbFileErrorMax;
-    SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
-    EXPECT_TRUE(SbDirectoryIsValid(directory)) << "Can't open: " << path;
-    EXPECT_EQ(kSbFileOk, error) << "Error opening: " << path;
+    DIR* directory = opendir(path.c_str());
+    EXPECT_TRUE(directory) << "Can't open: " << path;
 
     // Iterate all entries in this directory.
     while (true) {
       std::vector<char> entry(kSbFileMaxName, 0);
-      if (!SbDirectoryGetNext(directory, entry.data(), entry.size())) {
+      if (entry.size() < kSbFileMaxName || !directory || !entry.data()) {
         break;
       }
+
+      struct dirent dirent_buffer;
+      struct dirent* dirent;
+      int result = readdir_r(directory, &dirent_buffer, &dirent);
+      if (result || !dirent) {
+        break;
+      }
+
+      starboard::strlcpy(entry.data(), dirent->d_name, entry.size());
       std::string entry_name = entry.data();
 
       // Accept and ignore '.' and '..' directories.
@@ -147,7 +161,7 @@ TEST(SbDirectoryGetNextTest, SunnyDayStaticContent) {
       }
     }
 
-    EXPECT_TRUE(SbDirectoryClose(directory));
+    EXPECT_TRUE(closedir(directory) == 0);
   }
 
   // Make sure we found all of test data directories and files.
@@ -157,13 +171,7 @@ TEST(SbDirectoryGetNextTest, SunnyDayStaticContent) {
   }
 }
 
-TEST(SbDirectoryGetNextTest, FailureInvalidSbDirectory) {
-  std::vector<char> entry(kSbFileMaxName, 0);
-  EXPECT_FALSE(
-      SbDirectoryGetNext(kSbDirectoryInvalid, entry.data(), entry.size()));
-}
-
-TEST(SbDirectoryGetNextTest, FailureNullEntry) {
+TEST(PosixDirectoryGetNextTest, FailureNullEntry) {
   // Ensure there's at least one file in the directory.
   ScopedRandomFile file;
 
@@ -171,43 +179,47 @@ TEST(SbDirectoryGetNextTest, FailureNullEntry) {
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(FileExists(path.c_str())) << "Directory is " << path;
 
-  SbFileError error = kSbFileErrorMax;
-  SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
-  EXPECT_TRUE(SbDirectoryIsValid(directory));
-  EXPECT_EQ(kSbFileOk, error);
-  EXPECT_FALSE(SbDirectoryGetNext(directory, NULL, kSbFileMaxName));
-  EXPECT_TRUE(SbDirectoryClose(directory));
+  DIR* directory = opendir(path.c_str());
+  EXPECT_TRUE(directory);
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+  int result = readdir_r(directory, &dirent_buffer, &dirent);
+  EXPECT_FALSE(result || !dirent);
+  EXPECT_TRUE(closedir(directory) == 0);
 }
 
-TEST(SbDirectoryGetNextTest, FailureInvalidAndNull) {
+TEST(PosixDirectoryGetNextTest, FailureInvalidAndNull) {
   EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL, kSbFileMaxName));
 }
 
-TEST(SbDirectoryGetNextTest, FailureOnInsufficientSize) {
+TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
   ScopedRandomFile file;
   std::string directory_name = file.filename();
   directory_name.resize(directory_name.find_last_of(kSbFileSepChar));
   EXPECT_TRUE(FileExists(directory_name.c_str()))
       << "Directory_name is " << directory_name;
 
-  SbFileError error = kSbFileErrorMax;
-  SbDirectory directory = SbDirectoryOpen(directory_name.c_str(), &error);
-  EXPECT_TRUE(SbDirectoryIsValid(directory));
-  EXPECT_EQ(kSbFileOk, error);
-
+  DIR* directory = opendir(directory_name.c_str());
+  EXPECT_TRUE(directory);
   std::vector<char> entry(kSbFileMaxName);
   for (int i = 0; i < kSbFileMaxName; i++)
     entry[i] = i;
   std::vector<char> entry_copy = entry;
-  EXPECT_EQ(SbDirectoryGetNext(directory, entry.data(), 0), false);
+
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+
+  int result = readdir_r(directory, &dirent_buffer, &dirent);
+
+  EXPECT_TRUE(!result && dirent);
+  starboard::strlcpy(entry.data(), dirent->d_name, 0);
   EXPECT_EQ(entry.size(), kSbFileMaxName);
   for (int i = 0; i < kSbFileMaxName; i++)
     EXPECT_EQ(entry[i], entry_copy[i]);
 
-  EXPECT_TRUE(SbDirectoryClose(directory));
+  EXPECT_TRUE(closedir(directory) == 0);
 }
 
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION < 16

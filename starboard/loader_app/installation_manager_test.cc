@@ -14,6 +14,7 @@
 
 #include "starboard/loader_app/installation_manager.h"
 
+#include <dirent.h>
 #include <sys/stat.h>
 
 #include <string>
@@ -179,19 +180,30 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
       return;
     }
     ImUninitialize();
-    SbDirectory dir = SbDirectoryOpen(storage_path_.c_str(), NULL);
+    DIR* directory = opendir(storage_path_.c_str());
     std::vector<std::string> dir_;
 
     std::vector<char> dir_entry(kSbFileMaxName);
+    struct dirent dirent_buffer;
+    struct dirent* dirent;
 
-    while (SbDirectoryGetNext(dir, dir_entry.data(), dir_entry.size())) {
+    while (true) {
+      if (dir_entry.size() < kSbFileMaxName || !directory ||
+          !dir_entry.data()) {
+        break;
+      }
+      int result = readdir_r(directory, &dirent_buffer, &dirent);
+      if (result || !dirent) {
+        break;
+      }
+      starboard::strlcpy(dir_entry.data(), dirent->d_name, dir_entry.size());
       std::string full_path = storage_path_;
       full_path += kSbFileSepString;
       full_path += dir_entry.data();
       SbFileDelete(full_path.c_str());
     }
 
-    SbDirectoryClose(dir);
+    closedir(directory);
     SbFileDelete(storage_path_.c_str());
   }
 

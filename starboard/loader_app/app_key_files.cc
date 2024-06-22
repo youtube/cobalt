@@ -14,11 +14,14 @@
 
 #include "starboard/loader_app/app_key_files.h"
 
+#include <dirent.h>
+
 #include <cstring>
 #include <vector>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/string.h"
@@ -84,23 +87,41 @@ bool EndsWith(const std::string& s, const std::string& suffix) {
 }  // namespace
 
 bool AnyGoodAppKeyFile(const std::string& dir) {
-  SbDirectory directory = SbDirectoryOpen(dir.c_str(), NULL);
+  DIR* directory = opendir(dir.c_str());
 
-  if (!SbDirectoryIsValid(directory)) {
+  if (!directory) {
     SB_LOG(ERROR) << "Failed to open dir='" << dir << "'";
     return false;
   }
 
   bool found = false;
   std::vector<char> filename(kSbFileMaxName);
-  while (SbDirectoryGetNext(directory, filename.data(), filename.size())) {
+
+  while (true) {
+    if (filename.size() < kSbFileMaxName) {
+      break;
+    }
+
+    if (!directory || !filename.data()) {
+      break;
+    }
+
+    struct dirent dirent_buffer;
+    struct dirent* dirent;
+    int result = readdir_r(directory, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+
+    starboard::strlcpy(filename.data(), dirent->d_name, filename.size());
+
     if (!strncmp(kFilePrefix, filename.data(), sizeof(kFilePrefix) - 1) &&
         EndsWith(filename.data(), kGoodFileSuffix)) {
       found = true;
       break;
     }
   }
-  SbDirectoryClose(directory);
+  closedir(directory);
   return found;
 }
 
