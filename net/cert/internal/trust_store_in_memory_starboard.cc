@@ -14,6 +14,8 @@
 
 #include "net/cert/internal/trust_store_in_memory_starboard.h"
 
+#include <dirent.h>
+
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/path_service.h"
@@ -23,6 +25,7 @@
 #include "net/cert/pem.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
@@ -66,9 +69,9 @@ base::FilePath GetCertificateDirPath() {
 }
 
 std::unordered_set<std::string> GetCertNamesOnDisk() {
-  auto sb_certs_directory =
-      SbDirectoryOpen(GetCertificateDirPath().value().c_str(), nullptr);
-  if (!SbDirectoryIsValid(sb_certs_directory)) {
+  DIR* sb_certs_directory =
+      opendir(GetCertificateDirPath().value().c_str());
+  if (!sb_certs_directory) {
 // Unit tests, for example, do not use production certificates.
 #if defined(STARBOARD_BUILD_TYPE_QA) || defined(STARBOARD_BUILD_TYPE_GOLD)
     SB_CHECK(false);
@@ -81,14 +84,24 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
   std::unordered_set<std::string> trusted_certs_on_disk;
   std::vector<char> dir_entry(kSbFileMaxName);
 
-  while (SbDirectoryGetNext(sb_certs_directory, dir_entry.data(),
-                            dir_entry.size())) {
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+
+  while (true) {
+    if (dir_entry.size() < kSbFileMaxName || !sb_certs_directory || !dir_entry.data()) {
+      break;
+    }
+    int result = readdir_r(sb_certs_directory, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+    starboard::strlcpy(dir_entry.data(), dirent->d_name, dir_entry.size());
     if (strlen(dir_entry.data()) != kCertFileNameLength) {
       continue;
     }
     trusted_certs_on_disk.emplace(dir_entry.data());
   }
-  SbDirectoryClose(sb_certs_directory);
+  closedir(sb_certs_directory);
   return std::move(trusted_certs_on_disk);
 }
 }  // namespace
