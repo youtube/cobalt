@@ -598,6 +598,8 @@ ExportedSymbols::ExportedSymbols() {
   map_["bind"] = reinterpret_cast<const void*>(&__abi_wrap_bind);
   map_["connect"] = reinterpret_cast<const void*>(&__abi_wrap_connect);
   map_["getaddrinfo"] = reinterpret_cast<const void*>(&__abi_wrap_getaddrinfo);
+  map_["freeaddrinfo"] =
+      reinterpret_cast<const void*>(&__abi_wrap_freeaddrinfo);
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
 
