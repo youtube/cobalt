@@ -106,14 +106,14 @@ IMMDeviceEnumerator : public IUnknown {
       _Out_ IMMDevice * *ppDevice) = 0;
 
   virtual /* [helpstring][id] */ HRESULT STDMETHODCALLTYPE
-  RegisterEndpointNotificationCallback(
-      /* [annotation][in] */
-      _In_ IMMNotificationClient * pClient) = 0;
+      RegisterEndpointNotificationCallback(
+          /* [annotation][in] */
+          _In_ IMMNotificationClient * pClient) = 0;
 
   virtual /* [helpstring][id] */ HRESULT STDMETHODCALLTYPE
-  UnregisterEndpointNotificationCallback(
-      /* [annotation][in] */
-      _In_ IMMNotificationClient * pClient) = 0;
+      UnregisterEndpointNotificationCallback(
+          /* [annotation][in] */
+          _In_ IMMNotificationClient * pClient) = 0;
 };
 
 const IID IID_IAudioClock = __uuidof(IAudioClock);
