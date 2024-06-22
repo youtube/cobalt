@@ -17,6 +17,8 @@
 if (sb_is_modular || sb_is_evergreen_compatible) {
   source_set("starboard_layer_posix_abi_wrappers") {
     sources = [
+      "starboard_layer_posix_directory_abi_wrappers.cc",
+      "starboard_layer_posix_directory_abi_wrappers.h",
       "starboard_layer_posix_mmap_abi_wrappers.cc",
       "starboard_layer_posix_mmap_abi_wrappers.h",
       "starboard_layer_posix_pthread_abi_wrappers.cc",
@@ -33,7 +35,10 @@ if (sb_is_modular || sb_is_evergreen_compatible) {
 
     configs += [ "//starboard/build/config:starboard_implementation" ]
 
-    deps = [ "//starboard:starboard_headers_only" ]
+    deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common:common_headers_only",
+    ]
   }
 }
 
@@ -41,6 +46,7 @@ if (sb_is_modular && !sb_is_evergreen &&
     current_toolchain == cobalt_toolchain) {
   source_set("cobalt_layer_posix_abi_wrappers") {
     sources = [
+      "cobalt_layer_posix_directory_abi_wrappers.cc",
       "cobalt_layer_posix_mmap_abi_wrappers.cc",
       "cobalt_layer_posix_pthread_abi_wrappers.cc",
       "cobalt_layer_posix_socket_abi_wrappers.cc",
