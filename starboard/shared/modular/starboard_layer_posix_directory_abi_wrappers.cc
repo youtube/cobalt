@@ -25,8 +25,8 @@ int __abi_wrap_readdir_r(DIR* dirp,
   SB_CHECK(musl_entry);
   SB_CHECK(musl_result);
 
-  struct dirent entry;  // The type from platform toolchain.
-  struct dirent* result;
+  struct dirent entry = {0};  // The type from platform toolchain.
+  struct dirent* result = nullptr;
   int retval = readdir_r(dirp, &entry, &result);
   if (retval != 0) {
     return retval;
@@ -40,8 +40,8 @@ int __abi_wrap_readdir_r(DIR* dirp,
   constexpr auto minlen =
       std::min(sizeof(musl_entry->d_name), sizeof(entry.d_name));
   memcpy(musl_entry->d_name, entry.d_name, minlen);
-  if (result == NULL) {
-    *musl_result = NULL;
+  if (result == nullptr) {
+    *musl_result = nullptr;
   } else {
     *musl_result = musl_entry;
   }
