@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/accessibility.h"
 #include "starboard/common/memory.h"
 
@@ -27,3 +29,5 @@ bool SbAccessibilityGetCaptionSettings(
   // explicitly set states to kSbAccessibilityCaptionStateUnsupported.
   return true;
 }
+
+#endif  // SB_API_VERSION < 16

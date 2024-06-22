@@ -591,7 +591,8 @@ class MediaCodecBridge {
               mime,
               crypto != null,
               decoderName);
-      Log.e(TAG, message, e);
+      message += ", exception: " + e.toString();
+      Log.e(TAG, message);
       outCreateMediaCodecBridgeResult.mErrorMessage = message;
       return;
     }
@@ -1115,7 +1116,7 @@ class MediaCodecBridge {
     }
     int maxWidth = format.getInteger(MediaFormat.KEY_WIDTH);
     if (format.containsKey(MediaFormat.KEY_MAX_WIDTH)) {
-      maxWidth = Math.max(maxHeight, format.getInteger(MediaFormat.KEY_MAX_WIDTH));
+      maxWidth = Math.max(maxWidth, format.getInteger(MediaFormat.KEY_MAX_WIDTH));
     }
     int maxPixels;
     int minCompressionRatio;

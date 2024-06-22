@@ -58,4 +58,6 @@ if __name__ == '__main__':
   logging.basicConfig(
       level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
 
-  DownloadGerritCommitMsgHook()
+  is_internal = os.path.exists('internal')
+  if is_internal:
+    DownloadGerritCommitMsgHook()

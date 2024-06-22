@@ -22,15 +22,22 @@ class TestMetadata(unittest.TestCase):
   """Meta tests"""
 
   def test_minimal(self):
-    validate_content('third_party {}')
+    content = '''
+      name: "foo"
+      third_party {
+        identifier {
+          type: "Git"
+          version: "bar"
+          value: "foo"
+        }
+      }'''
 
-  def test_more_complex(self):
-    validate_content('name: "foo"\nthird_party { version: "1"}')
+    validate_content(content)
 
   def test_no_3p(self):
     with self.assertRaises(RuntimeError) as excinfo:
       validate_content('')
-    assert '`third_party` field must be present' in str(excinfo.exception)
+    assert '`name` field must be present' in str(excinfo.exception)
 
   def test_validate_file(self):
     cur_dir = os.path.dirname(os.path.abspath(__file__))

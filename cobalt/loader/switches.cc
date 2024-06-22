@@ -28,6 +28,8 @@ namespace switches {
 const char kAllowImageDecodingToMultiPlane[] =
     "allow_image_decoding_to_multi_plane";
 
+const char kEnableSkiaRasterizer[] = "enable_skia_rasterizer";
+
 }  // namespace switches
 }  // namespace loader
 }  // namespace cobalt

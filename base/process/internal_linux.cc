@@ -90,29 +90,32 @@ bool ParseProcStats(const std::string& stats_data,
   // pid (process name) data1 data2 .... dataN
   // Look for the closing paren by scanning backwards, to avoid being fooled by
   // processes with ')' in the name.
-  size_t pid_end = stats_data.find(" (");
-  size_t comm_start = pid_end + 2;
-  size_t comm_end = stats_data.rfind(") ");
-  size_t state_start = comm_end + 2;
-  if (pid_end == std::string::npos ||
-      comm_end == std::string::npos ||
-      pid_end > comm_end) {
+  size_t open_parens_idx = stats_data.find(" (");
+  size_t close_parens_idx = stats_data.rfind(") ");
+  if (open_parens_idx == std::string::npos ||
+      close_parens_idx == std::string::npos ||
+      open_parens_idx > close_parens_idx) {
     DLOG(WARNING) << "Failed to find matched parens in '" << stats_data << "'";
     NOTREACHED();
     return false;
   }
+  open_parens_idx++;
 
   proc_stats->clear();
   // PID.
-  proc_stats->push_back(stats_data.substr(0, pid_end));
+#if defined(STARBOARD)
+  proc_stats->push_back(stats_data.substr(0, open_parens_idx - 1));
+#else
+  proc_stats->push_back(stats_data.substr(0, open_parens_idx));
+#endif
   // Process name without parentheses.
   proc_stats->push_back(
-      stats_data.substr(comm_start,
-                        comm_end - comm_start));
+      stats_data.substr(open_parens_idx + 1,
+                        close_parens_idx - (open_parens_idx + 1)));
 
   // Split the rest.
   std::vector<std::string> other_stats = SplitString(
-      stats_data.substr(state_start), " ",
+      stats_data.substr(close_parens_idx + 2), " ",
       base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (const auto& i : other_stats)
     proc_stats->push_back(i);

@@ -32,7 +32,8 @@ RendererModule::Options::Options()
     : force_deterministic_rendering(false),
       purge_skia_font_caches_on_destruction(true),
       enable_fps_stdout(false),
-      enable_fps_overlay(false) {
+      enable_fps_overlay(false),
+      rasterizer_type_setting("") {
   // These default values may ultimately be overridden by AutoMem.
   // These settings are suited for a 1080p frame.
   scratch_surface_cache_size_in_bytes = 0;
@@ -41,14 +42,16 @@ RendererModule::Options::Options()
 
   std::string rasterizer_type =
       configuration::Configuration::GetInstance()->CobaltRasterizerType();
-  if (rasterizer_type == "direct-gles") {
+
+  if (rasterizer_type_setting != "") {
+    rasterizer_type = rasterizer_type_setting;
+  }
+
+  if (rasterizer_type == configuration::Configuration::kGlesRasterizer) {
     offscreen_target_cache_size_in_bytes = 4 * 1024 * 1024;
-  } else if (rasterizer_type == "hardware") {
-    offscreen_target_cache_size_in_bytes = 0;
   } else {
     offscreen_target_cache_size_in_bytes = 0;
   }
-
   // Call into platform-specific code for setting up render module options.
   SetPerPlatformDefaultOptions();
 }
@@ -59,6 +62,10 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
   TRACE_EVENT0("cobalt::renderer", "RendererModule::RendererModule()");
   // Load up the platform's default graphics system.
   {
+    // Call into platform-specific code for setting up render module options.
+    // This is necessary because command-line arguments may have overridden
+    // the default rasterizer type.
+    options_.SetPerPlatformDefaultOptions(options.rasterizer_type_setting);
     TRACE_EVENT0("cobalt::renderer", "backend::CreateDefaultGraphicsSystem()");
     graphics_system_ = backend::CreateDefaultGraphicsSystem(system_window_);
   }

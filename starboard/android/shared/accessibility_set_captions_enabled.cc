@@ -12,9 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/accessibility.h"
 #include "starboard/configuration.h"
 
-bool SbAccessibilitySetCaptionsEnabled(bool enabled) {
+#include "starboard/android/shared/accessibility_extension.h"
+
+namespace starboard {
+namespace android {
+namespace shared {
+namespace accessibility {
+
+bool SetCaptionsEnabled(bool enabled) {
   return false;
 }
+
+}  // namespace accessibility
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard
