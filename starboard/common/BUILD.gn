@@ -88,8 +88,6 @@ static_library("common") {
     "socket.h",
     "spin_lock.cc",
     "spin_lock.h",
-    "state_machine.cc",
-    "state_machine.h",
     "storage.cc",
     "storage.h",
     "string.h",
