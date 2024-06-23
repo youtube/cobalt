@@ -18,11 +18,9 @@
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
 
-using starboard::scoped_ptr;
 using starboard::ScopedFile;
 
 namespace starboard {
@@ -65,14 +63,14 @@ class LogWriterWin32 : public ILogWriter {
   }
   std::string file_path_;
   starboard::Mutex mutex_;
-  scoped_ptr<ScopedFile> file_;
+  std::unique_ptr<ScopedFile> file_;
 };
 
 }  // namespace.
 
-scoped_ptr<ILogWriter> CreateLogWriterWin32(const char* path) {
-  scoped_ptr<ILogWriter> output(new LogWriterWin32(path));
-  return output.Pass();
+std::unique_ptr<ILogWriter> CreateLogWriterWin32(const char* path) {
+  std::unique_ptr<ILogWriter> output(new LogWriterWin32(path));
+  return output;
 }
 
 }  // namespace uwp

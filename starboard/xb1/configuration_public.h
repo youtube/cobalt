@@ -20,4 +20,6 @@
 
 #include "starboard/xb1/shared/configuration_public.h"
 
+#define DEPRECATED_SCOPED_PTR
+
 #endif  // STARBOARD_XB1_CONFIGURATION_PUBLIC_H_

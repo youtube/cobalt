@@ -719,7 +719,8 @@ ref class App sealed : public IFrameworkView {
         std::stringstream ss;
         ss << platformStringToString(
             Windows::Storage::ApplicationData::Current->LocalCacheFolder->Path);
-        ss << "\\" << "" << command_line->GetSwitchValue(kLogPathSwitch);
+        ss << "\\"
+           << "" << command_line->GetSwitchValue(kLogPathSwitch);
         std::string full_path_log_file = ss.str();
         shared::uwp::OpenLogFileWin32(full_path_log_file.c_str());
       } else {
@@ -1132,7 +1133,7 @@ void ApplicationUwp::OnJoystickUpdate(SbKey key, SbInputVector input_vector) {
   if (!SbWindowIsValid(window_)) {
     return;
   }
-  scoped_ptr<SbInputData> data(new SbInputData());
+  std::unique_ptr<SbInputData> data(new SbInputData());
   memset(data.get(), 0, sizeof(*data));
   data->window = window_;
   data->type = kSbInputEventTypeMove;
