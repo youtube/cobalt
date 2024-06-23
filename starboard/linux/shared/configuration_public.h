@@ -87,4 +87,6 @@
 #define SB_PLAYER_DMP_WRITER_INCLUDE_PATH \
   "starboard/shared/starboard/player/video_dmp_writer.h"
 
+#define DEPRECATED_SCOPED_PTR
+
 #endif  // STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_
