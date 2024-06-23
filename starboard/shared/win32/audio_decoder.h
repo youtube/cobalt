@@ -15,8 +15,9 @@
 #ifndef STARBOARD_SHARED_WIN32_AUDIO_DECODER_H_
 #define STARBOARD_SHARED_WIN32_AUDIO_DECODER_H_
 
+#include <memory>
+
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -64,9 +65,9 @@ class AudioDecoder
   bool stream_ended_;
 
   AtomicQueue<DecodedAudioPtr> decoded_data_;
-  scoped_ptr<AudioDecoder::CallbackScheduler> callback_scheduler_;
-  scoped_ptr<AbstractWin32AudioDecoder> decoder_impl_;
-  scoped_ptr<AudioDecoderThread> decoder_thread_;
+  std::unique_ptr<AudioDecoder::CallbackScheduler> callback_scheduler_;
+  std::unique_ptr<AbstractWin32AudioDecoder> decoder_impl_;
+  std::unique_ptr<AudioDecoderThread> decoder_thread_;
   OutputCB output_cb_;
 
   Mutex mutex_;
