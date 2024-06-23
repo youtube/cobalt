@@ -682,20 +682,11 @@ class FileWriterDelegateTest : public ::testing::Test {
     file_.Initialize(temp_file_path_, (base::File::FLAG_CREATE_ALWAYS |
                                        base::File::FLAG_READ |
                                        base::File::FLAG_WRITE |
-                                       base::File::FLAG_WIN_TEMPORARY
-#if !defined(STARBOARD)
-                                       | base::File::FLAG_DELETE_ON_CLOSE
-#endif
+                                       base::File::FLAG_WIN_TEMPORARY |
+                                       base::File::FLAG_DELETE_ON_CLOSE
                      ));
     ASSERT_TRUE(file_.IsValid());
   }
-
-#if defined(STARBOARD)
-  void TearDown() override {
-    file_.Close();
-    ASSERT_TRUE(base::DeleteFile(temp_file_path_));
-  }
-#endif
 
   // Writes data to the file, leaving the current position at the end of the
   // write.
