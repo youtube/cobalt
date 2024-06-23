@@ -95,10 +95,11 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
                          unsigned int initial_h, unsigned int *w,
                          unsigned int *h, bool flag_codec,
                          bool smaller_width_larger_size_) {
+  *w = initial_w;
+  *h = initial_h;
+
   if (smaller_width_larger_size_) {
     if (frame < 30) {
-      *w = initial_w;
-      *h = initial_h;
       return;
     }
     *w = initial_w * 7 / 10;
@@ -106,8 +107,6 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     return;
   }
   if (frame < 10) {
-    *w = initial_w;
-    *h = initial_h;
     return;
   }
   if (frame < 20) {
@@ -121,8 +120,6 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     return;
   }
   if (frame < 40) {
-    *w = initial_w;
-    *h = initial_h;
     return;
   }
   if (frame < 50) {
@@ -136,8 +133,6 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     return;
   }
   if (frame < 70) {
-    *w = initial_w;
-    *h = initial_h;
     return;
   }
   if (frame < 80) {
@@ -156,8 +151,6 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     return;
   }
   if (frame < 110) {
-    *w = initial_w;
-    *h = initial_h;
     return;
   }
   if (frame < 120) {
@@ -176,8 +169,6 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     return;
   }
   if (frame < 150) {
-    *w = initial_w;
-    *h = initial_h;
     return;
   }
   if (frame < 160) {
@@ -196,8 +187,6 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     return;
   }
   if (frame < 190) {
-    *w = initial_w;
-    *h = initial_h;
     return;
   }
   if (frame < 200) {
@@ -216,8 +205,6 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     return;
   }
   if (frame < 230) {
-    *w = initial_w;
-    *h = initial_h;
     return;
   }
   if (frame < 240) {
@@ -231,8 +218,6 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     return;
   }
   if (frame < 260) {
-    *w = initial_w;
-    *h = initial_h;
     return;
   }
   // Go down very low.
@@ -245,13 +230,9 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
     // Cases that only works for VP9.
     // For VP9: Swap width and height of original.
     if (frame < 320) {
-      *w = initial_h;
-      *h = initial_w;
       return;
     }
   }
-  *w = initial_w;
-  *h = initial_h;
 }
 
 class ResizingVideoSource : public ::libvpx_test::DummyVideoSource {
@@ -791,8 +772,7 @@ TEST_P(ResizeCspTest, TestResizeCspWorks) {
 }
 
 VP8_INSTANTIATE_TEST_SUITE(ResizeTest, ONE_PASS_TEST_MODES);
-VP9_INSTANTIATE_TEST_SUITE(ResizeTest,
-                           ::testing::Values(::libvpx_test::kRealTime));
+VP9_INSTANTIATE_TEST_SUITE(ResizeTest, ONE_PASS_TEST_MODES);
 VP9_INSTANTIATE_TEST_SUITE(ResizeInternalTest,
                            ::testing::Values(::libvpx_test::kOnePassBest));
 VP9_INSTANTIATE_TEST_SUITE(ResizeRealtimeTest,

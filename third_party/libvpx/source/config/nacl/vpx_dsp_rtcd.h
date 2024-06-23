@@ -15,6 +15,10 @@
 #include "vpx/vpx_integer.h"
 #include "vpx_dsp/vpx_dsp_common.h"
 #include "vpx_dsp/vpx_filter.h"
+#if CONFIG_VP9_ENCODER
+struct macroblock_plane;
+struct ScanOrder;
+#endif
 
 #ifdef __cplusplus
 extern "C" {

@@ -98,8 +98,7 @@ static int do_16x16_motion_search(VP9_COMP *cpi, const MV *ref_mv,
   // If the current best reference mv is not centered on 0,0 then do a 0,0
   // based search as well.
   if (ref_mv->row != 0 || ref_mv->col != 0) {
-    unsigned int tmp_err;
-    MV zero_ref_mv = { 0, 0 }, tmp_mv;
+    MV zero_ref_mv = { 0, 0 };
 
     tmp_err =
         do_16x16_motion_iteration(cpi, &zero_ref_mv, &tmp_mv, mb_row, mb_col);
@@ -219,7 +218,7 @@ static void update_mbgraph_frame_stats(VP9_COMP *cpi,
   VP9_COMMON *const cm = &cpi->common;
 
   int mb_col, mb_row, offset = 0;
-  int mb_y_offset = 0, arf_y_offset = 0, gld_y_offset = 0;
+  int mb_y_offset = 0;
   MV gld_top_mv = { 0, 0 };
   MODE_INFO mi_local;
   MODE_INFO mi_above, mi_left;
@@ -243,8 +242,6 @@ static void update_mbgraph_frame_stats(VP9_COMP *cpi,
   for (mb_row = 0; mb_row < cm->mb_rows; mb_row++) {
     MV gld_left_mv = gld_top_mv;
     int mb_y_in_offset = mb_y_offset;
-    int arf_y_in_offset = arf_y_offset;
-    int gld_y_in_offset = gld_y_offset;
 
     // Set up limit values for motion vectors to prevent them extending outside
     // the UMV borders.
@@ -266,8 +263,6 @@ static void update_mbgraph_frame_stats(VP9_COMP *cpi,
       xd->left_mi = &mi_left;
 
       mb_y_in_offset += 16;
-      gld_y_in_offset += 16;
-      arf_y_in_offset += 16;
       x->mv_limits.col_min -= 16;
       x->mv_limits.col_max -= 16;
     }
@@ -276,8 +271,6 @@ static void update_mbgraph_frame_stats(VP9_COMP *cpi,
     xd->above_mi = &mi_above;
 
     mb_y_offset += buf->y_stride * 16;
-    gld_y_offset += golden_ref->y_stride * 16;
-    if (alt_ref) arf_y_offset += alt_ref->y_stride * 16;
     x->mv_limits.row_min -= 16;
     x->mv_limits.row_max -= 16;
     offset += cm->mb_cols;
