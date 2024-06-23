@@ -348,7 +348,6 @@ static_library("starboard_platform") {
     "log_format.cc",
     "log_internal.cc",
     "log_internal.h",
-    "log_is_tty.cc",
     "log_raw.cc",
     "main.cc",
     "max_output_buffers_lookup_table.cc",
