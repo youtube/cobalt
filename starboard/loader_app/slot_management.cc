@@ -14,8 +14,14 @@
 
 #include "starboard/loader_app/slot_management.h"
 
+#include <stdio.h>
 #include <sys/stat.h>
 
+#include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -33,10 +39,15 @@
 #include "starboard/string.h"
 #include "third_party/crashpad/crashpad/wrapper/annotations.h"
 #include "third_party/crashpad/crashpad/wrapper/wrapper.h"
+#include "third_party/jsoncpp/source/include/json/reader.h"
+#include "third_party/jsoncpp/source/include/json/value.h"
 
 namespace starboard {
 namespace loader_app {
 namespace {
+
+// The max length of Evergreen version string.
+const int kMaxEgVersionLength = 20;
 
 // The max number of installations slots.
 const int kMaxNumInstallations = 3;
@@ -54,7 +65,94 @@ const char kCompressedCobaltLibraryName[] = "libcobalt.lz4";
 // the Cobalt installation.
 const char kCobaltContentPath[] = "content";
 
+// Filename for the manifest file which contains the Evergreen version.
+const char kManifestFileName[] = "manifest.json";
+
+// Deliminator of the Evergreen version string segments.
+const char kEgVersionDeliminator = '.';
+
+// Evergreen version key in the manifest file.
+const char kVersionKey[] = "version";
+
 }  // namespace
+
+// Compares the Evergreen versions v1 and v2. Returns 1 if v1 is newer than v2;
+// returns -1 if v1 is older than v2; returns 0 if v1 is the same as v2, or if
+// either of them is invalid.
+int CompareEvergreenVersion(std::vector<char>* v1, std::vector<char>* v2) {
+  if ((*v1)[0] == '\0' || (*v2)[0] == '\0') {
+    return 0;
+  }
+
+  // Split the version strings into segments of numbers
+  std::vector<int> n1, n2;
+  std::stringstream ss1(std::string(v1->begin(), v1->end()));
+  std::stringstream ss2(std::string(v2->begin(), v2->end()));
+  std::string seg;
+  while (std::getline(ss1, seg, kEgVersionDeliminator)) {
+    n1.push_back(std::stoi(seg));
+  }
+  while (std::getline(ss2, seg, kEgVersionDeliminator)) {
+    n2.push_back(std::stoi(seg));
+  }
+
+  // Compare each segment
+  int size = std::min(n1.size(), n2.size());
+  for (int i = 0; i < size; i++) {
+    if (n1[i] > n2[i]) {
+      return 1;
+    } else if (n1[i] < n2[i]) {
+      return -1;
+    }
+  }
+
+  // If all segments are equal, compare the lengths
+  if (n1.size() > n2.size()) {
+    return 1;
+  } else if (n1.size() < n2.size()) {
+    return -1;
+  }
+  return 0;
+}
+
+// Reads the Evergreen version of the installation at the |installation_index|,
+// and stores in |version|.
+bool ReadEvergreenVersion(int installation_index,
+                          char* version,
+                          int version_length) {
+  // Check the manifest file exists
+  std::vector<char> installation_path(kSbFileMaxPath);
+  if (ImGetInstallationPath(installation_index, installation_path.data(),
+                            kSbFileMaxPath) == IM_ERROR) {
+    SB_LOG(WARNING) << "Failed to get installation path.";
+    return false;
+  }
+  std::vector<char> manifest_file_path(kSbFileMaxPath);
+  snprintf(manifest_file_path.data(), kSbFileMaxPath, "%s%s%s",
+           installation_path.data(), kSbFileSepString, kManifestFileName);
+
+  struct stat info;
+  if (stat(manifest_file_path.data(), &info) != 0) {
+    SB_LOG(WARNING)
+        << "Failed to open the manifest file at the installation path.";
+    return false;
+  }
+
+  std::ifstream manifest_file(std::string(manifest_file_path.data()));
+  Json::Reader reader;
+  Json::Value obj;
+
+  if (!reader.parse(manifest_file, obj) || !obj[kVersionKey]) {
+    SB_LOG(WARNING) << "Failed to parse version from the manifest file at the "
+                       "installation path.";
+    manifest_file.close();
+    return false;
+  }
+
+  snprintf(version, version_length, "%s", obj[kVersionKey].asString().c_str());
+  manifest_file.close();
+  return true;
+}
 
 int RevertBack(int current_installation,
                const std::string& app_key,
@@ -148,9 +246,35 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     SB_LOG(WARNING) << "Failed to roll forward";
   }
 
+  int current_installation = ImGetCurrentInstallationIndex();
+
+  // Check the system image. If it's newer than the current slot, update to
+  // system image immediately.
+  if (current_installation != 0) {
+    std::vector<char> current_version(kMaxEgVersionLength);
+    if (!ReadEvergreenVersion(current_installation, current_version.data(),
+                              kMaxEgVersionLength)) {
+      SB_LOG(WARNING)
+          << "Failed to read the Evergreen version of the current installation";
+    }
+    std::vector<char> system_image_version(kMaxEgVersionLength);
+    if (!ReadEvergreenVersion(0, system_image_version.data(),
+                              kMaxEgVersionLength)) {
+      SB_LOG(WARNING)
+          << "Failed to read the Evergreen version of the system image";
+    }
+
+    if (CompareEvergreenVersion(&system_image_version, &current_version) > 0) {
+      if (ImRollForward(0) != IM_ERROR) {
+        current_installation = 0;
+      } else {
+        SB_LOG(WARNING) << "Failed to roll forward to system image";
+      }
+    }
+  }
+
   // TODO: Try to simplify the loop.
   // Loop by priority.
-  int current_installation = ImGetCurrentInstallationIndex();
   while (current_installation != IM_ERROR) {
     // if not successful and num_tries_left > 0 decrement and try to
     // load the library.
