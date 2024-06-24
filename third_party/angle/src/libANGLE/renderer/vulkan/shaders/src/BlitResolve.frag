@@ -109,6 +109,7 @@ layout(push_constant) uniform PushConstants {
     // Flip control.
     bool flipX;
     bool flipY;
+    bool rotateXY;
 } params;
 
 #if IsBlitColor
@@ -169,7 +170,6 @@ void main()
     //
     // Note that T is params.stretch and O is params.offset.
 
-    // X
     CoordType srcImageCoords = CoordType(gl_FragCoord.xy);  // X
 #if !IsResolve
     srcImageCoords *= params.stretch;                       // TX
@@ -181,15 +181,17 @@ void main()
         srcImageCoords.x = -srcImageCoords.x;
     if (params.flipY)
         srcImageCoords.y = -srcImageCoords.y;
+    if (params.rotateXY)
+        srcImageCoords.xy = srcImageCoords.yx;
 
 #if IsBlitColor
 #if IsResolve
-    ColorType colorValue = ColorType(0, 0, 0, 1);
+    ColorType colorValue = ColorType(0, 0, 0, 0);
     for (int i = 0; i < params.samples; ++i)
     {
         colorValue += COLOR_TEXEL_FETCH(color, srcImageCoords, i);
     }
-#if IsFloat
+#if BlitColorFloat
     colorValue *= params.invSamples;
 #else
     colorValue = ColorType(round(colorValue * params.invSamples));

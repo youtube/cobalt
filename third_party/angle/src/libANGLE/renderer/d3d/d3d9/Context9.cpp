@@ -9,7 +9,9 @@
 
 #include "libANGLE/renderer/d3d/d3d9/Context9.h"
 
+#include "common/entry_points_enum_autogen.h"
 #include "common/string_utils.h"
+#include "image_util/loadimage.h"
 #include "libANGLE/renderer/OverlayImpl.h"
 #include "libANGLE/renderer/d3d/CompilerD3D.h"
 #include "libANGLE/renderer/d3d/ProgramD3D.h"
@@ -51,7 +53,7 @@ CompilerImpl *Context9::createCompiler()
 
 ShaderImpl *Context9::createShader(const gl::ShaderState &data)
 {
-    return new ShaderD3D(data, mRenderer->getFeatures(), mRenderer->getNativeExtensions());
+    return new ShaderD3D(data, mRenderer);
 }
 
 ProgramImpl *Context9::createProgram(const gl::ProgramState &data)
@@ -69,6 +71,8 @@ TextureImpl *Context9::createTexture(const gl::TextureState &state)
     switch (state.getType())
     {
         case gl::TextureType::_2D:
+        // GL_TEXTURE_VIDEO_IMAGE_WEBGL maps to 2D texture on Windows platform.
+        case gl::TextureType::VideoImage:
             return new TextureD3D_2D(state, mRenderer);
         case gl::TextureType::CubeMap:
             return new TextureD3D_Cube(state, mRenderer);
@@ -127,11 +131,6 @@ ProgramPipelineImpl *Context9::createProgramPipeline(const gl::ProgramPipelineSt
 {
     UNREACHABLE();
     return nullptr;
-}
-
-std::vector<PathImpl *> Context9::createPaths(GLsizei)
-{
-    return std::vector<PathImpl *>();
 }
 
 MemoryObjectImpl *Context9::createMemoryObject()
@@ -286,66 +285,158 @@ angle::Result Context9::drawElementsIndirect(const gl::Context *context,
     return angle::Result::Stop;
 }
 
+angle::Result Context9::multiDrawArrays(const gl::Context *context,
+                                        gl::PrimitiveMode mode,
+                                        const GLint *firsts,
+                                        const GLsizei *counts,
+                                        GLsizei drawcount)
+{
+    return rx::MultiDrawArraysGeneral(this, context, mode, firsts, counts, drawcount);
+}
+
+angle::Result Context9::multiDrawArraysInstanced(const gl::Context *context,
+                                                 gl::PrimitiveMode mode,
+                                                 const GLint *firsts,
+                                                 const GLsizei *counts,
+                                                 const GLsizei *instanceCounts,
+                                                 GLsizei drawcount)
+{
+    return rx::MultiDrawArraysInstancedGeneral(this, context, mode, firsts, counts, instanceCounts,
+                                               drawcount);
+}
+
+angle::Result Context9::multiDrawArraysIndirect(const gl::Context *context,
+                                                gl::PrimitiveMode mode,
+                                                const void *indirect,
+                                                GLsizei drawcount,
+                                                GLsizei stride)
+{
+    UNREACHABLE();
+    return angle::Result::Stop;
+}
+
+angle::Result Context9::multiDrawElements(const gl::Context *context,
+                                          gl::PrimitiveMode mode,
+                                          const GLsizei *counts,
+                                          gl::DrawElementsType type,
+                                          const GLvoid *const *indices,
+                                          GLsizei drawcount)
+{
+    return rx::MultiDrawElementsGeneral(this, context, mode, counts, type, indices, drawcount);
+}
+
+angle::Result Context9::multiDrawElementsInstanced(const gl::Context *context,
+                                                   gl::PrimitiveMode mode,
+                                                   const GLsizei *counts,
+                                                   gl::DrawElementsType type,
+                                                   const GLvoid *const *indices,
+                                                   const GLsizei *instanceCounts,
+                                                   GLsizei drawcount)
+{
+    return rx::MultiDrawElementsInstancedGeneral(this, context, mode, counts, type, indices,
+                                                 instanceCounts, drawcount);
+}
+
+angle::Result Context9::multiDrawElementsIndirect(const gl::Context *context,
+                                                  gl::PrimitiveMode mode,
+                                                  gl::DrawElementsType type,
+                                                  const void *indirect,
+                                                  GLsizei drawcount,
+                                                  GLsizei stride)
+{
+    UNREACHABLE();
+    return angle::Result::Stop;
+}
+
+angle::Result Context9::multiDrawArraysInstancedBaseInstance(const gl::Context *context,
+                                                             gl::PrimitiveMode mode,
+                                                             const GLint *firsts,
+                                                             const GLsizei *counts,
+                                                             const GLsizei *instanceCounts,
+                                                             const GLuint *baseInstances,
+                                                             GLsizei drawcount)
+{
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Stop;
+}
+
+angle::Result Context9::multiDrawElementsInstancedBaseVertexBaseInstance(
+    const gl::Context *context,
+    gl::PrimitiveMode mode,
+    const GLsizei *counts,
+    gl::DrawElementsType type,
+    const GLvoid *const *indices,
+    const GLsizei *instanceCounts,
+    const GLint *baseVertices,
+    const GLuint *baseInstances,
+    GLsizei drawcount)
+{
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Stop;
+}
+
 gl::GraphicsResetStatus Context9::getResetStatus()
 {
     return mRenderer->getResetStatus();
 }
 
-std::string Context9::getVendorString() const
+angle::Result Context9::insertEventMarker(GLsizei length, const char *marker)
 {
-    return mRenderer->getVendorString();
+    mRenderer->getAnnotator()->setMarker(/*context=*/nullptr, marker);
+    return angle::Result::Continue;
 }
 
-std::string Context9::getRendererDescription() const
+angle::Result Context9::pushGroupMarker(GLsizei length, const char *marker)
 {
-    return mRenderer->getRendererDescription();
-}
-
-void Context9::insertEventMarker(GLsizei length, const char *marker)
-{
-    mRenderer->getAnnotator()->setMarker(marker);
-}
-
-void Context9::pushGroupMarker(GLsizei length, const char *marker)
-{
-    mRenderer->getAnnotator()->beginEvent(marker, marker);
+    mRenderer->getAnnotator()->beginEvent(nullptr, angle::EntryPoint::GLPushGroupMarkerEXT, marker,
+                                          marker);
     mMarkerStack.push(std::string(marker));
+    return angle::Result::Continue;
 }
 
-void Context9::popGroupMarker()
+angle::Result Context9::popGroupMarker()
 {
     const char *marker = nullptr;
     if (!mMarkerStack.empty())
     {
         marker = mMarkerStack.top().c_str();
         mMarkerStack.pop();
-        mRenderer->getAnnotator()->endEvent(marker);
+        mRenderer->getAnnotator()->endEvent(nullptr, marker,
+                                            angle::EntryPoint::GLPopGroupMarkerEXT);
     }
+    return angle::Result::Continue;
 }
 
-void Context9::pushDebugGroup(GLenum source, GLuint id, const std::string &message)
+angle::Result Context9::pushDebugGroup(const gl::Context *context,
+                                       GLenum source,
+                                       GLuint id,
+                                       const std::string &message)
 {
     // Fall through to the EXT_debug_marker functions
-    pushGroupMarker(static_cast<GLsizei>(message.size()), message.c_str());
+    return pushGroupMarker(static_cast<GLsizei>(message.size()), message.c_str());
 }
 
-void Context9::popDebugGroup()
+angle::Result Context9::popDebugGroup(const gl::Context *context)
 {
     // Fall through to the EXT_debug_marker functions
-    popGroupMarker();
+    return popGroupMarker();
 }
 
 angle::Result Context9::syncState(const gl::Context *context,
                                   const gl::State::DirtyBits &dirtyBits,
-                                  const gl::State::DirtyBits &bitMask)
+                                  const gl::State::DirtyBits &bitMask,
+                                  const gl::State::ExtendedDirtyBits &extendedDirtyBits,
+                                  const gl::State::ExtendedDirtyBits &extendedBitMask,
+                                  gl::Command command)
 {
-    mRenderer->getStateManager()->syncState(mState, dirtyBits);
+    mRenderer->getStateManager()->syncState(mState, dirtyBits, extendedDirtyBits);
     return angle::Result::Continue;
 }
 
 GLint Context9::getGPUDisjoint()
 {
-    return mRenderer->getGPUDisjoint();
+    // Disjoint timer queries are not supported.
+    return false;
 }
 
 GLint64 Context9::getTimestamp()
@@ -379,6 +470,11 @@ const gl::Limitations &Context9::getNativeLimitations() const
     return mRenderer->getNativeLimitations();
 }
 
+const ShPixelLocalStorageOptions &Context9::getNativePixelLocalStorageOptions() const
+{
+    return mRenderer->getNativePixelLocalStorageOptions();
+}
+
 angle::Result Context9::dispatchCompute(const gl::Context *context,
                                         GLuint numGroupsX,
                                         GLuint numGroupsY,
@@ -410,7 +506,8 @@ angle::Result Context9::getIncompleteTexture(const gl::Context *context,
                                              gl::TextureType type,
                                              gl::Texture **textureOut)
 {
-    return mIncompleteTextures.getIncompleteTexture(context, type, nullptr, textureOut);
+    return mIncompleteTextures.getIncompleteTexture(context, type, gl::SamplerFormat::Float,
+                                                    nullptr, textureOut);
 }
 
 void Context9::handleResult(HRESULT hr,
@@ -432,5 +529,10 @@ void Context9::handleResult(HRESULT hr,
     errorStream << "Internal D3D9 error: " << gl::FmtHR(hr) << ": " << message;
 
     mErrors->handleError(glErrorCode, errorStream.str().c_str(), file, function, line);
+}
+
+angle::ImageLoadContext Context9::getImageLoadContext() const
+{
+    return getRenderer()->getDisplay()->getImageLoadContext();
 }
 }  // namespace rx

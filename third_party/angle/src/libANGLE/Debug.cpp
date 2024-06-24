@@ -149,10 +149,11 @@ void Debug::insertMessage(GLenum source,
                           GLuint id,
                           GLenum severity,
                           const std::string &message,
-                          gl::LogSeverity logSeverity) const
+                          gl::LogSeverity logSeverity,
+                          angle::EntryPoint entryPoint) const
 {
     std::string messageCopy(message);
-    insertMessage(source, type, id, severity, std::move(messageCopy), logSeverity);
+    insertMessage(source, type, id, severity, std::move(messageCopy), logSeverity, entryPoint);
 }
 
 void Debug::insertMessage(GLenum source,
@@ -160,13 +161,18 @@ void Debug::insertMessage(GLenum source,
                           GLuint id,
                           GLenum severity,
                           std::string &&message,
-                          gl::LogSeverity logSeverity) const
+                          gl::LogSeverity logSeverity,
+                          angle::EntryPoint entryPoint) const
 {
     {
         // output all messages to the debug log
         const char *messageTypeString = GLMessageTypeToString(type);
         const char *severityString    = GLSeverityToString(severity);
         std::ostringstream messageStream;
+        if (entryPoint != angle::EntryPoint::Invalid)
+        {
+            messageStream << GetEntryPointName(entryPoint) << ": ";
+        }
         messageStream << "GL " << messageTypeString << ": " << severityString << ": " << message;
         switch (logSeverity)
         {
@@ -271,7 +277,7 @@ size_t Debug::getMessages(GLuint count,
 
         if (lengths != nullptr)
         {
-            lengths[messageCount] = static_cast<GLsizei>(m.message.length());
+            lengths[messageCount] = static_cast<GLsizei>(m.message.length()) + 1;
         }
 
         mMessages.pop_front();
@@ -284,7 +290,7 @@ size_t Debug::getMessages(GLuint count,
 
 size_t Debug::getNextMessageLength() const
 {
-    return mMessages.empty() ? 0 : mMessages.front().message.length();
+    return mMessages.empty() ? 0 : mMessages.front().message.length() + 1;
 }
 
 size_t Debug::getMessageCount() const
@@ -312,7 +318,7 @@ void Debug::setMessageControl(GLenum source,
 void Debug::pushGroup(GLenum source, GLuint id, std::string &&message)
 {
     insertMessage(source, GL_DEBUG_TYPE_PUSH_GROUP, id, GL_DEBUG_SEVERITY_NOTIFICATION,
-                  std::string(message), gl::LOG_INFO);
+                  std::string(message), gl::LOG_INFO, angle::EntryPoint::GLPushDebugGroup);
 
     Group g;
     g.source  = source;
@@ -330,12 +336,40 @@ void Debug::popGroup()
     mGroups.pop_back();
 
     insertMessage(g.source, GL_DEBUG_TYPE_POP_GROUP, g.id, GL_DEBUG_SEVERITY_NOTIFICATION,
-                  g.message, gl::LOG_INFO);
+                  g.message, gl::LOG_INFO, angle::EntryPoint::GLPopDebugGroup);
 }
 
 size_t Debug::getGroupStackDepth() const
 {
     return mGroups.size();
+}
+
+void Debug::insertPerfWarning(GLenum severity, const char *message, uint32_t *repeatCount) const
+{
+    bool repeatLast;
+
+    {
+        constexpr uint32_t kMaxRepeat = 4;
+        std::lock_guard<std::mutex> lock(GetDebugMutex());
+
+        if (*repeatCount >= kMaxRepeat)
+        {
+            return;
+        }
+
+        ++*repeatCount;
+        repeatLast = (*repeatCount == kMaxRepeat);
+    }
+
+    std::string msg = message;
+    if (repeatLast)
+    {
+        msg += " (this message will no longer repeat)";
+    }
+
+    // Release the lock before we call insertMessage. It will re-acquire the lock.
+    insertMessage(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_PERFORMANCE, 0, severity, std::move(msg),
+                  gl::LOG_INFO, angle::EntryPoint::Invalid);
 }
 
 bool Debug::isMessageEnabled(GLenum source, GLenum type, GLuint id, GLenum severity) const

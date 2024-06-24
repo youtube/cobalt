@@ -17,8 +17,7 @@ using namespace sh;
 class RemoveUnreferencedVariablesTest : public MatchOutputCodeTest
 {
   public:
-    RemoveUnreferencedVariablesTest() : MatchOutputCodeTest(GL_FRAGMENT_SHADER, 0, SH_ESSL_OUTPUT)
-    {}
+    RemoveUnreferencedVariablesTest() : MatchOutputCodeTest(GL_FRAGMENT_SHADER, SH_ESSL_OUTPUT) {}
 };
 
 // Test that a simple unreferenced declaration is pruned.
@@ -596,33 +595,6 @@ TEST_F(RemoveUnreferencedVariablesTest, UserDefinedTypeReferencedInUnusedFunctio
     compile(shaderString);
 
     ASSERT_TRUE(notFoundInCode("myStructType"));
-}
-
-// Test that a struct type that is only referenced in an unused function is kept in case
-// SH_DONT_PRUNE_UNUSED_FUNCTIONS is specified.
-TEST_F(RemoveUnreferencedVariablesTest, UserDefinedTypeReferencedInUnusedFunctionThatIsNotPruned)
-{
-    const std::string &shaderString =
-        R"(
-        struct myStructType
-        {
-            int iMember;
-        };
-
-        myStructType func()
-        {
-            return myStructType(0);
-        }
-
-        void main()
-        {
-        })";
-    compile(shaderString, SH_DONT_PRUNE_UNUSED_FUNCTIONS);
-
-    ASSERT_TRUE(foundInCode("struct _umyStructType"));
-
-    // Ensure that the struct isn't declared as a part of the function header.
-    ASSERT_TRUE(foundInCode("};"));
 }
 
 // Test that a struct type that is only referenced as a function return value is kept.

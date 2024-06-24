@@ -17,6 +17,98 @@ namespace angle
 // dirtyPointer is a special value that will make the comparison with any valid pointer fail and
 // force the renderer to re-apply the state.
 const uintptr_t DirtyPointer = std::numeric_limits<uintptr_t>::max();
+
+SaveFileHelper::SaveFileHelper(const std::string &filePathIn)
+    : mOfs(filePathIn, std::ios::binary | std::ios::out), mFilePath(filePathIn)
+{
+    if (!mOfs.is_open())
+    {
+        FATAL() << "Could not open " << filePathIn;
+    }
+}
+
+SaveFileHelper::~SaveFileHelper()
+{
+    printf("Saved '%s'.\n", mFilePath.c_str());
+}
+
+void SaveFileHelper::checkError()
+{
+    if (mOfs.bad())
+    {
+        FATAL() << "Error writing to " << mFilePath;
+    }
+}
+
+void SaveFileHelper::write(const uint8_t *data, size_t size)
+{
+    mOfs.write(reinterpret_cast<const char *>(data), size);
+}
+
+// AMD_performance_monitor helpers.
+
+PerfMonitorCounter::PerfMonitorCounter() = default;
+
+PerfMonitorCounter::~PerfMonitorCounter() = default;
+
+PerfMonitorCounterGroup::PerfMonitorCounterGroup() = default;
+
+PerfMonitorCounterGroup::~PerfMonitorCounterGroup() = default;
+
+uint32_t GetPerfMonitorCounterIndex(const PerfMonitorCounters &counters, const std::string &name)
+{
+    for (uint32_t counterIndex = 0; counterIndex < static_cast<uint32_t>(counters.size());
+         ++counterIndex)
+    {
+        if (counters[counterIndex].name == name)
+        {
+            return counterIndex;
+        }
+    }
+
+    return std::numeric_limits<uint32_t>::max();
+}
+
+uint32_t GetPerfMonitorCounterGroupIndex(const PerfMonitorCounterGroups &groups,
+                                         const std::string &name)
+{
+    for (uint32_t groupIndex = 0; groupIndex < static_cast<uint32_t>(groups.size()); ++groupIndex)
+    {
+        if (groups[groupIndex].name == name)
+        {
+            return groupIndex;
+        }
+    }
+
+    return std::numeric_limits<uint32_t>::max();
+}
+
+const PerfMonitorCounter &GetPerfMonitorCounter(const PerfMonitorCounters &counters,
+                                                const std::string &name)
+{
+    return GetPerfMonitorCounter(const_cast<PerfMonitorCounters &>(counters), name);
+}
+
+PerfMonitorCounter &GetPerfMonitorCounter(PerfMonitorCounters &counters, const std::string &name)
+{
+    uint32_t counterIndex = GetPerfMonitorCounterIndex(counters, name);
+    ASSERT(counterIndex < static_cast<uint32_t>(counters.size()));
+    return counters[counterIndex];
+}
+
+const PerfMonitorCounterGroup &GetPerfMonitorCounterGroup(const PerfMonitorCounterGroups &groups,
+                                                          const std::string &name)
+{
+    return GetPerfMonitorCounterGroup(const_cast<PerfMonitorCounterGroups &>(groups), name);
+}
+
+PerfMonitorCounterGroup &GetPerfMonitorCounterGroup(PerfMonitorCounterGroups &groups,
+                                                    const std::string &name)
+{
+    uint32_t groupIndex = GetPerfMonitorCounterGroupIndex(groups, name);
+    ASSERT(groupIndex < static_cast<uint32_t>(groups.size()));
+    return groups[groupIndex];
+}
 }  // namespace angle
 
 std::string ArrayString(unsigned int i)
@@ -49,26 +141,16 @@ std::string ArrayIndexString(const std::vector<unsigned int> &indices)
 
 size_t FormatStringIntoVector(const char *fmt, va_list vararg, std::vector<char> &outBuffer)
 {
-    // The state of the va_list passed to vsnprintf is undefined after the call, do a copy in case
-    // we need to grow the buffer.
     va_list varargCopy;
     va_copy(varargCopy, vararg);
 
-    // Attempt to just print to the current buffer
-    int len = vsnprintf(&(outBuffer.front()), outBuffer.size(), fmt, varargCopy);
+    int len = vsnprintf(nullptr, 0, fmt, vararg);
+    ASSERT(len >= 0);
+
+    outBuffer.resize(len + 1, 0);
+
+    len = vsnprintf(outBuffer.data(), outBuffer.size(), fmt, varargCopy);
     va_end(varargCopy);
-
-    if (len < 0 || static_cast<size_t>(len) >= outBuffer.size())
-    {
-        // Buffer was not large enough, calculate the required size and resize the buffer
-        len = vsnprintf(nullptr, 0, fmt, vararg);
-        outBuffer.resize(len + 1);
-
-        // Print again
-        va_copy(varargCopy, vararg);
-        len = vsnprintf(&(outBuffer.front()), outBuffer.size(), fmt, varargCopy);
-        va_end(varargCopy);
-    }
     ASSERT(len >= 0);
     return static_cast<size_t>(len);
 }

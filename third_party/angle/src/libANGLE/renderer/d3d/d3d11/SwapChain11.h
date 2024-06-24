@@ -48,7 +48,8 @@ class SwapChain11 final : public SwapChainD3D
 
     const TextureHelper11 &getOffscreenTexture();
     const d3d11::RenderTargetView &getRenderTarget();
-    const d3d11::SharedSRV &getRenderTargetShaderResource(d3d::Context *context);
+    angle::Result getRenderTargetShaderResource(d3d::Context *context,
+                                                const d3d11::SharedSRV **outSRV);
 
     const TextureHelper11 &getDepthStencilTexture();
     const d3d11::DepthStencilView &getDepthStencil();
@@ -104,11 +105,7 @@ class SwapChain11 final : public SwapChainD3D
     d3d11::RenderTargetView mBackBufferRTView;
     d3d11::SharedSRV mBackBufferSRView;
 
-#if defined(STARBOARD)
-    bool mNeedsOffscreenTexture;
-#else
     const bool mNeedsOffscreenTexture;
-#endif
     TextureHelper11 mOffscreenTexture;
     d3d11::RenderTargetView mOffscreenRTView;
     d3d11::SharedSRV mOffscreenSRView;
@@ -131,9 +128,6 @@ class SwapChain11 final : public SwapChainD3D
 
     EGLint mEGLSamples;
     LONGLONG mQPCFrequency;
-#if defined(STARBOARD)
-    DXGI_COLOR_SPACE_TYPE mCurrentColorSpace = DXGI_COLOR_SPACE_CUSTOM;
-#endif // STARBOARD
 };
 
 }  // namespace rx

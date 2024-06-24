@@ -19,6 +19,8 @@
 
 using namespace sh;
 
+namespace
+{
 struct TranslatorCacheKey
 {
     bool operator==(const TranslatorCacheKey &other) const
@@ -30,6 +32,7 @@ struct TranslatorCacheKey
     uint32_t spec   = 0;
     uint32_t output = 0;
 };
+}  // anonymous namespace
 
 namespace std
 {
@@ -52,10 +55,8 @@ struct TCompilerDeleter
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    // Reserve some size for future compile options
-    const size_t kHeaderSize = 128;
-
-    if (size <= kHeaderSize)
+    ShaderDumpHeader header{};
+    if (size <= sizeof(header))
     {
         return 0;
     }
@@ -66,10 +67,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         return 0;
     }
 
-    uint32_t type    = *reinterpret_cast<const uint32_t *>(data);
-    uint32_t spec    = *reinterpret_cast<const uint32_t *>(data + 4);
-    uint32_t output  = *reinterpret_cast<const uint32_t *>(data + 8);
-    uint64_t options = *reinterpret_cast<const uint64_t *>(data + 12);
+    memcpy(&header, data, sizeof(header));
+    ShCompileOptions options{};
+    memcpy(&options, &header.basicCompileOptions, offsetof(ShCompileOptions, metal));
+    memcpy(&options.metal, &header.metalCompileOptions, sizeof(options.metal));
+    memcpy(&options.pls, &header.plsCompileOptions, sizeof(options.pls));
+    size -= sizeof(header);
+    data += sizeof(header);
+    uint32_t type = header.type;
+    uint32_t spec = header.spec;
 
     if (type != GL_FRAGMENT_SHADER && type != GL_VERTEX_SHADER)
     {
@@ -82,13 +88,55 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         return 0;
     }
 
-    ShShaderOutput shaderOutput = static_cast<ShShaderOutput>(output);
-    if (!(IsOutputGLSL(shaderOutput) || IsOutputESSL(shaderOutput)) &&
-        (options & SH_SELECT_VIEW_IN_NV_GLSL_VERTEX_SHADER) != 0u)
+    ShShaderOutput shaderOutput = static_cast<ShShaderOutput>(header.output);
+
+    bool hasUnsupportedOptions = false;
+
+    const bool hasMacGLSLOptions = options.rewriteFloatUnaryMinusOperator ||
+                                   options.addAndTrueToLoopCondition ||
+                                   options.rewriteDoWhileLoops || options.unfoldShortCircuit ||
+                                   options.rewriteRowMajorMatrices;
+
+    if (!IsOutputGLSL(shaderOutput) && !IsOutputESSL(shaderOutput))
     {
-        // This compiler option is only available in ESSL and GLSL.
+        hasUnsupportedOptions =
+            hasUnsupportedOptions || options.emulateAtan2FloatFunction || options.clampFragDepth ||
+            options.regenerateStructNames || options.rewriteRepeatedAssignToSwizzled ||
+            options.useUnusedStandardSharedBlocks || options.selectViewInNvGLSLVertexShader;
+
+        hasUnsupportedOptions = hasUnsupportedOptions || hasMacGLSLOptions;
+    }
+    else
+    {
+#if !defined(ANGLE_PLATFORM_APPLE)
+        hasUnsupportedOptions = hasUnsupportedOptions || hasMacGLSLOptions;
+#endif
+    }
+    if (!IsOutputVulkan(shaderOutput))
+    {
+        hasUnsupportedOptions =
+            hasUnsupportedOptions || options.emulateSeamfulCubeMapSampling ||
+            options.useSpecializationConstant || options.addVulkanXfbEmulationSupportCode ||
+            options.roundOutputAfterDithering || options.addAdvancedBlendEquationsEmulation;
+    }
+    if (!IsOutputHLSL(shaderOutput))
+    {
+        hasUnsupportedOptions = hasUnsupportedOptions ||
+                                options.expandSelectHLSLIntegerPowExpressions ||
+                                options.allowTranslateUniformBlockToStructuredBuffer ||
+                                options.rewriteIntegerUnaryMinusOperator;
+    }
+
+    // If there are any options not supported with this output, don't attempt to run the translator.
+    if (hasUnsupportedOptions)
+    {
         return 0;
     }
+
+    // Make sure the rest of the options are in a valid range.
+    options.pls.fragmentSyncType = static_cast<ShFragmentSynchronizationType>(
+        static_cast<uint32_t>(options.pls.fragmentSyncType) %
+        static_cast<uint32_t>(ShFragmentSynchronizationType::InvalidEnum));
 
     std::vector<uint32_t> validOutputs;
     validOutputs.push_back(SH_ESSL_OUTPUT);
@@ -103,21 +151,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     validOutputs.push_back(SH_GLSL_430_CORE_OUTPUT);
     validOutputs.push_back(SH_GLSL_440_CORE_OUTPUT);
     validOutputs.push_back(SH_GLSL_450_CORE_OUTPUT);
+    validOutputs.push_back(SH_SPIRV_VULKAN_OUTPUT);
     validOutputs.push_back(SH_HLSL_3_0_OUTPUT);
     validOutputs.push_back(SH_HLSL_4_1_OUTPUT);
     validOutputs.push_back(SH_HLSL_4_0_FL9_3_OUTPUT);
     bool found = false;
     for (auto valid : validOutputs)
     {
-        found = found || (valid == output);
+        found = found || (valid == shaderOutput);
     }
     if (!found)
     {
         return 0;
     }
-
-    size -= kHeaderSize;
-    data += kHeaderSize;
 
     if (!sh::Initialize())
     {
@@ -127,10 +173,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     TranslatorCacheKey key;
     key.type   = type;
     key.spec   = spec;
-    key.output = output;
+    key.output = shaderOutput;
 
     using UniqueTCompiler = std::unique_ptr<TCompiler, TCompilerDeleter>;
-    static angle::base::NoDestructor<std::unordered_map<TranslatorCacheKey, UniqueTCompiler>>
+    static angle::base::NoDestructor<angle::HashMap<TranslatorCacheKey, UniqueTCompiler>>
         translators;
 
     if (translators->find(key) == translators->end())
@@ -153,15 +199,23 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         resources.NV_EGL_stream_consumer_external = 1;
         resources.ARB_texture_rectangle           = 1;
         resources.EXT_blend_func_extended         = 1;
+        resources.EXT_conservative_depth          = 1;
         resources.EXT_draw_buffers                = 1;
         resources.EXT_frag_depth                  = 1;
         resources.EXT_shader_texture_lod          = 1;
-        resources.WEBGL_debug_shader_precision    = 1;
         resources.EXT_shader_framebuffer_fetch    = 1;
         resources.NV_shader_framebuffer_fetch     = 1;
         resources.ARM_shader_framebuffer_fetch    = 1;
         resources.EXT_YUV_target                  = 1;
+        resources.APPLE_clip_distance             = 1;
         resources.MaxDualSourceDrawBuffers        = 1;
+        resources.EXT_gpu_shader5                 = 1;
+        resources.MaxClipDistances                = 1;
+        resources.EXT_shadow_samplers             = 1;
+        resources.EXT_clip_cull_distance          = 1;
+        resources.ANGLE_clip_cull_distance        = 1;
+        resources.EXT_primitive_bounding_box      = 1;
+        resources.OES_primitive_bounding_box      = 1;
 
         if (!translator->Init(resources))
         {

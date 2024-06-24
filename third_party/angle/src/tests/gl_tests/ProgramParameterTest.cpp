@@ -13,7 +13,7 @@ using namespace angle;
 namespace
 {
 
-class ProgramParameterTest : public ANGLETest
+class ProgramParameterTest : public ANGLETest<>
 {
   protected:
     ProgramParameterTest()
@@ -70,6 +70,9 @@ TEST_P(ProgramParameterTestES31, ValidateParameters)
     glDeleteProgram(program);
 }
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ProgramParameterTest);
 ANGLE_INSTANTIATE_TEST_ES3_AND_ES31(ProgramParameterTest);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ProgramParameterTestES31);
 ANGLE_INSTANTIATE_TEST_ES31(ProgramParameterTestES31);
 }  // namespace

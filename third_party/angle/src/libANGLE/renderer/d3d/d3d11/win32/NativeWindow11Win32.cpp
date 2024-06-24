@@ -44,12 +44,12 @@ bool NativeWindow11Win32::initialize()
 
 bool NativeWindow11Win32::getClientRect(LPRECT rect) const
 {
-    return GetClientRect(static_cast<HWND>(getNativeWindow()), rect) == TRUE;
+    return GetClientRect(getNativeWindow(), rect) == TRUE;
 }
 
 bool NativeWindow11Win32::isIconic() const
 {
-    return IsIconic(static_cast<HWND>(getNativeWindow())) == TRUE;
+    return IsIconic(getNativeWindow()) == TRUE;
 }
 
 HRESULT NativeWindow11Win32::createSwapChain(ID3D11Device *device,
@@ -100,7 +100,7 @@ HRESULT NativeWindow11Win32::createSwapChain(ID3D11Device *device,
         if (!mCompositionTarget)
         {
             HRESULT result =
-                mDevice->CreateTargetForHwnd(static_cast<HWND>(getNativeWindow()), TRUE, &mCompositionTarget);
+                mDevice->CreateTargetForHwnd(getNativeWindow(), TRUE, &mCompositionTarget);
             if (FAILED(result))
             {
                 return result;
@@ -165,11 +165,11 @@ HRESULT NativeWindow11Win32::createSwapChain(ID3D11Device *device,
         swapChainDesc.AlphaMode     = DXGI_ALPHA_MODE_UNSPECIFIED;
         swapChainDesc.Flags         = 0;
         IDXGISwapChain1 *swapChain1 = nullptr;
-        HRESULT result = factory2->CreateSwapChainForHwnd(device, static_cast<HWND>(getNativeWindow()), &swapChainDesc,
+        HRESULT result = factory2->CreateSwapChainForHwnd(device, getNativeWindow(), &swapChainDesc,
                                                           nullptr, nullptr, &swapChain1);
         if (SUCCEEDED(result))
         {
-            factory2->MakeWindowAssociation(static_cast<HWND>(getNativeWindow()), DXGI_MWA_NO_ALT_ENTER);
+            factory2->MakeWindowAssociation(getNativeWindow(), DXGI_MWA_NO_ALT_ENTER);
             *swapChain = static_cast<IDXGISwapChain *>(swapChain1);
         }
         SafeRelease(factory2);
@@ -188,7 +188,7 @@ HRESULT NativeWindow11Win32::createSwapChain(ID3D11Device *device,
     swapChainDesc.BufferUsage =
         DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT | DXGI_USAGE_BACK_BUFFER;
     swapChainDesc.Flags              = 0;
-    swapChainDesc.OutputWindow       = static_cast<HWND>(getNativeWindow());
+    swapChainDesc.OutputWindow       = getNativeWindow();
     swapChainDesc.SampleDesc.Count   = samples;
     swapChainDesc.SampleDesc.Quality = 0;
     swapChainDesc.Windowed           = TRUE;
@@ -197,7 +197,7 @@ HRESULT NativeWindow11Win32::createSwapChain(ID3D11Device *device,
     HRESULT result = factory->CreateSwapChain(device, &swapChainDesc, swapChain);
     if (SUCCEEDED(result))
     {
-        factory->MakeWindowAssociation(static_cast<HWND>(getNativeWindow()), DXGI_MWA_NO_ALT_ENTER);
+        factory->MakeWindowAssociation(getNativeWindow(), DXGI_MWA_NO_ALT_ENTER);
     }
     return result;
 }
@@ -213,6 +213,6 @@ void NativeWindow11Win32::commitChange()
 // static
 bool NativeWindow11Win32::IsValidNativeWindow(EGLNativeWindowType window)
 {
-    return IsWindow(static_cast<HWND>(window)) == TRUE;
+    return IsWindow(window) == TRUE;
 }
 }  // namespace rx

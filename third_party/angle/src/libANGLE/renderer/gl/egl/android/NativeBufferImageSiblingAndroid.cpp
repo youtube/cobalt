@@ -12,19 +12,28 @@
 
 namespace rx
 {
-NativeBufferImageSiblingAndroid::NativeBufferImageSiblingAndroid(EGLClientBuffer buffer)
-    : mBuffer(buffer), mFormat(GL_NONE)
-{}
+NativeBufferImageSiblingAndroid::NativeBufferImageSiblingAndroid(EGLClientBuffer buffer,
+                                                                 const egl::AttributeMap &attribs)
+    : mBuffer(buffer), mFormat(GL_NONE), mYUV(false), mColorSpace(EGL_GL_COLORSPACE_LINEAR_KHR)
+{
+    if (attribs.contains(EGL_GL_COLORSPACE_KHR))
+    {
+        mColorSpace = attribs.getAsInt(EGL_GL_COLORSPACE_KHR);
+    }
+}
 
 NativeBufferImageSiblingAndroid::~NativeBufferImageSiblingAndroid() {}
 
 egl::Error NativeBufferImageSiblingAndroid::initialize(const egl::Display *display)
 {
     int pixelFormat = 0;
+    uint64_t usage  = 0;
     angle::android::GetANativeWindowBufferProperties(
         angle::android::ClientBufferToANativeWindowBuffer(mBuffer), &mSize.width, &mSize.height,
-        &mSize.depth, &pixelFormat);
+        &mSize.depth, &pixelFormat, &usage);
     mFormat = gl::Format(angle::android::NativePixelFormatToGLInternalFormat(pixelFormat));
+    mYUV    = angle::android::NativePixelFormatIsYUV(pixelFormat);
+    mHasProtectedContent = false;
 
     return egl::NoError();
 }
@@ -44,6 +53,16 @@ bool NativeBufferImageSiblingAndroid::isTexturable(const gl::Context *context) c
     return true;
 }
 
+bool NativeBufferImageSiblingAndroid::isYUV() const
+{
+    return mYUV;
+}
+
+bool NativeBufferImageSiblingAndroid::hasProtectedContent() const
+{
+    return mHasProtectedContent;
+}
+
 gl::Extents NativeBufferImageSiblingAndroid::getSize() const
 {
     return mSize;
@@ -57,6 +76,16 @@ size_t NativeBufferImageSiblingAndroid::getSamples() const
 EGLClientBuffer NativeBufferImageSiblingAndroid::getBuffer() const
 {
     return mBuffer;
+}
+
+void NativeBufferImageSiblingAndroid::getImageCreationAttributes(
+    std::vector<EGLint> *outAttributes) const
+{
+    if (mColorSpace != EGL_GL_COLORSPACE_LINEAR_KHR)
+    {
+        outAttributes->push_back(EGL_GL_COLORSPACE_KHR);
+        outAttributes->push_back(mColorSpace);
+    }
 }
 
 }  // namespace rx

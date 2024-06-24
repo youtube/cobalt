@@ -72,10 +72,9 @@ class InterleavedAttributeDataBenchmark
 InterleavedAttributeDataBenchmark::InterleavedAttributeDataBenchmark()
     : ANGLERenderTest("InterleavedAttributeData", GetParam()), mPointSpriteProgram(0)
 {
-    // Timing out on Intel. http://crbug.com/921004
     if (GetParam().eglParameters.renderer == EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE)
     {
-        mSkipTest = true;
+        skipTest("http://crbug.com/921004 Timing out on Intel");
     }
 }
 
@@ -212,17 +211,10 @@ InterleavedAttributeDataParams D3D11Params()
     return params;
 }
 
-InterleavedAttributeDataParams D3D11_9_3Params()
+InterleavedAttributeDataParams MetalParams()
 {
     InterleavedAttributeDataParams params;
-    params.eglParameters = egl_platform::D3D11_FL9_3();
-    return params;
-}
-
-InterleavedAttributeDataParams D3D9Params()
-{
-    InterleavedAttributeDataParams params;
-    params.eglParameters = egl_platform::D3D9();
+    params.eglParameters = egl_platform::METAL();
     return params;
 }
 
@@ -242,8 +234,7 @@ InterleavedAttributeDataParams VulkanParams()
 
 ANGLE_INSTANTIATE_TEST(InterleavedAttributeDataBenchmark,
                        D3D11Params(),
-                       D3D11_9_3Params(),
-                       D3D9Params(),
+                       MetalParams(),
                        OpenGLOrGLESParams(),
                        VulkanParams());
 

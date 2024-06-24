@@ -25,20 +25,19 @@ namespace
 class MockSurfaceImpl : public rx::SurfaceImpl
 {
   public:
-    MockSurfaceImpl() : SurfaceImpl(mockState), mockState(nullptr, egl::AttributeMap()) {}
+    MockSurfaceImpl() : SurfaceImpl(mockState), mockState({1}, nullptr, egl::AttributeMap()) {}
     virtual ~MockSurfaceImpl() { destructor(); }
 
     MOCK_METHOD1(destroy, void(const egl::Display *));
     MOCK_METHOD1(initialize, egl::Error(const egl::Display *));
-    MOCK_METHOD2(createDefaultFramebuffer,
-                 rx::FramebufferImpl *(const gl::Context *, const gl::FramebufferState &data));
     MOCK_METHOD1(swap, egl::Error(const gl::Context *));
-    MOCK_METHOD3(swapWithDamage, egl::Error(const gl::Context *, EGLint *, EGLint));
+    MOCK_METHOD3(swapWithDamage, egl::Error(const gl::Context *, const EGLint *, EGLint));
     MOCK_METHOD5(postSubBuffer, egl::Error(const gl::Context *, EGLint, EGLint, EGLint, EGLint));
     MOCK_METHOD2(querySurfacePointerANGLE, egl::Error(EGLint, void **));
     MOCK_METHOD3(bindTexImage, egl::Error(const gl::Context *context, gl::Texture *, EGLint));
     MOCK_METHOD2(releaseTexImage, egl::Error(const gl::Context *context, EGLint));
     MOCK_METHOD3(getSyncValues, egl::Error(EGLuint64KHR *, EGLuint64KHR *, EGLuint64KHR *));
+    MOCK_METHOD2(getMscRate, egl::Error(EGLint *, EGLint *));
     MOCK_METHOD1(setSwapInterval, void(EGLint));
     MOCK_CONST_METHOD0(getWidth, EGLint());
     MOCK_CONST_METHOD0(getHeight, EGLint());
@@ -50,7 +49,8 @@ class MockSurfaceImpl : public rx::SurfaceImpl
                                const gl::ImageIndex &,
                                GLsizei,
                                rx::FramebufferAttachmentRenderTarget **));
-
+    MOCK_METHOD2(attachToFramebuffer, egl::Error(const gl::Context *, gl::Framebuffer *));
+    MOCK_METHOD2(detachFromFramebuffer, egl::Error(const gl::Context *, gl::Framebuffer *));
     MOCK_METHOD0(destructor, void());
 
     egl::SurfaceState mockState;
@@ -65,7 +65,7 @@ TEST(SurfaceTest, DestructionDeletesImpl)
 
     egl::Config config;
     egl::Surface *surface = new egl::WindowSurface(
-        &factory, &config, static_cast<EGLNativeWindowType>(0), egl::AttributeMap());
+        &factory, {1}, &config, static_cast<EGLNativeWindowType>(0), egl::AttributeMap(), false);
 
     EXPECT_CALL(*impl, destroy(_)).Times(1).RetiresOnSaturation();
     EXPECT_CALL(*impl, destructor()).Times(1).RetiresOnSaturation();

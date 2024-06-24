@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include "common/system_utils.h"
+#include "tests/test_utils/runner/TestSuite.h"
 #include "util/Timer.h"
 #include "util/test_utils.h"
 #include "util/test_utils_unittest_helper.h"
@@ -18,6 +19,9 @@ namespace
 {
 #if defined(ANGLE_PLATFORM_WINDOWS)
 constexpr char kRunAppHelperExecutable[] = "test_utils_unittest_helper.exe";
+#elif ANGLE_PLATFORM_IOS_FAMILY
+constexpr char kRunAppHelperExecutable[] =
+    "../test_utils_unittest_helper.app/test_utils_unittest_helper";
 #else
 constexpr char kRunAppHelperExecutable[] = "test_utils_unittest_helper";
 #endif
@@ -59,99 +63,52 @@ TEST(TestUtils, Sleep)
     timer.stop();
 
     // Use a slightly fuzzy range
-    EXPECT_GT(timer.getElapsedTime(), 0.48);
-}
-
-constexpr uint32_t kMaxPath = 1000;
-
-// Temporary file creation is not supported on Android right now.
-#if defined(ANGLE_PLATFORM_ANDROID)
-#    define MAYBE_CreateAndDeleteTemporaryFile DISABLED_CreateAndDeleteTemporaryFile
-#    define MAYBE_CreateAndDeleteFileInTempDir DISABLED_CreateAndDeleteFileInTempDir
-#else
-#    define MAYBE_CreateAndDeleteTemporaryFile CreateAndDeleteTemporaryFile
-#    define MAYBE_CreateAndDeleteFileInTempDir CreateAndDeleteFileInTempDir
-#endif  // defined(ANGLE_PLATFORM_ANDROID)
-
-// Test creating and deleting temporary file.
-TEST(TestUtils, MAYBE_CreateAndDeleteTemporaryFile)
-{
-    char path[kMaxPath] = {};
-    ASSERT_TRUE(CreateTemporaryFile(path, kMaxPath));
-    ASSERT_TRUE(strlen(path) > 0);
-
-    const char kOutputString[] = "test output";
-
-    FILE *fp = fopen(path, "wt");
-    ASSERT_NE(fp, nullptr);
-    int retval = fputs(kOutputString, fp);
-    fclose(fp);
-
-    EXPECT_GE(retval, 0);
-
-    // Test ReadEntireFileToString
-    char actualString[kMaxPath];
-    EXPECT_TRUE(ReadEntireFileToString(path, actualString, kMaxPath));
-    EXPECT_EQ(strcmp(actualString, kOutputString), 0);
-
-    // Delete the temporary file.
-    EXPECT_TRUE(angle::DeleteFile(path));
-}
-
-// Tests creating and deleting a file in the system temp dir.
-TEST(TestUtils, MAYBE_CreateAndDeleteFileInTempDir)
-{
-    char tempDir[kMaxPath];
-    ASSERT_TRUE(GetTempDir(tempDir, kMaxPath));
-
-    char path[kMaxPath] = {};
-    ASSERT_TRUE(CreateTemporaryFileInDir(tempDir, path, kMaxPath));
-    ASSERT_TRUE(strlen(path) > 0);
-
-    const char kOutputString[] = "test output";
-
-    FILE *fp = fopen(path, "wt");
-    ASSERT_NE(fp, nullptr);
-    int retval = fputs(kOutputString, fp);
-    fclose(fp);
-
-    EXPECT_GE(retval, 0);
-
-    // Test ReadEntireFileToString
-    char actualString[kMaxPath];
-    EXPECT_TRUE(ReadEntireFileToString(path, actualString, kMaxPath));
-    EXPECT_EQ(strcmp(actualString, kOutputString), 0);
-
-    // Delete the temporary file.
-    EXPECT_TRUE(angle::DeleteFile(path));
+    EXPECT_GT(timer.getElapsedWallClockTime(), 0.48);
 }
 
 // TODO: android support. http://anglebug.com/3125
 #if defined(ANGLE_PLATFORM_ANDROID)
 #    define MAYBE_RunApp DISABLED_RunApp
 #    define MAYBE_RunAppAsync DISABLED_RunAppAsync
-// TODO: fuchsia support. http://anglebug.com/3161
+#    define MAYBE_RunAppAsyncRedirectStderrToStdout DISABLED_RunAppAsyncRedirectStderrToStdout
+// TODO: fuchsia support. http://anglebug.com/7312
 #elif defined(ANGLE_PLATFORM_FUCHSIA)
 #    define MAYBE_RunApp DISABLED_RunApp
 #    define MAYBE_RunAppAsync DISABLED_RunAppAsync
+#    define MAYBE_RunAppAsyncRedirectStderrToStdout DISABLED_RunAppAsyncRedirectStderrToStdout
+// TODO: iOS simulator support. http://anglebug.com/8116
+#elif ANGLE_PLATFORM_IOS_FAMILY_SIMULATOR
+#    define MAYBE_RunApp DISABLED_RunApp
+#    define MAYBE_RunAppAsync DISABLED_RunAppAsync
+#    define MAYBE_RunAppAsyncRedirectStderrToStdout DISABLED_RunAppAsyncRedirectStderrToStdout
 #else
 #    define MAYBE_RunApp RunApp
 #    define MAYBE_RunAppAsync RunAppAsync
+#    define MAYBE_RunAppAsyncRedirectStderrToStdout RunAppAsyncRedirectStderrToStdout
 #endif  // defined(ANGLE_PLATFORM_ANDROID)
+
+std::string GetTestAppExecutablePath()
+{
+    std::string testExecutableName = angle::TestSuite::GetInstance()->getTestExecutableName();
+    std::string executablePath     = angle::StripFilenameFromPath(testExecutableName);
+
+    EXPECT_NE(executablePath, "");
+    executablePath += "/";
+    executablePath += kRunAppHelperExecutable;
+
+    return executablePath;
+}
 
 // Test running an external application and receiving its output
 TEST(TestUtils, MAYBE_RunApp)
 {
-    std::string executablePath = GetExecutableDirectory();
-    EXPECT_NE(executablePath, "");
-    executablePath += "/";
-    executablePath += kRunAppHelperExecutable;
+    std::string executablePath = GetTestAppExecutablePath();
 
     std::vector<const char *> args = {executablePath.c_str(), kRunAppTestArg1, kRunAppTestArg2};
 
     // Test that the application can be executed.
     {
-        ProcessHandle process(args, true, true);
+        ProcessHandle process(args, ProcessOutputCapture::StdoutAndStderrSeparately);
         EXPECT_TRUE(process->started());
         EXPECT_TRUE(process->finish());
         EXPECT_TRUE(process->finished());
@@ -167,7 +124,7 @@ TEST(TestUtils, MAYBE_RunApp)
         bool setEnvDone = SetEnvironmentVar(kRunAppTestEnvVarName, kRunAppTestEnvVarValue);
         EXPECT_TRUE(setEnvDone);
 
-        ProcessHandle process(LaunchProcess(args, true, true));
+        ProcessHandle process(LaunchProcess(args, ProcessOutputCapture::StdoutAndStderrSeparately));
         EXPECT_TRUE(process->started());
         EXPECT_TRUE(process->finish());
 
@@ -184,23 +141,20 @@ TEST(TestUtils, MAYBE_RunApp)
 // Test running an external application and receiving its output asynchronously.
 TEST(TestUtils, MAYBE_RunAppAsync)
 {
-    std::string executablePath = GetExecutableDirectory();
-    EXPECT_NE(executablePath, "");
-    executablePath += "/";
-    executablePath += kRunAppHelperExecutable;
+    std::string executablePath = GetTestAppExecutablePath();
 
     std::vector<const char *> args = {executablePath.c_str(), kRunAppTestArg1, kRunAppTestArg2};
 
-    // Test that the application can be executed.
+    // Test that the application can be executed and the output is captured correctly.
     {
-        ProcessHandle process(args, true, true);
+        ProcessHandle process(args, ProcessOutputCapture::StdoutAndStderrSeparately);
         EXPECT_TRUE(process->started());
 
         constexpr double kTimeout = 3.0;
 
         Timer timer;
         timer.start();
-        while (!process->finished() && timer.getElapsedTime() < kTimeout)
+        while (!process->finished() && timer.getElapsedWallClockTime() < kTimeout)
         {
             angle::Sleep(1);
         }
@@ -213,7 +167,37 @@ TEST(TestUtils, MAYBE_RunAppAsync)
     }
 }
 
-// Verify that NumberOfProcessors returns something sane.
+// Test running an external application and receiving its stdout and stderr output interleaved.
+TEST(TestUtils, MAYBE_RunAppAsyncRedirectStderrToStdout)
+{
+    std::string executablePath = GetTestAppExecutablePath();
+
+    std::vector<const char *> args = {executablePath.c_str(), kRunAppTestArg1, kRunAppTestArg2};
+
+    // Test that the application can be executed and the output is captured correctly.
+    {
+        ProcessHandle process(args, ProcessOutputCapture::StdoutAndStderrInterleaved);
+        EXPECT_TRUE(process->started());
+
+        constexpr double kTimeout = 3.0;
+
+        Timer timer;
+        timer.start();
+        while (!process->finished() && timer.getElapsedWallClockTime() < kTimeout)
+        {
+            angle::Sleep(1);
+        }
+
+        EXPECT_TRUE(process->finished());
+        EXPECT_GT(process->getElapsedTimeSeconds(), 0.0);
+        EXPECT_EQ(std::string(kRunAppTestStdout) + kRunAppTestStderr,
+                  NormalizeNewLines(process->getStdout()));
+        EXPECT_EQ("", process->getStderr());
+        EXPECT_EQ(EXIT_SUCCESS, process->getExitCode());
+    }
+}
+
+// Verify that NumberOfProcessors returns something reasonable.
 TEST(TestUtils, NumberOfProcessors)
 {
     int numProcs = angle::NumberOfProcessors();

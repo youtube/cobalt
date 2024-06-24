@@ -9,6 +9,7 @@
 
 #include "string_utils.h"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 using namespace angle;
@@ -92,6 +93,46 @@ TEST(StringUtilsTest, SplitString_WhitespaceAndResultType)
     ASSERT_TRUE(r.empty());
 }
 
+// Tests for SplitStringAlongWhitespace
+TEST(StringUtilsTest, SplitStringAlongWhitespace)
+{
+    {
+        // No whitespace.
+        std::vector<std::string> r;
+        SplitStringAlongWhitespace("abcd", &r);
+        ASSERT_THAT(r, testing::ElementsAre("abcd"));
+    }
+
+    {
+        // Just whitespace.
+        std::vector<std::string> r;
+        SplitStringAlongWhitespace(" \t", &r);
+        ASSERT_THAT(r, testing::ElementsAre());
+    }
+
+    {
+        // Consecutive whitespace of same type.
+        std::vector<std::string> r;
+        SplitStringAlongWhitespace("a  b", &r);
+        ASSERT_THAT(r, testing::ElementsAre("a", "b"));
+    }
+
+    {
+        // Consecutive whitespace of different types.
+        std::vector<std::string> r;
+        SplitStringAlongWhitespace("ab \tcd", &r);
+        ASSERT_THAT(r, testing::ElementsAre("ab", "cd"));
+    }
+
+    {
+        // Non-empty output std::vector.
+        std::vector<std::string> r;
+        r.push_back("z");
+        SplitStringAlongWhitespace("abc", &r);
+        ASSERT_THAT(r, testing::ElementsAre("z", "abc"));
+    }
+}
+
 // Tests for TrimString
 TEST(StringUtilsTest, TrimString)
 {
@@ -134,6 +175,70 @@ TEST(StringUtilsTest, HexStringToUIntBasic)
 
     std::string testStringD("0x BADF00D");
     EXPECT_FALSE(HexStringToUInt(testStringD, &uintValue));
+}
+
+// Tests for ToCamelCase
+TEST(StringUtilsTest, ToCamelCase)
+{
+    // No underscore in input; expect identical output
+    EXPECT_EQ("", ToCamelCase(""));
+    EXPECT_EQ("a", ToCamelCase("a"));
+    EXPECT_EQ("AbCdEfG", ToCamelCase("AbCdEfG"));
+    EXPECT_EQ("aBcDeFg", ToCamelCase("aBcDeFg"));
+
+    // Underscore should be removed and the next character turned upper case
+    EXPECT_EQ("", ToCamelCase("_"));
+    EXPECT_EQ("aB", ToCamelCase("a_b"));
+    EXPECT_EQ("aB", ToCamelCase("a_b"));
+    EXPECT_EQ("camelCase", ToCamelCase("camel_case"));
+    EXPECT_EQ("abCDeBEfG", ToCamelCase("abCDe_bEfG"));
+
+    // Multiple underscores
+    EXPECT_EQ("aBCDEFG", ToCamelCase("a_b_c_d_e_f_g"));
+    EXPECT_EQ("abCdEfGh", ToCamelCase("ab_cd_ef_gh"));
+    EXPECT_EQ("aShortName", ToCamelCase("a_short_name"));
+    EXPECT_EQ("someShortWords", ToCamelCase("some_short_words"));
+    EXPECT_EQ("bunchOLetters", ToCamelCase("bunch_o_letters"));
+    EXPECT_EQ("whatEndsInE", ToCamelCase("what_ends_in_e"));
+    EXPECT_EQ("adjustSrcDstRegionForBlitFramebuffer",
+              ToCamelCase("adjust_src_dst_region_for_BlitFramebuffer"));
+
+    // Uppercase after underscore
+    EXPECT_EQ("abCDEFGh", ToCamelCase("ab_CD_eF_Gh"));
+    EXPECT_EQ("IWasThere", ToCamelCase("I_was_there"));
+    EXPECT_EQ("whereDidTHATComeFrom", ToCamelCase("where_did_THAT_come_from"));
+
+    // Digits
+    EXPECT_EQ("ab123c4deF5gHi6J", ToCamelCase("ab1_2_3c_4de_f5g_hi6_j"));
+    EXPECT_EQ("maxSize16KB", ToCamelCase("max_size_16KB"));
+    EXPECT_EQ("supportRGBA8", ToCamelCase("support_RGBA8"));
+}
+
+// Basic functionality for NamesMatchWithWildcard.
+TEST(StringUtilsTest, NamesMatchWithWildcard)
+{
+    EXPECT_TRUE(NamesMatchWithWildcard("ASDF", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("A*", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("AS*", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("ASD*", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("ASDF*", "ASDF"));
+
+    EXPECT_TRUE(NamesMatchWithWildcard("*F", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("*DF", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("*SDF", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("*ASDF", "ASDF"));
+
+    EXPECT_TRUE(NamesMatchWithWildcard("AS**", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("AS***", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("**DF", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("***DF", "ASDF"));
+
+    EXPECT_TRUE(NamesMatchWithWildcard("A*F", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("A**F", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("*SD*", "ASDF"));
+    EXPECT_TRUE(NamesMatchWithWildcard("*S*D*", "ASDF"));
+
+    EXPECT_TRUE(NamesMatchWithWildcard("ASD*", "ASDF*"));
 }
 
 // Note: ReadFileToString is harder to test
@@ -202,17 +307,68 @@ TEST_F(BeginsWithTest, Strings)
     runTest();
 }
 
-// Test that EndsWith works correctly.
-TEST(EndsWithTest, EndsWith)
+class EndsWithTest : public testing::Test
 {
-    ASSERT_FALSE(EndsWith("foo", "bar"));
-    ASSERT_FALSE(EndsWith("", "bar"));
-    ASSERT_FALSE(EndsWith("foo", "foobar"));
+  public:
+    EndsWithTest() : mMode(TestMode::CHAR_ARRAY) {}
 
-    ASSERT_TRUE(EndsWith("foobar", "bar"));
-    ASSERT_TRUE(EndsWith("foobar", ""));
-    ASSERT_TRUE(EndsWith("bar", "bar"));
-    ASSERT_TRUE(EndsWith("", ""));
+    enum class TestMode
+    {
+        CHAR_ARRAY,
+        STRING_AND_CHAR_ARRAY,
+        STRING
+    };
+
+    void setMode(TestMode mode) { mMode = mode; }
+
+    bool runEndsWith(const char *str, const char *suffix)
+    {
+        if (mMode == TestMode::CHAR_ARRAY)
+        {
+            return EndsWith(str, suffix);
+        }
+        if (mMode == TestMode::STRING_AND_CHAR_ARRAY)
+        {
+            return EndsWith(std::string(str), suffix);
+        }
+        return EndsWith(std::string(str), std::string(suffix));
+    }
+
+    void runTest()
+    {
+        ASSERT_FALSE(EndsWith("foo", "bar"));
+        ASSERT_FALSE(EndsWith("", "bar"));
+        ASSERT_FALSE(EndsWith("foo", "foobar"));
+
+        ASSERT_TRUE(EndsWith("foobar", "bar"));
+        ASSERT_TRUE(EndsWith("foobar", ""));
+        ASSERT_TRUE(EndsWith("bar", "bar"));
+        ASSERT_TRUE(EndsWith("", ""));
+    }
+
+  private:
+    TestMode mMode;
+};
+
+// Test that EndsWith works correctly for const char * arguments.
+TEST_F(EndsWithTest, CharArrays)
+{
+    setMode(TestMode::CHAR_ARRAY);
+    runTest();
+}
+
+// Test that EndsWith works correctly for std::string and const char * arguments.
+TEST_F(EndsWithTest, StringAndCharArray)
+{
+    setMode(TestMode::STRING_AND_CHAR_ARRAY);
+    runTest();
+}
+
+// Test that EndsWith works correctly for std::string arguments.
+TEST_F(EndsWithTest, Strings)
+{
+    setMode(TestMode::STRING);
+    runTest();
 }
 
 }  // anonymous namespace

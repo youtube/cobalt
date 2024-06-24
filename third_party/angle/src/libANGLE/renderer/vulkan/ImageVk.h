@@ -38,20 +38,19 @@ class ImageVk : public ImageImpl
 
     angle::Result orphan(const gl::Context *context, egl::ImageSibling *sibling) override;
 
+    egl::Error exportVkImage(void *vkImage, void *vkImageCreateInfo) override;
+
     vk::ImageHelper *getImage() const { return mImage; }
-    gl::TextureType getImageTextureType() const { return mImageTextureType; }
-    uint32_t getImageLevel() const { return mImageLevel; }
-    uint32_t getImageLayer() const { return mImageLayer; }
+    gl::TextureType getImageTextureType() const;
+    gl::LevelIndex getImageLevel() const;
+    uint32_t getImageLayer() const;
+
+    UniqueSerial generateSiblingSerial() { return mImageSiblingSerialFactory.generate(); }
 
   private:
-    gl::TextureType mImageTextureType;
-    uint32_t mImageLevel;
-    uint32_t mImageLayer;
-
     bool mOwnsImage;
     vk::ImageHelper *mImage;
-
-    std::vector<vk::Shared<vk::Fence>> mImageLastUseFences;
+    UniqueSerialFactory mImageSiblingSerialFactory;
 
     const gl::Context *mContext;
 };

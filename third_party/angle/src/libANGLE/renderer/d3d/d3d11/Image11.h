@@ -87,8 +87,12 @@ class Image11 : public ImageD3D
                                       const gl::Framebuffer *source) override;
 
     angle::Result recoverFromAssociatedStorage(const gl::Context *context);
-    void verifyAssociatedStorageValid(TextureStorage11 *textureStorage) const;
+    void verifyAssociatedStorageValid(TextureStorage11 *textureStorageEXT) const;
     void disassociateStorage();
+
+    angle::Result getStagingTexture(const gl::Context *context,
+                                    const TextureHelper11 **outStagingTexture,
+                                    unsigned int *outSubresourceIndex);
 
   protected:
     template <typename T>
@@ -103,9 +107,6 @@ class Image11 : public ImageD3D
                                         const TextureHelper11 &textureHelper,
                                         UINT sourceSubResource);
 
-    angle::Result getStagingTexture(const gl::Context *context,
-                                    const TextureHelper11 **outStagingTexture,
-                                    unsigned int *outSubresourceIndex);
     angle::Result createStagingTexture(const gl::Context *context);
     void releaseStagingTexture();
 

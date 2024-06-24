@@ -101,7 +101,14 @@ bool TVersionGLSL::visitDeclaration(Visit, TIntermDeclaration *node)
 
 bool TVersionGLSL::visitGlobalQualifierDeclaration(Visit, TIntermGlobalQualifierDeclaration *node)
 {
-    ensureVersionIsAtLeast(GLSL_VERSION_120);
+    if (node->isPrecise())
+    {
+        ensureVersionIsAtLeast(GLSL_VERSION_420);
+    }
+    else
+    {
+        ensureVersionIsAtLeast(GLSL_VERSION_120);
+    }
     return true;
 }
 
@@ -115,7 +122,7 @@ void TVersionGLSL::visitFunctionPrototype(TIntermFunctionPrototype *node)
         if (type.isArray())
         {
             TQualifier qualifier = type.getQualifier();
-            if ((qualifier == EvqOut) || (qualifier == EvqInOut))
+            if ((qualifier == EvqParamOut) || (qualifier == EvqParamInOut))
             {
                 ensureVersionIsAtLeast(GLSL_VERSION_120);
                 break;
