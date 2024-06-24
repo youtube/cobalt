@@ -94,10 +94,6 @@ const char kDisableRasterizerCachingHelp[] =
     "is deprecated, the '--force_deterministic_rendering' flag should be "
     "used instead which does the same thing.";
 
-const char kDisableSignIn[] = "disable_sign_in";
-const char kDisableSignInHelp[] =
-    "Disables sign-in on platforms that use H5VCC Account Manager.";
-
 const char kDisableSplashScreenOnReloads[] = "disable_splash_screen_on_reloads";
 const char kDisableSplashScreenOnReloadsHelp[] =
     "Disables the splash screen on reloads; instead it will only appear on the "
@@ -247,11 +243,18 @@ const char kDisableTimerResolutionLimitHelp[] =
     "removed and the resolution will be 1us (or larger depending on the "
     "platform.";
 
+#if SB_API_VERSION < 16
 const char kDisableUpdaterModule[] = "disable_updater_module";
 const char kDisableUpdaterModuleHelp[] =
     "Disables the Cobalt Evergreen UpdaterModule which is responsible for "
     "downloading and installing new Cobalt updates. Passing the flag is "
     "equivalent to opting out from further updates.";
+#endif
+
+const char kEnableSkiaRasterizer[] = "enable_skia_rasterizer";
+const char kEnableSkiaRasterizerHelp[] =
+    "Enables/disables the skia rendering engine. If it's disabled, direct-gles"
+    "rasterizer will be used. Set to 1 (enable) or 0 (disable).";
 
 const char kEncodedImageCacheSizeInBytes[] =
     "encoded_image_cache_size_in_bytes";
@@ -294,6 +297,12 @@ const char kInitialURL[] = "url";
 const char kInitialURLHelp[] =
     "Setting this switch defines the startup URL that Cobalt will use.  If no "
     "value is set, a default URL will be used.";
+
+const char kLoaderUseMemoryMappedFile[] = "loader_use_mmap_file";
+const char kLoaderUseMemoryMappedFileHelp[] =
+    "Does not control whether Evergreen's ELF loader uses a Memory Mapped file "
+    "but does allow the corresponding loader app switch with the same name, "
+    "which does control this behavior, to be observed in the Cobalt layer.";
 
 const char kLocalStoragePartitionUrl[] = "local_storage_partition_url";
 const char kLocalStoragePartitionUrlHelp[] =
@@ -411,15 +420,15 @@ const char kUpdateCheckDelaySecondsHelp[] =
     "Number of seconds to delay the first Cobalt Evergreen check for updates."
     "The default value is 60 seconds.";
 
-const char kUseCompressedUpdates[] = "use_compressed_updates";
-const char kUseCompressedUpdatesHelp[] =
-    "Whether to request, download, and install compressed (rather than "
-    "uncompressed) Evergreen binaries.";
-
 const char kUseQAUpdateServer[] = "use_qa_update_server";
 const char kUseQAUpdateServerHelp[] =
     "Uses the QA update server to test the changes to the configuration of the "
     "PROD update server.";
+
+const char kUseUncompressedUpdates[] = "use_uncompressed_updates";
+const char kUseUncompressedUpdatesHelp[] =
+    "Whether to request, download, and install uncompressed (rather than "
+    "compressed) Evergreen binaries.";
 
 const char kVersion[] = "version";
 const char kVersionHelp[] = "Prints the current version of Cobalt";
@@ -437,75 +446,83 @@ const char kVideoPlaybackRateMultiplierHelp[] =
 
 std::string HelpMessage() {
   std::string help_message;
-  std::map<std::string, const char*> help_map {
+  std::map<std::string, const char*> help_map{
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-    {kDebugConsoleMode, kDebugConsoleModeHelp},
-        {kDevServersListenIp, kDevServersListenIpHelp},
+      {kDebugConsoleMode, kDebugConsoleModeHelp},
+      {kDevServersListenIp, kDevServersListenIpHelp},
 #if defined(ENABLE_DEBUGGER)
-        {kDisableWebDebugger, kDisableWebDebuggerHelp},
-        {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
-        {kWaitForWebDebugger, kWaitForWebDebuggerHelp},
+      {kDisableWebDebugger, kDisableWebDebuggerHelp},
+      {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
+      {kWaitForWebDebugger, kWaitForWebDebuggerHelp},
 #endif  // ENABLE_DEBUGGER
-        {kDisableImageAnimations, kDisableImageAnimationsHelp},
-        {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
-        {kDisableMediaCodecs, kDisableMediaCodecsHelp},
-        {kDisableMediaEncryptionSchemes, kDisableMediaEncryptionSchemesHelp},
-        {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
-        {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
-        {kDisableSignIn, kDisableSignInHelp},
-        {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},
-        {kDisableWebDriver, kDisableWebDriverHelp},
-        {kExtraWebFileDir, kExtraWebFileDirHelp},
-        {kFakeMicrophone, kFakeMicrophoneHelp},
-        {kIgnoreCertificateErrors, kIgnoreCertificateErrorsHelp},
-        {kInputFuzzer, kInputFuzzerHelp},
-        {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
-        {kNullSavegame, kNullSavegameHelp}, {kProd, kProdHelp},
-        {kRequireCSP, kRequireCSPHelp},
-        {kAllowAllCrossOrigin, kAllowAllCrossOriginHelp},
-        {kRequireHTTPSLocation, kRequireHTTPSLocationHelp},
-        {kShutdownAfter, kShutdownAfterHelp},
-        {kStubImageDecoder, kStubImageDecoderHelp},
-        {kSuspendFuzzer, kSuspendFuzzerHelp}, {kTimedTrace, kTimedTraceHelp},
-        {kUserAgent, kUserAgentHelp},
-        {kUserAgentClientHints, kUserAgentClientHintsHelp},
-        {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
-        {kUseTTS, kUseTTSHelp}, {kWatchdog, kWatchdogHelp},
-        {kWebDriverPort, kWebDriverPortHelp},
+      {kDisableImageAnimations, kDisableImageAnimationsHelp},
+      {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
+      {kDisableMediaCodecs, kDisableMediaCodecsHelp},
+      {kDisableMediaEncryptionSchemes, kDisableMediaEncryptionSchemesHelp},
+      {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
+      {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
+      {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},
+      {kDisableWebDriver, kDisableWebDriverHelp},
+      {kExtraWebFileDir, kExtraWebFileDirHelp},
+      {kFakeMicrophone, kFakeMicrophoneHelp},
+      {kIgnoreCertificateErrors, kIgnoreCertificateErrorsHelp},
+      {kInputFuzzer, kInputFuzzerHelp},
+      {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
+      {kNullSavegame, kNullSavegameHelp},
+      {kProd, kProdHelp},
+      {kRequireCSP, kRequireCSPHelp},
+      {kAllowAllCrossOrigin, kAllowAllCrossOriginHelp},
+      {kRequireHTTPSLocation, kRequireHTTPSLocationHelp},
+      {kShutdownAfter, kShutdownAfterHelp},
+      {kStubImageDecoder, kStubImageDecoderHelp},
+      {kSuspendFuzzer, kSuspendFuzzerHelp},
+      {kTimedTrace, kTimedTraceHelp},
+      {kUserAgent, kUserAgentHelp},
+      {kUserAgentClientHints, kUserAgentClientHintsHelp},
+      {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
+      {kUseTTS, kUseTTSHelp},
+      {kWatchdog, kWatchdogHelp},
+      {kWebDriverPort, kWebDriverPortHelp},
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-        {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
-        {kDisableMapToMesh, kDisableMapToMeshHelp},
-        {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
-        {kDisableUpdaterModule, kDisableUpdaterModuleHelp},
-        {kEncodedImageCacheSizeInBytes, kEncodedImageCacheSizeInBytesHelp},
-        {kForceMigrationForStoragePartitioning,
-         kForceMigrationForStoragePartitioningHelp},
-        {kFPSPrint, kFPSPrintHelp}, {kFPSOverlay, kFPSOverlayHelp},
-        {kHelp, kHelpHelp},
-        {kImageCacheSizeInBytes, kImageCacheSizeInBytesHelp},
-        {kInitialURL, kInitialURLHelp},
-        {kLocalStoragePartitionUrl, kLocalStoragePartitionUrlHelp},
-        {kMaxCobaltCpuUsage, kMaxCobaltCpuUsageHelp},
-        {kMaxCobaltGpuUsage, kMaxCobaltGpuUsageHelp},
-        {kMinLogLevel, kMinLogLevelHelp},
-        {kOffscreenTargetCacheSizeInBytes,
-         kOffscreenTargetCacheSizeInBytesHelp},
-        {kOmitDeviceAuthenticationQueryParameters,
-         kOmitDeviceAuthenticationQueryParametersHelp},
-        {kProxy, kProxyHelp}, {kQrCodeOverlay, kQrCodeOverlayHelp},
-        {kRemoteTypefaceCacheSizeInBytes, kRemoteTypefaceCacheSizeInBytesHelp},
-        {kRetainRemoteTypefaceCacheDuringSuspend,
-         kRetainRemoteTypefaceCacheDuringSuspendHelp},
-        {kScratchSurfaceCacheSizeInBytes, kScratchSurfaceCacheSizeInBytesHelp},
-        {kSilenceInlineScriptWarnings, kSilenceInlineScriptWarningsHelp},
-        {kSkiaCacheSizeInBytes, kSkiaCacheSizeInBytesHelp},
-        {kSkiaTextureAtlasDimensions, kSkiaTextureAtlasDimensionsHelp},
-        {kFallbackSplashScreenURL, kFallbackSplashScreenURLHelp},
-        {kUpdateCheckDelaySeconds, kUpdateCheckDelaySecondsHelp},
-        {kUseCompressedUpdates, kUseCompressedUpdatesHelp},
-        {kUseQAUpdateServer, kUseQAUpdateServerHelp}, {kVersion, kVersionHelp},
-        {kViewport, kViewportHelp},
-        {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},
+      {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
+      {kDisableMapToMesh, kDisableMapToMeshHelp},
+      {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
+#if SB_API_VERSION < 16
+      {kDisableUpdaterModule, kDisableUpdaterModuleHelp},
+#endif
+      {kEnableSkiaRasterizer, kEnableSkiaRasterizerHelp},
+      {kEncodedImageCacheSizeInBytes, kEncodedImageCacheSizeInBytesHelp},
+      {kForceMigrationForStoragePartitioning,
+       kForceMigrationForStoragePartitioningHelp},
+      {kFPSPrint, kFPSPrintHelp},
+      {kFPSOverlay, kFPSOverlayHelp},
+      {kHelp, kHelpHelp},
+      {kImageCacheSizeInBytes, kImageCacheSizeInBytesHelp},
+      {kInitialURL, kInitialURLHelp},
+      {kLoaderUseMemoryMappedFile, kLoaderUseMemoryMappedFileHelp},
+      {kLocalStoragePartitionUrl, kLocalStoragePartitionUrlHelp},
+      {kMaxCobaltCpuUsage, kMaxCobaltCpuUsageHelp},
+      {kMaxCobaltGpuUsage, kMaxCobaltGpuUsageHelp},
+      {kMinLogLevel, kMinLogLevelHelp},
+      {kOffscreenTargetCacheSizeInBytes, kOffscreenTargetCacheSizeInBytesHelp},
+      {kOmitDeviceAuthenticationQueryParameters,
+       kOmitDeviceAuthenticationQueryParametersHelp},
+      {kProxy, kProxyHelp},
+      {kQrCodeOverlay, kQrCodeOverlayHelp},
+      {kRemoteTypefaceCacheSizeInBytes, kRemoteTypefaceCacheSizeInBytesHelp},
+      {kRetainRemoteTypefaceCacheDuringSuspend,
+       kRetainRemoteTypefaceCacheDuringSuspendHelp},
+      {kScratchSurfaceCacheSizeInBytes, kScratchSurfaceCacheSizeInBytesHelp},
+      {kSilenceInlineScriptWarnings, kSilenceInlineScriptWarningsHelp},
+      {kSkiaCacheSizeInBytes, kSkiaCacheSizeInBytesHelp},
+      {kSkiaTextureAtlasDimensions, kSkiaTextureAtlasDimensionsHelp},
+      {kFallbackSplashScreenURL, kFallbackSplashScreenURLHelp},
+      {kUpdateCheckDelaySeconds, kUpdateCheckDelaySecondsHelp},
+      {kUseQAUpdateServer, kUseQAUpdateServerHelp},
+      {kUseUncompressedUpdates, kUseUncompressedUpdatesHelp},
+      {kVersion, kVersionHelp},
+      {kViewport, kViewportHelp},
+      {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},
   };
 
   for (const auto& switch_message : help_map) {

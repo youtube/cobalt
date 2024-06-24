@@ -220,7 +220,7 @@ void TestingPrefServiceBase<SuperPrefService, ConstructionPrefRegistry>::
     SetPref(TestingPrefStore* pref_store,
             const std::string& path,
             std::unique_ptr<base::Value> value) {
-  pref_store->SetValue(path, base::Value(),
+  pref_store->SetValue(path, base::Value(std::move(*value)),
                        WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
 }
 

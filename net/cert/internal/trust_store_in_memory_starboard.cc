@@ -14,6 +14,9 @@
 
 #include "net/cert/internal/trust_store_in_memory_starboard.h"
 
+#include <dirent.h>
+
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "base/logging.h"
@@ -22,6 +25,7 @@
 #include "net/cert/pem.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
@@ -65,9 +69,9 @@ base::FilePath GetCertificateDirPath() {
 }
 
 std::unordered_set<std::string> GetCertNamesOnDisk() {
-  auto sb_certs_directory =
-      SbDirectoryOpen(GetCertificateDirPath().value().c_str(), nullptr);
-  if (!SbDirectoryIsValid(sb_certs_directory)) {
+  DIR* sb_certs_directory =
+      opendir(GetCertificateDirPath().value().c_str());
+  if (!sb_certs_directory) {
 // Unit tests, for example, do not use production certificates.
 #if defined(STARBOARD_BUILD_TYPE_QA) || defined(STARBOARD_BUILD_TYPE_GOLD)
     SB_CHECK(false);
@@ -80,14 +84,24 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
   std::unordered_set<std::string> trusted_certs_on_disk;
   std::vector<char> dir_entry(kSbFileMaxName);
 
-  while (SbDirectoryGetNext(sb_certs_directory, dir_entry.data(),
-                            dir_entry.size())) {
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+
+  while (true) {
+    if (dir_entry.size() < kSbFileMaxName || !sb_certs_directory || !dir_entry.data()) {
+      break;
+    }
+    int result = readdir_r(sb_certs_directory, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+    starboard::strlcpy(dir_entry.data(), dirent->d_name, dir_entry.size());
     if (strlen(dir_entry.data()) != kCertFileNameLength) {
       continue;
     }
     trusted_certs_on_disk.emplace(dir_entry.data());
   }
-  SbDirectoryClose(sb_certs_directory);
+  closedir(sb_certs_directory);
   return std::move(trusted_certs_on_disk);
 }
 }  // namespace
@@ -107,17 +121,14 @@ std::shared_ptr<const ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCer
   SbFileError out_error;
   char cert_buffer[kCertBufferSize];
   base::FilePath cert_path = GetCertificateDirPath().Append(cert_file_name);
-  SbFile sb_cert_file =
-      SbFileOpen(cert_path.value().c_str(), kSbFileOpenOnly | kSbFileRead,
-                 nullptr, &out_error);
+  base::File cert_file(cert_path, base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);
   // The file was in certs directory when we iterated the directory at startup,
   // opening it should not fail.
-  if (!SbFileIsValid(sb_cert_file)) {
+  if (!cert_file.IsValid()) {
     NOTREACHED() << "ssl/certs/" << cert_path << " failed to open.";
     return nullptr;
   }
-  int cert_size = SbFileReadAll(sb_cert_file, cert_buffer, kCertBufferSize);
-  SbFileClose(sb_cert_file);
+  int cert_size = cert_file.ReadAtCurrentPos(cert_buffer, kCertBufferSize);
   PEMTokenizer pem_tokenizer(base::StringPiece(cert_buffer, cert_size),
                              {kCertificateHeader});
   pem_tokenizer.GetNext();
@@ -142,7 +153,7 @@ void TrustStoreInMemoryStarboard::SyncGetIssuersOf(
     ParsedCertificateList* issuers) {
   DCHECK(issuers);
   DCHECK(issuers->empty());
-  starboard::ScopedLock scoped_lock(load_mutex_);
+  base::AutoLock scoped_lock(load_mutex_);
   // Look up the request certificate first in the trust store in memory.
   underlying_trust_store_.SyncGetIssuersOf(cert, issuers);
   if (issuers->empty()) {
@@ -158,7 +169,7 @@ void TrustStoreInMemoryStarboard::SyncGetIssuersOf(
 
 CertificateTrust TrustStoreInMemoryStarboard::GetTrust(const ParsedCertificate* cert,
                           base::SupportsUserData* debug_data) {
-  starboard::ScopedLock scoped_lock(load_mutex_);
+  base::AutoLock scoped_lock(load_mutex_);
   // Loop up the request certificate first in the trust store in memory.
   CertificateTrust trust = underlying_trust_store_.GetTrust(cert, debug_data);
   if (trust.HasUnspecifiedTrust()) {

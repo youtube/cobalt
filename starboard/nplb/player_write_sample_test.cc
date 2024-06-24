@@ -17,7 +17,7 @@
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
-#include "starboard/nplb/thread_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -65,6 +65,13 @@ TEST_P(SbPlayerWriteSampleTest, NoInput) {
 }
 
 TEST_P(SbPlayerWriteSampleTest, WriteSingleBatch) {
+  // TODO: b/347728473 When the platform supports multiple
+  // samples per write to SbPlayer, the following numbers are
+  // sufficient to allow SbPlayer to play 60fps video.
+  // Revisit the maximum numbers if the requirement is changed.
+  const int kMaxAudioSamplesPerWrite = 15;
+  const int kMaxVideoSamplesPerWrite = 60;
+
   SbPlayerTestFixture player_fixture(GetParam(),
                                      &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
@@ -73,14 +80,18 @@ TEST_P(SbPlayerWriteSampleTest, WriteSingleBatch) {
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
-    int samples_to_write = SbPlayerGetMaximumNumberOfSamplesPerWrite(
-        player_fixture.GetPlayer(), kSbMediaTypeAudio);
+    int samples_to_write =
+        std::min(SbPlayerGetMaximumNumberOfSamplesPerWrite(
+                     player_fixture.GetPlayer(), kSbMediaTypeAudio),
+                 kMaxAudioSamplesPerWrite);
     samples.AddAudioSamples(0, samples_to_write);
     samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    int samples_to_write = SbPlayerGetMaximumNumberOfSamplesPerWrite(
-        player_fixture.GetPlayer(), kSbMediaTypeVideo);
+    int samples_to_write =
+        std::min(SbPlayerGetMaximumNumberOfSamplesPerWrite(
+                     player_fixture.GetPlayer(), kSbMediaTypeVideo),
+                 kMaxVideoSamplesPerWrite);
     samples.AddVideoSamples(0, samples_to_write);
     samples.AddVideoEOS();
   }
@@ -329,7 +340,7 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
                 << ".";
 }
 
-class SecondaryPlayerTestThread : public AbstractTestThread {
+class SecondaryPlayerTestThread : public posix::AbstractTestThread {
  public:
   SecondaryPlayerTestThread(
       const SbPlayerTestConfig& config,

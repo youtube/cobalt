@@ -7,27 +7,7 @@
 #include "base/check.h"
 #include "base/logging.h"
 #include "media/formats/webm/webm_constants.h"
-
-#if defined(STARBOARD)
-
-// Taken from mkvmuxer.h as is to avoid introducing the whole libwebm library.
-namespace mkvmuxer {
-
-class Colour {
- public:
-  enum Range {
-    kUnspecifiedCr = 0,
-    kBroadcastRange = 1,
-    kFullRange = 2,
-    kMcTcDefined = 3,  // Defined by MatrixCoefficients/TransferCharacteristics.
-  };
-};
-
-}  // namespace mkvmuxer
-
-#else // defined(STARBOARD)
 #include "third_party/libwebm/source/mkvmuxer/mkvmuxer.h"
-#endif // defined(STARBOARD)
 
 namespace media {
 

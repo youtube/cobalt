@@ -15,11 +15,11 @@
 #include <utility>
 
 #include "starboard/common/log.h"
+#include "starboard/common/semaphore.h"
 #include "starboard/common/socket.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/nplb/thread_helpers.h"
 #include "starboard/socket_waiter.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -240,15 +240,14 @@ TEST_P(PairSbSocketWaiterWaitTest, SunnyDayAlreadyReady) {
                                 &context, &AlreadyReadySocketWaiterCallback,
                                 kSbSocketWaiterInterestRead, false));
 
-  SbThread thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
-                     AlreadyReadyEntryPoint, &context);
-  EXPECT_TRUE(SbThreadIsValid(thread));
+  pthread_t thread = 0;
+  pthread_create(&thread, nullptr, AlreadyReadyEntryPoint, &context);
+  EXPECT_TRUE(thread != 0);
   context.wrote_a_signal.Take();
 
   WaitShouldNotBlock(context.waiter);
 
-  EXPECT_TRUE(SbThreadJoin(thread, NULL));
+  EXPECT_EQ(pthread_join(thread, NULL), 0);
 }
 
 TEST_F(SbSocketWaiterWaitTest, RainyDayInvalidWaiter) {

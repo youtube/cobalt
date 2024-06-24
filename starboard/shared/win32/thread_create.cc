@@ -92,7 +92,7 @@ void CallThreadLocalDestructorsMultipleTimes() {
   // TODO note that the implementation below holds a global lock
   // while processing TLS destructors on thread exit. This could
   // be a bottleneck in some scenarios. A lockless approach may be preferable.
-  SbMutexAcquire(&singleton->mutex_);
+  pthread_mutex_lock(&singleton->mutex_);
 
   for (int i = 0; i < kNumDestructorPasses; ++i) {
     // Run through each destructor and call it.
@@ -102,7 +102,7 @@ void CallThreadLocalDestructorsMultipleTimes() {
     }
   }
   num_tls_objects_remaining = CountTlsObjectsRemaining(singleton);
-  SbMutexRelease(&singleton->mutex_);
+  pthread_mutex_unlock(&singleton->mutex_);
 
   SB_DCHECK(num_tls_objects_remaining == 0) << "Dangling objects in TLS exist.";
 }
@@ -121,15 +121,15 @@ unsigned ThreadTrampoline(void* thread_create_info_context) {
 
   CallThreadLocalDestructorsMultipleTimes();
 
-  SbMutexAcquire(&info->thread_private_.mutex_);
+  pthread_mutex_lock(&info->thread_private_.mutex_);
   info->thread_private_.result_ = result;
   info->thread_private_.result_is_valid_ = true;
-  SbConditionVariableSignal(&info->thread_private_.condition_);
+  pthread_cond_signal(&info->thread_private_.condition_);
   while (info->thread_private_.wait_for_join_) {
-    SbConditionVariableWait(&info->thread_private_.condition_,
-                            &info->thread_private_.mutex_);
+    pthread_cond_wait(&info->thread_private_.condition_,
+                      &info->thread_private_.mutex_);
   }
-  SbMutexRelease(&info->thread_private_.mutex_);
+  pthread_mutex_destroy(&info->thread_private_.mutex_);
 
   return 0;
 }
@@ -153,8 +153,28 @@ int SbThreadPriorityToWin32Priority(SbThreadPriority priority) {
   SB_NOTREACHED() << "Invalid priority " << priority;
   return 0;
 }
+
+SbThreadPriority Win32PriorityToSbThreadPriority(int priority) {
+  switch (priority) {
+    case THREAD_PRIORITY_LOWEST:
+      return kSbThreadPriorityLowest;
+    case THREAD_PRIORITY_BELOW_NORMAL:
+      return kSbThreadPriorityLow;
+    case THREAD_PRIORITY_NORMAL:
+      return kSbThreadPriorityNormal;
+    case THREAD_PRIORITY_ABOVE_NORMAL:
+      return kSbThreadPriorityHigh;
+    case THREAD_PRIORITY_HIGHEST:
+      return kSbThreadPriorityHighest;
+    case THREAD_PRIORITY_TIME_CRITICAL:
+      return kSbThreadPriorityRealTime;
+  }
+  SB_NOTREACHED() << "Invalid priority " << priority;
+  return kSbThreadPriorityNormal;
+}
 }  // namespace
 
+#if SB_API_VERSION < 16
 // Note that SetThreadAffinityMask() is not available on some
 // platforms (eg UWP). If it's necessary for a non-UWP platform,
 // please fork this implementation for UWP.
@@ -198,4 +218,16 @@ SbThread SbThreadCreate(int64_t stack_size,
   ResumeThread(info->thread_private_.handle_);
 
   return &info->thread_private_;
+}
+#endif  // SB_API_VERSION < 16
+
+bool SbThreadSetPriority(SbThreadPriority priority) {
+  return SetThreadPriority(GetCurrentThread(),
+                           SbThreadPriorityToWin32Priority(priority));
+}
+
+bool SbThreadGetPriority(SbThreadPriority* priority) {
+  int res = GetThreadPriority(GetCurrentThread());
+  *priority = Win32PriorityToSbThreadPriority(res);
+  return true;
 }

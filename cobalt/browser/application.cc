@@ -89,7 +89,7 @@
 #include "url/gurl.h"
 
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #endif
 
 using cobalt::cssom::ViewportSize;
@@ -732,6 +732,20 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
     options.renderer_module_options.enable_fps_overlay = true;
   }
 
+  if (command_line->HasSwitch(browser::switches::kEnableSkiaRasterizer)) {
+    int enable_skia = 0;
+    base::StringToInt(command_line->GetSwitchValueASCII(
+                          browser::switches::kEnableSkiaRasterizer),
+                      &enable_skia);
+    if (enable_skia) {
+      options.renderer_module_options.rasterizer_type_setting =
+          configuration::Configuration::kSkiaRasterizer;
+    } else {
+      options.renderer_module_options.rasterizer_type_setting =
+          configuration::Configuration::kGlesRasterizer;
+    }
+  }
+
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
@@ -893,8 +907,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   AddCrashHandlerAnnotations(platform_info);
 
 #if SB_IS(EVERGREEN)
+#if SB_API_VERSION < 16
   if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
       !command_line->HasSwitch(switches::kDisableUpdaterModule)) {
+#else
+  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+#endif
     uint64_t update_check_delay_sec =
         cobalt::updater::kDefaultUpdateCheckDelaySeconds;
     if (command_line->HasSwitch(browser::switches::kUpdateCheckDelaySeconds)) {
@@ -1513,10 +1531,18 @@ void Application::InitMetrics() {
       metrics::CobaltMetricsServicesManager::GetInstance();
   // Before initializing metrics manager, set any persisted settings like if
   // it's enabled or upload interval.
-  bool is_metrics_enabled = persistent_settings_->GetPersistentSettingAsBool(
-      metrics::kMetricEnabledSettingName, false);
-  auto metric_event_interval = persistent_settings_->GetPersistentSettingAsInt(
-      metrics::kMetricEventIntervalSettingName, 300);
+  bool is_metrics_enabled;
+  {
+    base::Value value;
+    persistent_settings_->Get(metrics::kMetricEnabledSettingName, &value);
+    is_metrics_enabled = value.GetIfBool().value_or(false);
+  }
+  int metric_event_interval;
+  {
+    base::Value value;
+    persistent_settings_->Get(metrics::kMetricEventIntervalSettingName, &value);
+    metric_event_interval = value.GetIfInt().value_or(300);
+  }
   metrics_services_manager_->SetEventDispatcher(&event_dispatcher_);
   metrics_services_manager_->SetUploadInterval(metric_event_interval);
   metrics_services_manager_->ToggleMetricsEnabled(is_metrics_enabled);

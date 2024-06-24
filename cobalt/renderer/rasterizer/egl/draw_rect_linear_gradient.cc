@@ -20,7 +20,6 @@
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
 #include "egl/generated_shader_impl.h"
-#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 

@@ -74,10 +74,8 @@ struct Coverage
   }
 
   /* Has interface. */
-  static constexpr unsigned SENTINEL = NOT_COVERED;
-  typedef unsigned int value_t;
-  value_t operator [] (hb_codepoint_t k) const { return get (k); }
-  bool has (hb_codepoint_t k) const { return (*this)[k] != SENTINEL; }
+  unsigned operator [] (hb_codepoint_t k) const { return get (k); }
+  bool has (hb_codepoint_t k) const { return (*this)[k] != NOT_COVERED; }
   /* Predicate. */
   bool operator () (hb_codepoint_t k) const { return has (k); }
 
@@ -149,6 +147,7 @@ struct Coverage
     TRACE_SUBSET (this);
     auto it =
     + iter ()
+    | hb_take (c->plan->source->get_num_glyphs ())
     | hb_filter (c->plan->glyph_map_gsub)
     | hb_map_retains_sorting (c->plan->glyph_map_gsub)
     ;
@@ -225,7 +224,7 @@ struct Coverage
     static constexpr bool is_sorted_iterator = true;
     iter_t (const Coverage &c_ = Null (Coverage))
     {
-      memset (this, 0, sizeof (*this));
+      hb_memset (this, 0, sizeof (*this));
       format = c_.u.format;
       switch (format)
       {

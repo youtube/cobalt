@@ -23,6 +23,8 @@ perfetto_proto_library("@TYPE@") {
   ]
 }
 
+# group("descriptor") {}
+
 perfetto_proto_library("descriptor") {
   proto_generators = [ "descriptor" ]
   import_dirs = [ "${perfetto_protobuf_src_dir}" ]

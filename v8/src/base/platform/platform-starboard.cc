@@ -17,8 +17,8 @@
 #include "src/base/timezone-cache.h"
 #include "src/base/utils/random-number-generator.h"
 #include "starboard/client_porting/eztime/eztime.h"
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
+#include "starboard/common/process.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
@@ -261,11 +261,12 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 StarboardMemoryMappedFile::~StarboardMemoryMappedFile() { SB_NOTIMPLEMENTED(); }
 
 int OS::GetCurrentProcessId() {
-  SB_NOTIMPLEMENTED();
-  return 0;
+  return starboard::kStarboardFakeProcessId;
 }
 
-int OS::GetCurrentThreadId() { return SbThreadGetId(); }
+int OS::GetCurrentThreadId() { 
+  return SbThreadGetId();
+}
 
 int OS::GetLastError() { return SbSystemGetLastError(); }
 
@@ -363,8 +364,8 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 
 class Thread::PlatformData {
  public:
-  PlatformData() : thread_(kSbThreadInvalid) {}
-  SbThread thread_;  // Thread handle for pthread.
+  PlatformData() : thread_(0) {}
+  pthread_t thread_;  // Thread handle for pthread.
   // Synchronizes thread creation
   Mutex thread_creation_mutex_;
 };
@@ -399,13 +400,19 @@ void Thread::set_name(const char* name) {
 }
 
 bool Thread::Start() {
-  data_->thread_ =
-      SbThreadCreate(stack_size_, kSbThreadNoPriority, kSbThreadNoAffinity,
-                     true, name_, ThreadEntry, this);
-  return SbThreadIsValid(data_->thread_);
+  pthread_attr_t attr;
+  if (pthread_attr_init(&attr) != 0) {
+    return false;
+  }
+  pthread_attr_setstacksize(&attr, stack_size_);
+  pthread_create(&data_->thread_, &attr, ThreadEntry, this);
+
+  pthread_attr_destroy(&attr);
+
+  return data_->thread_ != 0;
 }
 
-void Thread::Join() { SbThreadJoin(data_->thread_, nullptr); }
+void Thread::Join() { pthread_join(data_->thread_, nullptr); }
 
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
   pthread_key_t key = 0;

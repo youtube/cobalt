@@ -18,15 +18,15 @@
 #include <memory>
 
 #include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/get_default_rasterizer_for_platform.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
-#include "starboard/common/log.h"
-#include "starboard/common/string.h"
 #include "starboard/common/system_property.h"
 #include "starboard/extension/platform_info.h"
 #if SB_IS(EVERGREEN)
@@ -34,7 +34,7 @@
 #endif  // SB_IS(EVERGREEN)
 #include "starboard/system.h"
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #endif
 
 using starboard::kSystemPropertyMaxLength;
@@ -125,9 +125,7 @@ const DeviceTypeName kDeviceTypeStrings[] = {
     {kSbSystemDeviceTypeTV, "TV"},
     {kSbSystemDeviceTypeAndroidTV, "ATV"},
     {kSbSystemDeviceTypeDesktopPC, "DESKTOP"},
-#if SB_API_VERSION >= 14
     {kSbSystemDeviceTypeVideoProjector, "PROJECTOR"},
-#endif  // SB_API_VERSION >= 14
     {kSbSystemDeviceTypeUnknown, "UNKNOWN"}};
 
 std::string CreateDeviceTypeString(SbSystemDeviceType device_type) {
@@ -253,8 +251,26 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 
   info.set_javascript_engine_version(
       script::GetJavaScriptEngineNameAndVersion());
-  info.set_rasterizer_type(
-      renderer::GetDefaultRasterizerForPlatform().rasterizer_name);
+
+  std::string rasterizer_type_setting = "";
+  if (base::CommandLine::InitializedForCurrentProcess()) {
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(browser::switches::kEnableSkiaRasterizer)) {
+      int enable_skia = 0;
+      base::StringToInt(command_line->GetSwitchValueASCII(
+                            browser::switches::kEnableSkiaRasterizer),
+                        &enable_skia);
+      if (enable_skia) {
+        rasterizer_type_setting = configuration::Configuration::kSkiaRasterizer;
+      } else {
+        rasterizer_type_setting = configuration::Configuration::kGlesRasterizer;
+      }
+    }
+  }
+  std::string rasterizer_type =
+      renderer::GetDefaultRasterizerForPlatform(rasterizer_type_setting)
+          .rasterizer_name;
+  info.set_rasterizer_type(rasterizer_type);
 
 // Evergreen info
 #if SB_IS(EVERGREEN)

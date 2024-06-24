@@ -34,7 +34,6 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
-import android.view.Display;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.UsedByNative;
 
@@ -43,7 +42,6 @@ import dev.cobalt.util.UsedByNative;
 @UsedByNative
 public final class VideoFrameReleaseTimeHelper {
 
-  private static final double DISPLAY_REFRESH_RATE_UNKNOWN = -1;
   private static final long CHOREOGRAPHER_SAMPLE_DELAY_MILLIS = 500;
   private static final long MAX_ALLOWED_DRIFT_NS = 20000000;
 
@@ -73,11 +71,11 @@ public final class VideoFrameReleaseTimeHelper {
   @SuppressWarnings("unused")
   @UsedByNative
   public VideoFrameReleaseTimeHelper() {
-    this(getDefaultDisplayRefreshRate());
+    this(DisplayUtil.getDefaultDisplayRefreshRate());
   }
 
   private VideoFrameReleaseTimeHelper(double defaultDisplayRefreshRate) {
-    useDefaultDisplayVsync = defaultDisplayRefreshRate != DISPLAY_REFRESH_RATE_UNKNOWN;
+    useDefaultDisplayVsync = defaultDisplayRefreshRate != DisplayUtil.DISPLAY_REFRESH_RATE_UNKNOWN;
     if (useDefaultDisplayVsync) {
       vsyncSampler = VSyncSampler.getInstance();
       vsyncDurationNs = (long) (NANOS_PER_SECOND / defaultDisplayRefreshRate);
@@ -218,11 +216,6 @@ public final class VideoFrameReleaseTimeHelper {
     long snappedAfterDiff = snappedAfterNs - releaseTime;
     long snappedBeforeDiff = releaseTime - snappedBeforeNs;
     return snappedAfterDiff < snappedBeforeDiff ? snappedAfterNs : snappedBeforeNs;
-  }
-
-  private static double getDefaultDisplayRefreshRate() {
-    Display defaultDisplay = DisplayUtil.getDefaultDisplay();
-    return defaultDisplay != null ? defaultDisplay.getRefreshRate() : DISPLAY_REFRESH_RATE_UNKNOWN;
   }
 
   /**

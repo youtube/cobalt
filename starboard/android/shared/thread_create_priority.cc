@@ -18,7 +18,32 @@
 #include <sys/resource.h>
 
 #include "starboard/common/log.h"
+#include "starboard/thread.h"
 
+namespace {
+
+SbThreadPriority NiceToSbPriority(int nice) {
+  if (nice == 19) {
+    return kSbThreadPriorityLowest;
+  }
+  if (nice > 0 && nice < 19) {
+    return kSbThreadPriorityLow;
+  }
+  if (nice == 0) {
+    return kSbThreadPriorityNormal;
+  }
+  if (nice >= -8 && nice < 0) {
+    return kSbThreadPriorityHigh;
+  }
+  if (nice > -19 && nice < -8) {
+    return kSbThreadPriorityHighest;
+  }
+  if (nice == -19) {
+    return kSbThreadPriorityRealTime;
+  }
+}
+
+}  // namespace
 namespace starboard {
 namespace shared {
 namespace pthread {
@@ -65,3 +90,19 @@ void ThreadSetPriority(SbThreadPriority priority) {
 }  // namespace pthread
 }  // namespace shared
 }  // namespace starboard
+
+bool SbThreadSetPriority(SbThreadPriority priority) {
+  starboard::shared::pthread::ThreadSetPriority(priority);
+  return true;
+}
+
+bool SbThreadGetPriority(SbThreadPriority* priority) {
+  errno = 0;
+  int ret = getpriority(PRIO_PROCESS, 0);
+  if (ret == -1 && errno != 0) {
+    return false;
+  }
+  *priority = NiceToSbPriority(ret);
+
+  return true;
+}

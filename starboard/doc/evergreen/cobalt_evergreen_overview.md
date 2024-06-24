@@ -169,8 +169,8 @@ $ gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-sof
 $ ninja -C out/evergreen-arm-softfp_qa cobalt_install
 ```
 
-This produces a `libcobalt.so` shared library targeted for a specific
-architecture, ABI, and Starboard version.
+This produces a `libcobalt.so` shared library, and a compressed `libcobalt.lz4`
+copy, targeted for a specific architecture, ABI, and Starboard version.
 
 Note: `sb_api_version` defaults to the latest supported Starboard version in the
 current branch.
@@ -178,7 +178,7 @@ current branch.
 
 The partner port of Starboard is built with the partner’s "target" toolchain and
 is linked into the `loader_app`, which knows how to dynamically load
-`libcobalt.so`. And the `crashpad_handler` binary is built with the partner's
+`libcobalt.lz4`. And the `crashpad_handler` binary is built with the partner's
 "native_target" toolchain. For example:
 
 ```
@@ -486,11 +486,10 @@ Image required for all slot configurations:
 │       └── cobalt <--(SLOT_0)
 │           ├── content <--(relative path defined in kSystemImageContentPath)
 │           │   ├── fonts <--(`empty` configuration)
-│           │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
 │           │   ├── licenses
 │           │   ├── ssl
 │           ├── lib
-│           │   └── libcobalt.so <--(System image version of libcobalt.so)
+│           │   └── libcobalt.lz4 <--(System image version of Cobalt Core)
 │           └── manifest.json
 └── loader_app <--(Cobalt launcher binary)
 └── crashpad_handler <--(Cobalt crash handler)
@@ -507,15 +506,13 @@ updates in an example 3-slot configuration:
     ├── installation_2 <--(SLOT_2 - contains new Cobalt version)
     │   ├── content
     │   │   ├── fonts <--(`empty` configuration)
-    │   │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
     │   │   ├── licenses
     │   │   ├── ssl
     │   ├── lib
-    │   │   └── libcobalt.so <--(SLOT_2 version of libcobalt.so)
+    │   │   └── libcobalt.lz4 <--(SLOT_2 version of Cobalt Core)
     │   ├── manifest.fingerprint
-    │   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
+    │   └── manifest.json <-- (Evergreen version information of Cobalt Core under SLOT_2)
     ├── installation_store_<APP_KEY>.pb
-    └── icu (default location shared by installation slots, to be explained below)
 ```
 Note that after the Cobalt binary is loaded by the loader_app, `kSbSystemPathContentDirectory` points to the
 content directory of the running binary, as stated in Starboard Module Reference of system.h.
@@ -559,24 +556,6 @@ On Raspberry Pi the Cobalt fonts are configured the following way:
 <kSbSystemPathContentDirectory>/fonts
 ```
 
-### ICU Tables
-The ICU table should be deployed under the `kSbSystemPathStorageDirectory`. This
-way all Cobalt Evergreen installations would be able to share the same tables.
-The current storage size for the ICU tables is 7MB.
-
-On Raspberry Pi this is:
-
-```
-/home/pi/.cobalt_storage/icu
-```
-The Cobalt Evergreen package will not carry ICU tables by default but may add
-them in the future if needed. When the package has ICU tables they would be
-stored under the content location for the installation:
-
-```
-<SLOT_#>/content/icu
-```
-
 ### Handling Pending Updates
 Pending updates will be picked up on the next application start, which means
 that on platforms that support suspending the platform should check
@@ -606,9 +585,6 @@ behavior can be easily configured on a per-app basis with simple command-line fl
 The configurable options for Cobalt Updater configuration are:
 * `--evergreen_lite` *Use the System Image version of Cobalt under Slot_0 and turn
   off the updater for the specified application.*
-* `--disable_updater_module` *Stay on the current version of Cobalt that might be the
-  system image or an installed update, and turn off the updater for the
-  specified application.*
 
 Each app’s Cobalt Updater will perform an independent, regular check for new
 Cobalt Evergreen updates. Note that all apps will share the same set of slots,
@@ -637,7 +613,7 @@ existing slot. In this case, `APP_1` and `APP_2` are now using the same Cobalt
 binaries in SLOT_2.
 
 If `APP_3` has not been launched, not run through a regular Cobalt Updater
-check, or launched with the `--evergreen_lite`/`--disable_updater_module` flag,
+check, or launched with the `--evergreen_lite` flag,
 it stays with its current configuration.
 
 #### AFTER COBALT UPDATE
@@ -664,15 +640,14 @@ loader_app --url="<YOUR_APP_2_URL>"
 loader_app --url="<YOUR_APP_3_URL>"
 
 
-# Only APP_1 gets Evergreen Updates, APP_2 disables the updater and uses an alternate splash screen, APP_3 uses
+# APP_1 gets Evergreen Updates, APP_2 uses an alternate splash screen, APP_3 uses
 # the system image and disables the updater
 [APP_1] (Cobalt Updater ENABLED)
-[APP_2] (Cobalt Updater DISABLED)
+[APP_2] (Cobalt Updater ENABLED)
 [APP_3] (System Image loaded, Cobalt Updater DISABLED)
 
 loader_app --url="<YOUR_APP_1_URL>"
-loader_app --url="<YOUR_APP_2_URL>" --disable_updater_module \
---fallback_splash_screen_url="/<PATH_TO_APP_2>/app_2_splash_screen.html"
+loader_app --url="<YOUR_APP_2_URL>" --fallback_splash_screen_url="/<PATH_TO_APP_2>/app_2_splash_screen.html"
 loader_app --url="<YOUR_APP_3_URL>" --evergreen_lite
 
 

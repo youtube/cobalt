@@ -26,12 +26,11 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/single_thread_task_runner.h"
+#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -86,21 +85,22 @@ class SerializedAlgorithmRunner {
     // due to nested calls.
     class ScopedLockWhenRequired {
      public:
-      ScopedLockWhenRequired(bool synchronization_required,
-                             const starboard::Mutex& mutex)
+      ScopedLockWhenRequired(bool synchronization_required, base::Lock& mutex)
           : synchronization_required_(synchronization_required), mutex_(mutex) {
         if (synchronization_required_) {
           // Crash if we are trying to re-acquire again on the same thread.
           CHECK_NE(acquired_thread_id_, SbThreadGetId());
 
-          int64_t start_usec = starboard::CurrentMonotonicTime();
+
+          int64_t start_usec =
+              (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
           int64_t wait_interval_usec =
               1 * base::Time::kMicrosecondsPerMillisecond;
           constexpr int64_t kMaxWaitIntervalUsec =
               16 * base::Time::kMicrosecondsPerMillisecond;  // 16ms.
 
           for (;;) {
-            if (mutex_.AcquireTry()) {
+            if (mutex_.Try()) {
               break;
             }
             usleep(static_cast<unsigned int>(wait_interval_usec));
@@ -109,8 +109,10 @@ class SerializedAlgorithmRunner {
             wait_interval_usec =
                 std::min(wait_interval_usec * 2, kMaxWaitIntervalUsec);
             // Crash if we've been waiting for too long (1 second).
-            CHECK_LT(starboard::CurrentMonotonicTime() - start_usec,
-                     1 * base::Time::kMicrosecondsPerSecond);
+            CHECK_LT(
+                (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds() -
+                    start_usec,
+                1 * base::Time::kMicrosecondsPerSecond);
           }
           acquired_thread_id_ = SbThreadGetId();
         }
@@ -125,7 +127,7 @@ class SerializedAlgorithmRunner {
 
      private:
       const bool synchronization_required_;
-      const starboard::Mutex& mutex_;
+      base::Lock& mutex_;
       SbThreadId acquired_thread_id_ = kSbThreadInvalidId;
     };
 
@@ -135,7 +137,7 @@ class SerializedAlgorithmRunner {
     // The |mutex_| is necessary for algorithm runners operate on multiple
     // threads as `Abort()` can be called from any thread.
     const bool synchronization_required_;
-    starboard::Mutex mutex_;
+    base::Lock mutex_;
     std::unique_ptr<SerializedAlgorithm> algorithm_;
     bool aborted_ = false;
     bool finished_ = false;

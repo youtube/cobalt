@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/thread.h"
 
 #include "starboard/common/condition_variable.h"
@@ -31,3 +33,5 @@ void SbThreadDetach(SbThread thread) {
   SbConditionVariableSignal(&thread_private->condition_);
   SbMutexRelease(&thread_private->mutex_);
 }
+
+#endif  // SB_API_VERSION < 16

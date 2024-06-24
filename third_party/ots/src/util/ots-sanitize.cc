@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -39,7 +40,9 @@ class FileStream : public ots::OTSStream {
     }
   }
 
-  bool WriteRaw(const void *data, size_t length) {
+  size_t size() override { return std::numeric_limits<off_t>::max(); }
+
+  bool WriteRaw(const void *data, size_t length) override {
     off_ += length;
     if (file_) {
       stream_.write(static_cast<const char*>(data), length);
@@ -48,7 +51,7 @@ class FileStream : public ots::OTSStream {
     return true;
   }
 
-  bool Seek(off_t position) {
+  bool Seek(off_t position) override {
     off_ = position;
     if (file_) {
       stream_.seekp(position);
@@ -57,7 +60,7 @@ class FileStream : public ots::OTSStream {
     return true;
   }
 
-  off_t Tell() const {
+  off_t Tell() const override {
     return off_;
   }
 

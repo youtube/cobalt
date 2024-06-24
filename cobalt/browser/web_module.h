@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_WEB_MODULE_H_
 #define COBALT_BROWSER_WEB_MODULE_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -58,7 +59,6 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/webdriver/session_driver.h"
-#include "starboard/common/atomic.h"
 #include "url/gurl.h"
 
 #if defined(ENABLE_DEBUGGER)
@@ -424,7 +424,7 @@ class WebModule : public base::CurrentThread::DestructionObserver,
                      int dom_max_element_depth, float layout_refresh_rate,
                      const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
 #if defined(ENABLE_DEBUGGER)
-                     starboard::atomic_bool* waiting_for_web_debugger,
+                     std::atomic_bool* waiting_for_web_debugger,
 #endif  // defined(ENABLE_DEBUGGER)
                      base::WaitableEvent* synchronous_loader_interrupt,
                      const Options& options)
@@ -464,7 +464,7 @@ class WebModule : public base::CurrentThread::DestructionObserver,
     float layout_refresh_rate;
     scoped_refptr<ui_navigation::NavItem> ui_nav_root;
 #if defined(ENABLE_DEBUGGER)
-    starboard::atomic_bool* waiting_for_web_debugger;
+    std::atomic_bool* waiting_for_web_debugger;
 #endif  // defined(ENABLE_DEBUGGER)
     base::WaitableEvent* synchronous_loader_interrupt;
     Options options;
@@ -503,7 +503,7 @@ class WebModule : public base::CurrentThread::DestructionObserver,
 #if defined(ENABLE_DEBUGGER)
   // Used to avoid a deadlock when running |Blur| while waiting for the web
   // debugger to connect. Initializes to false.
-  starboard::atomic_bool waiting_for_web_debugger_;
+  std::atomic_bool waiting_for_web_debugger_;
 #endif  // defined(ENABLE_DEBUGGER)
 
   // This event is used to interrupt the loader when JavaScript is loaded

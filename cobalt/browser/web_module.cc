@@ -52,6 +52,7 @@
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
+#include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigation_type.h"
 #include "cobalt/dom/navigator.h"
@@ -78,8 +79,11 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/url.h"
+#if SB_API_VERSION < 16
 #include "starboard/accessibility.h"
-#include "starboard/common/log.h"
+#else  // SB_API_VERSION < 16
+#include "starboard/extension/accessibility.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/gles.h"
 
 #if defined(ENABLE_DEBUGGER)
@@ -417,7 +421,7 @@ class WebModule::Impl {
   dom::MutationObserverTaskManager mutation_observer_task_manager_;
 
   // Object to register and retrieve MediaSource object with a string key.
-  std::unique_ptr<dom::MediaSource::Registry> media_source_registry_;
+  std::unique_ptr<dom::MediaSourceAttachment::Registry> media_source_registry_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
@@ -451,7 +455,7 @@ class WebModule::Impl {
 
   // Used to avoid a deadlock when running |Impl::Pause| while waiting for the
   // web debugger to connect.
-  starboard::atomic_bool* waiting_for_web_debugger_;
+  std::atomic_bool* waiting_for_web_debugger_;
 
   // Interface to report behaviour relevant to the web debugger.
   debug::backend::DebuggerHooksImpl debugger_hooks_;
@@ -584,7 +588,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       web_context_->name(), data.options.track_event_stats));
   DCHECK(web_module_stat_tracker_);
 
-  media_source_registry_.reset(new dom::MediaSource::Registry);
+  media_source_registry_.reset(new dom::MediaSourceAttachment::Registry);
 
   const media::DecoderBufferMemoryInfo* memory_info = nullptr;
 

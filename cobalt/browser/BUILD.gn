@@ -58,10 +58,7 @@ target(final_executable_type, "cobalt") {
     "//cobalt/css_parser",
     "//net",
   ]
-  data_deps = [
-    "//cobalt/network:copy_ssl_certificates",
-    "//third_party/icu:icudata",
-  ]
+  data_deps = [ "//cobalt/network:copy_ssl_certificates" ]
   if (cobalt_font_package == "empty") {
     data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
   } else {
@@ -71,7 +68,7 @@ target(final_executable_type, "cobalt") {
     ]
   }
   if (sb_is_evergreen) {
-    data_deps += [ "//cobalt/updater/version_manifest:copy_version_manifest" ]
+    data_deps += [ "//chrome/updater/version_manifest:copy_version_manifest" ]
   }
   if (!is_gold) {
     data_deps += [
@@ -164,6 +161,7 @@ static_library("browser") {
     "//cobalt/browser/metrics",
     "//cobalt/build:cobalt_build_id",
     "//cobalt/build:cobalt_build_info",
+    "//cobalt/build:cobalt_libraries",
     "//cobalt/cache",
     "//cobalt/configuration",
     "//cobalt/css_parser",
@@ -229,7 +227,7 @@ static_library("browser") {
   }
 
   if (sb_is_evergreen) {
-    deps += [ "//cobalt/updater" ]
+    deps += [ "//chrome/updater" ]
   } else {
     deps += cobalt_platform_dependencies
   }

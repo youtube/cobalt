@@ -142,14 +142,9 @@ class GpuVideoDecoderBase::GPUDecodeTargetPrivate
       info.format = kSbDecodeTargetFormat3PlaneYUVI420;
     } else {
       SB_DCHECK(image->bit_depth() == 10);
-#if SB_API_VERSION >= 14
       info.format = image->is_compacted()
                         ? kSbDecodeTargetFormat3Plane10BitYUVI420Compact
                         : kSbDecodeTargetFormat3Plane10BitYUVI420;
-#else   // SB_API_VERSION >= 14
-      SB_DCHECK(!image->is_compacted());
-      info.format = kSbDecodeTargetFormat3Plane10BitYUVI420;
-#endif  // SB_API_VERSION >= 14
     }
     info.is_opaque = true;
     info.width = image->width();
@@ -473,7 +468,7 @@ void GpuVideoDecoderBase::Reset() {
   if (decoder_thread_) {
     // Release stored frames to free frame buffers.
     decoder_status_cb_(kReleaseAllFrames, nullptr);
-    decoder_thread_->job_queue()->Schedule(
+    decoder_thread_->job_queue()->ScheduleAndWait(
         std::bind(&GpuVideoDecoderBase::DrainDecoder, this));
     decoder_thread_.reset();
   }

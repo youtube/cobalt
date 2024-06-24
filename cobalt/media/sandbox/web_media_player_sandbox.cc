@@ -21,6 +21,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/path_service.h"
 #include "base/task/sequenced_task_runner.h"
@@ -33,7 +34,6 @@
 #include "cobalt/render_tree/image.h"
 #include "media/base/timestamp_constants.h"
 #include "media/filters/chunk_demuxer.h"
-#include "starboard/common/file.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
@@ -120,7 +120,7 @@ class Application {
                                        media_sandbox_.GetMediaModule());
 
       if (!guesstimator1.is_valid()) {
-        SB_LOG(ERROR) << "Invalid path or url: " << argv[argc - 1];
+        LOG(ERROR) << "Invalid path or url: " << argv[argc - 1];
         // Fall off to PrintUsage() and terminate.
       } else if (guesstimator1.is_progressive()) {
         InitializeProgressivePlayback(guesstimator1);
@@ -129,14 +129,14 @@ class Application {
         InitializeAdaptivePlayback(guesstimator1);
         return;
       } else if (guesstimator1.is_audio() && guesstimator2.is_audio()) {
-        SB_LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
-                      << " and " << argv[argc - 2]
-                      << " are audio streams, check usage for more details.";
+        LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
+                   << " and " << argv[argc - 2]
+                   << " are audio streams, check usage for more details.";
         // Fall off to PrintUsage() and terminate.
       } else if (!guesstimator1.is_audio() && !guesstimator2.is_audio()) {
-        SB_LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
-                      << " and " << argv[argc - 2]
-                      << " are video streams, check usage for more details.";
+        LOG(ERROR) << "Failed to play because both " << argv[argc - 1]
+                   << " and " << argv[argc - 2]
+                   << " are video streams, check usage for more details.";
         // Fall off to PrintUsage() and terminate.
       } else if (guesstimator1.is_audio()) {
         InitializeAdaptivePlayback(guesstimator1, guesstimator2);
@@ -160,8 +160,7 @@ class Application {
 
     std::unique_ptr<ScopedFile>& file =
         guesstimator.is_audio() ? audio_file_ : video_file_;
-    file.reset(new ScopedFile(guesstimator.adaptive_path().c_str(),
-                              kSbFileOpenOnly | kSbFileRead));
+    file.reset(new ScopedFile(guesstimator.adaptive_path().c_str(), 0));
 
     if (!file->IsValid()) {
       LOG(ERROR) << "Failed to open file: " << guesstimator.adaptive_path();
@@ -206,10 +205,10 @@ class Application {
       const FormatGuesstimator& audio_guesstimator,
       const FormatGuesstimator& video_guesstimator) {
     is_adaptive_playback_ = true;
-    audio_file_.reset(new ScopedFile(audio_guesstimator.adaptive_path().c_str(),
-                                     kSbFileOpenOnly | kSbFileRead));
-    video_file_.reset(new ScopedFile(video_guesstimator.adaptive_path().c_str(),
-                                     kSbFileOpenOnly | kSbFileRead));
+    audio_file_.reset(
+        new ScopedFile(audio_guesstimator.adaptive_path().c_str(), 0));
+    video_file_.reset(
+        new ScopedFile(video_guesstimator.adaptive_path().c_str(), 0));
 
     if (!audio_file_->IsValid()) {
       LOG(ERROR) << "Failed to open audio file: "

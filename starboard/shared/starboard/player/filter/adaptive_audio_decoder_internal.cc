@@ -300,6 +300,10 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   }
   if (resampler_) {
     decoded_audio = resampler_->Resample(decoded_audio);
+  } else {
+    // If |resampler_| is NULL, |output_samples_per_second_| should be the same
+    // as |decoded_sample_rate|.
+    SB_DCHECK(output_samples_per_second_ == decoded_sample_rate);
   }
   if (decoded_audio && decoded_audio->size_in_bytes() > 0) {
     if (channel_mixer_) {

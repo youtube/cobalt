@@ -22,44 +22,42 @@
 namespace cobalt {
 namespace media {
 
-using starboard::ScopedLock;
-
 MediaMetricsProvider::~MediaMetricsProvider() { ReportPipelineUMA(); }
 
 void MediaMetricsProvider::OnError(const PipelineStatus status) {
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   uma_info_.last_pipeline_status = status;
 }
 
 void MediaMetricsProvider::SetHasAudio(AudioCodec audio_codec) {
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   uma_info_.audio_codec = audio_codec;
   uma_info_.has_audio = true;
 }
 
 void MediaMetricsProvider::SetHasVideo(VideoCodec video_codec) {
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   uma_info_.video_codec = video_codec;
   uma_info_.has_video = true;
 }
 
 void MediaMetricsProvider::SetHasPlayed() {
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   uma_info_.has_ever_played = true;
 }
 
 void MediaMetricsProvider::SetHaveEnough() {
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   uma_info_.has_reached_have_enough = true;
 }
 
 void MediaMetricsProvider::SetIsEME() {
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   uma_info_.is_eme = true;
 }
 
 void MediaMetricsProvider::ReportPipelineUMA() {
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   if (uma_info_.has_video && uma_info_.has_audio) {
     base::UmaHistogramExactLinear(
         GetUMANameForAVStream(uma_info_), uma_info_.last_pipeline_status.code(),
@@ -110,14 +108,14 @@ std::string MediaMetricsProvider::GetUMANameForAVStream(
 
 void MediaMetricsProvider::StartTrackingAction(MediaAction action) {
   DCHECK(!IsActionCurrentlyTracked(action));
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   tracked_actions_start_times_[action] = clock_->NowTicks();
 }
 
 void MediaMetricsProvider::EndTrackingAction(MediaAction action) {
   DCHECK(IsActionCurrentlyTracked(action));
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   auto duration = clock_->NowTicks() - tracked_actions_start_times_[action];
   ReportActionLatencyUMA(action, duration);
@@ -125,7 +123,7 @@ void MediaMetricsProvider::EndTrackingAction(MediaAction action) {
 }
 
 bool MediaMetricsProvider::IsActionCurrentlyTracked(MediaAction action) {
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   return tracked_actions_start_times_.find(action) !=
          tracked_actions_start_times_.end();
 }
@@ -160,6 +158,8 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
       break;
   }
 }
+
+void MediaMetricsProvider::Reset() { tracked_actions_start_times_.clear(); }
 
 }  // namespace media
 }  // namespace cobalt

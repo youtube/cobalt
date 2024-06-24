@@ -14,6 +14,8 @@
 
 #include "starboard/media.h"
 
+#if SB_API_VERSION < 16
 SbMediaBufferStorageType SbMediaGetBufferStorageType() {
   return kSbMediaBufferStorageTypeMemory;
 }
+#endif  // SB_API_VERSION < 16

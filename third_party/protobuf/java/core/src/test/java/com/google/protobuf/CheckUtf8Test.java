@@ -34,26 +34,25 @@ import proto2_test_check_utf8.TestCheckUtf8.BytesWrapper;
 import proto2_test_check_utf8.TestCheckUtf8.StringWrapper;
 import proto2_test_check_utf8_size.TestCheckUtf8Size.BytesWrapperSize;
 import proto2_test_check_utf8_size.TestCheckUtf8Size.StringWrapperSize;
-
+import java.io.ByteArrayInputStream;
 import junit.framework.TestCase;
 
 /**
- * Test that protos generated with file option java_string_check_utf8 do in
- * fact perform appropriate UTF-8 checks.
+ * Test that protos generated with file option java_string_check_utf8 do in fact perform appropriate
+ * UTF-8 checks.
  *
  * @author jbaum@google.com (Jacob Butcher)
  */
 public class CheckUtf8Test extends TestCase {
 
   private static final String UTF8_BYTE_STRING_TEXT = "some text";
-  private static final ByteString UTF8_BYTE_STRING =
-      ByteString.copyFromUtf8(UTF8_BYTE_STRING_TEXT);
+  private static final ByteString UTF8_BYTE_STRING = ByteString.copyFromUtf8(UTF8_BYTE_STRING_TEXT);
   private static final ByteString NON_UTF8_BYTE_STRING =
-      ByteString.copyFrom(new byte[]{(byte) 0x80}); // A lone continuation byte.
+      ByteString.copyFrom(new byte[] {(byte) 0x80}); // A lone continuation byte.
 
   public void testBuildRequiredStringWithGoodUtf8() throws Exception {
-    assertEquals(UTF8_BYTE_STRING_TEXT,
-                 StringWrapper.newBuilder().setReqBytes(UTF8_BYTE_STRING).getReq());
+    assertEquals(
+        UTF8_BYTE_STRING_TEXT, StringWrapper.newBuilder().setReqBytes(UTF8_BYTE_STRING).getReq());
   }
 
   public void testParseRequiredStringWithGoodUtf8() throws Exception {
@@ -90,14 +89,9 @@ public class CheckUtf8Test extends TestCase {
   }
 
   public void testParseRequiredStringWithBadUtf8() throws Exception {
-    ByteString serialized =
-        BytesWrapper.newBuilder().setReq(NON_UTF8_BYTE_STRING).build().toByteString();
-    try {
-      StringWrapper.parser().parseFrom(serialized);
-      fail("Expected InvalidProtocolBufferException for non UTF-8 byte string.");
-    } catch (InvalidProtocolBufferException exception) {
-      assertEquals("Protocol message had invalid UTF-8.", exception.getMessage());
-    }
+    byte[] serialized =
+        BytesWrapper.newBuilder().setReq(NON_UTF8_BYTE_STRING).build().toByteArray();
+    assertParseBadUtf8(StringWrapper.getDefaultInstance(), serialized);
   }
 
   public void testBuildRequiredStringWithBadUtf8Size() throws Exception {
@@ -128,14 +122,36 @@ public class CheckUtf8Test extends TestCase {
   }
 
   public void testParseRequiredStringWithBadUtf8Size() throws Exception {
-    ByteString serialized =
-        BytesWrapperSize.newBuilder().setReq(NON_UTF8_BYTE_STRING).build().toByteString();
+    byte[] serialized =
+        BytesWrapperSize.newBuilder().setReq(NON_UTF8_BYTE_STRING).build().toByteArray();
+    assertParseBadUtf8(StringWrapperSize.getDefaultInstance(), serialized);
+  }
+
+  private void assertParseBadUtf8(MessageLite defaultInstance, byte[] data) throws Exception {
+    // Check combinations of (parser vs. builder) x (byte[] vs. InputStream)
     try {
-      StringWrapperSize.parser().parseFrom(serialized);
+      defaultInstance.getParserForType().parseFrom(data);
+      fail("Expected InvalidProtocolBufferException for non UTF-8 byte string.");
+    } catch (InvalidProtocolBufferException exception) {
+      assertEquals("Protocol message had invalid UTF-8.", exception.getMessage());
+    }
+    try {
+      defaultInstance.newBuilderForType().mergeFrom(data);
+      fail("Expected InvalidProtocolBufferException for non UTF-8 byte string.");
+    } catch (InvalidProtocolBufferException exception) {
+      assertEquals("Protocol message had invalid UTF-8.", exception.getMessage());
+    }
+    try {
+      defaultInstance.getParserForType().parseFrom(new ByteArrayInputStream(data));
+      fail("Expected InvalidProtocolBufferException for non UTF-8 byte string.");
+    } catch (InvalidProtocolBufferException exception) {
+      assertEquals("Protocol message had invalid UTF-8.", exception.getMessage());
+    }
+    try {
+      defaultInstance.newBuilderForType().mergeFrom(new ByteArrayInputStream(data));
       fail("Expected InvalidProtocolBufferException for non UTF-8 byte string.");
     } catch (InvalidProtocolBufferException exception) {
       assertEquals("Protocol message had invalid UTF-8.", exception.getMessage());
     }
   }
-
 }

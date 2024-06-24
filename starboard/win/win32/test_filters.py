@@ -20,6 +20,14 @@ from starboard.tools.testing import test_filter
 # pylint: disable=line-too-long
 _FILTERED_TESTS = {
     'nplb': [
+        # These tests hang too long on Windows.
+        'PosixSocketSendTest.RainyDaySendToClosedSocket',
+        'PosixSocketSendtoTest.RainyDaySendToClosedSocket',
+
+        # Currently frequently flaky on Windows
+        'SbConditionVariableWaitTimedTest.FLAKY_SunnyDayAutoInit',
+        'PosixConditionVariableWaitTimedTest.FLAKY_SunnyDayAutoInit',
+
         # This single test takes >15 minutes.
         'SbPlayerTest.MultiPlayer',
         # This test fails on win-win32 devel builds, because the compiler
@@ -35,6 +43,7 @@ _FILTERED_TESTS = {
         # Failures tracked by b/256160416.
         'SbSystemGetPathTest.ReturnsRequiredPaths',
         'SbPlayerGetAudioConfigurationTests/*_video_beneath_the_canopy_137_avc_dmp_output_decode_to_texture_*',
+        'SbPlayerGetMediaTimeTests/*_video_beneath_the_canopy_137_avc_dmp_output_decode_to_texture_*',
         'SbPlayerWriteSampleTests/*_video_beneath_the_canopy_137_avc_dmp_output_decode_to_texture_*',
         'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/type_ipv6_filter_ipv6',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',

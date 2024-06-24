@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/condition_variable.h"
+#if SB_API_VERSION < 16
+
+#include "starboard/condition_variable.h"
 
 #include <pthread.h>
 
@@ -37,3 +39,5 @@ bool SbConditionVariableBroadcast(SbConditionVariable* condition) {
   return IsSuccess(pthread_cond_broadcast(
       &(SB_PTHREAD_INTERNAL_CONDITION(condition)->condition)));
 }
+
+#endif  // SB_API_VERSION < 16

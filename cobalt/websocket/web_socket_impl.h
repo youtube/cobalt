@@ -26,11 +26,7 @@
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "cobalt/network/network_module.h"
-#include "cobalt/websocket/buffered_amount_tracker.h"
 #include "cobalt/websocket/cobalt_web_socket_event_handler.h"
-#include "cobalt/websocket/web_socket_frame_container.h"
-#include "cobalt/websocket/web_socket_handshake_helper.h"
-#include "cobalt/websocket/web_socket_message_container.h"
 #include "net/url_request/url_request_context_getter.h"
 #include "net/websockets/websocket_channel.h"
 #include "net/websockets/websocket_errors.h"
@@ -89,8 +85,6 @@ class WebSocketImpl : public base::RefCountedThreadSafe<WebSocketImpl> {
 
   void OnHandshakeComplete(const std::string& selected_subprotocol);
 
-  void OnFlowControl(int64_t quota);
-
   struct CloseInfo {
     CloseInfo(const net::WebSocketError code, const std::string& reason)
         : code(code), reason(reason) {}
@@ -114,7 +108,6 @@ class WebSocketImpl : public base::RefCountedThreadSafe<WebSocketImpl> {
   bool SendHelper(const net::WebSocketFrameHeader::OpCode op_code,
                   const char* data, std::size_t length,
                   std::string* error_message);
-  void ProcessSendQueue();
 
   void OnWebSocketConnected(const std::string& selected_subprotocol);
   void OnWebSocketDisconnected(bool was_clean, uint16 code,
@@ -132,9 +125,6 @@ class WebSocketImpl : public base::RefCountedThreadSafe<WebSocketImpl> {
   std::string origin_;
   GURL connect_url_;
 
-  // Data buffering and flow control.
-  // Should only be modified on delegate(network) thread.
-  int64_t current_quota_ = 0;
   struct SendQueueMessage {
     scoped_refptr<net::IOBuffer> io_buffer;
     size_t length;

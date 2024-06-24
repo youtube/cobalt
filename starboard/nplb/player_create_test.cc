@@ -322,23 +322,23 @@ TEST_F(SbPlayerTest, MultiPlayer) {
   constexpr SbPlayerOutputMode kOutputModes[] = {
       kSbPlayerOutputModeDecodeToTexture, kSbPlayerOutputModePunchOut};
 
+  // clang-format off
   constexpr SbMediaAudioCodec kAudioCodecs[] = {
-    kSbMediaAudioCodecNone,
+      kSbMediaAudioCodecNone,
 
-    kSbMediaAudioCodecAac,
-    kSbMediaAudioCodecAc3,
-    kSbMediaAudioCodecEac3,
-    kSbMediaAudioCodecOpus,
-    kSbMediaAudioCodecVorbis,
-#if SB_API_VERSION >= 14
-    kSbMediaAudioCodecMp3,
-    kSbMediaAudioCodecFlac,
-    kSbMediaAudioCodecPcm,
-#endif  // SB_API_VERSION >= 14
+      kSbMediaAudioCodecAac,
+      kSbMediaAudioCodecAc3,
+      kSbMediaAudioCodecEac3,
+      kSbMediaAudioCodecOpus,
+      kSbMediaAudioCodecVorbis,
+      kSbMediaAudioCodecMp3,
+      kSbMediaAudioCodecFlac,
+      kSbMediaAudioCodecPcm,
 #if SB_API_VERSION >= 15
-    kSbMediaAudioCodecIamf,
+      kSbMediaAudioCodecIamf,
 #endif  // SB_API_VERSION >= 15
   };
+  // clang-format on
 
   // TODO: turn this into a macro.
   // Perform a check to determine if new audio codecs have been added to the
@@ -352,24 +352,29 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     case kAudioCodecs[3]:
     case kAudioCodecs[4]:
     case kAudioCodecs[5]:
-#if SB_API_VERSION >= 14
     case kAudioCodecs[6]:
     case kAudioCodecs[7]:
     case kAudioCodecs[8]:
-#endif
 #if SB_API_VERSION >= 15
     case kAudioCodecs[9]:
 #endif  // SB_API_VERSION >= 15
       break;
   }
 
+  // clang-format off
   constexpr SbMediaVideoCodec kVideoCodecs[] = {
       kSbMediaVideoCodecNone,
 
-      kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265, kSbMediaVideoCodecMpeg2,
-      kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,  kSbMediaVideoCodecAv1,
-      kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
+      kSbMediaVideoCodecH264,
+      kSbMediaVideoCodecH265,
+      kSbMediaVideoCodecMpeg2,
+      kSbMediaVideoCodecTheora,
+      kSbMediaVideoCodecVc1,
+      kSbMediaVideoCodecAv1,
+      kSbMediaVideoCodecVp8,
+      kSbMediaVideoCodecVp9,
   };
+  // clang-format on
 
   // TODO: turn this into a macro.
   // Perform a check to determine if new video codecs have been added to the

@@ -35,6 +35,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+#if !NET35
+using System.Threading;
+using System.Threading.Tasks;
+#endif
+#if NET35
+using Google.Protobuf.Compatibility;
+#endif
 
 namespace Google.Protobuf
 {
@@ -59,15 +66,6 @@ namespace Google.Protobuf
             internal static ByteString FromBytes(byte[] bytes)
             {
                 return new ByteString(bytes);
-            }
-
-            /// <summary>
-            /// Provides direct, unrestricted access to the bytes contained in this instance.
-            /// You must not modify or resize the byte array returned by this method.
-            /// </summary>
-            internal static byte[] GetBuffer(ByteString bytes)
-            {
-                return bytes.bytes;
             }
         }
 
@@ -112,6 +110,14 @@ namespace Google.Protobuf
             get { return Length == 0; }
         }
 
+#if NETSTANDARD2_0
+        /// <summary>
+        /// Provides read-only access to the data of this <see cref="ByteString"/>.
+        /// No data is copied so this is the most efficient way of accessing.
+        /// </summary>
+        public ReadOnlySpan<byte> Span => new ReadOnlySpan<byte>(bytes);
+#endif
+
         /// <summary>
         /// Converts this <see cref="ByteString"/> into a byte array.
         /// </summary>
@@ -142,6 +148,55 @@ namespace Google.Protobuf
         }
 
         /// <summary>
+        /// Constructs a <see cref="ByteString"/> from data in the given stream, synchronously.
+        /// </summary>
+        /// <remarks>If successful, <paramref name="stream"/> will be read completely, from the position
+        /// at the start of the call.</remarks>
+        /// <param name="stream">The stream to copy into a ByteString.</param>
+        /// <returns>A ByteString with content read from the given stream.</returns>
+        public static ByteString FromStream(Stream stream)
+        {
+            ProtoPreconditions.CheckNotNull(stream, nameof(stream));
+            int capacity = stream.CanSeek ? checked((int) (stream.Length - stream.Position)) : 0;
+            var memoryStream = new MemoryStream(capacity);
+            stream.CopyTo(memoryStream);
+#if NETSTANDARD1_0 || NETSTANDARD2_0
+            byte[] bytes = memoryStream.ToArray();
+#else
+            // Avoid an extra copy if we can.
+            byte[] bytes = memoryStream.Length == memoryStream.Capacity ? memoryStream.GetBuffer() : memoryStream.ToArray();
+#endif
+            return AttachBytes(bytes);
+        }
+
+#if !NET35
+        /// <summary>
+        /// Constructs a <see cref="ByteString"/> from data in the given stream, asynchronously.
+        /// </summary>
+        /// <remarks>If successful, <paramref name="stream"/> will be read completely, from the position
+        /// at the start of the call.</remarks>
+        /// <param name="stream">The stream to copy into a ByteString.</param>
+        /// <param name="cancellationToken">The cancellation token to use when reading from the stream, if any.</param>
+        /// <returns>A ByteString with content read from the given stream.</returns>
+        public async static Task<ByteString> FromStreamAsync(Stream stream, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            ProtoPreconditions.CheckNotNull(stream, nameof(stream));
+            int capacity = stream.CanSeek ? checked((int) (stream.Length - stream.Position)) : 0;
+            var memoryStream = new MemoryStream(capacity);
+            // We have to specify the buffer size here, as there's no overload accepting the cancellation token
+            // alone. But it's documented to use 81920 by default if not specified.
+            await stream.CopyToAsync(memoryStream, 81920, cancellationToken);
+#if NETSTANDARD1_0 || NETSTANDARD2_0
+            byte[] bytes = memoryStream.ToArray();
+#else
+            // Avoid an extra copy if we can.
+            byte[] bytes = memoryStream.Length == memoryStream.Capacity ? memoryStream.GetBuffer() : memoryStream.ToArray();
+#endif
+            return AttachBytes(bytes);
+        }
+#endif
+
+        /// <summary>
         /// Constructs a <see cref="ByteString" /> from the given array. The contents
         /// are copied, so further modifications to the array will not
         /// be reflected in the returned ByteString.
@@ -162,6 +217,18 @@ namespace Google.Protobuf
             ByteArray.Copy(bytes, offset, portion, 0, count);
             return new ByteString(portion);
         }
+
+#if NETSTANDARD2_0
+        /// <summary>
+        /// Constructs a <see cref="ByteString" /> from a read only span. The contents
+        /// are copied, so further modifications to the span will not
+        /// be reflected in the returned <see cref="ByteString" />.
+        /// </summary>
+        public static ByteString CopyFrom(ReadOnlySpan<byte> bytes)
+        {
+            return new ByteString(bytes.ToArray());
+        }
+#endif
 
         /// <summary>
         /// Creates a new <see cref="ByteString" /> by encoding the specified text with
@@ -303,7 +370,7 @@ namespace Google.Protobuf
             int ret = 23;
             foreach (byte b in bytes)
             {
-                ret = (ret << 8) | b;
+                ret = (ret * 31) + b;
             }
             return ret;
         }

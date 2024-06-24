@@ -57,9 +57,9 @@ SbThreadLocalKey SbThreadCreateLocalKeyInternal(
   result->tls_index = index;
   result->destructor = destructor;
 
-  SbMutexAcquire(&singleton->mutex_);
+  pthread_mutex_lock(&singleton->mutex_);
   singleton->thread_local_keys_.insert(std::make_pair(index, result));
-  SbMutexRelease(&singleton->mutex_);
+  pthread_mutex_unlock(&singleton->mutex_);
   return result;
 }
 

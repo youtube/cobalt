@@ -41,13 +41,13 @@ if (enable_perfetto_platform_services) {
   }
 }
 
-if (enable_perfetto_trace_processor && enable_perfetto_trace_processor_sqlite) {
+if (enable_perfetto_trace_processor && enable_perfetto_trace_processor_sqlite && !use_cobalt_customizations) {
   all_targets += [ "src/trace_processor:trace_processor_shell" ]
 }
 
 if (enable_perfetto_traceconv) {
   all_targets += [ "src/traceconv" ]
-  if (is_cross_compiling) {
+  if (!use_cobalt_customizations && is_cross_compiling) {
     # In many cross-compilation scenarios (typically Android) developers expect
     # the host version of traceconv to be available somewhere in out/, so
     # they can convert Android traces on their dev machine. Also
@@ -268,7 +268,7 @@ if (!build_with_chromium) {
 # "libperfetto_client_experimental" targets defined within this BUILD.gn file.
 # Rationalize them with eseckler@. For now seems this one is only used from
 # chromium and the other one only from the Android tree.
-if (build_with_chromium) {
+if (build_with_chromium || use_cobalt_customizations) {
   component("libperfetto") {
     public_configs = [ "gn:public_config" ]
     deps = [
@@ -300,7 +300,7 @@ if (build_with_chromium) {
       ]
       public_deps += [ "include/perfetto/ext/tracing/ipc:ipc" ]
     }
-    if (!is_nacl) {
+    if (!is_nacl && !is_starboard) {
       deps += [
         "src/trace_processor:export_json",
         "src/trace_processor:storage_minimal",

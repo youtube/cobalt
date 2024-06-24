@@ -22,6 +22,7 @@
 
 using starboard::android::shared::IsAndroidAssetPath;
 using starboard::android::shared::OpenAndroidAsset;
+using starboard::android::shared::OpenAndroidAssetDir;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Implementations below exposed externally in pure C for emulation.
@@ -71,15 +72,17 @@ int __wrap_stat(const char* path, struct stat* info) {
   }
 
   // Values from SbFileGetPathInfo
-  SbDirectory directory = SbDirectoryOpen(path, NULL);
-  if (directory && directory->asset_dir) {
-    info->st_mode = S_IFDIR;
-    info->st_ctime = 0;
-    info->st_atime = 0;
-    info->st_mtime = 0;
-    info->st_size = 0;
-    SbDirectoryClose(directory);
-    return 0;
+  if (IsAndroidAssetPath(path)) {
+    AAssetDir* asset_dir = OpenAndroidAssetDir(path);
+    if (asset_dir) {
+      info->st_mode = S_IFDIR;
+      info->st_ctime = 0;
+      info->st_atime = 0;
+      info->st_mtime = 0;
+      info->st_size = 0;
+      AAssetDir_close(asset_dir);
+      return 0;
+    }
   }
 
   return -1;

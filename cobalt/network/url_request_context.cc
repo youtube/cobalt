@@ -51,6 +51,7 @@
 #include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
+#include "net/quic/quic_context.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
 #include "starboard/common/murmurhash2.h"
@@ -71,9 +72,10 @@ void LoadDiskCacheQuotaSettings(
     disk_cache::ResourceType resource_type = (disk_cache::ResourceType)i;
     std::string directory =
         disk_cache::defaults::GetSubdirectory(resource_type);
-    uint32_t bucket_size =
-        static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
-            directory, disk_cache::defaults::GetQuota(resource_type)));
+    base::Value value;
+    settings->Get(directory, &value);
+    uint32_t bucket_size = static_cast<uint32_t>(value.GetIfDouble().value_or(
+        disk_cache::defaults::GetQuota(resource_type)));
     quotas[resource_type] = bucket_size;
     total_size += bucket_size;
   }
@@ -93,9 +95,7 @@ void LoadDiskCacheQuotaSettings(
     disk_cache::settings::SetQuota(resource_type, default_quota);
     std::string directory =
         disk_cache::defaults::GetSubdirectory(resource_type);
-    settings->SetPersistentSetting(
-        directory,
-        std::make_unique<base::Value>(static_cast<double>(default_quota)));
+    settings->Set(directory, base::Value(static_cast<double>(default_quota)));
   }
 }
 
@@ -204,13 +204,12 @@ URLRequestContext::URLRequestContext(
               new ProxyConfigService(proxy_config)),
           net::NetLog::Get(), /*quick_check_enabled=*/true));
 
+  auto quic_context = std::make_unique<net::QuicContext>();
+  quic_context->params()->supported_versions =
+      quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
+  url_request_context_builder->set_quic_context(std::move(quic_context));
+
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
-#ifndef COBALT_PENDING_CLEAN_UP
-  // TODO: Confirm this is not needed.
-  // ack decimation significantly increases download bandwidth on low-end
-  // android devices.
-  SetQuicFlag(&FLAGS_quic_reloadable_flag_quic_enable_ack_decimation, true);
-#endif
   bool quic_enabled =
       configuration::Configuration::GetInstance()->CobaltEnableQuic();
   if (quic_enabled) {
@@ -245,10 +244,7 @@ URLRequestContext::URLRequestContext(
   } else {
     using_http_cache_ = true;
 
-    int max_cache_bytes = 24 * 1024 * 1024;
-#if SB_API_VERSION >= 14
-    max_cache_bytes = kSbMaxSystemPathCacheDirectorySize;
-#endif
+    int max_cache_bytes = kSbMaxSystemPathCacheDirectorySize;
     // Assume the non-http-cache memory in kSbSystemPathCacheDirectory
     // is less than 1 mb and subtract this from the max_cache_bytes.
     max_cache_bytes -= (1 << 20);
@@ -289,9 +285,10 @@ URLRequestContext::URLRequestContext(
                       /* max_bytes */ max_cache_bytes, url_request_context));
               http_cache->set_can_disable_by_mime_type(true);
               if (persistent_settings != nullptr) {
-                auto cache_enabled =
-                    persistent_settings->GetPersistentSettingAsBool(
-                        disk_cache::kCacheEnabledPersistentSettingsKey, true);
+                base::Value value;
+                persistent_settings->Get(
+                    disk_cache::kCacheEnabledPersistentSettingsKey, &value);
+                auto cache_enabled = value.GetIfBool().value_or(true);
                 disk_cache::settings::SetCacheEnabled(cache_enabled);
                 if (!cache_enabled) {
                   http_cache->set_mode(net::HttpCache::Mode::DISABLE);
@@ -320,11 +317,17 @@ std::unique_ptr<net::URLRequest> URLRequestContext::CreateRequest(
 void URLRequestContext::SetProxy(const std::string& proxy_rules) {
   net::ProxyConfig proxy_config = CreateCustomProxyConfig(proxy_rules);
   // ProxyService takes ownership of the ProxyConfigService.
-  url_request_context_->set_proxy_resolution_service(
-      net::ConfiguredProxyResolutionService::CreateUsingSystemProxyResolver(
-          std::make_unique<ProxyConfigService>(proxy_config),
-          net::NetLog::Get(),
-          /*quick_check_enabled=*/true));
+  auto proxy_config_service =
+      std::make_unique<ProxyConfigService>(proxy_config);
+  net::ConfiguredProxyResolutionService* proxy_configured_resolution_service =
+      nullptr;
+  bool success = url_request_context_->proxy_resolution_service()
+                     ->CastToConfiguredProxyResolutionService(
+                         &proxy_configured_resolution_service);
+  if (success) {
+    proxy_configured_resolution_service->ResetConfigService(
+        std::move(proxy_config_service));
+  }
 }
 
 void URLRequestContext::SetEnableQuic(bool enable_quic) {
@@ -344,13 +347,12 @@ void URLRequestContext::OnQuicToggle(const std::string& message) {
 void URLRequestContext::UpdateCacheSizeSetting(disk_cache::ResourceType type,
                                                uint32_t bytes) {
   CHECK(cache_persistent_settings_);
-  cache_persistent_settings_->SetPersistentSetting(
-      disk_cache::defaults::GetSubdirectory(type),
-      std::make_unique<base::Value>(static_cast<double>(bytes)));
+  cache_persistent_settings_->Set(disk_cache::defaults::GetSubdirectory(type),
+                                  base::Value(static_cast<double>(bytes)));
 }
 
 void URLRequestContext::ValidateCachePersistentSettings() {
-  cache_persistent_settings_->ValidatePersistentSettings();
+  cache_persistent_settings_->Validate();
 }
 
 void URLRequestContext::AssociateKeyWithResourceType(

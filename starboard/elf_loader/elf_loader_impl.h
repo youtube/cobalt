@@ -15,7 +15,8 @@
 #ifndef STARBOARD_ELF_LOADER_ELF_LOADER_IMPL_H_
 #define STARBOARD_ELF_LOADER_ELF_LOADER_IMPL_H_
 
-#include "starboard/common/scoped_ptr.h"
+#include <memory>
+
 #include "starboard/elf_loader/dynamic_section.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/elf_hash_table.h"
@@ -39,11 +40,11 @@ class ElfLoaderImpl {
   ~ElfLoaderImpl();
 
  private:
-  scoped_ptr<ElfHeader> elf_header_loader_;
-  scoped_ptr<ProgramTable> program_table_;
-  scoped_ptr<DynamicSection> dynamic_section_;
-  scoped_ptr<ExportedSymbols> exported_symbols_;
-  scoped_ptr<Relocations> relocations_;
+  std::unique_ptr<ElfHeader> elf_header_loader_;
+  std::unique_ptr<ProgramTable> program_table_;
+  std::unique_ptr<DynamicSection> dynamic_section_;
+  std::unique_ptr<ExportedSymbols> exported_symbols_;
+  std::unique_ptr<Relocations> relocations_;
 
   ElfLoaderImpl(const ElfLoaderImpl&) = delete;
   void operator=(const ElfLoaderImpl&) = delete;

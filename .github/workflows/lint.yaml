@@ -21,6 +21,7 @@ permissions: {}
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Install clang-format Dependencies
         run: |
@@ -45,12 +46,12 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: '3.8'
       - name: Install Pip Packages
-        run: pip install -r ${GITHUB_WORKSPACE}/requirements.txt
+        run: pip install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/precommit_hooks/requirements.txt
       - name: Download Resources
         run: python ${GITHUB_WORKSPACE}/download_resources.py
-      - name: pre-commit
+      - name: Run pre-commit
         uses: ./.github/actions/pre_commit
         with:
           base_ref: ${{ github.event.pull_request.base.sha && github.event.pull_request.base.sha || github.event.before }}

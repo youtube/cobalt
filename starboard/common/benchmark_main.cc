@@ -15,7 +15,7 @@
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
-#include "third_party/google_benchmark/include/benchmark/benchmark.h"
+#include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace {
 int RunAllBenchmarks(int argc, char** argv) {

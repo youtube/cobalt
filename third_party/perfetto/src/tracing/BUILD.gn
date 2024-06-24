@@ -57,10 +57,12 @@ source_set("platform_impl") {
     "../../include/perfetto/tracing",
     "../base",
   ]
+  if (!is_starboard) {
   sources = [
     "platform_posix.cc",
     "platform_windows.cc",
   ]
+  }
 }
 
 # Fake platform that allows buiding the client lib on all OSes. You can only use
@@ -97,6 +99,9 @@ source_set("client_api_without_backends") {
     "../base",
     "core",
   ]
+  if (is_starboard) {
+    deps += [ "//starboard/common:common_headers_only" ]
+  }
   public_deps = [
     "../../gn:default_deps",
     "../../include/perfetto/tracing",

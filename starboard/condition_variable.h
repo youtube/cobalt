@@ -19,6 +19,8 @@
 #ifndef STARBOARD_CONDITION_VARIABLE_H_
 #define STARBOARD_CONDITION_VARIABLE_H_
 
+#if SB_API_VERSION < 16
+
 #include "starboard/export.h"
 #include "starboard/mutex.h"
 #include "starboard/types.h"
@@ -46,8 +48,7 @@ typedef union SbConditionVariable {
 #define SB_CONDITION_VARIABLE_INITIALIZER \
   {}
 #else
-#define SB_CONDITION_VARIABLE_INITIALIZER \
-  { 0 }
+#define SB_CONDITION_VARIABLE_INITIALIZER {0}
 #endif
 
 // Enumeration of possible results from waiting on a condvar.
@@ -121,4 +122,5 @@ SB_EXPORT bool SbConditionVariableSignal(SbConditionVariable* condition);
 }  // extern "C"
 #endif
 
+#endif  // SB_API_VERSION < 16
 #endif  // STARBOARD_CONDITION_VARIABLE_H_

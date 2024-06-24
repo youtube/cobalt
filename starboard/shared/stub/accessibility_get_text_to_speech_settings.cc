@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/accessibility.h"
 
 #include "starboard/common/memory.h"
@@ -26,3 +28,5 @@ bool SbAccessibilityGetTextToSpeechSettings(
   out_setting->has_text_to_speech_setting = false;
   return true;
 }
+
+#endif

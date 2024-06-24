@@ -81,11 +81,12 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/shared/platform_service.cc",
     "//starboard/linux/shared/platform_service.h",
     "//starboard/linux/shared/player_components_factory.cc",
+    "//starboard/linux/shared/pre_app_recommendation_service.cc",
+    "//starboard/linux/shared/pre_app_recommendation_service.h",
     "//starboard/linux/shared/routes.cc",
     "//starboard/linux/shared/routes.h",
     "//starboard/linux/shared/soft_mic_platform_service.cc",
     "//starboard/linux/shared/soft_mic_platform_service.h",
-    "//starboard/linux/shared/system_get_connection_type.cc",
     "//starboard/linux/shared/system_get_device_type.cc",
     "//starboard/linux/shared/system_get_extensions.cc",
     "//starboard/linux/shared/system_get_path.cc",
@@ -252,6 +253,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/pthread/thread_get_local_value.cc",
     "//starboard/shared/pthread/thread_is_equal.cc",
     "//starboard/shared/pthread/thread_join.cc",
+    "//starboard/shared/pthread/thread_priority.cc",
     "//starboard/shared/pthread/thread_sampler_create.cc",
     "//starboard/shared/pthread/thread_sampler_destroy.cc",
     "//starboard/shared/pthread/thread_sampler_freeze.cc",
@@ -443,7 +445,7 @@ static_library("starboard_platform_sources") {
 
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_gtest_target_type, "starboard_platform_tests") {
-    # build_loader = false
+    build_loader = false
     testonly = true
 
     sources = media_tests_sources + player_tests_sources + [

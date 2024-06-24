@@ -78,6 +78,10 @@ void CookieJarImpl::SetCookie(const GURL& origin,
       origin, cookie_line,
       /*creation_time=*/base::Time::Now(), /*server_time=*/absl::nullopt,
       /*cookie_partition_key=*/absl::nullopt);
+  if (!cookie) {
+    DLOG(ERROR) << "Invalid cookie, won't be set: " << cookie_line;
+    return;
+  }
   network_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&net::CookieStore::SetCanonicalCookieAsync,
                                 base::Unretained(cookie_store_),

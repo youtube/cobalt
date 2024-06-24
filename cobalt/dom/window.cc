@@ -37,7 +37,7 @@
 #include "cobalt/dom/input_event.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/location.h"
-#include "cobalt/dom/media_source.h"
+#include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigator.h"
@@ -102,7 +102,7 @@ Window::Window(
     script::ExecutionState* execution_state,
     script::ScriptRunner* script_runner,
     script::ScriptValueFactory* script_value_factory,
-    MediaSource::Registry* media_source_registry,
+    MediaSourceAttachment::Registry* media_source_registry,
     DomStatTracker* dom_stat_tracker, const std::string& font_language_script,
     const base::Callback<void(const GURL&)> navigation_callback,
     const loader::Decoder::OnCompleteFunction& load_complete_callback,

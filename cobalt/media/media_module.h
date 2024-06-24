@@ -24,6 +24,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/sbplayer_interface.h"
@@ -36,7 +37,6 @@
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
 #include "media/base/media_log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/player.h"
 
 namespace cobalt {
@@ -118,12 +118,12 @@ class MediaModule : public WebMediaPlayerFactory,
   ::media::MediaLog media_log_;
 
   // Protect access to the list of players.
-  starboard::Mutex players_lock_;
+  mutable base::Lock players_lock_;
 
   Players players_;
   bool suspended_ = false;
 
-  bool allow_batched_sample_write_ = false;
+  int max_audio_samples_per_write_ = 1;
   // When set to `false` (the default value), Cobalt calls
   // `SbPlayerGetPreferredOutputMode()` with `kSbPlayerOutputModeInvalid` when
   // there is no preference on output mode.

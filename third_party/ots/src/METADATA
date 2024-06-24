@@ -1,12 +1,14 @@
+name: "OTS-source"
+
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "90.0.4430.218"  # from https://chromereleases.googleblog.com/2021/05/stable-channel-update-for-chrome-os_18.html
+    value: "114.0.5735.358"  # from https://chromereleases.googleblog.com/2024/03/long-term-support-channel-update-for_26.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/external/github.com/khaledhosny/ots.git"
-    version: "ee537ac096667eed6559124164c3e8482646fd77"
-    # from https://chromium.googlesource.com/chromium/src/+/90.0.4430.218/DEPS#275
+    version: "46bea9879127d0ff1c6601b078e2ce98e83fcd33"
+    # from https://chromium.googlesource.com/chromium/src/+/114.0.5735.358/DEPS#363
   }
 }

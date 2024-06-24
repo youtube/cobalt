@@ -133,6 +133,8 @@ static inline bool SbSocketIsValid(SbSocket socket) {
 // Returns whether IPV6 is supported on the current platform.
 SB_EXPORT bool SbSocketIsIpv6Supported();
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Creates a new non-blocking socket for protocol |protocol| using address
 // family |address_type|.
 //
@@ -145,6 +147,8 @@ SB_EXPORT bool SbSocketIsIpv6Supported();
 SB_EXPORT SbSocket SbSocketCreate(SbSocketAddressType address_type,
                                   SbSocketProtocol protocol);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Destroys the |socket| by flushing it, closing any connection that may be
 // active on it, and reclaiming any resources associated with it, including
 // any registration with an |SbSocketWaiter|.
@@ -156,6 +160,8 @@ SB_EXPORT SbSocket SbSocketCreate(SbSocketAddressType address_type,
 // |socket|: The SbSocket to be destroyed.
 SB_EXPORT bool SbSocketDestroy(SbSocket socket);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Opens a connection of |socket|'s type to the host and port specified by
 // |address|. This function sets and returns the socket error if it is unable
 // to connect to |address|. (It returns |kSbSocketOk| if it creates the
@@ -166,6 +172,8 @@ SB_EXPORT bool SbSocketDestroy(SbSocket socket);
 SB_EXPORT SbSocketError SbSocketConnect(SbSocket socket,
                                         const SbSocketAddress* address);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Binds |socket| to a specific local interface and port specified by
 // |local_address|. This function sets and returns the socket error if it
 // is unable to bind to |local_address|.
@@ -180,6 +188,8 @@ SB_EXPORT SbSocketError SbSocketConnect(SbSocket socket,
 SB_EXPORT SbSocketError SbSocketBind(SbSocket socket,
                                      const SbSocketAddress* local_address);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Causes |socket| to listen on the local address that |socket| was previously
 // bound to by SbSocketBind. This function sets and returns the socket error if
 // it is unable to listen for some reason. (It returns |kSbSocketOk| if it
@@ -188,6 +198,8 @@ SB_EXPORT SbSocketError SbSocketBind(SbSocket socket,
 // |socket|: The SbSocket on which the function operates.
 SB_EXPORT SbSocketError SbSocketListen(SbSocket socket);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Accepts a pending connection on |socket| and returns a new SbSocket
 // representing that connection. This function sets the error on |socket|
 // and returns |kSbSocketInvalid| if it is unable to accept a new connection.
@@ -195,28 +207,38 @@ SB_EXPORT SbSocketError SbSocketListen(SbSocket socket);
 // |socket|: The SbSocket that is accepting a pending connection.
 SB_EXPORT SbSocket SbSocketAccept(SbSocket socket);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Indicates whether |socket| is connected to anything. Invalid sockets are not
 // connected.
 //
 // |socket|: The SbSocket to be checked.
 SB_EXPORT bool SbSocketIsConnected(SbSocket socket);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Returns whether |socket| is connected to anything, and, if so, whether it is
 // receiving any data.
 //
 // |socket|: The SbSocket to be checked.
 SB_EXPORT bool SbSocketIsConnectedAndIdle(SbSocket socket);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Returns the last error set on |socket|. If |socket| is not valid, this
 // function returns |kSbSocketErrorFailed|.
 //
 // |socket|: The SbSocket that the last error is returned for.
 SB_EXPORT SbSocketError SbSocketGetLastError(SbSocket socket);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Clears the last error set on |socket|. The return value indicates whether
 // the socket error was cleared.
 SB_EXPORT bool SbSocketClearLastError(SbSocket socket);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Gets the address that this socket is bound to locally, if the socket is
 // connected. The return value indicates whether the address was retrieved
 // successfully.
@@ -225,7 +247,8 @@ SB_EXPORT bool SbSocketClearLastError(SbSocket socket);
 // |out_address|: The SbSocket's local address.
 SB_EXPORT bool SbSocketGetLocalAddress(SbSocket socket,
                                        SbSocketAddress* out_address);
-
+// DEPRECATED with SB_API_VERSION 16
+//
 // Gets the source address and the netmask that would be used to connect to the
 // destination.  The netmask parameter is optional, and only populated if a
 // non-NULL parameter is passed in.  To determine which source IP will be used,
@@ -265,6 +288,8 @@ SB_EXPORT bool SbSocketGetInterfaceAddress(
     SbSocketAddress* out_source_address,
     SbSocketAddress* out_netmask);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Reads up to |data_size| bytes from |socket| into |out_data| and places the
 // source address of the packet in |out_source| if out_source is not NULL.
 // Returns the number of bytes read, or a negative number if there is an error,
@@ -290,6 +315,8 @@ SB_EXPORT int SbSocketReceiveFrom(SbSocket socket,
                                   int data_size,
                                   SbSocketAddress* out_source);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Writes up to |data_size| bytes of |data| to |destination| via
 // |socket|. Returns the number of bytes written, or a negative number if
 // there is an error, in which case |SbSocketGetLastError| can provide the
@@ -317,6 +344,8 @@ SB_EXPORT int SbSocketSendTo(SbSocket socket,
                              int data_size,
                              const SbSocketAddress* destination);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Sets the |SO_BROADCAST|, or equivalent, option to |value| on |socket|. The
 // return value indicates whether the option was actually set.
 //
@@ -327,6 +356,8 @@ SB_EXPORT int SbSocketSendTo(SbSocket socket,
 // |value|: The new value for the option.
 SB_EXPORT bool SbSocketSetBroadcast(SbSocket socket, bool value);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Sets the |SO_REUSEADDR|, or equivalent, option to |value| on |socket|.
 // The return value indicates whether the option was actually set.
 //
@@ -337,6 +368,8 @@ SB_EXPORT bool SbSocketSetBroadcast(SbSocket socket, bool value);
 // |value|: The new value for the option.
 SB_EXPORT bool SbSocketSetReuseAddress(SbSocket socket, bool value);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Sets the |SO_RCVBUF|, or equivalent, option to |size| on |socket|. The
 // return value indicates whether the option was actually set.
 //
@@ -344,6 +377,8 @@ SB_EXPORT bool SbSocketSetReuseAddress(SbSocket socket, bool value);
 // |size|: The value for the option.
 SB_EXPORT bool SbSocketSetReceiveBufferSize(SbSocket socket, int32_t size);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Sets the |SO_SNDBUF|, or equivalent, option to |size| on |socket|. The
 // return value indicates whether the option was actually set.
 //
@@ -351,6 +386,8 @@ SB_EXPORT bool SbSocketSetReceiveBufferSize(SbSocket socket, int32_t size);
 // |size|: The value for the option.
 SB_EXPORT bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Sets the |SO_KEEPALIVE|, or equivalent, option to |value| on |socket|. The
 // return value indicates whether the option was actually set.
 //
@@ -364,6 +401,8 @@ SB_EXPORT bool SbSocketSetTcpKeepAlive(SbSocket socket,
                                        bool value,
                                        int64_t period);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Sets the |TCP_NODELAY|, or equivalent, option to |value| on |socket|. The
 // return value indicates whether the option was actually set.
 //
@@ -377,6 +416,8 @@ SB_EXPORT bool SbSocketSetTcpKeepAlive(SbSocket socket,
 //   (|value|=|true|).
 SB_EXPORT bool SbSocketSetTcpNoDelay(SbSocket socket, bool value);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Sets the |SO_WINSCALE|, or equivalent, option to |value| on |socket|. The
 // return value indicates whether the option was actually set.
 //
@@ -384,6 +425,8 @@ SB_EXPORT bool SbSocketSetTcpNoDelay(SbSocket socket, bool value);
 // |value|: The value for the option.
 SB_EXPORT bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Joins |socket| to an IP multicast group identified by |address|. The
 // equivalent of IP_ADD_MEMBERSHIP. The return value indicates whether the
 // socket was joined to the group successfully.
@@ -393,6 +436,8 @@ SB_EXPORT bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value);
 SB_EXPORT bool SbSocketJoinMulticastGroup(SbSocket socket,
                                           const SbSocketAddress* address);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Synchronously resolves |hostname| into the returned SbSocketResolution,
 // which must be freed with SbSocketFreeResolution. The function returns
 // |NULL| if it is unable to resolve |hostname|.
@@ -406,6 +451,8 @@ SB_EXPORT bool SbSocketJoinMulticastGroup(SbSocket socket,
 SB_EXPORT SbSocketResolution* SbSocketResolve(const char* hostname,
                                               int filters);
 
+// DEPRECATED with SB_API_VERSION 16
+//
 // Frees a resolution allocated by SbSocketResolve.
 //
 // |resolution|: The resolution to be freed.

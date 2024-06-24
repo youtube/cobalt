@@ -197,5 +197,45 @@ int __abi_wrap_pthread_getname_np(pthread_t thread, char* name, size_t len);
 int pthread_getname_np(pthread_t thread, char* name, size_t len) {
   return __abi_wrap_pthread_getname_np(thread, name, len);
 }
+
+int __abi_wrap_pthread_attr_destroy(pthread_attr_t* attr);
+
+int pthread_attr_destroy(pthread_attr_t* attr) {
+  return __abi_wrap_pthread_attr_destroy(attr);
+}
+
+int __abi_wrap_pthread_attr_init(pthread_attr_t* attr);
+
+int pthread_attr_init(pthread_attr_t* attr) {
+  return __abi_wrap_pthread_attr_init(attr);
+}
+
+int __abi_wrap_pthread_attr_getstacksize(const pthread_attr_t* attr,
+                                         size_t* stack_size);
+
+int pthread_attr_getstacksize(const pthread_attr_t* attr, size_t* stack_size) {
+  return __abi_wrap_pthread_attr_getstacksize(attr, stack_size);
+}
+
+int __abi_wrap_pthread_attr_setstacksize(pthread_attr_t* attr,
+                                         size_t stack_size);
+
+int pthread_attr_setstacksize(pthread_attr_t* attr, size_t stack_size) {
+  return __abi_wrap_pthread_attr_setstacksize(attr, stack_size);
+}
+
+int __abi_wrap_pthread_attr_getdetachstate(const pthread_attr_t* att,
+                                           int* detachs_state);
+
+int pthread_attr_getdetachstate(const pthread_attr_t* attr, int* detach_state) {
+  return __abi_wrap_pthread_attr_getdetachstate(attr, detach_state);
+}
+
+int __abi_wrap_pthread_attr_setdetachstate(pthread_attr_t* attr,
+                                           int detach_state);
+
+int pthread_attr_setdetachstate(pthread_attr_t* attr, int detach_state) {
+  return __abi_wrap_pthread_attr_setdetachstate(attr, detach_state);
+}
 }
 #endif  // SB_API_VERSION >= 16

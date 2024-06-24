@@ -87,7 +87,7 @@ This tool is basically for OTS developers.
 ### Description:
 `ots-validator-checker` is a program which is intended to validate malformed fonts.
 If the program detects that the font is invalid, it prints “OK” and returns
-with 0 (success). If it coulndn’t detect any errors, the program then opens the
+with 0 (success). If it couldn’t detect any errors, the program then opens the
 transcoded font and renders some characters using FreeType:
 
     transcoded_font = ValidateAndTranscode(malicious_font);

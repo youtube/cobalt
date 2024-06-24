@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/files/file.h"
 #include "base/files/file_starboard.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
@@ -55,13 +56,12 @@ void EncodeRGBAToPNG(const base::FilePath& png_file_path,
     return;
   }
 
-  SbFile file = SbFileOpen(png_file_path.value().c_str(),
-                           kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
-  DCHECK_NE(file, kSbFileInvalid);
+  base::File file(png_file_path, base::File::Flags::FLAG_OPEN_ALWAYS |
+                                     base::File::Flags::FLAG_WRITE);
+  DCHECK_NE(file.GetPlatformFile(), -1);
   int bytes_written =
-      SbFileWrite(file, reinterpret_cast<char*>(buffer.get()), size);
+      file.WriteAtCurrentPos(reinterpret_cast<char*>(buffer.get()), size);
   base::RecordFileWriteStat(bytes_written);
-  SbFileClose(file);
   DLOG_IF(ERROR, bytes_written != size) << "Error writing PNG to file.";
 }
 
@@ -81,7 +81,7 @@ std::unique_ptr<uint8[]> EncodeRGBAToBuffer(const uint8_t* pixel_data,
   // if error encountered png will call longjmp(), so we set up a setjmp() here
   // with a failed assert to indicate an error in one of the png functions.
   // yo libpng, 1980 called, they want their longjmp() back....
-  if (setjmp(png->jmpbuf)) {
+  if (setjmp(png_jmpbuf(png))) {
     png_destroy_write_struct(&png, &info);
     NOTREACHED() << "libpng encountered an error during processing.";
     return std::unique_ptr<uint8[]>();

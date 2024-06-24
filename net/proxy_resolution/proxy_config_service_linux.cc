@@ -40,11 +40,6 @@
 #include <gio/gio.h>
 #endif  // defined(USE_GIO)
 
-#if defined(STARBOARD)
-#include "starboard/common/file.h"
-#include "starboard/types.h"
-#endif
-
 namespace net {
 
 class ScopedAllowBlockingForSettingGetter : public base::ScopedAllowBlocking {};
@@ -875,7 +870,8 @@ Cobalt */
 /* Cobalt
       base::ScopedFILE input(base::OpenFile(kioslaverc, "r"));
 Cobalt */
-      base::ScopedFILE input(new starboard::ScopedFile(kioslaverc.value().c_str(), kSbFileOpenOnly | kSbFileRead));
+      base::ScopedFILE input(
+          new starboard::ScopedFile(kioslaverc.value().c_str(), 0));
       if (!input.get())
         continue;
 

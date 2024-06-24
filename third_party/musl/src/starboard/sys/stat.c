@@ -1,5 +1,6 @@
 #if SB_API_VERSION < 16
 
+#include <errno.h>
 #include <stdio.h>
 #include <sys/stat.h>
 
@@ -27,6 +28,10 @@ static SB_C_FORCE_INLINE time_t WindowsUsecToTimeT(int64_t time) {
 // SbDirectoryCanOpen, SbFileGetPathInfo, SbFileExists, SbFileCanOpen
 int stat(const char *path, struct stat *file_info)
 {
+    if(!SbFileExists(path)) {
+        errno = ENOENT;
+    }
+    
     SbFileInfo out_info;
     if (!SbFileGetPathInfo(path, &out_info)){
         return -1;

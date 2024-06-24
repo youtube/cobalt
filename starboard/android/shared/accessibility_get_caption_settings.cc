@@ -16,13 +16,19 @@
 #include <cstdlib>
 #include <string>
 
-#include "starboard/accessibility.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/memory.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/accessibility_internal.h"
+
+#include "starboard/android/shared/accessibility_extension.h"
+
+namespace starboard {
+namespace android {
+namespace shared {
+namespace accessibility {
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
@@ -101,8 +107,7 @@ void SetColorProperties(jobject j_caption_settings,
 
 }  // namespace
 
-bool SbAccessibilityGetCaptionSettings(
-    SbAccessibilityCaptionSettings* caption_settings) {
+bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   if (!caption_settings ||
       !starboard::common::MemoryIsZero(
           caption_settings, sizeof(SbAccessibilityCaptionSettings))) {
@@ -158,3 +163,8 @@ bool SbAccessibilityGetCaptionSettings(
 
   return true;
 }
+
+}  // namespace accessibility
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard

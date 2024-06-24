@@ -22,7 +22,6 @@ group("gn_all") {
   deps = [
     ":default",
     "//starboard/client_porting/cwrappers:cwrappers_test",
-    "//starboard/client_porting/eztime",
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
     "//starboard/examples/glclear:starboard_glclear_example",
@@ -40,7 +39,10 @@ group("gn_all") {
   }
 
   if (platform_tests_path == "") {
-    deps += [ ":starboard_platform_tests($starboard_toolchain)" ]
+    deps += [
+      ":starboard_platform_tests($starboard_toolchain)",
+      ":starboard_platform_tests_install($starboard_toolchain)",
+    ]
   } else {
     deps += [ platform_tests_path ]
   }

@@ -30,4 +30,7 @@ source_set("base") {
     "time.h",
   ]
   public_deps = [ "../public:base" ]
+  if (is_starboard && current_toolchain != host_toolchain) {
+    deps = [ "//starboard:starboard_headers_only" ]
+  }
 }

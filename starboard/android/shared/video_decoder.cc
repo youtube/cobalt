@@ -429,14 +429,14 @@ scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
   return sink_;
 }
 
-scoped_ptr<VideoDecoder::VideoRenderAlgorithm>
+std::unique_ptr<VideoDecoder::VideoRenderAlgorithm>
 VideoDecoder::GetRenderAlgorithm() {
   if (tunnel_mode_audio_session_id_ == -1) {
-    return scoped_ptr<VideoRenderAlgorithm>(
+    return std::unique_ptr<VideoRenderAlgorithm>(
         new android::shared::VideoRenderAlgorithm(this,
                                                   video_frame_tracker_.get()));
   }
-  return scoped_ptr<VideoRenderAlgorithm>(
+  return std::unique_ptr<VideoRenderAlgorithm>(
       new VideoRenderAlgorithmTunneled(video_frame_tracker_.get()));
 }
 
@@ -601,8 +601,10 @@ void VideoDecoder::WriteEndOfStream() {
 void VideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  // If fail to flush |media_decoder_|, then re-create |media_decoder_|.
-  if (!enable_flush_during_seek_ || !media_decoder_->Flush()) {
+  // If fail to flush |media_decoder_| or |media_decoder_| is null, then
+  // re-create |media_decoder_|.
+  if (!enable_flush_during_seek_ || !media_decoder_ ||
+      !media_decoder_->Flush()) {
     TeardownCodec();
 
     input_buffer_written_ = 0;

@@ -12,8 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (use_cobalt_customizations) {
+import("//build/config/c++/c++.gni")
+import("../sanitizers/sanitizers.gni")
+import("../wasm.gni")
+} else {
 import("//gn/standalone/sanitizers/sanitizers.gni")
 import("//gn/standalone/wasm.gni")
+}
 
 declare_args() {
   # Background:
@@ -40,7 +46,9 @@ declare_args() {
   #    We still retain libstdc++ coverage on the CI bots by overriding
   #    use_custom_libcxx=false when we target a modern library (see the
   #    GCC target in infra/ci/config.py).
+  if (!use_cobalt_customizations) {
   use_custom_libcxx = is_linux && is_hermetic_clang && !is_wasm
+  }
   custom_libcxx_is_static = !using_sanitizer
 }
 

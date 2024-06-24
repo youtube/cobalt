@@ -14,6 +14,7 @@
 
 #include "starboard/loader_app/installation_manager.h"
 
+#include <dirent.h>
 #include <sys/stat.h>
 
 #include <string>
@@ -21,6 +22,7 @@
 
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -146,7 +148,8 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     SaveStorageState(installation_store);
 
     ASSERT_EQ(IM_SUCCESS, ImInitialize(max_num_installations, kAppKey));
-    int result = ImRevertToSuccessfulInstallation();
+    int result =
+        ImRevertToSuccessfulInstallation(SlotSelectionStatus::kUnknown);
     if (!expected_succeed) {
       ASSERT_EQ(IM_ERROR, result);
     }
@@ -177,19 +180,30 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
       return;
     }
     ImUninitialize();
-    SbDirectory dir = SbDirectoryOpen(storage_path_.c_str(), NULL);
+    DIR* directory = opendir(storage_path_.c_str());
     std::vector<std::string> dir_;
 
     std::vector<char> dir_entry(kSbFileMaxName);
+    struct dirent dirent_buffer;
+    struct dirent* dirent;
 
-    while (SbDirectoryGetNext(dir, dir_entry.data(), dir_entry.size())) {
+    while (true) {
+      if (dir_entry.size() < kSbFileMaxName || !directory ||
+          !dir_entry.data()) {
+        break;
+      }
+      int result = readdir_r(directory, &dirent_buffer, &dirent);
+      if (result || !dirent) {
+        break;
+      }
+      starboard::strlcpy(dir_entry.data(), dirent->d_name, dir_entry.size());
       std::string full_path = storage_path_;
       full_path += kSbFileSepString;
       full_path += dir_entry.data();
       SbFileDelete(full_path.c_str());
     }
 
-    SbDirectoryClose(dir);
+    closedir(directory);
     SbFileDelete(storage_path_.c_str());
   }
 
@@ -231,10 +245,7 @@ TEST_P(InstallationManagerTest, Reset) {
     slot_path += kSbFileSepString;
     slot_path += "test_file";
     created_files.push_back(slot_path);
-    SbFileError file_error = kSbFileOk;
-    starboard::ScopedFile file(slot_path.c_str(),
-                               kSbFileCreateAlways | kSbFileWrite, NULL,
-                               &file_error);
+    starboard::ScopedFile file(slot_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
     ASSERT_TRUE(file.IsValid());
   }
   ASSERT_EQ(IM_SUCCESS, ImReset());
@@ -398,7 +409,7 @@ TEST_P(InstallationManagerTest, RevertToSuccessfulInstallation) {
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
   ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(1));
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
-  ASSERT_EQ(0, ImRevertToSuccessfulInstallation());
+  ASSERT_EQ(0, ImRevertToSuccessfulInstallation(SlotSelectionStatus::kUnknown));
   ASSERT_EQ(0, ImGetCurrentInstallationIndex());
 }
 
@@ -410,7 +421,8 @@ TEST_F(InstallationManagerTest, InvalidInput) {
   ASSERT_EQ(IM_INSTALLATION_STATUS_ERROR, ImGetInstallationStatus(10));
   ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(0));
   ASSERT_EQ(IM_INSTALLATION_STATUS_ERROR, ImGetInstallationStatus(-2));
-  ASSERT_EQ(IM_ERROR, ImRevertToSuccessfulInstallation());
+  ASSERT_EQ(IM_ERROR,
+            ImRevertToSuccessfulInstallation(SlotSelectionStatus::kUnknown));
   ASSERT_EQ(IM_ERROR, ImMarkInstallationSuccessful(10));
   ASSERT_EQ(IM_ERROR, ImMarkInstallationSuccessful(-2));
   ASSERT_EQ(IM_ERROR, ImDecrementInstallationNumTries(10));

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -106,9 +107,6 @@ TEST(SbSystemGetPathTest, FailsGracefullyBogusId) {
 TEST(SbSystemGetPathTest, DoesNotBlowUpForDefinedIds) {
   BasicTest(kSbSystemPathDebugOutputDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathTempDirectory, false, false, __LINE__);
-#if SB_API_VERSION < 14
-  BasicTest(kSbSystemPathTestOutputDirectory, false, false, __LINE__);
-#endif  // #if SB_API_VERSION < 14
   BasicTest(kSbSystemPathCacheDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathFontDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathFontConfigurationDirectory, false, false, __LINE__);
@@ -117,9 +115,6 @@ TEST(SbSystemGetPathTest, DoesNotBlowUpForDefinedIds) {
 TEST(SbSystemGetPathTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
   UnmodifiedOnFailureTest(kSbSystemPathDebugOutputDirectory, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPathTempDirectory, __LINE__);
-#if SB_API_VERSION < 14
-  UnmodifiedOnFailureTest(kSbSystemPathTestOutputDirectory, __LINE__);
-#endif  // #if SB_API_VERSION < 14
   UnmodifiedOnFailureTest(kSbSystemPathCacheDirectory, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPathFontDirectory, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPathFontConfigurationDirectory, __LINE__);
@@ -146,11 +141,11 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
                 (DirectoryExists(path.data())));
     EXPECT_TRUE(FileExists(path.data()));
     EXPECT_TRUE(DirectoryExists(path.data()));
-    SbDirectory directory = SbDirectoryOpen(path.data(), NULL);
-    EXPECT_TRUE(SbDirectoryIsValid(directory));
+    DIR* directory = opendir(path.data());
+    EXPECT_TRUE(directory);
 
     // Lastly, close and delete the directory.
-    EXPECT_TRUE(SbDirectoryClose(directory));
+    EXPECT_TRUE(closedir(directory) == 0);
     EXPECT_TRUE(SbFileDelete(path.data()));
     EXPECT_FALSE(FileExists(path.data()));
   }
@@ -176,8 +171,8 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
     // Write to the file and check that we can read from it.
     std::string content_to_write = "test content";
     {
-      starboard::ScopedFile test_file_writer(
-          path.data(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+      starboard::ScopedFile test_file_writer(path.data(),
+                                             O_CREAT | O_TRUNC | O_WRONLY);
       EXPECT_GT(
           test_file_writer.WriteAll(content_to_write.c_str(),
                                     static_cast<int>(content_to_write.size())),
@@ -191,8 +186,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
     const int kBufferLength = 16 * 1024;
     char content_read[kBufferLength] = {0};
     {
-      starboard::ScopedFile test_file_reader(
-          path.data(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+      starboard::ScopedFile test_file_reader(path.data(), 0);
       EXPECT_GT(test_file_reader.ReadAll(content_read, kFileSize), 0);
     }
     EXPECT_EQ(content_read, content_to_write);

@@ -14,11 +14,12 @@
 
 # TODO: b/315170518 - Revert to static library after fixing
 # symbol visibility issues for windows based modular platform builds.
-if (sb_is_modular || sb_is_evergreen_compatible) {
+if ((sb_is_modular || sb_is_evergreen_compatible) &&
+    current_toolchain == starboard_toolchain) {
   source_set("starboard_layer_posix_abi_wrappers") {
     sources = [
-      "starboard_layer_posix_file_abi_wrappers.cc",
-      "starboard_layer_posix_file_abi_wrappers.h",
+      "starboard_layer_posix_directory_abi_wrappers.cc",
+      "starboard_layer_posix_directory_abi_wrappers.h",
       "starboard_layer_posix_mmap_abi_wrappers.cc",
       "starboard_layer_posix_mmap_abi_wrappers.h",
       "starboard_layer_posix_pthread_abi_wrappers.cc",
@@ -29,11 +30,16 @@ if (sb_is_modular || sb_is_evergreen_compatible) {
       "starboard_layer_posix_stat_abi_wrappers.h",
       "starboard_layer_posix_time_abi_wrappers.cc",
       "starboard_layer_posix_time_abi_wrappers.h",
+      "starboard_layer_posix_unistd_abi_wrappers.cc",
+      "starboard_layer_posix_unistd_abi_wrappers.h",
     ]
 
     configs += [ "//starboard/build/config:starboard_implementation" ]
 
-    deps = [ "//starboard:starboard_headers_only" ]
+    deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common:common_headers_only",
+    ]
   }
 }
 
@@ -41,12 +47,13 @@ if (sb_is_modular && !sb_is_evergreen &&
     current_toolchain == cobalt_toolchain) {
   source_set("cobalt_layer_posix_abi_wrappers") {
     sources = [
-      "cobalt_layer_posix_file_abi_wrappers.cc",
+      "cobalt_layer_posix_directory_abi_wrappers.cc",
       "cobalt_layer_posix_mmap_abi_wrappers.cc",
       "cobalt_layer_posix_pthread_abi_wrappers.cc",
       "cobalt_layer_posix_socket_abi_wrappers.cc",
       "cobalt_layer_posix_stat_abi_wrappers.cc",
       "cobalt_layer_posix_time_abi_wrappers.cc",
+      "cobalt_layer_posix_unistd_abi_wrappers.cc",
     ]
   }
 }

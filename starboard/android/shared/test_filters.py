@@ -18,6 +18,11 @@ from starboard.tools.testing import test_filter
 # A map of failing or crashing tests per target.
 # pylint: disable=line-too-long
 _FILTERED_TESTS = {
+    'base_test': [
+        # TODO: b/346868673 This test crashed/failed on ATV on device tests.
+        'ProcessMetricsHelperTest.GetClockTicksPerS',
+        'ProcessMetricsHelperTest.GetCumulativeCPUUsagePerThread',
+    ],
     'player_filter_tests': [
         # Invalid input may lead to unexpected behaviors.
         'AudioDecoderTests/AudioDecoderTest.MultipleInvalidInput/*',
@@ -64,12 +69,6 @@ _FILTERED_TESTS = {
         'PosixDirectoryGetNextTest.SunnyDayStaticContent',
         'PosixDirectoryOpenTest.SunnyDayStaticContent',
         'PosixFileGetPathInfoTest.WorksOnStaticContentDirectories',
-
-        # These POSIX tests should be disabled until asset manager starboard
-        # extension is implemented.
-        'PosixFileGetInfoTest.WorksOnStaticContentFiles',
-        'PosixFileReadTest/*.ReadStaticContent',
-        'PosixFileSeekTest.FromEndInStaticContentWorks',
 
         # These tests are disabled due to not receiving the kEndOfStream
         # player state update within the specified timeout.

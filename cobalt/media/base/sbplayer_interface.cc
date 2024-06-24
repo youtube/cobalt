@@ -23,12 +23,12 @@
 namespace cobalt {
 namespace media {
 
-void SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
+bool SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
   const StarboardExtensionPlayerConfigurationApi* extension_api =
       static_cast<const StarboardExtensionPlayerConfigurationApi*>(
           SbSystemGetExtension(kStarboardExtensionPlayerConfigurationName));
   if (!extension_api) {
-    return;
+    return false;
   }
 
   DCHECK_EQ(extension_api->name,
@@ -39,8 +39,10 @@ void SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
   // SetDecodeToTexturePreferred api could be NULL.
   if (extension_api->SetDecodeToTexturePreferred) {
     extension_api->SetDecodeToTexturePreferred(preferred);
+    return true;
   } else {
     LOG(INFO) << "DecodeToTextureModePreferred is not supported.";
+    return false;
   }
 }
 

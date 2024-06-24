@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/mutex.h"
 
 #include <windows.h>
@@ -25,3 +27,5 @@ SbMutexResult SbMutexAcquireTry(SbMutex* mutex) {
   bool result = TryAcquireSRWLockExclusive(SB_WIN32_INTERNAL_MUTEX(mutex));
   return result ? kSbMutexAcquired : kSbMutexBusy;
 }
+
+#endif  // SB_API_VERSION < 16
