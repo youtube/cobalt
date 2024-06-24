@@ -433,6 +433,11 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     } 
   }
 
+#if defined(O_LARGEFILE)
+  // Always add on O_LARGEFILE, regardless of compiler macros
+  open_flags |= O_LARGEFILE;
+#endif
+
   SB_COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
 
   int mode = S_IRUSR | S_IWUSR;
