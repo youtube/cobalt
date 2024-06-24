@@ -265,10 +265,19 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
 
   ASSERT_FALSE(error_occurred_);
 
-  int max_audio_samples_per_write =
-      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeAudio);
-  int max_video_samples_per_write =
-      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeVideo);
+  // TODO: b/347728473 When the platform supports multiple
+  // samples per write to SbPlayer, the following numbers are
+  // sufficient to allow SbPlayer to play 60fps video.
+  // Revisit the maximum numbers if the requirement is changed.
+  const int kMaxAudioSamplesPerWrite = 15;
+  const int kMaxVideoSamplesPerWrite = 60;
+
+  int max_audio_samples_per_write = std::min(
+      kMaxAudioSamplesPerWrite,
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeAudio));
+  int max_video_samples_per_write = std::min(
+      kMaxVideoSamplesPerWrite,
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeVideo));
 
   GroupedSamplesIterator iterator(grouped_samples);
   SB_DCHECK(!iterator.HasMoreAudio() || audio_dmp_reader_);

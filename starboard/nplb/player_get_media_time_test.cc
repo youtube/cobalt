@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <unistd.h>
-
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -43,6 +41,10 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
     return;
   }
 
+  // TODO: we simply set audio write duration to 0.5 second. Ideally, we should
+  // set the audio write duration to 10 seconds if audio connectors are remote.
+  player_fixture.SetAudioWriteDuration(500'000);
+
   int64_t media_time_before_write = player_fixture.GetCurrentMediaTime();
   ASSERT_EQ(media_time_before_write, 0);
 
@@ -62,11 +64,15 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
 
   int64_t start_system_time = CurrentMonotonicTime();
   int64_t start_media_time = player_fixture.GetCurrentMediaTime();
+  SB_DLOG(INFO) << "Start system time at " << start_system_time
+                << " with media time at " << start_media_time << ".";
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
   int64_t end_system_time = CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
+  SB_DLOG(INFO) << "End system time at " << end_system_time
+                << " with media time at " << end_media_time << ".";
 
   const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
   EXPECT_NEAR(end_media_time, kDurationToPlay, kDurationDifferenceAllowance);
@@ -95,6 +101,10 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
     return;
   }
 
+  // TODO: we simply set audio write duration to 0.5 second. Ideally, we should
+  // set the audio write duration to 10 seconds if audio connectors are remote.
+  player_fixture.SetAudioWriteDuration(500'000);
+
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
     samples.AddAudioSamples(0, kSamplesToWrite);
@@ -114,14 +124,16 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   samples = GroupedSamples();
   if (player_fixture.HasAudio()) {
     samples.AddAudioSamples(
-        player_fixture.ConvertDurationToAudioBufferCount(seek_to_time),
-        player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
+        0,
+        player_fixture.ConvertDurationToAudioBufferCount(seek_to_time) +
+            player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
     samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
     samples.AddVideoSamples(
-        player_fixture.ConvertDurationToVideoBufferCount(seek_to_time),
-        player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
+        0,
+        player_fixture.ConvertDurationToVideoBufferCount(seek_to_time) +
+            player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
     samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
@@ -129,21 +141,17 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
 
   int64_t start_system_time = CurrentMonotonicTime();
   int64_t start_media_time = player_fixture.GetCurrentMediaTime();
+  SB_DLOG(INFO) << "Start system time at " << start_system_time
+                << " with media time at " << start_media_time << ".";
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
-  const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
-  if (CurrentMonotonicTime() - start_system_time <
-      kDurationDifferenceAllowance) {
-    // If the test file doesn't have the audio stream, let the test wait
-    // for playing the video, as WaitForPlayerEndOfStream() doesn't write
-    // audio data to audio track.
-    usleep(500'000);
-  }
-
   int64_t end_system_time = CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
+  SB_DLOG(INFO) << "End system time at " << end_system_time
+                << " with media time at " << end_media_time << ".";
 
+  const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
   EXPECT_NEAR(end_media_time, kDurationToPlay + seek_to_time,
               kDurationDifferenceAllowance);
   EXPECT_NEAR(
