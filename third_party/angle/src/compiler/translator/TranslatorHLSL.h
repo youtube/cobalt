@@ -23,6 +23,8 @@ class TranslatorHLSL : public TCompiler
 
     bool hasUniformBlock(const std::string &interfaceBlockName) const;
     unsigned int getUniformBlockRegister(const std::string &interfaceBlockName) const;
+    bool shouldUniformBlockUseStructuredBuffer(const std::string &uniformBlockName) const;
+    const std::set<std::string> *getSlowCompilingUniformBlockSet() const;
 
     const std::map<std::string, unsigned int> *getUniformRegisterMap() const;
     unsigned int getReadonlyImage2DRegisterIndex() const;
@@ -30,20 +32,23 @@ class TranslatorHLSL : public TCompiler
     const std::set<std::string> *getUsedImage2DFunctionNames() const;
 
   protected:
-    ANGLE_NO_DISCARD bool translate(TIntermBlock *root,
-                                    ShCompileOptions compileOptions,
-                                    PerformanceDiagnostics *perfDiagnostics) override;
+    [[nodiscard]] bool translate(TIntermBlock *root,
+                                 const ShCompileOptions &compileOptions,
+                                 PerformanceDiagnostics *perfDiagnostics) override;
     bool shouldFlattenPragmaStdglInvariantAll() override;
 
     // collectVariables needs to be run always so registers can be assigned.
-    bool shouldCollectVariables(ShCompileOptions compileOptions) override { return true; }
+    bool shouldCollectVariables(const ShCompileOptions &compileOptions) override { return true; }
 
     std::map<std::string, unsigned int> mShaderStorageBlockRegisterMap;
     std::map<std::string, unsigned int> mUniformBlockRegisterMap;
+    std::map<std::string, bool> mUniformBlockUseStructuredBufferMap;
     std::map<std::string, unsigned int> mUniformRegisterMap;
     unsigned int mReadonlyImage2DRegisterIndex;
     unsigned int mImage2DRegisterIndex;
     std::set<std::string> mUsedImage2DFunctionNames;
+    std::map<int, const TInterfaceBlock *> mUniformBlockOptimizedMap;
+    std::set<std::string> mSlowCompilingUniformBlockSet;
 };
 
 }  // namespace sh

@@ -17,8 +17,13 @@ typedef _CGLContextObject *CGLContextObj;
 struct __IOSurface;
 typedef __IOSurface *IOSurfaceRef;
 
+#ifdef ANGLE_OUTSIDE_WEBKIT
+// Avoid collisions with the system's WebKit.framework.
+@class ANGLESwapCGLLayer;
+#else
 // WebKit's build process requires that every Objective-C class name has the prefix "Web".
-@class WebSwapLayer;
+@class WebSwapCGLLayer;
+#endif
 
 namespace rx
 {
@@ -83,11 +88,17 @@ class WindowSurfaceCGL : public SurfaceGL
     EGLint isPostSubBufferSupported() const override;
     EGLint getSwapBehavior() const override;
 
-    FramebufferImpl *createDefaultFramebuffer(const gl::Context *context,
-                                              const gl::FramebufferState &state) override;
+    egl::Error attachToFramebuffer(const gl::Context *context,
+                                   gl::Framebuffer *framebuffer) override;
+    egl::Error detachFromFramebuffer(const gl::Context *context,
+                                     gl::Framebuffer *framebuffer) override;
 
   private:
-    WebSwapLayer *mSwapLayer;
+#ifdef ANGLE_OUTSIDE_WEBKIT
+    ANGLESwapCGLLayer *mSwapLayer;
+#else
+    WebSwapCGLLayer *mSwapLayer;
+#endif
     SharedSwapState mSwapState;
     uint64_t mCurrentSwapId;
 
@@ -97,6 +108,7 @@ class WindowSurfaceCGL : public SurfaceGL
     StateManagerGL *mStateManager;
 
     GLuint mDSRenderbuffer;
+    GLuint mFramebufferID;
 };
 
 }  // namespace rx

@@ -6,17 +6,13 @@
 
 // system_utils_winuwp.cpp: Implementation of OS-specific functions for Windows UWP
 
+#include "common/debug.h"
 #include "system_utils.h"
 
 #include <stdarg.h>
 #include <windows.h>
 #include <array>
-#include <codecvt>
-#include <locale>
 #include <string>
-#include <vector>
-
-#include "common/debug.h"  // nogncheck
 
 namespace angle
 {
@@ -33,98 +29,89 @@ std::string GetEnvironmentVar(const char *variableName)
     return "";
 }
 
-const char *GetPathSeparatorForEnvironmentVar()
+void *OpenSystemLibraryWithExtensionAndGetError(const char *libraryName,
+                                                SearchType searchType,
+                                                std::string *errorOut)
 {
-    return ";";
+    char buffer[MAX_PATH];
+    int ret = snprintf(buffer, MAX_PATH, "%s.%s", libraryName, GetSharedLibraryExtension());
+    if (ret <= 0 || ret >= MAX_PATH)
+    {
+        fprintf(stderr, "Error loading shared library: 0x%x", ret);
+        return nullptr;
+    }
+
+    HMODULE libraryModule = nullptr;
+
+    switch (searchType)
+    {
+        case SearchType::ModuleDir:
+            if (errorOut)
+            {
+                *errorOut = libraryName;
+            }
+            libraryModule = LoadPackagedLibrary(Widen(libraryName).c_str(), 0);
+            break;
+        case SearchType::SystemDir:
+        case SearchType::AlreadyLoaded:
+            // Not supported in UWP
+            break;
+    }
+
+    return reinterpret_cast<void *>(libraryModule);
 }
 
-const char *GetSharedLibraryExtension()
+namespace
 {
-    return "dll";
-}
-
-const char *GetExecutableExtension()
-{
-    return ".exe";
-}
-
-char GetPathSeparator()
-{
-    return '\\';
-}
-
-double GetCurrentTime()
-{
-    LARGE_INTEGER frequency = {};
-    QueryPerformanceFrequency(&frequency);
-
-    LARGE_INTEGER curTime;
-    QueryPerformanceCounter(&curTime);
-
-    return static_cast<double>(curTime.QuadPart) / frequency.QuadPart;
-}
-
-class UwpLibrary : public Library
+class UwpPageFaultHandler : public PageFaultHandler
 {
   public:
-    UwpLibrary(const char *libraryName, SearchType searchType)
-    {
-        char buffer[MAX_PATH];
-        int ret = snprintf(buffer, MAX_PATH, "%s.%s", libraryName, GetSharedLibraryExtension());
+    UwpPageFaultHandler(PageFaultCallback callback) : PageFaultHandler(callback) {}
+    ~UwpPageFaultHandler() override {}
 
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        std::wstring wideBuffer = converter.from_bytes(buffer);
-
-        if (ret > 0 && ret < MAX_PATH)
-        {
-            switch (searchType)
-            {
-                case SearchType::ApplicationDir:
-                    mModule = LoadPackagedLibrary(wideBuffer.c_str(), 0);
-                    break;
-                case SearchType::SystemDir:
-                    // Not supported in UWP
-                    break;
-            }
-        }
-    }
-
-    ~UwpLibrary() override
-    {
-        if (mModule)
-        {
-            FreeLibrary(mModule);
-        }
-    }
-
-    void *getSymbol(const char *symbolName) override
-    {
-        if (!mModule)
-        {
-            return nullptr;
-        }
-
-        return reinterpret_cast<void *>(GetProcAddress(mModule, symbolName));
-    }
-
-    void *getNative() const override { return reinterpret_cast<void *>(mModule); }
-
-  private:
-    HMODULE mModule = nullptr;
+    bool enable() override;
+    bool disable() override;
 };
 
-Library *OpenSharedLibrary(const char *libraryName, SearchType searchType)
+bool UwpPageFaultHandler::disable()
 {
-    return new UwpLibrary(libraryName, searchType);
+    UNIMPLEMENTED();
+    return true;
 }
 
-bool IsDebuggerAttached()
+bool UwpPageFaultHandler::enable()
 {
-    return !!::IsDebuggerPresent();
+    UNIMPLEMENTED();
+    return true;
+}
+}  // namespace
+
+bool ProtectMemory(uintptr_t start, size_t size)
+{
+    UNIMPLEMENTED();
+    return true;
 }
 
-void BreakDebugger()
+bool UnprotectMemory(uintptr_t start, size_t size)
 {
-    __debugbreak();
+    UNIMPLEMENTED();
+    return true;
+}
+
+size_t GetPageSize()
+{
+    UNIMPLEMENTED();
+    return 4096;
+}
+
+PageFaultHandler *CreatePageFaultHandler(PageFaultCallback callback)
+{
+    return new UwpPageFaultHandler(callback);
+}
+
+uint64_t GetProcessMemoryUsageKB()
+{
+    // Not available on UWP.
+    return 0;
 }
 }  // namespace angle

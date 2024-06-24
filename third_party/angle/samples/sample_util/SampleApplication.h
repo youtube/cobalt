@@ -19,11 +19,27 @@
 #include "util/egl_loader_autogen.h"
 
 class EGLWindow;
+class GLWindowBase;
 
 namespace angle
 {
 class Library;
 }  // namespace angle
+
+bool IsGLExtensionEnabled(const std::string &extName);
+
+enum class ClientType
+{
+    // Client types used by the samples.  Add as needed.
+    ES1,
+    ES2,
+    ES3_0,
+    ES3_1,
+    GL3_3_CORE,
+    GL3_3_COMPATIBILITY,
+    GL4_6_CORE,
+    GL4_6_COMPATIBILITY,
+};
 
 class SampleApplication
 {
@@ -31,10 +47,9 @@ class SampleApplication
     SampleApplication(std::string name,
                       int argc,
                       char **argv,
-                      EGLint glesMajorVersion = 2,
-                      EGLint glesMinorVersion = 0,
-                      uint32_t width          = 1280,
-                      uint32_t height         = 720);
+                      ClientType clientType = ClientType::ES2,
+                      uint32_t width        = 1280,
+                      uint32_t height       = 720);
     virtual ~SampleApplication();
 
     virtual bool initialize();
@@ -66,8 +81,11 @@ class SampleApplication
     bool mRunning;
 
     Timer mTimer;
+    uint32_t mFrameCount;
+    GLWindowBase *mGLWindow;
     EGLWindow *mEGLWindow;
     OSWindow *mOSWindow;
+    angle::GLESDriverType mDriverType;
 
     EGLPlatformParameters mPlatformParams;
 

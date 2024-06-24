@@ -52,6 +52,12 @@ enum HLSLTextureGroup
     HLSL_TEXTURE_2D_MS_UINT4,
     HLSL_TEXTURE_2D_MS_ARRAY_UINT4,
 
+    HLSL_TEXTURE_BUFFER,
+    HLSL_TEXTURE_BUFFER_UNORM,
+    HLSL_TEXTURE_BUFFER_SNORM,
+    HLSL_TEXTURE_BUFFER_UINT4,
+    HLSL_TEXTURE_BUFFER_INT4,
+
     // Comparison samplers
 
     HLSL_TEXTURE_2D_COMPARISON,
@@ -85,6 +91,12 @@ enum HLSLRWTextureGroup
     HLSL_RWTEXTURE_2D_INT4,
     HLSL_RWTEXTURE_2D_ARRAY_INT4,
     HLSL_RWTEXTURE_3D_INT4,
+
+    HLSL_RWTEXTURE_BUFFER_FLOAT4,
+    HLSL_RWTEXTURE_BUFFER_UNORM,
+    HLSL_RWTEXTURE_BUFFER_SNORM,
+    HLSL_RWTEXTURE_BUFFER_UINT4,
+    HLSL_RWTEXTURE_BUFFER_INT4,
 
     HLSL_RWTEXTURE_UNKNOWN,
     HLSL_RWTEXTURE_MAX = HLSL_RWTEXTURE_UNKNOWN
@@ -123,7 +135,8 @@ TString TypeString(const TType &type);
 TString StructNameString(const TStructure &structure);
 TString QualifiedStructNameString(const TStructure &structure,
                                   bool useHLSLRowMajorPacking,
-                                  bool useStd140Packing);
+                                  bool useStd140Packing,
+                                  bool forcePackingEnd);
 const char *InterpolationString(TQualifier qualifier);
 const char *QualifierString(TQualifier qualifier);
 // Parameters may need to be included in function names to disambiguate between overloaded

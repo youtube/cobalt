@@ -18,13 +18,19 @@ using namespace sh;
 class HLSLOutputTest : public MatchOutputCodeTest
 {
   public:
-    HLSLOutputTest() : MatchOutputCodeTest(GL_FRAGMENT_SHADER, 0, SH_HLSL_4_1_OUTPUT) {}
+    HLSLOutputTest() : MatchOutputCodeTest(GL_FRAGMENT_SHADER, SH_HLSL_4_1_OUTPUT) {}
 };
 
 class HLSL30VertexOutputTest : public MatchOutputCodeTest
 {
   public:
-    HLSL30VertexOutputTest() : MatchOutputCodeTest(GL_VERTEX_SHADER, 0, SH_HLSL_3_0_OUTPUT) {}
+    HLSL30VertexOutputTest() : MatchOutputCodeTest(GL_VERTEX_SHADER, SH_HLSL_3_0_OUTPUT) {}
+};
+
+class HLSL41VertexOutputTest : public MatchOutputCodeTest
+{
+  public:
+    HLSL41VertexOutputTest() : MatchOutputCodeTest(GL_VERTEX_SHADER, SH_HLSL_4_1_OUTPUT) {}
 };
 
 // Test that having dynamic indexing of a vector inside the right hand side of logical or doesn't
@@ -72,6 +78,19 @@ TEST_F(HLSL30VertexOutputTest, RewriteElseBlockReturningStruct)
     EXPECT_TRUE(foundInCode("_foo"));
     EXPECT_FALSE(foundInCode("(foo)"));
     EXPECT_FALSE(foundInCode(" foo"));
+}
+
+// Regression test for RemoveDynamicIndexing transformation producing invalid AST, based on fuzzer
+// test.
+TEST_F(HLSL41VertexOutputTest, RemoveDynamicingIndexIndexPrecisionBug)
+{
+    const char shaderString[] = R"(void main()
+{
+    mat3 tmp;
+    vec3 res = vec3(0);
+    for (int i = 0; res += 0., ivec3(0)[i], ivec3(tmp)[i], i < 0;);
+})";
+    compile(shaderString);
 }
 
 // Test that having an array constructor as a statement doesn't trigger an assert in HLSL output.

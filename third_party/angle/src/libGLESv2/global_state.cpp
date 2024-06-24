@@ -8,219 +8,199 @@
 
 #include "libGLESv2/global_state.h"
 
-#if defined(ADDRESS_SANITIZER)
-// By default, Leak Sanitizer and Address Sanitizer is expected to exist
-// together. However, this is not true for all platforms.
-// HAS_LEAK_SANTIZIER=0 explicitly removes the Leak Sanitizer from code.
-#ifndef HAS_LEAK_SANITIZER
-#define HAS_LEAK_SANITIZER 1
-#endif  // HAS_LEAK_SANITIZER
-#endif  // defined(ADDRESS_SANITIZER)
-
-#if HAS_LEAK_SANITIZER
-#include <sanitizer/lsan_interface.h>
-#endif  // HAS_LEAK_SANITIZER
-
 #include "common/debug.h"
 #include "common/platform.h"
 #include "common/system_utils.h"
-#include "common/tls.h"
+#include "libANGLE/ErrorStrings.h"
+#include "libANGLE/Thread.h"
 #include "libGLESv2/resource.h"
 
-namespace gl
-{
-// In single-threaded cases we can avoid a TLS lookup for the current Context.
-//
-// Let a global single-threaded context have 3 states: unset, set, and multi-threaded.
-// Initially it is unset. Then, on MakeCurrent:
-//
-//  * if the ST context is unset                      -> set the global context.
-//  * if the ST context is set and matches the TLS    -> set the global context.
-//  * if the ST context is set and does not match TLS -> set multi-threaded mode.
-//  * if in multi-threaded mode, unset and subsequently ignore the global context.
-//
-// Implementation-wise we can use a pointer and a boolean to represent the three modes.
-Context *gSingleThreadedContext = nullptr;
-bool gIsMultiThreadedContext    = false;
-}  // namespace gl
-
+#include <atomic>
+#if defined(ANGLE_PLATFORM_APPLE)
+#    include <dispatch/dispatch.h>
+#endif
 namespace egl
 {
 namespace
 {
-static TLSIndex threadTLS = TLS_INVALID_INDEX;
-Debug *g_Debug            = nullptr;
+ANGLE_REQUIRE_CONSTANT_INIT gl::Context *g_LastContext(nullptr);
+static_assert(std::is_trivially_destructible<decltype(g_LastContext)>::value,
+              "global last context is not trivially destructible");
 
-ANGLE_REQUIRE_CONSTANT_INIT std::atomic<std::mutex *> g_Mutex(nullptr);
-static_assert(std::is_trivially_destructible<decltype(g_Mutex)>::value,
-              "global mutex is not trivially destructible");
+// Called only on Android platform
+[[maybe_unused]] void ThreadCleanupCallback(void *ptr)
+{
+    ANGLE_SCOPED_GLOBAL_LOCK();
+    angle::PthreadKeyDestructorCallback(ptr);
+}
 
 Thread *AllocateCurrentThread()
 {
-    ASSERT(threadTLS != TLS_INVALID_INDEX);
-    if (threadTLS == TLS_INVALID_INDEX)
+    Thread *thread;
     {
-        return nullptr;
+        // Global thread intentionally leaked
+        ANGLE_SCOPED_DISABLE_LSAN();
+        thread = new Thread();
+#if defined(ANGLE_PLATFORM_APPLE)
+        SetCurrentThreadTLS(thread);
+#else
+        gCurrentThread = thread;
+#endif
     }
 
-#if HAS_LEAK_SANITIZER
-    __lsan_disable();
-#endif  // HAS_LEAK_SANITIZER
-    Thread *thread = new Thread();
-#if HAS_LEAK_SANITIZER
-    __lsan_enable();
-#endif  // HAS_LEAK_SANITIZER
-    if (!SetTLSValue(threadTLS, thread))
-    {
-        ERR() << "Could not set thread local storage.";
-        return nullptr;
-    }
+    // Initialize current-context TLS slot
+    gl::SetCurrentValidContext(nullptr);
 
+#if defined(ANGLE_PLATFORM_ANDROID)
+    static pthread_once_t keyOnce                 = PTHREAD_ONCE_INIT;
+    static angle::TLSIndex gThreadCleanupTLSIndex = TLS_INVALID_INDEX;
+
+    // Create thread cleanup TLS slot
+    auto CreateThreadCleanupTLSIndex = []() {
+        gThreadCleanupTLSIndex = angle::CreateTLSIndex(ThreadCleanupCallback);
+    };
+    pthread_once(&keyOnce, CreateThreadCleanupTLSIndex);
+    ASSERT(gThreadCleanupTLSIndex != TLS_INVALID_INDEX);
+
+    // Initialize thread cleanup TLS slot
+    angle::SetTLSValue(gThreadCleanupTLSIndex, thread);
+#endif  // ANGLE_PLATFORM_ANDROID
+
+    ASSERT(thread);
     return thread;
-}
-
-void AllocateDebug()
-{
-    // All EGL calls use a global lock, this is thread safe
-    if (g_Debug == nullptr)
-    {
-        g_Debug = new Debug();
-    }
-}
-
-void AllocateMutex()
-{
-    if (g_Mutex == nullptr)
-    {
-        std::unique_ptr<std::mutex> newMutex(new std::mutex());
-        std::mutex *expected = nullptr;
-        if (g_Mutex.compare_exchange_strong(expected, newMutex.get()))
-        {
-            newMutex.release();
-        }
-    }
 }
 
 }  // anonymous namespace
 
-std::mutex &GetGlobalMutex()
+#if defined(ANGLE_PLATFORM_APPLE)
+// TODO(angleproject:6479): Due to a bug in Apple's dyld loader, `thread_local` will cause
+// excessive memory use. Temporarily avoid it by using pthread's thread
+// local storage instead.
+// https://bugs.webkit.org/show_bug.cgi?id=228240
+
+static angle::TLSIndex GetCurrentThreadTLSIndex()
 {
-    AllocateMutex();
-    return *g_Mutex;
+    static angle::TLSIndex CurrentThreadIndex = TLS_INVALID_INDEX;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+      ASSERT(CurrentThreadIndex == TLS_INVALID_INDEX);
+      CurrentThreadIndex = angle::CreateTLSIndex(nullptr);
+    });
+    return CurrentThreadIndex;
+}
+Thread *GetCurrentThreadTLS()
+{
+    angle::TLSIndex CurrentThreadIndex = GetCurrentThreadTLSIndex();
+    ASSERT(CurrentThreadIndex != TLS_INVALID_INDEX);
+    return static_cast<Thread *>(angle::GetTLSValue(CurrentThreadIndex));
+}
+void SetCurrentThreadTLS(Thread *thread)
+{
+    angle::TLSIndex CurrentThreadIndex = GetCurrentThreadTLSIndex();
+    ASSERT(CurrentThreadIndex != TLS_INVALID_INDEX);
+    angle::SetTLSValue(CurrentThreadIndex, thread);
+}
+#else
+thread_local Thread *gCurrentThread = nullptr;
+#endif
+
+gl::Context *GetGlobalLastContext()
+{
+    return g_LastContext;
 }
 
-Thread *GetCurrentThread()
+void SetGlobalLastContext(gl::Context *context)
 {
-    // Create a TLS index if one has not been created for this DLL
-    if (threadTLS == TLS_INVALID_INDEX)
-    {
-        threadTLS = CreateTLSIndex();
-    }
+    g_LastContext = context;
+}
 
-    Thread *current = static_cast<Thread *>(GetTLSValue(threadTLS));
-
-    // ANGLE issue 488: when the dll is loaded after thread initialization,
-    // thread local storage (current) might not exist yet.
+// This function causes an MSAN false positive, which is muted. See https://crbug.com/1211047
+// It also causes a flaky false positive in TSAN. http://crbug.com/1223970
+ANGLE_NO_SANITIZE_MEMORY ANGLE_NO_SANITIZE_THREAD Thread *GetCurrentThread()
+{
+#if defined(ANGLE_PLATFORM_APPLE)
+    Thread *current = GetCurrentThreadTLS();
+#else
+    Thread *current       = gCurrentThread;
+#endif
     return (current ? current : AllocateCurrentThread());
-}
-
-Debug *GetDebug()
-{
-    AllocateDebug();
-    return g_Debug;
 }
 
 void SetContextCurrent(Thread *thread, gl::Context *context)
 {
-    // See above comment on gGlobalContext.
-    // If the context is in multi-threaded mode, ignore the global context.
-    if (!gl::gIsMultiThreadedContext)
-    {
-        // If the global context is unset or matches the current TLS, set the global context.
-        if (gl::gSingleThreadedContext == nullptr ||
-            gl::gSingleThreadedContext == thread->getContext())
-        {
-            gl::gSingleThreadedContext = context;
-        }
-        else
-        {
-            // If the global context is set and does not match TLS, set multi-threaded mode.
-            gl::gSingleThreadedContext  = nullptr;
-            gl::gIsMultiThreadedContext = true;
-        }
-    }
-    thread->setCurrent(context);
+#if defined(ANGLE_PLATFORM_APPLE)
+    Thread *currentThread = GetCurrentThreadTLS();
+#else
+    Thread *currentThread = gCurrentThread;
+#endif
+    ASSERT(currentThread);
+    currentThread->setCurrent(context);
+
+    gl::SetCurrentValidContext(context);
+
+#if defined(ANGLE_FORCE_CONTEXT_CHECK_EVERY_CALL)
+    DirtyContextIfNeeded(context);
+#endif
 }
+
+ScopedSyncCurrentContextFromThread::ScopedSyncCurrentContextFromThread(egl::Thread *thread)
+    : mThread(thread)
+{
+    ASSERT(mThread);
+}
+
+ScopedSyncCurrentContextFromThread::~ScopedSyncCurrentContextFromThread()
+{
+    SetContextCurrent(mThread, mThread->getContext());
+}
+
 }  // namespace egl
 
-#if defined(ANGLE_PLATFORM_WINDOWS) && defined(LIBGLESV2_DLL)
+namespace gl
+{
+void GenerateContextLostErrorOnContext(Context *context)
+{
+    if (context && context->isContextLost())
+    {
+        context->validationError(angle::EntryPoint::Invalid, GL_CONTEXT_LOST, err::kContextLost);
+    }
+}
+
+void GenerateContextLostErrorOnCurrentGlobalContext()
+{
+    // If the client starts issuing GL calls before ANGLE has had a chance to initialize,
+    // GenerateContextLostErrorOnCurrentGlobalContext can be called before AllocateCurrentThread has
+    // had a chance to run. Calling GetCurrentThread() ensures that TLS thread state is set up.
+    egl::GetCurrentThread();
+
+    GenerateContextLostErrorOnContext(GetGlobalContext());
+}
+}  // namespace gl
+
+#if defined(ANGLE_PLATFORM_WINDOWS) && !defined(ANGLE_STATIC)
 namespace egl
 {
 
 namespace
 {
 
-bool DeallocateCurrentThread()
+void DeallocateCurrentThread()
 {
-    Thread *thread = static_cast<Thread *>(GetTLSValue(threadTLS));
-    SafeDelete(thread);
-    return SetTLSValue(threadTLS, nullptr);
-}
-
-void DeallocateDebug()
-{
-    SafeDelete(g_Debug);
-}
-
-void DeallocateMutex()
-{
-    std::mutex *mutex = g_Mutex.exchange(nullptr);
-    {
-        // Wait for the mutex to become released by other threads before deleting.
-        std::lock_guard<std::mutex> lock(*mutex);
-    }
-    SafeDelete(mutex);
+    SafeDelete(gCurrentThread);
 }
 
 bool InitializeProcess()
 {
-    ASSERT(g_Debug == nullptr);
-    AllocateDebug();
-
-    AllocateMutex();
-
-    threadTLS = CreateTLSIndex();
-    if (threadTLS == TLS_INVALID_INDEX)
-    {
-        return false;
-    }
-
+    EnsureDebugAllocated();
+    AllocateGlobalMutex();
     return AllocateCurrentThread() != nullptr;
 }
 
-bool TerminateProcess()
+void TerminateProcess()
 {
     DeallocateDebug();
-
-    DeallocateMutex();
-
-    if (!DeallocateCurrentThread())
-    {
-        return false;
-    }
-
-    if (threadTLS != TLS_INVALID_INDEX)
-    {
-        TLSIndex tlsCopy = threadTLS;
-        threadTLS        = TLS_INVALID_INDEX;
-
-        if (!DestroyTLSIndex(tlsCopy))
-        {
-            return false;
-        }
-    }
-
-    return true;
+    DeallocateGlobalMutex();
+    DeallocateCurrentThread();
 }
 
 }  // anonymous namespace
@@ -231,7 +211,7 @@ namespace
 {
 // The following WaitForDebugger code is based on SwiftShader. See:
 // https://cs.chromium.org/chromium/src/third_party/swiftshader/src/Vulkan/main.cpp
-#    if defined(ANGLE_ENABLE_ASSERTS)
+#    if defined(ANGLE_ENABLE_ASSERTS) && !defined(ANGLE_ENABLE_WINDOWS_UWP)
 INT_PTR CALLBACK DebuggerWaitDialogProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     RECT rect;
@@ -276,7 +256,7 @@ void WaitForDebugger(HINSTANCE instance)
 }
 #    else
 void WaitForDebugger(HINSTANCE instance) {}
-#    endif  // defined(ANGLE_ENABLE_ASSERTS)
+#    endif  // defined(ANGLE_ENABLE_ASSERTS) && !defined(ANGLE_ENABLE_WINDOWS_UWP)
 }  // namespace
 
 extern "C" BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID)
@@ -294,12 +274,14 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID)
             return static_cast<BOOL>(egl::AllocateCurrentThread() != nullptr);
 
         case DLL_THREAD_DETACH:
-            return static_cast<BOOL>(egl::DeallocateCurrentThread());
+            egl::DeallocateCurrentThread();
+            break;
 
         case DLL_PROCESS_DETACH:
-            return static_cast<BOOL>(egl::TerminateProcess());
+            egl::TerminateProcess();
+            break;
     }
 
     return TRUE;
 }
-#endif  // defined(ANGLE_PLATFORM_WINDOWS) && defined(LIBGLESV2_DLL)
+#endif  // defined(ANGLE_PLATFORM_WINDOWS) && !defined(ANGLE_STATIC)

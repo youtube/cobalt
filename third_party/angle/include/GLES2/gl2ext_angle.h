@@ -25,24 +25,46 @@ typedef void (GL_APIENTRYP PFNGLREQUESTEXTENSIONANGLEPROC) (const GLchar *name);
 typedef void (GL_APIENTRYP PFNGLDISABLEEXTENSIONANGLEPROC) (const GLchar *name);
 #ifdef GL_GLEXT_PROTOTYPES
 GL_APICALL void GL_APIENTRY glRequestExtensionANGLE (const GLchar *name);
+GL_APICALL void GL_APIENTRY glDisableExtensionANGLE (const GLchar *name);
 #endif
 #endif /* GL_ANGLE_webgl_compatibility */
 
 #ifndef GL_ANGLE_robust_resource_initialization
 #define GL_ANGLE_robust_resource_initialization 1
 #define GL_ROBUST_RESOURCE_INITIALIZATION_ANGLE 0x93AB
+#define GL_RESOURCE_INITIALIZED_ANGLE 0x969F
 #endif /* GL_ANGLE_robust_resource_initialization */
 
 #ifndef GL_ANGLE_provoking_vertex
 #define GL_ANGLE_provoking_vertex 1
-#define GL_FIRST_VERTEX_CONVENTION                   0x8E4D
-#define GL_LAST_VERTEX_CONVENTION                    0x8E4E
-#define GL_PROVOKING_VERTEX                          0x8E4F
+#define GL_FIRST_VERTEX_CONVENTION_ANGLE             0x8E4D
+#define GL_LAST_VERTEX_CONVENTION_ANGLE              0x8E4E
+#define GL_PROVOKING_VERTEX_ANGLE                    0x8E4F
 typedef void (GL_APIENTRYP PFNGLPROVOKINGVERTEXANGLEPROC) (GLenum);
 #ifdef GL_GLEXT_PROTOTYPES
-GL_APICALL void GL_APIENTRY glProvokingVertexANGLE(GLenum mode);
+GL_APICALL void GL_APIENTRY glProvokingVertexANGLE(GLenum provokeMode);
 #endif
 #endif /* GL_ANGLE_provoking_vertex */
+
+#ifndef GL_ANGLE_clip_cull_distance
+#define GL_ANGLE_clip_cull_distance 1
+#define GL_MAX_CLIP_DISTANCES_ANGLE                   0x0D32
+#define GL_MAX_CULL_DISTANCES_ANGLE                   0x82F9
+#define GL_MAX_COMBINED_CLIP_AND_CULL_DISTANCES_ANGLE 0x82FA
+#define GL_CLIP_DISTANCE0_ANGLE                       0x3000
+#define GL_CLIP_DISTANCE1_ANGLE                       0x3001
+#define GL_CLIP_DISTANCE2_ANGLE                       0x3002
+#define GL_CLIP_DISTANCE3_ANGLE                       0x3003
+#define GL_CLIP_DISTANCE4_ANGLE                       0x3004
+#define GL_CLIP_DISTANCE5_ANGLE                       0x3005
+#define GL_CLIP_DISTANCE6_ANGLE                       0x3006
+#define GL_CLIP_DISTANCE7_ANGLE                       0x3007
+#endif /* GL_ANGLE_clip_cull_distance */
+
+#ifndef GL_ANGLE_stencil_texturing
+#define GL_ANGLE_stencil_texturing 1
+#define GL_DEPTH_STENCIL_TEXTURE_MODE_ANGLE           0x90EA
+#endif /* GL_ANGLE_stencil_texturing */
 
 #ifndef GL_CHROMIUM_framebuffer_mixed_samples
 #define GL_CHROMIUM_frambuffer_mixed_samples 1
@@ -74,237 +96,6 @@ GL_APICALL void GL_APIENTRY glMatrixLoadfEXT(GLenum matrixMode, const GLfloat *m
 GL_APICALL void GL_APIENTRY glMatrixLoadIdentityEXT(GLenum matrixMode);
 #endif
 #endif /* GL_EXT_direct_state_access */
-
-#ifndef GL_CHROMIUM_path_rendering
-#define GL_CHROMIUM_path_rendering 1
-#define GL_PATH_MODELVIEW_CHROMIUM 0x1700
-#define GL_PATH_PROJECTION_CHROMIUM 0x1701
-#define GL_CLOSE_PATH_CHROMIUM 0x00
-#define GL_MOVE_TO_CHROMIUM 0x02
-#define GL_LINE_TO_CHROMIUM 0x04
-#define GL_QUADRATIC_CURVE_TO_CHROMIUM 0x0A
-#define GL_CUBIC_CURVE_TO_CHROMIUM 0x0C
-#define GL_CONIC_CURVE_TO_CHROMIUM 0x1A
-#define GL_PATH_MODELVIEW_MATRIX_CHROMIUM 0x0BA6
-#define GL_PATH_PROJECTION_MATRIX_CHROMIUM 0x0BA7
-#define GL_PATH_STROKE_WIDTH_CHROMIUM 0x9075
-#define GL_PATH_END_CAPS_CHROMIUM 0x9076
-#define GL_PATH_JOIN_STYLE_CHROMIUM 0x9079
-#define GL_PATH_MITER_LIMIT_CHROMIUM 0x907a
-#define GL_PATH_STROKE_BOUND_CHROMIUM 0x9086
-#define GL_FLAT_CHROMIUM 0x1D00
-#define GL_SQUARE_CHROMIUM 0x90a3
-#define GL_ROUND_CHROMIUM 0x90a4
-#define GL_BEVEL_CHROMIUM 0x90A6
-#define GL_MITER_REVERT_CHROMIUM 0x90A7
-#define GL_COUNT_UP_CHROMIUM 0x9088
-#define GL_COUNT_DOWN_CHROMIUM 0x9089
-#define GL_CONVEX_HULL_CHROMIUM 0x908B
-#define GL_BOUNDING_BOX_CHROMIUM 0x908D
-#define GL_BOUNDING_BOX_OF_BOUNDING_BOXES_CHROMIUM 0x909C
-#define GL_EYE_LINEAR_CHROMIUM 0x2400
-#define GL_OBJECT_LINEAR_CHROMIUM 0x2401
-#define GL_CONSTANT_CHROMIUM 0x8576
-#define GL_TRANSLATE_X_CHROMIUM 0x908E
-#define GL_TRANSLATE_Y_CHROMIUM 0x908F
-#define GL_TRANSLATE_2D_CHROMIUM 0x9090
-#define GL_TRANSLATE_3D_CHROMIUM 0x9091
-#define GL_AFFINE_2D_CHROMIUM 0x9092
-#define GL_AFFINE_3D_CHROMIUM 0x9094
-#define GL_TRANSPOSE_AFFINE_2D_CHROMIUM 0x9096
-#define GL_TRANSPOSE_AFFINE_3D_CHROMIUM 0x9098
-typedef void(GL_APIENTRYP PFNGLMATRIXLOADFCHROMIUMPROC)(GLenum matrixMode, const GLfloat *m);
-typedef void(GL_APIENTRYP PFNGLMATRIXLOADIDENTITYCHROMIUMPROC)(GLenum matrixMode);
-typedef GLuint(GL_APIENTRYP PFNGLGENPATHSCHROMIUMPROC)(GLsizei range);
-typedef void(GL_APIENTRYP PFNGLDELETEPATHSCHROMIUMPROC)(GLuint path, GLsizei range);
-typedef GLboolean(GL_APIENTRYP PFNGLISPATHCHROMIUMPROC)(GLuint path);
-typedef void(GL_APIENTRYP PFNGLPATHCOMMANDSCHROMIUMPROC)(GLuint path,
-                                                         GLsizei numCommands,
-                                                         const GLubyte *commands,
-                                                         GLsizei numCoords,
-                                                         GLenum coordType,
-                                                         const void *coords);
-typedef void(GL_APIENTRYP PFNGLPATHPARAMETERICHROMIUMPROC)(GLuint path, GLenum pname, GLint value);
-typedef void(GL_APIENTRYP PFNGLPATHPARAMETERFCHROMIUMPROC)(GLuint path,
-                                                           GLenum pname,
-                                                           GLfloat value);
-typedef void(GL_APIENTRYP PFNGLGETPATHPARAMETERIVCHROMIUMPROC)(GLuint path,
-                                                               GLenum pname,
-                                                               GLint *value);
-typedef void(GL_APIENTRYP PFNGLGETPATHPARAMETERFVCHROMIUMPROC)(GLuint path,
-                                                               GLenum pname,
-                                                               GLfloat *value);
-typedef void(GL_APIENTRYP PFNGLPATHSTENCILFUNCCHROMIUMPROC)(GLenum func, GLint ref, GLuint mask);
-typedef void(GL_APIENTRYP PFNGLSTENCILFILLPATHCHROMIUMPROC)(GLuint path,
-                                                            GLenum fillMode,
-                                                            GLuint mask);
-typedef void(GL_APIENTRYP PFNGLSTENCILSTROKEPATHCHROMIUMPROC)(GLuint path,
-                                                              GLint reference,
-                                                              GLuint mask);
-typedef void(GL_APIENTRYP PFNGLCOVERFILLPATHCHROMIUMPROC)(GLuint path, GLenum coverMode);
-typedef void(GL_APIENTRYP PFNGLCOVERSTROKEPATHCHROMIUMPROC)(GLuint path, GLenum coverMode);
-typedef void(GL_APIENTRYP PFNGLSTENCILTHENCOVERFILLPATHCHROMIUMPROC)(GLuint path,
-                                                                     GLenum fillMode,
-                                                                     GLuint mask,
-                                                                     GLenum coverMode);
-typedef void(GL_APIENTRYP PFNGLSTENCILTHENCOVERSTROKEPATHCHROMIUMPROC)(GLuint path,
-                                                                       GLint reference,
-                                                                       GLuint mask,
-                                                                       GLenum coverMode);
-typedef void(GL_APIENTRYP PFNGLCOVERFILLPATHINSTANCEDCHROMIUMPROC)(GLsizei numPaths,
-                                                                   GLenum pathNameType,
-                                                                   const void *paths,
-                                                                   GLuint pathBase,
-                                                                   GLenum coverMode,
-                                                                   GLenum transformType,
-                                                                   const GLfloat *transformValues);
-typedef void(GL_APIENTRYP PFNGLCOVERSTROKEPATHINSTANCEDCHROMIUMPROC)(
-    GLsizei numPaths,
-    GLenum pathNameType,
-    const void *paths,
-    GLuint pathBase,
-    GLenum coverMode,
-    GLenum transformType,
-    const GLfloat *transformValues);
-typedef void(GL_APIENTRYP PFNGLSTENCILFILLPATHINSTANCEDCHROMIUMPROC)(
-    GLsizei numPaths,
-    GLenum pathNameType,
-    const void *paths,
-    GLuint pathBase,
-    GLenum fillMode,
-    GLuint mask,
-    GLenum transformType,
-    const GLfloat *transformValues);
-typedef void(GL_APIENTRYP PFNGLSTENCILSTROKEPATHINSTANCEDCHROMIUMPROC)(
-    GLsizei numPaths,
-    GLenum pathNameType,
-    const void *paths,
-    GLuint pathBase,
-    GLint reference,
-    GLuint mask,
-    GLenum transformType,
-    const GLfloat *transformValues);
-typedef void(GL_APIENTRYP PFNGLSTENCILTHENCOVERFILLPATHINSTANCEDCHROMIUMPROC)(
-    GLsizei numPaths,
-    GLenum pathNameType,
-    const void *paths,
-    GLuint pathBase,
-    GLenum fillMode,
-    GLuint mask,
-    GLenum coverMode,
-    GLenum transformType,
-    const GLfloat *transformValues);
-typedef void(GL_APIENTRYP PFNGLSTENCILTHENCOVERSTROKEPATHINSTANCEDCHROMIUMPROC)(
-    GLsizei numPaths,
-    GLenum pathNameType,
-    const void *paths,
-    GLuint pathBase,
-    GLint reference,
-    GLuint mask,
-    GLenum coverMode,
-    GLenum transformType,
-    const GLfloat *transformValues);
-
-typedef void(GL_APIENTRYP PFNGLBINDFRAGMENTINPUTLOCATIONCHROMIUMPROC)(GLuint program,
-                                                                     GLint location,
-                                                                     const GLchar *name);
-typedef void(GL_APIENTRYP PFNGLPROGRAMPATHFRAGMENTINPUTGENCHROMIUMPROC)(GLuint program,
-                                                                        GLint location,
-                                                                        GLenum genMode,
-                                                                        GLint components,
-                                                                        const GLfloat *coeffs);
-#ifdef GL_GLEXT_PROTOTYPES
-GL_APICALL void GL_APIENTRY glMatrixLoadfCHROMIUM(GLenum matrixMode, const GLfloat *m);
-GL_APICALL void GL_APIENTRY glMatrixLoadIdentityCHROMIUM(GLenum matrixMode);
-GL_APICALL GLuint GL_APIENTRY glGenPathsCHROMIUM(GLsizei range);
-GL_APICALL void GL_APIENTRY glDeletePathsCHROMIUM(GLuint path, GLsizei range);
-GL_APICALL GLboolean GL_APIENTRY glIsPathCHROMIUM(GLuint path);
-GL_APICALL void GL_APIENTRY glPathCommandsCHROMIUM(GLuint path,
-                                                   GLsizei numCommands,
-                                                   const GLubyte *commands,
-                                                   GLsizei numCoords,
-                                                   GLenum coordType,
-                                                   const void *coords);
-GL_APICALL void GL_APIENTRY glPathParameteriCHROMIUM(GLuint path, GLenum pname, GLint value);
-GL_APICALL void GL_APIENTRY glPathParameterfCHROMIUM(GLuint path, GLenum pname, GLfloat value);
-GL_APICALL void GL_APIENTRY glGetPathParameterivCHROMIUM(GLuint path, GLenum pname, GLint *value);
-GL_APICALL void GL_APIENTRY glGetPathParameterfvCHROMIUM(GLuint path, GLenum pname, GLfloat *value);
-GL_APICALL void GL_APIENTRY glPathStencilFuncCHROMIUM(GLenum func, GLint ref, GLuint mask);
-GL_APICALL void GL_APIENTRY glStencilFillPathCHROMIUM(GLuint path, GLenum fillMode, GLuint mask);
-GL_APICALL void GL_APIENTRY glStencilStrokePathCHROMIUM(GLuint path, GLint reference, GLuint mask);
-GL_APICALL void GL_APIENTRY glCoverFillPathCHROMIUM(GLuint path, GLenum coverMode);
-GL_APICALL void GL_APIENTRY glCoverStrokePathCHROMIUM(GLuint path, GLenum coverMode);
-GL_APICALL void GL_APIENTRY glStencilThenCoverFillPathCHROMIUM(GLuint path,
-                                                               GLenum fillMode,
-                                                               GLuint mask,
-                                                               GLenum coverMode);
-GL_APICALL void GL_APIENTRY glStencilThenCoverStrokePathCHROMIUM(GLuint path,
-                                                                 GLint reference,
-                                                                 GLuint mask,
-                                                                 GLenum coverMode);
-GL_APICALL void GL_APIENTRY glCoverFillPathInstancedCHROMIUM(GLsizei numPaths,
-                                                             GLenum pathNameType,
-                                                             const void *paths,
-                                                             GLuint pathBase,
-                                                             GLenum coverMode,
-                                                             GLenum transformType,
-                                                             const GLfloat *transformValues);
-GL_APICALL void GL_APIENTRY glCoverStrokePathInstancedCHROMIUM(GLsizei numPaths,
-                                                               GLenum pathNameType,
-                                                               const void *paths,
-                                                               GLuint pathBase,
-                                                               GLenum coverMode,
-                                                               GLenum transformType,
-                                                               const GLfloat *transformValues);
-GL_APICALL void GL_APIENTRY glStencilFillPathInstancedCHROMIUM(GLsizei numPaths,
-                                                               GLenum pathNameType,
-                                                               const void *paths,
-                                                               GLuint pathBase,
-                                                               GLenum fillMode,
-                                                               GLuint mask,
-                                                               GLenum transformType,
-                                                               const GLfloat *transformValues);
-GL_APICALL void GL_APIENTRY glStencilStrokePathInstancedCHROMIUM(GLsizei numPaths,
-                                                                 GLenum pathNameType,
-                                                                 const void *paths,
-                                                                 GLuint pathBase,
-                                                                 GLint reference,
-                                                                 GLuint mask,
-                                                                 GLenum transformType,
-                                                                 const GLfloat *transformValues);
-GL_APICALL void GL_APIENTRY
-glStencilThenCoverFillPathInstancedCHROMIUM(GLsizei numPaths,
-                                            GLenum pathNameType,
-                                            const void *paths,
-                                            GLuint pathBase,
-                                            GLenum fillMode,
-                                            GLuint mask,
-                                            GLenum coverMode,
-                                            GLenum transformType,
-                                            const GLfloat *transformValues);
-
-GL_APICALL void GL_APIENTRY
-glStencilThenCoverStrokePathInstancedCHROMIUM(GLsizei numPaths,
-                                              GLenum pathNameType,
-                                              const void *paths,
-                                              GLuint pathBase,
-                                              GLint reference,
-                                              GLuint mask,
-                                              GLenum coverMode,
-                                              GLenum transformType,
-                                              const GLfloat *transformValues);
-
-GL_APICALL void GL_APIENTRY glBindFragmentInputLocationCHROMIUM(GLuint program,
-                                                                GLint location,
-                                                                const GLchar *name);
-GL_APICALL void GL_APIENTRY glProgramPathFragmentInputGenCHROMIUM(GLuint program,
-                                                                  GLint location,
-                                                                  GLenum genMode,
-                                                                  GLint components,
-                                                                  const GLfloat *coeffs);
-
-#endif
-#endif /* GL_CHROMIUM_path_rendering */
 
 #ifndef GL_CHROMIUM_copy_texture
 #define GL_CHROMIUM_copy_texture 1
@@ -631,15 +422,15 @@ GL_APICALL void GL_APIENTRY glSampleMaskiANGLE(GLuint maskNumber, GLbitfield mas
 #endif
 #endif  // !GL_ANGLE_texture_multisample
 
-#ifndef GL_ANGLE_explicit_context
-#define GL_ANGLE_explicit_context
-typedef void *GLeglContext;
-#include "gl2ext_explicit_context_autogen.inc"
-#include "../GLES3/gl3ext_explicit_context_autogen.inc"
-#include "../GLES3/gl31ext_explicit_context_autogen.inc"
-#include "../GLES3/gl32.h"
-#include "../GLES3/gl32ext_explicit_context_autogen.inc"
-#endif /* GL_ANGLE_explicit_context */
+#ifndef GL_ANGLE_get_tex_level_parameter
+#define GL_ANGLE_get_tex_level_parameter 1
+typedef void(GL_APIENTRYP PFNGLGETTEXLEVELPARAMETERFVANGLEPROC)(GLenum target, GLint level, GLenum pname, GLfloat *params);
+typedef void(GL_APIENTRYP PFNGLGETTEXLEVELPARAMETERIVANGLEPROC)(GLenum target, GLint level, GLenum pname, GLint *params);
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glGetTexLevelParameterfvANGLE(GLenum target, GLint level, GLenum pname, GLfloat *params);
+GL_APICALL void GL_APIENTRY glGetTexLevelParameterivANGLE(GLenum target, GLint level, GLenum pname, GLint *params);
+#endif
+#endif /* GL_ANGLE_get_tex_level_parameter */
 
 #ifndef GL_ANGLE_multi_draw
 #define GL_ANGLE_multi_draw 1
@@ -700,13 +491,231 @@ GL_APICALL void GL_APIENTRY glInvalidateTextureANGLE (GLenum target);
 #ifndef GL_ANGLE_get_image
 #define GL_ANGLE_get_image
 typedef void (GL_APIENTRYP PFNGLGETTEXIMAGEANGLEPROC) (GLenum target, GLint level, GLenum format, GLenum type, void *pixels);
+typedef void (GL_APIENTRYP PFNGLGETCOMPRESSEDTEXIMAGEANGLEPROC) (GLenum target, GLint level, void *pixels);
 typedef void (GL_APIENTRYP PFNGLGETRENDERBUFFERIMAGEANGLEPROC) (GLenum target, GLenum format, GLenum type, void *pixels);
 #ifdef GL_GLEXT_PROTOTYPES
 GL_APICALL void GL_APIENTRY glGetTexImageANGLE (GLenum target, GLint level, GLenum format, GLenum type, void *pixels);
+GL_APICALL void GL_APIENTRY glGetCompressedTexImageANGLE (GLenum target, GLint level, void *pixels);
 GL_APICALL void GL_APIENTRY glGetRenderbufferImageANGLE (GLenum target, GLenum format, GLenum type, void *pixels);
 #endif
-#endif /* GL_ANGLE_texture_external_update */
+#endif /* GL_ANGLE_get_image */
+
+#ifndef GL_WEBGL_video_texture
+#define GL_WEBGL_video_texture 1
+#define GL_TEXTURE_VIDEO_IMAGE_WEBGL 0x9248
+#define GL_SAMPLER_VIDEO_IMAGE_WEBGL 0x9249
+#endif /* GL_WEBGL_video_texture */
+
+#ifndef GL_ANGLE_memory_object_flags
+#define GL_ANGLE_memory_object_flags 1
+#define GL_CREATE_SPARSE_BINDING_BIT_ANGLE                    0x00000001
+#define GL_CREATE_SPARSE_RESIDENCY_BIT_ANGLE                  0x00000002
+#define GL_CREATE_SPARSE_ALIASED_BIT_ANGLE                    0x00000004
+#define GL_CREATE_MUTABLE_FORMAT_BIT_ANGLE                    0x00000008
+#define GL_CREATE_CUBE_COMPATIBLE_BIT_ANGLE                   0x00000010
+#define GL_CREATE_ALIAS_BIT_ANGLE                             0x00000400
+#define GL_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_ANGLE       0x00000040
+#define GL_CREATE_2D_ARRAY_COMPATIBLE_BIT_ANGLE               0x00000020
+#define GL_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT_ANGLE       0x00000080
+#define GL_CREATE_EXTENDED_USAGE_BIT_ANGLE                    0x00000100
+#define GL_CREATE_PROTECTED_BIT_ANGLE                         0x00000800
+#define GL_CREATE_DISJOINT_BIT_ANGLE                          0x00000200
+#define GL_CREATE_CORNER_SAMPLED_BIT_ANGLE                    0x00002000
+#define GL_CREATE_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_ANGLE 0x00001000
+#define GL_CREATE_SUBSAMPLED_BIT_ANGLE                        0x00004000
+#define GL_USAGE_TRANSFER_SRC_BIT_ANGLE                       0x00000001
+#define GL_USAGE_TRANSFER_DST_BIT_ANGLE                       0x00000002
+#define GL_USAGE_SAMPLED_BIT_ANGLE                            0x00000004
+#define GL_USAGE_STORAGE_BIT_ANGLE                            0x00000008
+#define GL_USAGE_COLOR_ATTACHMENT_BIT_ANGLE                   0x00000010
+#define GL_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT_ANGLE           0x00000020
+#define GL_USAGE_TRANSIENT_ATTACHMENT_BIT_ANGLE               0x00000040
+#define GL_USAGE_INPUT_ATTACHMENT_BIT_ANGLE                   0x00000080
+#define GL_USAGE_SHADING_RATE_IMAGE_BIT_ANGLE                 0x00000100
+#define GL_USAGE_FRAGMENT_DENSITY_MAP_BIT_ANGLE               0x00000200
+typedef void (GL_APIENTRYP PFNGLTEXSTORAGEMEMFLAGS2DANGLEPROC) (GLenum target, GLsizei levels, GLenum internalFormat, GLsizei width, GLsizei height, GLuint memory, GLuint64 offset, GLbitfield createFlags, GLbitfield usageFlags, const void *imageCreateInfoPNext);
+typedef void (GL_APIENTRYP PFNGLTEXSTORAGEMEMFLAGS2DMULTISAMPLEANGLEPROC) (GLenum target, GLsizei samples, GLenum internalFormat, GLsizei width, GLsizei height, GLboolean fixedSampleLocations, GLuint memory, GLuint64 offset, GLbitfield createFlags, GLbitfield usageFlags, const void *imageCreateInfoPNext);
+typedef void (GL_APIENTRYP PFNGLTEXSTORAGEMEMFLAGS3DANGLEPROC) (GLenum target, GLsizei levels, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLuint memory, GLuint64 offset, GLbitfield createFlags, GLbitfield usageFlags, const void *imageCreateInfoPNext);
+typedef void (GL_APIENTRYP PFNGLTEXSTORAGEMEMFLAGS3DMULTISAMPLEANGLEPROC) (GLenum target, GLsizei samples, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedSampleLocations, GLuint memory, GLuint64 offset, GLbitfield createFlags, GLbitfield usageFlags, const void *imageCreateInfoPNext);
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glTexStorageMemFlags2DANGLE (GLenum target, GLsizei levels, GLenum internalFormat, GLsizei width, GLsizei height, GLuint memory, GLuint64 offset, GLbitfield createFlags, GLbitfield usageFlags, const void *imageCreateInfoPNext);
+GL_APICALL void GL_APIENTRY glTexStorageMemFlags2DMultisampleANGLE (GLenum target, GLsizei samples, GLenum internalFormat, GLsizei width, GLsizei height, GLboolean fixedSampleLocations, GLuint memory, GLuint64 offset, GLbitfield createFlags, GLbitfield usageFlags, const void *imageCreateInfoPNext);
+GL_APICALL void GL_APIENTRY glTexStorageMemFlags3DANGLE (GLenum target, GLsizei levels, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLuint memory, GLuint64 offset, GLbitfield createFlags, GLbitfield usageFlags, const void *imageCreateInfoPNext);
+GL_APICALL void GL_APIENTRY glTexStorageMemFlags3DMultisampleANGLE (GLenum target, GLsizei samples, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedSampleLocations, GLuint memory, GLuint64 offset, GLbitfield createFlags, GLbitfield usageFlags, const void *imageCreateInfoPNext);
+#endif
+#endif /* GL_ANGLE_memory_object_flags */
+
+#ifndef GL_ANGLE_memory_object_fuchsia
+#define GL_ANGLE_memory_object_fuchsia 1
+#define GL_HANDLE_TYPE_ZIRCON_VMO_ANGLE 0x93AE
+typedef void(GL_APIENTRYP PFNGLIMPORTMEMORYZIRCONHANDLEANGLEPROC)(GLuint memory,
+                                                                  GLuint64 size,
+                                                                  GLenum handleType,
+                                                                  GLuint handle);
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glImportMemoryZirconHandleANGLE(GLuint memory,
+                                                            GLuint64 size,
+                                                            GLenum handleType,
+                                                            GLuint handle);
+#endif
+#endif /* GL_ANGLE_memory_object_fuchsia */
+
+#ifndef GL_ANGLE_semaphore_fuchsia
+#define GL_ANGLE_semaphore_fuchsia 1
+#define GL_HANDLE_TYPE_ZIRCON_EVENT_ANGLE 0x93AF
+typedef void(GL_APIENTRYP PFNGLIMPORTSEMAPHOREZIRCONHANDLEANGLEPROC)(GLuint semaphore,
+                                                                     GLenum handleType,
+                                                                     GLuint handle);
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glImportSemaphoreZirconHandleANGLE(GLuint memory,
+                                                               GLenum handleType,
+                                                               GLuint handle);
+#endif
+#endif /* GL_ANGLE_semaphore_fuchsia */
+
+#ifndef GL_ANGLE_vulkan_image
+#define GL_ANGLE_vulkan_image 1
+typedef void(GL_APIENTRYP PFNGLACQUIRETEXTURESANGLEPROC)(GLuint numTexture, const GLuint *textures, const GLenum *layouts);
+typedef void(GL_APIENTRYP PFNGLRELEASETEXTURESANGLEPROC)(GLuint numTexture, const GLuint *textures, GLenum *layouts);
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glAcquireTexturesANGLE(GLuint numTexture, const GLuint *textures, const GLenum *layouts);
+GL_APICALL void GL_APIENTRY glReleaseTexturesANGLE(GLuint numTexture, const GLuint *textures, GLenum *layouts);
+#endif
+#endif /* GL_ANGLE_vulkan_image */
+
+#ifndef GL_CHROMIUM_texture_filtering_hint
+#define GL_CHROMIUM_texture_filtering_hint
+#define GL_TEXTURE_FILTERING_HINT_CHROMIUM 0x8AF0
+#endif /* GL_CHROMIUM_texture_filtering_hint */
+
+#ifndef GL_NV_robustness_video_memory
+#define GL_NV_robustness_video_memory
+#define GL_PURGED_CONTEXT_RESET_NV 0x92BB
+#endif /* GL_NV_robustness_video_memory */
+
+#ifndef GL_ANGLE_get_serialized_context_string
+#define GL_ANGLE_get_serialized_context_string
+#define GL_SERIALIZED_CONTEXT_STRING_ANGLE 0x96B0
+#endif /* GL_ANGLE_get_serialized_context_string */
+
+#ifndef GL_ANGLE_robust_fragment_shader_output
+#define GL_ANGLE_robust_fragment_shader_output
+#define GL_ROBUST_FRAGMENT_SHADER_OUTPUT_ANGLE 0x96B9
+#endif /* GL_ANGLE_robust_fragment_shader_output */
+
+#ifndef GL_ANGLE_shader_pixel_local_storage
+#define GL_ANGLE_shader_pixel_local_storage 1
+#define GL_MAX_PIXEL_LOCAL_STORAGE_PLANES_ANGLE 0x96E0
+#define GL_MAX_COLOR_ATTACHMENTS_WITH_ACTIVE_PIXEL_LOCAL_STORAGE_ANGLE 0x96E1
+#define GL_MAX_COMBINED_DRAW_BUFFERS_AND_PIXEL_LOCAL_STORAGE_PLANES_ANGLE 0x96E2
+#define GL_PIXEL_LOCAL_STORAGE_ACTIVE_PLANES_ANGLE 0x96E3
+#define GL_LOAD_OP_ZERO_ANGLE 0x96E4
+#define GL_LOAD_OP_CLEAR_ANGLE 0x96E5
+#define GL_LOAD_OP_LOAD_ANGLE 0x96E6
+#define GL_STORE_OP_STORE_ANGLE 0x96E7
+#define GL_PIXEL_LOCAL_FORMAT_ANGLE 0x96E8
+#define GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE 0x96E9
+#define GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE 0x96EA
+#define GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE 0x96EB
+#define GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE 0x96EC
+#define GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE 0x96ED
+#define GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE 0x96EE
+typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERMEMORYLESSPIXELLOCALSTORAGEANGLEPROC) (GLint plane, GLenum internalformat);
+typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERTEXTUREPIXELLOCALSTORAGEANGLEPROC) (GLint plane, GLuint backingtexture, GLint level, GLint layer);
+typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERPIXELLOCALCLEARVALUEFVANGLEPROC) (GLint plane, const GLfloat value[]);
+typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERPIXELLOCALCLEARVALUEIVANGLEPROC) (GLint plane, const GLint value[]);
+typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERPIXELLOCALCLEARVALUEUIVANGLEPROC) (GLint plane, const GLuint value[]);
+typedef void (GL_APIENTRYP PFNGLBEGINPIXELLOCALSTORAGEANGLEPROC) (GLsizei n, const GLenum loadops[]);
+typedef void (GL_APIENTRYP PFNGLENDPIXELLOCALSTORAGEANGLEPROC) (GLsizei n, const GLenum storeops[]);
+typedef void (GL_APIENTRYP PFNGLPIXELLOCALSTORAGEBARRIERANGLEPROC) (void);
+typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERPIXELLOCALSTORAGEINTERRUPTANGLEPROC) (void);
+typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERPIXELLOCALSTORAGERESTOREANGLEPROC) (void);
+typedef void (GL_APIENTRYP PFNGLGETFRAMEBUFFERPIXELLOCALSTORAGEPARAMETERFVANGLEPROC) (GLint plane, GLenum pname, GLfloat *params);
+typedef void (GL_APIENTRYP PFNGLGETFRAMEBUFFERPIXELLOCALSTORAGEPARAMETERIVANGLEPROC) (GLint plane, GLenum pname, GLint *params);
+typedef void (GL_APIENTRYP PFNGLGETFRAMEBUFFERPIXELLOCALSTORAGEPARAMETERFVROBUSTANGLEPROC) (GLint plane, GLenum pname, GLsizei bufSize, GLsizei *length, GLfloat *params);
+typedef void (GL_APIENTRYP PFNGLGETFRAMEBUFFERPIXELLOCALSTORAGEPARAMETERIVROBUSTANGLEPROC) (GLint plane, GLenum pname, GLsizei bufSize, GLsizei *length, GLint *params);
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glFramebufferMemorylessPixelLocalStorageANGLE (GLint plane, GLenum internalformat);
+GL_APICALL void GL_APIENTRY glFramebufferTexturePixelLocalStorageANGLE (GLint plane, GLuint backingtexture, GLint level, GLint layer);
+GL_APICALL void GL_APIENTRY glFramebufferPixelLocalClearValuefvANGLE (GLint plane, const GLfloat value[]);
+GL_APICALL void GL_APIENTRY glFramebufferPixelLocalClearValueivANGLE (GLint plane, const GLint value[]);
+GL_APICALL void GL_APIENTRY glFramebufferPixelLocalClearValueuivANGLE (GLint plane, const GLuint value[]);
+GL_APICALL void GL_APIENTRY glBeginPixelLocalStorageANGLE (GLsizei n, const GLenum loadops[]);
+GL_APICALL void GL_APIENTRY glEndPixelLocalStorageANGLE (GLsizei n, const GLenum storeops[]);
+GL_APICALL void GL_APIENTRY glPixelLocalStorageBarrierANGLE (void);
+GL_APICALL void GL_APIENTRY glFramebufferPixelLocalStorageInterruptANGLE (void);
+GL_APICALL void GL_APIENTRY glFramebufferPixelLocalStorageRestoreANGLE (void);
+GL_APICALL void GL_APIENTRY glGetFramebufferPixelLocalStorageParameterfvANGLE (GLint plane, GLenum pname, GLfloat *params);
+GL_APICALL void GL_APIENTRY glGetFramebufferPixelLocalStorageParameterivANGLE (GLint plane, GLenum pname, GLint *params);
+GL_APICALL void GL_APIENTRY glGetFramebufferPixelLocalStorageParameterfvRobustANGLE (GLint plane, GLenum pname, GLsizei bufSize, GLsizei *length, GLfloat *params);
+GL_APICALL void GL_APIENTRY glGetFramebufferPixelLocalStorageParameterivRobustANGLE (GLint plane, GLenum pname, GLsizei bufSize, GLsizei *length, GLint *params);
+#endif
+#endif /* GL_ANGLE_shader_pixel_local_storage */
 
 // clang-format on
+
+#ifndef GL_ANGLE_yuv_internal_format
+#define GL_ANGLE_yuv_internal_format
+
+// YUV formats introduced by GL_ANGLE_yuv_internal_format
+// 8-bit YUV formats
+#define GL_G8_B8R8_2PLANE_420_UNORM_ANGLE 0x96B1
+#define GL_G8_B8_R8_3PLANE_420_UNORM_ANGLE 0x96B2
+
+// 10-bit YUV formats
+#define GL_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16_ANGLE 0x96B3
+#define GL_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16_ANGLE 0x96B4
+
+// 12-bit YUV formats
+#define GL_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16_ANGLE 0x96B5
+#define GL_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16_ANGLE 0x96B6
+
+// 16-bit YUV formats
+#define GL_G16_B16R16_2PLANE_420_UNORM_ANGLE 0x96B7
+#define GL_G16_B16_R16_3PLANE_420_UNORM_ANGLE 0x96B8
+
+#endif /* GL_ANGLE_yuv_internal_format */
+
+#ifndef GL_ANGLE_rgbx_internal_format
+#define GL_ANGLE_rgbx_internal_format
+
+#define GL_RGBX8_ANGLE 0x96BA
+
+#endif /* GL_ANGLE_rgbx_internal_format */
+
+#ifndef GL_ANGLE_shader_binary
+#define GL_ANGLE_shader_binary
+
+// General shader binary format
+#define GL_SHADER_BINARY_ANGLE 0x96BB
+
+#endif /* GL_ANGLE_shader_binary */
+
+#ifndef GL_ANGLE_logic_op
+#define GL_ANGLE_logic_op
+
+// Enums identical to GLES1 and desktop GL
+#define GL_COLOR_LOGIC_OP_ANGLE          0x0BF2
+#define GL_LOGIC_OP_CLEAR_ANGLE          0x1500
+#define GL_LOGIC_OP_AND_ANGLE            0x1501
+#define GL_LOGIC_OP_AND_REVERSE_ANGLE    0x1502
+#define GL_LOGIC_OP_COPY_ANGLE           0x1503
+#define GL_LOGIC_OP_AND_INVERTED_ANGLE   0x1504
+#define GL_LOGIC_OP_NOOP_ANGLE           0x1505
+#define GL_LOGIC_OP_XOR_ANGLE            0x1506
+#define GL_LOGIC_OP_OR_ANGLE             0x1507
+#define GL_LOGIC_OP_NOR_ANGLE            0x1508
+#define GL_LOGIC_OP_EQUIV_ANGLE          0x1509
+#define GL_LOGIC_OP_INVERT_ANGLE         0x150A
+#define GL_LOGIC_OP_OR_REVERSE_ANGLE     0x150B
+#define GL_LOGIC_OP_COPY_INVERTED_ANGLE  0x150C
+#define GL_LOGIC_OP_OR_INVERTED_ANGLE    0x150D
+#define GL_LOGIC_OP_NAND_ANGLE           0x150E
+#define GL_LOGIC_OP_SET_ANGLE            0x150F
+typedef void (GL_APIENTRYP PFNGLLOGICOPANGLEPROC) (GLenum);
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glLogicOpANGLE (GLenum);
+#endif
+#endif /* GL_ANGLE_logic_op */
 
 #endif  // INCLUDE_GLES2_GL2EXT_ANGLE_H_

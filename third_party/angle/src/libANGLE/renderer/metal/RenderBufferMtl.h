@@ -27,13 +27,14 @@ class RenderbufferMtl : public RenderbufferImpl
 
     angle::Result setStorage(const gl::Context *context,
                              GLenum internalformat,
-                             size_t width,
-                             size_t height) override;
+                             GLsizei width,
+                             GLsizei height) override;
     angle::Result setStorageMultisample(const gl::Context *context,
-                                        size_t samples,
+                                        GLsizei samples,
                                         GLenum internalformat,
-                                        size_t width,
-                                        size_t height) override;
+                                        GLsizei width,
+                                        GLsizei height,
+                                        gl::MultisamplingMode mode) override;
     angle::Result setStorageEGLImageTarget(const gl::Context *context, egl::Image *image) override;
 
     angle::Result getAttachmentRenderTarget(const gl::Context *context,
@@ -43,19 +44,21 @@ class RenderbufferMtl : public RenderbufferImpl
                                             FramebufferAttachmentRenderTarget **rtOut) override;
 
     angle::Result initializeContents(const gl::Context *context,
+                                     GLenum binding,
                                      const gl::ImageIndex &imageIndex) override;
 
   private:
     angle::Result setStorageImpl(const gl::Context *context,
-                                 size_t samples,
+                                 GLsizei samples,
                                  GLenum internalformat,
-                                 size_t width,
-                                 size_t height);
+                                 GLsizei width,
+                                 GLsizei height);
 
     void releaseTexture();
 
     mtl::Format mFormat;
     mtl::TextureRef mTexture;
+    mtl::TextureRef mImplicitMSTexture;
     RenderTargetMtl mRenderTarget;
 };
 

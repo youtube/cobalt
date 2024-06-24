@@ -30,8 +30,6 @@ class SurfaceD3D : public SurfaceImpl
     void releaseSwapChain();
 
     egl::Error initialize(const egl::Display *display) override;
-    FramebufferImpl *createDefaultFramebuffer(const gl::Context *context,
-                                              const gl::FramebufferState &state) override;
 
     egl::Error swap(const gl::Context *context) override;
     egl::Error postSubBuffer(const gl::Context *context,
@@ -45,6 +43,7 @@ class SurfaceD3D : public SurfaceImpl
                             EGLint buffer) override;
     egl::Error releaseTexImage(const gl::Context *context, EGLint buffer) override;
     egl::Error getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc) override;
+    egl::Error getMscRate(EGLint *numerator, EGLint *denominator) override;
     void setSwapInterval(EGLint interval) override;
     void setFixedWidth(EGLint width) override;
     void setFixedHeight(EGLint height) override;
@@ -68,9 +67,15 @@ class SurfaceD3D : public SurfaceImpl
                                             GLsizei samples,
                                             FramebufferAttachmentRenderTarget **rtOut) override;
     angle::Result initializeContents(const gl::Context *context,
+                                     GLenum binding,
                                      const gl::ImageIndex &imageIndex) override;
 
     const angle::Format *getD3DTextureColorFormat() const override;
+
+    egl::Error attachToFramebuffer(const gl::Context *context,
+                                   gl::Framebuffer *framebuffer) override;
+    egl::Error detachFromFramebuffer(const gl::Context *context,
+                                     gl::Framebuffer *framebuffer) override;
 
     IUnknown *getD3DTexture() const
     {
@@ -118,6 +123,7 @@ class SurfaceD3D : public SurfaceImpl
 
     HANDLE mShareHandle;
     IUnknown *mD3DTexture;
+
     EGLenum mBuftype;
     bool mBindChroma;
 };

@@ -18,20 +18,26 @@ using namespace sh;
 class EmulateGLDrawIDTest : public MatchOutputCodeTest
 {
   public:
-    EmulateGLDrawIDTest()
-        : MatchOutputCodeTest(GL_VERTEX_SHADER, SH_VARIABLES, SH_GLSL_COMPATIBILITY_OUTPUT)
+    EmulateGLDrawIDTest() : MatchOutputCodeTest(GL_VERTEX_SHADER, SH_GLSL_COMPATIBILITY_OUTPUT)
     {
+        ShCompileOptions defaultCompileOptions = {};
+        defaultCompileOptions.variables        = true;
+        setDefaultCompileOptions(defaultCompileOptions);
+
         getResources()->ANGLE_multi_draw = 1;
     }
 
   protected:
     void CheckCompileFailure(const std::string &shaderString, const char *expectedError = nullptr)
     {
+        ShCompileOptions compileOptions = {};
+        compileOptions.variables        = true;
+
         std::string translatedCode;
         std::string infoLog;
         bool success = compileTestShader(GL_VERTEX_SHADER, SH_GLES2_SPEC,
                                          SH_GLSL_COMPATIBILITY_OUTPUT, shaderString, getResources(),
-                                         SH_VARIABLES, &translatedCode, &infoLog);
+                                         compileOptions, &translatedCode, &infoLog);
         EXPECT_FALSE(success);
         if (expectedError)
         {
@@ -61,10 +67,14 @@ TEST_F(EmulateGLDrawIDTest, CheckCompile)
         "   gl_Position = vec4(float(gl_DrawID), 0.0, 0.0, 1.0);\n"
         "}\n";
 
-    compile(shaderString, SH_OBJECT_CODE | SH_VARIABLES | SH_EMULATE_GL_DRAW_ID);
-    compile("#version 100\n" + shaderString, SH_OBJECT_CODE | SH_VARIABLES | SH_EMULATE_GL_DRAW_ID);
-    compile("#version 300 es\n" + shaderString,
-            SH_OBJECT_CODE | SH_VARIABLES | SH_EMULATE_GL_DRAW_ID);
+    ShCompileOptions compileOptions = {};
+    compileOptions.objectCode       = true;
+    compileOptions.variables        = true;
+    compileOptions.emulateGLDrawID  = true;
+
+    compile(shaderString, compileOptions);
+    compile("#version 100\n" + shaderString, compileOptions);
+    compile("#version 300 es\n" + shaderString, compileOptions);
 }
 
 // Check that gl_DrawID is properly emulated
@@ -73,7 +83,7 @@ TEST_F(EmulateGLDrawIDTest, EmulatesUniform)
     addOutputType(SH_GLSL_COMPATIBILITY_OUTPUT);
     addOutputType(SH_ESSL_OUTPUT);
 #ifdef ANGLE_ENABLE_VULKAN
-    addOutputType(SH_GLSL_VULKAN_OUTPUT);
+    addOutputType(SH_SPIRV_VULKAN_OUTPUT);
 #endif
 #ifdef ANGLE_ENABLE_HLSL
     addOutputType(SH_HLSL_3_0_OUTPUT);
@@ -86,7 +96,11 @@ TEST_F(EmulateGLDrawIDTest, EmulatesUniform)
         "   gl_Position = vec4(float(gl_DrawID), 0.0, 0.0, 1.0);\n"
         "}\n";
 
-    compile(shaderString, SH_OBJECT_CODE | SH_VARIABLES | SH_EMULATE_GL_DRAW_ID);
+    ShCompileOptions compileOptions = {};
+    compileOptions.objectCode       = true;
+    compileOptions.variables        = true;
+    compileOptions.emulateGLDrawID  = true;
+    compile(shaderString, compileOptions);
 
     EXPECT_TRUE(notFoundInCode("gl_DrawID"));
     EXPECT_TRUE(foundInCode("angle_DrawID"));
@@ -95,10 +109,6 @@ TEST_F(EmulateGLDrawIDTest, EmulatesUniform)
     EXPECT_TRUE(foundInCode(SH_GLSL_COMPATIBILITY_OUTPUT, "uniform int angle_DrawID"));
     EXPECT_TRUE(foundInCode(SH_ESSL_OUTPUT, "uniform highp int angle_DrawID"));
 
-#ifdef ANGLE_ENABLE_VULKAN
-    EXPECT_TRUE(
-        foundInCode(SH_GLSL_VULKAN_OUTPUT, "uniform defaultUniforms\n{\n    int angle_DrawID;"));
-#endif
 #ifdef ANGLE_ENABLE_HLSL
     EXPECT_TRUE(foundInCode(SH_HLSL_3_0_OUTPUT, "uniform int angle_DrawID : register"));
     EXPECT_TRUE(foundInCode(SH_HLSL_3_0_OUTPUT, "uniform int angle_DrawID : register"));
@@ -148,7 +158,7 @@ TEST_F(EmulateGLDrawIDTest, AllowsUserDefinedANGLEDrawID)
     addOutputType(SH_GLSL_COMPATIBILITY_OUTPUT);
     addOutputType(SH_ESSL_OUTPUT);
 #ifdef ANGLE_ENABLE_VULKAN
-    addOutputType(SH_GLSL_VULKAN_OUTPUT);
+    addOutputType(SH_SPIRV_VULKAN_OUTPUT);
 #endif
 #ifdef ANGLE_ENABLE_HLSL
     addOutputType(SH_HLSL_3_0_OUTPUT);
@@ -162,7 +172,11 @@ TEST_F(EmulateGLDrawIDTest, AllowsUserDefinedANGLEDrawID)
         "   gl_Position = vec4(float(angle_DrawID + gl_DrawID), 0.0, 0.0, 1.0);\n"
         "}\n";
 
-    compile(shaderString, SH_OBJECT_CODE | SH_VARIABLES | SH_EMULATE_GL_DRAW_ID);
+    ShCompileOptions compileOptions = {};
+    compileOptions.objectCode       = true;
+    compileOptions.variables        = true;
+    compileOptions.emulateGLDrawID  = true;
+    compile(shaderString, compileOptions);
 
     // " angle_DrawID" (note the space) should appear exactly twice:
     //    once in the declaration and once in the body.
