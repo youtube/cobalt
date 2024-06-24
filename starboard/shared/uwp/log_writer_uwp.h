@@ -17,16 +17,17 @@
 
 #include <ppltasks.h>
 
-#include "starboard/common/scoped_ptr.h"
+#include <memory>
+
 #include "starboard/shared/uwp/log_writer_interface.h"
 
 namespace starboard {
 namespace shared {
 namespace uwp {
 
-starboard::scoped_ptr<ILogWriter> CreateLogWriterUWP(
-    Windows::Storage::StorageFolder ^ folder,
-    const char* filename);
+std::unique_ptr<ILogWriter> CreateLogWriterUWP(Windows::Storage::StorageFolder ^
+                                                   folder,
+                                               const char* filename);
 
 }  // namespace uwp
 }  // namespace shared

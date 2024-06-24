@@ -36,6 +36,7 @@
 #include "vp8/common/swapyv12buffer.h"
 #include "vp8/common/threading.h"
 #include "vpx_ports/system_state.h"
+#include "vpx_ports/vpx_once.h"
 #include "vpx_ports/vpx_timer.h"
 #include "vpx_util/vpx_write_yuv_frame.h"
 #if VPX_ARCH_ARM
@@ -327,8 +328,8 @@ void vp8_init_temporal_layer_context(VP8_COMP *cpi, VP8_CONFIG *oxcf,
 // for any "new" layers. For "existing" layers, let them inherit the parameters
 // from the previous layer state (at the same layer #). In future we may want
 // to better map the previous layer state(s) to the "new" ones.
-static void reset_temporal_layer_change(VP8_COMP *cpi, VP8_CONFIG *oxcf,
-                                        const int prev_num_layers) {
+void vp8_reset_temporal_layer_change(VP8_COMP *cpi, VP8_CONFIG *oxcf,
+                                     const int prev_num_layers) {
   int i;
   double prev_layer_framerate = 0;
   const int curr_num_layers = cpi->oxcf.number_of_layers;
@@ -394,15 +395,12 @@ static void setup_features(VP8_COMP *cpi) {
 
 static void dealloc_raw_frame_buffers(VP8_COMP *cpi);
 
-void vp8_initialize_enc(void) {
-  static volatile int init_done = 0;
-
-  if (!init_done) {
-    vpx_dsp_rtcd();
-    vp8_init_intra_predictors();
-    init_done = 1;
-  }
+static void initialize_enc(void) {
+  vpx_dsp_rtcd();
+  vp8_init_intra_predictors();
 }
+
+void vp8_initialize_enc(void) { once(initialize_enc); }
 
 static void dealloc_compressor_data(VP8_COMP *cpi) {
   vpx_free(cpi->tplist);
@@ -1023,7 +1021,7 @@ void vp8_set_speed_features(VP8_COMP *cpi) {
 
       memset(cpi->mb.error_bins, 0, sizeof(cpi->mb.error_bins));
 
-  }; /* switch */
+  } /* switch */
 
   /* Slow quant, dct and trellis not worthwhile for first pass
    * so make sure they are always turned off.
@@ -1445,6 +1443,11 @@ void vp8_change_config(VP8_COMP *cpi, VP8_CONFIG *oxcf) {
   last_h = cpi->oxcf.Height;
   prev_number_of_layers = cpi->oxcf.number_of_layers;
 
+  if (cpi->initial_width) {
+    // TODO(https://crbug.com/1486441): Allow changing thread counts; the
+    // allocation is done once in vp8_create_compressor().
+    oxcf->multi_threaded = cpi->oxcf.multi_threaded;
+  }
   cpi->oxcf = *oxcf;
 
   switch (cpi->oxcf.Mode) {
@@ -1645,7 +1648,7 @@ void vp8_change_config(VP8_COMP *cpi, VP8_CONFIG *oxcf) {
       cpi->temporal_layer_id = 0;
     }
     cpi->temporal_pattern_counter = 0;
-    reset_temporal_layer_change(cpi, oxcf, prev_number_of_layers);
+    vp8_reset_temporal_layer_change(cpi, oxcf, prev_number_of_layers);
   }
 
   if (!cpi->initial_width) {
@@ -1669,7 +1672,7 @@ void vp8_change_config(VP8_COMP *cpi, VP8_CONFIG *oxcf) {
 
   cm->sharpness_level = cpi->oxcf.Sharpness;
 
-  if (cm->horiz_scale != NORMAL || cm->vert_scale != NORMAL) {
+  if (cm->horiz_scale != VP8E_NORMAL || cm->vert_scale != VP8E_NORMAL) {
     int hr, hs, vr, vs;
 
     Scale2Ratio(cm->horiz_scale, &hr, &hs);
@@ -2014,36 +2017,26 @@ struct VP8_COMP *vp8_create_compressor(VP8_CONFIG *oxcf) {
   cpi->fn_ptr[BLOCK_16X16].sdf = vpx_sad16x16;
   cpi->fn_ptr[BLOCK_16X16].vf = vpx_variance16x16;
   cpi->fn_ptr[BLOCK_16X16].svf = vpx_sub_pixel_variance16x16;
-  cpi->fn_ptr[BLOCK_16X16].sdx3f = vpx_sad16x16x3;
-  cpi->fn_ptr[BLOCK_16X16].sdx8f = vpx_sad16x16x8;
   cpi->fn_ptr[BLOCK_16X16].sdx4df = vpx_sad16x16x4d;
 
   cpi->fn_ptr[BLOCK_16X8].sdf = vpx_sad16x8;
   cpi->fn_ptr[BLOCK_16X8].vf = vpx_variance16x8;
   cpi->fn_ptr[BLOCK_16X8].svf = vpx_sub_pixel_variance16x8;
-  cpi->fn_ptr[BLOCK_16X8].sdx3f = vpx_sad16x8x3;
-  cpi->fn_ptr[BLOCK_16X8].sdx8f = vpx_sad16x8x8;
   cpi->fn_ptr[BLOCK_16X8].sdx4df = vpx_sad16x8x4d;
 
   cpi->fn_ptr[BLOCK_8X16].sdf = vpx_sad8x16;
   cpi->fn_ptr[BLOCK_8X16].vf = vpx_variance8x16;
   cpi->fn_ptr[BLOCK_8X16].svf = vpx_sub_pixel_variance8x16;
-  cpi->fn_ptr[BLOCK_8X16].sdx3f = vpx_sad8x16x3;
-  cpi->fn_ptr[BLOCK_8X16].sdx8f = vpx_sad8x16x8;
   cpi->fn_ptr[BLOCK_8X16].sdx4df = vpx_sad8x16x4d;
 
   cpi->fn_ptr[BLOCK_8X8].sdf = vpx_sad8x8;
   cpi->fn_ptr[BLOCK_8X8].vf = vpx_variance8x8;
   cpi->fn_ptr[BLOCK_8X8].svf = vpx_sub_pixel_variance8x8;
-  cpi->fn_ptr[BLOCK_8X8].sdx3f = vpx_sad8x8x3;
-  cpi->fn_ptr[BLOCK_8X8].sdx8f = vpx_sad8x8x8;
   cpi->fn_ptr[BLOCK_8X8].sdx4df = vpx_sad8x8x4d;
 
   cpi->fn_ptr[BLOCK_4X4].sdf = vpx_sad4x4;
   cpi->fn_ptr[BLOCK_4X4].vf = vpx_variance4x4;
   cpi->fn_ptr[BLOCK_4X4].svf = vpx_sub_pixel_variance4x4;
-  cpi->fn_ptr[BLOCK_4X4].sdx3f = vpx_sad4x4x3;
-  cpi->fn_ptr[BLOCK_4X4].sdx8f = vpx_sad4x4x8;
   cpi->fn_ptr[BLOCK_4X4].sdx4df = vpx_sad4x4x4d;
 
 #if VPX_ARCH_X86 || VPX_ARCH_X86_64
@@ -2054,7 +2047,6 @@ struct VP8_COMP *vp8_create_compressor(VP8_CONFIG *oxcf) {
   cpi->fn_ptr[BLOCK_4X4].copymem = vp8_copy32xn;
 #endif
 
-  cpi->full_search_sad = vp8_full_search_sad;
   cpi->diamond_search_sad = vp8_diamond_search_sad;
   cpi->refining_search_sad = vp8_refining_search_sad;
 
@@ -2517,15 +2509,17 @@ static int resize_key_frame(VP8_COMP *cpi) {
     if (cpi->buffer_level < (cpi->oxcf.resample_down_water_mark *
                              cpi->oxcf.optimal_buffer_level / 100)) {
       cm->horiz_scale =
-          (cm->horiz_scale < ONETWO) ? cm->horiz_scale + 1 : ONETWO;
-      cm->vert_scale = (cm->vert_scale < ONETWO) ? cm->vert_scale + 1 : ONETWO;
+          (cm->horiz_scale < VP8E_ONETWO) ? cm->horiz_scale + 1 : VP8E_ONETWO;
+      cm->vert_scale =
+          (cm->vert_scale < VP8E_ONETWO) ? cm->vert_scale + 1 : VP8E_ONETWO;
     }
     /* Should we now start scaling back up */
     else if (cpi->buffer_level > (cpi->oxcf.resample_up_water_mark *
                                   cpi->oxcf.optimal_buffer_level / 100)) {
       cm->horiz_scale =
-          (cm->horiz_scale > NORMAL) ? cm->horiz_scale - 1 : NORMAL;
-      cm->vert_scale = (cm->vert_scale > NORMAL) ? cm->vert_scale - 1 : NORMAL;
+          (cm->horiz_scale > VP8E_NORMAL) ? cm->horiz_scale - 1 : VP8E_NORMAL;
+      cm->vert_scale =
+          (cm->vert_scale > VP8E_NORMAL) ? cm->vert_scale - 1 : VP8E_NORMAL;
     }
 
     /* Get the new height and width */
@@ -4215,11 +4209,10 @@ static void encode_frame_to_data_rate(VP8_COMP *cpi, size_t *size,
       }
 
       /* Clamp cpi->zbin_over_quant */
-      cpi->mb.zbin_over_quant = (cpi->mb.zbin_over_quant < zbin_oq_low)
-                                    ? zbin_oq_low
-                                    : (cpi->mb.zbin_over_quant > zbin_oq_high)
-                                          ? zbin_oq_high
-                                          : cpi->mb.zbin_over_quant;
+      cpi->mb.zbin_over_quant =
+          (cpi->mb.zbin_over_quant < zbin_oq_low)    ? zbin_oq_low
+          : (cpi->mb.zbin_over_quant > zbin_oq_high) ? zbin_oq_high
+                                                     : cpi->mb.zbin_over_quant;
 
       Loop = Q != last_q;
     } else {
@@ -5394,15 +5387,15 @@ int vp8_set_active_map(VP8_COMP *cpi, unsigned char *map, unsigned int rows,
   }
 }
 
-int vp8_set_internal_size(VP8_COMP *cpi, VPX_SCALING horiz_mode,
-                          VPX_SCALING vert_mode) {
-  if (horiz_mode <= ONETWO) {
+int vp8_set_internal_size(VP8_COMP *cpi, VPX_SCALING_MODE horiz_mode,
+                          VPX_SCALING_MODE vert_mode) {
+  if (horiz_mode <= VP8E_ONETWO) {
     cpi->common.horiz_scale = horiz_mode;
   } else {
     return -1;
   }
 
-  if (vert_mode <= ONETWO) {
+  if (vert_mode <= VP8E_ONETWO) {
     cpi->common.vert_scale = vert_mode;
   } else {
     return -1;

@@ -116,12 +116,24 @@ extern "C" {
 #define VPX_NO_RETURN
 #endif
 
+// Tells the compiler to perform `printf` format string checking if the
+// compiler supports it; see the 'format' attribute in
+// <https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html>.
+#define VPX_TOOLS_FORMAT_PRINTF(string_index, first_to_check)
+#if defined(__has_attribute)
+#if __has_attribute(format)
+#undef VPX_TOOLS_FORMAT_PRINTF
+#define VPX_TOOLS_FORMAT_PRINTF(string_index, first_to_check) \
+  __attribute__((__format__(__printf__, string_index, first_to_check)))
+#endif
+#endif
+
 /* Sets a stdio stream into binary mode */
 FILE *set_binary_mode(FILE *stream);
 
-VPX_NO_RETURN void die(const char *fmt, ...);
-VPX_NO_RETURN void fatal(const char *fmt, ...);
-void warn(const char *fmt, ...);
+VPX_NO_RETURN void die(const char *fmt, ...) VPX_TOOLS_FORMAT_PRINTF(1, 2);
+VPX_NO_RETURN void fatal(const char *fmt, ...) VPX_TOOLS_FORMAT_PRINTF(1, 2);
+void warn(const char *fmt, ...) VPX_TOOLS_FORMAT_PRINTF(1, 2);
 
 VPX_NO_RETURN void die_codec(vpx_codec_ctx_t *ctx, const char *s);
 
@@ -133,9 +145,9 @@ VPX_NO_RETURN void usage_exit(void);
 int read_yuv_frame(struct VpxInputContext *input_ctx, vpx_image_t *yuv_frame);
 
 typedef struct VpxInterface {
-  const char *const name;
-  const uint32_t fourcc;
-  vpx_codec_iface_t *(*const codec_interface)();
+  const char *name;
+  uint32_t fourcc;
+  vpx_codec_iface_t *(*codec_interface)(void);
 } VpxInterface;
 
 int get_vpx_encoder_count(void);

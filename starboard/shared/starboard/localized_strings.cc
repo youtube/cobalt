@@ -44,30 +44,30 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
   SB_DCHECK(filename.length() > 0);
   SB_DCHECK(out_result);
 
-  ScopedFile file(filename.c_str(), kSbFileOpenOnly | kSbFileRead);
+  ScopedFile file(filename.c_str(), O_RDONLY);
   if (!file.IsValid()) {
     SB_DLOG(WARNING) << "Cannot open i18n file: " << filename;
     return false;
   }
 
-  SbFileInfo file_info = {0};
+  struct stat file_info;
   bool got_info = file.GetInfo(&file_info);
   if (!got_info) {
     SB_DLOG(ERROR) << "Cannot get information for i18n file.";
     return false;
   }
-  SB_DCHECK(file_info.size > 0);
+  SB_DCHECK(file_info.st_size > 0);
 
   const int kMaxBufferSize = 16 * 1024;
-  if (file_info.size > kMaxBufferSize) {
-    SB_DLOG(ERROR) << "i18n file exceeds maximum size: " << file_info.size
+  if (file_info.st_size > kMaxBufferSize) {
+    SB_DLOG(ERROR) << "i18n file exceeds maximum size: " << file_info.st_size
                    << " (" << kMaxBufferSize << ")";
     return false;
   }
 
-  char* buffer = new char[file_info.size];
+  char* buffer = new char[file_info.st_size];
   SB_DCHECK(buffer);
-  int64_t bytes_to_read = file_info.size;
+  int64_t bytes_to_read = file_info.st_size;
   char* buffer_pos = buffer;
   while (bytes_to_read > 0) {
     int max_bytes_to_read = static_cast<int>(
@@ -82,7 +82,7 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
     buffer_pos += bytes_read;
   }
 
-  *out_result = std::string(buffer, file_info.size);
+  *out_result = std::string(buffer, file_info.st_size);
   delete[] buffer;
   return true;
 }
@@ -125,6 +125,7 @@ LocalizedStrings::MatchType LocalizedStrings::GetMatchType() const {
 
 bool LocalizedStrings::LoadStrings(const std::string& language) {
   const std::string filename = GetFilenameForLanguage(language);
+
   std::string file_contents;
   if (!ReadFile(filename, &file_contents)) {
     SB_DLOG(ERROR) << "Error reading i18n file.";
