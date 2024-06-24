@@ -66,23 +66,6 @@ TEST(TablePrinter, ToString) {
       table.ToString(), {"col1", "col2", "\n", "value1", "value2", "\n"}));
 }
 
-TEST(TablePrinter, ToStringWithColor) {
-  TablePrinter table;
-
-  // Adds color to table.
-  table.set_text_color(TablePrinter::kRed);
-  table.set_table_color(TablePrinter::kGreen);
-
-  // Add header.
-  table.AddRow(MakeRow2("col1", "col2"));
-  table.AddRow(MakeRow2("value1", "value2"));
-
-  EXPECT_TRUE(HasTokensInOrder(
-      table.ToString(),
-      {"col1", "col2", "\n", RED_START, "value1", COLOR_END, RED_START,
-       "value2", COLOR_END, "\n", GREEN_START, COLOR_END}));
-}
-
 #undef RED_START
 #undef GREEN_START
 #undef COLOR_END

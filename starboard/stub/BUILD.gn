@@ -92,7 +92,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/log.cc",
     "//starboard/shared/stub/log_flush.cc",
     "//starboard/shared/stub/log_format.cc",
-    "//starboard/shared/stub/log_is_tty.cc",
     "//starboard/shared/stub/log_raw.cc",
     "//starboard/shared/stub/log_raw_dump_stack.cc",
     "//starboard/shared/stub/log_raw_format.cc",
