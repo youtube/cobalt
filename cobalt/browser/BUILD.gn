@@ -161,6 +161,7 @@ static_library("browser") {
     "//cobalt/browser/metrics",
     "//cobalt/build:cobalt_build_id",
     "//cobalt/build:cobalt_build_info",
+    "//cobalt/build:cobalt_libraries",
     "//cobalt/cache",
     "//cobalt/configuration",
     "//cobalt/css_parser",
