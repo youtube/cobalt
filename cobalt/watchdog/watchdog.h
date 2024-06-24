@@ -30,10 +30,6 @@
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/watchdog/instrumentation_log.h"
 #include "cobalt/watchdog/singleton.h"
-<<<<<<< HEAD
-=======
-#include "starboard/common/condition_variable.h"
->>>>>>> 04a009e7a6e (Remove starboard/common/* above Starboard. (#3359))
 
 namespace cobalt {
 namespace watchdog {
