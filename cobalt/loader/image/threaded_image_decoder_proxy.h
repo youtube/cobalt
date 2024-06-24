@@ -27,6 +27,7 @@
 #include "cobalt/loader/image/image_data_decoder.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "starboard/common/mutex.h"
 
 namespace cobalt {
 namespace loader {
@@ -85,6 +86,8 @@ class ThreadedImageDecoderProxy : public Decoder {
 
   // The actual image decoder.
   std::unique_ptr<ImageDecoder> image_decoder_;
+
+  mutable base::Lock conceal_lock_;
   bool is_concealed_ = false;
 };
 

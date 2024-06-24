@@ -115,6 +115,7 @@ void ThreadedImageDecoderProxy::DecodeChunkPassed(
 }
 
 void ThreadedImageDecoderProxy::Finish() {
+  base::AutoLock auto_lock(conceal_lock_);
   if (is_concealed_) return;
   load_task_runner_->PostTask(
       FROM_HERE, base::Bind(&ImageDecoder::Finish,
@@ -137,11 +138,8 @@ void ThreadedImageDecoderProxy::Resume(
 }
 
 void ThreadedImageDecoderProxy::Conceal() {
+  base::AutoLock auto_lock(conceal_lock_);
   is_concealed_ = true;
-  base::task_runner_util::PostBlockingTask(
-      load_task_runner_, FROM_HERE,
-      base::Bind(&ImageDecoder::Conceal,
-                 base::Unretained(image_decoder_.get())));
 }
 
 }  // namespace image
