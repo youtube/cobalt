@@ -92,6 +92,8 @@
 
 #if defined(__SCITECH_SNAP__) && !defined(KHRONOS_STATIC)
 #   define KHRONOS_STATIC 1
+#elif defined(STARBOARD)
+#   define KHRONOS_STATIC 1
 #endif
 
 /*-------------------------------------------------------------------------
