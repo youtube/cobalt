@@ -614,7 +614,7 @@ template("gcc_toolchain") {
         link_command = "$ld {{ldflags}}${extra_ldflags} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag {{libs}} $tail_lib_dependencies"
       } else {
         # Windows based platform modular builds dont link directly with the shared library.
-        if (is_host_win && sb_is_modular) {
+        if (host_os == "win" && sb_is_modular) {
           link_command = "$ld {{ldflags}}${extra_ldflags} {{libs}} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\"  $end_group_flag$tail_lib_dependencies"
         } else {
           link_command = "$ld {{ldflags}}${extra_ldflags} {{libs}} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag$tail_lib_dependencies"

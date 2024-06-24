@@ -238,3 +238,89 @@ config("default_compiler_flags") {
     asmflags = cflags
   }
 }
+<<<<<<< HEAD
+=======
+
+# This config is intended to encapsulate all platform-specific logic for selecting the C++ standard
+# version in shared code while building with the default toolchain.
+# Starboard platform-specific build code should not attempt to overload this.
+config("default_cpp_standard") {
+  if (current_toolchain == default_toolchain) {
+    if (sb_is_modular || is_android) {
+      configs = [ ":modular_cpp17_config" ]
+    } else if (host_os == "win") {
+      # These flags apply to non-modular windows platforms which includes win32, xb1.
+      configs = [ ":win_cpp17_config" ]
+    } else if (is_linux) {
+      configs = [ ":linux_non_modular_cpp17_config" ]
+    } else if (is_apple) {
+      configs = [ ":apple_cpp17_config" ]
+    } else {
+      assert(
+          false,
+          "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
+    }
+  }
+}
+
+config("cpp20_supported_config") {
+  if (current_toolchain == default_toolchain) {
+    if (sb_is_modular || is_android) {
+      configs = [ ":modular_cpp20_config" ]
+    } else if (host_os == "win") {
+      # These flags apply to non-modular windows platforms which includes win32, xb1.
+      configs = [ ":win_cpp20_config" ]
+    } else if (is_linux) {
+      configs = [ ":linux_non_modular_cpp20_config" ]
+    } else if (is_apple) {
+      configs = [ ":apple_cpp20_config" ]
+    } else {
+      assert(
+          false,
+          "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
+    }
+  }
+}
+
+config("win_cpp17_config") {
+  cflags = [ "/std:c++17" ]
+}
+
+config("win_cpp20_config") {
+  cflags = [ "/std:c++20" ]
+}
+
+config("apple_cpp17_config") {
+  cflags_cc = [ "-std=gnu++17" ]
+  cflags_objcc = [ "-std=gnu++17" ]
+}
+
+config("apple_cpp20_config") {
+  cflags_cc = [ "-std=gnu++20" ]
+  cflags_objcc = [ "-std=gnu++20" ]
+}
+
+config("linux_host_cpp_config") {
+  cflags_cc = [ "-std=gnu++17" ]
+}
+
+config("linux_non_modular_cpp17_config") {
+  cflags_cc = [ "-std=gnu++17" ]
+}
+
+config("linux_non_modular_cpp20_config") {
+  cflags_cc = [ "-std=gnu++20" ]
+}
+
+config("modular_cpp17_config") {
+  cflags_cc = [ "-std=c++17" ]
+}
+
+config("modular_cpp20_config") {
+  cflags_cc = [ "-std=c++20" ]
+}
+
+config("native_target") {
+  configs = [ ":modular_cpp17_config" ]
+}
+>>>>>>> 04c8107664f (Replace is_host_win with host_os == "win" to better match upstream chromium style (#3615))

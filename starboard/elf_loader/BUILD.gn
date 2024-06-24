@@ -91,7 +91,7 @@ if (sb_is_evergreen_compatible) {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (current_toolchain == starboard_toolchain && !is_host_win) {
+if (current_toolchain == starboard_toolchain && host_os != "win") {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
     data_deps = [ "//third_party/icu:icudata" ]
     if (cobalt_font_package == "empty") {
@@ -159,8 +159,13 @@ if (sb_is_evergreen_compatible) {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+<<<<<<< HEAD
 if (!is_host_win) {
   target(gtest_target_type, "elf_loader_test") {
+=======
+if (current_toolchain == starboard_toolchain && host_os != "win") {
+  target(starboard_level_gtest_target_type, "elf_loader_test") {
+>>>>>>> 04c8107664f (Replace is_host_win with host_os == "win" to better match upstream chromium style (#3615))
     testonly = true
     sources = [ "//starboard/common/test_main.cc" ]
     deps = [

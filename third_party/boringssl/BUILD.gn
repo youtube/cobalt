@@ -107,8 +107,13 @@ static_library("crypto") {
       calling_convention = sabi_variables.calling_convention
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
            calling_convention != "sysv" && calling_convention != "windows") ||
+<<<<<<< HEAD
           (asm_target_arch != "x86" && asm_target_arch != "x64" &&
            asm_target_arch != "arm" && asm_target_arch != "arm64") || is_host_win) {  # is_host_win : windows host modular builds need OPENSSL_NO_ASM ) 
+=======
+          (target_cpu != "x86" && target_cpu != "x64" &&
+           target_cpu != "arm" && target_cpu != "arm64") || host_os == "win") {  # host_os == "win" : windows host modular builds need OPENSSL_NO_ASM )
+>>>>>>> 04c8107664f (Replace is_host_win with host_os == "win" to better match upstream chromium style (#3615))
         defines = [ "OPENSSL_NO_ASM" ]
       } else {
         if (calling_convention == "aarch64" || calling_convention == "eabi" ||

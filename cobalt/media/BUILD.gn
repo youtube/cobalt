@@ -146,7 +146,7 @@ target(gtest_target_type, "media_test") {
   data_deps = [ "//cobalt/media/testing:cobalt_media_download_test_data" ]
 
   # TODO: b/296715826 - Fix symbol resolution in cval_stats_test.cc.
-  if (sb_is_modular && is_host_win) {
+  if (sb_is_modular && host_os == "win") {
     sources -= [ "base/cval_stats_test.cc" ]
   }
 }

@@ -27,7 +27,7 @@ config("modular") {
     "-isystem" + rebase_path("//third_party/musl/arch/generic", root_build_dir),
   ]
 
-  if (!is_host_win) {
+  if (host_os != "win") {
     # Causes error on windows. clang++: error: unsupported option '-fPIC' for target 'x86_64-pc-windows-msvc'
     cflags += [ "-fPIC" ]
   }
@@ -144,7 +144,7 @@ config("modular") {
     ]
   }
 
-  if (is_clang_16 || is_host_win) {
+  if (is_clang_16 || host_os == "win") {
     cflags += [
       # Do not remove null pointer checks.
       "-fno-delete-null-pointer-checks",
