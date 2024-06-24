@@ -9,6 +9,7 @@
 //
 
 #include "libANGLE/Context.h"
+#include "libANGLE/Display.h"
 #include "libANGLE/angletypes.h"
 #include "libANGLE/renderer/d3d/IndexDataManager.h"
 #include "libANGLE/renderer/d3d/d3d11/Buffer11.h"
@@ -23,14 +24,17 @@ using namespace angle;
 namespace
 {
 
-class D3D11EmulatedIndexedBufferTest : public ANGLETest
+class D3D11EmulatedIndexedBufferTest : public ANGLETest<>
 {
   protected:
     void testSetUp() override
     {
         ASSERT_EQ(EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE, GetParam().getRenderer());
 
-        mContext                 = static_cast<gl::Context *>(getEGLWindow()->getContext());
+        egl::Display *display   = static_cast<egl::Display *>(getEGLWindow()->getDisplay());
+        gl::ContextID contextID = {
+            static_cast<GLuint>(reinterpret_cast<uintptr_t>(getEGLWindow()->getContext()))};
+        mContext                 = display->getContext(contextID);
         rx::Context11 *context11 = rx::GetImplAs<rx::Context11>(mContext);
         mRenderer                = context11->getRenderer();
 
@@ -112,7 +116,7 @@ class D3D11EmulatedIndexedBufferTest : public ANGLETest
     {
         ID3D11Buffer *emulatedBuffer = nullptr;
         angle::Result error          = mSourceBuffer->getEmulatedIndexedBuffer(
-            mContext, srcData, mTranslatedAttribute, 0, &emulatedBuffer);
+                     mContext, srcData, mTranslatedAttribute, 0, &emulatedBuffer);
         ASSERT_EQ(angle::Result::Continue, error);
         ASSERT_TRUE(emulatedBuffer != nullptr);
         compareContents(emulatedBuffer);

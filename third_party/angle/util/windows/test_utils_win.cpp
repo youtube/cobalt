@@ -18,110 +18,11 @@
 
 #include "anglebase/no_destructor.h"
 #include "common/angleutils.h"
-#include "util/windows/third_party/StackWalker/src/StackWalker.h"
 
 namespace angle
 {
 namespace
 {
-static const struct
-{
-    const char *name;
-    const DWORD code;
-} kExceptions[] = {
-#define _(E)  \
-    {         \
-#        E, E \
-    }
-    _(EXCEPTION_ACCESS_VIOLATION),
-    _(EXCEPTION_BREAKPOINT),
-    _(EXCEPTION_INT_DIVIDE_BY_ZERO),
-    _(EXCEPTION_STACK_OVERFLOW),
-#undef _
-};
-
-class CustomStackWalker : public StackWalker
-{
-  public:
-    CustomStackWalker() {}
-    ~CustomStackWalker() override {}
-
-    void OnCallstackEntry(CallstackEntryType eType, CallstackEntry &entry) override
-    {
-        char buffer[STACKWALK_MAX_NAMELEN];
-        size_t maxLen = _TRUNCATE;
-        if ((eType != lastEntry) && (entry.offset != 0))
-        {
-            if (entry.name[0] == 0)
-                strncpy_s(entry.name, STACKWALK_MAX_NAMELEN, "(function-name not available)",
-                          _TRUNCATE);
-            if (entry.undName[0] != 0)
-                strncpy_s(entry.name, STACKWALK_MAX_NAMELEN, entry.undName, _TRUNCATE);
-            if (entry.undFullName[0] != 0)
-                strncpy_s(entry.name, STACKWALK_MAX_NAMELEN, entry.undFullName, _TRUNCATE);
-            if (entry.lineFileName[0] == 0)
-            {
-                strncpy_s(entry.lineFileName, STACKWALK_MAX_NAMELEN, "(filename not available)",
-                          _TRUNCATE);
-                if (entry.moduleName[0] == 0)
-                    strncpy_s(entry.moduleName, STACKWALK_MAX_NAMELEN,
-                              "(module-name not available)", _TRUNCATE);
-                _snprintf_s(buffer, maxLen, "    %s - %p (%s): %s\n", entry.name,
-                            reinterpret_cast<void *>(entry.offset), entry.moduleName,
-                            entry.lineFileName);
-            }
-            else
-                _snprintf_s(buffer, maxLen, "    %s (%s:%d)\n", entry.name, entry.lineFileName,
-                            entry.lineNumber);
-            buffer[STACKWALK_MAX_NAMELEN - 1] = 0;
-            printf("%s", buffer);
-            OutputDebugStringA(buffer);
-        }
-    }
-};
-
-void PrintBacktrace(CONTEXT *c)
-{
-    printf("Backtrace:\n");
-    OutputDebugStringA("Backtrace:\n");
-
-    CustomStackWalker sw;
-    sw.ShowCallstack(GetCurrentThread(), c);
-}
-
-LONG WINAPI StackTraceCrashHandler(EXCEPTION_POINTERS *e)
-{
-    const DWORD code = e->ExceptionRecord->ExceptionCode;
-    printf("\nCaught exception %lu", code);
-    for (size_t i = 0; i < ArraySize(kExceptions); i++)
-    {
-        if (kExceptions[i].code == code)
-        {
-            printf(" %s", kExceptions[i].name);
-        }
-    }
-    printf("\n");
-
-    PrintBacktrace(e->ContextRecord);
-
-    // Exit NOW.  Don't notify other threads, don't call anything registered with atexit().
-    _exit(1);
-
-    // The compiler wants us to return something.  This is what we'd do if we didn't _exit().
-    return EXCEPTION_EXECUTE_HANDLER;
-}
-
-CrashCallback *gCrashHandlerCallback;
-
-LONG WINAPI CrashHandler(EXCEPTION_POINTERS *e)
-{
-    if (gCrashHandlerCallback)
-    {
-        (*gCrashHandlerCallback)();
-    }
-    return StackTraceCrashHandler(e);
-}
-
 struct ScopedPipe
 {
     ~ScopedPipe()
@@ -168,12 +69,14 @@ struct ScopedPipe
             return false;
         }
 
+#if !defined(ANGLE_ENABLE_WINDOWS_UWP)
         // Ensure the read handles to the pipes are not inherited.
         if (::SetHandleInformation(readHandle, HANDLE_FLAG_INHERIT, 0) == FALSE)
         {
             std::cerr << "Error setting handle info on pipe: " << GetLastError() << "\n";
             return false;
         }
+#endif  // !defined(ANGLE_ENABLE_WINDOWS_UWP)
 
         return true;
     }
@@ -220,15 +123,18 @@ bool ReturnSuccessOnNotFound()
 // Job objects seems to have problems on the Chromium CI and Windows 7.
 bool ShouldUseJobObjects()
 {
+#if defined(ANGLE_ENABLE_WINDOWS_UWP)
+    return false;
+#else
     return (::IsWindows10OrGreater());
+#endif
 }
 
 class WindowsProcess : public Process
 {
   public:
     WindowsProcess(const std::vector<const char *> &commandLineArgs,
-                   bool captureStdOut,
-                   bool captureStdErr)
+                   ProcessOutputCapture captureOutput)
     {
         mProcessInfo.hProcess = INVALID_HANDLE_VALUE;
         mProcessInfo.hThread  = INVALID_HANDLE_VALUE;
@@ -255,10 +161,17 @@ class WindowsProcess : public Process
 
         STARTUPINFOA startInfo = {};
 
+        const bool captureStdout = captureOutput != ProcessOutputCapture::Nothing;
+        const bool captureStderr =
+            captureOutput == ProcessOutputCapture::StdoutAndStderrInterleaved ||
+            captureOutput == ProcessOutputCapture::StdoutAndStderrSeparately;
+        const bool pipeStderrToStdout =
+            captureOutput == ProcessOutputCapture::StdoutAndStderrInterleaved;
+
         // Create pipes for stdout and stderr.
         startInfo.cb        = sizeof(STARTUPINFOA);
         startInfo.hStdInput = ::GetStdHandle(STD_INPUT_HANDLE);
-        if (captureStdOut)
+        if (captureStdout)
         {
             if (!mStdoutPipe.initPipe(&securityAttribs))
             {
@@ -271,7 +184,11 @@ class WindowsProcess : public Process
             startInfo.hStdOutput = ::GetStdHandle(STD_OUTPUT_HANDLE);
         }
 
-        if (captureStdErr)
+        if (pipeStderrToStdout)
+        {
+            startInfo.hStdError = startInfo.hStdOutput;
+        }
+        else if (captureStderr)
         {
             if (!mStderrPipe.initPipe(&securityAttribs))
             {
@@ -284,7 +201,8 @@ class WindowsProcess : public Process
             startInfo.hStdError = ::GetStdHandle(STD_ERROR_HANDLE);
         }
 
-        if (captureStdOut || captureStdErr)
+#if !defined(ANGLE_ENABLE_WINDOWS_UWP)
+        if (captureStdout || captureStderr)
         {
             startInfo.dwFlags |= STARTF_USESTDHANDLES;
         }
@@ -310,6 +228,7 @@ class WindowsProcess : public Process
                 return;
             }
         }
+#endif  // !defined(ANGLE_ENABLE_WINDOWS_UWP)
 
         // Create the child process.
         if (::CreateProcessA(nullptr, commandLineString.data(), nullptr, nullptr,
@@ -320,6 +239,7 @@ class WindowsProcess : public Process
             return;
         }
 
+#if !defined(ANGLE_ENABLE_WINDOWS_UWP)
         if (mJobHandle != nullptr)
         {
             if (::AssignProcessToJobObject(mJobHandle, mProcessInfo.hProcess) == FALSE)
@@ -328,6 +248,7 @@ class WindowsProcess : public Process
                 return;
             }
         }
+#endif  // !defined(ANGLE_ENABLE_WINDOWS_UWP)
 
         // Close the write end of the pipes, so EOF can be generated when child exits.
         if (!mStdoutPipe.closeWriteHandle() || !mStderrPipe.closeWriteHandle())
@@ -434,11 +355,13 @@ class WindowsProcess : public Process
         }
         mProcessInfo.hProcess = newHandle;
 
+#if !defined(ANGLE_ENABLE_WINDOWS_UWP)
         if (::TerminateThread(mProcessInfo.hThread, 1) == FALSE)
         {
             std::cerr << "TerminateThread failed: " << GetLastError() << "\n";
             return false;
         }
+#endif  // !defined(ANGLE_ENABLE_WINDOWS_UWP)
 
         if (::TerminateProcess(mProcessInfo.hProcess, 1) == FALSE)
         {
@@ -458,7 +381,7 @@ class WindowsProcess : public Process
     PROCESS_INFORMATION mProcessInfo = {};
     HANDLE mJobHandle                = nullptr;
 };
-}  // anonymous namespace
+}  // namespace
 
 void Sleep(unsigned int milliseconds)
 {
@@ -480,53 +403,12 @@ void WriteDebugMessage(const char *format, ...)
     OutputDebugStringA(buffer.data());
 }
 
-void InitCrashHandler(CrashCallback *callback)
+Process *LaunchProcess(const std::vector<const char *> &args, ProcessOutputCapture captureOutput)
 {
-    if (callback)
-    {
-        gCrashHandlerCallback = callback;
-    }
-    SetUnhandledExceptionFilter(CrashHandler);
+    return new WindowsProcess(args, captureOutput);
 }
 
-void TerminateCrashHandler()
-{
-    gCrashHandlerCallback = nullptr;
-    SetUnhandledExceptionFilter(nullptr);
-}
-
-void PrintStackBacktrace()
-{
-    CONTEXT context;
-    ZeroMemory(&context, sizeof(CONTEXT));
-    RtlCaptureContext(&context);
-    PrintBacktrace(&context);
-}
-
-Process *LaunchProcess(const std::vector<const char *> &args,
-                       bool captureStdout,
-                       bool captureStderr)
-{
-    return new WindowsProcess(args, captureStdout, captureStderr);
-}
-
-bool GetTempDir(char *tempDirOut, uint32_t maxDirNameLen)
-{
-    DWORD pathLen = ::GetTempPathA(maxDirNameLen, tempDirOut);
-    return (pathLen < MAX_PATH && pathLen > 0);
-}
-
-bool CreateTemporaryFileInDir(const char *dir, char *tempFileNameOut, uint32_t maxFileNameLen)
-{
-    char fileName[MAX_PATH + 1];
-    if (::GetTempFileNameA(dir, "ANGLE", 0, fileName) == 0)
-        return false;
-
-    strncpy(tempFileNameOut, fileName, maxFileNameLen);
-    return true;
-}
-
-bool DeleteFile(const char *path)
+bool DeleteSystemFile(const char *path)
 {
     if (strlen(path) >= MAX_PATH)
         return false;
@@ -555,8 +437,8 @@ bool DeleteFile(const char *path)
     return !!::DeleteFileA(path) ? true : ReturnSuccessOnNotFound();
 }
 
-int NumberOfProcessors()
+const char *GetNativeEGLLibraryNameWithExtension()
 {
-    return ::GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+    return "libEGL.dll";
 }
 }  // namespace angle

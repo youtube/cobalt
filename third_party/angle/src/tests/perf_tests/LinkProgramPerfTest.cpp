@@ -108,7 +108,15 @@ LinkProgramBenchmark::LinkProgramBenchmark() : ANGLERenderTest("LinkProgram", Ge
 
 void LinkProgramBenchmark::initializeBenchmark()
 {
-    if (GetParam().threadOption == ThreadOption::SingleThread)
+    if (GetParam().threadOption != ThreadOption::SingleThread &&
+        !IsGLExtensionEnabled("GL_KHR_parallel_shader_compile"))
+    {
+        skipTest("non-single-thread but missing GL_KHR_parallel_shader_compile");
+        return;
+    }
+
+    if (IsGLExtensionEnabled("GL_KHR_parallel_shader_compile") &&
+        GetParam().threadOption == ThreadOption::SingleThread)
     {
         glMaxShaderCompilerThreadsKHR(0);
     }
@@ -181,10 +189,10 @@ LinkProgramParams LinkProgramD3D11Params(TaskOption taskOption, ThreadOption thr
     return params;
 }
 
-LinkProgramParams LinkProgramD3D9Params(TaskOption taskOption, ThreadOption threadOption)
+LinkProgramParams LinkProgramMetalParams(TaskOption taskOption, ThreadOption threadOption)
 {
     LinkProgramParams params(taskOption, threadOption);
-    params.eglParameters = D3D9();
+    params.eglParameters = METAL();
     return params;
 }
 
@@ -210,19 +218,19 @@ TEST_P(LinkProgramBenchmark, Run)
 ANGLE_INSTANTIATE_TEST(
     LinkProgramBenchmark,
     LinkProgramD3D11Params(TaskOption::CompileOnly, ThreadOption::MultiThread),
-    LinkProgramD3D9Params(TaskOption::CompileOnly, ThreadOption::MultiThread),
+    LinkProgramMetalParams(TaskOption::CompileOnly, ThreadOption::MultiThread),
     LinkProgramOpenGLOrGLESParams(TaskOption::CompileOnly, ThreadOption::MultiThread),
     LinkProgramVulkanParams(TaskOption::CompileOnly, ThreadOption::MultiThread),
     LinkProgramD3D11Params(TaskOption::CompileAndLink, ThreadOption::MultiThread),
-    LinkProgramD3D9Params(TaskOption::CompileAndLink, ThreadOption::MultiThread),
+    LinkProgramMetalParams(TaskOption::CompileAndLink, ThreadOption::MultiThread),
     LinkProgramOpenGLOrGLESParams(TaskOption::CompileAndLink, ThreadOption::MultiThread),
     LinkProgramVulkanParams(TaskOption::CompileAndLink, ThreadOption::MultiThread),
     LinkProgramD3D11Params(TaskOption::CompileOnly, ThreadOption::SingleThread),
-    LinkProgramD3D9Params(TaskOption::CompileOnly, ThreadOption::SingleThread),
+    LinkProgramMetalParams(TaskOption::CompileOnly, ThreadOption::SingleThread),
     LinkProgramOpenGLOrGLESParams(TaskOption::CompileOnly, ThreadOption::SingleThread),
     LinkProgramVulkanParams(TaskOption::CompileOnly, ThreadOption::SingleThread),
     LinkProgramD3D11Params(TaskOption::CompileAndLink, ThreadOption::SingleThread),
-    LinkProgramD3D9Params(TaskOption::CompileAndLink, ThreadOption::SingleThread),
+    LinkProgramMetalParams(TaskOption::CompileAndLink, ThreadOption::SingleThread),
     LinkProgramOpenGLOrGLESParams(TaskOption::CompileAndLink, ThreadOption::SingleThread),
     LinkProgramVulkanParams(TaskOption::CompileAndLink, ThreadOption::SingleThread));
 

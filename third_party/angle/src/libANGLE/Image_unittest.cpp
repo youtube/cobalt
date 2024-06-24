@@ -44,8 +44,8 @@ TEST(ImageTest, RefCounting)
         .WillOnce(CreateMockImageImpl())
         .RetiresOnSaturation();
 
-    egl::Image *image =
-        new egl::Image(&mockEGLFactory, nullptr, EGL_GL_TEXTURE_2D, texture, egl::AttributeMap());
+    egl::Image *image = new egl::Image(&mockEGLFactory, {1}, nullptr, EGL_GL_TEXTURE_2D, texture,
+                                       egl::AttributeMap());
     rx::MockImageImpl *imageImpl = static_cast<rx::MockImageImpl *>(image->getImplementation());
     image->addRef();
 
@@ -97,7 +97,7 @@ TEST(ImageTest, RefCounting)
     renderbuffer->release(nullptr);
 }
 
-// Verify that respecifiying textures releases references to the Image.
+// Verify that respecifying textures releases references to the Image.
 TEST(ImageTest, RespecificationReleasesReferences)
 {
     NiceMock<rx::MockGLFactory> mockGLFactory;
@@ -111,37 +111,39 @@ TEST(ImageTest, RespecificationReleasesReferences)
 
     gl::PixelUnpackState defaultUnpackState;
 
-    EXPECT_CALL(*textureImpl, setImage(_, _, _, _, _, _, _, _))
+    EXPECT_CALL(*textureImpl, setImage(_, _, _, _, _, _, _, _, _))
         .WillOnce(Return(angle::Result::Continue))
         .RetiresOnSaturation();
-    EXPECT_EQ(angle::Result::Continue,
-              texture->setImage(nullptr, defaultUnpackState, gl::TextureTarget::_2D, 0, GL_RGBA8,
-                                gl::Extents(1, 1, 1), GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
+    EXPECT_EQ(
+        angle::Result::Continue,
+        texture->setImage(nullptr, defaultUnpackState, nullptr, gl::TextureTarget::_2D, 0, GL_RGBA8,
+                          gl::Extents(1, 1, 1), GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
 
     EXPECT_CALL(mockEGLFactory, createImage(_, _, _, _))
         .WillOnce(CreateMockImageImpl())
         .RetiresOnSaturation();
 
-    egl::Image *image =
-        new egl::Image(&mockEGLFactory, nullptr, EGL_GL_TEXTURE_2D, texture, egl::AttributeMap());
+    egl::Image *image = new egl::Image(&mockEGLFactory, {1}, nullptr, EGL_GL_TEXTURE_2D, texture,
+                                       egl::AttributeMap());
     image->addRef();
 
     // Verify that the image did not add a ref to it's source.
     EXPECT_EQ(1u, texture->getRefCount());
     EXPECT_EQ(1u, image->getRefCount());
 
-    // Respecify the texture and verify that the image is orpahaned
+    // Respecify the texture and verify that the image is orphaned
     rx::MockImageImpl *imageImpl = static_cast<rx::MockImageImpl *>(image->getImplementation());
     EXPECT_CALL(*imageImpl, orphan(_, _))
         .WillOnce(Return(angle::Result::Continue))
         .RetiresOnSaturation();
-    EXPECT_CALL(*textureImpl, setImage(_, _, _, _, _, _, _, _))
+    EXPECT_CALL(*textureImpl, setImage(_, _, _, _, _, _, _, _, _))
         .WillOnce(Return(angle::Result::Continue))
         .RetiresOnSaturation();
 
-    EXPECT_EQ(angle::Result::Continue,
-              texture->setImage(nullptr, defaultUnpackState, gl::TextureTarget::_2D, 0, GL_RGBA8,
-                                gl::Extents(1, 1, 1), GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
+    EXPECT_EQ(
+        angle::Result::Continue,
+        texture->setImage(nullptr, defaultUnpackState, nullptr, gl::TextureTarget::_2D, 0, GL_RGBA8,
+                          gl::Extents(1, 1, 1), GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
 
     EXPECT_EQ(1u, texture->getRefCount());
     EXPECT_EQ(1u, image->getRefCount());

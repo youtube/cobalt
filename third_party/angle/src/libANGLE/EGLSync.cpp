@@ -12,18 +12,56 @@
 
 #include "common/utilities.h"
 #include "libANGLE/renderer/EGLImplFactory.h"
+#include "libANGLE/renderer/EGLReusableSync.h"
 #include "libANGLE/renderer/EGLSyncImpl.h"
 
 namespace egl
 {
 
-Sync::Sync(rx::EGLImplFactory *factory, EGLenum type, const AttributeMap &attribs)
-    : mFence(factory->createSync(attribs)),
-      mLabel(nullptr),
+Sync::Sync(rx::EGLImplFactory *factory,
+           const egl::SyncID &id,
+           EGLenum type,
+           const AttributeMap &attribs)
+    : mLabel(nullptr),
+      mId(id),
       mType(type),
+      mCondition(EGL_SYNC_PRIOR_COMMANDS_COMPLETE_KHR),
       mNativeFenceFD(
           attribs.getAsInt(EGL_SYNC_NATIVE_FENCE_FD_ANDROID, EGL_NO_NATIVE_FENCE_FD_ANDROID))
-{}
+{
+    switch (type)
+    {
+        case EGL_SYNC_FENCE:
+        case EGL_SYNC_NATIVE_FENCE_ANDROID:
+        case EGL_SYNC_METAL_SHARED_EVENT_ANGLE:
+            mFence = std::unique_ptr<rx::EGLSyncImpl>(factory->createSync(attribs));
+            break;
+
+        case EGL_SYNC_REUSABLE_KHR:
+            mFence = std::unique_ptr<rx::EGLSyncImpl>(new rx::ReusableSync(attribs));
+            break;
+
+        default:
+            UNREACHABLE();
+    }
+
+    // Per extension spec: Signaling Condition.
+    // "If the EGL_SYNC_NATIVE_FENCE_FD_ANDROID attribute is not
+    // EGL_NO_NATIVE_FENCE_FD_ANDROID then the EGL_SYNC_CONDITION_KHR attribute
+    // is set to EGL_SYNC_NATIVE_FENCE_SIGNALED_ANDROID and the EGL_SYNC_STATUS_KHR
+    // attribute is set to reflect the signal status of the native fence object.
+    if ((mType == EGL_SYNC_NATIVE_FENCE_ANDROID) &&
+        (mNativeFenceFD != EGL_NO_NATIVE_FENCE_FD_ANDROID))
+    {
+        mCondition = EGL_SYNC_NATIVE_FENCE_SIGNALED_ANDROID;
+    }
+
+    // Per extension spec: Signaling Condition.
+    if (mType == EGL_SYNC_METAL_SHARED_EVENT_ANGLE)
+    {
+        mCondition = attribs.getAsInt(EGL_SYNC_CONDITION, EGL_SYNC_PRIOR_COMMANDS_COMPLETE_KHR);
+    }
+}
 
 void Sync::onDestroy(const Display *display)
 {
@@ -63,9 +101,19 @@ Error Sync::serverWait(const Display *display, const gl::Context *context, EGLin
     return mFence->serverWait(display, context, flags);
 }
 
+Error Sync::signal(const Display *display, const gl::Context *context, EGLint mode)
+{
+    return mFence->signal(display, context, mode);
+}
+
 Error Sync::getStatus(const Display *display, EGLint *outStatus) const
 {
     return mFence->getStatus(display, outStatus);
+}
+
+Error Sync::copyMetalSharedEventANGLE(const Display *display, void **result) const
+{
+    return mFence->copyMetalSharedEventANGLE(display, result);
 }
 
 Error Sync::dupNativeFenceFD(const Display *display, EGLint *result) const
