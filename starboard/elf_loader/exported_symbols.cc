@@ -14,6 +14,7 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -468,6 +469,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(closedir);
   REGISTER_SYMBOL(connect);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
@@ -487,8 +489,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
+  REGISTER_SYMBOL(opendir);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(read);
+  REGISTER_SYMBOL(readdir_r);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
