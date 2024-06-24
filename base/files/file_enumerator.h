@@ -18,6 +18,8 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
+#include <sys/stat.h>
+#include <unistd.h>
 #include "starboard/file.h"
 #elif BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
@@ -60,7 +62,8 @@ class BASE_EXPORT FileEnumerator {
     // On POSIX systems, this is rounded down to the second.
     Time GetLastModifiedTime() const;
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+    const stat_wrapper_t& stat() const { return stat_; }
 #elif BUILDFLAG(IS_WIN)
     // Note that the cAlternateFileName (used to hold the "short" 8.3 name)
     // of the WIN32_FIND_DATA will be empty. Since we don't use short file
@@ -68,21 +71,16 @@ class BASE_EXPORT FileEnumerator {
     const WIN32_FIND_DATA& find_data() const {
       return *ChromeToWindowsType(&find_data_);
     }
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-    const stat_wrapper_t& stat() const { return stat_; }
 #endif
 
    private:
     friend class FileEnumerator;
 
-#if defined(STARBOARD)
-    FilePath filename_;
-    SbFileInfo sb_info_;
-#elif BUILDFLAG(IS_WIN)
-    CHROME_WIN32_FIND_DATA find_data_;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if defined(STARBOARD) || BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     stat_wrapper_t stat_;
     FilePath filename_;
+#elif BUILDFLAG(IS_WIN)
+    CHROME_WIN32_FIND_DATA find_data_;
 #endif
   };
 
