@@ -20,10 +20,10 @@
 #include <utility>
 #include <vector>
 
+#include "base/files/file_util.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/test/task_environment.h"
-#include "starboard/common/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -96,7 +96,7 @@ class WatchdogTest : public testing::Test {
     std::string path =
         std::string(storage_dir.data()) + kSbFileSepString + kSettingsFileName;
 
-    starboard::SbFileDeleteRecursive(path.c_str(), true);
+    base::DeletePathRecursively(base::FilePath(path));
   }
 
   void Fence(PersistentSettings* persistent_settings,
@@ -418,9 +418,9 @@ TEST_F(WatchdogTest, ViolationsAreEvictedAfterMax) {
                     CreateDummyViolationDict("test-desc-2", 1, 102));
   std::string json;
   base::JSONWriter::Write(*dummy_map, &json);
-  starboard::ScopedFile file(watchdog_->GetWatchdogFilePath().c_str(),
-                             kSbFileCreateAlways | kSbFileWrite);
-  file.WriteAll(json.c_str(), static_cast<int>(json.size()));
+  base::File file(base::FilePath(watchdog_->GetWatchdogFilePath().c_str()),
+                  base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
+  file.WriteAtCurrentPos(json.c_str(), static_cast<int>(json.size()));
   TearDown();
   watchdog_ = new watchdog::Watchdog();
   watchdog_->InitializeCustom(nullptr, std::string(kWatchdogViolationsJson),
@@ -589,12 +589,12 @@ TEST_F(WatchdogTest, FrequentConsecutiveViolationsShouldNotWrite) {
                                   kWatchdogMonitorFrequency));
   usleep(kWatchdogSleepDuration);
   std::string write_json = "";
-  starboard::ScopedFile read_file(watchdog_->GetWatchdogFilePath().c_str(),
-                                  kSbFileOpenOnly | kSbFileRead);
+  base::File read_file(base::FilePath(watchdog_->GetWatchdogFilePath().c_str()),
+                       base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (read_file.IsValid()) {
-    int64_t kFileSize = read_file.GetSize();
+    int64_t kFileSize = read_file.GetLength();
     std::vector<char> buffer(kFileSize + 1, 0);
-    read_file.ReadAll(buffer.data(), kFileSize);
+    read_file.ReadAtCurrentPos(buffer.data(), kFileSize);
     write_json = std::string(buffer.data());
   }
   ASSERT_NE(write_json, "");
@@ -602,12 +602,13 @@ TEST_F(WatchdogTest, FrequentConsecutiveViolationsShouldNotWrite) {
   usleep(kWatchdogSleepDuration);
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
   std::string no_write_json = "";
-  starboard::ScopedFile read_file_again(
-      watchdog_->GetWatchdogFilePath().c_str(), kSbFileOpenOnly | kSbFileRead);
+  base::File read_file_again(
+      base::FilePath(watchdog_->GetWatchdogFilePath().c_str()),
+      base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (read_file_again.IsValid()) {
-    int64_t kFileSize = read_file_again.GetSize();
+    int64_t kFileSize = read_file_again.GetLength();
     std::vector<char> buffer(kFileSize + 1, 0);
-    read_file_again.ReadAll(buffer.data(), kFileSize);
+    read_file_again.ReadAtCurrentPos(buffer.data(), kFileSize);
     no_write_json = std::string(buffer.data());
   }
   ASSERT_NE(no_write_json, "");
@@ -673,10 +674,10 @@ TEST_F(WatchdogTest, EvictOldWatchdogViolations) {
                     CreateDummyViolationDict("test-desc-old", 0, 1));
   std::string json;
   base::JSONWriter::Write(*dummy_map, &json);
-  starboard::ScopedFile file(watchdog_->GetWatchdogFilePath().c_str(),
-                             kSbFileCreateAlways | kSbFileWrite);
+  base::File file(base::FilePath(watchdog_->GetWatchdogFilePath().c_str()),
+                  base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
   TearDown();
-  file.WriteAll(json.c_str(), static_cast<int>(json.size()));
+  file.WriteAtCurrentPos(json.c_str(), static_cast<int>(json.size()));
   watchdog_ = new watchdog::Watchdog();
   watchdog_->InitializeCustom(nullptr, std::string(kWatchdogViolationsJson),
                               kWatchdogMonitorFrequency);

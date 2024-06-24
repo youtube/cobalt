@@ -36,7 +36,6 @@
 // don't have StreamListenSocket.
 #include "cobalt/network/dial/dial_service.h"
 #endif
-#include "starboard/common/atomic.h"
 
 namespace base {
 class WaitableEvent;
