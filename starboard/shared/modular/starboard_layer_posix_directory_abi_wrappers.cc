@@ -31,7 +31,7 @@ int __abi_wrap_readdir_r(DIR* dirp,
   if (retval != 0) {
     return retval;
   }
-#if !SB_HAS_QUIRK(DIRENT_STRUCTURE)
+#if !SB_HAS_QUIRK(INCOMPLETE_DIRENT_STRUCTURE)
   musl_entry->d_ino = entry.d_ino;
   musl_entry->d_off = entry.d_off;
 #endif
