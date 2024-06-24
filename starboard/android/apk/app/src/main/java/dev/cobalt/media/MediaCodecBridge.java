@@ -766,14 +766,10 @@ class MediaCodecBridge {
   @UsedByNative
   public void release() {
     try {
-<<<<<<< HEAD
-      mMediaCodec.setCallback(null);
+      mMediaCodec.get().setCallback(null);
       mCallback = null;
 
-      String codecName = mMediaCodec.getName();
-=======
       String codecName = mMediaCodec.get().getName();
->>>>>>> 77126bc52ed (Always null-check MediaCodec with synchronized Holder (#3597))
       Log.w(TAG, "calling MediaCodec.release() on " + codecName);
       mMediaCodec.get().release();
     } catch (Exception e) {
