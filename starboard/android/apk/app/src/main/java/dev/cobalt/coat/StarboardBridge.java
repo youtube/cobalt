@@ -20,6 +20,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -796,5 +797,23 @@ public class StarboardBridge {
   @UsedByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected long getAvailMemory() {
+    ActivityManager am = (ActivityManager) appContext.getSystemService(Context.ACTIVITY_SERVICE);
+    ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
+    am.getMemoryInfo(memInfo);
+    return memInfo.availMem;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected long getTotalMemory() {
+    ActivityManager am = (ActivityManager) appContext.getSystemService(Context.ACTIVITY_SERVICE);
+    ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
+    am.getMemoryInfo(memInfo);
+    return memInfo.totalMem;
   }
 }

@@ -14,9 +14,12 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include <vector>
+
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 
 namespace starboard {
 namespace android {
@@ -443,6 +446,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
 
 jobject MediaCodecBridge::GetOutputBuffer(jint index) {
   SB_DCHECK(index >= 0);
+
   return JniEnvExt::Get()->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "getOutputBuffer", "(I)Ljava/nio/ByteBuffer;",
       index);
@@ -524,6 +528,32 @@ void MediaCodecBridge::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaCodecBridge::OnMediaCodecInputBufferAvailable(int buffer_index) {
+  static int64_t last = CurrentMonotonicTime();
+  static std::vector<void*> extra_allocations;
+  int64_t current = CurrentMonotonicTime();
+  if (current - last > 1000000) {
+    last = current;
+    JniEnvExt* env = JniEnvExt::Get();
+    jlong total_mem_info_memory =
+        env->CallStarboardLongMethodOrAbort("getTotalMemory", "()J");
+    jlong free_mem_info_memory =
+        env->CallStarboardLongMethodOrAbort("getAvailMemory", "()J");
+    int64_t total_sb_memory = SbSystemGetTotalCPUMemory();
+    int64_t used_sb_memory = SbSystemGetUsedCPUMemory();
+    int64_t free_sb_memory = total_sb_memory - used_sb_memory;
+    SB_LOG(INFO) << "Free/Total memory reported by MemoryInfo "
+                 << free_mem_info_memory << "/" << total_mem_info_memory
+                 << ", Free/Total memory reported by SbSystemGet* "
+                 << free_sb_memory << "/" << total_sb_memory;
+    constexpr size_t kAllocationUnit = 1024 * 1024 * 5;
+    if (free_sb_memory - free_mem_info_memory > kAllocationUnit) {
+      extra_allocations.push_back(
+          memset(new char[kAllocationUnit], 0, kAllocationUnit));
+      SB_LOG(INFO) << "Allocated extra "
+                   << kAllocationUnit * extra_allocations.size() << " memory.";
+    }
+  }
+
   handler_->OnMediaCodecInputBufferAvailable(buffer_index);
 }
 
