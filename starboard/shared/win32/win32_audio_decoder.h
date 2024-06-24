@@ -15,10 +15,10 @@
 #ifndef STARBOARD_SHARED_WIN32_WIN32_AUDIO_DECODER_H_
 #define STARBOARD_SHARED_WIN32_WIN32_AUDIO_DECODER_H_
 
+#include <memory>
 #include <vector>
 
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -33,7 +33,7 @@ namespace win32 {
 // AudioDecoder for Win32.
 class AbstractWin32AudioDecoder {
  public:
-  static scoped_ptr<AbstractWin32AudioDecoder> Create(
+  static std::unique_ptr<AbstractWin32AudioDecoder> Create(
       SbMediaAudioFrameStorageType audio_frame_fmt,
       SbMediaAudioSampleType sample_type,
       const starboard::media::AudioStreamInfo& audio_stream_info,
