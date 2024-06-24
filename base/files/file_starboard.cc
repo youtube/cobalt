@@ -455,7 +455,17 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   file_.reset(descriptor);
 
   if (!file_.is_valid()) {
+#if defined(__ANDROID_API__)
+  bool can_read = flags & O_RDONLY;
+  bool can_write = flags & O_WRONLY;
+  if ((errno == 0) && (!can_read || can_write)) {
+    error_details_ = FILE_ERROR_ACCESS_DENIED;
+  } else {
     error_details_ = File::GetLastFileError();
+  }
+#else
+  error_details_ = File::GetLastFileError();
+#endif
   } else {
     error_details_ = FILE_OK;
     if (append_) {
