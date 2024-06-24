@@ -28,57 +28,6 @@ namespace browser {
 namespace memory_settings {
 namespace {
 
-std::string AddColor(TablePrinter::Color color, const std::string& value) {
-  const char* RED_START = "\x1b[31m";
-  const char* GREEN_START = "\x1b[32m";
-  const char* YELLOW_START = "\x1b[33m";
-  const char* BLUE_START = "\x1b[34m";
-  const char* MAGENTA_START = "\x1b[35m";
-  const char* CYAN_START = "\x1b[36m";
-
-  const char* COLOR_END = "\x1b[0m";
-
-  if (color == TablePrinter::kDefault) {
-    return value;
-  }
-
-  std::stringstream ss;
-  switch (color) {
-    case TablePrinter::kRed: {
-      ss << RED_START;
-      break;
-    }
-    case TablePrinter::kGreen: {
-      ss << GREEN_START;
-      break;
-    }
-    case TablePrinter::kYellow: {
-      ss << YELLOW_START;
-      break;
-    }
-    case TablePrinter::kBlue: {
-      ss << BLUE_START;
-      break;
-    }
-    case TablePrinter::kMagenta: {
-      ss << MAGENTA_START;
-      break;
-    }
-    case TablePrinter::kCyan: {
-      ss << CYAN_START;
-      break;
-    }
-    case TablePrinter::kDefault: {
-      DCHECK(false) << "Unexpected";
-      break;
-    }
-  }
-
-  ss << value;
-  ss << COLOR_END;
-  return ss.str();
-}
-
 std::string MakeFill(const char* str, size_t n) {
   std::stringstream ss;
   for (size_t i = 0; i < n; ++i) {
@@ -93,17 +42,13 @@ class TablePrinterImpl {
   typedef std::vector<std::string> Row;
   // table[i] gets row, table[i][j] gets row/col
   typedef std::vector<Row> Table;
-  static std::string ToString(const Table& table,
-                              TablePrinter::Color text_color,
-                              TablePrinter::Color table_color);
+  static std::string ToString(const Table& table);
 
  private:
   static bool CheckNotEmptyAndAllColumnsTheSame(const Table& rows);
   static std::vector<size_t> MakeColumnSizeVector(const Table& table);
   static size_t ColumnPrintSize(const Table& table, size_t which_col);
-  TablePrinterImpl(const std::vector<size_t>& column_sizes,
-                   TablePrinter::Color text_color,
-                   TablePrinter::Color table_printer);
+  explicit TablePrinterImpl(const std::vector<size_t>& column_sizes);
 
   // " col1     col2 "
   std::string MakeHeaderRow(const Row& header_row) const;
@@ -118,13 +63,9 @@ class TablePrinterImpl {
   std::string MakeTopSeparatorRow() const;
 
   const std::vector<size_t>& column_sizes_;
-  const TablePrinter::Color text_color_;
-  const TablePrinter::Color table_color_;
 };
 
-std::string TablePrinterImpl::ToString(const Table& rows,
-                                       TablePrinter::Color text_color,
-                                       TablePrinter::Color table_color) {
+std::string TablePrinterImpl::ToString(const Table& rows) {
   if (!CheckNotEmptyAndAllColumnsTheSame(rows)) {
     std::string error_msg = "ERROR - NOT ALL COLUMNS ARE THE SAME";
     DCHECK(false) << error_msg;
@@ -132,7 +73,7 @@ std::string TablePrinterImpl::ToString(const Table& rows,
   }
 
   std::vector<size_t> column_sizes = MakeColumnSizeVector(rows);
-  TablePrinterImpl printer(column_sizes, text_color, table_color);
+  TablePrinterImpl printer(column_sizes);
 
   std::stringstream output_ss;
   output_ss << printer.MakeTopSeparatorRow() << "\n";
@@ -202,12 +143,8 @@ size_t TablePrinterImpl::ColumnPrintSize(const Table& table, size_t which_col) {
   return max_col_size + 2;  // +2 for padding on either side.
 }
 
-TablePrinterImpl::TablePrinterImpl(const std::vector<size_t>& column_sizes,
-                                   TablePrinter::Color text_color,
-                                   TablePrinter::Color table_printer)
-    : column_sizes_(column_sizes),
-      text_color_(text_color),
-      table_color_(table_printer) {}
+TablePrinterImpl::TablePrinterImpl(const std::vector<size_t>& column_sizes)
+    : column_sizes_(column_sizes) {}
 
 std::string TablePrinterImpl::MakeHeaderRow(const Row& header_row) const {
   std::stringstream ss;
@@ -244,10 +181,10 @@ std::string TablePrinterImpl::MakeDataRow(const Row& row) const {
   };
 
   std::stringstream output_ss;
-  const std::string vertical_bar = AddColor(table_color_, "|");
+  const std::string vertical_bar = "|";
 
   for (size_t i = 0; i < row.size(); ++i) {
-    std::string token = AddColor(text_color_, row[i]);
+    std::string token = row[i];
 
     std::stringstream row_ss;
     const int col_size = static_cast<int>(column_sizes_[i]);
@@ -276,7 +213,7 @@ std::string TablePrinterImpl::MakeRowDelimiter() const {
   }
   ss << "|";
 
-  std::string output = AddColor(table_color_, ss.str());
+  std::string output = ss.str();
   return output;
 }
 
@@ -294,21 +231,19 @@ std::string TablePrinterImpl::MakeTopSeparatorRow() const {
     }
   }
   ss << " ";
-  std::string output = AddColor(table_color_, ss.str());
+  std::string output = ss.str();
   return output;
 }
 }  // namespace.
 
-bool TablePrinter::SystemSupportsColor() { return SbLogIsTty(); }
-
-TablePrinter::TablePrinter() : text_color_(kDefault), table_color_(kDefault) {}
+TablePrinter::TablePrinter() {}
 
 void TablePrinter::AddRow(const TablePrinter::Row& row) {
   table_.push_back(row);
 }
 
 std::string TablePrinter::ToString() const {
-  return TablePrinterImpl::ToString(table_, text_color_, table_color_);
+  return TablePrinterImpl::ToString(table_);
 }
 
 }  // namespace memory_settings
