@@ -752,10 +752,10 @@ class MediaCodecBridge {
       // outCreateMediaCodecBridgeResult.mErrorMessage is set inside configureVideo() on error.
       return;
     }
-    if (!bridge.start()) {
+    if (!bridge.start(outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to start video codec.");
       bridge.release();
-      outCreateMediaCodecBridgeResult.mErrorMessage = "Failed to start video codec";
+      // outCreateMediaCodecBridgeResult.mErrorMessage is set inside start() on error.
       return;
     }
 
@@ -766,9 +766,6 @@ class MediaCodecBridge {
   @UsedByNative
   public void release() {
     try {
-      mMediaCodec.get().setCallback(null);
-      mCallback = null;
-
       String codecName = mMediaCodec.get().getName();
       Log.w(TAG, "calling MediaCodec.release() on " + codecName);
       mMediaCodec.get().release();
@@ -780,13 +777,21 @@ class MediaCodecBridge {
     mMediaCodec.set(null);
   }
 
+  public boolean start() {
+    return start(null);
+  }
+
   @SuppressWarnings("unused")
   @UsedByNative
-  public boolean start() {
+  public boolean start(CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     try {
       mMediaCodec.get().start();
     } catch (IllegalStateException | IllegalArgumentException e) {
-      Log.e(TAG, "Cannot start the media codec", e);
+      Log.e(TAG, "Failed to start the media codec", e);
+      if (outCreateMediaCodecBridgeResult != null) {
+        outCreateMediaCodecBridgeResult.mErrorMessage =
+            "Failed to start media codec " + e.toString();
+      }
       return false;
     }
     return true;
