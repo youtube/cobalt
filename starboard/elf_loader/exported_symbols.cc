@@ -198,7 +198,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbLog);
   REGISTER_SYMBOL(SbLogFlush);
   REGISTER_SYMBOL(SbLogFormat);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbLogIsTty);
+#endif
   REGISTER_SYMBOL(SbLogRaw);
   REGISTER_SYMBOL(SbLogRawDumpStack);
   REGISTER_SYMBOL(SbLogRawFormat);

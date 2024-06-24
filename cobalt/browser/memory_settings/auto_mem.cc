@@ -277,22 +277,21 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() const {
   return all_settings;
 }
 
-void AutoMem::LogToPrettyPrintString(const math::Size& ui_resolution,
-                                     bool use_color_ascii) {
+void AutoMem::LogToPrettyPrintString(const math::Size& ui_resolution) {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   std::stringstream ss;
 
   ss << "AutoMem (resolution: " << ui_resolution << "):\n";
   std::vector<const MemorySetting*> all_settings = AllMemorySettings();
-  ss << GeneratePrettyPrintTable(use_color_ascii, all_settings);
+  ss << GeneratePrettyPrintTable(all_settings);
 
   int64_t cpu_consumption =
       SumMemoryConsumption(MemorySetting::kCPU, all_settings);
   int64_t gpu_consumption =
       SumMemoryConsumption(MemorySetting::kGPU, all_settings);
 
-  ss << GenerateMemoryTable(use_color_ascii, *max_cpu_bytes_, *max_gpu_bytes_,
-                            cpu_consumption, gpu_consumption);
+  ss << GenerateMemoryTable(*max_cpu_bytes_, *max_gpu_bytes_, cpu_consumption,
+                            gpu_consumption);
 
   // Copy strings and optionally add more.
   std::vector<std::string> error_msgs = error_msgs_;
@@ -428,7 +427,7 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
     CheckConstrainingValues(*all_memory_settings[i]);
   }
 
-  LogToPrettyPrintString(ui_resolution, SbLogIsTty());
+  LogToPrettyPrintString(ui_resolution);
 }
 
 }  // namespace memory_settings

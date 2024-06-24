@@ -59,7 +59,7 @@ TEST(MemorySettingsPrettyPrint, GeneratePrettyPrintTable) {
   TestSettingGroup setting_group;
   setting_group.LoadDefault();
   std::string actual_string =
-      GeneratePrettyPrintTable(false, setting_group.AsConstVector());
+      GeneratePrettyPrintTable(setting_group.AsConstVector());
 
   // clang-format off
   EXPECT_TRUE(HasTokensInOrder(
@@ -78,8 +78,7 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithUnsetGpuMemory) {
   IntSetting gpu_memory_setting("max_gpu_memory");
 
   std::string actual_output =
-      GenerateMemoryTable(false,               // No color.
-                          cpu_memory_setting,  // 256 MB CPU available
+      GenerateMemoryTable(cpu_memory_setting,  // 256 MB CPU available
                           gpu_memory_setting,
                           128 * 1024 * 1024,  // 128 MB CPU consumption
                           0);                 // 0 MB GPU consumption.
@@ -99,8 +98,7 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithGpuMemory) {
   gpu_memory_setting.set_value(MemorySetting::kStarboardAPI, 64 * 1024 * 1024);
 
   std::string actual_output =
-      GenerateMemoryTable(false,               // No color.
-                          cpu_memory_setting,  // 256 MB CPU available.
+      GenerateMemoryTable(cpu_memory_setting,  // 256 MB CPU available.
                           gpu_memory_setting,  // 64 MB GPU available.
                           128 * 1024 * 1024,   // 128 MB CPU consumption.
                           23592960);           // 22.5 MB GPU consumption.
@@ -120,7 +118,6 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryWithInvalidGpuMemoryConsumption) {
   gpu_memory_setting.set_value(MemorySetting::kStarboardAPI, 0);
 
   std::string actual_output = GenerateMemoryTable(
-      false,               // No color.
       cpu_memory_setting,  // 256 MB CPU available.
       gpu_memory_setting,  // Signals that no gpu memory is available
                            //   on this system.

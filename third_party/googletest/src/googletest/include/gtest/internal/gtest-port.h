@@ -2068,19 +2068,14 @@ inline std::string StripTrailingSpaces(std::string str) {
 // standard functions as macros, the wrapper cannot have the same name
 // as the wrapped function.
 
-
-#if GTEST_OS_STARBOARD
-typedef int FILE;
-#endif
-
 namespace posix {
 
 #if GTEST_OS_STARBOARD
 
-typedef SbFileInfo StatStruct;
+using StatStruct = SbFileInfo;
 
-inline int FileNo(FILE* /*file*/) { return 0; }
-inline int IsATTY(FILE* /*file*/) { return SbLogIsTty() ? 1 : 0; }
+inline int FileNo(FILE* /*file*/) { return 1; } // value for stdout
+inline int DoIsATTY(int fd) { return 1; } // only called for stdout
 inline int Stat(const char* path, StatStruct* buf) {
   return SbFileGetPathInfo(path, buf) ? 0 : -1;
 }
@@ -2152,6 +2147,10 @@ inline void Flush() { SbLogFlush(); }
 
 inline void *Malloc(size_t n) { return malloc(n); }
 inline void Free(void *p) { return free(p); }
+
+inline int IsATTY(int fd) {
+  return DoIsATTY(fd);
+}
 
 #else // GTEST_OS_STARBOARD
 
