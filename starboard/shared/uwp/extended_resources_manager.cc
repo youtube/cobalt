@@ -400,41 +400,45 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
   Concurrency::create_task([this] {
     ScopedLock scoped_lock(mutex_);
 #if defined(INTERNAL_BUILD)
-    SB_LOG(INFO) << "Start to compile AV1 decoder shaders.";
-    SB_DCHECK(!is_av1_shader_compiled_)
-        << "Unexpected attempt to recompile AV1 decoder shaders.";
-    if (HasNonrecoverableFailure()) {
-      SB_LOG(WARNING) << "Encountered a nonrecoverable failure, ignoring "
-                         "shader compile.";
-      return;
-    }
-    if (Dav1dVideoDecoder::CompileShaders(d3d12device_)) {
-      is_av1_shader_compiled_ = true;
-      SB_LOG(INFO) << "Gpu based AV1 decoder finished compiling its shaders.";
+    if (!is_av1_shader_compiled_) {
+      SB_LOG(INFO) << "Start to compile AV1 decoder shaders.";
+      if (HasNonrecoverableFailure()) {
+        SB_LOG(WARNING) << "Encountered a nonrecoverable failure, ignoring "
+                           "shader compile.";
+        return;
+      }
+      if (Dav1dVideoDecoder::CompileShaders(d3d12device_)) {
+        is_av1_shader_compiled_ = true;
+        SB_LOG(INFO) << "Gpu based AV1 decoder finished compiling its shaders.";
+      } else {
+        SB_LOG(WARNING)
+            << "Failed to compile AV1 decoder shaders, next attempt "
+               "will happen right on the AV1 decoder instantiation.";
+      }
     } else {
-      SB_LOG(WARNING) << "Failed to compile AV1 decoder shaders, next attempt "
-                         "will happen right on the AV1 decoder instantiation.";
+      SB_LOG(INFO) << "AV1 decoder shaders are already compiled.";
     }
-
-    SB_LOG(INFO) << "Start to compile VP9 decoder shaders.";
-    SB_DCHECK(!is_vp9_shader_compiled_)
-        << "Unexpected attempt to recompile VP9 decoder shaders";
-    if (HasNonrecoverableFailure()) {
-      SB_LOG(WARNING) << "Encountered a nonrecoverable failure, ignoring "
-                         "shader compile.";
-      return;
-    }
-
-    if (VpxVideoDecoder::CompileShaders(d3d12device_, d3d12FrameBuffersHeap_,
-                                        d3d12queue_.Get())) {
-      is_vp9_shader_compiled_ = true;
-      SB_LOG(INFO) << "Gpu based VP9 decoder finished compiling its shaders.";
+    if (!is_vp9_shader_compiled_) {
+      SB_LOG(INFO) << "Start to compile VP9 decoder shaders.";
+      if (HasNonrecoverableFailure()) {
+        SB_LOG(WARNING) << "Encountered a nonrecoverable failure, ignoring "
+                           "shader compile.";
+        return;
+      }
+      if (VpxVideoDecoder::CompileShaders(d3d12device_, d3d12FrameBuffersHeap_,
+                                          d3d12queue_.Get())) {
+        is_vp9_shader_compiled_ = true;
+        SB_LOG(INFO) << "Gpu based VP9 decoder finished compiling its shaders.";
+      } else {
+        // This warning means that not all the shaders has been compiled
+        // successfully, It will try to compile the shaders again, right before
+        // the start of playback, in function |VideoDecoder::InitializeCodec()|.
+        SB_LOG(WARNING)
+            << "Failed to compile VP9 decoder shaders, next attempt "
+               "will happen right on the VP9 decoder instantiation.";
+      }
     } else {
-      // This warning means that not all the shaders has been compiled
-      // successfully, It will try to compile the shaders again, right before
-      // the start of playback, in function |VideoDecoder::InitializeCodec()|.
-      SB_LOG(WARNING) << "Failed to compile VP9 decoder shaders, next attempt "
-                         "will happen right on the VP9 decoder instantiation.";
+      SB_LOG(INFO) << "VP9 decoder shaders are already compiled.";
     }
 #endif  // defined(INTERNAL_BUILD)
 
@@ -479,12 +483,6 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
         } else {
           SB_LOG(INFO) << "CreateEvent() failed with " << GetLastError();
         }
-#if defined(INTERNAL_BUILD)
-        Dav1dVideoDecoder::ReleaseShaders();
-        VpxVideoDecoder::ReleaseShaders();
-#endif  // #if defined(INTERNAL_BUILD)
-        is_av1_shader_compiled_ = false;
-        is_vp9_shader_compiled_ = false;
       } else {
         SB_LOG(INFO) << "CreateFence() failed with " << hr;
       }
