@@ -23,7 +23,8 @@
 #include <string>
 #include <vector>
 
-#include "starboard/accessibility.h"
+#include "starboard/extension/accessibility.h"
+
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -331,9 +332,13 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // We assume that it can only change when our focus changes
       // (because the user exits and enters the app) so we check
       // for changes here.
+      auto accessibility_api =
+          static_cast<const StarboardExtensionAccessibilityApi*>(
+              SbSystemGetExtension(kStarboardExtensionAccessibilityName));
+      SB_CHECK(accessibility_api);  // We expect this to be always present
       SbAccessibilityDisplaySettings settings;
       memset(&settings, 0, sizeof(settings));
-      if (!SbAccessibilityGetDisplaySettings(&settings)) {
+      if (!accessibility_api->GetDisplaySettings(&settings)) {
         break;
       }
 

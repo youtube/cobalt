@@ -277,22 +277,21 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() const {
   return all_settings;
 }
 
-void AutoMem::LogToPrettyPrintString(const math::Size& ui_resolution,
-                                     bool use_color_ascii) {
+void AutoMem::LogToPrettyPrintString(const math::Size& ui_resolution) {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   std::stringstream ss;
 
   ss << "AutoMem (resolution: " << ui_resolution << "):\n";
   std::vector<const MemorySetting*> all_settings = AllMemorySettings();
-  ss << GeneratePrettyPrintTable(use_color_ascii, all_settings);
+  ss << GeneratePrettyPrintTable(all_settings);
 
   int64_t cpu_consumption =
       SumMemoryConsumption(MemorySetting::kCPU, all_settings);
   int64_t gpu_consumption =
       SumMemoryConsumption(MemorySetting::kGPU, all_settings);
 
-  ss << GenerateMemoryTable(use_color_ascii, *max_cpu_bytes_, *max_gpu_bytes_,
-                            cpu_consumption, gpu_consumption);
+  ss << GenerateMemoryTable(*max_cpu_bytes_, *max_gpu_bytes_, cpu_consumption,
+                            gpu_consumption);
 
   // Copy strings and optionally add more.
   std::vector<std::string> error_msgs = error_msgs_;
@@ -411,8 +410,22 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
           CalculateOffscreenTargetCacheSizeInBytes(ui_resolution));
   offscreen_target_cache_size_in_bytes_->set_memory_scaling_function(
       MakeLinearMemoryScaler(0.25, 1.0));
-  if (std::string(configuration::Configuration::GetInstance()
-                      ->CobaltRasterizerType()) == "direct-gles") {
+
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  std::string rasterizer_type =
+      configuration::Configuration::GetInstance()->CobaltRasterizerType();
+  if (command_line->HasSwitch(browser::switches::kEnableSkiaRasterizer)) {
+    int enable_skia = 0;
+    base::StringToInt(command_line->GetSwitchValueASCII(
+                          browser::switches::kEnableSkiaRasterizer),
+                      &enable_skia);
+    if (enable_skia) {
+      rasterizer_type = configuration::Configuration::kSkiaRasterizer;
+    } else {
+      rasterizer_type = configuration::Configuration::kGlesRasterizer;
+    }
+  }
+  if (rasterizer_type == configuration::Configuration::kGlesRasterizer) {
     offscreen_target_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
   } else {
     offscreen_target_cache_size_in_bytes_->set_memory_type(
@@ -428,7 +441,7 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
     CheckConstrainingValues(*all_memory_settings[i]);
   }
 
-  LogToPrettyPrintString(ui_resolution, SbLogIsTty());
+  LogToPrettyPrintString(ui_resolution);
 }
 
 }  // namespace memory_settings

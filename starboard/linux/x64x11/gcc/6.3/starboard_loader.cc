@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdio.h>
 #include "starboard/event.h"
 
 int main(int argc, char** argv) {
-  printf("starboard_loader: SbRunStarboardMain\n");
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }

@@ -20,6 +20,10 @@ from starboard.tools.testing import test_filter
 # pylint: disable=line-too-long
 _FILTERED_TESTS = {
     'nplb': [
+        # These tests hang too long on Windows.
+        'PosixSocketSendTest.RainyDaySendToClosedSocket',
+        'PosixSocketSendtoTest.RainyDaySendToClosedSocket',
+
         # Currently frequently flaky on Windows
         'SbConditionVariableWaitTimedTest.FLAKY_SunnyDayAutoInit',
         'PosixConditionVariableWaitTimedTest.FLAKY_SunnyDayAutoInit',
@@ -55,6 +59,9 @@ _FILTERED_TESTS = {
 
         # Enable once verified on the platform.
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
+
+        # TODO: b/349109647 Disable flaky test.
+        'SbPlayerGetMediaTimeTests/*',
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing

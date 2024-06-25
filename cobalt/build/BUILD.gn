@@ -23,3 +23,12 @@ action("cobalt_build_info") {
   outputs = [ "$root_gen_dir/build_info.json" ]
   args = [ rebase_path(outputs[0], root_build_dir) ]
 }
+
+action("cobalt_libraries") {
+  script = "libraries.py"
+  outputs = [ "$root_gen_dir/libraries.tsv" ]
+  args = [
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path("//", root_build_dir),  # source root
+  ]
+}

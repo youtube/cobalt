@@ -14,6 +14,7 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -25,7 +26,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#if SB_API_VERSION < 16
 #include "starboard/accessibility.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/audio_sink.h"
 #if SB_API_VERSION < 16
 #include "starboard/byte_swap.h"
@@ -118,11 +121,13 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION >= 16
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
   REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
-#endif
+#endif  // SB_API_VERSION >= 16
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
   REGISTER_SYMBOL(SbAccessibilitySetCaptionsEnabled);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbAudioSinkCreate);
   REGISTER_SYMBOL(SbAudioSinkDestroy);
   REGISTER_SYMBOL(SbAudioSinkGetMaxChannels);
@@ -192,7 +197,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbLog);
   REGISTER_SYMBOL(SbLogFlush);
   REGISTER_SYMBOL(SbLogFormat);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbLogIsTty);
+#endif
   REGISTER_SYMBOL(SbLogRaw);
   REGISTER_SYMBOL(SbLogRawDumpStack);
   REGISTER_SYMBOL(SbLogRawFormat);
@@ -457,6 +464,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(closedir);
   REGISTER_SYMBOL(connect);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
@@ -476,8 +484,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
+  REGISTER_SYMBOL(opendir);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(read);
+  REGISTER_SYMBOL(readdir_r);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);

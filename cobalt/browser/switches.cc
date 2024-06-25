@@ -251,6 +251,11 @@ const char kDisableUpdaterModuleHelp[] =
     "equivalent to opting out from further updates.";
 #endif
 
+const char kEnableSkiaRasterizer[] = "enable_skia_rasterizer";
+const char kEnableSkiaRasterizerHelp[] =
+    "Enables/disables the skia rendering engine. If it's disabled, direct-gles"
+    "rasterizer will be used. Set to 1 (enable) or 0 (disable).";
+
 const char kEncodedImageCacheSizeInBytes[] =
     "encoded_image_cache_size_in_bytes";
 const char kEncodedImageCacheSizeInBytesHelp[] =
@@ -485,6 +490,7 @@ std::string HelpMessage() {
 #if SB_API_VERSION < 16
       {kDisableUpdaterModule, kDisableUpdaterModuleHelp},
 #endif
+      {kEnableSkiaRasterizer, kEnableSkiaRasterizerHelp},
       {kEncodedImageCacheSizeInBytes, kEncodedImageCacheSizeInBytesHelp},
       {kForceMigrationForStoragePartitioning,
        kForceMigrationForStoragePartitioningHelp},

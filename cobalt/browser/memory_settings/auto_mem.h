@@ -65,8 +65,7 @@ class AutoMem {
  private:
   // Logs a table of the memory settings and available memory for cpu and gpu.
   // This is used during startup to display memory configuration information.
-  void LogToPrettyPrintString(const math::Size& ui_resolution,
-                              bool use_color_ascii);
+  void LogToPrettyPrintString(const math::Size& ui_resolution);
 
   // AllMemorySettings - does not include cpu & gpu max memory.
   std::vector<const MemorySetting*> AllMemorySettings() const;

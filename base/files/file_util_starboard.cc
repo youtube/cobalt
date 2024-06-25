@@ -16,7 +16,10 @@
 
 #include "base/files/file_util.h"
 
+#include <errno.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <stack>
 #include <string>
@@ -78,24 +81,24 @@ void GenerateTempFileName(FilePath::StringType *in_out_template) {
 
 // Creates a random filename based on the TempFileName() pattern, creates the
 // file, leaving it open, placing the path in |out_path| and returning the open
-// SbFile.
-SbFile CreateAndOpenTemporaryFile(FilePath directory, FilePath *out_path) {
+// file.
+int CreateAndOpenTemporaryFile(FilePath directory, FilePath *out_path) {
   internal::AssertBlockingAllowed();
   DCHECK(out_path);
   FilePath path = directory.Append(TempFileName());
   FilePath::StringType tmpdir_string = path.value();
   GenerateTempFileName(&tmpdir_string);
   *out_path = FilePath(tmpdir_string);
-  return SbFileOpen(tmpdir_string.c_str(), kSbFileCreateOnly | kSbFileWrite,
-                    NULL, NULL);
+  return open(tmpdir_string.c_str(), O_CREAT | O_EXCL | O_WRONLY,
+              S_IRUSR | S_IWUSR);
 }
 
 // Retries creating a temporary file until it can win the race to create a
 // unique one.
-SbFile CreateAndOpenTemporaryFileSafely(FilePath directory,
+int CreateAndOpenTemporaryFileSafely(FilePath directory,
                                         FilePath *out_path) {
-  SbFile file = kSbFileInvalid;
-  while (!SbFileIsValid(file)) {
+  int file = -1;
+  while (file < 0) {
     file = CreateAndOpenTemporaryFile(directory, out_path);
   }
   return file;
@@ -145,58 +148,53 @@ bool AbsolutePath(FilePath* path) {
   return path->IsAbsolute();
 }
 
-bool DeleteFile(const FilePath &path, bool recursive) {
-  internal::AssertBlockingAllowed();
-  const char *path_str = path.value().c_str();
-  struct ::stat info;
-  bool directory = ::stat(path_str, &info) == 0 && S_ISDIR(info.st_mode);
-  if (!recursive || !directory) {
-    return SbFileDelete(path_str);
+// Borrowed from file_util_posix.cc
+bool DoDeleteFile(const FilePath& path, bool recursive) {
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+  // Reset errno in the beginning of the funciton
+  errno = 0;
+
+  const char* path_str = path.value().c_str();
+  stat_wrapper_t file_info;
+  if (::stat(path_str, &file_info) != 0) {
+    return (errno == ENOENT || errno == ENOTDIR);
+  }
+  if (!S_ISDIR(file_info.st_mode)) {
+    return (unlink(path_str) == 0) || (errno == ENOENT);
+  }
+  if (!recursive){
+    return (rmdir(path_str) == 0) || (errno == ENOENT);
   }
 
   bool success = true;
-  std::stack<std::string> directories;
+  stack<std::string> directories;
   directories.push(path.value());
-
-  // NOTE: Right now, for Linux, SbFileGetInfo does not follow
-  // symlinks. This is good for avoiding deleting through symlinks, but makes it
-  // hard to use symlinks on platforms where they are supported. This seems
-  // safest for the lowest-common-denominator approach of pretending symlinks
-  // don't exist.
-  FileEnumerator traversal(
-      path, true, FileEnumerator::FILES | FileEnumerator::DIRECTORIES);
-
-  // Delete all files and push all directories in depth order onto the stack.
-  for (FilePath current = traversal.Next();
-       success && !current.empty();
+  FileEnumerator traversal(path, true,
+      FileEnumerator::FILES | FileEnumerator::DIRECTORIES);
+  for (FilePath current = traversal.Next(); !current.empty();
        current = traversal.Next()) {
-    FileEnumerator::FileInfo info(traversal.GetInfo());
-
-    if (info.IsDirectory()) {
+    if (traversal.GetInfo().IsDirectory()) {
       directories.push(current.value());
-    } else {
-      success = SbFileDelete(current.value().c_str());
+    }
+    else {
+      success &= (unlink(current.value().c_str()) == 0) || (errno == ENOENT);
     }
   }
 
-  // Delete all directories in reverse-depth order, now that they have no more
-  // regular files.
-  while (success && !directories.empty()) {
-    success = SbFileDelete(directories.top().c_str());
+  while (!directories.empty()) {
+    FilePath dir = FilePath(directories.top());
     directories.pop();
+    success &= (rmdir(dir.value().c_str()) == 0) || (errno == ENOENT);
   }
-
   return success;
 }
 
-bool DeletePathRecursively(const FilePath &path) {
-  bool recursive = true;
-  return DeleteFile(path, recursive);
+bool DeleteFile(const FilePath& path) {
+  return DoDeleteFile(path, /*recursive=*/false);
 }
 
-bool DeleteFile(const FilePath &path) {
-  bool recursive = false;
-  return DeleteFile(path, recursive);
+bool DeletePathRecursively(const FilePath& path) {
+  return DoDeleteFile(path, /*recursive=*/true);
 }
 
 bool DieFileDie(const FilePath& file, bool recurse) {
@@ -219,52 +217,19 @@ bool ReplaceFile(const FilePath& from_path,
   return true;
 }
 
-bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
-  internal::AssertBlockingAllowed();
-
-  base::File source_file(from_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  if (!source_file.IsValid()) {
-    DPLOG(ERROR) << "CopyFile(): Unable to open source file: "
-                 << from_path.value();
+// Mac has its own implementation, this is for all other Posix systems.
+bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+  File infile;
+  infile = File(from_path, File::FLAG_OPEN | File::FLAG_READ);
+  if (!infile.IsValid())
     return false;
-  }
 
-  base::File destination_file(
-      to_path, base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
-  if (!destination_file.IsValid()) {
-    DPLOG(ERROR) << "CopyFile(): Unable to open destination file: "
-                 << to_path.value();
+  File outfile(to_path, File::FLAG_WRITE | File::FLAG_CREATE_ALWAYS);
+  if (!outfile.IsValid())
     return false;
-  }
 
-  const size_t kBufferSize = 32768;
-  std::vector<char> buffer(kBufferSize);
-  bool result = true;
-
-  while (result) {
-    int bytes_read = source_file.ReadAtCurrentPos(&buffer[0], buffer.size());
-    if (bytes_read < 0) {
-      result = false;
-      break;
-    }
-
-    if (bytes_read == 0) {
-      break;
-    }
-
-    int bytes_written =
-        destination_file.WriteAtCurrentPos(&buffer[0], bytes_read);
-    if (bytes_written < bytes_read) {
-      DLOG(ERROR) << "CopyFile(): bytes_read (" << bytes_read
-                  << ") > bytes_written (" << bytes_written << ")";
-      // Because we use a best-effort write, if we wrote less than what was
-      // available, something went wrong.
-      result = false;
-      break;
-    }
-  }
-
-  return result;
+  return CopyFileContents(infile, outfile);
 }
 
 FILE* OpenFile(const FilePath& filename, const char* mode) {
@@ -333,15 +298,15 @@ ScopedFILE CreateAndOpenTemporaryStreamInDir(const FilePath& dir,
 File CreateAndOpenTemporaryFileInDir(const FilePath &dir, FilePath *temp_file) {
   internal::AssertBlockingAllowed();
   DCHECK(temp_file);
-  SbFile file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
-  return SbFileIsValid(file) ? File(std::move(file)) : File(File::GetLastFileError());
+  int file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
+  return file >= 0 ? File(std::move(file)) : File(File::GetLastFileError());
 }
 
 bool CreateTemporaryFileInDir(const FilePath &dir, FilePath *temp_file) {
   internal::AssertBlockingAllowed();
   DCHECK(temp_file);
-  SbFile file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
-  return (SbFileIsValid(file) && SbFileClose(file));
+  int file = CreateAndOpenTemporaryFileSafely(dir, temp_file);
+  return ((file >= 0) && !::close(file));
 }
 
 bool CreateTemporaryDirInDir(const FilePath &base_dir,
@@ -427,20 +392,11 @@ bool IsLink(const FilePath &file_path) {
 }
 
 bool GetFileInfo(const FilePath &file_path, File::Info *results) {
-  internal::AssertBlockingAllowed();
-  SbFileInfo info;
-  if (!SbFileGetPathInfo(file_path.value().c_str(), &info)) {
-    return false;
-  }
+  stat_wrapper_t file_info;
+    if (::stat(file_path.value().c_str(), &file_info) != 0)
+      return false;
 
-  results->is_directory = info.is_directory;
-  results->size = info.size;
-  results->last_modified = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(info.last_modified));
-  results->last_accessed = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(info.last_accessed));
-  results->creation_time = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(info.creation_time));
+  results->FromStat(file_info);
   return true;
 }
 

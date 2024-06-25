@@ -50,7 +50,9 @@ int ToSbFileFlags(SkFILE_Flags sk_flags) {
 
 FILE* sk_fopen(const char path[], SkFILE_Flags sk_flags) {
   SbFile starboard_file = SbFileOpen(path, ToSbFileFlags(sk_flags), NULL, NULL);
-  if (starboard_file == base::kInvalidPlatformFile) {
+  // TODO: temporarily replace with kSbFileInvalid, will be deprecated with
+  // SBFile.
+  if (starboard_file == kSbFileInvalid) {
     return nullptr;
   }
 

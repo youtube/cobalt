@@ -5,13 +5,13 @@ description:
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "96.0.4664.219"  # from https://chromereleases.googleblog.com/2022/08/long-term-support-channel-update-for_31.html
+    value: "114.0.5735.358"  # from https://chromereleases.googleblog.com/2024/03/long-term-support-channel-update-for_26.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/webm/libvpx.git"
-    version: "7aabd6968278130da885f6c35ee12b19a1e7be72"
-    # from https://chromium.googlesource.com/chromium/src/+/96.0.4664.219/DEPS#1305
+    version: "7aaffe2df4c9426ab204a272ca5ca52286ca86d4"
+    # from https://chromium.googlesource.com/chromium/src/+/114.0.5735.358/DEPS#1542
   }
   last_upgrade_date {
     year: 2020
