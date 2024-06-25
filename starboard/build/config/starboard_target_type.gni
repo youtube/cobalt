@@ -39,7 +39,7 @@ template("starboard_platform_target") {
     }
     if (target_type == "shared_library") {
       build_loader = false
-      if (!is_host_win) {
+      if (host_os != "win") {
         output_extension = starboard_shared_library_extension
       }
     }

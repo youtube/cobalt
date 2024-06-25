@@ -540,7 +540,7 @@ template("shared_library") {
         ":${actual_target_name}_loader($starboard_toolchain)",
         ":${actual_target_name}_loader_install($starboard_toolchain)",
       ]
-      if (!is_host_win) {
+      if (host_os != "win") {
         deps += [ ":${actual_target_name}_loader_copy($starboard_toolchain)" ]
       }
     }
@@ -588,7 +588,7 @@ template("shared_library") {
           deps += [ "//starboard:starboard_install($starboard_toolchain)" ]
         }
       }
-      if (!is_host_win) {
+      if (host_os != "win") {
         copy("${actual_target_name}_loader_copy") {
           forward_variables_from(invoker, [ "testonly" ])
           sources = [ "$root_out_dir/${actual_target_name}_loader" ]

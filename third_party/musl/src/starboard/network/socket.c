@@ -334,12 +334,19 @@ int open(const char* path, int oflag, ...) {
   SbFileError out_error;
 
   if (path == NULL){
+    errno = EINVAL;
     return -1;
   }
 
   FileOrSocket* value = (FileOrSocket*)malloc(sizeof(struct FileOrSocket));
   memset(value, 0, sizeof(struct FileOrSocket));
   value->is_file = true;
+
+  // Accept the flag without passing it on. Starboard implementations are
+  // assumed to deal with it.
+  if (oflag & O_LARGEFILE) {
+    oflag &= ~O_LARGEFILE;
+  }
 
   // Check if mode is specified. Mode is hard-coded to S_IRUSR | S_IWUSR in
   // SbFileOpen. Any other modes are not supported.
@@ -350,6 +357,7 @@ int open(const char* path, int oflag, ...) {
     mode_t mode = va_arg(args, int);
     if (mode != sb_file_mode) {
       out_error = kSbFileErrorFailed;
+      errno = EINVAL;
       return -1;
     }
   }
@@ -369,6 +377,7 @@ int open(const char* path, int oflag, ...) {
     // Applications shall specify exactly one of the first three file access
     // modes.
     out_error = kSbFileErrorFailed;
+    errno = EINVAL;
     return -1;
   }
 
@@ -396,6 +405,7 @@ int open(const char* path, int oflag, ...) {
   // SbFileOpen does not support any other combination of flags.
   if (oflag || !sb_file_flags) {
     out_error = kSbFileErrorFailed;
+    errno = EINVAL;
     return -1;
   }
 

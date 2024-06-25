@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/event.h"
+#include <iostream>
 
-int main(int argc, char** argv) {
-  return SbRunStarboardMain(argc, argv, SbEventHandle);
+// Provide a workaround alias for newer libcxx that places iostreams in
+// a namespace.
+namespace std {
+// This refers to a macro that should normally resolve to __1, __2 or be
+// defined by LIBCXX_ABI_NAMESPACE or LIBCXX_ABI_VERSION
+namespace _LIBCPP_ABI_NAMESPACE {
+__attribute__((visibility("default"))) std::istream& cin = ::std::cin;
 }
+}  // namespace std

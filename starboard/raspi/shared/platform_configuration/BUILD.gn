@@ -61,7 +61,6 @@ config("compiler_flags") {
 
   defines += [
     # Cobalt on Linux flag
-    "COBALT_LINUX",
     "__STDC_FORMAT_MACROS",  # so that we get PRI*
     "_GNU_SOURCE=1",
   ]

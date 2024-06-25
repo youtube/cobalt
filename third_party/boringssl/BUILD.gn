@@ -256,7 +256,7 @@ if (!use_cobalt_customizations) {
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
            calling_convention != "sysv" && calling_convention != "windows") ||
           (target_cpu != "x86" && target_cpu != "x64" &&
-           target_cpu != "arm" && target_cpu != "arm64") || is_host_win) {  # is_host_win : windows host modular builds need OPENSSL_NO_ASM )
+           target_cpu != "arm" && target_cpu != "arm64") || host_os == "win") {  # host_os == "win" : windows host modular builds need OPENSSL_NO_ASM )
         defines = [ "OPENSSL_NO_ASM" ]
       } else {
         if (calling_convention == "aarch64" || calling_convention == "eabi" ||

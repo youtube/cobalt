@@ -28,7 +28,7 @@ template("cobalt_clang_toolchain") {
     }
     assert(defined(native_linker_path),
            "native_linker_path has to be defined by the platform")
-    if (!is_host_win) {
+    if (host_os != "win") {
       prefix = rebase_path("$clang_base_path/bin", root_build_dir)
       cc = "$prefix/clang"
       cxx = "$prefix/clang++"
