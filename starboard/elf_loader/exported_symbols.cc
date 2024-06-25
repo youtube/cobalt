@@ -181,7 +181,9 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileGetPathInfo);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileModeStringToFlags);
   REGISTER_SYMBOL(SbFileOpen);
   REGISTER_SYMBOL(SbFileRead);

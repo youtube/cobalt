@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/shared/posix/file_internal.h"
 
 #include "starboard/shared/posix/impl/file_get_path_info.h"
@@ -19,3 +21,5 @@
 bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
   return ::starboard::shared::posix::impl::FileGetPathInfo(path, out_info);
 }
+
+#endif  // SB_API_VERSION < 16
