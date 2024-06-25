@@ -17,7 +17,6 @@ Book: /youtube/cobalt/_book.yaml
 | **`gtest_target_type`**<br><br> The target type for test targets. Allows changing the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is `"executable"`. |
 | **`has_platform_targets`**<br><br> Whether the platform has platform-specific targets to depend on.<br><br>The default value is `false`. |
 | **`install_target_path`**<br><br> The path to the gni file containing the install_target template which defines how the build should produce the install/ directory.<br><br>The default value is `"//starboard/build/install/no_install.gni"`. |
-| **`is_clang_16`**<br><br> Enable when using clang 16.<br><br>The default value is `false`. |
 | **`loadable_module_configs`**<br><br> Target-specific configurations for loadable_module targets.<br><br>The default value is `[]`. |
 | **`nasm_exists`**<br><br> Enables the nasm compiler to be used to compile .asm files.<br><br>The default value is `false`. |
 | **`path_to_nasm`**<br><br> Where yasm can be found on the host device.<br><br>The default value is `"nasm"`. |

@@ -209,7 +209,7 @@ source_set("zlib_inflate_chunk_simd") {
 
     if (!is_win && use_cobalt_customizations) {
       cflags_c = [ "-Wno-unused-function" ]
-      if (is_clang_16) {
+      if (is_clang && !is_android) {
         cflags_c += [
           # inffast_chunk.c a function definition without a prototype
           "-Wno-deprecated-non-prototype",
@@ -352,7 +352,7 @@ component("zlib_hidden") {
   deps = []
   cflags_c = []
 
-  if (is_clang_16 && use_cobalt_customizations) {
+  if (is_clang && !is_android && use_cobalt_customizations) {
     cflags_c += [
       "-Wno-deprecated-non-prototype",
       "-Wno-unused-but-set-variable",
@@ -438,7 +438,7 @@ config("minizip_warnings") {
   if (is_clang) {
     # zlib uses `if ((a == b))` for some reason.
     cflags = [ "-Wno-parentheses-equality" ]
-    if (is_clang_16 && use_cobalt_customizations) {
+    if (use_cobalt_customizations) {
       cflags += [
         "-Wno-misleading-indentation",
         "-Wno-unused-but-set-variable",

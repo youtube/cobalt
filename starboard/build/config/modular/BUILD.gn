@@ -139,11 +139,7 @@ config("modular") {
       "-Wno-shift-op-parentheses",
       "-Wno-shorten-64-to-32",
       "-fno-use-cxa-atexit",
-    ]
-  }
 
-  if (is_clang_16 || host_os == "win") {
-    cflags += [
       # Do not remove null pointer checks.
       "-fno-delete-null-pointer-checks",
     ]
