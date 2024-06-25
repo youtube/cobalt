@@ -59,6 +59,9 @@ _FILTERED_TESTS = {
 
         # Enable once verified on the platform.
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
+
+        # TODO: b/349109647 Disable flaky test.
+        'SbPlayerGetMediaTimeTests/*',
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing
