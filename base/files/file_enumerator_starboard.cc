@@ -112,10 +112,8 @@ FileEnumerator::~FileEnumerator() = default;
 std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     const FilePath& source) {
   internal::AssertBlockingAllowed();
-  SbFileError error;
-  SbDirectory dir = SbDirectoryOpen(source.value().c_str(), &error);
-  if (!SbDirectoryIsValid(dir)) {
-    error_ = static_cast<File::Error>(error);
+  DIR* dir = opendir(source.value().c_str());
+  if (!dir) {
     return std::vector<FileEnumerator::FileInfo>();
   }
 
@@ -140,8 +138,18 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   bool found_dot_dot = false;
 
   std::vector<char> entry(kSbFileMaxName);
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
 
-  while (SbDirectoryGetNext(dir, entry.data(), entry.size())) {
+  while (true) {
+    if (entry.size() < kSbFileMaxName || !dir || !entry.data()) {
+      break;
+    }
+    int result = readdir_r(dir, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+    starboard::strlcpy(entry.data(), dirent->d_name, entry.size());
     const char dot_dot_str[] = "..";
     if (!strncmp(entry.data(), dot_dot_str, sizeof(dot_dot_str))) {
       found_dot_dot = true;
@@ -153,7 +161,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     ret.push_back(GenerateEntry(".."));
   }
 
-  SbDirectoryClose(dir);
+  closedir(dir);
   return ret;
 }
 

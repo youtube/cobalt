@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/directory.h"
 
 #include <android/asset_manager.h>
@@ -41,3 +43,4 @@ SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
   }
   return kSbDirectoryInvalid;
 }
+#endif  // SB_API_VERSION < 16
