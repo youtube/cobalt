@@ -433,6 +433,11 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     } 
   }
 
+#if defined(O_LARGEFILE)
+  // Always add on O_LARGEFILE, regardless of compiler macros
+  open_flags |= O_LARGEFILE;
+#endif
+
   SB_COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
 
   int mode = S_IRUSR | S_IWUSR;
@@ -455,7 +460,17 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   file_.reset(descriptor);
 
   if (!file_.is_valid()) {
+#if defined(__ANDROID_API__)
+  bool can_read = flags & O_RDONLY;
+  bool can_write = flags & O_WRONLY;
+  if ((errno == 0) && (!can_read || can_write)) {
+    error_details_ = FILE_ERROR_ACCESS_DENIED;
+  } else {
     error_details_ = File::GetLastFileError();
+  }
+#else
+  error_details_ = File::GetLastFileError();
+#endif
   } else {
     error_details_ = FILE_OK;
     if (append_) {

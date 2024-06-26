@@ -58,8 +58,8 @@ static size_t wrap_fwrite(const void *ptr, size_t size, size_t nmemb,
 
 static const char *exec_name;
 
-static void warn_or_exit_on_errorv(vpx_codec_ctx_t *ctx, int fatal,
-                                   const char *s, va_list ap) {
+static VPX_TOOLS_FORMAT_PRINTF(3, 0) void warn_or_exit_on_errorv(
+    vpx_codec_ctx_t *ctx, int fatal, const char *s, va_list ap) {
   if (ctx->err) {
     const char *detail = vpx_codec_error_detail(ctx);
 
@@ -72,7 +72,9 @@ static void warn_or_exit_on_errorv(vpx_codec_ctx_t *ctx, int fatal,
   }
 }
 
-static void ctx_exit_on_error(vpx_codec_ctx_t *ctx, const char *s, ...) {
+static VPX_TOOLS_FORMAT_PRINTF(2,
+                               3) void ctx_exit_on_error(vpx_codec_ctx_t *ctx,
+                                                         const char *s, ...) {
   va_list ap;
 
   va_start(ap, s);
@@ -80,8 +82,8 @@ static void ctx_exit_on_error(vpx_codec_ctx_t *ctx, const char *s, ...) {
   va_end(ap);
 }
 
-static void warn_or_exit_on_error(vpx_codec_ctx_t *ctx, int fatal,
-                                  const char *s, ...) {
+static VPX_TOOLS_FORMAT_PRINTF(3, 4) void warn_or_exit_on_error(
+    vpx_codec_ctx_t *ctx, int fatal, const char *s, ...) {
   va_list ap;
 
   va_start(ap, s);
@@ -522,9 +524,12 @@ static const arg_def_t row_mt =
 
 static const arg_def_t disable_loopfilter =
     ARG_DEF(NULL, "disable-loopfilter", 1,
-            "Control Loopfilter in VP9\n"
+            "Control Loopfilter in VP9:\n"
+            "                                          "
             "0: Loopfilter on for all frames (default)\n"
+            "                                          "
             "1: Loopfilter off for non reference frames\n"
+            "                                          "
             "2: Loopfilter off for all frames");
 #endif
 
@@ -1581,13 +1586,14 @@ static void test_decode(struct stream_state *stream,
   /* Get the internal reference frame */
   if (strcmp(codec->name, "vp8") == 0) {
     struct vpx_ref_frame ref_enc, ref_dec;
-    int width, height;
+    int aligned_width = (stream->config.cfg.g_w + 15) & ~15;
+    int aligned_height = (stream->config.cfg.g_h + 15) & ~15;
 
-    width = (stream->config.cfg.g_w + 15) & ~15;
-    height = (stream->config.cfg.g_h + 15) & ~15;
-    vpx_img_alloc(&ref_enc.img, VPX_IMG_FMT_I420, width, height, 1);
+    vpx_img_alloc(&ref_enc.img, VPX_IMG_FMT_I420, aligned_width, aligned_height,
+                  1);
     enc_img = ref_enc.img;
-    vpx_img_alloc(&ref_dec.img, VPX_IMG_FMT_I420, width, height, 1);
+    vpx_img_alloc(&ref_dec.img, VPX_IMG_FMT_I420, aligned_width, aligned_height,
+                  1);
     dec_img = ref_dec.img;
 
     ref_enc.frame_type = VP8_LAST_FRAME;
@@ -1701,6 +1707,10 @@ int main(int argc, const char **argv_) {
    * codec.
    */
   argv = argv_dup(argc - 1, argv_ + 1);
+  if (!argv) {
+    fprintf(stderr, "Error allocating argument list\n");
+    return EXIT_FAILURE;
+  }
   parse_global_config(&global, argv);
 
   if (argc < 3) usage_exit();
@@ -1960,10 +1970,9 @@ int main(int argc, const char **argv_) {
           } else {
             const int64_t input_pos = ftello(input.file);
             const int64_t input_pos_lagged = input_pos - lagged_count;
-            const int64_t limit = input.length;
 
             rate = cx_time ? input_pos_lagged * (int64_t)1000000 / cx_time : 0;
-            remaining = limit - input_pos + lagged_count;
+            remaining = input.length - input_pos + lagged_count;
           }
 
           average_rate =

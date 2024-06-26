@@ -27,6 +27,12 @@ namespace shared {
 SB_ONCE_INITIALIZE_FUNCTION(MediaCodecBridgeEradicator,
                             MediaCodecBridgeEradicator::GetInstance);
 
+// Maximum wait time when creating a new MediaCodecBridge if the background
+// cleanup thread (MediaCodecBridgeEradicator::DestroyMediaCodecBridge) is
+// unresponsive.
+const int64_t ERADICATOR_THREAD_TIMEOUT_MICROSECOND =
+    2 * 1000 * 1000;  // 2 seconds
+
 namespace {
 
 struct EradicateParam {
@@ -47,7 +53,20 @@ struct EradicateParam {
 void MediaCodecBridgeEradicator::WaitForPendingDestructions() {
   ScopedLock scoped_lock(mutex_);
   while (!j_media_codec_bridge_set_.empty()) {
-    condition_variable_.Wait();
+    bool signaled =
+        condition_variable_.WaitTimed(ERADICATOR_THREAD_TIMEOUT_MICROSECOND);
+    if (!signaled) {
+      // condition_variable_ timed out
+      SB_LOG(WARNING)
+          << "The child thread that runs "
+             "MediaCodecBridgeEradicator::DestroyMediaCodecBridge has not "
+             "terminated after ERADICATOR_THREAD_TIMEOUT_MICROSECOND, "
+             "potential thread leakage happened.";
+
+      // remove all values in j_media_codec_bridge_set_ to unblock
+      // creating new MediaCodecBridge instances.
+      j_media_codec_bridge_set_.clear();
+    }
   }
 }
 

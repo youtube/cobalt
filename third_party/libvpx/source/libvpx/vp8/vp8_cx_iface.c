@@ -18,7 +18,6 @@
 #include "vpx_mem/vpx_mem.h"
 #include "vpx_ports/static_assert.h"
 #include "vpx_ports/system_state.h"
-#include "vpx_ports/vpx_once.h"
 #include "vpx_util/vpx_timestamp.h"
 #include "vp8/encoder/onyx_int.h"
 #include "vpx/vp8cx.h"
@@ -339,7 +338,9 @@ static vpx_codec_err_t set_vp8e_config(VP8_CONFIG *oxcf,
     oxcf->end_usage = USAGE_CONSTANT_QUALITY;
   }
 
-  oxcf->target_bandwidth = cfg.rc_target_bitrate;
+  // Cap the target rate to 1000 Mbps to avoid some integer overflows in
+  // target bandwidth calculations.
+  oxcf->target_bandwidth = VPXMIN(cfg.rc_target_bitrate, 1000000);
   oxcf->rc_max_intra_bitrate_pct = vp8_cfg.rc_max_intra_bitrate_pct;
   oxcf->gf_cbr_boost_pct = vp8_cfg.gf_cbr_boost_pct;
 
@@ -472,14 +473,23 @@ static vpx_codec_err_t vp8e_set_config(vpx_codec_alg_priv_t *ctx,
     ERROR("Cannot increase lag_in_frames");
 
   res = validate_config(ctx, cfg, &ctx->vp8_cfg, 0);
+  if (res != VPX_CODEC_OK) return res;
 
-  if (!res) {
-    ctx->cfg = *cfg;
-    set_vp8e_config(&ctx->oxcf, ctx->cfg, ctx->vp8_cfg, NULL);
-    vp8_change_config(ctx->cpi, &ctx->oxcf);
+  if (setjmp(ctx->cpi->common.error.jmp)) {
+    const vpx_codec_err_t codec_err =
+        update_error_state(ctx, &ctx->cpi->common.error);
+    ctx->cpi->common.error.setjmp = 0;
+    vpx_clear_system_state();
+    assert(codec_err != VPX_CODEC_OK);
+    return codec_err;
   }
 
-  return res;
+  ctx->cpi->common.error.setjmp = 1;
+  ctx->cfg = *cfg;
+  set_vp8e_config(&ctx->oxcf, ctx->cfg, ctx->vp8_cfg, NULL);
+  vp8_change_config(ctx->cpi, &ctx->oxcf);
+  ctx->cpi->common.error.setjmp = 0;
+  return VPX_CODEC_OK;
 }
 
 static vpx_codec_err_t get_quantizer(vpx_codec_alg_priv_t *ctx, va_list args) {
@@ -692,7 +702,7 @@ static vpx_codec_err_t vp8e_init(vpx_codec_ctx_t *ctx,
       ctx->priv->enc.total_encoders = 1;
     }
 
-    once(vp8_initialize_enc);
+    vp8_initialize_enc();
 
     res = validate_config(priv, &priv->cfg, &priv->vp8_cfg, 0);
 
@@ -1214,8 +1224,8 @@ static vpx_codec_err_t vp8e_set_scalemode(vpx_codec_alg_priv_t *ctx,
   if (data) {
     int res;
     vpx_scaling_mode_t scalemode = *(vpx_scaling_mode_t *)data;
-    res = vp8_set_internal_size(ctx->cpi, (VPX_SCALING)scalemode.h_scaling_mode,
-                                (VPX_SCALING)scalemode.v_scaling_mode);
+    res = vp8_set_internal_size(ctx->cpi, scalemode.h_scaling_mode,
+                                scalemode.v_scaling_mode);
 
     if (!res) {
       /*force next frame a key frame to effect scaling mode */

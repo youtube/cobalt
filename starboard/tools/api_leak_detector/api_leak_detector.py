@@ -165,6 +165,9 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'pthread_getname_np',
     'usleep',
     'write',
+    'opendir',
+    'closedir',
+    'readdir_r',
 ]
 
 

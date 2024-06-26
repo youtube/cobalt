@@ -3319,12 +3319,8 @@ static void ColoredPrintf(GTestColor color, const char* fmt, ...) {
     GTEST_OS_WINDOWS_PHONE || GTEST_OS_WINDOWS_RT || defined(ESP_PLATFORM)
   const bool use_color = AlwaysFalse();
 #else
-#if GTEST_OS_STARBOARD
-  static const bool in_color_mode = ShouldUseColor(posix::IsATTY(0) != 0);
-#else
   static const bool in_color_mode =
       ShouldUseColor(posix::IsATTY(posix::FileNo(stdout)) != 0);
-#endif // GTEST_OS_STARBOARD
   const bool use_color = in_color_mode && (color != GTestColor::kDefault);
 #endif  // GTEST_OS_WINDOWS_MOBILE || GTEST_OS_ZOS
 

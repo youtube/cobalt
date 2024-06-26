@@ -9,7 +9,16 @@ since the version previous to it.
 
 ## Version 16
 
-### Deprecated `Accessibility` header
+## Deprecated `SbLogIsTty`
+Removed, will use `isatty(fd)` if needed.
+
+### Added Socket Waiter API for POSIX.
+Introduced Starboard functions SbPosixSocketWaiterAdd, SbPosixSocketWaiterRemove
+and callback function SbPosixSocketWaiterCallback to support POSIX based socket
+APIs.
+
+## Deprecated `Accessibility` header
+
 Accessibility Starboard API has been deprecated, an extension in
 `starboard/extension/accessibility.h` is available instead. The removal
 includes the following functions:
@@ -18,7 +27,7 @@ includes the following functions:
 * `SbAccessibilityGetTextToSpeechSettings`
 * `SbAccessibilitySetCaptionsEnabled`
 
-### Added new configuration constant `kHasPartialAudioFramesSupport`
+## Added new configuration constant `kHasPartialAudioFramesSupport`
 Set this to true if your platform supports partial audio frames.
 
 ### Deprecated `SbMutex`, `SbConditionVariable` and `SbThread`.
