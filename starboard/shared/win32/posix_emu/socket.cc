@@ -98,6 +98,23 @@ static FileOrSocket handle_db_get(int fd, bool erase) {
   return handle;
 }
 
+static int handle_db_get_fd(SOCKET handle) {
+  int fd = -1;
+  if (handle == INVALID_SOCKET) {
+    return fd;
+  }
+
+  EnterCriticalSection(&g_critical_section.critical_section_);
+  for (auto i : *g_map_addr) {
+    if (i.second.is_file == false && i.second.socket == handle) {
+      fd = i.first;
+      break;
+    }
+  }
+  LeaveCriticalSection(&g_critical_section.critical_section_);
+  return fd;
+}
+
 // WSAGetLastError should be called immediately to retrieve the extended error
 // code for the failing function call.
 // https://learn.microsoft.com/en-us/windows/win32/winsock/error-codes-errno-h-errno-and-wsagetlasterror-2
@@ -383,7 +400,7 @@ int sb_accept(int socket, sockaddr* addr, int* addrlen) {
   return handle_db_put(handle);
 }
 
-int sb_connect(int socket, sockaddr* name, int namelen) {
+int sb_connect(int socket, const sockaddr* name, int namelen) {
   SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
     return -1;
@@ -499,6 +516,18 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
     }
   }
   return 0;
+}
+
+int posix_socket_get_fd_from_handle(SOCKET socket) {
+  return handle_db_get_fd(socket);
+}
+
+SOCKET posix_socket_get_handle_from_fd(int socket) {
+  FileOrSocket handle = handle_db_get(socket, false);
+  if (handle.is_file || handle.socket == INVALID_SOCKET) {
+    return INVALID_SOCKET;
+  }
+  return handle.socket;
 }
 
 }  // extern "C"

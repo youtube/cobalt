@@ -16,6 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/shared/libevent/socket_waiter_internal.h"
+#include "starboard/socket.h"
 
 bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                        SbSocket socket,
@@ -45,3 +46,35 @@ bool SbSocketWaiterAdd(SbSocketWaiter waiter,
 
   return waiter->Add(socket, context, callback, interests, persistent);
 }
+
+#if SB_API_VERSION >= 16
+
+bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
+                            int socket,
+                            void* context,
+                            SbPosixSocketWaiterCallback callback,
+                            int interests,
+                            bool persistent) {
+  if (!SbSocketWaiterIsValid(waiter)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Waiter (" << waiter << ") is invalid.";
+    return false;
+  }
+
+  if (socket < 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+
+  if (!callback) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": No callback provided.";
+    return false;
+  }
+
+  if (!interests) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": No interests provided.";
+    return false;
+  }
+
+  return waiter->Add(socket, waiter, context, callback, interests, persistent);
+}
+#endif  // SB_API_VERSION >= 16
