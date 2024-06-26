@@ -30,16 +30,13 @@ This will catch most of the trivial formatting errors and save you time.
 
 ### [Other C++ Features](https://google.github.io/styleguide/cppguide.html#Other_C++_Features)
 
-*   {DEV} all parameters passed by reference, except for STL containers (e.g.
-    std::vector, std::list), must be labeled `const`. For return parameters
-    other than STL containers, use a pointer.
 *   {DO} avoid use of default arguments.
 *   {DONT} use C++ exceptions, they are disabled in the builds and not caught.
 *   {DO} use nullptr (instead of 0 or NULL) for pointers.
 *   {DO} use size\_t for loop iterators and size values.
 *   {DO} use uint8\_t pointers instead of void pointers to denote binary data.
-*   {DO} use C++11/14 according to the [Chromium c++ 11/14 guide]
-    (http://chromium-cpp.appspot.com/).
+*   {DO} use C++11/14/17 according to the
+    [Chromium C++ features guide](https://chromium.googlesource.com/chromium/src/+/main/styleguide/c++/c++-features.md).
 
 ### [Naming](https://google.github.io/styleguide/cppguide.html#Naming)
 

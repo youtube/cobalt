@@ -26,9 +26,8 @@ WindowSurfaceEGL::~WindowSurfaceEGL() {}
 egl::Error WindowSurfaceEGL::initialize(const egl::Display *display)
 {
     constexpr EGLint kForwardedWindowSurfaceAttributes[] = {
-        EGL_RENDER_BUFFER,
-        EGL_POST_SUB_BUFFER_SUPPORTED_NV,
-    };
+        EGL_RENDER_BUFFER, EGL_POST_SUB_BUFFER_SUPPORTED_NV, EGL_GL_COLORSPACE,
+        EGL_COLOR_COMPONENT_TYPE_EXT};
 
     native_egl::AttributeVector nativeAttribs =
         native_egl::TrimAttributeMap(mState.attributes, kForwardedWindowSurfaceAttributes);
@@ -40,6 +39,17 @@ egl::Error WindowSurfaceEGL::initialize(const egl::Display *display)
         return egl::Error(mEGL->getError(), "eglCreateWindowSurface failed");
     }
 
+    return egl::NoError();
+}
+
+egl::Error WindowSurfaceEGL::getBufferAge(const gl::Context *context, EGLint *age)
+{
+    ANGLE_UNUSED_VARIABLE(context);
+    EGLBoolean result = mEGL->querySurface(mSurface, EGL_BUFFER_AGE_EXT, age);
+    if (result == EGL_FALSE)
+    {
+        return egl::Error(mEGL->getError(), "eglQuerySurface for EGL_BUFFER_AGE_EXT failed");
+    }
     return egl::NoError();
 }
 

@@ -11,9 +11,11 @@
 #include "common/debug.h"
 #include "libANGLE/Compiler.h"
 #include "libANGLE/Context.h"
+#include "libANGLE/renderer/ContextImpl.h"
 #include "libANGLE/renderer/gl/FunctionsGL.h"
 #include "libANGLE/renderer/gl/RendererGL.h"
-#include "platform/FeaturesGL.h"
+#include "libANGLE/trace.h"
+#include "platform/FeaturesGL_autogen.h"
 
 #include <iostream>
 
@@ -25,7 +27,7 @@ class TranslateTaskGL : public angle::Closure
 {
   public:
     TranslateTaskGL(ShHandle handle,
-                    ShCompileOptions options,
+                    const ShCompileOptions &options,
                     const std::string &source,
                     CompileAndCheckShaderInWorkerFunctor &&compileAndCheckShaderInWorkerFunctor)
         : mHandle(handle),
@@ -38,6 +40,7 @@ class TranslateTaskGL : public angle::Closure
 
     void operator()() override
     {
+        ANGLE_TRACE_EVENT1("gpu.angle", "TranslateTaskGL::run", "source", mSource);
         const char *source = mSource.c_str();
         mResult            = sh::Compile(mHandle, &source, 1, mOptions);
         if (mResult)
@@ -238,131 +241,159 @@ bool ShaderGL::compileAndCheckShaderInWorker(const char *source)
 
 std::shared_ptr<WaitableCompileEvent> ShaderGL::compile(const gl::Context *context,
                                                         gl::ShCompilerInstance *compilerInstance,
-                                                        ShCompileOptions options)
+                                                        ShCompileOptions *options)
 {
     mInfoLog.clear();
 
-    ShCompileOptions additionalOptions = SH_INIT_GL_POSITION;
+    options->initGLPosition = true;
 
-    bool isWebGL = context->getExtensions().webglCompatibility;
-    if (isWebGL && (mData.getShaderType() != gl::ShaderType::Compute))
+    bool isWebGL = context->isWebGL();
+    if (isWebGL && mState.getShaderType() != gl::ShaderType::Compute)
     {
-        additionalOptions |= SH_INIT_OUTPUT_VARIABLES;
+        options->initOutputVariables = true;
+    }
+
+    if (isWebGL && !context->getState().getEnableFeature(GL_TEXTURE_RECTANGLE_ANGLE))
+    {
+        options->disableARBTextureRectangle = true;
     }
 
     const angle::FeaturesGL &features = GetFeaturesGL(context);
 
+    if (features.initFragmentOutputVariables.enabled)
+    {
+        options->initFragmentOutputVariables = true;
+    }
+
     if (features.doWhileGLSLCausesGPUHang.enabled)
     {
-        additionalOptions |= SH_REWRITE_DO_WHILE_LOOPS;
+        options->rewriteDoWhileLoops = true;
     }
 
     if (features.emulateAbsIntFunction.enabled)
     {
-        additionalOptions |= SH_EMULATE_ABS_INT_FUNCTION;
+        options->emulateAbsIntFunction = true;
     }
 
     if (features.addAndTrueToLoopCondition.enabled)
     {
-        additionalOptions |= SH_ADD_AND_TRUE_TO_LOOP_CONDITION;
+        options->addAndTrueToLoopCondition = true;
     }
 
     if (features.emulateIsnanFloat.enabled)
     {
-        additionalOptions |= SH_EMULATE_ISNAN_FLOAT_FUNCTION;
+        options->emulateIsnanFloatFunction = true;
     }
 
     if (features.emulateAtan2Float.enabled)
     {
-        additionalOptions |= SH_EMULATE_ATAN2_FLOAT_FUNCTION;
+        options->emulateAtan2FloatFunction = true;
     }
 
     if (features.useUnusedBlocksWithStandardOrSharedLayout.enabled)
     {
-        additionalOptions |= SH_USE_UNUSED_STANDARD_SHARED_BLOCKS;
+        options->useUnusedStandardSharedBlocks = true;
     }
 
     if (features.removeInvariantAndCentroidForESSL3.enabled)
     {
-        additionalOptions |= SH_REMOVE_INVARIANT_AND_CENTROID_FOR_ESSL3;
+        options->removeInvariantAndCentroidForESSL3 = true;
     }
 
     if (features.rewriteFloatUnaryMinusOperator.enabled)
     {
-        additionalOptions |= SH_REWRITE_FLOAT_UNARY_MINUS_OPERATOR;
+        options->rewriteFloatUnaryMinusOperator = true;
     }
 
     if (!features.dontInitializeUninitializedLocals.enabled)
     {
-        additionalOptions |= SH_INITIALIZE_UNINITIALIZED_LOCALS;
+        options->initializeUninitializedLocals = true;
     }
 
     if (features.clampPointSize.enabled)
     {
-        additionalOptions |= SH_CLAMP_POINT_SIZE;
-    }
-
-    if (features.rewriteVectorScalarArithmetic.enabled)
-    {
-        additionalOptions |= SH_REWRITE_VECTOR_SCALAR_ARITHMETIC;
+        options->clampPointSize = true;
     }
 
     if (features.dontUseLoopsToInitializeVariables.enabled)
     {
-        additionalOptions |= SH_DONT_USE_LOOPS_TO_INITIALIZE_VARIABLES;
+        options->dontUseLoopsToInitializeVariables = true;
     }
 
     if (features.clampFragDepth.enabled)
     {
-        additionalOptions |= SH_CLAMP_FRAG_DEPTH;
+        options->clampFragDepth = true;
     }
 
     if (features.rewriteRepeatedAssignToSwizzled.enabled)
     {
-        additionalOptions |= SH_REWRITE_REPEATED_ASSIGN_TO_SWIZZLED;
+        options->rewriteRepeatedAssignToSwizzled = true;
     }
 
     if (mMultiviewImplementationType == MultiviewImplementationTypeGL::NV_VIEWPORT_ARRAY2)
     {
-        additionalOptions |= SH_INITIALIZE_BUILTINS_FOR_INSTANCED_MULTIVIEW;
-        additionalOptions |= SH_SELECT_VIEW_IN_NV_GLSL_VERTEX_SHADER;
+        options->initializeBuiltinsForInstancedMultiview = true;
+        options->selectViewInNvGLSLVertexShader          = true;
     }
 
-    if (features.clampArrayAccess.enabled)
+    if (features.clampArrayAccess.enabled || isWebGL)
     {
-        additionalOptions |= SH_CLAMP_INDIRECT_ARRAY_BOUNDS;
+        options->clampIndirectArrayBounds = true;
     }
 
-    if (features.addBaseVertexToVertexID.enabled)
+    if (features.vertexIDDoesNotIncludeBaseVertex.enabled)
     {
-        additionalOptions |= SH_ADD_BASE_VERTEX_TO_VERTEX_ID;
+        options->addBaseVertexToVertexID = true;
     }
 
     if (features.unfoldShortCircuits.enabled)
     {
-        additionalOptions |= SH_UNFOLD_SHORT_CIRCUIT;
+        options->unfoldShortCircuit = true;
     }
 
     if (features.removeDynamicIndexingOfSwizzledVector.enabled)
     {
-        additionalOptions |= SH_REMOVE_DYNAMIC_INDEXING_OF_SWIZZLED_VECTOR;
+        options->removeDynamicIndexingOfSwizzledVector = true;
     }
 
     if (features.preAddTexelFetchOffsets.enabled)
     {
-        additionalOptions |= SH_REWRITE_TEXELFETCHOFFSET_TO_TEXELFETCH;
+        options->rewriteTexelFetchOffsetToTexelFetch = true;
     }
 
     if (features.regenerateStructNames.enabled)
     {
-        additionalOptions |= SH_REGENERATE_STRUCT_NAMES;
+        options->regenerateStructNames = true;
     }
 
-    options |= additionalOptions;
+    if (features.rewriteRowMajorMatrices.enabled)
+    {
+        options->rewriteRowMajorMatrices = true;
+    }
 
-    auto workerThreadPool = context->getWorkerThreadPool();
+    if (features.passHighpToPackUnormSnormBuiltins.enabled)
+    {
+        options->passHighpToPackUnormSnormBuiltins = true;
+    }
 
-    const std::string &source = mData.getSource();
+    if (features.emulateClipDistanceState.enabled)
+    {
+        options->emulateClipDistanceState = true;
+    }
+
+    if (features.scalarizeVecAndMatConstructorArgs.enabled)
+    {
+        options->scalarizeVecAndMatConstructorArgs = true;
+    }
+
+    if (mRenderer->getNativeExtensions().shaderPixelLocalStorageANGLE)
+    {
+        options->pls = mRenderer->getNativePixelLocalStorageOptions();
+    }
+
+    auto workerThreadPool = context->getShaderCompileThreadPool();
+
+    const std::string &source = mState.getSource();
 
     auto postTranslateFunctor = [this](std::string *infoLog) {
         if (mCompileStatus == GL_FALSE)
@@ -377,7 +408,7 @@ std::shared_ptr<WaitableCompileEvent> ShaderGL::compile(const gl::Context *conte
     {
         ShHandle handle = compilerInstance->getHandle();
         const char *str = source.c_str();
-        bool result     = sh::Compile(handle, &str, 1, options);
+        bool result     = sh::Compile(handle, &str, 1, *options);
         if (result)
         {
             compileShader(sh::GetObjectCode(handle).c_str());
@@ -399,14 +430,14 @@ std::shared_ptr<WaitableCompileEvent> ShaderGL::compile(const gl::Context *conte
             return compileAndCheckShaderInWorker(source);
         };
         auto translateTask =
-            std::make_shared<TranslateTaskGL>(compilerInstance->getHandle(), options, source,
+            std::make_shared<TranslateTaskGL>(compilerInstance->getHandle(), *options, source,
                                               std::move(compileAndCheckShaderInWorkerFunctor));
 
         auto compileAndCheckShaderFunctor = [this](const char *source) {
             compileAndCheckShader(source);
         };
         return std::make_shared<WaitableCompileEventWorkerContext>(
-            angle::WorkerThreadPool::PostWorkerTask(workerThreadPool, translateTask),
+            workerThreadPool->postWorkerTask(translateTask),
             std::move(compileAndCheckShaderFunctor), std::move(postTranslateFunctor),
             translateTask);
     }
@@ -414,7 +445,7 @@ std::shared_ptr<WaitableCompileEvent> ShaderGL::compile(const gl::Context *conte
     {
         ShHandle handle = compilerInstance->getHandle();
         const char *str = source.c_str();
-        bool result     = sh::Compile(handle, &str, 1, options);
+        bool result     = sh::Compile(handle, &str, 1, *options);
         if (result)
         {
             compileAndCheckShader(sh::GetObjectCode(handle).c_str());
@@ -425,7 +456,7 @@ std::shared_ptr<WaitableCompileEvent> ShaderGL::compile(const gl::Context *conte
 
 std::string ShaderGL::getDebugInfo() const
 {
-    return mData.getTranslatedSource();
+    return mState.getTranslatedSource();
 }
 
 GLuint ShaderGL::getShaderID() const

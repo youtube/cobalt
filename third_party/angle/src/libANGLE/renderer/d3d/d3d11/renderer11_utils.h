@@ -70,7 +70,7 @@ unsigned int GetReservedVertexUniformVectors(D3D_FEATURE_LEVEL featureLevel);
 
 unsigned int GetReservedFragmentUniformVectors(D3D_FEATURE_LEVEL featureLevel);
 
-gl::Version GetMaximumClientVersion(D3D_FEATURE_LEVEL featureLevel);
+gl::Version GetMaximumClientVersion(const Renderer11DeviceCaps &caps);
 void GenerateCaps(ID3D11Device *device,
                   ID3D11DeviceContext *deviceContext,
                   const Renderer11DeviceCaps &renderer11DeviceCaps,
@@ -79,7 +79,8 @@ void GenerateCaps(ID3D11Device *device,
                   gl::Caps *caps,
                   gl::TextureCapsMap *textureCapsMap,
                   gl::Extensions *extensions,
-                  gl::Limitations *limitations);
+                  gl::Limitations *limitations,
+                  ShPixelLocalStorageOptions *);
 
 D3D_FEATURE_LEVEL GetMinimumFeatureLevelForES31();
 
@@ -146,13 +147,13 @@ struct BlendStateKey final
 {
     // This will zero-initialize the struct, including padding.
     BlendStateKey();
+    BlendStateKey(const BlendStateKey &other);
 
-    gl::BlendState blendState;
+    gl::BlendStateExt blendStateExt;
 
-    // An int so struct size rounds nicely.
-    uint32_t rtvMax;
-
-    uint8_t rtvMasks[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+    // Use two 16-bit ints to round the struct nicely.
+    uint16_t rtvMax;
+    uint16_t sampleAlphaToCoverage;
 };
 
 bool operator==(const BlendStateKey &a, const BlendStateKey &b);
@@ -185,21 +186,6 @@ outType *DynamicCastComObject(IUnknown *object)
     else
     {
         SafeRelease(outObject);
-        return nullptr;
-    }
-}
-
-template <typename outType>
-angle::ComPtr<outType> DynamicCastComObjectToComPtr(IUnknown *object)
-{
-    angle::ComPtr<outType> outObject;
-    const HRESULT hr = object->QueryInterface(IID_PPV_ARGS(&outObject));
-    if (SUCCEEDED(hr))
-    {
-        return outObject;
-    }
-    else
-    {
         return nullptr;
     }
 }
@@ -323,6 +309,9 @@ void InitializeFeatures(const Renderer11DeviceCaps &deviceCaps,
                         const DXGI_ADAPTER_DESC &adapterDesc,
                         angle::FeaturesD3D *features);
 
+void InitializeFrontendFeatures(const DXGI_ADAPTER_DESC &adapterDesc,
+                                angle::FrontendFeatures *features);
+
 enum ReservedConstantBufferSlot
 {
     RESERVED_CONSTANT_BUFFER_SLOT_DEFAULT_UNIFORM_BLOCK = 0,
@@ -335,7 +324,7 @@ void InitConstantBufferDesc(D3D11_BUFFER_DESC *constantBufferDescription, size_t
 
 // Helper class for RAII patterning.
 template <typename T>
-class ScopedUnmapper final : angle::NonCopyable
+class [[nodiscard]] ScopedUnmapper final : angle::NonCopyable
 {
   public:
     ScopedUnmapper(T *object) : mObject(object) {}
@@ -380,6 +369,7 @@ class TextureHelper11 : public Resource11Base<ID3D11Resource, std::shared_ptr, G
     TextureHelper11 &operator=(TextureHelper11 &&other);
     TextureHelper11 &operator=(const TextureHelper11 &other);
 
+    bool isBuffer() const { return mData->resourceType == ResourceType::Buffer; }
     bool is2D() const { return mData->resourceType == ResourceType::Texture2D; }
     bool is3D() const { return mData->resourceType == ResourceType::Texture3D; }
     ResourceType getTextureType() const { return mData->resourceType; }
@@ -421,10 +411,12 @@ class TextureHelper11 : public Resource11Base<ID3D11Resource, std::shared_ptr, G
 
     void getDesc(D3D11_TEXTURE2D_DESC *desc) const;
     void getDesc(D3D11_TEXTURE3D_DESC *desc) const;
+    void getDesc(D3D11_BUFFER_DESC *desc) const;
 
   private:
     void initDesc(const D3D11_TEXTURE2D_DESC &desc2D);
     void initDesc(const D3D11_TEXTURE3D_DESC &desc3D);
+    void initDesc(const D3D11_BUFFER_DESC &descBuffer);
 
     const d3d11::Format *mFormatSet;
     gl::Extents mExtents;
@@ -463,6 +455,9 @@ IndexStorageType ClassifyIndexStorage(const gl::State &glState,
                                       gl::DrawElementsType elementType,
                                       gl::DrawElementsType destElementType,
                                       unsigned int offset);
+
+bool SwizzleRequired(const gl::TextureState &textureState);
+gl::SwizzleState GetEffectiveSwizzle(const gl::TextureState &textureState);
 
 }  // namespace rx
 

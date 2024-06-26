@@ -38,6 +38,7 @@ namespace rx
 {
 class ProgramD3DMetadata;
 class ShaderD3D;
+struct ShaderStorageBlock;
 
 // This class needs to match OutputHLSL::decorate
 class DecorateVariable final : angle::NonCopyable
@@ -88,11 +89,12 @@ struct BuiltinVarying final : private angle::NonCopyable
 
     std::string str() const;
     void enableSystem(const std::string &systemValueSemantic);
+    void enableSystem(const std::string &systemValueSemantic, unsigned int sizeVal);
     void enable(const std::string &semanticVal, unsigned int indexVal);
 
     bool enabled;
     std::string semantic;
-    unsigned int index;
+    unsigned int indexOrSize;
     bool systemValue;
 };
 
@@ -103,6 +105,8 @@ struct BuiltinInfo
 
     BuiltinVarying dxPosition;
     BuiltinVarying glPosition;
+    BuiltinVarying glClipDistance;
+    BuiltinVarying glCullDistance;
     BuiltinVarying glFragCoord;
     BuiltinVarying glPointCoord;
     BuiltinVarying glPointSize;
@@ -148,26 +152,26 @@ class DynamicHLSL : angle::NonCopyable
     std::string generateVertexShaderForInputLayout(
         const std::string &sourceShader,
         const gl::InputLayout &inputLayout,
-        const std::vector<sh::ShaderVariable> &shaderAttributes) const;
+        const std::vector<sh::ShaderVariable> &shaderAttributes,
+        const std::vector<rx::ShaderStorageBlock> &shaderStorageBlocks,
+        size_t baseUAVRegister) const;
     std::string generatePixelShaderForOutputSignature(
         const std::string &sourceShader,
         const std::vector<PixelShaderOutputVariable> &outputVariables,
-        bool usesFragDepth,
-        const std::vector<GLenum> &outputLayout) const;
-#if defined(STARBOARD)
-    std::string generatePixelShaderForHdrOutputSignature(
-        const std::string &sourceShader,
-        const std::vector<PixelShaderOutputVariable> &outputVariables,
-        bool usesFragDepth,
-        const std::vector<GLenum> &outputLayout) const;
-#endif  // STARBOARD
-    std::string generateComputeShaderForImage2DBindSignature(
-        const d3d::Context *context,
+        FragDepthUsage fragDepthUsage,
+        const std::vector<GLenum> &outputLayout,
+        const std::vector<rx::ShaderStorageBlock> &shaderStorageBlocks,
+        size_t baseUAVRegister) const;
+    std::string generateShaderForImage2DBindSignature(
         ProgramD3D &programD3D,
         const gl::ProgramState &programData,
+        gl::ShaderType shaderType,
+        const std::string &shaderHLSL,
         std::vector<sh::ShaderVariable> &image2DUniforms,
-        const gl::ImageUnitTextureTypeMap &image2DBindLayout) const;
-    void generateShaderLinkHLSL(const gl::Caps &caps,
+        const gl::ImageUnitTextureTypeMap &image2DBindLayout,
+        unsigned int baseUAVRegister) const;
+    void generateShaderLinkHLSL(const gl::Context *context,
+                                const gl::Caps &caps,
                                 const gl::ProgramState &programData,
                                 const ProgramD3DMetadata &programMetadata,
                                 const gl::VaryingPacking &varyingPacking,

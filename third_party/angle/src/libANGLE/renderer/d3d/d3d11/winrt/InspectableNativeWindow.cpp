@@ -21,7 +21,7 @@ bool IsCoreWindow(EGLNativeWindowType window,
         return false;
     }
 
-    ComPtr<IInspectable> win = static_cast<IInspectable *>(window);
+    ComPtr<IInspectable> win = reinterpret_cast<IInspectable *>(window);
     ComPtr<ABI::Windows::UI::Core::ICoreWindow> coreWin;
     if (SUCCEEDED(win.As(&coreWin)))
     {
@@ -43,7 +43,7 @@ bool IsSwapChainPanel(EGLNativeWindowType window,
         return false;
     }
 
-    ComPtr<IInspectable> win = static_cast<IInspectable *>(window);
+    ComPtr<IInspectable> win = window;
     ComPtr<ABI::Windows::UI::Xaml::Controls::ISwapChainPanel> panel;
     if (SUCCEEDED(win.As(&panel)))
     {
@@ -66,7 +66,7 @@ bool IsEGLConfiguredPropertySet(EGLNativeWindowType window,
         return false;
     }
 
-    ComPtr<IInspectable> props = static_cast<IInspectable *>(window);
+    ComPtr<IInspectable> props = window;
     ComPtr<IPropertySet> propSet;
     ComPtr<IInspectable> nativeWindow;
     ComPtr<ABI::Windows::Foundation::Collections::IMap<HSTRING, IInspectable *>> propMap;

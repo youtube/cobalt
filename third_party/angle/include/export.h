@@ -10,18 +10,16 @@
 #define LIBGLESV2_EXPORT_H_
 
 #if !defined(ANGLE_EXPORT)
-#    if defined(STARBOARD)
-#           define ANGLE_EXPORT /* nothing */
-#    elif defined(_WIN32)
+#    if defined(_WIN32)
 #        if defined(LIBGLESV2_IMPLEMENTATION) || defined(LIBANGLE_IMPLEMENTATION) || \
-            defined(LIBFEATURE_SUPPORT_IMPLEMENTATION)
+            defined(LIBFEATURE_SUPPORT_IMPLEMENTATION) || defined(LIBCL_IMPLEMENTATION)
 #            define ANGLE_EXPORT __declspec(dllexport)
 #        else
 #            define ANGLE_EXPORT __declspec(dllimport)
 #        endif
 #    elif defined(__GNUC__)
 #        if defined(LIBGLESV2_IMPLEMENTATION) || defined(LIBANGLE_IMPLEMENTATION) || \
-            defined(LIBFEATURE_SUPPORT_IMPLEMENTATION)
+            defined(LIBFEATURE_SUPPORT_IMPLEMENTATION) || defined(LIBCL_IMPLEMENTATION)
 #            define ANGLE_EXPORT __attribute__((visibility("default")))
 #        else
 #            define ANGLE_EXPORT

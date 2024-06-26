@@ -18,7 +18,7 @@
 #include "libANGLE/renderer/ProgramImpl.h"
 #include "libANGLE/renderer/d3d/DynamicHLSL.h"
 #include "libANGLE/renderer/d3d/RendererD3D.h"
-#include "platform/FeaturesD3D.h"
+#include "platform/FeaturesD3D_autogen.h"
 
 namespace rx
 {
@@ -96,6 +96,35 @@ struct D3DInterfaceBlock
     gl::ShaderMap<unsigned int> mShaderRegisterIndexes;
 };
 
+struct D3DUniformBlock : D3DInterfaceBlock
+{
+    D3DUniformBlock();
+    D3DUniformBlock(const D3DUniformBlock &other);
+
+    gl::ShaderMap<bool> mUseStructuredBuffers;
+    gl::ShaderMap<unsigned int> mByteWidths;
+    gl::ShaderMap<unsigned int> mStructureByteStrides;
+};
+
+struct ShaderStorageBlock
+{
+    std::string name;
+    unsigned int arraySize     = 0;
+    unsigned int registerIndex = 0;
+};
+
+struct D3DUBOCache
+{
+    unsigned int registerIndex;
+    int binding;
+};
+
+struct D3DUBOCacheUseSB : D3DUBOCache
+{
+    unsigned int byteWidth;
+    unsigned int structureByteStride;
+};
+
 struct D3DVarying final
 {
     D3DVarying();
@@ -104,7 +133,7 @@ struct D3DVarying final
                unsigned int componentCountIn,
                unsigned int outputSlotIn);
 
-    D3DVarying(const D3DVarying &) = default;
+    D3DVarying(const D3DVarying &)            = default;
     D3DVarying &operator=(const D3DVarying &) = default;
 
     std::string semanticName;
@@ -124,7 +153,6 @@ class ProgramD3DMetadata final : angle::NonCopyable
     int getRendererMajorShaderModel() const;
     bool usesBroadcast(const gl::State &data) const;
     bool usesSecondaryColor() const;
-    bool usesFragDepth() const;
     bool usesPointCoord() const;
     bool usesFragCoord() const;
     bool usesPointSize() const;
@@ -140,6 +168,9 @@ class ProgramD3DMetadata final : angle::NonCopyable
     bool usesMultipleFragmentOuts() const;
     bool usesCustomOutVars() const;
     const ShaderD3D *getFragmentShader() const;
+    FragDepthUsage getFragDepthUsage() const;
+    uint8_t getClipDistanceArraySize() const;
+    uint8_t getCullDistanceArraySize() const;
 
   private:
     const int mRendererMajorShaderModel;
@@ -206,33 +237,26 @@ class ProgramD3D : public ProgramImpl
     angle::Result getPixelExecutableForCachedOutputLayout(d3d::Context *context,
                                                           ShaderExecutableD3D **outExectuable,
                                                           gl::InfoLog *infoLog);
-#if defined(STARBOARD)
-    angle::Result getPixelExecutableForCachedHdrOutputLayout(d3d::Context *context,
-                                                             ShaderExecutableD3D **outExectuable,
-                                                             gl::InfoLog *infoLog);
-#endif  // STARBOARD
-    angle::Result getComputeExecutableForImage2DBindLayout(d3d::Context *context,
+    angle::Result getComputeExecutableForImage2DBindLayout(const gl::Context *glContext,
+                                                           d3d::Context *context,
                                                            ShaderExecutableD3D **outExecutable,
                                                            gl::InfoLog *infoLog);
     std::unique_ptr<LinkEvent> link(const gl::Context *context,
                                     const gl::ProgramLinkedResources &resources,
-                                    gl::InfoLog &infoLog) override;
+                                    gl::InfoLog &infoLog,
+                                    const gl::ProgramMergedVaryings &mergedVaryings) override;
     GLboolean validate(const gl::Caps &caps, gl::InfoLog *infoLog) override;
 
-    void setPathFragmentInputGen(const std::string &inputName,
-                                 GLenum genMode,
-                                 GLint components,
-                                 const GLfloat *coeffs) override;
-
-    void updateUniformBufferCache(const gl::Caps &caps,
-                                  const gl::ShaderMap<unsigned int> &reservedShaderRegisterIndexes);
+    void updateUniformBufferCache(const gl::Caps &caps);
 
     unsigned int getAtomicCounterBufferRegisterIndex(GLuint binding,
                                                      gl::ShaderType shaderType) const;
 
     unsigned int getShaderStorageBufferRegisterIndex(GLuint blockIndex,
                                                      gl::ShaderType shaderType) const;
-    const std::vector<GLint> &getShaderUniformBufferCache(gl::ShaderType shaderType) const;
+    const std::vector<D3DUBOCache> &getShaderUniformBufferCache(gl::ShaderType shaderType) const;
+    const std::vector<D3DUBOCacheUseSB> &getShaderUniformBufferCacheUseSB(
+        gl::ShaderType shaderType) const;
 
     void dirtyAllUniforms();
 
@@ -301,7 +325,7 @@ class ProgramD3D : public ProgramImpl
         return mAttribLocationToD3DSemantic;
     }
 
-    void updateCachedInputLayout(Serial associatedSerial, const gl::State &state);
+    void updateCachedInputLayout(UniqueSerial associatedSerial, const gl::State &state);
     void updateCachedOutputLayout(const gl::Context *context, const gl::Framebuffer *framebuffer);
     void updateCachedComputeImage2DBindLayout(const gl::Context *context);
 
@@ -326,10 +350,11 @@ class ProgramD3D : public ProgramImpl
 
     bool hasShaderStage(gl::ShaderType shaderType) const
     {
-        return mState.getLinkedShaderStages()[shaderType];
+        return mState.getExecutable().getLinkedShaderStages()[shaderType];
     }
 
-    void assignImage2DRegisters(unsigned int startImageIndex,
+    void assignImage2DRegisters(gl::ShaderType shaderType,
+                                unsigned int startImageIndex,
                                 int startLogicalImageUnit,
                                 bool readonly);
     bool hasNamedUniform(const std::string &name);
@@ -441,7 +466,7 @@ class ProgramD3D : public ProgramImpl
 
     void initializeUniformStorage(const gl::ShaderBitSet &availableShaderStages);
 
-    void defineUniformsAndAssignRegisters();
+    void defineUniformsAndAssignRegisters(const gl::Context *context);
     void defineUniformBase(const gl::Shader *shader,
                            const sh::ShaderVariable &uniform,
                            D3DUniformMap *uniformMap);
@@ -467,7 +492,8 @@ class ProgramD3D : public ProgramImpl
     void getUniformInternal(GLint location, DestT *dataOut) const;
 
     template <typename T>
-    void setUniformImpl(const gl::VariableLocation &locationInfo,
+    void setUniformImpl(D3DUniform *targetUniform,
+                        const gl::VariableLocation &locationInfo,
                         GLsizei count,
                         const T *v,
                         uint8_t *targetData,
@@ -496,20 +522,20 @@ class ProgramD3D : public ProgramImpl
     D3DUniform *getD3DUniformFromLocation(GLint location);
     const D3DUniform *getD3DUniformFromLocation(GLint location) const;
 
-    void initAttribLocationsToD3DSemantic();
+    void initAttribLocationsToD3DSemantic(const gl::Context *context);
 
     void reset();
     void initializeUniformBlocks();
-    void initializeShaderStorageBlocks();
+    void initializeShaderStorageBlocks(const gl::Context *context);
 
-    void updateCachedInputLayoutFromShader();
+    void updateCachedInputLayoutFromShader(const gl::Context *context);
     void updateCachedOutputLayoutFromShader();
-    void updateCachedImage2DBindLayoutFromComputeShader();
+    void updateCachedImage2DBindLayoutFromShader(gl::ShaderType shaderType);
     void updateCachedVertexExecutableIndex();
     void updateCachedPixelExecutableIndex();
     void updateCachedComputeExecutableIndex();
 
-    void linkResources(const gl::ProgramLinkedResources &resources);
+    void linkResources(const gl::Context *context, const gl::ProgramLinkedResources &resources);
 
     RendererD3D *mRenderer;
     DynamicHLSL *mDynamicHLSL;
@@ -519,14 +545,11 @@ class ProgramD3D : public ProgramImpl
     angle::PackedEnumMap<gl::PrimitiveMode, std::unique_ptr<ShaderExecutableD3D>>
         mGeometryExecutables;
     std::vector<std::unique_ptr<ComputeExecutable>> mComputeExecutables;
-#if defined(STARBOARD)
-    std::unique_ptr<PixelExecutable> mPixelHdrExecutable;
-#endif  // STARBOARD
 
     gl::ShaderMap<std::string> mShaderHLSL;
-    gl::ShaderMap<angle::CompilerWorkaroundsD3D> mShaderWorkarounds;
+    gl::ShaderMap<CompilerWorkaroundsD3D> mShaderWorkarounds;
 
-    bool mUsesFragDepth;
+    FragDepthUsage mFragDepthUsage;
     bool mHasANGLEMultiviewEnabled;
     bool mUsesVertexID;
     bool mUsesViewID;
@@ -546,11 +569,11 @@ class ProgramD3D : public ProgramImpl
     gl::ShaderMap<gl::RangeUI> mUsedShaderSamplerRanges;
     bool mDirtySamplerMapping;
 
-    std::vector<Image> mImagesCS;
-    std::vector<Image> mReadonlyImagesCS;
-    gl::RangeUI mUsedComputeImageRange;
-    gl::RangeUI mUsedComputeReadonlyImageRange;
-    gl::RangeUI mUsedComputeAtomicCounterRange;
+    gl::ShaderMap<std::vector<Image>> mImages;
+    gl::ShaderMap<std::vector<Image>> mReadonlyImages;
+    gl::ShaderMap<gl::RangeUI> mUsedImageRange;
+    gl::ShaderMap<gl::RangeUI> mUsedReadonlyImageRange;
+    gl::ShaderMap<gl::RangeUI> mUsedAtomicCounterRange;
 
     // Cache for pixel shader output layout to save reallocations.
     std::vector<GLenum> mPixelShaderOutputLayoutCache;
@@ -560,7 +583,8 @@ class ProgramD3D : public ProgramImpl
 
     unsigned int mSerial;
 
-    gl::ShaderMap<std::vector<int>> mShaderUBOCaches;
+    gl::ShaderMap<std::vector<D3DUBOCache>> mShaderUBOCaches;
+    gl::ShaderMap<std::vector<D3DUBOCacheUseSB>> mShaderUBOCachesUseSB;
     VertexExecutable::Signature mCachedVertexSignature;
     gl::InputLayout mCachedInputLayout;
     Optional<size_t> mCachedVertexExecutableIndex;
@@ -569,13 +593,14 @@ class ProgramD3D : public ProgramImpl
     std::vector<D3DUniform *> mD3DUniforms;
     std::map<std::string, int> mImageBindingMap;
     std::map<std::string, int> mAtomicBindingMap;
-    std::vector<D3DInterfaceBlock> mD3DUniformBlocks;
+    std::vector<D3DUniformBlock> mD3DUniformBlocks;
     std::vector<D3DInterfaceBlock> mD3DShaderStorageBlocks;
-    std::array<unsigned int, gl::IMPLEMENTATION_MAX_ATOMIC_COUNTER_BUFFERS>
+    gl::ShaderMap<std::vector<ShaderStorageBlock>> mShaderStorageBlocks;
+    std::array<unsigned int, gl::IMPLEMENTATION_MAX_ATOMIC_COUNTER_BUFFER_BINDINGS>
         mComputeAtomicCounterBufferRegisterIndices;
 
-    std::vector<sh::ShaderVariable> mImage2DUniforms;
-    gl::ImageUnitTextureTypeMap mComputeShaderImage2DBindLayoutCache;
+    gl::ShaderMap<std::vector<sh::ShaderVariable>> mImage2DUniforms;
+    gl::ShaderMap<gl::ImageUnitTextureTypeMap> mImage2DBindLayoutCache;
     Optional<size_t> mCachedComputeExecutableIndex;
 
     gl::ShaderBitSet mShaderUniformsDirty;
@@ -583,7 +608,7 @@ class ProgramD3D : public ProgramImpl
     static unsigned int issueSerial();
     static unsigned int mCurrentSerial;
 
-    Serial mCurrentVertexArrayStateSerial;
+    UniqueSerial mCurrentVertexArrayStateSerial;
 };
 }  // namespace rx
 

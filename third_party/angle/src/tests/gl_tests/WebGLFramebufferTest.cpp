@@ -14,7 +14,7 @@
 namespace angle
 {
 
-class WebGLFramebufferTest : public ANGLETest
+class WebGLFramebufferTest : public ANGLETest<>
 {
   protected:
     WebGLFramebufferTest()
@@ -540,8 +540,8 @@ void WebGLFramebufferTest::testRenderingAndReading(GLuint program)
     EXPECT_GL_ERROR(GL_INVALID_FRAMEBUFFER_OPERATION);
 
     // readPixels from incomplete framebuffer
-    std::vector<uint8_t> dummyBuffer(4);
-    glReadPixels(0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, dummyBuffer.data());
+    std::vector<uint8_t> incompleteBuffer(4);
+    glReadPixels(0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, incompleteBuffer.data());
     EXPECT_GL_ERROR(GL_INVALID_FRAMEBUFFER_OPERATION);
 
     // copyTexImage and copyTexSubImage can be either INVALID_FRAMEBUFFER_OPERATION because
@@ -748,9 +748,9 @@ void TestReadingMissingAttachment(int size)
     // and CopyTexSubImage2D should all generate INVALID_OPERATION.
 
     // Before ReadPixels from missing attachment
-    std::vector<uint8_t> dummyBuffer(4);
+    std::vector<uint8_t> incompleteBuffer(4);
     EXPECT_GL_NO_ERROR();
-    glReadPixels(0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, dummyBuffer.data());
+    glReadPixels(0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, incompleteBuffer.data());
     // After ReadPixels from missing attachment
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
@@ -791,12 +791,6 @@ void WebGLFramebufferTest::testDrawingMissingAttachment()
 // Determine if we can attach both color and depth or color and depth_stencil
 TEST_P(WebGLFramebufferTest, CheckValidColorDepthCombination)
 {
-    // In FL9_3, we don't have a good way to handle non-color framebuffer rendering.
-    if (IsD3D11_FL93())
-    {
-        ignoreD3D11SDKLayersWarnings();
-    }
-
     GLenum depthFormat     = GL_NONE;
     GLenum depthAttachment = GL_NONE;
 

@@ -6,25 +6,25 @@
 
 // DisplayCGL.mm: CGL implementation of egl::Display
 
-#include "common/platform.h"
+#import "libANGLE/renderer/gl/cgl/DisplayCGL.h"
 
-#ifdef ANGLE_PLATFORM_MACOS
+#import <Cocoa/Cocoa.h>
+#import <EGL/eglext.h>
+#import <dlfcn.h>
 
-#    include "libANGLE/renderer/gl/cgl/DisplayCGL.h"
-
-#    import <Cocoa/Cocoa.h>
-#    include <EGL/eglext.h>
-#    include <dlfcn.h>
-
-#    include "common/debug.h"
-#    include "gpu_info_util/SystemInfo.h"
-#    include "libANGLE/Display.h"
-#    include "libANGLE/renderer/gl/cgl/ContextCGL.h"
-#    include "libANGLE/renderer/gl/cgl/DeviceCGL.h"
-#    include "libANGLE/renderer/gl/cgl/IOSurfaceSurfaceCGL.h"
-#    include "libANGLE/renderer/gl/cgl/PbufferSurfaceCGL.h"
-#    include "libANGLE/renderer/gl/cgl/RendererCGL.h"
-#    include "libANGLE/renderer/gl/cgl/WindowSurfaceCGL.h"
+#import "common/debug.h"
+#import "common/gl/cgl/FunctionsCGL.h"
+#import "common/system_utils.h"
+#import "gpu_info_util/SystemInfo_internal.h"
+#import "libANGLE/Display.h"
+#import "libANGLE/Error.h"
+#import "libANGLE/renderer/gl/cgl/ContextCGL.h"
+#import "libANGLE/renderer/gl/cgl/DeviceCGL.h"
+#import "libANGLE/renderer/gl/cgl/IOSurfaceSurfaceCGL.h"
+#import "libANGLE/renderer/gl/cgl/PbufferSurfaceCGL.h"
+#import "libANGLE/renderer/gl/cgl/RendererCGL.h"
+#import "libANGLE/renderer/gl/cgl/WindowSurfaceCGL.h"
+#import "platform/PlatformMethods.h"
 
 namespace
 {
@@ -33,10 +33,110 @@ const char *kDefaultOpenGLDylibName =
     "/System/Library/Frameworks/OpenGL.framework/Libraries/libGL.dylib";
 const char *kFallbackOpenGLDylibName = "GL";
 
-}
+}  // namespace
 
 namespace rx
 {
+
+namespace
+{
+
+// Global IOKit I/O registryID that can match a GPU across process boundaries.
+using IORegistryGPUID = uint64_t;
+
+// Code from WebKit to set an OpenGL context to use a particular GPU by ID.
+// https://trac.webkit.org/browser/webkit/trunk/Source/WebCore/platform/graphics/cocoa/GraphicsContextGLOpenGLCocoa.mm
+// Used with permission.
+static std::optional<GLint> GetVirtualScreenByRegistryID(CGLPixelFormatObj pixelFormatObj,
+                                                         IORegistryGPUID gpuID)
+{
+    if (@available(macOS 10.13, *))
+    {
+        // When a process does not have access to the WindowServer (as with Chromium's GPU process
+        // and WebKit's WebProcess), there is no way for OpenGL to tell which GPU is connected to a
+        // display. On 10.13+, find the virtual screen that corresponds to the preferred GPU by its
+        // registryID. CGLSetVirtualScreen can then be used to tell OpenGL which GPU it should be
+        // using.
+
+        GLint virtualScreenCount = 0;
+        CGLError error = CGLDescribePixelFormat(pixelFormatObj, 0, kCGLPFAVirtualScreenCount,
+                                                &virtualScreenCount);
+        if (error != kCGLNoError)
+        {
+            NOTREACHED();
+            return std::nullopt;
+        }
+
+        for (GLint virtualScreen = 0; virtualScreen < virtualScreenCount; ++virtualScreen)
+        {
+            GLint displayMask = 0;
+            error = CGLDescribePixelFormat(pixelFormatObj, virtualScreen, kCGLPFADisplayMask,
+                                           &displayMask);
+            if (error != kCGLNoError)
+            {
+                NOTREACHED();
+                return std::nullopt;
+            }
+
+            auto virtualScreenGPUID = angle::GetGpuIDFromOpenGLDisplayMask(displayMask);
+            if (virtualScreenGPUID == gpuID)
+            {
+                return virtualScreen;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+static std::optional<GLint> GetFirstAcceleratedVirtualScreen(CGLPixelFormatObj pixelFormatObj)
+{
+    if (@available(macOS 10.13, *))
+    {
+        GLint virtualScreenCount = 0;
+        CGLError error = CGLDescribePixelFormat(pixelFormatObj, 0, kCGLPFAVirtualScreenCount,
+                                                &virtualScreenCount);
+        if (error != kCGLNoError)
+        {
+            NOTREACHED();
+            return std::nullopt;
+        }
+        for (GLint virtualScreen = 0; virtualScreen < virtualScreenCount; ++virtualScreen)
+        {
+            GLint isAccelerated = 0;
+            error = CGLDescribePixelFormat(pixelFormatObj, virtualScreen, kCGLPFAAccelerated,
+                                           &isAccelerated);
+            if (error != kCGLNoError)
+            {
+                NOTREACHED();
+                return std::nullopt;
+            }
+            if (isAccelerated)
+            {
+                return virtualScreen;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+}  // anonymous namespace
+
+EnsureCGLContextIsCurrent::EnsureCGLContextIsCurrent(CGLContextObj context)
+    : mOldContext(CGLGetCurrentContext()), mResetContext(mOldContext != context)
+{
+    if (mResetContext)
+    {
+        CGLSetCurrentContext(context);
+    }
+}
+
+EnsureCGLContextIsCurrent::~EnsureCGLContextIsCurrent()
+{
+    if (mResetContext)
+    {
+        CGLSetCurrentContext(mOldContext);
+    }
+}
 
 class FunctionsGLCGL : public FunctionsGL
 {
@@ -58,10 +158,13 @@ DisplayCGL::DisplayCGL(const egl::DisplayState &state)
     : DisplayGL(state),
       mEGLDisplay(nullptr),
       mContext(nullptr),
+      mThreadsWithCurrentContext(),
       mPixelFormat(nullptr),
       mSupportsGPUSwitching(false),
+      mCurrentGPUID(0),
       mDiscreteGPUPixelFormat(nullptr),
-      mDiscreteGPURefs(0)
+      mDiscreteGPURefs(0),
+      mLastDiscreteGPUUnrefTime(0.0)
 {}
 
 DisplayCGL::~DisplayCGL() {}
@@ -71,21 +174,20 @@ egl::Error DisplayCGL::initialize(egl::Display *display)
     mEGLDisplay = display;
 
     angle::SystemInfo info;
-    if (!angle::GetSystemInfo(&info))
-    {
-        return egl::EglNotInitialized() << "Unable to query ANGLE's SystemInfo.";
-    }
-    mSupportsGPUSwitching = info.isMacSwitchable;
+    // It's legal for GetSystemInfo to return false and thereby
+    // contain incomplete information.
+    (void)angle::GetSystemInfo(&info);
+
+    // This code implements the effect of the
+    // disableGPUSwitchingSupport workaround in FeaturesGL.
+    mSupportsGPUSwitching = info.isMacSwitchable && !info.hasNVIDIAGPU();
 
     {
         // TODO(cwallez) investigate which pixel format we want
         std::vector<CGLPixelFormatAttribute> attribs;
         attribs.push_back(kCGLPFAOpenGLProfile);
         attribs.push_back(static_cast<CGLPixelFormatAttribute>(kCGLOGLPVersion_3_2_Core));
-        if (mSupportsGPUSwitching)
-        {
-            attribs.push_back(kCGLPFAAllowOfflineRenderers);
-        }
+        attribs.push_back(kCGLPFAAllowOfflineRenderers);
         attribs.push_back(static_cast<CGLPixelFormatAttribute>(0));
         GLint nVirtualScreens = 0;
         CGLChoosePixelFormat(attribs.data(), &mPixelFormat, &nVirtualScreens);
@@ -101,7 +203,36 @@ egl::Error DisplayCGL::initialize(egl::Display *display)
     {
         return egl::EglNotInitialized() << "Could not create the CGL context.";
     }
-    CGLSetCurrentContext(mContext);
+
+    if (mSupportsGPUSwitching)
+    {
+        auto gpuIndex = info.getPreferredGPUIndex();
+        if (gpuIndex)
+        {
+            auto gpuID         = info.gpus[*gpuIndex].systemDeviceId;
+            auto virtualScreen = GetVirtualScreenByRegistryID(mPixelFormat, gpuID);
+            if (virtualScreen)
+            {
+                CGLError error = CGLSetVirtualScreen(mContext, *virtualScreen);
+                ASSERT(error == kCGLNoError);
+                if (error == kCGLNoError)
+                {
+                    mCurrentGPUID = gpuID;
+                }
+            }
+        }
+        if (mCurrentGPUID == 0)
+        {
+            // Determine the currently active GPU on the system.
+            mCurrentGPUID = angle::GetGpuIDFromDisplayID(kCGDirectMainDisplay);
+        }
+    }
+
+    if (CGLSetCurrentContext(mContext) != kCGLNoError)
+    {
+        return egl::EglNotInitialized() << "Could not make the CGL context current.";
+    }
+    mThreadsWithCurrentContext.insert(angle::GetCurrentThreadUniqueId());
 
     // There is no equivalent getProcAddress in CGL so we open the dylib directly
     void *handle = dlopen(kDefaultOpenGLDylibName, RTLD_NOW);
@@ -125,6 +256,10 @@ egl::Error DisplayCGL::initialize(egl::Display *display)
         return egl::EglNotInitialized() << "OpenGL ES 2.0 is not supportable.";
     }
 
+    auto &attributes = display->getAttributeMap();
+    mDeviceContextIsVolatile =
+        attributes.get(EGL_PLATFORM_ANGLE_DEVICE_CONTEXT_VOLATILE_CGL_ANGLE, GL_FALSE);
+
     return DisplayGL::initialize(display);
 }
 
@@ -141,9 +276,59 @@ void DisplayCGL::terminate()
     if (mContext != nullptr)
     {
         CGLSetCurrentContext(nullptr);
-        CGLReleaseContext(mContext);
+        CGLDestroyContext(mContext);
         mContext = nullptr;
+        mThreadsWithCurrentContext.clear();
     }
+    if (mDiscreteGPUPixelFormat != nullptr)
+    {
+        CGLDestroyPixelFormat(mDiscreteGPUPixelFormat);
+        mDiscreteGPUPixelFormat   = nullptr;
+        mLastDiscreteGPUUnrefTime = 0.0;
+    }
+}
+
+egl::Error DisplayCGL::prepareForCall()
+{
+    if (!mContext)
+    {
+        return egl::EglNotInitialized() << "Context not allocated.";
+    }
+    auto threadId = angle::GetCurrentThreadUniqueId();
+    if (mDeviceContextIsVolatile ||
+        mThreadsWithCurrentContext.find(threadId) == mThreadsWithCurrentContext.end())
+    {
+        if (CGLSetCurrentContext(mContext) != kCGLNoError)
+        {
+            return egl::EglBadAlloc() << "Could not make device CGL context current.";
+        }
+        mThreadsWithCurrentContext.insert(threadId);
+    }
+    return egl::NoError();
+}
+
+egl::Error DisplayCGL::releaseThread()
+{
+    ASSERT(mContext);
+    auto threadId = angle::GetCurrentThreadUniqueId();
+    if (mThreadsWithCurrentContext.find(threadId) != mThreadsWithCurrentContext.end())
+    {
+        if (CGLSetCurrentContext(nullptr) != kCGLNoError)
+        {
+            return egl::EglBadAlloc() << "Could not release device CGL context.";
+        }
+        mThreadsWithCurrentContext.erase(threadId);
+    }
+    return egl::NoError();
+}
+
+egl::Error DisplayCGL::makeCurrent(egl::Display *display,
+                                   egl::Surface *drawSurface,
+                                   egl::Surface *readSurface,
+                                   gl::Context *context)
+{
+    checkDiscreteGPUStatus();
+    return DisplayGL::makeCurrent(display, drawSurface, readSurface, context);
 }
 
 SurfaceImpl *DisplayCGL::createWindowSurface(const egl::SurfaceState &state,
@@ -168,7 +353,7 @@ SurfaceImpl *DisplayCGL::createPbufferFromClientBuffer(const egl::SurfaceState &
 {
     ASSERT(buftype == EGL_IOSURFACE_ANGLE);
 
-    return new IOSurfaceSurfaceCGL(state, mContext, clientBuffer, attribs);
+    return new IOSurfaceSurfaceCGL(state, getRenderer(), mContext, clientBuffer, attribs);
 }
 
 SurfaceImpl *DisplayCGL::createPixmapSurface(const egl::SurfaceState &state,
@@ -191,23 +376,10 @@ ContextImpl *DisplayCGL::createContext(const gl::State &state,
     {
         // Should have been rejected by validation if not supported.
         ASSERT(mSupportsGPUSwitching);
-        // Create discrete pixel format if necessary.
-        if (!mDiscreteGPUPixelFormat)
-        {
-            CGLPixelFormatAttribute discreteAttribs[] = {static_cast<CGLPixelFormatAttribute>(0)};
-            GLint numPixelFormats                     = 0;
-            if (CGLChoosePixelFormat(discreteAttribs, &mDiscreteGPUPixelFormat, &numPixelFormats) !=
-                kCGLNoError)
-            {
-                ERR() << "Error choosing discrete pixel format.";
-                return nullptr;
-            }
-        }
-        ++mDiscreteGPURefs;
         usesDiscreteGPU = true;
     }
 
-    return new ContextCGL(state, errorSet, mRenderer, usesDiscreteGPU);
+    return new ContextCGL(this, state, errorSet, mRenderer, usesDiscreteGPU);
 }
 
 DeviceImpl *DisplayCGL::createDevice()
@@ -262,6 +434,8 @@ egl::ConfigSet DisplayCGL::generateConfigs()
     config.bindToTextureRGB  = EGL_FALSE;
     config.bindToTextureRGBA = EGL_FALSE;
 
+    config.bindToTextureTarget = EGL_TEXTURE_RECTANGLE_ANGLE;
+
     config.surfaceType = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
 
     config.minSwapInterval = 1;
@@ -314,12 +488,6 @@ egl::Error DisplayCGL::validateClientBuffer(const egl::Config *configuration,
     return egl::NoError();
 }
 
-std::string DisplayCGL::getVendorString() const
-{
-    // TODO(cwallez) find a useful vendor string
-    return "";
-}
-
 CGLContextObj DisplayCGL::getCGLContext() const
 {
     return mContext;
@@ -332,12 +500,13 @@ CGLPixelFormatObj DisplayCGL::getCGLPixelFormat() const
 
 void DisplayCGL::generateExtensions(egl::DisplayExtensions *outExtensions) const
 {
-    outExtensions->iosurfaceClientBuffer = true;
-    outExtensions->surfacelessContext    = true;
-    outExtensions->deviceQuery           = true;
+    outExtensions->iosurfaceClientBuffer  = true;
+    outExtensions->surfacelessContext     = true;
+    outExtensions->waitUntilWorkScheduled = true;
 
-    // Contexts are virtualized so textures can be shared globally
-    outExtensions->displayTextureShareGroup = true;
+    // Contexts are virtualized so textures and semaphores can be shared globally
+    outExtensions->displayTextureShareGroup   = true;
+    outExtensions->displaySemaphoreShareGroup = true;
 
     if (mSupportsGPUSwitching)
     {
@@ -361,6 +530,15 @@ egl::Error DisplayCGL::waitClient(const gl::Context *context)
 egl::Error DisplayCGL::waitNative(const gl::Context *context, EGLint engine)
 {
     // TODO(cwallez) UNIMPLEMENTED()
+    return egl::NoError();
+}
+
+egl::Error DisplayCGL::waitUntilWorkScheduled()
+{
+    for (auto context : mState.contextSet)
+    {
+        context->flush();
+    }
     return egl::NoError();
 }
 
@@ -403,7 +581,7 @@ bool WorkerContextCGL::makeCurrent()
     CGLError error = CGLSetCurrentContext(mContext);
     if (error != kCGLNoError)
     {
-        ERR() << "Unable to make gl context current.";
+        ERR() << "Unable to make gl context current.\n";
         return false;
     }
     return true;
@@ -427,16 +605,6 @@ WorkerContext *DisplayCGL::createWorkerContext(std::string *infoLog)
     return new WorkerContextCGL(context);
 }
 
-void DisplayCGL::unreferenceDiscreteGPU()
-{
-    ASSERT(mDiscreteGPURefs > 0);
-    if (--mDiscreteGPURefs == 0)
-    {
-        CGLDestroyPixelFormat(mDiscreteGPUPixelFormat);
-        mDiscreteGPUPixelFormat = nullptr;
-    }
-}
-
 void DisplayCGL::initializeFrontendFeatures(angle::FrontendFeatures *features) const
 {
     mRenderer->initializeFrontendFeatures(features);
@@ -446,6 +614,128 @@ void DisplayCGL::populateFeatureList(angle::FeatureList *features)
 {
     mRenderer->getFeatures().populateFeatureList(features);
 }
+
+RendererGL *DisplayCGL::getRenderer() const
+{
+    return mRenderer.get();
 }
 
-#endif  // ANGLE_PLATFORM_MACOS
+egl::Error DisplayCGL::referenceDiscreteGPU()
+{
+    // Should have been rejected by validation if not supported.
+    ASSERT(mSupportsGPUSwitching);
+    // Create discrete pixel format if necessary.
+    if (mDiscreteGPUPixelFormat)
+    {
+        // Clear this out if necessary.
+        mLastDiscreteGPUUnrefTime = 0.0;
+    }
+    else
+    {
+        ASSERT(mLastDiscreteGPUUnrefTime == 0.0);
+        CGLPixelFormatAttribute discreteAttribs[] = {static_cast<CGLPixelFormatAttribute>(0)};
+        GLint numPixelFormats                     = 0;
+        if (CGLChoosePixelFormat(discreteAttribs, &mDiscreteGPUPixelFormat, &numPixelFormats) !=
+            kCGLNoError)
+        {
+            return egl::EglBadAlloc() << "Error choosing discrete pixel format.";
+        }
+    }
+    ++mDiscreteGPURefs;
+
+    return egl::NoError();
+}
+
+egl::Error DisplayCGL::unreferenceDiscreteGPU()
+{
+    // Should have been rejected by validation if not supported.
+    ASSERT(mSupportsGPUSwitching);
+    ASSERT(mDiscreteGPURefs > 0);
+    if (--mDiscreteGPURefs == 0)
+    {
+        auto *platform            = ANGLEPlatformCurrent();
+        mLastDiscreteGPUUnrefTime = platform->monotonicallyIncreasingTime(platform);
+    }
+
+    return egl::NoError();
+}
+
+void DisplayCGL::checkDiscreteGPUStatus()
+{
+    const double kDiscreteGPUTimeoutInSeconds = 10.0;
+
+    if (mLastDiscreteGPUUnrefTime != 0.0)
+    {
+        ASSERT(mSupportsGPUSwitching);
+        // A non-zero value implies that the timer is ticking on deleting the discrete GPU pixel
+        // format.
+        auto *platform = ANGLEPlatformCurrent();
+        ASSERT(platform);
+        double currentTime = platform->monotonicallyIncreasingTime(platform);
+        if (currentTime > mLastDiscreteGPUUnrefTime + kDiscreteGPUTimeoutInSeconds)
+        {
+            CGLDestroyPixelFormat(mDiscreteGPUPixelFormat);
+            mDiscreteGPUPixelFormat   = nullptr;
+            mLastDiscreteGPUUnrefTime = 0.0;
+        }
+    }
+}
+
+egl::Error DisplayCGL::handleGPUSwitch()
+{
+    if (mSupportsGPUSwitching)
+    {
+        uint64_t gpuID = angle::GetGpuIDFromDisplayID(kCGDirectMainDisplay);
+        if (gpuID != mCurrentGPUID)
+        {
+            auto virtualScreen = GetVirtualScreenByRegistryID(mPixelFormat, gpuID);
+            if (!virtualScreen)
+            {
+                virtualScreen = GetFirstAcceleratedVirtualScreen(mPixelFormat);
+            }
+            if (virtualScreen)
+            {
+                setContextToGPU(gpuID, *virtualScreen);
+            }
+        }
+    }
+
+    return egl::NoError();
+}
+
+egl::Error DisplayCGL::forceGPUSwitch(EGLint gpuIDHigh, EGLint gpuIDLow)
+{
+    if (mSupportsGPUSwitching)
+    {
+        uint64_t gpuID = static_cast<uint64_t>(static_cast<uint32_t>(gpuIDHigh)) << 32 |
+                         static_cast<uint32_t>(gpuIDLow);
+        if (gpuID != mCurrentGPUID)
+        {
+            auto virtualScreen = GetVirtualScreenByRegistryID(mPixelFormat, gpuID);
+            if (virtualScreen)
+            {
+                setContextToGPU(gpuID, *virtualScreen);
+            }
+        }
+    }
+    return egl::NoError();
+}
+
+void DisplayCGL::setContextToGPU(uint64_t gpuID, GLint virtualScreen)
+{
+    CGLError error = CGLSetVirtualScreen(mContext, virtualScreen);
+    ASSERT(error == kCGLNoError);
+    if (error == kCGLNoError)
+    {
+        // Performing the above operation seems to need a call to CGLSetCurrentContext to make
+        // the context work properly again. Failing to do this returns null strings for
+        // GL_VENDOR and GL_RENDERER.
+        CGLUpdateContext(mContext);
+        CGLSetCurrentContext(mContext);
+        onStateChange(angle::SubjectMessage::SubjectChanged);
+        mCurrentGPUID = gpuID;
+        mRenderer->handleGPUSwitch();
+    }
+}
+
+}  // namespace rx

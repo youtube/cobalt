@@ -23,41 +23,61 @@
 namespace angle
 {
 
-// The GLES driver type determines what shared object we use to load the GLES entry points.
-// AngleEGL loads from ANGLE's version of libEGL, libGLESv2, and libGLESv1_CM.
-// SystemEGL uses the system copies of libEGL, libGLESv2, and libGLESv1_CM.
-// SystemWGL loads Windows GL with the GLES compatiblity extensions. See util/WGLWindow.h.
-enum class GLESDriverType
-{
-    AngleEGL,
-    SystemEGL,
-    SystemWGL,
-};
-
 struct PlatformParameters
 {
     PlatformParameters();
-    PlatformParameters(EGLint majorVersion,
+    PlatformParameters(EGLenum clientType,
+                       EGLint majorVersion,
                        EGLint minorVersion,
+                       EGLint profileMask,
                        const EGLPlatformParameters &eglPlatformParameters);
-    PlatformParameters(EGLint majorVersion, EGLint minorVersion, GLESDriverType driver);
+    PlatformParameters(EGLenum clientType,
+                       EGLint majorVersion,
+                       EGLint minorVersion,
+                       EGLint profileMask,
+                       GLESDriverType driver);
 
     EGLint getRenderer() const;
     EGLint getDeviceType() const;
+    bool isSwiftshader() const;
+    bool isVulkan() const;
+    bool isANGLE() const;
+    bool isMetal() const;
+    bool isDesktopOpenGLFrontend() const;
 
     void initDefaultParameters();
 
     auto tie() const
     {
-        return std::tie(driver, noFixture, eglParameters, majorVersion, minorVersion);
+        return std::tie(driver, noFixture, eglParameters, clientType, majorVersion, minorVersion,
+                        profileMask);
     }
+
+    // Helpers to enable and disable ANGLE features.  Expects a Feature::* value from
+    // angle_features_autogen.h.
+    PlatformParameters &enable(Feature feature)
+    {
+        eglParameters.enable(feature);
+        return *this;
+    }
+    PlatformParameters &disable(Feature feature)
+    {
+        eglParameters.disable(feature);
+        return *this;
+    }
+    bool isEnableRequested(Feature feature) const;
+    bool isDisableRequested(Feature feature) const;
 
     GLESDriverType driver;
     bool noFixture;
     EGLPlatformParameters eglParameters;
+    EGLenum clientType;
     EGLint majorVersion;
     EGLint minorVersion;
+    EGLint profileMask;
 };
+
+const char *GetRendererName(EGLint renderer);
 
 bool operator<(const PlatformParameters &a, const PlatformParameters &b);
 bool operator==(const PlatformParameters &a, const PlatformParameters &b);
@@ -80,7 +100,6 @@ EGLPlatformParameters D3D11_FL11_1();
 EGLPlatformParameters D3D11_FL11_0();
 EGLPlatformParameters D3D11_FL10_1();
 EGLPlatformParameters D3D11_FL10_0();
-EGLPlatformParameters D3D11_FL9_3();
 
 EGLPlatformParameters D3D11_NULL();
 
@@ -89,14 +108,14 @@ EGLPlatformParameters D3D11_FL11_1_WARP();
 EGLPlatformParameters D3D11_FL11_0_WARP();
 EGLPlatformParameters D3D11_FL10_1_WARP();
 EGLPlatformParameters D3D11_FL10_0_WARP();
-EGLPlatformParameters D3D11_FL9_3_WARP();
 
 EGLPlatformParameters D3D11_REFERENCE();
 EGLPlatformParameters D3D11_FL11_1_REFERENCE();
 EGLPlatformParameters D3D11_FL11_0_REFERENCE();
 EGLPlatformParameters D3D11_FL10_1_REFERENCE();
 EGLPlatformParameters D3D11_FL10_0_REFERENCE();
-EGLPlatformParameters D3D11_FL9_3_REFERENCE();
+
+EGLPlatformParameters METAL();
 
 EGLPlatformParameters OPENGL();
 EGLPlatformParameters OPENGL(EGLint major, EGLint minor);
@@ -107,6 +126,7 @@ EGLPlatformParameters OPENGLES(EGLint major, EGLint minor);
 EGLPlatformParameters OPENGLES_NULL();
 
 EGLPlatformParameters OPENGL_OR_GLES();
+EGLPlatformParameters OPENGL_OR_GLES(EGLint major, EGLint minor);
 EGLPlatformParameters OPENGL_OR_GLES_NULL();
 
 EGLPlatformParameters VULKAN();
@@ -125,19 +145,16 @@ PlatformParameters ES2_D3D11_PRESENT_PATH_FAST();
 PlatformParameters ES2_D3D11_FL11_0();
 PlatformParameters ES2_D3D11_FL10_1();
 PlatformParameters ES2_D3D11_FL10_0();
-PlatformParameters ES2_D3D11_FL9_3();
 
 PlatformParameters ES2_D3D11_WARP();
 PlatformParameters ES2_D3D11_FL11_0_WARP();
 PlatformParameters ES2_D3D11_FL10_1_WARP();
 PlatformParameters ES2_D3D11_FL10_0_WARP();
-PlatformParameters ES2_D3D11_FL9_3_WARP();
 
 PlatformParameters ES2_D3D11_REFERENCE();
 PlatformParameters ES2_D3D11_FL11_0_REFERENCE();
 PlatformParameters ES2_D3D11_FL10_1_REFERENCE();
 PlatformParameters ES2_D3D11_FL10_0_REFERENCE();
-PlatformParameters ES2_D3D11_FL9_3_REFERENCE();
 
 PlatformParameters ES3_D3D11();
 PlatformParameters ES3_D3D11_FL11_1();
@@ -185,6 +202,11 @@ PlatformParameters ES3_VULKAN_SWIFTSHADER();
 PlatformParameters ES31_VULKAN();
 PlatformParameters ES31_VULKAN_NULL();
 PlatformParameters ES31_VULKAN_SWIFTSHADER();
+PlatformParameters ES32_VULKAN();
+PlatformParameters ES32_VULKAN_NULL();
+PlatformParameters ES32_VULKAN_SWIFTSHADER();
+PlatformParameters GL32_CORE_VULKAN();
+PlatformParameters GL32_CORE_VULKAN_SWIFTSHADER();
 
 PlatformParameters ES1_METAL();
 PlatformParameters ES2_METAL();
@@ -193,18 +215,57 @@ PlatformParameters ES3_METAL();
 PlatformParameters ES2_WGL();
 PlatformParameters ES3_WGL();
 
-inline PlatformParameters WithNoVirtualContexts(const PlatformParameters &params)
-{
-    PlatformParameters withNoVirtualContexts                  = params;
-    withNoVirtualContexts.eglParameters.contextVirtualization = EGL_FALSE;
-    return withNoVirtualContexts;
-}
+PlatformParameters ES1_EGL();
+PlatformParameters ES2_EGL();
+PlatformParameters ES3_EGL();
+
+PlatformParameters ES1_ANGLE_Vulkan_Secondaries();
+PlatformParameters ES2_ANGLE_Vulkan_Secondaries();
+PlatformParameters ES3_ANGLE_Vulkan_Secondaries();
+PlatformParameters ES31_ANGLE_Vulkan_Secondaries();
+PlatformParameters ES32_ANGLE_Vulkan_Secondaries();
+
+PlatformParameters ES1_Zink();
+PlatformParameters ES2_Zink();
+PlatformParameters ES3_Zink();
+PlatformParameters ES31_Zink();
+PlatformParameters ES32_Zink();
+
+const char *GetNativeEGLLibraryNameWithExtension();
 
 inline PlatformParameters WithNoFixture(const PlatformParameters &params)
 {
     PlatformParameters withNoFixture = params;
     withNoFixture.noFixture          = true;
     return withNoFixture;
+}
+
+inline PlatformParameters WithRobustness(const PlatformParameters &params)
+{
+    PlatformParameters withRobustness       = params;
+    withRobustness.eglParameters.robustness = EGL_TRUE;
+    return withRobustness;
+}
+
+inline PlatformParameters WithLowPowerGPU(const PlatformParameters &paramsIn)
+{
+    PlatformParameters paramsOut                   = paramsIn;
+    paramsOut.eglParameters.displayPowerPreference = EGL_LOW_POWER_ANGLE;
+    return paramsOut;
+}
+
+inline PlatformParameters WithHighPowerGPU(const PlatformParameters &paramsIn)
+{
+    PlatformParameters paramsOut                   = paramsIn;
+    paramsOut.eglParameters.displayPowerPreference = EGL_HIGH_POWER_ANGLE;
+    return paramsOut;
+}
+
+inline PlatformParameters WithVulkanSecondaries(const PlatformParameters &params)
+{
+    PlatformParameters paramsOut = params;
+    paramsOut.driver             = GLESDriverType::AngleVulkanSecondariesEGL;
+    return paramsOut;
 }
 }  // namespace angle
 

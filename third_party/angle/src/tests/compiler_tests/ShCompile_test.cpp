@@ -39,7 +39,11 @@ class ShCompileTest : public testing::Test
 
     void testCompile(const char **shaderStrings, int stringCount, bool expectation)
     {
-        ShCompileOptions options      = SH_OBJECT_CODE | SH_VARIABLES | SH_INIT_OUTPUT_VARIABLES;
+        ShCompileOptions options    = {};
+        options.objectCode          = true;
+        options.variables           = true;
+        options.initOutputVariables = true;
+
         bool success                  = sh::Compile(mCompiler, shaderStrings, stringCount, options);
         const std::string &compileLog = sh::GetInfoLog(mCompiler);
         EXPECT_EQ(expectation, success) << compileLog;
@@ -47,7 +51,7 @@ class ShCompileTest : public testing::Test
 
     ShBuiltInResources mResources;
 
-    class ScopedRestoreDefaultLocale : angle::NonCopyable
+    class [[nodiscard]] ScopedRestoreDefaultLocale : angle::NonCopyable
     {
       public:
         ScopedRestoreDefaultLocale();
@@ -188,8 +192,6 @@ TEST_F(ShCompileTest, DecimalSepLocale)
     })";
     const char *parts[]  = {kSource};
 
-    int testedLocales = 0;
-
     // Ensure the locale is reset after the test runs.
     ScopedRestoreDefaultLocale restoreLocale;
 
@@ -203,10 +205,13 @@ TEST_F(ShCompileTest, DecimalSepLocale)
         {
             std::locale localizedLoc(locale);
 
+            ShCompileOptions compileOptions = {};
+            compileOptions.objectCode       = true;
+
             // std::locale::global() must be used instead of setlocale() to affect new streams'
             // default locale
             std::locale::global(std::locale::classic());
-            sh::Compile(mCompiler, parts, 1, SH_OBJECT_CODE);
+            sh::Compile(mCompiler, parts, 1, compileOptions);
             std::string referenceOut = sh::GetObjectCode(mCompiler);
             EXPECT_NE(referenceOut.find("1.9"), std::string::npos)
                 << "float formatted incorrectly with classic locale";
@@ -214,153 +219,18 @@ TEST_F(ShCompileTest, DecimalSepLocale)
             sh::ClearResults(mCompiler);
 
             std::locale::global(localizedLoc);
-            sh::Compile(mCompiler, parts, 1, SH_OBJECT_CODE);
+            sh::Compile(mCompiler, parts, 1, compileOptions);
             std::string localizedOut = sh::GetObjectCode(mCompiler);
             EXPECT_NE(localizedOut.find("1.9"), std::string::npos)
                 << "float formatted incorrectly with locale (" << localizedLoc.name() << ") set";
 
             ASSERT_EQ(referenceOut, localizedOut)
                 << "different output with locale (" << localizedLoc.name() << ") set";
-
-            testedLocales++;
         }
     }
 }
 
-// For testing Desktop GL Shaders
-class ShCompileDesktopGLTest : public ShCompileTest
-{
-  public:
-    ShCompileDesktopGLTest() {}
+// Desktop GLSL support is not enabled on Android
+#if !defined(ANGLE_PLATFORM_ANDROID)
 
-  protected:
-    void SetUp() override
-    {
-        sh::InitBuiltInResources(&mResources);
-        mCompiler = sh::ConstructCompiler(GL_FRAGMENT_SHADER, SH_GL_COMPATIBILITY_SPEC,
-                                          SH_GLSL_330_CORE_OUTPUT, &mResources);
-        ASSERT_TRUE(mCompiler != nullptr) << "Compiler could not be constructed.";
-    }
-};
-
-// Test calling sh::Compile with fragment shader source string
-TEST_F(ShCompileDesktopGLTest, DesktopGLString)
-{
-    constexpr char kFragmentShaderString[] =
-        R"(#version 330
-        void main()
-        {
-        })";
-
-    const char *shaderStrings[] = {kFragmentShaderString};
-
-    testCompile(shaderStrings, 1, true);
-}
-
-// Test calling sh::Compile with core version
-TEST_F(ShCompileDesktopGLTest, FragmentShaderCoreVersion)
-{
-    constexpr char kFragmentShaderString[] =
-        R"(#version 330 core
-        void main()
-        {
-        })";
-
-    const char *shaderStrings[] = {kFragmentShaderString};
-
-    testCompile(shaderStrings, 1, true);
-}
-
-// Implicit conversions in basic operations
-TEST_F(ShCompileDesktopGLTest, ImplicitConversionBasicOperation)
-{
-    constexpr char kFragmentShaderString[] =
-        R"(#version 330 core
-        void main()
-        {
-            //float a = 1 + 1.5;
-            //float b = 1 - 1.5;
-            //float c = 1 * 1.5;
-            //float d = 1 / 1.5;
-            //float e = 1.5 + 1;
-            //float f = 1.5 - 1;
-            float g = 1.5 * 1;
-            //float h = 1.5 / 1;
-        })";
-
-    const char *shaderStrings[] = {kFragmentShaderString};
-
-    testCompile(shaderStrings, 1, true);
-}
-
-// Implicit conversions when assigning
-TEST_F(ShCompileDesktopGLTest, ImplicitConversionAssign)
-{
-    constexpr char kFragmentShaderString[] =
-        R"(#version 330 core
-        void main()
-        {
-            float a = 1;
-            uint b = 2u;
-            a = b;
-            a += b;
-            a -= b;
-            a *= b;
-            a /= b;
-        })";
-
-    const char *shaderStrings[] = {kFragmentShaderString};
-
-    testCompile(shaderStrings, 1, true);
-}
-
-// Implicit conversions for vectors
-TEST_F(ShCompileDesktopGLTest, ImplicitConversionVector)
-{
-    constexpr char kFragmentShaderString[] =
-        R"(#version 330 core
-        void main()
-        {
-            vec3 a;
-            ivec3 b = ivec3(1, 1, 1);
-            a = b;
-        })";
-
-    const char *shaderStrings[] = {kFragmentShaderString};
-
-    testCompile(shaderStrings, 1, true);
-}
-
-// Implicit conversions should not convert between ints and uints
-TEST_F(ShCompileDesktopGLTest, ImplicitConversionAssignFailed)
-{
-    constexpr char kFragmentShaderString[] =
-        R"(#version 330 core
-        void main()
-        {
-            int a = 1;
-            uint b = 2;
-            a = b;
-        })";
-
-    const char *shaderStrings[] = {kFragmentShaderString};
-
-    testCompile(shaderStrings, 1, false);
-}
-
-// GL shaders use implicit conversions between types
-// Testing internal implicit conversions
-TEST_F(ShCompileDesktopGLTest, ImplicitConversionFunction)
-{
-    constexpr char kFragmentShaderString[] =
-        R"(#version 330 core
-        void main()
-        {
-            float cosTheta = clamp(0.5,0,1);
-            float exp = pow(0.5,2);
-        })";
-
-    const char *shaderStrings[] = {kFragmentShaderString};
-
-    testCompile(shaderStrings, 1, true);
-}
+#endif  // !defined(ANGLE_PLATFORM_ANDROID)

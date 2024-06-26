@@ -7,22 +7,24 @@
 // EGLDirectCompositionTest.cpp:
 //   Tests pertaining to DirectComposition and WindowsUIComposition.
 
-#include <d3d11.h>
-#include "test_utils/ANGLETest.h"
+#ifdef ANGLE_ENABLE_D3D11_COMPOSITOR_NATIVE_WINDOW
 
-#include <DispatcherQueue.h>
-#include <VersionHelpers.h>
-#include <Windows.Foundation.h>
-#include <windows.ui.composition.Desktop.h>
-#include <windows.ui.composition.h>
-#include <windows.ui.composition.interop.h>
-#include <wrl.h>
-#include <memory>
+#    include <d3d11.h>
+#    include "test_utils/ANGLETest.h"
 
-#include "libANGLE/renderer/d3d/d3d11/converged/CompositorNativeWindow11.h"
-#include "util/OSWindow.h"
-#include "util/com_utils.h"
-#include "util/test_utils.h"
+#    include <DispatcherQueue.h>
+#    include <VersionHelpers.h>
+#    include <Windows.Foundation.h>
+#    include <windows.ui.composition.Desktop.h>
+#    include <windows.ui.composition.h>
+#    include <windows.ui.composition.interop.h>
+#    include <wrl.h>
+#    include <memory>
+
+#    include "libANGLE/renderer/d3d/d3d11/converged/CompositorNativeWindow11.h"
+#    include "util/OSWindow.h"
+#    include "util/com_utils.h"
+#    include "util/test_utils.h"
 
 using namespace angle;
 using namespace ABI::Windows::System;
@@ -34,7 +36,7 @@ using namespace Microsoft::WRL::Wrappers;
 
 const int WINDOWWIDTH = 200, WINDOWHEIGHT = 200;
 
-class EGLDirectCompositionTest : public ANGLETest
+class EGLDirectCompositionTest : public ANGLETest<>
 {
   protected:
     EGLDirectCompositionTest() : mOSWindow(nullptr) {}
@@ -51,7 +53,7 @@ class EGLDirectCompositionTest : public ANGLETest
 
         mOSWindow->initialize("EGLDirectCompositionTest", WINDOWWIDTH, WINDOWHEIGHT);
         auto nativeWindow = mOSWindow->getNativeWindow();
-        mOSWindow->setVisible(true);
+        setWindowVisible(mOSWindow, true);
 
         // Create DispatcherQueue for window to process compositor callbacks
         CreateDispatcherQueue(mDispatcherController);
@@ -198,7 +200,11 @@ class EGLDirectCompositionTest : public ANGLETest
         {
             return;
         }
-        ASSERT_EGL_TRUE(eglTerminate(mEglDisplay));
+        if (mEglDisplay != EGL_NO_DISPLAY)
+        {
+            ASSERT_EGL_TRUE(eglTerminate(mEglDisplay));
+            mEglDisplay = EGL_NO_DISPLAY;
+        }
 
         OSWindow::Delete(&mOSWindow);
     }
@@ -245,8 +251,11 @@ TEST_P(EGLDirectCompositionTest, SurfaceSizeFromSpriteSize)
     ASSERT_TRUE(surfacewidth == static_cast<int>(visualsize.X));
     ASSERT_TRUE(surfaceheight == static_cast<int>(visualsize.Y));
 
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT) !=
+                EGL_FALSE);
     ASSERT_EGL_TRUE(eglDestroySurface(mEglDisplay, s));
     ASSERT_EGL_TRUE(eglDestroyContext(mEglDisplay, mEglContext));
+    mEglContext = EGL_NO_CONTEXT;
 }
 
 // This tests that a WindowSurface can be created using a SpriteVisual as the containing window
@@ -286,8 +295,13 @@ TEST_P(EGLDirectCompositionTest, RenderSolidColor)
     ASSERT_EGL_TRUE(pixelBuffer[(50 * 50 * 4) + 2] == 0);
     ASSERT_EGL_TRUE(pixelBuffer[(50 * 50 * 4) + 3] == 255);
 
+    ASSERT_TRUE(eglMakeCurrent(mEglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT) !=
+                EGL_FALSE);
     ASSERT_EGL_TRUE(eglDestroySurface(mEglDisplay, s));
     ASSERT_EGL_TRUE(eglDestroyContext(mEglDisplay, mEglContext));
+    mEglContext = EGL_NO_CONTEXT;
 }
 
 ANGLE_INSTANTIATE_TEST(EGLDirectCompositionTest, WithNoFixture(ES2_D3D11()));
+
+#endif  // ANGLE_ENABLE_D3D11_COMPOSITOR_NATIVE_WINDOW

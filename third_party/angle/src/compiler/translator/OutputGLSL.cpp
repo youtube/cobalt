@@ -11,24 +11,10 @@
 namespace sh
 {
 
-TOutputGLSL::TOutputGLSL(TInfoSinkBase &objSink,
-                         ShArrayIndexClampingStrategy clampingStrategy,
-                         ShHashFunction64 hashFunction,
-                         NameMap &nameMap,
-                         TSymbolTable *symbolTable,
-                         sh::GLenum shaderType,
-                         int shaderVersion,
-                         ShShaderOutput output,
-                         ShCompileOptions compileOptions)
-    : TOutputGLSLBase(objSink,
-                      clampingStrategy,
-                      hashFunction,
-                      nameMap,
-                      symbolTable,
-                      shaderType,
-                      shaderVersion,
-                      output,
-                      compileOptions)
+TOutputGLSL::TOutputGLSL(TCompiler *compiler,
+                         TInfoSinkBase &objSink,
+                         const ShCompileOptions &compileOptions)
+    : TOutputGLSLBase(compiler, objSink, compileOptions)
 {}
 
 bool TOutputGLSL::writeVariablePrecision(TPrecision)
@@ -63,11 +49,11 @@ void TOutputGLSL::visitSymbol(TIntermSymbol *node)
     }
     else if (name == "gl_SecondaryFragColorEXT")
     {
-        out << "angle_SecondaryFragColor";
+        out << "webgl_SecondaryFragColor";
     }
     else if (name == "gl_SecondaryFragDataEXT")
     {
-        out << "angle_SecondaryFragData";
+        out << "webgl_SecondaryFragData";
     }
     else
     {
@@ -75,22 +61,39 @@ void TOutputGLSL::visitSymbol(TIntermSymbol *node)
     }
 }
 
-ImmutableString TOutputGLSL::translateTextureFunction(const ImmutableString &name)
+ImmutableString TOutputGLSL::translateTextureFunction(const ImmutableString &name,
+                                                      const ShCompileOptions &option)
 {
+    // Check WEBGL_video_texture invocation first.
+    if (name == "textureVideoWEBGL")
+    {
+        if (option.takeVideoTextureAsExternalOES)
+        {
+            // TODO(http://anglebug.com/3889): Implement external image situation.
+            UNIMPLEMENTED();
+            return ImmutableString("");
+        }
+        else
+        {
+            // Default translating textureVideoWEBGL to texture2D.
+            return ImmutableString("texture2D");
+        }
+    }
+
     static const char *simpleRename[]       = {"texture2DLodEXT",
-                                         "texture2DLod",
-                                         "texture2DProjLodEXT",
-                                         "texture2DProjLod",
-                                         "textureCubeLodEXT",
-                                         "textureCubeLod",
-                                         "texture2DGradEXT",
-                                         "texture2DGradARB",
-                                         "texture2DProjGradEXT",
-                                         "texture2DProjGradARB",
-                                         "textureCubeGradEXT",
-                                         "textureCubeGradARB",
-                                         nullptr,
-                                         nullptr};
+                                               "texture2DLod",
+                                               "texture2DProjLodEXT",
+                                               "texture2DProjLod",
+                                               "textureCubeLodEXT",
+                                               "textureCubeLod",
+                                               "texture2DGradEXT",
+                                               "texture2DGradARB",
+                                               "texture2DProjGradEXT",
+                                               "texture2DProjGradARB",
+                                               "textureCubeGradEXT",
+                                               "textureCubeGradARB",
+                                               nullptr,
+                                               nullptr};
     static const char *legacyToCoreRename[] = {
         "texture2D", "texture", "texture2DProj", "textureProj", "texture2DLod", "textureLod",
         "texture2DProjLod", "textureProjLod", "texture2DRect", "texture", "texture2DRectProj",
@@ -100,7 +103,8 @@ ImmutableString TOutputGLSL::translateTextureFunction(const ImmutableString &nam
         "textureCubeLodEXT", "textureLod", "texture2DGradEXT", "textureGrad",
         "texture2DProjGradEXT", "textureProjGrad", "textureCubeGradEXT", "textureGrad", "texture3D",
         "texture", "texture3DProj", "textureProj", "texture3DLod", "textureLod", "texture3DProjLod",
-        "textureProjLod", nullptr, nullptr};
+        "textureProjLod", "shadow2DEXT", "texture", "shadow2DProjEXT", "textureProj", nullptr,
+        nullptr};
     const char **mapping =
         (sh::IsGLSL130OrNewer(getShaderOutput())) ? legacyToCoreRename : simpleRename;
 

@@ -22,7 +22,7 @@ CoreWindowNativeWindow::~CoreWindowNativeWindow()
 bool CoreWindowNativeWindow::initialize(EGLNativeWindowType window, IPropertySet *propertySet)
 {
     ComPtr<IPropertySet> props = propertySet;
-    ComPtr<IInspectable> win   = static_cast<IInspectable *>(window);
+    ComPtr<IInspectable> win   = window;
     SIZE swapChainSize         = {};
     HRESULT result             = S_OK;
 
@@ -162,19 +162,10 @@ HRESULT CoreWindowNativeWindow::createSwapChain(ID3D11Device *device,
     swapChainDesc.SampleDesc.Quality    = 0;
     swapChainDesc.BufferUsage =
         DXGI_USAGE_SHADER_INPUT | DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_BACK_BUFFER;
-    swapChainDesc.BufferCount = 3;
+    swapChainDesc.BufferCount = 2;
     swapChainDesc.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
     swapChainDesc.Scaling     = DXGI_SCALING_STRETCH;
     swapChainDesc.AlphaMode   = DXGI_ALPHA_MODE_UNSPECIFIED;
-
-#if defined(STARBOARD)
-    // Normally for UWP on XB1, the swap chain surface should always be 1080p,
-    // regardless of the actual output resolution. However, by using a special
-    // surface format (R10G10B10A2), it is possible to use other resolutions
-    // that will be passed to the output without scaling.
-    swapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-    swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-#endif
 
     *swapChain = nullptr;
 
@@ -194,13 +185,6 @@ HRESULT CoreWindowNativeWindow::createSwapChain(ID3D11Device *device,
         {
             unregisterForSizeChangeEvents();
         }
-    }
-
-    ComPtr<IDXGIDevice1> pDXGIDevice;
-    result = device->QueryInterface(__uuidof(IDXGIDevice1), (void **)pDXGIDevice.GetAddressOf());
-    if (SUCCEEDED(result))
-    {
-      pDXGIDevice->SetMaximumFrameLatency(swapChainDesc.BufferCount);
     }
 
     return result;
