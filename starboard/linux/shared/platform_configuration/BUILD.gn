@@ -141,6 +141,7 @@ config("platform_configuration") {
   defines += [
     # Defined to get format macro constants from <inttypes.h>.
     "__STDC_FORMAT_MACROS",
+    "COBALT_LINUX",
 
     # Enable GNU extensions to get prototypes like ffsl.
     "_GNU_SOURCE=1",
