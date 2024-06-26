@@ -2072,7 +2072,7 @@ namespace posix {
 
 #if GTEST_OS_STARBOARD
 
-using StatStruct = struct stat;
+typedef struct stat StatStruct;
 
 inline int FileNo(FILE* /*file*/) { return 1; } // value for stdout
 inline int DoIsATTY(int fd) { return 1; } // only called for stdout
