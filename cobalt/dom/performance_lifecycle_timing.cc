@@ -106,12 +106,10 @@ std::string PerformanceLifecycleTiming::last_state() const {
 
 void PerformanceLifecycleTiming::LogInvalidStateTransition(
     base::ApplicationState state) {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
   DLOG(INFO) << "Current State: "
              << TranslateApplicationStateToString(GetCurrentState());
   DLOG(INFO) << "Next State: " << TranslateApplicationStateToString(state);
   NOTREACHED() << "Invalid application state transition.";
-#endif
 }
 
 void PerformanceLifecycleTiming::SetApplicationState(
