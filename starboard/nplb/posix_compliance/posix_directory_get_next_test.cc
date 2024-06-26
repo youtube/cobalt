@@ -155,7 +155,7 @@ TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
 
       // Traverse into the subdirectory.
       struct stat file_info;
-      EXPECT_TRUE(stat(entry_path.c_str(), &file_info));
+      EXPECT_TRUE(stat(entry_path.c_str(), &file_info) == 0);
       if (S_ISDIR(file_info.st_mode)) {
         directory_queue.push(entry_path);
       }
