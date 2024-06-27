@@ -325,7 +325,7 @@ TEST(SbMediaBufferTest, UsingMemoryPool) {
   // Just don't crash.
   SbMediaIsBufferUsingMemoryPool();
 #else
-  EXPECT_EQ(true, SbMediaIsBufferUsingMemoryPool())
+  EXPECT_TRUE(SbMediaIsBufferUsingMemoryPool())
       << "This function is deprecated. Media buffer pools are always "
       << "used in Starboard 16 and newer. Please see starboard/CHANGELOG.md";
 #endif  //  SB_API_VERSION < 16
