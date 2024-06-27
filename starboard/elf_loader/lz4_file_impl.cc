@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include <algorithm>
 #include <vector>
 
@@ -73,9 +75,9 @@ bool LZ4FileImpl::Open(const char* name) {
     return false;
   }
 
-  SbFileInfo file_info;
+  struct stat file_info;
 
-  if (!FileImpl::Open(name) || !SbFileGetInfo(file_, &file_info)) {
+  if (!FileImpl::Open(name) || fstat(file_, &file_info)) {
     return false;
   }
 
@@ -111,7 +113,7 @@ bool LZ4FileImpl::Open(const char* name) {
   // uncompressed block size.
   int max_compressed_buffer_size = GetBlockSize(&frame_info);
 
-  bool result = Decompress(file_info.size, header_size,
+  bool result = Decompress(file_info.st_size, header_size,
                            max_compressed_buffer_size, source_bytes_hint);
 
   int64_t decompression_end_time_us = CurrentMonotonicTime();

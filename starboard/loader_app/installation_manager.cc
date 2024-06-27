@@ -14,7 +14,9 @@
 
 #include "starboard/loader_app/installation_manager.h"
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <memory>
 #include <set>
@@ -28,7 +30,6 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
@@ -657,28 +658,27 @@ void InstallationManager::ValidatePriorities() {
 }
 
 bool InstallationManager::LoadInstallationStore() {
-  SbFile file;
+  int file;
 
   SB_LOG(INFO) << "StorePath=" << store_path_;
-  file = SbFileOpen(store_path_.c_str(), kSbFileOpenOnly | kSbFileRead, NULL,
-                    NULL);
-  if (!file) {
+  file = open(store_path_.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+  if (!starboard::IsValid(file)) {
     SB_LOG(WARNING) << "Failed to open file: " << store_path_;
     return false;
   }
 
   char buf[IM_MAX_INSTALLATION_STORE_SIZE];
-  int count = SbFileReadAll(file, buf, IM_MAX_INSTALLATION_STORE_SIZE);
-  SB_DLOG(INFO) << "SbFileReadAll: count=" << count;
+  int count = starboard::ReadAll(file, buf, IM_MAX_INSTALLATION_STORE_SIZE);
+  SB_DLOG(INFO) << "ReadAll: count=" << count;
   if (count == -1) {
-    LogLastSystemError("SbFileReadAll failed");
+    LogLastSystemError("ReadAll failed");
     return false;
   }
   if (!installation_store_.ParseFromArray(buf, count)) {
     SB_LOG(ERROR) << "LoadInstallationStore: Unable to parse storage";
     return false;
   }
-  SbFileClose(file);
+  close(file);
   return true;
 }
 

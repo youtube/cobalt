@@ -110,8 +110,8 @@
 
 
 #if defined( STARBOARD )
-#include "starboard/string.h"
 #include "starboard/file.h"
+#include "starboard/string.h"
 
 #ifndef SEEK_SET
 #define SEEK_SET    kSbFileFromBegin

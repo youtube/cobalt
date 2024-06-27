@@ -14,6 +14,9 @@
 
 #include "starboard/shared/starboard/file_atomic_replace_write_file.h"
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <algorithm>
 
 #include "starboard/common/file.h"
@@ -27,15 +30,13 @@ namespace starboard {
 bool SbFileAtomicReplaceWriteFile(const char* path,
                                   const char* data,
                                   int64_t data_size) {
-  SbFileError error;
-  SbFile temp_file = SbFileOpen(
-      path, kSbFileCreateAlways | kSbFileWrite | kSbFileRead, NULL, &error);
+  int temp_file = open(path, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
 
-  if (error != kSbFileOk) {
+  if (temp_file < 0) {
     return false;
   }
 
-  SbFileTruncate(temp_file, 0);
+  ftruncate(temp_file, 0);
 
   const char* source = data;
   int64_t to_write = data_size;
@@ -43,12 +44,12 @@ bool SbFileAtomicReplaceWriteFile(const char* path,
   while (to_write > 0) {
     const int to_write_max =
         static_cast<int>(std::min(to_write, static_cast<int64_t>(kSbInt32Max)));
-    const int bytes_written = SbFileWrite(temp_file, source, to_write_max);
+    const int bytes_written = write(temp_file, source, to_write_max);
     RecordFileWriteStat(bytes_written);
 
     if (bytes_written < 0) {
-      SbFileClose(temp_file);
-      SbFileDelete(path);
+      close(temp_file);
+      unlink(path);
       return false;
     }
 
@@ -56,9 +57,9 @@ bool SbFileAtomicReplaceWriteFile(const char* path,
     to_write -= bytes_written;
   }
 
-  SbFileFlush(temp_file);
+  fsync(temp_file);
 
-  if (!SbFileClose(temp_file)) {
+  if (close(temp_file)) {
     return false;
   }
   return true;

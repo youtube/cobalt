@@ -15,6 +15,8 @@
 #include "starboard/loader_app/drain_file.h"
 
 #include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cstring>
@@ -176,7 +178,6 @@ bool TryDrain(const char* dir, const char* app_key) {
   path.append(kSbFileSepString);
   path.append(filename);
 
-  SbFileError error = kSbFileOk;
   int file = open(path.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 
   SB_DCHECK(file >= 0);
@@ -207,7 +208,7 @@ void ClearExpired(const char* dir) {
       continue;
     }
     const std::string path = dir + std::string(kSbFileSepString) + filename;
-    if (!SbFileDelete(path.c_str())) {
+    if (unlink(path.c_str())) {
       SB_LOG(ERROR) << "Failed to remove expired drain file at '" << path
                     << "'";
     }
@@ -224,7 +225,7 @@ void ClearForApp(const char* dir, const char* app_key) {
 
   for (const auto& filename : filenames) {
     const std::string path = dir + std::string(kSbFileSepString) + filename;
-    if (!SbFileDelete(path.c_str())) {
+    if (unlink(path.c_str())) {
       SB_LOG(ERROR) << "Failed to remove drain file at '" << path << "'";
     }
   }

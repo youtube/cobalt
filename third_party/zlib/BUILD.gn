@@ -161,7 +161,7 @@ if (use_arm_neon_optimizations) {
       configs += [ "//starboard/build/config:speed" ]
     }
     if (is_starboard) {
-      deps = [ "//starboard:starboard_headers_only" ]
+      deps = [ "//starboard/common:common" ]
     }
 
     if (is_starboard && sb_is_modular && target_cpu == "arm" &&
@@ -481,7 +481,7 @@ static_library("minizip") {
       "contrib/minizip/iostarboard.c",
       "contrib/minizip/iostarboard.h",
     ]
-    deps += [ "//starboard:starboard_headers_only" ]
+    deps += [ "//starboard/common:common" ]
   } else {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }

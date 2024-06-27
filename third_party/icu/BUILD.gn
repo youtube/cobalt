@@ -342,7 +342,10 @@ template("generate_icuuc") {
     defines += [ "U_ICUDATAENTRY_IN_COMMON" ]
 
     if (is_starboard) {
-      public_deps = [ "//starboard:starboard_headers_only" ]
+      public_deps = [
+        "//starboard:starboard_headers_only",
+        "//starboard/common:common",
+      ]
       defines += [
         "U_HAVE_NL_LANGINFO_CODESET=0",
         "U_HAVE_NL_LANGINFO=0"
