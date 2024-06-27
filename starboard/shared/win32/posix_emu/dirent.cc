@@ -184,9 +184,10 @@ DIR* opendir(const char* path) {
 }
 
 int closedir(DIR* dir) {
-  if (!dir)
+  if (!dir) {
     errno = EBADF;
-  return -1;
+    return -1;
+  }
   bool success = CloseHandle(dir->handle);
   handle_db_get(dir->fd, true);
   delete dir;

@@ -419,8 +419,7 @@ TEST(FileEnumerator, InvalidDirectory) {
   FilePath path = enumerator.Next();
   EXPECT_TRUE(path.empty());
 
-// Different behaviour between directory APIs and posix mappings
-// specifically in how we set error codes
+// TODO(b/349865396)
 //
 //   // Slightly different outcomes between Windows and POSIX.
 // #if BUILDFLAG(IS_WIN)
