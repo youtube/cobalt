@@ -104,7 +104,13 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
   if (!using_memory_pool_) {
     sbmemory_bytes_used_.fetch_add(size);
     void* p = nullptr;
-    posix_memalign(&p, alignment, size);
+    int ret = posix_memalign(&p, alignment, size);
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+    LOG(INFO) << "posix_memalign(res, " << alignment << ", " << size << ")";
+    LOG(INFO) << "sizeof(void *): " << sizeof(void*);
+    LOG(INFO) << "posix_memalign returned " << ret;
+    CHECK(size != 0);
+#endif
     CHECK(p);
     return p;
   }
