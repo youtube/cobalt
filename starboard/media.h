@@ -700,9 +700,22 @@ typedef enum SbMediaBufferStorageType {
 } SbMediaBufferStorageType;
 #endif  // SB_API_VERSION < 16
 
+// DEPRECATED with SB_API_VERSION 16
+//
+// SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return value
+// is no longer used when allocating media buffers.  This is verified explicitly
+// in nplb tests by ensuring its return value is sizeof(void*).
+//
+// The app MAY take best effort to allocate media buffers aligned to an optimal
+// alignment for the platform, but not guaranteed.  An implementation that has
+// specific alignment requirement should check the alignment of the incoming
+// buffer, and make a copy when necessary.
+//
+#if SB_API_VERSION < 16
 // The media buffer will be allocated using the returned alignment. Set this to
 // a larger value may increase the memory consumption of media buffers.
 //
+<<<<<<< HEAD
 #if SB_API_VERSION < 16
 #if SB_API_VERSION >= 14
 SB_EXPORT int SbMediaGetBufferAlignment();
@@ -710,7 +723,10 @@ SB_EXPORT int SbMediaGetBufferAlignment();
 // |type|: the media type of the stream (audio or video).
 SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
 #endif  // SB_API_VERSION >= 14
+=======
+>>>>>>> 06b0412eb29 ([media] Re-deprecate SbMediaGetBufferAlignment() (#3704))
 #endif  // SB_API_VERSION < 16
+SB_EXPORT int SbMediaGetBufferAlignment();
 
 // When the media stack needs more memory to store media buffers, it will
 // allocate extra memory in units returned by SbMediaGetBufferAllocationUnit.
@@ -765,11 +781,25 @@ SB_EXPORT int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
                                           int resolution_height,
                                           int bits_per_pixel);
 
+// DEPRECATED with SB_API_VERSION 16
+//
+// SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value is
+// no longer used when allocating media buffers.  This is verified explicitly
+// in nplb tests by ensuring its return value is 0.
+//
+// An implementation that has specific padding requirement should make a
+// copy of the incoming buffer when necessary.
+//
+#if SB_API_VERSION < 16
 // Extra bytes allocated at the end of a media buffer to ensure that the buffer
 // can be use optimally by specific instructions like SIMD. Set to 0 to remove
 // any padding.
+<<<<<<< HEAD
 //
 #if SB_API_VERSION >= 14
+=======
+#endif  // SB_API_VERSION < 16
+>>>>>>> 06b0412eb29 ([media] Re-deprecate SbMediaGetBufferAlignment() (#3704))
 SB_EXPORT int SbMediaGetBufferPadding();
 #else   // SB_API_VERSION >= 14
 // |type|: the media type of the stream (audio or video).
