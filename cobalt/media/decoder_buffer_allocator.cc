@@ -32,7 +32,6 @@ namespace {
 
 const bool kEnableAllocationLog = false;
 
-const size_t kAllocationRecordGranularity = 512 * 1024;
 // Used to determine if the memory allocated is large. The underlying logic can
 // be different.
 const size_t kSmallAllocationThreshold = 512;
@@ -40,17 +39,10 @@ const size_t kSmallAllocationThreshold = 512;
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator()
-    : using_memory_pool_(SbMediaIsBufferUsingMemoryPool()),
-      is_memory_pool_allocated_on_demand_(
+    : is_memory_pool_allocated_on_demand_(
           SbMediaIsBufferPoolAllocateOnDemand()),
       initial_capacity_(SbMediaGetInitialBufferCapacity()),
       allocation_unit_(SbMediaGetBufferAllocationUnit()) {
-  if (!using_memory_pool_) {
-    DLOG(INFO) << "Allocated media buffer memory using malloc* functions.";
-    Allocator::Set(this);
-    return;
-  }
-
   if (is_memory_pool_allocated_on_demand_) {
     DLOG(INFO) << "Allocated media buffer pool on demand.";
     Allocator::Set(this);
@@ -65,10 +57,6 @@ DecoderBufferAllocator::DecoderBufferAllocator()
 DecoderBufferAllocator::~DecoderBufferAllocator() {
   Allocator::Set(nullptr);
 
-  if (!using_memory_pool_) {
-    return;
-  }
-
   base::AutoLock scoped_lock(mutex_);
 
   if (reuse_allocator_) {
@@ -78,7 +66,7 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::Suspend() {
-  if (!using_memory_pool_ || is_memory_pool_allocated_on_demand_) {
+  if (is_memory_pool_allocated_on_demand_) {
     return;
   }
 
@@ -92,7 +80,7 @@ void DecoderBufferAllocator::Suspend() {
 }
 
 void DecoderBufferAllocator::Resume() {
-  if (!using_memory_pool_ || is_memory_pool_allocated_on_demand_) {
+  if (is_memory_pool_allocated_on_demand_) {
     return;
   }
 
@@ -101,20 +89,6 @@ void DecoderBufferAllocator::Resume() {
 }
 
 void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
-  if (!using_memory_pool_) {
-    sbmemory_bytes_used_.fetch_add(size);
-    void* p = nullptr;
-    int ret = posix_memalign(&p, alignment, size);
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-    LOG(INFO) << "posix_memalign(res, " << alignment << ", " << size << ")";
-    LOG(INFO) << "sizeof(void *): " << sizeof(void*);
-    LOG(INFO) << "posix_memalign returned " << ret;
-    CHECK(size != 0);
-#endif
-    CHECK(p);
-    return p;
-  }
-
   base::AutoLock scoped_lock(mutex_);
 
   EnsureReuseAllocatorIsCreated();
@@ -130,12 +104,6 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
 void DecoderBufferAllocator::Free(void* p, size_t size) {
   if (p == nullptr) {
     DCHECK_EQ(size, 0);
-    return;
-  }
-
-  if (!using_memory_pool_) {
-    sbmemory_bytes_used_.fetch_sub(size);
-    free(p);
     return;
   }
 
@@ -203,17 +171,11 @@ int DecoderBufferAllocator::GetVideoBufferBudget(SbMediaVideoCodec codec,
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
-  if (!using_memory_pool_) {
-    return sbmemory_bytes_used_.load();
-  }
   base::AutoLock scoped_lock(mutex_);
   return reuse_allocator_ ? reuse_allocator_->GetAllocated() : 0;
 }
 
 size_t DecoderBufferAllocator::GetCurrentMemoryCapacity() const {
-  if (!using_memory_pool_) {
-    return sbmemory_bytes_used_.load();
-  }
   base::AutoLock scoped_lock(mutex_);
   return reuse_allocator_ ? reuse_allocator_->GetCapacity() : 0;
 }

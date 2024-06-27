@@ -9,6 +9,12 @@ since the version previous to it.
 
 ## Version 16
 
+
+## Media buffer pools are now enforced
+Media buffers are now always allocated using buffer pools. The function
+`SbMediaIsBufferUsingMemoryPool` no longer has any effect and is required to
+always return `true`. It will be removed in the next Starboard version.
+
 ## Deprecated `SbLogIsTty`
 Removed, will use `isatty(fd)` if needed.
 
