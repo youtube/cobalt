@@ -131,7 +131,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   };
 
   std::vector<FileEnumerator::FileInfo> ret;
-  // We test if SbDirectoryGetNext returns the parent directory, i.e. |..|,
+  // We test if readdir_r returns the parent directory, i.e. |..|,
   // because whether or not it is returned is platform-dependent and we need to
   // be able to guarantee it is returned when the INCLUDE_DOT_DOT bitflag is
   // set.

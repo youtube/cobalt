@@ -185,12 +185,14 @@ DIR* opendir(const char* path) {
 
 int closedir(DIR* dir) {
   if (!dir)
-    return EBADF;
+    errno = EBADF;
+  return -1;
   bool success = CloseHandle(dir->handle);
   handle_db_get(dir->fd, true);
   delete dir;
   if (!success) {
-    return EINTR;
+    errno = EINTR;
+    return -1;
   }
   return 0;
 }
@@ -209,8 +211,8 @@ int readdir_r(DIR* __restrict dir,
   }
 
   if (next_directory_entries.empty()) {
-    *dirent = ENOENT;
-    return -1;
+    *dirent = NULL;
+    return ENOENT;
   }
 
   if (starboard::strlcpy(dirent_buf->d_name,

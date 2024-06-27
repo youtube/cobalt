@@ -15,6 +15,8 @@
 // SbDirectoryClose is well-covered in all the other tests, so just the
 // leftovers are here.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/directory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -29,3 +31,5 @@ TEST(SbDirectoryCloseTest, FailureInvalid) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16

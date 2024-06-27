@@ -14,6 +14,7 @@
 
 #include "starboard/common/file.h"
 
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -24,6 +25,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/metrics/stats_tracker.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
@@ -32,8 +34,8 @@
 namespace starboard {
 namespace {
 
-bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
-  if (!SbDirectoryClose(dir)) {
+bool DirectoryCloseLogFailure(const char* path, DIR* dir) {
+  if (closedir(dir) != 0) {
     SB_LOG(ERROR) << "Failed to close directory: '" << path << "'";
     return false;
   }
@@ -82,18 +84,28 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   SbFileError err = kSbFileOk;
   SbDirectory dir = kSbDirectoryInvalid;
 
-  dir = SbDirectoryOpen(path, &err);
+  DIR* directory = opendir(path);
 
   // The |path| points to a file. Remove it and return.
-  if (err != kSbFileOk) {
+  if (!directory) {
     return SbFileDelete(path);
   }
 
   SbFileInfo info;
 
   std::vector<char> entry(kSbFileMaxName);
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
 
-  while (SbDirectoryGetNext(dir, entry.data(), kSbFileMaxName)) {
+  while (true) {
+    if (!directory || !entry.data()) {
+      break;
+    }
+    int result = readdir_r(directory, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+    starboard::strlcpy(entry.data(), dirent->d_name, kSbFileMaxName);
     if (!strcmp(entry.data(), ".") || !strcmp(entry.data(), "..")) {
       continue;
     }
@@ -103,13 +115,13 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
     abspath.append(entry.data());
 
     if (!SbFileDeleteRecursive(abspath.data(), false)) {
-      DirectoryCloseLogFailure(path, dir);
+      DirectoryCloseLogFailure(path, directory);
       return false;
     }
   }
 
   // Don't forget to close and remove the directory before returning!
-  if (DirectoryCloseLogFailure(path, dir)) {
+  if (DirectoryCloseLogFailure(path, directory)) {
     return preserve_root ? true : SbFileDelete(path);
   }
   return false;
