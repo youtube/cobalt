@@ -63,4 +63,4 @@ SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
   return new SbDirectoryPrivate(directory_handle);
 }
 
-#if  // SB_API_VERSION < 16
+#endif  // SB_API_VERSION < 16

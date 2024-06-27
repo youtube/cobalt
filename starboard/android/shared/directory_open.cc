@@ -43,4 +43,5 @@ SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
   }
   return kSbDirectoryInvalid;
 }
+
 #endif  // SB_API_VERSION < 16

@@ -15,6 +15,7 @@
 #include "starboard/file.h"
 
 #include <android/asset_manager.h>
+#include <dirent.h>
 
 #include "starboard/directory.h"
 
