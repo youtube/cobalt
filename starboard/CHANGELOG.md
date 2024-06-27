@@ -211,8 +211,8 @@ from `<stdlib.h>` and `strdup` from `<string.h>` should be used instead.
 
 ### Deprecated SbMediaGetBufferAlignment
 The `SbMediaGetBufferAlignment` API was deprecated, its return value is no
-longer used when allocating media buffers and has to be always set to 1.  This
-is verified explicitly using nplb tests.
+longer used when allocating media buffers and has to be always set to
+sizeof(void*).  This is verified explicitly using nplb tests.
 The app MAY take best effort to allocate media buffers aligned to an optimal
 alignment for the platform, but not guaranteed.
 An implementation that has specific alignment requirement should check the
