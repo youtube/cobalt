@@ -114,7 +114,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   internal::AssertBlockingAllowed();
   DIR* dir = opendir(source.value().c_str());
   if (!dir) {
-    error_ = static_cast<File::Error>(kSbFileErrorFailed);
+    error_ = File::Error::FILE_ERROR_FAILED;
     return std::vector<FileEnumerator::FileInfo>();
   }
 
