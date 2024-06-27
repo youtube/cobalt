@@ -40,7 +40,7 @@
 #define QUICHE_CHROMIUM_LOG_IF_WARNING(condition) DLOG_IF(WARNING, condition)
 #define QUICHE_CHROMIUM_LOG_IF_ERROR(condition) DLOG_IF(ERROR, condition)
 #define QUICHE_CHROMIUM_LOG_IF_FATAL(condition) LOG_IF(FATAL, condition)
-#define QUICHE_CHROMIUM_LOG_IF_DFATAL(condition) LOG_IF(DFATAL, condition)
+#define QUICHE_CHROMIUM_LOG_IF_DFATAL(condition) DLOG_IF(DFATAL, condition)
 
 #define QUICHE_CHROMIUM_DLOG_IF_INFO(condition) DVLOG_IF(1, condition)
 #define QUICHE_CHROMIUM_DLOG_IF_WARNING(condition) DLOG_IF(WARNING, condition)

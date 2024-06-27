@@ -24,7 +24,7 @@ namespace net {
 // milliseconds have passed, QuicChromiumPacketReader::StartReading() yields by
 // doing a QuicChromiumPacketReader::PostTask().
 const int kQuicYieldAfterPacketsRead = 32;
-const int kQuicYieldAfterDurationMilliseconds = 2;
+const int kQuicYieldAfterDurationMilliseconds = 33;
 
 class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
  public:

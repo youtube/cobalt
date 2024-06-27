@@ -26,6 +26,8 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_circular_deque.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
@@ -60,8 +62,6 @@
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/common/quiche_circular_deque.h"
 
 namespace quic {
 
@@ -1074,6 +1074,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // sent immediately after receiving an ACK.
   void set_defer_send_in_response_to_packets(bool defer) {
     defer_send_in_response_to_packets_ = defer;
+    LOG(INFO) << __FUNCTION__ << " QUIC defer_send_in_response_to_packets_="
+              << defer_send_in_response_to_packets_;
   }
 
   // Sets the current per-packet options for the connection. The QuicConnection

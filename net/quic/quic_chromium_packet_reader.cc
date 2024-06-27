@@ -17,8 +17,8 @@ namespace net {
 namespace {
 // Add 1 because some of our UDP socket implementations do not read successfully
 // when the packet length is equal to the read buffer size.
-const size_t kReadBufferSize =
-    static_cast<size_t>(quic::kMaxIncomingPacketSize + 1);
+const size_t kReadBufferSize = 0xFFFFU;
+// static_cast<size_t>(quic::kMaxIncomingPacketSize + 1);
 }  // namespace
 
 QuicChromiumPacketReader::QuicChromiumPacketReader(
@@ -59,8 +59,8 @@ void QuicChromiumPacketReader::StartReading() {
       return;
     }
 
-    if (++num_packets_read_ > yield_after_packets_ ||
-        clock_->Now() > yield_after_) {
+    if (0 && (++num_packets_read_ > yield_after_packets_ ||
+              clock_->Now() > yield_after_)) {
       num_packets_read_ = 0;
       // Data was read, process it.
       // Schedule the work through the message loop to 1) prevent infinite
