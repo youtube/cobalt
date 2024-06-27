@@ -42,6 +42,10 @@ bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
 
 }  // namespace
 
+bool IsValid(int file) {
+  return file >= 0;
+}
+
 ssize_t ReadAll(int fd, void* data, int size) {
   if (fd < 0 || size < 0) {
     return -1;

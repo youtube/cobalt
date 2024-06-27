@@ -38,6 +38,8 @@
 
 namespace starboard {
 
+bool IsValid(int file);
+
 ssize_t ReadAll(int fd, void* data, int size);
 
 void RecordFileWriteStat(int write_file_result);
@@ -77,7 +79,7 @@ class ScopedFile {
 
   int file() const { return file_; }
 
-  bool IsValid() const { return file_ >= 0; }
+  bool IsValid() const { return starboard::IsValid(file_); }
 
   int64_t Seek(SbFileWhence whence, int64_t offset) const {
     return lseek(file_, static_cast<off_t>(offset), static_cast<int>(whence));

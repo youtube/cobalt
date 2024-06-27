@@ -21,13 +21,12 @@
 
 #include "starboard/common/storage.h"
 #include "starboard/common/string.h"
-#include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/get_home_directory.h"
 
 struct SbStorageRecordPrivate {
   void* unused_user;  // deprecated in SB 16
-  SbFile file;
+  int file;
   std::string name;
 };
 

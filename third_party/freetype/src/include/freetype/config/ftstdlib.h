@@ -110,20 +110,18 @@
 
 
 #if defined( STARBOARD )
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "starboard/string.h"
 #include "starboard/file.h"
 
-#ifndef SEEK_SET
-#define SEEK_SET    kSbFileFromBegin
-#define SEEK_CUR    kSbFileFromCurrent
-#define SEEK_END    kSbFileFromEnd
-#endif
-#define FT_FILE     SbFilePrivate
-#define ft_fclose   SbFileClose
-#define ft_fopen(p, m) SbFileOpen((p), SbFileModeStringToFlags(m), NULL, NULL)
-#define ft_fread(b, s, n, f) SbFileRead((f), (char *)(b), (s) * (n))
-#define ft_fseek(f, o, w) SbFileSeek((f), (w), (o))
-#define ft_ftell(f)    SbFileSeek((f), kSbFileFromCurrent, 0)
+#define FT_FILE     int
+#define ft_fclose   close
+#define ft_fopen(p, m) open((p), SbFileModeStringToFlags(m))
+#define ft_fread(b, s, n, f) read((f), (char *)(b), (s) * (n))
+#define ft_fseek(f, o, w) lseek((f), (o), (w))
+#define ft_ftell(f)    lseek((f), 0, SEEK_SET)
 #define ft_sprintf  sprintf
 #else
 #include <stdio.h>
