@@ -62,6 +62,9 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
   void SetLifecycleTimingInfoState(base::ApplicationState state);
   DOMHighResTimeStamp ReportDOMHighResTimeStamp(int64_t timestamp) const;
   base::ApplicationState GetCurrentState() const;
+
+  void LogInvalidStateTransition(base::ApplicationState state);
+
   struct LifecycleTimingInfo {
     int64_t app_preload = 0;
     int64_t app_start = 0;
