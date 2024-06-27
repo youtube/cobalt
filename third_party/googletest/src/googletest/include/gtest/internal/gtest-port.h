@@ -2072,12 +2072,12 @@ namespace posix {
 
 #if GTEST_OS_STARBOARD
 
-using StatStruct = SbFileInfo;
+typedef struct stat StatStruct;
 
 inline int FileNo(FILE* /*file*/) { return 1; } // value for stdout
 inline int DoIsATTY(int fd) { return 1; } // only called for stdout
 inline int Stat(const char* path, StatStruct* buf) {
-  return SbFileGetPathInfo(path, buf) ? 0 : -1;
+  return stat(path, buf);
 }
 #if SB_API_VERSION < 16
 inline int StrCaseCmp(const char* s1, const char* s2) {
@@ -2087,7 +2087,7 @@ inline int StrCaseCmp(const char* s1, const char* s2) {
 inline char* StrDup(const char* src) { return strdup(src); }
 
 inline int RmDir(const char* dir) { return SbFileDelete(dir); }
-inline bool IsDir(const StatStruct& st) { return st.is_directory; }
+inline bool IsDir(const StatStruct& st) { return S_ISDIR(st.st_mode); }
 
 inline const char* StrNCpy(char* dest, const char* src, size_t n) {
   strncpy(dest, src, static_cast<int>(n));
