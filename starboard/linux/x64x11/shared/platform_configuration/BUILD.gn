@@ -30,6 +30,10 @@ config("platform_configuration") {
 
 config("libraries") {
   configs = [ "//starboard/linux/shared/platform_configuration:libraries" ]
+  libs = [
+    "//third_party/libiamf/code/libiamf.a",
+    "//third_party/libiamf/source/code/dep_codecs/lib/libfdk-aac.a",
+  ]
 }
 
 config("linker_flags") {

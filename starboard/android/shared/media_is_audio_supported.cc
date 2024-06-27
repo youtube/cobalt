@@ -56,7 +56,8 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 
   // Android uses a libopus based opus decoder for clear content, or a platform
   // opus decoder for encrypted content, if available.
-  if (audio_codec == kSbMediaAudioCodecOpus) {
+  if (audio_codec == kSbMediaAudioCodecOpus ||
+      audio_codec == kSbMediaAudioCodecIamf) {
     return true;
   }
 
