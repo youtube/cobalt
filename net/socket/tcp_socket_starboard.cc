@@ -17,6 +17,13 @@
 #include <memory>
 #include <utility>
 
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+#include <sys/socket.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#endif
+
 #include "base/functional/callback_helpers.h"
 #include "base/message_loop/message_pump_for_io.h"
 #include "base/task/current_thread.h"
@@ -33,7 +40,11 @@ TCPSocketStarboard::TCPSocketStarboard(
     NetLog* net_log,
     const NetLogSource& source)
     : socket_performance_watcher_(std::move(socket_performance_watcher)),
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+      socket_(-1),
+#else
       socket_(kSbSocketInvalid),
+#endif
       socket_watcher_(FROM_HERE),
       family_(ADDRESS_FAMILY_UNSPECIFIED),
       logging_multiple_connect_attempts_(false),
@@ -50,11 +61,35 @@ TCPSocketStarboard::~TCPSocketStarboard() {
 
 int TCPSocketStarboard::Open(AddressFamily family) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+
+  DCHECK(socket_ < 0);
+
+  int socket_family;
+  switch(family) {
+    case ADDRESS_FAMILY_IPV4:
+      socket_family = AF_INET;
+      break;
+    case ADDRESS_FAMILY_IPV6:
+      socket_family = AF_INET6;
+      break;
+    case ADDRESS_FAMILY_UNSPECIFIED:
+    default:
+      socket_family = AF_UNSPEC;
+      break;
+  }
+
+  socket_ = socket(socket_family, SOCK_STREAM, IPPROTO_TCP);
+  if (socket_ < 0) {
+    return errno;
+  }
+#else
   DCHECK(!SbSocketIsValid(socket_));
   socket_ = SbSocketCreate(ConvertAddressFamily(family), kSbSocketProtocolTcp);
   if (!SbSocketIsValid(socket_)) {
     return MapLastSystemError();
   }
+#endif
 
   family_ = family;
   return OK;
@@ -63,7 +98,11 @@ int TCPSocketStarboard::Open(AddressFamily family) {
 int TCPSocketStarboard::AdoptConnectedSocket(SocketDescriptor socket,
                                              const IPEndPoint& peer_address) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ < 0);
+#else
   DCHECK(!SbSocketIsValid(socket_));
+#endif
 
   SbSocketAddress storage;
   if (!peer_address.ToSbSocketAddress(&storage) &&
@@ -78,7 +117,11 @@ int TCPSocketStarboard::AdoptConnectedSocket(SocketDescriptor socket,
 
 int TCPSocketStarboard::AdoptUnconnectedSocket(SocketDescriptor socket) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ < 0);
+#else
   DCHECK(!SbSocketIsValid(socket_));
+#endif
 
   socket_ = socket;
   return OK;
@@ -86,7 +129,32 @@ int TCPSocketStarboard::AdoptUnconnectedSocket(SocketDescriptor socket) {
 
 int TCPSocketStarboard::Bind(const IPEndPoint& address) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  printf(" -- [Bind]\n");
+
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ >= 0);
+
+  // Must have already called Open() on this socket with the same address
+  // family as is being passed in here.
+  DCHECK_EQ(family_, address.GetFamily());
+
+  struct sockaddr_in6 storage;
+  socklen_t address_length = sizeof(storage);
+  if (!address.ToSockAddr(reinterpret_cast<struct sockaddr*>(&storage), &address_length)) {
+
+    return ERR_ADDRESS_INVALID;
+  }
+
+  int error = bind(socket_, reinterpret_cast<struct sockaddr*>(&storage), address_length);
+
+  if (error != 0) {
+    DLOG(ERROR) << "Socket bind() returned an error";
+    return errno;
+  }
+#else
   DCHECK(SbSocketIsValid(socket_));
+
   // Must have already called Open() on this socket with the same address
   // family as is being passed in here.
   DCHECK_EQ(family_, address.GetFamily());
@@ -101,6 +169,7 @@ int TCPSocketStarboard::Bind(const IPEndPoint& address) {
     DLOG(ERROR) << "SbSocketBind() returned an error";
     return MapLastSocketError(socket_);
   }
+#endif  // SB_API_VERSION >= 16 || SB_IS(MODULAR)
 
   local_address_.reset(new IPEndPoint(address));
 
@@ -110,9 +179,22 @@ int TCPSocketStarboard::Bind(const IPEndPoint& address) {
 int TCPSocketStarboard::Listen(int backlog) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_GT(backlog, 0);
-  DCHECK(SbSocketIsValid(socket_));
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ >= 0);
   DCHECK(local_address_) << "Must have previously called Bind().";
 
+  printf(" -- [Listen]\n");
+
+  int error = listen(socket_, backlog);
+  if (error != 0) {
+    DLOG(ERROR) << "Socket listen() returned an error";
+    int rv = errno;
+    Close();
+    return rv;
+  }
+#else
+  DCHECK(SbSocketIsValid(socket_));
+  DCHECK(local_address_) << "Must have previously called Bind().";
   SbSocketError error = SbSocketListen(socket_);
   if (error != kSbSocketOk) {
     DLOG(ERROR) << "SbSocketListen() returned an error";
@@ -120,6 +202,7 @@ int TCPSocketStarboard::Listen(int backlog) {
     Close();
     return rv;
   }
+#endif
 
   listening_ = true;
 
@@ -134,6 +217,8 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
   DCHECK(!callback.is_null());
   DCHECK(accept_callback_.is_null());
 
+  printf(" -- [Accept]\n");
+
   net_log_.BeginEvent(NetLogEventType::TCP_ACCEPT);
 
   int result = AcceptInternal(socket, address);
@@ -143,7 +228,11 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
             socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
             &socket_watcher_, this)) {
       DLOG(ERROR) << "WatchSocket failed on read";
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+      return errno;
+#else
       return MapLastSocketError(socket_);
+#endif
     }
 
     accept_socket_ = socket;
@@ -155,40 +244,91 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
 }
 
 int TCPSocketStarboard::SetDefaultOptionsForServer() {
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ >= 0);
+  const int on = 1;
+  if (setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0) {
+    return errno;
+  }
+#else
   DCHECK(SbSocketIsValid(socket_));
   if (!SbSocketSetReuseAddress(socket_, true)) {
     return MapLastSocketError(socket_);
   }
+#endif
+
   return OK;
 }
 
 void TCPSocketStarboard::SetDefaultOptionsForClient() {
-  SbSocketSetTcpNoDelay(socket_, true);
-
+  bool on = true;
   const int64_t kTCPKeepAliveDurationUsec = 45 * base::Time::kMicrosecondsPerSecond;
+
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  // SbSocketSetTcpNoDelay
+  setsockopt(socket_, IPPROTO_TCP, TCP_NODELAY,
+                      reinterpret_cast<const char*>(&on), sizeof(on));
+  // SbSocketSetTcpKeepAlive
+  setsockopt(socket_, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+#if defined(__APPLE__)
+    // In tvOS, TCP_KEEPIDLE and SOL_TCP are not available.
+    // For reference:
+    // https://stackoverflow.com/questions/15860127/how-to-configure-tcp-keepalive-under-mac-os-x
+    result |= setsockopt(socket_, IPPROTO_TCP, TCP_KEEPALIVE, &kTCPKeepAliveDurationUsec,
+                       sizeof(kTCPKeepAliveDurationUsec));
+#elif !defined(_WIN32)
+    // In Windows, the SOL_TCP and TCP_KEEPIDLE options are not available.
+    // For reference:
+    // https://stackoverflow.com/questions/8176821/how-to-set-the-keep-alive-interval-for-winsock
+  setsockopt(socket_, SOL_TCP, TCP_KEEPIDLE, &kTCPKeepAliveDurationUsec,
+                       sizeof(kTCPKeepAliveDurationUsec));
+  setsockopt(socket_, SOL_TCP, TCP_KEEPINTVL, &kTCPKeepAliveDurationUsec,
+                       sizeof(kTCPKeepAliveDurationUsec));
+#endif
+  // SbSocketSetTcpWindowScaling - This API is not supported in standard POSIX.
+
+  // SbSocketSetReceiveBufferSize
+  if (kSbNetworkReceiveBufferSize != 0) {
+    setsockopt(socket_, SOL_SOCKET, SO_RCVBUF, "SO_RCVBUF", kSbNetworkReceiveBufferSize);
+  }
+#else
+  SbSocketSetTcpNoDelay(socket_, true);
   SbSocketSetTcpKeepAlive(socket_, true, kTCPKeepAliveDurationUsec);
-
   SbSocketSetTcpWindowScaling(socket_, true);
-
   if (kSbNetworkReceiveBufferSize != 0) {
     SbSocketSetReceiveBufferSize(socket_, kSbNetworkReceiveBufferSize);
   }
+#endif  // SB_API_VERSION >= 16 || SB_IS(MODULAR)
+
 }
 
 int TCPSocketStarboard::AcceptInternal(
     std::unique_ptr<TCPSocketStarboard>* socket,
     IPEndPoint* address) {
+
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  int new_socket = accept(socket_, nullptr, nullptr);
+  if (new_socket < 0) {
+    int net_error = errno;
+#else
   SbSocket new_socket = SbSocketAccept(socket_);
   if (!SbSocketIsValid(new_socket)) {
     int net_error = MapLastSocketError(socket_);
+#endif  // SB_API_VERSION >= 16 || SB_IS(MODULAR)
+
     if (net_error != ERR_IO_PENDING) {
       net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT, net_error);
     }
     return net_error;
   }
 
-  SbSocketAddress sb_address;
   char unused_byte;
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  struct sockaddr_in6 saddr;
+  socklen_t length = sizeof(saddr);
+  int result = getpeername(new_socket, reinterpret_cast<struct sockaddr*>(&saddr), &length);
+#else
+  SbSocketAddress sb_address;
   // We use ReceiveFrom to get peer address of the newly connected socket.
   int received = SbSocketReceiveFrom(new_socket, &unused_byte, 0, &sb_address);
   if (received != 0) {
@@ -207,10 +347,17 @@ int TCPSocketStarboard::AcceptInternal(
       DVLOG(1) << "Could not get peer address for the server socket.";
     }
   }
+#endif  // SB_API_VERSION >= 16 || SB_IS(MODULAR)
+
 
   IPEndPoint ip_end_point;
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  if (!ip_end_point.FromSockAddr(reinterpret_cast<struct sockaddr*>(&saddr), length)) {
+    close(new_socket);
+#else
   if (!ip_end_point.FromSbSocketAddress(&sb_address)) {
     SbSocketDestroy(new_socket);
+#endif  // SB_API_VERSION >= 16 || SB_IS(MODULAR)
     int net_error = ERR_ADDRESS_INVALID;
     net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT, net_error);
     return net_error;
@@ -220,9 +367,15 @@ int TCPSocketStarboard::AcceptInternal(
       new TCPSocketStarboard(nullptr, net_log_.net_log(), net_log_.source()));
   int adopt_result = tcp_socket->AdoptConnectedSocket(new_socket, ip_end_point);
   if (adopt_result != OK) {
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+    if (!close(new_socket)) {
+      DPLOG(ERROR) << "Socket close()";
+    }
+#else
     if (!SbSocketDestroy(new_socket)) {
       DPLOG(ERROR) << "SbSocketDestroy";
     }
+#endif
     net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT,
                                       adopt_result);
     return adopt_result;
@@ -237,16 +390,29 @@ int TCPSocketStarboard::AcceptInternal(
 
 void TCPSocketStarboard::Close() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  printf(" -- [Close]\n");
+
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  if (socket_ >= 0) {
+    StopWatchingAndCleanUp();
+    net_log_.AddEvent(NetLogEventType::SOCKET_CLOSED);
+
+    if (!close(socket_)) {
+      DPLOG(ERROR) << "Socket close()";
+    }
+    socket_ = -1;
+  }
+#else
   if (SbSocketIsValid(socket_)) {
     StopWatchingAndCleanUp();
 
     net_log_.AddEvent(NetLogEventType::SOCKET_CLOSED);
-
     if (!SbSocketDestroy(socket_)) {
       DPLOG(ERROR) << "SbSocketDestroy";
     }
     socket_ = kSbSocketInvalid;
   }
+#endif
 
   listening_ = false;
 }
@@ -279,7 +445,11 @@ void TCPSocketStarboard::StopWatchingAndCleanUp() {
   peer_address_.reset();
 }
 
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+void TCPSocketStarboard::OnSocketReadyToRead(int socket) {
+#else
 void TCPSocketStarboard::OnSocketReadyToRead(SbSocket socket) {
+#endif
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (accept_pending()) {
@@ -295,7 +465,11 @@ void TCPSocketStarboard::OnSocketReadyToRead(SbSocket socket) {
   }
 }
 
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+void TCPSocketStarboard::OnSocketReadyToWrite(int socket) {
+#else
 void TCPSocketStarboard::OnSocketReadyToWrite(SbSocket socket) {
+#endif
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (listening_) {
@@ -312,8 +486,14 @@ void TCPSocketStarboard::OnSocketReadyToWrite(SbSocket socket) {
 
 int TCPSocketStarboard::Connect(const IPEndPoint& address,
                                 CompletionOnceCallback callback) {
+
+  printf(" -- [Connect]\n");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ >= 0);
+#else
   DCHECK(SbSocketIsValid(socket_));
+#endif
   DCHECK(!peer_address_);
   DCHECK(!connect_pending());
 
@@ -324,6 +504,25 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
   net_log_.BeginEvent(NetLogEventType::TCP_CONNECT_ATTEMPT,
                       [&] { return CreateNetLogIPEndPointParams(&address); });
 
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  struct sockaddr_in6 storage;
+  socklen_t length = sizeof(storage);
+  if (!address.ToSockAddr(reinterpret_cast<struct sockaddr*>(&storage), &length)) {
+    printf(" -- [Connect] ToSockAddr\n");
+    return ERR_ADDRESS_INVALID;
+  }
+
+  peer_address_.reset(new IPEndPoint(address));
+  int result = connect(socket_, reinterpret_cast<struct sockaddr*>(&storage), length);
+  int rv = 0;
+  if (result != 0 && errno == EINPROGRESS) {
+    rv = kSbSocketPending;
+  } else if (result != 0) {
+    rv = kSbSocketErrorFailed;
+  } else {
+    rv = kSbSocketOk;
+  }
+#else
   SbSocketAddress storage;
   if (!address.ToSbSocketAddress(&storage)) {
     return ERR_ADDRESS_INVALID;
@@ -334,6 +533,8 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
   SbSocketError result = SbSocketConnect(socket_, &storage);
 
   int rv = MapLastSocketError(socket_);
+#endif
+
   if (rv != ERR_IO_PENDING) {
     return HandleConnectCompleted(rv);
   }
@@ -367,7 +568,22 @@ int TCPSocketStarboard::HandleConnectCompleted(int rv) {
 
 void TCPSocketStarboard::DidCompleteConnect() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  int rv = false;
+  if (socket_ < 0) {
+    rv = false;
+  } else {
+    char c;
+    int result = recv(socket_, &c, 1, MSG_PEEK);
+    if (result <= 0) {
+      rv = false;
+    }else {
+      rv = errno == EAGAIN || errno == EWOULDBLOCK;
+    }
+  }
+#else
   int rv = SbSocketIsConnected(socket_) ? OK : ERR_FAILED;
+#endif
 
   waiting_connect_ = false;
   CompletionOnceCallback callback = std::move(write_callback_);
@@ -388,14 +604,25 @@ void TCPSocketStarboard::StartLoggingMultipleConnectAttempts(
 
 bool TCPSocketStarboard::IsConnected() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  return socket_ >= 0;
+#else
   return SbSocketIsConnected(socket_);
+#endif
 }
 
 bool TCPSocketStarboard::IsConnectedAndIdle() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  if (socket_ < 0)
+    return false;  // not connected
+  char c;
+  if (recv(socket_, &c, 1, MSG_PEEK) >= 0)
+    return false;  // not idle
+  return (errno == EAGAIN || errno == EWOULDBLOCK);
+#else
   return SbSocketIsConnectedAndIdle(socket_);
+#endif
 }
 
 void TCPSocketStarboard::EndLoggingMultipleConnectAttempts(int net_error) {
@@ -425,7 +652,11 @@ int TCPSocketStarboard::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionOnceCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ >= 0);
+#else
   DCHECK(SbSocketIsValid(socket_));
+#endif
   DCHECK(!connect_pending());
   DCHECK_GT(buf_len, 0);
 
@@ -448,7 +679,11 @@ int TCPSocketStarboard::ReadIfReady(IOBuffer* buf,
                                     int buf_len,
                                     CompletionOnceCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ >= 0);
+#else
   DCHECK(SbSocketIsValid(socket_));
+#endif
   DCHECK(read_if_ready_callback_.is_null());
 
   int rv = DoRead(buf, buf_len);
@@ -493,7 +728,12 @@ void TCPSocketStarboard::RetryRead(int rv) {
 }
 
 int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  const int kRecvFlag = 0;
+  int bytes_read = recv(socket_, buf->data(), buf_len, kRecvFlag);
+#else
   int bytes_read = SbSocketReceiveFrom(socket_, buf->data(), buf_len, NULL);
+#endif
 
   if (bytes_read >= 0) {
     net_log_.AddByteTransferEvent(NetLogEventType::SOCKET_BYTES_RECEIVED,
@@ -503,6 +743,12 @@ int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
     return bytes_read;
   } else {
     // If |bytes_read| < 0, some kind of error occurred.
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+    int rv = errno;
+    if (rv != 0) {
+      DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
+    }
+#else
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     int rv = MapSocketError(starboard_error);
     if (rv != ERR_IO_PENDING) {
@@ -510,6 +756,8 @@ int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
                         starboard_error);
       DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
     }
+#endif
+
     return rv;
   }
 }
@@ -530,7 +778,11 @@ int TCPSocketStarboard::Write(
     CompletionOnceCallback callback,
     const NetworkTrafficAnnotationTag& traffic_annotation) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ >= 0);
+#else
   DCHECK(SbSocketIsValid(socket_));
+#endif
   DCHECK(!connect_pending());
   DCHECK(!write_pending());
   DCHECK_GT(buf_len, 0);
@@ -551,7 +803,16 @@ int TCPSocketStarboard::Write(
 }
 
 int TCPSocketStarboard::DoWrite(IOBuffer* buf, int buf_len) {
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+#if defined(MSG_NOSIGNAL)
+  const int kSendFlags = MSG_NOSIGNAL;
+#else
+  const int kSendFlags = 0;
+#endif
+  int bytes_sent = send(socket_, buf->data(), buf_len, kSendFlags);
+#else
   int bytes_sent = SbSocketSendTo(socket_, buf->data(), buf_len, NULL);
+#endif
 
   if (bytes_sent >= 0) {
     net_log_.AddByteTransferEvent(NetLogEventType::SOCKET_BYTES_SENT,
@@ -559,10 +820,14 @@ int TCPSocketStarboard::DoWrite(IOBuffer* buf, int buf_len) {
 
     return bytes_sent;
   } else {
+#if SB_API_VERSION >= 16
+    int rv = errno;
+#else
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     int rv = MapSocketError(starboard_error);
     NetLogSocketError(net_log_, NetLogEventType::SOCKET_WRITE_ERROR, rv,
                       starboard_error);
+#endif
     if (rv != ERR_IO_PENDING) {
       DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
     }
@@ -599,7 +864,34 @@ bool TCPSocketStarboard::SetSendBufferSize(int32_t size) {
 
 bool TCPSocketStarboard::SetKeepAlive(bool enable, int delay) {
   int delay_second = delay * base::Time::kMicrosecondsPerSecond;
+
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  int on = enable? 1:0;
+  int result = 0;
+  result |= setsockopt(socket_, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+
+#if defined(__APPLE__)
+    // In tvOS, TCP_KEEPIDLE and SOL_TCP are not available.
+    // For reference:
+    // https://stackoverflow.com/questions/15860127/how-to-configure-tcp-keepalive-under-mac-os-x
+    result |= setsockopt(socket_, IPPROTO_TCP, TCP_KEEPALIVE, &delay_second,
+                       sizeof(delay_second));
+#elif !defined(_WIN32)
+    // In Windows, the SOL_TCP and TCP_KEEPIDLE options are not available.
+    // For reference:
+    // https://stackoverflow.com/questions/8176821/how-to-set-the-keep-alive-interval-for-winsock
+  result |= setsockopt(socket_, SOL_TCP, TCP_KEEPIDLE, &delay_second,
+                       sizeof(delay_second));
+
+  result |= setsockopt(socket_, SOL_TCP, TCP_KEEPINTVL, &delay_second,
+                       sizeof(delay_second));
+#endif
+
+
+  return result == 0;
+#else
   return SbSocketSetTcpKeepAlive(socket_, enable, delay_second);
+#endif
 }
 
 bool TCPSocketStarboard::SetNoDelay(bool no_delay) {
@@ -620,16 +912,30 @@ bool TCPSocketStarboard::GetEstimatedRoundTripTime(
 int TCPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(address);
+  printf(" -- [GetLocalAddress]\n");
 
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  DCHECK(socket_ >= 0);
+  struct sockaddr_in6 saddr = {0};
+  socklen_t socklen = sizeof(saddr);
+  int result = getsockname(socket_, reinterpret_cast<struct sockaddr*>(&saddr), &socklen);
+  if (0 != result){
+    return errno;
+  }
+  if (!address->FromSockAddr(reinterpret_cast<struct sockaddr*>(&saddr), socklen)) {
+    return ERR_ADDRESS_INVALID;
+  }
+#else
+  DCHECK(SbSocketIsValid(socket_));
   SbSocketAddress sb_address;
   if (!SbSocketGetLocalAddress(socket_, &sb_address)) {
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     return MapSocketError(starboard_error);
   }
-
   if (!address->FromSbSocketAddress(&sb_address)) {
     return ERR_ADDRESS_INVALID;
   }
+#endif
 
   return OK;
 }
@@ -649,7 +955,11 @@ void TCPSocketStarboard::DetachFromThread() {
 
 SocketDescriptor TCPSocketStarboard::ReleaseSocketDescriptorForTesting() {
   SocketDescriptor socket_descriptor = socket_;
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  socket_ = -1;
+#else
   socket_ = kSbSocketInvalid;
+#endif
   Close();
   return socket_descriptor;
 }
@@ -659,8 +969,14 @@ SocketDescriptor TCPSocketStarboard::SocketDescriptorForTesting() const {
 }
 
 void TCPSocketStarboard::ApplySocketTag(const SocketTag& tag) {
-  if (SbSocketIsValid(socket_) && tag != tag_) {
-    tag.Apply(socket_);
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  if (socket_ >= 0) {
+#else
+  if (SbSocketIsValid(socket_)) {
+#endif
+    if (tag != tag_) {
+      tag.Apply(socket_);
+    }
   }
   tag_ = tag;
 }

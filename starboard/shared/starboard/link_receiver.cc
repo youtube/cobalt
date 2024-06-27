@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/link_receiver.h"
+#include <sys/socket.h>
 
 #include <memory>
 #include <string>
@@ -27,6 +27,8 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/link_receiver.h"
+#include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/system.h"
 
@@ -40,14 +42,12 @@ namespace {
 std::unique_ptr<Socket> CreateServerSocket(SbSocketAddressType address_type) {
   std::unique_ptr<Socket> socket(new Socket(address_type));
   if (!socket->IsValid()) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketCreate failed";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketCreate failed";
     return std::unique_ptr<Socket>();
   }
 
   if (!socket->SetReuseAddress(true)) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketSetReuseAddress failed";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketSetReuseAddress failed";
     return std::unique_ptr<Socket>();
   }
 
@@ -71,8 +71,8 @@ std::unique_ptr<Socket> CreateLocallyBoundSocket(
   }
   SbSocketError result = socket->Bind(&address);
   if (result != kSbSocketOk) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketBind to " << port << " failed: " << result;
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketBind to " << port
+                  << " failed: " << result;
     return std::unique_ptr<Socket>();
   }
 
@@ -119,8 +119,7 @@ std::string GetTemporaryDirectory() {
   bool has_temp = SbSystemGetPath(kSbSystemPathTempDirectory, temp_path.get(),
                                   kMaxPathLength);
   if (!has_temp) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "No temporary directory.";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "No temporary directory.";
     return "";
   }
 
@@ -138,8 +137,7 @@ void CreateTemporaryFile(const char* name, const char* contents, int size) {
   path += name;
   ScopedFile file(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
   if (!file.IsValid()) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "Unable to create: " << path;
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "Unable to create: " << path;
     return;
   }
 
@@ -187,23 +185,39 @@ class LinkReceiver::Impl {
   void OnAcceptReady();
 
   // Called when the waiter reports that a socket has more data to read.
-  void OnReadReady(SbSocket sb_socket);
+#if SB_API_VERSION >= 16
+  void OnReadReady(int socket);
+  // SbSocketWaiter entry points.
+  static void HandleAccept(SbSocketWaiter waiter,
+                           int socket,
+                           void* context,
+                           int ready_interests);
+
+  static void HandleRead(SbSocketWaiter waiter,
+                         int socket,
+                         void* context,
+                         int ready_interests);
+
+#else
+
+  void OnReadReady(SbSocket socket);
+  // SbSocketWaiter entry points.
+  static void HandleAccept(SbSocketWaiter waiter,
+                           SbSocket socket,
+                           void* context,
+                           int ready_interests);
+
+  static void HandleRead(SbSocketWaiter waiter,
+                         SbSocket socket,
+                         void* context,
+                         int ready_interests);
+#endif
 
   // Called when the waiter reports that a connection has more data to read.
   void OnReadReady(Connection* connection);
 
   // Thread entry point.
   static void* RunThread(void* context);
-
-  // SbSocketWaiter entry points.
-  static void HandleAccept(SbSocketWaiter waiter,
-                           SbSocket socket,
-                           void* context,
-                           int ready_interests);
-  static void HandleRead(SbSocketWaiter waiter,
-                         SbSocket socket,
-                         void* context,
-                         int ready_interests);
 
   // The application to dispatch Link() calls to.
   Application* application_;
@@ -236,7 +250,11 @@ class LinkReceiver::Impl {
   std::unique_ptr<Socket> listen_socket_;
 
   // A map of raw SbSockets to Connection objects.
+#if SB_API_VERSION >= 16
+  std::unordered_map<int, Connection*> connections_;
+#else
   std::unordered_map<SbSocket, Connection*> connections_;
+#endif
 };
 
 LinkReceiver::Impl::Impl(Application* application, int port)
@@ -307,12 +325,20 @@ void LinkReceiver::Impl::Run() {
   }
 
   for (auto& entry : connections_) {
+#if SB_API_VERSION >= 16
+    SbPosixSocketWaiterRemove(waiter_, entry.first);
+#else
     SbSocketWaiterRemove(waiter_, entry.first);
+#endif
     delete entry.second;
   }
   connections_.clear();
 
+#if SB_API_VERSION >= 16
+  SbPosixSocketWaiterRemove(waiter_, listen_socket_->socket());
+#else
   SbSocketWaiterRemove(waiter_, listen_socket_->socket());
+#endif
 
   // Block until destroying thread will no longer reference waiter.
   destroy_waiter_.Take();
@@ -320,24 +346,41 @@ void LinkReceiver::Impl::Run() {
 }
 
 bool LinkReceiver::Impl::AddForAccept(Socket* socket) {
+  bool result = false;
+#if SB_API_VERSION >= 16
+  if (!SbPosixSocketWaiterAdd(waiter_, socket->socket(), this,
+                              &LinkReceiver::Impl::HandleAccept,
+                              kSbSocketWaiterInterestRead, true)) {
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbPosixSocketWaiterAdd failed.";
+    return false;
+  }
+#else
   if (!SbSocketWaiterAdd(waiter_, socket->socket(), this,
                          &LinkReceiver::Impl::HandleAccept,
                          kSbSocketWaiterInterestRead, true)) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketWaiterAdd failed.";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketWaiterAdd failed.";
     return false;
   }
+#endif
   return true;
 }
 
 bool LinkReceiver::Impl::AddForRead(Connection* connection) {
+#if SB_API_VERSION >= 16
+  if (!SbPosixSocketWaiterAdd(waiter_, connection->socket->socket(), this,
+                              &LinkReceiver::Impl::HandleRead,
+                              kSbSocketWaiterInterestRead, false)) {
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketWaiterAdd failed.";
+    return false;
+  }
+#else
   if (!SbSocketWaiterAdd(waiter_, connection->socket->socket(), this,
                          &LinkReceiver::Impl::HandleRead,
                          kSbSocketWaiterInterestRead, false)) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketWaiterAdd failed.";
+    SB_LOG(ERROR) << __FUNCTION__ << ": " << "SbSocketWaiterAdd failed.";
     return false;
   }
+#endif
   return true;
 }
 
@@ -350,11 +393,19 @@ void LinkReceiver::Impl::OnAcceptReady() {
   AddForRead(connection);
 }
 
-void LinkReceiver::Impl::OnReadReady(SbSocket sb_socket) {
-  auto iter = connections_.find(sb_socket);
+#if SB_API_VERSION >= 16
+void LinkReceiver::Impl::OnReadReady(int socket) {
+  auto iter = connections_.find(socket);
   SB_DCHECK(iter != connections_.end());
   OnReadReady(iter->second);
 }
+#else
+void LinkReceiver::Impl::OnReadReady(SbSocket socket) {
+  auto iter = connections_.find(socket);
+  SB_DCHECK(iter != connections_.end());
+  OnReadReady(iter->second);
+}
+#endif
 
 void LinkReceiver::Impl::OnReadReady(Connection* connection) {
   auto socket = connection->socket.get();
@@ -399,6 +450,26 @@ void* LinkReceiver::Impl::RunThread(void* context) {
   return NULL;
 }
 
+#if SB_API_VERSION >= 16
+// static
+void LinkReceiver::Impl::HandleAccept(SbSocketWaiter waiter,
+                                      int socket,
+                                      void* context,
+                                      int ready_interests) {
+  SB_DCHECK(context);
+  reinterpret_cast<LinkReceiver::Impl*>(context)->OnAcceptReady();
+}
+
+// static
+void LinkReceiver::Impl::HandleRead(SbSocketWaiter waiter,
+                                    int socket,
+                                    void* context,
+                                    int ready_interests) {
+  SB_DCHECK(context);
+  reinterpret_cast<LinkReceiver::Impl*>(context)->OnReadReady(socket);
+}
+
+#else
 // static
 void LinkReceiver::Impl::HandleAccept(SbSocketWaiter waiter,
                                       SbSocket socket,
@@ -416,6 +487,8 @@ void LinkReceiver::Impl::HandleRead(SbSocketWaiter waiter,
   SB_DCHECK(context);
   reinterpret_cast<LinkReceiver::Impl*>(context)->OnReadReady(socket);
 }
+
+#endif  // SB_API_VERSION >= 16
 
 LinkReceiver::LinkReceiver(Application* application)
     : impl_(new Impl(application, 0)) {}

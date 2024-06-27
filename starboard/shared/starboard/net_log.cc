@@ -15,7 +15,9 @@
 #include "starboard/shared/starboard/net_log.h"
 
 #include <pthread.h>
+#include <sys/socket.h>
 #include <unistd.h>
+#undef socket
 #include <windows.h>
 
 #include <algorithm>
@@ -161,6 +163,30 @@ class BufferedSocketWriter {
     }
   }
 
+#if SB_API_VERSION >= 16
+  void WaitUntilWritableOrConnectionReset(int sock) {
+    SbSocketWaiter waiter = SbSocketWaiterCreate();
+
+    struct F {
+      static void WakeUp(SbSocketWaiter waiter, int, void*, int) {
+        SbSocketWaiterWakeUp(waiter);
+      }
+    };
+    SbPosixSocketWaiterAdd(waiter, sock, NULL, &F::WakeUp,
+                           kSbSocketWaiterInterestWrite,
+                           false);  // false means one shot.
+    SbSocketWaiterWait(waiter);
+    SbPosixSocketWaiterRemove(waiter, sock);
+    SbSocketWaiterDestroy(waiter);
+  }
+
+  bool IsConnectionReset(int err) {
+    return err == WSAECONNRESET || err == WSAENETRESET ||
+           err == WSAECONNABORTED;
+  }
+
+#else
+
   void WaitUntilWritableOrConnectionReset(SbSocket sock) {
     SbSocketWaiter waiter = SbSocketWaiterCreate();
 
@@ -183,8 +209,53 @@ class BufferedSocketWriter {
     return err == kSbSocketErrorConnectionReset;
   }
 
+#endif
+
   // Will flush data through to the dest_socket. Returns |true| if
   // flushed, else connection was dropped or an error occurred.
+#if SB_API_VERSION >= 16
+  bool Flush(int dest_socket) {
+    std::string curr_write_block;
+    while (TransferData(chunk_size_, &curr_write_block)) {
+      while (!curr_write_block.empty()) {
+        int bytes_to_write = static_cast<int>(curr_write_block.size());
+#if defined(MSG_NOSIGNAL)
+        const int kSendFlags = MSG_NOSIGNAL;
+#else
+        const int kSendFlags = 0;
+#endif
+        int result = send(dest_socket, curr_write_block.c_str(), bytes_to_write,
+                          kSendFlags);
+        if (result < 0) {
+          int err = errno;
+          if (err == kSbSocketPending) {
+            blocked_counts_.increment();
+            WaitUntilWritableOrConnectionReset(dest_socket);
+            continue;
+          } else if (IsConnectionReset(err)) {
+            return false;
+          } else {
+            SB_LOG(ERROR) << "An error happened while writing to socket: "
+                          << (err);
+            return false;
+          }
+          break;
+        } else if (result == 0) {
+          // Socket has closed.
+          return false;
+        } else {
+          // Expected condition. Partial or full write was successful.
+          size_t bytes_written = static_cast<size_t>(result);
+          SB_DCHECK(bytes_written <= bytes_to_write);
+          curr_write_block.erase(0, bytes_written);
+        }
+      }
+    }
+    return true;
+  }
+
+#else
+
   bool Flush(SbSocket dest_socket) {
     std::string curr_write_block;
     while (TransferData(chunk_size_, &curr_write_block)) {
@@ -221,6 +292,7 @@ class BufferedSocketWriter {
     }
     return true;
   }
+#endif
 
   int32_t blocked_counts() const { return blocked_counts_.load(); }
 
