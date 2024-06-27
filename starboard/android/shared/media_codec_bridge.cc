@@ -180,7 +180,17 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
 
   if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
     // block if the old MediaCodecBridge instances haven't been destroyed yet
-    MediaCodecBridgeEradicator::GetInstance()->WaitForPendingDestructions();
+    bool destruction_finished =
+        MediaCodecBridgeEradicator::GetInstance()->WaitForPendingDestructions();
+    if (!destruction_finished) {
+      // timed out
+      std::string diagnostic_info_in_str = FormatString(
+          "MediaCodec destruction timeout: %d seconds, potential thread "
+          "leakage happened. Type = Audio",
+          MediaCodecBridgeEradicator::GetInstance()->GetTimeoutSeconds());
+      handler->OnMediaCodecError(false, false, diagnostic_info_in_str);
+      return std::unique_ptr<MediaCodecBridge>();
+    }
   }
 
   JniEnvExt* env = JniEnvExt::Get();
@@ -279,7 +289,16 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
 
   if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
     // block if the old MediaCodecBridge instances haven't been destroyed yet
-    MediaCodecBridgeEradicator::GetInstance()->WaitForPendingDestructions();
+    bool destruction_finished =
+        MediaCodecBridgeEradicator::GetInstance()->WaitForPendingDestructions();
+    if (!destruction_finished) {
+      // timed out
+      *error_message = FormatString(
+          "MediaCodec destruction timeout: %d seconds, potential thread "
+          "leakage happened. Type = Video",
+          MediaCodecBridgeEradicator::GetInstance()->GetTimeoutSeconds());
+      return std::unique_ptr<MediaCodecBridge>();
+    }
   }
 
   JniEnvExt* env = JniEnvExt::Get();
