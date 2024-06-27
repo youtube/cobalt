@@ -34,6 +34,7 @@
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
+#include "starboard/shared/libiamf/iamf_audio_decoder.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -179,6 +180,7 @@ class PlayerComponentsPassthrough
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {
   typedef starboard::shared::starboard::media::MimeType MimeType;
+  typedef starboard::shared::libiamf::IamfAudioDecoder IamfAudioDecoder;
   typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
   typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
       AdaptiveAudioDecoder;
@@ -443,6 +445,12 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           if (audio_decoder_impl->is_valid()) {
             return std::unique_ptr<AudioDecoderBase>(
                 std::move(audio_decoder_impl));
+          }
+        } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
+          scoped_ptr<IamfAudioDecoder> audio_decoder_impl(
+              new IamfAudioDecoder(audio_stream_info));
+          if (audio_decoder_impl->is_valid()) {
+            return audio_decoder_impl.PassAs<AudioDecoderBase>();
           }
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "

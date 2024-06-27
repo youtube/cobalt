@@ -25,6 +25,7 @@
 #include "starboard/shared/libde265/de265_video_decoder.h"
 #include "starboard/shared/libfdkaac/fdk_aac_audio_decoder.h"
 #include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
+#include "starboard/shared/libiamf/iamf_audio_decoder.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 #include "starboard/shared/openh264/openh264_library_loader.h"
 #include "starboard/shared/openh264/openh264_video_decoder.h"
@@ -68,6 +69,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_renderer_sink);
 
       typedef ::starboard::shared::ffmpeg::AudioDecoder FfmpegAudioDecoder;
+      typedef ::starboard::shared::libiamf::IamfAudioDecoder IamfAudioDecoder;
       typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
       typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
           FdkAacAudioDecoder;
@@ -86,6 +88,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    libfdkaac::LibfdkaacHandle::GetHandle()->IsLoaded()) {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
           return std::unique_ptr<AudioDecoder>(new FdkAacAudioDecoder());
+        } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
+          SB_LOG(INFO) << "Playing audio using IamfAudioDecoder.";
+          return std::unique_ptr<AudioDecoder>(
+              new IamfAudioDecoder(audio_stream_info));
         } else {
           std::unique_ptr<FfmpegAudioDecoder> audio_decoder_impl(
               FfmpegAudioDecoder::Create(audio_stream_info));
