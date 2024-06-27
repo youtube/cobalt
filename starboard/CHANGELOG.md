@@ -10,8 +10,10 @@ since the version previous to it.
 ## Version 16
 
 
-## Deprecated `SbMediaIsBufferUsingMemoryPool`
-Pooled allocator is now used for all media buffers.
+## Media buffer pools are now enforced
+Media buffers are now always allocated using buffer pools. The function
+`SbMediaIsBufferUsingMemoryPool` no longer has any effect and is required to
+always return `true`. It will be removed in the next Starboard version.
 
 ## Deprecated `SbLogIsTty`
 Removed, will use `isatty(fd)` if needed.

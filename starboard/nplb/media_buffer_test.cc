@@ -318,12 +318,18 @@ TEST(SbMediaBufferTest, StorageType) {
   }
   SB_NOTREACHED();
 }
+#endif  // SB_API_VERSION < 16
 
 TEST(SbMediaBufferTest, UsingMemoryPool) {
+#if SB_API_VERSION < 16
   // Just don't crash.
   SbMediaIsBufferUsingMemoryPool();
+#else
+  EXPECT_EQ(true, SbMediaIsBufferUsingMemoryPool())
+      << "This function is deprecated. Media buffer pools are always "
+      << "used in Starboard 16 and newer. Please see starboard/CHANGELOG.md";
+#endif  //  SB_API_VERSION < 16
 }
-#endif  // SB_API_VERSION < 16
 
 TEST(SbMediaBufferTest, VideoBudget) {
   for (auto codec : kVideoCodecs) {
@@ -348,8 +354,8 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferPoolAllocateOnDemand);
 #if SB_API_VERSION < 16
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferStorageType);
-  TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferUsingMemoryPool);
 #endif  // SB_API_VERSION < 16
+  TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferUsingMemoryPool);
 
 #if SB_API_VERSION < 16
   for (auto type : kMediaTypes) {

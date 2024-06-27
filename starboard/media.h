@@ -796,12 +796,13 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
 // Note that when its value is "file" the media stack will still allocate memory
 // to cache the buffers in use.
 SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
-
-// If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media
-// buffer pools should be allocated on demand, as opposed to using malloc
-// functions.
-SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
 #endif  // SB_API_VERSION < 16
+
+// DEPRECATED with SB_API_VERSION 16
+//
+// This function is deprecated in Starboard 16 and no longer used. It's not
+// fully removed, only to emit warnings at build and test time.
+SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
 
 // Specifies the maximum amount of memory used by video buffers of media source
 // before triggering a garbage collection. A large value will cause more memory
