@@ -231,6 +231,22 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
                 << (value ? "true" : "false");
       return true;
     }
+  } else if (name == "SetAsyncReleaseMediaCodecBridgeTimeoutSeconds") {
+    const StarboardExtensionMediaSettingsApi* media_settings_api =
+        static_cast<const StarboardExtensionMediaSettingsApi*>(
+            SbSystemGetExtension(kStarboardExtensionMediaSettingsName));
+    if (media_settings_api &&
+        strcmp(media_settings_api->name,
+               kStarboardExtensionMediaSettingsName) == 0 &&
+        media_settings_api->version >= 2) {
+      if (value >= 0) {
+        media_settings_api->SetAsyncReleaseMediaCodecBridgeTimeoutSeconds(
+            value);
+        LOG(INFO) << "Set SetAsyncReleaseMediaCodecBridgeTimeoutSeconds to "
+                  << value << "seconds.";
+        return true;
+      }
+    }
   }
 
   return false;
