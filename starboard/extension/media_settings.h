@@ -36,6 +36,10 @@ typedef struct StarboardExtensionMediaSettingsApi {
   // TV.
   void (*EnableAsyncReleaseMediaCodecBridge)(bool value);
 
+  // This API set the timeout seconds for async release MediaCodecBridge on
+  // Android TV.
+  void (*SetAsyncReleaseMediaCodecBridgeTimeoutSeconds)(int timeout);
+
 } StarboardExtensionMediaSettingsApi;
 
 #ifdef __cplusplus

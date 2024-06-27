@@ -29,10 +29,15 @@ void EnableAsyncReleaseMediaCodecBridge(bool value) {
   MediaCodecBridgeEradicator::GetInstance()->SetEnabled(value);
 }
 
+void SetAsyncReleaseMediaCodecBridgeTimeoutSeconds(int timeout_seconds) {
+  MediaCodecBridgeEradicator::GetInstance()->SetTimeoutSeconds(timeout_seconds);
+}
+
 const StarboardExtensionMediaSettingsApi kMediaSettingsApi = {
     kStarboardExtensionMediaSettingsName,
-    1,  // API version that's implemented.
+    2,  // API version that's implemented.
     &EnableAsyncReleaseMediaCodecBridge,
+    &SetAsyncReleaseMediaCodecBridgeTimeoutSeconds,
 };
 
 }  // namespace
