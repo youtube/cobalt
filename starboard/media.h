@@ -766,6 +766,7 @@ SB_EXPORT int SbMediaGetBufferPadding();
 // SbMediaGetInitialBufferCapacity bytes for media buffer on startup and will
 // not release any media buffer memory back to the system even if there is no
 // media buffers allocated.
+// This is demonstrated to significantly reduce long-term memory fragmentation.
 SB_EXPORT bool SbMediaIsBufferPoolAllocateOnDemand();
 
 // The memory used when playing mp4 videos that is not in DASH format. The
@@ -795,12 +796,12 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
 // Note that when its value is "file" the media stack will still allocate memory
 // to cache the buffers in use.
 SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
-#endif  // SB_API_VERSION < 16
 
 // If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media
 // buffer pools should be allocated on demand, as opposed to using malloc
 // functions.
 SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
+#endif  // SB_API_VERSION < 16
 
 // Specifies the maximum amount of memory used by video buffers of media source
 // before triggering a garbage collection. A large value will cause more memory

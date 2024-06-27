@@ -223,7 +223,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaIsBufferUsingMemoryPool);
+#endif
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
 #endif  // SB_API_VERSION < 15

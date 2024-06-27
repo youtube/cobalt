@@ -318,12 +318,12 @@ TEST(SbMediaBufferTest, StorageType) {
   }
   SB_NOTREACHED();
 }
-#endif  // SB_API_VERSION < 16
 
 TEST(SbMediaBufferTest, UsingMemoryPool) {
   // Just don't crash.
   SbMediaIsBufferUsingMemoryPool();
 }
+#endif  // SB_API_VERSION < 16
 
 TEST(SbMediaBufferTest, VideoBudget) {
   for (auto codec : kVideoCodecs) {
@@ -348,8 +348,8 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferPoolAllocateOnDemand);
 #if SB_API_VERSION < 16
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferStorageType);
-#endif  // SB_API_VERSION < 16
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferUsingMemoryPool);
+#endif  // SB_API_VERSION < 16
 
 #if SB_API_VERSION < 16
   for (auto type : kMediaTypes) {

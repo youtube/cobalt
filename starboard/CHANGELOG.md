@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+
+## Deprecated `SbMediaIsBufferUsingMemoryPool`
+Pooled allocator is now used for all media buffers.
+
 ## Deprecated `SbLogIsTty`
 Removed, will use `isatty(fd)` if needed.
 
