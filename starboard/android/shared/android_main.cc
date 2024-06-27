@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "game-activity/GameActivity.h"
 #include "starboard/android/shared/application_android.h"
@@ -122,52 +124,49 @@ bool CopyDirContents(const std::string& src_dir_path,
 
     std::string filename(filename_buffer.begin(), filename_buffer.end());
     std::string path_to_src_file = src_dir_path + kSbFileSepString + filename;
-    SbFile src_file =
-        SbFileOpen(path_to_src_file.c_str(), kSbFileOpenOnly | kSbFileRead,
-                   nullptr, nullptr);
-    if (src_file == kSbFileInvalid) {
+    int src_file = open(path_to_src_file.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+    if (!IsValid(src_file)) {
       SB_LOG(WARNING) << "Failed to open file=" << path_to_src_file;
       return false;
     }
 
-    SbFileInfo info;
-    if (!SbFileGetInfo(src_file, &info)) {
+    struct stat info;
+    if (fstat(src_file, &info)) {
       SB_LOG(WARNING) << "Failed to get info for file=" << path_to_src_file;
-      SbFileClose(src_file);
+      close(src_file);
       return false;
     }
 
-    int file_size = static_cast<int>(info.size);
+    int file_size = static_cast<int>(info.st_size);
 
     // Read in bytes from src file
     char file_contents_buffer[file_size];
-    int read = SbFileReadAll(src_file, file_contents_buffer, file_size);
+    int read = ReadAll(src_file, file_contents_buffer, file_size);
     if (read == -1) {
-      SB_LOG(WARNING) << "SbFileReadAll failed for file=" << path_to_src_file;
+      SB_LOG(WARNING) << "ReadAll failed for file=" << path_to_src_file;
       return false;
     }
     const std::string file_contents =
         std::string(file_contents_buffer, file_size);
-    SbFileClose(src_file);
+    close(src_file);
 
     // Write bytes out to dst file
     std::string path_to_dst_file = dst_dir_path;
     path_to_dst_file.append(kSbFileSepString);
     path_to_dst_file.append(filename);
-    SbFile dst_file =
-        SbFileOpen(path_to_dst_file.c_str(), kSbFileCreateAlways | kSbFileWrite,
-                   NULL, NULL);
-    if (dst_file == kSbFileInvalid) {
+    int dst_file = open(path_to_dst_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY,
+                        S_IRUSR | S_IWUSR);
+    if (!IsValid(dst_file)) {
       SB_LOG(WARNING) << "Failed to open file=" << path_to_dst_file;
       return false;
     }
-    int wrote = SbFileWriteAll(dst_file, file_contents.c_str(), file_size);
+    int wrote = WriteAll(dst_file, file_contents.c_str(), file_size);
     RecordFileWriteStat(wrote);
     if (wrote == -1) {
-      SB_LOG(WARNING) << "SbFileWriteAll failed for file=" << path_to_dst_file;
+      SB_LOG(WARNING) << "WriteAll failed for file=" << path_to_dst_file;
       return false;
     }
-    SbFileClose(dst_file);
+    close(dst_file);
   }
 
   closedir(src_dir);

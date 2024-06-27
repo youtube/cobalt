@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/storage.h"
+#ifndef STARBOARD_COMMON_FILE_WRAPPER_H_
+#define STARBOARD_COMMON_FILE_WRAPPER_H_
 
-#include <unistd.h>
+typedef struct FileStruct {
+  int fd;
+} FileStruct;
 
-#include "starboard/common/file.h"
-#include "starboard/shared/starboard/file_storage/storage_internal.h"
+typedef FileStruct* FilePtr;
 
-bool SbStorageCloseRecord(SbStorageRecord record) {
-  if (!SbStorageIsValidRecord(record)) {
-    return false;
-  }
-
-  if (starboard::IsValid(record->file)) {
-    close(record->file);
-  }
-
-  delete record;
-  return true;
-}
+#endif  // STARBOARD_COMMON_FILE_WRAPPER_H_

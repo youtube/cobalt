@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <android/asset_manager.h>
 
@@ -41,20 +43,6 @@ static SB_C_FORCE_INLINE time_t WindowsUsecToTimeTAndroid(int64_t time) {
   return posix_time;
 }
 
-static void MapSbFileInfoToStat(SbFileInfo* file_info, struct stat* stat_info) {
-  stat_info->st_mode = 0;
-  if (file_info->is_directory) {
-    stat_info->st_mode = S_IFDIR;
-  } else if (file_info->is_symbolic_link) {
-    stat_info->st_mode = S_IFLNK;
-  }
-
-  stat_info->st_ctime = WindowsUsecToTimeTAndroid(file_info->creation_time);
-  stat_info->st_atime = WindowsUsecToTimeTAndroid(file_info->last_accessed);
-  stat_info->st_mtime = WindowsUsecToTimeTAndroid(file_info->last_modified);
-  stat_info->st_size = file_info->size;
-}
-
 // This needs to be exported to ensure shared_library targets include it.
 int __wrap_stat(const char* path, struct stat* info) {
   // SbFileExists(path) implementation for Android
@@ -62,12 +50,11 @@ int __wrap_stat(const char* path, struct stat* info) {
     return __real_stat(path, info);  // Using system level stat call
   }
 
-  SbFile file = SbFileOpen(path, kSbFileRead | kSbFileOpenOnly, NULL, NULL);
-  SbFileInfo out_info;
+  int file = open(path, O_RDONLY, S_IRUSR | S_IWUSR);
+  struct stat out_info;
   if (file) {
-    bool result = SbFileGetInfo(file, &out_info);
-    MapSbFileInfoToStat(&out_info, info);
-    SbFileClose(file);
+    bool result = !fstat(file, &out_info);
+    close(file);
     return 0;
   }
 
@@ -75,11 +62,11 @@ int __wrap_stat(const char* path, struct stat* info) {
   if (IsAndroidAssetPath(path)) {
     AAssetDir* asset_dir = OpenAndroidAssetDir(path);
     if (asset_dir) {
-      info->st_mode = S_IFDIR;
-      info->st_ctime = 0;
-      info->st_atime = 0;
-      info->st_mtime = 0;
-      info->st_size = 0;
+      out_info.st_mode = S_IFDIR;
+      out_info.st_ctime = 0;
+      out_info.st_atime = 0;
+      out_info.st_mtime = 0;
+      out_info.st_size = 0;
       AAssetDir_close(asset_dir);
       return 0;
     }

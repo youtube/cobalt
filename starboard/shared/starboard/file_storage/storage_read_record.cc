@@ -14,8 +14,11 @@
 
 #include "starboard/common/storage.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
@@ -27,16 +30,16 @@ int64_t SbStorageReadRecord(SbStorageRecord record,
     return -1;
   }
 
-  if (!SbFileIsValid(record->file)) {
+  if (!starboard::IsValid(record->file)) {
     return -1;
   }
 
-  int64_t total = SbFileSeek(record->file, kSbFileFromEnd, 0);
+  int64_t total = lseek(record->file, 0, SEEK_END);
   if (total > data_size) {
     total = data_size;
   }
 
-  int64_t position = SbFileSeek(record->file, kSbFileFromBegin, 0);
+  int64_t position = lseek(record->file, 0, SEEK_SET);
   if (position != 0) {
     return -1;
   }
@@ -46,7 +49,7 @@ int64_t SbStorageReadRecord(SbStorageRecord record,
   while (to_read > 0) {
     int to_read_max =
         static_cast<int>(std::min(to_read, static_cast<int64_t>(kSbInt32Max)));
-    int bytes_read = SbFileRead(record->file, destination, to_read_max);
+    int bytes_read = read(record->file, destination, to_read_max);
     if (bytes_read < 0) {
       return -1;
     }
