@@ -175,6 +175,7 @@ config("platform_configuration") {
       "-Wl,--wrap=readdir_r",
     ]
   }
+  configs += [ ":libraries" ]
 }
 
 config("size") {
@@ -216,4 +217,8 @@ config("pedantic_warnings") {
     # has no effect if specified before Wall.
     "-Wno-unused-parameter",
   ]
+}
+
+config("libraries") {
+  libs = [ "//third_party/libiamf/code/android/libiamf.a" ]
 }
