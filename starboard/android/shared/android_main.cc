@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <dirent.h>
 #include <sys/stat.h>
 
 #include "game-activity/GameActivity.h"
