@@ -63,7 +63,6 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
  private:
   void EnsureReuseAllocatorIsCreated();
 
-  const bool using_memory_pool_;
   const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
@@ -73,9 +72,6 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_;
 
   int max_buffer_capacity_ = 0;
-
-  // Monitor memory allocation and use when |using_memory_pool_| is false
-  std::atomic_int32_t sbmemory_bytes_used_;
 };
 
 }  // namespace media
