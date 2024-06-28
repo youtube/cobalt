@@ -972,7 +972,7 @@ config("toolchain") {
   if (is_clang) {
     cflags += [ "-Wmissing-field-initializers" ]
 
-    if (is_clang_16 && use_cobalt_customizations) {
+    if (!is_android && use_cobalt_customizations) {
       cflags += [
         # bit-field.h integer value is outside the valid range of values
         "-Wno-enum-constexpr-conversion",
@@ -2314,7 +2314,7 @@ v8_source_set("v8_compiler_opt") {
 
   sources = v8_compiler_sources
 
-  if (is_clang_16 && use_cobalt_customizations) {
+  if (is_clang  && use_cobalt_customizations) {
     cflags = ["-Wno-implicit-const-int-float-conversion",]
   }
 
@@ -2343,7 +2343,7 @@ v8_source_set("v8_compiler") {
 
   sources = v8_compiler_sources
 
-  if (is_clang_16 && use_cobalt_customizations) {
+  if (is_clang && use_cobalt_customizations) {
     cflags = ["-Wno-implicit-const-int-float-conversion",]
   }
 
@@ -3939,7 +3939,7 @@ v8_source_set("v8_base_without_compiler") {
     }
   }
 
-  if (is_clang_16 && use_cobalt_customizations) {
+  if (is_clang && use_cobalt_customizations) {
     cflags += [ "-Wno-implicit-const-int-float-conversion"]
   }
 
@@ -4093,7 +4093,7 @@ if (is_starboard && current_toolchain == host_toolchain) {
   static_library("v8_zlib") {
     check_includes = false
 
-    if (is_clang_16 && use_cobalt_customizations) {
+    if (is_clang && !is_android && use_cobalt_customizations) {
       cflags_c = [ "-Wno-deprecated-non-prototype"]
     }
     sources = [
