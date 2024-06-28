@@ -65,18 +65,7 @@ config("compiler_flags") {
 
       # Default visibility to hidden, to enable dead stripping.
       "-fvisibility=hidden",
-    ]
 
-    if (is_gold) {
-      cflags += [
-        # Don't generate an eh_frame and eh_frame_hdr section.
-        "-fno-asynchronous-unwind-tables",
-      ]
-    }
-  }
-
-  if (is_clang_16) {
-    cflags += [
       # Do not warn about an implicit conversion from int to float
       "-Wno-implicit-int-float-conversion",
 
@@ -86,6 +75,13 @@ config("compiler_flags") {
       # Do not remove null pointer checks.
       "-fno-delete-null-pointer-checks",
     ]
+
+    if (is_gold) {
+      cflags += [
+        # Don't generate an eh_frame and eh_frame_hdr section.
+        "-fno-asynchronous-unwind-tables",
+      ]
+    }
   }
 
   if (!cobalt_fastbuild && (is_debug || is_devel)) {

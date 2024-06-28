@@ -97,7 +97,7 @@ config("icu_config") {
     cflags = [ "/wd4805"]
   }
 
-  if (is_clang_16 && use_cobalt_customizations) {
+  if (is_clang && use_cobalt_customizations) {
     cflags = [
       # nfsubs.cpp contains variable pow which is set but not used.
       "-Wno-unused-but-set-variable",

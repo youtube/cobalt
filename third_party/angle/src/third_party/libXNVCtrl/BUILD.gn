@@ -26,7 +26,7 @@ source_set("libXNVCtrl") {
 
   if (is_starboard) {
     configs -= [ "//build/config/linux:x11" ]
-    if (is_clang_16) {
+    if (is_clang) {
       cflags = [
         # NVCtrl.c  a function declaration without a prototype
         "-Wno-deprecated-non-prototype",

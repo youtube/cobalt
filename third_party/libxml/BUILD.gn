@@ -68,13 +68,11 @@ config("libxml_warnings") {
       # Comparison between xmlElementType and xmlXPathTypeVal.
       # TODO(hans): See if we can fix upstream (http://crbug.com/763944).
       "-Wno-enum-compare",
-    ]
-    if (is_clang_16 && use_cobalt_customizations) {
-      cflags += [
+
         # xmlschemas.c variable 'count' set but not used
         "-Wno-unused-but-set-variable",
-      ]
-    }
+    ]
+
   } else if (is_linux || is_chromeos) {
     cflags = [
       # gcc spits out a bunch of warnings about passing too many arguments to

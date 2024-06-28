@@ -139,11 +139,12 @@ config("modular") {
       "-Wno-shift-op-parentheses",
       "-Wno-shorten-64-to-32",
       "-fno-use-cxa-atexit",
-    ]
-  }
 
+<<<<<<< HEAD
   if (is_clang_16 || is_host_win) {
     cflags += [
+=======
+>>>>>>> bc5acc29bc1 (Remove is_clang_16 (#3616))
       # Do not remove null pointer checks.
       "-fno-delete-null-pointer-checks",
     ]
