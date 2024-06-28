@@ -1256,9 +1256,9 @@ void Application::OnApplicationEvent(SbEventType event_type,
       LOG(INFO) << "Finished unfreezing.";
       break;
     case kSbEventTypeLowMemory:
-      DLOG(INFO) << "Got low memory event.";
+      LOG(INFO) << "Got low memory event.";
       browser_module_->ReduceMemory();
-      DLOG(INFO) << "Finished reducing memory usage.";
+      LOG(INFO) << "Finished reducing memory usage.";
       break;
     // All of the remaining event types are unexpected:
     case kSbEventTypePreload:
