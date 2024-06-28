@@ -85,6 +85,7 @@ class AudioTrackBridge {
   int GetUnderrunCount(JNIEnv* env = base::android::AttachCurrentThread());
   int GetStartThresholdInFrames(
       JNIEnv* env = base::android::AttachCurrentThread());
+  int GetPlayState(JNIEnv* env = base::android::AttachCurrentThread());
 
  private:
   int max_samples_per_write_;
