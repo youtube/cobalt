@@ -326,7 +326,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return true;
     case kSbSystemPropertyUserAgentAuxField:
       return GetAppXVersion(out_value, value_length);
-#if SB_API_VERSION >= 14
     case kSbSystemPropertyAdvertisingId: {
       std::string advertising_id = GetAdvertisingId();
       return CopyStringAndTestIfSuccess(out_value, value_length,
@@ -338,7 +337,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         advertising_id.empty() ? "1" : "0");
     }
-#endif  // SB_API_VERSION >= 14
 #if SB_API_VERSION >= 15
     case kSbSystemPropertyDeviceType:
       return GetDeviceType(out_value, value_length);

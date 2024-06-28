@@ -28,7 +28,6 @@ namespace ffmpeg {
 namespace {
 
 // The codecs tested by these tests were introduced in SB_API_VERSION 14.
-#if SB_API_VERSION >= 14
 using ::starboard::shared::starboard::media::AudioStreamInfo;
 using ::testing::NotNull;
 
@@ -76,7 +75,6 @@ TEST_F(FFmpegAudioDecoderTest, SupportsPcmCodecFor16BitAudio) {
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
 }
-#endif  // SB_API_VERSION >= 14
 
 }  // namespace
 }  // namespace ffmpeg
