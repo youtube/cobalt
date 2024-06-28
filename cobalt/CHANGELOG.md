@@ -6,7 +6,7 @@ This document records all notable changes made to Cobalt since the last release.
 - **Chromium M114 Update**
    Upgraded most Chromium components to align with the M114 milestone release - including syncing the build environment and compilers.
 
-- **HTTP/3 with IETS QUIC**
+- **HTTP/3 with IETF QUIC**
    Integrated HTTP/3 with IETF standard QUIC for enhanced video playback performance in challenging network conditions.
 
 - **Immersive Audio Model and Formats (IAMF)**
@@ -27,10 +27,31 @@ This document records all notable changes made to Cobalt since the last release.
    Enabled Evergreen support on AOSP (Android Open Source).
   
 ## Version 24
- - **Cobalt has experimental Web Assembly capability
+ - **Cobalt has experimental Web Assembly capability**
 
    Web Assembly is enabled as experimental capabality on android-arm and
    development build configurations.
+ 
+ - **Touch Support**
+   Web standard scroll and navigation 
+   W3 [scroll container](https://www.w3.org/TR/css-overflow-3/#scroll-container) & [pointer event](https://www.w3.org/TR/pointerevents/) handling. Set kSbInputDeviceTypeTouchScreen, kSbInputDeviceTypeTouchPad, or kSbInputDeviceTypeMouse
+   
+ - **Xbox code and builds are now open sourced**
+
+ - **Reference implementation for supporting [Cast media on Starboard ](https://github.com/youtube/cobalt/blob/24.lts.1%2B/starboard/contrib/cast/README.md)is available**
+
+ - **Introduced “modular” toolchain configuration(SB_MODULAR_BUILD)**
+  Different toolchains can now be used between builds for Starboard code and Cobalt code through binary compatibility.
+  See (starboard/CHANGELOG.md) for additional details
+
+ - Reduced memory consumption while preloaded (results will vary depending on platform)
+
+ - Modular builds support, allowing building Cobalt and Starboard separately as shared libraries with different toolchains.
+
+- Several enhancements to Watchdog to detect application freezes.
+
+
+
 
 ## Version 23
  - **Cobalt now uses GN (Generate Ninja) meta-build system**
