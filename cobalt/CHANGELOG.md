@@ -2,6 +2,30 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 25
+- **Chromium M114 Update**
+   Upgraded most Chromium components to align with the M114 milestone release - including syncing the build environment and compilers.
+
+- **HTTP/3 with IETS QUIC**
+   Integrated HTTP/3 with IETF standard QUIC for enhanced video playback performance in challenging network conditions.
+
+- **Immersive Audio Model and Formats (IAMF)**
+   Added support for IAMF audio.
+
+- **Android S Support**
+   Extended compatibility to Android S.
+- **Bundled ICU Data**
+   Integrated ICU data directly into the Cobalt binary, reducing the overall compressed size.
+
+- **Logging and Telemetry Enhancements**
+   Improved logging and telemetry for updates and crash reporting.
+
+- **LZ4 Compressed Binaries**
+   Made LZ4 compressed binaries the default distribution format.
+
+- **Evergreen on AOSP**
+   Enabled Evergreen support on AOSP (Android Open Source).
+  
 ## Version 24
  - **Cobalt has experimental Web Assembly capability
 
