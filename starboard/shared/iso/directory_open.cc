@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#if SB_API_VERSION < 16
 
 #include "starboard/shared/iso/directory_internal.h"
 
@@ -19,3 +20,5 @@
 SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
   return ::starboard::shared::iso::impl::SbDirectoryOpen(path, out_error);
 }
+
+#endif  // SB_API_VERSION < 16

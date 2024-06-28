@@ -42,8 +42,8 @@ static inline bool SbDirectoryIsValid(SbDirectory directory) {
   return directory != kSbDirectoryInvalid;
 }
 
-// DEPRECATED with SB_API_VERSION 16
-//
+#if SB_API_VERSION < 16
+
 // Opens the given existing directory for listing. This function returns
 // kSbDirectoryInvalidHandle if it is not successful.
 //
@@ -54,16 +54,12 @@ static inline bool SbDirectoryIsValid(SbDirectory directory) {
 // reason that the directory could not be opened.
 SB_EXPORT SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error);
 
-// DEPRECATED with SB_API_VERSION 16
-//
 // Closes an open directory stream handle. The return value indicates whether
 // the directory was closed successfully.
 //
 // |directory|: The directory stream handle to close.
 SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
 
-// DEPRECATED with SB_API_VERSION 16
-//
 // Populates |out_entry| with the next entry in the specified directory stream,
 // and moves the stream forward by one entry.
 //
@@ -85,7 +81,6 @@ SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
                                   char* out_entry,
                                   size_t out_entry_size);
 
-#if SB_API_VERSION < 16
 // Indicates whether SbDirectoryOpen is allowed for the given |path|.
 //
 // |path|: The path to be checked.

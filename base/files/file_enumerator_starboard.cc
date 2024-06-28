@@ -112,10 +112,9 @@ FileEnumerator::~FileEnumerator() = default;
 std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     const FilePath& source) {
   internal::AssertBlockingAllowed();
-  SbFileError error;
-  SbDirectory dir = SbDirectoryOpen(source.value().c_str(), &error);
-  if (!SbDirectoryIsValid(dir)) {
-    error_ = static_cast<File::Error>(error);
+  DIR* dir = opendir(source.value().c_str());
+  if (!dir) {
+    error_ = File::Error::FILE_ERROR_FAILED;
     return std::vector<FileEnumerator::FileInfo>();
   }
 
@@ -133,15 +132,25 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   };
 
   std::vector<FileEnumerator::FileInfo> ret;
-  // We test if SbDirectoryGetNext returns the parent directory, i.e. |..|,
+  // We test if readdir_r returns the parent directory, i.e. |..|,
   // because whether or not it is returned is platform-dependent and we need to
   // be able to guarantee it is returned when the INCLUDE_DOT_DOT bitflag is
   // set.
   bool found_dot_dot = false;
 
   std::vector<char> entry(kSbFileMaxName);
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
 
-  while (SbDirectoryGetNext(dir, entry.data(), entry.size())) {
+  while (true) {
+    if (entry.size() < kSbFileMaxName || !dir || !entry.data()) {
+      break;
+    }
+    int result = readdir_r(dir, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+    starboard::strlcpy(entry.data(), dirent->d_name, entry.size());
     const char dot_dot_str[] = "..";
     if (!strncmp(entry.data(), dot_dot_str, sizeof(dot_dot_str))) {
       found_dot_dot = true;
@@ -153,7 +162,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     ret.push_back(GenerateEntry(".."));
   }
 
-  SbDirectoryClose(dir);
+  closedir(dir);
   return ret;
 }
 

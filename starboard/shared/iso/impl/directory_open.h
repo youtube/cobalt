@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_ISO_IMPL_DIRECTORY_OPEN_H_
 #define STARBOARD_SHARED_ISO_IMPL_DIRECTORY_OPEN_H_
 
+#if SB_API_VERSION < 16
+
 #include "starboard/directory.h"
 
 #include <dirent.h>
@@ -87,5 +89,7 @@ SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
 }  // namespace iso
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16
 
 #endif  // STARBOARD_SHARED_ISO_IMPL_DIRECTORY_OPEN_H_

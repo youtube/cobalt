@@ -188,10 +188,6 @@ TEST(PosixDirectoryGetNextTest, FailureNullEntry) {
   EXPECT_TRUE(closedir(directory) == 0);
 }
 
-TEST(PosixDirectoryGetNextTest, FailureInvalidAndNull) {
-  EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL, kSbFileMaxName));
-}
-
 TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
   ScopedRandomFile file;
   std::string directory_name = file.filename();

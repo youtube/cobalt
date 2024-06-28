@@ -117,11 +117,13 @@ DIR* __wrap_opendir(const char* path) {
     retdir->fd = descriptor;
     return reinterpret_cast<DIR*>(retdir);
   }
-  return NULL;
+  errno = ENOENT;
+  return nullptr;
 }
 
 int __wrap_closedir(DIR* dir) {
   if (!dir) {
+    errno = EBADF;
     return -1;
   }
   struct _PosixEmuAndroidAssetDir* adir = (struct _PosixEmuAndroidAssetDir*)dir;
@@ -141,7 +143,8 @@ int __wrap_readdir_r(DIR* __restrict dir,
                      struct dirent* __restrict dirent_buf,
                      struct dirent** __restrict dirent) {
   if (!dir) {
-    return -1;
+    dirent = NULL;
+    return EBADF;
   }
 
   struct _PosixEmuAndroidAssetDir* adir = (struct _PosixEmuAndroidAssetDir*)dir;
@@ -150,7 +153,8 @@ int __wrap_readdir_r(DIR* __restrict dir,
     AAssetDir* asset_dir = handle_db_get(descriptor, false);
     const char* file_name = AAssetDir_getNextFileName(asset_dir);
     if (file_name == NULL) {
-      return -1;
+      dirent = NULL;
+      return EBADF;
     }
     *dirent = dirent_buf;
     starboard::strlcpy((*dirent)->d_name, file_name, kSbFileMaxName);

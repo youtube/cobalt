@@ -146,13 +146,15 @@ DIR* opendir(const char* path) {
   using starboard::shared::win32::NormalizeWin32Path;
 
   if ((path == nullptr) || (path[0] == '\0')) {
-    return NULL;
+    errno = ENOENT;
+    return nullptr;
   }
 
   std::wstring path_wstring = NormalizeWin32Path(path);
 
   if (!starboard::shared::win32::IsAbsolutePath(path_wstring)) {
-    return NULL;
+    errno = EBADF;
+    return nullptr;
   }
 
   SbFileError* out_error;
@@ -160,7 +162,8 @@ DIR* opendir(const char* path) {
       path, kSbFileOpenOnly | kSbFileRead, nullptr, out_error);
 
   if (!starboard::shared::win32::IsValidHandle(directory_handle)) {
-    return NULL;
+    errno = EBADF;
+    return nullptr;
   }
 
   FILE_BASIC_INFO basic_info = {0};
@@ -170,7 +173,8 @@ DIR* opendir(const char* path) {
   if (!basic_info_success ||
       !(basic_info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
     CloseHandle(directory_handle);
-    return NULL;
+    errno = ENOTDIR;
+    return nullptr;
   }
 
   DIR* dir = reinterpret_cast<DIR*>(malloc(sizeof(DIR)));
@@ -180,10 +184,18 @@ DIR* opendir(const char* path) {
 }
 
 int closedir(DIR* dir) {
+  if (!dir) {
+    errno = EBADF;
+    return -1;
+  }
   bool success = CloseHandle(dir->handle);
   handle_db_get(dir->fd, true);
   delete dir;
-  return success ? 0 : -1;
+  if (!success) {
+    errno = EINTR;
+    return -1;
+  }
+  return 0;
 }
 
 int readdir_r(DIR* __restrict dir,
@@ -191,7 +203,7 @@ int readdir_r(DIR* __restrict dir,
               struct dirent** __restrict dirent) {
   if (!dir || !dirent_buf || !dirent) {
     *dirent = NULL;
-    return -1;
+    return EBADF;
   }
 
   auto next_directory_entries = handle_db_get(dir->fd, false);
@@ -201,14 +213,14 @@ int readdir_r(DIR* __restrict dir,
 
   if (next_directory_entries.empty()) {
     *dirent = NULL;
-    return -1;
+    return ENOENT;
   }
 
   if (starboard::strlcpy(dirent_buf->d_name,
                          next_directory_entries.rbegin()->c_str(),
                          kSbFileMaxName) >= kSbFileMaxName) {
     *dirent = NULL;
-    return -1;
+    return ENOENT;
   }
   *dirent = dirent_buf;
   next_directory_entries.pop_back();
