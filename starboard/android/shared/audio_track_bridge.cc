@@ -297,6 +297,14 @@ int AudioTrackBridge::GetStartThresholdInFrames(
                                    "getStartThresholdInFrames", "()I");
 }
 
+int AudioTrackBridge::GetPlayState(JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  SB_DCHECK(env);
+  SB_DCHECK(is_valid());
+
+  return env->CallIntMethodOrAbort(j_audio_track_bridge_, "getPlayState",
+                                   "()I");
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
