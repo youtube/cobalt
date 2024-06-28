@@ -26,7 +26,11 @@ pedantic_warnings_config_path =
 no_pedantic_warnings_config_path =
     "//starboard/stub/platform_configuration:no_pedantic_warnings"
 
+<<<<<<< HEAD
 is_clang_16 = true
 assert(!is_host_win, "Stub build is not (yet) supported on windows host")
+=======
+assert(host_os != "win", "Stub build is not (yet) supported on windows host")
+>>>>>>> bc5acc29bc1 (Remove is_clang_16 (#3616))
 
 v8_enable_webassembly = true

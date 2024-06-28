@@ -326,7 +326,7 @@ target(gtest_target_type, "nplb") {
     "//starboard/shared/starboard/player:player_download_test_data",
   ]
 
-  if (is_clang_16) {
+  if (is_clang && !is_android) {
     # signedness_and_size_of_enum_test.cc casts -1 to enum value
     cflags = [ "-Wno-enum-constexpr-conversion" ]
   }
