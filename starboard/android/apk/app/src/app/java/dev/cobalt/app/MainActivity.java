@@ -21,6 +21,7 @@ import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.CobaltService;
 import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
+import dev.cobalt.media.ArtworkDownloaderDefault;
 import dev.cobalt.util.Holder;
 
 /**
@@ -49,6 +50,7 @@ public class MainActivity extends CobaltActivity {
             activityHolder,
             serviceHolder,
             userAuthorizer,
+            new ArtworkDownloaderDefault(),
             args,
             startDeepLink);
 
