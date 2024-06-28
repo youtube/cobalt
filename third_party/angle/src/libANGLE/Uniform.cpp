@@ -15,7 +15,7 @@ ActiveVariable::ActiveVariable() {}
 
 ActiveVariable::~ActiveVariable() {}
 
-ActiveVariable::ActiveVariable(const ActiveVariable &rhs) = default;
+ActiveVariable::ActiveVariable(const ActiveVariable &rhs)            = default;
 ActiveVariable &ActiveVariable::operator=(const ActiveVariable &rhs) = default;
 
 void ActiveVariable::setActive(ShaderType shaderType, bool used)
@@ -40,7 +40,10 @@ GLuint ActiveVariable::activeShaderCount() const
 }
 
 LinkedUniform::LinkedUniform()
-    : typeInfo(nullptr), bufferIndex(-1), blockInfo(sh::kDefaultBlockMemberInfo)
+    : typeInfo(nullptr),
+      bufferIndex(-1),
+      blockInfo(sh::kDefaultBlockMemberInfo),
+      outerArrayOffset(0)
 {}
 
 LinkedUniform::LinkedUniform(GLenum typeIn,
@@ -52,7 +55,10 @@ LinkedUniform::LinkedUniform(GLenum typeIn,
                              const int locationIn,
                              const int bufferIndexIn,
                              const sh::BlockMemberInfo &blockInfoIn)
-    : typeInfo(&GetUniformTypeInfo(typeIn)), bufferIndex(bufferIndexIn), blockInfo(blockInfoIn)
+    : typeInfo(&GetUniformTypeInfo(typeIn)),
+      bufferIndex(bufferIndexIn),
+      blockInfo(blockInfoIn),
+      outerArrayOffset(0)
 {
     type       = typeIn;
     precision  = precisionIn;
@@ -81,17 +87,19 @@ LinkedUniform::LinkedUniform(const LinkedUniform &uniform)
       typeInfo(uniform.typeInfo),
       bufferIndex(uniform.bufferIndex),
       blockInfo(uniform.blockInfo),
-      outerArraySizes(uniform.outerArraySizes)
+      outerArraySizes(uniform.outerArraySizes),
+      outerArrayOffset(uniform.outerArrayOffset)
 {}
 
 LinkedUniform &LinkedUniform::operator=(const LinkedUniform &uniform)
 {
     sh::ShaderVariable::operator=(uniform);
     ActiveVariable::operator=(uniform);
-    typeInfo                = uniform.typeInfo;
-    bufferIndex             = uniform.bufferIndex;
-    blockInfo               = uniform.blockInfo;
-    outerArraySizes         = uniform.outerArraySizes;
+    typeInfo         = uniform.typeInfo;
+    bufferIndex      = uniform.bufferIndex;
+    blockInfo        = uniform.blockInfo;
+    outerArraySizes  = uniform.outerArraySizes;
+    outerArrayOffset = uniform.outerArrayOffset;
     return *this;
 }
 
@@ -128,17 +136,26 @@ int ShaderVariableBuffer::numActiveVariables() const
     return static_cast<int>(memberIndexes.size());
 }
 
-InterfaceBlock::InterfaceBlock() : isArray(false), arrayElement(0) {}
+InterfaceBlock::InterfaceBlock() : isArray(false), isReadOnly(false), arrayElement(0) {}
 
 InterfaceBlock::InterfaceBlock(const std::string &nameIn,
                                const std::string &mappedNameIn,
                                bool isArrayIn,
+                               bool isReadOnlyIn,
                                unsigned int arrayElementIn,
+                               unsigned int firstFieldArraySizeIn,
                                int bindingIn)
-    : name(nameIn), mappedName(mappedNameIn), isArray(isArrayIn), arrayElement(arrayElementIn)
+    : name(nameIn),
+      mappedName(mappedNameIn),
+      isArray(isArrayIn),
+      isReadOnly(isReadOnlyIn),
+      arrayElement(arrayElementIn),
+      firstFieldArraySize(firstFieldArraySizeIn)
 {
     binding = bindingIn;
 }
+
+InterfaceBlock::InterfaceBlock(const InterfaceBlock &other) = default;
 
 std::string InterfaceBlock::nameWithArrayIndex() const
 {

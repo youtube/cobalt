@@ -6,6 +6,7 @@
 
 #include "GLSLANG/ShaderLang.h"
 #include "gtest/gtest.h"
+#include "test_utils/runner/TestSuite.h"
 
 class CompilerTestEnvironment : public testing::Environment
 {
@@ -27,10 +28,20 @@ class CompilerTestEnvironment : public testing::Environment
     }
 };
 
+// This variable is also defined in test_utils_unittest_helper.
+bool gVerbose = false;
+
 int main(int argc, char **argv)
 {
-    testing::InitGoogleTest(&argc, argv);
+    for (int argIndex = 1; argIndex < argc; ++argIndex)
+    {
+        if (strcmp(argv[argIndex], "-v") == 0 || strcmp(argv[argIndex], "--verbose") == 0)
+        {
+            gVerbose = true;
+        }
+    }
+
+    angle::TestSuite testSuite(&argc, argv);
     testing::AddGlobalTestEnvironment(new CompilerTestEnvironment());
-    int rt = RUN_ALL_TESTS();
-    return rt;
+    return testSuite.run();
 }

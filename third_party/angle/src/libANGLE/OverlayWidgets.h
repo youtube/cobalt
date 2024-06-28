@@ -11,6 +11,7 @@
 #define LIBANGLE_OVERLAYWIDGETS_H_
 
 #include "common/angleutils.h"
+#include "libANGLE/Overlay_autogen.h"
 
 namespace gl
 {
@@ -20,7 +21,7 @@ class OverlayState;
 namespace overlay_impl
 {
 class AppendWidgetDataHelper;
-}
+}  // namespace overlay_impl
 
 enum class WidgetType
 {
@@ -44,41 +45,22 @@ enum class WidgetType
     EnumCount = InvalidEnum,
 };
 
-enum class WidgetId
-{
-    // Front-end widgets:
-
-    // Frames per second (PerSecond).
-    FPS,
-
-    // Vulkan backend:
-
-    // Last validation error (Text).
-    VulkanLastValidationMessage,
-    // Number of validation errors and warnings (Count).
-    VulkanValidationMessageCount,
-    // Number of nodes in command graph (RunningGraph).
-    VulkanCommandGraphSize,
-    // Secondary Command Buffer pool memory waste (RunningHistogram).
-    VulkanSecondaryCommandBufferPoolWaste,
-
-    InvalidEnum,
-    EnumCount = InvalidEnum,
-};
-
 namespace overlay
 {
+class Text;
 class Widget
 {
   public:
     virtual ~Widget() {}
+
+    virtual const Text *getDescriptionWidget() const;
 
   protected:
     WidgetType type;
     // Whether this item should be drawn.
     bool enabled = false;
 
-    // For text items, size of the font.  This is a value in [0, overlay::kFontCount) which
+    // For text items, size of the font.  This is a value in [0, overlay::kFontMipCount) which
     // determines the font size to use.
     int fontSize;
 
@@ -86,6 +68,11 @@ class Widget
     // indicate offset from the left/bottom of the image.
     int32_t coords[4];
     float color[4];
+
+    // In some cases, a widget may need to match its contents (e.g. graph height scaling) with
+    // another related widget.  In such a case, this pointer will point to the widget it needs to
+    // match to.
+    Widget *matchToWidget;
 
     friend class gl::Overlay;
     friend class gl::OverlayState;
@@ -96,11 +83,12 @@ class Count : public Widget
 {
   public:
     ~Count() override {}
-    void add(size_t n) { count += n; }
+    void add(uint64_t n) { count += n; }
+    void set(uint64_t n) { count = n; }
     void reset() { count = 0; }
 
   protected:
-    size_t count = 0;
+    uint64_t count = 0;
 
     friend class gl::Overlay;
     friend class overlay_impl::AppendWidgetDataHelper;
@@ -112,7 +100,7 @@ class PerSecond : public Count
     ~PerSecond() override {}
 
   protected:
-    size_t lastPerSecondCount = 0;
+    uint64_t lastPerSecondCount = 0;
 
     friend class gl::Overlay;
     friend class overlay_impl::AppendWidgetDataHelper;
@@ -136,17 +124,35 @@ class RunningGraph : public Widget
     // Out of line constructor to satisfy chromium-style.
     RunningGraph(size_t n);
     ~RunningGraph() override;
-    void add(size_t n) { runningValues[lastValueIndex] += n; }
-    void next()
+
+    void add(uint64_t n)
     {
-        lastValueIndex                = (lastValueIndex + 1) % runningValues.size();
-        runningValues[lastValueIndex] = 0;
+        if (!ignoreFirstValue)
+        {
+            runningValues[lastValueIndex] += n;
+        }
     }
 
+    void next()
+    {
+        if (ignoreFirstValue)
+        {
+            ignoreFirstValue = false;
+        }
+        else
+        {
+            lastValueIndex                = (lastValueIndex + 1) % runningValues.size();
+            runningValues[lastValueIndex] = 0;
+        }
+    }
+
+    const Text *getDescriptionWidget() const override;
+
   protected:
-    std::vector<size_t> runningValues;
+    std::vector<uint64_t> runningValues;
     size_t lastValueIndex = 0;
     Text description;
+    bool ignoreFirstValue = true;
 
     friend class gl::Overlay;
     friend class gl::OverlayState;
@@ -158,19 +164,24 @@ class RunningHistogram : public RunningGraph
   public:
     RunningHistogram(size_t n) : RunningGraph(n) {}
     ~RunningHistogram() override {}
+
     void set(float n)
     {
         ASSERT(n >= 0.0f && n <= 1.0f);
-        size_t rank =
-            n == 1.0f ? runningValues.size() - 1 : static_cast<size_t>(n * runningValues.size());
+        uint64_t rank =
+            n == 1.0f ? runningValues.size() - 1 : static_cast<uint64_t>(n * runningValues.size());
 
         runningValues[lastValueIndex] = rank;
     }
+
+  private:
+    // Do not use the add() function from RunningGraph
+    using RunningGraph::add;
 };
 
-// If overlay is disabled, all the above classes would be replaced with Dummy, turning them into
+// If overlay is disabled, all the above classes would be replaced with Mock, turning them into
 // noop.
-class Dummy
+class Mock
 {
   public:
     void reset() const {}

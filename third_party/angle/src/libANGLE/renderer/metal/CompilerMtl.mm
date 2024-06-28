@@ -9,6 +9,8 @@
 
 #include "libANGLE/renderer/metal/CompilerMtl.h"
 
+#include <stdio.h>
+
 #include "common/debug.h"
 
 namespace rx
@@ -20,7 +22,7 @@ CompilerMtl::~CompilerMtl() {}
 
 ShShaderOutput CompilerMtl::getTranslatorOutputType() const
 {
-    return SH_GLSL_METAL_OUTPUT;
+    return SH_MSL_METAL_OUTPUT;
 }
 
 }  // namespace rx

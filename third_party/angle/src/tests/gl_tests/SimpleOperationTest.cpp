@@ -31,7 +31,7 @@ constexpr char kGreenFragmentShader[] =
     gl_FragColor = vec4(0, 1, 0, 1);
 })";
 
-class SimpleOperationTest : public ANGLETest
+class SimpleOperationTest : public ANGLETest<>
 {
   protected:
     SimpleOperationTest()
@@ -51,6 +51,9 @@ class SimpleOperationTest : public ANGLETest
                                                        int windowWidth,
                                                        int windowHeight);
 };
+
+class SimpleOperationTest31 : public SimpleOperationTest
+{};
 
 void SimpleOperationTest::verifyBuffer(const std::vector<uint8_t> &data, GLenum binding)
 {
@@ -149,6 +152,27 @@ TEST_P(SimpleOperationTest, BlendingRenderState)
     ASSERT_GL_NO_ERROR();
 
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+}
+
+// Tests getting the GL_BLEND_EQUATION integer
+TEST_P(SimpleOperationTest, BlendEquationGetInteger)
+{
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+
+    constexpr std::array<GLenum, 5> equations = {GL_FUNC_ADD, GL_FUNC_SUBTRACT,
+                                                 GL_FUNC_REVERSE_SUBTRACT, GL_MIN, GL_MAX};
+
+    for (GLenum equation : equations)
+    {
+        glBlendEquation(equation);
+
+        GLint currentEquation;
+        glGetIntegerv(GL_BLEND_EQUATION, &currentEquation);
+        ASSERT_GL_NO_ERROR();
+
+        EXPECT_EQ(currentEquation, static_cast<GLint>(equation));
+    }
 }
 
 TEST_P(SimpleOperationTest, CompileVertexShader)
@@ -372,7 +396,7 @@ TEST_P(SimpleOperationTest, DrawLine)
 
     ASSERT_GL_NO_ERROR();
 
-    for (auto x = 0; x < getWindowWidth(); x++)
+    for (int x = 0; x < getWindowWidth(); x++)
     {
         EXPECT_PIXEL_COLOR_EQ(x, x, GLColor::green);
     }
@@ -464,57 +488,204 @@ TEST_P(SimpleOperationTest, DrawLineStrip)
     }
 }
 
-// Simple triangle fans test.
-TEST_P(SimpleOperationTest, DrawTriangleFan)
+class TriangleFanDrawTest : public SimpleOperationTest
 {
-    // We assume in the test the width and height are equal and we are tracing
-    // 2 triangles to cover half the surface like this:
-    ASSERT_EQ(getWindowWidth(), getWindowHeight());
+  protected:
+    void testSetUp() override
+    {
+        // We assume in the test the width and height are equal and we are tracing
+        // 2 triangles to cover half the surface like this:
+        ASSERT_EQ(getWindowWidth(), getWindowHeight());
 
-    ANGLE_GL_PROGRAM(program, kBasicVertexShader, kGreenFragmentShader);
-    glUseProgram(program);
+        mProgram.makeRaster(kBasicVertexShader, kGreenFragmentShader);
+        ASSERT_TRUE(mProgram.valid());
+        glUseProgram(mProgram);
 
-    auto vertices = std::vector<Vector3>{
-        {-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 0.0f}};
+        const GLint positionLocation = glGetAttribLocation(mProgram, "position");
+        ASSERT_NE(-1, positionLocation);
 
-    const GLint positionLocation = glGetAttribLocation(program, "position");
-    ASSERT_NE(-1, positionLocation);
+        glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer.get());
+        glBufferData(GL_ARRAY_BUFFER, sizeof(mVertices[0]) * mVertices.size(), mVertices.data(),
+                     GL_STATIC_DRAW);
+        glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        glEnableVertexAttribArray(positionLocation);
 
-    GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.get());
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), vertices.data(),
-                 GL_STATIC_DRAW);
-    glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(positionLocation);
+        glClearColor(1, 0, 0, 1);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
 
+    void readPixels()
+    {
+        if (mReadPixels.empty())
+        {
+            mReadPixels.resize(getWindowWidth() * getWindowWidth());
+        }
+
+        glReadPixels(0, 0, getWindowWidth(), getWindowHeight(), GL_RGBA, GL_UNSIGNED_BYTE,
+                     mReadPixels.data());
+        EXPECT_GL_NO_ERROR();
+    }
+
+    void verifyPixelAt(int x, int y, const GLColor &expected)
+    {
+        EXPECT_EQ(mReadPixels[y * getWindowWidth() + x], expected);
+    }
+
+    void verifyTriangles()
+    {
+        readPixels();
+
+        // Check 4 lines accross de triangles to make sure we filled it.
+        // Don't check every pixel as it would slow down our tests.
+        for (auto x = 0; x < getWindowWidth(); x++)
+        {
+            verifyPixelAt(x, x, GLColor::green);
+        }
+
+        for (auto x = getWindowWidth() / 3, y = 0; x < getWindowWidth(); x++, y++)
+        {
+            verifyPixelAt(x, y, GLColor::green);
+        }
+
+        for (auto x = getWindowWidth() / 2, y = 0; x < getWindowWidth(); x++, y++)
+        {
+            verifyPixelAt(x, y, GLColor::green);
+        }
+
+        for (auto x = (getWindowWidth() / 4) * 3, y = 0; x < getWindowWidth(); x++, y++)
+        {
+            verifyPixelAt(x, y, GLColor::green);
+        }
+
+        // Area outside triangles
+        for (auto x = 0; x < getWindowWidth() - 2; x++)
+        {
+            verifyPixelAt(x, x + 2, GLColor::red);
+        }
+    }
+
+    const std::vector<Vector3> mVertices = {{0.0f, 0.0f, 0.0f},
+                                            {-1.0f, -1.0f, 0.0f},
+                                            {0.0f, -1.0f, 0.0f},
+                                            {1.0f, -1.0f, 0.0f},
+                                            {1.0f, 1.0f, 0.0f}};
+
+    GLBuffer mVertexBuffer;
+    GLProgram mProgram;
+
+    std::vector<GLColor> mReadPixels;
+};
+
+// Simple triangle fans test.
+TEST_P(TriangleFanDrawTest, DrawTriangleFan)
+{
     glClear(GL_COLOR_BUFFER_BIT);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, static_cast<GLsizei>(vertices.size()));
-
-    glDisableVertexAttribArray(positionLocation);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, static_cast<GLsizei>(mVertices.size()));
 
     EXPECT_GL_NO_ERROR();
 
-    // Check 4 lines accross de triangles to make sure we filled it.
-    // Don't check every pixel as it would slow down our tests.
-    for (auto x = 0; x < getWindowWidth(); x++)
-    {
-        EXPECT_PIXEL_COLOR_EQ(x, x, GLColor::green);
-    }
+    verifyTriangles();
+}
 
-    for (auto x = getWindowWidth() / 3, y = 0; x < getWindowWidth(); x++, y++)
-    {
-        EXPECT_PIXEL_COLOR_EQ(x, y, GLColor::green);
-    }
+// Triangle fans test with index buffer.
+TEST_P(TriangleFanDrawTest, DrawTriangleFanElements)
+{
+    std::vector<GLubyte> indices = {0, 1, 2, 3, 4};
 
-    for (auto x = getWindowWidth() / 2, y = 0; x < getWindowWidth(); x++, y++)
-    {
-        EXPECT_PIXEL_COLOR_EQ(x, y, GLColor::green);
-    }
+    GLBuffer indexBuffer;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
+                 GL_STATIC_DRAW);
 
-    for (auto x = (getWindowWidth() / 4) * 3, y = 0; x < getWindowWidth(); x++, y++)
-    {
-        EXPECT_PIXEL_COLOR_EQ(x, y, GLColor::green);
-    }
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDrawElements(GL_TRIANGLE_FAN, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_BYTE, 0);
+
+    EXPECT_GL_NO_ERROR();
+
+    verifyTriangles();
+}
+
+// Triangle fans test with primitive restart index at the middle.
+TEST_P(TriangleFanDrawTest, DrawTriangleFanPrimitiveRestartAtMiddle)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+
+    std::vector<GLubyte> indices = {0, 1, 2, 3, 0xff, 0, 4, 3};
+
+    GLBuffer indexBuffer;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
+                 GL_STATIC_DRAW);
+    glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
+
+    glDrawElements(GL_TRIANGLE_FAN, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_BYTE, 0);
+
+    EXPECT_GL_NO_ERROR();
+
+    verifyTriangles();
+}
+
+// Triangle fans test with primitive restart at begin.
+TEST_P(TriangleFanDrawTest, DrawTriangleFanPrimitiveRestartAtBegin)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+
+    // Primitive restart index is at middle, but we will use draw call which index offset=4.
+    std::vector<GLubyte> indices = {0, 1, 2, 3, 0xff, 0, 4, 3};
+
+    GLBuffer indexBuffer;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
+                 GL_STATIC_DRAW);
+    glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
+
+    glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_BYTE, 0);
+    glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_BYTE,
+                   reinterpret_cast<void *>(sizeof(indices[0]) * 4));
+
+    EXPECT_GL_NO_ERROR();
+
+    verifyTriangles();
+}
+
+// Triangle fans test with primitive restart at end.
+TEST_P(TriangleFanDrawTest, DrawTriangleFanPrimitiveRestartAtEnd)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+
+    std::vector<GLubyte> indices = {0, 1, 2, 3, 4, 0xff};
+
+    GLBuffer indexBuffer;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
+                 GL_STATIC_DRAW);
+    glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
+
+    glDrawElements(GL_TRIANGLE_FAN, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_BYTE, 0);
+
+    EXPECT_GL_NO_ERROR();
+
+    verifyTriangles();
+}
+
+// Triangle fans test with primitive restart enabled, but no indexed draw.
+TEST_P(TriangleFanDrawTest, DrawTriangleFanPrimitiveRestartNonIndexedDraw)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+
+    std::vector<GLubyte> indices = {0, 1, 2, 3, 4};
+
+    GLBuffer indexBuffer;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
+                 GL_STATIC_DRAW);
+    glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 5);
+
+    EXPECT_GL_NO_ERROR();
+
+    verifyTriangles();
 }
 
 // Simple repeated draw and swap test.
@@ -1078,8 +1249,182 @@ TEST_P(SimpleOperationTest, PrimitiveModeNegativeTest)
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
 }
 
+// Verify we don't crash when attempting to draw using GL_TRIANGLES without a program bound.
+TEST_P(SimpleOperationTest31, DrawTrianglesWithoutProgramBound)
+{
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
+// Verify we don't crash when attempting to draw using GL_LINE_STRIP_ADJACENCY without a program
+// bound.
+TEST_P(SimpleOperationTest31, DrawLineStripAdjacencyWithoutProgramBound)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_geometry_shader"));
+
+    glDrawArrays(GL_LINE_STRIP_ADJACENCY, 0, 10);
+}
+
+// Verify instanceCount == 0 is no-op
+TEST_P(SimpleOperationTest, DrawArraysZeroInstanceCountIsNoOp)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_ANGLE_instanced_arrays"));
+
+    // Draw a correct green quad.
+    ANGLE_GL_PROGRAM(program, kBasicVertexShader, kGreenFragmentShader);
+    glUseProgram(program);
+
+    GLint positionLocation = glGetAttribLocation(program, "position");
+    ASSERT_NE(-1, positionLocation);
+
+    setupQuadVertexBuffer(0.5f, 1.0f);
+    glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(positionLocation);
+
+    // If nothing is drawn it should be red
+    glClearColor(1.0, 0.0, 0.0, 1.0);
+
+    {
+        // Non-instanced draw should draw
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        ASSERT_GL_NO_ERROR();
+        EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    }
+    {
+        // instanceCount == 0 should be no-op
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawArraysInstancedANGLE(GL_TRIANGLES, 0, 6, 0);
+        ASSERT_GL_NO_ERROR();
+        EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+    }
+    {
+        // instanceCount > 0 should draw
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawArraysInstancedANGLE(GL_TRIANGLES, 0, 6, 1);
+        ASSERT_GL_NO_ERROR();
+        EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    }
+}
+
+// Verify instanceCount == 0 is no-op
+TEST_P(SimpleOperationTest, DrawElementsZeroInstanceCountIsNoOp)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_ANGLE_instanced_arrays"));
+
+    // Draw a correct green quad.
+    ANGLE_GL_PROGRAM(program, kBasicVertexShader, kGreenFragmentShader);
+    glUseProgram(program);
+
+    GLint positionLocation = glGetAttribLocation(program, "position");
+    ASSERT_NE(-1, positionLocation);
+
+    setupIndexedQuadVertexBuffer(0.5f, 1.0f);
+    glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(positionLocation);
+
+    setupIndexedQuadIndexBuffer();
+
+    // If nothing is drawn it should be red
+    glClearColor(1.0, 0.0, 0.0, 1.0);
+
+    {
+        // Non-instanced draw should draw
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr);
+        ASSERT_GL_NO_ERROR();
+        EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    }
+    {
+        // instanceCount == 0 should be no-op
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawElementsInstancedANGLE(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr, 0);
+        ASSERT_GL_NO_ERROR();
+        EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+    }
+    {
+        // instanceCount > 0 should draw
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawElementsInstancedANGLE(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr, 1);
+        ASSERT_GL_NO_ERROR();
+        EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    }
+}
+
+// Test that sample coverage does not affect single sample rendering
+TEST_P(SimpleOperationTest, DrawSingleSampleWithCoverage)
+{
+    GLint sampleBuffers = -1;
+    glGetIntegerv(GL_SAMPLE_BUFFERS, &sampleBuffers);
+    ASSERT_EQ(sampleBuffers, 0);
+
+    GLint samples = -1;
+    glGetIntegerv(GL_SAMPLES, &samples);
+    ASSERT_EQ(samples, 0);
+
+    glClearColor(1.0, 0.0, 1.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_SAMPLE_COVERAGE);
+    glSampleCoverage(0.0f, false);
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.0);
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+}
+
+// Test that sample coverage affects multi sample rendering with only one sample
+TEST_P(SimpleOperationTest, DrawSingleMultiSampleWithCoverage)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    GLRenderbuffer rbo;
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 1, GL_RGBA8, 1, 1);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    GLint samples = -1;
+    glGetIntegerv(GL_SAMPLES, &samples);
+    ASSERT_GT(samples, 0);
+    ANGLE_SKIP_TEST_IF(samples != 1);
+
+    glClearColor(0.0, 0.0, 1.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_SAMPLE_COVERAGE);
+    glSampleCoverage(0.0f, false);
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.0);
+    ASSERT_GL_NO_ERROR();
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, 1, 1, 0, 0, 1, 1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
+}
+
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(SimpleOperationTest);
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND(
+    SimpleOperationTest,
+    ES3_METAL().enable(Feature::ForceBufferGPUStorage),
+    ES3_METAL().disable(Feature::HasExplicitMemBarrier).disable(Feature::HasCheapRenderPass),
+    ES2_VULKAN().disable(Feature::SupportsNegativeViewport),
+    WithVulkanSecondaries(ES3_VULKAN_SWIFTSHADER()));
+
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND(
+    TriangleFanDrawTest,
+    ES3_METAL().enable(Feature::ForceBufferGPUStorage),
+    ES3_METAL().disable(Feature::HasExplicitMemBarrier).disable(Feature::HasCheapRenderPass),
+    ES2_VULKAN().disable(Feature::SupportsNegativeViewport));
+
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND_ES31(SimpleOperationTest31);
 
 }  // namespace

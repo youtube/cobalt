@@ -7,10 +7,14 @@
 #include "compiler/translator/TranslatorESSL.h"
 
 #include "angle_gl.h"
+#include "common/utilities.h"
 #include "compiler/translator/BuiltInFunctionEmulatorGLSL.h"
 #include "compiler/translator/OutputESSL.h"
-#include "compiler/translator/tree_ops/EmulatePrecision.h"
+#include "compiler/translator/StaticType.h"
+#include "compiler/translator/tree_ops/DeclarePerVertexBlocks.h"
 #include "compiler/translator/tree_ops/RecordConstantPrecision.h"
+#include "compiler/translator/tree_util/ReplaceClipCullDistanceVariable.h"
+#include "compiler/translator/util.h"
 
 namespace sh
 {
@@ -20,21 +24,32 @@ TranslatorESSL::TranslatorESSL(sh::GLenum type, ShShaderSpec spec)
 {}
 
 void TranslatorESSL::initBuiltInFunctionEmulator(BuiltInFunctionEmulator *emu,
-                                                 ShCompileOptions compileOptions)
+                                                 const ShCompileOptions &compileOptions)
 {
-    if (compileOptions & SH_EMULATE_ATAN2_FLOAT_FUNCTION)
+    if (compileOptions.emulateAtan2FloatFunction)
     {
         InitBuiltInAtanFunctionEmulatorForGLSLWorkarounds(emu);
     }
 }
 
 bool TranslatorESSL::translate(TIntermBlock *root,
-                               ShCompileOptions compileOptions,
+                               const ShCompileOptions &compileOptions,
                                PerformanceDiagnostics * /*perfDiagnostics*/)
 {
     TInfoSinkBase &sink = getInfoSink().obj;
 
-    int shaderVer = getShaderVersion();
+    int shaderVer = getShaderVersion();  // Frontend shader version.
+    if ((shaderVer > 100 &&
+         (getResources().EXT_clip_cull_distance || getResources().ANGLE_clip_cull_distance ||
+          getResources().NV_shader_noperspective_interpolation ||
+          getResources().OES_shader_multisample_interpolation)) ||
+        (hasPixelLocalStorageUniforms() &&
+         compileOptions.pls.type == ShPixelLocalStorageType::ImageLoadStore))
+    {
+        // The backend translator emits interface blocks or shader image code.
+        // Use a minimum version of 310.
+        shaderVer = std::max(shaderVer, 310);
+    }
     if (shaderVer > 100)
     {
         sink << "#version " << shaderVer << " es\n";
@@ -45,21 +60,7 @@ bool TranslatorESSL::translate(TIntermBlock *root,
 
     // Write pragmas after extensions because some drivers consider pragmas
     // like non-preprocessor tokens.
-    writePragma(compileOptions);
-
-    bool precisionEmulation =
-        getResources().WEBGL_debug_shader_precision && getPragma().debugShaderPrecision;
-
-    if (precisionEmulation)
-    {
-        EmulatePrecision emulatePrecision(&getSymbolTable());
-        root->traverse(&emulatePrecision);
-        if (!emulatePrecision.updateTree(this, root))
-        {
-            return false;
-        }
-        emulatePrecision.writeEmulationHelpers(sink, shaderVer, SH_ESSL_OUTPUT);
-    }
+    WritePragma(sink, compileOptions, getPragma());
 
     if (!RecordConstantPrecision(this, root, &getSymbolTable()))
     {
@@ -87,8 +88,61 @@ bool TranslatorESSL::translate(TIntermBlock *root,
         sink << "// END: Generated code for built-in function emulation\n\n";
     }
 
-    // Write array bounds clamping emulation if needed.
-    getArrayBoundsClamper().OutputClampingFunctionDefinition(sink);
+    if (getShaderType() == GL_VERTEX_SHADER)
+    {
+        // Emulate GL_CLIP_DISTANCEi_EXT state if needed
+        if (hasClipDistance() && compileOptions.emulateClipDistanceState)
+        {
+            constexpr const ImmutableString kClipDistanceEnabledName("angle_ClipDistanceEnabled");
+
+            const TType *type = StaticType::Get<EbtUInt, EbpLow, EvqUniform, 1, 1>();
+            const TVariable *clipDistanceEnabled = new TVariable(
+                &getSymbolTable(), kClipDistanceEnabledName, type, SymbolType::AngleInternal);
+            const TIntermSymbol *clipDistanceEnabledSymbol = new TIntermSymbol(clipDistanceEnabled);
+
+            // AngleInternal variables don't get collected
+            if (shouldCollectVariables(compileOptions))
+            {
+                ShaderVariable uniform;
+                uniform.name          = kClipDistanceEnabledName.data();
+                uniform.mappedName    = kClipDistanceEnabledName.data();
+                uniform.type          = GLVariableType(*type);
+                uniform.precision     = GLVariablePrecision(*type);
+                uniform.staticUse     = true;
+                uniform.active        = true;
+                uniform.binding       = type->getLayoutQualifier().binding;
+                uniform.location      = type->getLayoutQualifier().location;
+                uniform.offset        = type->getLayoutQualifier().offset;
+                uniform.rasterOrdered = type->getLayoutQualifier().rasterOrdered;
+                uniform.readonly      = type->getMemoryQualifier().readonly;
+                uniform.writeonly     = type->getMemoryQualifier().writeonly;
+                mUniforms.push_back(uniform);
+            }
+            DeclareGlobalVariable(root, clipDistanceEnabled);
+            if (!ZeroDisabledClipDistanceAssignments(this, root, &getSymbolTable(), getShaderType(),
+                                                     clipDistanceEnabledSymbol))
+                return false;
+
+            // The previous operation always redeclares gl_ClipDistance
+            if (!DeclarePerVertexBlocks(this, root, &getSymbolTable()))
+                return false;
+        }
+        else if ((IsExtensionEnabled(getExtensionBehavior(), TExtension::EXT_clip_cull_distance) ||
+                  IsExtensionEnabled(getExtensionBehavior(),
+                                     TExtension::ANGLE_clip_cull_distance)) &&
+                 areClipDistanceOrCullDistanceRedeclared())
+        {
+            // When clip distance state emulation is not needed,
+            // the redeclared extension built-ins still should be moved to gl_PerVertex
+            if (!DeclarePerVertexBlocks(this, root, &getSymbolTable()))
+                return false;
+        }
+    }
+
+    if (getShaderType() == GL_FRAGMENT_SHADER)
+    {
+        EmitEarlyFragmentTestsGLSL(*this, sink);
+    }
 
     if (getShaderType() == GL_COMPUTE_SHADER)
     {
@@ -103,9 +157,7 @@ bool TranslatorESSL::translate(TIntermBlock *root,
     }
 
     // Write translated shader.
-    TOutputESSL outputESSL(sink, getArrayIndexClampingStrategy(), getHashFunction(), getNameMap(),
-                           &getSymbolTable(), getShaderType(), shaderVer, precisionEmulation,
-                           compileOptions);
+    TOutputESSL outputESSL(this, sink, compileOptions);
 
     root->traverse(&outputESSL);
 
@@ -126,7 +178,7 @@ bool TranslatorESSL::shouldFlattenPragmaStdglInvariantAll()
     return true;
 }
 
-void TranslatorESSL::writeExtensionBehavior(ShCompileOptions compileOptions)
+void TranslatorESSL::writeExtensionBehavior(const ShCompileOptions &compileOptions)
 {
     TInfoSinkBase &sink                   = getInfoSink().obj;
     const TExtensionBehavior &extBehavior = getExtensionBehavior();
@@ -150,9 +202,15 @@ void TranslatorESSL::writeExtensionBehavior(ShCompileOptions compileOptions)
             }
             else if (isMultiview)
             {
-                EmitMultiviewGLSL(*this, compileOptions, iter->second, sink);
+                // Only either OVR_multiview OR OVR_multiview2 should be emitted.
+                if ((iter->first != TExtension::OVR_multiview) ||
+                    !IsExtensionEnabled(extBehavior, TExtension::OVR_multiview2))
+                {
+                    EmitMultiviewGLSL(*this, compileOptions, iter->first, iter->second, sink);
+                }
             }
-            else if (iter->first == TExtension::EXT_geometry_shader)
+            else if (iter->first == TExtension::EXT_geometry_shader ||
+                     iter->first == TExtension::OES_geometry_shader)
             {
                 sink << "#ifdef GL_EXT_geometry_shader\n"
                      << "#extension GL_EXT_geometry_shader : " << GetBehaviorString(iter->second)
@@ -171,13 +229,59 @@ void TranslatorESSL::writeExtensionBehavior(ShCompileOptions compileOptions)
             else if (iter->first == TExtension::ANGLE_multi_draw)
             {
                 // Don't emit anything. This extension is emulated
-                ASSERT((compileOptions & SH_EMULATE_GL_DRAW_ID) != 0);
+                ASSERT(compileOptions.emulateGLDrawID);
                 continue;
             }
-            else if (iter->first == TExtension::ANGLE_base_vertex_base_instance)
+            else if (iter->first == TExtension::ANGLE_base_vertex_base_instance_shader_builtin)
             {
                 // Don't emit anything. This extension is emulated
-                ASSERT((compileOptions & SH_EMULATE_GL_BASE_VERTEX_BASE_INSTANCE) != 0);
+                ASSERT(compileOptions.emulateGLBaseVertexBaseInstance);
+                continue;
+            }
+            else if (iter->first == TExtension::EXT_clip_cull_distance ||
+                     iter->first == TExtension::ANGLE_clip_cull_distance)
+            {
+                sink << "#extension GL_EXT_clip_cull_distance : " << GetBehaviorString(iter->second)
+                     << "\n";
+                if (areClipDistanceOrCullDistanceRedeclared() ||
+                    (hasClipDistance() && compileOptions.emulateClipDistanceState))
+                {
+                    sink << "#extension GL_EXT_shader_io_blocks : "
+                         << GetBehaviorString(iter->second) << "\n";
+                }
+            }
+            else if (iter->first == TExtension::ANGLE_shader_pixel_local_storage)
+            {
+                if (compileOptions.pls.type == ShPixelLocalStorageType::PixelLocalStorageEXT)
+                {
+                    // Just enable the extension. Appropriate warnings will be generated by the
+                    // frontend compiler for GL_ANGLE_shader_pixel_local_storage, if desired.
+                    sink << "#extension GL_EXT_shader_pixel_local_storage : enable\n";
+                }
+                else if (compileOptions.pls.type == ShPixelLocalStorageType::FramebufferFetch)
+                {
+                    // Just enable the extension. Appropriate warnings will be generated by the
+                    // frontend compiler for GL_ANGLE_shader_pixel_local_storage, if desired.
+                    sink << "#extension GL_EXT_shader_framebuffer_fetch : enable\n";
+                }
+                continue;
+            }
+            else if (iter->first == TExtension::EXT_shader_framebuffer_fetch)
+            {
+                sink << "#extension GL_EXT_shader_framebuffer_fetch : "
+                     << GetBehaviorString(iter->second) << "\n";
+                continue;
+            }
+            else if (iter->first == TExtension::EXT_shader_framebuffer_fetch_non_coherent)
+            {
+                sink << "#extension GL_EXT_shader_framebuffer_fetch_non_coherent : "
+                     << GetBehaviorString(iter->second) << "\n";
+                continue;
+            }
+            else if (iter->first == TExtension::WEBGL_video_texture)
+            {
+                // Don't emit anything. This extension is emulated
+                // TODO(crbug.com/776222): support external image.
                 continue;
             }
             else

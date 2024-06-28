@@ -21,10 +21,12 @@ class ScalarizeVecAndMatConstructorArgsTest : public MatchOutputCodeTest
 {
   public:
     ScalarizeVecAndMatConstructorArgsTest()
-        : MatchOutputCodeTest(GL_FRAGMENT_SHADER,
-                              SH_SCALARIZE_VEC_AND_MAT_CONSTRUCTOR_ARGS,
-                              SH_ESSL_OUTPUT)
-    {}
+        : MatchOutputCodeTest(GL_FRAGMENT_SHADER, SH_ESSL_OUTPUT)
+    {
+        ShCompileOptions defaultCompileOptions                  = {};
+        defaultCompileOptions.scalarizeVecAndMatConstructorArgs = true;
+        setDefaultCompileOptions(defaultCompileOptions);
+    }
 };
 
 // Verifies scalarizing matrix inside a vector constructor.
@@ -88,7 +90,7 @@ TEST_F(ScalarizeVecAndMatConstructorArgsTest, SequenceOperator)
         })";
     compile(shaderString);
 
-    std::vector<const char *> expectedStrings = {"_uv[0] += 1.0", "-_uv[0]"};
+    std::vector<const char *> expectedStrings = {"_uv[0] += ", "-_uv[0]"};
 
     EXPECT_TRUE(foundInCodeInOrder(expectedStrings));
 }
@@ -114,6 +116,23 @@ TEST_F(ScalarizeVecAndMatConstructorArgsTest, MultiDeclaration)
     std::vector<const char *> expectedStrings = {"vec2(_uu[0])", "mat2("};
 
     EXPECT_TRUE(foundInCodeInOrder(expectedStrings));
+}
+
+// Verifies that constructors without precision don't cause issues.
+TEST_F(ScalarizeVecAndMatConstructorArgsTest, ConstructorWithoutPrecision)
+{
+    const std::string shaderString =
+        R"(
+        precision mediump float;
+
+        uniform float u;
+
+        void main()
+        {
+            mat4 m = mat4(u);
+            mat2(0, bvec3(m));
+        })";
+    compile(shaderString);
 }
 
 }  // anonymous namespace

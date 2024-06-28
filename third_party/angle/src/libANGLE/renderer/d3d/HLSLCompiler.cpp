@@ -8,6 +8,7 @@
 
 #include <sstream>
 
+#include "common/system_utils.h"
 #include "common/utilities.h"
 #include "libANGLE/Context.h"
 #include "libANGLE/Program.h"
@@ -83,12 +84,9 @@ bool IsCompilerFlagSet(UINT mask, UINT flag)
 }
 #endif  // ANGLE_APPEND_ASSEMBLY_TO_SHADER_DEBUG_INFO == ANGLE_ENABLED
 
-constexpr char kOldCompilerLibrary[] = "d3dcompiler_old.dll";
-
 enum D3DCompilerLoadLibraryResult
 {
     D3DCompilerDefaultLibrarySuccess,
-    D3DCompilerOldLibrarySuccess,
     D3DCompilerFailure,
     D3DCompilerEnumBoundary,
 };
@@ -146,16 +144,6 @@ angle::Result HLSLCompiler::ensureInitialized(d3d::Context *context)
         {
             ANGLE_HISTOGRAM_ENUMERATION("GPU.ANGLE.D3DCompilerLoadLibraryResult",
                                         D3DCompilerDefaultLibrarySuccess, D3DCompilerEnumBoundary);
-        }
-        else
-        {
-            WARN() << "Failed to load HLSL compiler library. Using 'old' DLL.";
-            mD3DCompilerModule = LoadLibraryA(kOldCompilerLibrary);
-            if (mD3DCompilerModule)
-            {
-                ANGLE_HISTOGRAM_ENUMERATION("GPU.ANGLE.D3DCompilerLoadLibraryResult",
-                                            D3DCompilerOldLibrarySuccess, D3DCompilerEnumBoundary);
-            }
         }
     }
 
@@ -220,7 +208,7 @@ angle::Result HLSLCompiler::compileToBinary(d3d::Context *context,
     ASSERT(mD3DCompileFunc);
 
 #if !defined(ANGLE_ENABLE_WINDOWS_UWP) && defined(ANGLE_ENABLE_DEBUG_TRACE)
-    std::string sourcePath = getTempPath();
+    std::string sourcePath = angle::CreateTemporaryFile().value();
     std::ostringstream stream;
     stream << "#line 2 \"" << sourcePath << "\"\n\n" << hlsl;
     std::string sourceText = stream.str();
@@ -236,8 +224,7 @@ angle::Result HLSLCompiler::compileToBinary(d3d::Context *context,
         HRESULT result         = S_OK;
 
         {
-            ANGLE_TRACE_EVENT0("gpu.angle", "D3DCompile");
-            SCOPED_ANGLE_HISTOGRAM_TIMER("GPU.ANGLE.D3DCompileMS");
+            ANGLE_TRACE_EVENT1("gpu.angle", "D3DCompile", "source", hlsl);
             result = mD3DCompileFunc(hlsl.c_str(), hlsl.length(), gl::g_fakepath, macros, nullptr,
                                      "main", profile.c_str(), configs[i].flags, 0, &binary,
                                      &errorMessage);
@@ -247,6 +234,7 @@ angle::Result HLSLCompiler::compileToBinary(d3d::Context *context,
         {
             std::string message = static_cast<const char *>(errorMessage->GetBufferPointer());
             SafeRelease(errorMessage);
+            ANGLE_TRACE_EVENT1("gpu.angle", "D3DCompile::Error", "error", errorMessage);
 
             infoLog.appendSanitized(message.c_str());
 

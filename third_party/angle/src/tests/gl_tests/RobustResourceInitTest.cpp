@@ -9,6 +9,7 @@
 
 #include "test_utils/gl_raii.h"
 #include "util/EGLWindow.h"
+#include "util/gles_loader_autogen.h"
 
 namespace angle
 {
@@ -186,7 +187,7 @@ std::vector<GLColor> UncompressDXTIntoSubRegion(int width,
     return dest;
 }
 
-class RobustResourceInitTest : public ANGLETest
+class RobustResourceInitTest : public ANGLETest<>
 {
   protected:
     constexpr static int kWidth  = 128;
@@ -291,6 +292,8 @@ class RobustResourceInitTest : public ANGLETest
 
     template <typename ClearFunc>
     void maskedStencilClear(ClearFunc clearFunc);
+
+    void copyTexSubImage2DCustomFBOTest(int offsetX, int offsetY);
 };
 
 class RobustResourceInitTestES3 : public RobustResourceInitTest
@@ -311,7 +314,7 @@ class RobustResourceInitTestES31 : public RobustResourceInitTest
 TEST_P(RobustResourceInitTest, ExpectedRendererSupport)
 {
     bool shouldHaveSupport =
-        IsD3D11() || IsD3D11_FL93() || IsD3D9() || IsOpenGL() || IsOpenGLES() || IsVulkan();
+        IsD3D11() || IsD3D9() || IsOpenGL() || IsOpenGLES() || IsVulkan() || IsMetal();
     EXPECT_EQ(shouldHaveSupport, hasGLExtension());
     EXPECT_EQ(shouldHaveSupport, hasEGLExtension());
     EXPECT_EQ(shouldHaveSupport, hasRobustSurfaceInit());
@@ -329,6 +332,30 @@ TEST_P(RobustResourceInitTest, Queries)
 
         EXPECT_GL_TRUE(glIsEnabled(GL_ROBUST_RESOURCE_INITIALIZATION_ANGLE));
         EXPECT_GL_NO_ERROR();
+
+        GLTexture texture;
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+        // Can't verify the init state after glTexImage2D, the implementation is free to initialize
+        // any time before the resource is read.
+
+        {
+            // Force to uninitialized
+            glTexParameteri(GL_TEXTURE_2D, GL_RESOURCE_INITIALIZED_ANGLE, GL_FALSE);
+
+            GLint initState = 0;
+            glGetTexParameteriv(GL_TEXTURE_2D, GL_RESOURCE_INITIALIZED_ANGLE, &initState);
+            EXPECT_GL_FALSE(initState);
+        }
+        {
+            // Force to initialized
+            glTexParameteri(GL_TEXTURE_2D, GL_RESOURCE_INITIALIZED_ANGLE, GL_TRUE);
+
+            GLint initState = 0;
+            glGetTexParameteriv(GL_TEXTURE_2D, GL_RESOURCE_INITIALIZED_ANGLE, &initState);
+            EXPECT_GL_TRUE(initState);
+        }
     }
     else
     {
@@ -382,6 +409,11 @@ TEST_P(RobustResourceInitTest, BufferData)
     glReadPixels(0, 0, getWindowWidth(), getWindowHeight(), GL_RGBA, GL_UNSIGNED_BYTE,
                  actual.data());
     EXPECT_EQ(expected, actual);
+
+    GLint initState = 0;
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_RESOURCE_INITIALIZED_ANGLE, &initState);
+    EXPECT_GL_TRUE(initState);
 }
 
 // Regression test for passing a zero size init buffer with the extension.
@@ -392,6 +424,64 @@ TEST_P(RobustResourceInitTest, BufferDataZeroSize)
     GLBuffer buffer;
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW);
+}
+
+// Regression test for images being recovered from storage not re-syncing to storage after being
+// initialized
+TEST_P(RobustResourceInitTestES3, D3D11RecoverFromStorageBug)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
+
+    // http://anglebug.com/5770
+    // Vulkan uses incorrect copy sizes when redefining/zero initializing NPOT compressed textures.
+    ANGLE_SKIP_TEST_IF(IsVulkan());
+
+    static constexpr uint8_t img_8x8_rgb_dxt1[] = {
+        0xe0, 0x07, 0x00, 0xf8, 0x11, 0x10, 0x15, 0x00, 0x1f, 0x00, 0xe0,
+        0xff, 0x11, 0x10, 0x15, 0x00, 0xe0, 0x07, 0x1f, 0xf8, 0x44, 0x45,
+        0x40, 0x55, 0x1f, 0x00, 0xff, 0x07, 0x44, 0x45, 0x40, 0x55,
+    };
+
+    static constexpr uint8_t img_4x4_rgb_dxt1[] = {
+        0xe0, 0x07, 0x00, 0xf8, 0x11, 0x10, 0x15, 0x00,
+    };
+
+    static constexpr uint8_t img_4x4_rgb_dxt1_zeroes[] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    };
+
+    for (size_t i = 0; i < 8; i++)
+    {
+        {
+            GLTexture texture;
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexStorage2D(GL_TEXTURE_2D, 4, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, 8, 8);
+            glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 8, 8, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+                                      ArraySize(img_8x8_rgb_dxt1), img_8x8_rgb_dxt1);
+            glCompressedTexSubImage2D(GL_TEXTURE_2D, 1, 0, 0, 4, 4, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+                                      ArraySize(img_4x4_rgb_dxt1), img_4x4_rgb_dxt1);
+            glCompressedTexSubImage2D(GL_TEXTURE_2D, 2, 0, 0, 2, 2, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+                                      ArraySize(img_4x4_rgb_dxt1), img_4x4_rgb_dxt1);
+            glCompressedTexSubImage2D(GL_TEXTURE_2D, 3, 0, 0, 1, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+                                      ArraySize(img_4x4_rgb_dxt1), img_4x4_rgb_dxt1);
+        }
+        {
+            GLTexture texture;
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexStorage2D(GL_TEXTURE_2D, 4, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, 12, 12);
+            glCompressedTexSubImage2D(GL_TEXTURE_2D, 3, 0, 0, 1, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+                                      ArraySize(img_4x4_rgb_dxt1_zeroes), img_4x4_rgb_dxt1_zeroes);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 3);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glViewport(0, 0, 1, 1);
+            glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            draw2DTexturedQuad(0.5f, 1.0f, true);
+            EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::black);
+        }
+    }
 }
 
 // The following test code translated from WebGL 1 test:
@@ -566,10 +656,9 @@ TEST_P(RobustResourceInitTest, TexImageThenSubImage)
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
 
     // http://anglebug.com/2407, but only fails on Nexus devices
-    ANGLE_SKIP_TEST_IF((IsNexus5X() || IsNexus6P()) && IsOpenGLES());
+    ANGLE_SKIP_TEST_IF(IsNexus5X() && IsOpenGLES());
 
     // Put some data into the texture
-
     GLTexture tex;
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kWidth, kHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -732,6 +821,48 @@ TEST_P(RobustResourceInitTest, DrawWithTexture)
     checkFramebufferNonZeroPixels(0, 0, 0, 0, GLColor::black);
 }
 
+// Tests that drawing with an uninitialized mipped texture works as expected.
+TEST_P(RobustResourceInitTestES3, DrawWithMippedTexture)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kWidth, kHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 1, GL_RGBA, kWidth / 2, kHeight / 2, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 2, GL_RGBA, kWidth / 4, kHeight / 4, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 3, GL_RGBA, kWidth / 8, kHeight / 8, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 1);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 3);
+
+    EXPECT_GL_NO_ERROR();
+
+    constexpr char kVS[] =
+        "attribute vec2 position;\n"
+        "varying vec2 texCoord;\n"
+        "void main() {\n"
+        "    gl_Position = vec4(position, 0, 1);\n"
+        "    texCoord = (position * 0.5) + 0.5;\n"
+        "}";
+    constexpr char kFS[] =
+        "precision mediump float;\n"
+        "varying vec2 texCoord;\n"
+        "uniform sampler2D tex;\n"
+        "void main() {\n"
+        "    gl_FragColor = texture2D(tex, texCoord);\n"
+        "}";
+
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    drawQuad(program, "position", 0.5f);
+
+    checkFramebufferNonZeroPixels(0, 0, 0, 0, GLColor::black);
+}
+
 // Reading a partially initialized texture (texImage2D) should succeed with all uninitialized bytes
 // set to 0 and initialized bytes untouched.
 TEST_P(RobustResourceInitTest, ReadingPartiallyInitializedTexture)
@@ -739,7 +870,7 @@ TEST_P(RobustResourceInitTest, ReadingPartiallyInitializedTexture)
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
 
     // http://anglebug.com/2407, but only fails on Nexus devices
-    ANGLE_SKIP_TEST_IF((IsNexus5X() || IsNexus6P()) && IsOpenGLES());
+    ANGLE_SKIP_TEST_IF(IsNexus5X() && IsOpenGLES());
 
     GLTexture tex;
     setupTexture(&tex);
@@ -840,11 +971,6 @@ TEST_P(RobustResourceInitTest, ReadingOutOfBoundsCopiedTexture)
 {
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
 
-    // Flaky failure on Linux / NV / Vulkan when run in a sequence. http://anglebug.com/3416
-    ANGLE_SKIP_TEST_IF(IsVulkan() && IsNVIDIA() && IsLinux());
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF(IsWindows() && IsVulkan());
-
     GLTexture tex;
     setupTexture(&tex);
     GLFramebuffer fbo;
@@ -873,6 +999,8 @@ TEST_P(RobustResourceInitTestES3, MultisampledDepthInitializedCorrectly)
 
     // http://anglebug.com/2407
     ANGLE_SKIP_TEST_IF(IsAndroid() && IsOpenGLES());
+    // http://anglebug.com/5398
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsD3D11());
 
     ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
 
@@ -935,6 +1063,11 @@ TEST_P(RobustResourceInitTest, Texture)
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
     checkFramebufferNonZeroPixels(0, 0, 0, 0, GLColor::black);
+
+    GLint initState = 0;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glGetTexParameteriv(GL_TEXTURE_2D, GL_RESOURCE_INITIALIZED_ANGLE, &initState);
+    EXPECT_GL_TRUE(initState);
 }
 
 // Test that uploading texture data with an unpack state set correctly initializes the texture and
@@ -1002,6 +1135,20 @@ void RobustResourceInitTestES3::testIntegerTextureInit(const char *samplerType,
     // Blit from the texture to the framebuffer.
     drawQuad(program, "position", 0.5f);
 
+    // Verify both textures have been initialized
+    {
+        GLint initState = 0;
+        glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+        glGetTexParameteriv(GL_TEXTURE_2D, GL_RESOURCE_INITIALIZED_ANGLE, &initState);
+        EXPECT_GL_TRUE(initState);
+    }
+    {
+        GLint initState = 0;
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glGetTexParameteriv(GL_TEXTURE_2D, GL_RESOURCE_INITIALIZED_ANGLE, &initState);
+        EXPECT_GL_TRUE(initState);
+    }
+
     std::array<PixelT, kWidth * kHeight * 4> data;
     glReadPixels(0, 0, kWidth, kHeight, GL_RGBA_INTEGER, type, data.data());
 
@@ -1026,6 +1173,11 @@ void RobustResourceInitTestES3::testIntegerTextureInit(const char *samplerType,
 TEST_P(RobustResourceInitTestES3, TextureInit_UIntRGB8)
 {
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
+    // http://anglebug.com/5398
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsD3D11());
+    // TODO(anglebug.com/5491) iOS doesn't like to read this format as UNSIGNED_BYTE.
+    ANGLE_SKIP_TEST_IF(IsIOS() && IsOpenGLES());
+
     testIntegerTextureInit<uint8_t>("u", GL_RGBA8UI, GL_RGB8UI, GL_UNSIGNED_BYTE);
 }
 
@@ -1038,6 +1190,11 @@ TEST_P(RobustResourceInitTestES3, TextureInit_UIntRGB32)
 TEST_P(RobustResourceInitTestES3, TextureInit_IntRGB8)
 {
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
+    // http://anglebug.com/5398
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsD3D11());
+    // TODO(stianglebug.com/5491) iOS doesn't like to read this format as BYTE.
+    ANGLE_SKIP_TEST_IF(IsIOS() && IsOpenGLES());
+
     testIntegerTextureInit<int8_t>("i", GL_RGBA8I, GL_RGB8I, GL_BYTE);
 }
 
@@ -1141,6 +1298,59 @@ TEST_P(RobustResourceInitTestES3, GenerateMipmap)
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
 
     // Set viewport to resize the texture and draw.
+    glViewport(0, 0, 2, 2);
+    drawQuad(program, "position", 0.5f);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::transparentBlack);
+}
+
+// Tests creating mipmaps with robust resource init multiple times.
+TEST_P(RobustResourceInitTestES3, GenerateMipmapAfterRedefine)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+
+    constexpr GLint kTextureSize = 16;
+    const std::vector<GLColor> kInitData(kTextureSize * kTextureSize, GLColor::blue);
+
+    // Initialize a 16x16 RGBA8 texture with blue.
+    GLTexture tex;
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kTextureSize, kTextureSize, 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, kInitData.data());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    std::string shader = GetSimpleTextureFragmentShader("");
+    ANGLE_GL_PROGRAM(program, kSimpleTextureVertexShader, shader.c_str());
+
+    // Generate mipmaps.
+    glGenerateMipmap(GL_TEXTURE_2D);
+    ASSERT_GL_NO_ERROR();
+
+    // Validate a small mip.
+    glClearColor(1, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+
+    // Set viewport to resize the texture and draw.
+    glViewport(0, 0, 2, 2);
+    drawQuad(program, "position", 0.5f);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
+
+    // Redefine mip 0 with no data.
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kTextureSize, kTextureSize, 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, nullptr);
+
+    // Generate mipmaps again.  Mip 0 must be cleared before the mipmaps are regenerated.
+    glGenerateMipmap(GL_TEXTURE_2D);
+    EXPECT_GL_NO_ERROR();
+
+    // Validate a small mip.
+    glClearColor(1, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+
     glViewport(0, 0, 2, 2);
     drawQuad(program, "position", 0.5f);
     ASSERT_GL_NO_ERROR();
@@ -1319,6 +1529,7 @@ void RobustResourceInitTest::maskedDepthClear(ClearFunc clearFunc)
     // Draw red with a depth function that checks for the clear value.
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_EQUAL);
+    glViewport(0, 0, kSize, kSize);
 
     ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
 
@@ -1337,6 +1548,8 @@ TEST_P(RobustResourceInitTest, MaskedDepthClear)
 
     // http://anglebug.com/2407
     ANGLE_SKIP_TEST_IF(IsAndroid() && IsOpenGLES());
+    // http://anglebug.com/5398
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsD3D11());
 
     auto clearFunc = [](float depth) {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -1354,6 +1567,8 @@ TEST_P(RobustResourceInitTestES3, MaskedDepthClearBuffer)
 
     // http://anglebug.com/2407
     ANGLE_SKIP_TEST_IF(IsAndroid() && IsOpenGLES());
+    // http://anglebug.com/5398
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsD3D11());
 
     auto clearFunc = [](float depth) {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -1397,6 +1612,7 @@ void RobustResourceInitTest::maskedStencilClear(ClearFunc clearFunc)
     glEnable(GL_STENCIL_TEST);
     glStencilFunc(GL_EQUAL, 0x00, 0xFF);
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glViewport(0, 0, kSize, kSize);
 
     ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
 
@@ -1409,10 +1625,9 @@ void RobustResourceInitTest::maskedStencilClear(ClearFunc clearFunc)
 TEST_P(RobustResourceInitTest, MaskedStencilClear)
 {
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
-    ANGLE_SKIP_TEST_IF(IsD3D11_FL93());
 
     // http://anglebug.com/2407, but only fails on Nexus devices
-    ANGLE_SKIP_TEST_IF((IsNexus5X() || IsNexus6P()) && IsOpenGLES());
+    ANGLE_SKIP_TEST_IF(IsNexus5X() && IsOpenGLES());
 
     auto clearFunc = [](GLint clearValue) {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -1434,7 +1649,7 @@ TEST_P(RobustResourceInitTestES3, MaskedStencilClearBuffer)
     ANGLE_SKIP_TEST_IF(IsLinux() && IsOpenGL());
 
     // http://anglebug.com/2407, but only fails on Nexus devices
-    ANGLE_SKIP_TEST_IF((IsNexus5X() || IsNexus6P()) && IsOpenGLES());
+    ANGLE_SKIP_TEST_IF(IsNexus5X() && IsOpenGLES());
 
     auto clearFunc = [](GLint clearValue) {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -1473,7 +1688,6 @@ void VerifyRGBA8PixelRect(InitializedTest inInitialized)
 TEST_P(RobustResourceInitTest, CopyTexSubImage2D)
 {
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
-    ANGLE_SKIP_TEST_IF(IsD3D11_FL93());
 
     static constexpr int kDestSize = 4;
     constexpr int kSrcSize         = kDestSize / 2;
@@ -1535,6 +1749,58 @@ TEST_P(RobustResourceInitTest, CopyTexSubImage2D)
     auto destInitTest = [srcInitTest](int x, int y) { return !srcInitTest(x, y); };
 
     VerifyRGBA8PixelRect<kDestSize>(destInitTest);
+}
+
+void RobustResourceInitTest::copyTexSubImage2DCustomFBOTest(int offsetX, int offsetY)
+{
+    const int texSize = 512;
+    const int fboSize = 16;
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture.get());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texSize, texSize, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 nullptr);
+    ASSERT_GL_NO_ERROR();
+
+    GLRenderbuffer renderbuffer;
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer.get());
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA4, fboSize, fboSize);
+    ASSERT_GL_NO_ERROR();
+
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
+                              renderbuffer.get());
+    ASSERT_GL_NO_ERROR();
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    glClearColor(1.0, 0.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ASSERT_GL_NO_ERROR();
+
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, offsetX, offsetY, texSize, texSize);
+    ASSERT_GL_NO_ERROR();
+
+    GLFramebuffer readbackFBO;
+    glBindFramebuffer(GL_FRAMEBUFFER, readbackFBO.get());
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.get(), 0);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+    checkCustomFramebufferNonZeroPixels(texSize, texSize, -offsetX, -offsetY, fboSize, fboSize,
+                                        GLColor::red);
+}
+
+// Test CopyTexSubImage2D clipped to size of custom FBO, zero x/y source offset.
+TEST_P(RobustResourceInitTest, CopyTexSubImage2DCustomFBOZeroOffsets)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+    copyTexSubImage2DCustomFBOTest(0, 0);
+}
+
+// Test CopyTexSubImage2D clipped to size of custom FBO, negative x/y source offset.
+TEST_P(RobustResourceInitTest, CopyTexSubImage2DCustomFBONegativeOffsets)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+    copyTexSubImage2DCustomFBOTest(-8, -8);
 }
 
 // Tests that calling CopyTexSubImage3D will initialize the source & destination.
@@ -1636,8 +1902,6 @@ TEST_P(RobustResourceInitTestES3, CompressedSubImage)
 {
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF(IsVulkan());
 
     constexpr int width     = 8;
     constexpr int height    = 8;
@@ -1740,6 +2004,10 @@ TEST_P(RobustResourceInitTest, ClearWithScissor)
     EXPECT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
     EXPECT_PIXEL_COLOR_EQ(kSize - 1, 0, GLColor::transparentBlack);
+
+    GLint initState = 0;
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RESOURCE_INITIALIZED_ANGLE, &initState);
+    EXPECT_GL_TRUE(initState);
 }
 
 // Tests that surfaces are initialized when they are created
@@ -1765,21 +2033,33 @@ TEST_P(RobustResourceInitTest, SurfaceInitializedAfterSwap)
         GLColor::red,
         GLColor::yellow,
     }};
+
+    if (swapBehaviour != EGL_BUFFER_PRESERVED)
+    {
+        checkFramebufferNonZeroPixels(0, 0, 0, 0, GLColor::black);
+    }
+
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(0, 0, 1, 1);
+
     for (size_t i = 0; i < clearColors.size(); i++)
     {
         if (swapBehaviour == EGL_BUFFER_PRESERVED && i > 0)
         {
             EXPECT_PIXEL_COLOR_EQ(0, 0, clearColors[i - 1]);
         }
-        else
-        {
-            checkFramebufferNonZeroPixels(0, 0, 0, 0, GLColor::black);
-        }
 
         angle::Vector4 clearColor = clearColors[i].toNormalizedVector();
         glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
         glClear(GL_COLOR_BUFFER_BIT);
         EXPECT_GL_NO_ERROR();
+
+        if (swapBehaviour != EGL_BUFFER_PRESERVED)
+        {
+            // Only scissored area (0, 0, 1, 1) has clear color.
+            // The rest should be robust initialized.
+            checkFramebufferNonZeroPixels(0, 0, 1, 1, clearColors[i]);
+        }
 
         swapBuffers();
     }
@@ -1789,8 +2069,6 @@ TEST_P(RobustResourceInitTest, SurfaceInitializedAfterSwap)
 TEST_P(RobustResourceInitTestES31, Multisample2DTexture)
 {
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF(IsVulkan());
 
     GLTexture texture;
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, texture);
@@ -1867,9 +2145,6 @@ TEST_P(RobustResourceInitTestES31, Multisample2DTextureArray)
 // Tests that using an out of bounds draw offset with a dynamic array succeeds.
 TEST_P(RobustResourceInitTest, DynamicVertexArrayOffsetOutOfBounds)
 {
-    // Not implemented on Vulkan.  http://anglebug.com/3350
-    ANGLE_SKIP_TEST_IF(IsVulkan());
-
     ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
     glUseProgram(program);
 
@@ -1894,6 +2169,9 @@ TEST_P(RobustResourceInitTestES3, InitializeMultisampledDepthRenderbufferAfterCo
 {
     ANGLE_SKIP_TEST_IF(!hasGLExtension());
     ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_CHROMIUM_copy_texture"));
+
+    // http://anglebug.com/5398
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsD3D11());
 
     // Call glCopyTextureCHROMIUM to set destTexture as the color attachment of the internal
     // framebuffer mScratchFBO.
@@ -1953,10 +2231,265 @@ TEST_P(RobustResourceInitTestES3, InitializeMultisampledDepthRenderbufferAfterCo
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
 }
 
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(RobustResourceInitTest);
+// Corner case for robust resource init: CopyTexImage to a cube map.
+TEST_P(RobustResourceInitTest, CopyTexImageToOffsetCubeMap)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
 
-ANGLE_INSTANTIATE_TEST_ES3(RobustResourceInitTestES3);
+    constexpr GLuint kSize = 2;
 
-ANGLE_INSTANTIATE_TEST_ES31(RobustResourceInitTestES31);
+    std::vector<GLColor> redPixels(kSize * kSize, GLColor::red);
+
+    GLTexture srcTex;
+    glBindTexture(GL_TEXTURE_2D, srcTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kSize, kSize, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 redPixels.data());
+
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, srcTex, 0);
+
+    ASSERT_GL_NO_ERROR();
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+
+    GLTexture dstTex;
+    glBindTexture(GL_TEXTURE_CUBE_MAP, dstTex);
+    glCopyTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGBA, 1, 1, kSize, kSize, 0);
+    glCopyTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGBA, -1, -1, kSize, kSize, 0);
+    glCopyTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGBA, 2, 2, kSize, kSize, 0);
+    glCopyTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGBA, -2, -2, kSize, kSize, 0);
+    glCopyTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGBA, 0, 0, kSize, kSize, 0);
+    glCopyTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGBA, 0, 0, kSize, kSize, 0);
+
+    ASSERT_GL_NO_ERROR();
+
+    // Verify the offset attachments.
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+                           dstTex, 0);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+    EXPECT_PIXEL_COLOR_EQ(1, 0, GLColor::transparentBlack);
+    EXPECT_PIXEL_COLOR_EQ(0, 1, GLColor::transparentBlack);
+    EXPECT_PIXEL_COLOR_EQ(1, 1, GLColor::transparentBlack);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+                           dstTex, 0);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::transparentBlack);
+    EXPECT_PIXEL_COLOR_EQ(1, 0, GLColor::transparentBlack);
+    EXPECT_PIXEL_COLOR_EQ(0, 1, GLColor::transparentBlack);
+    EXPECT_PIXEL_COLOR_EQ(1, 1, GLColor::red);
+}
+
+TEST_P(RobustResourceInitTestES3, CheckDepthStencilRenderbufferIsCleared)
+{
+    ANGLE_SKIP_TEST_IF(!hasRobustSurfaceInit());
+
+    GLRenderbuffer colorRb;
+    GLFramebuffer fb;
+    GLRenderbuffer depthStencilRb;
+
+    // Make a framebuffer with RGBA + DEPTH_STENCIL
+    glBindRenderbuffer(GL_RENDERBUFFER, colorRb);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, kWidth, kHeight);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, depthStencilRb);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, kWidth, kHeight);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fb);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorRb);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
+                              depthStencilRb);
+    ASSERT_GL_NO_ERROR();
+
+    // Render a quad at Z = 1.0 with depth test on and depth function set to GL_EQUAL.
+    // If the depth buffer is not cleared to 1.0 this will fail
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_EQUAL);
+
+    ANGLE_GL_PROGRAM(drawGreen, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    drawQuad(drawGreen, essl1_shaders::PositionAttrib(), 1.0f, 1.0f, true);
+    EXPECT_PIXEL_RECT_EQ(0, 0, kWidth, kHeight, GLColor::green);
+
+    // Render with stencil test on and stencil function set to GL_EQUAL
+    // If the stencil is not zero this will fail.
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_STENCIL_TEST);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glStencilFunc(GL_EQUAL, 0, 0xFF);
+
+    ANGLE_GL_PROGRAM(drawRed, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+    drawQuad(drawRed, essl1_shaders::PositionAttrib(), 1.0f, 1.0f, true);
+    EXPECT_PIXEL_RECT_EQ(0, 0, kWidth, kHeight, GLColor::red);
+
+    ASSERT_GL_NO_ERROR();
+}
+
+TEST_P(RobustResourceInitTestES3, CheckMultisampleDepthStencilRenderbufferIsCleared)
+{
+    ANGLE_SKIP_TEST_IF(!hasRobustSurfaceInit());
+
+    GLRenderbuffer colorRb;
+    GLFramebuffer fb;
+
+    // Make a framebuffer with RGBA
+    glBindRenderbuffer(GL_RENDERBUFFER, colorRb);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, kWidth, kHeight);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fb);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorRb);
+    ASSERT_GL_NO_ERROR();
+
+    // Make a corresponding multisample framebuffer with RGBA + DEPTH_STENCIL
+    constexpr int kSamples = 4;
+    GLRenderbuffer multisampleColorRb;
+    GLFramebuffer multisampleFb;
+    GLRenderbuffer multisampleDepthStencilRb;
+
+    // Make a framebuffer with RGBA + DEPTH_STENCIL
+    glBindRenderbuffer(GL_RENDERBUFFER, multisampleColorRb);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, kSamples, GL_RGBA8, kWidth, kHeight);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, multisampleDepthStencilRb);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, kSamples, GL_DEPTH24_STENCIL8, kWidth,
+                                     kHeight);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, multisampleFb);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
+                              multisampleColorRb);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
+                              multisampleDepthStencilRb);
+    ASSERT_GL_NO_ERROR();
+
+    // Render a quad at Z = 1.0 with depth test on and depth function set to GL_EQUAL.
+    // If the depth buffer is not cleared to 1.0 this will fail
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_EQUAL);
+
+    ANGLE_GL_PROGRAM(drawGreen, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    drawQuad(drawGreen, essl1_shaders::PositionAttrib(), 1.0f, 1.0f, true);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fb);
+    glBlitFramebuffer(0, 0, kWidth, kHeight, 0, 0, kWidth, kHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fb);
+    EXPECT_PIXEL_RECT_EQ(0, 0, kWidth, kHeight, GLColor::green);
+
+    // Render with stencil test on and stencil function set to GL_EQUAL
+    // If the stencil is not zero this will fail.
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_STENCIL_TEST);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glStencilFunc(GL_EQUAL, 0, 0xFF);
+
+    ANGLE_GL_PROGRAM(drawRed, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+    glBindFramebuffer(GL_FRAMEBUFFER, multisampleFb);
+    drawQuad(drawRed, essl1_shaders::PositionAttrib(), 1.0f, 1.0f, true);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fb);
+    glBlitFramebuffer(0, 0, kWidth, kHeight, 0, 0, kWidth, kHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fb);
+    EXPECT_PIXEL_RECT_EQ(0, 0, kWidth, kHeight, GLColor::red);
+
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that blit between two depth/stencil buffers after glClearBufferfi works.  The blit is done
+// once expecting robust resource init value, then clear is called with the same value as the robust
+// init, and blit is done again.  This triggers an optimization in the Vulkan backend where the
+// second clear is no-oped.
+TEST_P(RobustResourceInitTestES3, BlitDepthStencilAfterClearBuffer)
+{
+    ANGLE_SKIP_TEST_IF(!hasRobustSurfaceInit());
+
+    // http://anglebug.com/5301
+    ANGLE_SKIP_TEST_IF(IsAndroid() && IsOpenGLES());
+
+    // http://anglebug.com/5300
+    ANGLE_SKIP_TEST_IF(IsD3D11());
+
+    constexpr GLsizei kSize = 16;
+    glViewport(0, 0, kSize, kSize);
+
+    GLFramebuffer readFbo, drawFbo;
+    GLRenderbuffer readDepthStencil, drawDepthStencil;
+
+    // Create destination framebuffer.
+    glBindRenderbuffer(GL_RENDERBUFFER, drawDepthStencil);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, kSize, kSize);
+    glBindFramebuffer(GL_FRAMEBUFFER, drawFbo);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
+                              drawDepthStencil);
+    ASSERT_GL_NO_ERROR();
+
+    // Create source framebuffer
+    glBindRenderbuffer(GL_RENDERBUFFER, readDepthStencil);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, kSize, kSize);
+    glBindFramebuffer(GL_FRAMEBUFFER, readFbo);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
+                              readDepthStencil);
+    ASSERT_GL_NO_ERROR();
+
+    // Blit once with the robust resource init clear.
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, drawFbo);
+    glBlitFramebuffer(0, 0, kSize, kSize, 0, 0, kSize, kSize,
+                      GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+    ASSERT_GL_NO_ERROR();
+
+    // Verify that the blit was successful.
+    GLRenderbuffer color;
+    glBindRenderbuffer(GL_RENDERBUFFER, color);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, kSize, kSize);
+    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color);
+    ASSERT_GL_NO_ERROR();
+
+    ANGLE_GL_PROGRAM(drawRed, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
+    glEnable(GL_STENCIL_TEST);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glStencilFunc(GL_EQUAL, 0, 0xFF);
+
+    drawQuad(drawRed, essl1_shaders::PositionAttrib(), 0.95f, 1.0f, true);
+    ASSERT_GL_NO_ERROR();
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, drawFbo);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+    EXPECT_PIXEL_COLOR_EQ(kSize - 1, 0, GLColor::red);
+    EXPECT_PIXEL_COLOR_EQ(0, kSize - 1, GLColor::red);
+    EXPECT_PIXEL_COLOR_EQ(kSize - 1, kSize - 1, GLColor::red);
+
+    // Clear to the same value as robust init, and blit again.
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, readFbo);
+    glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, drawFbo);
+    glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.5f, 0x3C);
+    glBlitFramebuffer(0, 0, kSize, kSize, 0, 0, kSize, kSize,
+                      GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+    ASSERT_GL_NO_ERROR();
+
+    // Verify that the blit was successful.
+    ANGLE_GL_PROGRAM(drawGreen, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    drawQuad(drawGreen, essl1_shaders::PositionAttrib(), 0.95f, 1.0f, true);
+    ASSERT_GL_NO_ERROR();
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, drawFbo);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    EXPECT_PIXEL_COLOR_EQ(kSize - 1, 0, GLColor::green);
+    EXPECT_PIXEL_COLOR_EQ(0, kSize - 1, GLColor::green);
+    EXPECT_PIXEL_COLOR_EQ(kSize - 1, kSize - 1, GLColor::green);
+}
+
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND(RobustResourceInitTest,
+                                       ES2_VULKAN().enable(Feature::AllocateNonZeroMemory));
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(RobustResourceInitTestES3);
+ANGLE_INSTANTIATE_TEST_ES3_AND(RobustResourceInitTestES3,
+                               ES3_VULKAN().enable(Feature::AllocateNonZeroMemory));
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(RobustResourceInitTestES31);
+ANGLE_INSTANTIATE_TEST_ES31_AND(RobustResourceInitTestES31,
+                                ES31_VULKAN().enable(Feature::AllocateNonZeroMemory));
 
 }  // namespace angle

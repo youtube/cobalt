@@ -12,12 +12,12 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
 #include "common/angleutils.h"
 #include "common/debug.h"
-#include "common/third_party/smhasher/src/PMurHash.h"
 #include "compiler/translator/PoolAlloc.h"
 
 namespace sh
@@ -31,18 +31,36 @@ struct TSourceLoc
     int last_line;
 };
 
+constexpr TSourceLoc kNoSourceLoc{-1, -1, -1, -1};
+
 //
 // Put POOL_ALLOCATOR_NEW_DELETE in base classes to make them use this scheme.
 //
-#define POOL_ALLOCATOR_NEW_DELETE                                                    \
-    void *operator new(size_t s) { return GetGlobalPoolAllocator()->allocate(s); }   \
-    void *operator new(size_t, void *_Where) { return (_Where); }                    \
-    void operator delete(void *) {}                                                  \
-    void operator delete(void *, void *) {}                                          \
-    void *operator new[](size_t s) { return GetGlobalPoolAllocator()->allocate(s); } \
-    void *operator new[](size_t, void *_Where) { return (_Where); }                  \
-    void operator delete[](void *) {}                                                \
-    void operator delete[](void *, void *) {}
+#define POOL_ALLOCATOR_NEW_DELETE                     \
+    void *operator new(size_t s)                      \
+    {                                                 \
+        return GetGlobalPoolAllocator()->allocate(s); \
+    }                                                 \
+    void *operator new(size_t, void *_Where)          \
+    {                                                 \
+        return (_Where);                              \
+    }                                                 \
+    void operator delete(void *)                      \
+    {}                                                \
+    void operator delete(void *, void *)              \
+    {}                                                \
+    void *operator new[](size_t s)                    \
+    {                                                 \
+        return GetGlobalPoolAllocator()->allocate(s); \
+    }                                                 \
+    void *operator new[](size_t, void *_Where)        \
+    {                                                 \
+        return (_Where);                              \
+    }                                                 \
+    void operator delete[](void *)                    \
+    {}                                                \
+    void operator delete[](void *, void *)            \
+    {}
 
 //
 // Pool version of string.
@@ -52,11 +70,10 @@ typedef std::basic_string<char, std::char_traits<char>, TStringAllocator> TStrin
 typedef std::basic_ostringstream<char, std::char_traits<char>, TStringAllocator> TStringStream;
 
 //
-// Persistent string memory.  Should only be used for strings that survive
-// across compiles.
+// Persistent memory.  Should only be used for strings that survive across compiles.
 //
-#define TPersistString std::string
-#define TPersistStringStream std::ostringstream
+using TPersistString       = std::string;
+using TPersistStringStream = std::ostringstream;
 
 //
 // Pool allocator versions of vectors, lists, and maps
@@ -108,6 +125,105 @@ class TMap : public std::map<K, D, CMP, pool_allocator<std::pair<const K, D>>>
     {}
 };
 
+// Basic implementation of C++20's span for use with pool-allocated containers (TVector) or static
+// arrays.  This is used by the array sizes member of TType to allow arrayed types to be
+// constexpr-constructed.
+// See the reference for std::span here: https://en.cppreference.com/w/cpp/container/span
+template <typename T>
+class TSpan
+{
+  public:
+    typedef size_t size_type;
+
+    constexpr TSpan() {}
+    constexpr TSpan(T *ptr, size_type size) : mData(ptr), mSize(size) {}
+
+    constexpr TSpan(const TSpan &that) : mData(that.mData), mSize(that.mSize) {}
+    constexpr TSpan &operator=(const TSpan &that)
+    {
+        mData = that.mData;
+        mSize = that.mSize;
+        return *this;
+    }
+
+    // Note: the pointer is taken out of the TVector because TVector's memory is pool allocated,
+    // so the memory will live on even if the TVector is destroyed.
+    template <typename S>
+    TSpan(const TVector<S> &vec) : mData(vec.data()), mSize(vec.size())
+    {}
+    template <typename S>
+    TSpan &operator=(const TVector<S> &vec)
+    {
+        mData = vec.data();
+        mSize = vec.size();
+        return *this;
+    }
+
+    constexpr bool operator==(const TSpan &that) const
+    {
+        if (mSize != that.mSize)
+        {
+            return false;
+        }
+
+        if (mData == that.mData)
+        {
+            return true;
+        }
+
+        for (size_type index = 0; index < mSize; ++index)
+        {
+            if (mData[index] != that.mData[index])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    constexpr bool operator!=(const TSpan &that) const { return !(*this == that); }
+
+    constexpr T *data() const { return mData; }
+    constexpr size_type size() const { return mSize; }
+    constexpr bool empty() const { return mSize == 0; }
+
+    constexpr T &operator[](size_type index) const { return mData[index]; }
+    constexpr T &front() const { return mData[0]; }
+    constexpr T &back() const { return mData[mSize - 1]; }
+
+    constexpr T *begin() const { return mData; }
+    constexpr T *end() const { return mData + mSize; }
+
+    constexpr std::reverse_iterator<T *> rbegin() const
+    {
+        return std::make_reverse_iterator(end());
+    }
+    constexpr std::reverse_iterator<T *> rend() const
+    {
+        return std::make_reverse_iterator(begin());
+    }
+
+    constexpr TSpan first(size_type count) const
+    {
+        ASSERT(count <= mSize);
+        return count == 0 ? TSpan() : TSpan(mData, count);
+    }
+    constexpr TSpan last(size_type count) const
+    {
+        ASSERT(count <= mSize);
+        return count == 0 ? TSpan() : TSpan(mData + mSize - count, count);
+    }
+    constexpr TSpan subspan(size_type offset, size_type count) const
+    {
+        ASSERT(offset + count <= mSize);
+        return count == 0 ? TSpan() : TSpan(mData + offset, count);
+    }
+
+  private:
+    T *mData     = nullptr;
+    size_t mSize = 0;
+};
+
 // Integer to TString conversion
 template <typename T>
 inline TString str(T i)
@@ -148,7 +264,8 @@ struct hash<sh::TString>
 {
     size_t operator()(const sh::TString &s) const
     {
-        return angle::PMurHash32(0, s.data(), static_cast<int>(s.length()));
+        auto v = std::string_view(s.data(), static_cast<int>(s.length()));
+        return std::hash<std::string_view>{}(v);
     }
 };
 }  // namespace std

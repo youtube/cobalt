@@ -9,20 +9,97 @@
 
 #include "libANGLE/renderer/renderer_utils.h"
 
+#include "common/string_utils.h"
+#include "common/system_utils.h"
+#include "common/utilities.h"
 #include "image_util/copyimage.h"
 #include "image_util/imageformats.h"
-
 #include "libANGLE/AttributeMap.h"
 #include "libANGLE/Context.h"
+#include "libANGLE/Context.inl.h"
 #include "libANGLE/Display.h"
 #include "libANGLE/formatutils.h"
 #include "libANGLE/renderer/ContextImpl.h"
 #include "libANGLE/renderer/Format.h"
-
 #include "platform/Feature.h"
 
 #include <string.h>
-#include "common/utilities.h"
+#include <cctype>
+
+namespace angle
+{
+namespace
+{
+// For the sake of feature name matching, underscore is ignored, and the names are matched
+// case-insensitive.  This allows feature names to be overriden both in snake_case (previously used
+// by ANGLE) and camelCase.  The second string (user-provided name) can end in `*` for wildcard
+// matching.
+bool FeatureNameMatch(const std::string &a, const std::string &b)
+{
+    size_t ai = 0;
+    size_t bi = 0;
+
+    while (ai < a.size() && bi < b.size())
+    {
+        if (a[ai] == '_')
+        {
+            ++ai;
+        }
+        if (b[bi] == '_')
+        {
+            ++bi;
+        }
+        if (b[bi] == '*' && bi + 1 == b.size())
+        {
+            // If selected feature name ends in wildcard, match it.
+            return true;
+        }
+        if (std::tolower(a[ai++]) != std::tolower(b[bi++]))
+        {
+            return false;
+        }
+    }
+
+    return ai == a.size() && bi == b.size();
+}
+}  // anonymous namespace
+
+// FeatureSetBase implementation
+void FeatureSetBase::overrideFeatures(const std::vector<std::string> &featureNames, bool enabled)
+{
+    for (const std::string &name : featureNames)
+    {
+        const bool hasWildcard = name.back() == '*';
+        for (auto iter : members)
+        {
+            const std::string &featureName = iter.first;
+            FeatureInfo *feature           = iter.second;
+
+            if (!FeatureNameMatch(featureName, name))
+            {
+                continue;
+            }
+
+            feature->enabled = enabled;
+
+            // If name has a wildcard, try to match it with all features.  Otherwise, bail on first
+            // match, as names are unique.
+            if (!hasWildcard)
+            {
+                break;
+            }
+        }
+    }
+}
+
+void FeatureSetBase::populateFeatureList(FeatureList *features) const
+{
+    for (FeatureMap::const_iterator it = members.begin(); it != members.end(); it++)
+    {
+        features->push_back(it->second);
+    }
+}
+}  // namespace angle
 
 namespace rx
 {
@@ -47,6 +124,25 @@ constexpr std::array<SamplePositionsArray, 5> kSamplePositions = {
        0.1875f, 0.375f,  0.625f,  0.8125f, 0.8125f, 0.6875f, 0.6875f, 0.1875f,
        0.375f,  0.875f,  0.5f,    0.0625f, 0.25f,   0.125f,  0.125f,  0.75f,
        0.0f,    0.5f,    0.9375f, 0.25f,   0.875f,  0.9375f, 0.0625f, 0.0f}}}};
+
+struct IncompleteTextureParameters
+{
+    GLenum sizedInternalFormat;
+    GLenum format;
+    GLenum type;
+    GLubyte clearColor[4];
+};
+
+// Note that for gl::SamplerFormat::Shadow, the clearColor datatype needs to be GLushort and as such
+// we will reinterpret GLubyte[4] as GLushort[2].
+constexpr angle::PackedEnumMap<gl::SamplerFormat, IncompleteTextureParameters>
+    kIncompleteTextureParameters = {
+        {gl::SamplerFormat::Float, {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, {0, 0, 0, 255}}},
+        {gl::SamplerFormat::Unsigned,
+         {GL_RGBA8UI, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, {0, 0, 0, 255}}},
+        {gl::SamplerFormat::Signed, {GL_RGBA8I, GL_RGBA_INTEGER, GL_BYTE, {0, 0, 0, 127}}},
+        {gl::SamplerFormat::Shadow,
+         {GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, {0, 0, 0, 0}}}};
 
 void CopyColor(gl::ColorF *color)
 {
@@ -205,11 +301,72 @@ void SetFloatUniformMatrixFast(unsigned int arrayElementOffset,
 
     memcpy(targetData, valueData, matrixSize * count);
 }
-
 }  // anonymous namespace
 
+bool IsRotatedAspectRatio(SurfaceRotation rotation)
+{
+    switch (rotation)
+    {
+        case SurfaceRotation::Rotated90Degrees:
+        case SurfaceRotation::Rotated270Degrees:
+        case SurfaceRotation::FlippedRotated90Degrees:
+        case SurfaceRotation::FlippedRotated270Degrees:
+            return true;
+        default:
+            return false;
+    }
+}
+
+void RotateRectangle(const SurfaceRotation rotation,
+                     const bool flipY,
+                     const int framebufferWidth,
+                     const int framebufferHeight,
+                     const gl::Rectangle &incoming,
+                     gl::Rectangle *outgoing)
+{
+    // GLES's y-axis points up; Vulkan's points down.
+    switch (rotation)
+    {
+        case SurfaceRotation::Identity:
+            // Do not rotate gl_Position (surface matches the device's orientation):
+            outgoing->x     = incoming.x;
+            outgoing->y     = flipY ? framebufferHeight - incoming.y - incoming.height : incoming.y;
+            outgoing->width = incoming.width;
+            outgoing->height = incoming.height;
+            break;
+        case SurfaceRotation::Rotated90Degrees:
+            // Rotate gl_Position 90 degrees:
+            outgoing->x      = incoming.y;
+            outgoing->y      = flipY ? incoming.x : framebufferWidth - incoming.x - incoming.width;
+            outgoing->width  = incoming.height;
+            outgoing->height = incoming.width;
+            break;
+        case SurfaceRotation::Rotated180Degrees:
+            // Rotate gl_Position 180 degrees:
+            outgoing->x     = framebufferWidth - incoming.x - incoming.width;
+            outgoing->y     = flipY ? incoming.y : framebufferHeight - incoming.y - incoming.height;
+            outgoing->width = incoming.width;
+            outgoing->height = incoming.height;
+            break;
+        case SurfaceRotation::Rotated270Degrees:
+            // Rotate gl_Position 270 degrees:
+            outgoing->x      = framebufferHeight - incoming.y - incoming.height;
+            outgoing->y      = flipY ? framebufferWidth - incoming.x - incoming.width : incoming.x;
+            outgoing->width  = incoming.height;
+            outgoing->height = incoming.width;
+            break;
+        default:
+            UNREACHABLE();
+            break;
+    }
+}
+
 PackPixelsParams::PackPixelsParams()
-    : destFormat(nullptr), outputPitch(0), packBuffer(nullptr), offset(0)
+    : destFormat(nullptr),
+      outputPitch(0),
+      packBuffer(nullptr),
+      offset(0),
+      rotation(SurfaceRotation::Identity)
 {}
 
 PackPixelsParams::PackPixelsParams(const gl::Rectangle &areaIn,
@@ -223,7 +380,8 @@ PackPixelsParams::PackPixelsParams(const gl::Rectangle &areaIn,
       outputPitch(outputPitchIn),
       packBuffer(packBufferIn),
       reverseRowOrder(reverseRowOrderIn),
-      offset(offsetIn)
+      offset(offsetIn),
+      rotation(SurfaceRotation::Identity)
 {}
 
 void PackPixels(const PackPixelsParams &params,
@@ -236,14 +394,73 @@ void PackPixels(const PackPixelsParams &params,
 
     const uint8_t *source = sourceIn;
     int inputPitch        = inputPitchIn;
-
-    if (params.reverseRowOrder)
+    int destWidth         = params.area.width;
+    int destHeight        = params.area.height;
+    int xAxisPitch        = 0;
+    int yAxisPitch        = 0;
+    switch (params.rotation)
     {
-        source += inputPitch * (params.area.height - 1);
-        inputPitch = -inputPitch;
+        case SurfaceRotation::Identity:
+            // The source image is not rotated (i.e. matches the device's orientation), and may or
+            // may not be y-flipped.  The image is row-major.  Each source row (one step along the
+            // y-axis for each step in the dest y-axis) is inputPitch past the previous row.  Along
+            // a row, each source pixel (one step along the x-axis for each step in the dest
+            // x-axis) is sourceFormat.pixelBytes past the previous pixel.
+            xAxisPitch = sourceFormat.pixelBytes;
+            if (params.reverseRowOrder)
+            {
+                // The source image is y-flipped, which means we start at the last row, and each
+                // source row is BEFORE the previous row.
+                source += inputPitchIn * (params.area.height - 1);
+                inputPitch = -inputPitch;
+                yAxisPitch = -inputPitchIn;
+            }
+            else
+            {
+                yAxisPitch = inputPitchIn;
+            }
+            break;
+        case SurfaceRotation::Rotated90Degrees:
+            // The source image is rotated 90 degrees counter-clockwise.  Y-flip is always applied
+            // to rotated images.  The image is column-major.  Each source column (one step along
+            // the source x-axis for each step in the dest y-axis) is inputPitch past the previous
+            // column.  Along a column, each source pixel (one step along the y-axis for each step
+            // in the dest x-axis) is sourceFormat.pixelBytes past the previous pixel.
+            xAxisPitch = inputPitchIn;
+            yAxisPitch = sourceFormat.pixelBytes;
+            destWidth  = params.area.height;
+            destHeight = params.area.width;
+            break;
+        case SurfaceRotation::Rotated180Degrees:
+            // The source image is rotated 180 degrees.  Y-flip is always applied to rotated
+            // images.  The image is row-major, but upside down.  Each source row (one step along
+            // the y-axis for each step in the dest y-axis) is inputPitch after the previous row.
+            // Along a row, each source pixel (one step along the x-axis for each step in the dest
+            // x-axis) is sourceFormat.pixelBytes BEFORE the previous pixel.
+            xAxisPitch = -static_cast<int>(sourceFormat.pixelBytes);
+            yAxisPitch = inputPitchIn;
+            source += sourceFormat.pixelBytes * (params.area.width - 1);
+            break;
+        case SurfaceRotation::Rotated270Degrees:
+            // The source image is rotated 270 degrees counter-clockwise (or 90 degrees clockwise).
+            // Y-flip is always applied to rotated images.  The image is column-major, where each
+            // column (one step in the source x-axis for one step in the dest y-axis) is inputPitch
+            // BEFORE the previous column.  Along a column, each source pixel (one step along the
+            // y-axis for each step in the dest x-axis) is sourceFormat.pixelBytes BEFORE the
+            // previous pixel.  The first pixel is at the end of the source.
+            xAxisPitch = -inputPitchIn;
+            yAxisPitch = -static_cast<int>(sourceFormat.pixelBytes);
+            destWidth  = params.area.height;
+            destHeight = params.area.width;
+            source += inputPitch * (params.area.height - 1) +
+                      sourceFormat.pixelBytes * (params.area.width - 1);
+            break;
+        default:
+            UNREACHABLE();
+            break;
     }
 
-    if (sourceFormat == *params.destFormat)
+    if (params.rotation == SurfaceRotation::Identity && sourceFormat == *params.destFormat)
     {
         // Direct copy possible
         for (int y = 0; y < params.area.height; ++y)
@@ -254,22 +471,13 @@ void PackPixels(const PackPixelsParams &params,
         return;
     }
 
-    PixelCopyFunction fastCopyFunc = sourceFormat.fastCopyFunctions.get(params.destFormat->id);
+    FastCopyFunction fastCopyFunc = sourceFormat.fastCopyFunctions.get(params.destFormat->id);
 
     if (fastCopyFunc)
     {
         // Fast copy is possible through some special function
-        for (int y = 0; y < params.area.height; ++y)
-        {
-            for (int x = 0; x < params.area.width; ++x)
-            {
-                uint8_t *dest =
-                    destWithOffset + y * params.outputPitch + x * params.destFormat->pixelBytes;
-                const uint8_t *src = source + y * inputPitch + x * sourceFormat.pixelBytes;
-
-                fastCopyFunc(src, dest);
-            }
-        }
+        fastCopyFunc(source, xAxisPitch, yAxisPitch, destWithOffset, params.destFormat->pixelBytes,
+                     params.outputPitch, destWidth, destHeight);
         return;
     }
 
@@ -286,13 +494,13 @@ void PackPixels(const PackPixelsParams &params,
     PixelReadFunction pixelReadFunction = sourceFormat.pixelReadFunction;
     ASSERT(pixelReadFunction != nullptr);
 
-    for (int y = 0; y < params.area.height; ++y)
+    for (int y = 0; y < destHeight; ++y)
     {
-        for (int x = 0; x < params.area.width; ++x)
+        for (int x = 0; x < destWidth; ++x)
         {
             uint8_t *dest =
                 destWithOffset + y * params.outputPitch + x * params.destFormat->pixelBytes;
-            const uint8_t *src = source + y * inputPitch + x * sourceFormat.pixelBytes;
+            const uint8_t *src = source + y * yAxisPitch + x * xAxisPitch;
 
             // readFunc and writeFunc will be using the same type of color, CopyTexImage
             // will not allow the copy otherwise.
@@ -307,17 +515,32 @@ bool FastCopyFunctionMap::has(angle::FormatID formatID) const
     return (get(formatID) != nullptr);
 }
 
-PixelCopyFunction FastCopyFunctionMap::get(angle::FormatID formatID) const
+namespace
 {
-    for (size_t index = 0; index < mSize; ++index)
+
+const FastCopyFunctionMap::Entry *getEntry(const FastCopyFunctionMap::Entry *entry,
+                                           size_t numEntries,
+                                           angle::FormatID formatID)
+{
+    const FastCopyFunctionMap::Entry *end = entry + numEntries;
+    while (entry != end)
     {
-        if (mData[index].formatID == formatID)
+        if (entry->formatID == formatID)
         {
-            return mData[index].func;
+            return entry;
         }
+        ++entry;
     }
 
     return nullptr;
+}
+
+}  // namespace
+
+FastCopyFunction FastCopyFunctionMap::get(angle::FormatID formatID) const
+{
+    const FastCopyFunctionMap::Entry *entry = getEntry(mData, mSize, formatID);
+    return entry ? entry->func : nullptr;
 }
 
 bool ShouldUseDebugLayers(const egl::AttributeMap &attribs)
@@ -331,20 +554,6 @@ bool ShouldUseDebugLayers(const egl::AttributeMap &attribs)
 #else
     return (debugSetting == EGL_TRUE);
 #endif  // defined(ANGLE_ENABLE_ASSERTS)
-}
-
-bool ShouldUseVirtualizedContexts(const egl::AttributeMap &attribs, bool defaultValue)
-{
-    EGLAttrib virtualizedContextRequest =
-        attribs.get(EGL_PLATFORM_ANGLE_CONTEXT_VIRTUALIZATION_ANGLE, EGL_DONT_CARE);
-    if (defaultValue)
-    {
-        return (virtualizedContextRequest != EGL_FALSE);
-    }
-    else
-    {
-        return (virtualizedContextRequest == EGL_TRUE);
-    }
 }
 
 void CopyImageCHROMIUM(const uint8_t *sourceData,
@@ -437,30 +646,39 @@ void CopyImageCHROMIUM(const uint8_t *sourceData,
 }
 
 // IncompleteTextureSet implementation.
-IncompleteTextureSet::IncompleteTextureSet() {}
+IncompleteTextureSet::IncompleteTextureSet() : mIncompleteTextureBufferAttachment(nullptr) {}
 
 IncompleteTextureSet::~IncompleteTextureSet() {}
 
 void IncompleteTextureSet::onDestroy(const gl::Context *context)
 {
     // Clear incomplete textures.
-    for (auto &incompleteTexture : mIncompleteTextures)
+    for (auto &incompleteTextures : mIncompleteTextures)
     {
-        if (incompleteTexture.get() != nullptr)
+        for (auto &incompleteTexture : incompleteTextures)
         {
-            incompleteTexture->onDestroy(context);
-            incompleteTexture.set(context, nullptr);
+            if (incompleteTexture.get() != nullptr)
+            {
+                incompleteTexture->onDestroy(context);
+                incompleteTexture.set(context, nullptr);
+            }
         }
+    }
+    if (mIncompleteTextureBufferAttachment != nullptr)
+    {
+        mIncompleteTextureBufferAttachment->onDestroy(context);
+        mIncompleteTextureBufferAttachment = nullptr;
     }
 }
 
 angle::Result IncompleteTextureSet::getIncompleteTexture(
     const gl::Context *context,
     gl::TextureType type,
+    gl::SamplerFormat format,
     MultisampleTextureInitializer *multisampleInitializer,
     gl::Texture **textureOut)
 {
-    *textureOut = mIncompleteTextures[type].get();
+    *textureOut = mIncompleteTextures[format][type].get();
     if (*textureOut != nullptr)
     {
         return angle::Result::Continue;
@@ -468,11 +686,26 @@ angle::Result IncompleteTextureSet::getIncompleteTexture(
 
     ContextImpl *implFactory = context->getImplementation();
 
-    const GLubyte color[] = {0, 0, 0, 255};
-    const gl::Extents colorSize(1, 1, 1);
+    gl::Extents colorSize(1, 1, 1);
     gl::PixelUnpackState unpack;
     unpack.alignment = 1;
-    const gl::Box area(0, 0, 0, 1, 1, 1);
+    gl::Box area(0, 0, 0, 1, 1, 1);
+    const IncompleteTextureParameters &incompleteTextureParam =
+        kIncompleteTextureParameters[format];
+
+    // Cube map arrays are expected to have layer counts that are multiples of 6
+    constexpr int kCubeMapArraySize = 6;
+    if (type == gl::TextureType::CubeMapArray)
+    {
+        // From the GLES 3.2 spec:
+        //   8.18. IMMUTABLE-FORMAT TEXTURE IMAGES
+        //   TexStorage3D Errors
+        //   An INVALID_OPERATION error is generated if any of the following conditions hold:
+        //     * target is TEXTURE_CUBE_MAP_ARRAY and depth is not a multiple of 6
+        // Since ANGLE treats incomplete textures as immutable, respect that here.
+        colorSize.depth = kCubeMapArraySize;
+        area.depth      = kCubeMapArraySize;
+    }
 
     // If a texture is external use a 2D texture for the incomplete texture
     gl::TextureType createType = (type == gl::TextureType::External) ? gl::TextureType::_2D : type;
@@ -484,40 +717,83 @@ angle::Result IncompleteTextureSet::getIncompleteTexture(
     // This is a bit of a kludge but is necessary to consume the error.
     gl::Context *mutableContext = const_cast<gl::Context *>(context);
 
-    if (createType == gl::TextureType::_2DMultisample)
+    if (createType == gl::TextureType::Buffer)
     {
-        ANGLE_TRY(
-            t->setStorageMultisample(mutableContext, createType, 1, GL_RGBA8, colorSize, true));
+        constexpr uint32_t kBufferInitData = 0;
+        mIncompleteTextureBufferAttachment =
+            new gl::Buffer(implFactory, {std::numeric_limits<GLuint>::max()});
+        ANGLE_TRY(mIncompleteTextureBufferAttachment->bufferData(
+            mutableContext, gl::BufferBinding::Texture, &kBufferInitData, sizeof(kBufferInitData),
+            gl::BufferUsage::StaticDraw));
+    }
+    else if (createType == gl::TextureType::_2DMultisample)
+    {
+        ANGLE_TRY(t->setStorageMultisample(mutableContext, createType, 1,
+                                           incompleteTextureParam.sizedInternalFormat, colorSize,
+                                           true));
     }
     else
     {
-        ANGLE_TRY(t->setStorage(mutableContext, createType, 1, GL_RGBA8, colorSize));
+        ANGLE_TRY(t->setStorage(mutableContext, createType, 1,
+                                incompleteTextureParam.sizedInternalFormat, colorSize));
     }
 
     if (type == gl::TextureType::CubeMap)
     {
         for (gl::TextureTarget face : gl::AllCubeFaceTextureTargets())
         {
-            ANGLE_TRY(t->setSubImage(mutableContext, unpack, nullptr, face, 0, area, GL_RGBA,
-                                     GL_UNSIGNED_BYTE, color));
+            ANGLE_TRY(t->setSubImage(mutableContext, unpack, nullptr, face, 0, area,
+                                     incompleteTextureParam.format, incompleteTextureParam.type,
+                                     incompleteTextureParam.clearColor));
         }
+    }
+    else if (type == gl::TextureType::CubeMapArray)
+    {
+        // We need to provide enough pixel data to fill the array of six faces
+        GLubyte incompleteCubeArrayPixels[kCubeMapArraySize][4];
+        for (int i = 0; i < kCubeMapArraySize; ++i)
+        {
+            incompleteCubeArrayPixels[i][0] = incompleteTextureParam.clearColor[0];
+            incompleteCubeArrayPixels[i][1] = incompleteTextureParam.clearColor[1];
+            incompleteCubeArrayPixels[i][2] = incompleteTextureParam.clearColor[2];
+            incompleteCubeArrayPixels[i][3] = incompleteTextureParam.clearColor[3];
+        }
+
+        ANGLE_TRY(t->setSubImage(mutableContext, unpack, nullptr,
+                                 gl::NonCubeTextureTypeToTarget(createType), 0, area,
+                                 incompleteTextureParam.format, incompleteTextureParam.type,
+                                 *incompleteCubeArrayPixels));
     }
     else if (type == gl::TextureType::_2DMultisample)
     {
         // Call a specialized clear function to init a multisample texture.
         ANGLE_TRY(multisampleInitializer->initializeMultisampleTextureToBlack(context, t.get()));
     }
+    else if (type == gl::TextureType::Buffer)
+    {
+        ANGLE_TRY(t->setBuffer(context, mIncompleteTextureBufferAttachment,
+                               incompleteTextureParam.sizedInternalFormat));
+    }
     else
     {
         ANGLE_TRY(t->setSubImage(mutableContext, unpack, nullptr,
-                                 gl::NonCubeTextureTypeToTarget(createType), 0, area, GL_RGBA,
-                                 GL_UNSIGNED_BYTE, color));
+                                 gl::NonCubeTextureTypeToTarget(createType), 0, area,
+                                 incompleteTextureParam.format, incompleteTextureParam.type,
+                                 incompleteTextureParam.clearColor));
     }
 
-    ANGLE_TRY(t->syncState(context));
+    if (format == gl::SamplerFormat::Shadow)
+    {
+        // To avoid the undefined spec behavior for shadow samplers with a depth texture, we set the
+        // compare mode to GL_COMPARE_REF_TO_TEXTURE
+        ASSERT(!t->hasObservers());
+        t->setCompareMode(context, GL_COMPARE_REF_TO_TEXTURE);
+    }
 
-    mIncompleteTextures[type].set(context, t.release());
-    *textureOut = mIncompleteTextures[type].get();
+    ANGLE_TRY(t->syncState(context, gl::Command::Other));
+
+    mIncompleteTextures[format][type].set(context, t.release());
+    *textureOut = mIncompleteTextures[format][type].get();
     return angle::Result::Continue;
 }
 
@@ -768,22 +1044,6 @@ angle::Result GetVertexRangeInfo(const gl::Context *context,
 
 gl::Rectangle ClipRectToScissor(const gl::State &glState, const gl::Rectangle &rect, bool invertY)
 {
-    if (glState.isScissorTestEnabled())
-    {
-        gl::Rectangle clippedRect;
-        if (!gl::ClipRectangle(glState.getScissor(), rect, &clippedRect))
-        {
-            return gl::Rectangle();
-        }
-
-        if (invertY)
-        {
-            clippedRect.y = rect.height - clippedRect.y - clippedRect.height;
-        }
-
-        return clippedRect;
-    }
-
     // If the scissor test isn't enabled, assume it has infinite size.  Its intersection with the
     // rect would be the rect itself.
     //
@@ -791,18 +1051,80 @@ gl::Rectangle ClipRectToScissor(const gl::State &glState, const gl::Rectangle &r
     // unnecessary pipeline creations if two otherwise identical pipelines are used on framebuffers
     // with different sizes.  If such usage is observed in an application, we should investigate
     // possible optimizations.
-    return rect;
+    if (!glState.isScissorTestEnabled())
+    {
+        return rect;
+    }
+
+    gl::Rectangle clippedRect;
+    if (!gl::ClipRectangle(glState.getScissor(), rect, &clippedRect))
+    {
+        return gl::Rectangle();
+    }
+
+    if (invertY)
+    {
+        clippedRect.y = rect.height - clippedRect.y - clippedRect.height;
+    }
+
+    return clippedRect;
 }
 
-void OverrideFeaturesWithDisplayState(angle::FeatureSetBase *features,
-                                      const egl::DisplayState &state)
+void LogFeatureStatus(const angle::FeatureSetBase &features,
+                      const std::vector<std::string> &featureNames,
+                      bool enabled)
+{
+    for (const std::string &name : featureNames)
+    {
+        const bool hasWildcard = name.back() == '*';
+        for (auto iter : features.getFeatures())
+        {
+            const std::string &featureName = iter.first;
+
+            if (!angle::FeatureNameMatch(featureName, name))
+            {
+                continue;
+            }
+
+            INFO() << "Feature: " << featureName << (enabled ? " enabled" : " disabled");
+
+            if (!hasWildcard)
+            {
+                break;
+            }
+        }
+    }
+}
+
+void ApplyFeatureOverrides(angle::FeatureSetBase *features, const egl::DisplayState &state)
 {
     features->overrideFeatures(state.featureOverridesEnabled, true);
     features->overrideFeatures(state.featureOverridesDisabled, false);
+
+    // Override with environment as well.
+    constexpr char kAngleFeatureOverridesEnabledEnvName[]  = "ANGLE_FEATURE_OVERRIDES_ENABLED";
+    constexpr char kAngleFeatureOverridesDisabledEnvName[] = "ANGLE_FEATURE_OVERRIDES_DISABLED";
+    constexpr char kAngleFeatureOverridesEnabledPropertyName[] =
+        "debug.angle.feature_overrides_enabled";
+    constexpr char kAngleFeatureOverridesDisabledPropertyName[] =
+        "debug.angle.feature_overrides_disabled";
+    std::vector<std::string> overridesEnabled =
+        angle::GetCachedStringsFromEnvironmentVarOrAndroidProperty(
+            kAngleFeatureOverridesEnabledEnvName, kAngleFeatureOverridesEnabledPropertyName, ":");
+    std::vector<std::string> overridesDisabled =
+        angle::GetCachedStringsFromEnvironmentVarOrAndroidProperty(
+            kAngleFeatureOverridesDisabledEnvName, kAngleFeatureOverridesDisabledPropertyName, ":");
+
+    features->overrideFeatures(overridesEnabled, true);
+    LogFeatureStatus(*features, overridesEnabled, true);
+
+    features->overrideFeatures(overridesDisabled, false);
+    LogFeatureStatus(*features, overridesDisabled, false);
 }
 
 void GetSamplePosition(GLsizei sampleCount, size_t index, GLfloat *xy)
 {
+    ASSERT(gl::isPow2(sampleCount));
     if (sampleCount > 16)
     {
         // Vulkan (and D3D11) doesn't have standard sample positions for 32 and 64 samples (and no
@@ -820,4 +1142,580 @@ void GetSamplePosition(GLsizei sampleCount, size_t index, GLfloat *xy)
         xy[1] = kSamplePositions[indexKey][2 * index + 1];
     }
 }
+
+// These macros are to avoid code too much duplication for variations of multi draw types
+#define DRAW_ARRAYS__ contextImpl->drawArrays(context, mode, firsts[drawID], counts[drawID])
+#define DRAW_ARRAYS_INSTANCED_                                                      \
+    contextImpl->drawArraysInstanced(context, mode, firsts[drawID], counts[drawID], \
+                                     instanceCounts[drawID])
+#define DRAW_ELEMENTS__ \
+    contextImpl->drawElements(context, mode, counts[drawID], type, indices[drawID])
+#define DRAW_ELEMENTS_INSTANCED_                                                             \
+    contextImpl->drawElementsInstanced(context, mode, counts[drawID], type, indices[drawID], \
+                                       instanceCounts[drawID])
+#define DRAW_ARRAYS_INSTANCED_BASE_INSTANCE                                                     \
+    contextImpl->drawArraysInstancedBaseInstance(context, mode, firsts[drawID], counts[drawID], \
+                                                 instanceCounts[drawID], baseInstances[drawID])
+#define DRAW_ELEMENTS_INSTANCED_BASE_VERTEX_BASE_INSTANCE                             \
+    contextImpl->drawElementsInstancedBaseVertexBaseInstance(                         \
+        context, mode, counts[drawID], type, indices[drawID], instanceCounts[drawID], \
+        baseVertices[drawID], baseInstances[drawID])
+#define DRAW_CALL(drawType, instanced, bvbi) DRAW_##drawType##instanced##bvbi
+
+#define MULTI_DRAW_BLOCK(drawType, instanced, bvbi, hasDrawID, hasBaseVertex, hasBaseInstance) \
+    for (GLsizei drawID = 0; drawID < drawcount; ++drawID)                                     \
+    {                                                                                          \
+        if (ANGLE_NOOP_DRAW(instanced))                                                        \
+        {                                                                                      \
+            ANGLE_TRY(contextImpl->handleNoopDrawEvent());                                     \
+            continue;                                                                          \
+        }                                                                                      \
+        ANGLE_SET_DRAW_ID_UNIFORM(hasDrawID)(drawID);                                          \
+        ANGLE_SET_BASE_VERTEX_UNIFORM(hasBaseVertex)(baseVertices[drawID]);                    \
+        ANGLE_SET_BASE_INSTANCE_UNIFORM(hasBaseInstance)(baseInstances[drawID]);               \
+        ANGLE_TRY(DRAW_CALL(drawType, instanced, bvbi));                                       \
+        ANGLE_MARK_TRANSFORM_FEEDBACK_USAGE(instanced);                                        \
+        gl::MarkShaderStorageUsage(context);                                                   \
+    }
+
+angle::Result MultiDrawArraysGeneral(ContextImpl *contextImpl,
+                                     const gl::Context *context,
+                                     gl::PrimitiveMode mode,
+                                     const GLint *firsts,
+                                     const GLsizei *counts,
+                                     GLsizei drawcount)
+{
+    gl::Program *programObject = context->getState().getLinkedProgram(context);
+    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    if (hasDrawID)
+    {
+        MULTI_DRAW_BLOCK(ARRAYS, _, _, 1, 0, 0)
+    }
+    else
+    {
+        MULTI_DRAW_BLOCK(ARRAYS, _, _, 0, 0, 0)
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result MultiDrawArraysIndirectGeneral(ContextImpl *contextImpl,
+                                             const gl::Context *context,
+                                             gl::PrimitiveMode mode,
+                                             const void *indirect,
+                                             GLsizei drawcount,
+                                             GLsizei stride)
+{
+    const GLubyte *indirectPtr = static_cast<const GLubyte *>(indirect);
+
+    for (auto count = 0; count < drawcount; count++)
+    {
+        ANGLE_TRY(contextImpl->drawArraysIndirect(
+            context, mode, reinterpret_cast<const gl::DrawArraysIndirectCommand *>(indirectPtr)));
+        if (stride == 0)
+        {
+            indirectPtr += sizeof(gl::DrawArraysIndirectCommand);
+        }
+        else
+        {
+            indirectPtr += stride;
+        }
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result MultiDrawArraysInstancedGeneral(ContextImpl *contextImpl,
+                                              const gl::Context *context,
+                                              gl::PrimitiveMode mode,
+                                              const GLint *firsts,
+                                              const GLsizei *counts,
+                                              const GLsizei *instanceCounts,
+                                              GLsizei drawcount)
+{
+    gl::Program *programObject = context->getState().getLinkedProgram(context);
+    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    if (hasDrawID)
+    {
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _, 1, 0, 0)
+    }
+    else
+    {
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _, 0, 0, 0)
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result MultiDrawElementsGeneral(ContextImpl *contextImpl,
+                                       const gl::Context *context,
+                                       gl::PrimitiveMode mode,
+                                       const GLsizei *counts,
+                                       gl::DrawElementsType type,
+                                       const GLvoid *const *indices,
+                                       GLsizei drawcount)
+{
+    gl::Program *programObject = context->getState().getLinkedProgram(context);
+    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    if (hasDrawID)
+    {
+        MULTI_DRAW_BLOCK(ELEMENTS, _, _, 1, 0, 0)
+    }
+    else
+    {
+        MULTI_DRAW_BLOCK(ELEMENTS, _, _, 0, 0, 0)
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result MultiDrawElementsIndirectGeneral(ContextImpl *contextImpl,
+                                               const gl::Context *context,
+                                               gl::PrimitiveMode mode,
+                                               gl::DrawElementsType type,
+                                               const void *indirect,
+                                               GLsizei drawcount,
+                                               GLsizei stride)
+{
+    const GLubyte *indirectPtr = static_cast<const GLubyte *>(indirect);
+
+    for (auto count = 0; count < drawcount; count++)
+    {
+        ANGLE_TRY(contextImpl->drawElementsIndirect(
+            context, mode, type,
+            reinterpret_cast<const gl::DrawElementsIndirectCommand *>(indirectPtr)));
+        if (stride == 0)
+        {
+            indirectPtr += sizeof(gl::DrawElementsIndirectCommand);
+        }
+        else
+        {
+            indirectPtr += stride;
+        }
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result MultiDrawElementsInstancedGeneral(ContextImpl *contextImpl,
+                                                const gl::Context *context,
+                                                gl::PrimitiveMode mode,
+                                                const GLsizei *counts,
+                                                gl::DrawElementsType type,
+                                                const GLvoid *const *indices,
+                                                const GLsizei *instanceCounts,
+                                                GLsizei drawcount)
+{
+    gl::Program *programObject = context->getState().getLinkedProgram(context);
+    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    if (hasDrawID)
+    {
+        MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _, 1, 0, 0)
+    }
+    else
+    {
+        MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _, 0, 0, 0)
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result MultiDrawArraysInstancedBaseInstanceGeneral(ContextImpl *contextImpl,
+                                                          const gl::Context *context,
+                                                          gl::PrimitiveMode mode,
+                                                          const GLint *firsts,
+                                                          const GLsizei *counts,
+                                                          const GLsizei *instanceCounts,
+                                                          const GLuint *baseInstances,
+                                                          GLsizei drawcount)
+{
+    gl::Program *programObject = context->getState().getLinkedProgram(context);
+    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    const bool hasBaseInstance = programObject && programObject->hasBaseInstanceUniform();
+    ResetBaseVertexBaseInstance resetUniforms(programObject, false, hasBaseInstance);
+
+    if (hasDrawID && hasBaseInstance)
+    {
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 1, 0, 1)
+    }
+    else if (hasDrawID)
+    {
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 1, 0, 0)
+    }
+    else if (hasBaseInstance)
+    {
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 0, 0, 1)
+    }
+    else
+    {
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 0, 0, 0)
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result MultiDrawElementsInstancedBaseVertexBaseInstanceGeneral(ContextImpl *contextImpl,
+                                                                      const gl::Context *context,
+                                                                      gl::PrimitiveMode mode,
+                                                                      const GLsizei *counts,
+                                                                      gl::DrawElementsType type,
+                                                                      const GLvoid *const *indices,
+                                                                      const GLsizei *instanceCounts,
+                                                                      const GLint *baseVertices,
+                                                                      const GLuint *baseInstances,
+                                                                      GLsizei drawcount)
+{
+    gl::Program *programObject = context->getState().getLinkedProgram(context);
+    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    const bool hasBaseVertex   = programObject && programObject->hasBaseVertexUniform();
+    const bool hasBaseInstance = programObject && programObject->hasBaseInstanceUniform();
+    ResetBaseVertexBaseInstance resetUniforms(programObject, hasBaseVertex, hasBaseInstance);
+
+    if (hasDrawID)
+    {
+        if (hasBaseVertex)
+        {
+            if (hasBaseInstance)
+            {
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 1, 1)
+            }
+            else
+            {
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 1, 0)
+            }
+        }
+        else
+        {
+            if (hasBaseInstance)
+            {
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 0, 1)
+            }
+            else
+            {
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 0, 0)
+            }
+        }
+    }
+    else
+    {
+        if (hasBaseVertex)
+        {
+            if (hasBaseInstance)
+            {
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 1, 1)
+            }
+            else
+            {
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 1, 0)
+            }
+        }
+        else
+        {
+            if (hasBaseInstance)
+            {
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 0, 1)
+            }
+            else
+            {
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 0, 0)
+            }
+        }
+    }
+
+    return angle::Result::Continue;
+}
+
+ResetBaseVertexBaseInstance::ResetBaseVertexBaseInstance(gl::Program *programObject,
+                                                         bool resetBaseVertex,
+                                                         bool resetBaseInstance)
+    : mProgramObject(programObject),
+      mResetBaseVertex(resetBaseVertex),
+      mResetBaseInstance(resetBaseInstance)
+{}
+
+ResetBaseVertexBaseInstance::~ResetBaseVertexBaseInstance()
+{
+    if (mProgramObject)
+    {
+        // Reset emulated uniforms to zero to avoid affecting other draw calls
+        if (mResetBaseVertex)
+        {
+            mProgramObject->setBaseVertexUniform(0);
+        }
+
+        if (mResetBaseInstance)
+        {
+            mProgramObject->setBaseInstanceUniform(0);
+        }
+    }
+}
+
+angle::FormatID ConvertToSRGB(angle::FormatID formatID)
+{
+    switch (formatID)
+    {
+        case angle::FormatID::R8_UNORM:
+            return angle::FormatID::R8_UNORM_SRGB;
+        case angle::FormatID::R8G8_UNORM:
+            return angle::FormatID::R8G8_UNORM_SRGB;
+        case angle::FormatID::R8G8B8_UNORM:
+            return angle::FormatID::R8G8B8_UNORM_SRGB;
+        case angle::FormatID::R8G8B8A8_UNORM:
+            return angle::FormatID::R8G8B8A8_UNORM_SRGB;
+        case angle::FormatID::B8G8R8A8_UNORM:
+            return angle::FormatID::B8G8R8A8_UNORM_SRGB;
+        case angle::FormatID::BC1_RGB_UNORM_BLOCK:
+            return angle::FormatID::BC1_RGB_UNORM_SRGB_BLOCK;
+        case angle::FormatID::BC1_RGBA_UNORM_BLOCK:
+            return angle::FormatID::BC1_RGBA_UNORM_SRGB_BLOCK;
+        case angle::FormatID::BC2_RGBA_UNORM_BLOCK:
+            return angle::FormatID::BC2_RGBA_UNORM_SRGB_BLOCK;
+        case angle::FormatID::BC3_RGBA_UNORM_BLOCK:
+            return angle::FormatID::BC3_RGBA_UNORM_SRGB_BLOCK;
+        case angle::FormatID::BC7_RGBA_UNORM_BLOCK:
+            return angle::FormatID::BC7_RGBA_UNORM_SRGB_BLOCK;
+        case angle::FormatID::ETC2_R8G8B8_UNORM_BLOCK:
+            return angle::FormatID::ETC2_R8G8B8_SRGB_BLOCK;
+        case angle::FormatID::ETC2_R8G8B8A1_UNORM_BLOCK:
+            return angle::FormatID::ETC2_R8G8B8A1_SRGB_BLOCK;
+        case angle::FormatID::ETC2_R8G8B8A8_UNORM_BLOCK:
+            return angle::FormatID::ETC2_R8G8B8A8_SRGB_BLOCK;
+        case angle::FormatID::ASTC_4x4_UNORM_BLOCK:
+            return angle::FormatID::ASTC_4x4_SRGB_BLOCK;
+        case angle::FormatID::ASTC_5x4_UNORM_BLOCK:
+            return angle::FormatID::ASTC_5x4_SRGB_BLOCK;
+        case angle::FormatID::ASTC_5x5_UNORM_BLOCK:
+            return angle::FormatID::ASTC_5x5_SRGB_BLOCK;
+        case angle::FormatID::ASTC_6x5_UNORM_BLOCK:
+            return angle::FormatID::ASTC_6x5_SRGB_BLOCK;
+        case angle::FormatID::ASTC_6x6_UNORM_BLOCK:
+            return angle::FormatID::ASTC_6x6_SRGB_BLOCK;
+        case angle::FormatID::ASTC_8x5_UNORM_BLOCK:
+            return angle::FormatID::ASTC_8x5_SRGB_BLOCK;
+        case angle::FormatID::ASTC_8x6_UNORM_BLOCK:
+            return angle::FormatID::ASTC_8x6_SRGB_BLOCK;
+        case angle::FormatID::ASTC_8x8_UNORM_BLOCK:
+            return angle::FormatID::ASTC_8x8_SRGB_BLOCK;
+        case angle::FormatID::ASTC_10x5_UNORM_BLOCK:
+            return angle::FormatID::ASTC_10x5_SRGB_BLOCK;
+        case angle::FormatID::ASTC_10x6_UNORM_BLOCK:
+            return angle::FormatID::ASTC_10x6_SRGB_BLOCK;
+        case angle::FormatID::ASTC_10x8_UNORM_BLOCK:
+            return angle::FormatID::ASTC_10x8_SRGB_BLOCK;
+        case angle::FormatID::ASTC_10x10_UNORM_BLOCK:
+            return angle::FormatID::ASTC_10x10_SRGB_BLOCK;
+        case angle::FormatID::ASTC_12x10_UNORM_BLOCK:
+            return angle::FormatID::ASTC_12x10_SRGB_BLOCK;
+        case angle::FormatID::ASTC_12x12_UNORM_BLOCK:
+            return angle::FormatID::ASTC_12x12_SRGB_BLOCK;
+        default:
+            return angle::FormatID::NONE;
+    }
+}
+
+angle::FormatID ConvertToLinear(angle::FormatID formatID)
+{
+    switch (formatID)
+    {
+        case angle::FormatID::R8_UNORM_SRGB:
+            return angle::FormatID::R8_UNORM;
+        case angle::FormatID::R8G8_UNORM_SRGB:
+            return angle::FormatID::R8G8_UNORM;
+        case angle::FormatID::R8G8B8_UNORM_SRGB:
+            return angle::FormatID::R8G8B8_UNORM;
+        case angle::FormatID::R8G8B8A8_UNORM_SRGB:
+            return angle::FormatID::R8G8B8A8_UNORM;
+        case angle::FormatID::B8G8R8A8_UNORM_SRGB:
+            return angle::FormatID::B8G8R8A8_UNORM;
+        case angle::FormatID::BC1_RGB_UNORM_SRGB_BLOCK:
+            return angle::FormatID::BC1_RGB_UNORM_BLOCK;
+        case angle::FormatID::BC1_RGBA_UNORM_SRGB_BLOCK:
+            return angle::FormatID::BC1_RGBA_UNORM_BLOCK;
+        case angle::FormatID::BC2_RGBA_UNORM_SRGB_BLOCK:
+            return angle::FormatID::BC2_RGBA_UNORM_BLOCK;
+        case angle::FormatID::BC3_RGBA_UNORM_SRGB_BLOCK:
+            return angle::FormatID::BC3_RGBA_UNORM_BLOCK;
+        case angle::FormatID::BC7_RGBA_UNORM_SRGB_BLOCK:
+            return angle::FormatID::BC7_RGBA_UNORM_BLOCK;
+        case angle::FormatID::ETC2_R8G8B8_SRGB_BLOCK:
+            return angle::FormatID::ETC2_R8G8B8_UNORM_BLOCK;
+        case angle::FormatID::ETC2_R8G8B8A1_SRGB_BLOCK:
+            return angle::FormatID::ETC2_R8G8B8A1_UNORM_BLOCK;
+        case angle::FormatID::ETC2_R8G8B8A8_SRGB_BLOCK:
+            return angle::FormatID::ETC2_R8G8B8A8_UNORM_BLOCK;
+        case angle::FormatID::ASTC_4x4_SRGB_BLOCK:
+            return angle::FormatID::ASTC_4x4_UNORM_BLOCK;
+        case angle::FormatID::ASTC_5x4_SRGB_BLOCK:
+            return angle::FormatID::ASTC_5x4_UNORM_BLOCK;
+        case angle::FormatID::ASTC_5x5_SRGB_BLOCK:
+            return angle::FormatID::ASTC_5x5_UNORM_BLOCK;
+        case angle::FormatID::ASTC_6x5_SRGB_BLOCK:
+            return angle::FormatID::ASTC_6x5_UNORM_BLOCK;
+        case angle::FormatID::ASTC_6x6_SRGB_BLOCK:
+            return angle::FormatID::ASTC_6x6_UNORM_BLOCK;
+        case angle::FormatID::ASTC_8x5_SRGB_BLOCK:
+            return angle::FormatID::ASTC_8x5_UNORM_BLOCK;
+        case angle::FormatID::ASTC_8x6_SRGB_BLOCK:
+            return angle::FormatID::ASTC_8x6_UNORM_BLOCK;
+        case angle::FormatID::ASTC_8x8_SRGB_BLOCK:
+            return angle::FormatID::ASTC_8x8_UNORM_BLOCK;
+        case angle::FormatID::ASTC_10x5_SRGB_BLOCK:
+            return angle::FormatID::ASTC_10x5_UNORM_BLOCK;
+        case angle::FormatID::ASTC_10x6_SRGB_BLOCK:
+            return angle::FormatID::ASTC_10x6_UNORM_BLOCK;
+        case angle::FormatID::ASTC_10x8_SRGB_BLOCK:
+            return angle::FormatID::ASTC_10x8_UNORM_BLOCK;
+        case angle::FormatID::ASTC_10x10_SRGB_BLOCK:
+            return angle::FormatID::ASTC_10x10_UNORM_BLOCK;
+        case angle::FormatID::ASTC_12x10_SRGB_BLOCK:
+            return angle::FormatID::ASTC_12x10_UNORM_BLOCK;
+        case angle::FormatID::ASTC_12x12_SRGB_BLOCK:
+            return angle::FormatID::ASTC_12x12_UNORM_BLOCK;
+        default:
+            return angle::FormatID::NONE;
+    }
+}
+
+bool IsOverridableLinearFormat(angle::FormatID formatID)
+{
+    return ConvertToSRGB(formatID) != angle::FormatID::NONE;
+}
+
+template <bool swizzledLuma>
+const gl::ColorGeneric AdjustBorderColor(const angle::ColorGeneric &borderColorGeneric,
+                                         const angle::Format &format,
+                                         bool stencilMode)
+{
+    gl::ColorGeneric adjustedBorderColor = borderColorGeneric;
+
+    // Handle depth formats
+    if (format.hasDepthOrStencilBits())
+    {
+        if (stencilMode)
+        {
+            // Stencil component
+            adjustedBorderColor.colorUI.red = gl::clampForBitCount<unsigned int>(
+                adjustedBorderColor.colorUI.red, format.stencilBits);
+            // Unused components need to be reset because some backends simulate integer samplers
+            adjustedBorderColor.colorUI.green = 0u;
+            adjustedBorderColor.colorUI.blue  = 0u;
+            adjustedBorderColor.colorUI.alpha = 1u;
+        }
+        else
+        {
+            // Depth component
+            if (format.isUnorm())
+            {
+                adjustedBorderColor.colorF.red = gl::clamp01(adjustedBorderColor.colorF.red);
+            }
+        }
+
+        return adjustedBorderColor;
+    }
+
+    // Handle LUMA formats
+    if (format.isLUMA())
+    {
+        if (format.isUnorm())
+        {
+            adjustedBorderColor.colorF.red   = gl::clamp01(adjustedBorderColor.colorF.red);
+            adjustedBorderColor.colorF.alpha = gl::clamp01(adjustedBorderColor.colorF.alpha);
+        }
+
+        // Luma formats are either unpacked to RGBA or emulated with component swizzling
+        if (swizzledLuma)
+        {
+            // L is R (no-op); A is R; LA is RG
+            if (format.alphaBits > 0)
+            {
+                if (format.luminanceBits > 0)
+                {
+                    adjustedBorderColor.colorF.green = adjustedBorderColor.colorF.alpha;
+                }
+                else
+                {
+                    adjustedBorderColor.colorF.red = adjustedBorderColor.colorF.alpha;
+                }
+            }
+        }
+        else
+        {
+            // L is RGBX; A is A or RGBA; LA is RGBA
+            if (format.alphaBits == 0)
+            {
+                adjustedBorderColor.colorF.alpha = 1.0f;
+            }
+            else if (format.luminanceBits == 0)
+            {
+                adjustedBorderColor.colorF.red = 0.0f;
+            }
+            adjustedBorderColor.colorF.green = adjustedBorderColor.colorF.red;
+            adjustedBorderColor.colorF.blue  = adjustedBorderColor.colorF.red;
+        }
+
+        return adjustedBorderColor;
+    }
+
+    // Handle all other formats. Clamp border color to the ranges of color components.
+    // On some platforms, RGB formats may be emulated with RGBA, enforce opaque border color there.
+    if (format.isSint())
+    {
+        adjustedBorderColor.colorI.red =
+            gl::clampForBitCount<int>(adjustedBorderColor.colorI.red, format.redBits);
+        adjustedBorderColor.colorI.green =
+            gl::clampForBitCount<int>(adjustedBorderColor.colorI.green, format.greenBits);
+        adjustedBorderColor.colorI.blue =
+            gl::clampForBitCount<int>(adjustedBorderColor.colorI.blue, format.blueBits);
+        adjustedBorderColor.colorI.alpha =
+            format.alphaBits > 0
+                ? gl::clampForBitCount<int>(adjustedBorderColor.colorI.alpha, format.alphaBits)
+                : 1;
+    }
+    else if (format.isUint())
+    {
+        adjustedBorderColor.colorUI.red =
+            gl::clampForBitCount<unsigned int>(adjustedBorderColor.colorUI.red, format.redBits);
+        adjustedBorderColor.colorUI.green =
+            gl::clampForBitCount<unsigned int>(adjustedBorderColor.colorUI.green, format.greenBits);
+        adjustedBorderColor.colorUI.blue =
+            gl::clampForBitCount<unsigned int>(adjustedBorderColor.colorUI.blue, format.blueBits);
+        adjustedBorderColor.colorUI.alpha =
+            format.alphaBits > 0 ? gl::clampForBitCount<unsigned int>(
+                                       adjustedBorderColor.colorUI.alpha, format.alphaBits)
+                                 : 1;
+    }
+    else if (format.isSnorm())
+    {
+        // clamp between -1.0f and 1.0f
+        adjustedBorderColor.colorF.red   = gl::clamp(adjustedBorderColor.colorF.red, -1.0f, 1.0f);
+        adjustedBorderColor.colorF.green = gl::clamp(adjustedBorderColor.colorF.green, -1.0f, 1.0f);
+        adjustedBorderColor.colorF.blue  = gl::clamp(adjustedBorderColor.colorF.blue, -1.0f, 1.0f);
+        adjustedBorderColor.colorF.alpha =
+            format.alphaBits > 0 ? gl::clamp(adjustedBorderColor.colorF.alpha, -1.0f, 1.0f) : 1.0f;
+    }
+    else if (format.isUnorm())
+    {
+        // clamp between 0.0f and 1.0f
+        adjustedBorderColor.colorF.red   = gl::clamp01(adjustedBorderColor.colorF.red);
+        adjustedBorderColor.colorF.green = gl::clamp01(adjustedBorderColor.colorF.green);
+        adjustedBorderColor.colorF.blue  = gl::clamp01(adjustedBorderColor.colorF.blue);
+        adjustedBorderColor.colorF.alpha =
+            format.alphaBits > 0 ? gl::clamp01(adjustedBorderColor.colorF.alpha) : 1.0f;
+    }
+    else if (format.isFloat() && format.alphaBits == 0)
+    {
+        adjustedBorderColor.colorF.alpha = 1.0;
+    }
+
+    return adjustedBorderColor;
+}
+template const gl::ColorGeneric AdjustBorderColor<true>(
+    const angle::ColorGeneric &borderColorGeneric,
+    const angle::Format &format,
+    bool stencilMode);
+template const gl::ColorGeneric AdjustBorderColor<false>(
+    const angle::ColorGeneric &borderColorGeneric,
+    const angle::Format &format,
+    bool stencilMode);
+
 }  // namespace rx

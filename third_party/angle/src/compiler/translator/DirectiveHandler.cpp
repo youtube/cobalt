@@ -37,13 +37,11 @@ static TBehavior getBehavior(const std::string &str)
 TDirectiveHandler::TDirectiveHandler(TExtensionBehavior &extBehavior,
                                      TDiagnostics &diagnostics,
                                      int &shaderVersion,
-                                     sh::GLenum shaderType,
-                                     bool debugShaderPrecisionSupported)
+                                     sh::GLenum shaderType)
     : mExtensionBehavior(extBehavior),
       mDiagnostics(diagnostics),
       mShaderVersion(shaderVersion),
-      mShaderType(shaderType),
-      mDebugShaderPrecisionSupported(debugShaderPrecisionSupported)
+      mShaderType(shaderType)
 {}
 
 TDirectiveHandler::~TDirectiveHandler() {}
@@ -81,11 +79,10 @@ void TDirectiveHandler::handlePragma(const angle::pp::SourceLocation &loc,
     }
     else
     {
-        const char kOptimize[]             = "optimize";
-        const char kDebug[]                = "debug";
-        const char kDebugShaderPrecision[] = "webgl_debug_shader_precision";
-        const char kOn[]                   = "on";
-        const char kOff[]                  = "off";
+        const char kOptimize[] = "optimize";
+        const char kDebug[]    = "debug";
+        const char kOn[]       = "on";
+        const char kOff[]      = "off";
 
         bool invalidValue = false;
         if (name == kOptimize)
@@ -103,15 +100,6 @@ void TDirectiveHandler::handlePragma(const angle::pp::SourceLocation &loc,
                 mPragma.debug = true;
             else if (value == kOff)
                 mPragma.debug = false;
-            else
-                invalidValue = true;
-        }
-        else if (name == kDebugShaderPrecision && mDebugShaderPrecisionSupported)
-        {
-            if (value == kOn)
-                mPragma.debugShaderPrecision = true;
-            else if (value == kOff)
-                mPragma.debugShaderPrecision = false;
             else
                 invalidValue = true;
         }
@@ -155,24 +143,119 @@ void TDirectiveHandler::handleExtension(const angle::pp::SourceLocation &loc,
         {
             for (TExtensionBehavior::iterator iter = mExtensionBehavior.begin();
                  iter != mExtensionBehavior.end(); ++iter)
+            {
                 iter->second = behaviorVal;
+            }
         }
         return;
     }
 
     TExtensionBehavior::iterator iter = mExtensionBehavior.find(GetExtensionByName(name.c_str()));
-    if (iter != mExtensionBehavior.end())
+    if (iter != mExtensionBehavior.end() && CheckExtensionVersion(iter->first, mShaderVersion))
     {
         iter->second = behaviorVal;
         // OVR_multiview is implicitly enabled when OVR_multiview2 is enabled
         if (name == "GL_OVR_multiview2")
         {
-            const std::string multiview = "GL_OVR_multiview";
-            TExtensionBehavior::iterator iterMultiview =
-                mExtensionBehavior.find(GetExtensionByName(multiview.c_str()));
-            if (iterMultiview != mExtensionBehavior.end())
+            constexpr char kMultiviewExtName[] = "GL_OVR_multiview";
+            iter = mExtensionBehavior.find(GetExtensionByName(kMultiviewExtName));
+            if (iter != mExtensionBehavior.end())
             {
-                iterMultiview->second = behaviorVal;
+                iter->second = behaviorVal;
+            }
+        }
+        // All the extensions listed in the spec here:
+        // https://www.khronos.org/registry/OpenGL/extensions/ANDROID/ANDROID_extension_pack_es31a.txt
+        // are implicitly enabled when GL_ANDROID_extension_pack_es31a is enabled
+        if (name == "GL_ANDROID_extension_pack_es31a")
+        {
+            constexpr char kGeometryShaderExtName[]      = "GL_EXT_geometry_shader";
+            constexpr char kTessellationShaderExtName[]  = "GL_EXT_tessellation_shader";
+            constexpr char kGpuShader5ExtName[]          = "GL_EXT_gpu_shader5";
+            constexpr char kTextureBufferExtName[]       = "GL_EXT_texture_buffer";
+            constexpr char kTextureCubeMapArrayExtName[] = "GL_EXT_texture_cube_map_array";
+            constexpr char kSampleVariablesExtName[]     = "GL_OES_sample_variables";
+            constexpr char kShaderMultisampleInterpolationExtName[] =
+                "GL_OES_shader_multisample_interpolation";
+            constexpr char kShaderImageAtomicExtName[] = "GL_OES_shader_image_atomic";
+            constexpr char kTextureStorageMultisample2dArrayExtName[] =
+                "GL_OES_texture_storage_multisample_2d_array";
+            iter = mExtensionBehavior.find(GetExtensionByName(kGeometryShaderExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+
+            iter = mExtensionBehavior.find(GetExtensionByName(kTessellationShaderExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+
+            iter = mExtensionBehavior.find(GetExtensionByName(kGpuShader5ExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+
+            iter = mExtensionBehavior.find(GetExtensionByName(kTextureBufferExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+
+            iter = mExtensionBehavior.find(GetExtensionByName(kTextureCubeMapArrayExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+
+            iter = mExtensionBehavior.find(GetExtensionByName(kSampleVariablesExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+
+            iter =
+                mExtensionBehavior.find(GetExtensionByName(kShaderMultisampleInterpolationExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+
+            iter = mExtensionBehavior.find(GetExtensionByName(kShaderImageAtomicExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+
+            iter = mExtensionBehavior.find(
+                GetExtensionByName(kTextureStorageMultisample2dArrayExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+        }
+        // EXT_shader_io_blocks is implicitly enabled when EXT_geometry_shader or
+        // EXT_tessellation_shader is enabled.
+        if (name == "GL_EXT_geometry_shader" || name == "GL_EXT_tessellation_shader")
+        {
+            constexpr char kIOBlocksExtName[] = "GL_EXT_shader_io_blocks";
+            iter = mExtensionBehavior.find(GetExtensionByName(kIOBlocksExtName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
+            }
+        }
+        // GL_APPLE_clip_distance is implicitly enabled when GL_EXT_clip_cull_distance or
+        // GL_ANGLE_clip_cull_distance are enabled.
+        else if (name == "GL_EXT_clip_cull_distance" || name == "GL_ANGLE_clip_cull_distance")
+        {
+            constexpr char kAPPLEClipDistanceEXTName[] = "GL_APPLE_clip_distance";
+            iter = mExtensionBehavior.find(GetExtensionByName(kAPPLEClipDistanceEXTName));
+            if (iter != mExtensionBehavior.end())
+            {
+                iter->second = behaviorVal;
             }
         }
         return;
@@ -196,12 +279,28 @@ void TDirectiveHandler::handleExtension(const angle::pp::SourceLocation &loc,
 
 void TDirectiveHandler::handleVersion(const angle::pp::SourceLocation &loc,
                                       int version,
-                                      ShShaderSpec spec)
+                                      ShShaderSpec spec,
+                                      angle::pp::MacroSet *macro_set)
 {
-    if (((version == 100 || version == 300 || version == 310) && !IsDesktopGLSpec(spec)) ||
+    if (((version == 100 || version == 300 || version == 310 || version == 320) &&
+         !IsDesktopGLSpec(spec)) ||
         IsDesktopGLSpec(spec))
     {
         mShaderVersion = version;
+
+        // Add macros for supported extensions
+        for (const auto &iter : mExtensionBehavior)
+        {
+            if (CheckExtensionVersion(iter.first, version))
+            {
+                // OVR_multiview should not be defined for WebGL spec'ed shaders.
+                if (IsWebGLBasedSpec(spec) && (iter.first == TExtension::OVR_multiview))
+                {
+                    continue;
+                }
+                PredefineMacro(macro_set, GetExtensionNameString(iter.first), 1);
+            }
+        }
     }
     else
     {

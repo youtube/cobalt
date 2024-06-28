@@ -13,6 +13,7 @@
 #include "common/PackedEnums.h"
 #include "common/angleutils.h"
 #include "libANGLE/AttributeMap.h"
+#include "libANGLE/Error.h"
 
 #include <deque>
 #include <string>
@@ -26,8 +27,8 @@ class LabeledObject
 {
   public:
     virtual ~LabeledObject() {}
-    virtual void setLabel(const Context *context, const std::string &label) = 0;
-    virtual const std::string &getLabel() const                             = 0;
+    virtual angle::Result setLabel(const Context *context, const std::string &label) = 0;
+    virtual const std::string &getLabel() const                                      = 0;
 };
 
 class Debug : angle::NonCopyable
@@ -53,13 +54,15 @@ class Debug : angle::NonCopyable
                        GLuint id,
                        GLenum severity,
                        const std::string &message,
-                       gl::LogSeverity logSeverity) const;
+                       gl::LogSeverity logSeverity,
+                       angle::EntryPoint entryPoint) const;
     void insertMessage(GLenum source,
                        GLenum type,
                        GLuint id,
                        GLenum severity,
                        std::string &&message,
-                       gl::LogSeverity logSeverity) const;
+                       gl::LogSeverity logSeverity,
+                       angle::EntryPoint entryPoint) const;
 
     void setMessageControl(GLenum source,
                            GLenum type,
@@ -80,6 +83,9 @@ class Debug : angle::NonCopyable
     void pushGroup(GLenum source, GLuint id, std::string &&message);
     void popGroup();
     size_t getGroupStackDepth() const;
+
+    // Helper for ANGLE_PERF_WARNING
+    void insertPerfWarning(GLenum severity, const char *message, uint32_t *repeatCount) const;
 
   private:
     bool isMessageEnabled(GLenum source, GLenum type, GLuint id, GLenum severity) const;
@@ -162,4 +168,13 @@ class Debug : angle::NonCopyable
     angle::PackedEnumBitSet<MessageType> mEnabledMessageTypes;
 };
 }  // namespace egl
+
+// Generate a perf warning.  Only outputs the same message a few times to avoid spamming the logs.
+#define ANGLE_PERF_WARNING(debug, severity, message)                 \
+    do                                                               \
+    {                                                                \
+        static uint32_t sRepeatCount = 0;                            \
+        (debug).insertPerfWarning(severity, message, &sRepeatCount); \
+    } while (0)
+
 #endif  // LIBANGLE_DEBUG_H_

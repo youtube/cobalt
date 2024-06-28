@@ -62,28 +62,42 @@ void AttachMultiviewTextures(GLenum target,
 
 struct MultiviewImplementationParams : public PlatformParameters
 {
-    MultiviewImplementationParams(GLint majorVersion,
+    MultiviewImplementationParams(EGLenum clientType,
+                                  GLint majorVersion,
                                   GLint minorVersion,
-                                  bool forceUseGeometryShaderOnD3D,
+                                  EGLint profileMask,
                                   const EGLPlatformParameters &eglPlatformParameters,
                                   ExtensionName multiviewExtension)
-        : PlatformParameters(majorVersion, minorVersion, eglPlatformParameters),
-          mForceUseGeometryShaderOnD3D(forceUseGeometryShaderOnD3D),
+        : PlatformParameters(clientType,
+                             majorVersion,
+                             minorVersion,
+                             profileMask,
+                             eglPlatformParameters),
           mMultiviewExtension(multiviewExtension)
     {}
-    bool mForceUseGeometryShaderOnD3D;
     ExtensionName mMultiviewExtension;
 };
 std::ostream &operator<<(std::ostream &os, const MultiviewImplementationParams &params);
 
-MultiviewImplementationParams VertexShaderOpenGL(GLint majorVersion,
+MultiviewImplementationParams VertexShaderOpenGL(EGLenum clientType,
+                                                 GLint majorVersion,
                                                  GLint minorVersion,
+                                                 EGLint profileMask,
                                                  ExtensionName multiviewExtension);
-MultiviewImplementationParams VertexShaderD3D11(GLint majorVersion,
+MultiviewImplementationParams VertexShaderVulkan(EGLenum clientType,
+                                                 GLint majorVersion,
+                                                 GLint minorVersion,
+                                                 EGLint profileMask,
+                                                 ExtensionName multiviewExtension);
+MultiviewImplementationParams VertexShaderD3D11(EGLenum clientType,
+                                                GLint majorVersion,
                                                 GLint minorVersion,
+                                                EGLint profileMask,
                                                 ExtensionName multiviewExtension);
-MultiviewImplementationParams GeomShaderD3D11(GLint majorVersion,
+MultiviewImplementationParams GeomShaderD3D11(EGLenum clientType,
+                                              GLint majorVersion,
                                               GLint minorVersion,
+                                              EGLint profileMask,
                                               ExtensionName multiviewExtension);
 
 class MultiviewTestBase : public ANGLETestBase
@@ -108,8 +122,6 @@ class MultiviewTest : public MultiviewTestBase,
 {
   protected:
     MultiviewTest() : MultiviewTestBase(GetParam()) {}
-
-    void overrideWorkaroundsD3D(FeaturesD3D *features) final;
 
     virtual void testSetUp() {}
     virtual void testTearDown() {}

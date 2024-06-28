@@ -40,17 +40,22 @@ constexpr size_t kTextureStorageObserverMessageIndex = 0;
 class TextureStorage : public angle::Subject
 {
   public:
-    TextureStorage() {}
+    TextureStorage(const std::string &label) : mKHRDebugLabel(label) {}
     ~TextureStorage() override {}
 
     virtual angle::Result onDestroy(const gl::Context *context);
 
     virtual int getTopLevel() const                   = 0;
     virtual bool isRenderTarget() const               = 0;
+    virtual bool isUnorderedAccess() const            = 0;
     virtual bool isManaged() const                    = 0;
     virtual bool supportsNativeMipmapFunction() const = 0;
     virtual int getLevelCount() const                 = 0;
 
+    virtual angle::Result findRenderTarget(const gl::Context *context,
+                                           const gl::ImageIndex &index,
+                                           GLsizei samples,
+                                           RenderTargetD3D **outRT) const = 0;
     virtual angle::Result getRenderTarget(const gl::Context *context,
                                           const gl::ImageIndex &index,
                                           GLsizei samples,
@@ -81,8 +86,14 @@ class TextureStorage : public angle::Subject
     virtual angle::Result resolveTexture(const gl::Context *context);
     virtual GLsizei getRenderToTextureSamples() const;
 
+    // Called by outer object when label has changed via KHR_debug extension
+    void setLabel(const std::string &newLabel);
+
   protected:
+    virtual void onLabelUpdate() {}
+
     const angle::Subject *mSubject;
+    std::string mKHRDebugLabel;
 };
 
 inline angle::Result TextureStorage::onDestroy(const gl::Context *context)
@@ -109,6 +120,12 @@ inline angle::Result TextureStorage::resolveTexture(const gl::Context *context)
 inline GLsizei TextureStorage::getRenderToTextureSamples() const
 {
     return 0;
+}
+
+inline void TextureStorage::setLabel(const std::string &newLabel)
+{
+    mKHRDebugLabel = newLabel;
+    onLabelUpdate();
 }
 
 using TexStoragePointer = angle::UniqueObjectPointer<TextureStorage, gl::Context>;
