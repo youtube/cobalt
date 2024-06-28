@@ -60,6 +60,7 @@
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
 #include "starboard/atomic.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
@@ -460,15 +461,16 @@ BrowserModule::~BrowserModule() {
 
   // Transition into the suspended state from whichever state we happen to
   // currently be in, to prepare for shutdown.
+  int64_t now = starboard::CurrentMonotonicTime();
   switch (application_state_) {
     case base::kApplicationStateStarted:
-      Blur(0);
+      Blur(now);
       FALLTHROUGH;
     case base::kApplicationStateBlurred:
-      Conceal(0);
+      Conceal(now);
       FALLTHROUGH;
     case base::kApplicationStateConcealed:
-      Freeze(0);
+      Freeze(now);
       break;
     case base::kApplicationStateStopped:
       NOTREACHED() << "BrowserModule does not support the stopped state.";
