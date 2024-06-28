@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "cobalt/dom/same_thread_media_source_attachment.h"
 
@@ -105,14 +109,6 @@ double SameThreadMediaSourceAttachment::GetRecentMediaTime() {
   DCHECK(attached_element_);
 
   return attached_element_->current_time(NULL);
-}
-
-scoped_refptr<TimeRanges>
-SameThreadMediaSourceAttachment::GetElementBufferedRange() const {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
-  DCHECK(attached_element_);
-
-  return attached_element_->buffered();
 }
 
 bool SameThreadMediaSourceAttachment::GetElementError() {

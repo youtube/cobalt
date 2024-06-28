@@ -36,6 +36,8 @@
 namespace cobalt {
 namespace dom {
 
+// TODO: b/338425449 - Remove direct references to MediaSource.
+class MediaSource;
 class MediaSourceAttachment;
 
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
@@ -299,6 +301,9 @@ class HTMLMediaElement : public HTMLElement,
   int processing_media_player_callback_;
 
   GURL media_source_attachment_url_;
+  // TODO: b/338425449 - Remove direct references to MediaSource.
+  bool is_using_media_source_attachment_methods_;
+  scoped_refptr<MediaSource> media_source_;
   scoped_refptr<MediaSourceAttachment> media_source_attachment_;
 
   bool pending_load_;

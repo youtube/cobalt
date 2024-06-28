@@ -129,6 +129,17 @@ bool IsAvoidCopyingArrayBufferEnabled(web::EnvironmentSettings* settings) {
   return media_settings.IsAvoidCopyingArrayBufferEnabled().value_or(false);
 }
 
+// If this function returns true, MediaSource will proxy calls to the
+// attached HTMLMediaElement object through the MediaSourceAttachment interface
+// instead of directly calling against the HTMLMediaElement object.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
+      .value_or(false);
+}
+
 }  // namespace
 
 SourceBuffer::OnInitSegmentReceivedHelper::OnInitSegmentReceivedHelper(
@@ -170,11 +181,19 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
       chunk_demuxer_(chunk_demuxer),
       event_queue_(event_queue),
       audio_tracks_(
-          media_source->GetMediaSourceAttachment()->CreateAudioTrackList(
-              settings)),
+          IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+              environment_settings())
+              ? media_source->GetMediaSourceAttachment()->CreateAudioTrackList(
+                    settings)
+              : base::MakeRefCounted<AudioTrackList>(
+                    settings, media_source->GetMediaElement())),
       video_tracks_(
-          media_source->GetMediaSourceAttachment()->CreateVideoTrackList(
-              settings)),
+          IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+              environment_settings())
+              ? media_source->GetMediaSourceAttachment()->CreateVideoTrackList(
+                    settings)
+              : base::MakeRefCounted<VideoTrackList>(
+                    settings, media_source->GetMediaElement())),
       metrics_(!media_source_->MediaElementHasMaxVideoCapabilities()) {
   DCHECK(!id_.empty());
   DCHECK(media_source_);
@@ -483,10 +502,8 @@ void SourceBuffer::OnRemovedFromMediaSource() {
   DCHECK(media_source_);
 
   // TODO: Implement track support.
-  // if (media_source_->GetMediaSourceAttachment()->audio_tracks().length() > 0
-  // ||
-  //     media_source_->GetMediaSourceAttachment()->audio_tracks().length() > 0)
-  //     {
+  // if (media_source_->GetMediaElement()->audio_tracks().length() > 0 ||
+  //     media_source_->GetMediaElement()->audio_tracks().length() > 0) {
   //   RemoveMediaTracks();
   // }
 
@@ -589,18 +606,35 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
     return false;
   }
 
-  DCHECK(media_source_->GetMediaSourceAttachment());
-  if (media_source_->GetMediaSourceAttachment()->GetElementError()) {
-    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
-                             exception_state);
-    return false;
+  if (IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+          environment_settings())) {
+    DCHECK(media_source_->GetMediaSourceAttachment());
+    if (media_source_->GetMediaSourceAttachment()->GetElementError()) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return false;
+    }
+  } else {
+    DCHECK(media_source_->GetMediaElement());
+    if (media_source_->GetMediaElement()->error()) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return false;
+    }
   }
 
   metrics_.StartTracking(SourceBufferMetricsAction::PREPARE_APPEND);
   media_source_->OpenIfInEndedState();
 
-  double current_time =
-      media_source_->GetMediaSourceAttachment()->GetRecentMediaTime();
+  double current_time = 0;
+  if (IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+          environment_settings())) {
+    current_time =
+        media_source_->GetMediaSourceAttachment()->GetRecentMediaTime();
+  } else {
+    current_time = media_source_->GetMediaElement()->current_time(NULL);
+  }
+
   if (!chunk_demuxer_->EvictCodedFrames(
           id_, base::TimeDelta::FromSecondsD(current_time),
           new_data_size + evict_extra_in_bytes_)) {

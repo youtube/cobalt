@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef COBALT_DOM_SAME_THREAD_MEDIA_SOURCE_ATTACHMENT_H_
 #define COBALT_DOM_SAME_THREAD_MEDIA_SOURCE_ATTACHMENT_H_
@@ -57,12 +61,15 @@ class SameThreadMediaSourceAttachment : public MediaSourceAttachmentSupplement {
   scoped_refptr<VideoTrackList> CreateVideoTrackList(
       script::EnvironmentSettings* settings) override;
 
-  // Used only when
-  // MediaSettings::IsMediaElementUsingMediaSourceBufferedRangeEnabled returns
-  // false.
-  // TODO(b/338452286): Revisit this to see if this can be removed from this
-  // interface.
-  scoped_refptr<TimeRanges> GetElementBufferedRange() const;
+  // TODO: b/338425449 - Remove media_source and media_element methods after
+  // rollout. Reference to underlying objects is exposed for when the H5VCC
+  // flag MediaElement.EnableUsingMediaSourceAttachmentMethods is disabled.
+  scoped_refptr<MediaSource> media_source() const override {
+    return media_source_;
+  }
+  base::WeakPtr<HTMLMediaElement> media_element() const override {
+    return attached_element_;
+  }
 
  private:
   ~SameThreadMediaSourceAttachment() = default;

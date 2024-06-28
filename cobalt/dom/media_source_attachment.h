@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef COBALT_DOM_MEDIA_SOURCE_ATTACHMENT_H_
 #define COBALT_DOM_MEDIA_SOURCE_ATTACHMENT_H_
@@ -45,6 +49,11 @@ class MediaSourceAttachment
   virtual void Close() = 0;
   virtual scoped_refptr<TimeRanges> GetBufferedRange() const = 0;
   virtual MediaSourceReadyState GetReadyState() const = 0;
+
+  // TODO: b/338425449 - Remove media_source method after rollout.
+  // References to underlying objects are exposed for when the H5VCC
+  // flag MediaElement.EnableUsingMediaSourceAttachmentMethods is disabled.
+  virtual scoped_refptr<MediaSource> media_source() const = 0;
 
  private:
   friend class base::RefCountedThreadSafe<MediaSourceAttachment>;

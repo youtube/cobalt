@@ -39,6 +39,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_settings.h"
+#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -147,6 +148,17 @@ bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
       .value_or(false);
 }
 
+// If this function returns true, HTMLMediaElement will proxy calls to the
+// attached MediaSource object through the MediaSourceAttachment interface
+// instead of directly calling against the MediaSource object.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+    const web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
+      .value_or(false);
+}
+
 }  // namespace
 
 HTMLMediaElement::HTMLMediaElement(Document* document,
@@ -177,6 +189,9 @@ HTMLMediaElement::HTMLMediaElement(Document* document,
       media_source_attachment_url_(
           std::string(kMediaSourceAttachmentUrlProtocol) + ':' +
           base::GenerateGUID()),
+      is_using_media_source_attachment_methods_(
+          IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+              node_document()->html_element_context()->environment_settings())),
       pending_load_(false),
       sent_stalled_event_(false),
       sent_end_event_(false),
@@ -246,8 +261,14 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
   const auto* settings =
       node_document()->html_element_context()->environment_settings();
   if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(settings)) {
-    if (media_source_attachment_) {
-      return media_source_attachment_->GetBufferedRange();
+    if (is_using_media_source_attachment_methods_) {
+      if (media_source_attachment_) {
+        return media_source_attachment_->GetBufferedRange();
+      }
+    } else {
+      if (media_source_) {
+        return media_source_->GetBufferedRange();
+      }
     }
   }
 
@@ -648,7 +669,11 @@ void HTMLMediaElement::TraceMembers(script::Tracer* tracer) {
 
   tracer->Trace(event_queue_);
   tracer->Trace(played_time_ranges_);
-  tracer->Trace(media_source_attachment_);
+  if (is_using_media_source_attachment_methods_) {
+    tracer->Trace(media_source_attachment_);
+  } else {
+    tracer->Trace(media_source_);
+  }
   tracer->Trace(error_);
   tracer->Trace(media_keys_);
 }
@@ -883,7 +908,12 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     return;
   }
 
-  DCHECK(!media_source_attachment_);
+  if (is_using_media_source_attachment_methods_) {
+    DCHECK(!media_source_attachment_);
+  } else {
+    DCHECK(!media_source_);
+  }
+
   if (url.SchemeIs(kMediaSourceAttachmentUrlProtocol)) {
     // Check whether url is allowed by security policy.
     if (!node_document()->GetCSPDelegate()->CanLoad(web::CspDelegate::kMedia,
@@ -894,21 +924,50 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     }
 
 
-    media_source_attachment_ =
-        html_element_context()->media_source_registry()->Retrieve(url.spec());
-    if (!media_source_attachment_) {
-      NoneSupported("Media source is NULL.");
-      return;
-    }
-    if (!media_source_attachment_->StartAttachingToMediaElement(this)) {
-      media_source_attachment_ = nullptr;
-      NoneSupported("Unable to attach media source.");
-      return;
+    if (is_using_media_source_attachment_methods_) {
+      media_source_attachment_ =
+          html_element_context()->media_source_registry()->Retrieve(url.spec());
+      if (!media_source_attachment_) {
+        NoneSupported("Media source is NULL.");
+        return;
+      }
+
+      if (!media_source_attachment_->StartAttachingToMediaElement(this)) {
+        media_source_attachment_ = nullptr;
+        NoneSupported("Unable to attach media source.");
+        return;
+      }
+    } else {
+      scoped_refptr<MediaSourceAttachment> attachment =
+          html_element_context()->media_source_registry()->Retrieve(url.spec());
+      if (!attachment) {
+        NoneSupported("Media source is NULL.");
+        return;
+      }
+
+      media_source_ = attachment->media_source();
+
+      if (!media_source_) {
+        NoneSupported("Media source is NULL.");
+        return;
+      }
+
+      if (!media_source_->StartAttachingToMediaElement(this)) {
+        media_source_ = nullptr;
+        NoneSupported("Unable to attach media source.");
+        return;
+      }
     }
     media_source_attachment_url_ = url;
 
-    LOG(INFO) << "Attached MediaSource (0x" << media_source_attachment_.get()
-              << ") to HTMLMediaElement (0x" << this << ")";
+    if (is_using_media_source_attachment_methods_) {
+      LOG(INFO) << "Attached MediaSourceAttachment (0x"
+                << media_source_attachment_.get() << ") to HTMLMediaElement (0x"
+                << this << ")";
+    } else {
+      LOG(INFO) << "Attached MediaSource (0x" << media_source_.get()
+                << ") to HTMLMediaElement (0x" << this << ")";
+    }
   }
   // The resource fetch algorithm
   network_state_ = kNetworkLoading;
@@ -1340,9 +1399,16 @@ void HTMLMediaElement::Seek(double time) {
   // Always notify the media engine of a seek if the source is not closed. This
   // ensures that the source is always in a flushed state when the 'seeking'
   // event fires.
-  if (media_source_attachment_ && media_source_attachment_->GetReadyState() !=
-                                      kMediaSourceReadyStateClosed) {
-    no_seek_required = false;
+  if (is_using_media_source_attachment_methods_) {
+    if (media_source_attachment_ && media_source_attachment_->GetReadyState() !=
+                                        kMediaSourceReadyStateClosed) {
+      no_seek_required = false;
+    }
+  } else {
+    if (media_source_ &&
+        media_source_->ready_state() != kMediaSourceReadyStateClosed) {
+      no_seek_required = false;
+    }
   }
 
   if (no_seek_required) {
@@ -1679,8 +1745,13 @@ void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened()");
   DCHECK(chunk_demuxer);
   BeginProcessingMediaPlayerCallback();
-  DCHECK(media_source_attachment_);
-  media_source_attachment_->CompleteAttachingToMediaElement(chunk_demuxer);
+  if (is_using_media_source_attachment_methods_) {
+    DCHECK(media_source_attachment_);
+    media_source_attachment_->CompleteAttachingToMediaElement(chunk_demuxer);
+  } else {
+    DCHECK(media_source_);
+    media_source_->CompleteAttachingToMediaElement(chunk_demuxer);
+  }
   EndProcessingMediaPlayerCallback();
 }
 
@@ -1769,9 +1840,16 @@ void HTMLMediaElement::EncryptedMediaInitDataEncountered(
 }
 
 void HTMLMediaElement::ClearMediaSourceAttachment() {
-  if (media_source_attachment_) {
-    media_source_attachment_->Close();
-    media_source_attachment_ = NULL;
+  if (is_using_media_source_attachment_methods_) {
+    if (media_source_attachment_) {
+      media_source_attachment_->Close();
+      media_source_attachment_ = NULL;
+    }
+  } else {
+    if (media_source_) {
+      media_source_->Close();
+      media_source_ = NULL;
+    }
   }
 }
 

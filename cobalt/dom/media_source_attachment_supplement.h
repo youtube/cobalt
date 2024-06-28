@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef COBALT_DOM_MEDIA_SOURCE_ATTACHMENT_SUPPLEMENT_H_
 #define COBALT_DOM_MEDIA_SOURCE_ATTACHMENT_SUPPLEMENT_H_
@@ -39,6 +43,11 @@ class MediaSourceAttachmentSupplement
       script::EnvironmentSettings* settings) = 0;
   virtual scoped_refptr<VideoTrackList> CreateVideoTrackList(
       script::EnvironmentSettings* settings) = 0;
+
+  // TODO: b/338425449 - Remove media_element method after rollout.
+  // References to underlying objects are exposed for when the H5VCC
+  // flag MediaElement.EnableUsingMediaSourceAttachmentMethods is disabled.
+  virtual base::WeakPtr<HTMLMediaElement> media_element() const = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MediaSourceAttachmentSupplement);
