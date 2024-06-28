@@ -25,6 +25,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/thread.h"
@@ -227,38 +228,89 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       break;
     }
 
-    if (was_playing) {
-      playback_head_position =
-          bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK(playback_head_position >= last_playback_head_position);
+    int audio_track_play_state = PLAYSTATE_STOPPED;
+    if (starboard::features::FeatureList::IsEnabled(
+            starboard::features::kCobaltPauseUsingAudioTrackState)) {
+      // The audio data at the returned position by
+      // |bridge_.GetAudioTimestamp()| may either (1) already have been
+      // presented, or (2) may have not yet been presented but is committed to
+      // be presented. It is possible after |bridge_.Pause()|, the audio data is
+      // still committed to be presented as (2), which causes advancing media
+      // time gap when player resumes and dropping video frames, so player
+      // updates playback head positions when |bridge_| doesn't stop.
+      SB_LOG(ERROR) << "Cobalt: " << __func__;
+      audio_track_play_state = bridge_.GetPlayState();
+      SB_DCHECK(audio_track_play_state > 0);
+      if (audio_track_play_state == PLAYSTATE_PLAYING ||
+          audio_track_play_state == PLAYSTATE_PAUSED) {
+        playback_head_position =
+            bridge_.GetAudioTimestamp(&frames_consumed_at, env);
+        SB_DCHECK(playback_head_position >= last_playback_head_position);
 
-      int frames_consumed =
-          playback_head_position - last_playback_head_position;
-      int64_t now = CurrentMonotonicTime();
+        int frames_consumed =
+            playback_head_position - last_playback_head_position;
+        int64_t now = CurrentMonotonicTime();
 
-      if (last_playback_head_event_at == -1) {
-        last_playback_head_event_at = now;
-      }
-      if (last_playback_head_position == playback_head_position) {
-        int64_t elapsed = now - last_playback_head_event_at;
-        if (elapsed > 5'000'000LL) {
+        if (last_playback_head_event_at == -1) {
           last_playback_head_event_at = now;
-          SB_LOG(INFO) << "last playback head position is "
-                       << last_playback_head_position
-                       << " and it hasn't been updated for " << elapsed
-                       << " microseconds.";
         }
-      } else {
-        last_playback_head_event_at = now;
+        if (last_playback_head_position == playback_head_position) {
+          int64_t elapsed = now - last_playback_head_event_at;
+          if (elapsed > 5'000'000LL) {
+            last_playback_head_event_at = now;
+            SB_LOG(INFO) << "last playback head position is "
+                         << last_playback_head_position
+                         << " and it hasn't been updated for " << elapsed
+                         << " microseconds.";
+          }
+        } else {
+          last_playback_head_event_at = now;
+        }
+
+        last_playback_head_position = playback_head_position;
+        frames_consumed = std::min(frames_consumed, frames_in_audio_track);
+
+        if (frames_consumed != 0) {
+          SB_DCHECK(frames_consumed >= 0);
+          consume_frames_func_(frames_consumed, frames_consumed_at, context_);
+          frames_in_audio_track -= frames_consumed;
+        }
       }
+    } else {
+      SB_LOG(ERROR) << "Cobalt: " << __func__;
+      if (was_playing) {
+        playback_head_position =
+            bridge_.GetAudioTimestamp(&frames_consumed_at, env);
+        SB_DCHECK(playback_head_position >= last_playback_head_position);
 
-      last_playback_head_position = playback_head_position;
-      frames_consumed = std::min(frames_consumed, frames_in_audio_track);
+        int frames_consumed =
+            playback_head_position - last_playback_head_position;
+        int64_t now = CurrentMonotonicTime();
 
-      if (frames_consumed != 0) {
-        SB_DCHECK(frames_consumed >= 0);
-        consume_frames_func_(frames_consumed, frames_consumed_at, context_);
-        frames_in_audio_track -= frames_consumed;
+        if (last_playback_head_event_at == -1) {
+          last_playback_head_event_at = now;
+        }
+        if (last_playback_head_position == playback_head_position) {
+          int64_t elapsed = now - last_playback_head_event_at;
+          if (elapsed > 5'000'000LL) {
+            last_playback_head_event_at = now;
+            SB_LOG(INFO) << "last playback head position is "
+                         << last_playback_head_position
+                         << " and it hasn't been updated for " << elapsed
+                         << " microseconds.";
+          }
+        } else {
+          last_playback_head_event_at = now;
+        }
+
+        last_playback_head_position = playback_head_position;
+        frames_consumed = std::min(frames_consumed, frames_in_audio_track);
+
+        if (frames_consumed != 0) {
+          SB_DCHECK(frames_consumed >= 0);
+          consume_frames_func_(frames_consumed, frames_consumed_at, context_);
+          frames_in_audio_track -= frames_consumed;
+        }
       }
     }
 
@@ -275,13 +327,23 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       }
     }
 
-    if (was_playing && !is_playing) {
-      was_playing = false;
-      bridge_.Pause();
-    } else if (!was_playing && is_playing) {
-      was_playing = true;
-      last_playback_head_event_at = -1;
-      bridge_.Play();
+    if (starboard::features::FeatureList::IsEnabled(
+            starboard::features::kCobaltPauseUsingAudioTrackState)) {
+      if (audio_track_play_state == PLAYSTATE_PLAYING && !is_playing) {
+        bridge_.Pause();
+      } else if (audio_track_play_state != PLAYSTATE_PLAYING && is_playing) {
+        last_playback_head_event_at = -1;
+        bridge_.Play();
+      }
+    } else {
+      if (was_playing && !is_playing) {
+        was_playing = false;
+        bridge_.Pause();
+      } else if (!was_playing && is_playing) {
+        was_playing = true;
+        last_playback_head_event_at = -1;
+        bridge_.Play();
+      }
     }
 
     if (!is_playing || frames_in_buffer == 0) {
