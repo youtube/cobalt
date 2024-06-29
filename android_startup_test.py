@@ -1,3 +1,4 @@
+# pylint: disable=protected-access,missing-module-docstring
 from cobalt.tools.automated_testing import webdriver_utils
 import time
 import starboard.android.shared.launcher
@@ -6,8 +7,7 @@ import urllib3.exceptions
 from collections import OrderedDict
 import csv
 import argparse
-
-# pylint: disable=protected-access
+import statistics
 
 # android_devtools =  'http://127.0.0.1:9222'
 android_webdriver = 'http://127.0.0.1:4444'
@@ -42,6 +42,16 @@ tick_names = OrderedDict({
     'fs': 'player_start',
     'pem_r': 'player_embed_ready',
     'gv': 'get_video',
+    # Cobalt self-test
+    'header': 'header_first_javascript',
+    'onload': 'onload',
+    'appStart': 'lifecycle.appStart',
+    'domComplete': 'nav.domComplete',
+    'loadEventStart': 'nav.loadEventStart',
+    'loadEventEnd': 'nav.loadEventEnd',
+    'appReveal': 'lifecycle.appReveal',
+    'appFocus': 'lifecycle.appFocus',
+    'origin': 'origin',
 })
 
 
@@ -58,7 +68,7 @@ COBALT_WEBDRIVER_CAPABILITIES = {
 }
 
 
-def test_android():
+def test_android(delay, url):
   launch = starboard.android.shared.launcher.Launcher(
       1, 2, 3, None, launcher_args=['systools', 'noinstall'])
   launch._CheckCallAdb('wait-for-device')
@@ -67,7 +77,8 @@ def test_android():
   launch._CheckCallAdb('logcat', '-c')
   time.sleep(0.2)  # for stop to work
   launch._CheckCallAdb('shell', 'am', 'start', '--esa', 'args',
-                       '"--dev_servers_listen_ip=127.0.0.1"', 'dev.cobalt.coat')
+                       f'"--dev_servers_listen_ip=127.0.0.1,--url={url}"',
+                       'dev.cobalt.coat')
   selenium_webdriver_module = webdriver_utils.import_selenium_module(
       'webdriver')
   rc = selenium_webdriver_module.remote.remote_connection
@@ -82,23 +93,19 @@ def test_android():
       break
     time.sleep(0.1)
   print('url:' + webdriver.current_url)
-  time.sleep(3)
+  time.sleep(delay)
   origin = webdriver.execute_script('return performance.timeOrigin;')
-  time.sleep(2)
   csi = webdriver.execute_script('return window.ytcsi.debug[0];')
-  now_ts = webdriver.execute_script('return performance.now();')
   webdriver.quit()
   ticks = csi['tick']
   # Those are milliseconds, can show just ints
-  rebased_ticks = {key: int(value - origin) for key, value in ticks.items()}
+  rebased_ticks = {k: int(value - origin) for k, value in ticks.items()}
   sorted_ticks = OrderedDict(
       sorted(rebased_ticks.items(), key=lambda item: item[1]))
   returnticks = {}
-  for key, value in sorted_ticks.items():
-    if key in tick_names:
-      print(decode(key), value)
-      returnticks[key] = value
-  print(now_ts)
+  for k, value in sorted_ticks.items():
+    if k in tick_names:
+      returnticks[k] = value
   return returnticks
 
 
@@ -112,13 +119,32 @@ if __name__ == '__main__':
       type=str,
       default='file.csv',
       help='Output CSV filename')
+  parser.add_argument(
+      '-u',
+      '--url',
+      type=str,
+      default=('https://youtube.com/tv'
+               '?env_forcedOffAllExperiments=true'
+               '&env_disableStartupDialog=true'))
+  parser.add_argument(
+      '-d',
+      '--delay',
+      type=int,
+      default=5,
+      help='Delay before grabbing numbers')
   args = parser.parse_args()
 
+  starts = []
   with open(args.output, 'w', encoding='utf-8') as file:
     writer = csv.writer(file)
     headings = [decode(x) for x in tick_names.keys()]
     writer.writerow(headings)
-    for f in range(1, args.loops):
-      test_ticks = test_android()
+    for f in range(0, args.loops):
+      test_ticks = test_android(args.delay, args.url)
+      starts.append(test_ticks)
       writer.writerow(test_ticks.values())
       file.flush()
+  for key in starts[0].keys():
+    values = [x[key] for x in starts]
+    print(key, ' mean:', statistics.mean(values), ' stdev:',
+          int(statistics.stdev(values)))

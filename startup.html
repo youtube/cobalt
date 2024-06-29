@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script>
+        window['ytcsi'] = {}
+        window.ytcsi['debug'] = [{
+            "tick": {}
+        }]
+        function tick(name, value) {
+            console.log('tick', name, value)
+            window.ytcsi.debug[0].tick[name] = performance.timeOrigin + value;
+        }
+        tick('header', performance.now())
+    </script>
+    <title>Startup</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+    <div>hello</div>
+</body>
+<script>
+    window.onload = () => {
+        tick('onload', performance.now());
+        console.log('i\'m alive');
+        let el = document.createElement('div');
+        el.textContent = performance.now();
+        document.body.appendChild(el);
+        setTimeout(() => {
+            let nav = performance.getEntriesByType("navigation")[0]
+            tick('loadEventEnd', nav.loadEventEnd)
+
+            var lifecycle = performance.getEntriesByType("lifecycle")[0];
+            tick('appStart', lifecycle.appStart)
+        }, 10);
+    }
+</script>
+
+</html>
