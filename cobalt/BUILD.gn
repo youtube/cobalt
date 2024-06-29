@@ -72,10 +72,17 @@ group("default") {
     if (sb_is_evergreen) {
       deps += [
         # TODO(b/294247612): Remove unnecessary dependencies.
+<<<<<<< HEAD
         "//cobalt/updater",
         "//cobalt/updater:crash_sandbox",
         "//cobalt/updater:noop_sandbox",
         "//cobalt/updater:one_app_only_sandbox",
+=======
+        "//chrome/updater",
+        "//chrome/updater:crash_sandbox_install",
+        "//chrome/updater:noop_sandbox_install",
+        "//chrome/updater:one_app_only_sandbox_install",
+>>>>>>> e31b739e229 (Fix missing build targets for Evergreen (#3724))
         "//components/client_update_protocol",
         "//components/crx_file",
         "//components/prefs",
