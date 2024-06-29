@@ -744,6 +744,15 @@ public class StarboardBridge {
     cobaltServices.remove(serviceName);
   }
 
+  private void maybeReportTime(String label) {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
+      long elapsed_ms = (System.nanoTime() - javaStartTimestamp) / (1000 * 1000);
+      Log.i(TAG, "StarboardBridge::" + label + ": elapsed time: " + elapsed_ms + " ms");
+    }
+  }
+
   /** Returns the application start timestamp. */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -753,6 +762,9 @@ public class StarboardBridge {
       long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
       long cppTimestamp = nativeCurrentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
+      long elapsed_micros =
+          (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
+      Log.i(TAG, "StarboardBridge::getAppStartTimestamp: time: " + (elapsed_micros / 1000) + " ms");
       return cppTimestamp
           - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
     }
@@ -762,6 +774,7 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   void reportFullyDrawn() {
+    maybeReportTime("reportFullyDrawn");
     Activity activity = activityHolder.get();
     if (activity != null) {
       activity.reportFullyDrawn();
@@ -771,6 +784,7 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public void setCrashContext(String key, String value) {
+    maybeReportTime("setCrashContext");
     Log.i(TAG, "setCrashContext Called: " + key + ", " + value);
     crashContext.put(key, value);
     if (this.crashContextUpdateHandler != null) {
