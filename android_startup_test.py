@@ -6,6 +6,7 @@ import urllib3.exceptions
 from collections import OrderedDict
 import csv
 import argparse
+import statistics
 
 # pylint: disable=protected-access
 
@@ -42,6 +43,9 @@ tick_names = OrderedDict({
     'fs': 'player_start',
     'pem_r': 'player_embed_ready',
     'gv': 'get_video',
+    # Not from CSI
+    'cobalt_appStart': 'cobalt_appstart',
+    'cobalt_startTime': 'cobalt_startTime',
 })
 
 
@@ -87,6 +91,8 @@ def test_android():
   time.sleep(2)
   csi = webdriver.execute_script('return window.ytcsi.debug[0];')
   now_ts = webdriver.execute_script('return performance.now();')
+  lifecycle_entries = webdriver.execute_script('return performance.getEntriesByType("lifecycle")[0];')
+  navigation_entries = webdriver.execute_script('return performance.getEntriesByType("navigation")[0];')
   webdriver.quit()
   ticks = csi['tick']
   # Those are milliseconds, can show just ints
@@ -99,6 +105,8 @@ def test_android():
       print(decode(key), value)
       returnticks[key] = value
   print(now_ts)
+  returnticks['cobalt_appStart'] = lifecycle_entries['appStart']
+  returnticks['cobalt_startTime'] = navigation_entries['startTime']
   return returnticks
 
 
@@ -114,6 +122,7 @@ if __name__ == '__main__':
       help='Output CSV filename')
   args = parser.parse_args()
 
+  all_runs = []
   with open(args.output, 'w', encoding='utf-8') as file:
     writer = csv.writer(file)
     headings = [decode(x) for x in tick_names.keys()]
@@ -122,3 +131,8 @@ if __name__ == '__main__':
       test_ticks = test_android()
       writer.writerow(test_ticks.values())
       file.flush()
+      all_runs.append(test_ticks)
+  print('{!r}'.format(all_runs))
+  print(statistics.median([x['cobalt_appStart'] for x in all_runs]))
+  print(statistics.median([x['cobalt_startTime'] for x in all_runs]))
+  
