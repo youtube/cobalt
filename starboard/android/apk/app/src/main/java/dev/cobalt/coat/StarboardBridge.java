@@ -1,4 +1,5 @@
 package dev.cobalt.coat;
+
 import static dev.cobalt.util.Log.TAG;
 
 import android.content.Context;
@@ -23,9 +24,7 @@ public class StarboardBridge {
         }
       };
 
-
-  public StarboardBridge(
-      Context appContext) {
+  public StarboardBridge(Context appContext) {
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
   }
@@ -33,5 +32,4 @@ public class StarboardBridge {
   public void requestStop(int errorLevel) {
     Log.i(TAG, "Request to stop");
   }
-
 }

@@ -13,9 +13,9 @@
   },
   "platforms": [
     "evergreen-arm-hardfp",
-    "evergreen-arm-hardfp-sbversion-15",
     "evergreen-arm-hardfp-sbversion-14",
-    "evergreen-arm-hardfp-sbversion-13"
+    "evergreen-arm-hardfp-sbversion-15",
+    "evergreen-arm-hardfp-sbversion-16"
   ],
   "includes": [
     {
@@ -28,34 +28,31 @@
       "dimension": "release_version=regex:10.*"
     },
     {
-      "name":"sbversion-15",
-      "platform":"evergreen-arm-hardfp-sbversion-15",
-      "target_platform":"evergreen-arm-hardfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "15",
-      "dimension": "release_version=regex:10.*"
-    },
-    {
       "name":"sbversion-14",
       "platform":"evergreen-arm-hardfp-sbversion-14",
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "14",
-      "dimension": "release_version=regex:10.*"
+      "sb_api_version": "14"
     },
     {
-      "name":"sbversion-13",
-      "platform":"evergreen-arm-hardfp-sbversion-13",
+      "name":"sbversion-15",
+      "platform":"evergreen-arm-hardfp-sbversion-15",
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "13",
-      "dimension": "release_version=regex:10.*"
+      "sb_api_version": "15"
+    },
+    {
+      "name":"sbversion-16",
+      "platform":"evergreen-arm-hardfp-sbversion-16",
+      "target_platform":"evergreen-arm-hardfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
+      "sb_api_version": "16"
     }
   ]
 }
