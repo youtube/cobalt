@@ -220,10 +220,10 @@ target(gtest_target_type, "update_client_test") {
     ":test_support",
     ":update_client",
     ":update_client_test_files",
+    "//chrome/updater",
     "//cobalt/base",
     "//cobalt/network",
     "//cobalt/test:run_all_unittests",
-    "//cobalt/updater",
     "//components/crx_file",
     "//components/prefs",
     "//components/prefs:test_support",
@@ -248,8 +248,8 @@ target(gtest_target_type, "cobalt_slot_management_test") {
 
   deps = [
     ":update_client",
+    "//chrome/updater",
     "//cobalt/base",
-    "//cobalt/updater",
     "//components/crx_file",
     "//components/prefs",
     "//components/prefs:test_support",

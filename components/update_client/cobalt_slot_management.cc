@@ -22,7 +22,7 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/values.h"
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"

@@ -31,7 +31,7 @@
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/system_window/system_window.h"
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/updater_module.h"
+#include "chrome/updater/updater_module.h"
 #endif
 #include "starboard/event.h"
 

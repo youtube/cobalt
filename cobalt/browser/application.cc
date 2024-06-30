@@ -89,7 +89,7 @@
 #include "url/gurl.h"
 
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #endif
 
 using cobalt::cssom::ViewportSize;

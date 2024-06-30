@@ -23,7 +23,7 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #if defined(STARBOARD)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #include "components/update_client/cobalt_slot_management.h"
 #endif
 #include "components/update_client/component.h"

@@ -23,7 +23,11 @@ files: |
 exclude: |
     (?x)^(
         (
+<<<<<<< HEAD
             cobalt/updater|
+=======
+            glimp/include|
+>>>>>>> cddc2d73a85 (Move updater to match Chromium)
             internal/kokoro/third-party|
             internal/starboard/shared/glimp/include|
             internal/starboard/shared/playstation/glimp/shaders|
@@ -141,7 +145,6 @@ repos:
                 cobalt/math/|
                 cobalt/media/|
                 cobalt/streams/|
-                cobalt/updater/|
                 cobalt/webdriver/screencast/|
                 cobalt/websocket/|
                 components/crx_file/|

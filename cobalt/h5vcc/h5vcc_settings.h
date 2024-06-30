@@ -26,7 +26,7 @@
 #include "cobalt/web/navigator_ua_data.h"
 
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/updater_module.h"
+#include "chrome/updater/updater_module.h"
 #endif
 
 namespace cobalt {

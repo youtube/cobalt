@@ -32,7 +32,7 @@
 #endif  // SB_IS(EVERGREEN)
 #include "starboard/system.h"
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #endif
 
 using starboard::kSystemPropertyMaxLength;
