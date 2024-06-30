@@ -73,7 +73,6 @@
 
 #if defined(STARBOARD)
 
-#define COBALT_USE_PUNCHOUT
 #define COBALT_SKIP_SEEK_REQUEST_NEAR_END
 
 #endif  // defined(STARBOARD)
