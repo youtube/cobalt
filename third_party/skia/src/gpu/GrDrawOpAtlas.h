@@ -337,7 +337,7 @@ public:
         uint32_t fPlotAlreadyUpdated[kMaxMultitexturePages]; // TODO: increase this to uint64_t
                                                              //       to allow more plots per page
 
-#if defined(COBALT)
+#if defined(STARBOARD)
         // The non-Cobalt code also depends on this value, but it assumes
         // that it is 32.
         //
