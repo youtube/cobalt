@@ -17,8 +17,13 @@
 #include <string.h>
 
 #include <memory>
+#include <utility>
 
+#include "base/json/json_reader.h"
+#include "base/values.h"
+#include "cobalt/browser/cpu_usage_tracker.h"
 #include "cobalt/network/network_module.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -102,6 +107,15 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
       network_module_->SetEnableHttp3FromPersistentSettings();
       return true;
     }
+  }
+
+  if (name.compare("cpu_usage_tracker_intervals") == 0 &&
+      value.IsType<std::string>() && value.AsType<std::string>().size() < 512) {
+    absl::optional<base::Value> config =
+        base::JSONReader::Read(value.AsType<std::string>());
+    browser::CpuUsageTracker::GetInstance()->UpdateConfig(
+        config.has_value() ? std::move(*config) : base::Value());
+    return true;
   }
 
 #if SB_IS(EVERGREEN)
