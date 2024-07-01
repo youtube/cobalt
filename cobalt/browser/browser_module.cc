@@ -71,56 +71,8 @@ using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-namespace timestamp {
-// This is a temporary workaround.
-extern SbAtomic64 g_last_render_timestamp;
-}  // namespace timestamp
-
-namespace {
-struct NonTrivialGlobalVariables {
-  NonTrivialGlobalVariables();
-
-  SbAtomic64* last_render_timestamp;
-};
-
-NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
-  last_render_timestamp = &cobalt::timestamp::g_last_render_timestamp;
-  SbAtomicNoBarrier_Exchange64(
-      last_render_timestamp,
-      static_cast<SbAtomic64>(
-        base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds();
-}
-
-base::LazyInstance<NonTrivialGlobalVariables>::DestructorAtExit
-    non_trivial_global_variables = LAZY_INSTANCE_INITIALIZER;
-}  // namespace
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-
 namespace browser {
 namespace {
-
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-// Timeout for last render.
-const int kLastRenderTimeoutSeconds = 15;
-
-// Polling interval for timeout_polling_thread_.
-const int kRenderTimeOutPollingDelaySeconds = 1;
-
-// Minimum number of continuous times the timeout expirations. This is used to
-// prevent unintended behavior in situations such as when returning from
-// suspended state. Note that the timeout response trigger will be delayed
-// after the actual timeout expiration by this value times the polling delay.
-const int kMinimumContinuousRenderTimeoutExpirations = 2;
-
-// Name for timeout_polling_thread_.
-const char* kTimeoutPollingThreadName = "TimeoutPolling";
-
-// This specifies the percentage of calls to OnRenderTimeout() that result in a
-// call to OnError().
-const int kRenderTimeoutErrorPercentage = 99;
-
-#endif
 
 // This constant defines the maximum rate at which the layout engine will
 // refresh over time.  Since there is little benefit in performing a layout
@@ -294,10 +246,6 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif  // defined(ENABLE_DEBUGGER)
       has_resumed_(base::WaitableEvent::ResetPolicy::MANUAL,
                    base::WaitableEvent::InitialState::NOT_SIGNALED),
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-      timeout_polling_thread_(kTimeoutPollingThreadName),
-      render_timeout_count_(0),
-#endif
       on_error_retry_count_(0),
       waiting_for_error_retry_(false),
       application_state_(initial_application_state),
@@ -327,15 +275,6 @@ BrowserModule::BrowserModule(const GURL& url,
   platform_info_.reset(new browser::UserAgentPlatformInfo());
   service_worker_registry_.reset(new ServiceWorkerRegistry(
       &web_settings_, network_module, platform_info_.get()));
-
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  timeout_polling_thread_.Start();
-  timeout_polling_thread_.task_runner()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&BrowserModule::OnPollForRenderTimeout, base::Unretained(this),
-                 url),
-      base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
-#endif
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
@@ -1687,47 +1626,6 @@ void BrowserModule::OnWebModuleRendererSubmissionRasterized() {
     }
   }
 }
-
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
-  int64_t last_render_timestamp = static_cast<int64_t>(SbAtomicAcquire_Load64(
-      non_trivial_global_variables.Get().last_render_timestamp));
-  base::Time last_render = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(last_render_timestamp));
-  bool timeout_expiration = base::Time::Now() - base::TimeDelta::FromSeconds(
-                                                    kLastRenderTimeoutSeconds) >
-                            last_render;
-  bool timeout_response_trigger = false;
-  if (timeout_expiration) {
-    // The timeout only triggers if the timeout expiration has been detected
-    // without interruption at least kMinimumContinuousRenderTimeoutExpirations
-    // times.
-    ++render_timeout_count_;
-    timeout_response_trigger =
-        render_timeout_count_ >= kMinimumContinuousRenderTimeoutExpirations;
-  } else {
-    render_timeout_count_ = 0;
-  }
-
-  if (timeout_response_trigger) {
-    SbAtomicNoBarrier_Exchange64(
-        non_trivial_global_variables.Get().last_render_timestamp,
-        static_cast<SbAtomic64>(kSbInt64Max));
-    if (SbSystemGetRandomUInt64() <
-        kRenderTimeoutErrorPercentage * (UINT64_MAX / 100)) {
-      OnError(url, std::string("Rendering Timeout"));
-    } else {
-      DLOG(INFO) << "Received OnRenderTimeout, ignoring by random chance.";
-    }
-  } else {
-    timeout_polling_thread_.task_runner()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&BrowserModule::OnPollForRenderTimeout,
-                   base::Unretained(this), url),
-        base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
-  }
-}
-#endif
 
 render_tree::ResourceProvider* BrowserModule::GetResourceProvider() {
   if (application_state_ == base::kApplicationStateConcealed) {
