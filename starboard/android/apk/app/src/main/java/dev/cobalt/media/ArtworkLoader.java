@@ -14,21 +14,13 @@
 
 package dev.cobalt.media;
 
-import static dev.cobalt.media.Log.TAG;
-
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Pair;
 import android.util.Size;
 import androidx.annotation.NonNull;
 import dev.cobalt.util.DisplayUtil;
-import dev.cobalt.util.Log;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.Locale;
 
 /** Loads MediaImage artwork, and caches one image. */
@@ -44,10 +36,12 @@ public class ArtworkLoader {
   private volatile Bitmap currentArtwork = null;
 
   private final Handler handler = new Handler(Looper.getMainLooper());
+  private final ArtworkDownloader artworkDownloader;
   private final Callback callback;
 
-  public ArtworkLoader(Callback callback) {
+  public ArtworkLoader(Callback callback, ArtworkDownloader artworkDownloader) {
     this.callback = callback;
+    this.artworkDownloader = artworkDownloader;
   }
 
   /**
@@ -66,7 +60,7 @@ public class ArtworkLoader {
     }
 
     requestedArtworkUrl = url;
-    new DownloadArtworkThread(url, handler).start();
+    new DownloadArtworkThread(url, this).start();
     return null;
   }
 
@@ -104,7 +98,19 @@ public class ArtworkLoader {
     }
   }
 
-  private synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
+  public Bitmap cropTo16x9(Bitmap bitmap) {
+    // Crop to 16:9 as needed
+    if (bitmap != null) {
+      int height = bitmap.getWidth() * 9 / 16;
+      if (bitmap.getHeight() > height) {
+        int top = (bitmap.getHeight() - height) / 2;
+        return Bitmap.createBitmap(bitmap, 0, top, bitmap.getWidth(), height);
+      }
+    }
+    return bitmap;
+  }
+
+  public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
     String url = urlBitmapPair.first;
     Bitmap bitmap = urlBitmapPair.second;
     if (url.equals(requestedArtworkUrl)) {
@@ -112,7 +118,14 @@ public class ArtworkLoader {
       if (bitmap != null) {
         currentArtworkUrl = url;
         currentArtwork = bitmap;
-        callback.onArtworkLoaded(bitmap);
+
+        handler.post(
+            new Runnable() {
+              @Override
+              public void run() {
+                callback.onArtworkLoaded(bitmap);
+              }
+            });
       }
     }
   }
@@ -120,55 +133,17 @@ public class ArtworkLoader {
   private class DownloadArtworkThread extends Thread {
 
     private final String url;
-    private final Handler handler;
+    private final ArtworkLoader artworkLoader;
 
-    DownloadArtworkThread(String url, Handler handler) {
+    DownloadArtworkThread(String url, ArtworkLoader artworkLoader) {
       super("ArtworkLoader");
       this.url = url;
-      this.handler = handler;
+      this.artworkLoader = artworkLoader;
     }
 
     @Override
     public void run() {
-      Bitmap bitmap = null;
-      HttpURLConnection conn = null;
-      InputStream is = null;
-      try {
-        conn = (HttpURLConnection) new URL(url).openConnection();
-        is = conn.getInputStream();
-        bitmap = BitmapFactory.decodeStream(is);
-      } catch (IOException e) {
-        Log.e(TAG, "Could not download artwork", e);
-      } finally {
-        try {
-          if (conn != null) {
-            conn.disconnect();
-          }
-          if (is != null) {
-            is.close();
-          }
-        } catch (Exception e) {
-          Log.e(TAG, "Error closing connection for artwork", e);
-        }
-      }
-
-      // Crop to 16:9 as needed
-      if (bitmap != null) {
-        int height = bitmap.getWidth() * 9 / 16;
-        if (bitmap.getHeight() > height) {
-          int top = (bitmap.getHeight() - height) / 2;
-          bitmap = Bitmap.createBitmap(bitmap, 0, top, bitmap.getWidth(), height);
-        }
-      }
-
-      final Pair<String, Bitmap> urlBitmapPair = Pair.create(url, bitmap);
-      handler.post(
-          new Runnable() {
-            @Override
-            public void run() {
-              onDownloadFinished(urlBitmapPair);
-            }
-          });
+      artworkDownloader.downloadArtwork(url, artworkLoader);
     }
   }
 }
