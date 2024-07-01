@@ -51,7 +51,7 @@ GrGLCaps::GrGLCaps(const GrContextOptions& contextOptions,
     fDoManualMipmapping = false;
     fClearToBoundaryValuesIsBroken = false;
     fClearTextureSupport = false;
-#if defined(COBALT)
+#if defined(STARBOARD)
     // On some GL implementations, this feature might not be implemented.
     // In the interest of greater compatibility, this feature is disabled.
     fDrawArraysBaseVertexIsBroken = true;
@@ -1609,7 +1609,7 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
         }
 // TODO: Disable R8 texture support to force similar rendering paths.
 // R8 support currently breaks text rendering.
-#if defined(COBALT)
+#if defined(STARBOARD)
         r8Support = false;
 #endif
         if (formatWorkarounds.fDisallowR8ForPowerVRSGX54x) {
