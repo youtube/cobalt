@@ -22,7 +22,7 @@ class TickCounter;
 namespace compiler {
 
 class BlockState;
-class VirtualRegisterData;
+
 
 // The MidTierRegisterAllocator is a register allocator specifically designed to
 // perform register allocation as fast as possible while minimizing spill moves.
@@ -43,7 +43,7 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
     return static_cast<MidTierRegisterAllocationData*>(data);
   }
 
-  VirtualRegisterData& VirtualRegisterDataFor(int virtual_register);
+  // VirtualRegisterData& VirtualRegisterDataFor(int virtual_register);
   MachineRepresentation RepresentationFor(int virtual_register);
 
   // Add a gap move between the given operands |from| and |to|.
@@ -94,7 +94,7 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   const char* const debug_name_;
   const RegisterConfiguration* const config_;
 
-  ZoneVector<VirtualRegisterData> virtual_register_data_;
+  // ZoneVector<VirtualRegisterData> virtual_register_data_;
   ZoneVector<BlockState> block_states_;
   ZoneVector<int> reference_map_instructions_;
   BitVector spilled_virtual_registers_;
