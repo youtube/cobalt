@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "starboard/common/log.h"
 #include "starboard/media.h"
@@ -110,8 +111,8 @@ class AudioDecoderHelper {
   size_t current_input_buffer_index_ = 0;
   bool end_of_stream_decoded_ = false;
 
-  unique_ptr_alias<AudioDecoder> audio_decoder_;
-  unique_ptr_alias<AudioRendererSink> audio_renderer_sink_;
+  std::unique_ptr<AudioDecoder> audio_decoder_;
+  std::unique_ptr<AudioRendererSink> audio_renderer_sink_;
 };
 
 }  // namespace

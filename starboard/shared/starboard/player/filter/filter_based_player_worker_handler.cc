@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
+#include <memory>
 #include <utility>
 
 #include "starboard/audio_sink.h"
@@ -115,7 +116,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
   update_player_state_cb_ = update_player_state_cb;
   update_player_error_cb_ = update_player_error_cb;
 
-  unique_ptr_alias<PlayerComponents::Factory> factory =
+  std::unique_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
   SB_DCHECK(factory);
 
@@ -517,7 +518,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
 
   RemoveJobByToken(update_job_token_);
 
-  unique_ptr_alias<PlayerComponents> player_components;
+  std::unique_ptr<PlayerComponents> player_components;
   {
     // Set |player_components_| to null with the lock, but we actually destroy
     // it outside of the lock.  This is because the VideoRenderer destructor

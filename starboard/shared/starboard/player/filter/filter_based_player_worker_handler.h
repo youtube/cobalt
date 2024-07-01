@@ -19,7 +19,6 @@
 #include <memory>
 #include <string>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
@@ -92,7 +91,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   // other accesses are happening from the same thread.
   Mutex player_components_existence_mutex_;
 
-  unique_ptr_alias<PlayerComponents> player_components_;
+  std::unique_ptr<PlayerComponents> player_components_;
   // The following three variables cache the return values of member functions
   // of |player_components_|.  Their lifetime is tied to |player_components_|.
   MediaTimeProvider* media_time_provider_ = nullptr;

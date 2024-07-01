@@ -19,7 +19,6 @@
 #include <utility>
 #include <vector>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/decode_target.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
@@ -46,7 +45,7 @@ struct SbPlayerPrivate {
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
       void* context,
-      starboard::unique_ptr_alias<PlayerWorker::Handler> player_worker_handler);
+      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
   void Seek(int64_t seek_to_time, int ticket);
   template <typename PlayerSampleInfo>
@@ -76,15 +75,14 @@ struct SbPlayerPrivate {
   }
 
  private:
-  SbPlayerPrivate(
-      SbMediaAudioCodec audio_codec,
-      SbMediaVideoCodec video_codec,
-      SbPlayerDeallocateSampleFunc sample_deallocate_func,
-      SbPlayerDecoderStatusFunc decoder_status_func,
-      SbPlayerStatusFunc player_status_func,
-      SbPlayerErrorFunc player_error_func,
-      void* context,
-      starboard::unique_ptr_alias<PlayerWorker::Handler> player_worker_handler);
+  SbPlayerPrivate(SbMediaAudioCodec audio_codec,
+                  SbMediaVideoCodec video_codec,
+                  SbPlayerDeallocateSampleFunc sample_deallocate_func,
+                  SbPlayerDecoderStatusFunc decoder_status_func,
+                  SbPlayerStatusFunc player_status_func,
+                  SbPlayerErrorFunc player_error_func,
+                  void* context,
+                  std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
   SbPlayerPrivate(const SbPlayerPrivate&) = delete;
   SbPlayerPrivate& operator=(const SbPlayerPrivate&) = delete;
