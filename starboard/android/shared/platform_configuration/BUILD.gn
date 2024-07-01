@@ -135,9 +135,6 @@ config("platform_configuration") {
     # -DANDROID is an argument to some ifdefs in the NDK"s eglplatform.h
     "ANDROID",
 
-    # Cobalt on Linux flag
-    "COBALT_LINUX",
-
     # So that we get the PRI* macros from inttypes.h
     "__STDC_FORMAT_MACROS",
 
