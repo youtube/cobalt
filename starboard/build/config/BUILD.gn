@@ -52,6 +52,9 @@ if (cobalt_pending_clean_up) {
         "-Wno-unknown-attributes",
         "-Wno-unused-command-line-argument",
         "-Wno-unused-function",
+
+        # musl getaddrinfo implementation null-check static array on Linux
+        "-Wno-tautological-pointer-compare",
       ]
 
       if (!using_old_compiler) {
