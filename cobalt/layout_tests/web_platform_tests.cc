@@ -432,8 +432,6 @@ TEST_P(WebPlatformTest, Run) {
   EXPECT_PRED_FORMAT2(CheckHarnessResult, GetParam().expectation, result);
 }
 
-// Disable on Windows until network stack is implemented.
-#if !defined(COBALT_WIN)
 // XML Http Request test cases.
 INSTANTIATE_TEST_CASE_P(
     xhr, WebPlatformTest,
@@ -518,8 +516,6 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     encoding, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("encoding")), GetTestName());
-
-#endif  // !defined(COBALT_WIN)
 
 }  // namespace layout_tests
 }  // namespace cobalt

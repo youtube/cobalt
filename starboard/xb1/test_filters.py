@@ -13,9 +13,6 @@
 # limitations under the License.
 """Starboard Xbox One Platform Test Filters."""
 
-import logging
-import os
-
 from starboard.shared.win32 import test_filters as shared_test_filters
 from starboard.tools.testing import test_filter
 
@@ -68,10 +65,6 @@ class Xb1TestFilters(shared_test_filters.TestFilters):
     Returns:
       A list of initialized TestFilter objects.
     """
-    if os.environ.get('COBALT_WIN_BUILDBOT_DISABLE_TESTS', '0') == '1':
-      logging.error('COBALT_WIN_BUILDBOT_DISABLE_TESTS=1, Tests are disabled.')
-      return [test_filter.DISABLE_TESTING]
-
     filters = super().GetTestFilters()
     for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
