@@ -153,6 +153,7 @@ static_library("browser") {
   deps = [
     ":bindings",
     ":browser_switches",
+    ":cpu_usage_tracker",
     ":generated_bindings",
     ":generated_types",
     "//cobalt/audio",
@@ -231,6 +232,20 @@ static_library("browser") {
   } else {
     deps += cobalt_platform_dependencies
   }
+}
+
+static_library("cpu_usage_tracker") {
+  sources = [
+    "cpu_usage_tracker.cc",
+    "cpu_usage_tracker.h",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/base",
+    "//cobalt/persistent_storage:persistent_settings",
+    "//third_party/abseil-cpp:absl",
+  ]
 }
 
 target(gtest_target_type, "browser_test") {

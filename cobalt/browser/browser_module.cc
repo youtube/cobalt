@@ -38,6 +38,7 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/task_runner_util.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/cpu_usage_tracker.h"
 #include "cobalt/browser/on_screen_keyboard_extension_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
@@ -373,6 +374,8 @@ BrowserModule::BrowserModule(const GURL& url,
       "h5vcc"));
   options_.web_module_options.injected_global_object_attributes["h5vcc"] =
       base::Bind(&BrowserModule::CreateH5vccCallback, base::Unretained(this));
+
+  CpuUsageTracker::GetInstance()->Initialize(options_.persistent_settings);
 
   if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
     options_.web_module_options.limit_performance_timer_resolution = false;
