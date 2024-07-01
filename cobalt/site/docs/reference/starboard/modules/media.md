@@ -530,15 +530,32 @@ least stereo.
 int SbMediaGetAudioOutputCount()
 ```
 
+### SbMediaGetBufferAlignment
+
+DEPRECATED with SB_API_VERSION 16
+
+SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return value is
+no longer used when allocating media buffers. This is verified explicitly in
+nplb tests by ensuring its return value is sizeof(void*).
+
+The app MAY take best effort to allocate media buffers aligned to an optimal
+alignment for the platform, but not guaranteed. An implementation that has
+specific alignment requirement should check the alignment of the incoming
+buffer, and make a copy when necessary.
+
+#### Declaration
+
+```
+int SbMediaGetBufferAlignment()
+```
+
 ### SbMediaGetBufferAllocationUnit
 
-The media buffer will be allocated using the returned alignment. Set this to a
-larger value may increase the memory consumption of media buffers. When the
-media stack needs more memory to store media buffers, it will allocate extra
-memory in units returned by SbMediaGetBufferAllocationUnit. This can return 0,
-in which case the media stack will allocate extra memory on demand. When
-SbMediaGetInitialBufferCapacity and this function both return 0, the media stack
-will allocate individual buffers directly using malloc functions.
+When the media stack needs more memory to store media buffers, it will allocate
+extra memory in units returned by SbMediaGetBufferAllocationUnit. This can
+return 0, in which case the media stack will allocate extra memory on demand.
+When SbMediaGetInitialBufferCapacity and this function both return 0, the media
+stack will allocate individual buffers directly using malloc functions.
 
 #### Declaration
 
@@ -565,9 +582,14 @@ int64_t SbMediaGetBufferGarbageCollectionDurationThreshold()
 
 ### SbMediaGetBufferPadding
 
-Extra bytes allocated at the end of a media buffer to ensure that the buffer can
-be use optimally by specific instructions like SIMD. Set to 0 to remove any
-padding.
+DEPRECATED with SB_API_VERSION 16
+
+SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value is no
+longer used when allocating media buffers. This is verified explicitly in nplb
+tests by ensuring its return value is 0.
+
+An implementation that has specific padding requirement should make a copy of
+the incoming buffer when necessary.
 
 #### Declaration
 
@@ -667,7 +689,8 @@ and return all memory to the system when there is no media buffer allocated.
 Setting the following value to false results in that Cobalt will allocate
 SbMediaGetInitialBufferCapacity bytes for media buffer on startup and will not
 release any media buffer memory back to the system even if there is no media
-buffers allocated.
+buffers allocated. This is demonstrated to significantly reduce long-term memory
+fragmentation.
 
 #### Declaration
 
@@ -677,8 +700,10 @@ bool SbMediaIsBufferPoolAllocateOnDemand()
 
 ### SbMediaIsBufferUsingMemoryPool
 
-If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media buffer
-pools should be allocated on demand, as opposed to using malloc functions.
+DEPRECATED with SB_API_VERSION 16
+
+This function is deprecated in Starboard 16 and no longer used. It's not fully
+removed, only to emit warnings at build and test time.
 
 #### Declaration
 

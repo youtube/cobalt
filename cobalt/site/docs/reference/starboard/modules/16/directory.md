@@ -27,6 +27,8 @@ typedef struct SbDirectoryPrivate* SbDirectory
 
 ### SbDirectoryClose
 
+DEPRECATED with SB_API_VERSION 16
+
 Closes an open directory stream handle. The return value indicates whether the
 directory was closed successfully.
 
@@ -39,6 +41,8 @@ bool SbDirectoryClose(SbDirectory directory)
 ```
 
 ### SbDirectoryGetNext
+
+DEPRECATED with SB_API_VERSION 16
 
 Populates `out_entry` with the next entry in the specified directory stream, and
 moves the stream forward by one entry.
@@ -74,6 +78,8 @@ static bool SbDirectoryIsValid(SbDirectory directory)
 ```
 
 ### SbDirectoryOpen
+
+DEPRECATED with SB_API_VERSION 16
 
 Opens the given existing directory for listing. This function returns
 kSbDirectoryInvalidHandle if it is not successful.

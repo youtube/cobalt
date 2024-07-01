@@ -68,6 +68,16 @@ Possible reasons why a call to SbSocketWaiterWaitTimed returned.
 
 ## Typedefs
 
+### SbPosixSocketWaiterCallback
+
+Function pointer for socket waiter callbacks.
+
+#### Definition
+
+```
+typedef void(* SbPosixSocketWaiterCallback) (SbSocketWaiter waiter, int socket, void *context, int ready_interests)
+```
+
 ### SbSocketWaiter
 
 A handle to a socket waiter.
@@ -91,6 +101,8 @@ typedef void(* SbSocketWaiterCallback) (SbSocketWaiter waiter, SbSocket socket, 
 ## Functions
 
 ### SbSocketWaiterAdd
+
+DEPRECATED with SB_API_VERSION 16
 
 Adds a new socket to be waited on by the `waiter` with a bitfield of
 `interests`. This function should only be called on the thread that waits on
@@ -163,6 +175,8 @@ static bool SbSocketWaiterIsValid(SbSocketWaiter watcher)
 ```
 
 ### SbSocketWaiterRemove
+
+DEPRECATED with SB_API_VERSION 16
 
 Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter. This
 function should only be called on the thread that waits on this waiter.

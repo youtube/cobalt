@@ -144,7 +144,7 @@ directory specified by `kSbSystemPathContentDirectory` under the
 │           │   ├── licenses
 │           │   ├── ssl
 │           ├── lib
-│           │   └── libcobalt.so
+│           │   └── libcobalt.lz4
 │           └── manifest.json
 └── loader_app <--(Cobalt loader binary)
 └── crashpad_handler <--(Cobalt crash handler binary)

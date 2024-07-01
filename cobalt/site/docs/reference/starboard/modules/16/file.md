@@ -154,6 +154,8 @@ bool SbFileAtomicReplace(const char *path, const char *data, int64_t data_size)
 
 ### SbFileCanOpen
 
+DEPRECATED with SB_API_VERSION 16
+
 Indicates whether SbFileOpen() with the given `flags` is allowed for `path`.
 
 `path`: The absolute path to be checked. `flags`: The flags that are being
@@ -167,6 +169,8 @@ bool SbFileCanOpen(const char *path, int flags)
 
 ### SbFileClose
 
+DEPRECATED with SB_API_VERSION 16
+
 Closes `file`. The return value indicates whether the file was closed
 successfully.
 
@@ -179,6 +183,8 @@ bool SbFileClose(SbFile file)
 ```
 
 ### SbFileDelete
+
+DEPRECATED with SB_API_VERSION 16
 
 Deletes the regular file, symlink, or empty directory at `path`. This function
 is used primarily to clean up after unit tests. On some platforms, this function
@@ -194,6 +200,8 @@ bool SbFileDelete(const char *path)
 
 ### SbFileFlush
 
+DEPRECATED with SB_API_VERSION 16
+
 Flushes the write buffer to `file`. Data written via SbFileWrite is not
 necessarily committed until the SbFile is flushed or closed.
 
@@ -206,6 +214,8 @@ bool SbFileFlush(SbFile file)
 ```
 
 ### SbFileGetInfo
+
+DEPRECATED with SB_API_VERSION 16
 
 Retrieves information about `file`. The return value indicates whether the file
 information was retrieved successfully.
@@ -221,6 +231,8 @@ bool SbFileGetInfo(SbFile file, SbFileInfo *out_info)
 ```
 
 ### SbFileGetPathInfo
+
+DEPRECATED with SB_API_VERSION 16
 
 Retrieves information about the file at `path`. The return value indicates
 whether the file information was retrieved successfully.
@@ -247,6 +259,8 @@ static bool SbFileIsValid(SbFile file)
 
 ### SbFileModeStringToFlags
 
+DEPRECATED with SB_API_VERSION 16
+
 Converts an ISO `fopen()` mode string into flags that can be equivalently passed
 into SbFileOpen().
 
@@ -259,6 +273,8 @@ int SbFileModeStringToFlags(const char *mode)
 ```
 
 ### SbFileOpen
+
+DEPRECATED with SB_API_VERSION 16
 
 Opens the file at `path`, which must be absolute, creating it if specified by
 `flags`. The read/write position is at the beginning of the file.
@@ -283,6 +299,8 @@ SbFile SbFileOpen(const char *path, int flags, bool *out_created, SbFileError *o
 
 ### SbFileRead
 
+DEPRECATED with SB_API_VERSION 16
+
 Reads `size` bytes (or until EOF is reached) from `file` into `data`, starting
 at the file's current position.
 
@@ -301,6 +319,8 @@ int SbFileRead(SbFile file, char *data, int size)
 ```
 
 ### SbFileReadAll
+
+DEPRECATED with SB_API_VERSION 16
 
 Reads `size` bytes (or until EOF is reached) from `file` into `data`, starting
 at the file's current position.
@@ -322,6 +342,8 @@ static int SbFileReadAll(SbFile file, char *data, int size)
 
 ### SbFileSeek
 
+DEPRECATED with SB_API_VERSION 16
+
 Changes the current read/write position in `file`. The return value identifies
 the resultant current read/write position in the file (relative to the start) or
 `-1` in case of an error. This function might not support seeking past the end
@@ -340,6 +362,8 @@ int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset)
 
 ### SbFileTruncate
 
+DEPRECATED with SB_API_VERSION 16
+
 Truncates the given `file` to the given `length`. The return value indicates
 whether the file was truncated successfully.
 
@@ -355,6 +379,8 @@ bool SbFileTruncate(SbFile file, int64_t length)
 ```
 
 ### SbFileWrite
+
+DEPRECATED with SB_API_VERSION 16
 
 Writes the given buffer into `file` at the file's current position, overwriting
 any data that was previously there.
@@ -375,6 +401,8 @@ int SbFileWrite(SbFile file, const char *data, int size)
 ```
 
 ### SbFileWriteAll
+
+DEPRECATED with SB_API_VERSION 16
 
 Writes the given buffer into `file`, starting at the beginning of the file, and
 overwriting any data that was previously there. Unlike SbFileWrite, this
