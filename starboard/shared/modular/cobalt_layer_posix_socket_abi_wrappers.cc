@@ -50,6 +50,11 @@ int getaddrinfo(const char* node,
   return __abi_wrap_getaddrinfo(node, service, hints, res);
 }
 
+void __abi_wrap_freeaddrinfo(struct addrinfo* ai);
+void freeaddrinfo(struct addrinfo* ai) {
+  return __abi_wrap_freeaddrinfo(ai);
+}
+
 int __abi_wrap_getifaddrs(struct ifaddrs** ifap);
 int getifaddrs(struct ifaddrs** ifap) {
   return __abi_wrap_getifaddrs(ifap);
