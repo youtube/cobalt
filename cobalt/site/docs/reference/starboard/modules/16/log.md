@@ -73,16 +73,6 @@ Inline wrapper of SbLogFormat that converts from ellipsis to va_args.
 void static void static void SbLogFormatF(const char *format,...) SB_PRINTF_FORMAT(1
 ```
 
-### SbLogIsTty
-
-Indicates whether the log output goes to a TTY or is being redirected.
-
-#### Declaration
-
-```
-bool SbLogIsTty()
-```
-
 ### SbLogRaw
 
 A bare-bones log output method that is async-signal-safe, i.e. safe to call from

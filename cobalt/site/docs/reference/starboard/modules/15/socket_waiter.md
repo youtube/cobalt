@@ -92,6 +92,8 @@ typedef void(* SbSocketWaiterCallback) (SbSocketWaiter waiter, SbSocket socket, 
 
 ### SbSocketWaiterAdd
 
+DEPRECATED with SB_API_VERSION 16
+
 Adds a new socket to be waited on by the `waiter` with a bitfield of
 `interests`. This function should only be called on the thread that waits on
 this waiter.
@@ -163,6 +165,8 @@ static bool SbSocketWaiterIsValid(SbSocketWaiter watcher)
 ```
 
 ### SbSocketWaiterRemove
+
+DEPRECATED with SB_API_VERSION 16
 
 Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter. This
 function should only be called on the thread that waits on this waiter.

@@ -14,239 +14,45 @@ Starboard e.g: `malloc()` - `SbMemoryAllocate()`,
 `opendir()` - `SbDirectoryOpen()`, `pthread_mutex_create()` - `SbMutexCreate()`
  etc...
 
-## Deprecated Starboard APIs
-Starting with Starboard 16 the POSIX equivalent Starboard APIs were
-deprecated and removed, and the standard POSIX APIs are used instead:
 
-### Memory Management
-Removed:
+### Verification
+To verify a platform integration the `nplb` test should be run in Evergreen mode.
+
+A test suite [starboard/nplb/posix_compliance](../nplb/posix_compliance) is added to `nplb`
+to verify the POSIX APIs specification and to enforce uniformity across all platforms.
+
+To run `nplb` in Evergreen mode:
+1. Build the `elf_loader_sandbox` for the  target platform. This is the equivalent of the `loader_app`
+but for running tests using the command line arguments.
+```
+ninja -C out/${PLATFORM}_devel/ elf_loader_sandbox_install
 
 ```
-SbMemoryAllocate
-SbMemoryAllocateAligned
-SbMemoryAllocateAlignedUnchecked
-SbMemoryAllocateNoReport
-SbMemoryAllocateUnchecked
-SbMemoryDeallocate
-SbMemoryDeallocateAligned
-SbMemoryDeallocateNoReport
-SbMemoryFlush
-SbMemoryFree
-SbMemoryFreeAligned
-SbMemoryMap
-SbMemoryProtect
-SbMemoryReallocate
-SbMemoryReallocateUnchecked
-SbMemoryUnmap
+2. Build `nplb` for Evergreen.
 ```
-
-Supported POSIX equivalents:
+ninja -C out/evergreen-arm-softfp_devel/ nplb_install
 
 ```
-calloc
-free
-malloc
-posix_memalign
-realloc
-mmap
-munmap
-mprotect
-msync
-```
-
-
-### Concurrency
-Removed:
+3. Run the `nplb` test
 
 ```
-SbConditionVariableBroadcast
-SbConditionVariableDestroy
-SbConditionVariableCreate
-SbConditionVariableSignal
-SbConditionVariableWait
-SbConditionVariableWaitTimed
-SbMutexAcquire
-SbMutexAcquireTry
-SbMutexCreate
-SbMutexDestroy
-SbMutexRelease
-SbThreadCreate
-SbThreadCreateLocalKey
-SbThreadDestroyLocalKey
-SbThreadDetach
-SbThreadGetCurrent
-SbThreadGetLocalValue
-SbThreadGetName
-SbThreadIsEqual
-SbThreadJoin
-SbThreadSetLocalValue
-SbThreadSetName
-SbThreadSleep
-SbThreadYield
-SbOnce
+.../elf_loader_sandbox --evergreen_library=app/nplb/lib/libnplb.so
+                       --evergreen_content=app/nplb/content
 ```
 
-Supported POSIX equivalents:
+The `elf_loader_sandbox` takes two command line switches:
+`--evergreen_library` and `--evergreen_content`. These switches are the path to
+the shared library to be run and the path to that shared library's content.
+These paths should be *relative to the content of the elf_loader_sandbox*.
 
 ```
-pthread_attr_init
-pthread_attr_destroy
-pthread_attr_getdetachstate
-pthread_attr_getstacksize
-pthread_attr_setdetachstate
-pthread_attr_setstacksize
-pthread_cond_broadcast
-pthread_cond_destroy
-pthread_cond_init
-pthread_cond_signal
-pthread_cond_timedwait
-pthread_cond_wait
-pthread_condattr_destroy
-pthread_condattr_getclock
-pthread_condattr_init
-pthread_condattr_setclock
-pthread_create
-pthread_detach
-pthread_equal
-pthread_join
-pthread_mutex_destroy
-pthread_mutex_init
-pthread_mutex_lock
-pthread_mutex_unlock
-pthread_mutex_trylock
-pthread_once
-pthread_self
-pthread_getspecific
-pthread_key_create
-pthread_key_delete
-pthread_setspecific
-pthread_setname_np
-pthread_getname_np
-sched_yield
-usleep
+.../elf_loader_sandbox
+.../content/app/nplb/lib/libnplb.so
+.../content/app/nplb/content
 ```
 
-### I/O, sockets, files, directories
-Removed:
+If the test fails in the `posix_compliance_tests` please take a look at the next section **Evergreen integration**. You may need to fix your **POSIX wrapper impl**.
 
-```
-SbDirectoryCanOpen
-SbDirectoryClose
-SbDirectoryCreate
-SbDirectoryGetNext
-SbDirectoryOpen
-SbFileCanOpen
-SbFileClose
-SbFileDelete
-SbFileExists
-SbFileFlush
-SbFileGetInfo
-SbFileGetPathInfo
-SbFileModeStringToFlags
-SbFileOpen
-SbFileRead
-SbFileSeek
-SbFileTruncate
-SbFileWrite
-SbSocketAccept
-SbSocketBind
-SbSocketClearLastError
-SbSocketConnect
-SbSocketCreate
-SbSocketDestroy
-SbSocketFreeResolution
-SbSocketGetInterfaceAddress
-SbSocketGetLastError
-SbSocketGetLocalAddress
-SbSocketIsConnected
-SbSocketIsConnectedAndIdle
-SbSocketIsIpv6Supported
-SbSocketJoinMulticastGroup
-SbSocketListen
-SbSocketReceiveFrom
-SbSocketResolve
-SbSocketSendTo
-SbSocketSetBroadcast
-SbSocketSetReceiveBufferSize
-SbSocketSetReuseAddress
-SbSocketSetSendBufferSize
-SbSocketSetTcpKeepAlive
-SbSocketSetTcpNoDelay
-SbSocketSetTcpWindowScaling
-```
-
-Supported POSIX equivalents:
-
-```
-accept
-close
-bind
-connect
-freeifaddrs
-freeaddrinfo
-fstat
-fsync
-ftruncate
-getifaddrs
-getaddrinfo
-inet_ntop
-listen
-lseek
-mkdir
-read
-recv
-recvfrom
-rmdir
-setsockopt
-send
-sendto
-stat
-socket
-unlink
-write
-
-```
-
-### Strings
-Removed:
-
-```
-SbStringCompareNoCase
-SbStringCompareNoCaseN
-SbStringDuplicate
-SbStringScan
-SbStringFormat
-SbStringFormatWide
-```
-
-Supported POSIX equivalents:
-```
-strdup
-strcasecmp
-strncasecmp
-vfwprintf
-vsnprintf
-vsscanf
-```
-
-### Time
-Removed:
-
-```
-SbTimeGetMonotonicNow
-SbTimeGetMonotonicThreadNow
-SbTimeGetNow
-SbTimeIsTimeThreadNowSupported
-```
-
-Supported POSIX equivalents:
-
-```
-clock_gettime
-gettimeofday
-gmtime_r
-time
-```
 ### Evergreen integration
 ![Evergreen Architecture](resources/starboard_16_posix.png)
 
@@ -297,42 +103,151 @@ for any translation or ajustements of the API e.g.
 REGISTER_SYMBOL(malloc);
 ```
 
-### Verification
-A test suite [starboard/nplb/posix_compliance](../nplb/posix_compliance) is added to `nplb`
-to verify the POSIX APIs specification and to enforce uniformity across all platforms.
+# POSIX API Reference
+Starting with Starboard 16 the POSIX equivalent Starboard APIs were
+deprecated and removed, and the standard POSIX APIs are used instead:
 
-The `elf_loader_sandbox` binary can be used to run tests in Evergreen mode.
+### Memory Management
 
-The `elf_loader_sandbox` is run using two command line switches:
-`--evergreen_library` and `--evergreen_content`. These switches are the path to
-the shared library to be run and the path to that shared library's content.
-These paths should be *relative to the content of the elf_loader_sandbox*.
+| Removed Starboard APIs           | Added POSIX APIs|
+|----------------------------------|-----------------|
+| SbMemoryAllocate                 | malloc          |
+| SbMemoryAllocateAligned          | posix_memalign  |
+| SbMemoryAllocateAlignedUnchecked |                 |
+| SbMemoryAllocateNoReport         |                 |
+| SbMemoryAllocateUnchecked        |                 |
+| SbMemoryDeallocate               | free            |
+| SbMemoryDeallocateAligned        |                 |
+| SbMemoryDeallocateNoReport       |                 |
+| SbMemoryFlush                    | msync           |
+| SbMemoryFree                     |                 |
+| SbMemoryFreeAligned              |                 |
+| SbMemoryMap                      | mmap            |
+| SbMemoryProtect                  | mprotect        |
+| SbMemoryReallocate               | realloc         |
+| SbMemoryReallocateUnchecked      |                 |
+| SbMemoryUnmap                    | munmap          |
 
-For example, if we wanted to run the `nplb` set of tests and had the following
-directory tree,
+
+
+### Concurrency
+| Removed Starboard APIs           | Added POSIX APIs            |
+|----------------------------------|-----------------------------|
+| SbConditionVariableBroadcast     | pthread_cond_broadcast      |
+| SbConditionVariableDestroy       | pthread_cond_destroy        |
+| SbConditionVariableCreate        | pthread_cond_init           |
+| SbConditionVariableSignal        | pthread_cond_signal         |
+| SbConditionVariableWait          | pthread_cond_wait           |
+| SbConditionVariableWaitTimed     | pthread_cond_timedwait      |
+| SbMutexAcquire                   | pthread_mutex_lock          |
+| SbMutexAcquireTry                | pthread_mutex_trylock       |
+| SbMutexCreate                    | pthread_mutex_init          |
+| SbMutexDestroy                   | pthread_mutex_destroy       |
+| SbMutexRelease                   | pthread_mutex_unlock        |
+| SbThreadCreate                   | pthread_create              |
+| SbThreadCreateLocalKey           | pthread_key_create          |
+| SbThreadDestroyLocalKey          | pthread_key_delete          |
+| SbThreadDetach                   | pthread_detach              |
+| SbThreadGetCurrent               | pthread_self                |
+| SbThreadGetLocalValue            | pthread_getspecific         |
+| SbThreadGetName                  | pthread_getname_np          |
+| SbThreadIsEqual                  | pthread_equal               |
+| SbThreadJoin                     | pthread_join                |
+| SbThreadSetLocalValue            | pthread_setspecific         |
+| SbThreadSetName                  | pthread_setname_np          |
+| SbThreadSleep                    | usleep                      |
+| SbThreadYield                    | sched_yield                 |
+| SbOnce                           | pthread_once                |
+|                                  | pthread_attr_init           |
+|                                  | pthread_attr_destroy        |
+|                                  | pthread_attr_getdetachstate |
+|                                  | pthread_attr_getstacksize   |
+|                                  | pthread_attr_setdetachstate |
+|                                  | pthread_attr_setstacksize   |
+|                                  | pthread_condattr_destroy    |
+|                                  | pthread_condattr_getclock   |
+|                                  | pthread_condattr_init       |
+|                                  | pthread_condattr_setclock   |
+|                                  | pthread_attr_init           |
+|                                  | pthread_attr_init           |
+
+
+### I/O, sockets, files, directories
+
+| DeprecatedStarboard APIs     | Added POSIX APIs|
+|------------------------------|-----------------|
+| SbDirectoryCanOpen           | stat            |
+| SbDirectoryClose             | closedir        |
+| SbDirectoryCreate            | mkdir           |
+| SbDirectoryGetNext           | readdir_r       |
+| SbDirectoryOpen              | opendir         |
+| SbFileCanOpen                | stat            |
+| SbFileClose                  | close           |
+| SbFileDelete                 | unlink, rmdir   |
+| SbFileExists                 | stat            |
+| SbFileFlush                  | fsync           |
+| SbFileGetInfo                | fstat           |
+| SbFileGetPathInfo            | stat            |
+| SbFileModeStringToFlags      |                 |
+| SbFileOpen                   | open , opedir   |
+| SbFileRead                   | read            |
+| SbFileSeek                   | lseek           |
+| SbFileTruncate               | ftruncate       |
+| SbFileWrite                  | write           |
+| SbSocketAccept               | accept          |
+| SbSocketBind                 | bind            |
+| SbSocketClearLastError       |                 |
+| SbSocketConnect              | connect         |
+| SbSocketCreate               | socket          |
+| SbSocketDestroy              | close           |
+| SbSocketFreeResolution       |                 |
+| SbSocketGetInterfaceAddress| | getifaddrs      |
+| SbSocketGetLastError         | errrno          |
+| SbSocketGetLocalAddress      | getsockname     |
+| SbSocketIsConnected          |                 |
+| SbSocketIsConnectedAndIdle   |                 |
+| SbSocketJoinMulticastGroup   | setsockopt      |
+| SbSocketListen               | listen          |
+| SbSocketReceiveFrom          | recv, recvfrom  |
+| SbSocketResolve              | getaddrinfo     |
+| SbSocketSendTo               | send, sendto    |
+| SbSocketSetBroadcast         | setsockopt      |
+| SbSocketSetReceiveBufferSize | setsockopt      |
+| SbSocketSetReuseAddress      | setsockopt      |
+| SbSocketSetSendBufferSize    | setsockopt      |
+| SbSocketSetTcpKeepAlive      | setsockopt      |
+| SbSocketSetTcpNoDelay        | setsockopt      |
+| SbSocketSetTcpWindowScaling  | setsockopt      |
+|                              | freeifaddrs     |
+|                              | inet_ntop       |
+
+### Strings
+| Removed Starboard APIs | Added POSIX APIs|
+|------------------------|-----------------|
+| SbStringCompareNoCase  | strcasecmp      |
+| SbStringCompareNoCaseN | strncasecmp     |
+| SbStringDuplicate      | strdup          |
+| SbStringScan           | vsscanf         |
+| SbStringFormat         | vsnprintf       |
+| SbStringFormatWide     | vfwprintf       |
+
+
+### Time
+| Removed Starboard APIs         | Added POSIX APIs|
+|--------------------------------|-----------------|
+| SbTimeGetMonotonicNow          | clock_gettime   |
+| SbTimeGetMonotonicThreadNow    | clock_gettime   |
+| SbTimeGetNow                   | gettimeofday    |
+| SbTimeIsTimeThreadNowSupported |                 |
+|                                | time            |
+
+### Related Starboard APIs Added
 
 ```
-.../elf_loader_sandbox
-.../content/app/nplb/lib/libnplb.so
-.../content/app/nplb/content
-```
-
-we would use the following command to run `nplb`:
-
-```
-.../elf_loader_sandbox --evergreen_library=app/nplb/lib/libnplb.so
-                       --evergreen_content=app/nplb/content
-```
-
-To build the `nplb` tests for Evergreen use the following commands.
-The first of which builds the test using the Evergreen toolchain and
-the second builds `elf_loader_sandbox` using the partner's toolchain:
-
-```
-
-ninja -C out/evergreen-arm-softfp_devel/ nplb_install
-ninja -C out/${PLATFORM}_devel/ elf_loader_sandbox_install
-
+SbThreadSetPriority
+SbThreadGetPriority
+SbPosixSocketWaiterAdd
+SbPosixSocketWaiterRemove
 ```
 
 
