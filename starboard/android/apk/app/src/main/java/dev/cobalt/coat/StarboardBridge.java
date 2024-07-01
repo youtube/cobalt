@@ -40,6 +40,7 @@ import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import dev.cobalt.account.UserAuthorizer;
+import dev.cobalt.media.ArtworkDownloader;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.CaptionSettings;
 import dev.cobalt.media.CobaltMediaSession;
@@ -121,6 +122,7 @@ public class StarboardBridge {
       Holder<Activity> activityHolder,
       Holder<Service> serviceHolder,
       UserAuthorizer userAuthorizer,
+      ArtworkDownloader artworkDownloader,
       String[] args,
       String startDeepLink) {
 
@@ -138,7 +140,7 @@ public class StarboardBridge {
     this.userAuthorizer = userAuthorizer;
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession =
-        new CobaltMediaSession(appContext, activityHolder, audioOutputManager);
+        new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     this.networkStatus = new NetworkStatus(appContext);
     this.resourceOverlay = new ResourceOverlay(appContext);

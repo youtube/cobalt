@@ -164,7 +164,6 @@ TEST(SbMediaBufferTest, MediaTypes) {
   }
 }
 
-#if SB_API_VERSION < 16
 TEST(SbMediaBufferTest, Alignment) {
   for (auto type : kMediaTypes) {
     // The test will be run more than once, it's redundant but allows us to keep
@@ -174,12 +173,12 @@ TEST(SbMediaBufferTest, Alignment) {
 #if SB_API_VERSION >= 16
     // SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return
     // value is no longer used when allocating media buffers.  This is verified
-    // explicitly here by ensuring its return value is 1.
+    // explicitly here by ensuring its return value is sizeof(void*).
     // The app MAY take best effort to allocate media buffers aligned to an
     // optimal alignment for the platform, but not guaranteed.
     // An implementation that has specific alignment requirement should check
     // the alignment of the incoming buffer, and make a copy when necessary.
-    EXPECT_EQ(alignment, 1);
+    EXPECT_EQ(alignment, sizeof(void*));
 #else   // SB_API_VERSION >= 16
     EXPECT_GE(alignment, 1);
     EXPECT_EQ(alignment & (alignment - 1), 0)
@@ -187,7 +186,6 @@ TEST(SbMediaBufferTest, Alignment) {
 #endif  // SB_API_VERSION >= 16
   }
 }
-#endif  // SB_API_VERSION < 16
 
 TEST(SbMediaBufferTest, AllocationUnit) {
   EXPECT_GE(SbMediaGetBufferAllocationUnit(), 0);
@@ -321,8 +319,14 @@ TEST(SbMediaBufferTest, StorageType) {
 #endif  // SB_API_VERSION < 16
 
 TEST(SbMediaBufferTest, UsingMemoryPool) {
+#if SB_API_VERSION < 16
   // Just don't crash.
   SbMediaIsBufferUsingMemoryPool();
+#else
+  EXPECT_TRUE(SbMediaIsBufferUsingMemoryPool())
+      << "This function is deprecated. Media buffer pools are always "
+      << "used in Starboard 16 and newer. Please see starboard/CHANGELOG.md";
+#endif  //  SB_API_VERSION < 16
 }
 
 TEST(SbMediaBufferTest, VideoBudget) {

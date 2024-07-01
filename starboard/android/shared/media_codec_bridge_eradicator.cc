@@ -44,11 +44,26 @@ struct EradicateParam {
 
 }  // namespace
 
-void MediaCodecBridgeEradicator::WaitForPendingDestructions() {
+bool MediaCodecBridgeEradicator::WaitForPendingDestructions() {
   ScopedLock scoped_lock(mutex_);
   while (!j_media_codec_bridge_set_.empty()) {
-    condition_variable_.Wait();
+    bool signaled =
+        condition_variable_.WaitTimed(GetTimeoutSeconds() * 1000 * 1000);
+    if (!signaled) {
+      // condition_variable_ timed out
+      SB_LOG(WARNING)
+          << "The child thread that runs "
+             "MediaCodecBridgeEradicator::DestroyMediaCodecBridge has not "
+             "terminated after ERADICATOR_THREAD_TIMEOUT_MICROSECOND, "
+             "potential thread leakage happened.";
+
+      // remove all values in j_media_codec_bridge_set_ to unblock
+      // creating new MediaCodecBridge instances.
+      j_media_codec_bridge_set_.clear();
+      return false;
+    }
   }
+  return true;
 }
 
 bool MediaCodecBridgeEradicator::Destroy(

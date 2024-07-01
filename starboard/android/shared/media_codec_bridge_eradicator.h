@@ -40,14 +40,23 @@ class MediaCodecBridgeEradicator {
 
   bool Destroy(jobject j_media_codec_bridge,
                jobject j_reused_get_output_format_result);
-  void WaitForPendingDestructions();
+  // Returns false if the wait for pending destructions has timed out.
+  bool WaitForPendingDestructions();
   bool IsEnabled() const { return is_enabled_.load(); }
   void SetEnabled(bool enabled) { is_enabled_.store(enabled); }
+  int GetTimeoutSeconds() const { return timeout_seconds_; }
+  void SetTimeoutSeconds(int timeout_seconds) {
+    timeout_seconds_ = timeout_seconds;
+  }
 
  private:
   static void* DestroyMediaCodecBridge(void* context);
 
-  atomic_bool is_enabled_;  // false by default
+  atomic_bool is_enabled_{false};
+  // Maximum wait time when creating a new MediaCodecBridge if the background
+  // cleanup thread (MediaCodecBridgeEradicator::DestroyMediaCodecBridge) is
+  // unresponsive.
+  int timeout_seconds_ = 2;
   Mutex mutex_;
   ConditionVariable condition_variable_{mutex_};
   std::set<jobject> j_media_codec_bridge_set_;

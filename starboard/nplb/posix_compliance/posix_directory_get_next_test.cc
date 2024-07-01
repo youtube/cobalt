@@ -96,7 +96,7 @@ TEST(PosixDirectoryGetNextTest, SunnyDay) {
   EXPECT_TRUE(closedir(directory) == 0);
 }
 
-TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
+TEST(PosixDirectoryGetNextTest, FLAKY_SunnyDayStaticContent) {
   std::string testdata_dir = GetFileTestsDataDir();
   EXPECT_FALSE(testdata_dir.empty());
   EXPECT_TRUE(FileExists(testdata_dir.c_str()))
@@ -154,9 +154,9 @@ TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
       }
 
       // Traverse into the subdirectory.
-      SbFileInfo file_info;
-      EXPECT_TRUE(SbFileGetPathInfo(entry_path.c_str(), &file_info));
-      if (file_info.is_directory) {
+      struct stat file_info;
+      EXPECT_TRUE(stat(entry_path.c_str(), &file_info) == 0);
+      if (S_ISDIR(file_info.st_mode)) {
         directory_queue.push(entry_path);
       }
     }

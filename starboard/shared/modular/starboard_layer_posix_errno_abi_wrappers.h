@@ -17,6 +17,8 @@
 
 #include <errno.h>
 
+#include "starboard/export.h"
+
 #define MUSL_EPERM 1
 #define MUSL_ENOENT 2
 #define MUSL_ESRCH 3
@@ -151,6 +153,128 @@
 #define MUSL_ENOTRECOVERABLE 131
 #define MUSL_ERFKILL 132
 #define MUSL_EHWPOISON 133
+
+inline bool errno_translation() {
+#if !defined(EPERM) || (EPERM != MUSL_EPERM) || !defined(ENOENT) ||           \
+    (ENOENT != MUSL_ENOENT) || !defined(ESRCH) || (ESRCH != MUSL_ESRCH) ||    \
+    !defined(EINTR) || (EINTR != MUSL_EINTR) || !defined(EIO) ||              \
+    (EIO != MUSL_EIO) || !defined(ENXIO) || (ENXIO != MUSL_ENXIO) ||          \
+    !defined(E2BIG) || (E2BIG != MUSL_E2BIG) || !defined(ENOEXEC) ||          \
+    (ENOEXEC != MUSL_ENOEXEC) || !defined(EBADF) || (EBADF != MUSL_EBADF) ||  \
+    !defined(ECHILD) || (ECHILD != MUSL_ECHILD) || !defined(EAGAIN) ||        \
+    (EAGAIN != MUSL_EAGAIN) || !defined(ENOMEM) || (ENOMEM != MUSL_ENOMEM) || \
+    !defined(EACCES) || (EACCES != MUSL_EACCES) || !defined(EFAULT) ||        \
+    (EFAULT != MUSL_EFAULT) || !defined(ENOTBLK) ||                           \
+    (ENOTBLK != MUSL_ENOTBLK) || !defined(EBUSY) || (EBUSY != MUSL_EBUSY) ||  \
+    !defined(EEXIST) || (EEXIST != MUSL_EEXIST) || !defined(EXDEV) ||         \
+    (EXDEV != MUSL_EXDEV) || !defined(ENODEV) || (ENODEV != MUSL_ENODEV) ||   \
+    !defined(ENOTDIR) || (ENOTDIR != MUSL_ENOTDIR) || !defined(EISDIR) ||     \
+    (EISDIR != MUSL_EISDIR) || !defined(EINVAL) || (EINVAL != MUSL_EINVAL) || \
+    !defined(ENFILE) || (ENFILE != MUSL_ENFILE) || !defined(EMFILE) ||        \
+    (EMFILE != MUSL_EMFILE) || !defined(ENOTTY) || (ENOTTY != MUSL_ENOTTY) || \
+    !defined(ETXTBSY) || (ETXTBSY != MUSL_ETXTBSY) || !defined(EFBIG) ||      \
+    (EFBIG != MUSL_EFBIG) || !defined(ENOSPC) || (ENOSPC != MUSL_ENOSPC) ||   \
+    !defined(ESPIPE) || (ESPIPE != MUSL_ESPIPE) || !defined(EROFS) ||         \
+    (EROFS != MUSL_EROFS) || !defined(EMLINK) || (EMLINK != MUSL_EMLINK) ||   \
+    !defined(EPIPE) || (EPIPE != MUSL_EPIPE) || !defined(EDOM) ||             \
+    (EDOM != MUSL_EDOM) || !defined(ERANGE) || (ERANGE != MUSL_ERANGE) ||     \
+    !defined(EDEADLK) || (EDEADLK != MUSL_EDEADLK) ||                         \
+    !defined(ENAMETOOLONG) || (ENAMETOOLONG != MUSL_ENAMETOOLONG) ||          \
+    !defined(ENOLCK) || (ENOLCK != MUSL_ENOLCK) || !defined(ENOSYS) ||        \
+    (ENOSYS != MUSL_ENOSYS) || !defined(ENOTEMPTY) ||                         \
+    (ENOTEMPTY != MUSL_ENOTEMPTY) || !defined(ELOOP) ||                       \
+    (ELOOP != MUSL_ELOOP) || !defined(EWOULDBLOCK) ||                         \
+    (EWOULDBLOCK != MUSL_EWOULDBLOCK) || !defined(ENOMSG) ||                  \
+    (ENOMSG != MUSL_ENOMSG) || !defined(EIDRM) || (EIDRM != MUSL_EIDRM) ||    \
+    !defined(ECHRNG) || (ECHRNG != MUSL_ECHRNG) || !defined(EL2NSYNC) ||      \
+    (EL2NSYNC != MUSL_EL2NSYNC) || !defined(EL3HLT) ||                        \
+    (EL3HLT != MUSL_EL3HLT) || !defined(EL3RST) || (EL3RST != MUSL_EL3RST) || \
+    !defined(ELNRNG) || (ELNRNG != MUSL_ELNRNG) || !defined(EUNATCH) ||       \
+    (EUNATCH != MUSL_EUNATCH) || !defined(ENOCSI) ||                          \
+    (ENOCSI != MUSL_ENOCSI) || !defined(EL2HLT) || (EL2HLT != MUSL_EL2HLT) || \
+    !defined(EBADE) || (EBADE != MUSL_EBADE) || !defined(EBADR) ||            \
+    (EBADR != MUSL_EBADR) || !defined(EXFULL) || (EXFULL != MUSL_EXFULL) ||   \
+    !defined(ENOANO) || (ENOANO != MUSL_ENOANO) || !defined(EBADRQC) ||       \
+    (EBADRQC != MUSL_EBADRQC) || !defined(EBADSLT) ||                         \
+    (EBADSLT != MUSL_EBADSLT) || !defined(EDEADLK) ||                         \
+    (EDEADLK != MUSL_EDEADLK) || !defined(EBFONT) ||                          \
+    (EBFONT != MUSL_EBFONT) || !defined(ENOSTR) || (ENOSTR != MUSL_ENOSTR) || \
+    !defined(ENODATA) || (ENODATA != MUSL_ENODATA) || !defined(ETIME) ||      \
+    (ETIME != MUSL_ETIME) || !defined(ENOSR) || (ENOSR != MUSL_ENOSR) ||      \
+    !defined(ENONET) || (ENONET != MUSL_ENONET) || !defined(ENOPKG) ||        \
+    (ENOPKG != MUSL_ENOPKG) || !defined(EREMOTE) ||                           \
+    (EREMOTE != MUSL_EREMOTE) || !defined(ENOLINK) ||                         \
+    (ENOLINK != MUSL_ENOLINK) || !defined(EADV) || (EADV != MUSL_EADV) ||     \
+    !defined(ESRMNT) || (ESRMNT != MUSL_ESRMNT) || !defined(ECOMM) ||         \
+    (ECOMM != MUSL_ECOMM) || !defined(EPROTO) || (EPROTO != MUSL_EPROTO) ||   \
+    !defined(EMULTIHOP) || (EMULTIHOP != MUSL_EMULTIHOP) ||                   \
+    !defined(EDOTDOT) || (EDOTDOT != MUSL_EDOTDOT) || !defined(EBADMSG) ||    \
+    (EBADMSG != MUSL_EBADMSG) || !defined(EOVERFLOW) ||                       \
+    (EOVERFLOW != MUSL_EOVERFLOW) || !defined(ENOTUNIQ) ||                    \
+    (ENOTUNIQ != MUSL_ENOTUNIQ) || !defined(EBADFD) ||                        \
+    (EBADFD != MUSL_EBADFD) || !defined(EREMCHG) ||                           \
+    (EREMCHG != MUSL_EREMCHG) || !defined(ELIBACC) ||                         \
+    (ELIBACC != MUSL_ELIBACC) || !defined(ELIBBAD) ||                         \
+    (ELIBBAD != MUSL_ELIBBAD) || !defined(ELIBSCN) ||                         \
+    (ELIBSCN != MUSL_ELIBSCN) || !defined(ELIBMAX) ||                         \
+    (ELIBMAX != MUSL_ELIBMAX) || !defined(ELIBEXEC) ||                        \
+    (ELIBEXEC != MUSL_ELIBEXEC) || !defined(EILSEQ) ||                        \
+    (EILSEQ != MUSL_EILSEQ) || !defined(ERESTART) ||                          \
+    (ERESTART != MUSL_ERESTART) || !defined(ESTRPIPE) ||                      \
+    (ESTRPIPE != MUSL_ESTRPIPE) || !defined(EUSERS) ||                        \
+    (EUSERS != MUSL_EUSERS) || !defined(ENOTSOCK) ||                          \
+    (ENOTSOCK != MUSL_ENOTSOCK) || !defined(EDESTADDRREQ) ||                  \
+    (EDESTADDRREQ != MUSL_EDESTADDRREQ) || !defined(EMSGSIZE) ||              \
+    (EMSGSIZE != MUSL_EMSGSIZE) || !defined(EPROTOTYPE) ||                    \
+    (EPROTOTYPE != MUSL_EPROTOTYPE) || !defined(ENOPROTOOPT) ||               \
+    (ENOPROTOOPT != MUSL_ENOPROTOOPT) || !defined(EPROTONOSUPPORT) ||         \
+    (EPROTONOSUPPORT != MUSL_EPROTONOSUPPORT) || !defined(ESOCKTNOSUPPORT) || \
+    (ESOCKTNOSUPPORT != MUSL_ESOCKTNOSUPPORT) || !defined(EOPNOTSUPP) ||      \
+    (EOPNOTSUPP != MUSL_EOPNOTSUPP) || !defined(EOPNOTSUPP) ||                \
+    (EOPNOTSUPP != MUSL_EOPNOTSUPP) || !defined(EPFNOSUPPORT) ||              \
+    (EPFNOSUPPORT != MUSL_EPFNOSUPPORT) || !defined(EAFNOSUPPORT) ||          \
+    (EAFNOSUPPORT != MUSL_EAFNOSUPPORT) || !defined(EADDRINUSE) ||            \
+    (EADDRINUSE != MUSL_EADDRINUSE) || !defined(EADDRNOTAVAIL) ||             \
+    (EADDRNOTAVAIL != MUSL_EADDRNOTAVAIL) || !defined(ENETDOWN) ||            \
+    (ENETDOWN != MUSL_ENETDOWN) || !defined(ENETUNREACH) ||                   \
+    (ENETUNREACH != MUSL_ENETUNREACH) || !defined(ENETRESET) ||               \
+    (ENETRESET != MUSL_ENETRESET) || !defined(ECONNABORTED) ||                \
+    (ECONNABORTED != MUSL_ECONNABORTED) || !defined(ECONNRESET) ||            \
+    (ECONNRESET != MUSL_ECONNRESET) || !defined(ENOBUFS) ||                   \
+    (ENOBUFS != MUSL_ENOBUFS) || !defined(EISCONN) ||                         \
+    (EISCONN != MUSL_EISCONN) || !defined(ENOTCONN) ||                        \
+    (ENOTCONN != MUSL_ENOTCONN) || !defined(ESHUTDOWN) ||                     \
+    (ESHUTDOWN != MUSL_ESHUTDOWN) || !defined(ETOOMANYREFS) ||                \
+    (ETOOMANYREFS != MUSL_ETOOMANYREFS) || !defined(ETIMEDOUT) ||             \
+    (ETIMEDOUT != MUSL_ETIMEDOUT) || !defined(ECONNREFUSED) ||                \
+    (ECONNREFUSED != MUSL_ECONNREFUSED) || !defined(EHOSTDOWN) ||             \
+    (EHOSTDOWN != MUSL_EHOSTDOWN) || !defined(EHOSTUNREACH) ||                \
+    (EHOSTUNREACH != MUSL_EHOSTUNREACH) || !defined(EALREADY) ||              \
+    (EALREADY != MUSL_EALREADY) || !defined(EINPROGRESS) ||                   \
+    (EINPROGRESS != MUSL_EINPROGRESS) || !defined(ESTALE) ||                  \
+    (ESTALE != MUSL_ESTALE) || !defined(EUCLEAN) ||                           \
+    (EUCLEAN != MUSL_EUCLEAN) || !defined(ENOTNAM) ||                         \
+    (ENOTNAM != MUSL_ENOTNAM) || !defined(ENAVAIL) ||                         \
+    (ENAVAIL != MUSL_ENAVAIL) || !defined(EISNAM) ||                          \
+    (EISNAM != MUSL_EISNAM) || !defined(EREMOTEIO) ||                         \
+    (EREMOTEIO != MUSL_EREMOTEIO) || !defined(EDQUOT) ||                      \
+    (EDQUOT != MUSL_EDQUOT) || !defined(ENOMEDIUM) ||                         \
+    (ENOMEDIUM != MUSL_ENOMEDIUM) || !defined(EMEDIUMTYPE) ||                 \
+    (EMEDIUMTYPE != MUSL_EMEDIUMTYPE) || !defined(ECANCELED) ||               \
+    (ECANCELED != MUSL_ECANCELED) || !defined(ENOKEY) ||                      \
+    (ENOKEY != MUSL_ENOKEY) || !defined(EKEYEXPIRED) ||                       \
+    (EKEYEXPIRED != MUSL_EKEYEXPIRED) || !defined(EKEYREVOKED) ||             \
+    (EKEYREVOKED != MUSL_EKEYREVOKED) || !defined(EKEYREJECTED) ||            \
+    (EKEYREJECTED != MUSL_EKEYREJECTED) || !defined(EOWNERDEAD) ||            \
+    (EOWNERDEAD != MUSL_EOWNERDEAD) || !defined(ENOTRECOVERABLE) ||           \
+    (ENOTRECOVERABLE != MUSL_ENOTRECOVERABLE) || !defined(ERFKILL) ||         \
+    (ERFKILL != MUSL_ERFKILL) || !defined(EHWPOISON) ||                       \
+    (EHWPOISON != MUSL_EHWPOISON)
+  return true;
+#else
+  return false;
+#endif
+}
 
 inline int errno_to_musl_errno(int platform_errno) {
   switch (platform_errno) {
@@ -684,5 +808,15 @@ inline int errno_to_musl_errno(int platform_errno) {
       return MUSL_EINVAL;
   }
 }
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+SB_EXPORT int* __abi_wrap___errno_location();
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_ERRNO_ABI_WRAPPERS_H_

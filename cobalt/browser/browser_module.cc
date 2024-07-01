@@ -38,6 +38,7 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/task_runner_util.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/cpu_usage_tracker.h"
 #include "cobalt/browser/on_screen_keyboard_extension_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
@@ -60,6 +61,7 @@
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
 #include "starboard/atomic.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
@@ -373,6 +375,8 @@ BrowserModule::BrowserModule(const GURL& url,
   options_.web_module_options.injected_global_object_attributes["h5vcc"] =
       base::Bind(&BrowserModule::CreateH5vccCallback, base::Unretained(this));
 
+  CpuUsageTracker::GetInstance()->Initialize(options_.persistent_settings);
+
   if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
     options_.web_module_options.limit_performance_timer_resolution = false;
   }
@@ -460,15 +464,16 @@ BrowserModule::~BrowserModule() {
 
   // Transition into the suspended state from whichever state we happen to
   // currently be in, to prepare for shutdown.
+  int64_t now = starboard::CurrentMonotonicTime();
   switch (application_state_) {
     case base::kApplicationStateStarted:
-      Blur(0);
+      Blur(now);
       FALLTHROUGH;
     case base::kApplicationStateBlurred:
-      Conceal(0);
+      Conceal(now);
       FALLTHROUGH;
     case base::kApplicationStateConcealed:
-      Freeze(0);
+      Freeze(now);
       break;
     case base::kApplicationStateStopped:
       NOTREACHED() << "BrowserModule does not support the stopped state.";

@@ -254,12 +254,12 @@ bool PathIsWritable(const FilePath &path) {
 
 bool DirectoryExists(const FilePath& path) {
   internal::AssertBlockingAllowed();
-  SbFileInfo info;
-  if (!SbFileGetPathInfo(path.value().c_str(), &info)) {
+  struct stat info;
+  if (stat(path.value().c_str(), &info) != 0) {
     return false;
   }
 
-  return info.is_directory;
+  return S_ISDIR(info.st_mode);
 }
 
 bool GetTempDir(FilePath *path) {
@@ -380,15 +380,15 @@ bool NormalizeFilePath(const FilePath& path, FilePath* normalized_path) {
 
 bool IsLink(const FilePath &file_path) {
   internal::AssertBlockingAllowed();
-  SbFileInfo info;
+  struct stat info;
 
-  // If we can't SbfileGetPathInfo on the file, it's safe to assume that the
+  // If we can't stat on the file, it's safe to assume that the
   // file won't at least be a 'followable' link.
-  if (!SbFileGetPathInfo(file_path.value().c_str(), &info)) {
+  if (stat(file_path.value().c_str(), &info) != 0) {
     return false;
   }
 
-  return info.is_symbolic_link;
+  return S_ISLNK(info.st_mode);
 }
 
 bool GetFileInfo(const FilePath &file_path, File::Info *results) {
