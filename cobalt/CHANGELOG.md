@@ -2,11 +2,139 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 25
+### New Features / Support
+ - Chromium M114 Update
+   - Upgraded most Chromium components to align with the M114 milestone release - including syncing the build environment and compilers
+ - HTTP/3 with IETF QUIC
+   - Integrated HTTP/3 with IETF standard QUIC for enhanced video playback performance in challenging network conditions
+ - Immersive Audio Model and Formats (IAMF)
+   - Added support for IAMF audio
+ - Android S Support
+   - Extended compatibility to Android S
+
+### Updates / Improvements
+ - Bundled ICU Data
+   - Integrated ICU data directly into the Cobalt binary, reducing the overall compressed size
+ - Logging and Telemetry Enhancements
+   - Improved logging and telemetry for update reliability and crash reporting
+
+### Evergreen
+ - LZ4 Compressed Binaries
+   - Made LZ4 compressed binaries the default distribution format
+ - Evergreen on AOSP
+   - Enabled Evergreen support on AOSP (Android Open Source)
+
 ## Version 24
- - **Cobalt has experimental Web Assembly capability
+### New Features / Support
+ - Touch support (starboard/input.h)
+
+   - Web standard scroll and navigation
+     - W3 [scroll container](https://www.w3.org/TR/css-overflow-3/#scroll-container) & [pointer event](https://www.w3.org/TR/pointerevents/) handling
+   - Set `kSbInputDeviceTypeTouchScreen`, `kSbInputDeviceTypeTouchPad`, or `kSbInputDeviceTypeMouse`
+
+ - Xbox code and builds are now open sourced
+ - Reference implementation for supporting [Cast media on Starboard](/starboard/contrib/cast/README.md) is available
+ - New counters ( [CVals](/cobalt/doc/cvals.md) ) for monitoring disk writes and WebP rendering speed
+ - Native telemetry from Cobalt through [Chrome UMA](https://chromium.googlesource.com/chromium/src/+/master/tools/metrics/histograms/README.md) ( User Metrics ) instrumentation
+
+ - Cobalt has experimental Web Assembly capability
 
    Web Assembly is enabled as experimental capabality on android-arm and
    development build configurations.
+
+ - Improved crash insights with application state added to crash reports
+ - Enable telemetry for media playback and microphone usage
+ - Fixed crashes related to pointers and rare race conditions
+
+### Updates / Improvements
+ - Core Features
+   - Implement Cobalt wrappers for `v8::CpuProfiler` for baseline [JS Self-Profiling API](https://wicg.github.io/js-self-profiling/)
+   - Improved DevTools Performance Timeline by enabling Tracing agent for V8 used by DevTools Performance Timeline
+   - Added `GetPersistentSetting()` API to `h5vcc_settings`
+   - Changed `ImportKeyAlgorithmParams` hash to `AlgorithmIdentifier`
+   - [Service Workers] Unshipped messages in message port will hold messages before destination is ready to receive
+   - Added `h5vcc` API for `PersistentSetting logTrace`
+     - `GetPersistentSettingLogtraceEnable()`
+     - `SetPersistentSettingLogtraceEnable(bool enable_logtrace)`
+   - Added `h5vcc` API `logTrace` to log webapp instrumentation events
+
+ - Evergreen
+   - Platform system image can now be a candidate for quick roll forward updates
+
+ - Introduced `modular` toolchain configuration(`SB_MODULAR_BUILD`)
+   - Different toolchains can now be used between builds for Starboard code and Cobalt code through binary compatibility
+   - See [starboard/CHANGELOG.md](/starboard/CHANGELOG.md#added-sb_modular_build-for-supporting-modular-builds)
+     for additional details
+ - Cobalt extensions are renamed to Starboard extensions, and reverse dependencies from Starboard to Cobalt code have been removed
+   - Use `cobalt/starboard/extension/` moving forward
+ - Reduced memory consumption while preloaded (results will vary depending on platform)
+ - Modular builds support, allowing building Cobalt and Starboard separately as shared libraries with different toolchains
+ - Several enhancements to Watchdog to detect application freezes
+ - Several core libraries have been updated
+   - `FreeType2(2.13.0)`
+   - `llvm/musl` along with Starboard `clang(16)` toolchain
+   - `zlib(1.2.11)`
+   - `brotli(v1.0.9)`
+   - `GTest/GMock(1.13)`
+   - `libXML(2.9.12)`
+
+ - Media
+   - NPLB `SbMediaConfigurationTest.ValidatePerformance` test adjusted `SbMediaGetAudioConfiguration` from 0.5 to 3ms
+   - Client settings now accept string parameters via `h5vcc::Settings`
+   - Media buffer params are now configurable via client code
+   - Stability fixes
+     - Fixes in audio stub renderer
+     - Fixed audio buffer alignment ensuring no data is written out-on-bounds
+     - Fixed crash in video demuxer during cleanup
+     - Fixed discarded duration overflow with partial audio frames
+     - Optimized media info playback time reporting for pause and VSP for smoother playback
+   - Improved error handling details in `PlayerWorker::Handler`
+   - Disabled Widevine privacy mode, by default
+   - Improved varied speed playback performance by enabling NEON optimization
+   - Deprecated `MediaError.kMediaErrCapabilityChanged` to be more spec compliant
+   - Reduced high CPU usage if tunnel mode is enabled
+   - `has_new_usable_key` now propagated with `onKeyStatusesChange` in CE CDM
+   - Renamed NPLB `test SbPlayerWriteSampleTest.PartialAudioDiscardAll` to `SbPlayerWriteSampleTest.DiscardAllAudio`
+   - Increased `PartialAudio test` segment size from 0.1 to 0.3 to improve performance
+   - Deprecated capability change media error (`MEDIA_ERR_CAPABILITY_CHANGED`, `PLAYBACK_CAPABILITY_CHANGED`)
+   - Fixed redundant `AudioDecoder` reset when destroying `AudioDecoder`
+   - Recreate codec to ensure more reliable test behavior with aac, ec3, and ac-3 codecs used in `PartialAudio` tests
+   - Fixed instances of reset all status failing in `AdaptiveAudioDecoder`
+   - Revised `OpusAudioDecoder::Reset()` via `OPUS_RESET_STATE` for more reliable `PartialAudio` tests
+   - Added a switch to enable resetting audio decoder
+     - MIME attribute - `enableresetaudiodecoder=true`
+   - Added option to prefer `decode-to-texture`
+     - `SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred)`
+
+ - Watchdog
+   - Increased maximum data stored for additional context
+   - Switched forcing crashes to use `H5vccCrashLog::TriggerCrash()` for reliability
+   - Ensure old data is periodically evicted
+   - Add support for non-unique client names
+   - Optimized implementation to remove unnecessary operations
+
+- Build
+   - Fixed Evergreen `crashpad_database_util` build issue on AOSP
+   - Fix compilation errors relating to `lz4` with newer `Glibc` versions
+   - Updated SSL certificates
+
+- General Stability
+   - Fixed a race condition crash with `MessageLoop` when receiving deeplinks
+   - Fixed a deadlock in Wasm that may cause ANR
+   - Fixed mismatched cache quotas issue by ensuring quotas are read and written from the same thread
+   - Doubled stack size for the Network thread to avoid intermittent stack overflows during local development
+   - Replaced `SbIcuInit` with `IcuInit` to ensure valid initialization
+   - Fixed incorrect usage of `std::remove_if`
+   - Fixed uninitialized `append_variable` in class constructors
+   - Added `CHECK` for `cobalt::loader::FetcherCache` for improved debugging insights
+   - Do not raise error in `HTMLMediaElement.h5vccAudioConnectors` and instead prefer `NOT_SUPPORTED`
+   - Added UMA telemetry for Format Queries and supporting tests
+   - DIAL improvements
+     - More reliable of DIAL service restarts to avoid IP address conflicts
+     - Avoid early returns to prepare next socket read
+     - Prevent UDP server from accepting M-Search requests after an empty read
+     - Ensure search request is parsed when read byte is zero
 
 ## Version 23
  - **Cobalt now uses GN (Generate Ninja) meta-build system**
