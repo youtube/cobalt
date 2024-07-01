@@ -10,7 +10,9 @@ extern "C" {
 #include <bits/errno.h>
 
 #ifdef __GNUC__
+#if !defined(STARBOARD)
 __attribute__((const))
+#endif
 #endif
 int *__errno_location(void);
 #define errno (*__errno_location())
