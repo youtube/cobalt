@@ -89,7 +89,7 @@ MediaSourceReadyState SameThreadMediaSourceAttachment::GetReadyState() const {
   return media_source_->ready_state();
 }
 
-void SameThreadMediaSourceAttachment::DurationChanged(double duration) {
+void SameThreadMediaSourceAttachment::NotifyDurationChanged(double duration) {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(attached_element_);
 

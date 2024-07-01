@@ -257,7 +257,7 @@ void MediaSource::set_duration(double duration,
   // 6. Update the media controller duration to new duration and run the
   //    HTMLMediaElement duration change algorithm.
   if (is_using_media_source_attachment_methods_) {
-    media_source_attachment_->DurationChanged(duration);
+    media_source_attachment_->NotifyDurationChanged(duration);
   } else {
     attached_element_->DurationChanged(duration, request_seek);
   }

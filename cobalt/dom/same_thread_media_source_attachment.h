@@ -52,7 +52,7 @@ class SameThreadMediaSourceAttachment : public MediaSourceAttachmentSupplement {
   MediaSourceReadyState GetReadyState() const override;
 
   // MediaSourceAttachmentSupplement
-  void DurationChanged(double duration) override;
+  void NotifyDurationChanged(double duration) override;
   bool HasMaxVideoCapabilities() const override;
   double GetRecentMediaTime() override;
   bool GetElementError() override;

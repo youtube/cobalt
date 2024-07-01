@@ -42,11 +42,27 @@ class MediaSourceAttachment
   MediaSourceAttachment() = default;
   ~MediaSourceAttachment() = default;
 
+  // These two methods are called in sequence when an HTMLMediaElement is
+  // attempting to attach to the MediaSource object using this attachment
+  // instance. The ChunkDemuxer is not available to the element initially, so
+  // between the two calls, the attachment could be considered partially setup.
+  // If attachment start fails (for example, if the underlying MediaSource is
+  // already attached, or if this attachment has already been unregistered from
+  // the MediaSourceRegistry), StartAttachingToMediaElement() returns false.
+  // Otherwise, the underlying MediaSource must be in 'closed' state, and
+  // indicates success by returning true.
+  // CompleteAttachingToMediaElement() provides the attached MediaSource with
+  // the underlying ChunkDemuxer, enabling parsing of media provided by the
+  // application for playback, for example.
+  // Once attached, the MediaSource and the HTMLMediaElement use each other via
+  // this attachment to accomplish the extended API.
   virtual bool StartAttachingToMediaElement(
       HTMLMediaElement* media_element) = 0;
   virtual void CompleteAttachingToMediaElement(
       ::media::ChunkDemuxer* chunk_demuxer) = 0;
+
   virtual void Close() = 0;
+
   virtual scoped_refptr<TimeRanges> GetBufferedRange() const = 0;
   virtual MediaSourceReadyState GetReadyState() const = 0;
 

@@ -28,6 +28,9 @@
 namespace cobalt {
 namespace dom {
 
+// Extension of the core MediaSourceAttachment interface. Includes extra
+// interface methods used by concrete attachments to communicate with the media
+// element.
 class MediaSourceAttachmentSupplement
     : public MediaSourceAttachment,
       public base::SupportsWeakPtr<MediaSourceAttachmentSupplement> {
@@ -35,10 +38,34 @@ class MediaSourceAttachmentSupplement
   MediaSourceAttachmentSupplement() = default;
   ~MediaSourceAttachmentSupplement() = default;
 
-  virtual void DurationChanged(double duration) = 0;
+  // Communicates a change in the media resource duration to the attached media
+  // element. In a same-thread attachment, communicates this information
+  // synchronously.
+  // Same-thread synchronous notification here is primarily to preserve
+  // compliance of API behavior when not using MSE-in-Worker (setting
+  // MediaSource.duration should be synchronously in agreement with subsequent
+  // retrieval of MediaElement.duration, all on the main thread).
+  virtual void NotifyDurationChanged(double duration) = 0;
+
+  // Retrieves whether or not the media element has max video capabilities.
+  // Implementations may chose to either directly, synchronously consult the
+  // attached media element or rely on the element to correctly pump its
+  // capabilities to this attachment (in a cross-thread implementation).
   virtual bool HasMaxVideoCapabilities() const = 0;
+
+  // Retrieves the current (or a recent) media element time. Implementations may
+  // choose to either directly, synchronously consult the attached media element
+  // or rely on a "recent" time pumped by the attached element via the
+  // MediaSourceAttachment interface (in a cross-thread implementation).
   virtual double GetRecentMediaTime() = 0;
+
+  // Retrieves whether or not the media element currently has an error.
+  // Implementations may choose to either directly, synchronously consult the
+  // attached media element or rely on the element to correctly pump when it
+  // has an error to this attachment (in a cross-thread implementation).
   virtual bool GetElementError() = 0;
+
+  // Construct track lists for use by a SourceBuffer.
   virtual scoped_refptr<AudioTrackList> CreateAudioTrackList(
       script::EnvironmentSettings* settings) = 0;
   virtual scoped_refptr<VideoTrackList> CreateVideoTrackList(
