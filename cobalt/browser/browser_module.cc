@@ -1712,7 +1712,10 @@ void BrowserModule::InstantiateRendererModule() {
 void BrowserModule::DestroyRendererModule() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(renderer_module_);
-
+  base::task_runner_util::PostBlockingTask(
+      web_module_->task_runner(), FROM_HERE,
+      base::Bind(&WebModule::WaitForItall,
+                 base::Unretained(web_module_.get())));
   screen_shot_writer_.reset();
   renderer_module_.reset();
 }
