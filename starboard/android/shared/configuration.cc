@@ -38,7 +38,7 @@ int CobaltEglSwapInterval() {
 }
 
 bool CobaltEnableQuic() {
-  return 0;
+  return 1;
 }
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
