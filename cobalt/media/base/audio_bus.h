@@ -21,7 +21,6 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/aligned_memory.h"
-#include "cobalt/export.h"
 
 namespace cobalt {
 namespace media {
@@ -37,7 +36,7 @@ namespace media {
 // second of such audio contains 48000 frames (96000 samples).
 // Note: This class doesn't do endianness conversions.  It assumes that all data
 // is in the correct endianness.
-class COBALT_EXPORT AudioBus {
+class AudioBus {
  public:
   // Guaranteed alignment of each channel's data; use 64-byte alignment so it
   // satisfies all our current platforms.  Note that this is only used for

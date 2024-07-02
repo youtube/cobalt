@@ -143,6 +143,8 @@ The result of a host name resolution.
 
 ### SbSocketAccept
 
+DEPRECATED with SB_API_VERSION 16
+
 Accepts a pending connection on `socket` and returns a new SbSocket representing
 that connection. This function sets the error on `socket` and returns
 `kSbSocketInvalid` if it is unable to accept a new connection.
@@ -156,6 +158,8 @@ SbSocket SbSocketAccept(SbSocket socket)
 ```
 
 ### SbSocketBind
+
+DEPRECATED with SB_API_VERSION 16
 
 Binds `socket` to a specific local interface and port specified by
 `local_address`. This function sets and returns the socket error if it is unable
@@ -178,6 +182,8 @@ SbSocketError SbSocketBind(SbSocket socket, const SbSocketAddress *local_address
 
 ### SbSocketClearLastError
 
+DEPRECATED with SB_API_VERSION 16
+
 Clears the last error set on `socket`. The return value indicates whether the
 socket error was cleared.
 
@@ -188,6 +194,8 @@ bool SbSocketClearLastError(SbSocket socket)
 ```
 
 ### SbSocketConnect
+
+DEPRECATED with SB_API_VERSION 16
 
 Opens a connection of `socket`'s type to the host and port specified by
 `address`. This function sets and returns the socket error if it is unable to
@@ -204,6 +212,8 @@ SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress *address)
 ```
 
 ### SbSocketCreate
+
+DEPRECATED with SB_API_VERSION 16
 
 Creates a new non-blocking socket for protocol `protocol` using address family
 `address_type`.
@@ -224,6 +234,8 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type, SbSocketProtocol proto
 
 ### SbSocketDestroy
 
+DEPRECATED with SB_API_VERSION 16
+
 Destroys the `socket` by flushing it, closing any connection that may be active
 on it, and reclaiming any resources associated with it, including any
 registration with an `SbSocketWaiter`.
@@ -242,6 +254,8 @@ bool SbSocketDestroy(SbSocket socket)
 
 ### SbSocketFreeResolution
 
+DEPRECATED with SB_API_VERSION 16
+
 Frees a resolution allocated by SbSocketResolve.
 
 `resolution`: The resolution to be freed.
@@ -253,6 +267,8 @@ void SbSocketFreeResolution(SbSocketResolution *resolution)
 ```
 
 ### SbSocketGetInterfaceAddress
+
+DEPRECATED with SB_API_VERSION 16
 
 Gets the source address and the netmask that would be used to connect to the
 destination. The netmask parameter is optional, and only populated if a non-NULL
@@ -296,6 +312,8 @@ bool SbSocketGetInterfaceAddress(const SbSocketAddress *const destination, SbSoc
 
 ### SbSocketGetLastError
 
+DEPRECATED with SB_API_VERSION 16
+
 Returns the last error set on `socket`. If `socket` is not valid, this function
 returns `kSbSocketErrorFailed`.
 
@@ -308,6 +326,8 @@ SbSocketError SbSocketGetLastError(SbSocket socket)
 ```
 
 ### SbSocketGetLocalAddress
+
+DEPRECATED with SB_API_VERSION 16
 
 Gets the address that this socket is bound to locally, if the socket is
 connected. The return value indicates whether the address was retrieved
@@ -324,6 +344,8 @@ bool SbSocketGetLocalAddress(SbSocket socket, SbSocketAddress *out_address)
 
 ### SbSocketIsConnected
 
+DEPRECATED with SB_API_VERSION 16
+
 Indicates whether `socket` is connected to anything. Invalid sockets are not
 connected.
 
@@ -336,6 +358,8 @@ bool SbSocketIsConnected(SbSocket socket)
 ```
 
 ### SbSocketIsConnectedAndIdle
+
+DEPRECATED with SB_API_VERSION 16
 
 Returns whether `socket` is connected to anything, and, if so, whether it is
 receiving any data.
@@ -370,6 +394,8 @@ static bool SbSocketIsValid(SbSocket socket)
 
 ### SbSocketJoinMulticastGroup
 
+DEPRECATED with SB_API_VERSION 16
+
 Joins `socket` to an IP multicast group identified by `address`. The equivalent
 of IP_ADD_MEMBERSHIP. The return value indicates whether the socket was joined
 to the group successfully.
@@ -385,6 +411,8 @@ bool SbSocketJoinMulticastGroup(SbSocket socket, const SbSocketAddress *address)
 
 ### SbSocketListen
 
+DEPRECATED with SB_API_VERSION 16
+
 Causes `socket` to listen on the local address that `socket` was previously
 bound to by SbSocketBind. This function sets and returns the socket error if it
 is unable to listen for some reason. (It returns `kSbSocketOk` if it creates the
@@ -399,6 +427,8 @@ SbSocketError SbSocketListen(SbSocket socket)
 ```
 
 ### SbSocketReceiveFrom
+
+DEPRECATED with SB_API_VERSION 16
 
 Reads up to `data_size` bytes from `socket` into `out_data` and places the
 source address of the packet in `out_source` if out_source is not NULL. Returns
@@ -428,6 +458,8 @@ int SbSocketReceiveFrom(SbSocket socket, char *out_data, int data_size, SbSocket
 
 ### SbSocketResolve
 
+DEPRECATED with SB_API_VERSION 16
+
 Synchronously resolves `hostname` into the returned SbSocketResolution , which
 must be freed with SbSocketFreeResolution. The function returns `NULL` if it is
 unable to resolve `hostname`.
@@ -445,6 +477,8 @@ SbSocketResolution* SbSocketResolve(const char *hostname, int filters)
 ```
 
 ### SbSocketSendTo
+
+DEPRECATED with SB_API_VERSION 16
 
 Writes up to `data_size` bytes of `data` to `destination` via `socket`. Returns
 the number of bytes written, or a negative number if there is an error, in which
@@ -474,6 +508,8 @@ int SbSocketSendTo(SbSocket socket, const char *data, int data_size, const SbSoc
 
 ### SbSocketSetBroadcast
 
+DEPRECATED with SB_API_VERSION 16
+
 Sets the `SO_BROADCAST`, or equivalent, option to `value` on `socket`. The
 return value indicates whether the option was actually set.
 
@@ -491,6 +527,8 @@ bool SbSocketSetBroadcast(SbSocket socket, bool value)
 
 ### SbSocketSetReceiveBufferSize
 
+DEPRECATED with SB_API_VERSION 16
+
 Sets the `SO_RCVBUF`, or equivalent, option to `size` on `socket`. The return
 value indicates whether the option was actually set.
 
@@ -504,6 +542,8 @@ bool SbSocketSetReceiveBufferSize(SbSocket socket, int32_t size)
 ```
 
 ### SbSocketSetReuseAddress
+
+DEPRECATED with SB_API_VERSION 16
 
 Sets the `SO_REUSEADDR`, or equivalent, option to `value` on `socket`. The
 return value indicates whether the option was actually set.
@@ -522,6 +562,8 @@ bool SbSocketSetReuseAddress(SbSocket socket, bool value)
 
 ### SbSocketSetSendBufferSize
 
+DEPRECATED with SB_API_VERSION 16
+
 Sets the `SO_SNDBUF`, or equivalent, option to `size` on `socket`. The return
 value indicates whether the option was actually set.
 
@@ -536,22 +578,26 @@ bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size)
 
 ### SbSocketSetTcpKeepAlive
 
+DEPRECATED with SB_API_VERSION 16
+
 Sets the `SO_KEEPALIVE`, or equivalent, option to `value` on `socket`. The
 return value indicates whether the option was actually set.
 
 `socket`: The SbSocket for which the option is set. `value`: If set to `true`,
-then `period` specifies the minimum time (SbTime) is always in microseconds)
-between keep-alive packets. If set to `false`, `period` is ignored. `period`:
-The time between keep-alive packets. This value is only relevant if `value` is
-`true`.
+then `period` specifies the minimum time in microseconds between keep-alive
+packets. If set to `false`, `period` is ignored. `period`: The time in
+microseconds between keep-alive packets. This value is only relevant if `value`
+is `true`.
 
 #### Declaration
 
 ```
-bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, SbTime period)
+bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, int64_t period)
 ```
 
 ### SbSocketSetTcpNoDelay
+
+DEPRECATED with SB_API_VERSION 16
 
 Sets the `TCP_NODELAY`, or equivalent, option to `value` on `socket`. The return
 value indicates whether the option was actually set.
@@ -571,6 +617,8 @@ bool SbSocketSetTcpNoDelay(SbSocket socket, bool value)
 ```
 
 ### SbSocketSetTcpWindowScaling
+
+DEPRECATED with SB_API_VERSION 16
 
 Sets the `SO_WINSCALE`, or equivalent, option to `value` on `socket`. The return
 value indicates whether the option was actually set.

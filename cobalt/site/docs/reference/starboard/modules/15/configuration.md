@@ -53,12 +53,6 @@ will trigger a compiler warning when referenced.
 SB_DEPRECATED_EXTERNAL(...) annotates the function as deprecated for external
 clients, but not deprecated for starboard.
 
-### SB_EXPERIMENTAL_API_VERSION
-
-The API version that is currently open for changes, and therefore is not stable
-or frozen. Production-oriented ports should avoid declaring that they implement
-the experimental Starboard API version.
-
 ### SB_FUNCTION
 
 Whether we use **PRETTY_FUNCTION** PRETTY_FUNCTION or **FUNCTION** FUNCTION for
@@ -71,14 +65,10 @@ header available.
 
 ### SB_HAS_64_BIT_ATOMICS
 
-Whether the current platform has 64-bit atomic operations.
-
-### SB_HAS_GLES2
-
-Specifies whether this platform has a performant OpenGL ES 2 implementation,
-which allows client applications to use GL rendering paths. Derived from the gyp
-variable `gl_type` gl_type which indicates what kind of GL implementation is
-available.
+SB_C_FORCE_INLINE annotation for forcing a C function to be inlined.
+SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries.
+SB_IMPORT_PLATFORM annotates symbols as imported from shared libraries. Whether
+the current platform has 64-bit atomic operations.
 
 ### SB_HAS_QUIRK(SB_FEATURE)
 
@@ -99,7 +89,7 @@ Macro for hinting that an expression is likely to be true.
 ### SB_MAXIMUM_API_VERSION
 
 The maximum API version allowed by this version of the Starboard headers,
-inclusive.
+inclusive. The API version is not stable and is open for changes.
 
 ### SB_MINIMUM_API_VERSION
 
@@ -110,11 +100,6 @@ inclusive.
 
 Macro to annotate a function as noreturn, which signals to the compiler that the
 function cannot return.
-
-### SB_OVERRIDE
-
-Declares a function as overriding a virtual function on compilers that support
-it.
 
 ### SB_PREFERRED_RGBA_BYTE_ORDER_RGBA
 
@@ -136,7 +121,7 @@ base/compiler_specific.h)
 
 Include the platform-specific configuration. This macro is set by GN in
 starboard/build/config/BUILD.gn and passed in on the command line for all
-targets and all configurations.Makes a pointer-typed parameter restricted so
+targets and all configurations. Makes a pointer-typed parameter restricted so
 that the compiler can make certain optimizations because it knows the pointers
 are unique.
 

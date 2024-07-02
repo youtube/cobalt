@@ -44,9 +44,12 @@ data may come from multiple sources.
 *   `kMatroskaBlockAdditional`
 
     The side data comes from the BlockAdditional data in the Matroska/Webm
-    container, as specified in [https://tools.ietf.org/id/draft-lhomme-cellar-matroska-03.html#rfc.section.7.3.39](https://tools.ietf.org/id/draft-lhomme-cellar-matroska-03.html#rfc.section.7.3.39)9) andnd [https://www.webmproject.org/docs/container/#BlockAdditional](https://www.webmproject.org/docs/container/#BlockAdditional)l)
-    . The first 8 bytes of the data contains the value of BlockAddID in big
-    endian format, followed by the content of BlockAdditional.
+    container. The first 8 bytes of the data contains the value of BlockAddID in
+    big endian format, followed by the content of BlockAdditional. See:
+
+        [https://datatracker.ietf.org/doc/draft-lhomme-cellar-matroska/03](https://datatracker.ietf.org/doc/draft-lhomme-cellar-matroska/03)
+
+        [https://www.webmproject.org/docs/container/#BlockAdditional](https://www.webmproject.org/docs/container/#BlockAdditional)
 
 ### SbPlayerState
 
@@ -122,10 +125,13 @@ typedef void(* SbPlayerDecoderStatusFunc) (SbPlayer player, void *context, SbMed
 
 ### SbPlayerErrorFunc
 
-Callback for player errors, that may set a `message`. `error`: indicates the
-error code. `message`: provides specific informative diagnostic message about
-the error condition encountered. It is ok for the message to be an empty string
-or NULL if no information is available.
+Callback for player errors, that may set a `message`.
+
+`error`: indicates the error code.
+
+`message`: provides specific informative diagnostic message about the error
+condition encountered. It is ok for the message to be an empty string or NULL if
+no information is available.
 
 #### Definition
 
@@ -184,14 +190,14 @@ Information about the current media playback state.
 
 #### Members
 
-*   `SbTime current_media_timestamp`
+*   `int64_t current_media_timestamp`
 
     The position of the playback head, as precisely as possible, in
     microseconds.
-*   `SbTime duration`
+*   `int64_t duration`
 
     The known duration of the currently playing media stream, in microseconds.
-*   `SbTime start_date`
+*   `int64_t start_date`
 
     The result of getStartDate for the currently playing media stream, in
     microseconds since the epoch of January 1, 1601 UTC.
@@ -242,9 +248,9 @@ Information about the samples to be written into SbPlayerWriteSamples().
 *   `int buffer_size`
 
     Size of the data pointed to by `buffer`.
-*   `SbTime timestamp`
+*   `int64_t timestamp`
 
-    The timestamp of the sample in SbTime.
+    The timestamp of the sample in microseconds since Windows epoch UTC.
 *   `SbPlayerSampleSideData* side_data`
 
     Points to an array of side data for the input, when available.
@@ -284,20 +290,123 @@ coming from multiple sources.
 
 ## Functions
 
+### SbPlayerCreate
+
+Creates a player that will be displayed on `window` for the specified
+`video_codec` and `audio_codec`, acquiring all resources needed to operate it,
+and returning an opaque handle to it. The expectation is that a new player will
+be created and destroyed for every playback.
+
+This function returns the created player. Note the following:
+
+*   The associated decoder of the returned player should be assumed to not be in
+    `kSbPlayerDecoderStateNeedsData` until SbPlayerSeek() has been called on it.
+
+*   It is expected either that the thread that calls SbPlayerCreate is the same
+    thread that calls the other `SbPlayer` functions for that player, or that
+    there is a mutex guarding calls into each `SbPlayer` instance.
+
+*   If there is a platform limitation on how many players can coexist
+    simultaneously, then calls made to this function that attempt to exceed that
+    limit must return `kSbPlayerInvalid`. Multiple calls to SbPlayerCreate must
+    not cause a crash.
+
+`window`: The window that will display the player. `window` can be
+`kSbWindowInvalid` for platforms where video is only displayed on a particular
+window that the underlying implementation already has access to.
+
+`video_codec`: The video codec used for the player. If `video_codec` is
+`kSbMediaVideoCodecNone`, the player is an audio-only player. If `video_codec`
+is any other value, the player is an audio/video decoder. This can be set to
+`kSbMediaVideoCodecNone` to play a video with only an audio track.
+
+`audio_codec`: The audio codec used for the player. The caller must provide a
+populated `audio_sample_info` if audio codec is `kSbMediaAudioCodecAac`. Can be
+set to `kSbMediaAudioCodecNone` to play a video without any audio track. In such
+case `audio_sample_info` must be NULL.
+
+`drm_system`: If the media stream has encrypted portions, then this parameter
+provides an appropriate DRM system, created with `SbDrmCreateSystem()`. If the
+stream does not have encrypted portions, then `drm_system` may be
+`kSbDrmSystemInvalid`.
+
+`audio_sample_info`: Note that the caller must provide a populated
+`audio_sample_info` if the audio codec is `kSbMediaAudioCodecAac`. Otherwise,
+`audio_sample_info` can be NULL. See media.h for the format of the
+`SbMediaAudioSampleInfo` struct.
+
+Note that `audio_specific_config` is a pointer and the content it points to is
+no longer valid after this function returns. The implementation has to make a
+copy of the content if it is needed after the function returns.
+
+`max_video_capabilities`: This string communicates the max video capabilities
+required to the platform. The web app will not provide a video stream exceeding
+the maximums described by this parameter. Allows the platform to optimize
+playback pipeline for low quality video streams if it knows that it will never
+adapt to higher quality streams. The string uses the same format as the string
+passed in to SbMediaCanPlayMimeAndKeySystem(), for example, when it is set to
+"width=1920; height=1080; framerate=15;", the video will never adapt to
+resolution higher than 1920x1080 or frame per second higher than 15 fps. When
+the maximums are unknown, this will be set to NULL.
+
+`sample_deallocator_func`: If not `NULL`, the player calls this function on an
+internal thread to free the sample buffers passed into SbPlayerWriteSample().
+
+`decoder_status_func`: If not `NULL`, the decoder calls this function on an
+internal thread to provide an update on the decoder's status. No work should be
+done on this thread. Rather, it should just signal the client thread interacting
+with the decoder.
+
+`player_status_func`: If not `NULL`, the player calls this function on an
+internal thread to provide an update on the playback status. No work should be
+done on this thread. Rather, it should just signal the client thread interacting
+with the decoder.
+
+`player_error_func`: If not `NULL`, the player calls this function on an
+internal thread to provide an update on the error status. This callback is
+responsible for setting the media error message.
+
+`context`: This is passed to all callbacks and is generally used to point at a
+class or struct that contains state associated with the player.
+
+`output_mode`: Selects how the decoded video frames will be output. For example,
+kSbPlayerOutputModePunchOut indicates that the decoded video frames will be
+output to a background video layer by the platform, and
+kSbPlayerOutputDecodeToTexture indicates that the decoded video frames should be
+made available for the application to pull via calls to
+SbPlayerGetCurrentFrame().
+
+`provider`: Only present in Starboard version 3 and up. If not `NULL`, then when
+output_mode == kSbPlayerOutputModeDecodeToTexture, the player MAY use the
+provider to create SbDecodeTargets on the renderer thread. A provider may not
+always be needed by the player, but if it is needed, and the provider is not
+given, the player will fail by returning `kSbPlayerInvalid`.
+
+If `NULL` is passed to any of the callbacks (`sample_deallocator_func`,
+`decoder_status_func`, `player_status_func`, or `player_error_func` if it
+applies), then `kSbPlayerInvalid` must be returned.
+
+#### Declaration
+
+```
+SbPlayer SbPlayerCreate(SbWindow window, const SbPlayerCreationParam *creation_param, SbPlayerDeallocateSampleFunc sample_deallocate_func, SbPlayerDecoderStatusFunc decoder_status_func, SbPlayerStatusFunc player_status_func, SbPlayerErrorFunc player_error_func, void *context, SbDecodeTargetGraphicsContextProvider *context_provider)
+```
+
 ### SbPlayerDestroy
 
 Destroys `player`, freeing all associated resources.
 
 *   Upon calling this method, there should be one call to the player status
     callback (i.e. `player_status_func` used in the creation of the player)
-    which indicates the player is destroyed. Note, the callback has to be in-
-    flight when SbPlayerDestroyed is called.
+    which indicates the player is destroyed. Note, the callback has to be
+    inflight when SbPlayerDestroyed is called.
 
 *   No more other callbacks should be issued after this function returns.
 
 *   It is not allowed to pass `player` into any other `SbPlayer` function once
-    SbPlayerDestroy has been called on that player. `player`: The player to be
-    destroyed. Must not be `kSbPlayerInvalid`.
+    SbPlayerDestroy has been called on that player.
+
+`player`: The player to be destroyed. Must not be `kSbPlayerInvalid`.
 
 #### Declaration
 
@@ -323,19 +432,36 @@ kSbDecodeTargetInvalid is returned.
 SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player)
 ```
 
+### SbPlayerGetInfo2
+
+Gets a snapshot of the current player state and writes it to `out_player_info`.
+This function may be called very frequently and is expected to be inexpensive.
+
+`player`: The player about which information is being retrieved. Must not be
+`kSbPlayerInvalid`.
+
+`out_player_info`: The information retrieved for the player.
+
+#### Declaration
+
+```
+void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2 *out_player_info2)
+```
+
 ### SbPlayerGetMaximumNumberOfSamplesPerWrite
 
-Writes a single sample of the given media type to `player`'s input stream. Its
-data may be passed in via more than one buffers. The lifetime of
-`sample_buffers`, `sample_buffer_sizes`, `video_sample_info`, and
-`sample_drm_info` (as well as member `subsample_mapping` contained inside it)
-are not guaranteed past the call to SbPlayerWriteSample. That means that before
-returning, the implementation must synchronously copy any information it wants
-to retain from those structures.
+Returns the maximum number of samples that can be written in a single call to
+SbPlayerWriteSamples(). Returning a value greater than one can improve
+performance by allowing SbPlayerWriteSamples() to write multiple samples in one
+call.
 
-`player`: The player for which the number is retrieved. `sample_type`: The type
-of sample for which the number is retrieved. See the `SbMediaType` enum in
-media.h.
+Note that this feature is currently disabled in Cobalt where
+SbPlayerWriteSamples() will always be called with one sample.
+
+`player`: The player for which the number is retrieved.
+
+`sample_type`: The type of sample for which the number is retrieved. See the
+`SbMediaType` enum in media.h.
 
 #### Declaration
 
@@ -377,6 +503,45 @@ Returns whether the given player handle is valid.
 static bool SbPlayerIsValid(SbPlayer player)
 ```
 
+### SbPlayerSeek2
+
+Tells the player to freeze playback (if playback has already started), reset or
+flush the decoder pipeline, and go back to the Prerolling state. The player
+should restart playback once it can display the frame at `seek_to_timestamp`, or
+the closest it can get. (Some players can only seek to I-Frames, for example.)
+
+*   Seek must be called before samples are sent when starting playback for the
+    first time, or the client never receives the
+    `kSbPlayerDecoderStateNeedsData` signal.
+
+*   A call to seek may interrupt another seek.
+
+*   After this function is called, the client should not send any more audio or
+    video samples until `SbPlayerDecoderStatusFunc` is called back with
+    `kSbPlayerDecoderStateNeedsData` for each required media type.
+    `SbPlayerDecoderStatusFunc` is the `decoder_status_func` callback function
+    that was specified when the player was created (SbPlayerCreate).
+
+`player`: The SbPlayer in which the seek operation is being performed. Must not
+be `kSbPlayerInvalid`.
+
+`seek_to_timestamp`: The frame at which playback should begin.
+
+`ticket`: A user-supplied unique ID to be passed to all subsequent
+`SbPlayerDecoderStatusFunc` calls. (That is the `decoder_status_func` callback
+function specified when calling SbPlayerCreate.)
+
+The `ticket` value is used to filter calls that may have been in flight when
+SbPlayerSeek was called. To be very specific, once SbPlayerSeek has been called
+with ticket X, a client should ignore all `SbPlayerDecoderStatusFunc` calls that
+do not pass in ticket X.
+
+#### Declaration
+
+```
+void SbPlayerSeek2(SbPlayer player, int64_t seek_to_timestamp, int ticket)
+```
+
 ### SbPlayerSetBounds
 
 Sets the player bounds to the given graphics plane coordinates. The changes do
@@ -392,11 +557,18 @@ implementors should take care to avoid related performance concerns with such
 frequent calls.
 
 `player`: The player that is being resized. Must not be `kSbPlayerInvalid`.
+
 `z_index`: The z-index of the player. When the bounds of multiple players are
 overlapped, the one with larger z-index will be rendered on top of the ones with
-smaller z-index. `x`: The x-coordinate of the upper-left corner of the player.
-`y`: The y-coordinate of the upper-left corner of the player. `width`: The width
-of the player, in pixels. `height`: The height of the player, in pixels.
+smaller z-index.
+
+`x`: The x-coordinate of the upper-left corner of the player.
+
+`y`: The y-coordinate of the upper-left corner of the player.
+
+`width`: The width of the player, in pixels.
+
+`height`: The height of the player, in pixels.
 
 #### Declaration
 
@@ -430,9 +602,11 @@ bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate)
 Sets the player's volume.
 
 `player`: The player in which the volume is being adjusted. Must not be
-`kSbPlayerInvalid`. `volume`: The new player volume. The value must be between
-`0.0` and `1.0`, inclusive. A value of `0.0` means that the audio should be
-muted, and a value of `1.0` means that it should be played at full volume.
+`kSbPlayerInvalid`.
+
+`volume`: The new player volume. The value must be between `0.0` and `1.0`,
+inclusive. A value of `0.0` means that the audio should be muted, and a value of
+`1.0` means that it should be played at full volume.
 
 #### Declaration
 
@@ -447,8 +621,9 @@ there are no more samples for that media type for the remainder of this media
 stream. This marker is invalidated, along with the rest of the stream's
 contents, after a call to SbPlayerSeek.
 
-`player`: The player to which the marker is written. `stream_type`: The type of
-stream for which the marker is written.
+`player`: The player to which the marker is written.
+
+`stream_type`: The type of stream for which the marker is written.
 
 #### Declaration
 
@@ -458,14 +633,29 @@ void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type)
 
 ### SbPlayerWriteSample2
 
+Writes samples of the given media type to `player`'s input stream. The lifetime
+of `sample_infos`, and the members of its elements like `buffer`,
+`video_sample_info`, and `drm_info` (as well as member `subsample_mapping`
+contained inside it) are not guaranteed past the call to SbPlayerWriteSamples().
+That means that before returning, the implementation must synchronously copy any
+information it wants to retain from those structures.
+
+SbPlayerWriteSamples() allows writing of multiple samples in one call.
+
+`player`: The player to which the sample is written. Must not be
+`kSbPlayerInvalid`.
+
 `sample_type`: The type of sample being written. See the `SbMediaType` enum in
-media.h. `sample_infos`: A pointer to an array of SbPlayerSampleInfo with
+media.h.
+
+`sample_infos`: A pointer to an array of SbPlayerSampleInfo with
 `number_of_sample_infos` elements, each holds the data for an sample, i.e. a
 sequence of whole NAL Units for video, or a complete audio frame. `sample_infos`
 cannot be assumed to live past the call into SbPlayerWriteSamples(), so it must
 be copied if its content will be used after SbPlayerWriteSamples() returns.
+
 `number_of_sample_infos`: Specify the number of samples contained inside
-`sample_infos`. It has to be at least one, and less than the return value of
+`sample_infos`. It has to be at least one, and at most the return value of
 SbPlayerGetMaximumNumberOfSamplesPerWrite().
 
 #### Declaration
