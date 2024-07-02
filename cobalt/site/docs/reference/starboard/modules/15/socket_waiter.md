@@ -92,6 +92,8 @@ typedef void(* SbSocketWaiterCallback) (SbSocketWaiter waiter, SbSocket socket, 
 
 ### SbSocketWaiterAdd
 
+DEPRECATED with SB_API_VERSION 16
+
 Adds a new socket to be waited on by the `waiter` with a bitfield of
 `interests`. This function should only be called on the thread that waits on
 this waiter.
@@ -164,6 +166,8 @@ static bool SbSocketWaiterIsValid(SbSocketWaiter watcher)
 
 ### SbSocketWaiterRemove
 
+DEPRECATED with SB_API_VERSION 16
+
 Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter. This
 function should only be called on the thread that waits on this waiter.
 
@@ -202,15 +206,15 @@ SbSocketWaiterWakeUp() it not called by that time.
 The return value indicates the reason that the socket waiter exited. This
 function should only be called on the thread that waits on this waiter.
 
-`duration`: The minimum amount of time after which the socket waiter should exit
-if it is not woken up before then. As with SbThreadSleep() (see thread.h), this
-function may wait longer than `duration`, such as if the timeout expires while a
-callback is being fired.
+`duration`: The minimum amount of time in microseconds after which the socket
+waiter should exit if it is not woken up before then. As with SbThreadSleep()
+(see thread.h), this function may wait longer than `duration`, such as if the
+timeout expires while a callback is being fired.
 
 #### Declaration
 
 ```
-SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter, SbTime duration)
+SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter, int64_t duration)
 ```
 
 ### SbSocketWaiterWakeUp
