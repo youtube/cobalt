@@ -282,6 +282,14 @@ services:
       TARGET_CPU: ${TARGET_CPU:-x86}
       SB_API_VERSION: ${SB_API_VERSION}
 
+  android-test:
+    <<: *build-common-definitions
+    image: cobalt-android-test
+    build:
+      context: ./docker/linux/android_test
+      dockerfile: ./Dockerfile
+    depends_on: [ build-android ]
+
   android-arm:
     <<: *build-common-definitions
     image: cobalt-build-android
