@@ -40,7 +40,7 @@ class MediaSourceAttachment
   typedef web::UrlRegistry<MediaSourceAttachment> Registry;
 
   MediaSourceAttachment() = default;
-  ~MediaSourceAttachment() = default;
+  ~MediaSourceAttachment() override = default;
 
   // These two methods are called in sequence when an HTMLMediaElement is
   // attempting to attach to the MediaSource object using this attachment
@@ -66,7 +66,7 @@ class MediaSourceAttachment
   virtual scoped_refptr<TimeRanges> GetBufferedRange() const = 0;
   virtual MediaSourceReadyState GetReadyState() const = 0;
 
-  // TODO: b/338425449 - Remove media_source method after rollout.
+  // TODO(b/338425449): Remove media_source method after rollout.
   // References to underlying objects are exposed for when the H5VCC
   // flag MediaElement.EnableUsingMediaSourceAttachmentMethods is disabled.
   virtual scoped_refptr<MediaSource> media_source() const = 0;

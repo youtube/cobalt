@@ -180,16 +180,17 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
       media_source_(media_source),
       chunk_demuxer_(chunk_demuxer),
       event_queue_(event_queue),
-      audio_tracks_(
+      is_using_media_source_attachment_methods_(
           IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
-              environment_settings())
+              environment_settings())),
+      audio_tracks_(
+          is_using_media_source_attachment_methods_
               ? media_source->GetMediaSourceAttachment()->CreateAudioTrackList(
                     settings)
               : base::MakeRefCounted<AudioTrackList>(
                     settings, media_source->GetMediaElement())),
       video_tracks_(
-          IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
-              environment_settings())
+          is_using_media_source_attachment_methods_
               ? media_source->GetMediaSourceAttachment()->CreateVideoTrackList(
                     settings)
               : base::MakeRefCounted<VideoTrackList>(
@@ -606,8 +607,7 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
     return false;
   }
 
-  if (IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
-          environment_settings())) {
+  if (is_using_media_source_attachment_methods_) {
     DCHECK(media_source_->GetMediaSourceAttachment());
     if (media_source_->GetMediaSourceAttachment()->GetElementError()) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
@@ -627,8 +627,7 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
   media_source_->OpenIfInEndedState();
 
   double current_time = 0;
-  if (IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
-          environment_settings())) {
+  if (is_using_media_source_attachment_methods_) {
     current_time =
         media_source_->GetMediaSourceAttachment()->GetRecentMediaTime();
   } else {

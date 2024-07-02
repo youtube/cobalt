@@ -71,7 +71,7 @@ class MediaSourceAttachmentSupplement
   virtual scoped_refptr<VideoTrackList> CreateVideoTrackList(
       script::EnvironmentSettings* settings) = 0;
 
-  // TODO: b/338425449 - Remove media_element method after rollout.
+  // TODO(b/338425449): Remove media_element method after rollout.
   // References to underlying objects are exposed for when the H5VCC
   // flag MediaElement.EnableUsingMediaSourceAttachmentMethods is disabled.
   virtual base::WeakPtr<HTMLMediaElement> media_element() const = 0;

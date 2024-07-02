@@ -61,7 +61,7 @@ class SameThreadMediaSourceAttachment : public MediaSourceAttachmentSupplement {
   scoped_refptr<VideoTrackList> CreateVideoTrackList(
       script::EnvironmentSettings* settings) override;
 
-  // TODO: b/338425449 - Remove media_source and media_element methods after
+  // TODO(b/338425449): Remove media_source and media_element methods after
   // rollout. Reference to underlying objects is exposed for when the H5VCC
   // flag MediaElement.EnableUsingMediaSourceAttachmentMethods is disabled.
   scoped_refptr<MediaSource> media_source() const override {

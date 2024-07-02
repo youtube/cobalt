@@ -112,7 +112,7 @@ class MediaSource : public web::EventTarget {
   // Custom, not in any spec.
   //
   // HTMLMediaSource
-  // TODO: b/338425449 - Remove direct references to HTMLMediaElement.
+  // TODO(b/338425449): Remove direct references to HTMLMediaElement.
   bool StartAttachingToMediaElement(HTMLMediaElement* media_element);
   bool StartAttachingToMediaElement(
       MediaSourceAttachmentSupplement* media_source_attachment);
@@ -128,7 +128,7 @@ class MediaSource : public web::EventTarget {
   void OpenIfInEndedState();
   bool IsOpen() const;
   void SetSourceBufferActive(SourceBuffer* source_buffer, bool is_active);
-  // TODO: b/338425449 - Remove direct references to HTMLMediaElement.
+  // TODO(b/338425449): Remove direct references to HTMLMediaElement.
   HTMLMediaElement* GetMediaElement() const;
   MediaSourceAttachmentSupplement* GetMediaSourceAttachment() const;
   bool MediaElementHasMaxVideoCapabilities() const;
@@ -169,8 +169,8 @@ class MediaSource : public web::EventTarget {
   ChunkDemuxer* chunk_demuxer_;
   MediaSourceReadyState ready_state_;
   EventQueue event_queue_;
-  // TODO: b/338425449 - Remove direct references to HTMLMediaElement.
-  bool is_using_media_source_attachment_methods_;
+  // TODO(b/338425449): Remove direct references to HTMLMediaElement.
+  const bool is_using_media_source_attachment_methods_;
   base::WeakPtr<HTMLMediaElement> attached_element_;
   base::WeakPtr<MediaSourceAttachmentSupplement> media_source_attachment_;
 
