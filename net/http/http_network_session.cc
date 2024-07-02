@@ -331,6 +331,7 @@ base::Value HttpNetworkSession::QuicInfoToValue() const {
   dict.Set("initial_rtt_for_handshake_milliseconds",
            static_cast<int>(
                quic_params->initial_rtt_for_handshake.InMilliseconds()));
+
   return base::Value(std::move(dict));
 }
 
@@ -391,8 +392,7 @@ CommonConnectJobParams HttpNetworkSession::CreateCommonConnectJobParams(
       context_.client_socket_factory, context_.host_resolver, &http_auth_cache_,
       context_.http_auth_handler_factory, &spdy_session_pool_,
       &context_.quic_context->params()->supported_versions,
-      &quic_stream_factory_,
-      context_.proxy_delegate,
+      &quic_stream_factory_, context_.proxy_delegate,
       context_.http_user_agent_settings, &ssl_client_context_,
       context_.socket_performance_watcher_factory,
       context_.network_quality_estimator, context_.net_log,
