@@ -40,7 +40,7 @@ size SB_CONDITION_VARIABLE_MAX_SIZE and aligned at void pointer type.
 #### Definition
 
 ```
-typedef union SbConditionVariable  SbConditionVariable
+typedef union SbConditionVariable SbConditionVariable
 ```
 
 ## Functions
@@ -129,12 +129,13 @@ Waits for `condition`, releasing the held lock `mutex`, blocking up to
 if `mutex` is not held.
 
 `timeout_duration`: The maximum amount of time that function should wait for
-`condition`. If the `timeout_duration` value is less than or equal to zero, the
-function returns as quickly as possible with a kSbConditionVariableTimedOut
-result.
+`condition`, in microseconds. If the `timeout_duration` value is less than or
+equal to zero, the function returns as quickly as possible with a
+kSbConditionVariableTimedOut result.
 
 #### Declaration
 
 ```
-SbConditionVariableResult SbConditionVariableWaitTimed(SbConditionVariable *condition, SbMutex *mutex, SbTime timeout_duration)
+SbConditionVariableResult SbConditionVariableWaitTimed(SbConditionVariable *condition, SbMutex *mutex, int64_t timeout_duration)
 ```
+

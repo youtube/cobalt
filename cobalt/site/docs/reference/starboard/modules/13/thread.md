@@ -519,7 +519,7 @@ or `0`.
 #### Declaration
 
 ```
-void SbThreadSleep(SbTime duration)
+void SbThreadSleep(int64_t duration)
 ```
 
 ### SbThreadYield
@@ -531,3 +531,4 @@ Yields the currently executing thread, so another thread has a chance to run.
 ```
 void SbThreadYield()
 ```
+

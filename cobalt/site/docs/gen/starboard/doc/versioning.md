@@ -59,8 +59,6 @@ error at compilation time.
 Generally Starboard applications will not support all versions of the Starboard
 API indefinitely. Starboard application owners may increment the minimum
 required Starboard version at their discretion.
-TBD: Timelines and communication around when an upcoming Cobalt release will
-require porters to implement a newer version of Starboard.
 
 ## Using new Starboard APIs from Starboard Applications
 
@@ -72,170 +70,11 @@ new functionality in Starboard applications if this evaluates to false.
 
 ## Adding and using new Starboard APIs
 
-### The "Experimental" Starboard Version
-
-At any given time, exactly one version of Starboard will be denoted as the
-"experimental" version, as defined by the `SB_EXPERIMENTAL_API_VERSION` macro in
-`starboard/configuration.h`. It is generally not recommended to declare support
-for this version. Any Starboard APIs defined in the experimental version are
-subject to change and API requirements could be added, removed, or changed at
-any time.
-
-### The "Release Candidate" Starboard Version
-
-At any given time, zero or more versions of Starboard will be denoted as the
-"release candidate" version, as defined by the
-`SB_RELEASE_CANDIDATE_API_VERSION` macro in `starboard/configuration.h`. The
-"release candidate" version is a set of API changes that have been considered
-and tested together. It is reasonable to port against this version, it has gone
-through some stabilization and may become frozen as it currently is. But, be
-aware that it is possible that minor incompatible changes may be made to this
-version if an unexpected situation arises. `SB_RELEASE_CANDIDATE_API_VERSION` is
-not defined if there is no "release candidate" version. Every API version
-greater than `SB_RELEASE_CANDIDATE_API_VERSION` but less than `SB_EXPERIMENTAL_API_VERSION` is also considered a release candidate.
 
 ### "Frozen" Starboard versions
 
-All Starboard versions that are less than the experimental and release candidate
-versions are considered frozen. Any Starboard APIs in a frozen version MUST not
-change.
-
-### Version Numbers, and how They Interrelate Numerically
-
-```
-frozen < release-candidate < experimental < future
-```
-
-As mentioned previously, a release candidate version may or may not exist at any
-given time.  When there is a release candate version, it follows the invariant
-above.
-
-### Life of a Starboard API
-
-New Starboard APIs should be defined in the experimental version.
-
-When introducing a new Starboard API (or modifying an existing one), a new
-feature version define should be created within the "Experimental Feature
-Defines" section of `starboard/configuration.h`, and set to
-`SB_EXPERIMENTAL_API_VERSION`. A well written comment should be added in front
-of the feature define that describes exactly what is introduced by the feature.
-In the comment, all new/modified/removed symbols should be identified, and all
-modified header files should be named.
-
-For example,
-
-```
-// in starboard/configuration.h
-
-#define SB_EXPERIMENTAL_API_VERSION 7
-
-#undef SB_RELEASE_CANDIDATE_API_VERSION
-
-// --- Experimental Feature Defines ------------------------------------------
-
-...
-
-// Introduce a new API in starboard/screensaver.h, which declares the following
-// functions for managing the platform's screensaver settings:
-//   SbScreensaverDisableScreensaver()
-//   SbScreensaverEnableScreensaver()
-// Additionally, a new event, kSbEventTypeScreensaverStarted, is introduced in
-// starboard/event.h.
-#define SB_SCREENSAVER_FEATURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce a new API in starboard/new_functionality.h which declares the
-// function SbNewFunctionality().
-#define SB_MY_NEW_FEATURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce another new API in starboard/still_in_development.h which
-// declares the function SbStillInDevelopment().
-#define SB_MY_OTHER_NEW_FEATURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
-```
-
-When declaring the new interface, the following syntax should be used:
-
-```
-// starboard/new_functionality.h
-#if SB_API_VERSION >= SB_MY_NEW_FEATURE_API_VERSION
-void SbNewFunctionality();
-#endif
-```
-
-Starboard application features that use a new API must have a similar check:
-
-```
-// cobalt/new_feature.cc
-#if SB_API_VERSION >= SB_MY_NEW_FEATURE_API_VERSION
-void DoSomethingCool() {
-  SbNewFunctionality();
-}
-#endif
-```
-
-When promoting the experimental API version to be the release candidate API
-version, the previously undefined `SB_RELEASE_CANDIDATE_API_VERSION` is set to
-the current value of `SB_EXPERIMENTAL_API_VERSION`, and
-`SB_EXPERIMENTAL_API_VERSION` is then incremented by one. As a result,
-`SB_RELEASE_CANDIDATE_API_VERSION` on the master branch should always either be
-undefined, or `SB_EXPERIMENTAL_API_VERSION - 1`.
-
-One or more features are then moved from `SB_EXPERIMENTAL_API_VERSION` to
-`SB_RELEASE_CANDIDATE_API_VERSION`, and into the "Release Candidate Feature
-Defines" section of `starboard/configuration.h`. Some features may be left in
-experimental if they are not ready for release. The documentation comments of
-these features should be moved into the (newly created) section for the
-corresponding version in [starboard/CHANGELOG.md](../CHANGELOG.md).
-
-```
-// in starboard/configuration.h
-
-#define SB_EXPERIMENTAL_API_VERSION 8
-
-#define SB_RELEASE_CANDIDATE_API_VERSION 7
-
-// --- Experimental Feature Defines ------------------------------------------
-
-// Introduce another new API in starboard/still_in_development.h which
-// declares the function SbStillInDevelopment().
-#define SB_MY_OTHER_NEW_FEATURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// --- Release Candidate Features Defines ------------------------------------
-
-#define SB_MY_NEW_FEATURE_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
-
-```
-
-When a release candidate branch is promoted to a full release, these new
-Starboard APIs will be irrevocably frozen to the value of
-`SB_RELEASE_CANDIDATE_API_VERSION`, and the release candidate version will be
-undefined. Additionally, the feature defines should be removed.
-
-```
-// starboard/new_functionality.h
-#if SB_API_VERSION >= 7
-void SbNewFunctionality();
-#endif
-
-// starboard/other_new_functionality.h
-#if SB_API_VERSION >= SB_MY_OTHER_NEW_FEATURE_API_VERSION
-void SbStillInDevelopment();
-#endif
-
-// starboard/configuration.h
-#define SB_EXPERIMENTAL_API_VERSION 8
-#undef SB_RELEASE_CANDIDATE_API_VERSION
-
-// cobalt/new_feature.cc
-#if SB_API_VERSION >= 7
-void DoSomethingCool() {
-  SbNewFunctionality();
-}
-#endif
-```
-
-Whoever increments the experimental version must ensure that stubs and reference
-platforms declare support for the new experimental version through their
-respective `SB_API_VERSION` macros.
+All Starboard versions that are less than the `SB_MAXIMUM_API_VERSION` version
+are considered frozen. Any Starboard APIs in a frozen version MUST not change.
 
 ### Communicating Starboard API changes to porters
 

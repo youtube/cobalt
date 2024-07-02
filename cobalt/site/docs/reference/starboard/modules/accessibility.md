@@ -251,3 +251,4 @@ off (false).
 ```
 bool SbAccessibilitySetCaptionsEnabled(bool enabled)
 ```
+

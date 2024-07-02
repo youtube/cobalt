@@ -156,3 +156,4 @@ after a short time, even if there is an unexpected process termination before
 ```
 bool SbStorageWriteRecord(SbStorageRecord record, const char *data, int64_t data_size)
 ```
+

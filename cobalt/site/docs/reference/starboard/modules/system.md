@@ -670,3 +670,4 @@ signal-safe on platforms that support signals.
 ```
 bool SbSystemSymbolize(const void *address, char *out_buffer, int buffer_size)
 ```
+

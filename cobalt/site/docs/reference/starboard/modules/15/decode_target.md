@@ -11,8 +11,7 @@ An SbDecodeTarget can be passed into any function which decodes video or image
 data. This allows the application to allocate fast graphics memory, and have
 decoding done directly into this memory, avoiding unnecessary memory copies, and
 also avoiding pushing data between CPU and GPU memory unnecessarily.
-
-## SbDecodeTargetFormat
+SbDecodeTargetFormat
 
 SbDecodeTargets support several different formats that can be used to decode
 into and render from. Some formats may be easier to decode into, and others may
@@ -20,8 +19,7 @@ be easier to render. Some may take less memory. Each decoder needs to support
 the SbDecodeTargetFormat passed into it, or the decode will produce an error.
 Each decoder provides a way to check if a given SbDecodeTargetFormat is
 supported by that decoder.
-
-## SbDecodeTargetGraphicsContextProvider
+SbDecodeTargetGraphicsContextProvider
 
 Some components may need to acquire SbDecodeTargets compatible with a certain
 rendering context, which may need to be created on a particular thread. The
@@ -33,51 +31,7 @@ to run arbitrary code on the application's renderer thread with the renderer's
 EGLContext held current. This may be useful if your SbDecodeTarget creation code
 needs to execute GLES commands like, for example, glGenTextures().
 
-The primary usage is likely to be the the SbPlayer implementation on some
-platforms.
-
-## SbDecodeTarget Example
-
-Let's say that we are an application and we would like to use the interface
-defined in starboard/image.h to decode an imaginary "image/foo" image type.
-
-First, the application should enumerate which SbDecodeTargetFormats are
-supported by that decoder.
-
-```
-SbDecodeTargetFormat kPreferredFormats[] = {
-    kSbDecodeTargetFormat3PlaneYUVI420,
-    kSbDecodeTargetFormat1PlaneRGBA,
-    kSbDecodeTargetFormat1PlaneBGRA,
-};
-
-SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
-for (int i = 0; i < SB_ARRAY_SIZE_INT(kPreferredFormats); ++i) {
-  if (SbImageIsDecodeSupported("image/foo", kPreferredFormats[i])) {
-    format = kPreferredFormats[i];
-    break;
-  }
-}
-
-```
-
-Now that the application has a format, it can create a decode target that it
-will use to decode the .foo file into. Let's assume format is
-kSbDecodeTargetFormat1PlaneRGBA, that we are on an EGL/GLES2 platform. Also, we
-won't do any error checking, to keep things even simpler.
-
-```
-SbDecodeTarget target = SbImageDecode(
-    context_provider, encoded_foo_data, encoded_foo_data_size,
-    "image/foo", format);
-
-// If the decode works, you can get the texture out and render it.
-SbDecodeTargetInfo info;
-memset(&info, 0, sizeof(info));
-SbDecodeTargetGetInfo(target, &info);
-GLuint texture =
-    info.planes[kSbDecodeTargetPlaneRGBA].texture;
-```
+The primary usage is likely to be the SbPlayer implementation on some platforms.
 
 ## Macros
 
@@ -207,8 +161,7 @@ information about the graphics context that will be used to render
 SbDecodeTargets. Some Starboard implementations may need to have references to
 some graphics objects when creating/destroying resources used by SbDecodeTarget.
 References to SbDecodeTargetGraphicsContextProvider objects should be provided
-to all Starboard functions that might create SbDecodeTargets (e.g.
-SbImageDecode()).
+to all Starboard functions that might create SbDecodeTargets.
 
 #### Members
 
@@ -368,8 +321,7 @@ static bool SbDecodeTargetIsValid(SbDecodeTarget handle)
 Returns ownership of `decode_target` to the Starboard implementation. This
 function will likely result in the destruction of the SbDecodeTarget and all its
 associated surfaces, though in some cases, platforms may simply adjust a
-reference count. In the case where SB_HAS(GLES2), this function must be called
-on a thread with the context
+reference count. This function must be called on a thread with the context
 
 #### Declaration
 
@@ -400,3 +352,4 @@ Starboard implementations, if it is necessary.
 ```
 static void SbDecodeTargetRunInGlesContext(SbDecodeTargetGraphicsContextProvider *provider, SbDecodeTargetGlesContextRunnerTarget target, void *target_context)
 ```
+

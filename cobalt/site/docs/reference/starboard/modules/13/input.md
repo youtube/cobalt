@@ -168,3 +168,4 @@ A 2-dimensional vector used to represent points and motion vectors.
 
 *   `float x`
 *   `float y`
+

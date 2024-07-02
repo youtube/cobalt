@@ -262,12 +262,13 @@ right and top-to-bottom.
 ///     | Negative position. | Positive position. | Positive position. |
 ///     +--------------------+--------------------+--------------------+
 ///                          ^
-///                  Content Offset X = 0.
+///                  Content Offset X = 0. 
 ```
 
 ```
   Top-to-bottom is similar to left-to-right, but for the Y position.
   Bottom-to-top is similar to right-to-left, but for the Y position.
+
 ```
 
 #### Members
@@ -281,7 +282,7 @@ This represents a 2x3 transform matrix in row-major order.
 
 ```
 ///   | a b tx |
-///   | c d ty |
+///   | c d ty | 
 ```
 
 #### Members
@@ -320,3 +321,4 @@ Returns whether the given navigation item handle is valid.
 ```
 static bool SbUiNavItemIsValid(SbUiNavItem item)
 ```
+

@@ -187,7 +187,7 @@ output.
 
     The type of audio connector. Will be `kSbMediaAudioConnectorUnknown` if this
     device cannot provide this information.
-*   `SbTime latency`
+*   `int64_t latency`
 
     The expected latency of audio over this output, in microseconds, or `0` if
     this device cannot provide this information.
@@ -209,8 +209,8 @@ The set of information required by the decoder or player for each audio sample.
 *   `SbMediaAudioStreamInfo stream_info`
 
     The set of information of the video stream associated with this sample.
-*   `SbTime discarded_duration_from_front`
-*   `SbTime discarded_duration_from_back`
+*   `int64_t discarded_duration_from_front`
+*   `int64_t discarded_duration_from_back`
 
 ### SbMediaAudioStreamInfo
 
@@ -466,7 +466,7 @@ return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
 `key_system` is `com.widevine.alpha; invalid_attribute="invalid_value"`.
 Currently the only attribute has to be supported is `encryptionscheme`. It
 reflects the value passed to `encryptionScheme` encryptionScheme of
-MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/,](https://wicg.github.io/encrypted-media-encryption-scheme/,),) which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
+MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/](https://wicg.github.io/encrypted-media-encryption-scheme/)/) , which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
 not a valid value for `encryptionscheme` and the implementation should return
 `kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
 `encryptionscheme` is set to "". The implementation should return
@@ -548,7 +548,7 @@ When the media stack needs more memory to store media buffers, it will allocate
 extra memory in units returned by SbMediaGetBufferAllocationUnit. This can
 return 0, in which case the media stack will allocate extra memory on demand.
 When SbMediaGetInitialBufferCapacity and this function both return 0, the media
-stack will allocate individual buffers directly using SbMemory functions.
+stack will allocate individual buffers directly using malloc functions.
 
 #### Declaration
 
@@ -558,19 +558,19 @@ int SbMediaGetBufferAllocationUnit()
 
 ### SbMediaGetBufferGarbageCollectionDurationThreshold
 
-Specifies the duration threshold of media source garbage collection. When the
-accumulated duration in a source buffer exceeds this value, the media source
-implementation will try to eject existing buffers from the cache. This is
-usually triggered when the video being played has a simple content and the
-encoded data is small. In such case this can limit how much is allocated for the
-book keeping data of the media buffers and avoid OOM of system heap. This should
-return 170 seconds for most of the platforms. But it can be further reduced on
-systems with extremely low memory.
+Specifies the duration threshold of media source garbage collection in
+microseconds. When the accumulated duration in a source buffer exceeds this
+value, the media source implementation will try to eject existing buffers from
+the cache. This is usually triggered when the video being played has a simple
+content and the encoded data is small. In such case this can limit how much is
+allocated for the book keeping data of the media buffers and avoid OOM of system
+heap. This should return 170 seconds for most of the platforms. But it can be
+further reduced on systems with extremely low memory.
 
 #### Declaration
 
 ```
-SbTime SbMediaGetBufferGarbageCollectionDurationThreshold()
+int64_t SbMediaGetBufferGarbageCollectionDurationThreshold()
 ```
 
 ### SbMediaGetBufferPadding
@@ -589,7 +589,7 @@ int SbMediaGetBufferPadding()
 
 Returns SbMediaBufferStorageType of type `SbMediaStorageTypeMemory` or
 `SbMediaStorageTypeFile`. For memory storage, the media buffers will be stored
-in main memory allocated by SbMemory functions. For file storage, the media
+in main memory allocated by malloc functions. For file storage, the media
 buffers will be stored in a temporary file in the system cache folder acquired
 by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory". Note that when
 its value is "file" the media stack will still allocate memory to cache the
@@ -692,10 +692,11 @@ bool SbMediaIsBufferPoolAllocateOnDemand()
 ### SbMediaIsBufferUsingMemoryPool
 
 If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media buffer
-pools should be allocated on demand, as opposed to using SbMemory* functions.
+pools should be allocated on demand, as opposed to using malloc functions.
 
 #### Declaration
 
 ```
 bool SbMediaIsBufferUsingMemoryPool()
 ```
+
