@@ -52,7 +52,6 @@ static_library("renderer") {
     "//cobalt/base",
     "//cobalt/browser/memory_settings:browser_memory_settings",
     "//cobalt/configuration",
-    "//cobalt/content/fonts:copy_font_data",
     "//cobalt/math",
     "//cobalt/render_tree",
     "//cobalt/render_tree:animations",
@@ -64,6 +63,7 @@ static_library("renderer") {
     "//cobalt/system_window",
     "//cobalt/watchdog",
     "//starboard:starboard_headers_only",
+    "//starboard/content/fonts:copy_font_data",
   ]
 
   if (is_starboard) {
@@ -141,11 +141,11 @@ target(gtest_target_type, "renderer_test") {
   ]
 
   if (cobalt_font_package == "empty") {
-    data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+    data_deps += [ "//starboard/content/fonts:copy_font_data" ]
   } else {
     data_deps += [
-      "//cobalt/content/fonts:copy_fonts",
-      "//cobalt/content/fonts:fonts_xml",
+      "//starboard/content/fonts:copy_fonts",
+      "//starboard/content/fonts:fonts_xml",
     ]
   }
 }
