@@ -383,6 +383,8 @@ static_library("starboard_platform") {
     "player_destroy.cc",
     "player_get_maximum_number_of_samples_per_write.cc",
     "player_get_preferred_output_mode.cc",
+    "player_perf.cc",
+    "player_perf.h",
     "player_set_bounds.cc",
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
