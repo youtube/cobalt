@@ -1607,7 +1607,7 @@ FLAC__stream_encoder_get_limit_min_bitrate(const FLAC__StreamEncoder* encoder);
  */
 FLAC_API FLAC__StreamEncoderInitStatus FLAC__stream_encoder_init_stream(FLAC__StreamEncoder *encoder, FLAC__StreamEncoderWriteCallback write_callback, FLAC__StreamEncoderSeekCallback seek_callback, FLAC__StreamEncoderTellCallback tell_callback, FLAC__StreamEncoderMetadataCallback metadata_callback, void *client_data);
 
-#ifndef COBALT
+#ifndef STARBOARD
 /** Initialize the encoder instance to encode Ogg FLAC streams.
  *
  *  This flavor of initialization sets up the encoder to encode to a FLAC
@@ -1817,7 +1817,7 @@ FLAC_API FLAC__StreamEncoderInitStatus FLAC__stream_encoder_init_file(FLAC__Stre
  *    see FLAC__StreamEncoderInitStatus for the meanings of other return values.
  */
 FLAC_API FLAC__StreamEncoderInitStatus FLAC__stream_encoder_init_ogg_file(FLAC__StreamEncoder *encoder, const char *filename, FLAC__StreamEncoderProgressCallback progress_callback, void *client_data);
-#endif  // COBALT
+#endif  // STARBOARD
 
 /** Finish the encoding process.
  *  Flushes the encoding buffer, releases resources, resets the encoder
