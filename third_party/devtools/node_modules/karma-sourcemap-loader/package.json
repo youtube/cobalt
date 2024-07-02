@@ -1,0 +1,27 @@
+{
+  "name": "karma-sourcemap-loader",
+  "version": "0.3.8",
+  "description": "Karma plugin that locates and loads existing javascript source map files.",
+  "main": "index.js",
+  "files": [
+    "index.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:demerzel3/karma-sourcemap-loader.git"
+  },
+  "keywords": [
+    "karma-plugin",
+    "karma-preprocessor",
+    "source-maps",
+    "javascript"
+  ],
+  "author": {
+    "name": "Gabriele Genta",
+    "email": "gabriele.genta@gmail.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "graceful-fs": "^4.1.2"
+  }
+}

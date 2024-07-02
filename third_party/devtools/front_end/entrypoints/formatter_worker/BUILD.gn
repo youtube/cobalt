@@ -1,0 +1,78 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+import("../visibility.gni")
+
+devtools_module("formatter_worker") {
+  sources = [
+    "AcornTokenizer.ts",
+    "CSSFormatter.ts",
+    "CSSRuleParser.ts",
+    "ESTreeWalker.ts",
+    "FormattedContentBuilder.ts",
+    "FormatterWorker.ts",
+    "HTMLFormatter.ts",
+    "IdentityFormatter.ts",
+    "JSONFormatter.ts",
+    "JavaScriptFormatter.ts",
+    "ScopeParser.ts",
+    "Substitute.ts",
+  ]
+
+  deps = [
+    ":formatter_actions",
+    "../../core/platform:bundle",
+    "../../core/root:bundle",
+    "../../models/text_utils:bundle",
+    "../../third_party/acorn:bundle",
+    "../../third_party/codemirror",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "formatter_worker.ts"
+
+  deps = [ ":formatter_worker" ]
+
+  visibility = [
+    ":*",
+    "../../../test/unittests/front_end/entrypoints/formatter_worker/*",
+  ]
+
+  visibility += devtools_entrypoints_visibility
+}
+
+devtools_entrypoint("formatter_actions") {
+  entrypoint = "FormatterActions.ts"
+
+  deps = []
+
+  visibility = [
+    ":*",
+    "../../models/formatter/*",
+  ]
+
+  visibility += devtools_entrypoints_visibility
+}
+
+devtools_entrypoint("worker_entrypoint") {
+  entrypoint = "formatter_worker-entrypoint.ts"
+
+  is_web_worker = true
+
+  deps = [
+    ":bundle",
+    ":formatter_actions",
+    "../../core/platform:bundle",
+  ]
+
+  visibility = [
+    "../../../front_end",
+    "../../models/formatter/*",
+  ]
+
+  visibility += devtools_entrypoints_visibility
+}

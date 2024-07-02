@@ -4,8 +4,8 @@
 
 (async function() {
   TestRunner.addResult('Tests accessibility in the Changes drawer.');
-  await TestRunner.loadModule('axe_core_test_runner');
-  await TestRunner.loadModule('changes');
+  await TestRunner.loadTestModule('axe_core_test_runner');
+  await TestRunner.loadLegacyModule('changes');
 
   const diff = [
     {0: Diff.Diff.Operation.Insert, 1: ['line 1 inserted']},
@@ -16,8 +16,8 @@
   TestRunner.addResult('Showing the Changes drawer.');
   await UI.viewManager.showView('changes.changes');
   const changesWidget = await UI.viewManager.view('changes.changes').widget();
-  changesWidget._selectedUISourceCode = uiSourceCodeMock;
-  changesWidget._renderDiffRows(diff);
+  changesWidget.selectedUISourceCode = uiSourceCodeMock;
+  changesWidget.renderDiffRows(diff);
 
   TestRunner.addResult('Running aXe on the Changes drawer.');
   await AxeCoreTestRunner.runValidation(changesWidget.contentElement);

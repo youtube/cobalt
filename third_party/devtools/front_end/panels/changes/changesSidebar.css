@@ -1,0 +1,53 @@
+/*
+ * Copyright 2021 The Chromium Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+.tree-outline li {
+  min-height: 20px;
+}
+
+.tree-outline li:hover:not(.selected) .selection {
+  display: block;
+
+  --icon-color: var(--icon-default-hover);
+}
+
+.navigator-sm-script-tree-item,
+.navigator-script-tree-item,
+.navigator-snippet-tree-item {
+  --icon-color: var(--icon-file-script);
+}
+
+.navigator-sm-stylesheet-tree-item,
+.navigator-stylesheet-tree-item {
+  --icon-color: var(--icon-file-styles);
+}
+
+.navigator-image-tree-item {
+  --icon-color: var(--icon-file-image);
+}
+
+.navigator-font-tree-item {
+  --icon-color: var(--icon-file-font);
+}
+
+.force-white-icons {
+  --icon-color: var(--icon-force-white);
+}
+
+@media (forced-colors: active) {
+  li,
+  .navigator-sm-script-tree-item,
+  .navigator-script-tree-item,
+  .navigator-snippet-tree-item,
+  .navigator-sm-stylesheet-tree-item,
+  .navigator-stylesheet-tree-item,
+  .navigator-image-tree-item,
+  .navigator-font-tree-item {
+    forced-color-adjust: none;
+
+    --icon-color: ButtonText;
+  }
+}

@@ -5,8 +5,8 @@
   TestRunner.addResult(
       'Tests accessibility in DOM breakpoints using the axe-core linter.');
 
-  await TestRunner.loadModule('axe_core_test_runner');
-  await TestRunner.loadModule('elements_test_runner');
+  await TestRunner.loadTestModule('axe_core_test_runner');
+  await TestRunner.loadTestModule('elements_test_runner');
   await TestRunner.showPanel('elements');
   UI.panels.elements.sidebarPaneView.tabbedPane().selectTab('elements.domBreakpoints', true);
 
@@ -16,10 +16,8 @@
   const rootElement = await ElementsTestRunner.nodeWithIdPromise('rootElement');
 
   // Add Dom breakpoints and then test
-  TestRunner.domDebuggerModel.setDOMBreakpoint(
-    rootElement, SDK.DOMDebuggerModel.DOMBreakpoint.Type.SubtreeModified);
-  TestRunner.domDebuggerModel.setDOMBreakpoint(
-    rootElement, SDK.DOMDebuggerModel.DOMBreakpoint.Type.AttributeModified);
+  TestRunner.domDebuggerModel.setDOMBreakpoint(rootElement, Protocol.DOMDebugger.DOMBreakpointType.SubtreeModified);
+  TestRunner.domDebuggerModel.setDOMBreakpoint(rootElement, Protocol.DOMDebugger.DOMBreakpointType.AttributeModified);
   TestRunner.addResult(
       'Test DOM breakpoint container with multiple breakpoints.');
 

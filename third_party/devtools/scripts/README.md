@@ -15,18 +15,12 @@ The newer scripts such as for testing and hosted mode are written in Node.js, wh
 - closure - see section on Closure Compiler below
 - gulp - experimental build process written in node.js & gulp to remove the dependency on Chromium-specific build tools (i.e. gn and ninja)
 - hosted_mode - run DevTools on a localhost development server
-- jsdoc_validator - enforces the use of Closure type annotations
 
 ### Python Scripts
 - compile_frontend.py - runs closure compiler to do static type analysis
     - Note: the compiled outputs are not actually used to run DevTools
 - lint_javascript.py - run eslint
-- optimize_svg_images.py - manually run when changing svg images
 
 ### Node.js scripts
 
 The easiest way to run the node.js scripts is to use `npm run` which displays all the commands. For more information on the specific `npm run` commands, take a look at the primary devtools front-end readme (`../readme.md`).
-
-## Closure
-
-DevTools manually rolls the closure compiler to ./closure. If you manually roll closure compiler, you will need to re-generate the closure_runner (in ./closure) and jsdoc_validator custom jars using the python scripts in their respective directory.

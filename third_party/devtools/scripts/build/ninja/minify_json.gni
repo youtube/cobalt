@@ -1,0 +1,32 @@
+# Copyright 2022 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("./node.gni")
+import("./vars.gni")
+
+template("minify_json") {
+  node_action(target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "deps",
+                             "sources",
+                           ])
+
+    script = "scripts/build/ninja/minify-json-files.js"
+
+    _dest = rebase_path(target_gen_dir, root_build_dir)
+
+    args = [ _dest ]
+    outputs = []
+
+    foreach(_input, sources) {
+      args += [ rebase_path(_input, root_build_dir) ]
+
+      # Input can be from anywhere but all minified json files land in
+      # $target_gen_dir.
+      filename = get_path_info(_input, "file")
+      outputs += [ "$target_gen_dir/$filename" ]
+    }
+  }
+}
