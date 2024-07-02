@@ -376,6 +376,16 @@ services:
       TARGET_CPU: ${TARGET_CPU:-arm}
       SB_API_VERSION: ${SB_API_VERSION}
 
+  evergreen-arm64-softfp:
+    <<: *build-common-definitions
+    image: cobalt-build-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      <<: *shared-build-env
+      PLATFORM: evergreen-arm64-softfp
+      TARGET_CPU: ${TARGET_CPU:-arm}
+      SB_API_VERSION: ${SB_API_VERSION}
+
   # Defined common build image for linux-evergreen
   build-linux-evergreen:
     <<: *build-common-definitions
