@@ -92,7 +92,9 @@ def test_android(delay, url):
     if webdriver:
       break
     time.sleep(0.1)
+  ua = webdriver.execute_script('return navigator.userAgent;')
   print('url:' + webdriver.current_url)
+  print('user-agent:', ua)
   time.sleep(delay)
   origin = webdriver.execute_script('return performance.timeOrigin;')
   csi = webdriver.execute_script('return window.ytcsi.debug[0];')
@@ -144,7 +146,9 @@ if __name__ == '__main__':
       starts.append(test_ticks)
       writer.writerow(test_ticks.values())
       file.flush()
+  print('nsamples:', len(starts))
   for key in starts[0].keys():
     values = [x[key] for x in starts]
-    print(key, ' mean:', statistics.mean(values), ' stdev:',
-          int(statistics.stdev(values)))
+    print(
+        decode(key), ' mean:', statistics.mean(values), ' stdev:',
+        int(statistics.stdev(values)))
