@@ -22,6 +22,7 @@
 #include "base/json/json_reader.h"
 #include "base/values.h"
 #include "cobalt/browser/cpu_usage_tracker.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/network/network_module.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -57,6 +58,7 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
   const char kHTTP3[] = "HTTP3";
+  const char kSkiaRasterizer[] = "SkiaRasterizer";
 
 #if SB_IS(EVERGREEN)
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
@@ -116,6 +118,17 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     browser::CpuUsageTracker::GetInstance()->UpdateConfig(
         config.has_value() ? std::move(*config) : base::Value());
     return true;
+  }
+
+  if (name.compare(kSkiaRasterizer) == 0 && value.IsType<int32>()) {
+    if (!persistent_settings_) {
+      return false;
+    } else {
+      persistent_settings_->Set(configuration::Configuration::
+                                    kEnableSkiaRasterizerPersistentSettingKey,
+                                base::Value(value.AsType<int32>() != 0));
+      return true;
+    }
   }
 
 #if SB_IS(EVERGREEN)
