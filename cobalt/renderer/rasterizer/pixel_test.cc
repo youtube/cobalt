@@ -25,7 +25,9 @@
 #include "cobalt/base/unicode/character.h"
 #include "cobalt/base/unicode/character_values.h"
 #include "cobalt/loader/image/animated_webp_image.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_decoder_mock.h"
+#include "cobalt/loader/image/jpeg_image_decoder.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
@@ -4609,6 +4611,37 @@ TEST_F(PixelTest, DebugAnimatedWebPFrame) {
   builder.AddChild(new ClearRectNode(math::RectF(output_surface_size()),
                                      ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)));
   builder.AddChild(frame_image_node);
+
+  scoped_refptr<Node> root = new CompositionNode(builder);
+  TestTree(root);
+}
+
+TEST_F(PixelTest, DebugPngImageFrame) {
+  MockImageDecoder image_decoder(GetResourceProvider());
+  image_decoder.ExpectCallWithError(base::nullopt);
+
+  std::vector<uint8> image_data =
+      GetFileData(GetTestFilePath("baby_shark.png"));
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                            image_data.size());
+  image_decoder.Finish();
+
+  loader::image::StaticImage* static_image =
+      base::polymorphic_downcast<loader::image::StaticImage*>(
+          image_decoder.image().get());
+  ASSERT_TRUE(static_image);
+  scoped_refptr<Image> frame_image =
+      base::polymorphic_downcast<render_tree::Image*>(
+          static_image->image().get());
+
+  scoped_refptr<ImageNode> frame_image_node =
+      new ImageNode(frame_image, RectF(output_surface_size()));
+
+  CompositionNode::Builder builder;
+  builder.AddChild(frame_image_node);
+  builder.AddChild(CreateTextNodeWithinSurface(GetResourceProvider(), "Cobalt",
+                                               FontStyle(), 80,
+                                               ColorRGBA(0, 0, 0, 1.0)));
 
   scoped_refptr<Node> root = new CompositionNode(builder);
   TestTree(root);
