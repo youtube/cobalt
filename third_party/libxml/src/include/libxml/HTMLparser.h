@@ -147,7 +147,7 @@ XMLPUBFUN int XMLCALL
 #if defined(STARBOARD)
 XMLPUBFUN void XMLCALL
 			htmlEmitImpliedRootLevelParagraph(int val);
-#endif  // defined(COBALT)
+#endif  // defined(STARBOARD)
 
 #ifdef LIBXML_PUSH_ENABLED
 /**

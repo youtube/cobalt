@@ -656,7 +656,7 @@ int OS::SNPrintF(char* str, int length, const char* format, ...) {
 
 
 int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
-#if defined(COBALT)
+#if defined(V8_OS_STARBOARD)
   // In testing, _vsnprintf_s can fill result's tail with unexpected
   // characters if strlen(str) < length. Switching to vsnprintf is what Cobalt
   // uses for msvs platforms currently.

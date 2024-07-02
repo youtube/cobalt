@@ -131,7 +131,7 @@ static int dir_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp, long argl,
   switch (cmd) {
     case X509_L_ADD_DIR:
       if (argl == X509_FILETYPE_DEFAULT) {
-#if defined(COBALT)
+#if defined(OPENSSL_SYS_STARBOARD)
             // We don't expect to use the default certs dir.
             OPENSSL_PUT_ERROR(X509, X509_R_LOADING_CERT_DIR);
 #else
