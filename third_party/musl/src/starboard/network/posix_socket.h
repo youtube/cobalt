@@ -12,14 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_POSIX_SOCKET_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_POSIX_SOCKET_H_
 
-#include <arpa/inet.h>
-#include <ws2tcpip.h>
+#include <stdint.h>
+#include "starboard/socket.h"
 
-typedef int in_addr_t;
+#define PTHREAD_CREATE_JOINABLE 0
+#define PTHREAD_CREATE_DETACHED 1
 
-#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_
+int posixSocketGetFdFromSb(SbSocket socket);
+SbSocket posixSocketGetSbFromFd(int socket);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_POSIX_SOCKET_H_
