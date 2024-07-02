@@ -51,10 +51,11 @@ void FlexFormattingContext::UpdateRect(Box* child_box) {
   //   https://www.w3.org/TR/css-flexbox-1/#intrinsic-sizes
   // Note that for column flex-direction, this is the intrinsic cross size.
 
+  LayoutUnit fit_content_width = shrink_to_fit_width() + child_box->width() +
+                                 child_box->GetContentToMarginHorizontal();
+  set_shrink_to_fit_width(fit_content_width);
   if (main_direction_is_horizontal_) {
-    fit_content_main_size_ = shrink_to_fit_width() + child_box->width() +
-                             child_box->GetContentToMarginHorizontal();
-    set_shrink_to_fit_width(fit_content_main_size_);
+    fit_content_main_size_ = fit_content_width;
   } else {
     fit_content_main_size_ +=
         child_box->height() + child_box->GetContentToMarginVertical();
@@ -104,7 +105,10 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
 
   // If the flex container is single-line and has a definite cross size, the
   // cross size of the flex line is the flex container's inner cross size.
-  if (!multi_line_ && cross_space && !lines_.empty()) {
+  bool cross_size_is_definite =
+      cross_space && !(!main_direction_is_horizontal_ &&
+                       layout_params_.shrink_to_fit_width_forced);
+  if (!multi_line_ && cross_size_is_definite && !lines_.empty()) {
     lines_.front()->set_cross_size(*cross_space);
   } else {
     // Otherwise, for each flex line:
@@ -134,7 +138,7 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
     total_cross_size += line->cross_size();
   }
 
-  if (cross_space) {
+  if (cross_size_is_definite) {
     // If the cross size property is a definite size, use that.
     cross_size_ = *cross_space;
   } else {

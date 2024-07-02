@@ -256,8 +256,9 @@ void MainAxisVerticalFlexItem::DetermineHypotheticalCrossSize(
   //   https://www.w3.org/TR/css-flexbox-1/#algo-cross-item
   LayoutParams child_layout_params(layout_params);
   child_layout_params.shrink_to_fit_width_forced = true;
-  box()->UpdateSize(child_layout_params);
+  child_layout_params.freeze_height = true;
   box()->set_height(target_main_size());
+  box()->UpdateSize(child_layout_params);
 }
 
 LayoutUnit MainAxisVerticalFlexItem::GetContentBoxMainSize() const {
@@ -454,8 +455,8 @@ base::Optional<LayoutUnit> FlexItem::GetContentBasedMinimumSize(
       base::Optional<LayoutUnit> maybe_height =
           GetUsedHeightIfNotAuto(computed_style(), containing_block_size, NULL);
       content_size_suggestion =
-          box()->AsBlockContainerBox()->GetShrinkToFitWidth(
-              containing_block_size.width(), maybe_height);
+          box()->AsBlockContainerBox()->GetShrinkToFitWidth(LayoutUnit(),
+                                                            maybe_height);
     } else {
       content_size_suggestion = GetContentBoxMainSize();
     }

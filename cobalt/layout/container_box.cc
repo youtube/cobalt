@@ -52,9 +52,6 @@ Boxes::iterator ContainerBox::RemoveConst(Boxes* container,
 }
 
 void ContainerBox::PushBackDirectChild(const scoped_refptr<Box>& child_box) {
-  // Verify that the child doesn't have a pre-existing parent.
-  DCHECK(!child_box->parent());
-
   // Verify that this container hasn't had its sizes and cross references
   // already updated. This is because children should only ever be added to
   // containers created during the current box generation run.
