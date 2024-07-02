@@ -59,6 +59,8 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/media_settings.h"
+#include "cobalt/dom/media_source_attachment_supplement.h"
+#include "cobalt/dom/same_thread_media_source_attachment.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/event.h"
@@ -143,6 +145,17 @@ bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
       .value_or(false);
 }
 
+// If this function returns true, MediaSource will proxy calls to the
+// attached HTMLMediaElement object through the MediaSourceAttachment interface
+// instead of directly calling against the HTMLMediaElement object.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
+      .value_or(false);
+}
+
 }  // namespace
 
 MediaSource::MediaSource(script::EnvironmentSettings* settings)
@@ -157,6 +170,9 @@ MediaSource::MediaSource(script::EnvironmentSettings* settings)
       chunk_demuxer_(NULL),
       ready_state_(kMediaSourceReadyStateClosed),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
+      is_using_media_source_attachment_methods_(
+          IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+              environment_settings())),
       source_buffers_(new SourceBufferList(settings, &event_queue_)),
       active_source_buffers_(new SourceBufferList(settings, &event_queue_)),
       live_seekable_range_(new TimeRanges) {
@@ -225,7 +241,10 @@ void MediaSource::set_duration(double duration,
             std::isnan(old_duration) ? 0 : old_duration);
 
   // 4. Update duration to new duration.
-  bool request_seek = attached_element_->current_time(NULL) > duration;
+  bool request_seek = false;
+  if (!is_using_media_source_attachment_methods_) {
+    request_seek = attached_element_->current_time(NULL) > duration;
+  }
   chunk_demuxer_->SetDuration(duration);
 
   // 5. If a user agent is unable to partially render audio frames or text cues
@@ -237,7 +256,11 @@ void MediaSource::set_duration(double duration,
 
   // 6. Update the media controller duration to new duration and run the
   //    HTMLMediaElement duration change algorithm.
-  attached_element_->DurationChanged(duration, request_seek);
+  if (is_using_media_source_attachment_methods_) {
+    media_source_attachment_->NotifyDurationChanged(duration);
+  } else {
+    attached_element_->DurationChanged(duration, request_seek);
+  }
 }
 
 scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
@@ -447,10 +470,48 @@ bool MediaSource::StartAttachingToMediaElement(
   return true;
 }
 
+bool MediaSource::StartAttachingToMediaElement(
+    MediaSourceAttachmentSupplement* media_source_attachment) {
+  if (media_source_attachment_) {
+    return false;
+  }
+
+  DCHECK(IsClosed());
+  DCHECK(!algorithm_process_thread_);
+
+  media_source_attachment_ = base::AsWeakPtr(media_source_attachment);
+  has_max_video_capabilities_ =
+      media_source_attachment->HasMaxVideoCapabilities();
+
+  if (algorithm_offload_enabled_) {
+    algorithm_process_thread_.reset(new base::Thread("MSEAlgorithm"));
+    if (!algorithm_process_thread_->Start()) {
+      LOG(WARNING) << "Starting algorithm process thread failed, disable"
+                      " algorithm offloading";
+      algorithm_process_thread_.reset();
+    }
+  }
+
+  if (algorithm_process_thread_) {
+    LOG(INFO) << "Algorithm offloading enabled.";
+    offload_algorithm_runner_.reset(
+        new OffloadAlgorithmRunner<SourceBufferAlgorithm>(
+            algorithm_process_thread_->task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault()));
+  } else {
+    LOG(INFO) << "Algorithm offloading disabled.";
+  }
+  return true;
+}
+
 void MediaSource::CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   DCHECK(!chunk_demuxer_);
-  DCHECK(attached_element_);
+  if (is_using_media_source_attachment_methods_) {
+    DCHECK(media_source_attachment_);
+  } else {
+    DCHECK(attached_element_);
+  }
   chunk_demuxer_ = chunk_demuxer;
   SetReadyState(kMediaSourceReadyStateOpen);
 }
@@ -518,7 +579,11 @@ scoped_refptr<TimeRanges> MediaSource::GetSeekable() const {
             environment_settings())) {
       buffered = GetBufferedRange();
     } else {
-      buffered = attached_element_->buffered();
+      if (is_using_media_source_attachment_methods_) {
+        buffered = media_source_attachment_->media_element()->buffered();
+      } else {
+        buffered = attached_element_->buffered();
+      }
     }
 
     if (live_seekable_range_->length() != 0) {
@@ -623,8 +688,16 @@ HTMLMediaElement* MediaSource::GetMediaElement() const {
   return attached_element_;
 }
 
+MediaSourceAttachmentSupplement* MediaSource::GetMediaSourceAttachment() const {
+  return media_source_attachment_;
+}
+
 bool MediaSource::MediaElementHasMaxVideoCapabilities() const {
-  SB_DCHECK(attached_element_);
+  if (is_using_media_source_attachment_methods_) {
+    SB_DCHECK(media_source_attachment_);
+  } else {
+    SB_DCHECK(attached_element_);
+  }
   return has_max_video_capabilities_;
 }
 
@@ -656,7 +729,11 @@ void MediaSource::TraceMembers(script::Tracer* tracer) {
   web::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(event_queue_);
-  tracer->Trace(attached_element_);
+  if (is_using_media_source_attachment_methods_) {
+    tracer->Trace(media_source_attachment_);
+  } else {
+    tracer->Trace(attached_element_);
+  }
   tracer->Trace(source_buffers_);
   tracer->Trace(active_source_buffers_);
   tracer->Trace(live_seekable_range_);
@@ -702,7 +779,11 @@ void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
   }
   source_buffers_->Clear();
 
-  attached_element_.reset();
+  if (is_using_media_source_attachment_methods_) {
+    media_source_attachment_.reset();
+  } else {
+    attached_element_.reset();
+  }
 
   ScheduleEvent(base::Tokens::sourceclose());
 

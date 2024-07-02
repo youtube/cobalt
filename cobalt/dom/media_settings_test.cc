@@ -49,6 +49,8 @@ TEST(MediaSettingsImplTest, SunnyDay) {
       impl.Set("MediaElement.TimeupdateEventIntervalInMilliseconds", 100001));
   ASSERT_TRUE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 1));
   ASSERT_TRUE(impl.Set("MediaElement.EnableUsingMediaSourceBufferedRange", 1));
+  ASSERT_TRUE(
+      impl.Set("MediaElement.EnableUsingMediaSourceAttachmentMethods", 1));
 
   EXPECT_EQ(impl.GetSourceBufferEvictExtraInBytes().value(), 100);
   EXPECT_EQ(impl.GetMinimumProcessorCountToOffloadAlgorithm().value(), 101);
@@ -62,6 +64,8 @@ TEST(MediaSettingsImplTest, SunnyDay) {
   EXPECT_TRUE(impl.IsPaintingVideoBackgroundToBlack().value());
   EXPECT_TRUE(
       impl.IsMediaElementUsingMediaSourceBufferedRangeEnabled().value());
+  EXPECT_TRUE(
+      impl.IsMediaElementUsingMediaSourceAttachmentMethodsEnabled().value());
 }
 
 TEST(MediaSettingsImplTest, RainyDay) {
@@ -80,6 +84,8 @@ TEST(MediaSettingsImplTest, RainyDay) {
   ASSERT_FALSE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 2));
   ASSERT_FALSE(
       impl.Set("MediaElement.EnableUsingMediaSourceBufferedRange", -101));
+  ASSERT_FALSE(
+      impl.Set("MediaElement.EnableUsingMediaSourceAttachmentMethods", -101));
 
   EXPECT_FALSE(impl.GetSourceBufferEvictExtraInBytes());
   EXPECT_FALSE(impl.GetMinimumProcessorCountToOffloadAlgorithm());
@@ -91,6 +97,7 @@ TEST(MediaSettingsImplTest, RainyDay) {
   EXPECT_FALSE(impl.GetMediaElementTimeupdateEventIntervalInMilliseconds());
   EXPECT_FALSE(impl.IsPaintingVideoBackgroundToBlack());
   EXPECT_FALSE(impl.IsMediaElementUsingMediaSourceBufferedRangeEnabled());
+  EXPECT_FALSE(impl.IsMediaElementUsingMediaSourceAttachmentMethodsEnabled());
 }
 
 TEST(MediaSettingsImplTest, ZeroValuesWork) {
@@ -108,6 +115,8 @@ TEST(MediaSettingsImplTest, ZeroValuesWork) {
   // "MediaElement.TimeupdateEventIntervalInMilliseconds".
   ASSERT_TRUE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 0));
   ASSERT_TRUE(impl.Set("MediaElement.EnableUsingMediaSourceBufferedRange", 0));
+  ASSERT_TRUE(
+      impl.Set("MediaElement.EnableUsingMediaSourceAttachmentMethods", 0));
 
   EXPECT_EQ(impl.GetSourceBufferEvictExtraInBytes().value(), 0);
   EXPECT_EQ(impl.GetMinimumProcessorCountToOffloadAlgorithm().value(), 0);
@@ -118,6 +127,8 @@ TEST(MediaSettingsImplTest, ZeroValuesWork) {
   EXPECT_FALSE(impl.IsPaintingVideoBackgroundToBlack().value());
   EXPECT_FALSE(
       impl.IsMediaElementUsingMediaSourceBufferedRangeEnabled().value());
+  EXPECT_FALSE(
+      impl.IsMediaElementUsingMediaSourceAttachmentMethodsEnabled().value());
 }
 
 TEST(MediaSettingsImplTest, Updatable) {
@@ -135,6 +146,8 @@ TEST(MediaSettingsImplTest, Updatable) {
       impl.Set("MediaElement.TimeupdateEventIntervalInMilliseconds", 1));
   ASSERT_TRUE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 0));
   ASSERT_TRUE(impl.Set("MediaElement.EnableUsingMediaSourceBufferedRange", 0));
+  ASSERT_TRUE(
+      impl.Set("MediaElement.EnableUsingMediaSourceAttachmentMethods", 0));
 
   ASSERT_TRUE(impl.Set("MediaSource.SourceBufferEvictExtraInBytes", 1));
   ASSERT_TRUE(
@@ -148,6 +161,8 @@ TEST(MediaSettingsImplTest, Updatable) {
       impl.Set("MediaElement.TimeupdateEventIntervalInMilliseconds", 2));
   ASSERT_TRUE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 1));
   ASSERT_TRUE(impl.Set("MediaElement.EnableUsingMediaSourceBufferedRange", 1));
+  ASSERT_TRUE(
+      impl.Set("MediaElement.EnableUsingMediaSourceAttachmentMethods", 1));
 
   EXPECT_EQ(impl.GetSourceBufferEvictExtraInBytes().value(), 1);
   EXPECT_EQ(impl.GetMinimumProcessorCountToOffloadAlgorithm().value(), 1);
@@ -161,6 +176,8 @@ TEST(MediaSettingsImplTest, Updatable) {
   EXPECT_TRUE(impl.IsPaintingVideoBackgroundToBlack().value());
   EXPECT_TRUE(
       impl.IsMediaElementUsingMediaSourceBufferedRangeEnabled().value());
+  EXPECT_TRUE(
+      impl.IsMediaElementUsingMediaSourceAttachmentMethodsEnabled().value());
 }
 
 TEST(MediaSettingsImplTest, InvalidSettingNames) {

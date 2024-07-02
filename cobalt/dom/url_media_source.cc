@@ -18,6 +18,7 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/media_source_attachment.h"
+#include "cobalt/dom/same_thread_media_source_attachment.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/url.h"
@@ -37,7 +38,7 @@ void RegisterMediaSourceObjectURL(
   DCHECK(dom_settings->media_source_registry());
 
   scoped_refptr<MediaSourceAttachment> attachment =
-      base::MakeRefCounted<MediaSourceAttachment>(media_source);
+      base::MakeRefCounted<SameThreadMediaSourceAttachment>(media_source);
 
   dom_settings->media_source_registry()->Register(blob_url, attachment);
 }
