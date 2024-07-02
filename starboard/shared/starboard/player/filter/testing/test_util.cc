@@ -66,6 +66,11 @@ std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
     case kSbMediaAudioCodecEac3:
       content_type = "audio/mp4; codecs=\"ec-3\"";
       break;
+#if SB_API_VERSION >= 15
+    case kSbMediaAudioCodecIamf:
+      content_type = "audio/mp4; codecs=\"iamf\"";
+      break;
+#endif  // SB_API_VERSION >= 15
     default:
       SB_NOTREACHED();
   }
@@ -105,9 +110,11 @@ std::vector<const char*> GetSupportedAudioTestFiles(
                               "beneath_the_canopy_opus_5_1.dmp",
                               "beneath_the_canopy_opus_stereo.dmp",
                               "beneath_the_canopy_opus_mono.dmp",
+                              "heaac.dmp",
+                              "iamf_base_profile_stereo_ambisonics.dmp",
+                              "iamf_simple_profile_surround.dmp",
                               "sintel_329_ec3.dmp",
-                              "sintel_381_ac3.dmp",
-                              "heaac.dmp"};
+                              "sintel_381_ac3.dmp"};
 
   static std::vector<AudioFileInfo> audio_file_info_cache;
   std::vector<const char*> filenames;
