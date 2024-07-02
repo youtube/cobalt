@@ -39,7 +39,10 @@ group("gn_all") {
   }
 
   if (platform_tests_path == "") {
-    deps += [ ":starboard_platform_tests($starboard_toolchain)" ]
+    deps += [
+      ":starboard_platform_tests($starboard_toolchain)",
+      ":starboard_platform_tests_install($starboard_toolchain)",
+    ]
   } else {
     deps += [ platform_tests_path ]
   }
