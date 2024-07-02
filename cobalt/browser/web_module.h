@@ -90,6 +90,12 @@ namespace browser {
 class WebModule : public base::CurrentThread::DestructionObserver,
                   public LifecycleObserver {
  public:
+  // The task runner this object is running on.
+  base::SequencedTaskRunner* task_runner() const {
+    DCHECK(web_agent_);
+    return web_agent_ ? web_agent_->task_runner() : nullptr;
+  }
+  void WaitForItall() {}
   struct Options {
     typedef base::Callback<scoped_refptr<script::Wrappable>(
         WebModule*, web::EnvironmentSettings*)>
@@ -481,12 +487,6 @@ class WebModule : public base::CurrentThread::DestructionObserver,
   void ClearAllIntervalsAndTimeouts();
 
   void GetIsReadyToFreeze(volatile bool* is_ready_to_freeze);
-
-  // The task runner this object is running on.
-  base::SequencedTaskRunner* task_runner() const {
-    DCHECK(web_agent_);
-    return web_agent_ ? web_agent_->task_runner() : nullptr;
-  }
 
   // Private implementation object.
   std::unique_ptr<Impl> impl_;

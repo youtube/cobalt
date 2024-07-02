@@ -295,7 +295,8 @@ class WebModule::Impl {
   class DocumentLoadedObserver;
 
   // Purge all resource caches owned by the WebModule.
-  void PurgeResourceCaches(bool should_retain_remote_typeface_cache);
+  void PurgeResourceCaches(bool should_retain_remote_typeface_cache,
+                           bool on_conceal = false);
 
   // Disable callbacks in all resource caches owned by the WebModule.
   void DisableCallbacksInResourceCaches();
@@ -1130,6 +1131,7 @@ void WebModule::Impl::Conceal(render_tree::ResourceProvider* resource_provider,
   // Purge the cached resources prior to the freeze. That may cancel pending
   // loads, allowing the freeze to occur faster and preventing unnecessary
   // callbacks.
+  loader_factory_->Conceal();
   window_->document()->PurgeCachedResources();
 
   // Clear out any currently tracked animating images.
@@ -1137,7 +1139,7 @@ void WebModule::Impl::Conceal(render_tree::ResourceProvider* resource_provider,
 
   // Purge the resource caches before running any freeze logic. This will force
   // any pending callbacks that the caches are batching to run.
-  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
+  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_, true);
 
 #if defined(ENABLE_DEBUGGER)
   // The debug overlay may be holding onto a render tree, clear that out.
@@ -1184,6 +1186,7 @@ void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider,
   DCHECK(resource_provider);
   SetResourceProvider(resource_provider);
 
+  image_cache_->OnReveal();
   window_->document()->PurgeCachedResources();
   PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
 
@@ -1244,8 +1247,8 @@ void WebModule::Impl::InjectWindowOnOfflineEvent() {
 }
 
 void WebModule::Impl::PurgeResourceCaches(
-    bool should_retain_remote_typeface_cache) {
-  image_cache_->Purge();
+    bool should_retain_remote_typeface_cache, bool on_conceal) {
+  image_cache_->Purge(on_conceal);
   if (should_retain_remote_typeface_cache) {
     remote_typeface_cache_->ProcessPendingCallbacks();
   } else {

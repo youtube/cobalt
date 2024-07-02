@@ -143,6 +143,11 @@ void Loader::Resume(render_tree::ResourceProvider* resource_provider) {
   if (!is_load_complete_) Start();
 }
 
+void Loader::Conceal() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  decoder_->Conceal();
+}
+
 bool Loader::DidFailFromTransientError() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return fetcher_ && fetcher_->did_fail_from_transient_error();

@@ -266,6 +266,7 @@ class CachedResource : public CachedResourceBase {
   // returns |resource_| even if it is NULL to indicate no resource is
   // available.
   scoped_refptr<ResourceType> TryGetResource();
+  void SetIsConcealed(bool val) { is_concealed_ = val; }
 
  private:
   friend class ResourceCache<CacheType>;
@@ -286,6 +287,7 @@ class CachedResource : public CachedResourceBase {
 
   const base::Callback<void(CachedResource*)> on_resource_destroyed_;
   scoped_refptr<ResourceType> resource_;
+  bool is_concealed_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(CachedResource);
 };
@@ -347,6 +349,7 @@ void CachedResource<CacheType>::OnContentProduced(
   DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
   DCHECK(!resource_);
 
+  if (is_concealed_) return;
   resource_ = resource;
 }
 
@@ -402,7 +405,7 @@ class CachedResourceReferenceWithCallbacks {
 class ResourceCacheBase {
  public:
   typedef base::Callback<void(uint32 bytes_to_reclaim_down_to,
-                              bool log_warning_if_over)>
+                              bool log_warning_if_over, bool on_conceal)>
       ReclaimMemoryFunc;
 
   // Set a callback that the loader will query to determine if the URL is safe
@@ -419,7 +422,7 @@ class ResourceCacheBase {
   uint32 capacity() const { return cache_capacity_; }
   void SetCapacity(uint32 capacity);
 
-  void Purge();
+  void Purge(bool on_conceal = false);
 
   // Processes all pending callbacks regardless of the state of
   // |callback_blocking_loading_resource_set_|.
@@ -508,6 +511,7 @@ class ResourceCacheBase {
   bool is_processing_pending_callbacks_ = false;
   // Whether or not callbacks are currently disabled.
   bool are_callbacks_disabled_ = false;
+  bool is_concealed_ = false;
 
   base::CVal<base::cval::SizeInBytes, base::CValPublic> memory_size_in_bytes_;
   base::CVal<base::cval::SizeInBytes, base::CValPublic>
@@ -570,6 +574,11 @@ class ResourceCache : public ResourceCacheBase {
   // all unreferenced resources are released.
   std::unique_ptr<WeakCachedResourceType> CreateWeakCachedResource(
       const scoped_refptr<CachedResourceType>& cached_resource);
+  void OnReveal() {
+    for (auto& it : cached_resource_map_) {
+      it.second->SetIsConcealed(false);
+    }
+  }
 
  private:
   typedef base::hash_map<std::string, CachedResourceType*> CachedResourceMap;
@@ -601,7 +610,8 @@ class ResourceCache : public ResourceCacheBase {
   // Releases unreferenced cache objects until our total cache memory usage is
   // less than or equal to |bytes_to_reclaim_down_to|, or until there are no
   // more unreferenced cache objects to release.
-  void ReclaimMemory(uint32 bytes_to_reclaim_down_to, bool log_warning_if_over);
+  void ReclaimMemory(uint32 bytes_to_reclaim_down_to, bool log_warning_if_over,
+                     bool on_conceal = false);
 
   const CreateLoaderFunction create_loader_function_;
   const NotifyResourceRequestedFunction notify_resource_requested_function_;
@@ -907,11 +917,18 @@ void ResourceCache<CacheType>::NotifyWeakResourceDestroyed(
 
 template <typename CacheType>
 void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to,
-                                             bool log_warning_if_over) {
+                                             bool log_warning_if_over,
+                                             bool on_conceal) {
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
 
   ResourceMap* resource_maps[] = {&unreferenced_cached_resource_map_,
                                   &weak_referenced_cached_resource_map_};
+
+  if (on_conceal) {
+    for (auto& it : cached_resource_map_) {
+      it.second->SetIsConcealed(true);
+    }
+  }
 
   for (size_t i = 0; i < SB_ARRAY_SIZE(resource_maps); ++i) {
     while (memory_size_in_bytes_ > bytes_to_reclaim_down_to &&
