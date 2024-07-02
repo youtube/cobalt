@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fcntl.h>
+
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/file.h"
 
 namespace {
 bool IsUpdate(const char* mode) {
@@ -42,21 +44,26 @@ int SbFileModeStringToFlags(const char* mode) {
   switch (mode[0]) {
     case 'r':
       if (IsUpdate(mode + 1)) {
-        flags |= kSbFileWrite;
+        flags |= O_RDWR;
+      } else {
+        flags |= O_RDONLY;
       }
-      flags |= kSbFileOpenOnly | kSbFileRead;
       break;
     case 'w':
       if (IsUpdate(mode + 1)) {
-        flags |= kSbFileRead;
+        flags |= O_RDWR;
+      } else {
+        flags |= O_WRONLY;
       }
-      flags |= kSbFileCreateAlways | kSbFileWrite;
+      flags |= O_CREAT | O_TRUNC;
       break;
     case 'a':
       if (IsUpdate(mode + 1)) {
-        flags |= kSbFileRead;
+        flags |= O_RDONLY;
+      } else {
+        flags |= O_RDWR;
       }
-      flags |= kSbFileOpenAlways | kSbFileWrite;
+      flags |= O_CREAT;
       break;
     default:
       SB_NOTREACHED();

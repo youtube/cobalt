@@ -42,6 +42,10 @@ bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
 
 }  // namespace
 
+bool IsValid(int file) {
+  return file >= 0;
+}
+
 ssize_t ReadAll(int fd, void* data, int size) {
   if (fd < 0 || size < 0) {
     return -1;
@@ -86,10 +90,8 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   // The |path| points to a file. Remove it and return.
   if (err != kSbFileOk) {
-    return SbFileDelete(path);
+    return (unlink(path) == 0);
   }
-
-  SbFileInfo info;
 
   std::vector<char> entry(kSbFileMaxName);
 
@@ -110,7 +112,7 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   // Don't forget to close and remove the directory before returning!
   if (DirectoryCloseLogFailure(path, dir)) {
-    return preserve_root ? true : SbFileDelete(path);
+    return preserve_root ? true : (rmdir(path) == 0);
   }
   return false;
 }
