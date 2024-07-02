@@ -72,6 +72,7 @@ def test_android(delay, url):
   launch = starboard.android.shared.launcher.Launcher(
       1, 2, 3, None, launcher_args=['systools', 'noinstall'])
   launch._CheckCallAdb('wait-for-device')
+  time.sleep(0.2)
   launch._CheckCallAdb('shell', 'am', 'force-stop', 'dev.cobalt.coat')
   launch._CheckCallAdb('forward', 'tcp:4444', 'tcp:4444')
   launch._CheckCallAdb('logcat', '-c')
@@ -127,7 +128,8 @@ if __name__ == '__main__':
       type=str,
       default=('https://youtube.com/tv'
                '?env_forcedOffAllExperiments=true'
-               '&env_disableStartupDialog=true'))
+               '&env_disableStartupDialog=true'
+               '&env_adsUrl=invalid.domain'))
   parser.add_argument(
       '-d',
       '--delay',
