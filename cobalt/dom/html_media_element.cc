@@ -154,9 +154,13 @@ bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
 // The default value is false.
 bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
     const web::EnvironmentSettings* settings) {
-  return GetMediaSettings(settings)
-      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
-      .value_or(false);
+  if (settings->context()) {
+    return GetMediaSettings(settings)
+        .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
+        .value_or(false);
+  } else {
+    return false;
+  }
 }
 
 }  // namespace
@@ -191,7 +195,7 @@ HTMLMediaElement::HTMLMediaElement(Document* document,
           base::GenerateGUID()),
       is_using_media_source_attachment_methods_(
           IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
-              node_document()->html_element_context()->environment_settings())),
+              environment_settings())),
       pending_load_(false),
       sent_stalled_event_(false),
       sent_end_event_(false),
