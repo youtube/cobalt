@@ -178,6 +178,11 @@ void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
   ResumeActiveLoaders(resource_provider);
 }
 
+void LoaderFactory::Conceal() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  ConcealActiveLoaders();
+}
+
 void LoaderFactory::UpdateResourceProvider(
     render_tree::ResourceProvider* resource_provider) {
   DCHECK(resource_provider);
@@ -202,6 +207,16 @@ void LoaderFactory::ResumeActiveLoaders(
   for (LoaderSet::const_iterator iter = active_loaders_.begin();
        iter != active_loaders_.end(); ++iter) {
     (*iter)->Resume(resource_provider);
+  }
+
+  // Wait for all loader thread messages to be flushed before returning.
+  base::task_runner_util::WaitForFence(load_thread_.task_runner(), FROM_HERE);
+}
+
+void LoaderFactory::ConcealActiveLoaders() {
+  for (LoaderSet::const_iterator iter = active_loaders_.begin();
+       iter != active_loaders_.end(); ++iter) {
+    (*iter)->Conceal();
   }
 
   // Wait for all loader thread messages to be flushed before returning.
