@@ -228,6 +228,18 @@ def main():
       'the On-Device Tests Job. Defaults behavior is to run all tests without '
       'sharding enabled.')
   trigger_parser.add_argument(
+      '--start_timeout',
+      type=str,
+      required=False,
+      help='The amount of time to wait for device allocation. Follows Java '
+      'duration format, e.g. 1h30m.')
+  trigger_parser.add_argument(
+      '--test_timeout',
+      type=str,
+      required=False,
+      help='The amount of time to wait for test to complete. Follows Java '
+      'duration format, e.g. 1h30m.')
+  trigger_parser.add_argument(
       '--test_attempts',
       type=str,
       default='1',
