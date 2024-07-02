@@ -43,14 +43,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-      - name: Install Pip Packages
-        run: pip install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/precommit_hooks/requirements.txt
-      - name: Download Resources
-        run: python ${GITHUB_WORKSPACE}/download_resources.py
       - name: Run pre-commit
         uses: ./.github/actions/pre_commit
         with:
