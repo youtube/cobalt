@@ -1752,10 +1752,10 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
 
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  if (format == FOURCC_IAMF) {
-    RCHECK_MEDIA_LOGGED(iacb.Parse(reader), reader->media_log(),
+  if (format == FOURCC_IAMF ||
+      (format == FOURCC_ENCA && sinf.format.format == FOURCC_IAMF)) {
+    RCHECK_MEDIA_LOGGED(reader->ReadChild(&iacb), reader->media_log(),
                         "Failure parsing IamfSpecificBox (iacb)");
-    return true;
   }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 
